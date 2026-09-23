@@ -1,13 +1,13 @@
 ---
 id: TCK-559
 title: "Liste des biens : le compteur servi par le serveur repasse par « Chargement… », et une seconde requête de recherche part après l'hydratation"
-status: todo
+status: obsolete
 phase: P2
 family: technique
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:
@@ -61,6 +61,8 @@ Aucun changement d'API. `GET /api/public/properties/search`, même requête côt
 - [x] Re-mesure sous `next build && next start` (compteur et requêtes réseau), consignée dans les
       notes.
 - [ ] Si reproduit : cause établie, clefs serveur et client alignées, sans élargir la réutilisation.
+      *(Sans objet : rien ne se reproduit en build de production — cf. Notes. Ticket clos
+      `obsolete` le 2026-09-23.)*
 - [x] Test : la clef semée et la clef calculée côté client sont égales pour une URL sans `per_page`
       et pour une URL avec `per_page=30` explicite.
 

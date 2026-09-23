@@ -1,13 +1,13 @@
 ---
 id: TCK-549
 title: "Sur mobile, la pastille « Où cherchez-vous ? » ne permet pas d'écrire : elle relance la recherche courante et renvoie en page 1"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: M
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

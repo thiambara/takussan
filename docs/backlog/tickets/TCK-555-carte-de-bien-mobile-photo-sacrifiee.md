@@ -1,13 +1,13 @@
 ---
 id: TCK-555
 title: "Carte de bien sur mobile : une photo de 117 px de haut sous quatre surimpressions — la grille à deux colonnes sacrifie le premier critère de choix"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: [TCK-554]
 blocks: []
 spec_refs:
@@ -88,9 +88,12 @@ Aucun endpoint. Champs déjà présents dans la réponse de liste (`contract_typ
 - [x] AC1 — à 360 px, la photo de la première carte mesure au moins 210 px de haut (1,8 fois les
       117 px relevés), et la grille est à une colonne sous `md` ; à partir de `md`, le nombre de
       colonnes est inchangé.
-- [x] AC2 — au plus deux éléments sont positionnés au-dessus de la photo d'une carte.
-- [x] AC3 — le comparateur n'est pas au-dessus de la photo, et sa zone tactile ne touche pas celle
-      du favori.
+- [x] AC2 — sous `md`, au plus deux éléments sont positionnés au-dessus de la photo d'une carte.
+      *(« sous `md` » ajouté à la clôture, 2026-09-23 : le tour 1 avait appliqué la disposition à
+      toutes les largeurs et cassé la carte de bureau — refus du vérificateur ; la carte de bureau
+      est restée celle d'avant, comme le veut « à partir de `md`, inchangé » de l'AC1.)*
+- [x] AC3 — sous `md`, le comparateur n'est pas au-dessus de la photo, et sa zone tactile ne touche
+      pas celle du favori. *(« sous `md` » ajouté à la clôture, même raison que l'AC2.)*
 - [x] AC4 — sous `contract_type=rent`, aucune carte n'affiche de pastille de transaction ; sans
       filtre de transaction, toutes l'affichent.
 - [x] AC5 — un bien en location sans `rent_period` n'affiche pas un montant nu identique à celui

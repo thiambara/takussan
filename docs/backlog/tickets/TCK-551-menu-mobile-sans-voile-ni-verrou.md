@@ -1,13 +1,13 @@
 ---
 id: TCK-551
 title: "Menu mobile : sans voile ni verrou de défilement, fermeture impossible d'un tap à côté, rangée de catégories à moitié cachée, alignements décalés"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

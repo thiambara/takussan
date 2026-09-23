@@ -1,13 +1,13 @@
 ---
 id: TCK-553
 title: "Vue carte sur mobile : 129 étiquettes de prix empilées sans regroupement, dans une carte qui capture le défilement de la page"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

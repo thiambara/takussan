@@ -1,13 +1,13 @@
 ---
 id: TCK-556
 title: "Tiroir de filtres mobile : le geste retour défait un filtre au lieu de fermer le tiroir, et « Voir les résultats » ne dit pas combien"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

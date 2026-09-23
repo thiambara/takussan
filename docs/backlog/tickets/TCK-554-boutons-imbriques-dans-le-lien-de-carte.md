@@ -1,13 +1,13 @@
 ---
 id: TCK-554
 title: "Carte de bien : favori et comparateur sont des <button> DANS le lien — HTML invalide, nom accessible illisible, cibles de 32 px à 6 px d'écart"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: [TCK-555]
 spec_refs:

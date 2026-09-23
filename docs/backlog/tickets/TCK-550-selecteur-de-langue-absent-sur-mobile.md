@@ -1,13 +1,13 @@
 ---
 id: TCK-550
 title: "Aucun sélecteur de langue n'est atteignable sur mobile : FR / EN / WO n'existent que dans la barre de bureau"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

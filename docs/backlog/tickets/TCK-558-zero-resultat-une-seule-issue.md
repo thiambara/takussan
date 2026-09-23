@@ -1,13 +1,13 @@
 ---
 id: TCK-558
 title: "Zéro résultat : deux fois « aucun bien » et une seule issue, « Effacer tous les filtres », là où un seul filtre suffit souvent à retrouver des biens"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

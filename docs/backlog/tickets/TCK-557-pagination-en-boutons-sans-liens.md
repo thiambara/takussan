@@ -1,13 +1,13 @@
 ---
 id: TCK-557
 title: "La pagination de la liste des biens est faite de <button> sans href : pages 2 et suivantes introuvables par un robot, cibles de 36 px"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
 wave: 68
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 depends_on: []
 blocks: []
 spec_refs:

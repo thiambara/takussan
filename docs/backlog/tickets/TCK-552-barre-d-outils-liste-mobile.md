@@ -1,7 +1,7 @@
 ---
 id: TCK-552
 title: "Liste des biens sur mobile : 42 à 70 % du premier écran pris par six rangées de contrôles, qui disparaissent ensuite au défilement"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
