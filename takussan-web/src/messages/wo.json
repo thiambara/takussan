@@ -1923,7 +1923,8 @@
     "pagination": {
       "aria": "Xët yi",
       "previous": "Xët wi jiitu",
-      "next": "Xët wi ci topp"
+      "next": "Xët wi ci topp",
+      "position": "Xët {page} ci {lastPage}"
     },
     "saveSearch": {
       "defaultName": "Sama seet",

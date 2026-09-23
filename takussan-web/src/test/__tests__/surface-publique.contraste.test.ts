@@ -263,8 +263,14 @@ const FICHIERS_HORS_JETONS = 5;
  *  · +2 de `PropertyReservationDialog` (TCK-535) : les lignes « loyer » et « acompte » du
  *    récapitulatif, comme la ligne de nuits qui y était déjà.
  *  `BookingTunnel` et `BookingSummary`, aussi touchés, restent à 8 et 9.
+ *
+ * **242 → 243 le 2026-09-23 (TCK-557).** `search/Pagination.tsx` passe de 3 à 4 entrées, relevé
+ * par `couplesDuFichier` sur la version de `HEAD` puis sur la nouvelle : la ligne « Page X sur Y »
+ * ajoutée (`text-muted-foreground` sur la page), et la flèche désactivée qui n'est plus le même
+ * élément que la flèche active (un `<span>` sans lien au lieu d'un `<button disabled>`). L'ellipse
+ * et la flèche active étaient déjà comptées. Le fond est celui de la page, posé par un ancêtre.
  */
-const ENCRES_INVERSES = 242;
+const ENCRES_INVERSES = 243;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
