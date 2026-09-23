@@ -200,3 +200,15 @@ Même banc (CDP, `mobile:true`, DPR 3). `load average` jusqu'à 188 / 104 / 53 p
 | AC8 | vue carte : tri non visible, bascule « Liste » ; `?price_max=1` (0 résultat) : tri non visible, bascule absente, état vide rendu | ✓ |
 | `<h1>` | 22 px, **1 ligne** à 360 dans les trois langues ; texte inchangé (« Biens immobiliers à louer ») | ✓ |
 | Bureau | 1366 × 900, sans filtre et 4 filtres : positions de tous les contrôles au-dessus de 420 px **identiques** à `HEAD` ; seuls diffèrent les textes des puces (« En location », « F CFA », voulu) et le compteur que le relevé d'avant avait pris en « Chargement… » ; aucune pastille flottante | ✓ |
+
+### Correctif après fusion (2026-09-23, session d'intégration)
+
+La suite front COMPLÈTE, jouée sur la branche d'intégration après la fusion de la vague 1, a rougi
+sur `src/test/__tests__/surface-publique.contraste.test.ts` (TCK-458) : les deux boutons pleins
+ajoutés ici (Filtres de la rangée, `SearchToolbar.tsx`, et Filtres de la pastille flottante,
+`OutilsFlottantsDeListe.tsx`) survolaient en `hover:bg-primary/90`, soit **4,18:1** pour
+`text-primary-foreground` — sous le seuil de 4,5. Le défaut est propre à cette branche (rouge sur sa
+pointe seule, vérifié dans un worktree détaché) ; ni l'implémentation ni la réfutation n'avaient
+lancé cette garde transversale, faute de la lier aux fichiers touchés. Correctif : le survol du
+bouton plein du dépôt, `hover:bg-[var(--primary-deep)]` (jeton redéfini sous `.dark`). Témoin : la
+garde rouge avant, verte après (`npx vitest run src/test src/components/search`, 112/112).
