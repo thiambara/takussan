@@ -147,4 +147,23 @@ describe('TCK-559 — `per_page` ne sépare pas la clef semée de la clef du cli
     const relevee = new URLSearchParams('contract_type=rent&q=Dakar&per_page=30');
     expect(clefDeRecherche(relevee)).toBe(cotéServeur({ contract_type: 'rent', q: 'Dakar' }));
   });
+
+  /**
+   * ⚠ Les trois cas ci-dessus comparent deux clefs entre elles : une clef qui IGNORERAIT `per_page`
+   * les laisserait tous verts, alors que la page appelle l'API AVEC cette clef — le serveur rendrait
+   * 20 biens au lieu de 30. Et `per_page=30` est aussi la valeur par défaut : un chemin serveur qui
+   * PERDRAIT le `per_page` de l'URL resterait égal à celui du client. Les deux cas suivants ferment
+   * ces deux trous (contre-vérification du 2026-09-23, mutations M1 et M2).
+   */
+  it('la clef semée PORTE le `per_page` que l’API recevra', () => {
+    expect(cotéServeur({ contract_type: 'rent', q: 'Dakar' })).toContain(
+      `per_page=${PER_PAGE_PAR_DEFAUT}`,
+    );
+  });
+
+  it('un `per_page` autre que la valeur par défaut survit au chemin serveur', () => {
+    const clef = cotéServeur({ contract_type: 'rent', q: 'Dakar', per_page: '48' });
+    expect(clef).toContain('per_page=48');
+    expect(clef).toBe(cotéClient('q=Dakar&per_page=48&contract_type=rent'));
+  });
 });

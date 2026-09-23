@@ -156,7 +156,50 @@ la requête relevée sous `next dev` comparée à la clef semée. Ablations :
   régression de `parametresDeRecherche` elle-même, seulement une divergence d'entrée (objet de
   Next contre chaîne du navigateur). C'est le 3ᵉ qui fige la forme de la requête relevée.
 
-⚠ **Ce qu'aucun test ne garde** : le double passage du mode strict. `renderHook` sous
-`<StrictMode>` ne rejoue pas l'effet dans cette suite (mesuré : 1 passage d'un `useEffect` témoin,
-pas 2) — un test « sans requête sous StrictMode » serait vert sur le code actuel sans rien prouver.
+### Correction après contre-vérification (tour 1, 2026-09-23)
 
+**Une affirmation du tour précédent était fausse, et elle était présentée comme mesurée.** Elle
+disait : *« `renderHook` sous `<StrictMode>` ne rejoue pas l'effet dans cette suite — un test “sans
+requête sous StrictMode” serait vert sur le code actuel sans rien prouver. »* La mesure portait sur
+une seule forme, `renderHook(…, { wrapper: StrictMode })`, et la conclusion a été étendue à toutes.
+Re-mesuré dans ce worktree par un fichier temporaire (supprimé ensuite, `git status` propre) :
+
+| forme | passages d'un `useEffect(…, [])` témoin |
+|---|---|
+| `renderHook(…, { wrapper: StrictMode })` | **1** |
+| `renderHook(…, { reactStrictMode: true })` (option de RTL 16) | **2** |
+
+Et sur le hook lui-même, graine de l'audit (`contract_type=rent&q=Dakar`), 200 ms après le montage :
+
+| `renderHook(() => useSearch({ graine }), …)` | appels à `apiFetch` | suite des `loading` |
+|---|---|---|
+| `reactStrictMode: false` | **0** | `[false]` |
+| `reactStrictMode: true` | **1** — `/public/properties/search?contract_type=rent&q=Dakar&per_page=30` | `[false,false,true,true,false,false]` |
+
+**Le constat P9 de `next dev` se reproduit donc dans vitest, en une option.** Un test « un montage
+semé ne fait aucune requête, sous `reactStrictMode: true` » est écrivable, et il serait **ROUGE**
+sur le code actuel — l'inverse de ce que ce paragraphe affirmait. Cette mesure confirme au passage
+la cause établie plus haut (le double passage de l'effet consomme la graine au premier passage),
+par une seconde voie indépendante du navigateur.
+
+Ce test n'est **pas** ajouté ici : ce ticket ne corrige rien (la production ne reproduit pas), et
+un test rouge sans correctif n'a pas sa place dans la suite. Il est le point de départ tout prêt
+d'un éventuel ticket « la graine survit au remontage du mode strict » — dont l'intérêt est la
+fidélité de `next dev` à la production, pas l'utilisateur.
+
+**Deux trous de test fermés dans le même tour** (mutations de la contre-vérification, rejouées ici
+sur `src/lib/recherche-publique.ts`, fichier restauré par `cp`, md5 `b28721f6…` identique à HEAD) :
+
+| mutation | avant (3 cas TCK-559) | après (5 cas) |
+|---|---|---|
+| M1 : `clefDeRecherche` ignore `per_page` (`copie.delete('per_page')`) | 23/23 verts | **2 rouges** |
+| M2 : `parametresDepuisNext` perd `per_page` | 23/23 verts | **1 rouge** |
+
+Cas ajoutés : la clef semée **contient** `per_page=30` (une clef qui l'ignore serait égale des deux
+côtés et pourtant fausse : la page appelle l'API avec elle), et un `per_page=48` qui doit survivre
+au chemin serveur (`per_page=30` explicite ne le pouvait pas : c'est aussi la valeur par défaut).
+
+**Hors périmètre, relevé par la contre-vérification et non traité** : sur un `router.push` dans la
+page, le composant serveur refait la recherche pour une graine que le hook ignore (elle ne vaut que
+pour le premier montage), et le client la refait aussi — la même recherche part deux fois par
+changement de filtre. À mesurer dans un ticket à part.
