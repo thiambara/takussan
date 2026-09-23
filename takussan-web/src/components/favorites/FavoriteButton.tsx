@@ -10,6 +10,7 @@ import {
 } from '@/lib/queries/favorites';
 import { useFavorites } from '@/lib/favoritesStore';
 import { useTranslations } from 'next-intl';
+import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 
 /**
  * Heart button — toggles a property's favorite state.
@@ -23,7 +24,11 @@ import { useTranslations } from 'next-intl';
  * - Anonymous → store update only.
  *
  * Set `requireAuth={true}` to redirect to login when logged out.
- * Absorbs the parent `<Link>` click so the user stays on the card.
+ *
+ * TCK-554 — le bouton n'est plus DANS le lien de la carte, il en est le frère
+ * (`LienDeCarte`) : un tap ne peut plus naviguer. `preventDefault` et `stopPropagation`
+ * restent par défense, pour un appelant qui le poserait dans un conteneur cliquable.
+ * Sa zone tactile fait 44 × 44 px quelle que soit sa taille dessinée (`ZONE_TACTILE_44`).
  */
 
 export interface FavoriteButtonProps {
@@ -117,7 +122,7 @@ export function FavoriteButton({
       // 20 % disparaissait sur toute photo claire et sur le repli « Photo à venir » (revue design
       // du 2026-09-16). Le voile assombrit quel que soit le thème. À 30 %, un pixel blanc dessous
       // laissait l'icône à 2,01:1 ; à 50 %, le pire cas tient le seuil non textuel de 3:1.
-      className={`${SIZE_CLASSES[size]} rounded-full backdrop-blur-md flex items-center justify-center transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96] cursor-pointer disabled:cursor-wait ${
+      className={`${SIZE_CLASSES[size]} ${ZONE_TACTILE_44} rounded-full backdrop-blur-md flex items-center justify-center transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96] cursor-pointer disabled:cursor-wait ${
         isFavorite
           ? 'bg-card text-destructive shadow-md'
           : 'bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary'
