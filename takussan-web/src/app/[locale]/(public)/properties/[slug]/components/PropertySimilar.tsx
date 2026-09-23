@@ -84,7 +84,9 @@ export function PropertySimilar({ slug }: PropertySimilarProps) {
               key={property.id}
               className="flex-[0_0_85%] sm:flex-[0_0_48%] lg:flex-[0_0_24%] min-w-0"
             >
-              <PropertyCard property={property} sizes={CARD_SIZES_SIMILAR_CAROUSEL} />
+              {/* TCK-555 — la diapositive suivante dépasse à côté de la courante à toutes les
+                  largeurs : les titres réservent deux lignes pour que prix et détails s'alignent. */}
+              <PropertyCard property={property} sizes={CARD_SIZES_SIMILAR_CAROUSEL} titreSurDeuxLignes="toujours" />
             </div>
           ))}
         </div>

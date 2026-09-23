@@ -113,7 +113,9 @@ describe.each(CARTES)('%s — TCK-554', (_nom, Carte, { comparateur }) => {
     // Le favori existe bien — sinon le zéro ci-dessus ne dirait rien.
     expect(screen.getByRole('button', { name: /ajouter aux favoris/i })).toBeInTheDocument();
     if (comparateur) {
-      expect(screen.getByRole('button', { name: /ajouter au comparateur/i })).toBeInTheDocument();
+      // `getAll` : `PropertyCard` rend le comparateur à deux endroits (TCK-555) — sur la photo au
+      // bureau, dans la rangée du prix sous `md` —, un seul étant affiché à chaque largeur.
+      expect(screen.getAllByRole('button', { name: /ajouter au comparateur/i }).length).toBeGreaterThan(0);
     }
   });
 
@@ -168,7 +170,10 @@ describe.each(CARTES)('%s — TCK-554', (_nom, Carte, { comparateur }) => {
       const atteint = vi.fn();
       lien.addEventListener('click', atteint);
 
-      fireEvent.click(screen.getByRole('button', { name: /ajouter au comparateur/i }));
+      // Chacun des emplacements du comparateur (TCK-555 : photo au bureau, rangée du prix sous `md`).
+      for (const bouton of screen.getAllByRole('button', { name: /ajouter au comparateur/i })) {
+        fireEvent.click(bouton);
+      }
 
       expect(atteint).not.toHaveBeenCalled();
     });

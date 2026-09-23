@@ -90,53 +90,133 @@ function monte(bien: Partial<PropertyListItem> = {}, props: Partial<PropertyCard
 }
 
 /**
- * Les éléments POSÉS sur la photo, comptés sans liste nominative : tout rond (`rounded-full` —
- * pastilles, boutons, bulle d'ancienneté) qui n'est pas contenu dans un autre rond. Le point
- * coloré d'une pastille est dans sa pastille : il ne compte pas. Une surimpression neuve, de
- * quelque nature qu'elle soit, compte — sans que personne l'ait déclarée ici.
+ * Ce qu'une largeur d'écran MONTRE, lu sur les classes — jsdom ne charge aucune feuille de style.
+ *
+ * TCK-555, tour 2 — la carte a DEUX dispositions : sous `md` (téléphone), la photo porte au plus
+ * deux choses ; à partir de `md`, la carte de bureau est INCHANGÉE (contrainte du ticket). Le
+ * premier tour appliquait la disposition mobile à toutes les largeurs : sur les emplacements de
+ * 192 px du bureau, le prix passait à la ligne sur 17 cartes sur 30 et la ligne de détails
+ * laissait une puce pendante sur 24. Ce qui ne vaut que d'un côté porte donc `md:hidden` (visible
+ * sous `md` seulement) ou `hidden md:<affichage>` (visible à partir de `md` seulement).
  */
-function surimpressions(photo: HTMLElement): HTMLElement[] {
-  const ronds = [...photo.querySelectorAll<HTMLElement>('.rounded-full')];
+const AFFICHAGE_DES_MD = /(^|\s)md:(flex|inline-flex|block|inline|contents|grid)(\s|$)/;
+
+function classes(el: Element): string[] {
+  return (el.getAttribute('class') ?? '').split(/\s+/);
+}
+
+function visible(el: HTMLElement, largeur: 'mobile' | 'bureau'): boolean {
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    const c = classes(n);
+    if (largeur === 'mobile' && (c.includes('hidden') || c.includes('max-md:hidden'))) return false;
+    if (largeur === 'bureau') {
+      if (c.includes('md:hidden')) return false;
+      if (c.includes('hidden') && !AFFICHAGE_DES_MD.test(n.getAttribute('class') ?? '')) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Les éléments POSÉS sur la photo, comptés sans liste nominative : tout rond (`rounded-full` —
+ * pastilles, boutons, bulle d'ancienneté) qui n'est pas contenu dans un autre rond, et que la
+ * largeur montre. Le point coloré d'une pastille est dans sa pastille : il ne compte pas. Une
+ * surimpression neuve, de quelque nature qu'elle soit, compte — sans que personne l'ait déclarée.
+ */
+function surimpressions(photo: HTMLElement, largeur: 'mobile' | 'bureau' = 'mobile'): HTMLElement[] {
+  const ronds = [...photo.querySelectorAll<HTMLElement>('.rounded-full')].filter((el) => visible(el, largeur));
   return ronds.filter((el) => !ronds.some((autre) => autre !== el && autre.contains(el)));
 }
 
-describe('TCK-555 — surimpressions de la photo', () => {
-  it('au plus deux éléments sur la photo : la pastille de transaction et le favori', () => {
+/** Les éléments dont le texte vaut `texte` exactement, et que la largeur montre. */
+function textesVisibles(racine: HTMLElement, texte: string | RegExp, largeur: 'mobile' | 'bureau'): HTMLElement[] {
+  return within(racine)
+    .queryAllByText(texte)
+    .filter((el) => visible(el, largeur));
+}
+
+const COMPARATEUR = /ajouter au comparateur/i;
+
+describe('TCK-555 — sous `md`, la photo porte au plus deux éléments', () => {
+  it('la pastille de transaction et le favori, rien d’autre', () => {
     const { photo } = monte();
     const posees = surimpressions(photo);
     expect(posees).toHaveLength(2);
-    expect(within(photo).getByText('En location')).toBeInTheDocument();
-    expect(within(photo).getByRole('button', { name: /ajouter aux favoris/i })).toBeInTheDocument();
+    expect(textesVisibles(photo, 'En location', 'mobile')).toHaveLength(1);
+    expect(visible(within(photo).getByRole('button', { name: /ajouter aux favoris/i }), 'mobile')).toBe(true);
   });
 
   it('le comparateur reste sur la carte, mais hors de la photo', () => {
-    const { photo } = monte();
-    const comparateur = screen.getByRole('button', { name: /ajouter au comparateur/i });
-    expect(photo.contains(comparateur)).toBe(false);
+    const { photo, container } = monte();
+    const montres = screen.getAllByRole('button', { name: COMPARATEUR }).filter((b) => visible(b, 'mobile'));
+    // UN comparateur à l'écran, pas deux, et pas sur la photo.
+    expect(montres).toHaveLength(1);
+    expect(photo.contains(montres[0])).toBe(false);
+    expect(container.contains(montres[0])).toBe(true);
   });
 
   it("l'ancienneté quitte la photo et reste lisible, en texte, dans la ligne de détails", () => {
-    const { photo } = monte();
-    expect(within(photo).queryByText(/il y a/)).not.toBeInTheDocument();
-    const age = screen.getByText('il y a 3 mois');
+    const { photo, container } = monte();
+    expect(textesVisibles(photo, /il y a/, 'mobile')).toHaveLength(0);
+    const ages = textesVisibles(container, 'il y a 3 mois', 'mobile');
+    expect(ages).toHaveLength(1);
     // Dans la même ligne que « 3 Ch. • 240 m² » — la ligne de détails, pas un élément à part.
-    expect(age.parentElement).toHaveTextContent(/3 Ch\..*240 m².*il y a 3 mois/);
+    expect(ages[0].parentElement).toHaveTextContent(/3 Ch\..*240 m².*il y a 3 mois/);
   });
 
   it('un bien « Neuf » ne fait pas une troisième surimpression : l’état passe dans les détails', () => {
-    const { photo } = monte({ condition: 'new' });
+    const { photo, container } = monte({ condition: 'new' });
     expect(surimpressions(photo)).toHaveLength(2);
-    expect(within(photo).getByText('En location')).toBeInTheDocument();
-    expect(within(photo).queryByText('Neuf')).not.toBeInTheDocument();
-    expect(screen.getByText('Neuf').parentElement).toHaveTextContent(/Neuf.*3 Ch\./);
+    expect(textesVisibles(photo, 'En location', 'mobile')).toHaveLength(1);
+    expect(textesVisibles(photo, 'Neuf', 'mobile')).toHaveLength(0);
+    const neuf = textesVisibles(container, 'Neuf', 'mobile');
+    expect(neuf).toHaveLength(1);
+    expect(neuf[0].parentElement).toHaveTextContent(/Neuf.*3 Ch\./);
   });
 
   it('sous filtre de transaction, la pastille « Neuf » reprend la place laissée libre', () => {
-    const { photo } = monte({ condition: 'new' }, { transactionFiltree: 'rent' });
+    const { photo, container } = monte({ condition: 'new' }, { transactionFiltree: 'rent' });
     expect(surimpressions(photo)).toHaveLength(2);
-    expect(within(photo).getByText('Neuf')).toBeInTheDocument();
-    // Et l'état n'est pas dit deux fois.
-    expect(screen.getAllByText('Neuf')).toHaveLength(1);
+    expect(textesVisibles(photo, 'Neuf', 'mobile')).toHaveLength(1);
+    // Et l'état n'est dit qu'une fois, à chaque largeur.
+    expect(textesVisibles(container, 'Neuf', 'mobile')).toHaveLength(1);
+    expect(textesVisibles(container, 'Neuf', 'bureau')).toHaveLength(1);
+  });
+});
+
+describe('TCK-555 — à partir de `md`, la carte de bureau est inchangée', () => {
+  it('la photo porte ce qu’elle portait : transaction, favori, comparateur, ancienneté', () => {
+    const { photo } = monte();
+    expect(surimpressions(photo, 'bureau')).toHaveLength(4);
+    expect(textesVisibles(photo, 'En location', 'bureau')).toHaveLength(1);
+    expect(textesVisibles(photo, 'il y a 3 mois', 'bureau')).toHaveLength(1);
+    const comparateurs = within(photo)
+      .getAllByRole('button', { name: COMPARATEUR })
+      .filter((b) => visible(b, 'bureau'));
+    expect(comparateurs).toHaveLength(1);
+  });
+
+  it('un seul comparateur à l’écran, celui de la photo — la rangée du prix n’en porte pas', () => {
+    const { photo } = monte();
+    const montres = screen.getAllByRole('button', { name: COMPARATEUR }).filter((b) => visible(b, 'bureau'));
+    expect(montres).toHaveLength(1);
+    expect(photo.contains(montres[0])).toBe(true);
+  });
+
+  it('la ligne de détails ne porte ni l’ancienneté ni l’état : ils sont sur la photo', () => {
+    const { container, photo } = monte({ condition: 'new' });
+    expect(textesVisibles(container, 'il y a 3 mois', 'bureau').every((el) => photo.contains(el))).toBe(true);
+    const neuf = textesVisibles(container, 'Neuf', 'bureau');
+    expect(neuf).toHaveLength(1);
+    expect(photo.contains(neuf[0])).toBe(true);
+    // Les deux pastilles côte à côte, comme avant.
+    expect(surimpressions(photo, 'bureau')).toHaveLength(5);
+  });
+
+  it('la rangée du prix redevient un bloc : le prix dispose de toute la largeur', () => {
+    const { container } = monte();
+    const rangee = container.querySelector('[data-prix]')!.parentElement!;
+    expect(classes(rangee)).toContain('md:block');
   });
 });
 
@@ -173,6 +253,12 @@ describe('TCK-555 — le prix', () => {
     expect(prixLoyer).toMatch(/loyer/);
   });
 
+  it('le suffixe est séparé du montant dans le TEXTE, pas seulement à l’écran', () => {
+    // Un lecteur d'écran lisait « F CFA· loyer » : l'espace n'existait que par une marge.
+    const { container } = monte({ rent_period: null });
+    expect(container.querySelector('[data-prix]')?.textContent).toMatch(/CFA[\s\u00a0\u202f]+· loyer$/);
+  });
+
   it('un loyer avec période garde sa période', () => {
     const { container } = monte();
     expect(container.querySelector('[data-prix]')).toHaveTextContent(/\/mois$/);
@@ -187,5 +273,13 @@ describe('TCK-555 — hauteur du titre', () => {
     expect(titre.className).not.toMatch(/(^|\s)h-10(\s|$)/);
     // Là où des cartes voisines s'alignent (grilles à deux colonnes et plus), la réserve reste.
     expect(titre.className).toMatch(/(^|\s)sm:h-10(\s|$)/);
+  });
+
+  it('réserve deux lignes à toutes les largeurs quand l’appelant aligne des cartes voisines', () => {
+    // Le carrousel des biens similaires montre la diapositive suivante à côté de la courante,
+    // à toutes les largeurs : sans réserve, prix et détails s'y décalaient de 20 px.
+    monte({}, { titreSurDeuxLignes: 'toujours' });
+    const titre = screen.getByRole('heading', { name: BASE.title });
+    expect(titre.className).toMatch(/(^|\s)h-10(\s|$)/);
   });
 });

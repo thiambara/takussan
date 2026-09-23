@@ -304,12 +304,20 @@ TCK-555 :
 - **Une colonne pleine largeur sous `md`** sur `/properties` (photo de 328 × 246 px à 360 px, contre
   156 × 117 en deux colonnes) ; les paliers de bureau ne bougent pas. Décision réversible : la ligne
   horizontale (photo à gauche) reste l'alternative si la longueur de liste se révèle coûteuse.
-- **Au plus deux éléments sur la photo** : une pastille (transaction, ou « Neuf / Sur plan » quand la
-  transaction est masquée) et le favori. Le comparateur est dans la rangée du prix, à l'opposé du
-  favori ; l'ancienneté et, le cas échéant, l'état « Neuf » sont du texte dans la ligne de détails.
+- **Sous `md`, au plus deux éléments sur la photo** : une pastille (transaction, ou « Neuf / Sur
+  plan » quand la transaction est masquée) et le favori. Le comparateur est dans la rangée du prix,
+  à l'opposé du favori ; l'ancienneté et, le cas échéant, l'état « Neuf » sont du texte dans la
+  ligne de détails.
+- **À partir de `md`, la carte de bureau est celle d'avant** : comparateur sous le favori,
+  ancienneté en bas à gauche de la photo, « Neuf » à côté de la transaction. Sur les emplacements de
+  192 px du bureau, la disposition mobile faisait passer le prix à la ligne et laissait une puce
+  pendante dans les détails. Chaque élément qui change de place est rendu aux deux endroits et
+  masqué par la largeur (`md:hidden` / `hidden md:…`).
 - **La pastille de transaction se retire quand la liste est filtrée sur cette transaction** — c'est la
   grille qui le dit à la carte (`transactionFiltree`), jamais la carte qui lit l'URL.
-- **Deux lignes réservées au titre à partir de `sm` seulement**, là où des cartes voisines s'alignent.
+- **Deux lignes réservées au titre à partir de `sm` seulement**, là où des cartes voisines s'alignent
+  — et à toutes les largeurs dans le carrousel des biens similaires, où la diapositive suivante
+  dépasse à côté de la courante (`titreSurDeuxLignes="toujours"`).
 - **Un loyer sans période ne s'affiche jamais comme un prix nu** (« 950 000 F CFA · loyer »).
 
 Cartes prévues, ticket dédié à ouvrir si besoin sort :

@@ -53,10 +53,12 @@ describe('TCK-555 — la grille de /properties', () => {
     render(withIntl(<PropertiesDiscoveryPage />));
     const carte = await screen.findByTestId('carte-22');
     const classes = carte.parentElement!.className.split(/\s+/);
-    expect(classes).toContain('grid-cols-1');
-    expect(classes).not.toContain('grid-cols-2');
-    // Bureau inchangé (contrainte du ticket) : les mêmes paliers qu'avant.
-    expect(classes).toEqual(expect.arrayContaining(['md:grid-cols-3', 'xl:grid-cols-4', '2xl:grid-cols-5']));
+    // TOUS les paliers de colonnes, à l'égalité : une inclusion laissait passer un
+    // `sm:grid-cols-2` (deux colonnes de 640 à 767 px, contre l'AC1) comme un `lg:grid-cols-4`
+    // (le bureau change, contre la contrainte du ticket) — mutants survivants du tour 1.
+    const paliers = classes.filter((c) => /(^|:)grid-cols-/.test(c)).sort();
+    // Sous `md` : une colonne. À partir de `md` : les paliers d'avant TCK-555, `md:3 xl:4 2xl:5`.
+    expect(paliers).toEqual(['2xl:grid-cols-5', 'grid-cols-1', 'md:grid-cols-3', 'xl:grid-cols-4']);
   });
 
   it('transmet la transaction filtrée aux cartes', async () => {
