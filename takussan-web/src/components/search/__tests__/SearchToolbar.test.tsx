@@ -87,16 +87,20 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
     monte(TOUS_LES_FILTRES);
 
     expect(puces()).toEqual([
-      '"villa vue mer"',
+      // TCK-552 — sans guillemets : la puce de recherche libre porte une icône (cf.
+      // `SearchToolbar.rangee-mobile.test.tsx`).
+      'villa vue mer',
       'Quartier : Almadies',
       'Dakar',
       'Dans un rayon de 5 km',
-      'Location',
+      // TCK-552 — le mot de la pastille des cartes.
+      'En location',
       'Villa',
       'Studio',
       'Mensuel',
-      '≥ 150 000 FCFA',
-      '≤ 900 000 FCFA',
+      // TCK-552 — la devise des CARTES (`formatPrice`), et non plus « FCFA » écrit par le gabarit.
+      '≥ 150 000 F CFA',
+      '≤ 900 000 F CFA',
       '3 ch.',
       '2 sdb',
       '≥ 40 m²',
@@ -172,7 +176,12 @@ describe('<SearchToolbar> — AC1, vu à l’exécution', () => {
    * que « Ville : Dakar » sur une puce. L'exception est écrite à la main pour que l'ajouter à
    * une seconde clé soit un geste visible en revue.
    */
-  const LIBELLE_BRUT_ASSUME: readonly CleDeRechercheNom[] = ['city'];
+  //
+  // TCK-552 — `q` rejoint l'exception, et pour une raison qui n'est pas celle de `city` : sa puce
+  // rend le texte saisi précédé d'une ICÔNE de recherche. Les guillemets bruts (`"Dakar"`) qui le
+  // distinguaient se lisaient comme une faute (P8) ; c'est l'icône qui distingue maintenant le
+  // texte libre d'une ville, et `SearchToolbar.rangee-mobile.test.tsx` garde sa présence.
+  const LIBELLE_BRUT_ASSUME: readonly CleDeRechercheNom[] = ['city', 'q'];
 
   it('aucune puce ne rend la valeur brute du filtre', () => {
     for (const cle of CLES_DE_RECHERCHE) {
@@ -269,12 +278,22 @@ describe('<SearchToolbar> — le compteur tient sur une ligne, les contrôles pa
   /**
    * Re-mesuré après le premier correctif, à 360 px : le groupe des contrôles (deux sélecteurs +
    * « Filtres ») passait bien sous le compteur, mais lui-même ne se repliait pas — 336 px de
-   * contrôles dans 328 px, et le viewport s'élargissait à 368. Le groupe doit se replier aussi.
+   * contrôles dans 328 px, et le viewport s'élargissait à 368.
+   *
+   * ⚠ TCK-552 a REMPLACÉ ce correctif, et le test garde maintenant le remplaçant. Le groupe devait
+   * tenir sur UNE rangée (Filtres, tri, bascule) : `flex-wrap` l'y aurait empêché, parce que le
+   * retour à la ligne se décide sur la largeur de contenu, avant tout rétrécissement. Le
+   * débordement est tenu par le seul élément compressible — le tri, `min-w-0 flex-1`, dont la
+   * valeur se tronque — et « par page » ne compte plus sous `lg`. La propriété mesurée par TCK-505
+   * (le viewport ne s'élargit pas à 360) est re-mesurée au navigateur dans les notes de TCK-552.
    */
-  it('le groupe des contrôles se replie lui aussi quand la largeur manque', () => {
+  it('le groupe ne déborde pas : le tri est l’élément compressible', () => {
     monte({ city: 'Dakar' });
     const filtres = screen.getByRole('button', { name: /filtres/i });
     const groupe = filtres.parentElement!;
-    expect(groupe.className.split(/\s+/)).toContain('flex-wrap');
+    expect(groupe.className.split(/\s+/)).toEqual(expect.arrayContaining(['flex', 'w-full']));
+    const tri = screen.getByRole('combobox', { name: /trier/i });
+    expect(tri.parentElement).toBe(groupe);
+    expect(tri.className.split(/\s+/)).toEqual(expect.arrayContaining(['min-w-0', 'flex-1']));
   });
 });

@@ -1911,8 +1911,8 @@
       "availableFrom": "Jot ci {date}",
       "quarter": "Gox : {value}",
       "tags": "Tag : {value}",
-      "priceMin": "≥ {value} FCFA",
-      "priceMax": "≤ {value} FCFA",
+      "priceMin": "≥ {value}",
+      "priceMax": "≤ {value}",
       "bedrooms": "{n} neeg",
       "bathrooms": "{n} sanjaan",
       "areaMin": "≥ {value} m²",
@@ -3754,7 +3754,8 @@
     "discovery": {
       "viewSwitchAria": "Wonewu njeexital yi",
       "viewList": "Limu",
-      "viewMap": "Kart"
+      "viewMap": "Kart",
+      "outilsFlottantsAria": "Jumtukaayu seet"
     },
     "rentPeriodsShort": {
       "daily": "bés",

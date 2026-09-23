@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { List, Map as MapIcon, SearchX } from 'lucide-react';
 import { ApiError } from '@/lib/api';
@@ -11,6 +11,7 @@ import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
 import { SearchToolbar } from '@/components/search/SearchToolbar';
+import { OutilsFlottantsDeListe } from '@/components/search/OutilsFlottantsDeListe';
 import { WidenedSearchNotice } from '@/components/search/WidenedSearchNotice';
 import { Pagination } from '@/components/search/Pagination';
 import { PropertyCard } from '@/components/property/PropertyCard';
@@ -19,6 +20,7 @@ import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 
@@ -131,6 +133,70 @@ function ViewToggle({
 }
 
 /**
+ * TCK-552 — la bascule de la rangée d'outils MOBILE : UN contrôle de 44 × 44 px, qui nomme la vue
+ * où il mène.
+ *
+ * Les onglets `ViewToggle` faisaient 24 px de haut et occupaient une rangée entière (P5). Ici, un
+ * seul bouton en bout de rangée : la carte depuis la liste, la liste depuis la carte. Les onglets
+ * restent sur le bureau, qui n'est pas modifié.
+ *
+ * ⚠ **Icône seule, et c'est une mesure, pas un goût.** Avec son libellé (« Carte », 94 px), la
+ * rangée laissait 92 px au tri à 360 px, et « Pertinence » s'y tronquait à 44 px visibles sur 70
+ * (relevé au navigateur, notes du ticket). Le nom accessible reste le mot (`aria-label`), l'infobulle
+ * aussi (`title`) ; et la pastille flottante, qui a la place, écrit « Carte » en toutes lettres.
+ */
+function BasculeDeVue({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  const t = useTranslations('property.discovery');
+  const versLaCarte = view === 'list';
+  const libelle = versLaCarte ? t('viewMap') : t('viewList');
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(versLaCarte ? 'map' : 'list')}
+      aria-label={libelle}
+      title={libelle}
+      className="grid size-11 place-items-center rounded-full border border-border bg-card text-foreground shadow-sm transition-[color,border-color,scale] hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
+    >
+      {versLaCarte ? (
+        <MapIcon className="size-5" aria-hidden />
+      ) : (
+        <List className="size-5" aria-hidden />
+      )}
+    </button>
+  );
+}
+
+/**
+ * TCK-552 — vrai quand l'élément est sorti de l'écran PAR LE HAUT (sous la `nav` fixe).
+ *
+ * Par le haut seulement : un élément encore sous le pli n'a pas été « dépassé ». Sans
+ * `IntersectionObserver` (rendu serveur, jsdom), rien n'est jamais « dépassé » — la pastille
+ * flottante ne double alors pas une rangée d'outils déjà à l'écran.
+ */
+function useDepasseParLeHaut(ref: React.RefObject<HTMLElement | null>, margeHautePx: number): boolean {
+  const [depasse, setDepasse] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver(
+      ([entree]) => {
+        setDepasse(!entree.isIntersecting && entree.boundingClientRect.top < margeHautePx);
+      },
+      { rootMargin: `-${margeHautePx}px 0px 0px 0px` },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ref, margeHautePx]);
+  return depasse;
+}
+
+/** Hauteur de la `nav` fixe du site public (68 px, mesurée) : la rangée qui passe dessous est hors d'atteinte. */
+const HAUTEUR_NAV_PX = 68;
+
+/** Le seuil `lg` de Tailwind. */
+const LG_BREAKPOINT_PX = 1024;
+
+/**
  * TCK-432 — la page reçoit désormais deux choses du serveur, et aucune n'est décorative.
  */
 export type ProprietesDeLaListe = {
@@ -168,6 +234,19 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
 
   const properties = data?.data ?? [];
   const meta = data?.meta;
+
+  // TCK-552 — à zéro résultat CONFIRMÉ (ni en chargement, ni en erreur), le tri et la bascule
+  // n'agissent sur rien (E1) : ils ne sont pas rendus sous `lg`. Et la vue y retombe sur la
+  // liste — sans quoi, la bascule masquée, un visiteur en vue carte y resterait enfermé devant
+  // une carte vide, loin de l'état vide qui, lui, ne vit que dans la liste. Sous `lg` seulement :
+  // le bureau garde ses onglets, donc sa sortie, et n'est pas modifié.
+  const sousLg = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
+  const aucunResultat = !loading && !error && meta?.total === 0;
+  const vue: View = aucunResultat && sousLg ? 'list' : view;
+
+  // TCK-552 — Filtres et Carte à portée du pouce pendant le défilement (P4, AC3).
+  const rangeeOutilsRef = useRef<HTMLDivElement>(null);
+  const rangeeDepassee = useDepasseParLeHaut(rangeeOutilsRef, HAUTEUR_NAV_PX);
 
   // TCK-335 — le retour arrière repartait du haut. En traversée d'historique, Next ne
   // reprend pas la main sur le défilement : c'est la restauration NATIVE qui opère, et
@@ -236,7 +315,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
 
       <NavbarSpacer />
 
-      <div className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-16 py-8">
+      <div className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-16 py-4 md:py-8">
         <div className="flex gap-6 items-start">
           <FilterSidebar
             filters={filters}
@@ -264,11 +343,17 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               qui porte sur la chaîne et pas seulement sur `undefined`.
             */}
             {titre?.trim() ? (
-              <h1 className="font-display text-[28px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-5">
+              // TCK-552 — plus compact sous `md` (P6) : à 28 px, « Biens immobiliers à louer » tenait
+              // sur DEUX lignes à 360. Le texte ne change pas (TCK-432) ; à partir de `md`, rien ne
+              // change non plus.
+              <h1 className="font-display text-[22px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-5">
                 {titre}
               </h1>
             ) : null}
 
+            {/* `scroll-mt-20` : ramenée par la pastille flottante, la rangée s'arrête SOUS la `nav`
+                fixe (68 px), pas derrière elle. */}
+            <div ref={rangeeOutilsRef} className="scroll-mt-20">
             <SearchToolbar
               total={error ? null : (meta?.total ?? 0)}
               loading={loading}
@@ -293,10 +378,35 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               onSortChange={(sort) => handleFilterChange({ sort })}
               onPerPageChange={(per_page) => handleFilterChange({ per_page })}
               onOpenSidebar={() => setSidebarOpen(true)}
+              // TCK-552 — le tri n'agit ni sur la carte (`/map` n'en déclare aucun, cf.
+              // `mapFilters`) ni sur une liste vide (M4, E1, AC8).
+              afficherTri={vue === 'list' && !aucunResultat}
+              basculeDeVue={
+                aucunResultat ? undefined : <BasculeDeVue view={vue} onChange={setView} />
+              }
+              // TCK-552 — la sauvegarde au BOUT des puces, et seulement s'il y en a (P7, AC5).
+              // Son libellé est conservé, et c'est vérifié : `SaveSearchButton` envoie
+              // `notification_frequency: 'off'` — elle SAUVEGARDE, elle ne crée aucune alerte.
+              // « Créer une alerte » aurait été le mensonge.
+              finDesPuces={
+                activeCount > 0 ? (
+                  <SaveSearchButton
+                    filters={filters}
+                    activeCount={activeCount}
+                    className="lg:hidden"
+                  />
+                ) : null
+              }
             />
+            </div>
 
-            <div className="mb-5 flex flex-wrap items-center gap-3">
-              <ViewToggle view={view} onChange={setView} />
+            {/*
+              La rangée du BUREAU — onglets et sauvegarde —, inchangée à partir de `lg` (contrainte
+              du ticket). Sous `lg`, ses deux contrôles vivent dans la rangée d'outils et au bout
+              des puces : elle n'y est plus rendue.
+            */}
+            <div data-rangee="vue-bureau" className="mb-5 hidden flex-wrap items-center gap-3 lg:flex">
+              <ViewToggle view={vue} onChange={setView} />
               <SaveSearchButton
                 filters={filters}
                 activeCount={activeCount}
@@ -304,7 +414,20 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               />
             </div>
 
-            {view === 'map' ? (
+            <OutilsFlottantsDeListe
+              visible={rangeeDepassee && !sidebarOpen}
+              activeCount={activeCount}
+              vue={vue}
+              onOuvrirFiltres={() => setSidebarOpen(true)}
+              onBasculerVue={() => {
+                setView(vue === 'list' ? 'map' : 'list');
+                // La vue change EN HAUT des résultats : sans ce retour, un visiteur à 1 500 px
+                // basculerait vers une carte posée hors de l'écran, au-dessus de lui.
+                rangeeOutilsRef.current?.scrollIntoView({ block: 'start' });
+              }}
+            />
+
+            {vue === 'map' ? (
               <PropertyMap filters={mapFilters} />
             ) : (
               <>
