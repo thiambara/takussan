@@ -587,7 +587,8 @@
     "discovery": {
       "viewSwitchAria": "Vue des résultats",
       "viewList": "Liste",
-      "viewMap": "Carte"
+      "viewMap": "Carte",
+      "outilsFlottantsAria": "Outils de recherche"
     },
     "rentPeriodsShort": {
       "daily": "jour",
@@ -3296,8 +3297,8 @@
       "availableFrom": "Dispo dès {date}",
       "quarter": "Quartier : {value}",
       "tags": "Tags : {value}",
-      "priceMin": "≥ {value} FCFA",
-      "priceMax": "≤ {value} FCFA",
+      "priceMin": "≥ {value}",
+      "priceMax": "≤ {value}",
       "bedrooms": "{n} ch.",
       "bathrooms": "{n} sdb",
       "areaMin": "≥ {value} m²",
