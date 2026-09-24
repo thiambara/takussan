@@ -1,13 +1,13 @@
 ---
 id: TCK-564
 title: "Publier un bien : les pastilles choisies ne s'allumaient pas (lecture watch() figée par le React Compiler), et le prix se saisissait sans séparateur de milliers"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -342,8 +342,42 @@ payload de création (`price: 49000000`) et de mise à jour (`price: 90000000`),
       plus 1 test de comportement.)*
 - [x] AC26 — les 320 tests de `property-form/`, `forms/`, `saisie-montant` et du schéma
       `property` sont verts, avec et sans React Compiler (2026-09-23, repair-1 v2).
+- [x] AC27 (solde, TCK-574) — replier le détail d'adresse après avoir vu l'erreur, puis
+      « Continuer » : la section se redéplie, et le message est visible. Chaque refus redéplie.
+      *(`PropertyWizard.test.tsx`, rouge avant correctif. Bloc « refus » retiré de `StepLieu` →
+      **1 rouge**, md5 restaurée.)*
+- [x] AC28 (solde, TCK-574) — une erreur de rue (256 caractères) ou de code postal (21) dans la
+      section repliée la déplie aussi. *(Mutation M-D de la vérification rejouée,
+      `Boolean(errors.country)` seul → **2 rouges**.)*
+- [x] AC29 (solde, TCK-574) — la garde AST suit un rappel NOMMÉ en minuscule exécuté au rendu
+      (`const lire = () => …; useState(lire)`, ou `lire()` dans le corps). Elle laisse passer
+      `useCallback(lire)`, `useEffect` et les rappels de clic. *(Mutation M-G rejouée sur
+      `StepBien.tsx` : la garde **rougit**, alors qu'elle restait verte avec l'ancienne garde sur
+      la même mutation.)*
+- [x] AC30 (solde, TCK-574) — en euro, « ,5 » ou « .5 » tapé en premier vaut 0,5, et non 50.
+      *(Voir TCK-574 AC6 : 8 rouges sans correctif. Au navigateur, 320/360/390 px.)*
 - [ ] AC9 — vérifié sur preview.takussan.com après déploiement, compte propriétaire, 360 px et
       bureau. *(Non fait : préproduction derrière authentification HTTP, et non redéployée.)*
+
+## Solde de la vérification (2026-09-24, TCK-574)
+
+Chaque défaut ouvert et chaque risque résiduel de la vérification a été reproduit avant d'être
+traité.
+
+| Relevé de la vérification | Mesure | Issue |
+|---|---|---|
+| W10 — « ,5 » ou « .5 » tapé en premier vaut 50 | 4 rouges au clavier (jsdom), fr/en/wo ; cause : le curseur reste devant le « 0 » inséré (`positionApresReecriture`) | **Corrigé** (TCK-574). Navigateur : 360 px fr « ,5 » → 0,5, « .5 » → 0,5 ; 390 px wo « ,75 » → 0,75 |
+| W10 — « 10.505 » passe de 10,5 à 10 505 | La suite de touches est celle de « 1.500 » et « 150.000 », que la revue v2 exige en milliers ; le report s'appuyait sur « aucune règle ne sert l'un sans casser l'autre », **faux quand la partie entière est nulle** (vérification repair-2 : « .500 » → 500, « 0.505 » → 505) | **Partiellement corrigé** (TCK-574 repair-2, § c ter). Partie entière nulle : le premier signe ouvre les décimales, « .500 » et « 0.505 » valent 0,50 € (12 rouges avant, 12 rouges à l'ablation) ; navigateur 320/360 px fr, 390 px wo, 1280 px en. Partie entière non nulle (« 10.505 ») : **non corrigé — décision produit à confirmer par la session** (TCK-574 AC7 bis), lecture en milliers proposée et épinglée |
+| W10 — `StepLieu` ne se redéplie pas sur une erreur répétée | Rouge avant correctif (le repli, puis « Continuer », laisse `aria-hidden="true"`) | **Corrigé** : `PropertyWizard` compte les refus de « Continuer », et `StepLieu` redéplie à chaque refus si le détail porte une erreur (AC27) |
+| W10 — trou de test : rue et code postal | Mutation M-D verte avant | **Comblé** (AC28) : M-D → 2 rouges |
+| W9 — garde AST contournable par un rappel nommé | Mutation M-G : garde d'origine verte | **Corrigé** : un niveau d'indirection suivi (AC29). La garde reste une heuristique : un rappel importé d'un autre module lui échappe, et les tests de comportement restent le filet |
+| Risque — « 1.50 » + Entrée soumet 1,50 € avec un point à l'écran | Inchangé | **Suspendu** à la décision sur « 10.505 » (même cause). La valeur soumise est la lecture décimale, la même qu'à la sortie du champ |
+| Risque — « 1.5000 » se lit 15 000 | Inchangé (collage) | **Accepté**, aucune règle ne tranche mieux |
+| Risque — collages ambigus (« 1,500 » en EUR, fr) | Inchangé | **Accepté**, l'affichage montre le montant retenu |
+| Risque — preview non vérifiée (AC9) | Interdit à cette unité (authentification HTTP) | **Ouvert** |
+| Risque — mesures sous forte charge | Les mesures du solde ont été prises à `load average` 8 à 14 sur 8 cœurs | Durées non citées |
+| Collision — brouillons rendus avec des `null` (`ConvertEmptyStringsToNull`) | `WizardDraftFideliteTest` : 3 rouges avant | **Corrigé à la source** (TCK-574 a). `sansNulls` reste pour les brouillons déjà en base |
+| Collision — brouillon de démonstration id 7 modifié par une mesure antérieure | Relevé le 2026-09-24 : `step 3, price 1500, currency EUR`, créé le 2026-09-23 à 18:01 | Non réécrit par le solde. Il a servi à la mesure au navigateur et a été remis à l'identique ensuite. **À la session** : le supprimer ou le garder |
 
 ## Hors périmètre
 
