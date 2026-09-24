@@ -18,6 +18,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Messaging\MessagingReach;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 use Tests\Concerns\InteractsWithMeilisearch;
@@ -400,6 +401,154 @@ class MessagingContactsTest extends ApiTestCase
                 'type' => 'group',
                 'subject' => 'Propriétaires',
                 'participants' => [$collegue->id, $proprietaire->id],
+            ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+        }
+    }
+
+    /**
+     * TCK-565, défaut ouvert soldé le 2026-09-24 (point Y7 de la vérification) : les tests de la
+     * règle ne mesuraient que des RETRAITS de branche. Un ÉLARGISSEMENT — la règle 1 réécrite
+     * `->where('cpa.user_id', $actor->id)->orWhereNotNull('cpa.user_id')` — laissait 64/64 verts,
+     * et le sélecteur de owner1 passait de 15 à 95 personnes, administrateurs d'autres agences
+     * compris.
+     *
+     * Ce test pose donc autour de l'acteur tout ce qui NE doit PAS le rejoindre : les relations
+     * des AUTRES (une conversation entre deux inconnus, le correspondant de mon correspondant, un
+     * lien CRM où je ne figure pas) et une autre agence au complet. La liste doit rendre
+     * EXACTEMENT mon correspondant, et la création refuser chacun des autres.
+     */
+    public function test_la_frontiere_ne_s_elargit_pas_aux_relations_des_autres(): void
+    {
+        $agency = Agency::factory()->create();
+        $autreAgence = Agency::factory()->create();
+
+        $moi = $this->user('Fatou', 'Diop');
+        $this->materializeRoleProfile($moi, 'owner', $agency);
+        $correspondant = $this->user('Awa', 'Sarr');
+        $this->shareConversation($moi, $correspondant);
+
+        $horsFrontiere = [];
+
+        // Règle 1 : ni transitive, ni ouverte aux conversations des autres.
+        $horsFrontiere['correspondant de mon correspondant'] = $this->user('Coumba', 'Faye');
+        $this->shareConversation($correspondant, $horsFrontiere['correspondant de mon correspondant']);
+        $horsFrontiere['inconnu A'] = $this->user('Ibrahima', 'Fall');
+        $horsFrontiere['inconnu B'] = $this->user('Khady', 'Ba');
+        $this->shareConversation($horsFrontiere['inconnu A'], $horsFrontiere['inconnu B']);
+
+        // Règle 2 : un lien CRM entre deux autres comptes, dans ses trois sens.
+        $horsFrontiere['agent CRM d’un autre'] = $this->user('Omar', 'Gueye');
+        $horsFrontiere['client CRM d’un autre'] = $this->user('Pape', 'Sow');
+        $horsFrontiere['co-rattaché d’un autre'] = $this->user('Mame', 'Diouf');
+        $ficheEtrangere = Customer::factory()->create(['user_id' => $horsFrontiere['client CRM d’un autre']->id]);
+        $this->rattacher($horsFrontiere['agent CRM d’un autre'], $ficheEtrangere, RelationshipType::AgentClient);
+        $this->rattacher($horsFrontiere['co-rattaché d’un autre'], $ficheEtrangere, RelationshipType::OwnerTenant);
+
+        // Règle 3 : l'équipe et les propriétaires d'une AUTRE agence, et, dans la mienne, un autre
+        // propriétaire (je suis cliente de l'agence, pas de son équipe).
+        $horsFrontiere['agent d’une autre agence'] = $this->user('Moussa', 'Ndiaye');
+        $this->materializeRoleProfile($horsFrontiere['agent d’une autre agence'], 'agent', $autreAgence);
+        $horsFrontiere['administrateur d’une autre agence'] = $this->user('Admin', 'Ailleurs');
+        $this->materializeRoleProfile($horsFrontiere['administrateur d’une autre agence'], 'agency_admin', $autreAgence);
+        $horsFrontiere['propriétaire d’une autre agence'] = $this->user('Ndeye', 'Sarr');
+        $this->materializeRoleProfile($horsFrontiere['propriétaire d’une autre agence'], 'owner', $autreAgence);
+        $horsFrontiere['autre propriétaire de mon agence'] = $this->user('Aliou', 'Cisse');
+        $this->materializeRoleProfile($horsFrontiere['autre propriétaire de mon agence'], 'owner', $agency);
+
+        $this->actingAsApi($moi);
+
+        $this->assertSame([$correspondant->id], $this->contactIds(), 'la liste rend exactement mon correspondant');
+        $this->assertSame(
+            array_values(array_map(fn (User $u) => $u->id, $horsFrontiere)),
+            app(MessagingReach::class)->outOfReach($moi, array_map(fn (User $u) => $u->id, $horsFrontiere)),
+        );
+
+        foreach ($horsFrontiere as $cas => $etranger) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Frontière',
+                'participants' => [$correspondant->id, $etranger->id],
+            ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+        }
+
+        // Témoin : le même corps avec deux personnes joignables passe — sans lui, les 422
+        // ci-dessus pourraient venir d'autre chose que de la règle.
+        $collegue = $this->user('Agent', 'Temoin');
+        $this->materializeRoleProfile($collegue, 'agent', $agency);
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Frontière',
+            'participants' => [$correspondant->id, $collegue->id],
+        ])->assertCreated();
+    }
+
+    /**
+     * Même frontière, vue de l'ÉQUIPE : un agent joint les propriétaires de SON agence (règle 3),
+     * jamais ceux d'une autre. Le test précédent a une propriétaire pour actrice ; sans celui-ci,
+     * `ownerProfiles` sans condition d'agence laissait 18/18 verts (mutation W3b, 2026-09-24).
+     */
+    public function test_l_equipe_ne_joint_pas_les_proprietaires_d_une_autre_agence(): void
+    {
+        $agency = Agency::factory()->create();
+        $autreAgence = Agency::factory()->create();
+
+        $agent = $this->user('Moussa', 'Ndiaye');
+        $this->materializeRoleProfile($agent, 'agent', $agency);
+        $proprietaire = $this->user('Fatou', 'Diop');
+        $this->materializeRoleProfile($proprietaire, 'owner', $agency);
+        $proprietaireAilleurs = $this->user('Ndeye', 'Sarr');
+        $this->materializeRoleProfile($proprietaireAilleurs, 'owner', $autreAgence);
+
+        $this->actingAsApi($agent);
+
+        $this->assertSame([$proprietaire->id], $this->contactIds());
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Propriétaires',
+            'participants' => [$proprietaire->id, $proprietaireAilleurs->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+    }
+
+    /**
+     * TCK-565, défaut ouvert soldé le 2026-09-24 (point Y5) : le docblock de `MessagingReach`
+     * promet « jamais un compte supprimé », et un compte supprimé RESTE dans
+     * `conversation_participants`. `User::query()->withTrashed()` laissait pourtant 64/64 verts.
+     * On couvre les deux chemins par lesquels un compte supprimé serait joignable : un ancien
+     * correspondant (règle 1) et un collègue de l'agence (règle 3).
+     */
+    public function test_un_compte_supprime_n_est_ni_liste_ni_accepte(): void
+    {
+        $agency = Agency::factory()->create();
+
+        $moi = $this->user('Fatou', 'Diop');
+        $this->materializeRoleProfile($moi, 'agent', $agency);
+        $correspondant = $this->user('Awa', 'Sarr');
+        $this->shareConversation($moi, $correspondant);
+        $collegue = $this->user('Moussa', 'Ndiaye');
+        $this->materializeRoleProfile($collegue, 'agent', $agency);
+
+        $correspondantSupprime = $this->user('Coumba', 'Faye');
+        $this->shareConversation($moi, $correspondantSupprime);
+        $collegueSupprime = $this->user('Omar', 'Gueye');
+        $this->materializeRoleProfile($collegueSupprime, 'agent', $agency);
+
+        $this->actingAsApi($moi);
+        // Témoin AVANT suppression : les deux sont bien joignables par la règle.
+        $this->assertContains($correspondantSupprime->id, $this->contactIds());
+        $this->assertContains($collegueSupprime->id, $this->contactIds());
+
+        $correspondantSupprime->delete();
+        $collegueSupprime->delete();
+        $this->assertSoftDeleted($correspondantSupprime);
+
+        $this->assertSame(collect([$correspondant->id, $collegue->id])->sort()->values()->all(), $this->contactIds());
+
+        foreach ([$correspondantSupprime, $collegueSupprime] as $supprime) {
+            $this->assertSame([$supprime->id], app(MessagingReach::class)->outOfReach($moi, [$correspondant->id, $supprime->id]));
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Supprimés',
+                'participants' => [$correspondant->id, $supprime->id],
             ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
         }
     }

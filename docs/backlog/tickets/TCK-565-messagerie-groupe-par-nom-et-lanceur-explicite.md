@@ -1,13 +1,13 @@
 ---
 id: TCK-565
 title: "Messagerie : participants d'un groupe choisis par leur nom et bornés au périmètre, erreurs lisibles, contexte empilé, lanceur flottant nommé"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -231,7 +231,9 @@ défaut a été reproduit sur le code en l'état, puis fermé par un test :
       `filter[search]`, sur `/api/conversations/contacts` pour un nouveau groupe et sur
       `/api/conversations/{id}/contacts` pour un groupe existant (vitest ; ablation du
       `conversationId` de la feuille : 3 rouges).
-- [x] M12 : **chaque branche de la règle a son test, qui rougit quand on la retire.** Mesuré par
+- [x] M12 : **chaque branche de la règle a son test, qui rougit quand on la RETIRE.** ⚠ Ce critère
+      ne mesure que des retraits : un ÉLARGISSEMENT le cochait tout aussi bien (Y7, Y5 : tout vert).
+      L'élargissement a son propre critère, plus bas (reprise du 2026-09-24). Mesuré par
       ablation sur `MessagingContactsTest`, `GroupConversationCreationTest`,
       `ParticipantManagementTest` et `ConversationTest` : lien CRM a, b et c (1 rouge chacun),
       administrateur d'agence dans l'équipe (2 rouges), règle 4 (2 rouges), filtre `active()` (1),
@@ -310,21 +312,115 @@ défaut a été reproduit sur le code en l'état, puis fermé par un test :
 - [x] Pint, ESLint, `tsc --noEmit`, `check-i18n`, `check-i18n-namespaces` et toutes les gardes
       `scripts/check-*.mjs` sont verts, ainsi que les classes de test touchées. La suite entière n'a
       **pas** été lancée par l'agent : c'est à la session de la lancer.
+- [x] M12 (reprise du 2026-09-24, TCK-576) : **la frontière ne s'élargit pas.** Autour de
+      l'acteur, on pose ce qui ne doit PAS le rejoindre : une conversation entre deux inconnus, le
+      correspondant de son correspondant, un lien CRM entre deux autres comptes (dans ses trois sens),
+      l'équipe et les propriétaires d'une autre agence, un autre propriétaire de sa propre agence,
+      des comptes supprimés. La liste rend exactement ses contacts, `outOfReach()` les refuse tous,
+      et la création rend 422 pour chacun, avec un témoin 201. Sept élargissements ont été rejoués :
+      Y7 (règle 1 ouverte), Y5 (`withTrashed()`), CRM a, b et c élargis, équipe et administrateurs
+      de toute agence, propriétaires de toute agence pour l'équipe (W3b). Chacun fait rougir 1 à 2
+      tests, contre 0 avant pour Y7, Y5 et W3b.
+- [x] M11 (reprise du 2026-09-24) : le bail choisi est envoyé, c'est bien celui qu'on a choisi, et
+      la liste se restreint au bien choisi. X1, X2 et X8 font rougir 1 test chacun (0 avant). Les
+      deux `Select` sont désormais les champs à recherche de TCK-576.
+      ⚠ **Cochée à tort au premier jet, vraie depuis la réparation 1** : pendant le chargement des
+      baux d'un bien, la liste montrait — cliquables — ceux des autres biens, et le serveur
+      acceptait la paire (201). Tenue désormais côté écran (aucun bail d'un autre bien pendant le
+      chargement, 1 rouge sans le correctif ; 0 option au navigateur à 2,5 s de latence) **et**
+      côté serveur (bail et bien sans rapport → 422, groupe et directe). Détail dans TCK-576.
 - [ ] Mesure sur `preview.takussan.com` après déploiement (la modale exige une session, donc aucune
       mesure possible en lecture seule).
 
+## Reprise du 2026-09-24 (TCK-576) : défauts ouverts et risques résiduels
+
+Chaque point a été reproduit, ou démontré faux, par une mesure. Le détail des correctifs est dans
+TCK-576.
+
+**Défauts ouverts de la vérification**
+
+- **Frontière d'isolation (Y7), comptes supprimés (Y5) : corrigés par des tests.** Reproduits, puis
+  rejoués sur `MessagingContactsTest`. Y7 (`->orWhereNotNull('cpa.user_id')`) et Y5
+  (`withTrashed()`) laissaient 17/17 verts. Même chose pour W3b (`ownerProfiles` sans condition
+  d'agence), trouvé en élargissant la recherche. Trois tests les ferment :
+  `test_la_frontiere_ne_s_elargit_pas_aux_relations_des_autres`,
+  `test_l_equipe_ne_joint_pas_les_proprietaires_d_une_autre_agence` et
+  `test_un_compte_supprime_n_est_ni_liste_ni_accepte`. Sous les sept mutations, 1 à 2 rouges chacune.
+  Le code produit était juste.
+- **Le `Select` du bail sans test de comportement (X1, X2, X8) : corrigé.** Il est remplacé par le
+  champ à recherche de TCK-576. Trois tests `NewGroupDialog` tiennent l'envoi, le choix et la
+  restriction au bien, et chacune des trois mutations fait rougir 1 test.
+- **Plafond de 100 sans recherche : corrigé par TCK-576.** Deux routes de recherche SQL sur le
+  périmètre de la policy `view`. Mesuré : le bien 145, hors des 100 premiers et hors index
+  Meilisearch, se trouve et se rattache.
+- **Critère « chaque branche… qui rougit quand on la retire » mal formulé : réécrit.** Il dit
+  désormais qu'il ne mesure que les retraits, et un critère d'élargissement le complète.
+- **Docblock périmé de `MessagingContactResource` : déjà corrigé par la session**, qui l'a aussi
+  inscrite dans `tests/Support/ResourceInventory.php`.
+- **Observation d'environnement : la recherche par nom ne se mesure pas en local. Confirmé, et la
+  cause est plus précise.** Le `.env` local vise le Meilisearch **natif** du port canonique 7700
+  (v1.36.0), pas le conteneur du dépôt (7701, v1.16.0). C'est la dette D-48. L'index
+  `takussan_localusers` y porte **14 documents pour 302 comptes**. Ce n'est pas un défaut de code.
+  `php artisan scout:import "App\Models\User"` le reconstruirait ; ce n'est pas fait ici, parce que
+  c'est la pile de développement partagée.
+
+**Risques résiduels**
+
+- **`ConversationResource` ne renvoyait pas `participants` : corrigé.** Mesuré sur le groupe 241 :
+  aucune clé `participants`, alors que le front envoie `include=participants`. `show()` charge
+  désormais les membres actuels, et la ressource les rend sans coordonnées. Au navigateur, la
+  feuille affiche « Participants (3) », l'invitation et le renommage.
+- **`useCreateConversation` mort et mal typé : retiré** (aucun appelant, `tsc` vert).
+- **Version de Meilisearch en production pour `attributesToSearchOn` (≥ 1.3) : établie par la
+  configuration, pas par une mesure.** `deploy/server/compose.data.yml` épingle
+  `getmeili/meilisearch:v1.16`, comme `docker-compose.yml`. Aucune instance déployée n'a été
+  interrogée : pas d'accès depuis cet agent.
+- **« Un locataire sans relation n'a personne à inviter, et l'écran ne le lui dit pas » : démontré
+  faux.** À l'ouverture, la liste affiche « Vous n'avez encore personne à inviter. », distinct du
+  « Personne ne correspond à cette recherche. » d'une recherche vide. Aucun test ne le tenait ; un
+  test `NewGroupDialog` le tient désormais (message unique : 1 rouge).
+- **Les tests de disposition restent des contrôles de classes en jsdom.** Le risque demeure par
+  nature. Mesure au navigateur de cette reprise, étape 2 : 320 (fr), 360 (en), 390 (wo) et
+  1366 px (fr), sans défilement horizontal (chiffres dans TCK-576).
+- **Défaut trouvé en reprenant : la garde de contexte laissait passer un contexte SUPPRIMÉ.**
+  `exists:properties,id` accepte la ligne, `find()` la masque, et `null` passait son tour. Mesuré :
+  201 pour un groupe rattaché au bien supprimé d'une autre agence. Corrigé dans
+  `GuardsConversationScope`, pour le groupe comme pour la directe
+  (`GroupConversationCreationTest::test_un_contexte_supprime_ne_peut_pas_etre_rattache`, rouge
+  sans le correctif).
+- **Réparation 1 (vérificateur du 2026-09-24) — la restriction X8 ne tenait pas pendant un
+  chargement : corrigé.** Reproduit au navigateur par le vérificateur puis par un test rouge : le
+  sélecteur de bail gardait la liste précédente (tous les biens, ou un autre) le temps de la
+  requête du bien choisi, et le serveur, qui jugeait chaque contexte seul, acceptait la paire
+  (`property_id=1` + `lease_id=363` → 201). Deux correctifs, chacun rouge sans lui : la liste
+  précédente ne se garde que pour le même bien (`useGroupLeaseOptions`), et
+  `GuardsConversationScope::guardLeaseMatchesProperty()` refuse un bail qui ne concerne pas le bien
+  envoyé (422, groupe et directe). Même passe : `is_muted` des membres tenu par un test,
+  `filter[property_id]` mal formé → 422 au lieu de 500, états vides propres aux sélecteurs, bail
+  choisi avant son bien conservé, Sujet à 44 px comme les sélecteurs. Détail et mesures dans TCK-576.
+- **Reprise des défauts mineurs (2026-09-24, TCK-576)** : « `is_muted` des membres tenu par un
+  test » ci-dessus décrivait une **exposition** — le détail rendait la sourdine de chaque membre à
+  tous. Elle est désormais privée (rendue au seul lecteur). `last_read_at` suit la même règle
+  depuis la réparation 1 de cette reprise : rendu au seul lecteur, `null` pour les autres. Aucun
+  consommateur ne lisait celui des autres (mesuré, front et API). La version précédente de cette
+  ligne le gardait « pour les accusés de lecture de `docs/features.md` §1.7 », une fonction qui
+  n'est pas construite. Même reprise : une demande d'intervention d'un autre bien
+  que le contexte se refuse (422), l'ordre visibilité-puis-cohérence est tenu par un test, le
+  passage d'un bien A à un bien B et « retirer le bien garde le bail » aussi. Détail dans TCK-576.
+- Toujours ouverts : la mesure sur `preview.takussan.com` (session requise, Basic auth) et la suite
+  entière, que lance la session.
+
 ## Hors périmètre
 
-- `ConversationResource` ne renvoie pas `participants`. La feuille d'infos du groupe liste donc zéro
-  membre et cache ses actions d'administration, invitation comprise. C'est un défaut préexistant,
-  qui ne vient pas du retour testeur : ticket de suivi.
-- `useCreateConversation` (`lib/queries/conversations.ts`) n'a aucun appelant, et son type de
-  corps (`recipient_id`) ne correspond pas à ce que l'API valide (`participants`). C'est du code
-  mort antérieur au ticket. S'il sert un jour, il devra envoyer une seule personne joignable.
+- `ConversationResource` ne renvoyait pas `participants`, si bien que la feuille d'infos du groupe
+  listait zéro membre et cachait ses actions d'administration. Défaut préexistant, **soldé par
+  TCK-576** (voir la reprise ci-dessus).
+- `useCreateConversation` (`lib/queries/conversations.ts`) n'avait aucun appelant, et son type de
+  corps (`recipient_id`) ne correspondait pas à ce que l'API valide. **Retiré par TCK-576.**
 - Changement de comportement assumé : `POST /api/conversations` ne crée plus de conversation directe
   vers un inconnu ni vers plusieurs personnes. Aucun écran ne l'utilisait. Un client externe qui
   s'en servirait recevrait désormais une 422 avec une phrase.
-- Les listes de bien et de bail sont plafonnées à 100 et ne se recherchent pas. La troncature est
-  signalée. Un combobox à recherche serveur les remplacerait.
+- Les listes de bien et de bail étaient plafonnées à 100, sans recherche. **Remplacées par TCK-576**
+  par deux champs à recherche serveur.
 - La documentation des deux routes et de la règle de joignabilité dans `docs/features.md` §1.7 est
   laissée à `/sync-specs`.
