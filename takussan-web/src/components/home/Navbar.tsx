@@ -16,6 +16,7 @@ import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
+import { hrefConnexion } from '@/components/auth/lien-connexion';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 import { apiFetch } from '@/lib/api';
 import { parametreDe } from '@/types/search';
@@ -79,6 +80,10 @@ export function Navbar({ className }: NavbarProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  // TCK-568 (M2) — « Connexion » emporte la page courante et ses filtres en `?redirect=` : se
+  // connecter depuis une recherche y ramène, au lieu de toujours mener à `/app`.
+  const requete = searchParams.toString();
+  const lienConnexion = hrefConnexion(requete ? `${pathname}?${requete}` : pathname);
   const locale = useLocale() as Locale;
   const t = useTranslations('nav');
   const tCategories = useTranslations('property.types');
@@ -513,7 +518,7 @@ export function Navbar({ className }: NavbarProps) {
           ) : (
             <>
               <LienLocalise
-                href="/auth/login"
+                href={lienConnexion}
                 className="inline-flex min-h-10 items-center text-sm font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap"
               >
                 {t('login')}
@@ -739,7 +744,7 @@ export function Navbar({ className }: NavbarProps) {
                       {/* TCK-551 (N7) — `cn()` et non `buttonVariants({ className })` : `cva` CONCATÈNE,
                           il ne fusionne pas. `px-2.5` de la variante et `px-0` d'ici étaient présents
                           tous les deux, et `px-2.5` gagnait (texte à x = 35 contre 24, mesuré). */}
-                      <LienLocalise href="/auth/login" replace onClick={quitterParUnLien} className={cn(buttonVariants({ variant: 'ghost' }), 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary')}>
+                      <LienLocalise href={lienConnexion} replace onClick={quitterParUnLien} className={cn(buttonVariants({ variant: 'ghost' }), 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary')}>
                         {t('login')}
                       </LienLocalise>
                       <LienLocalise

@@ -12,6 +12,8 @@ import { UserLocationProvider } from '@/components/providers/UserLocationProvide
 import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
 import { ChatWidget } from '@/components/chat-widget/ChatWidget';
+import { IndicateurDeNavigation } from '@/components/shared/IndicateurDeNavigation';
+import { MemoireDeLaPagePublique } from '@/components/auth/MemoireDeLaPagePublique';
 import { ChatDraftProvider } from '@/context/ChatDraftContext';
 import { FloatingDockProvider } from '@/components/floating-dock';
 import { IntlProviderRacine } from '@/i18n/IntlProvider';
@@ -95,6 +97,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         demande l'ouverture d'une discussion, le widget l'exécute, et ce
                         sont deux frères dans cet arbre. */}
                     <ChatDraftProvider>
+                      <IndicateurDeNavigation />
+                      {/* TCK-568 — le retour de l'écran de connexion y relit la recherche quittée. */}
+                      <MemoireDeLaPagePublique />
                       <MaintenanceBanner />
                       <GlobalAnnouncementBanner />
                       <ChatWidget />
