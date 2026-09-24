@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**503 tickets** — 27 ouverts, 474 livrés.
+**515 tickets** — 39 ouverts, 474 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 28 |
+| 🚧 Doing | 11 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 474 |
@@ -59,10 +59,22 @@
 - [TCK-546](tickets/TCK-546-lien-kyc-signe-rend-401-dans-le-navigateur.md) — Ouvrir une pièce KYC depuis la console rend 401 : le lien signé exige un jeton Bearer qu'un lien de navigateur n'envoie pas `S · P1 · full`
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
+- [TCK-570](tickets/TCK-570-debordements-du-retour-testeur-du-2026-09-23.md) — Débordements du retour testeur du 2026-09-23 : ce que les vérifications ont trouvé hors des 28 points `M · P2 · bug`
+- [TCK-571](tickets/TCK-571-watch-fige-par-le-react-compiler-dans-quatre-formulaires.md) — Quatre formulaires lisent encore watch() pendant le rendu — le motif que le React Compiler fige en production (cause de TCK-564) `S · P2 · bug`
 
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-560](tickets/TCK-560-fiches-agent-agence-retour-liens-proprietaires-chargement-annuaire.md) — Fiches d'agent et d'agence : retour manquant, lien de propriétaire en 404, chargement de l'annuaire muet — re-mesurés sur dev ; cible tactile du retour portée à 44 px `S · P2 · front`
+- [TCK-561](tickets/TCK-561-cartes-de-biens-et-comparateur-retours-testeur.md) — Comparateur : la croix de la barre vidait la sélection, des « + » sans action, un toast translucide illisible, absent des cartes de l'accueil ; cartes : un survol trop discret `S · P2 · front`
+- [TCK-562](tickets/TCK-562-apercu-de-carte-qui-se-referme-et-langue-de-la-description.md) — Carte : l'aperçu d'un bien ou d'une grappe se refermait au rechargement qui suit l'autoPan ; fiche bien : la description, texte de l'annonceur, n'annonçait pas sa langue `S · P2 · front`
+- [TCK-563](tickets/TCK-563-barre-publique-mobile-recherche-a-320-et-vide-sous-la-barre.md) — Barre publique mobile : à 320 px, la pastille de recherche coupait son libellé ; le vide sous la barre de l'accueil n'est pas reproduit (bandeau caché sous la barre fixe) `S · P2 · front`
+- [TCK-564](tickets/TCK-564-publier-un-bien-selection-visible-et-montant-lisible.md) — Publier un bien : les pastilles choisies ne s'allumaient pas (lecture watch() figée par le React Compiler), et le prix se saisissait sans séparateur de milliers `S · P2 · front`
+- [TCK-565](tickets/TCK-565-messagerie-groupe-par-nom-et-lanceur-explicite.md) — Messagerie : participants d'un groupe choisis par leur nom et bornés au périmètre, erreurs lisibles, contexte empilé, lanceur flottant nommé `M · P2 · full`
+- [TCK-566](tickets/TCK-566-onboarding-telephone-indicatif-et-demarche-fantome.md) — Onboarding et passage en pro : l'indicatif du téléphone passe derrière les chiffres, et ouvrir un parcours sans rien saisir crée une démarche « à reprendre » `S · P2 · full`
+- [TCK-567](tickets/TCK-567-carrousel-de-bienvenue-illustre-et-statut-d-export-traduit.md) — Carrousel de bienvenue sans bloc vide sur téléphone, statut d'export de données traduit et suivi `S · P2 · front`
+- [TCK-568](tickets/TCK-568-retour-visuel-de-navigation-et-retour-depuis-la-connexion.md) — Un clic sur un lien ne montrait rien jusqu'à la page suivante ; la connexion n'offrait aucun retour vers la page quittée `S · P2 · front`
+- [TCK-569](tickets/TCK-569-panneaux-mobiles-favoris-dans-l-ecran-notifications-exclusives.md) — Panneaux mobiles : le panneau des favoris débordait à gauche de l'écran ; notifications et menu utilisateur superposables au clavier (au doigt : build de préproduction antérieur, déjà corrigé) `S · P2 · front`
 
 ## 👀 Review
 
