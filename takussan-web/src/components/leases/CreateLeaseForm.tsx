@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Controller, type Control } from 'react-hook-form';
+import { Controller, useWatch, type Control } from 'react-hook-form';
 import { useApiForm } from '@/hooks/useApiForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,10 +102,13 @@ export function CreateLeaseForm() {
     label: t(`frequencyOptions.${value}`),
   }));
 
-  const type = form.watch('type');
+  // TCK-571 — `useWatch`, jamais `form.watch()` lu pendant le rendu. Compilé, `form.watch('type')`
+  // était mis en cache sur l'identité — stable — de `form` : un bail passé en « Vente » gardait le
+  // champ « Loyer mensuel », et le récapitulatif ne nommait jamais le bien choisi (TCK-564).
+  const type = useWatch({ control: form.control, name: 'type' });
   const isSale = type === 'sale';
-  const selectedPropertyId = form.watch('property_id');
-  const selectedTenantId = form.watch('tenant_id');
+  const selectedPropertyId = useWatch({ control: form.control, name: 'property_id' });
+  const selectedTenantId = useWatch({ control: form.control, name: 'tenant_id' });
   const properties = useMemo(() => propertiesQuery.data?.data ?? [], [propertiesQuery.data]);
   const customers = useMemo(() => customersQuery.data?.data ?? [], [customersQuery.data]);
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId) ?? null;
