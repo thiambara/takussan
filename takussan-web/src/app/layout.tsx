@@ -9,8 +9,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider';
 import { UserLocationProvider } from '@/components/providers/UserLocationProvider';
-import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
-import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
+import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { ChatWidget } from '@/components/chat-widget/ChatWidget';
 import { IndicateurDeNavigation } from '@/components/shared/IndicateurDeNavigation';
 import { MemoireDeLaPagePublique } from '@/components/auth/MemoireDeLaPagePublique';
@@ -100,8 +99,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <IndicateurDeNavigation />
                       {/* TCK-568 — le retour de l'écran de connexion y relit la recherche quittée. */}
                       <MemoireDeLaPagePublique />
-                      <MaintenanceBanner />
-                      <GlobalAnnouncementBanner />
+                      {/* TCK-572 — repli : une page à barre fixe ou à coque pleine hauteur monte
+                          ses bandeaux SOUS sa barre (`NavbarSpacer`, `AppShell`), et celui-ci
+                          s'efface. Ici, ils passaient sous la barre publique fixe. */}
+                      <BandeauxDuSite emplacement="racine" />
                       <ChatWidget />
                       {children}
                       <Analytics />

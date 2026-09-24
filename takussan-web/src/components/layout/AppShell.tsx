@@ -6,6 +6,7 @@ import type { User } from '@/types/user';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { AgencyStandardWelcomeWizard } from '@/components/agency/AgencyStandardWelcomeWizard';
 import { AgentWelcomeWizard } from '@/components/agent/AgentWelcomeWizard';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
@@ -96,6 +97,11 @@ export function AppShell({
             </SheetContent>
           </Sheet>
           <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
+            {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
+                ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
+                à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois
+                défilé. Ici ils défilent avec la page et la coque tient l'écran. */}
+            <BandeauxDuSite emplacement="page" />
             <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
           </main>
         </div>

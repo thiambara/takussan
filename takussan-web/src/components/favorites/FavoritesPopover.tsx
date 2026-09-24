@@ -102,6 +102,9 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
           align="end"
           sideOffset={8}
           collisionPadding={16}
+          // TCK-572 (solde de TCK-569) — l'appui à côté ferme le panneau et rien d'autre : sans
+          // voile, il tombait aussi sur la carte dessous et ouvrait sa fiche (mesuré à 320 px).
+          voile
           aria-label={t('popover.title')}
           className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl shadow-xl ring-border"
         >

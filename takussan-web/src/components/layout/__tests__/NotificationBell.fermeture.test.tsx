@@ -150,16 +150,29 @@ describe('Panneau des notifications — une fenêtre à la fois (TCK-569, M14)',
     await waitFor(() => expect(panneau()).toBeNull());
   });
 
-  it('au pointeur, ouvrir le menu utilisateur referme le panneau (garde)', async () => {
+  /**
+   * TCK-572 (solde du risque résiduel de TCK-569) — au pointeur, le panneau ouvert, l'avatar est
+   * SOUS le voile : l'appui referme le panneau et n'ouvre pas le menu. C'est déjà ce que fait le
+   * menu (`Menu` de base-ui, modal) quand on touche la cloche : un appui à côté d'un panneau le
+   * ferme, et ne fait rien d'autre, dans les deux sens. Mesuré au navigateur (320 px, tactile) :
+   * cloche → avatar = tout fermé ; avatar → menu ; cloche → tout fermé. jsdom ne fait pas de test
+   * d'impact : l'appui est porté sur le voile, qui est ce que le doigt touche (`elementFromPoint`).
+   */
+  it('au pointeur, un appui sur l’avatar referme le panneau sans ouvrir le menu', async () => {
     const utilisateur = userEvent.setup();
     rendre();
 
     await utilisateur.click(cloche());
     await waitFor(() => expect(panneau()).not.toBeNull());
-    await utilisateur.click(avatar());
+    const voile = document.querySelector<HTMLElement>('[data-slot=popover-voile]');
+    expect(voile, 'un voile reçoit l’appui à côté').not.toBeNull();
+    await utilisateur.click(voile!);
 
-    await waitFor(() => expect(screen.getByRole('menu')).toBeInTheDocument());
     await waitFor(() => expect(panneau()).toBeNull());
+    expect(screen.queryByRole('menu')).toBeNull();
+    // Le second appui, lui, ouvre le menu.
+    await utilisateur.click(avatar());
+    await waitFor(() => expect(screen.getByRole('menu')).toBeInTheDocument());
   });
 
   it('un appui dans le vide le ferme (garde)', async () => {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { User } from '@/types/user';
 import { useTranslations } from 'next-intl';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { ImpersonationBanner } from '@/components/admin/super/ImpersonationBanner';
 import { SuperAdminTopbar } from './SuperAdminTopbar';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
@@ -102,6 +103,10 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
           tabIndex={-1}
           className="relative min-h-0 flex-1 overflow-y-auto bg-muted focus:outline-none"
         >
+          {/* TCK-572 — les bandeaux du site DANS la zone qui défile, comme `AppShell` : rendus par
+              le layout racine, ils précédaient cette coque `h-dvh` et le document débordait de
+              leur hauteur (mesuré sur /admin : 716 px pour 640 à 320 de large). */}
+          <BandeauxDuSite emplacement="page" />
           <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
         </main>
       </div>

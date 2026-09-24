@@ -17,6 +17,15 @@ const PopoverAnchor = PopoverPrimitive.Trigger;
  * de l'alignement du contenu. Non transmise (`undefined`), la primitive garde son défaut : les
  * autres usages (sélecteurs de date, dialogue de visite) sont inchangés — `useAnchorPositioning` de
  * base-ui (1.7) applique son défaut `= 5` à une valeur `undefined`.
+ *
+ * `voile` (TCK-572, solde de TCK-569) — un voile TRANSPARENT sous le panneau, qui reçoit l'appui
+ * « à côté » : le panneau se ferme et RIEN d'autre ne se passe. Sans lui, l'appui qui fermait les
+ * favoris à 320 px tombait aussi sur la carte dessous et ouvrait sa fiche (mesuré : `/fr` →
+ * `/fr/properties/parking-couvert-a-pikine-UjterU`) — le défaut que TCK-551 a fermé pour le menu
+ * mobile. ⚠ Le voile interne de base-ui (`modal`) ne suffit pas : il est posé sans `z-index`, et le
+ * lien étiré d'une carte (`absolute inset-0 z-[1]`) passe au-dessus (mesuré, `elementFromPoint`).
+ * Celui-ci est juste sous le positionneur (`z-[1099]` contre `z-[1100]`). Opt-in : les autres
+ * usages sont inchangés.
  */
 function PopoverContent({
   className,
@@ -25,15 +34,19 @@ function PopoverContent({
   align = "start",
   alignOffset = 0,
   collisionPadding,
+  voile = false,
   children,
   ...props
 }: PopoverPrimitive.Popup.Props &
   Pick<
     PopoverPrimitive.Positioner.Props,
     "side" | "sideOffset" | "align" | "alignOffset" | "collisionPadding"
-  >) {
+  > & { readonly voile?: boolean }) {
   return (
     <PopoverPrimitive.Portal>
+      {voile ? (
+        <PopoverPrimitive.Backdrop data-slot="popover-voile" className="fixed inset-0 z-[1099]" />
+      ) : null}
       <PopoverPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}

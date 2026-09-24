@@ -181,6 +181,9 @@ export function NotificationBell() {
         align="end"
         sideOffset={14}
         collisionPadding={8}
+        // TCK-572 (solde de TCK-569) — un appui à côté ferme le panneau et rien d'autre, comme le
+        // menu utilisateur voisin : cloche ouverte, l'appui sur l'avatar n'ouvre plus le menu.
+        voile
         aria-label={t('center')}
         className="w-96 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-card p-0 text-card-foreground shadow-lg ring-border"
       >
