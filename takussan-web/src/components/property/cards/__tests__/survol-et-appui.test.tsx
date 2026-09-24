@@ -19,6 +19,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 
 import { withIntl } from '@/test/intl';
+import { RACINE, SOMBRE, declaration, opacite } from '@/test/__tests__/couleur-compilee';
 import { CompareProvider } from '@/context/CompareContext';
 import { ToastProvider } from '@/components/ui/toast';
 import type { PropertyListItem } from '@/types/property';
@@ -142,5 +143,24 @@ describe.each(CARTES)('%s — survol et appui visibles (TCK-561)', (_nom, Carte,
     expect(c).toContain('group-has-[a:active]:bg-scrim/25');
     // Posé sur la photo : il partage son conteneur avec l'image.
     expect(voile.parentElement!.querySelector('img')).not.toBeNull();
+  });
+
+  it('le voile RENDU vaut 10 % au survol et 25 % à l’appui — jeton `--scrim` résolu, clair et sombre', async () => {
+    // Vérification adverse de TCK-561 : les assertions ci-dessus lisent des chaînes. Un `--scrim`
+    // absent ou renommé dans `globals.css` rendait le voile INVISIBLE sans rien faire rougir. Ici
+    // chaque classe du voile est compilée par Tailwind et son fond évalué contre les jetons.
+    const { container } = monte(Carte);
+    const voile = container.querySelector('[data-voile-survol]')!;
+    const attendus: Record<string, number> = {
+      'group-hover:bg-scrim/10': 0.1,
+      'group-has-[a:active]:bg-scrim/25': 0.25,
+    };
+    for (const [classe, alpha] of Object.entries(attendus)) {
+      expect(classes(voile)).toContain(classe);
+      const d = await declaration(classe, 'background-color');
+      expect(d, `${classe} : aucune déclaration compilée`).not.toBeNull();
+      expect(opacite(d!.valeur, RACINE), `${classe} en clair : ${d!.valeur}`).toBeCloseTo(alpha, 5);
+      expect(opacite(d!.valeur, SOMBRE), `${classe} en sombre : ${d!.valeur}`).toBeCloseTo(alpha, 5);
+    }
   });
 });

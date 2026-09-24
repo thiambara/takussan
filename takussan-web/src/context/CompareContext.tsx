@@ -48,6 +48,15 @@ type CompareContextValue = {
   toggle: (id: number, preview?: ComparePreview) => AddResult;
   /** Replace the selection entirely — used by the /compare page cold-share. */
   replace: (ids: readonly number[]) => void;
+  /**
+   * Réécrit la sélection à partir de l'état COURANT du stockage, lu au moment de l'appel — et non
+   * de celui du rendu qui a créé le rappel (TCK-561). Pour un rappel qui survit à son rendu : le
+   * « Annuler » d'un toast, cliqué après que le visiteur a ajouté un bien entre-temps.
+   */
+  update: (next: (courant: { ids: number[]; previews: ComparePreviews }) => {
+    ids: readonly number[];
+    previews: ComparePreviews;
+  }) => void;
   clear: () => void;
 };
 
@@ -181,6 +190,15 @@ export function CompareProvider({ children }: { children: React.ReactNode }) {
     [previews],
   );
 
+  const update = useCallback<CompareContextValue['update']>((next) => {
+    const { ids: idsCourants, previews: apercusCourants } = readCompare();
+    const { ids: prochains, previews: prochainsApercus } = next({
+      ids: idsCourants,
+      previews: apercusCourants,
+    });
+    persist([...prochains], prochainsApercus);
+  }, []);
+
   const clear = useCallback(() => persist([], {}), []);
 
   const value = useMemo<CompareContextValue>(
@@ -194,9 +212,10 @@ export function CompareProvider({ children }: { children: React.ReactNode }) {
       remove,
       toggle,
       replace,
+      update,
       clear,
     }),
-    [ids, previews, isHydrated, has, add, remove, toggle, replace, clear],
+    [ids, previews, isHydrated, has, add, remove, toggle, replace, update, clear],
   );
 
   return <CompareContext.Provider value={value}>{children}</CompareContext.Provider>;
@@ -244,5 +263,6 @@ const FALLBACK_VALUE: CompareContextValue = {
   remove: () => undefined,
   toggle: () => ({ status: 'noop', reason: 'already-selected' }),
   replace: () => undefined,
+  update: () => undefined,
   clear: () => undefined,
 };

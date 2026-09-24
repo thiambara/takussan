@@ -103,6 +103,12 @@ function kindClasses(kind: string | undefined) {
 /**
  * Toaster — viewport + renderer. Render once inside ToastProvider.
  * All toasts raised via useToast() appear here.
+ *
+ * ⚠ **`z-[1200]` : le toast est la couche du DESSUS** (TCK-561, vérification adverse). Il valait
+ * `z-[100]` sous des listes, menus et popovers à 1100 et des calques Leaflet à 1000 : un avis levé
+ * menu ouvert en haut à droite passait dessous. `toast-au-premier-plan.test.tsx` compare l'index
+ * compilé au plus grand écrit dans `src/` et dans `leaflet.css` — une couche neuve plus haute le
+ * fait rougir en nommant son fichier.
  */
 function Toaster({
   className,
@@ -115,7 +121,7 @@ function Toaster({
       <ToastPrimitive.Viewport
         data-slot="toaster"
         className={cn(
-          "fixed top-4 right-4 z-[100] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2 outline-none sm:top-6 sm:right-6",
+          "fixed top-4 right-4 z-[1200] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2 outline-none sm:top-6 sm:right-6",
           className
         )}
         {...props}
@@ -139,9 +145,12 @@ function Toaster({
                 {toast.data.action}
               </div>
             )}
+            {/* 24 px dessinés, 44 px d'appui : le pseudo-élément déborde de 10 px de chaque côté
+                (relevé au navigateur le 2026-09-24 : la croix mesurait 24 × 24, sous le plancher
+                tactile). La racine n'a pas d'`overflow-hidden`, qui rognerait la zone. */}
             <ToastPrimitive.Close
               aria-label={t("close")}
-              className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity after:absolute after:-inset-2.5 after:content-[''] hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <X className="size-3.5" />
             </ToastPrimitive.Close>

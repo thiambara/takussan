@@ -12,6 +12,7 @@ import { useFloatingDockSlot } from '@/components/floating-dock';
 import { useToast } from '@/components/ui/toast';
 import { COMPARE_MAX_IDS, idsToCsv, type ComparePreview } from '@/lib/compare';
 import { cn } from '@/lib/utils';
+import { fusionnerRestauration } from '@/components/compare/restauration';
 
 /**
  * Logical height of the pill (px). Used by the FloatingDock to compute the
@@ -104,7 +105,7 @@ const VIGNETTE_PX = 56;
  * place qui reste.
  */
 export function CompareFloatingBar({ className }: { className?: string }) {
-  const { ids, previews, isHydrated, remove, clear, replace } = useCompare();
+  const { ids, previews, isHydrated, remove, clear, update } = useCompare();
   const t = useTranslations('compare.floatingBar');
   const toast = useToast();
   const chemin = usePathname() ?? '';
@@ -136,8 +137,28 @@ export function CompareFloatingBar({ className }: { className?: string }) {
     setReduite(prochain);
   }
 
+  // TCK-561 — « Vider » fait disparaître la barre ET le bouton qui avait le focus. Le focus passe
+  // alors à « Annuler », dans le toast — le seul geste qui se rapporte à ce qu'on vient de faire.
+  // « Annuler » le rend à la barre (sur « Vider », ou sur la pastille si le visiteur l'a réduite
+  // entre-temps), ou au contenu principal quand la barre ne peut pas revenir (`/compare`). Un toast
+  // fermé sans annuler le rend au contenu principal.
+  //
+  // ⚠ Le retour après « Annuler » est une DEMANDE numérotée, consommée par le premier rendu qui
+  // suit le clic — jamais un drapeau qui attend que la barre « réapparaisse ». Un bien ajouté entre
+  // « Vider » et « Annuler » rend la barre visible AVANT le clic : un effet sur `[isVisible]` ne
+  // repartait pas, le focus tombait sur `<body>`, et le drapeau restait levé jusqu'à la prochaine
+  // apparition de la barre — retour depuis `/compare` — où il VOLAIT le focus (vérification adverse
+  // du 2026-09-24, cf. TCK-561).
+  const refVider = useRef<HTMLButtonElement>(null);
+  const [demandeDeFocus, setDemandeDeFocus] = useState(0);
+  const demandeServie = useRef(0);
+
   function vider() {
-    const sauvegarde = { ids: [...ids] };
+    const sauvegarde = { ids: [...ids], previews: { ...previews } };
+    let annule = false;
+    // Le focus n'est donné à « Annuler » qu'une fois, à son montage : un remontage du toast ne
+    // doit pas le reprendre au visiteur. Local à CE vidage — rien ne survit à son toast.
+    let focusDonne = false;
     clear();
     // Une sélection neuve repartira dépliée : la réduction portait sur CETTE sélection.
     ecrireReduite(false);
@@ -146,16 +167,41 @@ export function CompareFloatingBar({ className }: { className?: string }) {
       title: t('clearedTitle'),
       description: t('clearedBody', { count: sauvegarde.ids.length }),
       type: 'info',
+      onClose: () => {
+        if (annule) return;
+        // Le focus est encore DANS le toast qui part (ou déjà tombé) : il n'aurait plus de lieu.
+        const actif = document.activeElement;
+        const dansLesToasts = actif?.closest('[data-slot="toaster"]');
+        if (!actif || actif === document.body || dansLesToasts) focaliserLeContenu();
+      },
       data: {
         action: (
           <button
+            ref={(bouton) => {
+              if (bouton && !focusDonne) {
+                focusDonne = true;
+                bouton.focus();
+              }
+            }}
             type="button"
             onClick={() => {
-              // `replace` est celui du rendu d'AVANT le vidage : il se referme sur les aperçus
-              // de ce rendu-là et les réécrit avec les ids — la vignette nomme toujours le bien
-              // (vérifié par le test « réversible par Annuler »).
-              replace(sauvegarde.ids);
+              annule = true;
+              setDemandeDeFocus((n) => n + 1);
+              // Pas `replace(instantané)` : ce rappel survit à son rendu, et le visiteur a pu
+              // ajouter un bien depuis. `update` lit la sélection COURANTE au moment du clic.
+              let ecartes: number[] = [];
+              update((courante) => {
+                const fusion = fusionnerRestauration(sauvegarde, courante);
+                ecartes = fusion.ecartes;
+                return fusion;
+              });
               toast.close(idToast);
+              if (ecartes.length > 0) {
+                toast.add({
+                  title: t('undoPartial', { count: ecartes.length, max: COMPARE_MAX_IDS }),
+                  type: 'warning',
+                });
+              }
             }}
             className={cn(
               '-mx-2 inline-flex min-h-11 items-center rounded-md px-2',
@@ -181,6 +227,18 @@ export function CompareFloatingBar({ className }: { className?: string }) {
     height: reduite ? COMPARE_PILL_REDUITE_HEIGHT_PX : COMPARE_PILL_HEIGHT_PX,
     enabled: isVisible,
   });
+
+  // Servie au rendu qui suit « Annuler » — la sélection rétablie est déjà là, `update` et la
+  // demande partent du même clic. Servie UNE fois : `isVisible` et `reduite` ne la rejouent pas.
+  useEffect(() => {
+    if (demandeDeFocus === demandeServie.current) return;
+    demandeServie.current = demandeDeFocus;
+    if (!isVisible) {
+      focaliserLeContenu();
+      return;
+    }
+    (reduite ? refDeplier : refVider).current?.focus();
+  }, [demandeDeFocus, isVisible, reduite]);
 
   if (!isVisible) return null;
 
@@ -347,6 +405,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           <div className="mt-2 flex items-stretch gap-2">
             {/* VIDER — une action distincte, libellée, et réversible (toast « Annuler »). */}
             <button
+              ref={refVider}
               type="button"
               onClick={vider}
               aria-label={t('clearAria')}
@@ -493,6 +552,18 @@ function Vignette({
       </span>
     </button>
   );
+}
+
+/**
+ * Rend le focus au contenu principal de la page — le lieu neutre quand ce qui le portait a
+ * disparu. `tabindex="-1"` le rend focalisable par script sans l'ajouter au parcours de
+ * tabulation ; `preventScroll` garde le visiteur là où il lisait.
+ */
+function focaliserLeContenu(): void {
+  const principal = document.querySelector<HTMLElement>('main');
+  if (!principal) return;
+  if (!principal.hasAttribute('tabindex')) principal.setAttribute('tabindex', '-1');
+  principal.focus({ preventScroll: true });
 }
 
 /** La première lettre d'un titre — le repli quand le bien n'a pas de photo. */

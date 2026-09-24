@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import React from 'react';
 
 import { CompareFloatingBar } from '../CompareFloatingBar';
-import { CompareProvider } from '@/context/CompareContext';
+import { CompareProvider, useCompare } from '@/context/CompareContext';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { COMPARE_STORAGE_KEY, type ComparePreview } from '@/lib/compare';
 import messages from '@/messages/fr.json';
@@ -294,5 +294,292 @@ describe('<CompareFloatingBar> — réduire n’est pas vider (TCK-561)', () => 
     });
     expect(screen.getByRole('button', { name: /Afficher le comparateur/ })).toBeInTheDocument();
     expect(idsEnStockage()).toEqual([10, 20]);
+  });
+});
+
+/**
+ * Un bouton hors de la barre qui ajoute un bien AVEC son aperçu — comme une carte de la liste.
+ * Il lit `add` du rendu courant : c'est un geste du visiteur entre « Vider » et « Annuler ».
+ */
+function Ajouteur({ id, apercu }: { readonly id: number; readonly apercu: ComparePreview }) {
+  const { add } = useCompare();
+  return (
+    <button type="button" onClick={() => add(id, apercu)}>
+      {`ajouter-${id}`}
+    </button>
+  );
+}
+
+function wrapAvecAjouts(
+  ids: readonly number[],
+  previews: Record<number, ComparePreview>,
+  ajouts: readonly (readonly [number, ComparePreview])[],
+) {
+  semer(ids, previews);
+  return (
+    <NextIntlClientProvider locale="fr" messages={messages} timeZone="UTC">
+      <ToastProvider>
+        <CompareProvider>
+          <main>
+            {ajouts.map(([id, apercu]) => (
+              <Ajouteur key={id} id={id} apercu={apercu} />
+            ))}
+          </main>
+          <CompareFloatingBar />
+        </CompareProvider>
+        <Toaster />
+      </ToastProvider>
+    </NextIntlClientProvider>
+  );
+}
+
+const FANN: ComparePreview = { title: 'Studio à Fann', slug: 'studio-fann', photo: null };
+const MERMOZ: ComparePreview = { title: 'Loft à Mermoz', slug: 'loft-mermoz', photo: null };
+
+/**
+ * TCK-561, restes de la vérification : « Annuler » restaurait un INSTANTANÉ par `replace()` — un
+ * bien ajouté entre « Vider » et « Annuler » était écrasé sans un mot ; et après « Vider » la barre
+ * disparaissait avec le bouton qui avait le focus : le clavier retombait sur `<body>`.
+ */
+describe('<CompareFloatingBar> — « Annuler » rétablit sans écraser, et le focus a un lieu (TCK-561)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    cheminCourant = '/fr';
+  });
+
+  it('un bien ajouté entre « Vider » et « Annuler » est GARDÉ, aperçu compris', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, [[30, FANN]]));
+    await screen.findByRole('complementary');
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Vider le comparateur' }));
+    });
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'ajouter-30' }));
+    });
+    expect(idsEnStockage()).toEqual([30]);
+
+    await act(async () => {
+      await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+    });
+
+    expect(idsEnStockage()).toEqual([10, 20, 30]);
+    // Les aperçus des DEUX origines : l'instantané (Ngor) et l'ajout (Fann).
+    expect(
+      await screen.findByRole('button', { name: 'Retirer « Villa à Ngor » du comparateur' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retirer « Studio à Fann » du comparateur' })).toBeInTheDocument();
+  });
+
+  it('au-delà de quatre, l’ajout récent gagne — et ce qui n’a pas pu revenir est DIT', async () => {
+    const user = userEvent.setup();
+    const trois = { ...APERCU, 40: { title: 'Terrain à Diamniadio', slug: 'terrain-diamniadio', photo: null } };
+    render(wrapAvecAjouts([10, 20, 40], trois, [[30, FANN], [50, MERMOZ]]));
+    await screen.findByRole('complementary');
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Vider le comparateur' }));
+    });
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'ajouter-30' }));
+    });
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'ajouter-50' }));
+    });
+    await act(async () => {
+      await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+    });
+
+    // Les deux choix récents restent ; l'instantané revient dans la place qui reste, dans son ordre.
+    expect(idsEnStockage()).toEqual([10, 20, 30, 50]);
+    expect(await screen.findByText(/1 bien n’a pas pu être rétabli/)).toBeInTheDocument();
+  });
+
+  it('après « Vider », le focus passe à « Annuler » — pas à <body>', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, []));
+    await screen.findByRole('complementary');
+
+    screen.getByRole('button', { name: 'Vider le comparateur' }).focus();
+    await act(async () => {
+      await user.keyboard('{Enter}');
+    });
+    expect(idsEnStockage()).toEqual([]);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus());
+  });
+
+  it('« Annuler » rend le focus à la barre revenue, sur « Vider »', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, []));
+    await screen.findByRole('complementary');
+
+    screen.getByRole('button', { name: 'Vider le comparateur' }).focus();
+    await act(async () => {
+      await user.keyboard('{Enter}');
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus());
+    await act(async () => {
+      await user.keyboard('{Enter}');
+    });
+    expect(idsEnStockage()).toEqual([10, 20]);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Vider le comparateur' })).toHaveFocus(),
+    );
+  });
+
+  it('le toast fermé SANS annuler, le focus va au contenu principal — pas à <body>', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, []));
+    await screen.findByRole('complementary');
+
+    screen.getByRole('button', { name: 'Vider le comparateur' }).focus();
+    await act(async () => {
+      await user.keyboard('{Enter}');
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus());
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Fermer la notification' }));
+    });
+    await waitFor(() => expect(document.querySelector('main')).toHaveFocus());
+    expect(idsEnStockage()).toEqual([]);
+  });
+});
+
+/** Le nom de l'élément qui a le focus — `BODY` quand le clavier n'a plus de lieu. */
+function focusCourant(): string {
+  const el = document.activeElement;
+  if (!el || el === document.body) return 'BODY';
+  return el.getAttribute('aria-label') ?? el.textContent ?? el.tagName;
+}
+
+/** « Vider » au clavier, puis attendre que le focus soit passé à « Annuler ». */
+async function viderAuClavier(user: ReturnType<typeof userEvent.setup>) {
+  screen.getByRole('button', { name: 'Vider le comparateur' }).focus();
+  await act(async () => {
+    await user.keyboard('{Enter}');
+  });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus());
+}
+
+/** Un geste du clavier sur un bouton nommé — le focus y passe d'abord, comme au Tab. */
+async function activerAuClavier(user: ReturnType<typeof userEvent.setup>, nom: string) {
+  screen.getByRole('button', { name: nom }).focus();
+  await act(async () => {
+    await user.keyboard('{Enter}');
+  });
+}
+
+/**
+ * TCK-561, vérification adverse de la réparation : le retour du focus sur « Vider » était porté
+ * par un DRAPEAU consommé par un effet sur `[isVisible]` — qui ne s'exécute que sur un CHANGEMENT.
+ * Un bien ajouté entre « Vider » et « Annuler » rend la barre visible AVANT le clic : l'effet ne
+ * repart pas, le focus tombe (sur `<body>`, ou sur un autre toast qui part à son tour), et le
+ * drapeau reste levé — la prochaine fois que la barre réapparaît (retour depuis `/compare`), elle
+ * VOLE le focus. Un Entrée de plus, et la sélection est vidée.
+ */
+describe('<CompareFloatingBar> — le focus après « Annuler » ne dépend pas de l’histoire de la barre (TCK-561)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    cheminCourant = '/fr';
+  });
+
+  it('un bien ajouté entre « Vider » et « Annuler » : le focus revient quand même sur « Vider »', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, [[30, FANN]]));
+    await screen.findByRole('complementary');
+
+    await viderAuClavier(user);
+    // La barre REVIENT avant « Annuler » : c'est ce qui court-circuitait l'effet sur `[isVisible]`.
+    await activerAuClavier(user, 'ajouter-30');
+    expect(screen.getByRole('complementary')).toBeInTheDocument();
+    await activerAuClavier(user, 'Annuler');
+
+    expect(idsEnStockage()).toEqual([10, 20, 30]);
+    await waitFor(() => expect(focusCourant()).toBe('Vider le comparateur'));
+  });
+
+  it('aucun vol de focus ensuite : la barre qui réapparaît (retour de /compare) laisse le focus où il est', async () => {
+    const user = userEvent.setup();
+    const arbre = () => wrapAvecAjouts([10, 20], APERCU, [[30, FANN]]);
+    const { rerender } = render(arbre());
+    await screen.findByRole('complementary');
+
+    await viderAuClavier(user);
+    await activerAuClavier(user, 'ajouter-30');
+    await activerAuClavier(user, 'Annuler');
+    expect(idsEnStockage()).toEqual([10, 20, 30]);
+
+    // Le visiteur va ailleurs, puis sur `/compare` (la barre s'y cache) et revient.
+    screen.getByRole('button', { name: 'ajouter-30' }).focus();
+    cheminCourant = '/fr/compare';
+    rerender(arbre());
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    cheminCourant = '/fr/properties';
+    rerender(arbre());
+    await screen.findByRole('complementary');
+    // Laisser passer effets et minuteurs : un vol de focus arriverait là.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(focusCourant()).toBe('ajouter-30');
+    // Et donc un Entrée ne vide rien.
+    await act(async () => {
+      await user.keyboard('{Enter}');
+    });
+    expect(idsEnStockage()).toEqual([10, 20, 30]);
+  });
+
+  it('la barre réduite entre-temps : « Annuler » rend le focus à la pastille, seul bouton qui reste', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, [[30, FANN]]));
+    await screen.findByRole('complementary');
+
+    await viderAuClavier(user);
+    await activerAuClavier(user, 'ajouter-30');
+    await activerAuClavier(user, 'Réduire le comparateur');
+    await activerAuClavier(user, 'Annuler');
+
+    expect(idsEnStockage()).toEqual([10, 20, 30]);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Afficher le comparateur — 3 biens sélectionnés/ })).toHaveFocus(),
+    );
+  });
+
+  it('« Annuler » quand la barre ne peut pas revenir (sur /compare) : le focus va au contenu principal', async () => {
+    const user = userEvent.setup();
+    const arbre = () => wrapAvecAjouts([10, 20], APERCU, []);
+    const { rerender } = render(arbre());
+    await screen.findByRole('complementary');
+
+    await viderAuClavier(user);
+    // Le visiteur ouvre le comparatif, le toast encore là : la barre n'y est jamais montrée.
+    cheminCourant = '/fr/compare';
+    rerender(arbre());
+    await activerAuClavier(user, 'Annuler');
+
+    expect(idsEnStockage()).toEqual([10, 20]);
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('main')).toHaveFocus());
+  });
+
+  it('pendant « Annuler », le focus ne transite PAS par le contenu principal (un saut annoncé pour rien)', async () => {
+    const user = userEvent.setup();
+    render(wrapAvecAjouts([10, 20], APERCU, []));
+    await screen.findByRole('complementary');
+
+    await viderAuClavier(user);
+    const principal = document.querySelector('main')!;
+    const passages: string[] = [];
+    principal.addEventListener('focus', () => passages.push('main'));
+    await activerAuClavier(user, 'Annuler');
+
+    await waitFor(() => expect(focusCourant()).toBe('Vider le comparateur'));
+    // `closeToast` appelle `onClose` DANS le clic : sans la garde « annulé », il focaliserait
+    // <main> — un lecteur d'écran l'annonce — avant que le focus ne reparte sur « Vider ».
+    expect(passages).toEqual([]);
   });
 });
