@@ -22,6 +22,15 @@ import { useLayoutEffect } from 'react';
  * D'où ce composant : l'arrivée sur un écran de `(auth)` remonte au SOMMET du document, pas au haut
  * de la page. Un écran de connexion n'a pas de position de lecture à préserver ; il a une issue à
  * montrer. `useLayoutEffect` : avant la première peinture, pour qu'on ne voie pas l'écran sauter.
+ *
+ * ⚠ **Un retour par l'historique n'est PAS toujours ramené en haut** — mesuré le 2026-09-24
+ * (TCK-568), 320 × 640 : recherche → `/auth/login`, défilée à 82 px → « Créer un compte » → retour
+ * du navigateur : `/auth/login` revient à 82 px et y reste (100, 600, 1500 ms), le « Retour » à
+ * `top` −70. La position est restaurée APRÈS cet effet ; qui la restaure (navigateur ou routeur)
+ * n'est pas départagé. Sur `/auth/login` chargée directement, le même geste rend 0 : le cas n'est
+ * pas stable, et ce composant ne le promet pas. Gardé tel quel, délibérément : la personne revient
+ * au point d'où elle est partie, en ayant défilé elle-même pour atteindre « Créer un compte » ; le
+ * haut est à un geste.
  */
 export function ArriveeEnHaut() {
   const pathname = usePathname();

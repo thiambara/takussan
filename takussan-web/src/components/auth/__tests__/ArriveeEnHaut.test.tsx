@@ -10,6 +10,7 @@
  * « sur un chargement neuf ». Que le layout de `(auth)` le MONTE : `layout.retour.test.tsx`.
  */
 import { render } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let pathname = '/auth/login';
@@ -61,6 +62,44 @@ describe('ArriveeEnHaut', () => {
     rerender(<ArriveeEnHaut />);
 
     expect(defilement).toBe(140);
+  });
+
+  /*
+   * Vérification de TCK-568 : remplacer `useLayoutEffect` par `useEffect` laissait les sept tests
+   * verts — la promesse « avant la première peinture, sans saut visible » n'était gardée par rien.
+   *
+   * Ce qui les distingue est observable sans mise en page : React exécute TOUS les effets de
+   * mise en page d'un commit (dans l'ordre de l'arbre) avant le moindre `useEffect`, et le
+   * navigateur ne peint qu'après les premiers. Une sonde soeur, placée APRÈS `ArriveeEnHaut`, lit
+   * donc la fenêtre dans son propre `useLayoutEffect` : remontée si le composant agit avant la
+   * peinture, encore défilée s'il attend un `useEffect`.
+   */
+  it('remonte AVANT la peinture — dans la phase de mise en page, pas après', () => {
+    const vu: number[] = [];
+    function Sonde() {
+      useLayoutEffect(() => {
+        vu.push(defilement);
+      });
+      return null;
+    }
+
+    const { rerender } = render(
+      <>
+        <ArriveeEnHaut />
+        <Sonde />
+      </>,
+    );
+    expect(vu.at(-1)).toBe(0);
+
+    defilement = 223;
+    pathname = '/auth/register';
+    rerender(
+      <>
+        <ArriveeEnHaut />
+        <Sonde />
+      </>,
+    );
+    expect(vu.at(-1)).toBe(0);
   });
 
   it('une ancre visée explicitement garde la main', () => {

@@ -1,13 +1,13 @@
 ---
 id: TCK-568
 title: "Un clic sur un lien ne montrait rien jusqu'à la page suivante ; la connexion n'offrait aucun retour vers la page quittée"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -34,10 +34,16 @@ couleur un peu plus différente pour le hover ? On a l'impression qu'on n'a pas 
 loader se trouve en bas. »* La couleur de survol relève d'un autre ticket du lot (TCK-561) ; celui-ci
 traite le seul retour visuel du clic.
 
-- **La capture est celle de la PRODUCTION** (`www.takussan.com`, servie depuis `master`) : onglet
-  actif « Biro » souligné `border-gray-900`, « Butik » sous le pointeur en `hover:border-gray-400`
-  — les classes que `curl -m 20 https://www.takussan.com/properties?type=office` rend encore
-  (relevé de la revue du 2026-09-23). Le testeur parle donc de la **bande de catégories** : le
+- **La capture est celle de la PRÉPRODUCTION d'avant cfe92ba8**, pas de la production — *corrigé
+  le 2026-09-24 : cette ligne attribuait la capture à `www.takussan.com` sur la foi des classes de
+  la bande, et c'était faux.* La capture est en wolof (« Biro », « Butik », « Fan ngay seet »,
+  « Jënd / Luwaa », « Denc seet gi », « / xët ») ; or `master` n'a aucune de ces chaînes
+  (`git show origin/master:takussan-web/src/messages/wo.json` : 0 occurrence chacune, contre 1 à
+  4 sur `origin/preview`), `https://www.takussan.com/wo/properties?type=office` rend **404**, et
+  le HTML de la production n'en contient aucune. Le style de la bande correspond à la
+  préproduction d'AVANT cfe92ba8, qui a retiré `border-foreground` et
+  `hover:border-muted-foreground` (`git show cfe92ba8 -- …/Navbar.tsx`). La conclusion pratique
+  tient : la capture précède cfe92ba8. Le testeur parle donc de la **bande de catégories** : le
   clic sur un onglet ne changeait rien près de l'onglet, le seul chargement visible était celui de
   la liste, plus bas.
 - **Ce cas est déjà traité sur `dev` et `preview`** par cfe92ba8 (2026-09-16, « chargement
@@ -113,18 +119,21 @@ traite le seul retour visuel du clic.
   toujours sans Navigation API, `document.referrer` ne décrivant que le chargement du document — un
   vrai lien vers : la destination `?redirect=` si elle est publique, la dernière page publique vue
   dans l'onglet, l'accueil. Sur la bannière mobile, blanc sur un voile `bg-scrim/40` ; le logo passe
-  à droite. Au bureau, le panneau du formulaire commence à 96 px (`lg:pt-24`), sous le retour.
+  à droite. Son plancher de 44 px est posé APRÈS le `className` du layout (TCK-560, W3) : aucune
+  classe passée par un appelant ne peut le raboter. Au bureau, le panneau du formulaire commence à 96 px (`lg:pt-24`), sous le retour.
 - `components/auth/ArriveeEnHaut.tsx`, monté dans `(auth)/layout.tsx` : à chaque arrivée sur un
   écran de `(auth)` (changement de chemin), le document remonte à son SOMMET, sans animation et
   avant la première peinture (`useLayoutEffect`) — sauf quand l'URL vise une ancre. Un écran de
-  connexion n'a pas de position de lecture à préserver ; il a une issue à montrer.
+  connexion n'a pas de position de lecture à préserver ; il a une issue à montrer. ⚠ Un retour
+  par l'historique n'est pas couvert : cf. « Reprise du 2026-09-24 ».
 - `components/auth/MemoireDeLaPagePublique.tsx` (layout racine) et `page-publique-memorisee.ts` :
   la dernière page du site public vue dans l'onglet, chemin ET filtres, en `sessionStorage` —
   filtrée à l'écriture et REFILTRÉE à la lecture (`destinationPublique`), chaque accès gardé.
 - `/auth/login` filtre `?redirect=` par `destinationInterne`, le filtre partagé (la copie locale
   laissait passer `/\evil.tld`).
 - `components/auth/lien-connexion.ts` : `destinationPublique` (branchée) et `hrefConnexion`, le
-  lien de connexion qui emporte la page courante — **pas encore appelé** (cf. hors périmètre).
+  lien de connexion qui emporte la page courante — appelé par les deux liens « Connexion » de la
+  barre publique depuis l'intégration du lot (`Navbar.tsx`, cf. M2).
 
 ## Critères d'acceptation
 
@@ -164,8 +173,11 @@ traite le seul retour visuel du clic.
 - [x] `/auth/register` à 1024 × 768, 1180 × 820 et 1024 × 700 (fr, wo, en) : aucun élément sous le
       retour ; même chose à 1366 × 650 et 1440 × 800 — mesuré au navigateur local.
 - [x] Contraste du « Retour » blanc sur la bannière mobile, fond mesuré sous le texte à 320 px :
-      9,2:1 au médian, 6,9:1 au 90ᵉ centile le plus clair (mesure du premier jet ; non rejouée par
-      la deuxième revue).
+      9,2:1 au médian, 6,9:1 au 90ᵉ centile le plus clair (mesure du premier jet) — **rejoué le
+      2026-09-24** (texte et icône rendus transparents, capture de la boîte 85 × 44, contraste de
+      `rgb(255,255,255)` pixel par pixel) : 320 × 640 → 9,02:1 au médian, 6,84:1 au 90ᵉ centile le
+      plus clair ; 390 × 844 → 9,14 et 6,69. Le pixel le plus clair de toute la boîte donne 3,4 à
+      3,6:1 — sa position n'a pas été relevée (la boîte rectangulaire déborde la pastille arrondie).
 - [x] Le lien de repli ne mène jamais à `/app` ni hors du site, y compris depuis une mémoire
       falsifiée (`RetourAuth.test.tsx`, `MemoireDeLaPagePublique.test.tsx`).
 - [x] `/auth/login?redirect=/\evil.tld` mène à `/app` après connexion
@@ -193,3 +205,31 @@ défilement instantané.
   `RetourAuth` en reprend l'apparence, pas la règle.
 - Les navigations lancées par `router.push` hors d'un lien : chacune porte, ou non, sa propre
   barre dans sa transition.
+
+## Reprise du 2026-09-24 (unité U3) — les défauts et risques laissés ouverts par la vérification
+
+- **M2 (majeur) — le retour à la page d'origine APRÈS connexion n'était pas branché.** Soldé par
+  la session à l'intégration du lot (les deux « Connexion » de `Navbar.tsx` passent par
+  `hrefConnexion`, `Navbar.connexion-retour.test.tsx`) ; laissé tel quel ici. La mention « pas
+  encore appelé » de *Ce qui change* est corrigée.
+- **W1 — la provenance de la capture était mal établie** (production affirmée, préproduction
+  réelle). Re-mesuré (`git show`, `curl` de la production) et réécrit, cf. *Contexte* ; la
+  conclusion « capture antérieure à cfe92ba8 » tient.
+- **M2 — le risque « retour par l'historique ramené en haut » était faux.** Reproduit au
+  navigateur (CDP, 320 × 640, tactile) : recherche défilée → `/auth/login` (`scrollY` 0, retour à
+  `top` 12) → défilée à 82 → « Créer un compte » (`scrollY` 0) → retour du navigateur :
+  `/auth/login` revient à **82 px** et y reste (100, 600, 1500 ms), « Retour » à `top` −70, hors
+  de l'écran. `ArriveeEnHaut` ne ramène donc PAS en haut un retour par l'historique : la position
+  est restaurée après son effet. Le même geste sur `/auth/login` chargée directement rend 0 : le
+  comportement n'est pas stable, et le composant ne le promet plus (docblock réécrit). Gardé,
+  délibérément : la personne revient au point d'où elle est partie, après avoir défilé elle-même
+  pour atteindre « Créer un compte » ; le haut est à 82 px.
+- **M2 — trou de test : `useLayoutEffect` → `useEffect` laissait les sept tests verts.** Test
+  `remonte AVANT la peinture — dans la phase de mise en page, pas après`
+  (`ArriveeEnHaut.test.tsx`) : une sonde sœur lit la fenêtre dans son propre `useLayoutEffect`,
+  qui court avant tout `useEffect`. Ablation (`import { useEffect as useLayoutEffect }`) → rouge,
+  restauré à l'identique (md5).
+- **Risque « contraste non rejoué »** : rejoué, cf. le critère correspondant.
+- **Risque « mesures en émulation, pas sur un vrai iPhone »** : inchangé ; la case reste décochée.
+- **Risque « dépendance à la règle de défilement de Next »** : inchangé, sans nouvelle mesure.
+
