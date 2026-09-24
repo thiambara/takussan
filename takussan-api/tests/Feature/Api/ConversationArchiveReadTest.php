@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Jobs\NotifyNewMessageJob;
+use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +15,24 @@ class ConversationArchiveReadTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * TCK-565, réparation 2 — une conversation directe n'ouvre plus sur un inconnu : elle exige
+     * un contact JOIGNABLE (`MessagingReach`). Deux agents d'une même agence le sont.
+     */
+    private function mettreEnContact(User $a, User $b): Agency
+    {
+        $agency = Agency::factory()->create();
+        $this->materializeRoleProfile($a, 'agent', $agency);
+        $this->materializeRoleProfile($b, 'agent', $agency);
+
+        return $agency;
+    }
+
     private function createPair(): array
     {
         $me = User::factory()->create();
         $other = User::factory()->create();
+        $this->mettreEnContact($me, $other);
 
         Sanctum::actingAs($me);
         $conversationId = $this->postJson('/api/conversations', [

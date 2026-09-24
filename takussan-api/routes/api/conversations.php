@@ -2,12 +2,19 @@
 
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
+use App\Http\Controllers\Api\MessagingContactController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('conversations', [ConversationController::class, 'index'])->name('conversations.index');
     Route::post('conversations', [ConversationController::class, 'store'])->name('conversations.store');
+    // TCK-565 — littérale, donc AVANT `conversations/{conversation}` : sinon « contacts » serait
+    // lu comme un identifiant de conversation (404 par liaison de modèle).
+    Route::get('conversations/contacts', [MessagingContactController::class, 'index'])->name('conversations.contacts.index');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+    // TCK-565 — les personnes qu'on peut ajouter à CE groupe (même règle que l'ajout, avec lui).
+    Route::get('conversations/{conversation}/contacts', [MessagingContactController::class, 'forConversation'])
+        ->name('conversations.contacts.for-conversation');
     // TCK-085 — admin-only rename
     Route::patch('conversations/{conversation}', [ConversationController::class, 'update'])->name('conversations.update');
     // TCK-085 — per-participant mute toggle

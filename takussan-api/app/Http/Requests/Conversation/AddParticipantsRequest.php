@@ -6,6 +6,8 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Conversation;
 use App\Models\Enums\ParticipantRole;
 use App\Models\User;
+use App\Rules\ParticipantIdsRule;
+use App\Services\Messaging\MessagingReach;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -15,9 +17,10 @@ use Illuminate\Validation\Validator;
  * Beyond field-level shape we enforce two business rules:
  *  - **Cap** : the total active participant count after the add must
  *    stay ≤ 20.
- *  - **Scope** : every user_id must either be in the same agency as the
- *    related property/lease, or share an existing relationship with the
- *    actor (agent ↔ customer relation, see UserCustomerRelationship).
+ *  - **Scope** : every user_id must be reachable by the actor for THIS
+ *    conversation, as defined by {@see MessagingReach} — which includes the
+ *    team of the related property/lease agency (TCK-565 — the very rule the
+ *    front's picker lists, through the same method).
  *
  * Permission to call this endpoint at all (admin-only) is decided by
  * `ConversationPolicy@addParticipant` — that's a *separate* gate and runs
@@ -36,8 +39,10 @@ class AddParticipantsRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'user_ids' => ['required', 'array', 'min:1', 'max:20'],
-            'user_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
+            // TCK-565 — l'existence est vérifiée une fois pour tout le tableau (`withValidator()`),
+            // plus par position : `exists` rendait « The selected user_ids.0 is invalid. ». Et
+            // AUCUNE règle sur `user_ids.*` : `integer` ou `distinct` y produiraient la même forme.
+            'user_ids' => ['bail', 'required', 'array', 'min:1', 'max:20', new ParticipantIdsRule(distinct: true)],
             'role' => ['nullable', Rule::enum(ParticipantRole::class)],
         ];
     }
@@ -48,7 +53,9 @@ class AddParticipantsRequest extends BaseFormRequest
     public function messages(): array
     {
         return [
-            'user_ids.required' => 'Au moins un utilisateur doit être ajouté.',
+            // TCK-565, passe finale — cette phrase était écrite en français en dur, pour les trois
+            // langues (relevé du vérificateur, passe 3).
+            'user_ids.required' => __('messaging.errors.participants_required'),
         ];
     }
 
@@ -62,7 +69,7 @@ class AddParticipantsRequest extends BaseFormRequest
             }
 
             $userIds = (array) $this->input('user_ids', []);
-            if (empty($userIds)) {
+            if (empty($userIds) || $v->errors()->has('user_ids')) {
                 return;
             }
 
@@ -85,82 +92,24 @@ class AddParticipantsRequest extends BaseFormRequest
                 return;
             }
 
-            // Scope check: every user must be agency-scoped to the related
-            // property/lease, OR have an existing relationship with the
-            // actor (agent ↔ customer mapped via UserCustomerRelationship,
-            // or simply a shared past conversation).
+            // Scope check (TCK-565) : un candidat est accepté s'il est joignable par l'acteur POUR
+            // CETTE conversation — la règle de `MessagingReach`, qui porte aussi « l'équipe de
+            // l'agence du bien de la conversation ». C'est la même méthode, avec la même
+            // conversation, qui alimente le sélecteur du front
+            // (`GET /conversations/{conversation}/contacts`) : il ne propose donc personne que
+            // cette garde refuse, et elle n'accepte personne qu'il ne montre pas.
             $actor = $this->user();
-            $propertyAgencyId = null;
-            if ($conversation->property_id) {
-                $propertyAgencyId = $conversation->property?->agency_id;
+            $newIds = array_values(array_unique(array_diff(array_map('intval', $userIds), $alreadyIn)));
+
+            if (User::query()->whereIn('id', $newIds)->count() !== count($newIds)) {
+                $v->errors()->add('user_ids', __('messaging.errors.participants_unavailable'));
+
+                return;
             }
-            if (! $propertyAgencyId && $conversation->lease_id) {
-                $propertyAgencyId = $conversation->lease?->property?->agency_id;
-            }
 
-            foreach ($userIds as $uid) {
-                if (in_array((int) $uid, $alreadyIn, true)) {
-                    continue;
-                }
-
-                $candidate = User::find($uid);
-                if (! $candidate) {
-                    continue; // exists rule already caught it
-                }
-
-                if ($this->candidateInScope($actor, $candidate, $propertyAgencyId, $conversation)) {
-                    continue;
-                }
-
-                $v->errors()->add(
-                    'user_ids',
-                    __('messaging.errors.participant_out_of_scope').' (#'.$candidate->id.')'
-                );
+            if (! $actor || app(MessagingReach::class)->outOfReach($actor, $newIds, $conversation) !== []) {
+                $v->errors()->add('user_ids', __('messaging.errors.participants_out_of_reach'));
             }
         });
-    }
-
-    protected function candidateInScope(?User $actor, User $candidate, ?int $propertyAgencyId, Conversation $conversation): bool
-    {
-        if ($actor && $actor->id === $candidate->id) {
-            return true;
-        }
-
-        // Same agency as the related property/lease.
-        if ($propertyAgencyId && $candidate->agency_id === $propertyAgencyId) {
-            return true;
-        }
-
-        if (! $actor) {
-            return false;
-        }
-
-        // Same agency as the actor (intra-agency invite).
-        if ($actor->agency_id && $actor->agency_id === $candidate->agency_id) {
-            return true;
-        }
-
-        // Existing pre-conversation relationship: actor and candidate
-        // already share at least one previous conversation.
-        $sharedConvCount = \DB::table('conversation_participants as cpa')
-            ->join('conversation_participants as cpb', 'cpa.conversation_id', '=', 'cpb.conversation_id')
-            ->where('cpa.user_id', $actor->id)
-            ->where('cpb.user_id', $candidate->id)
-            ->where('cpa.conversation_id', '!=', $conversation->id)
-            ->count();
-
-        if ($sharedConvCount > 0) {
-            return true;
-        }
-
-        // Customer relationship — agent invites their customer or vice-versa.
-        // Both directions: actor → customer linked to candidate, OR candidate → customer linked to actor.
-        $linked = \DB::table('user_customer_relationships as ucra')
-            ->join('user_customer_relationships as ucrb', 'ucra.customer_id', '=', 'ucrb.customer_id')
-            ->where('ucra.user_id', $actor->id)
-            ->where('ucrb.user_id', $candidate->id)
-            ->exists();
-
-        return $linked;
     }
 }

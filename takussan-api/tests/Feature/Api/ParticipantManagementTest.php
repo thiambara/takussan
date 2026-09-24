@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\ParticipantRole;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -274,5 +276,145 @@ class ParticipantManagementTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['user_ids']);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // TCK-565 — la règle d'ajout lit `MessagingReach`, celle que liste le sélecteur du front.
+    // ---------------------------------------------------------------------------------------------
+
+    /** M13 — un compte introuvable : une phrase, pas « The selected user_ids.0 is invalid. ». */
+    public function test_un_compte_introuvable_rend_une_seule_phrase_lisible(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        $absent = (int) User::query()->max('id') + 1000;
+
+        Sanctum::actingAs($admin);
+
+        $resp = $this->postJson("/api/conversations/{$conversation->id}/participants", [
+            'user_ids' => [$absent, $absent + 1],
+        ], ['Accept-Language' => 'fr'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['user_ids']);
+
+        $this->assertSame(__('messaging.errors.participants_unavailable', [], 'fr'), $resp->json('message'));
+    }
+
+    /** La règle propre à l'ajout survit : l'équipe de l'agence du bien de la conversation. */
+    public function test_un_agent_de_l_agence_du_bien_peut_etre_ajoute_sans_autre_relation(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        $agency = Agency::factory()->create();
+        $conversation->update(['property_id' => Property::factory()->create(['agency_id' => $agency->id])->id]);
+        $agent = User::factory()->create();
+        $this->materializeRoleProfile($agent, 'agent', $agency);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/conversations/{$conversation->id}/participants", [
+            'user_ids' => [$agent->id],
+        ])->assertCreated();
+    }
+
+    /**
+     * Resserrement délibéré (TCK-565) : l'ancienne règle comparait `agency_id` à `agency_id` et
+     * laissait un propriétaire ajouter n'importe quel autre propriétaire de son agence — un client
+     * de l'agence découvrant les autres. L'équipe, elle, reste joignable.
+     */
+    public function test_un_proprietaire_n_ajoute_pas_un_autre_client_de_son_agence(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        $agency = Agency::factory()->create();
+        $this->materializeRoleProfile($admin, 'owner', $agency);
+        $autreProprietaire = User::factory()->create();
+        $this->materializeRoleProfile($autreProprietaire, 'owner', $agency);
+        $agent = User::factory()->create();
+        $this->materializeRoleProfile($agent, 'agent', $agency);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/conversations/{$conversation->id}/participants", [
+            'user_ids' => [$autreProprietaire->id],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['user_ids']);
+
+        $this->postJson("/api/conversations/{$conversation->id}/participants", [
+            'user_ids' => [$agent->id],
+        ])->assertCreated();
+    }
+
+    /**
+     * M13 — réparation 1 : `user_ids.*` portait encore `integer` et `distinct`, donc une erreur
+     * par position (« user_ids.0 ») dès qu'un identifiant était mal formé ou répété.
+     */
+    public function test_des_identifiants_mal_formes_ou_repetes_rendent_une_seule_erreur(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        $d = User::factory()->create();
+        $this->relate($admin, $d);
+
+        Sanctum::actingAs($admin);
+
+        foreach ([
+            [['abc', 'def'], 'participants_unavailable'],
+            [[$d->id, $d->id], 'participants_duplicate'],
+        ] as [$ids, $cle]) {
+            $resp = $this->postJson("/api/conversations/{$conversation->id}/participants", [
+                'user_ids' => $ids,
+            ], ['Accept-Language' => 'fr'])->assertUnprocessable();
+
+            $this->assertSame(['user_ids'], array_keys($resp->json('errors')), json_encode($ids));
+            $this->assertSame(__("messaging.errors.{$cle}", [], 'fr'), $resp->json('message'));
+        }
+    }
+
+    /**
+     * La ré-invitation d'un ancien membre est un chemin du service (« Re-invite path ») ; la garde
+     * l'interdisait en ne comptant pas la conversation en cours comme une relation, alors que le
+     * sélecteur le proposait (relevé du vérificateur : LISTED-D yes, READD-D 422).
+     */
+    /**
+     * TCK-565, passe finale — une liste vide recevait une phrase française écrite en dur dans
+     * `AddParticipantsRequest::messages()`, quelle que soit la langue (relevé du vérificateur,
+     * passe 3). Chaque langue doit rendre SA phrase, et les trois diffèrent.
+     */
+    public function test_une_liste_vide_rend_une_phrase_dans_la_langue_de_la_requete(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+
+        Sanctum::actingAs($admin);
+
+        $phrases = [];
+        foreach (['fr', 'en', 'wo'] as $langue) {
+            foreach ([[], ['user_ids' => []]] as $corps) {
+                $resp = $this->postJson("/api/conversations/{$conversation->id}/participants", $corps, ['Accept-Language' => $langue])
+                    ->assertUnprocessable();
+
+                $this->assertSame(['user_ids'], array_keys($resp->json('errors')));
+                $this->assertSame(__('messaging.errors.participants_required', [], $langue), $resp->json('message'), $langue);
+            }
+            $phrases[] = __('messaging.errors.participants_required', [], $langue);
+        }
+        $this->assertCount(3, array_unique($phrases), 'une phrase par langue, pas une phrase recopiée');
+    }
+
+    public function test_un_ancien_membre_peut_etre_reinvite(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        DB::table('conversation_participants')
+            ->where('conversation_id', $conversation->id)
+            ->where('user_id', $c->id)
+            ->update(['left_at' => now()]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/conversations/{$conversation->id}/participants", [
+            'user_ids' => [$c->id],
+        ])->assertCreated();
+
+        $this->assertNull(DB::table('conversation_participants')
+            ->where('conversation_id', $conversation->id)
+            ->where('user_id', $c->id)
+            ->value('left_at'));
     }
 }

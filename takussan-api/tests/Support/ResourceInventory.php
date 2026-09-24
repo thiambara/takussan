@@ -11,6 +11,7 @@ use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
+use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Models\Agency;
@@ -79,6 +80,10 @@ final class ResourceInventory
         UserListResource::class => [
             'modeles' => [User::class],
             'raison' => "Vue « liste » d'un utilisateur pour l'admin — le suffixe `List` casse la convention.",
+        ],
+        MessagingContactResource::class => [
+            'modeles' => [User::class],
+            'raison' => 'Une personne joignable, vue par le sélecteur de participants de la messagerie (TCK-565) — le nom dit le rôle, pas le modèle.',
         ],
         PropertyMapGeoJsonResource::class => [
             'modeles' => [Property::class],

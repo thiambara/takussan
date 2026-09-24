@@ -399,6 +399,8 @@ export function useAddParticipants(conversationId: number) {
       invalidate: [
         ['conversations', 'detail', conversationId],
         ['conversations', conversationId, 'messages'],
+        // La personne ajoutée n'est plus à proposer (TCK-565).
+        ['conversations', conversationId, 'contacts'],
       ],
     },
   );
@@ -415,6 +417,8 @@ export function useRemoveParticipant(conversationId: number) {
       invalidate: [
         ['conversations', 'detail', conversationId],
         ['conversations', conversationId, 'messages'],
+        // La personne retirée redevient à proposer (TCK-565).
+        ['conversations', conversationId, 'contacts'],
         ['conversations', 'list'],
       ],
     },
@@ -470,6 +474,127 @@ export function useToggleMute(conversationId: number) {
         ['conversations', 'detail', conversationId],
         ['conversations', 'list'],
       ],
+    },
+  );
+}
+
+// =============================================================================
+// TCK-565 — choisir les participants et le contexte d'un groupe PAR LEUR NOM
+// =============================================================================
+
+/**
+ * Une personne joignable, telle que `GET /api/conversations/contacts` la rend
+ * (`MessagingContactResource` côté API : le nom et l'avatar, jamais les coordonnées).
+ */
+export type MessagingContact = {
+  id: number;
+  name: string;
+  avatar_url: string | null;
+};
+
+/**
+ * Colonnes lues par le sélecteur de participants. `name` est dérivé côté API de ces deux
+ * colonnes : sans elles dans le sparse fieldset, il sortirait vide.
+ */
+export const MESSAGING_CONTACT_FIELDS: string[] = ['id', 'first_name', 'last_name'];
+
+/** Une page du sélecteur. Au-delà, on affine la recherche — la liste le dit. */
+export const MESSAGING_CONTACTS_PER_PAGE = 20;
+
+/**
+ * Retour testeur du 2026-09-23 (M12) : « Où un utilisateur verrait-il son ID ? » — l'assistant
+ * « Nouveau groupe » demandait un identifiant numérique. Ce hook sert le sélecteur par nom qui le
+ * remplace.
+ *
+ * ⚠️ La recherche est SERVEUR (`filter[search]`, Meilisearch côté API) et le périmètre aussi : la
+ * liste ne contient que des personnes que le serveur acceptera (`MessagingReach`).
+ * Filtrer côté client une liste déjà tronquée redirait le défaut que TCK-363 a soldé ailleurs.
+ *
+ * `conversationId` — pour COMPLÉTER un groupe existant. La liste vient alors de
+ * `/api/conversations/{id}/contacts`, qui lit la règle avec ce groupe, exactement comme l'ajout
+ * (`AddParticipantsRequest`) : l'équipe de l'agence de son bien y figure, ses membres actuels non.
+ * Lire la liste d'un NOUVEAU groupe à cet endroit proposait des personnes que l'ajout refusait.
+ */
+export function useMessagingContacts(
+  search: string,
+  options: { enabled?: boolean; conversationId?: number } = {},
+) {
+  const { user } = useAuth();
+  const terme = search.trim();
+  const { conversationId } = options;
+  const params: SpatieQueryParams = {
+    fields: { users: MESSAGING_CONTACT_FIELDS },
+    filter: terme ? { search: terme } : {},
+    per_page: MESSAGING_CONTACTS_PER_PAGE,
+  };
+
+  return useApiQuery<PaginatedResponse<MessagingContact>>(
+    conversationId
+      ? ['conversations', conversationId, 'contacts', terme]
+      : ['conversations', 'contacts', terme],
+    conversationId
+      ? `/api/conversations/${conversationId}/contacts`
+      : '/api/conversations/contacts',
+    {
+      params,
+      enabled: (options.enabled ?? true) && Boolean(user),
+      staleTime: 30_000,
+      // Garder la liste précédente pendant la frappe : sans cela, chaque caractère la viderait
+      // puis la remplirait, et le popup sauterait.
+      placeholderData: (precedent) => precedent,
+    },
+  );
+}
+
+/** Les biens proposés comme contexte d'un groupe : ceux que `/api/properties` montre à l'acteur. */
+export const GROUP_CONTEXT_PROPERTY_FIELDS: string[] = ['id', 'title'];
+export const GROUP_CONTEXT_LEASE_FIELDS: string[] = ['id', 'reference_number', 'property_id'];
+export const GROUP_CONTEXT_PER_PAGE = 100;
+
+export type GroupContextProperty = { id: number; title: string };
+export type GroupContextLease = {
+  id: number;
+  reference_number: string;
+  property_id: number;
+  property?: { id: number; title: string } | null;
+};
+
+/**
+ * M11 — le bien et le bail d'un groupe se CHOISISSENT dans une liste. Ils se saisissaient comme
+ * deux identifiants numériques (`<input type="number">`), côte à côte dans une grille à deux
+ * colonnes : le même défaut que les participants (personne ne connaît l'identifiant de son bien),
+ * et c'est ce qui décalait les deux champs à 360 px — le libellé long passait sur deux lignes.
+ */
+export function useGroupPropertyOptions(options: { enabled?: boolean } = {}) {
+  return useApiQuery<PaginatedResponse<GroupContextProperty>>(
+    ['conversations', 'group-context', 'properties'],
+    '/api/properties',
+    {
+      params: {
+        fields: { properties: GROUP_CONTEXT_PROPERTY_FIELDS },
+        sort: ['title'],
+        per_page: GROUP_CONTEXT_PER_PAGE,
+      },
+      enabled: options.enabled ?? true,
+      staleTime: 60_000,
+    },
+  );
+}
+
+export function useGroupLeaseOptions(propertyId: number | null, options: { enabled?: boolean } = {}) {
+  return useApiQuery<PaginatedResponse<GroupContextLease>>(
+    ['conversations', 'group-context', 'leases', propertyId],
+    '/api/leases',
+    {
+      params: {
+        fields: { leases: GROUP_CONTEXT_LEASE_FIELDS, properties: GROUP_CONTEXT_PROPERTY_FIELDS },
+        filter: propertyId ? { property_id: propertyId } : {},
+        include: ['property'],
+        sort: ['-created_at'],
+        per_page: GROUP_CONTEXT_PER_PAGE,
+      },
+      enabled: options.enabled ?? true,
+      staleTime: 60_000,
     },
   );
 }
