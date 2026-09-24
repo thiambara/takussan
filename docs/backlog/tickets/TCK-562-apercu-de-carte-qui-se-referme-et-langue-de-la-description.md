@@ -1,13 +1,13 @@
 ---
 id: TCK-562
 title: "Carte : l'aperçu d'un bien ou d'une grappe se refermait au rechargement qui suit l'autoPan ; fiche bien : la description, texte de l'annonceur, n'annonçait pas sa langue"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -203,3 +203,30 @@ hors dépôt appliquant `babel-plugin-react-compiler` aux deux composants, compi
   les images) : seule l'AC10 pourra trancher.
 - Le compte « N biens sur la carte » compte la réponse : un bien épinglé absent de la réponse
   suivante est affiché sans être compté, le temps que son aperçu reste ouvert.
+- **Tant que son aperçu est ouvert, un bien épinglé n'est pas compté dans la grappe voisine** —
+  voulu : il est retiré de l'index (`PropertyMap.tsx`, `CoucheDesBiens`, l'`index` filtré par
+  `idsEpingles`) et posé à part (l'`epingle` ajoutée aux marqueurs). La grappe affiche un bien de
+  moins et le bien est visible à côté d'elle : le total posé est juste, rien n'est compté deux
+  fois ; à la fermeture, il rejoint la grappe.
+
+## Restes de la vérification — soldés le 2026-09-24
+
+- **« La carte locale ne charge rien (CORS) »** — note d'environnement, *ne se reproduit plus* :
+  la pile locale sert désormais le front sur `localhost:3000`, l'origine que l'API
+  `127.0.0.1:8002` autorise (`Access-Control-Allow-Origin: http://localhost:3000`, relevé par
+  `curl`). Re-mesuré au navigateur (Chrome headless, CDP, SANS `--disable-web-security`), 1366 ×
+  900, `/fr/properties` en vue carte : deux réponses `/map` en 200, 9 grappes ; après deux zooms
+  par grappe, 4 étiquettes de prix ; clic souris sur l'une : **aperçu ouvert à 300 ms, 1 s, 2,5 s
+  et 5 s, une seule requête `/map` après le clic.**
+- **Grappe voisine qui ne compte pas le bien épinglé** — documenté ci-dessus (Hors périmètre) :
+  comportement voulu, démontré par le code.
+- **« Une clé tirée de `biens[0].id` passerait aussi »** — *sans objet, démontré* : la clé ne doit
+  être stable qu'entre le rendu de l'index au moment du clic et le rendu épinglé, et les deux la
+  calculent sur le MÊME tableau (`marqueurDeListe(biens)` puis `epinglerLaListe(biens, …)` →
+  `marqueurDeListe(epingle.biens)`). Tant que l'épingle tient, les réponses suivantes ne la
+  recalculent pas ; à la fermeture, un remontage est sans effet (l'aperçu est déjà fermé). Toute
+  fonction déterministe du tableau convient ; le plus petit identifiant a en plus l'avantage de ne
+  pas dépendre de l'ordre de `getLeaves`, et AC4 quinquies garde qu'il distingue deux immeubles.
+- **Langue supposée `fr` (M9)** et **AC10 (preview)** — inchangés : le premier demande un ticket
+  d'API (Hors périmètre), le second une promotion et l'accès authentifié à preview.
+
