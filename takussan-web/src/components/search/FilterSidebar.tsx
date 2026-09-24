@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
+import { X, RotateCcw, Search, Star, Tag, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
+import { AttenteDePuce } from '@/components/search/AttenteDePuce';
 import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
 import { filtersToParams } from '@/hooks/useSearch';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
@@ -25,38 +26,55 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/**
+ * TCK-580 — une puce est « en attente » quand l'état qu'elle AFFICHE (le filtre visé, posé dès le
+ * clic par `useSearch`) diffère de celui dont la grille montre les RÉSULTATS. C'est vrai du clic
+ * jusqu'à l'arrivée des biens, et de la seule puce touchée : aucun état local, aucune minuterie —
+ * la différence entre les deux jeux de filtres EST l'attente.
+ */
+function enAttente(visee: boolean, confirmee: boolean): boolean {
+  return visee !== confirmee;
+}
+
 function ChipGroup<T extends string | number>({
   options,
   value,
+  valeurConfirmee,
   onChange,
 }: {
   options: { label: string; value: T }[];
   value: T | undefined;
+  /** La valeur dont les résultats affichés sont la réponse (TCK-580). */
+  valeurConfirmee: T | undefined;
   onChange: (v: T | undefined) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map(opt => {
         const isActive = value === opt.value;
+        const attente = enAttente(isActive, valeurConfirmee === opt.value);
         return (
           <button
             key={String(opt.value)}
             type="button"
             aria-pressed={isActive}
+            aria-busy={attente || undefined}
             onClick={() => onChange(isActive ? undefined : opt.value)}
-            className={`min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-colors duration-150 active:scale-[0.96] ${
+            className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
               isActive
                 ? 'bg-primary border-primary text-primary-foreground'
                 : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
             }`}
           >
             {opt.label}
+            {attente ? <AttenteDePuce /> : null}
           </button>
         );
       })}
     </div>
   );
 }
+
 
 /**
  * Bornes numériques — **commit au `blur` et à `Enter`, jamais sur un timer** (TCK-335).
@@ -200,6 +218,14 @@ export interface FilterSidebarProps {
   onFilterChange: (patch: Partial<SearchFilters>, options?: { continu?: boolean }) => void;
   onReset: () => void;
   activeCount: number;
+  /**
+   * TCK-580 — les filtres dont la grille montre les RÉSULTATS (`useSearch().filtresDesResultats`).
+   * Une puce dont l'état diffère ici de `filters` attend sa réponse et le montre. Absent : aucune
+   * puce n'attend — c'est le cas d'un appelant qui ne suit pas le chargement.
+   */
+  filtresDesResultats?: SearchFilters;
+  /** TCK-580 — une recherche court : le bouton du tiroir mobile le dit. */
+  enCours?: boolean;
   open: boolean;
   onClose: () => void;
   /**
@@ -246,6 +272,8 @@ export function FilterSidebar({
   onFilterChange,
   onReset,
   activeCount,
+  filtresDesResultats,
+  enCours = false,
   open,
   onClose,
   total = null,
@@ -258,6 +286,8 @@ export function FilterSidebar({
   const tPeriods = useTranslations('property.rentPeriods');
   const tTitleTypes = useTranslations('property.titleTypes');
   const tConditions = useTranslations('property.conditions');
+  // TCK-580 — la référence des puces en attente. Sans suivi, elle vaut `filters` : rien n'attend.
+  const confirmes = filtresDesResultats ?? filters;
 
   // ── Brouillons : la valeur AFFICHÉE est locale et immédiate ; `filters` ne fait que la
   //    resynchroniser quand l'URL change réellement (retour arrière, « Tout effacer », puce
@@ -519,6 +549,7 @@ export function FilterSidebar({
           <ChipGroup
             options={contractTypes}
             value={filters.contract_type}
+            valeurConfirmee={confirmes.contract_type}
             onChange={(v) => set({ contract_type: v as SearchFilters['contract_type'], rent_period: undefined })}
           />
         </Section>
@@ -529,24 +560,27 @@ export function FilterSidebar({
             {PROPERTY_TYPE_VALUES.map(opt => {
               const selected = filters.type ?? [];
               const isActive = selected.includes(opt);
+              const attente = enAttente(isActive, (confirmes.type ?? []).includes(opt));
               return (
                 <button
                   key={opt}
                   type="button"
                   aria-pressed={isActive}
+                  aria-busy={attente || undefined}
                   onClick={() => {
                     const next = isActive
                       ? selected.filter((value) => value !== opt)
                       : [...selected, opt];
                     set({ type: next.length > 0 ? next : undefined });
                   }}
-                  className={`min-h-9 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-colors duration-150 active:scale-[0.96] ${
+                  className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     isActive
                       ? 'bg-primary border-primary text-primary-foreground'
                       : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
                   }`}
                 >
                   {tTypes(opt)}
+                  {attente ? <AttenteDePuce /> : null}
                 </button>
               );
             })}
@@ -559,6 +593,7 @@ export function FilterSidebar({
             <ChipGroup
               options={rentPeriods}
               value={filters.rent_period}
+              valeurConfirmee={confirmes.rent_period}
               onChange={(v) => set({ rent_period: v as SearchFilters['rent_period'] })}
             />
           </Section>
@@ -624,6 +659,7 @@ export function FilterSidebar({
           <ChipGroup
             options={BEDROOM_OPTIONS}
             value={filters.bedrooms}
+            valeurConfirmee={confirmes.bedrooms}
             onChange={(v) => set({ bedrooms: v as number })}
           />
         </Section>
@@ -633,6 +669,7 @@ export function FilterSidebar({
           <ChipGroup
             options={BATHROOM_OPTIONS}
             value={filters.bathrooms}
+            valeurConfirmee={confirmes.bathrooms}
             onChange={(v) => set({ bathrooms: v as number })}
           />
         </Section>
@@ -659,24 +696,27 @@ export function FilterSidebar({
               {conditionValues.map((opt) => {
                 const selected = filters.condition ?? [];
                 const isActive = selected.includes(opt);
+                const attente = enAttente(isActive, (confirmes.condition ?? []).includes(opt));
                 return (
                   <button
                     key={opt}
                     type="button"
                     aria-pressed={isActive}
+                    aria-busy={attente || undefined}
                     onClick={() => {
                       const next = isActive
                         ? selected.filter((value) => value !== opt)
                         : [...selected, opt];
                       set({ condition: next.length > 0 ? next : undefined });
                     }}
-                    className={`min-h-9 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-colors duration-150 active:scale-[0.96] ${
+                    className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                       isActive
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
                     }`}
                   >
                     {tConditions(opt)}
+                    {attente ? <AttenteDePuce /> : null}
                   </button>
                 );
               })}
@@ -684,6 +724,7 @@ export function FilterSidebar({
             <button
               type="button"
               aria-pressed={filters.furnished === true}
+              aria-busy={enAttente(filters.furnished === true, confirmes.furnished === true) || undefined}
               onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
                 filters.furnished === true
@@ -703,6 +744,9 @@ export function FilterSidebar({
                 />
               </span>
               <span className="text-sm font-semibold">{t('furnishedOnly')}</span>
+              {enAttente(filters.furnished === true, confirmes.furnished === true) ? (
+                <Loader2 data-attente="bascule" aria-hidden className="ml-auto size-4 shrink-0 animate-spin" />
+              ) : null}
             </button>
 
             {/* « En vedette » parle la couleur des badges featured — `--accent`, et rien d'autre
@@ -711,6 +755,7 @@ export function FilterSidebar({
             <button
               type="button"
               aria-pressed={filters.featured === true}
+              aria-busy={enAttente(filters.featured === true, confirmes.featured === true) || undefined}
               onClick={() => set({ featured: filters.featured === true ? undefined : true })}
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
                 filters.featured === true
@@ -724,6 +769,9 @@ export function FilterSidebar({
                 }`}
               />
               <span className="text-sm font-semibold">{t('featuredOnly')}</span>
+              {enAttente(filters.featured === true, confirmes.featured === true) ? (
+                <Loader2 data-attente="bascule" aria-hidden className="ml-auto size-4 shrink-0 animate-spin" />
+              ) : null}
             </button>
           </div>
         </Section>
@@ -733,6 +781,7 @@ export function FilterSidebar({
           <ChipGroup
             options={floorOptions}
             value={filters.floor_number}
+            valeurConfirmee={confirmes.floor_number}
             onChange={(v) => set({ floor_number: v as number })}
           />
         </Section>
@@ -742,6 +791,7 @@ export function FilterSidebar({
           <ChipGroup
             options={titleTypeOptions}
             value={filters.title_type}
+            valeurConfirmee={confirmes.title_type}
             onChange={(v) => set({ title_type: v as string })}
           />
           {/* Le statut foncier est sans objet pour un lot dans un immeuble (`field-matrix.ts`) :
@@ -814,7 +864,12 @@ export function FilterSidebar({
                 onClose();
               }}
               className="w-full rounded-full h-12 text-sm font-semibold"
+              aria-busy={enCours || undefined}
             >
+              {/* TCK-580 — pendant qu'une puce du tiroir attend ses biens, le bouton le dit aussi :
+                  c'est lui que le pouce vise ensuite, et un compte absent sans raison y ressemblait
+                  à une panne. */}
+              {enCours ? <Loader2 data-attente="tiroir" aria-hidden className="size-4 animate-spin" /> : null}
               {/* TCK-556 · F1 — le compte que le tiroir cache, avec un libellé propre au zéro. */}
               {total === null ? t('showResults') : t('showResultsCount', { count: total })}
             </Button>

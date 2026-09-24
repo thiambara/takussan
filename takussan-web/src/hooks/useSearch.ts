@@ -1,5 +1,5 @@
 'use client';
-import { useReducer, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useReducer, useEffect, useCallback, useMemo, useOptimistic, useRef, useTransition } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
 import {
@@ -20,22 +20,32 @@ import {
   type SearchResult,
 } from '@/types/search';
 
+/**
+ * TCK-580 — chaque état porte `cle` : la chaîne d'URL (`searchParams.toString()`) de la requête
+ * dont l'écran montre la RÉPONSE. `null` tant qu'aucune réponse n'est arrivée.
+ *
+ * C'est ce qui permet de dire « ce qui est affiché ne répond pas encore à ce qui est demandé »
+ * sans trou : entre le commit de la nouvelle URL et le `dispatch({ type: 'LOADING' })` de l'effet,
+ * il y a un rendu où l'URL a changé et où l'état vaut encore `success` — sans cette clé, la puce
+ * cliquée cessait de tourner une image avant que la grille ne se mette à charger.
+ */
 type State =
-  | { status: 'idle' }
-  | { status: 'loading'; prev: SearchResult | null }
-  | { status: 'success'; result: SearchResult }
-  | { status: 'error'; erreur: Error; prev: SearchResult | null };
+  | { status: 'idle'; cle: null }
+  | { status: 'loading'; prev: SearchResult | null; cle: string | null }
+  | { status: 'success'; result: SearchResult; cle: string }
+  | { status: 'error'; erreur: Error; prev: SearchResult | null; cle: string };
 
 type Action =
   | { type: 'LOADING'; prev: SearchResult | null }
-  | { type: 'SUCCESS'; result: SearchResult }
-  | { type: 'ERROR'; erreur: Error; prev: SearchResult | null };
+  | { type: 'SUCCESS'; result: SearchResult; cle: string }
+  | { type: 'ERROR'; erreur: Error; prev: SearchResult | null; cle: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'LOADING': return { status: 'loading', prev: action.prev };
-    case 'SUCCESS': return { status: 'success', result: action.result };
-    case 'ERROR':   return { status: 'error', erreur: action.erreur, prev: action.prev };
+    // Le chargement garde la clé de ce qui reste affiché : c'est encore la réponse d'AVANT.
+    case 'LOADING': return { status: 'loading', prev: action.prev, cle: state.cle };
+    case 'SUCCESS': return { status: 'success', result: action.result, cle: action.cle };
+    case 'ERROR':   return { status: 'error', erreur: action.erreur, prev: action.prev, cle: action.cle };
   }
 }
 
@@ -158,7 +168,9 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
    */
   const [state, dispatch] = useReducer(
     reducer,
-    graine ? { status: 'success' as const, result: graine.resultat } : { status: 'idle' as const },
+    graine
+      ? { status: 'success' as const, result: graine.resultat, cle: searchParams.toString() }
+      : { status: 'idle' as const, cle: null },
   );
 
   /**
@@ -217,33 +229,66 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
    * convention implicite du dépôt était donc *entrer empile, affiner écrase*. On la rend
    * explicite plutôt que d'en inventer une autre.
    */
-  const naviguer = useCallback((url: string, historique: Historique, defiler = false) => {
-    if (historique === 'push') {
-      router.push(url, { scroll: defiler });
-    } else {
-      router.replace(url, { scroll: defiler });
-    }
-  }, [router]);
+  /**
+   * TCK-580 — la navigation part dans une TRANSITION, et les filtres visés s'affichent AVANT elle.
+   *
+   * Retour testeur : « quand on clique [une puce], on doit avoir un loader qui nous fait
+   * comprendre qu'on a cliqué ». Mesuré : entre le clic et l'arrivée des biens, l'écran ne
+   * bougeait pas du tout pendant l'aller-retour RSC — `router.push` de l'App Router est une
+   * transition, l'URL (donc `useSearchParams`, donc tout l'écran) n'atterrit qu'à sa fin. Puis la
+   * grille passait à mi-opacité, sans rien dire, le temps du `fetch`.
+   *
+   * Deux mécanismes de React 19, et chacun ferme une moitié du trou :
+   *
+   * · `useTransition` rend `enNavigation` vrai DÈS le clic — c'est le patron déjà éprouvé de la
+   *   bande des catégories de la `Navbar` (`demarrerNavigation`).
+   * · `useOptimistic` fait afficher les filtres VISÉS pendant ce temps : la puce cliquée est
+   *   pressée tout de suite. Et il corrige au passage un défaut de fond : deux clics rapprochés
+   *   fusionnaient chacun avec l'URL d'AVANT, si bien que le second EFFAÇAIT le premier (« Villa »
+   *   puis « Maison » ne gardait que « Maison »). Fusionner avec les filtres visés les garde.
+   *
+   * ⚠ Les filtres optimistes retombent d'eux-mêmes sur ceux de l'URL à la fin de la transition —
+   * c'est la définition de `useOptimistic`. Aucun état à défaire à la main, aucun cas où l'écran
+   * resterait sur une intention que la navigation n'a pas honorée.
+   */
+  const [enNavigation, demarrerNavigation] = useTransition();
+  const [filtresVises, viserFiltres] = useOptimistic(currentFilters);
+
+  const naviguer = useCallback((
+    url: string,
+    historique: Historique,
+    vises: SearchFilters,
+    defiler = false,
+  ) => {
+    demarrerNavigation(() => {
+      viserFiltres(vises);
+      if (historique === 'push') {
+        router.push(url, { scroll: defiler });
+      } else {
+        router.replace(url, { scroll: defiler });
+      }
+    });
+  }, [router, viserFiltres]);
 
   const search = useCallback((
     filters: Partial<SearchFilters>,
     options: OptionsNavigation = {},
   ) => {
-    const merged = { ...currentFilters, ...filters, page: 1 };
+    const merged = { ...filtresVises, ...filters, page: 1 };
     const qs = filtersToParams(merged).toString();
     // `scroll: false` : affiner une recherche ne doit pas ramener l'œil en haut de page.
-    naviguer(`${pathname}${qs ? '?' + qs : ''}`, options.historique ?? 'push');
-  }, [naviguer, pathname, currentFilters]);
+    naviguer(`${pathname}${qs ? '?' + qs : ''}`, options.historique ?? 'push', merged);
+  }, [naviguer, pathname, filtresVises]);
 
   const setPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
     // Changer de page, EN REVANCHE, défile — la page suivante commence en haut.
-    naviguer(`${pathname}?${params.toString()}`, 'push', true);
-  }, [naviguer, pathname, searchParams]);
+    naviguer(`${pathname}?${params.toString()}`, 'push', { ...filtresVises, page }, true);
+  }, [naviguer, pathname, searchParams, filtresVises]);
 
   const resetFilters = useCallback(() => {
-    naviguer(pathname, 'push');
+    naviguer(pathname, 'push', {});
   }, [naviguer, pathname]);
 
   const removeFilter = useCallback((key: keyof SearchFilters) => {
@@ -266,7 +311,7 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
     // par `radius_km` (`params`), gardée par `search-filters.parity.test.ts`.
     normaliserGeo(params);
     params.set('page', '1');
-    naviguer(`${pathname}?${params.toString()}`, 'push');
+    naviguer(`${pathname}?${params.toString()}`, 'push', filtersFromSearchParams(params));
   }, [naviguer, pathname, searchParams]);
 
   /**
@@ -281,11 +326,11 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
    * arrière ramène la requête complète, et c'est ce qui rend le geste sans risque.
    */
   const retirerTerme = useCallback((terme: string) => {
-    const restant = retirerTermeDeLaRequete(currentFilters.q ?? '', terme);
+    const restant = retirerTermeDeLaRequete(filtresVises.q ?? '', terme);
     // `''` n'est pas écrit par `filtersToParams` : `q` disparaît de l'URL, et l'alias hérité
     // `search=` avec lui, puisque l'URL est reconstruite depuis les filtres et non modifiée.
     search({ q: restant });
-  }, [search, currentFilters.q]);
+  }, [search, filtresVises.q]);
 
   // Fetch whenever URL params change
   useEffect(() => {
@@ -322,7 +367,7 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
 
     let cancelled = false;
     apiFetch<SearchResult>(`/public/properties/search?${apiParams.toString()}`)
-      .then(result => { if (!cancelled) dispatch({ type: 'SUCCESS', result }); })
+      .then(result => { if (!cancelled) dispatch({ type: 'SUCCESS', result, cle: qs }); })
       .catch((erreur: unknown) => {
         if (cancelled) return;
         const erreurNormalisee = erreur instanceof Error ? erreur : new Error(String(erreur));
@@ -332,7 +377,7 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
         // « 0 bien trouvé ». Un 5xx ou une panne réseau, eux, n'invalident pas ce qui
         // était juste il y a une seconde — on le garde.
         const filtreInvalide = erreurNormalisee instanceof ApiError && erreurNormalisee.status === 422;
-        dispatch({ type: 'ERROR', erreur: erreurNormalisee, prev: filtreInvalide ? null : prev });
+        dispatch({ type: 'ERROR', erreur: erreurNormalisee, prev: filtreInvalide ? null : prev, cle: qs });
       });
 
     return () => { cancelled = true; };
@@ -343,15 +388,39 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
                : (state.status === 'loading' || state.status === 'error') ? state.prev ?? null
                : null;
 
+  const loading = state.status === 'loading' || state.status === 'idle';
+
+  /**
+   * TCK-580 — les filtres dont l'écran montre la RÉPONSE. Ils diffèrent des filtres visés
+   * exactement sur ce qui est « en cours » : c'est ce que la puce compare pour savoir si c'est
+   * ELLE qui attend, du clic jusqu'à l'arrivée des biens — pas seulement jusqu'au changement
+   * d'URL. Tant que rien n'est arrivé, ce sont les filtres de l'URL : il n'y a pas d'autre
+   * référence, et `loading` porte seul l'attente.
+   */
+  const cleDesResultats = state.cle;
+  const filtresDesResultats = useMemo(
+    () => cleDesResultats === null
+      ? currentFilters
+      : filtersFromSearchParams(normaliserGeo(new URLSearchParams(cleDesResultats))),
+    [cleDesResultats, currentFilters],
+  );
+
   return {
     data:           result,
-    loading:        state.status === 'loading' || state.status === 'idle',
+    loading,
+    // TCK-580 — « l'écran ne répond pas encore à la dernière demande », du CLIC à l'arrivée des
+    // biens : la transition de navigation, puis le trou d'un rendu entre l'URL et l'effet, puis
+    // le `fetch`. `loading` seul ne couvre que le dernier des trois.
+    enCours:        enNavigation || loading || cleDesResultats !== searchParamsKey,
     // TCK-335 — l'erreur elle-même, plus un booléen : c'est ce qui permet à la page de
     // distinguer « ce filtre n'est pas valide » (422, réparable par l'utilisateur) d'une
     // panne (5xx, réseau), et de nommer le filtre en cause via `validationErrors`.
     error:          state.status === 'error' ? state.erreur : null,
-    filters:        currentFilters,
-    activeCount:    countActiveFilters(currentFilters),
+    // TCK-580 — les filtres VISÉS : ceux de l'URL, ou ceux du dernier geste tant que sa
+    // navigation court. C'est ce que l'écran affiche, et ce que le geste suivant complète.
+    filters:        filtresVises,
+    filtresDesResultats,
+    activeCount:    countActiveFilters(filtresVises),
     // TCK-338 — ce que le bloc `search` de la réponse oblige l'écran à dire, ou `null`.
     // Il arrivait dans le JSON et mourait là : `SearchResult` ne le déclarait pas.
     repli:          repliDeRecherche(result),

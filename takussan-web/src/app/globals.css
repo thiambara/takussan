@@ -462,6 +462,35 @@
 }
 
 /*
+ * L'ATTENTE D'UNE RECHERCHE PUBLIQUE — TCK-580.
+ *
+ * Deux entrées, un même principe : le signal de chargement n'apparaît qu'APRÈS un court délai
+ * (`backwards` tient l'état initial pendant ce délai). Une réponse rapide ne fait donc rien
+ * clignoter ; une réponse lente se voit dans le dixième de seconde — le même arbitrage que
+ * `DELAI_AVANT_AFFICHAGE_MS` de `IndicateurDeNavigation`.
+ *
+ * · `apparition-attente` — la pastille au coin de la puce cliquée : elle se POSE (échelle),
+ *   délai court, parce que c'est la réponse immédiate au doigt.
+ * · `pastille-actualisation` — l'annonce « Mise à jour des biens » au-dessus de la grille : elle
+ *   DESCEND de sous la barre de navigation, délai plus long, parce qu'elle parle du résultat.
+ */
+@keyframes apparitionAttente {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-apparition-attente {
+  animation: apparitionAttente 220ms cubic-bezier(0.16, 1, 0.3, 1) 60ms backwards;
+}
+
+@keyframes pastilleActualisation {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-pastille-actualisation {
+  animation: pastilleActualisation 320ms cubic-bezier(0.16, 1, 0.3, 1) 140ms backwards;
+}
+
+/*
  * ⚠ Garde de MOUVEMENT RÉDUIT pour les trois animations du SITE (TCK-467).
  *
  * Elle est ici, collée à ce qu'elle garde, et non fondue dans le bloc du parcours de publication
@@ -492,7 +521,9 @@
   .animate-fade-in-up,
   .animate-card-enter,
   .animate-section-enter,
-  .animate-compare-dock-in {
+  .animate-compare-dock-in,
+  .animate-apparition-attente,
+  .animate-pastille-actualisation {
     animation: none;
     opacity: 1;
     transform: none;

@@ -11,6 +11,8 @@ import type { SearchFilters } from '@/types/search';
 
 export interface SearchEmptyProps {
   readonly filters: SearchFilters;
+  /** TCK-580 — passé tel quel aux puces : cf. `PucesDeFiltres`. */
+  readonly filtresDesResultats?: SearchFilters;
   readonly activeCount: number;
   /**
    * Le TOTAL de la recherche est nul — les critères sont en cause. Faux quand seule la PAGE est
@@ -48,6 +50,7 @@ export interface SearchEmptyProps {
  */
 export function SearchEmpty({
   filters,
+  filtresDesResultats,
   activeCount,
   criteresEnCause,
   onRemoveFilter,
@@ -74,6 +77,7 @@ export function SearchEmpty({
           {criteresEnCause ? (
             <PucesDeFiltres
               filters={filters}
+              filtresDesResultats={filtresDesResultats}
               onRemoveFilter={onRemoveFilter}
               className="justify-center"
               aria-label={t('vide_criteres_aria')}

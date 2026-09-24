@@ -268,7 +268,8 @@
       "terms": "Sart yi",
       "privacy": "Politigu sutura",
       "notice": "Xibaar yu yoon yi"
-    }
+    },
+    "publishCta": "Yebbi kër"
   },
   "map": {
     "zoomIn": "Yokk",
@@ -1871,7 +1872,8 @@
       "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
       "error_retry": "Jéemaat",
       "vide_titre_hors_pages": "Dara amul ci xët wii",
-      "vide_description_hors_pages": "Seet bii amul ay xët yu bare noonu : dellul ci benn ci yi jiitu."
+      "vide_description_hors_pages": "Seet bii amul ay xët yu bare noonu : dellul ci benn ci yi jiitu.",
+      "updating": "Mu ngi yeesal kër yi…"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",

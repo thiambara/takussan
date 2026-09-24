@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { ArrowRight } from 'lucide-react';
 
 import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { LienLocalise } from '@/components/shared/LienLocalise';
@@ -99,47 +100,94 @@ export function Footer({ className }: FooterProps) {
   const t = useTranslations('footer');
   const tCommon = useTranslations('common');
   const year = new Date().getFullYear();
+  const appName = tCommon('appName');
 
   // ⚠ Les titres sont résolus AVANT le filtre : `useTranslations` n'est pas appelable dans une
   // branche. Une colonne dont le titre manquerait au dictionnaire rendrait donc sa clé à
   // l'écran — d'où `footer.professionalsHeading`, présent dans les trois langues alors que sa
   // colonne est encore vide (cf. `src/data/navigation.ts`).
-  const colonnes: readonly { cle: string; titre: string; liens: readonly LienDePiedDePage[] }[] = [
-    { cle: 'discover', titre: t('discoverHeading'), liens: footerLinks.discover },
-    { cle: 'professionals', titre: t('professionalsHeading'), liens: footerLinks.professionnels },
-    { cle: 'tools', titre: t('toolsHeading'), liens: footerLinks.tools },
+  //
+  // TCK-580 — chaque colonne porte sa PISTE au bureau (`lg:col-start-*`) : la grille de douze
+  // place la signature sur 1-4, laisse 5-6 respirer, et range les trois colonnes sur 7-12.
+  const colonnes: readonly {
+    cle: string;
+    titre: string;
+    liens: readonly LienDePiedDePage[];
+    piste: string;
+  }[] = [
+    { cle: 'discover', titre: t('discoverHeading'), liens: footerLinks.discover, piste: 'lg:col-start-7' },
+    {
+      cle: 'professionals',
+      titre: t('professionalsHeading'),
+      liens: footerLinks.professionnels,
+      piste: 'lg:col-start-9',
+    },
+    { cle: 'tools', titre: t('toolsHeading'), liens: footerLinks.tools, piste: 'lg:col-start-11' },
   ];
 
   return (
-    <footer className={`bg-muted text-foreground border-t border-border ${className || ''}`}>
-      <div className="max-w-[1440px] mx-auto px-6 md:px-16 py-12 md:py-16">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10 md:gap-12 mb-12">
-          <div className="col-span-2 lg:col-span-1">
-            <h3 className="font-display text-2xl font-semibold tracking-tight mb-4">{tCommon('appName')}</h3>
-            <p className="text-muted-foreground max-w-sm text-pretty">{t('tagline')}</p>
+    <footer
+      className={`relative overflow-hidden bg-muted text-foreground border-t border-border ${className || ''}`}
+    >
+      <div className="max-w-[1440px] mx-auto px-5 md:px-16 pt-12 md:pt-16">
+        {/*
+          TCK-580 — UNE grille, trois gabarits.
+
+          · Mobile (2 pistes) : la signature sur toute la largeur, puis Découvrir | Professionnels,
+            puis Vos outils | Langue. La langue COMBLE la case que « Vos outils » laissait vide
+            (mesuré avant : un trou de 171 px sur une rangée de 358).
+          · `md` (3 pistes) : les trois colonnes côte à côte, la langue sur sa propre rangée.
+          · Bureau (12 pistes) : la signature et la langue empilées sur 1-4, les colonnes sur 7-12.
+
+          ⚠ Le choix de langue n'existe qu'UNE fois dans l'arbre et ne passe jamais par `hidden` :
+          c'est sa POSITION qui change, par la grille. Deux exemplaires masqués tour à tour
+          feraient six boutons, et `Footer.test.tsx` en exige trois, visibles.
+        */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 md:gap-y-10 md:gap-x-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-8">
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 lg:row-start-1">
+            <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em] md:text-[32px]">
+              {appName}
+            </p>
+            <p className="mt-4 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground text-pretty">
+              {t('tagline')}
+            </p>
             {/*
-              TCK-550 — le même choix que le menu mobile, pour qui ne passe jamais par le menu.
-              Sous la signature et non dans la barre du bas : à trois éléments, celle-ci repliait
-              liens juridiques et copyright sur deux lignes dès 1024 px (mesuré). Des BOUTONS et
-              non des liens : ce sont les seuls non-liens du pied de page, et `Footer.test.tsx`
-              (AC1) les tolère nommément, en exigeant qu'ils agissent.
+              L'action du pied de page : déposer un bien. Même encre inversée que « Publier » dans
+              la barre du haut (`bg-foreground text-background`) — un seul geste de publication,
+              une seule apparence. `/publish` résout lui-même la suite (connexion, assistant).
             */}
-            <ChoixDeLangue className="mt-6" />
+            {footerLinks.action.map((lien) => (
+              <LienLocalise
+                key={lien.labelKey}
+                href={lien.href}
+                className="group mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-foreground pl-5 pr-4 text-sm font-semibold text-background shadow-sm outline-none transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-0"
+              >
+                {t(lien.labelKey)}
+                <ArrowRight
+                  aria-hidden
+                  className="size-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5"
+                />
+              </LienLocalise>
+            ))}
           </div>
 
           {colonnes
             .filter((colonne) => colonne.liens.length > 0)
             .map((colonne) => (
-              <nav key={colonne.cle} aria-labelledby={`pied-${colonne.cle}`}>
-                <h4 id={`pied-${colonne.cle}`} className="font-display font-semibold text-lg mb-2 md:mb-4">
+              <nav
+                key={colonne.cle}
+                aria-labelledby={`pied-${colonne.cle}`}
+                className={`lg:col-span-2 lg:row-span-2 lg:row-start-1 ${colonne.piste}`}
+              >
+                <h4 id={`pied-${colonne.cle}`} className="text-sm font-semibold text-foreground">
                   {colonne.titre}
                 </h4>
-                <ul className="md:space-y-3">
+                <ul className="mt-2 lg:mt-4 lg:space-y-1">
                   {colonne.liens.map((lien) => (
                     <li key={lien.labelKey}>
                       <LienLocalise
                         href={lien.href}
-                        className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground transition-colors md:min-h-0"
+                        className="inline-flex min-h-11 items-center text-[15px] text-muted-foreground underline-offset-4 decoration-1 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-9"
                       >
                         {t(`${colonne.cle}.${lien.labelKey}`)}
                       </LienLocalise>
@@ -148,21 +196,29 @@ export function Footer({ className }: FooterProps) {
                 </ul>
               </nav>
             ))}
+
+          {/*
+            TCK-550 — le même choix que le menu mobile, pour qui ne passe jamais par le menu. Des
+            BOUTONS et non des liens : ce sont les seuls non-liens du pied de page, et
+            `Footer.test.tsx` (AC1) les tolère nommément, en exigeant qu'ils agissent.
+          */}
+          <ChoixDeLangue className="self-start md:col-span-3 lg:col-span-4 lg:col-start-1 lg:row-start-2 lg:self-end" />
         </div>
 
         {/*
-          TCK-531 — les trois documents juridiques, dans la barre du bas plutôt qu'en cinquième
-          colonne : c'est là qu'on les cherche, et la grille garde ses quatre pistes.
+          TCK-531 — les trois documents juridiques dans la barre du bas : c'est là qu'on les
+          cherche. TCK-580 — alignés à GAUCHE sous `md` : centrés, ils se repliaient en trois
+          lignes d'inégale longueur, et l'œil n'avait plus de bord où s'appuyer.
         */}
-        <div className="border-t border-border pt-8 flex flex-col items-center gap-3 md:flex-row md:justify-between">
-          <nav aria-labelledby="pied-legal">
+        <div className="mt-10 flex flex-col gap-2 border-t border-border pt-6 md:mt-16 md:flex-row md:items-center md:justify-between md:gap-6">
+          <nav aria-labelledby="pied-legal" className="md:order-2">
             <h4 id="pied-legal" className="sr-only">{t('legalHeading')}</h4>
-            <ul className="flex flex-wrap justify-center gap-x-6">
+            <ul className="flex flex-wrap gap-x-5 md:justify-end md:gap-x-6">
               {footerLinks.legal.map((lien) => (
                 <li key={lien.labelKey}>
                   <LienLocalise
                     href={lien.href}
-                    className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground transition-colors md:min-h-0"
+                    className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9"
                   >
                     {t(`legal.${lien.labelKey}`)}
                   </LienLocalise>
@@ -170,8 +226,33 @@ export function Footer({ className }: FooterProps) {
               ))}
             </ul>
           </nav>
-          <p className="text-muted-foreground text-sm">{t('copyright', { year })}</p>
+          <p className="text-sm text-muted-foreground tabular-nums md:order-1">{t('copyright', { year })}</p>
         </div>
+      </div>
+
+      {/*
+        TCK-580 — la signature du bas : le nom, à la largeur du pied de page, coupé par son bord.
+
+        Un SVG et non un texte stylé, pour deux raisons mesurables : `textLength` cale le mot sur
+        la largeur EXACTE du conteneur quelle que soit la fonte chargée (un `font-size` en `vw`
+        débordait ou flottait selon le repli), et la teinte passe par `fill`, qu'aucune garde de
+        contraste ne mesure — ce qui est juste : c'est une surface, pas un texte à lire.
+        `aria-hidden` : le nom est déjà dit plus haut, une seconde lecture serait du bruit.
+      */}
+      <div aria-hidden className="pointer-events-none mx-auto mt-6 max-w-[1440px] select-none px-3 md:mt-8 md:px-12">
+        <svg viewBox="0 0 1000 150" className="block h-auto w-full" preserveAspectRatio="xMidYMin meet">
+          <text
+            x="500"
+            y="188"
+            textAnchor="middle"
+            textLength="992"
+            lengthAdjust="spacing"
+            className="fill-primary/[0.1] font-display font-semibold"
+            style={{ fontSize: 244 }}
+          >
+            {appName}
+          </text>
+        </svg>
       </div>
     </footer>
   );

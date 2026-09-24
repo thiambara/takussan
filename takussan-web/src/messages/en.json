@@ -268,7 +268,8 @@
       "terms": "Terms of use",
       "privacy": "Privacy policy",
       "notice": "Legal notice"
-    }
+    },
+    "publishCta": "List a property"
   },
   "map": {
     "zoomIn": "Zoom in",
@@ -3245,7 +3246,8 @@
       "error_invalid_filter_named": "The “{filter}” filter is not valid.",
       "error_retry": "Try again",
       "vide_titre_hors_pages": "Nothing on this page",
-      "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones."
+      "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones.",
+      "updating": "Updating listings…"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
+import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search, Loader2 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { ouvrirLeClavierDansLeGeste } from '@/components/search/clavierDansLeGeste';
@@ -207,6 +207,12 @@ export function Navbar({ className }: NavbarProps) {
   const [typeDemande, setTypeDemande] = useState<string | null>(null);
   const activeCategory = enNavigation && typeDemande !== null ? typeDemande || null : categorieDeLUrl;
   const moreHasActive = activeCategory !== null && moreCategories.some((c) => c.type === activeCategory);
+  // TCK-580 — la catégorie dont la navigation COURT (`undefined` : aucune). Distincte de
+  // `activeCategory`, qui retombe sur l'URL : c'est elle qui porte l'indicateur de chargement.
+  const categorieEnAttente: string | null | undefined =
+    enNavigation && typeDemande !== null ? typeDemande || null : undefined;
+  const plusEnAttente =
+    categorieEnAttente !== undefined && moreCategories.some((c) => c.type === categorieEnAttente);
 
   // Fetch real property counts for the "+ More" dropdown.
   useEffect(() => {
@@ -393,17 +399,25 @@ export function Navbar({ className }: NavbarProps) {
             {categories.map((cat) => {
               const Icon = iconMap[cat.icon] || Building2;
               const isActive = activeCategory === cat.type;
+              const enAttente = categorieEnAttente === cat.type;
               return (
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.type)}
                   aria-pressed={isActive}
+                  aria-busy={enAttente || undefined}
                   className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${isActive
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                 >
-                  <Icon className="w-[18px] h-[18px]" />
+                  {/* TCK-580 — le pictogramme cède sa place au chargement, à gabarit égal : la
+                      catégorie cliquée dit « c'est pris » sans que la bande ne bouge. */}
+                  {enAttente ? (
+                    <Loader2 data-attente="categorie" className="w-[18px] h-[18px] animate-spin" aria-hidden />
+                  ) : (
+                    <Icon className="w-[18px] h-[18px]" />
+                  )}
                   <span className="text-xs font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
                 </button>
               );
@@ -421,7 +435,13 @@ export function Navbar({ className }: NavbarProps) {
                   }`}
                 aria-label={t('moreTypes')}
               >
-                {moreOpen ? <ChevronUp className="w-[18px] h-[18px]" /> : <PlusCircle className="w-[18px] h-[18px]" />}
+                {plusEnAttente ? (
+                  <Loader2 data-attente="categorie" className="w-[18px] h-[18px] animate-spin" aria-hidden />
+                ) : moreOpen ? (
+                  <ChevronUp className="w-[18px] h-[18px]" />
+                ) : (
+                  <PlusCircle className="w-[18px] h-[18px]" />
+                )}
                 <span className="text-xs font-semibold whitespace-nowrap">{t('more')}</span>
               </button>
 
