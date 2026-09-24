@@ -7,7 +7,7 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
@@ -292,6 +292,39 @@ export function useNewMessagesPolling(
   }, [conversationId, query.data, queryClient]);
 
   return query;
+}
+
+/**
+ * Reprise du 2026-09-24 — marque LU le fil affiché, à l'ouverture puis à chaque message plus
+ * récent qui y arrive tant que l'onglet est visible. `PUT /read` existait côté API et n'était
+ * appelé nulle part : `last_read_at` n'avançait que lorsqu'on ÉCRIVAIT, si bien qu'un fil lu sans
+ * réponse restait « non lu » pour toujours, et que les accusés de lecture ne voyaient jamais la
+ * lecture. La liste est ensuite invalidée : la pastille globale (`useUnreadCount`) suit.
+ *
+ * Un seul appel par couple (fil, dernier message) ; un échec le laisse rejouable au prochain rendu.
+ */
+export function useMarkConversationRead(
+  conversationId: number | null | undefined,
+  newestMessageId: number | null,
+  options: { enabled?: boolean } = {},
+) {
+  const { token } = useAuth();
+  const locale = useLocale();
+  const queryClient = useQueryClient();
+  const dejaMarque = useRef<string | null>(null);
+  const enabled = options.enabled ?? true;
+
+  useEffect(() => {
+    if (!enabled || !conversationId || newestMessageId == null || !token) return;
+    const cle = `${conversationId}:${newestMessageId}`;
+    if (dejaMarque.current === cle) return;
+    dejaMarque.current = cle;
+    apiRequest(`/api/conversations/${conversationId}/read`, { method: 'PUT', token, locale })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['conversations', 'list'] }))
+      .catch(() => {
+        if (dejaMarque.current === cle) dejaMarque.current = null;
+      });
+  }, [conversationId, enabled, locale, newestMessageId, queryClient, token]);
 }
 
 export type SendMessagePayload = {

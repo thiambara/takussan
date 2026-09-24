@@ -28,7 +28,22 @@ class ConversationController extends Controller
         $user = $request->user();
         $includeArchived = (bool) $request->boolean('archived');
 
-        $paginator = Conversation::with('property')
+        // Reprise du 2026-09-24 — la liste ne rendait NI `participants` NI `unread_count`, que le
+        // front lit tous deux (`useUnreadCount`, `ConversationList`) : la pastille des messages non
+        // lus restait à 0, l'icône « sourdine » et le compte des membres d'un groupe n'apparaissaient
+        // jamais. Est non lu, pour le lecteur, tout message d'un AUTRE postérieur à son
+        // `last_read_at` — hors avis système (« X a rejoint le groupe ») : on ne les attend pas.
+        $paginator = Conversation::with(['property', 'participants.media'])
+            ->withCount(['messages as unread_count' => function ($q) use ($user) {
+                $q->where('messages.type', '!=', MessageType::System->value)
+                    ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
+                    ->whereExists(fn ($p) => $p->selectRaw('1')
+                        ->from('conversation_participants as lecteur')
+                        ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
+                        ->where('lecteur.user_id', $user->id)
+                        ->where(fn ($l) => $l->whereNull('lecteur.last_read_at')
+                            ->orWhereColumn('lecteur.last_read_at', '<', 'messages.created_at')));
+            }])
             ->whereHas('participants', function ($q) use ($user, $includeArchived) {
                 $q->where('user_id', $user->id);
                 // TCK-085 — participants who left a group no longer see it.

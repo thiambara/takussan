@@ -22,6 +22,8 @@ class ConversationResource extends BaseResource
             'last_message_preview' => $this->last_message_preview,
             'last_message_at' => $this->iso($this->last_message_at),
             'created_at' => $this->iso($this->created_at),
+            // Calculé par la seule liste (`ConversationController::index`) : absent ailleurs.
+            'unread_count' => $this->whenHas('unread_count', fn () => (int) $this->unread_count),
             // Relation is `BelongsTo` so `whenLoaded` can yield null when the
             // FK is null and the relation has been eager-loaded — guard
             // against feeding `null` to `PropertyResource::make`.
@@ -29,7 +31,7 @@ class ConversationResource extends BaseResource
                 'property',
                 fn () => $this->property ? PropertyResource::make($this->property) : null,
             ),
-            // TCK-576 — chargé par `show()` seulement. Le nom et l'avatar, jamais les coordonnées
+            // TCK-576 — chargé par `show()`, et par la liste depuis TCK-579. Le nom et l'avatar, jamais les coordonnées
             // (même règle que `MessagingContactResource`) : un membre n'a pas à lire l'e-mail des
             // autres. `id` est celui de la ligne de participation, `user_id` celui du compte.
             //
