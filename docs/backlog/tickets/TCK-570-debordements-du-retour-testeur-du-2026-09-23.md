@@ -1,13 +1,13 @@
 ---
 id: TCK-570
 title: "Débordements du retour testeur du 2026-09-23 : ce que les vérifications ont trouvé hors des 28 points"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: M
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -57,10 +57,38 @@ le plus lourd du même lot a son propre ticket : TCK-571 (`watch()` figé dans q
    qui défilent horizontalement — la partie « du mal à tout voir sans scroller » du point M7
    subsiste en partie. **Décision produit** (TCK-561).
 
+## Tri — 2026-09-24
+
+Le porteur a délégué toutes les décisions de ce ticket (« je te donne la main pour la section
+“To decide”, corrige tout »). Aucune entrée n'est « acceptée » en l'état : chacune a un ticket,
+et c'est ce ticket qui porte la mesure, le correctif et le verdict.
+
+| # | Entrée | Ticket | Décision |
+|---|---|---|---|
+| 1 | Bandeaux cachés sous la barre publique | TCK-572 | correctif |
+| 2 | Annuaire des agents à 320 px | TCK-573 | correctif |
+| 3 | Brouillons infidèles (`ConvertEmptyStringsToNull`) | TCK-574 | correctif à la source, côté API |
+| 4 | Téléphone sous un indicatif étranger | TCK-574 | correctif |
+| 5 | Montant en euro ou en dollar | TCK-574 | correctif |
+| 6 | Courriel d'export rédigé en français en dur | TCK-575 | correctif, plus la revue des délais promis dans l'interface |
+| 7 | Biens à rattacher plafonnés à 100 | TCK-576 | recherche côté serveur |
+| 8 | Propriétaire présenté comme « Agent immobilier » | TCK-573 | **décidé** : la page reste sous `/agents/<slug>` (aucun lien ne casse), mais il y est présenté comme propriétaire — titre, libellé, données structurées `Person` |
+| 9 | Comparateur à 360 × 740 | TCK-577 | **décidé** : en-tête des biens compacté, premier critère dans le premier écran, bureau inchangé |
+
+S'y ajoutent deux points que ce lot laissait en suspens :
+
+- **Point W11 du testeur (« 5 jours ouvrés »)** : aucun mécanisme de délai n'existe côté API pour
+  l'examen d'une demande de passage en pro, et une autre page promettait 48 h. Les deux textes
+  (`agency.upgrade.page.benefits.sla`, `nav.proUpgrade.pendingBody`) ne promettent plus de délai
+  chiffré. *Une promesse que rien ne tient n'est pas un engagement, c'est une réclamation à venir.*
+- **Point M3 (recherche mobile)** : décidé dans TCK-563 et TCK-572 — la pastille reste dans la barre
+  (compacité, TCK-549), et un appui ouvre un champ de saisie déjà focalisé.
+
 ## Critères d'acceptation
 
-- [ ] Chaque entrée est triée : ticket propre, correctif, ou « accepté » avec sa raison, écrit ici.
-- [ ] Les deux décisions produit (8, 9) sont tranchées par une personne.
+- [x] Chaque entrée est triée : ticket propre, correctif, ou « accepté » avec sa raison, écrit ici.
+- [x] Les deux décisions produit (8, 9) sont tranchées — par le porteur, qui les a déléguées le
+      2026-09-24 ; la décision et sa raison sont écrites ci-dessus et dans TCK-573 / TCK-577.
 
 ## Hors périmètre
 

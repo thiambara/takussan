@@ -85,6 +85,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P1 | 🧑‍💼🏢 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | 🧑‍💼🏢 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
 | P1 | 🧑‍💼 | Compteurs de vues et de favoris |
+| P1 | 🏢🧑‍💼 | Saisie des montants lisible : chiffres groupés selon la langue de l'écran, décimales selon la devise (aucune en franc CFA) ; la valeur envoyée reste un nombre (TCK-564, TCK-574) |
 | P2 | 🧑‍💼 | Dupliquer un bien (modèle / template) |
 | P2 | 🛡️ | Modération et validation avant publication |
 | P2 | 🧑‍💼 | Archivage en lot |
@@ -101,7 +102,8 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P0 | 👤🏠 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | 👤🏠 | Recherche plein-texte sur les biens |
 | P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
-| P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact) |
+| P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573) |
+| P1 | 👤🏠 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | 👤🏠 | Tri des résultats (prix, récence, pertinence) |
 | P1 | 👤🏠 | Filtres avancés (amenités, disponibilité, étage, meublé, état du bien) |
 | P1 | 👤🏠 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
@@ -110,7 +112,7 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P1 | 🏠 | Favoris (ajout / retrait / liste personnelle) |
 | P1 | 🏠 | Recherches sauvegardées avec alertes email |
 | P1 | 👤🏠 | Partage d'un bien (lien, réseaux sociaux) |
-| P2 | 🏠 | Comparateur de biens côte à côte |
+| P2 | 🏠 | Comparateur de biens côte à côte — sur mobile, tous les biens tiennent dans la largeur, une rangée de titres numérotés reste collée pendant la lecture et le premier critère est visible dès le premier écran ; « Vider » s'annule sans écraser un bien ajouté entre-temps (TCK-561, TCK-577) |
 | P2 | 🏠 | Biens similaires / suggestions personnalisées |
 | P2 | 🏠 | Historique local des biens consultés (stockage navigateur) |
 | P3 | 🏠 | Recherche vocale / en langage naturel |
@@ -126,7 +128,7 @@ Réservation ponctuelle d'un bien (saisonnier, visite payante, pré-réservation
 | P1 | 🏠🏢 | Paiement d'acompte et solde — **acompte = 30 % du total** (estimation affichée dans le tunnel de réservation, règle stable). Quand le besoin de varier par bien/contrat apparaîtra, déplacer le calcul backend via un endpoint `GET /api/bookings/quote`. |
 | P1 | 🏢 | Vue calendrier agrégée à partir des réservations confirmées et des visites planifiées |
 | P1 | 🏠🏢 | Consultation des paiements liés à la réservation |
-| P2 | 🏠 | Expiration automatique des demandes non traitées |
+| P2 | 🏠 | Expiration automatique des demandes non traitées — au seuil de l'agence (`booking_pending_expiry_hours`, 1 à 168 h, 0 = désactivé) ou à l'échéance propre de la demande, la première échue ; l'API l'expose (`response_deadline`) et la confirmation l'affiche, sans promettre de délai quand il n'y en a pas (TCK-575) |
 | P2 | 🏠🧑‍💼 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée, feedback post-visite |
 | P2 | 🏠🧑‍💼 | Rappels automatiques avant visite |
 | P3 | 🏠 | Annulation avec remboursement partiel automatisé |
@@ -197,9 +199,9 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 |------|---------|----------------|
 | P1 | 🏠🏢🧑‍💼 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | 🏠🏢 | Envoyer un message texte avec pièces jointes |
-| P1 | 🏠🏢 | Liste des conversations avec statut non lu |
+| P1 | 🏠🏢 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | 🏠🏢 | Notification en temps réel (in-app + email) |
-| P2 | 🏢🧑‍💼 | Conversations de groupe (multi-participants) |
+| P2 | 🏢🧑‍💼 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
 | P2 | 🏠🏢 | Accusés de lecture individuels (si > 5 participants) |
 | P2 | 🏠🏢 | Recherche dans l'historique des messages |
 | P3 | 🏠🏢 | Appels audio / vidéo intégrés |
@@ -352,12 +354,12 @@ Une agence porte un **`kind`** :
 | P0 | Tous | Mot de passe oublié et réinitialisation |
 | P0 | Tous | Vérification de l'adresse email |
 | P0 | Tous | Édition de profil (nom, bio, avatar) |
-| P1 | Tous | Vérification du numéro de téléphone (SMS / OTP) |
+| P1 | Tous | Vérification du numéro de téléphone (SMS / OTP) — indicatif hors du champ ; l'API refuse partout (profil, envoi du code) un numéro qu'aucun SMS ne peut joindre : longueur sénégalaise fausse, `0` de préfixe national derrière l'indicatif (TCK-566, TCK-574) |
 | P1 | Tous | OAuth Google (Socialite) |
 | P1 | Tous | Authentification à deux facteurs (TOTP + codes de récupération) |
 | P1 | Tous | Gestion des sessions actives |
 | P2 | Tous | Suppression de compte avec anonymisation (RGPD) |
-| P2 | Tous | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) |
+| P2 | Tous | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) — une demande par 24 h ; statut suivi jusqu'à la fin de la préparation ; e-mail de fin dans la langue du compte (TCK-567, TCK-575) |
 | P2 | 🛡️ | Déclenchement de l'export RGPD par un super-admin pour le compte d'un utilisateur (support / réquisition) |
 | P2 | Tous | OAuth Facebook / Apple |
 | P3 | Tous | Magic link de connexion |
@@ -424,7 +426,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P1 | Tous | Préférences par canal (email, push, SMS) |
 | P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
-| P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur |
+| P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
 | P2 | Tous | Digest quotidien / hebdomadaire |
 | P3 | Tous | Notifications WhatsApp |
 
@@ -527,7 +529,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | P2 | 🛡️ | Paramètres globaux de plateforme |
 | P2 | 🛡️ | Gestion des intégrations tierces (API keys) |
 | P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) |
-| P3 | 🛡️ | Mode maintenance programmé |
+| P3 | 🛡️ | Mode maintenance programmé — l'avis parle la langue du visiteur, s'affiche sous la barre et se ferme pour la session ; il revient quand la fenêtre passe « en cours » ou que sa fin change (TCK-572) |
 | P3 | 🛡️ | Feature flags |
 
 ### 2.10 Pages légales publiques
