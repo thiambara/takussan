@@ -5,12 +5,12 @@ import { useTranslations } from 'next-intl';
 import { Clock, MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
-import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { CardMeta } from './CardMeta';
 import { PropertyPhoto } from './PropertyPhoto';
-import { LienDeCarte, AU_DESSUS_DU_LIEN } from './LienDeCarte';
+import { LienDeCarte, TITRE_REACTIF, VoileDInteraction } from './LienDeCarte';
+import { ActionsSurPhoto } from './ActionsSurPhoto';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_STANDARD_ROW } from '@/components/property/card-image-sizes';
@@ -51,6 +51,8 @@ export function PropertyCardStandard({
           priority={priority}
           className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
         />
+        {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}
+        <VoileDInteraction />
 
         {/* Pastilles et cœur dans un seul flux : les pastilles passent à la ligne avant le
             cœur au lieu de passer dessous (cf. PropertyCard). */}
@@ -59,7 +61,8 @@ export function PropertyCardStandard({
             {property.contract_type && <ContractTypeChip type={property.contract_type} />}
             <NewBuildChip condition={property.condition} />
           </div>
-          <FavoriteButton propertyId={property.id} size="sm" className={`shrink-0 ${AU_DESSUS_DU_LIEN}`} />
+          {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
+          <ActionsSurPhoto property={property} />
         </div>
 
         <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/90 backdrop-blur-sm text-xs font-medium text-foreground shadow-[0_1px_4px_color-mix(in_srgb,var(--shadow-color)_10%,transparent)]">
@@ -78,7 +81,7 @@ export function PropertyCardStandard({
           )}
         </p>
 
-        <h3 id={idTitre} className="font-display text-[15px] leading-snug font-medium text-foreground line-clamp-2 h-[2.6em] text-pretty">
+        <h3 id={idTitre} className={`font-display text-[15px] leading-snug font-medium text-foreground line-clamp-2 h-[2.6em] text-pretty ${TITRE_REACTIF}`}>
           {property.title}
         </h3>
 

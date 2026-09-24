@@ -6,6 +6,7 @@ import React from 'react';
 
 import { CompareFloatingBar } from '../CompareFloatingBar';
 import { CompareProvider } from '@/context/CompareContext';
+import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { COMPARE_STORAGE_KEY, type ComparePreview } from '@/lib/compare';
 import messages from '@/messages/fr.json';
 
@@ -15,6 +16,12 @@ import messages from '@/messages/fr.json';
  * le retrait du parcours de tabulation lisait `null` sur un composant qui posait bien
  * l'attribut. *Un substitut qui filtre les props mesure le substitut.*
  */
+/** Le chemin courant — la barre se comporte autrement sur `/compare` et sur la liste. */
+let cheminCourant = '/fr';
+vi.mock('next/navigation', () => ({
+  usePathname: () => cheminCourant,
+}));
+
 vi.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href, ...rest }: React.ComponentProps<'a'>) => (
@@ -61,9 +68,13 @@ function wrap(ids: readonly number[], previews?: Record<number, ComparePreview>)
   semer(ids, previews);
   return (
     <NextIntlClientProvider locale="fr" messages={messages} timeZone="UTC">
-      <CompareProvider>
-        <CompareFloatingBar />
-      </CompareProvider>
+      {/* Comme dans le layout public : la barre émet un toast (« Annuler » après « Vider »). */}
+      <ToastProvider>
+        <CompareProvider>
+          <CompareFloatingBar />
+        </CompareProvider>
+        <Toaster />
+      </ToastProvider>
     </NextIntlClientProvider>
   );
 }
@@ -71,6 +82,8 @@ function wrap(ids: readonly number[], previews?: Record<number, ComparePreview>)
 describe('<CompareFloatingBar>', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
+    cheminCourant = '/fr';
   });
 
   it('is hidden when the selection is empty', () => {
@@ -166,5 +179,120 @@ describe('<CompareFloatingBar>', () => {
     });
 
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+});
+
+/** Les ids en stockage — ce que la sélection EST, indépendamment de ce que la barre affiche. */
+function idsEnStockage(): number[] {
+  const brut = localStorage.getItem(COMPARE_STORAGE_KEY);
+  return brut ? (JSON.parse(brut) as { ids: number[] }).ids : [];
+}
+
+/**
+ * TCK-561 — retour testeur du 2026-09-23 : « le modal de comparaison est têtu : il est toujours
+ * là, et quand tu le fermes il efface tout » (M6), et « il y a des “+” mais quand tu cliques ça ne
+ * fait aucune action » (M5).
+ */
+describe('<CompareFloatingBar> — réduire n’est pas vider (TCK-561)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    cheminCourant = '/fr';
+  });
+
+  it('le bouton de l’en-tête RÉDUIT la barre sans toucher à la sélection, et la rouvre', async () => {
+    const user = userEvent.setup();
+    render(wrap([10, 20], APERCU));
+    await screen.findByRole('complementary');
+
+    const reduire = screen.getByRole('button', { name: 'Réduire le comparateur' });
+    expect(reduire).toHaveAttribute('aria-expanded', 'true');
+    await act(async () => {
+      await user.click(reduire);
+    });
+
+    // La sélection est INTACTE — c'était tout le défaut.
+    expect(idsEnStockage()).toEqual([10, 20]);
+    // La barre est rangée : plus de vignettes ni d'appel à l'action, une pastille qui la rouvre.
+    expect(screen.queryByRole('button', { name: /Retirer « Villa à Ngor »/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Comparer \(2\)/)).not.toBeInTheDocument();
+    const deplier = screen.getByRole('button', { name: /Afficher le comparateur — 2 biens sélectionnés/ });
+    expect(deplier).toHaveAttribute('aria-expanded', 'false');
+    // Le focus suit : le bouton activé a disparu, le clavier ne retombe pas sur <body>.
+    expect(deplier).toHaveFocus();
+
+    await act(async () => {
+      await user.click(deplier);
+    });
+    expect(screen.getByText(/Comparer \(2\)/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Réduire le comparateur' })).toHaveFocus();
+  });
+
+  it('l’état réduit suit le visiteur d’une page à l’autre (remontage)', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(wrap([10, 20], APERCU));
+    await act(async () => {
+      await user.click(await screen.findByRole('button', { name: 'Réduire le comparateur' }));
+    });
+    unmount();
+
+    render(wrap([10, 20], APERCU));
+    expect(
+      await screen.findByRole('button', { name: /Afficher le comparateur/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Comparer \(2\)/)).not.toBeInTheDocument();
+  });
+
+  it('vider est une action DISTINCTE, libellée — et réversible par « Annuler »', async () => {
+    const user = userEvent.setup();
+    render(wrap([10, 20], APERCU));
+    await screen.findByRole('complementary');
+
+    const vider = screen.getByRole('button', { name: 'Vider le comparateur' });
+    // Libellée en toutes lettres, pas une croix muette.
+    expect(vider).toHaveTextContent('Vider');
+    expect(vider).not.toBe(screen.getByRole('button', { name: 'Réduire le comparateur' }));
+
+    await act(async () => {
+      await user.click(vider);
+    });
+    expect(idsEnStockage()).toEqual([]);
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+
+    await screen.findByText('Comparateur vidé');
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Annuler' }));
+    });
+
+    // La sélection revient, APERÇUS compris : la vignette nomme toujours le bien.
+    expect(idsEnStockage()).toEqual([10, 20]);
+    expect(
+      await screen.findByRole('button', { name: 'Retirer « Villa à Ngor » du comparateur' }),
+    ).toBeInTheDocument();
+  });
+
+  it('le premier emplacement libre est une ACTION : ouvrir la liste (hors de la liste)', async () => {
+    render(wrap([10, 20], APERCU));
+    await screen.findByRole('complementary');
+
+    const ajouter = screen.getByRole('link', { name: 'Ajouter un bien : voir les annonces' });
+    expect(ajouter).toHaveAttribute('href', '/fr/properties');
+    // Un seul « + » actionnable : les autres emplacements ne promettent plus rien.
+    expect(screen.getAllByRole('link', { name: /Ajouter un bien/ })).toHaveLength(1);
+  });
+
+  it('sur la liste, l’emplacement libre RANGE la barre — les biens sont derrière elle', async () => {
+    cheminCourant = '/fr/properties';
+    const user = userEvent.setup();
+    render(wrap([10, 20], APERCU));
+    await screen.findByRole('complementary');
+
+    await act(async () => {
+      await user.click(
+        screen.getByRole('button', { name: 'Ajouter un bien : choisissez-le dans la liste' }),
+      );
+    });
+    expect(screen.getByRole('button', { name: /Afficher le comparateur/ })).toBeInTheDocument();
+    expect(idsEnStockage()).toEqual([10, 20]);
   });
 });

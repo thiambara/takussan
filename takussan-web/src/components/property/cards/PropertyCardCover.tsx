@@ -3,11 +3,11 @@
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
-import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { PropertyPhoto } from './PropertyPhoto';
-import { LienDeCarte, AU_DESSUS_DU_LIEN } from './LienDeCarte';
+import { LienDeCarte, VoileDInteraction } from './LienDeCarte';
+import { ActionsSurPhoto } from './ActionsSurPhoto';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 
@@ -42,6 +42,8 @@ export function PropertyCardCover({
           priority={priority}
           className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
         />
+        {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}
+        <VoileDInteraction />
 
         {/* Gradient bas pour lisibilité du texte. */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-scrim/80" />
@@ -52,7 +54,8 @@ export function PropertyCardCover({
             {property.contract_type && <ContractTypeChip type={property.contract_type} />}
             <NewBuildChip condition={property.condition} />
           </div>
-          <FavoriteButton propertyId={property.id} size="sm" className={`shrink-0 ${AU_DESSUS_DU_LIEN}`} />
+          {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
+          <ActionsSurPhoto property={property} />
         </div>
 
         <div className="absolute inset-x-0 bottom-0 p-4 text-white">
@@ -61,7 +64,11 @@ export function PropertyCardCover({
               {quarter}
             </p>
           )}
-          <h3 id={idTitre} className="font-display text-[17px] leading-[22px] font-semibold line-clamp-2 mb-1.5 text-balance">
+          <h3
+            id={idTitre}
+            // TCK-561 — blanc sur le dégradé : l'accent y perdrait le contraste, le soulignement seul.
+            className="font-display text-[17px] leading-[22px] font-semibold line-clamp-2 mb-1.5 text-balance decoration-white/70 underline-offset-[3px] group-hover:underline group-has-[a:active]:underline"
+          >
             {property.title}
           </h3>
           <p className="text-[15px] font-bold tabular-nums">

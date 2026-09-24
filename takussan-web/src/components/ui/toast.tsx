@@ -71,15 +71,30 @@ function useToast() {
  * ⚠ **Le ton `error` n'est pas touché, délibérément.** Il ne portait aucune palette brute, et
  * l'aligner sur `/10` par symétrie ferait passer `--destructive` de 4,36:1 à 4,01:1 — sous AA.
  * *Une régression mesurée n'est pas un prix acceptable pour de la symétrie.*
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠ LE FOND EST OPAQUE (TCK-561) — le teint est MÉLANGÉ à `--card`, jamais laissé en alpha
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Les contrastes ci-dessus se mesuraient « aplatis sur `--card` » — mais rien ne posait de
+ * `--card` sous le toast : `bg-warning/10` est un aplat à 10 % d'opacité, et le viewport flotte
+ * en `fixed` au-dessus de la page. Relevé du 2026-09-23 à 390 px (retour testeur, « Maximum 4
+ * biens ») : fond `oklab(… / 0.1)` posé sur l'en-tête — le logo, la recherche et le bouton
+ * Filtres se lisaient À TRAVERS le texte du toast.
+ *
+ * `color-mix(in srgb, <ton> N%, var(--card))` rend EXACTEMENT la couleur que les mesures
+ * supposaient (la composition alpha du navigateur se fait en sRGB), mais opaque : les chiffres
+ * du tableau deviennent vrais quel que soit ce qui défile dessous, et `--card` bascule sous
+ * `.dark` comme les tons.
  */
 function kindClasses(kind: string | undefined) {
   switch (kind) {
     case "success":
-      return "border-success/30 bg-success/10 text-success"
+      return "border-success/30 bg-[color-mix(in_srgb,var(--success)_10%,var(--card))] text-success"
     case "warning":
-      return "border-warning/30 bg-warning/10 text-warning"
+      return "border-warning/30 bg-[color-mix(in_srgb,var(--warning)_10%,var(--card))] text-warning"
     case "error":
-      return "border-destructive/30 bg-destructive/5 text-destructive dark:bg-destructive/10"
+      return "border-destructive/30 bg-[color-mix(in_srgb,var(--destructive)_5%,var(--card))] text-destructive dark:bg-[color-mix(in_srgb,var(--destructive)_10%,var(--card))]"
     default:
       return "border-border bg-popover text-popover-foreground"
   }

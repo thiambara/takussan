@@ -3,12 +3,12 @@
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
-import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { CardMeta } from './CardMeta';
 import { PropertyPhoto } from './PropertyPhoto';
-import { LienDeCarte, AU_DESSUS_DU_LIEN } from './LienDeCarte';
+import { LienDeCarte, TITRE_REACTIF, VoileDInteraction } from './LienDeCarte';
+import { ActionsSurPhoto } from './ActionsSurPhoto';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 
@@ -43,6 +43,8 @@ export function PropertyCardCompact({
           priority={priority}
           className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
         />
+        {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}
+        <VoileDInteraction />
 
         {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
         <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1.5">
@@ -50,7 +52,8 @@ export function PropertyCardCompact({
             {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
             <NewBuildChip condition={property.condition} compact />
           </div>
-          <FavoriteButton propertyId={property.id} size="sm" className={`shrink-0 ${AU_DESSUS_DU_LIEN}`} />
+          {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
+          <ActionsSurPhoto property={property} />
         </div>
       </div>
 
@@ -63,7 +66,7 @@ export function PropertyCardCompact({
             </span>
           )}
         </p>
-        <h3 id={idTitre} className="font-display text-[13px] leading-[17px] font-medium text-foreground line-clamp-2">
+        <h3 id={idTitre} className={`font-display text-[13px] leading-[17px] font-medium text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
           {property.title}
         </h3>
         {quarter && (
