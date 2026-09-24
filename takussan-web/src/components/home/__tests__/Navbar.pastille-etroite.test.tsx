@@ -18,6 +18,9 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl, type LocaleDeTest } from '@/test/intl';
+import en from '@/messages/en.json';
+import fr from '@/messages/fr.json';
+import wo from '@/messages/wo.json';
 
 let parametresUrl = new URLSearchParams();
 let chemin = '/fr';
@@ -110,6 +113,40 @@ describe('Pastille mobile à 320 px CSS (TCK-563, M3)', () => {
       expect(bouton).toHaveAccessibleName(libelle!.textContent!);
     },
   );
+
+  /**
+   * Les seuils ci-dessus ne veulent rien dire si la requête ne mesure pas la PASTILLE : sans
+   * conteneur, `@max-[…]` ne s'applique jamais et le libellé se recoupe à 320 (« Cherc… » —
+   * mutation mesurée par la vérification de TCK-563 : retirer la seule classe `@container` de la
+   * pastille laissait les cinq autres tests verts). Le conteneur le plus proche doit être la
+   * pastille elle-même — pas une rangée plus large, dont la largeur ne dit rien du libellé.
+   */
+  it('la requête de conteneur mesure la pastille elle-même', () => {
+    monter();
+    const bouton = pastille();
+    const libelle = bouton.querySelector('span.truncate')!;
+    let conteneur: Element | null = libelle.parentElement;
+    while (conteneur && !conteneur.className.split(/\s+/).includes('@container')) {
+      conteneur = conteneur.parentElement;
+    }
+    expect(conteneur).toBe(bouton);
+  });
+
+  /**
+   * Solde du risque résiduel de TCK-563 : le seuil de 5,5 rem est tiré de la largeur MESURÉE du plus
+   * long libellé au repos (« Chercher », 60 px, 8 caractères). Une traduction plus longue pourrait
+   * se recouper entre 88 et 360 px sans qu'aucun test ne le voie — jsdom ne mesure pas de texte.
+   * Garde : aucun libellé au repos ne dépasse, en caractères, celui qui a été mesuré. Si celle-ci
+   * rougit, re-mesurer le libellé au navigateur et remonter `REQUIS_LIBELLE_ENTIER` et le seuil.
+   */
+  it('aucun libellé au repos n’est plus long que celui sur lequel le seuil a été mesuré', () => {
+    const MESURE = 'Chercher';
+    for (const dictionnaire of [fr, en, wo]) {
+      const libelle = dictionnaire.nav.searchPill.idle;
+      expect(libelle.length, `« ${libelle} » : re-mesurer le seuil de la pastille`).toBeLessThanOrEqual(MESURE.length);
+    }
+    expect(fr.nav.searchPill.idle).toBe(MESURE);
+  });
 
   it('au repos, sous le seuil, la loupe est centrée sans écart résiduel', () => {
     monter();

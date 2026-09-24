@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
+import { ouvrirLeClavierDansLeGeste } from '@/components/search/clavierDansLeGeste';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -556,8 +557,13 @@ export function Navbar({ className }: NavbarProps) {
                   libellé. Le seuil couvre le plus long libellé des trois langues (« Chercher »,
                   60 px + loupe 16 + écart 8 = 84) ; à 360 et au-delà (107 px de contenu), rien
                   ne change. */}
+              {/* TCK-563 (M3, décision du porteur du 2026-09-24) — la pastille RESTE dans la barre
+                  (compacité, TCK-549), et un appui ouvre la saisie clavier prêt, du premier coup :
+                  base-ui ne focalise le champ qu'une image après le geste, hors de lui, et Safari
+                  iOS n'ouvre alors pas le clavier. Cf. `ouvrirLeClavierDansLeGeste`. */}
               <SheetTrigger
                 aria-haspopup="dialog"
+                onClick={() => { if (!rechercheOuverte) ouvrirLeClavierDansLeGeste(); }}
                 className="@container flex-1 min-w-0 flex min-h-11 items-center bg-card border border-border rounded-full px-3 py-1 shadow-sm text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md"
               >
                 <span
