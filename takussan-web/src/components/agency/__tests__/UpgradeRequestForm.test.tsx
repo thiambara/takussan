@@ -47,11 +47,13 @@ const brouillon = vi.hoisted(() => ({
   // (`useWizardDraft.ts`, `flush()`). AC5 : jamais `undefined`.
   flush: vi.fn(),
   clear: vi.fn(),
+  // TCK-566 — le brouillon serveur lu à l'ouverture, piloté par test.
+  draft: null as { step: number; data: Record<string, unknown> } | null,
 }));
 
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
-    draft: null,
+    draft: brouillon.draft,
     isLoading: false,
     isSaving: false,
     error: null,
@@ -98,6 +100,7 @@ function fillRequiredText() {
 describe('<UpgradeRequestForm>', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    brouillon.draft = null;
     // AC5 — la doublure rend un `ResultatEcritureBrouillon`, jamais `undefined`.
     brouillon.flush.mockResolvedValue({ ok: true, ecrit: false });
     brouillon.clear.mockResolvedValue(undefined);
@@ -240,5 +243,104 @@ describe('<UpgradeRequestForm>', () => {
     });
     // Field-level errors don't trigger a toast.
     expect(toastAdd).not.toHaveBeenCalled();
+  });
+
+  // ── TCK-566 ────────────────────────────────────────────────────────────────
+  // Retour testeur du 2026-09-23 : « J'ai seulement cliqué sur la notification
+  // (passer en pro) ; je n'ai pas renseigné une seule ligne et on me dit
+  // "reprendre là où j'en étais". » L'autosave écrivait le formulaire VIDE dès
+  // l'hydratation — `save(0, EMPTY_FORM)` —, et ce brouillon vide devenait la
+  // carte « Vous avez 1 démarche en cours — Passage en pro » du tableau de bord.
+  describe('TCK-566 — pas de démarche sans saisie', () => {
+    it('ouvrir le formulaire sans rien saisir n’écrit aucun brouillon', () => {
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+
+      expect(screen.getByLabelText(/Numéro RC/i)).toBeInTheDocument();
+      expect(brouillon.save).not.toHaveBeenCalled();
+      expect(brouillon.clear).not.toHaveBeenCalled();
+    });
+
+    it('la première saisie écrit le brouillon', () => {
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+      fireEvent.change(screen.getByLabelText(/Numéro RC/i), { target: { value: 'RC-1' } });
+
+      expect(brouillon.save).toHaveBeenCalledWith(0, expect.objectContaining({ rc: 'RC-1' }));
+    });
+
+    it('effacer la saisie jusqu’au formulaire vide supprime le brouillon', () => {
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+      const rc = screen.getByLabelText(/Numéro RC/i);
+      fireEvent.change(rc, { target: { value: 'R' } });
+      fireEvent.change(rc, { target: { value: '' } });
+
+      expect(brouillon.clear).toHaveBeenCalledTimes(1);
+      // L'état vide n'est pas réécrit par-dessus la suppression.
+      expect(brouillon.save).toHaveBeenCalledTimes(1);
+    });
+
+    // ⚠ Ce que le SERVEUR rend, et non ce que le client a envoyé. Le formulaire
+    // vide part avec des chaînes vides ; le middleware global
+    // `ConvertEmptyStringsToNull` de l'API les enregistre en `null` (mesuré :
+    // PUT `{ rc: '' … }` puis GET → `{ rc: null … }`). Une première version de
+    // ce test lisait des `''` — une donnée que le serveur ne rend jamais — et
+    // restait verte alors que le brouillon fantôme du testeur était RÉÉCRIT
+    // à chaque ouverture au lieu d'être supprimé.
+    const BROUILLON_VIDE_TEL_QUE_STOCKE = {
+      rc: null,
+      ninea: null,
+      rib_pro: null,
+      address_fiscale: null,
+      company_legal_name: null,
+      planned_agents_count: null,
+    };
+
+    it('un brouillon VIDE hérité, tel que le serveur le rend (champs à null), est supprimé à l’ouverture', () => {
+      brouillon.draft = { step: 0, data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE } };
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+
+      expect(brouillon.clear).toHaveBeenCalledTimes(1);
+      expect(brouillon.save).not.toHaveBeenCalled();
+      // Les champs s'affichent vides, jamais « null ».
+      expect(screen.getByLabelText(/Numéro RC/i)).toHaveValue('');
+    });
+
+    it('un brouillon vide hérité portant des clés inconnues est supprimé aussi', () => {
+      brouillon.draft = { step: 0, data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE, ancien_champ: 'x' } };
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+
+      expect(brouillon.clear).toHaveBeenCalledTimes(1);
+      expect(brouillon.save).not.toHaveBeenCalled();
+    });
+
+    it('un brouillon RÉEL est repris, jamais supprimé', () => {
+      brouillon.draft = { step: 0, data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE, rc: 'RC-9' } };
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+
+      expect(screen.getByLabelText(/Numéro RC/i)).toHaveValue('RC-9');
+      expect(screen.getByLabelText(/^NINEA/i)).toHaveValue('');
+      expect(brouillon.clear).not.toHaveBeenCalled();
+      expect(brouillon.save).not.toHaveBeenCalled();
+    });
+
+    it('un brouillon réel repris, puis entièrement effacé, est supprimé', () => {
+      brouillon.draft = { step: 0, data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE, rc: 'RC-9' } };
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+
+      fireEvent.change(screen.getByLabelText(/Numéro RC/i), { target: { value: '' } });
+
+      expect(brouillon.clear).toHaveBeenCalledTimes(1);
+      expect(brouillon.save).not.toHaveBeenCalled();
+    });
+
+    it('un nombre d’agents repris du brouillon est conservé', () => {
+      brouillon.draft = {
+        step: 0,
+        data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE, planned_agents_count: 4 },
+      };
+      render(withIntl(<UpgradeRequestForm agencyId={42} />));
+
+      expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue(4);
+      expect(brouillon.clear).not.toHaveBeenCalled();
+    });
   });
 });
