@@ -268,7 +268,8 @@
       "terms": "Conditions générales d'utilisation",
       "privacy": "Politique de confidentialité",
       "notice": "Mentions légales"
-    }
+    },
+    "publishCta": "Publier un bien"
   },
   "map": {
     "zoomIn": "Zoomer",
@@ -3245,7 +3246,8 @@
       "error_invalid_filter_named": "Le filtre « {filter} » n'est pas valide.",
       "error_retry": "Réessayer",
       "vide_titre_hors_pages": "Rien sur cette page",
-      "vide_description_hors_pages": "Cette recherche compte moins de pages : revenez à l'une des précédentes."
+      "vide_description_hors_pages": "Cette recherche compte moins de pages : revenez à l'une des précédentes.",
+      "updating": "Mise à jour des biens…"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Aucun bien ne correspond à « {terms} ».} other {Aucun bien ne correspond à ces mots : {terms}.}}",

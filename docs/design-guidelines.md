@@ -245,6 +245,13 @@ Interdits :
   dépendance Radix ici.
 - **Loading** : squelettes par `<Skeleton>` (`@/components/ui/skeleton`), qui pose `bg-muted` —
   jamais de spinner centré sur page entière sauf première charge.
+- **Un geste qui relance une recherche se voit dès le clic, et jusqu'à l'arrivée des biens**
+  (TCK-580). Trois signaux, chacun à sa place : l'élément cliqué (puce : `AttenteDePuce` au coin,
+  hors du flux ; puce active retirée : barrée, ✕ remplacé par le chargement ; catégorie : le
+  pictogramme cède sa place) ; la grille estompée (`aria-busy`) ; et la pastille
+  `ActualisationDesResultats`, accrochée sous la barre de navigation. Aucun de ces signaux ne
+  change la largeur ni la hauteur de ce qu'il signale : un indicateur qui décale ses voisins
+  déplace la cible suivante sous le doigt.
 
   > ⚠️ **Cette ligne autorisait la brèche qu'elle prétendait fermer.** Elle offrait le fond de
   > squelette au choix entre la pierre 200 de l'échelle Tailwind **ou** le jeton `--muted`. Le
@@ -350,10 +357,12 @@ Définies dans `globals.css` :
 | `animate-card-enter` | 540ms | Entrée d'une carte dans une rangée (avec `animationDelay` indexé) |
 | `animate-section-enter` | 640ms | Entrée d'une section au scroll |
 | `animate-compare-dock-in` | 320ms | Arrivée d'un panneau flottant depuis le bord bas (barre du comparateur) |
+| `animate-apparition-attente` | 220ms (+60ms) | Pastille d'attente posée sur la puce cliquée (TCK-580) |
+| `animate-pastille-actualisation` | 320ms (+140ms) | « Mise à jour des biens » qui descend sous la barre (TCK-580) |
 
 Easing standard : `cubic-bezier(0.16, 1, 0.3, 1)` (out-expo doux).
 
-⚠ **Les quatre sont listées dans la garde de mouvement réduit de `globals.css`, et c'est la seule
+⚠ **Les six sont listées dans la garde de mouvement réduit de `globals.css`, et c'est la seule
 chose qui rende cette table vérifiable.** Une animation neuve qui n'y entre pas ne fait rougir
 rien du tout — elle continue simplement de bouger pour qui a demandé qu'on arrête. Ajouter la
 classe au sélecteur `@media (prefers-reduced-motion: reduce)` fait partie de sa livraison, pas de

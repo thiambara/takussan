@@ -128,8 +128,17 @@ export interface LienDePiedDePage {
  * juridiques, que les cases de consentement citent aussi. Les chemins viennent de
  * `ROUTES_LEGALES` et ne s'écrivent nulle part ailleurs (`src/lib/__tests__/legal-routes.test.ts`).
  * `Footer` rend cette colonne dans sa barre du bas, pas dans la grille.
+ *
+ * ✅ **`action` depuis TCK-580** : l'appel à publier, sous la signature. Déclaré ICI et non écrit
+ * en dur dans `Footer.tsx` pour la même raison que le reste — chaque `href` du pied de page est
+ * vérifié contre l'arborescence réelle, et `Footer.liens-localises.test.tsx` compte les ancres
+ * rendues contre les entrées de cette table. Un lien posé hors d'elle échapperait aux deux.
+ * Le libellé vit dans `footer.publishCta`.
  */
 export const footerLinks = {
+  action: [
+    { labelKey: 'publishCta', href: '/publish' },
+  ],
   discover: [
     { labelKey: 'all',      href: '/properties' },
     { labelKey: 'featured', href: '/properties?featured=true' },
