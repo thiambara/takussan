@@ -9,6 +9,7 @@ import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
+import { ActualisationDesResultats } from '@/components/search/ActualisationDesResultats';
 import { SearchToolbar } from '@/components/search/SearchToolbar';
 import { OutilsFlottantsDeListe } from '@/components/search/OutilsFlottantsDeListe';
 import { WidenedSearchNotice } from '@/components/search/WidenedSearchNotice';
@@ -235,8 +236,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   const {
     data,
     loading,
+    enCours,
     error,
     filters,
+    filtresDesResultats,
     activeCount,
     search,
     resetFilters,
@@ -401,9 +404,11 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             onFilterChange={handleFilterChange}
             onReset={resetFilters}
             activeCount={activeCount}
+            filtresDesResultats={filtresDesResultats}
+            enCours={enCours}
             open={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
-            total={loading || error ? null : (meta?.total ?? 0)}
+            total={enCours || error ? null : (meta?.total ?? 0)}
           />
 
           <main className="flex-1 min-w-0">
@@ -449,8 +454,9 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               // affiche le sien (`PropertyMap`, AC4). `/map` ne reçoit pas `q` et ne place pas un
               // bien sans coordonnées — deux nombres pour une recherche, c'était l'écran de M3.
               total={error || vue === 'map' ? null : (meta?.total ?? 0)}
-              loading={loading}
+              loading={enCours}
               filters={filters}
+              filtresDesResultats={filtresDesResultats}
               activeCount={activeCount}
               onRemoveFilter={retirerFiltre}
               // TCK-558 — à zéro résultat, les puces vivent dans l'état vide, où elles sont l'issue.
@@ -568,12 +574,25 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                   />
                 )}
 
+                {/*
+                  TCK-580 — l'annonce du chargement, là où l'œil attend les biens. Rendue seulement
+                  quand des biens sont DÉJÀ à l'écran : sans eux, ce sont les squelettes qui parlent
+                  (design-guidelines § États : jamais de spinner plein écran).
+                */}
+                {enCours && !(loading && properties.length === 0) ? <ActualisationDesResultats /> : null}
+
                 {/* TCK-557 — la pagination ramène la vue ICI, sous la `nav` fixe (cf. `NavbarSpacer`). */}
                 <div
                   id={ID_DES_RESULTATS}
-                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-opacity duration-200 ${
-                    loading
-                      ? 'opacity-50 pointer-events-none'
+                  aria-busy={enCours}
+                  data-actualisation={enCours ? 'en-cours' : undefined}
+                  // TCK-580 — la grille s'estompe DÈS le clic, plus seulement pendant le `fetch` :
+                  // `enCours` couvre aussi l'aller-retour de navigation, qui ne montrait rien.
+                  // `saturate` en plus de l'opacité : des photos à moitié transparentes gardaient
+                  // leurs couleurs et se lisaient encore comme des résultats valides.
+                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-[opacity,filter] duration-300 ease-out ${
+                    enCours
+                      ? 'opacity-45 saturate-[0.35] pointer-events-none'
                       : 'opacity-100'
                   }`}
                 >
@@ -588,6 +607,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                     // survenue » sur le même écran — trois affirmations concurrentes.
                     <SearchEmpty
                       filters={filters}
+                      filtresDesResultats={filtresDesResultats}
                       activeCount={activeCount}
                       criteresEnCause={aucunResultat}
                       onRemoveFilter={retirerFiltre}

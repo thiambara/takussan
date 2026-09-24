@@ -2,7 +2,7 @@
 
 import React, { type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -55,8 +55,11 @@ export interface SearchToolbarProps {
    * affirmations contradictoires, et c'est le chiffre que l'œil lit en premier.
    */
   total: number | null;
+  /** TCK-580 — une recherche court : du clic à l'arrivée des biens, pas seulement le `fetch`. */
   loading: boolean;
   filters: SearchFilters;
+  /** TCK-580 — les filtres dont les résultats affichés sont la réponse ; cf. {@link PucesDeFiltres}. */
+  filtresDesResultats?: SearchFilters;
   activeCount: number;
   onRemoveFilter: (key: keyof SearchFilters, subKey?: string) => void;
   onSortChange: (sort: SearchFilters['sort']) => void;
@@ -91,6 +94,7 @@ export function SearchToolbar({
   total,
   loading,
   filters,
+  filtresDesResultats,
   activeCount,
   onRemoveFilter,
   onSortChange,
@@ -119,7 +123,7 @@ export function SearchToolbar({
         <p className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-foreground" aria-live="polite">
           {loading ? (
             <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden />
               {t('loading')}
             </span>
           ) : total === null ? null : (
@@ -214,7 +218,12 @@ export function SearchToolbar({
 
       {/* Active filter tags — TCK-558 : à zéro résultat, c'est l'état vide qui les porte. */}
       {afficherPuces ? (
-        <PucesDeFiltres filters={filters} onRemoveFilter={onRemoveFilter} fin={finDesPuces} />
+        <PucesDeFiltres
+          filters={filters}
+          filtresDesResultats={filtresDesResultats}
+          onRemoveFilter={onRemoveFilter}
+          fin={finDesPuces}
+        />
       ) : null}
     </div>
   );
@@ -222,6 +231,12 @@ export function SearchToolbar({
 
 export interface PucesDeFiltresProps {
   readonly filters: SearchFilters;
+  /**
+   * TCK-580 — les filtres dont les résultats AFFICHÉS sont la réponse. `filters` porte ceux que
+   * le dernier geste vise ; la différence entre les deux est ce qui attend, puce par puce. Absent :
+   * rien n'attend.
+   */
+  readonly filtresDesResultats?: SearchFilters;
   readonly onRemoveFilter: (key: keyof SearchFilters, subKey?: string) => void;
   /** Ce qui vient au bout des puces, dans la même rangée — rendu seulement s'il y a une puce. */
   readonly fin?: ReactNode;
@@ -244,8 +259,11 @@ export interface PucesDeFiltresProps {
  * garde de la surface publique sous `components/search/SearchToolbar.tsx`, et le déplacer ne
  * changerait rien à l'écran pour tout changer à l'ardoise.
  */
+type EtatDePuce = 'stable' | 'retrait' | 'ajout';
+
 export function PucesDeFiltres({
   filters,
+  filtresDesResultats,
   onRemoveFilter,
   fin,
   className = '',
@@ -259,7 +277,33 @@ export function PucesDeFiltres({
     titleTypes: useTranslations('property.titleTypes'),
     conditions: useTranslations('property.conditions'),
   };
-  const activeTags = puceDeChaqueFiltreActif(filters, trads);
+  /**
+   * TCK-580 — la rangée est rendue depuis les DEUX jeux de filtres, et l'écart se voit.
+   *
+   * · une puce des résultats que le geste ne vise plus → `retrait` : elle RESTE, barrée, son ✕
+   *   remplacé par le chargement, jusqu'à l'arrivée des biens. La faire disparaître au clic
+   *   laissait l'œil sur un vide, sans savoir si le geste avait pris ;
+   * · une puce visée qui n'a pas encore ses résultats → `ajout` : elle apparaît tout de suite,
+   *   avec le chargement.
+   *
+   * L'identité d'une puce est sa clé ET son texte : `city=Dakar` → `city=Thiès` est un retrait
+   * suivi d'un ajout, pas une puce « stable » qui changerait de libellé sous le doigt.
+   */
+  const texteDe = (source: SearchFilters, cle: string, libelle: string) =>
+    cle === 'q' ? (source.q ?? '') : libelle;
+  const identite = (p: { cle: string; sousCle?: string; texte: string }) =>
+    `${p.cle}|${p.sousCle ?? ''}|${p.texte}`;
+  const versPuces = (source: SearchFilters) =>
+    puceDeChaqueFiltreActif(source, trads).map((p) => ({ ...p, texte: texteDe(source, p.cle, p.libelle) }));
+
+  const visees = versPuces(filters);
+  const affichees = filtresDesResultats ? versPuces(filtresDesResultats) : visees;
+  const idVisees = new Set(visees.map(identite));
+  const idAffichees = new Set(affichees.map(identite));
+  const activeTags: (ReturnType<typeof versPuces>[number] & { etat: EtatDePuce })[] = [
+    ...affichees.map((p) => ({ ...p, etat: (idVisees.has(identite(p)) ? 'stable' : 'retrait') as EtatDePuce })),
+    ...visees.filter((p) => !idAffichees.has(identite(p))).map((p) => ({ ...p, etat: 'ajout' as EtatDePuce })),
+  ];
   if (activeTags.length === 0) return null;
 
   return (
@@ -269,12 +313,23 @@ export function PucesDeFiltres({
       aria-label={ariaLabel}
       className={`flex flex-wrap items-center gap-2 ${className}`}
     >
-      {activeTags.map(({ cle, sousCle, libelle }) => (
+      {activeTags.map(({ cle, sousCle, texte, etat }) => (
         <button
-          key={sousCle ? `${cle}-${sousCle}` : cle}
+          key={`${cle}-${sousCle ?? ''}-${texte}`}
           type="button"
-          onClick={() => onRemoveFilter(cle, sousCle)}
-          className="flex min-h-8 items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
+          data-etat-puce={etat}
+          // Une puce en retrait n'a plus rien à retirer : le geste est déjà parti. `aria-disabled`
+          // et non `disabled`, pour que le focus ne saute pas au clavier pendant l'attente.
+          aria-disabled={etat === 'retrait' || undefined}
+          aria-busy={etat !== 'stable' || undefined}
+          onClick={() => {
+            if (etat !== 'retrait') onRemoveFilter(cle, sousCle);
+          }}
+          className={`group flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-[background-color,border-color,color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            etat === 'retrait'
+              ? 'cursor-progress border-border text-muted-foreground line-through decoration-1 opacity-70'
+              : 'bg-primary/8 text-primary border-primary/20 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
+          }`}
         >
           {/* TCK-552 — la recherche libre se signale par une ICÔNE, plus par des guillemets
               bruts (`"Dakar"`, P8). Le libellé de `q` dans `SEARCH_FILTER_KEYS` garde ses
@@ -284,12 +339,18 @@ export function PucesDeFiltres({
           {cle === 'q' ? (
             <>
               <Search data-icone="recherche" className="size-3.5 shrink-0" aria-hidden />
-              {filters.q}
+              {texte}
             </>
           ) : (
-            libelle
+            texte
           )}
-          <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+          {/* TCK-580 — le ✕ et le chargement occupent la MÊME case : la puce ne change pas de
+              largeur, et ses voisines ne bougent pas sous le doigt. */}
+          {etat === 'stable' ? (
+            <X className="size-3 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden />
+          ) : (
+            <Loader2 data-attente="puce-active" className="size-3 shrink-0 animate-spin" aria-hidden />
+          )}
         </button>
       ))}
       {fin}

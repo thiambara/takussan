@@ -290,8 +290,20 @@ const FICHIERS_HORS_JETONS = 5;
  * fond est le `bg-card/95` de la pastille, son parent direct. Les autres fichiers modifiés du lot
  * qui gagnent des entrées (`RetourAuth`, messagerie, confidentialité, `ui/phone-input`) sont hors
  * de la surface publique : ce compte ne les voit pas.
+ *
+ * **246 → 247 le 2026-09-24 (TCK-580).** `search/SearchToolbar.tsx` passe de 0 à 1 entrée, relevé
+ * par `couplesDuFichier` sur la version de `HEAD` puis sur la nouvelle : la puce active EN RETRAIT
+ * (`text-muted-foreground`, barrée, le temps que les biens arrivent), qui quitte le fond teinté
+ * `bg-primary/8` des puces stables — le fond est alors celui de la page ou de l'état vide, sur
+ * lesquels l'encre tient 5,44:1 et 5,72:1. Les autres fichiers du lot restent à leur compte :
+ * `FilterSidebar` 14, `Navbar` 15, `Footer` 4, `PropertiesDiscoveryPage` 2, et les deux fichiers
+ * neufs (`AttenteDePuce`, `ActualisationDesResultats`) 0. ⚠ Une première version rangeait les
+ * classes des puces du panneau dans des CONSTANTES : le compte y descendait de 3 — non parce que
+ * les encres avaient changé, mais parce que ce relevé ne lit que les littéraux de `className`.
+ * Elles y sont revenues : *une garde qui cesse de voir une encre rend le même chiffre qu'une
+ * encre corrigée.*
  */
-const ENCRES_INVERSES = 246;
+const ENCRES_INVERSES = 247;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
