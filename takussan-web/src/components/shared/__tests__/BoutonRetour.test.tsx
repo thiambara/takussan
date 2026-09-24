@@ -39,6 +39,12 @@ describe('BoutonRetour — fiches publiques d’agent et d’agence', () => {
     expect(back).not.toHaveBeenCalled();
   });
 
+  // TCK-560 — mesuré au navigateur : 32 px de haut. jsdom ne mesure rien ; la classe EST le contrat.
+  it('offre une cible tactile de 44 px', () => {
+    render(withIntl(<BoutonRetour repli="/agents" libelle="Retour" />));
+    expect(screen.getByRole('link', { name: 'Retour' }).className.split(/\s+/)).toContain('min-h-11');
+  });
+
   it('laisse le navigateur ouvrir un onglet sur ⌘-clic', () => {
     poserNavigation({ canGoBack: true });
     render(withIntl(<BoutonRetour repli="/agents" libelle="Retour" />));
