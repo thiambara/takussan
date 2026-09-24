@@ -82,6 +82,11 @@ export type WizardReprenableProps<TData> = {
 // objects so nested defaults survive partial drafts; treats null leaves as
 // "missing" and falls back to the initial value (React controlled inputs
 // reject value={null}).
+//
+// TCK-574 — `''` n'est PAS absent : c'est un champ pré-rempli que la personne a
+// vidé, et l'API le rend tel quel depuis TCK-574. Seuls les `null` des
+// brouillons écrits avant (quand `ConvertEmptyStringsToNull` réécrivait `''`)
+// retombent sur la valeur initiale.
 function mergeDraft<T>(base: T, patch: Partial<T> | null | undefined): T {
   if (patch === null || patch === undefined) return base;
   if (

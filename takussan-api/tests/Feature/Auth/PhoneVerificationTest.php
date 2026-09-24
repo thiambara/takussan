@@ -7,6 +7,7 @@ use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PhoneVerificationTest extends TestCase
@@ -181,5 +182,105 @@ class PhoneVerificationTest extends TestCase
         Sanctum::actingAs($autre);
         $this->postJson('/api/auth/phone/send-otp', ['phone' => '+33612345678'])->assertOk();
         $this->assertSame('+33612345678', $autre->fresh()->phone);
+    }
+
+    /**
+     * TCK-574 — `+330612345678` a la forme E.164 (12 chiffres) : la règle de forme seule
+     * l'enregistrait, et le code partait vers un numéro qui n'existe pas. Le 0 d'un numéro
+     * italien, lui, est un chiffre du numéro.
+     */
+    public function test_send_otp_refuse_un_zero_de_prefixe_national_apres_l_indicatif(): void
+    {
+        Cache::flush();
+        $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+330612345678'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['phone' => __('validation.rules.phone_trunk_prefix')]);
+
+        $this->assertNull($user->fresh()->phone);
+        $this->assertFalse(Cache::has("phone-otp:{$user->id}"));
+
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+390612345678'])->assertOk();
+        $this->assertSame('+390612345678', $user->fresh()->phone);
+    }
+
+    /**
+     * TCK-574 repair-1 — la page de profil appelle `send-otp` SANS `phone` : le code part au
+     * numéro ENREGISTRÉ. Ce numéro-là n'était jamais relu, alors que `UpdateProfileRequest` et
+     * `UpdateMeRequest` enregistrent `+330612345678` (forme E.164, 12 chiffres) comme
+     * `780143710+221` a pu l'être avant TCK-566. Il est désormais soumis aux mêmes règles que
+     * celui qu'on envoie : aucun code ne part vers un numéro qu'aucun réseau n'achemine.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function numerosEnregistresInjoignables(): array
+    {
+        return [
+            'zéro de préfixe national' => ['+330612345678', 'validation.rules.phone_trunk_prefix'],
+            'forme corrompue de TCK-566' => ['780143710+221', 'validation.rules.phone_e164'],
+            'forme nationale' => ['771234567', 'validation.rules.phone_e164'],
+            'sénégalais incomplet' => ['+22178014371', 'validation.rules.phone_e164'],
+        ];
+    }
+
+    #[DataProvider('numerosEnregistresInjoignables')]
+    public function test_send_otp_sans_phone_relit_le_numero_enregistre(string $enregistre, string $message): void
+    {
+        Cache::flush();
+        $user = User::factory()->create(['phone' => $enregistre, 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/phone/send-otp')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['phone' => __($message)]);
+
+        $this->assertFalse(Cache::has("phone-otp:{$user->id}"), 'aucun code ne doit partir');
+        $this->assertSame($enregistre, $user->fresh()->phone, 'le numéro enregistré n\'est pas réécrit');
+    }
+
+    /**
+     * TCK-574 repair-2 — un `phone` PRÉSENT mais vide ne remplace rien (le contrôleur ne
+     * l'enregistre pas) : c'est encore le numéro enregistré qui recevrait le code, et c'est donc
+     * lui qui doit être relu. Une garde écrite `has('phone')` au lieu de `filled('phone')` le
+     * laissait passer, et rien ne le voyait.
+     *
+     * @return array<string, array{0: array<string, mixed>}>
+     */
+    public static function phonesVides(): array
+    {
+        return [
+            'chaîne vide' => [['phone' => '']],
+            'null explicite' => [['phone' => null]],
+            'espaces seuls' => [['phone' => '   ']],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $corps */
+    #[DataProvider('phonesVides')]
+    public function test_send_otp_avec_un_phone_vide_relit_encore_le_numero_enregistre(array $corps): void
+    {
+        Cache::flush();
+        $user = User::factory()->create(['phone' => '+330612345678', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/phone/send-otp', $corps)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['phone' => __('validation.rules.phone_trunk_prefix')]);
+
+        $this->assertFalse(Cache::has("phone-otp:{$user->id}"), 'aucun code ne doit partir');
+        $this->assertSame('+330612345678', $user->fresh()->phone);
+    }
+
+    /** Le numéro qu'on envoie remplace l'enregistré : c'est LUI qui est jugé, pas l'ancien. */
+    public function test_send_otp_avec_un_numero_valide_remplace_un_enregistre_injoignable(): void
+    {
+        Cache::flush();
+        $user = User::factory()->create(['phone' => '+330612345678', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+33612345678'])->assertOk();
+        $this->assertSame('+33612345678', $user->fresh()->phone);
     }
 }

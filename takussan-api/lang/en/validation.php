@@ -19,6 +19,8 @@ return [
         'phone' => 'The phone number must be a valid Senegalese phone number (e.g. +221 77 123 45 67 or 771234567).',
         // TCK-566 — the number an SMS code is sent to: E.164, country code first.
         'phone_e164' => 'The phone number must be in international format, country code first (e.g. +221 77 123 45 67).',
+        // TCK-574 — a national trunk prefix 0 after the country code.
+        'phone_trunk_prefix' => 'Remove the 0 after the country code: +33 06 12 34 56 78 is written +33 6 12 34 56 78.',
         'currency' => 'The currency must be one of: :allowed.',
         'date_range' => 'The date must be on or after :start.',
         'strong_password' => 'The password must contain at least 8 characters, including one uppercase letter, one lowercase letter, one digit and one special character.',

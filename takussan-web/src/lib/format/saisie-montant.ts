@@ -75,6 +75,10 @@ function groupesDeTrois(brut: string, positions: readonly number[]): boolean {
  *    d'au plus deux chiffres. Un montant collé depuis un document rédigé dans l'autre convention
  *    se lit donc juste. **Entremêlés** (« 1,500.5,0 »), les signes ne disent plus rien : en euro,
  *    le premier séparateur décimal de la locale tranche (règle 4) ; en franc CFA, aucun centime.
+ * 1 bis. **Partie entière nulle** (« .500 », « 0.500 ») : en devise à décimales, le premier signe
+ *    ouvre les décimales — « 0 500 » ne groupe rien —, sauf le séparateur de milliers de la locale
+ *    suivi d'un groupe entier (« ,500 » en anglais : un « 1,500 » dont on efface le 1). Les règles
+ *    2 à 4 ne jouent qu'au-delà.
  * 2. **Un seul signe, et c'est le séparateur de milliers de la locale** (la virgule en anglais) :
  *    il groupe, toujours. Effacer un chiffre de « 1,500,000 » donne « 1,500,00 », qui vaut
  *    150 000 — le lire 1 500 punirait une simple correction.
@@ -116,6 +120,21 @@ function marqueDecimale(brut: string, decimales: number, locale: Locale): number
     }
     if (decimales > 0) return memes[0];
     return memes.length === 1 && chiffresApres(brut, derniere) <= 2 ? derniere : -1;
+  }
+  // 1 bis. Une partie entière NULLE (« .500 », « 0.500 », « 0,5 » en anglais) ne porte aucun groupe
+  //    de milliers : « 0 500 » n'est l'écriture d'aucun montant. En devise à décimales, le premier
+  //    signe ouvre donc les décimales — sans quoi « .5 » → « 0.50 » → « 0.500 » tapé valait 500 €
+  //    (TCK-574 repair-2). Le franc CFA garde ses règles : il n'a pas de décimales à ouvrir.
+  //    ⚠ SAUF le séparateur de milliers de la locale suivi d'un groupe entier (trois chiffres ou
+  //    plus) : c'est ce que laisse l'effacement du premier chiffre de « 1,500 » ou de « 1,500,000 »
+  //    en anglais. Lu comme des décimales, « ,500 » valait 0,5 et la frappe suivante 2,050 au lieu
+  //    de 2,500 — la correction que la règle 2 protège (vérification adverse de TCK-574).
+  if (
+    decimales > 0 &&
+    !/[1-9]/.test(brut.slice(0, signes[0])) &&
+    !(brut[signes[0]] === separateurDeMilliers(locale) && chiffresApres(brut, signes[0]) >= 3)
+  ) {
+    return signes[0];
   }
   if (brut[derniere] === separateurDeMilliers(locale)) return -1;
   if (memes.length > 1 && groupesDeTrois(brut, memes)) return -1;
@@ -170,7 +189,11 @@ export function lireSaisie(brut: string, decimales: number, locale: Locale): Mon
   // « 1, », et « 1.500 » tapé valait 1,50 € (revue adverse v2). Gardé, il se relit à l'identique à
   // la frappe suivante ; c'est le troisième chiffre, ou la sortie du champ (`ecrireMontant`), qui
   // tranche — et l'écran le montre alors dans la convention de la locale.
-  const signe = fraction !== null && !brut.includes(sep) ? brut[marque] : sep;
+  // Derrière une partie entière nulle, le signe est déjà tranché (règle 1 bis) : aucun chiffre à
+  // venir ne le fera grouper. Il est donc réécrit dans la convention de la locale — « ,5 » en
+  // anglais s'affiche « 0.5 » —, et la frappe suivante ne peut plus le relire en milliers.
+  const entiereNulle = chiffres === '' || chiffres === '0';
+  const signe = fraction !== null && !entiereNulle && !brut.includes(sep) ? brut[marque] : sep;
 
   const partieEntiere = chiffres === '' ? '0' : chiffres;
   const groupe = formatNumber(Number(partieEntiere), locale, { maximumFractionDigits: 0 });
@@ -218,7 +241,8 @@ export function positionApresReecriture(
   locale: Locale,
 ): number {
   const avant = brut.slice(0, curseur);
-  let restants = avant.replace(/\D/g, '').length;
+  const chiffresTapes = avant.replace(/\D/g, '').length;
+  let restants = chiffresTapes;
   let position = 0;
   while (position < affichage.length && restants > 0) {
     if (/\d/.test(affichage[position])) restants -= 1;
@@ -228,6 +252,15 @@ export function positionApresReecriture(
   // celui de la locale ou le point ambigu gardé tel quel (`lireSaisie`).
   const sep = separateurDecimal(locale);
   const tape = avant[avant.length - 1];
-  if (/[.,]$/.test(avant) && (affichage[position] === sep || affichage[position] === tape)) position += 1;
+  const estMarque = (c: string | undefined) => c === sep || c === tape;
+  if (/[.,]$/.test(avant)) {
+    // TCK-574 — « ,5 » : aucun chiffre tapé devant la marque, mais l'affichage porte le « 0 » que
+    // `lireSaisie` insère (« 0, »). Aucun chiffre tapé ne le compte : sans ce pas, le curseur
+    // restait DEVANT lui, et le « 5 » suivant faisait « 50, » — cinquante au lieu de 0,5.
+    if (chiffresTapes === 0 && affichage[position] === '0' && estMarque(affichage[position + 1])) {
+      position += 1;
+    }
+    if (estMarque(affichage[position])) position += 1;
+  }
   return Math.min(position, affichage.length);
 }

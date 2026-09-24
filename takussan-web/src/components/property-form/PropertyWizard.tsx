@@ -128,6 +128,10 @@ const CARACTERISTIQUES: readonly ConditionalFieldKey[] = [
  * l'étape 2 : l'erreur, le message brut de zod, tombait dans la section repliée du détail
  * d'adresse (revue adverse v2, mesuré au navigateur). Un `null` n'a rien à dire que la valeur
  * initiale ne dise déjà : on le retire, et c'est `valeursInitiales` qui répond.
+ *
+ * TCK-574 — l'API n'écrit plus `null` à la place de `''` dans un brouillon (l'écriture d'un
+ * brouillon est exemptée de la normalisation). Ce filtre RESTE : les brouillons écrits avant, qui
+ * portent ces `null`, sont encore en base jusqu'à leur purge à 90 jours.
  */
 function sansNulls(donnees: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(donnees).filter(([, valeur]) => valeur !== null));
@@ -195,6 +199,12 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
   const [direction, setDirection] = useState<1 | -1>(1);
   const [photos, setPhotos] = useState<File[]>([]);
   const [erreurPhotos, setErreurPhotos] = useState<string | null>(null);
+  /**
+   * TCK-574 — le nombre de « Continuer » REFUSÉS. Une étape qui replie des champs (`StepLieu`)
+   * doit les redéplier à CHAQUE refus, pas seulement quand une erreur apparaît : repliés à la main
+   * après avoir vu l'erreur, ils la cachaient de nouveau, et « Continuer » ne faisait plus rien.
+   */
+  const [refus, setRefus] = useState(0);
   const [avertissement, setAvertissement] = useState<string | null>(null);
   const [etatBrouillon, setEtatBrouillon] = useState<EtatBrouillon>('attente');
   const [repriseAnnoncee, setRepriseAnnoncee] = useState(false);
@@ -381,7 +391,10 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
         index === ETAPE_CARACTERISTIQUES
           ? CARACTERISTIQUES.filter((cle) => isFieldRelevant(cle, { type, contract: contrat }))
           : CLES_PAR_ETAPE[index];
-      if (!(await trigger([...cles]))) return;
+      if (!(await trigger([...cles]))) {
+        setRefus((n) => n + 1);
+        return;
+      }
     }
     setDirection(sens);
     setIndex(prochain);
@@ -419,7 +432,7 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
       id: 'lieu',
       title: t('steps.lieu.title'),
       subtitle: t('steps.lieu.subtitle'),
-      body: <StepLieu form={form} />,
+      body: <StepLieu form={form} refus={refus} />,
     },
     {
       id: 'caracteristiques',

@@ -34,9 +34,15 @@ type EtatPosition = 'repos' | 'attente' | 'refuse' | 'indisponible' | 'echec';
  */
 export function StepLieu({
   form,
+  refus = 0,
   geolocalisation,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
+  /**
+   * TCK-574 — le nombre de « Continuer » refusés, compté par l'assistant. Chaque nouveau refus
+   * redéplie le détail d'adresse s'il porte une erreur.
+   */
+  readonly refus?: number;
   /**
    * Injectable pour les tests — jamais en production. `navigator.geolocation` n'existe pas dans
    * jsdom, et le stubber globalement fuirait d'un test à l'autre. Même contrat que sur
@@ -60,6 +66,14 @@ export function StepLieu({
   const [erreurVue, setErreurVue] = useState(false);
   if (erreurDansLesDetails !== erreurVue) {
     setErreurVue(erreurDansLesDetails);
+    if (erreurDansLesDetails) setDetailsOuverts(true);
+  }
+  // TCK-574 — …et à CHAQUE refus de « Continuer ». Replié à la main après avoir vu l'erreur, le
+  // détail la cachait de nouveau : l'erreur étant déjà posée, rien n'« apparaissait », et
+  // « Continuer » ne faisait plus rien, sans rien dire.
+  const [refusVu, setRefusVu] = useState(refus);
+  if (refus !== refusVu) {
+    setRefusVu(refus);
     if (erreurDansLesDetails) setDetailsOuverts(true);
   }
   const [etatPosition, setEtatPosition] = useState<EtatPosition>('repos');

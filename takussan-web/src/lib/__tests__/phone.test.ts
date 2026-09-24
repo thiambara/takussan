@@ -6,6 +6,7 @@ import {
   decomposerTelephone,
   formaterTelephone,
   normaliserIndicatif,
+  normalizePhoneInput,
   numeroComposable,
   recomposerTelephone,
   relireTelephoneBrouillon,
@@ -125,5 +126,102 @@ describe('lib/phone — TCK-566', () => {
     expect(formaterTelephone('+221780143710')).toBe('+221 78 014 37 10');
     expect(formaterTelephone('+33612345678')).toBe('+33612345678');
     expect(formaterTelephone('')).toBe('');
+  });
+});
+
+/**
+ * TCK-574 — le « 0 » de PRÉFIXE NATIONAL (trunk prefix) se compose en France,
+ * en Belgique, au Royaume-Uni… mais ne s'écrit JAMAIS après l'indicatif :
+ * `06 12 34 56 78` se dit `+33 6 12 34 56 78`. Tapé sous `+33`, il donnait
+ * `+330612345678` — accepté par le champ comme par l'API (E.164 de 12 chiffres),
+ * et un SMS aurait été envoyé vers un numéro qui n'existe pas.
+ *
+ * Dans quelques pays, le 0 qui suit l'indicatif FAIT PARTIE du numéro et se
+ * garde : l'Italie (`+39 06 …`, les fixes), Saint-Marin (`+378 0549 …`), la
+ * Côte d'Ivoire (`+225 07 …`, plan à 10 chiffres de 2021), le Bénin
+ * (`+229 01 …`, plan à 10 chiffres de 2024), le Gabon (`+241 06 …`) et le
+ * Congo (`+242 06 …`).
+ */
+describe('lib/phone — TCK-574 : préfixe national', () => {
+  it('retire le 0 de préfixe national tapé sous un indicatif étranger', () => {
+    expect(composerTelephone('0612345678', '+33')).toBe('+33612345678');
+    expect(composerTelephone('06 12 34 56 78', '+33')).toBe('+33612345678');
+    expect(composerTelephone('0470 12 34 56', '+32')).toBe('+32470123456');
+    expect(composerTelephone('07911 123456', '+44')).toBe('+447911123456');
+  });
+
+  it('retire aussi le 0 d’un numéro international complet tapé avec lui', () => {
+    expect(composerTelephone('+33 06 12 34 56 78', '+221')).toBe('+33612345678');
+    expect(composerTelephone('0033 0612345678', '+221')).toBe('+33612345678');
+    expect(composerTelephone('+1 0212 555 0100', '+221')).toBe('+12125550100');
+  });
+
+  it('garde le 0 là où il est SIGNIFICATIF', () => {
+    expect(composerTelephone('06 1234 5678', '+39')).toBe('+390612345678');
+    expect(composerTelephone('+39 06 1234 5678', '+221')).toBe('+390612345678');
+    expect(composerTelephone('0549 123456', '+378')).toBe('+3780549123456');
+    expect(composerTelephone('07 07 12 34 56', '+225')).toBe('+2250707123456');
+    expect(composerTelephone('01 97 00 00 00', '+229')).toBe('+2290197000000');
+    expect(composerTelephone('06 12 34 56', '+241')).toBe('+24106123456');
+    expect(composerTelephone('06 123 4567', '+242')).toBe('+242061234567');
+  });
+
+  it('ne retire qu’UN zéro, et jamais un chiffre qui n’est pas en tête', () => {
+    expect(composerTelephone('612345678', '+33')).toBe('+33612345678');
+    expect(composerTelephone('601234507', '+33')).toBe('+33601234507');
+    // Un « 0 » seul n'est pas encore un numéro : rien à enregistrer.
+    expect(composerTelephone('0', '+33')).toBe('');
+  });
+
+  it('reconnaît la longueur de l’indicatif (1, 2 ou 3 chiffres) pour situer le 0', () => {
+    // +2250… : l'indicatif est 225 (3 chiffres), le 0 qui suit est ivoirien.
+    expect(composerTelephone('+2250707123456', '+221')).toBe('+2250707123456');
+    // +20 (Égypte, 2 chiffres) : `+20 010…` perd son 0 de préfixe.
+    expect(composerTelephone('+20 0100 123 4567', '+221')).toBe('+201001234567');
+    // +7 (1 chiffre).
+    expect(composerTelephone('+7 0912 345 67 89', '+221')).toBe('+79123456789');
+  });
+
+  it('le numéro relu d’un brouillon ou d’un profil perd son 0 résiduel', () => {
+    expect(recomposerTelephone('+330612345678', '+33')).toBe('+33612345678');
+    expect(recomposerTelephone('+330612345678', '+221')).toBe('+33612345678');
+    expect(relireTelephoneBrouillon('+330612345678', '+221')).toBe('+33612345678');
+    expect(recomposerTelephone('+390612345678', '+221')).toBe('+390612345678');
+  });
+
+  it('un 0 résiduel après l’indicatif n’est pas composable ; un 0 significatif l’est', () => {
+    expect(numeroComposable('+330612345678')).toBe(false);
+    expect(numeroComposable('+2210771234567')).toBe(false);
+    expect(numeroComposable('+33612345678')).toBe(true);
+    expect(numeroComposable('+390612345678')).toBe(true);
+    expect(numeroComposable('+2250707123456')).toBe(true);
+  });
+});
+
+/**
+ * TCK-574 repair-1 — le champ LIBRE de la page de profil (`ProfileContactSection`)
+ * passe par `normalizePhoneInput`, pas par `<PhoneInput>` : « +33 06 12 34 56 78 »
+ * y restait `+330612345678`, que `UpdateProfileRequest` enregistrait et que
+ * « Vérifier » envoyait ensuite au SMS. Mesuré par le vérificateur au navigateur
+ * (360 et 1280 px) avant ce correctif.
+ */
+describe('lib/phone — TCK-574 : normalizePhoneInput retire le préfixe national', () => {
+  it.each([
+    ['+33 06 12 34 56 78', '+33612345678'],
+    ['+33 (0)6 12 34 56 78', '+33612345678'],
+    ['+44 07911 123456', '+447911123456'],
+    ['+212 06-12-34-56-78', '+212612345678'],
+  ])('%s → %s', (tape, attendu) => {
+    expect(normalizePhoneInput(tape)).toBe(attendu);
+  });
+
+  it.each([
+    ['+39 06 1234 5678', '+390612345678'],
+    ['+225 07 12 34 56 78', '+2250712345678'],
+    ['+221 77 123 45 67', '+221771234567'],
+    ['771234567', '771234567'],
+    ['', ''],
+  ])('garde %s tel quel (→ %s)', (tape, attendu) => {
+    expect(normalizePhoneInput(tape)).toBe(attendu);
   });
 });

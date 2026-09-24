@@ -613,10 +613,12 @@ describe('TCK-566 — pas de brouillon sans saisie', () => {
     expect(appels(mock, 'PUT')).toHaveLength(0);
   });
 
-  // ⚠ Ce que le SERVEUR rend : le middleware `ConvertEmptyStringsToNull` de
-  // l'API enregistre chaque `''` en `null` (mesuré : PUT `{ title: '' }` puis
-  // GET → `{ title: null }`). Le cas ci-dessus, en chaînes vides, ne se produit
-  // jamais en vrai ; celui-ci est celui du compte du testeur.
+  // ⚠ Ce que le SERVEUR rendait jusqu'à TCK-574 : le middleware
+  // `ConvertEmptyStringsToNull` de l'API enregistrait chaque `''` en `null`
+  // (mesuré : PUT `{ title: '' }` puis GET → `{ title: null }`). C'est le cas du
+  // compte du testeur, et de tout brouillon écrit avant TCK-574 : il reste en
+  // base, donc la tolérance reste. Depuis TCK-574, l'API rend le `''` envoyé
+  // (cas ci-dessus).
   it('un brouillon vierge hérité, tel que le serveur le rend (null), est supprimé à l’ouverture', async () => {
     const mock = moquer({ step: 0, data: { title: null, rooms: 0 } as unknown as Data });
     renderWizard({ debounceMs: 20 });
@@ -749,6 +751,21 @@ describe('TCK-566 — pas de brouillon sans saisie', () => {
 
     expect(relire).toHaveBeenCalledWith({ title: 'Du compte', rooms: 3 });
     expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('Du compte');
+  });
+
+  // TCK-574 — l'API rend désormais `''` tel quel. Un champ PRÉ-REMPLI que la
+  // personne a vidé doit donc revenir VIDE à la reprise : la fusion ne tient
+  // pour absent que `null` (brouillon d'avant TCK-574), jamais `''`. Une fusion
+  // qui sauterait aussi `''` ressusciterait la valeur effacée.
+  it('un champ pré-rempli vidé revient vide à la reprise (TCK-574)', async () => {
+    const mock = moquer({ step: 0, data: { title: '', rooms: 3 } });
+    renderWizard({ debounceMs: 20, initialData: { title: 'Du compte', rooms: 0 } });
+    await tick();
+    await tick(150);
+
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('');
+    // Ce n'est pas l'état vierge (qui porte « Du compte ») : le brouillon reste.
+    expect(appels(mock, 'DELETE')).toHaveLength(0);
   });
 
   it('un brouillon réel n’est ni supprimé ni perdu à l’ouverture', async () => {

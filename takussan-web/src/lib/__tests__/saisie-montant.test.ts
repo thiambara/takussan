@@ -136,6 +136,81 @@ describe('lireSaisie — un montant collé dans la convention de l’AUTRE langu
     for (const l of lus) expect(lireSaisie(l.affichage, 2, 'fr')).toEqual(l);
   });
 
+  // TCK-574 — ARBITRÉ, pas corrigé : « 10.505 » tapé en euro (fr) vaut 10 505. La vérification de
+  // TCK-564 l'a relevé comme un saut de ×1000 (« 10.50 » une frappe plus tôt). Mais la suite de
+  // touches est EXACTEMENT celle de « 1.500 » et de « 150.000 », que la revue v2 exige de lire en
+  // milliers (FormAmountInput.test.tsx) : « 1 » « . » « 5 » « 0 » « 0 » et « 10 » « . » « 5 » « 0 »
+  // « 5 » ne diffèrent que par la valeur des chiffres. Aucune règle ne sert l'un sans casser
+  // l'autre ; sur un PRIX de bien, le groupe de milliers est l'intention la plus probable, et un
+  // troisième chiffre de centimes n'existe pas en euro. L'écran, lui, ne montrait pas « 10,50 € » :
+  // il montrait « 10.50 », un point encore ambigu, et le regroupement se voit à la frappe.
+  // ⚠ Décision PROPOSÉE, à confirmer par la session (TCK-574 AC7 bis). Elle ne couvre que les
+  // parties entières NON nulles : « 0.505 » est corrigé (repair-2, test suivant).
+  it('en euro (fr), « 10.505 » tapé groupe comme « 1.500 » — arbitrage TCK-574', () => {
+    const frappes = ['10', '10.', '10.5', '10.50', '10.505'];
+    const lus = frappes.map((f) => lireSaisie(f, 2, 'fr'));
+    expect(lus.map((l) => l.affichage)).toEqual(['10', '10.', '10.5', '10.50', `10${FINE}505`]);
+    expect(lus.map((l) => l.valeur)).toEqual([10, 10, 10.5, 10.5, 10_505]);
+    // La virgule, elle, n'est jamais ambiguë en français : un 3ᵉ chiffre de centimes tombe.
+    expect(lireSaisie('10,505', 2, 'fr')).toEqual({ affichage: '10,50', valeur: 10.5 });
+  });
+
+  // TCK-574 repair-2 — l'arbitrage ci-dessus ne vaut QUE si la partie entière peut porter un groupe.
+  // « 0.500 » n'est le groupe de milliers d'aucun montant : aucun nombre ne s'écrit « 0 500 ». La
+  // vérification l'a mesuré au clavier : « .5 » (devenu « 0.5 ») → « 0.50 » → « 0.500 » valait 500 €,
+  // un saut de ×1000 que le correctif « .5 tapé en premier » rendait plus facile à atteindre.
+  it.each([
+    // Le signe est tranché : il s'affiche dans la convention de la locale, pour que la frappe
+    // suivante ne puisse plus le relire en milliers.
+    ['0.500', 'fr', '0,50', 0.5],
+    ['0.505', 'fr', '0,50', 0.5],
+    ['.500', 'fr', '0,50', 0.5],
+    ['0.500', 'wo', '0,50', 0.5],
+    ['00.125', 'fr', '0,12', 0.12],
+    // En anglais, la virgule groupe (règle 2) — sauf derrière une partie entière nulle, tant
+    // qu'elle n'est pas suivie d'un groupe entier (voir le test d'édition ci-dessous).
+    [',5', 'en', '0.5', 0.5],
+    [',50', 'en', '0.50', 0.5],
+    // Collé : « 0.500.000 » n'est pas cinq cent mille non plus.
+    ['0.500.000', 'fr', '0,50', 0.5],
+  ] as const)('en euro, « %s » (%s) : derrière une partie entière NULLE, le signe ouvre les décimales', (brut, locale, affichage, valeur) => {
+    expect(lireSaisie(brut, 2, locale)).toEqual({ affichage, valeur });
+  });
+
+  it('en euro, la frappe « 0. » → « 0.500 » reste décimale, et chaque affichage se relit à l’identique', () => {
+    const frappes = ['0', '0.', '0,5', '0,50', '0,500'];
+    const lus = frappes.map((f) => lireSaisie(f, 2, 'fr'));
+    expect(lus.map((l) => l.affichage)).toEqual(['0', '0,', '0,5', '0,50', '0,50']);
+    expect(lus.map((l) => l.valeur)).toEqual([0, 0, 0.5, 0.5, 0.5]);
+    for (const l of lus) expect(lireSaisie(l.affichage, 2, 'fr')).toEqual(l);
+  });
+
+  it('la règle de la partie entière nulle ne touche ni les milliers, ni le franc CFA', () => {
+    // Une partie entière non nulle, même finissant par des zéros, groupe toujours.
+    expect(lireSaisie('1.500', 2, 'fr').valeur).toBe(1500);
+    expect(lireSaisie('10.500', 2, 'fr').valeur).toBe(10_500);
+    expect(lireSaisie('1,500', 2, 'en').valeur).toBe(1500);
+    // XOF n'a pas de décimales : la lecture d'avant TCK-574 est gardée telle quelle.
+    expect(lireSaisie('0.500', 0, 'fr')).toEqual({ affichage: `500`, valeur: 500 });
+    expect(lireSaisie(',5', 0, 'en')).toEqual({ affichage: '5', valeur: 5 });
+  });
+
+  // Vérification adverse de TCK-574 — mesuré au navigateur (390 et 1280 px, lang=en) : effacer le
+  // premier chiffre de « 1,500 » laissait « ,500 », lu 0,5 ; la frappe suivante donnait 2,050 au
+  // lieu de 2,500. Le séparateur de milliers de la locale suivi d'un groupe entier GROUPE, même
+  // derrière une partie entière nulle.
+  it.each([
+    [',500', '2,500', 2500],
+    ['0,500', '2,500', 2500],
+    [',500,000', '3,500,000', 3_500_000],
+  ] as const)('en anglais, « %s » (un montant dont on efface le premier chiffre) reste des milliers', (brut, apres, valeur) => {
+    const lu = lireSaisie(brut, 2, 'en');
+    expect(lu.valeur).toBe(Number(brut.replace(/\D/g, '')));
+    // La frappe suivante, devant ce qui reste : le montant corrigé, pas des décimales.
+    const chiffre = apres.replace(/\D/g, '')[0];
+    expect(lireSaisie(chiffre + lu.affichage, 2, 'en').valeur).toBe(valeur);
+  });
+
   it('le point n’est gardé que là où il est ambigu', () => {
     // Le séparateur décimal de la locale est TOUJOURS celui qu'on affiche.
     expect(lireSaisie('1500,', 2, 'fr').affichage).toBe(`1${FINE}500,`);
@@ -278,5 +353,24 @@ describe('positionApresReecriture — le curseur suit les chiffres, pas les cara
   it('après une virgule décimale fraîchement tapée, il reste APRÈS elle', () => {
     const lu = lireSaisie('1500,', 2, 'fr');
     expect(positionApresReecriture('1500,', 5, lu.affichage, 'fr')).toBe(lu.affichage.length);
+  });
+
+  // TCK-574 — « ,5 » tapé en premier valait 50 : l'affichage porte un « 0 » que personne n'a tapé
+  // (« 0, »), la boucle ne compte que les chiffres TAPÉS (aucun), et le curseur restait devant ce
+  // 0. Le « 5 » suivant s'insérait avant lui : « 50, ».
+  it.each([
+    [',', 'fr', '0,'],
+    ['.', 'fr', '0,'],
+    ['.', 'en', '0.'],
+    [',', 'en', '0.'],
+    [',', 'wo', '0,'],
+  ] as const)('un séparateur décimal tapé EN PREMIER (« %s », %s) : le curseur passe le 0 inséré', (brut, locale, affichage) => {
+    const lu = lireSaisie(brut, 2, locale);
+    expect(lu.affichage).toBe(affichage);
+    expect(positionApresReecriture(brut, 1, lu.affichage, locale)).toBe(2);
+  });
+
+  it('un « 0, » tapé pour de bon garde le curseur après la virgule', () => {
+    expect(positionApresReecriture('0,', 2, '0,', 'fr')).toBe(2);
   });
 });

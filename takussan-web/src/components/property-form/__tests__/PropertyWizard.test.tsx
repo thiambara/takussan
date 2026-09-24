@@ -348,6 +348,60 @@ describe('PropertyWizard — le brouillon', () => {
     expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
   });
 
+  /**
+   * TCK-574 (solde de TCK-564) — la section ne se dépliait que quand une erreur y APPARAISSAIT.
+   * Repliée à la main après l'avoir vue, puis « Continuer » : l'erreur était déjà posée, aucune
+   * transition n'avait lieu, et la section restait repliée — le « Continuer ne fait rien »
+   * d'origine revenait. Chaque tentative refusée la redéplie.
+   */
+  it('replier la section après l’erreur, puis Continuer : elle se redéplie', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    await user.click(screen.getByRole('button', { name: /ajouter la rue/i }));
+    await user.type(screen.getByLabelText(/pays/i), 'S');
+    await user.click(suivant());
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
+
+    await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
+    await user.click(suivant());
+
+    await waitFor(() =>
+      expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false'),
+    );
+    expect(screen.getByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
+    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+  });
+
+  // TCK-574 — AC24 ne citait que le pays : une régression limitée au pays (mutation M-D de la
+  // vérification) restait verte. La rue et le code postal le disent aussi.
+  it.each([
+    ['rue', /^rue/i, 'x'.repeat(256), /la rue est trop longue/i],
+    ['code postal', /code postal/i, '1'.repeat(21), /le code postal est trop long/i],
+  ] as const)('une erreur de %s dans la section repliée la déplie', async (_nom, libelle, valeur, message) => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    await user.click(screen.getByRole('button', { name: /ajouter la rue/i }));
+    fireEvent.change(screen.getByLabelText(libelle), { target: { value: valeur } });
+    await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
+
+    await user.click(suivant());
+
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
+  });
+
   it('« Reprendre plus tard » vide la file d’écriture AVANT de quitter la page', async () => {
     const user = userEvent.setup();
     monter();

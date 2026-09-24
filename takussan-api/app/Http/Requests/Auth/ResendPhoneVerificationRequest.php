@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Auth;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\TelephoneJoignable;
 use App\Services\Notifications\Sms\PhoneNumber;
+use Illuminate\Validation\Validator;
 
 /**
  * TCK-305 — extrait de PhoneVerificationController::resend(), où les règles étaient écrites en ligne.
@@ -51,8 +53,54 @@ class ResendPhoneVerificationRequest extends BaseFormRequest
                 'max:32',
                 'regex:'.PhoneNumber::E164_REGEX,
                 'not_regex:/^\+221(?!\d{9}$)/',
+                // TCK-574 — `+330612345678` a la forme E.164, et aucun réseau ne l'achemine.
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (is_string($value) && PhoneNumber::hasNationalTrunkPrefix($value)) {
+                        $fail(__('validation.rules.phone_trunk_prefix'));
+                    }
+                },
             ],
         ];
+    }
+
+    /**
+     * TCK-574 repair-1 — sans `phone`, le code part au numéro ENREGISTRÉ
+     * (`PhoneVerificationSection` et `ProfileContactSection` appellent `send-otp` sans argument),
+     * et ce numéro-là n'était jamais relu. Or le profil (`UpdateProfileRequest`,
+     * `UpdateMeRequest`) enregistre `+330612345678`, et la forme corrompue `780143710+221` de
+     * TCK-566 est restée en base : on émettait alors un code vers un numéro qu'aucun réseau
+     * n'achemine. Le numéro enregistré est désormais jugé par les MÊMES règles que celui qu'on
+     * envoie ; il n'est ni réécrit ni effacé — la personne le corrige sur son profil.
+     *
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $user = $this->user();
+                if ($this->filled('phone') || $user === null || $user->phone_verified_at !== null) {
+                    return;
+                }
+                $enregistre = $user->phone;
+                if (! is_string($enregistre) || $enregistre === '') {
+                    return; // « No phone number on file » : le contrôleur le dit.
+                }
+                $cle = self::defautDeJoignabilite($enregistre);
+                if ($cle !== null) {
+                    $validator->errors()->add('phone', __($cle));
+                }
+            },
+        ];
+    }
+
+    /**
+     * La clé du message qui dit pourquoi aucun SMS ne peut joindre ce numéro, ou `null` s'il est
+     * joignable. Mêmes règles, dans le même ordre, que {@see self::rules()} pour `phone`.
+     */
+    public static function defautDeJoignabilite(string $numero): ?string
+    {
+        return TelephoneJoignable::defaut($numero);
     }
 
     /** @return array<string, string> */

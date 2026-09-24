@@ -19,6 +19,30 @@ final class PhoneNumber
      */
     public const E164_REGEX = '/^\+[1-9]\d{7,14}$/';
 
+    /**
+     * TCK-574 — country codes with TWO digits (ITU zones 2 to 9). `+1` and `+7` have one; every
+     * other code has three. ITU country codes form a prefix code, so this table is enough to
+     * find where the country code ends. Mirrored by `takussan-web/src/lib/phone.ts`.
+     *
+     * @var list<string>
+     */
+    private const TWO_DIGIT_COUNTRY_CODES = [
+        '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41', '43', '44', '45', '46',
+        '47', '48', '49', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63',
+        '64', '65', '66', '81', '82', '84', '86', '90', '91', '92', '93', '94', '95', '98',
+    ];
+
+    /**
+     * TCK-574 — countries where the 0 right after the country code IS a digit of the number, not
+     * a national trunk prefix: Italy (landlines, `+39 06 …`, Vatican included), San Marino
+     * (`+378 0549 …`), Côte d'Ivoire (10-digit plan of 2021, `+225 07 …`), Benin (10-digit plan
+     * of 2024-11-30, `+229 01 …`), Gabon (`+241 06 …`) and the Republic of the Congo
+     * (`+242 06 …`). Same list as `INDICATIFS_A_ZERO_SIGNIFICATIF` on the front.
+     *
+     * @var list<string>
+     */
+    private const SIGNIFICANT_LEADING_ZERO = ['39', '378', '225', '229', '241', '242'];
+
     public static function isValid(string $number): bool
     {
         return preg_match(self::E164_REGEX, $number) === 1;
@@ -36,6 +60,30 @@ final class PhoneNumber
         }
 
         return $clean;
+    }
+
+    /**
+     * TCK-574 — true when a national trunk prefix `0` sits right after the country code
+     * (`+33 0612345678`, dialled `06 12 34 56 78` in France). The number has the E.164 SHAPE,
+     * but no network routes it. False outside E.164, and false where that 0 is significant.
+     */
+    public static function hasNationalTrunkPrefix(string $number): bool
+    {
+        if (preg_match('/^\+([1-9]\d+)$/', $number, $m) !== 1) {
+            return false;
+        }
+        $digits = $m[1];
+        $length = match (true) {
+            $digits[0] === '1', $digits[0] === '7' => 1,
+            in_array(substr($digits, 0, 2), self::TWO_DIGIT_COUNTRY_CODES, true) => 2,
+            default => 3,
+        };
+        if (strlen($digits) <= $length) {
+            return false;
+        }
+
+        return $digits[$length] === '0'
+            && ! in_array(substr($digits, 0, $length), self::SIGNIFICANT_LEADING_ZERO, true);
     }
 
     /**

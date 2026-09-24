@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AuthProfileTest extends TestCase
@@ -165,6 +166,50 @@ class AuthProfileTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['phone']);
+    }
+
+    /**
+     * TCK-574 — le profil enregistrait `+330612345678` (forme E.164, aucun réseau ne l'achemine)
+     * et `+2217801437100` (dix chiffres après `+221`) ; `send-otp` refusait ensuite d'y envoyer.
+     * Le profil juge désormais par les mêmes règles.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function numerosInjoignables(): array
+    {
+        return [
+            'préfixe national sous +33' => ['+330612345678'],
+            'numéro sénégalais trop long' => ['+2217801437100'],
+            'numéro sénégalais trop court' => ['+22178014371'],
+        ];
+    }
+
+    #[DataProvider('numerosInjoignables')]
+    public function test_profile_update_refuse_un_numero_injoignable(string $numero): void
+    {
+        $user = User::factory()->create(['phone' => null]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->putJson('/api/auth/profile', [
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'phone' => $numero,
+        ])->assertStatus(422)->assertJsonValidationErrors(['phone']);
+
+        $this->assertNull($user->fresh()->phone);
+    }
+
+    public function test_profile_update_garde_le_zero_significatif_italien_et_l_effacement(): void
+    {
+        $user = User::factory()->create(['phone' => '+221770000000']);
+        $token = $user->createToken('test')->plainTextToken;
+        $corps = ['first_name' => $user->first_name, 'last_name' => $user->last_name];
+
+        $this->withToken($token)->putJson('/api/auth/profile', $corps + ['phone' => '+390612345678'])->assertOk();
+        $this->assertSame('+390612345678', $user->fresh()->phone);
+
+        $this->withToken($token)->putJson('/api/auth/profile', $corps + ['phone' => ''])->assertOk();
+        $this->assertNull($user->fresh()->phone);
     }
 
     public function test_changing_phone_resets_phone_verified_at(): void

@@ -24,11 +24,17 @@ import {
  * Contrat :
  * - `value` / `onValueChange` portent la valeur COMPLÈTE (`+221780143710`),
  *   ou `''` tant que rien n'est tapé — jamais un indicatif seul ;
- * - le champ n'affiche que la suite (`780143710`) ;
+ * - le champ n'affiche que la suite (`780143710`), telle que tapée : un 0 de
+ *   préfixe national reste à l'écran, il n'est retiré que de la valeur
+ *   (TCK-574) ;
  * - un `+` (ou `00`) tapé en tête bascule en numéro international complet :
  *   le préfixe disparaît, c'est la voie de la diaspora ;
  * - la composition et la décomposition vivent dans `lib/phone.ts`, qui les
- *   teste une à une.
+ *   teste une à une ;
+ * - une frappe qui ne compose aucun numéro (« 0 » sous `+33`) vaut `''`, comme
+ *   le champ vide : un parent qui veut la vider ne change donc pas `value`, et
+ *   doit REMONTER le composant (`key`). Aucun assistant ne le fait aujourd'hui
+ *   (TCK-574, repair-1).
  */
 export interface PhoneInputProps
   extends Omit<React.ComponentProps<'input'>, 'value' | 'defaultValue' | 'onChange' | 'type'> {
@@ -55,7 +61,42 @@ export function PhoneInput({
   const idPrefixe = `${base}-indicatif`;
   const idAide = `${base}-aide`;
 
-  const { international, saisie } = decomposerTelephone(value, indicatif);
+  /**
+   * TCK-574 — la FRAPPE est gardée telle quelle tant qu'elle compose encore la
+   * valeur du parent. La valeur, elle, est normalisée (`0612…` sous `+33` →
+   * `+33612…`) : dériver l'affichage de la valeur seule faisait disparaître le
+   * 0 sous les doigts. Une valeur posée par le parent (brouillon, remise à zéro)
+   * ne correspond plus à la frappe, et c'est alors elle qui s'affiche.
+   */
+  const [frappe, setFrappe] = React.useState<string | null>(null);
+  const frappeCourante =
+    frappe !== null && composerTelephone(frappe, indicatif) === value ? frappe : null;
+  const decompose = decomposerTelephone(value, indicatif);
+  const international =
+    frappeCourante !== null ? /^\s*(?:\+|00)/.test(frappeCourante) : decompose.international;
+  const saisie = frappeCourante ?? decompose.saisie;
+
+  /**
+   * TCK-574 — le retrait du champ suit la largeur MESURÉE du préfixe. L'estimation en `ch` le
+   * surestimait (le « + » est plus étroit qu'un chiffre) : 18,5 px entre le séparateur et le
+   * premier chiffre à 320/360/390 px, 17,1 px au bureau, pour 10 px de marge avant l'indicatif.
+   * Elle reste la valeur du premier rendu (serveur, et jsdom qui n'a pas de mise en page).
+   */
+  const prefixeRef = React.useRef<HTMLSpanElement | null>(null);
+  const [largeurPrefixe, setLargeurPrefixe] = React.useState<number | null>(null);
+  React.useLayoutEffect(() => {
+    const el = prefixeRef.current;
+    if (!el) return;
+    const mesurer = () => {
+      const largeur = el.getBoundingClientRect().width;
+      setLargeurPrefixe(largeur > 0 ? largeur : null);
+    };
+    mesurer();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observateur = new ResizeObserver(mesurer);
+    observateur.observe(el);
+    return () => observateur.disconnect();
+  }, [international, indicatif]);
 
   const decrit = [international ? null : idPrefixe, idAide, descriptionExterne]
     .filter(Boolean)
@@ -66,6 +107,7 @@ export function PhoneInput({
       <div className="relative">
         {!international ? (
           <span
+            ref={prefixeRef}
             id={idPrefixe}
             className={cn(
               // Même corps que le champ (`text-base md:text-sm`) : l'alignement du
@@ -85,13 +127,22 @@ export function PhoneInput({
           autoComplete="tel"
           disabled={disabled}
           value={saisie}
-          onChange={(e) => onValueChange(composerTelephone(e.target.value, indicatif))}
+          onChange={(e) => {
+            setFrappe(e.target.value);
+            onValueChange(composerTelephone(e.target.value, indicatif));
+          }}
           aria-describedby={decrit}
           className={cn('tabular-nums', className)}
           style={
             international
               ? undefined
-              : { paddingInlineStart: `calc(${indicatif.length}ch + 1.625rem)` }
+              : {
+                  // Même marge (`pl-2.5`) après le séparateur qu'avant l'indicatif.
+                  paddingInlineStart:
+                    largeurPrefixe !== null
+                      ? `calc(${largeurPrefixe}px + 0.625rem)`
+                      : `calc(${indicatif.length}ch + 1.625rem)`,
+                }
           }
         />
       </div>

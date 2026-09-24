@@ -19,11 +19,18 @@ export function isE164(value: string): boolean {
  * Normalises a user-typed phone string by stripping spaces, parens and dashes,
  * leaving only the leading `+` and digits. Does NOT validate — pair with
  * `isE164` after normalisation if you need both.
+ *
+ * TCK-574 repair-1 — also drops a national trunk `0` typed right after the
+ * country code (`+33 06 12 34 56 78` → `+33612345678`, `+33 (0)6…` likewise),
+ * except where that 0 is a digit of the number (see `sansPrefixeNational`).
+ * The free field of the profile page used to keep `+330612345678`, which the
+ * API stored and « Vérifier » then sent to the SMS gateway.
  */
 export function normalizePhoneInput(value: string): string {
   const trimmed = value.trim();
   if (trimmed.length === 0) return '';
-  return trimmed.replace(/[\s()\-.]/g, '');
+  const compact = trimmed.replace(/[\s()\-.]/g, '');
+  return compact.startsWith('+') ? sansPrefixeNational(compact) : compact;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -69,7 +76,7 @@ export function composerTelephone(saisie: string, indicatif: string): string {
 
   if (brut.startsWith('+') || brut.startsWith('00')) {
     const chiffres = brut.replace(/\D/g, '').replace(/^00/, '');
-    return `+${chiffres}`;
+    return sansPrefixeNational(`+${chiffres}`);
   }
 
   let chiffres = brut.replace(/\D/g, '');
@@ -79,7 +86,76 @@ export function composerTelephone(saisie: string, indicatif: string): string {
   if (indicatif === '+221' && chiffres.length === 12 && chiffres.startsWith('221')) {
     chiffres = chiffres.slice(3);
   }
-  return `${indicatif}${chiffres}`;
+  const compose = sansPrefixeNational(`${indicatif}${chiffres}`);
+  // `0` seul sous `+33` : le 0 retiré, il ne reste que l'indicatif — pas un numéro.
+  return compose === indicatif ? '' : compose;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TCK-574 — le « 0 » de PRÉFIXE NATIONAL ne s'écrit pas après l'indicatif
+// ────────────────────────────────────────────────────────────────────────────
+//
+// En France, en Belgique, au Royaume-Uni, au Maroc… on compose un 0 devant le
+// numéro à l'intérieur du pays (`06 12 34 56 78`), et on le retire derrière
+// l'indicatif (`+33 6 12 34 56 78`). Tapé sous `+33`, il donnait
+// `+330612345678` : E.164 de 12 chiffres, accepté par le champ comme par
+// l'API, et pourtant aucun SMS n'y arrive.
+//
+// Dans quelques pays, le 0 qui suit l'indicatif FAIT PARTIE du numéro :
+// l'Italie (les fixes, `+39 06 …` ; le Vatican emploie aussi `+39 06`),
+// Saint-Marin (`+378 0549 …`), la Côte d'Ivoire (plan à 10 chiffres de 2021,
+// `+225 07 …`), le Bénin (plan à 10 chiffres du 30 novembre 2024, `+229 01 …`),
+// le Gabon (`+241 06 …`) et le Congo (`+242 06 …`). Là, on le garde.
+//
+// La même règle est tenue côté API (`PhoneNumber::hasNationalTrunkPrefix`) :
+// les deux listes doivent bouger ensemble.
+
+/**
+ * Indicatifs à DEUX chiffres (zones 2 à 9 de l'UIT). `+1` et `+7` en ont un ;
+ * tous les autres en ont trois. Les indicatifs de l'UIT forment un code
+ * préfixe : cette table suffit à situer la fin de l'indicatif.
+ */
+const INDICATIFS_A_DEUX_CHIFFRES = new Set([
+  '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41', '43', '44', '45', '46',
+  '47', '48', '49', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63',
+  '64', '65', '66', '81', '82', '84', '86', '90', '91', '92', '93', '94', '95', '98',
+]);
+
+/** Pays où le 0 qui suit l'indicatif est un chiffre du numéro, pas un préfixe. */
+export const INDICATIFS_A_ZERO_SIGNIFICATIF: ReadonlySet<string> = new Set([
+  '+39',
+  '+378',
+  '+225',
+  '+229',
+  '+241',
+  '+242',
+]);
+
+/** L'indicatif d'une valeur `+…` (`+33`, `+221`, `+1`), ou `null` s'il est incomplet. */
+export function indicatifDe(valeur: string): string | null {
+  const chiffres = /^\+(\d+)$/.exec(valeur)?.[1];
+  if (!chiffres || chiffres.startsWith('0')) return null;
+  const longueur =
+    chiffres[0] === '1' || chiffres[0] === '7'
+      ? 1
+      : INDICATIFS_A_DEUX_CHIFFRES.has(chiffres.slice(0, 2))
+        ? 2
+        : 3;
+  return chiffres.length >= longueur ? `+${chiffres.slice(0, longueur)}` : null;
+}
+
+/** Vrai si un 0 de préfixe national suit l'indicatif (`+330612…`). */
+export function aPrefixeNational(valeur: string): boolean {
+  const indicatif = indicatifDe(valeur);
+  if (!indicatif || INDICATIFS_A_ZERO_SIGNIFICATIF.has(indicatif)) return false;
+  return valeur.charAt(indicatif.length) === '0';
+}
+
+/** Retire UN 0 de préfixe national placé juste après l'indicatif. */
+export function sansPrefixeNational(valeur: string): string {
+  if (!aPrefixeNational(valeur)) return valeur;
+  const indicatif = indicatifDe(valeur) as string;
+  return indicatif + valeur.slice(indicatif.length + 1);
 }
 
 /**
@@ -112,16 +188,18 @@ export function decomposerTelephone(
 /** Normalise une valeur enregistrée (éventuellement corrompue) en E.164. */
 export function recomposerTelephone(valeur: string, indicatif: string): string {
   const { international, saisie } = decomposerTelephone(valeur, indicatif);
-  return international ? saisie : composerTelephone(saisie, indicatif);
+  return international ? sansPrefixeNational(saisie) : composerTelephone(saisie, indicatif);
 }
 
 /**
  * Un numéro auquel on peut envoyer un SMS : E.164 de 8 à 15 chiffres — la
  * forme exacte que `PhoneNumber::E164_REGEX` exige côté API avant tout envoi
- * —, et exactement 9 chiffres après `+221`.
+ * —, exactement 9 chiffres après `+221`, et sans 0 de préfixe national derrière
+ * l'indicatif (TCK-574).
  */
 export function numeroComposable(valeur: string): boolean {
   if (!/^\+[1-9]\d{7,14}$/.test(valeur)) return false;
+  if (aPrefixeNational(valeur)) return false;
   if (valeur.startsWith('+221')) return /^\+221\d{9}$/.test(valeur);
   return true;
 }
@@ -143,7 +221,8 @@ export function formaterTelephone(valeur: string): string {
  *   comme VIERGE le brouillon fantôme que l'ancien autosave a écrit ;
  * - `771234567` (forme nationale) ou `780143710+221` (forme corrompue) →
  *   `+221…`, que `numeroComposable` accepte ;
- * - `null` (le serveur enregistre `''` en `null`) ou toute valeur non textuelle → `''`.
+ * - `null` (le serveur enregistrait `''` en `null` avant TCK-574 ; ces brouillons
+ *   restent en base) ou toute valeur non textuelle → `''`.
  *
  * - un indicatif seul AUTRE que l'indicatif courant (`+221` relu sous `+33`) →
  *   `''` aussi : l'ancien autosave amorçait avec l'indicatif géo DU JOUR de

@@ -23,6 +23,9 @@ import type { AgencyUpgradeRequestFormFields } from '@/types/agency-upgrade';
  *   carte « Reprenez là où vous vous étiez arrêté — Passage en pro » du testeur
  *   du 2026-09-23 — était RÉÉCRIT à chaque ouverture au lieu d'être supprimé ;
  * - un brouillon réel repris, puis entièrement effacé, n'était plus supprimé.
+ *
+ * TCK-574 — l'API rend désormais `''` tel qu'il a été envoyé. La relecture
+ * RESTE : les brouillons écrits avant portent encore leurs `null` en base.
  */
 
 export const FORMULAIRE_UPGRADE_VIERGE: AgencyUpgradeRequestFormFields = {

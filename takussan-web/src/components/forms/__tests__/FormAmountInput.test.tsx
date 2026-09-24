@@ -192,6 +192,39 @@ describe('FormAmountInput', () => {
     expect(sonde.form?.getValues('price')).toBe(10.5);
   });
 
+  // TCK-574 — mesuré au navigateur (360 px) et au clavier en jsdom : un séparateur décimal tapé EN
+  // PREMIER laissait le curseur devant le « 0 » que le champ insère. « ,5 » valait 50 €.
+  it.each([
+    [',5', 'fr', '0,5', 0.5],
+    ['.5', 'fr', '0,5', 0.5],
+    ['.5', 'en', '0.5', 0.5],
+    [',75', 'wo', '0,75', 0.75],
+    // repair-2 — un TROISIÈME chiffre derrière une partie entière nulle ne regroupe pas : « 0 500 »
+    // n'est le groupe de milliers d'aucun montant. Avant : 500 € et 505 €.
+    ['.500', 'fr', '0,50', 0.5],
+    ['0.505', 'fr', '0,50', 0.5],
+    [',5', 'en', '0.5', 0.5],
+    [',500', 'en', '0.50', 0.5],
+  ] as const)('en euros, « %s » tapé en premier (%s) vaut %s, pas cinquante', async (frappe, locale, affichage, prix) => {
+    const user = userEvent.setup();
+    const { sonde, champ } = monter({ currency: 'EUR' }, { locale });
+
+    await user.type(champ(), frappe);
+
+    expect(champ().value).toBe(affichage);
+    expect(sonde.form?.getValues('price')).toBe(prix);
+  });
+
+  it('en franc CFA, une virgule tapée en premier ne fabrique rien', async () => {
+    const user = userEvent.setup();
+    const { sonde, champ } = monter();
+
+    await user.type(champ(), ',5');
+
+    expect(champ().value).toBe('5');
+    expect(sonde.form?.getValues('price')).toBe(5);
+  });
+
   it('l’exemple suit la locale : « 25 000 000 » en français, « 25,000,000 » en anglais', () => {
     const { champ } = monter();
     expect(champ()).toHaveAttribute('placeholder', `25${FINE}000${FINE}000`);

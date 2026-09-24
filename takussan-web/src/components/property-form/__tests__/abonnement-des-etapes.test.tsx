@@ -247,6 +247,27 @@ describe('TCK-564 — la garde de source : aucune lecture `watch(…)` ni `getVa
   // `useMemo`, l'init de `useReducer` et le `getSnapshot` de `useSyncExternalStore` s'exécutent
   // PENDANT LE RENDU : la valeur y est lue une fois, puis figée. Ils sont jugés comme le corps du
   // composant qui les appelle ; `useCallback` et `useEffect`, qui ne tournent pas au rendu, non.
+  it('la garde suit un rappel NOMMÉ exécuté au rendu — mutation M-G (TCK-574)', () => {
+    const coupable = `
+      export function StepBien({ form }) {
+        const lire = () => [form.getValues('type'), form.getValues('contract_type')];
+        const [etat] = useState(lire);
+        function lireDevise() { return form.getValues('currency'); }
+        const devise = lireDevise();
+        const surClic = () => form.getValues('clic');
+        const lireAuClic = () => form.getValues('ok');
+        const rappel = useCallback(lireAuClic, []);
+        useEffect(() => { lireAuClic(); }, []);
+        return <button onClick={() => lireAuClic()}>{devise}</button>;
+      }
+      function utilitaire(form) { const l = () => form.getValues('u'); return l(); }`;
+    expect(lecturesPonctuellesAuRendu(coupable, 'sonde.tsx')).toEqual([
+      'StepBien (lire → useState), ligne 3',
+      'StepBien (lire → useState), ligne 3',
+      'StepBien (lireDevise), ligne 5',
+    ]);
+  });
+
   it('la garde attrape aussi une lecture dans un rappel de hook exécuté PENDANT le rendu', () => {
     const coupable = `
       export function StepBien({ form }) {
@@ -293,10 +314,8 @@ function lecturesPonctuellesAuRendu(source: string, fichier: string): string[] {
     return englobante;
   };
 
-  /** Le hook dont `fonction` est un ARGUMENT direct, s'il l'exécute pendant le rendu. */
-  const hookQuiExecuteAuRendu = (fonction: ts.Node): string | undefined => {
-    const appel = fonction.parent;
-    if (!appel || !ts.isCallExpression(appel) || !appel.arguments.some((a) => a === fonction)) return undefined;
+  /** Le nom du hook appelé par `appel`, s'il exécute ses rappels PENDANT le rendu. */
+  const hookAuRendu = (appel: ts.CallExpression): string | undefined => {
     const appele = appel.expression;
     const nomHook = ts.isIdentifier(appele)
       ? appele.text
@@ -305,6 +324,38 @@ function lecturesPonctuellesAuRendu(source: string, fichier: string): string[] {
         : '';
     return /^(?:useState|useMemo|useReducer|useSyncExternalStore)$/.test(nomHook) ? nomHook : undefined;
   };
+
+  /** Le hook dont `fonction` est un ARGUMENT direct, s'il l'exécute pendant le rendu. */
+  const hookQuiExecuteAuRendu = (fonction: ts.Node): string | undefined => {
+    const appel = fonction.parent;
+    if (!appel || !ts.isCallExpression(appel) || !appel.arguments.some((a) => a === fonction)) return undefined;
+    return hookAuRendu(appel);
+  };
+
+  /**
+   * TCK-574 (mutation M-G de la vérification) — un rappel NOMMÉ en minuscule, déclaré dans le
+   * composant, échappait à la garde : `const lire = () => [form.getValues('type')]; useState(lire)`.
+   * Il s'exécute au rendu de `conteneur` s'il y est APPELÉ directement (`lire()` dans le corps,
+   * pas dans un rappel) ou PASSÉ à un hook qui exécute ses rappels au rendu. Un seul niveau
+   * d'indirection : la garde reste une heuristique, les tests de comportement font le reste.
+   */
+  const executeeAuRenduPar = (conteneur: ts.Node, nom: string): string | undefined => {
+    let via: string | undefined;
+    const parcourir = (n: ts.Node): void => {
+      if (via) return;
+      if (ts.isCallExpression(n) && fonctionEnglobante(n) === conteneur) {
+        if (ts.isIdentifier(n.expression) && n.expression.text === nom) via = nom;
+        const hook = hookAuRendu(n);
+        if (hook && n.arguments.some((a) => ts.isIdentifier(a) && a.text === nom)) via = `${nom} → ${hook}`;
+      }
+      ts.forEachChild(n, parcourir);
+    };
+    parcourir(conteneur);
+    return via;
+  };
+
+  const estComposantOuHook = (nom: string | undefined): nom is string =>
+    Boolean(nom && /^(?:[A-Z]|use[A-Z])/.test(nom));
 
   const visiter = (noeud: ts.Node): void => {
     if (ts.isCallExpression(noeud)) {
@@ -321,9 +372,16 @@ function lecturesPonctuellesAuRendu(source: string, fichier: string): string[] {
         const hook = englobante ? hookQuiExecuteAuRendu(englobante) : undefined;
         if (hook && englobante) englobante = fonctionEnglobante(englobante);
         const nomEnglobante = englobante ? nomDe(englobante) : undefined;
-        if (nomEnglobante && /^(?:[A-Z]|use[A-Z])/.test(nomEnglobante)) {
-          const ligne = racineAst.getLineAndCharacterOfPosition(noeud.getStart()).line + 1;
+        const ligne = racineAst.getLineAndCharacterOfPosition(noeud.getStart()).line + 1;
+        if (estComposantOuHook(nomEnglobante)) {
           trouvees.push(`${nomEnglobante}${hook ? ` (${hook})` : ''}, ligne ${ligne}`);
+        } else if (englobante && nomEnglobante && !hook) {
+          const conteneur = fonctionEnglobante(englobante);
+          const nomConteneur = conteneur ? nomDe(conteneur) : undefined;
+          const via = conteneur && estComposantOuHook(nomConteneur)
+            ? executeeAuRenduPar(conteneur, nomEnglobante)
+            : undefined;
+          if (via) trouvees.push(`${nomConteneur} (${via}), ligne ${ligne}`);
         }
       }
     }
