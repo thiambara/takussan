@@ -1,7 +1,7 @@
 ---
 id: TCK-580
 title: "Pied de page redessiné (mobile et bureau), et les puces de filtre montrent qu'elles chargent — du clic à l'arrivée des biens"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M

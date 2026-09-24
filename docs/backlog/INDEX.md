@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**524 tickets** — 29 ouverts, 493 livrés.
+**524 tickets** — 28 ouverts, 494 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 27 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 493 |
+| ✅ Done | 494 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -64,7 +64,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-580](tickets/TCK-580-pied-de-page-et-attente-des-puces-de-filtre.md) — Pied de page redessiné (mobile et bureau), et les puces de filtre montrent qu'elles chargent — du clic à l'arrivée des biens `M · P1 · front`
 
 ## 👀 Review
 
@@ -76,10 +75,10 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 493
+## ✅ Done — 494
 
 <details>
-<summary><strong>Vague 69 — Retour testeur web et mobile du 2026-09-23 — 28 points vérifiés un par un, corrigés sur une seule branche, revue adverse</strong> — 19 tickets</summary>
+<summary><strong>Vague 69 — Retour testeur web et mobile du 2026-09-23 — 28 points vérifiés un par un, corrigés sur une seule branche, revue adverse</strong> — 20 tickets</summary>
 
 - [TCK-560](tickets/TCK-560-fiches-agent-agence-retour-liens-proprietaires-chargement-annuaire.md) — Fiches d'agent et d'agence : retour manquant, lien de propriétaire en 404, chargement de l'annuaire muet — re-mesurés sur dev ; cible tactile du retour portée à 44 px `S · P2 · front`
 - [TCK-561](tickets/TCK-561-cartes-de-biens-et-comparateur-retours-testeur.md) — Comparateur : la croix de la barre vidait la sélection, des « + » sans action, un toast translucide illisible, absent des cartes de l'accueil ; cartes : un survol trop discret `S · P2 · front`
@@ -100,6 +99,7 @@ _(aucun)_
 - [TCK-576](tickets/TCK-576-messagerie-rattacher-un-groupe-a-tout-bien-visible.md) — Messagerie : rattacher un groupe à n'importe quel bien ou bail visible, par une recherche serveur ; restes de TCK-565 `M · P2 · full`
 - [TCK-577](tickets/TCK-577-comparateur-mobile-lisible-sans-defiler.md) — Comparateur mobile : un en-tête de cartes-photos qui défilait de côté repoussait le premier critère sous le premier écran ; titres numérotés collants pendant la lecture `S · P2 · front`
 - [TCK-579](tickets/TCK-579-messages-non-lus-jamais-comptes.md) — Messagerie : la pastille des messages non lus restait à 0 — l'API ne comptait rien, et le front ne marquait jamais un fil lu `S · P1 · bug`
+- [TCK-580](tickets/TCK-580-pied-de-page-et-attente-des-puces-de-filtre.md) — Pied de page redessiné (mobile et bureau), et les puces de filtre montrent qu'elles chargent — du clic à l'arrivée des biens `M · P1 · front`
 
 </details>
 
