@@ -10,16 +10,28 @@ const PopoverTrigger = PopoverPrimitive.Trigger;
 const PopoverClose = PopoverPrimitive.Close;
 const PopoverAnchor = PopoverPrimitive.Trigger;
 
+/**
+ * `collisionPadding` (TCK-569) — la marge que le positionneur garde avec les bords de l'écran quand
+ * il décale le panneau pour le faire tenir. Le défaut de base-ui est 5 px ; un panneau de la barre
+ * mobile la veut égale à la gouttière des pages (16 px), sans quoi il se recale à 5 px du bord, hors
+ * de l'alignement du contenu. Non transmise (`undefined`), la primitive garde son défaut : les
+ * autres usages (sélecteurs de date, dialogue de visite) sont inchangés — `useAnchorPositioning` de
+ * base-ui (1.7) applique son défaut `= 5` à une valeur `undefined`.
+ */
 function PopoverContent({
   className,
   side = "bottom",
   sideOffset = 6,
   align = "start",
   alignOffset = 0,
+  collisionPadding,
   children,
   ...props
 }: PopoverPrimitive.Popup.Props &
-  Pick<PopoverPrimitive.Positioner.Props, "side" | "sideOffset" | "align" | "alignOffset">) {
+  Pick<
+    PopoverPrimitive.Positioner.Props,
+    "side" | "sideOffset" | "align" | "alignOffset" | "collisionPadding"
+  >) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
@@ -27,6 +39,7 @@ function PopoverContent({
         sideOffset={sideOffset}
         align={align}
         alignOffset={alignOffset}
+        collisionPadding={collisionPadding}
         className="isolate z-[1100]"
       >
         <PopoverPrimitive.Popup
