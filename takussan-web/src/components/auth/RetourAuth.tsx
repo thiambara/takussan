@@ -107,8 +107,11 @@ function Retour({ libelle, className }: RetourAuthProps) {
       href={repli}
       onClick={auClic}
       className={cn(
-        'inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full py-1.5 pl-2 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'inline-flex w-fit items-center gap-1.5 rounded-full py-1.5 pl-2 pr-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
+        // Le plancher de 44 px APRÈS `className`, comme dans `BoutonRetour` (TCK-560, W3) : le
+        // layout passe une longue liste de classes, et aucune ne doit pouvoir le raboter.
+        'min-h-11',
       )}
     >
       <ArrowLeft className="size-4" aria-hidden />

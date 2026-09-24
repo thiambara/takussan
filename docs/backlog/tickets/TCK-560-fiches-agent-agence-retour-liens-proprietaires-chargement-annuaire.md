@@ -1,13 +1,13 @@
 ---
 id: TCK-560
 title: "Fiches d'agent et d'agence : retour manquant, lien de propriétaire en 404, chargement de l'annuaire muet — re-mesurés sur dev ; cible tactile du retour portée à 44 px"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -80,8 +80,15 @@ Mesuré au navigateur, clic sur « Saint-Louis » (état relevé toutes les 40 m
 puce est sélectionnée (`aria-pressed`) et porte un indicateur qui tourne, une barre de 3 px court
 en haut de l'écran (`role="status"`), la zone porte `aria-busy` ; les résultats sont estompés à
 50 % dès 200 ms ; tout se lève à l'arrivée de la page (784 ms en local). À 320 px, la puce et la
-barre sont dans le premier écran. La capture du testeur montre l'état final, et appartient au lot
-daté ci-dessus.
+barre sont dans le premier écran. La capture du testeur montre l'état final.
+
+⚠ *Corrigé le 2026-09-24* — cette section affirmait que la capture « appartient au lot daté
+ci-dessus » (build antérieur à 12:27 le 2026-09-16). **Ce n'est pas établi** : la capture ne prouve
+qu'une chose, qu'elle précède `4b7b9138` (23:04). Elle a pu être prise sur le build de `cfe92ba8`,
+qui portait déjà l'indicateur — une capture de l'état FINAL ne le montre pas, qu'il existe ou non.
+Seul indice : le champ y mesure ~33 px et « Rechercher » ~31 px, quand `4b7b9138` a posé
+`h-11 md:h-10` (40 px mesurés au bureau). Le verdict « non reproduit » repose sur la mesure du
+clic, pas sur la datation.
 
 ## Critères d'acceptation
 
@@ -89,19 +96,28 @@ daté ci-dessus.
       « Retour » est rendu et c'est lui qu'on touche en son centre (non recouvert par la barre).
 - [x] AC2 — sa cible mesure au moins 44 px de haut au navigateur (85 × 44 à 390 et 1400) ; sans
       `min-h-11`, 85 × 32 et le test `offre une cible tactile de 44 px` échoue (ablation).
+      **Et aucun appelant ne peut la raboter** (2026-09-24) : `min-h-11` est posé APRÈS
+      `className`, dans `BoutonRetour` comme dans `RetourAuth` ; re-mesuré 85 × 44 sur
+      `/fr/agents/owner.agency4` à 320 et 390, `/fr/agencies/dakar-immo` à 1366, `/auth/login` à
+      320 et 1366, au premier plan.
 - [x] AC3 — `/fr/agents?city=Saint-Louis` → fiche → « Retour » rend `/fr/agents?city=Saint-Louis`.
-- [x] AC4 — chaque slug de l'index public d'agents, points compris, rend 200 sur `/fr/agents/<slug>`.
+- [x] AC4 — sur le front **local** (`next dev`, API locale), chaque slug de l'index public
+      d'agents, points compris, rend 200 sur `/fr/agents/<slug>` — re-balayé le 2026-09-24 : 44/44.
+      La préproduction n'est mesurée que côté API (`/api/public/agents/owner.agency4` → 200) : le
+      front l'est par AC6.
 - [x] AC5 — un clic sur une ville de `/agents` produit un état visible en moins de 100 ms (puce
       sélectionnée + indicateur, barre en haut de l'écran).
 - [ ] AC6 — rejoué sur preview.takussan.com (authentification Basic : hors de portée de l'agent).
 
 ## Hors périmètre
 
-- Présenter un propriétaire comme « Agent immobilier » (titre, balisage `RealEstateAgent`) sur
-  sa fiche `/agents/<username>` : décision de TCK-436 (§ 1, option b), à rouvrir par une personne.
-- Les puces de villes de `/agents` mesurent 36 px de haut (`min-h-9`), sous les 44 px ; et à
-  320 px, le placeholder « Nom d'un agent » est tronqué. Relevés, non traités ici
-  (`components/public/index/`).
+- ~~Présenter un propriétaire comme « Agent immobilier » (titre, balisage `RealEstateAgent`) sur
+  sa fiche `/agents/<username>`~~ — **soldé par TCK-573** (décision du porteur du 2026-09-24 : la
+  fiche reste sous `/agents/…`, la personne y est présentée comme propriétaire, `Person` en
+  données structurées).
+- ~~Les puces de villes de `/agents` mesurent 36 px de haut (`min-h-9`) ; à 320 px, le placeholder
+  « Nom d'un agent » est tronqué~~ — **soldé par TCK-573** (44 px au doigt ; bouton de recherche
+  réduit à son icône sous `sm`, champ de 236 px à 320, mesuré).
 - La barre de chargement des navigations par LIEN (cartes, pagination, équipe) : unité A2,
   `IndicateurDeNavigation`.
 
@@ -111,3 +127,34 @@ daté ci-dessus.
   dans `components/shared/__tests__/BoutonRetour.test.tsx`. Le composant est aussi consommé par
   `components/auth/RetourAuth.tsx` (unité A2), qui hérite de la cible de 44 px.
 - Aucune modification côté API : W5 n'en exigeait aucune.
+
+## Vérification et reprise du 2026-09-24 (unité U3)
+
+Les défauts et risques laissés ouverts par la vérification, un par un :
+
+- **W3 — le test de 44 px n'était qu'un contrat de classe, sans appelant.** Reproduit par le
+  mécanisme : `cn()` (tailwind-merge) garde la DERNIÈRE classe d'un groupe, et `min-h-11` était
+  posé AVANT `className` — un `min-h-8` d'appelant l'aurait remplacé, sans qu'un test bouge. Aucun
+  appelant actuel ne le fait (`className="mb-6"` sur les deux fiches ; `RetourAuth` recopie les
+  classes et reçoit du layout des classes de position, sans `min-h`/`h`). **Corrigé à la cause** :
+  `min-h-11` passe après `className` dans `BoutonRetour` et `RetourAuth`. Tests
+  `garde sa cible de 44 px quand un appelant passe un min-h-* plus bas` (`BoutonRetour.test.tsx`) et
+  `garde 44 px quel que soit le className que le layout lui passe` (`RetourAuth.test.tsx`) — rouges
+  avec l'ancien ordre (ablation, restauré à l'identique). Re-mesuré au navigateur : cf. AC2.
+- **W5 — AC4 écrit en absolu, mesuré en local.** Réécrit (« sur le front local ») et re-balayé :
+  44/44 en 200.
+- **W6 — datation de la capture non prouvée.** Réécrite, cf. § W6 : la capture précède `4b7b9138`,
+  rien de plus.
+- **Risque « préproduction non mesurée »** : inchangé, et AC6 reste décoché. Rien, dans cette
+  reprise, ne s'est mesuré sur `preview.takussan.com`.
+- **Risque « propriétaire présenté comme agent »** et **puces de 36 px / placeholder tronqué** :
+  soldés par TCK-573 (cf. Hors périmètre).
+- **Re-vérifié à la reprise v4 du même jour** : ablations de l'ordre de `min-h-11` rejouées dans
+  `BoutonRetour` et `RetourAuth` → rouges, restaurées (md5) ; balayage des slugs rejoué, 44/44 en
+  200 ; « Retour » 85 × 44 au premier plan sur `/fr/agents/owner.agency4` (320),
+  `/fr/agents/thies-properties-owner-2` (360), `/fr/agencies/dakar-immo` (320 et 1366) et
+  `/auth/login` (320, 390).
+- **Risque « ablation d'un fichier partagé pile en marche »** : noté. Les ablations de cette
+  reprise ont touché `BoutonRetour.tsx` et `RetourAuth.tsx` quelques secondes chacune, restaurés
+  par `cp` à l'identique (md5 vérifié).
+

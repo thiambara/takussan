@@ -67,6 +67,19 @@ describe('où le retour paraît', () => {
   );
 });
 
+describe('sa cible tactile — TCK-560, W3', () => {
+  it('garde 44 px quel que soit le `className` que le layout lui passe', () => {
+    pathname = '/auth/login';
+    parametres = new URLSearchParams();
+    render(withIntl(<RetourAuth libelle="Retour" className="absolute left-3 top-3 min-h-8 lg:left-8" />));
+
+    const classes = screen.getByRole('link', { name: 'Retour' }).className.split(/\s+/);
+    expect(classes).toContain('min-h-11');
+    expect(classes).not.toContain('min-h-8');
+    expect(classes).toEqual(expect.arrayContaining(['absolute', 'left-3', 'top-3', 'lg:left-8']));
+  });
+});
+
 describe('quand le retour suit l’historique', () => {
   it('arrivé depuis la recherche, il y REVIENT par l’historique — filtres et défilement compris', () => {
     historique('/fr/properties?type=office', '/auth/login');

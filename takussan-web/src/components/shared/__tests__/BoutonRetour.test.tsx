@@ -45,6 +45,19 @@ describe('BoutonRetour — fiches publiques d’agent et d’agence', () => {
     expect(screen.getByRole('link', { name: 'Retour' }).className.split(/\s+/)).toContain('min-h-11');
   });
 
+  // Vérification de TCK-560, W3 : le test ci-dessus ne rend le composant QUE sans `className`. Posé
+  // avant `className`, le plancher cédait à tout `min-h-*` d'appelant (tailwind-merge garde la
+  // dernière classe d'un groupe) — rabaissé à 32 px sans qu'un test bouge. Mesuré : `min-h-8` passé
+  // en `className` laissait `min-h-8` seul sur le lien.
+  it('garde sa cible de 44 px quand un appelant passe un `min-h-*` plus bas', () => {
+    render(withIntl(<BoutonRetour repli="/agents" libelle="Retour" className="mb-6 min-h-8" />));
+    const classes = screen.getByRole('link', { name: 'Retour' }).className.split(/\s+/);
+    expect(classes).toContain('min-h-11');
+    expect(classes).not.toContain('min-h-8');
+    // Le reste de ce que l'appelant passe est gardé.
+    expect(classes).toContain('mb-6');
+  });
+
   it('laisse le navigateur ouvrir un onglet sur ⌘-clic', () => {
     poserNavigation({ canGoBack: true });
     render(withIntl(<BoutonRetour repli="/agents" libelle="Retour" />));
