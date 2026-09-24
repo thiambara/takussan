@@ -229,7 +229,7 @@
       "title": "Go pro",
       "pendingTitle": "Request in progress",
       "body": "Team, multiple admins and more tools built for pro agencies.",
-      "pendingBody": "Reviewed by our team within 48h.",
+      "pendingBody": "Our team is reviewing your request; you will receive its decision by email.",
       "cta": "Learn more",
       "pendingCta": "View details"
     },
@@ -261,7 +261,7 @@
     },
     "professionals": {
       "agencies": "Agencies",
-      "agents": "Agents"
+      "agents": "Agents & owners"
     },
     "legalHeading": "Legal",
     "legal": {
@@ -301,7 +301,9 @@
       "emailRequired": "A valid email address is required.",
       "messageMin": "Your message must be at least 5 characters.",
       "messageMax": "Your message cannot exceed 2000 characters."
-    }
+    },
+    "descriptionOwner": "Your details are forwarded to the property's owner. No account required.",
+    "successBodyOwner": "The owner will get back to you shortly."
   },
   "meta": {
     "home": {
@@ -347,10 +349,10 @@
       "descriptionCity": "Real estate agencies publishing listings in {city} on Takussan: portfolio, reviews and details."
     },
     "agents": {
-      "title": "Real estate agents in Senegal",
-      "description": "Browse the real estate agents and advisers active on Takussan: portfolio, cities covered and client reviews.",
-      "titleCity": "Real estate agents in {city}",
-      "descriptionCity": "Real estate agents and advisers publishing listings in {city} on Takussan."
+      "title": "Real estate agents and owners in Senegal",
+      "description": "Browse the real estate agents and owners who publish on Takussan: portfolio, cities covered and reviews.",
+      "titleCity": "Real estate agents and owners in {city}",
+      "descriptionCity": "Real estate agents and owners publishing listings in {city} on Takussan."
     }
   },
   "homepage": {
@@ -1999,7 +2001,7 @@
             "multi_admin": "Co-administrate the agency with multiple admins.",
             "custom_roles": "Define custom roles to structure your organisation."
           },
-          "sla": "Reply from our team within 5 business days."
+          "sla": "Our team reviews every request; you receive its decision by email and in your notifications."
         }
       },
       "form": {
@@ -2080,7 +2082,7 @@
       "statsAgents": "Agents",
       "license": "Licence no. {number}",
       "teamEyebrow": "The team",
-      "teamHeading": "{count, plural, =1 {# agent to guide you} other {# agents to guide you}}",
+      "teamHeading": "{count, plural, =1 {# contact to guide you} other {# contacts to guide you}}",
       "portfolioEyebrow": "Portfolio",
       "portfolioHeading": "Featured properties",
       "emptyTitle": "No property to show yet",
@@ -2138,7 +2140,8 @@
       "divergentShort": "Differs"
     },
     "carousel": {
-      "ariaLabel": "Mobile comparison — swipe horizontally across each property"
+      "ariaLabel": "Property comparison, criterion by criterion",
+      "headerAria": "Properties being compared"
     },
     "empty": {
       "title": "Select at least 2 properties",
@@ -2162,7 +2165,8 @@
       "clearedBody": "{count, plural, =1 {1 property removed.} other {# properties removed.}}",
       "undo": "Undo",
       "addFromListAria": "Add a property: pick it from the list",
-      "addBrowseAria": "Add a property: browse the listings"
+      "addBrowseAria": "Add a property: browse the listings",
+      "undoPartial": "{count, plural, =1 {1 property could not be restored} other {# properties could not be restored}}: {max} at most."
     },
     "button": {
       "full": "Remove a property to add another one.",
@@ -2462,9 +2466,16 @@
         "retry": "Retry",
         "moreResults": "{shown} of {total} — refine your search",
         "selectedLabel": "Selected participants",
-        "noProperty": "No property",
-        "noLease": "No lease",
-        "contextTruncated": "First {shown} of {total}."
+        "propertyPlaceholder": "Title or reference…",
+        "leasePlaceholder": "Reference or property…",
+        "clearProperty": "Remove the property",
+        "clearLease": "Remove the lease",
+        "noPropertyMatch": "No property matches this search.",
+        "noLeaseMatch": "No lease matches this search.",
+        "contextError": "Could not load the list.",
+        "noPropertyYet": "You have no property to link yet.",
+        "noLeaseYet": "You have no lease to link yet.",
+        "noLeaseForProperty": "This property has no lease."
       },
       "info": {
         "title": "Group info",
@@ -3570,7 +3581,7 @@
           "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code may take up to 60 seconds to arrive.",
+            "body": "The code is valid for 5 minutes.",
             "bodyDebug": "Code sent (debug: {code})."
           },
           "verified": {
@@ -3695,7 +3706,7 @@
           "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code may take up to 60 seconds to arrive.",
+            "body": "The code is valid for 5 minutes.",
             "bodyDebug": "Code sent (debug: {code})."
           },
           "verified": {
@@ -3806,7 +3817,9 @@
       "unavailableTitle": "Agent temporarily unavailable",
       "unavailableBody": "We can't reach the catalogue right now. This agent may still exist — please try again in a moment.",
       "unavailableMetaDescription": "This agent cannot be displayed right now. Please try again in a moment.",
-      "back": "Back"
+      "back": "Back",
+      "metaTitleOwner": "{name} — Property owner",
+      "emptyBodyOwner": "This owner is preparing their next listings — come back soon."
     }
   },
   "agentWelcome": {
@@ -4057,7 +4070,7 @@
           "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code may take up to 60 seconds to arrive.",
+            "body": "The code is valid for 5 minutes.",
             "bodyDebug": "Code sent (debug: {code})."
           },
           "verified": {
@@ -4188,7 +4201,7 @@
           },
           "professionalNotice": {
             "title": "Professional agency creation",
-            "body": "To create an agency with multiple collaborators, contact our team — we set up your space within 24h.",
+            "body": "To create an agency with multiple collaborators, contact our team: we set up your space with you.",
             "mailSubject": "Professional agency creation request",
             "contactCta": "Contact support",
             "continueIndividual": "Or continue as individual and upgrade later"
@@ -4227,7 +4240,7 @@
             "verifyCta": "Verify",
             "verifying": "Verifying…",
             "sentTitle": "Code sent",
-            "sentBody": "The code can take up to 60 seconds to arrive.",
+            "sentBody": "The code is valid for 5 minutes.",
             "sentDebug": "Code sent (debug: {code}).",
             "verifiedTitle": "Phone verified",
             "verifiedBody": "You can now publish your property.",
@@ -5464,10 +5477,12 @@
       },
       "success": {
         "title": "Request sent!",
-        "body": "Your booking request for <strong>{title}</strong> has been saved. The owner or the agent will get back to you within 48h.",
+        "body": "Your booking request for <strong>{title}</strong> has been saved.",
         "reference": "Reference",
         "total": "Estimated total",
-        "viewBooking": "View my booking"
+        "viewBooking": "View my booking",
+        "deadline": "The owner or the agent has until <strong>{date}</strong> to reply. Without a reply by then, the request expires automatically.",
+        "noDeadline": "You can follow the owner's or the agent's reply from your booking."
       },
       "step1": {
         "title": "Your dates",
@@ -7002,7 +7017,7 @@
       "saving": "Saving…",
       "saveError": "Profile update failed.",
       "saved": "Changes saved.",
-      "otpSent": "Code sent. Check your SMS (it may take up to 60s).",
+      "otpSent": "Code sent by SMS. It is valid for 5 minutes.",
       "otpSentDebug": "Code sent. (Debug: {code})",
       "phoneVerifiedOk": "Phone verified successfully."
     },
@@ -7806,7 +7821,11 @@
       "email": "Send an email",
       "call": "Call",
       "contact": "Get in touch",
-      "sheetDescription": "Pick your channel to get in touch."
+      "sheetDescription": "Pick your channel to get in touch.",
+      "leadDescriptionAgent": "Your details are forwarded to this agent. No account required.",
+      "leadDescriptionOwner": "Your details are forwarded to this owner. No account required.",
+      "leadSuccessAgent": "The agent will get back to you shortly.",
+      "leadSuccessOwner": "The owner will get back to you shortly."
     },
     "portfolio": {
       "filterAria": "Filter the portfolio",
@@ -7834,8 +7853,12 @@
     },
     "team": {
       "propertiesCount": "{count, plural, one {# property} other {# properties}}",
-      "prevAria": "See previous agents",
-      "nextAria": "See next agents"
+      "prevAria": "See previous contacts",
+      "nextAria": "See next contacts"
+    },
+    "roles": {
+      "agent": "Real estate agent",
+      "owner": "Property owner"
     }
   },
   "privacy": {
@@ -7855,7 +7878,9 @@
         "expired": "Expired",
         "failed": "Failed"
       },
-      "pendingHint": "We're preparing your archive. You'll receive an email as soon as it's ready."
+      "pendingHint": "We're preparing your archive. You'll receive an email as soon as it's ready.",
+      "throttled": "You already requested an export in the last 24 hours. You can request a new one from {date}.",
+      "emptyHint": "Your ZIP archive will appear here once you have requested it."
     }
   },
   "charts": {
@@ -7873,7 +7898,9 @@
     }
   },
   "announcements": {
-    "dismissAria": "Dismiss the announcement"
+    "dismissAria": "Dismiss the announcement",
+    "maintenanceDismissAria": "Dismiss the maintenance notice",
+    "maintenanceWindow": "From {debut} to {fin}"
   },
   "publishRedirect": {
     "title": "Preparing your listing…",
@@ -7930,10 +7957,10 @@
       "emptyTitle": "No agency matches"
     },
     "agents": {
-      "eyebrow": "Agents & advisers",
-      "heading": "The professionals behind the listings",
-      "intro": "Every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and their agency.",
-      "searchPlaceholder": "Agent name",
+      "eyebrow": "Agents & owners",
+      "heading": "The people behind the listings",
+      "intro": "Real estate agent or owner, every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and the agency publishing their listings.",
+      "searchPlaceholder": "First or last name",
       "count": "{count, plural, one {# profile} other {# profiles}}",
       "emptyTitle": "No profile matches"
     }
