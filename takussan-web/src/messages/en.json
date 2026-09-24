@@ -462,7 +462,8 @@
     "layout": {
       "visualAlt": "Contemporary villa in Senegal",
       "headline": "Your gateway to real estate in Senegal.",
-      "subheadline": "Thousands of properties, a polished experience, partners you can trust."
+      "subheadline": "Thousands of properties, a polished experience, partners you can trust.",
+      "back": "Back"
     },
     "twoFactorChallenge": {
       "title": "Two-factor authentication",
@@ -735,7 +736,8 @@
       "unavailableTitle": "Listing temporarily unavailable",
       "unavailableBody": "We can't reach the catalogue right now. The listing may still exist — please try again in a moment.",
       "favoriteAddShort": "Save",
-      "favoriteSavedShort": "Saved"
+      "favoriteSavedShort": "Saved",
+      "descriptionLanguageNotice": "{langue, select, fr {Description written in French by the lister} en {Description written in English by the lister} wo {Description written in Wolof by the lister} other {Description written by the lister, in their own language}}"
     },
     "reviews": {
       "title": "Reviews",
@@ -1212,8 +1214,6 @@
         "area": "120",
         "yearBuilt": "2010",
         "parking": "2",
-        "priceSale": "25000000",
-        "priceRent": "350000",
         "period": "Monthly",
         "description": "What the photos do not show: the neighbourhood, the surroundings, what has just been renovated."
       },
@@ -2153,7 +2153,16 @@
       "removeAria": "Remove property #{id} from the comparator",
       "clearAria": "Clear comparator",
       "needOneMore": "Add a 2nd property",
-      "removeNamedAria": "Remove “{title}” from the comparator"
+      "removeNamedAria": "Remove “{title}” from the comparator",
+      "collapseAria": "Collapse the comparator",
+      "expandAria": "Show the comparator — {count, plural, =1 {1 property selected} other {# properties selected}}",
+      "collapsedCount": "{count}/{max}",
+      "clear": "Clear",
+      "clearedTitle": "Comparator cleared",
+      "clearedBody": "{count, plural, =1 {1 property removed.} other {# properties removed.}}",
+      "undo": "Undo",
+      "addFromListAria": "Add a property: pick it from the list",
+      "addBrowseAria": "Add a property: browse the listings"
     },
     "button": {
       "full": "Remove a property to add another one.",
@@ -2399,7 +2408,8 @@
       "viewAll": "View all messages",
       "unreadInline": "{count, plural, one {# unread} other {# unread}}",
       "chatBack": "Back to conversations",
-      "manageGroup": "Manage group"
+      "manageGroup": "Manage group",
+      "launcherLabel": "Messaging"
     },
     "system": {
       "participantAdded": "{actor} added {target} to the group.",
@@ -2430,14 +2440,12 @@
         "step1Description": "Add at least 2 participants (you'll be included automatically).",
         "step2Description": "Give the group a subject and optionally link it to a property or lease.",
         "participantsLabel": "Participants",
-        "participantInputPlaceholder": "User ID",
-        "participantsHint": "Enter IDs one at a time. The server enforces permissions.",
+        "participantInputPlaceholder": "Search by name…",
+        "participantsHint": "Your agency’s team and the people you have already exchanged messages with.",
         "add": "Add",
-        "removeParticipant": "Remove #{id}",
+        "removeParticipant": "Remove {name}",
         "minParticipants": "At least {min} participants total (including you).",
         "maxParticipants": "At most {max} participants total.",
-        "duplicate": "This user is already added.",
-        "invalidId": "Invalid ID.",
         "subjectLabel": "Subject",
         "subjectRequired": "Subject is required.",
         "propertyLabel": "Property (optional)",
@@ -2446,7 +2454,17 @@
         "next": "Next",
         "back": "Back",
         "create": "Create group",
-        "createFailed": "Failed to create the group."
+        "createFailed": "Failed to create the group.",
+        "searching": "Searching…",
+        "noContact": "Nobody matches this search.",
+        "noContactYet": "You have nobody to invite yet.",
+        "contactsError": "Could not load your contacts.",
+        "retry": "Retry",
+        "moreResults": "{shown} of {total} — refine your search",
+        "selectedLabel": "Selected participants",
+        "noProperty": "No property",
+        "noLease": "No lease",
+        "contextTruncated": "First {shown} of {total}."
       },
       "info": {
         "title": "Group info",
@@ -2456,9 +2474,7 @@
         "renameFailed": "Failed to rename.",
         "participantsHeading": "Participants ({count})",
         "addLabel": "Invite a participant",
-        "addPlaceholder": "User ID",
         "addFailed": "Failed to add.",
-        "add": "Add",
         "you": "you",
         "roleAdmin": "Admin",
         "roleMember": "Member",
@@ -2469,8 +2485,7 @@
         "unmute": "Unmute notifications",
         "leave": "Leave group",
         "lastAdminLeaveBlocked": "You're the last admin — promote someone before leaving.",
-        "lastAdminLeaveHint": "Promote another member to admin before leaving.",
-        "invalidId": "Invalid ID."
+        "lastAdminLeaveHint": "Promote another member to admin before leaving."
       }
     },
     "conversationTitleFallback": "Conversation #{id}",
@@ -7638,6 +7653,10 @@
     },
     "toast": {
       "close": "Close notification"
+    },
+    "phoneInput": {
+      "hintNational": "The {indicatif} country code is already added: type the rest. Abroad? Start with +.",
+      "hintInternational": "Full international number, country code included."
     }
   },
   "reporting": {
@@ -7828,7 +7847,15 @@
       "rowTitle": "Export #{id}",
       "requestedAt": "Requested on {date}",
       "expiresAt": " · expires on {date}",
-      "download": "Download"
+      "download": "Download",
+      "status": {
+        "queued": "Queued",
+        "processing": "Preparing",
+        "ready": "Ready",
+        "expired": "Expired",
+        "failed": "Failed"
+      },
+      "pendingHint": "We're preparing your archive. You'll receive an email as soon as it's ready."
     }
   },
   "charts": {

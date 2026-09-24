@@ -437,7 +437,8 @@
     "layout": {
       "visualAlt": "Villa contemporaine au Sénégal",
       "headline": "Votre porte d'entrée vers l'immobilier du Sénégal.",
-      "subheadline": "Des milliers de biens, une expérience soignée, des partenaires de confiance."
+      "subheadline": "Des milliers de biens, une expérience soignée, des partenaires de confiance.",
+      "back": "Retour"
     },
     "twoFactorChallenge": {
       "title": "Authentification à deux facteurs",
@@ -710,7 +711,8 @@
       "unavailableTitle": "Bien momentanément indisponible",
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants.",
       "favoriteAddShort": "Ajouter",
-      "favoriteSavedShort": "Favori"
+      "favoriteSavedShort": "Favori",
+      "descriptionLanguageNotice": "{langue, select, fr {Description rédigée en français par l'annonceur} en {Description rédigée en anglais par l'annonceur} wo {Description rédigée en wolof par l'annonceur} other {Description rédigée par l'annonceur, dans sa langue}}"
     },
     "reviews": {
       "title": "Avis",
@@ -1187,8 +1189,6 @@
         "area": "120",
         "yearBuilt": "2010",
         "parking": "2",
-        "priceSale": "25000000",
-        "priceRent": "350000",
         "period": "Mensuel",
         "description": "Ce qu'on ne voit pas sur les photos : le quartier, le voisinage, ce qui vient d'être refait."
       },
@@ -2128,7 +2128,16 @@
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur",
       "needOneMore": "Ajoutez un 2ᵉ bien",
-      "removeNamedAria": "Retirer « {title} » du comparateur"
+      "removeNamedAria": "Retirer « {title} » du comparateur",
+      "collapseAria": "Réduire le comparateur",
+      "expandAria": "Afficher le comparateur — {count, plural, =1 {1 bien sélectionné} other {# biens sélectionnés}}",
+      "collapsedCount": "{count}/{max}",
+      "clear": "Vider",
+      "clearedTitle": "Comparateur vidé",
+      "clearedBody": "{count, plural, =1 {1 bien retiré.} other {# biens retirés.}}",
+      "undo": "Annuler",
+      "addFromListAria": "Ajouter un bien : choisissez-le dans la liste",
+      "addBrowseAria": "Ajouter un bien : voir les annonces"
     },
     "button": {
       "full": "Retirez un bien pour en ajouter un autre.",
@@ -2374,7 +2383,8 @@
       "viewAll": "Voir toute la messagerie",
       "unreadInline": "{count, plural, one {# non lu} other {# non lus}}",
       "chatBack": "Retour aux conversations",
-      "manageGroup": "Gérer le groupe"
+      "manageGroup": "Gérer le groupe",
+      "launcherLabel": "Messagerie"
     },
     "system": {
       "participantAdded": "{actor} a ajouté {target} au groupe.",
@@ -2405,14 +2415,12 @@
         "step1Description": "Ajoutez 2 participants minimum (vous serez automatiquement inclus).",
         "step2Description": "Donnez un sujet au groupe et associez-le optionnellement à un bien ou un bail.",
         "participantsLabel": "Participants",
-        "participantInputPlaceholder": "ID utilisateur",
-        "participantsHint": "Saisissez les IDs un par un. Le serveur vérifie les permissions.",
+        "participantInputPlaceholder": "Rechercher par nom…",
+        "participantsHint": "L’équipe de votre agence et les personnes avec qui vous avez déjà échangé.",
         "add": "Ajouter",
-        "removeParticipant": "Retirer #{id}",
+        "removeParticipant": "Retirer {name}",
         "minParticipants": "Minimum {min} participants au total (vous compris).",
         "maxParticipants": "Maximum {max} participants au total.",
-        "duplicate": "Cet utilisateur est déjà ajouté.",
-        "invalidId": "ID invalide.",
         "subjectLabel": "Sujet",
         "subjectRequired": "Le sujet est obligatoire.",
         "propertyLabel": "Bien (optionnel)",
@@ -2421,7 +2429,17 @@
         "next": "Suivant",
         "back": "Retour",
         "create": "Créer le groupe",
-        "createFailed": "Impossible de créer le groupe."
+        "createFailed": "Impossible de créer le groupe.",
+        "searching": "Recherche…",
+        "noContact": "Personne ne correspond à cette recherche.",
+        "noContactYet": "Vous n’avez encore personne à inviter.",
+        "contactsError": "Impossible de charger vos contacts.",
+        "retry": "Réessayer",
+        "moreResults": "{shown} sur {total} — précisez la recherche",
+        "selectedLabel": "Participants choisis",
+        "noProperty": "Aucun bien",
+        "noLease": "Aucun bail",
+        "contextTruncated": "Les {shown} premiers sur {total}."
       },
       "info": {
         "title": "Infos du groupe",
@@ -2431,9 +2449,7 @@
         "renameFailed": "Impossible de renommer.",
         "participantsHeading": "Participants ({count})",
         "addLabel": "Inviter un participant",
-        "addPlaceholder": "ID utilisateur",
         "addFailed": "Impossible d'ajouter.",
-        "add": "Ajouter",
         "you": "vous",
         "roleAdmin": "Admin",
         "roleMember": "Membre",
@@ -2444,8 +2460,7 @@
         "unmute": "Réactiver les notifications",
         "leave": "Quitter le groupe",
         "lastAdminLeaveBlocked": "Vous êtes le dernier admin — promouvez quelqu'un avant de partir.",
-        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir.",
-        "invalidId": "ID invalide."
+        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir."
       }
     },
     "conversationTitleFallback": "Conversation #{id}",
@@ -7638,6 +7653,10 @@
     },
     "toast": {
       "close": "Fermer la notification"
+    },
+    "phoneInput": {
+      "hintNational": "L'indicatif {indicatif} est déjà ajouté : saisissez la suite. À l'étranger ? Commencez par +.",
+      "hintInternational": "Numéro international complet, indicatif compris."
     }
   },
   "reporting": {
@@ -7828,7 +7847,15 @@
       "rowTitle": "Export #{id}",
       "requestedAt": "Demandé le {date}",
       "expiresAt": " · expire le {date}",
-      "download": "Télécharger"
+      "download": "Télécharger",
+      "status": {
+        "queued": "En attente",
+        "processing": "En préparation",
+        "ready": "Prêt",
+        "expired": "Expiré",
+        "failed": "Échec"
+      },
+      "pendingHint": "Nous préparons votre archive. Vous recevrez un e-mail dès qu'elle sera prête."
     }
   },
   "charts": {
