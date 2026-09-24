@@ -244,4 +244,15 @@ return [
     'threshold_alert' => [
         'title' => 'Alerte KPI — :metric',
     ],
+
+    // TCK-575 — l'e-mail de fin d'export RGPD. Rédigé en français en dur jusque-là : un
+    // utilisateur `en` ou `wo` le recevait en français. Le lien mène à la page « Mes données »
+    // du FRONT : l'ancien lien visait l'hôte de l'API, qui exige un jeton Bearer (401 au clic).
+    'data_export_ready' => [
+        'subject' => 'Votre export de données est prêt',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Votre archive de portabilité Takussan est prête.',
+        'action' => 'Ouvrir « Mes données »',
+        'expires' => '{1} Elle reste téléchargeable depuis cette page pendant :count jour.|[2,*] Elle reste téléchargeable depuis cette page pendant :count jours.',
+    ],
 ];

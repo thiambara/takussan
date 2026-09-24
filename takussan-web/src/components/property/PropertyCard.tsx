@@ -12,7 +12,12 @@ import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 import { NewBuildChip, porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
 import { CardMeta } from '@/components/property/cards/CardMeta';
 import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
-import { LienDeCarte, AU_DESSUS_DU_LIEN } from '@/components/property/cards/LienDeCarte';
+import {
+  LienDeCarte,
+  AU_DESSUS_DU_LIEN,
+  TITRE_REACTIF,
+  VoileDInteraction,
+} from '@/components/property/cards/LienDeCarte';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
@@ -173,6 +178,8 @@ export function PropertyCard({
           className="group-hover:scale-105 transition-transform duration-500"
           sizes={sizes}
         />
+        {/* TCK-561 — voile de survol et d'appui : cf. `VoileDInteraction`. */}
+        <VoileDInteraction />
 
         {/* Barre du haut — la pastille à gauche, le favori à droite, dans UN SEUL flux flex.
             La pastille ne dispose que de la place que le favori lui laisse, et se tronque au
@@ -271,7 +278,7 @@ export function PropertyCard({
           // TCK-555 — deux lignes réservées pour aligner des cartes VOISINES. Sous `sm`, la liste
           // et les favoris sont à une colonne : un titre d'une ligne y laissait 20 px de vide sous
           // lui, sans rien à aligner. Le carrousel, lui, aligne toujours (`titreSurDeuxLignes`).
-          className={`font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 ${
+          className={`font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 ${TITRE_REACTIF} ${
             titreSurDeuxLignes === 'toujours' ? 'h-10' : 'sm:h-10'
           } text-pretty`}
           title={property.title}

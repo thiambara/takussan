@@ -42,6 +42,9 @@ vi.mock('next/link', () => ({
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+// La cale sous la barre monte aussi les bandeaux du site (TCK-572), clients et branchés sur
+// React Query : du décor de page, comme la barre et le pied, hors du sujet de ces tests.
+vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
 
 vi.mock('next-intl/server', async () => {
   const { createTranslator } = await import('next-intl');
@@ -235,7 +238,7 @@ describe('les deux ressources partagent le corps sans partager leurs libellés',
     await monter({ ressource: 'agents' });
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Les professionnels derrière les annonces',
+      'Les personnes derrière les annonces',
     );
     expect(screen.getByText('Sahel Homes')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Awa Diop/ })).toHaveAttribute(
@@ -253,5 +256,42 @@ describe('les deux ressources partagent le corps sans partager leurs libellés',
       { page: 3, ville: 'Thiès', recherche: 'awa' },
       'fr',
     );
+  });
+});
+
+/**
+ * TCK-573 — l'index `/agents` liste aussi des PROPRIÉTAIRES (en développement : les 44 profils).
+ * Avant, la carte d'un propriétaire affichait son nom puis « Thiès Properties », sous le titre
+ * « Les professionnels derrière les annonces » : un agent de cette agence, à la lecture.
+ */
+describe('TCK-573 — chaque personne est présentée pour ce qu’elle est', () => {
+  it('un propriétaire se lit « Propriétaire », un agent « Agent immobilier », avant l’enseigne', async () => {
+    lister.mockResolvedValue(
+      pageDe([
+        profil({
+          id: 1,
+          slug: 'oumy-sow',
+          nom: 'Oumy Sow',
+          public_role: 'owner',
+          agency: { slug: 'thies-properties', name: 'Thiès Properties' },
+        }),
+        profil({ id: 2, slug: 'awa-diop', nom: 'Awa Diop', public_role: 'agent', specialty: 'Location' }),
+      ]),
+    );
+    await monter({ ressource: 'agents' });
+
+    const [proprietaire, agent] = screen.getAllByRole('listitem');
+    expect(proprietaire).toHaveTextContent('Propriétaire · Thiès Properties');
+    expect(proprietaire).not.toHaveTextContent('Agent immobilier');
+    expect(agent).toHaveTextContent('Agent immobilier · Location');
+  });
+
+  it('une agence n’affiche aucune qualité de personne', async () => {
+    lister.mockResolvedValue(pageDe([profil()]));
+    await monter();
+
+    const carte = screen.getByRole('listitem');
+    expect(carte).not.toHaveTextContent('Propriétaire');
+    expect(carte).not.toHaveTextContent('Agent immobilier');
   });
 });

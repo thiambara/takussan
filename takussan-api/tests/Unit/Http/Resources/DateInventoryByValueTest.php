@@ -55,6 +55,9 @@ class DateInventoryByValueTest extends TestCase
      * @var array<string,string>
      */
     private const CLES_JAMAIS_ATTEINTES = [
+        'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
+            .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
+            .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
         'App\Http\Resources\CustomerResource::tasks_count' => "`whenCounted('tasks')` — un compteur ENTIER, jamais une date. "
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
         'App\Http\Resources\LeaseResource::renewals_count' => "`whenCounted('renewals')` — même forme, même absence de date.",

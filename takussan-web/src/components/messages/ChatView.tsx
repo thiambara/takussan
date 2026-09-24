@@ -12,6 +12,7 @@ import {
   useConversation,
   useMessagesInfinite,
   useNewMessagesPolling,
+  useMarkConversationRead,
   useSendMessage,
 } from '@/lib/queries/conversations';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
@@ -110,6 +111,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
   }, [messages]);
 
   useNewMessagesPolling(conversationId, anchorId, { enabled: isVisible });
+  useMarkConversationRead(conversationId, anchorId, { enabled: isVisible });
 
   const sendMessage = useSendMessage(conversationId);
 

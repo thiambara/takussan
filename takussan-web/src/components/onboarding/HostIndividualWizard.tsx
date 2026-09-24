@@ -15,6 +15,7 @@ import { StatusBadge } from '@/components/console/StatusBadge';
 import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PhoneInput } from '@/components/ui/phone-input';
 import {
   Select,
   SelectContent,
@@ -36,6 +37,13 @@ import {
   phoneSendOtpAction,
   phoneVerifyOtpAction,
 } from '@/app/actions/security';
+import {
+  formaterTelephone,
+  normaliserIndicatif,
+  numeroComposable,
+  recomposerTelephone,
+  relireTelephoneBrouillon,
+} from '@/lib/phone';
 
 type Intent = 'individual' | 'professional';
 
@@ -123,7 +131,7 @@ export function HostIndividualWizard() {
       : '';
     const geoCity = location?.city?.trim() ?? '';
     const geoCurrency = matchSupportedCurrency(location?.currency) ?? 'XOF';
-    const geoDialing = location?.country_calling_code?.trim() ?? '';
+    const indicatif = normaliserIndicatif(location?.country_calling_code);
 
     return {
       intent: 'individual',
@@ -133,10 +141,14 @@ export function HostIndividualWizard() {
         currency: geoCurrency,
       },
       phone_otp: {
-        // If we already have the user's phone, use it; otherwise seed with
-        // the country dialing code so the OTP step is one-tap-away from a
-        // valid E.164-ish number.
-        phone: user?.phone?.trim() ? user.phone : geoDialing,
+        // TCK-566 — le numéro connu, remis en E.164 ; sinon RIEN. L'indicatif
+        // géo était amorcé ici comme VALEUR (`+221`) : un clic en tête du champ
+        // et les chiffres passaient devant lui (`780143710+221`, relu tel quel
+        // au récapitulatif puis enregistré par l'envoi du code). Il est
+        // désormais le préfixe affiché de `<PhoneInput>`, jamais une valeur.
+        // `recomposerTelephone` remet aussi dans l'ordre la forme corrompue
+        // qu'un compte a pu garder de ce défaut.
+        phone: user?.phone?.trim() ? recomposerTelephone(user.phone, indicatif) : '',
         code: '',
         // Users who already verified their phone (registration, prior
         // onboarding, profile flow) skip the OTP UI; the backend service
@@ -147,6 +159,24 @@ export function HostIndividualWizard() {
       cgu_accepted: false,
     };
   }, [user, t, location]);
+
+  // TCK-566 — un brouillon relu repasse par la même normalisation que
+  // `initialData`. L'ancien autosave a écrit, pour un compte sans numéro, le
+  // téléphone amorcé à l'indicatif (`+221`) : réinjecté brut, il rendait ce
+  // brouillon fantôme différent de l'état vierge (qui porte `''`), donc jamais
+  // supprimé ; et une forme corrompue (`780143710+221`) laissait « Envoyer le
+  // code » inactif sans explication.
+  const indicatifGeo = normaliserIndicatif(location?.country_calling_code);
+  const relireBrouillon = useCallback(
+    (data: HostWizardData): HostWizardData => ({
+      ...data,
+      phone_otp: {
+        ...data.phone_otp,
+        phone: relireTelephoneBrouillon(data.phone_otp?.phone, indicatifGeo),
+      },
+    }),
+    [indicatifGeo],
+  );
 
   const handleComplete = useCallback(
     async (data: HostWizardData) => {
@@ -264,6 +294,7 @@ export function HostIndividualWizard() {
     <WizardReprenable<HostWizardData>
       storageKey="host-individual-wizard"
       initialData={initialData}
+      relireBrouillon={relireBrouillon}
       steps={steps}
       onComplete={handleComplete}
     />
@@ -437,10 +468,13 @@ function PhoneOtpField({ data, setData }: StepProps) {
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
   const [debugCode, setDebugCode] = useState<string | null>(null);
+  const { location } = useUserLocation();
+  const indicatif = normaliserIndicatif(location?.country_calling_code);
+  const numeroPret = numeroComposable(data.phone_otp.phone);
 
   const handleSend = () => {
-    const phone = data.phone_otp.phone.trim();
-    if (phone === '') return;
+    const phone = data.phone_otp.phone;
+    if (!numeroComposable(phone)) return;
     startSend(async () => {
       // Persist the typed phone alongside the OTP request — the wizard is
       // the first place the user enters a phone number, so the user record
@@ -511,19 +545,16 @@ function PhoneOtpField({ data, setData }: StepProps) {
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
         <div className="flex flex-col gap-1">
           <Label htmlFor="phone-otp-phone">{t('fields.phone')}</Label>
-          <Input
+          <PhoneInput
             id="phone-otp-phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="+221…"
+            indicatif={indicatif}
             value={data.phone_otp.phone}
-            onChange={(e) =>
+            onValueChange={(phone) =>
               setData({
                 ...data,
                 phone_otp: {
                   ...data.phone_otp,
-                  phone: e.target.value,
+                  phone,
                   // Editing the phone invalidates a previous OTP — the
                   // user has to re-send and re-verify.
                   verified: false,
@@ -533,17 +564,16 @@ function PhoneOtpField({ data, setData }: StepProps) {
             disabled={data.phone_otp.verified}
           />
         </div>
-        <div className="flex items-end">
+        {/* `items-start` + `mt-4.5` : le bouton s'aligne sur le CHAMP, pas sur la
+            ligne d'aide que `<PhoneInput>` pose en dessous (TCK-566). La marge
+            reprend la hauteur du libellé : `text-sm leading-none` (14 px) + `gap-1`. */}
+        <div className="flex items-start sm:mt-4.5">
           <Button
             type="button"
             variant="outline"
             className="h-11 w-full px-4 sm:w-auto"
             onClick={handleSend}
-            disabled={
-              sendPending ||
-              data.phone_otp.verified ||
-              data.phone_otp.phone.trim() === ''
-            }
+            disabled={sendPending || data.phone_otp.verified || !numeroPret}
           >
             {sendPending ? t('otp.sending') : t('otp.sendCta')}
           </Button>
@@ -595,6 +625,11 @@ function PhoneOtpField({ data, setData }: StepProps) {
 
 function RecapStep({ data, setData }: StepProps) {
   const t = useTranslations('onboarding.host.steps.recap');
+  const { location } = useUserLocation();
+  const indicatif = normaliserIndicatif(location?.country_calling_code);
+  const telephone = data.phone_otp.phone
+    ? formaterTelephone(recomposerTelephone(data.phone_otp.phone, indicatif))
+    : '';
 
   const rows: Array<{ label: string; value: string }> = [
     { label: t('rows.spaceName'), value: data.agency.name || '—' },
@@ -603,7 +638,7 @@ function RecapStep({ data, setData }: StepProps) {
       value: data.agency.primary_city || '—',
     },
     { label: t('rows.currency'), value: data.agency.currency },
-    { label: t('rows.phone'), value: data.phone_otp.phone || '—' },
+    { label: t('rows.phone'), value: telephone || '—' },
     {
       label: t('rows.phoneVerified'),
       value: data.phone_otp.verified ? t('rows.yes') : t('rows.no'),

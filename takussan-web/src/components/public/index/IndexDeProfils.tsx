@@ -61,6 +61,7 @@ type Props = {
 export async function IndexDeProfils({ ressource, locale, params, page, forme }: Props) {
   const t = await getTranslations(`publicProfileIndex.${ressource}`);
   const tCommun = await getTranslations('publicProfileIndex');
+  const tRoles = await getTranslations('publicProfile.roles');
 
   const ville = params.get('city')?.trim() || undefined;
   const recherche = params.get('q')?.trim() || undefined;
@@ -84,6 +85,7 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
     avis: (n: number) => tCommun('card.reviews', { count: n }),
     verifie: tCommun('card.verified'),
     noteAria: (note: number) => tCommun('card.ratingAria', { rating: note }),
+    roles: { agent: tRoles('agent'), owner: tRoles('owner') },
   };
 
   return (

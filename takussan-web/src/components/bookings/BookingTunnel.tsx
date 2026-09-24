@@ -20,6 +20,7 @@ import {
 } from '@/hooks/useApiForm';
 import { bookingRequestSchema, type BookingRequestFormValues } from '@/lib/schemas/booking';
 import { formatCurrency } from '@/lib/format';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { quoteBooking } from '@/lib/booking-quote';
 import type { Locale } from '@/i18n/config';
 import type { PropertyDetail } from '@/types/property';
@@ -65,6 +66,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   const t = useTranslations('bookings.tunnel');
   const messageErreur = useMessageErreurApi();
   const tBookings = useTranslations('bookings');
+  const fmt = useFormatteurs();
   const [stepIndex, setStepIndex] = useState(0);
   const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -266,6 +268,18 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
             title: property.title,
             strong: (chunks) => <strong>{chunks}</strong>,
           })}
+        </p>
+        {/* TCK-575 — le texte promettait « sous 48h » en dur. Le délai est PAR AGENCE (1 à 168 h,
+            ou désactivé), et une seconde échéance s'applique à la demande elle-même : l'API rend
+            la première des deux (`response_deadline`), et c'est elle qu'on affiche. Sans
+            échéance, aucun chiffre — rien ne serait tenu. */}
+        <p data-testid="booking-success-deadline" className="mx-auto mt-2 max-w-md text-pretty text-sm text-muted-foreground">
+          {createdBooking.response_deadline
+            ? t.rich('success.deadline', {
+                date: fmt.dateTime(createdBooking.response_deadline, { dateStyle: 'full', timeStyle: 'short' }),
+                strong: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+              })
+            : t('success.noDeadline')}
         </p>
         <dl className="mx-auto mt-4 max-w-sm space-y-1 rounded-lg bg-muted p-4 text-sm text-foreground">
           {createdBooking.reference_number && (

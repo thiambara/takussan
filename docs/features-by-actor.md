@@ -37,10 +37,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Sommaire
 
-1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 13 fonctionnalités
-2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 45 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 39 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 69 fonctionnalités
+1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 14 fonctionnalités
+2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 46 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 40 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 70 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 4 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 63 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 60 fonctionnalités
@@ -56,7 +56,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.2 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | §1.2 | Recherche plein-texte sur les biens |
 | P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
-| P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact) |
+| P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573) |
+| P1 | §1.2 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
 | P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé, état du bien) |
 | P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
@@ -93,7 +94,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.2 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | §1.2 | Recherche plein-texte sur les biens |
 | P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
-| P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact) |
+| P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573) |
+| P1 | §1.2 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
 | P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé, état du bien) |
 | P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
@@ -102,7 +104,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.2 | Favoris (ajout / retrait / liste personnelle) |
 | P1 | §1.2 | Recherches sauvegardées avec alertes email |
 | P1 | §1.2 | Partage d'un bien (lien, réseaux sociaux) |
-| P2 | §1.2 | Comparateur de biens côte à côte |
+| P2 | §1.2 | Comparateur de biens côte à côte — sur mobile, tous les biens tiennent dans la largeur, une rangée de titres numérotés reste collée pendant la lecture et le premier critère est visible dès le premier écran ; « Vider » s'annule sans écraser un bien ajouté entre-temps (TCK-561, TCK-577) |
 | P2 | §1.2 | Biens similaires / suggestions personnalisées |
 | P2 | §1.2 | Historique local des biens consultés (stockage navigateur) |
 | P3 | §1.2 | Recherche vocale / en langage naturel |
@@ -114,7 +116,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.3 | Demander une réservation (dates, montant, caution) |
 | P1 | §1.3 | Paiement d'acompte et solde — **acompte = 30 % du total** (estimation affichée dans le tunnel de réservation, règle stable). Quand le besoin de varier par bien/contrat apparaîtra, déplacer le calcul backend via un endpoint `GET /api/bookings/quote`. |
 | P1 | §1.3 | Consultation des paiements liés à la réservation |
-| P2 | §1.3 | Expiration automatique des demandes non traitées |
+| P2 | §1.3 | Expiration automatique des demandes non traitées — au seuil de l'agence (`booking_pending_expiry_hours`, 1 à 168 h, 0 = désactivé) ou à l'échéance propre de la demande, la première échue ; l'API l'expose (`response_deadline`) et la confirmation l'affiche, sans promettre de délai quand il n'y en a pas (TCK-575) |
 | P2 | §1.3 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée, feedback post-visite |
 | P2 | §1.3 | Rappels automatiques avant visite |
 | P3 | §1.3 | Annulation avec remboursement partiel automatisé |
@@ -135,7 +137,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Envoyer un message texte avec pièces jointes |
-| P1 | §1.7 | Liste des conversations avec statut non lu |
+| P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
 | P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) |
 | P2 | §1.7 | Recherche dans l'historique des messages |
@@ -199,6 +201,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | §1.1 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
+| P1 | §1.1 | Saisie des montants lisible : chiffres groupés selon la langue de l'écran, décimales selon la devise (aucune en franc CFA) ; la valeur envoyée reste un nombre (TCK-564, TCK-574) |
 | P3 | §1.1 | Marquer un bien comme nécessitant un suivi administratif particulier |
 
 ### §1.3 Réservations courte durée & visites
@@ -237,9 +240,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Envoyer un message texte avec pièces jointes |
-| P1 | §1.7 | Liste des conversations avec statut non lu |
+| P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
-| P2 | §1.7 | Conversations de groupe (multi-participants) |
+| P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
 | P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) |
 | P2 | §1.7 | Recherche dans l'historique des messages |
 | P3 | §1.7 | Appels audio / vidéo intégrés |
@@ -307,6 +310,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | §1.1 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
 | P1 | §1.1 | Compteurs de vues et de favoris |
+| P1 | §1.1 | Saisie des montants lisible : chiffres groupés selon la langue de l'écran, décimales selon la devise (aucune en franc CFA) ; la valeur envoyée reste un nombre (TCK-564, TCK-574) |
 | P2 | §1.1 | Dupliquer un bien (modèle / template) |
 | P2 | §1.1 | Archivage en lot |
 | P3 | §1.1 | Import CSV / API externe (MLS, syndication) |
@@ -357,7 +361,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
-| P2 | §1.7 | Conversations de groupe (multi-participants) |
+| P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
 
 ### §1.8 Maintenance & interventions
 
@@ -513,7 +517,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P2 | §2.3 | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur |
+| P2 | §2.3 | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
 
 ### §2.5 Reporting & tableaux de bord
 
@@ -549,7 +553,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §2.9 | Paramètres globaux de plateforme |
 | P2 | §2.9 | Gestion des intégrations tierces (API keys) |
 | P2 | §2.9 | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) |
-| P3 | §2.9 | Mode maintenance programmé |
+| P3 | §2.9 | Mode maintenance programmé — l'avis parle la langue du visiteur, s'affiche sous la barre et se ferme pour la session ; il revient quand la fenêtre passe « en cours » ou que sa fin change (TCK-572) |
 | P3 | §2.9 | Feature flags |
 
 ---
@@ -568,12 +572,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Mot de passe oublié et réinitialisation |
 | P0 | §2.1 | Vérification de l'adresse email |
 | P0 | §2.1 | Édition de profil (nom, bio, avatar) |
-| P1 | §2.1 | Vérification du numéro de téléphone (SMS / OTP) |
+| P1 | §2.1 | Vérification du numéro de téléphone (SMS / OTP) — indicatif hors du champ ; l'API refuse partout (profil, envoi du code) un numéro qu'aucun SMS ne peut joindre : longueur sénégalaise fausse, `0` de préfixe national derrière l'indicatif (TCK-566, TCK-574) |
 | P1 | §2.1 | OAuth Google (Socialite) |
 | P1 | §2.1 | Authentification à deux facteurs (TOTP + codes de récupération) |
 | P1 | §2.1 | Gestion des sessions actives |
 | P2 | §2.1 | Suppression de compte avec anonymisation (RGPD) |
-| P2 | §2.1 | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) |
+| P2 | §2.1 | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) — une demande par 24 h ; statut suivi jusqu'à la fin de la préparation ; e-mail de fin dans la langue du compte (TCK-567, TCK-575) |
 | P2 | §2.1 | OAuth Facebook / Apple |
 | P3 | §2.1 | Magic link de connexion |
 | P0 | §2.1 | Liste des profils du compte (`GET /api/me/profiles`) |
@@ -652,8 +656,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **239** lignes de fonctionnalité lues,
-  réparties en **293** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **241** lignes de fonctionnalité lues,
+  réparties en **297** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

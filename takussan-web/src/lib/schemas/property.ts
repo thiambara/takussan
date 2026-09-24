@@ -82,10 +82,17 @@ export const propertyFormSchema = z.object({
   contract_type: z.enum(contractTypeValues, {
     error: msgValidation('property.contractTypeRequired'),
   }),
-  price: z.coerce
-    .number({ error: msgValidation('property.priceRequired') })
-    .positive(msgValidation('property.pricePositive'))
-    .max(1_000_000_000_000, msgValidation('property.priceUnrealistic')),
+  // TCK-564 — le prix se saisit dans `FormAmountInput`, qui remet un champ VIDÉ en `null`.
+  // `z.coerce.number` lit `null` (et `''`) comme 0, et l'écran disait « doit être supérieur à 0 »
+  // à qui venait d'effacer le prix : le vide redevient `undefined`, que la coercition refuse
+  // comme ABSENT (`NaN`) — d'où « Le prix est requis. ». 0 saisi reste « supérieur à 0 ».
+  price: z.preprocess(
+    (v) => (v === null || (typeof v === 'string' && v.trim() === '') ? undefined : v),
+    z.coerce
+      .number({ error: msgValidation('property.priceRequired') })
+      .positive(msgValidation('property.pricePositive'))
+      .max(1_000_000_000_000, msgValidation('property.priceUnrealistic')),
+  ),
   currency: z.enum(currencyValues).default('XOF'),
   rent_period: z.enum(rentPeriodValues).optional(),
   title_type: z.enum(titleTypeValues).optional(),

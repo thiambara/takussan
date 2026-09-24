@@ -34,10 +34,12 @@ function renderWizard({
   initialData = { title: '', rooms: 0 },
   onComplete = vi.fn(),
   debounceMs = 20,
+  relireBrouillon,
 }: {
   initialData?: Data;
   onComplete?: () => void | Promise<void>;
   debounceMs?: number;
+  relireBrouillon?: (data: Data) => Data;
 } = {}) {
   const arbre = (monte: boolean) => (
     <NextIntlClientProvider locale="fr" messages={messages}>
@@ -47,6 +49,7 @@ function renderWizard({
             storageKey="host-individual-wizard"
             initialData={initialData}
             debounceMs={debounceMs}
+            relireBrouillon={relireBrouillon}
             steps={[
               {
                 id: 'title',
@@ -381,11 +384,31 @@ describe('TCK-483 — le garde du toast lit une valeur vivante', () => {
   });
 
   it('AC1 (contre-épreuve) — démontage ordinaire sans rien en attente : le toast part TOUJOURS', async () => {
+    // TCK-566 — ce test ouvrait l'assistant VIERGE et comptait sur l'écriture
+    // que l'hydratation mettait en attente : c'était elle, et non une saisie,
+    // que le `flush()` du démontage écrivait. Cette écriture-là était le défaut
+    // (une démarche « à reprendre » sans une ligne saisie). La contre-épreuve
+    // porte désormais sur un brouillon qui EXISTE : rien en attente, `flush()`
+    // rend `{ ok: true, ecrit: false }`, et le toast part — le garde ne doit
+    // pas devenir un interrupteur qui l'éteint en général.
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+      const method = (init as RequestInit | undefined)?.method ?? 'GET';
+      if (method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: { id: 1, key: 'host-individual-wizard', step: 0, data: { title: 'Studio', rooms: 0 }, updated_at: 'now' },
+          }),
+        };
+      }
+      if (method === 'DELETE') return { ok: true, status: 204, json: async () => null };
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    }) as unknown as typeof fetch;
+
     const { demonterAssistant } = renderWizard({ debounceMs: 5000 });
     await tick();
 
-    // Aucune saisie : `flush()` rend `{ ok: true, ecrit: false }`. Le garde ne
-    // doit pas devenir un interrupteur qui éteint le toast en général.
     demonterAssistant();
     await tick(80);
 
@@ -481,5 +504,277 @@ describe('TCK-483 — le garde du toast lit une valeur vivante', () => {
 
     expect(poses).toHaveLength(1);
     expect(deposes).toHaveLength(1);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// TCK-566 — ouvrir un parcours sans rien saisir ne crée AUCUNE démarche
+//
+// Retour testeur du 2026-09-23 : « J'ai seulement cliqué sur la notification
+// (passer en pro) ; je n'ai pas renseigné une seule ligne et on me dit
+// "reprendre là où j'en étais". » L'autosave écrivait l'état VIERGE dès
+// l'hydratation : 800 ms après l'ouverture, un PUT créait côté serveur un
+// brouillon que le bandeau du tableau de bord présentait comme une démarche
+// en cours. Un brouillon n'existe désormais que si l'état diffère de celui
+// que l'assistant affichait à l'ouverture.
+// ────────────────────────────────────────────────────────────────────────────
+describe('TCK-566 — pas de brouillon sans saisie', () => {
+  function moquer(get: { step: number; data: Data } | null): ReturnType<typeof vi.fn> {
+    const mock = vi.fn().mockImplementation(async (_url, init) => {
+      const method = (init as RequestInit | undefined)?.method ?? 'GET';
+      if (method === 'GET') {
+        return get
+          ? {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                data: { id: 1, key: 'host-individual-wizard', ...get, updated_at: 'now' },
+              }),
+            }
+          : { ok: false, status: 404, json: async () => ({}) };
+      }
+      if (method === 'PUT') {
+        const body = JSON.parse(((init as RequestInit).body as string) ?? '{}');
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: { id: 1, key: 'host-individual-wizard', step: body.step, data: body.data, updated_at: 'now' },
+          }),
+        };
+      }
+      if (method === 'DELETE') return { ok: true, status: 204, json: async () => null };
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    globalThis.fetch = mock as unknown as typeof fetch;
+    return mock;
+  }
+
+  const appels = (mock: ReturnType<typeof vi.fn>, verbe: string) =>
+    mock.mock.calls.filter((c) => (c[1]?.method ?? 'GET') === verbe);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('ouvrir l’assistant et attendre au-delà du débounce : aucun PUT', async () => {
+    const mock = moquer(null);
+    renderWizard({ debounceMs: 20 });
+    // DEUX attentes, et c'est mesuré : `act()` ne vide sa file qu'à sa sortie,
+    // donc l'effet d'autosave qui suit l'hydratation n'arme son minuteur qu'à
+    // la fin de la première. Une seule attente, même longue, laissait passer le
+    // défaut (vert sans le correctif).
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+    expect(appels(mock, 'DELETE')).toHaveLength(0);
+  });
+
+  it('quitter sans rien avoir saisi : aucun PUT, et aucun « Progression sauvegardée »', async () => {
+    const mock = moquer(null);
+    const { demonterAssistant } = renderWizard({ debounceMs: 5000 });
+    await tick();
+
+    demonterAssistant();
+    await tick(80);
+
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+    // Annoncer une progression sauvegardée là où rien n'a été saisi, c'est le
+    // même message que la carte « Reprenez là où vous vous étiez arrêté ».
+    expect(screen.queryByText('Progression sauvegardée')).not.toBeInTheDocument();
+  });
+
+  it('une saisie écrit le brouillon ; l’effacer jusqu’à l’état vierge le supprime', async () => {
+    const mock = moquer(null);
+    renderWizard({ debounceMs: 20 });
+    await tick();
+
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Studio' } });
+    await tick(120);
+    expect(appels(mock, 'PUT').length).toBeGreaterThanOrEqual(1);
+
+    const putsAvant = appels(mock, 'PUT').length;
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: '' } });
+    await tick(120);
+
+    expect(appels(mock, 'DELETE')).toHaveLength(1);
+    // Et l'état vierge n'est pas RÉÉCRIT par-dessus la suppression.
+    expect(appels(mock, 'PUT')).toHaveLength(putsAvant);
+  });
+
+  it('un brouillon vierge hérité de l’ancien comportement est supprimé à l’ouverture', async () => {
+    const mock = moquer({ step: 0, data: { title: '', rooms: 0 } });
+    renderWizard({ debounceMs: 20 });
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'DELETE')).toHaveLength(1);
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+  });
+
+  // ⚠ Ce que le SERVEUR rendait jusqu'à TCK-574 : le middleware
+  // `ConvertEmptyStringsToNull` de l'API enregistrait chaque `''` en `null`
+  // (mesuré : PUT `{ title: '' }` puis GET → `{ title: null }`). C'est le cas du
+  // compte du testeur, et de tout brouillon écrit avant TCK-574 : il reste en
+  // base, donc la tolérance reste. Depuis TCK-574, l'API rend le `''` envoyé
+  // (cas ci-dessus).
+  it('un brouillon vierge hérité, tel que le serveur le rend (null), est supprimé à l’ouverture', async () => {
+    const mock = moquer({ step: 0, data: { title: null, rooms: 0 } as unknown as Data });
+    renderWizard({ debounceMs: 20 });
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'DELETE')).toHaveLength(1);
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('');
+  });
+
+  it('un brouillon réel relu n’est pas réécrit à l’identique à l’ouverture', async () => {
+    const mock = moquer({ step: 0, data: { title: 'Existant', rooms: 2 } });
+    renderWizard({ debounceMs: 20 });
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+  });
+
+  // Le vérificateur l'a soupçonné sans le prouver : `data` est figé par
+  // `useState(initialData)` au MONTAGE, alors que l'état vierge était calculé
+  // depuis `initialData` à l'HYDRATATION. Si `initialData` change entre les deux
+  // (l'utilisateur ou l'indicatif géolocalisé qui arrivent après le premier
+  // rendu, pendant que le GET du brouillon est en vol), l'état affiché diffère
+  // de l'« état vierge » et un brouillon s'écrit sans aucune saisie.
+  it('un initialData qui change pendant le chargement du brouillon ne crée aucun brouillon', async () => {
+    let rendreGet: (reponse: unknown) => void = () => {};
+    const mock = vi.fn().mockImplementation(async (_url, init) => {
+      const method = (init as RequestInit | undefined)?.method ?? 'GET';
+      if (method === 'GET') {
+        return new Promise((resolve) => {
+          rendreGet = resolve;
+        });
+      }
+      if (method === 'DELETE') return { ok: true, status: 204, json: async () => null };
+      return { ok: true, status: 200, json: async () => ({ data: null }) };
+    });
+    globalThis.fetch = mock as unknown as typeof fetch;
+
+    const arbre = (initialData: Data) => (
+      <NextIntlClientProvider locale="fr" messages={messages}>
+        <ToastProvider>
+          <WizardReprenable<Data>
+            storageKey="host-individual-wizard"
+            initialData={initialData}
+            debounceMs={20}
+            steps={[
+              {
+                id: 'title',
+                title: 'Titre',
+                render: ({ data, setData }) => (
+                  <input
+                    aria-label="title"
+                    value={data.title}
+                    onChange={(e) => setData({ ...data, title: e.target.value })}
+                  />
+                ),
+              },
+            ]}
+            onComplete={vi.fn()}
+          />
+        </ToastProvider>
+      </NextIntlClientProvider>
+    );
+
+    const { rerender } = render(arbre({ title: '', rooms: 0 }));
+    // L'utilisateur arrive : l'assistant recalcule son squelette.
+    rerender(arbre({ title: 'Awa Diop', rooms: 0 }));
+    await act(async () => {
+      rendreGet({ ok: false, status: 404, json: async () => ({}) });
+    });
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+    // Et c'est le squelette À JOUR qui s'affiche, pas celui du premier rendu.
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('Awa Diop');
+  });
+
+  // Relevé par le vérificateur : un brouillon écrit sous un ANCIEN
+  // comportement (le téléphone de l'assistant hôte amorcé à `+221`) n'a pas la
+  // forme de l'état vierge actuel. Réinjecté brut, il n'était jamais reconnu
+  // comme vierge, donc jamais supprimé. `relireBrouillon` le remet dans la
+  // forme d'aujourd'hui AVANT la comparaison.
+  it('relireBrouillon s’applique avant la comparaison : un fantôme hérité est supprimé', async () => {
+    const mock = moquer({ step: 0, data: { title: '+221', rooms: 0 } });
+    renderWizard({
+      debounceMs: 20,
+      relireBrouillon: (d) => ({ ...d, title: d.title === '+221' ? '' : d.title }),
+    });
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'DELETE')).toHaveLength(1);
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('');
+  });
+
+  it('relireBrouillon ne touche pas l’état vierge : sans brouillon, rien n’est écrit', async () => {
+    const relire = vi.fn((d: Data) => d);
+    const mock = moquer(null);
+    renderWizard({ debounceMs: 20, relireBrouillon: relire });
+    await tick();
+    await tick(150);
+
+    expect(relire).not.toHaveBeenCalled();
+    expect(appels(mock, 'PUT')).toHaveLength(0);
+  });
+
+  // Relevé par le vérificateur (passe 3, mutation M5) : `relireBrouillon`
+  // s'applique au résultat de la FUSION, jamais au brouillon brut. Un `null`
+  // rendu par le serveur est un champ absent pour `mergeDraft`, qui garde
+  // alors la valeur de l'état initial ; relu avant, il deviendrait `''` et
+  // écraserait cette valeur.
+  it('relireBrouillon reçoit le brouillon DÉJÀ fusionné : un null serveur ne l’emporte pas', async () => {
+    const relire = vi.fn((d: Data) => ({
+      ...d,
+      title: typeof d.title === 'string' ? d.title : '',
+    }));
+    // Le serveur rend `null` là où le type attend une chaîne : c’est le sujet.
+    moquer({ step: 0, data: { title: null, rooms: 3 } as unknown as Data });
+    renderWizard({
+      debounceMs: 20,
+      initialData: { title: 'Du compte', rooms: 0 },
+      relireBrouillon: relire,
+    });
+    await tick();
+    await tick(150);
+
+    expect(relire).toHaveBeenCalledWith({ title: 'Du compte', rooms: 3 });
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('Du compte');
+  });
+
+  // TCK-574 — l'API rend désormais `''` tel quel. Un champ PRÉ-REMPLI que la
+  // personne a vidé doit donc revenir VIDE à la reprise : la fusion ne tient
+  // pour absent que `null` (brouillon d'avant TCK-574), jamais `''`. Une fusion
+  // qui sauterait aussi `''` ressusciterait la valeur effacée.
+  it('un champ pré-rempli vidé revient vide à la reprise (TCK-574)', async () => {
+    const mock = moquer({ step: 0, data: { title: '', rooms: 3 } });
+    renderWizard({ debounceMs: 20, initialData: { title: 'Du compte', rooms: 0 } });
+    await tick();
+    await tick(150);
+
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('');
+    // Ce n'est pas l'état vierge (qui porte « Du compte ») : le brouillon reste.
+    expect(appels(mock, 'DELETE')).toHaveLength(0);
+  });
+
+  it('un brouillon réel n’est ni supprimé ni perdu à l’ouverture', async () => {
+    const mock = moquer({ step: 0, data: { title: 'Existant', rooms: 2 } });
+    renderWizard({ debounceMs: 20 });
+    await tick();
+    await tick(150);
+
+    expect(appels(mock, 'DELETE')).toHaveLength(0);
+    expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('Existant');
   });
 });

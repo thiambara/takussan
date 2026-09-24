@@ -140,6 +140,42 @@ describe('PropertyForm — edit mode', () => {
     });
   });
 
+  it('TCK-564 — le prix se relit groupé à l’édition, et repart en NOMBRE sans séparateur', async () => {
+    const user = userEvent.setup();
+    renderForm(maison());
+
+    const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
+    expect(prix.value).toBe('85\u202f000\u202f000');
+
+    await user.clear(prix);
+    await user.type(prix, '90000000');
+    expect(prix.value).toBe('90\u202f000\u202f000');
+
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+    await waitFor(() => expect(updatePropertyAction).toHaveBeenCalledOnce());
+    const [, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [number, Record<string, unknown>];
+    expect(payload.price).toBe(90_000_000);
+  });
+
+  it('TCK-564 — le prix suit la devise CHOISIE : en euros, « 1500,5 » repart 1500,5, pas 15 005', async () => {
+    // Revue adverse : `currency={devise}` n'était gardé par aucun test de l'édition.
+    const user = userEvent.setup();
+    renderForm(maison());
+
+    await user.click(screen.getByRole('combobox', { name: /devise/i }));
+    await user.click(await screen.findByRole('option', { name: /euro/i }));
+
+    const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
+    await user.clear(prix);
+    await user.type(prix, '1500,5');
+    expect(prix.value).toBe('1\u202f500,5');
+
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+    await waitFor(() => expect(updatePropertyAction).toHaveBeenCalledOnce());
+    const [, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [number, Record<string, unknown>];
+    expect(payload).toMatchObject({ price: 1500.5, currency: 'EUR' });
+  });
+
   it('shows validation error when city is cleared', async () => {
     const user = userEvent.setup();
     renderForm(maison());

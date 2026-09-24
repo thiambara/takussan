@@ -6,7 +6,8 @@ import { type NoeudJsonLd, sansVides, urlAbsolue } from './jsonld';
  * Données structurées des profils publics — agence et agent (TCK-435).
  *
  * ════════════════════════════════════════════════════════════════════════════════════════════════
- * `RealEstateAgent` DES DEUX CÔTÉS, ET `Person` ÉCARTÉ POUR UNE RAISON PRÉCISE
+ * `RealEstateAgent` POUR L'AGENCE ET L'AGENT, ET `Person` ÉCARTÉ POUR UNE RAISON PRÉCISE
+ * (sauf pour un propriétaire : cf. TCK-573 plus bas)
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
  * Le réflexe, pour la fiche d'un agent, serait `Person` — c'en est une. Il est écarté parce que
@@ -34,6 +35,17 @@ import { type NoeudJsonLd, sansVides, urlAbsolue } from './jsonld';
  *   une intention.
  * · **Un champ que la page ne rend pas.** Le `telephone` est émis parce que les deux fiches
  *   publient un lien `tel:` (`ContactSheet`) ; il ne serait pas émis autrement.
+ *
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * UN PROPRIÉTAIRE EST UNE `Person` — TCK-573
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `/agents/{slug}` est aussi la fiche des PROPRIÉTAIRES qui publient (TCK-436, option b) — en
+ * développement, les 44 profils de l'index en sont. Les baliser `RealEstateAgent` affirmait aux
+ * moteurs un métier que la personne n'a pas. L'API dit désormais `public_role` ; un propriétaire
+ * (ou toute valeur autre que `agent`) est une `Person`. Ce nœud ne porte donc PAS la note, que
+ * `Person` ne peut pas porter (cf. ci-dessus) : ne rien affirmer vaut mieux qu'affirmer un faux
+ * métier pour pouvoir affirmer une note.
  */
 
 /** Une note agrégée, telle que l'API la sert et telle que `ReviewsSection` l'affiche. */
@@ -115,10 +127,31 @@ export type AgentPublie = {
   readonly avatar_url?: string | null;
   readonly agency?: { readonly name: string; readonly slug: string } | null;
   readonly reviews?: AvisPublics;
+  /** TCK-573 — `agent` pour un professionnel d'agence, `owner` pour un propriétaire. */
+  readonly public_role: 'agent' | 'owner';
 };
 
 export function jsonLdAgent(agent: AgentPublie, locale: Locale): NoeudJsonLd {
   const url = urlAbsolue(`/agents/${encodeURIComponent(agent.slug)}`, locale);
+  const address = agent.city
+    ? { '@type': 'PostalAddress', addressLocality: agent.city, addressCountry: 'SN' }
+    : undefined;
+
+  // Tout ce qui n'est pas explicitement `agent` est une personne : on n'affirme un métier que
+  // lorsque le serveur l'a dit.
+  if (agent.public_role !== 'agent') {
+    return sansVides({
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      '@id': url,
+      name: agent.full_name,
+      url,
+      description: agent.bio ?? undefined,
+      image: agent.avatar_url ?? undefined,
+      telephone: agent.phone ?? undefined,
+      address,
+    });
+  }
 
   return sansVides({
     '@context': 'https://schema.org',
@@ -131,9 +164,7 @@ export function jsonLdAgent(agent: AgentPublie, locale: Locale): NoeudJsonLd {
     telephone: agent.phone ?? undefined,
     // La spécialité est affichée dans le bandeau d'en-tête, à côté de la ville.
     knowsAbout: agent.specialty ?? undefined,
-    address: agent.city
-      ? { '@type': 'PostalAddress', addressLocality: agent.city, addressCountry: 'SN' }
-      : undefined,
+    address,
     // `parentOrganization` et non `worksFor` : ce dernier est une propriété de `Person`, et le
     // nœud est un `LocalBusiness`. La fiche affiche bien « agent chez <agence> », avec un lien.
     parentOrganization: agent.agency

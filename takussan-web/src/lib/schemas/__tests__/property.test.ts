@@ -29,6 +29,26 @@ describe('propertyFormSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  // TCK-564 — le prix se saisit dans `FormAmountInput`, qui remet un champ VIDÉ au formulaire en
+  // `null`. `z.coerce.number` lisait `null` comme 0 : le testeur qui efface le prix lisait « Le
+  // prix doit être supérieur à 0. » au lieu de « Le prix est requis. ».
+  it.each([[null], [undefined], [''], ['   ']])('an emptied price (%j) is REQUIRED, not "must be > 0"', (price) => {
+    const result = propertyFormSchema.safeParse({ ...baseValid, price });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === 'price');
+      expect(issue?.message).toBe('validation.property.priceRequired');
+    }
+  });
+
+  it('a zero price still says "must be > 0"', () => {
+    const result = propertyFormSchema.safeParse({ ...baseValid, price: 0 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('validation.property.pricePositive');
+    }
+  });
+
   it('requires a known type', () => {
     const result = propertyFormSchema.safeParse({
       ...baseValid,

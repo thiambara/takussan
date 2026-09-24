@@ -283,8 +283,15 @@ const FICHIERS_HORS_JETONS = 5;
  * place exacte), sans fond propre — le fond est le `bg-popover` du panneau. Les puces de
  * catégorie retirées du menu n'étaient pas comptées (classes dans un gabarit conditionnel).
  * `FavoritesPopover` reste à 6, `ui/sheet` à 2.
+ *
+ * **245 → 246 le 2026-09-23 (TCK-561).** `compare/CompareFloatingBar.tsx` passe de 5 à 6 entrées,
+ * relevé par `couplesDesFichiers` sur la version de `HEAD` puis sur la nouvelle : le CHEVRON de la
+ * pastille du comparateur réduit (`text-muted-foreground`, `aria-hidden`), sans fond propre — le
+ * fond est le `bg-card/95` de la pastille, son parent direct. Les autres fichiers modifiés du lot
+ * qui gagnent des entrées (`RetourAuth`, messagerie, confidentialité, `ui/phone-input`) sont hors
+ * de la surface publique : ce compte ne les voit pas.
  */
-const ENCRES_INVERSES = 245;
+const ENCRES_INVERSES = 246;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

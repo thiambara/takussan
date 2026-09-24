@@ -56,6 +56,11 @@ export type Booking = {
   confirmed_at?: string | null;
   cancelled_at?: string | null;
   expires_at?: string | null;
+  /**
+   * TCK-575 — l'échéance RÉELLE d'une demande en attente : le seuil de l'agence ou `expires_at`, la
+   * première échue (`BookingExpirationService::responseDeadline`). `null` : rien ne la fera expirer.
+   */
+  response_deadline?: string | null;
   expired_at?: string | null;
   cancellation_reason?: string | null;
   price_at_booking: number | null;

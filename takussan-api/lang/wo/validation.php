@@ -173,6 +173,10 @@ return [
     // ── Propres au dépôt ────────────────────────────────────────────────────────────────────
     'rules' => [
         'phone' => 'Nimerow tëlefon bi war na doon bu baax (ci misaal +221 77 123 45 67 walla 771234567).',
+        // TCK-566 — nimero bi ñuy yónne kódu SMS : E.164, indicatif bi ci kanam.
+        'phone_e164' => 'Nimerow tëlefon bi war na tàmbalee ak indicatif bi (ci misaal +221 77 123 45 67).',
+        // TCK-574 — un 0 de préfixe national derrière l'indicatif.
+        'phone_trunk_prefix' => 'Nimerow tëlefon bi warul am 0 ginnaaw indicatif bi : +33 06 12 34 56 78, dañu koy bind +33 6 12 34 56 78.',
         'currency' => 'Xaalisu waxe bi war na bokk ci : :allowed.',
         'date_range' => 'Bés bi war na doon walla ëpp :start.',
         'strong_password' => 'Baatu-jubluwaay war na am 8 araf walla lu ko ëpp, ànd ak araf bu mag, araf bu ndaw, limam, ak araf bu jëm.',

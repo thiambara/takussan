@@ -28,7 +28,6 @@ import {
   elementsDeCarte,
   indexerLesBiens,
   zoomQuiSepare,
-  type IndexDesBiens,
 } from './regroupement';
 
 /**
@@ -209,6 +208,47 @@ function lireLaVue(map: LeafletMap): { emprise: [number, number, number, number]
 }
 
 /**
+ * TCK-562 (W2) — ce qui porte l'aperçu OUVERT, figé hors du regroupement jusqu'à sa fermeture.
+ *
+ * Ouvrir un aperçu déplace la vue (`autoPan` de Leaflet) : nouvelles bornes, nouvelle réponse de
+ * `/map`, nouvel index. Sans épingle, le marqueur qui porte l'aperçu pouvait être démonté par ce
+ * seul rechargement — et Leaflet ferme l'aperçu d'un marqueur retiré : « il se referme tout seul »
+ * (retour du 2026-09-23). Deux chemins y menaient :
+ *
+ *  - un bien isolé ABSORBÉ par une grappe, quand la nouvelle réponse apporte un voisin qui était
+ *    juste hors de la vue — le cas même d'un bien au bord, celui dont l'aperçu fait bouger la carte ;
+ *  - une grappe ouverte en liste qui change d'identifiant : `supercluster` numérote ses grappes à
+ *    partir du NOMBRE de points indexés, un bien de plus suffit.
+ *
+ * L'élément épinglé est retiré de l'index — les comptes restent justes, aucun bien n'est posé deux
+ * fois — et posé tel qu'il était à l'ouverture, sous la MÊME clé React : l'épingler ne le démonte
+ * pas. Fermé, il retourne au regroupement.
+ */
+type Epingle =
+  | { readonly genre: 'bien'; readonly feature: PropertyMapFeature }
+  | {
+      readonly genre: 'liste';
+      readonly biens: PropertyMapFeature[];
+      readonly position: [number, number];
+    };
+
+function idsEpingles(epingle: Epingle | null): number[] {
+  if (epingle === null) return [];
+  return epingle.genre === 'bien'
+    ? [epingle.feature.properties.id]
+    : epingle.biens.map((f) => f.properties.id);
+}
+
+/**
+ * La clé d'une grappe qui s'ouvre en liste : ses biens, et non l'identifiant de `supercluster`,
+ * qui change à chaque nouvel index. Les grappes d'un index sont disjointes : le plus petit
+ * identifiant suffit à les distinguer.
+ */
+function cleDeListe(biens: readonly PropertyMapFeature[]): string {
+  return `liste-${Math.min(...biens.map((f) => f.properties.id))}`;
+}
+
+/**
  * TCK-553 — ce que la carte pose : des grappes aux zooms larges, les étiquettes de prix (TCK-162)
  * une fois les biens assez séparés pour être lus et touchés. Le calcul vit dans `regroupement.ts`.
  */
@@ -219,11 +259,16 @@ function CoucheDesBiens({
   features: PropertyMapFeature[];
   onMarkerClick?: (feature: PropertyMapFeature) => void;
 }) {
-  const t = useTranslations('map');
-  const markerAlt = t('markerAlt');
+  const [epingle, setEpingle] = useState<Epingle | null>(null);
   // L'index porte une SÉMANTIQUE, pas une optimisation : les identifiants de grappes qu'il
-  // attribue ne valent que pour lui. Il se refait quand la réponse change, pas à chaque zoom.
-  const index = useMemo(() => indexerLesBiens(features), [features]);
+  // attribue ne valent que pour lui. Il se refait quand la réponse change, ou l'épingle — pas à
+  // chaque zoom.
+  const index = useMemo(() => {
+    const ecartes = new Set(idsEpingles(epingle));
+    return indexerLesBiens(
+      ecartes.size === 0 ? features : features.filter((f) => !ecartes.has(f.properties.id)),
+    );
+  }, [features, epingle]);
   // La carte existe déjà quand ses enfants se rendent (react-leaflet ne les monte qu'après) : la
   // première lecture se fait à l'initialisation, sans effet.
   const map = useMap();
@@ -233,79 +278,182 @@ function CoucheDesBiens({
     zoomend: () => setVue(lireLaVue(map)),
   });
 
-  return elementsDeCarte(index, vue.emprise, vue.zoom).map((element) => {
-    if (element.genre === 'grappe') {
-      return (
-        <MarqueurDeGrappe
-          key={`grappe-${element.id}`}
-          index={index}
-          id={element.id}
-          position={[element.lat, element.lng]}
-          nombre={element.nombre}
-        />
-      );
-    }
-    const feature = element.feature;
-    const p = feature.properties;
-    const currency = p.currency ?? 'XOF';
-    const fullPrice = formatPrice(p.price, currency);
+  // Une fermeture ne lève que SA propre épingle : ouvrir un autre aperçu ferme le précédent
+  // (`autoClose`), et l'ordre des deux événements ne doit pas décider de l'épingle restante.
+  // Leaflet 1.9.4 livre la fermeture de l'ancien AVANT l'ouverture du nouveau (`Popup.openOn`) :
+  // la garde ne décide de rien avec cet ordre-là, elle empêche d'en dépendre — tests « fermeture
+  // tardive » de `PropertyMap.popup.test.tsx`.
+  const epinglerLeBien = (feature: PropertyMapFeature) => setEpingle({ genre: 'bien', feature });
+  const desepinglerLeBien = (id: number) =>
+    setEpingle((e) => (e?.genre === 'bien' && e.feature.properties.id === id ? null : e));
+  const epinglerLaListe = (biens: PropertyMapFeature[], position: [number, number]) =>
+    setEpingle({ genre: 'liste', biens, position });
+  const desepinglerLaListe = (cle: string) =>
+    setEpingle((e) => (e?.genre === 'liste' && cleDeListe(e.biens) === cle ? null : e));
+
+  const marqueurDeBien = (feature: PropertyMapFeature) => (
+    <MarqueurDeBien
+      key={`bien-${feature.properties.id}`}
+      feature={feature}
+      onMarkerClick={onMarkerClick}
+      onOuverture={() => epinglerLeBien(feature)}
+      onFermeture={() => desepinglerLeBien(feature.properties.id)}
+    />
+  );
+  const marqueurDeListe = (biens: PropertyMapFeature[], position: [number, number]) => {
+    const cle = cleDeListe(biens);
     return (
-      <Marker
-        key={`bien-${p.id}`}
-        position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
-        icon={createPriceIcon(p.price, currency, fullPrice)}
-        alt={`${markerAlt} — ${fullPrice}`}
-        title={fullPrice}
-        eventHandlers={{
-          click: () => onMarkerClick?.(feature),
-        }}
-      >
-        <Popup>
-          <MapPopupCard feature={feature} />
-        </Popup>
-      </Marker>
+      <MarqueurDeListe
+        key={cle}
+        biens={biens}
+        position={position}
+        onOuverture={() => epinglerLaListe(biens, position)}
+        onFermeture={() => desepinglerLaListe(cle)}
+      />
+    );
+  };
+
+  // UN tableau plat de marqueurs à clé : un tableau imbriqué serait un autre niveau de
+  // réconciliation, et l'élément épinglé y serait remonté — donc son aperçu refermé.
+  const marqueurs = elementsDeCarte(index, vue.emprise, vue.zoom).map((element) => {
+    if (element.genre === 'bien') return marqueurDeBien(element.feature);
+    const position: [number, number] = [element.lat, element.lng];
+    const cible = zoomQuiSepare(index, element.id);
+    if (cible === null) return marqueurDeListe(biensDeLaGrappe(index, element.id), position);
+    return (
+      <MarqueurDeGrappe
+        key={`grappe-${element.id}`}
+        position={position}
+        nombre={element.nombre}
+        cible={cible}
+      />
     );
   });
+  if (epingle?.genre === 'bien') marqueurs.push(marqueurDeBien(epingle.feature));
+  if (epingle?.genre === 'liste') marqueurs.push(marqueurDeListe(epingle.biens, epingle.position));
+  return marqueurs;
 }
 
 /**
- * Un tap sur une grappe zoome jusqu'à la séparer (AC2). Une grappe qu'aucun zoom ne sépare — des
- * biens au même endroit, les appartements d'un immeuble — s'ouvre en liste à la place : sans quoi
- * elle serait une impasse.
+ * TCK-562 (W2) — la position d'un marqueur, STABLE d'un rendu à l'autre tant qu'elle ne change pas.
+ *
+ * react-leaflet compare `position` par identité : un tableau neuf à chaque rendu appelle
+ * `marker.setLatLng()`, qui relance l'`autoPan` de l'aperçu ouvert (`_movePopup` → `_adjustPan`),
+ * lequel ARRÊTE l'animation en cours — `moveend` synchrone → nouvelles bornes → nouveau rendu →
+ * nouveau `setLatLng`… Mesuré au navigateur sur l'épingle, code NON compilé : 14 413 `panBy` et
+ * 187 requêtes `/map` en cinq secondes pour UN aperçu ouvert. Même raison pour l'icône (`setIcon`
+ * remplace le HTML du marqueur) et le contenu de l'aperçu (react-leaflet appelle `popup.update()`
+ * quand il change).
+ *
+ * Le React Compiler (ADR-0015) mémoïse déjà ces valeurs dans le build — mesuré : aucune tempête
+ * compilé. La mémoïsation est écrite quand même parce qu'elle porte une SÉMANTIQUE (l'identité
+ * pilote Leaflet), et qu'une garantie qui ne tiendrait que par le compilateur tomberait avec lui :
+ * la suite de tests ne compile pas, et un composant qu'il abandonne perd tout.
  */
-function MarqueurDeGrappe({
-  index,
-  id,
-  position,
-  nombre,
+function usePosition(lat: number, lng: number): [number, number] {
+  return useMemo(() => [lat, lng], [lat, lng]);
+}
+
+function MarqueurDeBien({
+  feature,
+  onMarkerClick,
+  onOuverture,
+  onFermeture,
 }: {
-  index: IndexDesBiens;
-  id: number;
+  feature: PropertyMapFeature;
+  onMarkerClick?: (feature: PropertyMapFeature) => void;
+  onOuverture: () => void;
+  onFermeture: () => void;
+}) {
+  const t = useTranslations('map');
+  const p = feature.properties;
+  const currency = p.currency ?? 'XOF';
+  const fullPrice = formatPrice(p.price, currency);
+  const position = usePosition(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
+  const icone = useMemo(
+    () => createPriceIcon(p.price, currency, fullPrice),
+    [p.price, currency, fullPrice],
+  );
+  const apercu = useMemo(() => <MapPopupCard feature={feature} />, [feature]);
+  return (
+    <Marker
+      position={position}
+      icon={icone}
+      alt={`${t('markerAlt')} — ${fullPrice}`}
+      title={fullPrice}
+      eventHandlers={{
+        click: () => onMarkerClick?.(feature),
+        popupopen: onOuverture,
+        popupclose: onFermeture,
+      }}
+    >
+      <Popup>{apercu}</Popup>
+    </Marker>
+  );
+}
+
+/** Un tap sur une grappe zoome jusqu'à la séparer (AC2). */
+function MarqueurDeGrappe({
+  position: positionRecue,
+  nombre,
+  cible,
+}: {
   position: [number, number];
   nombre: number;
+  cible: number;
 }) {
   const t = useTranslations('map');
   const map = useMap();
-  const cible = zoomQuiSepare(index, id);
-  const libelle = cible === null ? t('clusterList', { count: nombre }) : t('clusterZoom', { count: nombre });
+  const position = usePosition(positionRecue[0], positionRecue[1]);
+  const libelle = t('clusterZoom', { count: nombre });
+  const icone = useMemo(() => createClusterIcon(nombre, libelle), [nombre, libelle]);
 
   return (
     <Marker
       position={position}
-      icon={createClusterIcon(nombre, libelle)}
+      icon={icone}
       title={libelle}
       alt={libelle}
       eventHandlers={{
-        click: () => {
-          if (cible !== null) map.flyTo(position, cible);
-        },
+        click: () => map.flyTo(position, cible),
+      }}
+    />
+  );
+}
+
+/**
+ * Une grappe qu'aucun zoom ne sépare — des biens au même endroit, les appartements d'un immeuble —
+ * s'ouvre en liste à la place : sans quoi elle serait une impasse.
+ */
+function MarqueurDeListe({
+  biens,
+  position: positionRecue,
+  onOuverture,
+  onFermeture,
+}: {
+  biens: PropertyMapFeature[];
+  position: [number, number];
+  onOuverture: () => void;
+  onFermeture: () => void;
+}) {
+  const t = useTranslations('map');
+  const position = usePosition(positionRecue[0], positionRecue[1]);
+  const libelle = t('clusterList', { count: biens.length });
+  const icone = useMemo(() => createClusterIcon(biens.length, libelle), [biens.length, libelle]);
+  const apercu = useMemo(() => <ListeDeLaGrappe biens={biens} />, [biens]);
+
+  return (
+    <Marker
+      position={position}
+      icon={icone}
+      title={libelle}
+      alt={libelle}
+      eventHandlers={{
+        popupopen: onOuverture,
+        popupclose: onFermeture,
       }}
     >
-      {cible === null && (
-        <Popup>
-          <ListeDeLaGrappe biens={biensDeLaGrappe(index, id)} />
-        </Popup>
-      )}
+      <Popup>{apercu}</Popup>
     </Marker>
   );
 }

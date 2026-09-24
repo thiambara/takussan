@@ -241,4 +241,13 @@ return [
     'threshold_alert' => [
         'title' => 'KPI alert — :metric',
     ],
+
+    // TCK-575 — GDPR export ready e-mail (see the fr file).
+    'data_export_ready' => [
+        'subject' => 'Your data export is ready',
+        'greeting' => 'Hello,',
+        'intro' => 'Your Takussan portability archive is ready.',
+        'action' => 'Open “My data”',
+        'expires' => '{1} You can download it from that page for :count day.|[2,*] You can download it from that page for :count days.',
+    ],
 ];

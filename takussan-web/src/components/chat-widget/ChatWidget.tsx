@@ -24,8 +24,8 @@ const MD_BREAKPOINT_PX = 768;
  * pill (not the open panel) so the comparator pill above us doesn't jump
  * 500 px when the user toggles the chat — standard Messenger / Intercom UX.
  */
-const CHAT_LAUNCHER_DESKTOP_HEIGHT_PX = 56; // size-14
-const CHAT_FAB_MOBILE_HEIGHT_PX = 48; // size-12
+const CHAT_LAUNCHER_DESKTOP_HEIGHT_PX = 56; // h-14
+const CHAT_FAB_MOBILE_HEIGHT_PX = 48; // h-12
 
 /**
  * TCK-274 — Floating messaging widget mounted once at the root layout.
@@ -40,6 +40,18 @@ const CHAT_FAB_MOBILE_HEIGHT_PX = 48; // size-12
  *     `ChatView` (`variant="widget"`). One conversation open at a time.
  *   - Mobile (< md): the desktop launcher is hidden via Tailwind, replaced
  *     by a circular FAB that simply navigates to `/app/messages`.
+ *
+ * TCK-565 — **les deux lanceurs portent leur NOM, « Messagerie », en toutes lettres.** Retour
+ * testeur du 2026-09-23 (M15) : le rond terracotta à bulle unique, sans texte, « fait penser à un
+ * assistant de service clientèle ». Il ouvre la messagerie de l'utilisateur — ses conversations
+ * avec des agents, des propriétaires, des locataires —, et rien à l'écran ne le disait : le nom
+ * n'existait que dans l'`aria-label`, donc pour les seuls lecteurs d'écran. Le libellé visible
+ * reprend le mot de l'entrée « Messagerie » de la barre latérale, qui porte la même icône : le
+ * bouton se lit comme un raccourci vers elle, pas comme un chatbot. La hauteur ne change pas
+ * (48 / 56 px), donc les créneaux du FloatingDock non plus ; seule la largeur croît.
+ * L'`aria-label` contient le libellé visible (WCAG 2.5.3, « label in name »), dans les trois
+ * langues : « Ouvrir la messagerie » ⊃ « Messagerie », « Open messaging » ⊃ « Messaging »,
+ * « Ubbil waxtaan » ⊃ « Waxtaan ».
  *
  * Polling: this component does not introduce any new query — `ConversationList`
  * already polls every 10 s through `useConversations`, and `ChatView` polls
@@ -269,11 +281,12 @@ export function ChatWidget() {
           aria-label={launcherAria}
           data-testid="chat-widget-launcher"
           className={cn(
-            'pointer-events-auto relative inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
+            'pointer-events-auto relative inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary pr-6 pl-5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
             open && 'scale-95',
           )}
         >
-          <MessageSquare className="size-5" aria-hidden />
+          <MessageSquare className="size-5 shrink-0" aria-hidden />
+          <span data-testid="chat-widget-launcher-label">{t('launcherLabel')}</span>
           {unread > 0 && (
             <span
               data-testid="chat-widget-badge"
@@ -295,9 +308,10 @@ export function ChatWidget() {
         aria-label={launcherAria}
         data-testid="chat-widget-mobile-fab"
         style={{ bottom: mobileSlot.bottom }}
-        className="fixed right-4 z-40 inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
+        className="fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary pr-5 pl-4 text-sm font-semibold text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
       >
-        <MessageSquare className="size-5" aria-hidden />
+        <MessageSquare className="size-5 shrink-0" aria-hidden />
+        <span data-testid="chat-widget-mobile-fab-label">{t('launcherLabel')}</span>
         {unread > 0 && (
           <span
             data-testid="chat-widget-mobile-badge"

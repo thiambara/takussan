@@ -14,6 +14,7 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\BrokerProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
@@ -276,6 +277,23 @@ class PublicAgencyController extends Controller
                 ->groupBy('user_id')
                 ->pluck('cnt', 'user_id');
 
+        // TCK-573 — l'équipe mêle des professionnels et des propriétaires qui publient sous
+        // l'enseigne (point 3 ci-dessus) : chacun y est présenté pour ce qu'il est.
+        $roles = PublicProfileFacts::rolesPublics($teamUserIds->map(fn ($id) => (int) $id)->all());
+
+        // …et « agent », sur la fiche d'une agence, veut dire agent DE CETTE AGENCE (reprise du
+        // 2026-09-24). `rolesPublics()` ne connaît aucune agence : un agent ou un admin actif de
+        // l'agence B qui publie ici, en bailleur, un bien sous l'enseigne A y était présenté en
+        // agent, et compté dans `stats.agents`. Le rôle retenu est la CONJONCTION : la règle
+        // publique, et un profil actif ici (ou un courtier, qui n'appartient à aucune agence).
+        $professionnelsIci = $teamUserIds->isEmpty()
+            ? collect()
+            : AgentProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
+                ->merge(AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id'))
+                ->merge(BrokerProfile::query()->whereIn('user_id', $teamUserIds)->pluck('user_id'))
+                ->map(fn ($id) => (int) $id)
+                ->flip();
+
         $agents = $teamUserIds->isEmpty()
             ? collect()
             : User::query()
@@ -283,13 +301,16 @@ class PublicAgencyController extends Controller
                 ->where('status', UserStatus::Active)
                 ->with(['agentProfiles' => fn ($q) => $q->where('agency_id', $agency->id)])
                 ->get()
-                ->map(function (User $u) use ($portfolioCounts) {
+                ->map(function (User $u) use ($portfolioCounts, $roles, $professionnelsIci) {
                     $profile = $u->agentProfiles->first();
 
                     return [
                         'id' => $u->id,
                         'slug' => $u->username,
                         'full_name' => trim($u->first_name.' '.$u->last_name),
+                        'public_role' => ($roles[(int) $u->id] ?? 'owner') === 'agent' && $professionnelsIci->has((int) $u->id)
+                            ? 'agent'
+                            : 'owner',
                         // Personal email of each team member is PII and was being
                         // exposed on an unauthenticated, slug-enumerable endpoint —
                         // a turnkey harvesting vector. Contact happens via the agency
@@ -330,7 +351,10 @@ class PublicAgencyController extends Controller
                     'rent_count' => $rentCount,
                     'sale_count' => $saleCount,
                     'cities' => $citiesCount,
-                    'agents' => $agents->count(),
+                    // TCK-573 — les AGENTS, pas l'équipe : avant, les propriétaires qui publient
+                    // sous l'enseigne y étaient comptés (Dakar Immo : 18 « agents », dont 11
+                    // propriétaires — mesuré le 2026-09-24).
+                    'agents' => $agents->where('public_role', 'agent')->count(),
                 ],
                 'agents' => $agents,
                 'portfolio_count' => $portfolio->count(),

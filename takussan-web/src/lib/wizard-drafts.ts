@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { brouillonUpgradeEstVierge } from './agency-upgrade-brouillon';
 import type {
   WizardDraft,
   WizardDraftListResponse,
@@ -77,9 +78,28 @@ export type WizardDraftBannerEntry = {
  * - A prefix entry like `owner-onboarding-` matches `owner-onboarding-{id}`
  *   and the matching function builds the URL from the trailing segment.
  */
+/**
+ * `estVierge` (TCK-566, facultatif) : dit si un brouillon de cette règle, relu,
+ * ne contient AUCUNE saisie — auquel cas ce n'est pas une démarche à reprendre.
+ * Seul un parcours dont l'état vierge ne dépend pas de l'utilisateur peut le
+ * fournir : l'état vierge des assistants d'onboarding porte des champs
+ * pré-remplis depuis le compte, que cette table ne connaît pas.
+ */
 type WizardResumeRule =
-  | { kind: 'exact'; key: string; href: string; i18nKey: string }
-  | { kind: 'prefix'; prefix: string; build: (suffix: string) => string; i18nKey: string };
+  | {
+      kind: 'exact';
+      key: string;
+      href: string;
+      i18nKey: string;
+      estVierge?: (draft: WizardDraft) => boolean;
+    }
+  | {
+      kind: 'prefix';
+      prefix: string;
+      build: (suffix: string) => string;
+      i18nKey: string;
+      estVierge?: (draft: WizardDraft) => boolean;
+    };
 
 const WIZARD_RESUME_RULES: WizardResumeRule[] = [
   {
@@ -137,6 +157,13 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     prefix: 'agency-upgrade-',
     build: (suffix) => `/app/settings/agency/upgrade?agency=${encodeURIComponent(suffix)}`,
     i18nKey: 'agency-upgrade',
+    // TCK-566 — retour testeur du 2026-09-23 : « J'ai seulement cliqué sur la
+    // notification (passer en pro) ; je n'ai pas renseigné une seule ligne et on
+    // me dit "reprendre là où j'en étais". » L'ancien autosave écrivait le
+    // formulaire VIDE à la seule ouverture ; ces brouillons existent encore en
+    // base (champs à `null`), et le formulaire ne les supprime qu'à sa prochaine
+    // ouverture. Le tableau de bord ne les propose donc plus d'ici là.
+    estVierge: (draft) => brouillonUpgradeEstVierge(draft.data),
   },
 ];
 
@@ -151,6 +178,19 @@ export function resolveWizardResume(key: string): { href: string | null; i18nKey
     }
   }
   return { href: null, i18nKey: null };
+}
+
+/**
+ * TCK-566 — un brouillon est-il une démarche à proposer à la reprise ? Faux pour
+ * un brouillon qu'aucune règle ne sait reprendre, et pour un brouillon que sa
+ * règle juge vierge (aucune saisie).
+ */
+export function estDemarcheAReprendre(draft: WizardDraft): boolean {
+  const regle = WIZARD_RESUME_RULES.find((rule) =>
+    rule.kind === 'exact' ? draft.key === rule.key : draft.key.startsWith(rule.prefix),
+  );
+  if (!regle) return false;
+  return !(regle.estVierge?.(draft) ?? false);
 }
 
 export function projectDraftForBanner(draft: WizardDraft): WizardDraftBannerEntry {

@@ -15,6 +15,11 @@ export interface AgentDto {
   id: number;
   slug: string;
   full_name: string;
+  /**
+   * TCK-573 — comment la personne est présentée : `agent` pour un professionnel d'agence,
+   * `owner` pour un propriétaire. `/agents/{slug}` sert les deux (TCK-436, option b).
+   */
+  public_role: 'agent' | 'owner';
   bio?: string | null;
   // TCK-441 — `email` N'EST PLUS servi par l'API : c'est l'adresse de CONNEXION de l'agent, et
   // elle a quitté la charge publique. Le contact passe par le formulaire anonyme de

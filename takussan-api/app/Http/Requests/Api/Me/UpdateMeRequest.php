@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Me;
 
+use App\Rules\TelephoneJoignable;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -37,7 +38,7 @@ class UpdateMeRequest extends FormRequest
         return [
             // Same E.164 contract as UpdateProfileRequest. Empty string is
             // accepted and treated as "clear" by the controller.
-            'phone' => ['sometimes', 'nullable', 'string', 'regex:/^(?:\+[1-9]\d{6,14})?$/'],
+            'phone' => ['sometimes', 'nullable', 'string', 'regex:/^(?:\+[1-9]\d{6,14})?$/', new TelephoneJoignable],
             'city' => ['sometimes', 'nullable', 'string', 'max:120'],
             // Free-form enum at the API layer — stored as a string. The
             // ranking pipeline (out of scope here, see TCK-253 hors-périmètre)
@@ -55,7 +56,7 @@ class UpdateMeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'phone.regex' => 'Le numéro doit être au format international E.164 (ex : +221770000000).',
+            'phone.regex' => __('validation.rules.phone_e164'),
         ];
     }
 }

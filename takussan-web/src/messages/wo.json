@@ -219,7 +219,7 @@
       "title": "Jóg ci pro",
       "pendingTitle": "Ñaan bi mi ngi dox",
       "body": "Ekib, ñu bare ñuy yilif, ak jumtukaay yu gën ngir ajaas yu pro.",
-      "pendingBody": "Sunu ekib dina ko seetlu ci 48h.",
+      "pendingBody": "Sunu ekib a ngi seetlu sa laaj ; dinga jot tontu bi ci e-mail.",
       "cta": "Xam lu ëpp",
       "pendingCta": "Gis li mu ëmb"
     },
@@ -261,7 +261,7 @@
     },
     "professionals": {
       "agencies": "Ajaas yi",
-      "agents": "Jaayekat yi"
+      "agents": "Ajaŋ ak boroom kër"
     },
     "legalHeading": "Xibaar yu yoon",
     "legal": {
@@ -301,7 +301,9 @@
       "emailRequired": "Fàww nga bind benn email bu baax.",
       "messageMin": "Sa bataaxal war na am lu mu néew 5 araf.",
       "messageMax": "Sa bataaxal mënul weesu 2000 araf."
-    }
+    },
+    "descriptionOwner": "Sa ay xibaar ñoo leen jox boroom kër gi. Soxlaalo kont.",
+    "successBodyOwner": "Boroom kër gi dina la jokkoo ci lu gàtt."
   },
   "homepage": {
     "h1": "Kër yu Senegaal",
@@ -389,7 +391,8 @@
     "layout": {
       "visualAlt": "Wiila bu bees ci Senegaal",
       "headline": "Sa buntu dugg ci kër yu Senegaal.",
-      "subheadline": "Junniy kër, jumtukaay bu rafet, nawle yu wóor."
+      "subheadline": "Junniy kër, jumtukaay bu rafet, nawle yu wóor.",
+      "back": "Dellu"
     },
     "twoFactorChallenge": {
       "title": "Ñaari yoon ngir seetlu",
@@ -624,7 +627,7 @@
             "multi_admin": "Multi-admins ngir ko yorr ci ñépp.",
             "custom_roles": "Bind fonctions personnalisés."
           },
-          "sla": "Réponse ci 5 fan."
+          "sla": "Sunu ekib dina seetlu bépp laaj ; dinga jot tontu bi ci e-mail ak ci say yégle."
         }
       },
       "form": {
@@ -705,7 +708,7 @@
       "statsAgents": "Ajaŋ yi",
       "license": "Lisaas nb. {number}",
       "teamEyebrow": "Ekib bi",
-      "teamHeading": "{count, plural, other {# ajaŋ ngir ànd ak yaw}}",
+      "teamHeading": "{count, plural, other {# nit ngir ànd ak yaw}}",
       "portfolioEyebrow": "Portfey bi",
       "portfolioHeading": "Kër yu ñu wone",
       "emptyTitle": "Amul kër bu ñu man a wone ba tey",
@@ -757,13 +760,14 @@
     },
     "table": {
       "ariaLabel": "Tàbloo méengal kër yi",
-      "header": "Kàllaama",
+      "header": "Tànneef",
       "unavailable": "Kër amul",
       "divergentTooltip": "Li ëpp ci kër yi wuute na",
       "divergentShort": "Wuute na"
     },
     "carousel": {
-      "ariaLabel": "Méengal mobil — daag ngir xool kër bu jàll"
+      "ariaLabel": "Méengalu kër yi, tànneef ak tànneef",
+      "headerAria": "Kër yi ñuy méengal"
     },
     "empty": {
       "title": "Tànn lu ëpp 2 kër",
@@ -778,7 +782,17 @@
       "removeAria": "Dindil këru #{id} ci comparateur bi",
       "clearAria": "Fommi méengal bi",
       "needOneMore": "Yokkal ñaareelu këru",
-      "removeNamedAria": "Dindil « {title} » ci comparateur bi"
+      "removeNamedAria": "Dindil « {title} » ci comparateur bi",
+      "collapseAria": "Wàññi méengal bi",
+      "expandAria": "Wone méengal bi — {count, plural, =1 {1 kër bu tànn} other {# kër yu tànn}}",
+      "collapsedCount": "{count}/{max}",
+      "clear": "Fommi",
+      "clearedTitle": "Fomm nañu méengal bi",
+      "clearedBody": "{count, plural, =1 {Dindi nañu 1 kër.} other {Dindi nañu # kër.}}",
+      "undo": "Bàyyi",
+      "addFromListAria": "Yokk benn kër : tànn ko ci lim bi",
+      "addBrowseAria": "Yokk benn kër : gis yégle yi",
+      "undoPartial": "{count, plural, =1 {Mënuñu delloo 1 kër} other {Mënuñu delloo # kër}} : lu ëpp {max} kër."
     },
     "button": {
       "full": "Dindil benn kër ngir yokk beneen.",
@@ -1024,7 +1038,8 @@
       "viewAll": "Gis lépp waxtaan",
       "unreadInline": "{count, plural, one {# bu jëkku jàng} other {# yu jëkku jàng}}",
       "chatBack": "Dellu ci waxtaan yi",
-      "manageGroup": "Jaaweel kuréel gi"
+      "manageGroup": "Jaaweel kuréel gi",
+      "launcherLabel": "Waxtaan"
     },
     "system": {
       "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
@@ -1055,14 +1070,12 @@
         "step1Description": "Yokk lu néew 2 nit (yaw lañu lay boole automatiquement).",
         "step2Description": "Joxal kuréel gi lépp lu am, te bind ko ci benn ber walla benn kontaaru waxtaanu (lu ñu bëgg).",
         "participantsLabel": "Ñi bokk",
-        "participantInputPlaceholder": "ID utilisateur",
-        "participantsHint": "Bind ID yi benn-benn. Server bi mooy seet permissions yi.",
+        "participantInputPlaceholder": "Seet ci tur…",
+        "participantsHint": "Ekip bu sa agence ak ñi nga waxtaanoon ak ñoom.",
         "add": "Yokk",
-        "removeParticipant": "Génn #{id}",
+        "removeParticipant": "Génne {name}",
         "minParticipants": "Lu néew {min} nit ci kuréel gi (boole yaw).",
         "maxParticipants": "Lu ëpp {max} nit ci kuréel gi.",
-        "duplicate": "Nit ki yokk nañu ko ba pare.",
-        "invalidId": "ID bu jaaxle.",
         "subjectLabel": "Sujet",
         "subjectRequired": "Sujet bi danu ko soxla.",
         "propertyLabel": "Ber (lu ñu bëgg)",
@@ -1071,7 +1084,24 @@
         "next": "Topp",
         "back": "Dellu",
         "create": "Sosal kuréel gi",
-        "createFailed": "Mënul sosal kuréel gi."
+        "createFailed": "Mënul sosal kuréel gi.",
+        "searching": "Mi ngi wut…",
+        "noContact": "Kenn méngoowul ak li nga seet.",
+        "noContactYet": "Amagoo kenn ku nga mën a woo.",
+        "contactsError": "Mënuñu indi sa jokkalekat yi.",
+        "retry": "Jéemaat",
+        "moreResults": "{shown} ci {total} — leeralal sa seet",
+        "selectedLabel": "Ñi nga tànn",
+        "propertyPlaceholder": "Tur walla référence…",
+        "leasePlaceholder": "Référence walla ber…",
+        "clearProperty": "Génne ber bi",
+        "clearLease": "Génne kontaaru lokal bi",
+        "noPropertyMatch": "Amul ber bu méngoo ak li nga seet.",
+        "noLeaseMatch": "Amul kontaaru lokal bu méngoo ak li nga seet.",
+        "contextError": "Mënuñu indi limu bi.",
+        "noPropertyYet": "Amagoo benn ber boo mën a boole.",
+        "noLeaseYet": "Amagoo benn kontaaru lokal boo mën a boole.",
+        "noLeaseForProperty": "Ber bii amul benn kontaaru lokal."
       },
       "info": {
         "title": "Xibaaru kuréel gi",
@@ -1081,9 +1111,7 @@
         "renameFailed": "Mënul tudd waaye.",
         "participantsHeading": "Ñi bokk ({count})",
         "addLabel": "Yokk benn nit",
-        "addPlaceholder": "ID utilisateur",
         "addFailed": "Mënul yokk.",
-        "add": "Yokk",
         "you": "yaw",
         "roleAdmin": "Admin",
         "roleMember": "Bokk",
@@ -1094,8 +1122,7 @@
         "unmute": "Ubbil notifications yi",
         "leave": "Génn ci kuréel gi",
         "lastAdminLeaveBlocked": "Yaw rekk a admin — promóte keneen ba pare gennal.",
-        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal.",
-        "invalidId": "ID bu jaaxle."
+        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal."
       }
     },
     "conversationTitleFallback": "Waxtaan #{id}",
@@ -2180,7 +2207,7 @@
           "devHint": "Kod dev: {code}",
           "sent": {
             "title": "Kod yónni nañu ko",
-            "body": "Kod bi mën na jot ba 60 segond.",
+            "body": "Kod bi dina dox 5 simili.",
             "bodyDebug": "Kod yónni nañu ko (debug: {code})."
           },
           "verified": {
@@ -2305,7 +2332,7 @@
           "devHint": "Code dev: {code}",
           "sent": {
             "title": "Code yónn na",
-            "body": "Code bi mën na jaar 60 segondas balaa mu jot.",
+            "body": "Kod bi dina dox 5 simili.",
             "bodyDebug": "Code yónn na (debug: {code})."
           },
           "verified": {
@@ -2416,7 +2443,9 @@
       "unavailableTitle": "Ajaŋ bi amul ba tey",
       "unavailableBody": "Mënunu jot katalog bi ci saa si. Ajaŋ bii mën na am ba tey — jéemaatal ci ay saa.",
       "unavailableMetaDescription": "Ajaŋ bi mënul a wone ci saa si. Jéemaatal ci ay saa.",
-      "back": "Dellu"
+      "back": "Dellu",
+      "metaTitleOwner": "{name} — Boroom kër",
+      "emptyBodyOwner": "Boroom kër bii mu ngi waajal ay yégle — ñëwaatal ci lu yàgg."
     }
   },
   "agentWelcome": {
@@ -2667,7 +2696,7 @@
           "devHint": "Code dev : {code}",
           "sent": {
             "title": "Code yónnee nañu",
-            "body": "Code bi mën na 60 segondes ngir ñëw.",
+            "body": "Kod bi dina dox 5 simili.",
             "bodyDebug": "Code yónnee (debug : {code})."
           },
           "verified": {
@@ -2798,7 +2827,7 @@
           },
           "professionalNotice": {
             "title": "Sos ajaans professionnelle",
-            "body": "Ngir sos ajaans ak ay collaborateurs, takkalal ak sunu ekip — danuy défar la espas bi diirub 24h.",
+            "body": "Ngir sos ajaans ak ay collaborateurs, takkalal ak sunu ekip : danuy défar sa espas bi ak yow.",
             "mailSubject": "Demande sos ajaans professionnelle",
             "contactCta": "Takkal ak support",
             "continueIndividual": "Walla continuer ni particulier te upgrader sutura"
@@ -2837,7 +2866,7 @@
             "verifyCta": "Véerifier",
             "verifying": "Véerifikoŋ…",
             "sentTitle": "Kódu yónni",
-            "sentBody": "Kódu bi mën na jaar ba 60 segond.",
+            "sentBody": "Kod bi dina dox 5 simili.",
             "sentDebug": "Kódu yónni (debug : {code}).",
             "verifiedTitle": "Telefoŋ véerifié",
             "verifiedBody": "Mën nga publi sa biir.",
@@ -3894,7 +3923,8 @@
       "unavailableTitle": "Këru bi amul ba tey",
       "unavailableBody": "Mënunu jot katalog bi ci saa si. Këru bi mën na am ba tey — jéemaatal ci ay saa.",
       "favoriteAddShort": "Yokk",
-      "favoriteSavedShort": "Cofeel"
+      "favoriteSavedShort": "Cofeel",
+      "descriptionLanguageNotice": "{langue, select, fr {Boroom yégle bi moo bind leeral bii ci farañse} en {Boroom yégle bi moo bind leeral bii ci àngale} wo {Boroom yégle bi moo bind leeral bii ci wolof} other {Boroom yégle bi moo bind leeral bii ci làkkam}}"
     },
     "reviews": {
       "title": "Xalaat yi",
@@ -4398,8 +4428,6 @@
         "area": "120",
         "yearBuilt": "2010",
         "parking": "2",
-        "priceSale": "25000000",
-        "priceRent": "350000",
         "period": "Weer wu nekk",
         "description": "Li nataal yi wonewul: gox bi, li ko wër, ak li ñu def bu yagul."
       },
@@ -4849,10 +4877,12 @@
       },
       "success": {
         "title": "Yónnee nañu ñaan bi !",
-        "body": "Sa ñaanu réservasioŋ ci <strong>{title}</strong> bind nañu ko. Boroom kër bi walla ajaŋ bi dina la jokkoo ci 48 waxtu.",
+        "body": "Sa ñaanu réservasioŋ ci <strong>{title}</strong> bind nañu ko.",
         "reference": "Nomboro",
         "total": "Lëmboo bu ñu xayma",
-        "viewBooking": "Gis sama réservasioŋ"
+        "viewBooking": "Gis sama réservasioŋ",
+        "deadline": "Boroom kër bi walla ajaŋ bi am na ba <strong>{date}</strong> ngir tontu ko. Su tontuwul ba keroog, ñaan bi dina jeex boppam.",
+        "noDeadline": "Dinga gis tontu boroom kër bi walla ajaŋ bi ci sa réservasioŋ."
       },
       "step1": {
         "title": "Say bés",
@@ -6387,7 +6417,7 @@
       "saving": "Mu ngi denc…",
       "saveError": "Coppite yi ci profil bi antuwul.",
       "saved": "Coppite yi ñu leen denc.",
-      "otpSent": "Kod bi ñu ko yónnee. Xoolal sa SMS (mën na jël ba 60s).",
+      "otpSent": "Kod bi ñu ko yónnee ci SMS. Dina dox 5 simili.",
       "otpSentDebug": "Kod bi ñu ko yónnee. (Debug : {code})",
       "phoneVerifiedOk": "Telefon bi ñu ko wóoral bu baax."
     },
@@ -7224,10 +7254,10 @@
       "descriptionCity": "Ajaas yu kër yi di génne kër ci {city} ci Takussan."
     },
     "agents": {
-      "title": "Ajaas yu kër ci Senegaal",
-      "description": "Xoolal ajaas ak jaayekat yu kër yi ngi liggéey ci Takussan : seen kër yi, dëkk yi ak xalaat yi.",
-      "titleCity": "Ajaas yu kër ci {city}",
-      "descriptionCity": "Ajaas ak jaayekat yu kër yi di génne kër ci {city} ci Takussan."
+      "title": "Ajaŋu kër ak boroom kër ci Senegaal",
+      "description": "Xoolal ajaŋu kër ak boroom kër yi di génne kër ci Takussan : seen kër yi, dëkk yi ak xalaat yi.",
+      "titleCity": "Ajaŋu kër ak boroom kër ci {city}",
+      "descriptionCity": "Ajaŋu kër ak boroom kër yi di génne kër ci {city} ci Takussan."
     }
   },
   "billing": {
@@ -7638,6 +7668,10 @@
     },
     "toast": {
       "close": "Tëj yégle bi"
+    },
+    "phoneInput": {
+      "hintNational": "Indicatif {indicatif} bi dugg na : bindal li ci des. Ci bitim-réew nga nekk ? Tàmbaleel ak +.",
+      "hintInternational": "Nimero bu mat, indicatif bi ci biir."
     }
   },
   "reporting": {
@@ -7787,7 +7821,11 @@
       "email": "Yónnee email",
       "call": "Woo",
       "contact": "Jokkoo",
-      "sheetDescription": "Tànnal fi nga bëgg a jokkoo."
+      "sheetDescription": "Tànnal fi nga bëgg a jokkoo.",
+      "leadDescriptionAgent": "Sa ay xibaar ñoo leen jox ajaŋ bii. Soxlaalo kont.",
+      "leadDescriptionOwner": "Sa ay xibaar ñoo leen jox boroom kër bii. Soxlaalo kont.",
+      "leadSuccessAgent": "Ajaŋ bi dina la jokkoo ci lu gàtt.",
+      "leadSuccessOwner": "Boroom kër gi dina la jokkoo ci lu gàtt."
     },
     "portfolio": {
       "filterAria": "Tànn ci portfey bi",
@@ -7815,8 +7853,12 @@
     },
     "team": {
       "propertiesCount": "{count, plural, one {# kër} other {# kër}}",
-      "prevAria": "Xool agent yi jiitu",
-      "nextAria": "Xool agent yi ci topp"
+      "prevAria": "Xool ñi jiitu",
+      "nextAria": "Xool ñi ci topp"
+    },
+    "roles": {
+      "agent": "Ajaŋu kër",
+      "owner": "Boroom kër"
     }
   },
   "privacy": {
@@ -7828,7 +7870,17 @@
       "rowTitle": "Génne #{id}",
       "requestedAt": "Ñaan nañu ko ci {date}",
       "expiresAt": " · dina jeex ci {date}",
-      "download": "Wàcce"
+      "download": "Wàcce",
+      "status": {
+        "queued": "Muy xaar",
+        "processing": "Ñu ngi koy waajal",
+        "ready": "Pare na",
+        "expired": "Jeex na",
+        "failed": "Antuwul"
+      },
+      "pendingHint": "Ñu ngi waajal sa arsiib. Dinga jot benn e-mail su pare.",
+      "throttled": "Ñaan nga ab génne ci 24 waxtu yii weesu. Mën nga ñaan beneen bu jóge {date}.",
+      "emptyHint": "Sa arsiib ZIP dina feeñ fii bu nga ko ñaanee."
     }
   },
   "charts": {
@@ -7846,7 +7898,9 @@
     }
   },
   "announcements": {
-    "dismissAria": "Nëbb yégle bi"
+    "dismissAria": "Nëbb yégle bi",
+    "maintenanceDismissAria": "Nëbb yégleb defar bi",
+    "maintenanceWindow": "Dale {debut} ba {fin}"
   },
   "publishRedirect": {
     "title": "Ñu ngi waajal sa yégle…",
@@ -7903,10 +7957,10 @@
       "emptyTitle": "Amul benn ajaas bu ànd"
     },
     "agents": {
-      "eyebrow": "Ajaas ak jaayekat",
+      "eyebrow": "Ajaŋ ak boroom kër",
       "heading": "Ñi nekk ci ginnaaw kër yi",
-      "intro": "Bépp profil bu nekk fii am na lu néew benn kër bu jot. Xamal seen kër yi, seen dëkk yi ak seen ajaas.",
-      "searchPlaceholder": "Turu jaayekat",
+      "intro": "Ajaŋu kër walla boroom kër, bépp profil bu nekk fii am na lu néew benn kër bu jot. Xamal seen kër yi, seen dëkk yi ak seen ajaas.",
+      "searchPlaceholder": "Tur walla sant",
       "count": "{count, plural, one {# profil} other {# profil}}",
       "emptyTitle": "Amul benn profil bu ànd"
     }

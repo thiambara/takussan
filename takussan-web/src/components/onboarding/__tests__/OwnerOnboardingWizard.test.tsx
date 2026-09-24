@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 
 import frMessages from '@/messages/fr.json';
@@ -23,9 +24,15 @@ vi.mock('@/app/actions/owner-onboarding', () => ({
 }));
 
 const refreshUser = vi.fn();
+// TCK-566 — mutable : le cas « aucun numéro enregistré » en a besoin.
+const UTILISATEUR_VERIFIE = {
+  phone: '+221770000000' as string | null,
+  phone_verified_at: new Date().toISOString() as string | null,
+};
+let utilisateur = UTILISATEUR_VERIFIE;
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
-    user: { phone: '+221770000000', phone_verified_at: new Date().toISOString() },
+    user: utilisateur,
     token: 'token',
     isLoading: false,
     setUser: vi.fn(),
@@ -43,9 +50,11 @@ vi.mock('next/navigation', () => ({
 
 // `useWizardDraft` autosaves drafts via fetch — short-circuit it so the
 // wizard hydrates with empty state and we can step through synchronously.
+// TCK-566 — piloté par test : le brouillon RELU est le sujet du dernier cas.
+let brouillon: { step: number; data: Record<string, unknown> } | null = null;
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
-    draft: null,
+    draft: brouillon,
     isLoading: false,
     save: vi.fn(),
     // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
@@ -144,5 +153,95 @@ describe('<OwnerOnboardingWizard>', () => {
     await waitFor(() => {
       expect(routerPush).toHaveBeenCalledWith('/app');
     });
+  });
+});
+
+/**
+ * TCK-566 — le numéro TAPÉ à cette étape n'était jamais envoyé : l'envoi du code
+ * appelait `phoneSendOtpAction()` sans argument, donc visait le numéro déjà
+ * enregistré — et, sans numéro enregistré, rendait « No phone number on file. »
+ * à quelqu'un qui venait de le taper. Le champ était un `<Input>` libre,
+ * indicatif à la charge de la personne.
+ */
+describe('<OwnerOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
+  const PHONE = frMessages.owners.onboarding.steps.phone;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    utilisateur = { phone: null, phone_verified_at: null };
+    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true } });
+  });
+
+  afterEach(() => {
+    utilisateur = UTILISATEUR_VERIFIE;
+    brouillon = null;
+  });
+
+  it('envoie le code au numéro TAPÉ, indicatif en tête', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
+
+    const champ = await screen.findByLabelText(PHONE.fields.phone);
+    await user.type(champ, '770000000', { initialSelectionStart: 0, initialSelectionEnd: 0 });
+    expect(champ).toHaveValue('770000000');
+
+    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
+    await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
+    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221770000000');
+  });
+
+  // Relevé par le vérificateur : seul l'assistant hôte gardait ce critère. Une
+  // régression vers `numero.trim() === ''` laissait partir « 7700000 » — sept
+  // chiffres, que l'API refuse désormais en 422 — sans qu'aucun test rougisse.
+  it('un numéro NON VIDE mais incomplet ne part pas : le bouton d’envoi reste inactif', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
+
+    const champ = await screen.findByLabelText(PHONE.fields.phone);
+    await user.type(champ, '7700000');
+    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
+    expect(envoyer).toBeDisabled();
+
+    await user.click(envoyer);
+    expect(phoneSendOtpAction).not.toHaveBeenCalled();
+
+    // Neuf chiffres après +221 : le numéro est composable, l'envoi s'ouvre.
+    await user.type(champ, '00');
+    expect(envoyer).toBeEnabled();
+  });
+
+  // Relevé par le vérificateur (déduit du code, reproduit ici) : seul
+  // `initialData` passait par `recomposerTelephone`. Un numéro relu d'un
+  // brouillon écrit par l'ancien champ libre — forme nationale, sans indicatif —
+  // s'affichait bien dans l'ordre, mais « Envoyer le code » restait INACTIF sans
+  // explication tant qu'on ne retouchait pas un chiffre.
+  it('un numéro relu d’un brouillon hérité, sans indicatif, est remis en E.164 et part', async () => {
+    brouillon = { step: 0, data: { phone: { number: '771234567', code: null, verified: false } } };
+    const user = userEvent.setup();
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
+
+    const champ = await screen.findByLabelText(PHONE.fields.phone);
+    expect(champ).toHaveValue('771234567');
+    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
+    expect(envoyer).toBeEnabled();
+
+    await user.click(envoyer);
+    await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
+    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221771234567');
+  });
+
+  // Relevé par le vérificateur (passe 3, mutation M5) : l'ORDRE « fusion, puis
+  // relecture » n'était gardé par aucun test. Le serveur rend `''` en `null`
+  // (ConvertEmptyStringsToNull) ; `mergeDraft` ignore un `null` et garde le
+  // numéro du compte. Relu AVANT la fusion, ce `null` devient `''`, que la
+  // fusion n'ignore plus : le numéro du compte est effacé du champ.
+  it('un téléphone null dans un brouillon hérité n’efface pas le numéro du compte', async () => {
+    utilisateur = { phone: '+221770000000', phone_verified_at: null };
+    brouillon = { step: 0, data: { phone: { number: null, code: null, verified: false } } };
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
+
+    const champ = await screen.findByLabelText(PHONE.fields.phone);
+    expect(champ).toHaveValue('770000000');
+    expect(screen.getByRole('button', { name: PHONE.sendCta })).toBeEnabled();
   });
 });

@@ -58,6 +58,22 @@ class MeUpdateTest extends TestCase
         $this->assertSame(['city' => 'Thiès', 'search_intent' => 'buy'], $user->preferences);
     }
 
+    /** TCK-574 — même règle que le profil : un numéro qu'aucun SMS ne peut joindre est refusé. */
+    public function test_un_numero_injoignable_est_refuse(): void
+    {
+        $user = User::factory()->create(['phone' => null]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        foreach (['+330612345678', '+2217801437100'] as $numero) {
+            $this->withToken($token)
+                ->patchJson('/api/me', ['phone' => $numero])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['phone']);
+        }
+
+        $this->assertNull($user->fresh()->phone);
+    }
+
     public function test_invalid_search_intent_is_rejected(): void
     {
         $user = User::factory()->create();

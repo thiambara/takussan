@@ -12,7 +12,7 @@
  * resume.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,13 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useWizardDraft } from '@/hooks/useWizardDraft';
+import { serialiserEtatBrouillon, useAutosaveBrouillon } from '@/hooks/useAutosaveBrouillon';
 import { ApiError } from '@/lib/api';
 import { submitAgencyUpgradeRequest } from '@/lib/queries/agency-upgrade';
+import {
+  FORMULAIRE_UPGRADE_VIERGE,
+  formulaireUpgradeDepuisBrouillon,
+} from '@/lib/agency-upgrade-brouillon';
 import type { AgencyUpgradeRequestFormFields } from '@/types/agency-upgrade';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -30,14 +35,15 @@ export type UpgradeRequestFormProps = {
   readonly agencyId: number;
 };
 
-const EMPTY_FORM: AgencyUpgradeRequestFormFields = {
-  rc: '',
-  ninea: '',
-  rib_pro: '',
-  company_legal_name: '',
-  address_fiscale: '',
-  planned_agents_count: null,
-};
+/**
+ * Le formulaire vide et sa relecture typée vivent dans
+ * `lib/agency-upgrade-brouillon.ts` : le tableau de bord juge le « vide » avec
+ * la même règle pour ne pas proposer de reprendre une démarche sans saisie.
+ */
+const EMPTY_FORM = FORMULAIRE_UPGRADE_VIERGE;
+
+/** TCK-566 — le formulaire tel qu'il s'ouvre, sans saisie : il n'est pas une démarche. */
+const ETAT_VIERGE = serialiserEtatBrouillon(0, EMPTY_FORM);
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB — mirrors backend cap.
 const ACCEPT_MIME = 'application/pdf,image/jpeg,image/png';
@@ -55,6 +61,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
 
   const [form, setForm] = useState<AgencyUpgradeRequestFormFields>(EMPTY_FORM);
   const [hydrated, setHydrated] = useState(false);
+  const [brouillonServeurExiste, setBrouillonServeurExiste] = useState(false);
   const [statutsDoc, setStatutsDoc] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -69,16 +76,29 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
   // `true` et n'en revient pas), ce que React autorise explicitement.
   if (!hydrated && !isLoading) {
     setHydrated(true);
+    setBrouillonServeurExiste(Boolean(draft?.data));
     if (draft?.data) {
-      setForm({ ...EMPTY_FORM, ...(draft.data as Partial<AgencyUpgradeRequestFormFields>) });
+      setForm(formulaireUpgradeDepuisBrouillon(draft.data));
     }
   }
 
   // Autosave on every change (debounced inside the hook).
-  useEffect(() => {
-    if (!hydrated) return;
-    save(0, form);
-  }, [hydrated, form, save]);
+  //
+  // ⚠ TCK-566 — l'effet écrivait `save(0, EMPTY_FORM)` dès l'hydratation : ouvrir
+  // cette page depuis la notification « Passer en pro », sans taper une lettre,
+  // créait le brouillon `agency-upgrade-{id}` que le tableau de bord présentait
+  // comme « 1 démarche en cours — Passage en pro ». Seule une saisie écrit
+  // désormais le brouillon ; revenir au formulaire vide le supprime, et un
+  // brouillon vide hérité de l'ancien comportement est supprimé à l'ouverture.
+  useAutosaveBrouillon({
+    hydrated,
+    step: 0,
+    data: form,
+    etatVierge: ETAT_VIERGE,
+    brouillonServeurExiste,
+    save,
+    clear,
+  });
 
   function update<K extends keyof AgencyUpgradeRequestFormFields>(
     key: K,

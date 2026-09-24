@@ -7,7 +7,7 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
@@ -294,6 +294,39 @@ export function useNewMessagesPolling(
   return query;
 }
 
+/**
+ * Reprise du 2026-09-24 — marque LU le fil affiché, à l'ouverture puis à chaque message plus
+ * récent qui y arrive tant que l'onglet est visible. `PUT /read` existait côté API et n'était
+ * appelé nulle part : `last_read_at` n'avançait que lorsqu'on ÉCRIVAIT, si bien qu'un fil lu sans
+ * réponse restait « non lu » pour toujours, et que les accusés de lecture ne voyaient jamais la
+ * lecture. La liste est ensuite invalidée : la pastille globale (`useUnreadCount`) suit.
+ *
+ * Un seul appel par couple (fil, dernier message) ; un échec le laisse rejouable au prochain rendu.
+ */
+export function useMarkConversationRead(
+  conversationId: number | null | undefined,
+  newestMessageId: number | null,
+  options: { enabled?: boolean } = {},
+) {
+  const { token } = useAuth();
+  const locale = useLocale();
+  const queryClient = useQueryClient();
+  const dejaMarque = useRef<string | null>(null);
+  const enabled = options.enabled ?? true;
+
+  useEffect(() => {
+    if (!enabled || !conversationId || newestMessageId == null || !token) return;
+    const cle = `${conversationId}:${newestMessageId}`;
+    if (dejaMarque.current === cle) return;
+    dejaMarque.current = cle;
+    apiRequest(`/api/conversations/${conversationId}/read`, { method: 'PUT', token, locale })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['conversations', 'list'] }))
+      .catch(() => {
+        if (dejaMarque.current === cle) dejaMarque.current = null;
+      });
+  }, [conversationId, enabled, locale, newestMessageId, queryClient, token]);
+}
+
 export type SendMessagePayload = {
   content: string;
 };
@@ -323,20 +356,11 @@ export function useSendMessage(conversationId: number) {
   );
 }
 
-export type CreateConversationPayload = {
-  property_id?: number;
-  lease_id?: number;
-  subject?: string;
-  recipient_id?: number;
-  initial_message: string;
-};
-
-export function useCreateConversation() {
-  return useApiMutation<ApiResponse<Conversation>, CreateConversationPayload>(
-    { path: '/api/conversations', method: 'POST' },
-    { invalidate: [['conversations', 'list']] },
-  );
-}
+// TCK-576 — `useCreateConversation` est retiré : il n'avait aucun appelant, et son corps typé
+// (`recipient_id`, `initial_message`) ne correspondait à rien de ce que `POST /api/conversations`
+// valide (`participants`, et une seule autre personne joignable depuis TCK-565). Un premier
+// contact passe par la fiche publique d'un bien (`PublicPropertyController::contactMessage()`
+// choisit lui-même le destinataire), un groupe par `useCreateGroupConversation`.
 
 /**
  * Upload an attachment — multipart/form-data. React Query's mutation typing
@@ -399,6 +423,8 @@ export function useAddParticipants(conversationId: number) {
       invalidate: [
         ['conversations', 'detail', conversationId],
         ['conversations', conversationId, 'messages'],
+        // La personne ajoutée n'est plus à proposer (TCK-565).
+        ['conversations', conversationId, 'contacts'],
       ],
     },
   );
@@ -415,6 +441,8 @@ export function useRemoveParticipant(conversationId: number) {
       invalidate: [
         ['conversations', 'detail', conversationId],
         ['conversations', conversationId, 'messages'],
+        // La personne retirée redevient à proposer (TCK-565).
+        ['conversations', conversationId, 'contacts'],
         ['conversations', 'list'],
       ],
     },
@@ -470,6 +498,157 @@ export function useToggleMute(conversationId: number) {
         ['conversations', 'detail', conversationId],
         ['conversations', 'list'],
       ],
+    },
+  );
+}
+
+// =============================================================================
+// TCK-565 — choisir les participants et le contexte d'un groupe PAR LEUR NOM
+// =============================================================================
+
+/**
+ * Une personne joignable, telle que `GET /api/conversations/contacts` la rend
+ * (`MessagingContactResource` côté API : le nom et l'avatar, jamais les coordonnées).
+ */
+export type MessagingContact = {
+  id: number;
+  name: string;
+  avatar_url: string | null;
+};
+
+/**
+ * Colonnes lues par le sélecteur de participants. `name` est dérivé côté API de ces deux
+ * colonnes : sans elles dans le sparse fieldset, il sortirait vide.
+ */
+export const MESSAGING_CONTACT_FIELDS: string[] = ['id', 'first_name', 'last_name'];
+
+/** Une page du sélecteur. Au-delà, on affine la recherche — la liste le dit. */
+export const MESSAGING_CONTACTS_PER_PAGE = 20;
+
+/**
+ * Retour testeur du 2026-09-23 (M12) : « Où un utilisateur verrait-il son ID ? » — l'assistant
+ * « Nouveau groupe » demandait un identifiant numérique. Ce hook sert le sélecteur par nom qui le
+ * remplace.
+ *
+ * ⚠️ La recherche est SERVEUR (`filter[search]`, Meilisearch côté API) et le périmètre aussi : la
+ * liste ne contient que des personnes que le serveur acceptera (`MessagingReach`).
+ * Filtrer côté client une liste déjà tronquée redirait le défaut que TCK-363 a soldé ailleurs.
+ *
+ * `conversationId` — pour COMPLÉTER un groupe existant. La liste vient alors de
+ * `/api/conversations/{id}/contacts`, qui lit la règle avec ce groupe, exactement comme l'ajout
+ * (`AddParticipantsRequest`) : l'équipe de l'agence de son bien y figure, ses membres actuels non.
+ * Lire la liste d'un NOUVEAU groupe à cet endroit proposait des personnes que l'ajout refusait.
+ */
+export function useMessagingContacts(
+  search: string,
+  options: { enabled?: boolean; conversationId?: number } = {},
+) {
+  const { user } = useAuth();
+  const terme = search.trim();
+  const { conversationId } = options;
+  const params: SpatieQueryParams = {
+    fields: { users: MESSAGING_CONTACT_FIELDS },
+    filter: terme ? { search: terme } : {},
+    per_page: MESSAGING_CONTACTS_PER_PAGE,
+  };
+
+  return useApiQuery<PaginatedResponse<MessagingContact>>(
+    conversationId
+      ? ['conversations', conversationId, 'contacts', terme]
+      : ['conversations', 'contacts', terme],
+    conversationId
+      ? `/api/conversations/${conversationId}/contacts`
+      : '/api/conversations/contacts',
+    {
+      params,
+      enabled: (options.enabled ?? true) && Boolean(user),
+      staleTime: 30_000,
+      // Garder la liste précédente pendant la frappe : sans cela, chaque caractère la viderait
+      // puis la remplirait, et le popup sauterait.
+      placeholderData: (precedent) => precedent,
+    },
+  );
+}
+
+/**
+ * TCK-576 — le bien et le bail d'un groupe se CHERCHENT par leur nom.
+ *
+ * TCK-565 (M11) les avait fait choisir dans deux listes, au lieu de deux identifiants numériques.
+ * Ces listes lisaient `/api/properties` et `/api/leases`, plafonnées à 100 et sans recherche :
+ * mesuré le 2026-09-24, 106 des 206 biens d'un agent de démo et 46 de ses 146 baux ne pouvaient
+ * pas être choisis. Le `filter[search]` de `/api/properties` ne les aurait pas rendus atteignables
+ * non plus : il passe par Meilisearch, qui n'indexe que les biens publics et publiés — un
+ * brouillon ou un bien privé y est introuvable (« Espace de bureau à Mbour », id 145, mesuré).
+ *
+ * D'où deux routes de la messagerie, `/api/conversations/context/{properties,leases}` : recherche
+ * SQL sur le titre et la référence, périmètre = ce que la création d'un groupe accepte (les
+ * policies `view`), liste blanche étroite. Côté écran, `GroupContextPicker`.
+ */
+export const GROUP_CONTEXT_PROPERTY_FIELDS: string[] = ['id', 'title', 'reference_number'];
+export const GROUP_CONTEXT_LEASE_FIELDS: string[] = ['id', 'reference_number', 'property_id'];
+/** Une page du sélecteur, comme celui des participants. Au-delà, on affine la recherche. */
+export const GROUP_CONTEXT_PER_PAGE = 20;
+
+export type GroupContextProperty = { id: number; title: string; reference_number: string | null };
+export type GroupContextLease = {
+  id: number;
+  reference_number: string;
+  property_id: number;
+  property?: GroupContextProperty | null;
+};
+
+export function useGroupPropertyOptions(search: string, options: { enabled?: boolean } = {}) {
+  const terme = search.trim();
+  return useApiQuery<PaginatedResponse<GroupContextProperty>>(
+    ['conversations', 'group-context', 'properties', terme],
+    '/api/conversations/context/properties',
+    {
+      params: {
+        fields: { properties: GROUP_CONTEXT_PROPERTY_FIELDS },
+        filter: terme ? { search: terme } : {},
+        per_page: GROUP_CONTEXT_PER_PAGE,
+      },
+      enabled: options.enabled ?? true,
+      staleTime: 60_000,
+      // Même raison que `useMessagingContacts` : garder la liste pendant la frappe.
+      placeholderData: (precedent) => precedent,
+    },
+  );
+}
+
+/**
+ * Les baux, restreints au bien choisi s'il y en a un. La clé porte le bien en position 3 — lue par
+ * `placeholderData` ci-dessous : ne pas la réordonner sans elle.
+ */
+export function useGroupLeaseOptions(
+  propertyId: number | null,
+  search: string,
+  options: { enabled?: boolean } = {},
+) {
+  const terme = search.trim();
+  const filter: Record<string, string | number> = {};
+  if (propertyId) filter.property_id = propertyId;
+  if (terme) filter.search = terme;
+  return useApiQuery<PaginatedResponse<GroupContextLease>>(
+    ['conversations', 'group-context', 'leases', propertyId, terme],
+    '/api/conversations/context/leases',
+    {
+      params: {
+        fields: { leases: GROUP_CONTEXT_LEASE_FIELDS, properties: GROUP_CONTEXT_PROPERTY_FIELDS },
+        filter,
+        include: ['property'],
+        per_page: GROUP_CONTEXT_PER_PAGE,
+      },
+      enabled: options.enabled ?? true,
+      staleTime: 60_000,
+      // ⚠ La liste précédente ne se garde que pour le MÊME bien (réparation 1, 2026-09-24). Gardée
+      // sans condition, elle montrait — cliquables — les baux de tous les biens, ou d'un autre
+      // bien, tant que la requête du bien choisi était en vol : mesuré à 2,5 s de latence, le
+      // groupe partait avec la villa d'Almadies et un bail de Mbour. Pendant la frappe (même bien,
+      // autre terme), la garder évite que le popup saute ; au changement de bien, l'écran dit
+      // « Recherche… » plutôt que de proposer ce qu'il ne faut pas.
+      placeholderData: (precedent, requetePrecedente) =>
+        requetePrecedente?.queryKey[3] === propertyId ? precedent : undefined,
     },
   );
 }

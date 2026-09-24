@@ -229,7 +229,7 @@
       "title": "Passer en pro",
       "pendingTitle": "Demande en cours",
       "body": "Équipe, multi-admins et plus d'outils dédiés aux agences pro.",
-      "pendingBody": "Validation par notre équipe sous 48h.",
+      "pendingBody": "Notre équipe examine votre demande ; sa décision vous parviendra par e-mail.",
       "cta": "En savoir plus",
       "pendingCta": "Voir le détail"
     },
@@ -261,7 +261,7 @@
     },
     "professionals": {
       "agencies": "Les agences",
-      "agents": "Les agents"
+      "agents": "Agents & propriétaires"
     },
     "legalHeading": "Informations légales",
     "legal": {
@@ -301,7 +301,9 @@
       "emailRequired": "Une adresse email valide est requise.",
       "messageMin": "Votre message doit contenir au moins 5 caractères.",
       "messageMax": "Votre message ne peut pas dépasser 2000 caractères."
-    }
+    },
+    "descriptionOwner": "Vos coordonnées sont transmises au propriétaire du bien. Aucun compte n'est requis.",
+    "successBodyOwner": "Le propriétaire vous recontactera sous peu."
   },
   "meta": {
     "home": {
@@ -347,10 +349,10 @@
       "descriptionCity": "Les agences immobilières qui publient des annonces à {city} sur Takussan : portefeuille, avis et coordonnées."
     },
     "agents": {
-      "title": "Agents immobiliers au Sénégal",
-      "description": "Parcourez les agents et conseillers immobiliers actifs sur Takussan : portefeuille, villes couvertes et avis des clients.",
-      "titleCity": "Agents immobiliers à {city}",
-      "descriptionCity": "Les agents et conseillers immobiliers qui publient des annonces à {city} sur Takussan."
+      "title": "Agents immobiliers et propriétaires au Sénégal",
+      "description": "Parcourez les agents immobiliers et les propriétaires qui publient sur Takussan : portefeuille, villes couvertes et avis.",
+      "titleCity": "Agents immobiliers et propriétaires à {city}",
+      "descriptionCity": "Les agents immobiliers et les propriétaires qui publient des annonces à {city} sur Takussan."
     }
   },
   "auth": {
@@ -437,7 +439,8 @@
     "layout": {
       "visualAlt": "Villa contemporaine au Sénégal",
       "headline": "Votre porte d'entrée vers l'immobilier du Sénégal.",
-      "subheadline": "Des milliers de biens, une expérience soignée, des partenaires de confiance."
+      "subheadline": "Des milliers de biens, une expérience soignée, des partenaires de confiance.",
+      "back": "Retour"
     },
     "twoFactorChallenge": {
       "title": "Authentification à deux facteurs",
@@ -710,7 +713,8 @@
       "unavailableTitle": "Bien momentanément indisponible",
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants.",
       "favoriteAddShort": "Ajouter",
-      "favoriteSavedShort": "Favori"
+      "favoriteSavedShort": "Favori",
+      "descriptionLanguageNotice": "{langue, select, fr {Description rédigée en français par l'annonceur} en {Description rédigée en anglais par l'annonceur} wo {Description rédigée en wolof par l'annonceur} other {Description rédigée par l'annonceur, dans sa langue}}"
     },
     "reviews": {
       "title": "Avis",
@@ -1187,8 +1191,6 @@
         "area": "120",
         "yearBuilt": "2010",
         "parking": "2",
-        "priceSale": "25000000",
-        "priceRent": "350000",
         "period": "Mensuel",
         "description": "Ce qu'on ne voit pas sur les photos : le quartier, le voisinage, ce qui vient d'être refait."
       },
@@ -1974,7 +1976,7 @@
             "multi_admin": "Co-administrer l'agence à plusieurs (multi-admins).",
             "custom_roles": "Définir des rôles personnalisés pour structurer votre organisation."
           },
-          "sla": "Réponse de notre équipe sous 5 jours ouvrés."
+          "sla": "Notre équipe examine chaque demande ; sa décision vous parvient par e-mail et dans vos notifications."
         }
       },
       "form": {
@@ -2055,7 +2057,7 @@
       "statsAgents": "Agents",
       "license": "Licence n° {number}",
       "teamEyebrow": "L'équipe",
-      "teamHeading": "{count, plural, =1 {# agent pour t'accompagner} other {# agents pour t'accompagner}}",
+      "teamHeading": "{count, plural, =1 {# interlocuteur pour t'accompagner} other {# interlocuteurs pour t'accompagner}}",
       "portfolioEyebrow": "Portefeuille",
       "portfolioHeading": "Biens à l'affiche",
       "emptyTitle": "Pas encore de bien à présenter",
@@ -2113,7 +2115,8 @@
       "divergentShort": "Diffère"
     },
     "carousel": {
-      "ariaLabel": "Comparaison mobile — balayez pour voir chaque bien"
+      "ariaLabel": "Comparaison des biens, critère par critère",
+      "headerAria": "Biens comparés"
     },
     "empty": {
       "title": "Sélectionnez au moins 2 biens",
@@ -2128,7 +2131,17 @@
       "removeAria": "Retirer le bien #{id} du comparateur",
       "clearAria": "Vider le comparateur",
       "needOneMore": "Ajoutez un 2ᵉ bien",
-      "removeNamedAria": "Retirer « {title} » du comparateur"
+      "removeNamedAria": "Retirer « {title} » du comparateur",
+      "collapseAria": "Réduire le comparateur",
+      "expandAria": "Afficher le comparateur — {count, plural, =1 {1 bien sélectionné} other {# biens sélectionnés}}",
+      "collapsedCount": "{count}/{max}",
+      "clear": "Vider",
+      "clearedTitle": "Comparateur vidé",
+      "clearedBody": "{count, plural, =1 {1 bien retiré.} other {# biens retirés.}}",
+      "undo": "Annuler",
+      "addFromListAria": "Ajouter un bien : choisissez-le dans la liste",
+      "addBrowseAria": "Ajouter un bien : voir les annonces",
+      "undoPartial": "{count, plural, =1 {1 bien n’a pas pu être rétabli} other {# biens n’ont pas pu être rétablis}} : {max} au maximum."
     },
     "button": {
       "full": "Retirez un bien pour en ajouter un autre.",
@@ -2374,7 +2387,8 @@
       "viewAll": "Voir toute la messagerie",
       "unreadInline": "{count, plural, one {# non lu} other {# non lus}}",
       "chatBack": "Retour aux conversations",
-      "manageGroup": "Gérer le groupe"
+      "manageGroup": "Gérer le groupe",
+      "launcherLabel": "Messagerie"
     },
     "system": {
       "participantAdded": "{actor} a ajouté {target} au groupe.",
@@ -2405,14 +2419,12 @@
         "step1Description": "Ajoutez 2 participants minimum (vous serez automatiquement inclus).",
         "step2Description": "Donnez un sujet au groupe et associez-le optionnellement à un bien ou un bail.",
         "participantsLabel": "Participants",
-        "participantInputPlaceholder": "ID utilisateur",
-        "participantsHint": "Saisissez les IDs un par un. Le serveur vérifie les permissions.",
+        "participantInputPlaceholder": "Rechercher par nom…",
+        "participantsHint": "L’équipe de votre agence et les personnes avec qui vous avez déjà échangé.",
         "add": "Ajouter",
-        "removeParticipant": "Retirer #{id}",
+        "removeParticipant": "Retirer {name}",
         "minParticipants": "Minimum {min} participants au total (vous compris).",
         "maxParticipants": "Maximum {max} participants au total.",
-        "duplicate": "Cet utilisateur est déjà ajouté.",
-        "invalidId": "ID invalide.",
         "subjectLabel": "Sujet",
         "subjectRequired": "Le sujet est obligatoire.",
         "propertyLabel": "Bien (optionnel)",
@@ -2421,7 +2433,24 @@
         "next": "Suivant",
         "back": "Retour",
         "create": "Créer le groupe",
-        "createFailed": "Impossible de créer le groupe."
+        "createFailed": "Impossible de créer le groupe.",
+        "searching": "Recherche…",
+        "noContact": "Personne ne correspond à cette recherche.",
+        "noContactYet": "Vous n’avez encore personne à inviter.",
+        "contactsError": "Impossible de charger vos contacts.",
+        "retry": "Réessayer",
+        "moreResults": "{shown} sur {total} — précisez la recherche",
+        "selectedLabel": "Participants choisis",
+        "propertyPlaceholder": "Titre ou référence…",
+        "leasePlaceholder": "Référence ou bien…",
+        "clearProperty": "Retirer le bien",
+        "clearLease": "Retirer le bail",
+        "noPropertyMatch": "Aucun bien ne correspond à cette recherche.",
+        "noLeaseMatch": "Aucun bail ne correspond à cette recherche.",
+        "contextError": "Impossible de charger la liste.",
+        "noPropertyYet": "Vous n’avez encore aucun bien à rattacher.",
+        "noLeaseYet": "Vous n’avez encore aucun bail à rattacher.",
+        "noLeaseForProperty": "Ce bien n’a aucun bail."
       },
       "info": {
         "title": "Infos du groupe",
@@ -2431,9 +2460,7 @@
         "renameFailed": "Impossible de renommer.",
         "participantsHeading": "Participants ({count})",
         "addLabel": "Inviter un participant",
-        "addPlaceholder": "ID utilisateur",
         "addFailed": "Impossible d'ajouter.",
-        "add": "Ajouter",
         "you": "vous",
         "roleAdmin": "Admin",
         "roleMember": "Membre",
@@ -2444,8 +2471,7 @@
         "unmute": "Réactiver les notifications",
         "leave": "Quitter le groupe",
         "lastAdminLeaveBlocked": "Vous êtes le dernier admin — promouvez quelqu'un avant de partir.",
-        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir.",
-        "invalidId": "ID invalide."
+        "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir."
       }
     },
     "conversationTitleFallback": "Conversation #{id}",
@@ -3555,7 +3581,7 @@
           "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "body": "Le code est valable 5 minutes.",
             "bodyDebug": "Code envoyé (debug : {code})."
           },
           "verified": {
@@ -3680,7 +3706,7 @@
           "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "body": "Le code est valable 5 minutes.",
             "bodyDebug": "Code envoyé (debug : {code})."
           },
           "verified": {
@@ -3791,7 +3817,9 @@
       "unavailableTitle": "Agent momentanément indisponible",
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cet agent existe peut-être toujours — réessayez dans quelques instants.",
       "unavailableMetaDescription": "Cet agent ne peut pas être affiché pour le moment. Réessayez dans quelques instants.",
-      "back": "Retour"
+      "back": "Retour",
+      "metaTitleOwner": "{name} — Propriétaire",
+      "emptyBodyOwner": "Ce propriétaire prépare ses prochaines annonces — reviens bientôt."
     }
   },
   "agentWelcome": {
@@ -4042,7 +4070,7 @@
           "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "body": "Le code est valable 5 minutes.",
             "bodyDebug": "Code envoyé (debug : {code})."
           },
           "verified": {
@@ -4173,7 +4201,7 @@
           },
           "professionalNotice": {
             "title": "Création d'agence professionnelle",
-            "body": "Pour créer une agence avec plusieurs collaborateurs, contactez notre équipe — nous configurons votre espace en moins de 24h.",
+            "body": "Pour créer une agence avec plusieurs collaborateurs, contactez notre équipe : nous configurons votre espace avec vous.",
             "mailSubject": "Demande de création d'agence professionnelle",
             "contactCta": "Contacter le support",
             "continueIndividual": "Ou continuer en individuel et basculer plus tard"
@@ -4212,7 +4240,7 @@
             "verifyCta": "Vérifier",
             "verifying": "Vérification…",
             "sentTitle": "Code envoyé",
-            "sentBody": "Le code peut mettre jusqu'à 60 secondes pour arriver.",
+            "sentBody": "Le code est valable 5 minutes.",
             "sentDebug": "Code envoyé (debug : {code}).",
             "verifiedTitle": "Téléphone vérifié",
             "verifiedBody": "Vous pouvez maintenant publier votre bien.",
@@ -5449,10 +5477,12 @@
       },
       "success": {
         "title": "Demande envoyée !",
-        "body": "Votre demande de réservation pour <strong>{title}</strong> a bien été enregistrée. Le propriétaire ou l'agent vous recontactera sous 48h.",
+        "body": "Votre demande de réservation pour <strong>{title}</strong> a bien été enregistrée.",
         "reference": "Référence",
         "total": "Total estimé",
-        "viewBooking": "Voir ma réservation"
+        "viewBooking": "Voir ma réservation",
+        "deadline": "Le propriétaire ou l'agent a jusqu'au <strong>{date}</strong> pour y répondre. Sans réponse d'ici là, la demande expire automatiquement.",
+        "noDeadline": "Vous suivrez la réponse du propriétaire ou de l'agent depuis votre réservation."
       },
       "step1": {
         "title": "Vos dates",
@@ -6987,7 +7017,7 @@
       "saving": "Enregistrement…",
       "saveError": "Échec de la mise à jour du profil.",
       "saved": "Modifications enregistrées.",
-      "otpSent": "Code envoyé. Vérifiez votre SMS (peut prendre jusqu'à 60s).",
+      "otpSent": "Code envoyé par SMS. Il est valable 5 minutes.",
       "otpSentDebug": "Code envoyé. (Debug : {code})",
       "phoneVerifiedOk": "Téléphone vérifié avec succès."
     },
@@ -7638,6 +7668,10 @@
     },
     "toast": {
       "close": "Fermer la notification"
+    },
+    "phoneInput": {
+      "hintNational": "L'indicatif {indicatif} est déjà ajouté : saisissez la suite. À l'étranger ? Commencez par +.",
+      "hintInternational": "Numéro international complet, indicatif compris."
     }
   },
   "reporting": {
@@ -7787,7 +7821,11 @@
       "email": "Envoyer un email",
       "call": "Appeler",
       "contact": "Contacter",
-      "sheetDescription": "Choisis ton canal pour entrer en contact."
+      "sheetDescription": "Choisis ton canal pour entrer en contact.",
+      "leadDescriptionAgent": "Vos coordonnées sont transmises à cet agent. Aucun compte n'est requis.",
+      "leadDescriptionOwner": "Vos coordonnées sont transmises à ce propriétaire. Aucun compte n'est requis.",
+      "leadSuccessAgent": "L'agent vous recontactera sous peu.",
+      "leadSuccessOwner": "Le propriétaire vous recontactera sous peu."
     },
     "portfolio": {
       "filterAria": "Filtrer le portefeuille",
@@ -7815,8 +7853,12 @@
     },
     "team": {
       "propertiesCount": "{count, plural, one {# bien} other {# biens}}",
-      "prevAria": "Voir les agents précédents",
-      "nextAria": "Voir les agents suivants"
+      "prevAria": "Voir les interlocuteurs précédents",
+      "nextAria": "Voir les interlocuteurs suivants"
+    },
+    "roles": {
+      "agent": "Agent immobilier",
+      "owner": "Propriétaire"
     }
   },
   "privacy": {
@@ -7828,7 +7870,17 @@
       "rowTitle": "Export #{id}",
       "requestedAt": "Demandé le {date}",
       "expiresAt": " · expire le {date}",
-      "download": "Télécharger"
+      "download": "Télécharger",
+      "status": {
+        "queued": "En attente",
+        "processing": "En préparation",
+        "ready": "Prêt",
+        "expired": "Expiré",
+        "failed": "Échec"
+      },
+      "pendingHint": "Nous préparons votre archive. Vous recevrez un e-mail dès qu'elle sera prête.",
+      "throttled": "Vous avez déjà demandé un export dans les dernières 24 heures. Vous pourrez en demander un nouveau à partir du {date}.",
+      "emptyHint": "Votre archive ZIP apparaîtra ici dès que vous l'aurez demandée."
     }
   },
   "charts": {
@@ -7846,7 +7898,9 @@
     }
   },
   "announcements": {
-    "dismissAria": "Masquer l'annonce"
+    "dismissAria": "Masquer l'annonce",
+    "maintenanceDismissAria": "Masquer l'avis de maintenance",
+    "maintenanceWindow": "Du {debut} au {fin}"
   },
   "publishRedirect": {
     "title": "Préparation de votre annonce…",
@@ -7903,10 +7957,10 @@
       "emptyTitle": "Aucune agence ne correspond"
     },
     "agents": {
-      "eyebrow": "Agents & conseillers",
-      "heading": "Les professionnels derrière les annonces",
-      "intro": "Chaque profil présenté ici publie au moins une annonce disponible. Découvre leur portefeuille, leurs villes et leur enseigne.",
-      "searchPlaceholder": "Nom d’un agent",
+      "eyebrow": "Agents & propriétaires",
+      "heading": "Les personnes derrière les annonces",
+      "intro": "Agent immobilier ou propriétaire, chaque profil présenté ici publie au moins une annonce disponible. Découvre son portefeuille, ses villes et l’agence qui publie ses annonces.",
+      "searchPlaceholder": "Nom ou prénom",
       "count": "{count, plural, one {# profil} other {# profils}}",
       "emptyTitle": "Aucun profil ne correspond"
     }

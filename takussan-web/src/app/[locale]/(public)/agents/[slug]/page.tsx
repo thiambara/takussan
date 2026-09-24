@@ -45,7 +45,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const summary = agent.city
     ? t('metaSummaryInCity', { count: agent.portfolio_count, city: agent.city })
     : t('metaSummary', { count: agent.portfolio_count });
-  const title = t('metaTitle', { name: agent.full_name });
+  // TCK-573 — un propriétaire garde sa fiche sous `/agents/…` mais n'y est jamais titré « agent
+  // immobilier » : tout ce qui n'est pas explicitement `agent` est présenté comme propriétaire.
+  const title =
+    agent.public_role === 'agent'
+      ? t('metaTitle', { name: agent.full_name })
+      : t('metaTitleOwner', { name: agent.full_name });
   return {
     title,
     description: agent.bio ?? summary,
@@ -95,6 +100,7 @@ async function agentIndisponible() {
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const t = await getTranslations('agents.publicPage');
+  const tRoles = await getTranslations('publicProfile.roles');
   const { slug } = await params;
   const brutLocale = await getLocale();
   const locale = isLocale(brutLocale) ? brutLocale : 'fr';
@@ -108,7 +114,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const stats = agent.stats;
   const reviews = agent.reviews;
 
-  const eyebrowParts: string[] = [];
+  const estAgent = agent.public_role === 'agent';
+
+  // TCK-573 — la qualité de la personne ouvre l'eyebrow : « Propriétaire » ou « Agent
+  // immobilier », jamais déduite de l'URL `/agents/…`.
+  const eyebrowParts: string[] = [estAgent ? tRoles('agent') : tRoles('owner')];
   if (agent.city) eyebrowParts.push(agent.city);
   if (agent.specialty) eyebrowParts.push(agent.specialty);
   if (agent.years_of_experience && agent.years_of_experience > 0) {
@@ -161,15 +171,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
               </div>
 
               <div>
-                {eyebrowParts.length > 0 && (
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    {eyebrowParts.join(' · ')}
-                  </p>
-                )}
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  {eyebrowParts.join(' · ')}
+                </p>
                 <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance">
                   {agent.full_name}
                 </h1>
-                {agent.agency && (
+                {estAgent && agent.agency && (
                   <p className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <Building2 className="size-4" aria-hidden />
                     <span>
@@ -224,6 +232,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
               <ContactSheet
                 name={agent.full_name}
                 agentSlug={agent.slug}
+                recipientRole={agent.public_role}
                 phone={agent.phone}
                 subject={t('contactSubject', { name: agent.full_name })}
               />
@@ -247,7 +256,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             <div className="rounded-2xl border border-border bg-card p-10 text-center">
               <Building2 className="mx-auto size-6 text-muted-foreground" aria-hidden />
               <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{t('emptyBody')}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {estAgent ? t('emptyBody') : t('emptyBodyOwner')}
+              </p>
             </div>
           ) : (
             <PortfolioTabs

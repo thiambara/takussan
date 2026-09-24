@@ -5,12 +5,13 @@ import { useTranslations } from 'next-intl';
 import { MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
-import { FavoriteButton } from '@/components/favorites/FavoriteButton';
+import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { CardMeta } from './CardMeta';
 import { PropertyPhoto } from './PropertyPhoto';
-import { LienDeCarte, AU_DESSUS_DU_LIEN } from './LienDeCarte';
+import { LienDeCarte, AU_DESSUS_DU_LIEN, TITRE_REACTIF, VoileDInteraction } from './LienDeCarte';
+import { ActionsSurPhoto, apercuComparateur } from './ActionsSurPhoto';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 
@@ -51,6 +52,8 @@ export function PropertyCardListing({
               priority={priority}
               className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
             />
+            {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}
+            <VoileDInteraction />
 
             {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
             <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1.5">
@@ -58,7 +61,7 @@ export function PropertyCardListing({
                 {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
                 <NewBuildChip condition={property.condition} compact />
               </div>
-              <FavoriteButton propertyId={property.id} size="sm" className={`shrink-0 ${AU_DESSUS_DU_LIEN}`} />
+              <ActionsSurPhoto property={property} comparateur={false} />
             </div>
           </div>
         </div>
@@ -67,7 +70,7 @@ export function PropertyCardListing({
           <div className="space-y-1">
             {/* `group-hover` et non `hover` : le lien de la carte couvre désormais le titre, qui
                 ne reçoit plus le survol lui-même. */}
-            <h3 id={idTitre} className="font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+            <h3 id={idTitre} className={`font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
               {property.title}
             </h3>
 
@@ -88,18 +91,31 @@ export function PropertyCardListing({
             />
           </div>
 
-          <div>
-            <p className="text-[16px] font-bold text-primary tabular-nums leading-tight">
-              {formatPrice(property.price, property.currency ?? 'XOF')}
-              {property.contract_type === 'rent' && property.rent_period && (
-                <span className="ml-1 text-xs font-semibold text-muted-foreground">
-                  /{tPeriods(property.rent_period)}
-                </span>
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {timeAgo}
-            </p>
+          {/* TCK-561 — le comparateur dans la rangée du prix, pas sur la photo : l'image ne fait que
+              128 px sous `sm`, et y empiler deux ronds sous deux pastilles la saturait (le constat
+              de TCK-555 sur la carte de la liste). `surface="page"` : il est posé sur la carte. */}
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[16px] font-bold text-primary tabular-nums leading-tight">
+                {formatPrice(property.price, property.currency ?? 'XOF')}
+                {property.contract_type === 'rent' && property.rent_period && (
+                  <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                    /{tPeriods(property.rent_period)}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {timeAgo}
+              </p>
+            </div>
+            <div className={`shrink-0 ${AU_DESSUS_DU_LIEN}`}>
+              <CompareToggleButton
+                propertyId={property.id}
+                size="sm"
+                surface="page"
+                preview={apercuComparateur(property)}
+              />
+            </div>
           </div>
         </div>
       </div>

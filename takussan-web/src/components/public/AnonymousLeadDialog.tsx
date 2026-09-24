@@ -38,6 +38,11 @@ interface AnonymousLeadDialogProps {
   readonly title?: string;
   readonly description?: string;
   /**
+   * TCK-573 — le corps du toast de succès. Le défaut dit « l'agent vous recontactera » : juste
+   * pour un bien, faux sur la fiche d'un PROPRIÉTAIRE, qui doit nommer son destinataire.
+   */
+  readonly successBody?: string;
+  /**
    * TCK-500 — le message déjà rédigé que le visiteur trouve dans le champ, et qu'il peut
    * modifier ou effacer. C'est une VALEUR, pas le `placeholder` : sans elle, le champ est vide
    * et le formulaire refuse l'envoi tant que rien n'est saisi.
@@ -65,6 +70,7 @@ export function AnonymousLeadDialog({
   idPrefix = 'lead',
   title,
   description,
+  successBody,
   defaultMessage,
 }: AnonymousLeadDialogProps) {
   const t = useTranslations('publicContact');
@@ -103,7 +109,11 @@ export function AnonymousLeadDialog({
     });
     setSubmitting(false);
     if (res.ok) {
-      toast.add({ title: t('successTitle'), description: t('successBody'), type: 'success' });
+      toast.add({
+        title: t('successTitle'),
+        description: successBody ?? t('successBody'),
+        type: 'success',
+      });
       onOpenChange(false);
       setName('');
       setEmail('');

@@ -124,7 +124,7 @@ describe('<NotificationBell>', () => {
 
     await browserUser.click(screen.getByRole('button', { name: 'Notifications' }));
 
-    const feed = screen.getByRole('region', {
+    const feed = await screen.findByRole('dialog', {
       name: 'Centre de notifications',
     });
     const items = within(feed).getAllByRole('listitem');

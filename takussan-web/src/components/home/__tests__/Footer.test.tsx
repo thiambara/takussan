@@ -158,7 +158,7 @@ describe('Footer (TCK-437)', () => {
 
     for (const [nom, chemin] of [
       ['Les agences', '/agencies'],
-      ['Les agents', '/agents'],
+      ['Agents & propriétaires', '/agents'],
     ] as const) {
       const lien = within(zone).getByRole('link', { name: nom });
       expect(lien).toHaveAttribute('href', `/fr${chemin}`);

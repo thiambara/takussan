@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveWizardResume,
   projectDraftForBanner,
+  estDemarcheAReprendre,
 } from '@/lib/wizard-drafts';
 import type { WizardDraft } from '@/types/wizard-draft';
 
@@ -64,5 +65,43 @@ describe('projectDraftForBanner', () => {
     const projected = projectDraftForBanner(draft);
     expect(projected.resumeHref).toBeNull();
     expect(projected.i18nKey).toBeNull();
+  });
+});
+
+describe('estDemarcheAReprendre — TCK-566', () => {
+  const brouillon = (key: string, data: Record<string, unknown> | null): WizardDraft => ({
+    id: 1,
+    key,
+    step: 0,
+    data,
+    updated_at: '2026-09-23T10:00:00Z',
+  });
+
+  it('écarte le brouillon « Passage en pro » ouvert sans saisie, tel que le serveur le rend', () => {
+    expect(
+      estDemarcheAReprendre(
+        brouillon('agency-upgrade-7', {
+          rc: null,
+          ninea: null,
+          rib_pro: null,
+          address_fiscale: null,
+          company_legal_name: null,
+          planned_agents_count: null,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('garde un brouillon « Passage en pro » qui porte une saisie', () => {
+    expect(estDemarcheAReprendre(brouillon('agency-upgrade-7', { rc: 'RC-1' }))).toBe(true);
+  });
+
+  it('garde les brouillons des assistants d’onboarding : leur état vierge dépend du compte', () => {
+    expect(estDemarcheAReprendre(brouillon('host-individual-wizard', { title: null }))).toBe(true);
+    expect(estDemarcheAReprendre(brouillon('owner-onboarding-3', {}))).toBe(true);
+  });
+
+  it('écarte une clé qu’aucune règle ne sait reprendre', () => {
+    expect(estDemarcheAReprendre(brouillon('unknown-wizard', { a: 1 }))).toBe(false);
   });
 });

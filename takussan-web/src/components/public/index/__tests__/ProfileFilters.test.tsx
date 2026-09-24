@@ -150,3 +150,54 @@ describe('les paramètres inconnus survivent à une navigation', () => {
     expect(push).toHaveBeenCalledWith('/fr/agencies?utm_source=lettre&city=Thi%C3%A8s');
   });
 });
+
+/**
+ * TCK-573 — l'annuaire à 320 px. Mesuré au navigateur avant correctif (CDP, 320 × 740, touch) : puces
+ * de villes et « Effacer les filtres » à 36 px de haut ; champ de 168 px à côté de « Rechercher » en
+ * toutes lettres (110 px), texte d'exemple coupé (« Nom d'un ager » : 178 px de texte pour 168).
+ *
+ * ⚠ jsdom ne calcule aucune mise en page : ces tests gardent le CONTRAT de classes. La mesure qui
+ * dit qu'il produit 44 px et un texte entier est au navigateur, dans TCK-573.
+ */
+describe('TCK-573 — cibles tactiles et champ lisible à 320 px', () => {
+  it('chaque puce de ville et « effacer » font 44 px au doigt, 36 à la souris', () => {
+    monter('city=Dakar');
+
+    const cibles = [
+      ...screen.getAllByRole('button', { pressed: true }),
+      ...screen.getAllByRole('button', { pressed: false }),
+      screen.getByRole('button', { name: 'Effacer les filtres' }),
+    ];
+    expect(cibles).toHaveLength(4);
+    for (const cible of cibles) {
+      expect(cible.className).toMatch(/(^|\s)min-h-11(\s|$)/);
+      expect(cible.className).toMatch(/(^|\s)pointer-fine:min-h-9(\s|$)/);
+      // Un `min-h-9` nu reprendrait le dessus sur le doigt.
+      expect(cible.className).not.toMatch(/(^|\s)min-h-9(\s|$)/);
+    }
+  });
+
+  it('sous `sm`, le bouton de recherche ne garde que son icône — son NOM reste « Rechercher »', () => {
+    monter();
+
+    const bouton = screen.getByRole('button', { name: 'Rechercher' });
+    expect(bouton.className).toMatch(/(^|\s)size-11(\s|$)/);
+    const texte = screen.getByText('Rechercher');
+    expect(texte.className.split(/\s+/)).toEqual(expect.arrayContaining(['sr-only', 'sm:not-sr-only']));
+    expect(bouton.querySelector('svg')?.getAttribute('class')).toContain('sm:hidden');
+  });
+
+  // Mesuré à 768 et 1024 px en émulation tactile : `md:h-10` seul ramenait champ et bouton à 40 px
+  // sur une tablette. Les 40 px du bureau ne valent qu'à la souris.
+  it('au-delà de `md`, champ et bouton ne descendent à 40 px qu’à la souris', () => {
+    monter();
+
+    const champ = screen.getByRole('searchbox');
+    const bouton = screen.getByRole('button', { name: 'Rechercher' });
+    for (const cible of [champ, bouton]) {
+      const classes = cible.className.split(/\s+/);
+      expect(classes).toContain('md:pointer-fine:h-10');
+      expect(classes).not.toContain('md:h-10');
+    }
+  });
+});

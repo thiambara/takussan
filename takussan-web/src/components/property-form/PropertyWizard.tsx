@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
@@ -119,6 +120,24 @@ const CARACTERISTIQUES: readonly ConditionalFieldKey[] = [
 ];
 
 /**
+ * Un brouillon tel que le SERVEUR le rend, ramené à ce que le formulaire a écrit.
+ *
+ * L'autosave envoie `''` pour un champ texte laissé vide ; l'API le rend `null`
+ * (`ConvertEmptyStringsToNull`, middleware global de Laravel). Repris tel quel, `street: null`
+ * échouait au schéma — `optional()` n'admet pas `null` — et « Continuer » ne faisait plus rien à
+ * l'étape 2 : l'erreur, le message brut de zod, tombait dans la section repliée du détail
+ * d'adresse (revue adverse v2, mesuré au navigateur). Un `null` n'a rien à dire que la valeur
+ * initiale ne dise déjà : on le retire, et c'est `valeursInitiales` qui répond.
+ *
+ * TCK-574 — l'API n'écrit plus `null` à la place de `''` dans un brouillon (l'écriture d'un
+ * brouillon est exemptée de la normalisation). Ce filtre RESTE : les brouillons écrits avant, qui
+ * portent ces `null`, sont encore en base jusqu'à leur purge à 90 jours.
+ */
+function sansNulls(donnees: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(donnees).filter(([, valeur]) => valeur !== null));
+}
+
+/**
  * ⚠ **Ni `type` ni `contract_type` ne sont pré-sélectionnés**, contrairement au formulaire d'avant
  * (« Appartement / Louer »). Ces deux réponses gouvernent quelles étapes existent et quels champs
  * s'y affichent : les pré-remplir, c'est laisser quelqu'un traverser l'étape 1 sans y répondre et
@@ -180,6 +199,12 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
   const [direction, setDirection] = useState<1 | -1>(1);
   const [photos, setPhotos] = useState<File[]>([]);
   const [erreurPhotos, setErreurPhotos] = useState<string | null>(null);
+  /**
+   * TCK-574 — le nombre de « Continuer » REFUSÉS. Une étape qui replie des champs (`StepLieu`)
+   * doit les redéplier à CHAQUE refus, pas seulement quand une erreur apparaît : repliés à la main
+   * après avoir vu l'erreur, ils la cachaient de nouveau, et « Continuer » ne faisait plus rien.
+   */
+  const [refus, setRefus] = useState(0);
   const [avertissement, setAvertissement] = useState<string | null>(null);
   const [etatBrouillon, setEtatBrouillon] = useState<EtatBrouillon>('attente');
   const [repriseAnnoncee, setRepriseAnnoncee] = useState(false);
@@ -270,9 +295,13 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
     },
   });
 
-  const { watch, setValue, trigger, reset } = form;
-  const type = watch('type');
-  const contrat = watch('contract_type');
+  const { control, watch, setValue, trigger, reset } = form;
+  // TCK-564 — `useWatch` et non `watch()` lu pendant le rendu : c'est ce motif qui figeait les
+  // pastilles des étapes une fois compilées (cf. `__tests__/abonnement-des-etapes.test.tsx`). Ici,
+  // dans l'hôte, le compilateur ne mettait pas la lecture en cache — mesuré sur sa sortie — mais
+  // c'est un effet de bord de sa sortie, pas un contrat : `canAdvance` n'a pas à en dépendre.
+  // (`watch(callback)`, plus bas, est un ABONNEMENT, pas une lecture : il reste.)
+  const [type, contrat] = useWatch({ control, name: ['type', 'contract_type'] });
 
   /**
    * Reprise du brouillon serveur — la décision se prend PENDANT LE RENDU, l'écriture dans le
@@ -316,7 +345,7 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
     if (etatBrouillon !== 'restaure' || brouillonApplique.current) return;
     brouillonApplique.current = true;
     const donnees = brouillon.draft?.data;
-    if (donnees) reset({ ...valeursInitiales(), ...donnees } as PropertyFormValues);
+    if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees) } as PropertyFormValues);
   }, [etatBrouillon, brouillon.draft, reset]);
 
   /**
@@ -362,7 +391,10 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
         index === ETAPE_CARACTERISTIQUES
           ? CARACTERISTIQUES.filter((cle) => isFieldRelevant(cle, { type, contract: contrat }))
           : CLES_PAR_ETAPE[index];
-      if (!(await trigger([...cles]))) return;
+      if (!(await trigger([...cles]))) {
+        setRefus((n) => n + 1);
+        return;
+      }
     }
     setDirection(sens);
     setIndex(prochain);
@@ -400,7 +432,7 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
       id: 'lieu',
       title: t('steps.lieu.title'),
       subtitle: t('steps.lieu.subtitle'),
-      body: <StepLieu form={form} />,
+      body: <StepLieu form={form} refus={refus} />,
     },
     {
       id: 'caracteristiques',

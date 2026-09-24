@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WizardDraftListResponse } from '@/types/wizard-draft';
-import { projectDraftForBanner } from '@/lib/wizard-drafts';
+import { estDemarcheAReprendre, projectDraftForBanner } from '@/lib/wizard-drafts';
 
 /**
  * TCK-250 — Dashboard banner that surfaces the current user's resumable
@@ -53,7 +53,12 @@ export function WizardDraftsBanner({ className, initialDrafts }: Props) {
   }, [loaded]);
 
   const entries = useMemo(
-    () => drafts.map(projectDraftForBanner).filter((entry) => entry.resumeHref !== null),
+    // TCK-566 — un brouillon sans aucune saisie n'est pas « 1 démarche en cours ».
+    () =>
+      drafts
+        .filter(estDemarcheAReprendre)
+        .map(projectDraftForBanner)
+        .filter((entry) => entry.resumeHref !== null),
     [drafts],
   );
 

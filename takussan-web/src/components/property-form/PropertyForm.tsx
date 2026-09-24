@@ -14,12 +14,14 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
+import { useWatch } from 'react-hook-form';
 
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import {
+  FormAmountInput,
   FormCheckbox,
   FormDatePicker,
   FormGlobalError,
@@ -257,14 +259,25 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
       },
     });
 
-  const { control, watch, setValue, formState } = form;
+  const { control, setValue, formState } = form;
   const dirtyCount = Object.keys(formState.dirtyFields).length;
-  const contractType = watch('contract_type');
-  const description = watch('description') ?? '';
-  const lat = watch('latitude') as number | null | undefined;
-  const lng = watch('longitude') as number | null | undefined;
-  const tagIds = (watch('tag_ids') ?? []) as number[];
-  const ctx: RelevanceContext = { type: watch('type'), contract: contractType };
+  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `wizard/steps/StepBien.tsx`).
+  // Dans les étapes du parcours, une lecture `watch()` restait figée une fois compilée. Ici, dans
+  // l'HÔTE du formulaire, elle ne l'est pas aujourd'hui — mais seulement parce que la sortie du
+  // compilateur la laisse hors de tout bloc mémoïsé, ce qui n'est pas un contrat : dans
+  // `AgencyConfigForm`, la même lecture d'hôte tombe dans un bloc mis en cache, et l'avertissement
+  // de changement de devise n'y apparaît jamais (mesuré par exécution, compilateur actif, le
+  // 2026-09-23). La devise, elle, décide des décimales du prix.
+  const [typeDuBien, contractType, descriptionSaisie, latSaisie, lngSaisie, tagIdsSaisis, devise] =
+    useWatch({
+      control,
+      name: ['type', 'contract_type', 'description', 'latitude', 'longitude', 'tag_ids', 'currency'],
+    });
+  const lat = latSaisie as number | null | undefined;
+  const lng = lngSaisie as number | null | undefined;
+  const description = descriptionSaisie ?? '';
+  const tagIds = (tagIdsSaisis ?? []) as number[];
+  const ctx: RelevanceContext = { type: typeDuBien, contract: contractType };
 
   // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
   // un `useCallback` : le React Compiler s'en charge (ADR-0015). Les `useCallback` qui s'y
@@ -363,15 +376,13 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           </p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
-          <FormInput
+          <FormAmountInput
             control={control}
             name="price"
             label={t('fields.price')}
             required
-            type="number"
-            inputMode="numeric"
-            min={0}
-            placeholder="150000"
+            currency={devise}
+            example={150_000}
           />
           <FormSelect
             control={control}

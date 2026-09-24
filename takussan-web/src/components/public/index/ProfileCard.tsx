@@ -11,6 +11,8 @@ export type LibellesDeCarte = {
   readonly avis: (n: number) => string;
   readonly verifie: string;
   readonly noteAria: (note: number) => string;
+  /** TCK-573 — la qualité d'une personne de l'index `/agents` : agent immobilier ou propriétaire. */
+  readonly roles: { readonly agent: string; readonly owner: string };
 };
 
 type Props = {
@@ -53,6 +55,12 @@ function initiales(nom: string): string {
  */
 export function ProfileCard({ profil, base, libelles, forme }: Props) {
   const note = profil.reviews.average;
+  // TCK-573 — l'index `/agents` liste aussi des PROPRIÉTAIRES : la carte dit ce qu'est la personne
+  // avant l'enseigne, pour qu'un propriétaire dont les biens passent par une agence ne se lise pas
+  // comme un agent de cette agence. Une agence n'a pas de qualité à afficher.
+  const qualite = profil.public_role ? libelles.roles[profil.public_role] : null;
+  const complement = profil.agency?.name ?? profil.specialty ?? null;
+  const sousTitre = [qualite, complement].filter(Boolean).join(' · ');
 
   return (
     <li className="group">
@@ -88,11 +96,8 @@ export function ProfileCard({ profil, base, libelles, forme }: Props) {
                 <BadgeCheck className="size-4 shrink-0 text-primary" aria-label={libelles.verifie} />
               )}
             </h3>
-            {profil.agency && (
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">{profil.agency.name}</p>
-            )}
-            {!profil.agency && profil.specialty && (
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">{profil.specialty}</p>
+            {sousTitre !== '' && (
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">{sousTitre}</p>
             )}
           </div>
         </div>

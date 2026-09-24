@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\IndexAuditLogRequest;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
@@ -136,10 +137,10 @@ class AuditLogController extends Controller
             ->allowedFilters(
                 AllowedFilter::exact('log_name'),
                 AllowedFilter::exact('event'),
-                AllowedFilter::exact('causer_id'),
+                AllowedFilter::custom('causer_id', new ExactIdentifierFilter),
                 AllowedFilter::exact('causer_type'),
                 AllowedFilter::exact('subject_type'),
-                AllowedFilter::exact('subject_id'),
+                AllowedFilter::custom('subject_id', new ExactIdentifierFilter),
                 AllowedFilter::callback('date_from', function (Builder $q, string $value): void {
                     $q->where('created_at', '>=', $this->normalizeRangeBoundary($value, false));
                 }),

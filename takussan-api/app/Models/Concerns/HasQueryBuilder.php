@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Filters\RangeFilter;
 use App\Sorts\SearchRelevanceSort;
 use Illuminate\Database\Eloquent\Builder;
@@ -184,8 +185,12 @@ trait HasQueryBuilder
         // l'ordre du précédent (même processus : Octane, jobs, tests).
         unset(static::$searchRelevanceIds[static::class]);
 
+        // Une colonne d'identifiant refuse en 400 une valeur non entière : PostgreSQL en ferait
+        // une 500 (`ExactIdentifierFilter`).
         $exact = array_map(
-            fn (string $field) => AllowedFilter::exact($field),
+            fn (string $field) => ExactIdentifierFilter::garde($field)
+                ? AllowedFilter::custom($field, new ExactIdentifierFilter)
+                : AllowedFilter::exact($field),
             static::$requestFilterable ?? []
         );
 

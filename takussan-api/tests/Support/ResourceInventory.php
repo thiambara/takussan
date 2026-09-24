@@ -11,9 +11,13 @@ use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
+use App\Http\Resources\Messaging\GroupContextLeaseResource;
+use App\Http\Resources\Messaging\GroupContextPropertyResource;
+use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Models\Agency;
+use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -79,6 +83,18 @@ final class ResourceInventory
         UserListResource::class => [
             'modeles' => [User::class],
             'raison' => "Vue « liste » d'un utilisateur pour l'admin — le suffixe `List` casse la convention.",
+        ],
+        GroupContextPropertyResource::class => [
+            'modeles' => [Property::class],
+            'raison' => 'Un bien auquel rattacher un groupe, vu par le sélecteur de la messagerie (TCK-576) — le nom dit le rôle, pas le modèle.',
+        ],
+        GroupContextLeaseResource::class => [
+            'modeles' => [Lease::class],
+            'raison' => 'Un bail auquel rattacher un groupe, vu par le sélecteur de la messagerie (TCK-576) — le nom dit le rôle, pas le modèle.',
+        ],
+        MessagingContactResource::class => [
+            'modeles' => [User::class],
+            'raison' => 'Une personne joignable, vue par le sélecteur de participants de la messagerie (TCK-565) — le nom dit le rôle, pas le modèle.',
         ],
         PropertyMapGeoJsonResource::class => [
             'modeles' => [Property::class],

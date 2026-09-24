@@ -173,6 +173,10 @@ return [
     // ── Propres au dépôt ────────────────────────────────────────────────────────────────────
     'rules' => [
         'phone' => 'Le numéro de téléphone doit être un numéro sénégalais valide (ex. +221 77 123 45 67 ou 771234567).',
+        // TCK-566 — le numéro auquel un code SMS est envoyé : E.164, indicatif en tête.
+        'phone_e164' => 'Le numéro de téléphone doit être au format international, indicatif en tête (ex. +221 77 123 45 67).',
+        // TCK-574 — un 0 de préfixe national derrière l'indicatif.
+        'phone_trunk_prefix' => 'Retirez le 0 qui suit l\'indicatif : +33 06 12 34 56 78 s\'écrit +33 6 12 34 56 78.',
         'currency' => 'La devise doit être l’une des suivantes : :allowed.',
         'date_range' => 'La date doit être postérieure ou égale à :start.',
         'strong_password' => 'Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial.',

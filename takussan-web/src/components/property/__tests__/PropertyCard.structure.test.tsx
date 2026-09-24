@@ -94,12 +94,13 @@ function monte(Carte: ComponentType<PropertyCardCommonProps>) {
   );
 }
 
+// TCK-561 — les quatre variantes de l'accueil portent désormais le comparateur, comme la liste.
 const CARTES: ReadonlyArray<[string, ComponentType<PropertyCardCommonProps>, { comparateur: boolean }]> = [
   ['PropertyCard (liste, similaires, favoris)', PropertyCard, { comparateur: true }],
-  ['PropertyCardStandard (accueil, récemment consultés)', PropertyCardStandard, { comparateur: false }],
-  ['PropertyCardListing (accueil)', PropertyCardListing, { comparateur: false }],
-  ['PropertyCardCover (accueil)', PropertyCardCover, { comparateur: false }],
-  ['PropertyCardCompact (accueil)', PropertyCardCompact, { comparateur: false }],
+  ['PropertyCardStandard (accueil, récemment consultés)', PropertyCardStandard, { comparateur: true }],
+  ['PropertyCardListing (accueil)', PropertyCardListing, { comparateur: true }],
+  ['PropertyCardCover (accueil)', PropertyCardCover, { comparateur: true }],
+  ['PropertyCardCompact (accueil)', PropertyCardCompact, { comparateur: true }],
 ];
 
 describe.each(CARTES)('%s — TCK-554', (_nom, Carte, { comparateur }) => {

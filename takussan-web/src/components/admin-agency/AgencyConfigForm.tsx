@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useRef, useState, useTransition } from 'react';
+import { useWatch } from 'react-hook-form';
 import { Loader2, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
     });
 
   const { control } = form;
-  const selectedCurrency = (form.watch('currency') || 'XOF').toUpperCase() as CurrencyCode;
+  // TCK-571 — `useWatch`, jamais `form.watch()` lu pendant le rendu. Compilée, la lecture tombait
+  // dans un bloc mis en cache sur dix-neuf dépendances dont AUCUNE ne bouge avec la devise : l'aperçu
+  // restait dans la devise d'origine et l'avertissement ne s'affichait jamais (TCK-564).
+  const selectedCurrency = (useWatch({ control, name: 'currency' }) || 'XOF').toUpperCase() as CurrencyCode;
   const originalCurrency = (agency.currency ?? 'XOF').toUpperCase() as CurrencyCode;
   const currencyChanged = selectedCurrency !== originalCurrency;
 

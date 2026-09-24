@@ -2,7 +2,9 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { FileText, Wallet, Wrench } from 'lucide-react';
 
+import { WelcomeIllustration } from '@/components/welcome/WelcomeIllustration';
 import { WelcomeModal } from '@/components/welcome/WelcomeModal';
 import { useTenantWelcomeOnce } from '@/hooks/useTenantWelcomeOnce';
 
@@ -21,9 +23,21 @@ export function TenantWelcomeWizard() {
 
   const slides = useMemo(
     () => [
-      { title: t('slides.0.title'), body: t('slides.0.body') },
-      { title: t('slides.1.title'), body: t('slides.1.body') },
-      { title: t('slides.2.title'), body: t('slides.2.body') },
+      {
+        illustration: <WelcomeIllustration icon={Wallet} />,
+        title: t('slides.0.title'),
+        body: t('slides.0.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={Wrench} />,
+        title: t('slides.1.title'),
+        body: t('slides.1.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={FileText} />,
+        title: t('slides.2.title'),
+        body: t('slides.2.body'),
+      },
     ],
     [t],
   );

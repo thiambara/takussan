@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { BellOff, Bell, Loader2, LogOut, Plus, Save } from 'lucide-react';
+import { BellOff, Bell, Loader2, LogOut, Save } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -13,6 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ParticipantPicker } from './ParticipantPicker';
+import { AlerteErreurs, phrasesDeValidation } from './erreursDeValidation';
 import { ParticipantRow } from './ParticipantRow';
 import {
   useAddParticipants,
@@ -23,7 +25,11 @@ import {
 } from '@/lib/queries/conversations';
 import { useAuth } from '@/context/AuthContext';
 import type { Conversation, ConversationParticipant } from '@/types/message';
+import type { MessagingContact } from '@/lib/queries/conversations';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+
+/** Taille maximale d'un groupe, créateur compris — la borne de `AddParticipantsRequest`. */
+const MAX_GROUP_SIZE = 20;
 
 interface ConversationInfoSheetProps {
   readonly open: boolean;
@@ -44,6 +50,7 @@ export function ConversationInfoSheet({
   currentMute,
 }: ConversationInfoSheetProps) {
   const t = useTranslations('messaging.group.info');
+  const tCreation = useTranslations('messaging.group.create');
   const messageErreur = useMessageErreurApi();
   const { user } = useAuth();
   const conversationId = conversation?.id ?? 0;
@@ -55,8 +62,8 @@ export function ConversationInfoSheet({
   const toggleMute = useToggleMute(conversationId);
 
   const [subject, setSubject] = useState(conversation?.subject ?? '');
-  const [newParticipantId, setNewParticipantId] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [erreurs, setErreurs] = useState<string[]>([]);
+  const setError = (phrase: string | null) => setErreurs(phrase ? [phrase] : []);
 
   const participants: ConversationParticipant[] =
     (conversation?.participants ?? []).filter((p) => !p.left_at);
@@ -72,23 +79,26 @@ export function ConversationInfoSheet({
     rename.mutate(
       { subject: subject.trim() },
       {
-        onError: (err) => setError(messageErreur(err, t('renameFailed'))),
+        onError: (err) =>
+          setErreurs(phrasesDeValidation(err) ?? [messageErreur(err, t('renameFailed'))]),
       },
     );
   }
 
-  function handleAdd() {
+  /**
+   * TCK-565 — l'invitation se fait PAR LE NOM, comme à la création du groupe (M12 du retour
+   * testeur du 2026-09-23). Ce champ était lui aussi un `<input type="number">` « ID
+   * utilisateur ». Choisir une personne l'ajoute aussitôt : il n'y a pas d'étape à valider.
+   */
+  function handleAdd(contact: MessagingContact | undefined) {
     setError(null);
-    const id = Number(newParticipantId.trim());
-    if (!Number.isInteger(id) || id <= 0) {
-      setError(t('invalidId'));
-      return;
-    }
+    if (!contact) return;
     addParticipants.mutate(
-      { user_ids: [id] },
+      { user_ids: [contact.id] },
       {
-        onSuccess: () => setNewParticipantId(''),
-        onError: (err) => setError(messageErreur(err, t('addFailed'))),
+        // Les phrases de l'API, pas le résumé d'une 422 (M13, cf. `phrasesDeValidation`).
+        onError: (err) =>
+          setErreurs(phrasesDeValidation(err) ?? [messageErreur(err, t('addFailed'))]),
       },
     );
   }
@@ -174,40 +184,30 @@ export function ConversationInfoSheet({
 
           {isAdmin && (
             <div className="space-y-1.5">
-              <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="add-participant-input">{t('addLabel')}</label>
-              <div className="flex gap-2">
-                <Input
-                  id="add-participant-input"
-                  type="number"
-                  placeholder={t('addPlaceholder')}
-                  value={newParticipantId}
-                  onChange={(e) => setNewParticipantId(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAdd();
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={handleAdd}
-                  disabled={addParticipants.isPending}
-                  aria-label={t('add')}
-                >
-                  {addParticipants.isPending ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Plus className="size-4" aria-hidden />
-                  )}
-                </Button>
-              </div>
+              <label
+                className="mb-1 flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                htmlFor="add-participant-input"
+              >
+                {t('addLabel')}
+                {addParticipants.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : null}
+              </label>
+              <ParticipantPicker
+                inputId="add-participant-input"
+                conversationId={conversationId}
+                value={[]}
+                excludeIds={participants.map((p) => p.user_id)}
+                max={Math.max(0, MAX_GROUP_SIZE - participants.length)}
+                onMaxReached={() =>
+                  setError(tCreation('maxParticipants', { max: MAX_GROUP_SIZE }))
+                }
+                onChange={(next) => handleAdd(next.at(-1))}
+              />
             </div>
           )}
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          <AlerteErreurs erreurs={erreurs} />
         </div>
 
         <div className="border-t border-border p-4 space-y-2">

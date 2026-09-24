@@ -6,6 +6,7 @@ use App\Http\Middleware\MaintenanceMode;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
+use App\Http\Requests\UpsertWizardDraftRequest;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -33,6 +34,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'trim',
             explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1')),
         ))));
+
+        // TCK-574 — l'écriture d'un brouillon d'assistant échappe au trim et à la conversion
+        // `''` → `null` : son `data` est opaque, et la reprise doit rendre la saisie telle
+        // qu'elle a été laissée. Toutes les autres routes restent normalisées. Le détail, et le
+        // troisième mécanisme neutralisé : `UpsertWizardDraftRequest`.
+        $brouillon = fn (Request $request): bool => UpsertWizardDraftRequest::estEcritureDeBrouillon($request);
+        $middleware->trimStrings(except: [$brouillon]);
+        $middleware->convertEmptyStringsToNull(except: [$brouillon]);
 
         $middleware->api(prepend: [
             ForceJsonResponseMiddleware::class,
