@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // TCK-575 — one export request per 24 h (see the fr file).
+    'data_export' => [
+        'errors' => [
+            'throttled' => 'An export was already requested in the last 24 hours. You can request a new one from :date (UTC).',
+        ],
+    ],
 ];

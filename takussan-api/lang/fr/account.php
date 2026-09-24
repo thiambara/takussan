@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // TCK-575 — une demande d'export par 24 h (`Me\DataExportController::store`). Le front
+    // affiche SON libellé à partir du code et de `available_at` ; cette prose sert les autres
+    // clients de l'API, dans la langue négociée.
+    'data_export' => [
+        'errors' => [
+            'throttled' => 'Un export a déjà été demandé ces dernières 24 heures. Vous pourrez en demander un nouveau à partir du :date (UTC).',
+        ],
+    ],
 ];

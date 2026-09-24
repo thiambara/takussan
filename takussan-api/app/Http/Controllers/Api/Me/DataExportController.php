@@ -30,10 +30,23 @@ class DataExportController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('requested_by', $request->user()->id)
             ->where('requested_at', '>', now()->subDay())
-            ->exists();
+            ->latest('requested_at')
+            ->first();
 
-        if ($recent) {
-            return $this->json(['message' => 'Un export a déjà été demandé dans les dernières 24h.'], 429);
+        if ($recent !== null) {
+            // TCK-575 — un CODE et l'instant où une nouvelle demande sera acceptée : le front
+            // possède le texte (principe n° 5) et le 429 générique du front promettait
+            // « réessayez dans quelques minutes » pour une attente qui va jusqu'à 24 h. La prose
+            // (jusque-là française en dur) suit la langue négociée pour les autres clients.
+            $disponible = $recent->requested_at->copy()->addDay();
+
+            return $this->json([
+                'code' => 'data_export_throttled',
+                'message' => __('account.data_export.errors.throttled', [
+                    'date' => $disponible->copy()->utc()->format('Y-m-d H:i'),
+                ]),
+                'available_at' => $disponible->copy()->utc()->format(DATE_ATOM),
+            ], 429, ['Retry-After' => (string) max(1, (int) ceil(now()->diffInSeconds($disponible, false)))]);
         }
 
         $export = DataExport::query()->create([

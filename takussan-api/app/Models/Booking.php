@@ -51,10 +51,16 @@ class Booking extends AbstractModel
 
     protected static array $requestRangeFilters = ['total_amount'];
 
+    /**
+     * TCK-575 — `expires_at` et `expired_at` y sont parce que `response_deadline` en dépend
+     * (`BookingResource::CHAMPS_DE_L_ECHEANCE`) : sans eux, toute lecture en sparse fieldset
+     * rendait 400 dès qu'elle demandait l'échéance.
+     */
     protected static array $queryFields = [
         'id', 'property_id', 'customer_id', 'created_by_id', 'agency_id',
         'reference_number', 'status', 'total_amount', 'deposit_amount', 'currency',
-        'start_date', 'end_date', 'confirmed_at', 'cancelled_at', 'created_at', 'updated_at',
+        'start_date', 'end_date', 'confirmed_at', 'cancelled_at', 'expires_at', 'expired_at',
+        'created_at', 'updated_at',
     ];
 
     public function property(): BelongsTo

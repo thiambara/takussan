@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DataExportsPanel, intervalleDeSuivi } from '@/components/privacy/DataExportsPanel';
-import { fetchMyDataExports } from '@/lib/queries/data-exports';
+import { ApiError } from '@/lib/api';
+import { fetchMyDataExports, requestMyDataExport } from '@/lib/queries/data-exports';
 import en from '@/messages/en.json';
 import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
@@ -185,8 +186,162 @@ describe('intervalleDeSuivi — la liste se rafraîchit tant qu’un export est 
       await vi.advanceTimersByTimeAsync(10_000);
       expect(await screen.findByText('Prêt')).toBeInTheDocument();
       expect(fetchMyDataExports).toHaveBeenCalledTimes(2);
+
+      // …puis CESSE : l'export est prêt, plus rien ne peut changer sans l'utilisateur.
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(fetchMyDataExports).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  // TCK-567, seconde vérification adverse (2026-09-24) : le test ci-dessus passe de « en attente »
+  // à « prêt » en UN rafraîchissement. Un suivi qui s'arrête après le premier —
+  // `dataUpdateCount < 2 ? intervalleDeSuivi(…) : false` — restait vert : « TANT QUE » quelque
+  // chose se prépare n'était pas gardé. Ici la fabrication dure plusieurs cycles.
+  it('le panneau suit TANT QUE l’export se prépare, sur plusieurs rafraîchissements', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(fetchMyDataExports).mockReset();
+      vi.mocked(fetchMyDataExports)
+        .mockResolvedValueOnce({ data: [unExport(7, 'queued')] })
+        .mockResolvedValueOnce({ data: [unExport(7, 'processing')] })
+        .mockResolvedValueOnce({ data: [unExport(7, 'processing')] })
+        .mockResolvedValueOnce({ data: [unExport(7, 'processing')] })
+        .mockResolvedValue({ data: [unExport(7, 'ready')] });
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        withIntl(
+          <QueryClientProvider client={client}>
+            <DataExportsPanel />
+          </QueryClientProvider>,
+        ),
+      );
+
+      expect(await screen.findByTestId('data-export-status-7')).toHaveTextContent('En attente');
+      for (let cycle = 2; cycle <= 4; cycle += 1) {
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(fetchMyDataExports).toHaveBeenCalledTimes(cycle);
+        expect(screen.getByTestId('data-export-status-7')).not.toHaveTextContent('Prêt');
+      }
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await screen.findByText('Prêt')).toBeInTheDocument();
+      expect(fetchMyDataExports).toHaveBeenCalledTimes(5);
+
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(fetchMyDataExports).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // TCK-567, vérification adverse : AC6 n'était gardé qu'au niveau de `intervalleDeSuivi`, pas de
+  // son BRANCHEMENT. `refetchInterval: 10_000` en dur interrogeait l'API sans fin, même quand
+  // tout était prêt, et laissait la suite entière verte (mutation rejouée : 50/50 vert).
+  it('le panneau n’interroge pas l’API quand rien ne se prépare', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(fetchMyDataExports).mockReset();
+      vi.mocked(fetchMyDataExports).mockResolvedValue({ data: [unExport(11, 'ready'), unExport(12, 'failed')] });
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        withIntl(
+          <QueryClientProvider client={client}>
+            <DataExportsPanel />
+          </QueryClientProvider>,
+        ),
+      );
+
+      await screen.findByTestId('data-export-status-11');
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(fetchMyDataExports).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('DataExportsPanel — une demande par 24 h, et le dire (TCK-575)', () => {
+  beforeEach(() => {
+    vi.mocked(fetchMyDataExports).mockReset();
+    vi.mocked(requestMyDataExport).mockReset();
+  });
+
+  // Le 429 tombait dans le libellé du limiteur de débit (`src/lib/api.ts`, `codeErreur` : 429 →
+  // `too_many_requests`) : « Réessayez dans quelques minutes » — l'attente réelle va jusqu'à 24 h.
+  it('annonce l’instant de la prochaine demande possible, pas « dans quelques minutes »', async () => {
+    vi.mocked(requestMyDataExport).mockRejectedValue(
+      new ApiError(429, {
+        code: 'data_export_throttled',
+        message: 'Un export a déjà été demandé ces dernières 24 heures.',
+        available_at: '2026-09-25T10:15:00+00:00',
+      }),
+    );
+    monter([unExport(1, 'ready')]);
+    await screen.findByTestId('data-export-status-1');
+
+    fireEvent.click(screen.getByRole('button', { name: fr.privacy.dataExports.request }));
+
+    const alerte = await screen.findByTestId('data-export-error');
+    expect(alerte).toHaveAttribute('role', 'alert');
+    expect(alerte).toHaveTextContent('dans les dernières 24 heures');
+    expect(alerte).toHaveTextContent(/25 sept\.? 2026/);
+    expect(alerte).not.toHaveTextContent(fr.errors.api.tooManyRequests);
+  });
+
+  it('un 429 d’une autre origine (limiteur de débit) garde le libellé commun', async () => {
+    vi.mocked(requestMyDataExport).mockRejectedValue(new ApiError(429, { message: 'Too Many Attempts.' }));
+    monter([unExport(1, 'ready')]);
+    await screen.findByTestId('data-export-status-1');
+
+    fireEvent.click(screen.getByRole('button', { name: fr.privacy.dataExports.request }));
+
+    expect(await screen.findByTestId('data-export-error')).toHaveTextContent(fr.errors.api.tooManyRequests);
+  });
+
+  it('suit la locale : en anglais, le refus est en anglais', async () => {
+    vi.mocked(requestMyDataExport).mockRejectedValue(
+      new ApiError(429, { code: 'data_export_throttled', available_at: '2026-09-25T10:15:00+00:00' }),
+    );
+    monter([unExport(1, 'ready')], 'en');
+    await screen.findByTestId('data-export-status-1');
+
+    fireEvent.click(screen.getByRole('button', { name: en.privacy.dataExports.request }));
+
+    const alerte = await screen.findByTestId('data-export-error');
+    expect(alerte).toHaveTextContent('in the last 24 hours');
+    expect(alerte).toHaveTextContent(/25 Sept? 2026/);
+  });
+});
+
+describe('DataExportsPanel — état vide (TCK-567, reste)', () => {
+  it('passe par l’unique EmptyState du produit, avec une phrase qui dit quoi faire', async () => {
+    monter([]);
+
+    const vide = await screen.findByTestId('data-exports-empty');
+    expect(within(vide).getByRole('heading', { name: fr.privacy.dataExports.empty })).toBeInTheDocument();
+    expect(vide).toHaveTextContent(fr.privacy.dataExports.emptyHint);
+    expect(screen.queryAllByTestId('data-export-row')).toHaveLength(0);
+  });
+
+  it('ne s’affiche pas dès qu’un export existe', async () => {
+    monter([unExport(2, 'queued')]);
+
+    await screen.findByTestId('data-export-status-2');
+    expect(screen.queryByTestId('data-exports-empty')).toBeNull();
+  });
+});
+
+describe('DataExportsPanel — cibles tactiles (TCK-575)', () => {
+  // Mesuré au navigateur (DOM réel + CSS compilée, 320/360/390) : 40 px pour « Demander mon
+  // export », 36 px pour « Télécharger » — les planchers des primitives. Le panneau relève les
+  // deux à 44 px sous `sm` (un `min-h` d'appelant l'emporte sur le plancher, par couche).
+  it('la demande et le téléchargement mesurent au moins 44 px au doigt', async () => {
+    monter([unExport(21, 'ready')]);
+    await screen.findByTestId('data-export-status-21');
+
+    for (const cible of [screen.getByTestId('data-export-request'), screen.getByTestId('data-export-download-21')]) {
+      expect(cible.className.split(/\s+/)).toContain('max-sm:min-h-11');
     }
   });
 });
