@@ -2,7 +2,9 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { Building2, MessagesSquare, UsersRound } from 'lucide-react';
 
+import { WelcomeIllustration } from '@/components/welcome/WelcomeIllustration';
 import { WelcomeModal } from '@/components/welcome/WelcomeModal';
 import { useWelcomeOnce } from '@/hooks/useWelcomeOnce';
 
@@ -22,9 +24,21 @@ export function AgentWelcomeWizard() {
 
   const slides = useMemo(
     () => [
-      { title: t('leads.title'), body: t('leads.body') },
-      { title: t('properties.title'), body: t('properties.body') },
-      { title: t('messages.title'), body: t('messages.body') },
+      {
+        illustration: <WelcomeIllustration icon={UsersRound} />,
+        title: t('leads.title'),
+        body: t('leads.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={Building2} />,
+        title: t('properties.title'),
+        body: t('properties.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={MessagesSquare} />,
+        title: t('messages.title'),
+        body: t('messages.body'),
+      },
     ],
     [t],
   );

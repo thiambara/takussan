@@ -4,12 +4,44 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileArchive, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge, type StatusTone } from '@/components/console';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { fetchMyDataExports, requestMyDataExport } from '@/lib/queries/data-exports';
-import type { DataExport } from '@/types/super-admin';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import type { DataExport, DataExportStatus } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+
+/**
+ * TCK-567 (M16) — l'API émet un CODE de statut stable (`App\Models\Enums\DataExportStatus`) et
+ * le front possède le texte affiché (principe n° 5 de CLAUDE.md). La ligne rendait le code tel
+ * quel : `queued`, en anglais, dans une interface en français — relevé par le testeur le
+ * 2026-09-23 juste après « Demander mon export ».
+ *
+ * Le `Record` est exhaustif sur l'union `DataExportStatus` : un sixième cas ajouté au type sans
+ * libellé ni ton ici casse `tsc`, au lieu de réapparaître à l'écran sous sa forme brute.
+ */
+const TON_PAR_STATUT: Record<DataExportStatus, StatusTone> = {
+  queued: 'neutral',
+  processing: 'info',
+  ready: 'success',
+  expired: 'neutral',
+  failed: 'danger',
+};
+
+/** Les statuts où l'archive est encore en fabrication — ceux qui peuvent changer sans l'utilisateur. */
+const EN_PREPARATION: ReadonlySet<DataExportStatus> = new Set(['queued', 'processing']);
+
+/**
+ * Cadence de rafraîchissement de la liste, pour `refetchInterval`.
+ *
+ * Sans elle, le statut restait figé sur « en attente » jusqu'au rechargement de la page, alors que
+ * la fabrication tourne en file (`ProcessDataExport`). On ne suit que ce qui peut encore bouger :
+ * dès qu'aucun export n'est en préparation, la requête cesse d'interroger l'API.
+ */
+export function intervalleDeSuivi(exports: readonly DataExport[] | undefined): number | false {
+  return exports?.some((e) => EN_PREPARATION.has(e.status)) ? 10_000 : false;
+}
 
 export function DataExportsPanel() {
   const t = useTranslations('privacy.dataExports');
@@ -19,6 +51,7 @@ export function DataExportsPanel() {
     queryKey: ['me', 'data-exports'],
     queryFn: fetchMyDataExports,
     staleTime: 30_000,
+    refetchInterval: (q) => intervalleDeSuivi(q.state.data?.data),
   });
   const mutation = useMutation({
     mutationFn: requestMyDataExport,
@@ -60,20 +93,27 @@ export function DataExportsPanel() {
 
 function DataExportRow({ dataExport }: { dataExport: DataExport }) {
   const t = useTranslations('privacy.dataExports');
+  const fmt = useFormatteurs();
+  const enPreparation = EN_PREPARATION.has(dataExport.status);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
-      <div>
+    <div data-testid="data-export-row" className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+      <div className="min-w-0">
         <p className="font-medium text-foreground">{t('rowTitle', { id: String(dataExport.id) })}</p>
         <p className="text-muted-foreground">
-          {t('requestedAt', { date: new Date(dataExport.requested_at).toLocaleString('fr-FR') })}
-          {dataExport.expires_at
-            ? t('expiresAt', { date: new Date(dataExport.expires_at).toLocaleDateString('fr-FR') })
-            : ''}
+          {t('requestedAt', { date: fmt.dateTime(dataExport.requested_at) })}
+          {dataExport.expires_at ? t('expiresAt', { date: fmt.date(dataExport.expires_at) }) : ''}
         </p>
+        {enPreparation ? (
+          <p className="mt-1 text-muted-foreground">{t('pendingHint')}</p>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant={dataExport.status === 'ready' ? 'secondary' : 'outline'}>{dataExport.status}</Badge>
+        <StatusBadge
+          data-testid={`data-export-status-${dataExport.id}`}
+          label={t(`status.${dataExport.status}`)}
+          tone={TON_PAR_STATUT[dataExport.status]}
+        />
         {dataExport.status === 'ready' ? (
           <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/api/data-exports/${dataExport.id}/download`}>
             <Download className="size-4" aria-hidden="true" />
