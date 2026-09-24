@@ -1,13 +1,13 @@
 ---
 id: TCK-566
 title: "Onboarding et passage en pro : l'indicatif du téléphone passe derrière les chiffres, et ouvrir un parcours sans rien saisir crée une démarche « à reprendre »"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -262,10 +262,45 @@ PUT. Le brouillon laissé par la mesure a été supprimé ensuite.
       séparateur, le bouton « Envoyer le code » fait 44 px de haut (sous le champ en mobile, à sa
       droite sur bureau), aucun défilement horizontal (tableau du Contexte). Mesuré sur l'assistant
       propriétaire seulement : le composant `PhoneInput` est le même dans les quatre.
+- [x] AC9 bis (solde, TCK-574) — relevé au navigateur sur l'assistant HÔTE `/onboarding/host`, la
+      page de la capture, avec un compte temporaire sans profil d'agence, supprimé ensuite. À 320,
+      360 et 390 px et au bureau (1280) : aucun défilement horizontal (`scrollWidth` =
+      `innerWidth`), champ de 44 px, préfixe `+221` de 51 px (47 px au bureau), bouton « Envoyer
+      le code » de 44 px de haut (pleine largeur sous le champ en mobile, 138 px à sa droite au
+      bureau). Taper `0771234567` affiche `0771234567` et active « Envoyer le code » (valeur
+      `+221771234567`). L'écart entre le séparateur du préfixe et le premier chiffre valait
+      **18,5 px** (17,1 px au bureau) pour 10 px de marge avant l'indicatif. Il vaut maintenant
+      **10 px** partout, parce que le retrait suit la largeur mesurée du préfixe. *(Mutation
+      « retrait estimé en `ch` » → **1 rouge** dans `phone-input.test.tsx`.)*
+- [x] AC11 (solde, TCK-574) — un `0` de préfixe national tapé sous un indicatif étranger est
+      retiré (`0612345678` sous `+33` → `+33612345678`), sauf là où il est significatif (Italie,
+      Saint-Marin, Côte d'Ivoire, Bénin, Gabon, Congo). L'API refuse `+330612345678` à `send-otp`.
+      *(TCK-574 AC3 à AC5.)*
+- [x] AC12 (solde, TCK-574) — un brouillon rend `''` tel qu'il a été écrit : dans un assistant
+      d'onboarding, un champ pré-rempli que la personne a vidé revient vide à la reprise.
+      *(TCK-574 AC1 et AC2.)*
 - [ ] AC10 — sur preview, après déploiement : la carte « Passage en pro » du compte du testeur
       n'est plus affichée au tableau de bord (brouillon vierge écarté par le bandeau), et le
       brouillon est supprimé en base à la première ouverture du formulaire. **Non mesuré** (exige
       la session du testeur).
+
+## Solde de la vérification (2026-09-24, TCK-574)
+
+| Relevé de la vérification | Mesure | Issue |
+|---|---|---|
+| W8 — `0612345678` sous `+33` → `+330612345678` | 6 rouges dans `phone.test.ts` et 1 dans `PhoneVerificationTest.php` avant correctif ; `send-otp` rendait 200 | **Corrigé** (TCK-574 b), au front et à l'API |
+| W8 — AC9 non mesurée sur `/onboarding/host` | Mesurée avec un compte temporaire sans profil d'agence | **Fait** (AC9 bis) |
+| Risque — AC9 relevée sur l'assistant propriétaire seulement | L'hôte est relevé à son tour. Agent et prestataire exigent une invitation et n'ont pas été relevés ; ils emploient le même `<PhoneInput>` | **Réduit** |
+| Risque — écart d'environ 18,6 px entre le séparateur et le premier chiffre | 18,5 px mesurés à 320/360/390 px, 17,1 px au bureau | **Corrigé** : 10 px partout (AC9 bis) |
+| Risque — perte de fidélité due à `ConvertEmptyStringsToNull` | `WizardDraftFideliteTest` : 3 rouges avant | **Corrigé à la source** (TCK-574 a, AC12) |
+| Risque — `send-otp` refuse la forme nationale (`771234567`) | Appelants relevés : les quatre assistants envoient un E.164 composé, `PhoneVerificationSection` et `ProfileContactSection` n'envoient aucun `phone` (`phoneSendOtpAction()` sans argument) | **Sans autre client touché** : le risque est levé. ⚠ repair-1 : l'appel SANS `phone` envoyait le code au numéro ENREGISTRÉ sans le relire — `+330612345678` accepté par le profil, ou `780143710+221`. `send-otp` le juge désormais par les mêmes règles (422, aucun code), et `normalizePhoneInput` retire le 0 de préfixe national au champ du profil (TCK-574 AC5 bis : 4 + 4 rouges avant). repair-2 : un `phone` présent mais vide (`''`, `null`, espaces) relit aussi l'enregistré, désormais épinglé par un test (mutation `filled` → `has` : 3 rouges, TCK-574 AC5 ter) |
+| Risque — W11, le wolof à moitié en français | Relevé le 2026-09-24 : `agency.upgrade.page.benefits.sla` ne promet plus de délai dans aucune langue (« sa décision vous parvient par e-mail et dans vos notifications » ; wo « Sunu ekib dina seetlu bépp laaj ; dinga jot tontu bi ci e-mail ak ci say yégle. ») | **Soldé par une autre unité** : les trois langues disent la même chose, et il n'y a plus de chiffre |
+| Risque — fantômes supprimés seulement à la réouverture | Inchangé (l'état vierge d'un assistant d'onboarding dépend du compte) | **Accepté** |
+| Risque — fantôme de l'hôte reconnu vierge seulement si les champs pré-remplis n'ont pas changé | Inchangé | **Accepté** |
+| Risque — `+` suivi d'au plus 4 chiffres relu comme vide | Choix délibéré | **Accepté** |
+| Risque — `780143710+221` vérifié sur le compte du testeur | En base de préproduction, hors de portée locale | **Ouvert** (Hors périmètre) |
+| Risque — AC10 sur preview | Interdit à cette unité | **Ouvert** |
+| Relevé repair-1 — « 0 » tapé sous `+33` reste affiché si le parent remet `''` | Mécanisme confirmé par une sonde jetable ; aucun des quatre assistants ne remet le téléphone à `''` | **Contrat écrit** dans `<PhoneInput>` : remonter (`key`) ; épinglé par un test (TCK-574 AC4 bis) |
 
 ## Hors périmètre
 
@@ -277,7 +312,9 @@ PUT. Le brouillon laissé par la mesure a été supprimé ensuite.
   se déclenche aussi sur les valeurs géo posées d'office à l'ouverture. Sa clé
   `property-create-wizard` n'étant pas dans `WIZARD_RESUME_RULES`, aucune carte n'en découle
   aujourd'hui ; à regarder si elle y entre.
-- Le profil (`ProfileContactSection`) garde sa saisie E.164 libre : hors du parcours signalé.
+- Le profil (`ProfileContactSection`) garde sa saisie E.164 libre : hors du parcours signalé. Sa
+  normalisation (`normalizePhoneInput`, `lib/phone.ts`) retire depuis TCK-574 repair-1 le 0 de
+  préfixe national.
 
 ## Notes d'implémentation
 
@@ -288,6 +325,9 @@ PUT. Le brouillon laissé par la mesure a été supprimé ensuite.
   objet recomposé n'est pas une différence de saisie.
 - `WizardReprenable` fige l'état vierge **à l'hydratation** : l'assistant hôte recalcule
   `initialData` quand `refreshUser()` rafraîchit l'utilisateur, la référence ne doit pas bouger.
+- ⚠ **Périmé depuis TCK-574 (2026-09-24)** : l'API rend désormais `''` tel quel dans un brouillon
+  (écriture exemptée du trim et de `ConvertEmptyStringsToNull`). Le paragraphe suivant décrit
+  l'état antérieur. Les relectures typées restent en place pour les brouillons déjà en base.
 - **Le serveur de brouillons n'est pas fidèle**, et le front s'en défend plutôt que de le changer :
   `ConvertEmptyStringsToNull` est un middleware GLOBAL (`bootstrap/app.php`), et l'exempter pour
   `me/wizard-drafts/*` changerait ce que relisent `PropertyWizard` (groupe E) et les assistants
