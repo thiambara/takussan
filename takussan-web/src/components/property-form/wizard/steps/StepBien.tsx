@@ -20,7 +20,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { UseFormReturn } from 'react-hook-form';
+import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
@@ -69,7 +69,12 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
   const t = useTranslations('property.wizard');
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const tContrat = useTranslations(PROPERTY_ENUM_NAMESPACES.contractTypeWizard);
-  const { watch, setValue } = form;
+  const { control, setValue } = form;
+  // TCK-564 — `useWatch`, JAMAIS `watch()` lu pendant le rendu. Avec `watch('type')`, le React
+  // Compiler mettait la valeur en cache sur l'identité — stable — de `watch` : la pastille
+  // cliquée ne s'allumait jamais, EN PRODUCTION SEULEMENT (vitest ne compile pas). Mesure et
+  // garde : `__tests__/abonnement-des-etapes.test.tsx`.
+  const [type, contrat] = useWatch({ control, name: ['type', 'contract_type'] });
 
   return (
     <>
@@ -77,7 +82,7 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
         id="wizard-type"
         label={t('fields.type')}
         radioGroup
-        value={watch('type')}
+        value={type}
         onChange={(v) => setValue('type', v as PropertyFormValues['type'], { shouldDirty: true })}
         options={propertyTypeValues.map((v) => ({ value: v, label: tType(v), icon: iconeDe(v) }))}
       />
@@ -85,7 +90,7 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
         id="wizard-contract"
         label={t('fields.contract')}
         radioGroup
-        value={watch('contract_type')}
+        value={contrat}
         onChange={(v) =>
           setValue('contract_type', v as PropertyFormValues['contract_type'], { shouldDirty: true })
         }

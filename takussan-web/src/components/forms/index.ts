@@ -1,6 +1,7 @@
 export * from './FormError';
 export * from './FormSuccess';
 export * from './FormInput';
+export * from './FormAmountInput';
 export * from './FormTextarea';
 export * from './FormSelect';
 export * from './FormCheckbox';

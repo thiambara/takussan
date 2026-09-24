@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Crosshair, Loader2 } from 'lucide-react';
-import type { UseFormReturn } from 'react-hook-form';
+import { useFormState, useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { FormInput } from '@/components/forms';
 import { Button } from '@/components/ui/button';
@@ -45,10 +45,23 @@ export function StepLieu({
   readonly geolocalisation?: Pick<Geolocation, 'getCurrentPosition'>;
 }) {
   const t = useTranslations('property.wizard');
-  const { control, watch, setValue } = form;
+  const { control, setValue } = form;
   const { suggestion } = useGeoSuggestion();
   const [suggestionUtilisee, setSuggestionUtilisee] = useState(false);
   const [detailsOuverts, setDetailsOuverts] = useState(false);
+
+  // Une erreur posée dans le détail d'adresse REPLIÉ ne se voyait pas : « Continuer » ne faisait
+  // rien, sans rien dire (revue adverse v2 — un code pays d'un caractère, ou un brouillon repris
+  // à `street: null`). La section se déplie quand une erreur y APPARAÎT — ajustement d'état
+  // décidé pendant le rendu, même patron que la reprise de brouillon de `PropertyWizard` —, et
+  // l'utilisateur garde la main pour la replier ensuite.
+  const { errors } = useFormState({ control, name: ['street', 'postal_code', 'country'] });
+  const erreurDansLesDetails = Boolean(errors.street || errors.postal_code || errors.country);
+  const [erreurVue, setErreurVue] = useState(false);
+  if (erreurDansLesDetails !== erreurVue) {
+    setErreurVue(erreurDansLesDetails);
+    if (erreurDansLesDetails) setDetailsOuverts(true);
+  }
   const [etatPosition, setEtatPosition] = useState<EtatPosition>('repos');
   // ⚠ On retient QUELS champs la suggestion a remplis, pas seulement qu'elle a été acceptée.
   // L'AC6 demande que « les champs remplis soient distinguables » : faire flasher la région alors
@@ -60,8 +73,11 @@ export function StepLieu({
     if (minuterie.current !== null) window.clearTimeout(minuterie.current);
   }, []);
 
-  const lat = watch('latitude') as number | null | undefined;
-  const lng = watch('longitude') as number | null | undefined;
+  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien`) : compilée, la
+  // position posée par « Utiliser ma position » n'atteignait jamais la carte.
+  const [latSuivie, lngSuivie] = useWatch({ control, name: ['latitude', 'longitude'] });
+  const lat = latSuivie as number | null | undefined;
+  const lng = lngSuivie as number | null | undefined;
 
   const accepterSuggestion = () => {
     if (!suggestion) return;

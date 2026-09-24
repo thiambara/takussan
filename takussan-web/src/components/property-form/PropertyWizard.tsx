@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
@@ -117,6 +118,20 @@ const CARACTERISTIQUES: readonly ConditionalFieldKey[] = [
   'title_type',
   'condition',
 ];
+
+/**
+ * Un brouillon tel que le SERVEUR le rend, ramené à ce que le formulaire a écrit.
+ *
+ * L'autosave envoie `''` pour un champ texte laissé vide ; l'API le rend `null`
+ * (`ConvertEmptyStringsToNull`, middleware global de Laravel). Repris tel quel, `street: null`
+ * échouait au schéma — `optional()` n'admet pas `null` — et « Continuer » ne faisait plus rien à
+ * l'étape 2 : l'erreur, le message brut de zod, tombait dans la section repliée du détail
+ * d'adresse (revue adverse v2, mesuré au navigateur). Un `null` n'a rien à dire que la valeur
+ * initiale ne dise déjà : on le retire, et c'est `valeursInitiales` qui répond.
+ */
+function sansNulls(donnees: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(donnees).filter(([, valeur]) => valeur !== null));
+}
 
 /**
  * ⚠ **Ni `type` ni `contract_type` ne sont pré-sélectionnés**, contrairement au formulaire d'avant
@@ -270,9 +285,13 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
     },
   });
 
-  const { watch, setValue, trigger, reset } = form;
-  const type = watch('type');
-  const contrat = watch('contract_type');
+  const { control, watch, setValue, trigger, reset } = form;
+  // TCK-564 — `useWatch` et non `watch()` lu pendant le rendu : c'est ce motif qui figeait les
+  // pastilles des étapes une fois compilées (cf. `__tests__/abonnement-des-etapes.test.tsx`). Ici,
+  // dans l'hôte, le compilateur ne mettait pas la lecture en cache — mesuré sur sa sortie — mais
+  // c'est un effet de bord de sa sortie, pas un contrat : `canAdvance` n'a pas à en dépendre.
+  // (`watch(callback)`, plus bas, est un ABONNEMENT, pas une lecture : il reste.)
+  const [type, contrat] = useWatch({ control, name: ['type', 'contract_type'] });
 
   /**
    * Reprise du brouillon serveur — la décision se prend PENDANT LE RENDU, l'écriture dans le
@@ -316,7 +335,7 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
     if (etatBrouillon !== 'restaure' || brouillonApplique.current) return;
     brouillonApplique.current = true;
     const donnees = brouillon.draft?.data;
-    if (donnees) reset({ ...valeursInitiales(), ...donnees } as PropertyFormValues);
+    if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees) } as PropertyFormValues);
   }, [etatBrouillon, brouillon.draft, reset]);
 
   /**
