@@ -1,13 +1,13 @@
 ---
 id: TCK-567
 title: "Carrousel de bienvenue sans bloc vide sur téléphone, statut d'export de données traduit et suivi"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -218,16 +218,189 @@ Deux défauts voisins, sur la même ligne, relevés en lisant le composant :
       posées à l'intégration du lot ; le parcours a rejoint `PARCOURS_ILLUSTRES`
       (`WelcomeWizards.illustrations.test.tsx`, rouge avant les icônes).
 - [ ] AC10 — vérification sur appareil réel (iOS Safari) de la hauteur `100dvh` et de la marge
-      `safe-area-inset-bottom`. *Non mesuré : aucun WebKit disponible.*
+      `safe-area-inset-bottom`. *Mesuré le 2026-09-24 sur le **simulateur** iOS (Safari 18.0,
+      iPhone 16 portrait), pas sur un appareil réel : `innerHeight` 659 = `100dvh` 659 = hauteur de
+      la modale (0–659), rien de coupé (illustration 64–339, titre 363–391, « Suivant » 555–595,
+      « Passer » 603–643), `scrollWidth` = `innerWidth` = 393. ⚠ **Ce n'était pas l'application en marche** : Safari du simulateur
+      n'offre pas de CDP, et la page mesurée était un **instantané statique** — le DOM rendu de la
+      modale (`client-en.html`, sorti de jsdom) posé avec la CSS compilée de l'application
+      (`app.css`) et une sonde qui affiche les mesures dans la page (`scratchpad/U5/ios/build.mjs`).
+      Ce qui est mesuré est donc la CSS réelle sur le DOM réel du composant, sous WebKit ; ce qui
+      ne l'est pas : l'hydratation, le primitif de dialogue monté par React, et le clavier virtuel
+      (précision de la vérification adverse du 2026-09-24). La marge `safe-area-inset-bottom`
+      y vaut **0** (la barre d'outils de Safari couvre l'encoche) : son effet quand elle n'est pas
+      nulle (écran d'accueil, barre repliée) n'est toujours pas observé. Case laissée ouverte.*
+
+## Restes de la vérification adverse — soldés le 2026-09-24 (TCK-575)
+
+Chaque reste a été rejoué avant correction, puis le correctif a été retiré et remis en place
+(copie, retrait, test, restauration par `cp`, md5 identique ; journaux dans
+`scratchpad/ablation/U5/`).
+
+- **Seconde vérification adverse (2026-09-24) : trois des correctifs ci-dessous ne tenaient
+  pas.** Rejoués avant correction, tous verts :
+  - *M10, garde de visibilité contournable* : l'encre de l'icône à 5 % d'opacité
+    (`text-primary/5`), l'encre `text-background` sur la pastille `bg-card` (deux jetons, deux
+    couleurs à 1,05:1) et `max-sm:opacity-[.05]` sur la boîte restaient verts, 24/24. La garde
+    comparait des **noms** de jetons et ne connaissait l'opacité qu'en échelle numérique : la
+    phrase « refuse toute opacité sous 100 » ci-dessous était **fausse** pour la valeur arbitraire.
+    **Corrigé** : `raisonsDInvisibilite` mesure désormais le **rapport de contraste WCAG** entre le
+    trait (encre héritée, alpha composé sur le fond) et le fond réel remonté du DOM, dans les
+    **deux thèmes**, contre le seuil non textuel de **3:1**, par le harnais partagé
+    `src/test/contraste-wcag.ts` ; chaque variante d'encre ou de fond (`max-sm:`, `dark:`…) est
+    mesurée aussi ; une couleur qu'on ne sait pas résoudre (valeur arbitraire, variable, trait
+    recoloré par `stroke-<couleur>`) est un échec nommé. `classesMasquantes` refuse
+    `opacity-[…]`, `opacity-(…)`, `[clip-path:…]` et `[clip:…]`. Rejoué après : `text-primary/5`
+    → 6 rouges, `text-background` → 6, `max-sm:opacity-[.05]` → 7, et trois formes voisines
+    (`max-sm:text-card`, `text-muted`, `stroke-card` sur l'icône) → 6 chacune ; le code réel reste
+    vert, 24/24.
+  - *M16, « tant que » non gardé* : `refetchInterval: (q) => q.state.dataUpdateCount < 2 ?
+    intervalleDeSuivi(…) : false` (le suivi s'arrête après un rafraîchissement) restait vert : le
+    test passait de « en attente » à « prêt » en un seul cycle. **Corrigé** : un test où la
+    fabrication dure quatre cycles (`queued` → `processing` ×3 → `ready`) exige cinq appels, aucun
+    « Prêt » avant, puis l'arrêt. Mutation du vérificateur → 1 rouge ; intervalle constant → 3.
+  - *AC10* : la mesure iOS était un instantané statique, pas l'application — précisé dans AC10.
+- **M10 : une icône présente mais invisible passait.** Reproduit : `hidden` sur l'icône de
+  `WelcomeIllustration`, puis l'icône de la couleur de sa pastille ; welcome + privacy restaient
+  verts à 50/50. **Corrigé dans la garde** : `__tests__/visibilite.ts` (`raisonsDInvisibilite`)
+  vérifie l'icône et ses ancêtres jusqu'à la boîte (classes masquantes), le trait
+  (`currentColor`, épaisseur > 0) et l'égalité des jetons couleur de trait et fond. La fonction est
+  appelée par `WelcomeModal.test.tsx` et, sur chaque diapositive des cinq parcours, par
+  `WelcomeWizards.illustrations.test.tsx`. Ablations : `hidden` → 6 rouges sur 24, couleur de la
+  pastille → 6 rouges sur 24.
+- **M10 : l'opacité partielle et les formes arbitraires passaient.** Reproduit : `max-sm:opacity-5`
+  sur la boîte restait vert. **Corrigé** : `classesMasquantes` refuse toute opacité d'échelle sous
+  100 (et, depuis la seconde vérification, toute opacité en valeur arbitraire), ainsi
+  que `[display:…]`, `[visibility:…]`, `[opacity:…]` et `[content-visibility:…]`, sous n'importe
+  quelle variante. Ablations : `max-sm:opacity-5` → 7 rouges, `[display:none]` arbitraire → 7
+  rouges.
+- **M16 : AC6 n'était gardé que sur la fonction, pas sur son branchement.** Reproduit :
+  `refetchInterval: 10_000` constant restait vert. **Corrigé** : deux tests du panneau. Le premier
+  vérifie qu'un export en attente passe à « Prêt » sans recharger la page, le second que le panneau
+  n'interroge plus l'API quand rien ne se prépare. Ablation : intervalle constant → 2 rouges.
+- **Risque : e-mail d'export et 429 en français en dur (D-24).** **Soldé par TCK-575.** L'e-mail
+  suit la langue du destinataire et son bouton mène à la page « Mes données » du front (l'ancien
+  lien d'API rendait 401). Le 429 porte `code`, `available_at` et `Retry-After`, et le panneau dit
+  quand une nouvelle demande sera possible au lieu de « réessayez dans quelques minutes ».
+- **Risque : l'état vide n'était pas un `<EmptyState>`.** **Corrigé** : `<EmptyState>` avec icône,
+  titre et une phrase qui dit quoi faire (`privacy.dataExports.emptyHint`). Ablation : paragraphe
+  maison → 1 rouge.
+- **Découvert en mesurant : cibles de 36 px au doigt** (la demande et le téléchargement, à 320, 360
+  et 390 px). **Corrigé** : `max-sm:min-h-11` (44 px). Ablation : retour à 40 px → 1 rouge.
+- **Risque : parcours administrateur d'agence sur l'icône neutre.** **Faux aujourd'hui** :
+  `AgencyStandardWelcomeWizard` porte ses trois icônes et figure dans `PARCOURS_ILLUSTRES`
+  (AC9). La nouvelle garde de visibilité le couvre aussi.
+- **Risque : `100dvh` et `safe-area` non vérifiés sur WebKit.** **Mesuré en partie** sur le
+  simulateur iOS (voir AC10). Reste ouvert : appareil réel, et `safe-area-inset-bottom` non nulle.
+- **Risque : les gardes de disposition sont structurelles, et la géométrie se mesure hors CI.**
+  **Reste ouvert.** jsdom ne calcule aucune disposition. La liste des classes masquantes s'est
+  élargie (opacité partielle, formes arbitraires, `clip-path` arbitraire ; et, depuis la reprise
+  du 2026-09-24, toute propriété arbitraire, tout filtre, mélange ou masque, les formes nulles en
+  valeur arbitraire ; et, depuis la réparation 1, des **seuils** de réduction — dimension, échelle,
+  rotation 3D, inclinaison — et le fond propre de l'icône), mais elle reste **fermée** : une
+  translation hors cadre, un frère posé par-dessus l'icône, une règle CSS écrite ailleurs, une
+  expression de dimension (`h-[clamp(…)]`) et des rotations composées sur plusieurs éléments
+  passeraient (voir « Reprise des défauts mineurs »). La couleur, elle, n'est plus une liste : elle se mesure (contraste ≥ 3:1 dans les
+  deux thèmes).
+- **Risque : borne de 21 à 27 rem.** **Reste ouvert, sans défaut.** Elle a été mesurée sur les
+  textes fr, en et wo actuels (19,4 à 21 rem), et aucune nouvelle locale n'est prévue. Une langue
+  aux textes nettement plus longs demandera une nouvelle mesure.
+
+## Reprise des défauts mineurs (2026-09-24)
+
+Troisième vérification adverse de la garde de visibilité (M10), soldée par l'unité M3.
+
+**Reproduit avant correction** : cinq classes posées sur l'icône de `WelcomeIllustration.tsx`
+(`<Icon className="size-9 …">`), `npx vitest run src/components/welcome` → **24/24 verts** pour
+chacune : `[color:transparent]`, `stroke-[0]`, `[stroke-width:0]`, `brightness-0`, `blur-lg`. Toutes
+rendent le trait invisible ou illisible : les deux premières formes d'épaisseur nulle l'emportent
+sur l'attribut `stroke-width` de Lucide, `[color:transparent]` vide le `currentColor` hérité,
+`brightness-0` repeint le trait en noir (sur la pastille `card` du thème sombre), `blur-lg` étale un
+trait de 2 px sur 16.
+
+**Corrigé dans `components/welcome/__tests__/visibilite.ts`** (la garde ; aucun composant touché) :
+
+- `raisonsDInvisibilite` refuse, entre l'icône et la boîte, **toute propriété arbitraire**
+  (`[propriété:valeur]`, quelle qu'elle soit), **tout filtre, mélange ou masque** hors de sa valeur
+  neutre (`blur`, `brightness`, `contrast`, `grayscale`, `invert`, `sepia`, `saturate`,
+  `hue-rotate`, `drop-shadow`, `filter-…`, `mix-blend-…`, `mask-…` ; `blur-none`,
+  `brightness-100`, `mix-blend-normal`… passent) et tout `style` en ligne (signalé, pas lu) ; les
+  variantes sont retirées par un découpage qui respecte les crochets
+  (`[@media(max-height:30rem)]:hidden` → `hidden`) ;
+- l'épaisseur du trait se juge sur la **classe** (`stroke-N`, `stroke-[N]`) comme sur l'attribut,
+  contre un plancher de **0,5** unité du `viewBox` (0,75 px à `size-9`) au lieu de « > 0 » ;
+- toute couleur de texte ou de fond en valeur arbitraire non numérique (`text-[transparent]`) est
+  « non mesurable » ;
+- `classesMasquantes` (qui garde aussi les ancêtres de la boîte) reconnaît les formes nulles en
+  valeur arbitraire (`h-[0]`, `size-[0px]`, `scale-[0]`, `stroke-[0]`) et les propriétés
+  arbitraires de couleur, de trait, de remplissage, de filtre, de masque, de transformation et de
+  dimension.
+
+**Prouvé par les mêmes mutations** (script `scratchpad/ablation/M3/mut-welcome.sh` : copie, mutation,
+vitest, restauration par `cp`, md5 `98fd5e12…` identique après chaque série) : les cinq →
+**6 rouges sur 24** chacune ; quatre voisines aussi (`text-[transparent]`, `stroke-[0.05]`,
+`max-sm:brightness-0`, `mix-blend-difference`) → 6 rouges chacune ; témoin neutre `blur-none` →
+24/24 vert ; code réel → 24/24 vert.
+
+**Hors d'atteinte d'une analyse de classes, écrit aussi dans l'en-tête de `visibilite.ts`** : un
+`style` en ligne est signalé mais pas interprété ; une règle CSS écrite ailleurs qui viserait
+l'icône, un frère posé **par-dessus** elle (un halo `z-10` opaque) et une translation hors cadre
+(`translate-x-full` dans la boîte `overflow-hidden`) passent. Le dernier juge reste la mesure au
+navigateur sur la CSS compilée (AC1).
+
+## Reprise des défauts mineurs (2026-09-24) — réparation 1 (M3)
+
+Quatrième vérification adverse de la garde de visibilité : un défaut majeur et un mineur,
+**reproduits** avant correction (script `scratchpad/ablation/M3/mut-wi.sh` : classe ajoutée à
+`<Icon className="size-9 …">`, `npx vitest run src/components/welcome`, restauration par `cp`, md5
+`98fd5e12…` identique après chaque mutation).
+
+**Majeur — le fond propre de l'icône n'était pas mesuré.** `fondsSousLIcone` prenait le fond au
+repos par `fondHerite(svg)`, qui commence au **parent**. `bg-primary` sur l'icône (trait `primary`
+sur fond `primary`, 1:1) → **24/24 verts**, quand `max-sm:bg-primary` → 6 rouges. L'en-tête
+annonçait pourtant « le fond peint le plus proche ». **Corrigé** : le fond au repos est celui que
+l'icône peint elle-même s'il existe (alpha composé sur le fond hérité), sinon le fond hérité ; une
+couleur de fond qu'on ne sait pas résoudre y devient une raison nommée (« fond non mesurable »), plus
+une exception. Après : `bg-primary` et `bg-primary/90` → **6 rouges sur 24**. `bg-card` et
+`bg-background` sur l'icône restent verts **à bon droit** : ce sont le fond de la pastille et un
+fond voisin, sur lesquels le trait `primary` se lit.
+
+**Mineur — réductions et épaisseur en `rem`.** `classesMasquantes` ne connaissait que les formes
+nulles : `size-px`, `size-0.5`, `size-[0.1px]`, `scale-5`, `-scale-x-0`, `rotate-x-90` et
+`stroke-[0.02rem]` → **24/24 verts** chacune. **Corrigé** par `reductionDe` (appelée sur la chaîne
+de l'icône à la boîte) : dimension (`size`, `w`, `h`, `max-w`, `max-h`) sous 16 px ou sous un quart
+en relatif ; échelle sous 50 % (signe compris : un miroir n'efface rien) ; rotation 3D dont le
+cosinus tombe sous ½ ; inclinaison de 60° ou plus ; une valeur arbitraire illisible est « non
+mesurable ». `epaisseurDeClasse` lit `rem`/`em` (×16) et `%` (de la diagonale 24 du `viewBox`) ;
+`bg-blend-…` rejoint les mélanges refusés. Après : les sept → **6 rouges sur 24** chacune, et
+`skew-x-60`, `bg-blend-multiply`, `rotate-y-[90deg]`, `size-3` sur la pastille → 6 rouges.
+**Témoins verts (24/24)** : `size-6`, `scale-75`, `rotate-x-30`, `stroke-[0.1rem]`,
+`-scale-x-100`, `bg-background`, `bg-card` ; code réel 24/24 ; `src/components/welcome` +
+`promesses-de-delai` 79/79.
+
+**Hors d'atteinte, ajouté à l'en-tête de `visibilite.ts`** : une expression de dimension
+(`h-[clamp(…)]`, `w-[calc(…)]` — la boîte en porte une) n'est pas évaluée, et chaque classe est
+jugée seule — deux `rotate-x-55` empilés, chacun au-dessus du seuil, écrasent l'icône au tiers.
+
+## Troisième passe — la session (2026-09-24)
+
+La vérification de la réparation 1 l'a refusée sur un point : « une valeur arbitraire illisible est
+non mesurable » était **faux** pour les dimensions et l'épaisseur — `size-[1mm]` (3,8 px) et
+`stroke-[0.1mm]`, tous deux émis par Tailwind 4.2.2, restaient **24/24 verts** ; un rembourrage ou
+un filet sur le SVG (`p-4`, `border-8`), qui rétrécit le DESSIN dans sa boîte, aussi. **Corrigé**
+dans `visibilite.ts` : une longueur d'une unité inconnue est « unité non mesurable » (dimension) ou
+`NaN`, donc trop fine (épaisseur) ; un `p-*`/`border-*` à largeur sur le SVG lui-même est une raison
+nommée (« dessin rétréci »). Rejoué : `size-[1mm]`, `stroke-[0.1mm]`, `p-4`, `border-8` → **6
+rouges sur 24** chacune ; témoins `border-solid` et `stroke-[0.1rem]` → 24/24 verts. Composant
+restauré par `cp`, md5 `98fd5e12…` identique.
 
 ## Hors périmètre
 
-- L'e-mail « Votre export de données est prêt » est rédigé en français en dur côté API
-  (`DataExportReadyNotification`) : dette D-24, autre ticket.
-- Le message du 429 (« Un export a déjà été demandé dans les dernières 24h. ») est une phrase
-  française émise par l'API, sans code : même dette.
-- L'état vide « Aucun export demandé. » n'est pas un `<EmptyState>` : écart à la charte, non
-  signalé par le testeur.
+- ~~L'e-mail « Votre export de données est prêt » est rédigé en français en dur côté API~~ :
+  soldé par TCK-575.
+- ~~Le message du 429 est une phrase française émise par l'API, sans code~~ : soldé par TCK-575.
+- ~~L'état vide « Aucun export demandé. » n'est pas un `<EmptyState>`~~ : corrigé (voir
+  ci-dessus).
 
 ## Notes d'implémentation
 

@@ -9,6 +9,8 @@ import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { withIntl } from '@/test/intl';
 
+import { raisonsDInvisibilite } from './visibilite';
+
 /**
  * TCK-567 (M10) — la spec de TCK-251 met une « illustration au-dessus » de chaque diapositive, et
  * AUCUN parcours n'en passait : sur téléphone, la hauteur qu'elle devait occuper restait blanche
@@ -64,6 +66,10 @@ describe('carrousels de bienvenue — une illustration sur chaque diapositive (T
       const illustration = within(dialog).getByTestId('welcome-illustration');
       // Une illustration qui ne dessine rien serait le même bloc vide, en plus discret.
       expect(illustration.querySelector('svg')).not.toBeNull();
+      // …et une icône PRÉSENTE mais invisible aussi : masquée, délavée, ou peinte de la couleur
+      // de sa pastille — trois mutations que la seule présence du `svg` laissait vertes
+      // (vérification adverse de TCK-567, 50/50 vert).
+      expect(raisonsDInvisibilite(illustration, ['[@media(max-height:30rem)]:hidden']), `diapositive ${n}`).toEqual([]);
       if (n < 3) fireEvent.click(within(dialog).getByTestId('welcome-next'));
     }
   });

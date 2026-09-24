@@ -6,6 +6,8 @@ import { WelcomeIllustration } from '@/components/welcome/WelcomeIllustration';
 import { WelcomeModal, type WelcomeSlide } from '@/components/welcome/WelcomeModal';
 import { withIntl } from '@/test/intl';
 
+import { classesMasquantes, raisonsDInvisibilite } from './visibilite';
+
 /**
  * TCK-567 (M10) — retour testeur du 2026-09-23, à 390 px : « Les 3 écrans du carrousel ont des
  * espaces vides ». La capture montre, sous le texte de la diapositive, un grand bloc blanc jusqu'aux
@@ -73,6 +75,7 @@ describe('WelcomeModal — pas de bloc vide dans le carrousel (TCK-567, M10)', (
     for (const n of [1, 2, 3]) {
       const illustration = within(dialog).getByTestId('welcome-illustration');
       expect(illustration.querySelector('svg')).not.toBeNull();
+      expect(raisonsDInvisibilite(illustration, ['[@media(max-height:30rem)]:hidden'])).toEqual([]);
       expect(illustration).toHaveAttribute('aria-hidden', 'true');
       if (n < 3) fireEvent.click(within(dialog).getByTestId('welcome-next'));
     }
@@ -183,12 +186,12 @@ describe('WelcomeModal — pas de bloc vide dans le carrousel (TCK-567, M10)', (
     // testeur — 293 px sans rien de peint à 390 × 844 au lieu de 121 — suite verte : les gardes
     // vérifiaient la PRÉSENCE de la hauteur et de la peinture, jamais qu'aucune autre classe ne
     // les annule. Le seul masquage permis est celui de l'écran bas, sur la boîte elle-même.
+    // Et une opacité PARTIELLE délave le panneau sans le retirer : la liste ne connaissait que
+    // l'opacité nulle, et une opacité de 5 % au téléphone restait verte (vérification adverse,
+    // 50/50 vert). `classesMasquantes` refuse toute opacité sous 100 %, et les formes arbitraires.
     const dialog = monter(diapos(true));
     const boite = within(dialog).getByTestId('welcome-illustration');
-    const masquantes = (el: HTMLElement) =>
-      classesDe(el).filter((c) =>
-        /(^|:)(hidden|invisible|collapse|sr-only|opacity-0|h-0|max-h-0|size-0|scale-0|scale-y-0)$/.test(c),
-      );
+    const masquantes = (el: HTMLElement) => classesMasquantes(el);
 
     expect(masquantes(boite)).toEqual(['[@media(max-height:30rem)]:hidden']);
     for (let el = boite.parentElement; el && el !== dialog; el = el.parentElement) {
