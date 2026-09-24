@@ -540,18 +540,40 @@ export function Navbar({ className }: NavbarProps) {
               libellé court le plus long (« Chercher ») en mesure 60. */}
           <div className="flex lg:hidden min-w-0 flex-1 items-center gap-2">
             <Sheet open={rechercheOuverte} onOpenChange={basculerRecherche}>
+              {/* TCK-563 (M3, retour testeur du 2026-09-23) — la pastille est un conteneur de
+                  requête (`@container`). La capture du testeur est prise à 320 px CSS (iPhone en
+                  zoom d'affichage) : la pastille y mesure 93 px et le libellé AU REPOS se coupait
+                  (« Cherc… », 43 px visibles sur 60, mesuré). Sous 5,5 rem de contenu, le libellé
+                  au repos passe en `sr-only` — il reste le nom accessible — et la loupe se
+                  centre (sauf si une transaction s'affiche dessous) ; `gap-0` avec, sans quoi
+                  l'écart vers le libellé devenu invisible la décalait de 4 px (mesuré). Un lieu
+                  en vigueur, lui, reste affiché et tronqué : c'est la donnée du visiteur, pas un
+                  libellé. Le seuil couvre le plus long libellé des trois langues (« Chercher »,
+                  60 px + loupe 16 + écart 8 = 84) ; à 360 et au-delà (107 px de contenu), rien
+                  ne change. */}
               <SheetTrigger
                 aria-haspopup="dialog"
-                className="flex-1 min-w-0 flex min-h-11 items-center gap-2 bg-card border border-border rounded-full px-3 py-1 shadow-sm text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md"
+                className="@container flex-1 min-w-0 flex min-h-11 items-center bg-card border border-border rounded-full px-3 py-1 shadow-sm text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md"
               >
-                <Search className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                <span className="flex min-w-0 flex-col">
-                  <span className={cn('truncate text-sm', lieuEnVigueur ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-                    {lieuEnVigueur || t('searchPill.idle')}
+                <span
+                  data-slot="contenu-pastille"
+                  className={cn('flex w-full min-w-0 items-center gap-2', !lieuEnVigueur && !libelleTransaction && '@max-[5.5rem]:justify-center @max-[5.5rem]:gap-0')}
+                >
+                  <Search className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                  <span className="flex min-w-0 flex-col">
+                    <span
+                      className={cn(
+                        'truncate text-sm',
+                        lieuEnVigueur ? 'font-medium text-foreground' : 'text-muted-foreground',
+                        !lieuEnVigueur && '@max-[5.5rem]:sr-only',
+                      )}
+                    >
+                      {lieuEnVigueur || t('searchPill.idle')}
+                    </span>
+                    {libelleTransaction && (
+                      <span className="truncate text-xs text-muted-foreground">{libelleTransaction}</span>
+                    )}
                   </span>
-                  {libelleTransaction && (
-                    <span className="truncate text-xs text-muted-foreground">{libelleTransaction}</span>
-                  )}
                 </span>
               </SheetTrigger>
               <SheetContent
