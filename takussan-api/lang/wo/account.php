@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // TCK-575 — benn ñaanu génne ci 24 waxtu (xoolal fichier fr bi).
+    'data_export' => [
+        'errors' => [
+            'throttled' => 'Ñaan nañu ab génne ci 24 waxtu yii weesu. Mën nga ñaan beneen bu jóge :date (UTC).',
+        ],
+    ],
 ];

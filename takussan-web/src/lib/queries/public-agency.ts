@@ -12,12 +12,15 @@ export interface AgencyAgentDto {
   avatar_url: string | null;
   specialty?: string | null;
   portfolio_count?: number;
+  /** TCK-573 — un propriétaire qui publie sous l'enseigne n'est pas un agent de l'agence. */
+  public_role?: 'agent' | 'owner';
 }
 
 export interface AgencyStats {
   rent_count: number;
   sale_count: number;
   cities: number;
+  /** Les AGENTS de l'équipe — sans les propriétaires qui publient sous l'enseigne (TCK-573). */
   agents: number;
 }
 

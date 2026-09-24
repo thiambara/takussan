@@ -71,14 +71,22 @@ vi.mock('@/lib/queries/public-agent', () => ({ getAgent: () => getAgentMock() })
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
+// La cale sous la barre monte aussi les bandeaux du site (TCK-572), clients et branchés sur
+// React Query : du décor de page, comme la barre et le pied, hors du sujet de ces tests.
+vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
 vi.mock('@/components/shared/BoutonRetour', () => ({
   BoutonRetour: ({ repli, libelle }: { repli: string; libelle: string }) => <a href={repli}>{libelle}</a>,
 }));
 vi.mock('@/components/public/profile/PortfolioTabs', () => ({
   PortfolioTabs: () => <div data-testid="portefeuille" />,
 }));
+// Le double rend la qualité reçue : c'est la page qui la transmet au formulaire de contact
+// (TCK-573), et c'est ce passage que le test garde — le texte lui-même est éprouvé par
+// `ContactSheet.tck-573.test.tsx`.
 vi.mock('@/components/public/profile/ContactSheet', () => ({
-  ContactSheet: () => <div data-testid="contact" />,
+  ContactSheet: ({ recipientRole }: { recipientRole?: string | null }) => (
+    <div data-testid="contact" data-role={recipientRole ?? ''} />
+  ),
 }));
 vi.mock('@/components/public/profile/TeamStrip', () => ({
   TeamStrip: () => <div data-testid="equipe" />,
@@ -93,6 +101,7 @@ function agent(overrides: Partial<AgentDto> = {}): AgentDto {
     id: 11,
     slug: 'dakar-immo-agent-1',
     full_name: 'Awa Ndiaye',
+    public_role: 'agent',
     bio: 'Spécialiste de la location à Dakar.',
     phone: '+221 77 000 00 00',
     city: 'Dakar',
@@ -177,5 +186,95 @@ describe("fiche d'agent — l'introuvable et l'indisponible", () => {
 
     expect(meta.robots).toBeUndefined();
     expect(meta.title).toContain('Awa Ndiaye');
+  });
+});
+
+/**
+ * TCK-573 — un propriétaire garde sa fiche sous `/agents/…`, mais n'y est JAMAIS présenté comme agent
+ * immobilier. Mesuré avant correctif, `curl /fr/agents/owner.agency4` : `<title>Property Owner —
+ * Agent immobilier — Takussan</title>` et un nœud `RealEstateAgent`.
+ */
+describe('fiche d’un propriétaire sous /agents — TCK-573', () => {
+  const proprietaire = () =>
+    agent({
+      slug: 'owner.agency4',
+      full_name: 'Property Owner',
+      public_role: 'owner',
+      bio: null,
+      specialty: null,
+      years_of_experience: null,
+      // Un propriétaire rattaché à une agence ne devient pas pour autant « Agent chez » elle.
+      agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' },
+    });
+
+  beforeEach(() => {
+    getAgentMock.mockReset();
+    notFoundMock.mockClear();
+  });
+
+  it('le titre de la page dit « Propriétaire », jamais « Agent immobilier »', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: proprietaire() });
+
+    const meta = await generateMetadata({ params: params() });
+
+    expect(meta.title).toBe('Property Owner — Propriétaire');
+    expect(JSON.stringify(meta)).not.toContain('Agent immobilier');
+  });
+
+  it('la page le présente comme propriétaire et le balise en `Person`', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: proprietaire() });
+
+    const { container } = render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByText(/^Propriétaire · Dakar$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Agent immobilier/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Agent chez')).not.toBeInTheDocument();
+
+    const ld = [...container.querySelectorAll('script[type="application/ld+json"]')].map(
+      (e) => JSON.parse(e.textContent ?? '{}') as Record<string, unknown>,
+    );
+    expect(ld.map((n) => n['@type'])).toEqual(['Person']);
+    // Le formulaire de contact reçoit la qualité : sans elle, il disait « l'agent du bien ».
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'owner');
+  });
+
+  /**
+   * Le REPLI : tout ce qui n'est pas explicitement `agent` est présenté comme propriétaire — une
+   * API plus ancienne qui n'émet pas le champ, ou une valeur qu'on ne connaît pas encore. La
+   * vérification a inversé les deux tests (`!== 'owner'` au titre, `=== 'owner'` au balisage) :
+   * 43 verts. Ce cas-ci les fait rougir.
+   */
+  it.each([
+    ['absent', undefined],
+    ['inconnu', 'courtier-associe'],
+  ])('un rôle %s est présenté en propriétaire, jamais en agent', async (_cas, role) => {
+    const personne = proprietaire();
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: { ...personne, public_role: role as unknown as AgentDto['public_role'] },
+    });
+
+    expect((await generateMetadata({ params: params() })).title).toBe('Property Owner — Propriétaire');
+    const { container } = render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByText(/^Propriétaire · Dakar$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Agent immobilier/)).not.toBeInTheDocument();
+    const ld = container.querySelector('script[type="application/ld+json"]');
+    expect(JSON.parse(ld?.textContent ?? '{}')['@type']).toBe('Person');
+  });
+
+  it('le contrôle : un agent reste « Agent immobilier », en titre, en libellé et en balisage', async () => {
+    // Sans ce cas, une page qui présenterait TOUT LE MONDE comme propriétaire passerait les deux
+    // tests ci-dessus.
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent() });
+
+    expect((await generateMetadata({ params: params() })).title).toBe('Awa Ndiaye — Agent immobilier');
+    const { container } = render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByText(/^Agent immobilier · Dakar · Location/)).toBeInTheDocument();
+    expect(screen.getByText('Agent chez', { exact: false })).toBeInTheDocument();
+    const ld = container.querySelector('script[type="application/ld+json"]');
+    expect(JSON.parse(ld?.textContent ?? '{}')['@type']).toBe('RealEstateAgent');
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'agent');
   });
 });

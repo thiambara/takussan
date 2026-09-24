@@ -57,6 +57,18 @@ const brouillon = vi.hoisted(() => ({
 }));
 vi.mock('@/hooks/useWizardDraft', () => ({ useWizardDraft: () => brouillon.etat }));
 
+// TCK-542 : la réduction des photos, doublée pour que l'envoi se voie. Par défaut elle rend
+// l'original ; un test la fait rendre un fichier marqué pour prouver que c'est LUI qui part.
+const reduction = vi.hoisted(() => ({
+  reduirePhoto: vi.fn(async (f: File) => f),
+  reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+}));
+vi.mock('@/lib/reduire-photo', () => reduction);
+
+function reduite(f: File): File {
+  return new File(['r'], `reduite-${f.name}`, { type: f.type });
+}
+
 vi.mock('@/app/actions/dashboard-properties', () => ({
   createPropertyAction: vi.fn(),
   setPropertyTagsAction: vi.fn(),
@@ -268,8 +280,126 @@ describe('PropertyWizard — le brouillon', () => {
     monter();
 
     expect(await screen.findByText('Étape 4 sur 6')).toBeInTheDocument();
-    expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7000000');
+    // TCK-564 — le prix repris se RELIT groupé (espace fine insécable de `fr-SN`).
+    expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u202f000\u202f000');
     expect(screen.getByRole('status')).toHaveTextContent(/brouillon/i);
+  });
+
+  /**
+   * Revue adverse v2 — un brouillon tel que le SERVEUR le rend. L'autosave écrit `''` dans les
+   * champs texte laissés vides ; l'API les rend `null` (`ConvertEmptyStringsToNull`, middleware
+   * global de Laravel). Repris tel quel, `street: null` échouait au schéma (`optional()` n'admet
+   * pas `null`) : « Continuer » ne faisait rien, et l'erreur — le message brut de zod, en anglais —
+   * était posée dans la section REPLIÉE. Mesuré au navigateur sur la pile locale.
+   */
+  const BROUILLON_TEL_QUE_RENDU = {
+    title: null, type: 'villa', contract_type: 'sale', currency: 'XOF', city: 'Mbour',
+    quarter: null, region: null, street: null, postal_code: null, country: null,
+    furnished: false, description: null, tag_ids: [],
+  };
+
+  it('un brouillon repris tel que le serveur le rend (vides → null) ne bloque pas l’étape 2', async () => {
+    brouillon.etat.draft = { step: 1, data: BROUILLON_TEL_QUE_RENDU };
+    const user = userEvent.setup();
+    monter();
+
+    expect(await screen.findByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(screen.getByLabelText(/ville/i)).toHaveValue('Mbour');
+    await user.click(suivant());
+
+    expect(await screen.findByText('Étape 3 sur 6')).toBeInTheDocument();
+    expect(screen.queryByText(/expected string/i)).not.toBeInTheDocument();
+  });
+
+  it('un brouillon repris tel que le serveur le rend part SANS les champs vides', async () => {
+    brouillon.etat.draft = {
+      step: 5,
+      data: { ...BROUILLON_TEL_QUE_RENDU, title: 'Villa à Mbour', price: 25000000 },
+    };
+    const { container } = monter();
+
+    await screen.findByText('Étape 6 sur 6');
+    fireEvent.submit(container.querySelector('form')!);
+
+    await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(createPropertyAction).mock.calls[0][0] as Record<string, unknown>;
+    expect(JSON.stringify(payload)).not.toMatch(/"street"|"postal_code"|"quarter"/);
+  });
+
+  it('une erreur posée dans la section REPLIÉE du détail d’adresse la déplie — elle se voit', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    const bascule = screen.getByRole('button', { name: /ajouter la rue/i });
+    await user.click(bascule);
+    await user.type(screen.getByLabelText(/pays/i), 'S');
+    await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
+
+    await user.click(suivant()); // « S » n'est pas un code pays : refusé
+
+    expect(await screen.findByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByRole('button', { name: /masquer la rue/i })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+  });
+
+  /**
+   * TCK-574 (solde de TCK-564) — la section ne se dépliait que quand une erreur y APPARAISSAIT.
+   * Repliée à la main après l'avoir vue, puis « Continuer » : l'erreur était déjà posée, aucune
+   * transition n'avait lieu, et la section restait repliée — le « Continuer ne fait rien »
+   * d'origine revenait. Chaque tentative refusée la redéplie.
+   */
+  it('replier la section après l’erreur, puis Continuer : elle se redéplie', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    await user.click(screen.getByRole('button', { name: /ajouter la rue/i }));
+    await user.type(screen.getByLabelText(/pays/i), 'S');
+    await user.click(suivant());
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
+
+    await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
+    await user.click(suivant());
+
+    await waitFor(() =>
+      expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false'),
+    );
+    expect(screen.getByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
+    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+  });
+
+  // TCK-574 — AC24 ne citait que le pays : une régression limitée au pays (mutation M-D de la
+  // vérification) restait verte. La rue et le code postal le disent aussi.
+  it.each([
+    ['rue', /^rue/i, 'x'.repeat(256), /la rue est trop longue/i],
+    ['code postal', /code postal/i, '1'.repeat(21), /le code postal est trop long/i],
+  ] as const)('une erreur de %s dans la section repliée la déplie', async (_nom, libelle, valeur, message) => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    await user.click(screen.getByRole('button', { name: /ajouter la rue/i }));
+    fireEvent.change(screen.getByLabelText(libelle), { target: { value: valeur } });
+    await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
+
+    await user.click(suivant());
+
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('« Reprendre plus tard » vide la file d’écriture AVANT de quitter la page', async () => {
@@ -364,7 +494,103 @@ async function allerJusquAuBout(
   await user.click(suivant()); //                                → finition
 }
 
+describe('PropertyWizard — TCK-564, retour testeur du 2026-09-23', () => {
+  it('W9 — « Terrain » puis « Vendre » cliqués sont VISIBLEMENT retenus, et « Bail » à l’étape 3', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(typeBien(/^terrain$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    expect(typeBien(/^terrain$/i)).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /^vendre$/i })).toHaveAttribute('aria-checked', 'true');
+    // L'état visible, pas seulement l'ARIA : c'est ce que le testeur ne voyait pas.
+    expect(typeBien(/^terrain$/i).className).toContain('bg-primary');
+
+    await user.click(suivant()); //                          → étape 2
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    await user.click(suivant()); //                          → étape 3 (terrain)
+
+    const bail = screen.getByRole('button', { name: /^bail$/i });
+    await user.click(bail);
+    expect(bail).toHaveAttribute('aria-pressed', 'true');
+    expect(bail.className).toContain('bg-primary');
+  });
+
+  it('W10 — le prix se lit groupé pendant la frappe, et part à l’API en NOMBRE sans séparateur', async () => {
+    const user = userEvent.setup();
+    monter();
+    await allerAuxCaracteristiques(user, /^terrain$/i);
+    await user.click(suivant()); //                          → prix
+
+    const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
+    await user.type(prix, '49000000');
+    expect(prix.value).toBe('49\u202f000\u202f000');
+
+    await user.click(suivant()); //                          → photos
+    await user.click(suivant()); //                          → finition
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({ price: 49_000_000 });
+  });
+
+  it('W10 — un prix EFFACÉ dit « Le prix est requis. », pas « doit être supérieur à 0 »', async () => {
+    // Revue adverse (repair-2) : le champ remet le vide en `null`, que `z.coerce.number` lisait 0.
+    const user = userEvent.setup();
+    monter();
+    await allerAuxCaracteristiques(user, /^terrain$/i);
+    await user.click(suivant()); //                          → prix
+
+    const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
+    await user.type(prix, '49000000');
+    await user.clear(prix);
+    await user.click(suivant());
+
+    expect(await screen.findByText(/le prix est requis/i)).toBeInTheDocument();
+    expect(screen.queryByText(/supérieur à 0/i)).not.toBeInTheDocument();
+  });
+
+  it('W10 — le prix suit la devise CHOISIE : en euros, « 1500,50 » part 1500,5, pas 150 050', async () => {
+    // Revue adverse : remplacer la devise suivie par la constante 'XOF' laissait toute la suite
+    // verte. Seul un changement de devise DANS l'étape éprouve que le champ la suit.
+    const user = userEvent.setup();
+    monter();
+    await allerAuxCaracteristiques(user, /^terrain$/i);
+    await user.click(suivant()); //                          → prix
+
+    await user.click(screen.getByRole('combobox', { name: /devise/i }));
+    await user.click(await screen.findByRole('option', { name: /euro/i }));
+
+    const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
+    expect(prix).toHaveAttribute('inputmode', 'decimal');
+    await user.type(prix, '1500,50');
+    expect(prix.value).toBe('1\u202f500,50');
+
+    await user.click(suivant()); //                          → photos
+    await user.click(suivant()); //                          → finition
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
+      price: 1500.5,
+      currency: 'EUR',
+    });
+  });
+});
+
 describe('PropertyWizard — la soumission', () => {
+  it('TCK-542 AC1 — les photos partent RÉDUITES dans le navigateur, pas telles que choisies', async () => {
+    reduction.reduirePhotos.mockImplementationOnce(async (fs) => fs.map(reduite));
+    const user = userEvent.setup();
+    monter();
+    await allerJusquAuBout(user, { photo: true });
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(uploadPropertyPhotosAction).toHaveBeenCalledTimes(1));
+    const envoi = vi.mocked(uploadPropertyPhotosAction).mock.calls[0][1] as FormData;
+    expect((envoi.getAll('photos') as File[]).map((f) => f.name)).toEqual(['reduite-salon.jpg']);
+  });
+
   it('envoie l’adresse IMBRIQUÉE et une intention de publication, puis ouvre le bien', async () => {
     const user = userEvent.setup();
     monter();

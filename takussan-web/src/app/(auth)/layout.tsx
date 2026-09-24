@@ -7,7 +7,9 @@ import { getTranslations } from 'next-intl/server';
 
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
+import { ArriveeEnHaut } from '@/components/auth/ArriveeEnHaut';
 import { ReinitialiserSessionClient } from '@/components/auth/ReinitialiserSessionClient';
+import { RetourAuth } from '@/components/auth/RetourAuth';
 
 /**
  * Auth layout — centered form panel with a visual panel on desktop.
@@ -45,6 +47,8 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
     <IntlProvider messages={await messagesPour('(auth)')}>
       {/* TCK-509 — arriver ici avec une session côté client : le serveur dit si elle est périmée. */}
       <ReinitialiserSessionClient />
+      {/* TCK-568 — arriver d'une page défilée ouvrait l'écran défilé, le retour hors de la vue. */}
+      <ArriveeEnHaut />
       <AuthPanneau>{children}</AuthPanneau>
     </IntlProvider>
   );
@@ -84,7 +88,20 @@ function AuthPanneau({ children }: { children: ReactNode }) {
       </div>
 
       {/* Form panel */}
-      <div className="relative flex items-center justify-center p-6 md:p-10 bg-background">
+      {/* `lg:pt-24` : le retour est posé en absolu à 32 px du haut, 44 px de haut — il finit à 76 px.
+          Un formulaire plus haut que la fenêtre (l'inscription, de 1024 à 1180 px de large) commence
+          au rembourrage du panneau : à 40 px, son titre passait SOUS le retour (revue du
+          2026-09-23, « Dellu » imprimé sur « Sos sa kont »). 96 px laissent 20 px d'air. */}
+      <div className="relative flex items-center justify-center p-6 md:p-10 lg:pt-24 bg-background">
+        {/* TCK-568 — un retour vers la page quittée (la recherche, typiquement) : le logo seul
+            menait à l'accueil. Discret à côté du formulaire dès `lg`.
+            Sur la bannière mobile, blanc SUR UN VOILE : posé nu sur la photo, le texte de 14 px
+            mesurait 4,4:1 au médian et 2:1 au pire sous ses lettres (320 et 390 px, 2026-09-23) —
+            sous le 4,5:1 d'un texte de cette taille, là où la photo est claire. */}
+        <RetourAuth
+          libelle={t('back')}
+          className="absolute left-3 top-3 z-20 bg-scrim/40 text-white backdrop-blur-sm hover:bg-scrim/55 hover:text-white focus-visible:ring-primary-foreground/70 lg:left-8 lg:top-8 lg:bg-transparent lg:text-muted-foreground lg:backdrop-blur-none lg:hover:bg-muted lg:hover:text-foreground lg:focus-visible:ring-ring"
+        />
         {/* Mobile banner */}
         <div className="lg:hidden absolute top-0 inset-x-0 h-[28vh] overflow-hidden -z-0">
           <Image
@@ -97,7 +114,7 @@ function AuthPanneau({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/30 to-background" />
           <Link
             href="/"
-            className="absolute top-3 left-3 inline-flex min-h-11 items-center rounded-md px-3 font-headline font-bold text-xl tracking-tight text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
+            className="absolute top-3 right-3 inline-flex min-h-11 items-center rounded-md px-3 font-headline font-bold text-xl tracking-tight text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
           >
             {tCommon('appName')}
           </Link>

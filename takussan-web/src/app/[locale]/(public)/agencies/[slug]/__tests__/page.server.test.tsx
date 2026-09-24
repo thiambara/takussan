@@ -69,6 +69,9 @@ vi.mock('@/lib/queries/public-agency', () => ({ getAgency: () => getAgencyMock()
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
+// La cale sous la barre monte aussi les bandeaux du site (TCK-572), clients et branchés sur
+// React Query : du décor de page, comme la barre et le pied, hors du sujet de ces tests.
+vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
 vi.mock('@/components/shared/BoutonRetour', () => ({
   BoutonRetour: ({ repli, libelle }: { repli: string; libelle: string }) => <a href={repli}>{libelle}</a>,
 }));

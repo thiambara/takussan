@@ -215,4 +215,13 @@ return [
     'threshold_alert' => [
         'title' => 'Yëgle KPI — :metric',
     ],
+
+    // TCK-575 — e-mail bu export RGPD pare (xoolal fichier fr bi).
+    'data_export_ready' => [
+        'subject' => 'Sa génne xibaar pare na',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa arsiib portabilité Takussan pare na.',
+        'action' => 'Ubbi « Samay xibaar »',
+        'expires' => '{1} Mën nga ko wàcce ci xët woowu diirub :count fan.|[2,*] Mën nga ko wàcce ci xët woowu diirub :count fan.',
+    ],
 ];

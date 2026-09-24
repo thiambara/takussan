@@ -105,7 +105,7 @@ export function HomepageDiscovery({
       {/* Cale à la hauteur réelle de la navbar fixe, palier par palier. */}
       <NavbarSpacer />
 
-      <main className="max-w-[1440px] mx-auto px-6 md:px-12 pt-12 pb-24 space-y-20">
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 pt-12 pb-24 space-y-20">
         {/*
           TCK-432 — le `<h1>` de l'accueil, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
           sur le HTML servi rendait 0). `docs/design-guidelines.md` § Typographie pose pourtant

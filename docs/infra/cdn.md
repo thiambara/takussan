@@ -8,6 +8,13 @@
 > n'a jamais été activé (`CDN_ENABLED=false` partout), et `cdn.secure_collections` est vide : il
 > nommait trois collections qui n'existaient pas. Le retrait de cette intégration est un ticket à
 > part. Ce document est conservé pour son historique.
+>
+> **En service sur la préproduction depuis le 2026-09-22 (TCK-541)** : tous les médias sont sur
+> `takussan-preview-private` / `takussan-preview-media`, servis par `media-preview.takussan.com`.
+> Mesuré ce jour-là : la même conversion `preview` pèse 45 Ko en JPEG direct, **16 Ko en AVIF** et
+> 17 Ko en WebP par `/cdn-cgi/image/width=640,quality=75,format=auto/…` ; 48 images sur 48 de
+> l'accueil passent par Transformations. La production suivra en phase F — bascule de l'API
+> **avant** le front, l'inverse de ce qui s'est fait en préproduction (relevé dans TCK-541).
 
 ## Provider choice
 

@@ -1,22 +1,27 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { LienLocalise } from '@/components/shared/LienLocalise';
-import { MapPin, Clock } from 'lucide-react';
+import React, { useState, useRef, useEffect, useId } from 'react';
+import { Clock, MapPin } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
-import type { PropertyListItem } from '@/types/property';
+import type { ContractType, PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
-import { NewBuildChip } from '@/components/property/cards/NewBuildChip';
+import { NewBuildChip, porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
 import { CardMeta } from '@/components/property/cards/CardMeta';
 import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
+import {
+  LienDeCarte,
+  AU_DESSUS_DU_LIEN,
+  TITRE_REACTIF,
+  VoileDInteraction,
+} from '@/components/property/cards/LienDeCarte';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
-import { propertyTypeValues } from '@/lib/schemas/property';
+import { conditionValues, propertyTypeValues } from '@/lib/schemas/property';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
@@ -73,6 +78,24 @@ export interface PropertyCardProps {
    * dans `card-image-sizes.ts`, avec le relevé qui les justifie.
    */
   readonly sizes?: string;
+  /**
+   * TCK-555 — la transaction sur laquelle la LISTE ENTIÈRE est filtrée, s'il y en a une.
+   *
+   * Sous `contract_type=rent`, chaque carte répétait « En location » : une pastille qui ne
+   * distingue rien occupe la photo pour rien. La carte la retire quand le bien porte exactement
+   * cette transaction — et la garde dans le cas contraire, où elle dit alors une vraie différence.
+   *
+   * ⚠ Une PROP et non une lecture de l'URL : la carte sert aussi les biens similaires et les
+   * favoris, où aucun filtre ne s'applique. C'est la grille appelante qui sait ce qu'elle liste.
+   */
+  readonly transactionFiltree?: ContractType;
+  /**
+   * TCK-555 — quand réserver deux lignes au titre. La réserve n'a de sens que si des cartes
+   * VOISINES doivent s'aligner. `des-sm` (défaut) : les grilles de la liste et des favoris sont à
+   * une colonne sous `sm`, la carte y est seule sur sa rangée. `toujours` : le carrousel des biens
+   * similaires montre la diapositive suivante à côté de la courante à toutes les largeurs.
+   */
+  readonly titreSurDeuxLignes?: 'des-sm' | 'toujours';
 }
 
 export function PropertyCard({
@@ -83,6 +106,8 @@ export function PropertyCard({
   hideFavorite = false,
   hideCompare = false,
   sizes = CARD_SIZES_SEARCH_GRID,
+  transactionFiltree,
+  titreSurDeuxLignes = 'des-sm',
 }: PropertyCardProps) {
   const t = useTranslations('property');
   const tCards = useTranslations('property.cards');
@@ -94,6 +119,7 @@ export function PropertyCard({
   // `t.has()` : les 16 valeurs de `propertyTypeValues` sont présentes dans les trois
   // dictionnaires (mesuré le 2026-08-29), les deux critères coïncident donc à l'écran.
   const tTypes = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const tEtats = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
   const ref = useRef<HTMLDivElement>(null);
   // Priority cards (above-the-fold) skip the initial hidden state so the
   // browser can count their image as the LCP candidate immediately.
@@ -103,117 +129,185 @@ export function PropertyCard({
     .filter(Boolean)
     .join(', ');
   const timeAgo = useDateRelative(property.published_at ?? property.created_at);
+  const idTitre = useId();
 
+  // TCK-555 — SOUS `md`, la photo porte AU PLUS deux éléments : UNE pastille, et le favori. Relevé
+  // de l'audit à 360 px : quatre éléments sur une photo de 156 × 117 px (pastille, favori,
+  // comparateur, ancienneté). La pastille est celle de la transaction, sauf quand la liste est
+  // filtrée dessus (elle ne distinguerait rien) : l'état « Neuf / Sur plan » prend alors sa place.
+  // Quand les deux ont à dire, l'état passe en TEXTE dans la ligne de détails — il n'est ni perdu,
+  // ni dit deux fois.
+  //
+  // ⚠ À PARTIR DE `md`, LA CARTE DE BUREAU EST INCHANGÉE (contrainte du ticket) : comparateur,
+  // ancienneté et état restent sur la photo. Le premier tour appliquait la disposition mobile à
+  // toutes les largeurs ; sur les emplacements de 192 px du bureau (/properties à 1024 et à partir
+  // de 1536 px), le prix passait à la ligne sur 17 cartes sur 30 (le comparateur lui prenait
+  // 40 px), et la ligne de détails, un élément de plus, laissait une puce pendante sur 24.
+  // Ce qui ne vaut que d'un côté est donc rendu aux deux endroits, et masqué par la largeur :
+  // `md:hidden` (téléphone seulement) ou `hidden md:…` (bureau seulement). `display: none` retire
+  // l'élément de l'arbre d'accessibilité et de l'ordre de tabulation : un seul est annoncé.
+  const transaction =
+    property.contract_type && property.contract_type !== transactionFiltree ? property.contract_type : null;
+  const etatNeuf = porteUnBadgeNeuf(property.condition) ? property.condition : null;
+  const etatEnPastille = transaction === null && etatNeuf !== null;
+  // L'aperçu que la barre flottante du comparateur affichera. La carte l'a déjà sous la main :
+  // le lui passer coûte trois champs et évite une requête par page montée.
+  const apercu = { title: property.title, slug: property.slug, photo: property.main_photo_url };
+
+  // TCK-554 — la racine n'est plus un `<a>` : le lien est un enfant vide qui la couvre
+  // (`LienDeCarte`), et le favori et le comparateur sont ses FRÈRES. Ils étaient ses enfants —
+  // HTML invalide, et un nom de lien qui lisait toute la carte, boutons compris.
   return (
-    <LienLocalise href={`/properties/${property.slug}`} className="block">
-      <div
-        ref={ref}
-        style={{ animationDelay: staggerDelay(index) }}
-        className={`group cursor-pointer transition-opacity duration-300 ${
-          visible ? 'animate-fade-in-up' : 'opacity-0'
-        } ${className || ''}`}
-      >
-        {/* Image */}
-        {/* `@container` : la carte se règle sur SA largeur, que la grille appelante décide —
-            pas sur celle de l'écran. */}
-        <div className="@container relative aspect-4/3 rounded-xl overflow-hidden bg-muted">
-          <PropertyPhoto
-            src={property.main_photo_url}
-            alt={property.title}
-            priority={priority}
-            className="group-hover:scale-105 transition-transform duration-500"
-            sizes={sizes}
-          />
+    <div
+      ref={ref}
+      style={{ animationDelay: staggerDelay(index) }}
+      className={`group relative cursor-pointer transition-opacity duration-300 ${
+        visible ? 'animate-fade-in-up' : 'opacity-0'
+      } ${className || ''}`}
+    >
+      <LienDeCarte slug={property.slug} idTitre={idTitre} />
 
-          {/* Barre du haut — pastilles à gauche, actions à droite, dans UN SEUL flux flex.
-              Les pastilles étaient positionnées seules, sans bord droit : sur une carte étroite,
-              « Neuf » (TCK-508) passait SOUS le cœur. Ici elles ne disposent que de la place
-              que les actions leur laissent, et passent à la ligne au lieu de chevaucher — quelle
-              que soit la longueur du libellé dans la locale.
+      {/* Image */}
+      {/* `@container` : la carte se règle sur SA largeur, que la grille appelante décide —
+          pas sur celle de l'écran. */}
+      <div data-photo className="@container relative aspect-4/3 rounded-xl overflow-hidden bg-muted">
+        <PropertyPhoto
+          src={property.main_photo_url}
+          alt={property.title}
+          priority={priority}
+          className="group-hover:scale-105 transition-transform duration-500"
+          sizes={sizes}
+        />
+        {/* TCK-561 — voile de survol et d'appui : cf. `VoileDInteraction`. */}
+        <VoileDInteraction />
 
-              Sous 11rem d'image, cela ne suffit plus : la grille de /properties descend à
-              128-146 px juste après chaque palier de colonnes (mesuré à 340, 768 et 1024 px),
-              et « En vente » seule y dépasse la place laissée par un cœur de 40 px. La barre
-              passe alors en format compact — marges, pastilles et cœur réduits. */}
-          <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2 @max-[11rem]:inset-x-2 @max-[11rem]:top-2 @max-[11rem]:gap-1.5">
-            {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
-                TCK-508 — suivi du badge « Neuf / Sur plan » quand l'état le justifie. */}
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
-              {property.contract_type && (
-                <ContractTypeChip type={property.contract_type} className={PASTILLE_ETROITE} />
-              )}
-              <NewBuildChip condition={property.condition} className={PASTILLE_ETROITE} />
-            </div>
+        {/* Barre du haut — la pastille à gauche, le favori à droite, dans UN SEUL flux flex.
+            La pastille ne dispose que de la place que le favori lui laisse, et se tronque au
+            lieu de passer dessous — quelle que soit la longueur du libellé dans la locale.
 
-            {/* Favorite, puis compare (TCK-082) en dessous. */}
-            <div className="flex shrink-0 flex-col items-center gap-2 @max-[11rem]:gap-1.5">
-              {!hideFavorite && (
-                <FavoriteButton
-                  propertyId={property.id}
-                  className="@max-[11rem]:size-8 @max-[11rem]:[&_svg]:size-4"
-                />
-              )}
-              {!hideCompare && (
+            Sous 11rem d'image (176 px), la barre passe en format compact — marges, pastille et
+            cœur réduits. La grille de /properties n'y descend plus (192 px au plus étroit,
+            mesuré le 2026-09-23) ; les autres grilles de la carte peuvent encore y passer.
+
+            TCK-555 — sous `md`, le comparateur et l'ancienneté quittent la photo : le premier
+            pour la rangée du prix, la seconde pour la ligne de détails. */}
+        <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2 @max-[11rem]:inset-x-2 @max-[11rem]:top-2 @max-[11rem]:gap-1.5">
+          {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
+              TCK-508 — « Neuf / Sur plan » quand la place est libre (cf. `etatEnPastille`). */}
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
+            {transaction && <ContractTypeChip type={transaction} className={PASTILLE_ETROITE} />}
+            {etatEnPastille && <NewBuildChip condition={etatNeuf} className={PASTILLE_ETROITE} />}
+            {/* Bureau : l'état à côté de la transaction, comme avant ; sous `md`, dans les détails. */}
+            {etatNeuf && !etatEnPastille && (
+              <span className="hidden md:contents">
+                <NewBuildChip condition={etatNeuf} className={PASTILLE_ETROITE} />
+              </span>
+            )}
+          </div>
+
+          {/* Favorite, puis compare (TCK-082) en dessous — le compare au BUREAU seulement (TCK-555).
+              Au-dessus du lien de la carte (TCK-554).
+              L'écart tient les zones tactiles de 44 px sans chevauchement : il faut 8 px entre
+              le cœur de 40 et la pastille de 32 (2 + 6 px de débord), 12 px entre deux ronds de
+              32 en format compact (6 + 6) — il était de 6 px, les zones se recouvraient. Deux px
+              de plus de chaque côté : à écart exact, les zones se touchent et l'arrondi au pixel
+              de l'écran donnait la ligne commune au comparateur (mesuré, 44 points sur 1936). */}
+          <div className={`flex shrink-0 flex-col items-center gap-2.5 @max-[11rem]:gap-3.5 ${AU_DESSUS_DU_LIEN}`}>
+            {!hideFavorite && (
+              <FavoriteButton
+                propertyId={property.id}
+                className="@max-[11rem]:size-8 @max-[11rem]:[&_svg]:size-4"
+              />
+            )}
+            {!hideCompare && (
+              // `contents` : au bureau, le bouton est l'enfant direct de la colonne, comme avant.
+              <span className="hidden md:contents">
                 <CompareToggleButton
                   propertyId={property.id}
                   size="sm"
-                  // L'aperçu que la barre flottante affichera. La carte l'a déjà sous la main :
-                  // le lui passer coûte trois champs et évite une requête par page montée.
-                  preview={{
-                    title: property.title,
-                    slug: property.slug,
-                    photo: property.main_photo_url,
-                  }}
+                  preview={apercu}
                 />
-              )}
-            </div>
-          </div>
-
-          {/* Time */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-scrim/60 backdrop-blur-md text-primary-foreground text-xs font-medium px-2 py-1 rounded-full shadow-sm">
-            <Clock className="size-3 opacity-80" aria-hidden="true" />
-            {timeAgo}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Body */}
-        <div className="space-y-1 mt-3.5">
+        {/* Ancienneté — sur la photo au BUREAU seulement ; sous `md`, dans la ligne de détails. */}
+        <div className="absolute bottom-3 left-3 hidden md:flex items-center gap-1 bg-scrim/60 backdrop-blur-md text-primary-foreground text-xs font-medium px-2 py-1 rounded-full shadow-sm">
+          <Clock className="size-3 opacity-80" aria-hidden="true" />
+          {timeAgo}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="space-y-1 mt-3.5">
+        {/* TCK-555 — sous `md`, le comparateur (TCK-082) quitte la photo pour la rangée du prix :
+            action secondaire, à l'opposé du favori (qui reste en haut de la photo). `-my-1` : le
+            rond de 32 px n'élargit pas la rangée d'un prix de 22 px au-delà de 24.
+            `md:block` : au bureau, le comparateur est sur la photo et la rangée redevient le bloc
+            d'avant — le prix dispose de toute la largeur de la carte. */}
+        <div className="flex items-start justify-between gap-2 md:block">
           {/* `flex-wrap` et non `truncate` : à 360 px, « 2 090 000 F CFA /mois » perdait sa
               période (« /m… »), l'information qui distingue un loyer d'un prix. */}
           <p
-            className="flex flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[15px] tabular-nums"
+            data-prix
+            className="flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[15px] tabular-nums"
             title={formatPrice(property.price, property.currency ?? 'XOF')}
           >
             <span className="whitespace-nowrap">{formatPrice(property.price, property.currency ?? 'XOF')}</span>
-            {property.contract_type === 'rent' && property.rent_period && (
+            {property.contract_type === 'rent' && (
               <span className="whitespace-nowrap text-sm font-semibold text-muted-foreground">
-                /{t(`rentPeriodsShort.${property.rent_period}`)}
+                {property.rent_period
+                  ? `/${t(`rentPeriodsShort.${property.rent_period}`)}`
+                  : // TCK-555 — sans période, « 950 000 F CFA » se lisait comme un prix de vente
+                    // (88 locations sur 127 dans les semis, relevé du 2026-09-23). L'espace est
+                    // une espace insécable DANS LE TEXTE, et non une marge : un lecteur d'écran
+                    // lisait « F CFA· loyer ».
+                    `\u00a0${tCards('rentNoPeriod')}`}
               </span>
             )}
           </p>
-          <h3
-            className="font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 h-10 text-pretty"
-            title={property.title}
-          >
-            {property.title}
-          </h3>
-          <p
-            className="text-muted-foreground text-sm flex items-center gap-1.5 truncate"
-            title={location}
-          >
-            <MapPin className="w-4 h-4 shrink-0" />
-            <span className="truncate">{location}</span>
-          </p>
-          <CardMeta
-            className="pt-1 text-xs font-semibold text-muted-foreground"
-            items={[
-              property.bedrooms != null && property.bedrooms > 0 && tCards('bedroomsAbbrev', { count: property.bedrooms }),
-              property.area ? `${property.area} m²` : null,
-              property.type && enumLabel(tTypes, propertyTypeValues, property.type),
-            ]}
-          />
+          {!hideCompare && (
+            <div className={`-my-1 shrink-0 md:hidden ${AU_DESSUS_DU_LIEN}`}>
+              <CompareToggleButton propertyId={property.id} size="sm" surface="page" preview={apercu} />
+            </div>
+          )}
         </div>
+        <h3
+          id={idTitre}
+          // TCK-555 — deux lignes réservées pour aligner des cartes VOISINES. Sous `sm`, la liste
+          // et les favoris sont à une colonne : un titre d'une ligne y laissait 20 px de vide sous
+          // lui, sans rien à aligner. Le carrousel, lui, aligne toujours (`titreSurDeuxLignes`).
+          className={`font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 ${TITRE_REACTIF} ${
+            titreSurDeuxLignes === 'toujours' ? 'h-10' : 'sm:h-10'
+          } text-pretty`}
+          title={property.title}
+        >
+          {property.title}
+        </h3>
+        <p
+          className="text-muted-foreground text-sm flex items-center gap-1.5 truncate"
+          title={location}
+        >
+          <MapPin className="w-4 h-4 shrink-0" />
+          <span className="truncate">{location}</span>
+        </p>
+        <CardMeta
+          className="pt-1 text-xs font-semibold text-muted-foreground"
+          items={[
+            // TCK-555 — sous `md`, l'état « Neuf » en texte quand la pastille de transaction tient
+            // la photo ; au bureau, il est en pastille à côté d'elle, comme avant.
+            etatNeuf &&
+              !etatEnPastille && { texte: enumLabel(tEtats, conditionValues, etatNeuf), className: 'md:hidden' },
+            property.bedrooms != null && property.bedrooms > 0 && tCards('bedroomsAbbrev', { count: property.bedrooms }),
+            property.area ? `${property.area} m²` : null,
+            property.type && enumLabel(tTypes, propertyTypeValues, property.type),
+            // TCK-555 — l'ancienneté reste visible (une vieille annonce est un signal utile), en
+            // texte sous `md` : elle y était en surimpression sur la photo. Au bureau, elle y reste.
+            timeAgo && { texte: timeAgo, className: 'md:hidden' },
+          ]}
+        />
       </div>
-    </LienLocalise>
+    </div>
   );
 }

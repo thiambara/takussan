@@ -1,15 +1,17 @@
 'use client';
 
+import { useId } from 'react';
 import { useTranslations } from 'next-intl';
-import { LienLocalise } from '@/components/shared/LienLocalise';
 import { MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
-import { FavoriteButton } from '@/components/favorites/FavoriteButton';
+import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { CardMeta } from './CardMeta';
 import { PropertyPhoto } from './PropertyPhoto';
+import { LienDeCarte, AU_DESSUS_DU_LIEN, TITRE_REACTIF, VoileDInteraction } from './LienDeCarte';
+import { ActionsSurPhoto, apercuComparateur } from './ActionsSurPhoto';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 
@@ -28,14 +30,20 @@ export function PropertyCardListing({
     .filter(Boolean)
     .join(', ');
   const timeAgo = useDateRelative(property.published_at ?? property.created_at);
+  const idTitre = useId();
 
+  // TCK-554 — la carte portait DEUX liens vers la même fiche (la photo, le titre) et le cœur
+  // vivait dans le premier. Un seul lien désormais, vide, qui couvre la carte (`LienDeCarte`) ;
+  // le cœur est son frère, posé au-dessus.
   return (
     <article
       className="group w-[340px] sm:w-[440px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
-      <div className="flex gap-3 sm:gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)] transition-shadow">
-        <LienLocalise href={`/properties/${property.slug}`} className="block shrink-0">
+      <div className="relative flex gap-3 sm:gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)] transition-shadow">
+        <LienDeCarte slug={property.slug} idTitre={idTitre} className="focus-visible:rounded-2xl" />
+
+        <div className="shrink-0">
           <div className="relative aspect-square w-[128px] sm:w-[170px] rounded-lg overflow-hidden bg-muted">
             <PropertyPhoto
               src={property.main_photo_url}
@@ -44,6 +52,8 @@ export function PropertyCardListing({
               priority={priority}
               className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
             />
+            {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}
+            <VoileDInteraction />
 
             {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
             <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1.5">
@@ -51,18 +61,18 @@ export function PropertyCardListing({
                 {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
                 <NewBuildChip condition={property.condition} compact />
               </div>
-              <FavoriteButton propertyId={property.id} size="sm" className="shrink-0" />
+              <ActionsSurPhoto property={property} comparateur={false} />
             </div>
           </div>
-        </LienLocalise>
+        </div>
 
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1 pr-1">
           <div className="space-y-1">
-            <LienLocalise href={`/properties/${property.slug}`}>
-              <h3 className="font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 hover:text-primary transition-colors">
-                {property.title}
-              </h3>
-            </LienLocalise>
+            {/* `group-hover` et non `hover` : le lien de la carte couvre désormais le titre, qui
+                ne reçoit plus le survol lui-même. */}
+            <h3 id={idTitre} className={`font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
+              {property.title}
+            </h3>
 
             {location && (
               <p className="text-[12px] text-muted-foreground flex items-center gap-1 truncate">
@@ -81,18 +91,31 @@ export function PropertyCardListing({
             />
           </div>
 
-          <div>
-            <p className="text-[16px] font-bold text-primary tabular-nums leading-tight">
-              {formatPrice(property.price, property.currency ?? 'XOF')}
-              {property.contract_type === 'rent' && property.rent_period && (
-                <span className="ml-1 text-xs font-semibold text-muted-foreground">
-                  /{tPeriods(property.rent_period)}
-                </span>
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {timeAgo}
-            </p>
+          {/* TCK-561 — le comparateur dans la rangée du prix, pas sur la photo : l'image ne fait que
+              128 px sous `sm`, et y empiler deux ronds sous deux pastilles la saturait (le constat
+              de TCK-555 sur la carte de la liste). `surface="page"` : il est posé sur la carte. */}
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[16px] font-bold text-primary tabular-nums leading-tight">
+                {formatPrice(property.price, property.currency ?? 'XOF')}
+                {property.contract_type === 'rent' && property.rent_period && (
+                  <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                    /{tPeriods(property.rent_period)}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {timeAgo}
+              </p>
+            </div>
+            <div className={`shrink-0 ${AU_DESSUS_DU_LIEN}`}>
+              <CompareToggleButton
+                propertyId={property.id}
+                size="sm"
+                surface="page"
+                preview={apercuComparateur(property)}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles } from 'lucide-react';
-import type { UseFormReturn } from 'react-hook-form';
+import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { FormInput, FormTextarea } from '@/components/forms';
 import type { PropertyFormValues } from '@/lib/schemas/property';
@@ -35,8 +35,11 @@ function versNombre(valeur: unknown): number | undefined {
 export function StepFinition({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
   const t = useTranslations('property.wizard');
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
-  const { control, watch, setValue, getValues } = form;
-  const description = (watch('description') ?? '') as string;
+  const { control, setValue, getValues } = form;
+  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien`) : l'élément de
+  // cette étape est mis en cache par le parcours compilé, et seul un abonnement PROPRE la fait
+  // se re-rendre — sans lui, le compteur de caractères restait à zéro.
+  const description = (useWatch({ control, name: 'description' }) ?? '') as string;
 
   // Le titre n'est proposé QUE s'il est encore vide : une fois l'utilisateur passé dessus, sa
   // saisie l'emporte, y compris s'il revient en arrière changer la surface. Écraser un titre

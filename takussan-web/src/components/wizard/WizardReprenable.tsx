@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { useWizardDraft } from '@/hooks/useWizardDraft';
+import { serialiserEtatBrouillon, useAutosaveBrouillon } from '@/hooks/useAutosaveBrouillon';
 import { fieldDensityScope } from '@/components/ui/field-density';
 
 /**
@@ -61,12 +62,31 @@ export type WizardReprenableProps<TData> = {
   debounceMs?: number;
   /** Optional class name applied to the root container. */
   className?: string;
+  /**
+   * TCK-566 — remet un brouillon RELU dans la forme que l'assistant écrit
+   * aujourd'hui, avant qu'il ne soit affiché ou comparé à l'état vierge.
+   *
+   * Un brouillon enregistré sous un ancien comportement n'a pas la forme
+   * actuelle : l'assistant hôte amorçait le téléphone avec l'indicatif comme
+   * VALEUR (`+221`), et les champs libres d'avant acceptaient `771234567` ou
+   * `780143710+221`. Seul `initialData` passait par la normalisation ; le
+   * brouillon, lui, était réinjecté brut — un fantôme `+221` ne se reconnaissait
+   * donc jamais comme vierge (il restait sur le tableau de bord jusqu'à sa purge
+   * à 90 jours), et un numéro national laissait « Envoyer le code » inactif sans
+   * explication. Doit être pure et idempotente.
+   */
+  relireBrouillon?: (data: TData) => TData;
 };
 
 // Deep-merge a persisted draft over the initial skeleton. Recurses into plain
 // objects so nested defaults survive partial drafts; treats null leaves as
 // "missing" and falls back to the initial value (React controlled inputs
 // reject value={null}).
+//
+// TCK-574 — `''` n'est PAS absent : c'est un champ pré-rempli que la personne a
+// vidé, et l'API le rend tel quel depuis TCK-574. Seuls les `null` des
+// brouillons écrits avant (quand `ConvertEmptyStringsToNull` réécrivait `''`)
+// retombent sur la valeur initiale.
 function mergeDraft<T>(base: T, patch: Partial<T> | null | undefined): T {
   if (patch === null || patch === undefined) return base;
   if (
@@ -97,6 +117,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   onComplete,
   debounceMs = 800,
   className,
+  relireBrouillon,
 }: WizardReprenableProps<TData>) {
   const t = useTranslations('wizardDrafts.component');
   const toast = useToast();
@@ -115,6 +136,12 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   const [data, setData] = useState<TData>(initialData);
   const [hydrated, setHydrated] = useState(false);
   const [completing, setCompleting] = useState(false);
+  // TCK-566 — l'état VIERGE, figé à l'hydratation : c'est ce que l'assistant
+  // affiche à l'ouverture, avant toute saisie. `initialData` peut changer
+  // ensuite (l'assistant hôte le recalcule quand `refreshUser()` rafraîchit
+  // l'utilisateur) ; la référence, elle, ne doit pas bouger.
+  const [etatVierge, setEtatVierge] = useState<string | null>(null);
+  const [brouillonServeurExiste, setBrouillonServeurExiste] = useState(false);
 
   /**
    * ── TCK-483 — ce que le garde du toast de succès doit lire ───────────────────
@@ -138,18 +165,40 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   // L'écriture converge (`hydrated` passe à `true` définitivement).
   if (!hydrated && !isLoading) {
     setHydrated(true);
+    setEtatVierge(serialiserEtatBrouillon(0, initialData));
+    setBrouillonServeurExiste(Boolean(draft?.data));
     if (draft?.data) {
       setStepIndex(Math.min(draft.step, steps.length - 1));
-      setData(mergeDraft(initialData, draft.data as Partial<TData>));
+      const fusionne = mergeDraft(initialData, draft.data as Partial<TData>);
+      setData(relireBrouillon ? relireBrouillon(fusionne) : fusionne);
+    } else {
+      // TCK-566 — `data` a été figé par `useState(initialData)` au MONTAGE. Si
+      // `initialData` a changé depuis (l'utilisateur ou l'indicatif géolocalisé
+      // arrivés pendant le GET du brouillon — l'étape n'est pas encore
+      // affichée, rien n'a pu être saisi), l'état affiché différait de l'état
+      // vierge calculé ci-dessus, et un brouillon s'écrivait sans aucune
+      // saisie. L'un et l'autre partent désormais du MÊME `initialData`.
+      setData(initialData);
     }
   }
 
   // Autosave on every change once we've hydrated. The debounce inside
   // `useWizardDraft` collapses bursts into a single PUT.
-  useEffect(() => {
-    if (!hydrated) return;
-    save(stepIndex, data);
-  }, [hydrated, stepIndex, data, save]);
+  //
+  // ⚠ TCK-566 — plus « à chaque changement » sans condition : l'effet écrivait
+  // l'état VIERGE dès l'hydratation, et ouvrir un assistant sans rien y saisir
+  // créait une démarche « à reprendre » sur le tableau de bord. Un brouillon
+  // n'existe plus que si l'état diffère de celui de l'ouverture ; revenir à cet
+  // état le supprime (cf. `useAutosaveBrouillon`).
+  const { brouillonAttendu } = useAutosaveBrouillon({
+    hydrated,
+    step: stepIndex,
+    data,
+    etatVierge,
+    brouillonServeurExiste,
+    save,
+    clear,
+  });
 
   // Toast a discreet "progress saved" message on unmount / page hide so
   // the user knows nothing was lost. We flush any pending debounce first.
@@ -197,7 +246,11 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
         // que la personne n'ait quitté quoi que ce soit (deux sur le parcours).
         // Le ref laisse le compte à 1, et garde en prime le cas que la dépendance
         // ne couvre pas : le démontage qui SUIT la finalisation.
-        if (!finalisationRef.current) {
+        //
+        // ⚠ TCK-566 — ni quand RIEN n'a été saisi : annoncer « Progression
+        // sauvegardée — vous pourrez reprendre » à qui n'a rien écrit, c'est le
+        // message même de la fausse démarche que ce ticket supprime.
+        if (!finalisationRef.current && brouillonAttendu()) {
           toast.add({ title: t('savedToastTitle'), description: t('savedToastBody'), type: 'success' });
         }
       });

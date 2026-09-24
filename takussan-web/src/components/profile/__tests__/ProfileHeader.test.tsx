@@ -12,6 +12,18 @@ vi.mock('@/app/actions/auth', () => ({
   updateProfileAction: (fd: FormData) => updateProfileMock(fd),
 }));
 
+// TCK-542 : la réduction des photos, doublée pour que l'envoi se voie. Par défaut elle rend
+// l'original ; un test la fait rendre un fichier marqué pour prouver que c'est LUI qui part.
+const reduction = vi.hoisted(() => ({
+  reduirePhoto: vi.fn(async (f: File) => f),
+  reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+}));
+vi.mock('@/lib/reduire-photo', () => reduction);
+
+function reduite(f: File): File {
+  return new File(['r'], `reduite-${f.name}`, { type: f.type });
+}
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }));
@@ -88,6 +100,22 @@ describe('<ProfileHeader>', () => {
     await waitFor(() => expect(updateProfileMock).toHaveBeenCalled());
     const formData = updateProfileMock.mock.calls[0][0] as FormData;
     expect(formData.get('avatar')).toBe(file);
+  });
+
+  it('TCK-542 — sends the avatar REDUCED in the browser, not as picked', async () => {
+    reduction.reduirePhoto.mockImplementationOnce(async (f) => reduite(f));
+    const browserUser = userEvent.setup();
+    const file = new File(['avatar'], 'avatar.png', { type: 'image/png' });
+    updateProfileMock.mockResolvedValue({ ok: true, user });
+
+    renderHeader();
+    await browserUser.click(screen.getByRole('button', { name: 'Modifier le profil' }));
+    await browserUser.upload(screen.getByLabelText('Avatar'), file);
+    await browserUser.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(updateProfileMock).toHaveBeenCalled());
+    const formData = updateProfileMock.mock.calls[0][0] as FormData;
+    expect((formData.get('avatar') as File).name).toBe('reduite-avatar.png');
   });
 
   it('rejects an invalid avatar file before submit', async () => {

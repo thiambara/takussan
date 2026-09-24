@@ -44,6 +44,9 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// TCK-550 — le choix de langue appelle cette action serveur ; hors requête, `cookies()` lève.
+vi.mock('@/app/actions/locale', () => ({ setLocaleAction: vi.fn(async () => {}) }));
+
 const { Footer } = await import('@/components/home/Footer');
 
 function monter() {
@@ -68,12 +71,20 @@ describe('Footer (TCK-437)', () => {
     expect(within(zone).queryByRole('textbox')).toBeNull();
     expect(zone.querySelectorAll('input')).toHaveLength(0);
     expect(zone.querySelectorAll('form')).toHaveLength(0);
-    expect(within(zone).queryByRole('button')).toBeNull();
+    // ⚠ « ni bouton » valait jusqu'à TCK-550, qui pose le choix de langue dans le pied de page.
+    // La garde ne s'en trouve pas relâchée pour le reste : les SEULS boutons tolérés sont les trois
+    // du groupe « Langue », et le test suivant éprouve qu'ils agissent.
+    const groupeLangue = within(zone).getByRole('group', { name: 'Langue' });
+    const boutons = within(zone).queryAllByRole('button');
+    expect(boutons).toHaveLength(3);
+    for (const bouton of boutons) expect(groupeLangue.contains(bouton)).toBe(true);
   });
 
   it("AC1 (revers) — tout élément interactif encore rendu est un lien qui mène quelque part", () => {
     monter();
-    const interactifs = pied().querySelectorAll('a, button, input, select, textarea');
+    const groupeLangue = within(pied()).getByRole('group', { name: 'Langue' });
+    const interactifs = [...pied().querySelectorAll('a, button, input, select, textarea')]
+      .filter((el) => !groupeLangue.contains(el));
     expect(interactifs.length).toBeGreaterThan(0);
     for (const el of interactifs) {
       expect(el.tagName, `élément interactif non cliquable : ${el.outerHTML}`).toBe('A');
@@ -147,7 +158,7 @@ describe('Footer (TCK-437)', () => {
 
     for (const [nom, chemin] of [
       ['Les agences', '/agencies'],
-      ['Les agents', '/agents'],
+      ['Agents & propriétaires', '/agents'],
     ] as const) {
       const lien = within(zone).getByRole('link', { name: nom });
       expect(lien).toHaveAttribute('href', `/fr${chemin}`);
@@ -176,5 +187,38 @@ describe('Footer (TCK-437)', () => {
 
     vi.doUnmock('@/data/navigation');
     vi.resetModules();
+  });
+});
+
+describe('Footer — le choix de langue (TCK-550)', () => {
+  beforeEach(() => {
+    push.mockReset();
+  });
+
+  it('porte le même choix FR · EN · WO que le menu mobile, sans masquage sous `lg`', () => {
+    monter();
+    const zone = pied();
+    const groupe = within(zone).getByRole('group', { name: 'Langue' });
+    const boutons = within(groupe).getAllByRole('button');
+    expect(boutons.map((b) => b.textContent?.trim())).toEqual(['FR', 'EN', 'WO']);
+    for (let el: HTMLElement | null = groupe; el && el !== zone; el = el.parentElement) {
+      expect(el.className.toString().split(/\s+/), `ancêtre masqué : ${el.outerHTML.slice(0, 120)}`).not.toContain('hidden');
+    }
+  });
+
+  it('la langue courante est la seule marquée', () => {
+    render(withIntl(<Footer />, 'en'));
+    const groupe = within(pied()).getByRole('group', { name: 'Language' });
+    const marques = within(groupe).getAllByRole('button').filter((b) => b.getAttribute('aria-current') === 'true');
+    expect(marques).toHaveLength(1);
+    expect(marques[0]).toHaveTextContent('EN');
+  });
+
+  it("chaque choix agit : un clic sur une autre langue n'est pas inerte (garde AC1 de TCK-437)", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, '', '/fr');
+    monter();
+    await user.click(within(pied()).getByRole('button', { name: 'English' }));
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/en'));
   });
 });

@@ -9,6 +9,23 @@ return [
         'group_subject_required' => 'Le sujet est obligatoire pour un groupe.',
         'group_min_participants' => 'Un groupe nécessite au moins 3 participants.',
         'group_max_participants' => 'Un groupe ne peut excéder 20 participants.',
-        'participant_out_of_scope' => 'Cet utilisateur ne peut être ajouté à ce groupe (hors agence / sans relation).',
+        // TCK-565 — une phrase par cas, jamais une erreur par position du tableau.
+        'participants_unavailable' => 'Une des personnes choisies n’est plus disponible. Choisissez à nouveau les participants dans la liste.',
+        'participants_out_of_reach' => 'Certaines personnes choisies ne peuvent pas être ajoutées : vous ne pouvez inviter que des personnes avec qui vous êtes déjà en contact.',
+        'participants_duplicate' => 'La même personne a été choisie deux fois.',
+        'group_context_forbidden' => 'Vous ne pouvez pas rattacher ce groupe à cet élément.',
+        // TCK-565, réparation 2 — la conversation directe applique le périmètre du groupe.
+        'direct_single_participant' => 'Une conversation directe se tient avec une seule autre personne. Pour en réunir plusieurs, créez un groupe.',
+        'conversation_context_forbidden' => 'Vous ne pouvez pas rattacher cette conversation à cet élément.',
+        // TCK-576, réparation 1 — un bail et un bien visibles, mais sans rapport, se refusent.
+        'lease_property_mismatch' => 'Ce bail ne concerne pas le bien choisi. Choisissez un bail de ce bien, ou retirez l’un des deux.',
+        // TCK-576, reprise (2026-09-24) — l'intervention doit concerner le bien du contexte.
+        'maintenance_property_mismatch' => 'Cette demande d’intervention ne concerne pas le bien choisi. Choisissez une intervention de ce bien, ou retirez l’un des deux.',
+        // TCK-565, passe finale — c'était une phrase française en dur dans AddParticipantsRequest.
+        'participants_required' => 'Choisissez au moins une personne à ajouter.',
+    ],
+    // TCK-576, reprise (2026-09-24) — le nom du champ dans un 422, jamais « filter.property id ».
+    'attributes' => [
+        'property_filter' => 'bien',
     ],
 ];

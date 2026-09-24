@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { UseFormReturn } from 'react-hook-form';
+import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { FormCheckbox, FormInput } from '@/components/forms';
 import type { PropertyFormValues } from '@/lib/schemas/property';
@@ -40,12 +40,18 @@ export function StepCaracteristiques({
   const t = useTranslations('property.wizard');
   const tTitre = useTranslations(PROPERTY_ENUM_NAMESPACES.titleType);
   const tEtat = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
-  const { control, watch, setValue } = form;
-  const ctx = { type: watch('type'), contract: watch('contract_type') } as const;
+  const { control, setValue, getValues } = form;
+  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien` et
+  // `__tests__/abonnement-des-etapes.test.tsx`). Compilé, `watch('title_type')` restait figé à sa
+  // première valeur : « Bail » cliqué ne s'allumait pas, et recliquer ne l'effaçait pas.
+  const [type, contrat, tagIdsSuivis, titreActuel, etatSuivi] = useWatch({
+    control,
+    name: ['type', 'contract_type', 'tag_ids', 'title_type', 'condition'],
+  });
+  const ctx = { type, contract: contrat } as const;
   const pertinent = (cle: ConditionalFieldKey) => isFieldRelevant(cle, ctx);
-  const tagIds = (watch('tag_ids') ?? []) as number[];
-  const titreActuel = watch('title_type');
-  const etatActuel = watch('condition') || undefined;
+  const tagIds = (tagIdsSuivis ?? []) as number[];
+  const etatActuel = etatSuivi || undefined;
 
   // Un terrain ne rend AUCUN des quatre : sans ce garde, la grille resterait montée, vide, et
   // l'espacement de l'étape s'ouvrirait sur rien.
@@ -127,10 +133,12 @@ export function StepCaracteristiques({
             // Le statut foncier est FACULTATIF : recliquer la pastille enfoncée l'efface. C'est
             // la raison pour laquelle `ChoiceChips` expose `aria-pressed` et non un groupe de
             // radios, qui ne se désélectionne pas.
+            // La valeur se relit AU CLIC (`getValues`) et non dans la fermeture du rendu : la
+            // bascule ne dépend alors d'aucune fraîcheur de rendu.
             onChange={(v) =>
               setValue(
                 'title_type',
-                v === titreActuel ? undefined : (v as PropertyFormValues['title_type']),
+                v === getValues('title_type') ? undefined : (v as PropertyFormValues['title_type']),
                 { shouldDirty: true },
               )
             }
@@ -151,7 +159,7 @@ export function StepCaracteristiques({
             onChange={(v) =>
               setValue(
                 'condition',
-                v === etatActuel ? undefined : (v as PropertyFormValues['condition']),
+                v === getValues('condition') ? undefined : (v as PropertyFormValues['condition']),
                 { shouldDirty: true },
               )
             }
@@ -170,11 +178,14 @@ export function StepCaracteristiques({
             // rien à l'écran ne distinguait un équipement coché d'un équipement disponible. Le
             // type de `ChoiceChips` interdit désormais de fournir `value` en même temps.
             selected={tagIds.map(String)}
+            // Relue au clic : une liste lue dans une fermeture figée PERDAIT les équipements
+            // déjà cochés (le second clic réécrivait `[second]` par-dessus `[premier]`).
             onChange={(v) => {
               const id = Number(v);
+              const retenus = (getValues('tag_ids') ?? []) as number[];
               setValue(
                 'tag_ids',
-                tagIds.includes(id) ? tagIds.filter((x) => x !== id) : [...tagIds, id],
+                retenus.includes(id) ? retenus.filter((x) => x !== id) : [...retenus, id],
                 { shouldDirty: true },
               );
             }}

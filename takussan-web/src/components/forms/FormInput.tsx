@@ -49,6 +49,7 @@ export function FormInput<TFieldValues extends FieldValues>({
 }: FormInputProps<TFieldValues>) {
   const inputId = id ?? `field-${String(name)}`;
   const errorId = `${inputId}-error`;
+  const numerique = inputProps.type === 'number';
 
   return (
     <Controller
@@ -72,7 +73,17 @@ export function FormInput<TFieldValues extends FieldValues>({
                 aria-required={required || undefined}
                 className={cn(trailing && 'pr-10', className)}
                 value={field.value ?? ''}
-                onChange={field.onChange}
+                // `Controller` transmet `event.target.value`, une CHAÎNE : un schéma `z.number()`
+                // la refusait, montant pourtant saisi (vérification de TCK-571). Un nombre tapé
+                // part en nombre ; un champ vide garde la chaîne vide, que les schémas lisent déjà.
+                onChange={
+                  numerique
+                    ? (event: React.ChangeEvent<HTMLInputElement>) => {
+                        const { value, valueAsNumber } = event.target;
+                        field.onChange(value === '' || Number.isNaN(valueAsNumber) ? value : valueAsNumber);
+                      }
+                    : field.onChange
+                }
                 onBlur={field.onBlur}
                 ref={field.ref}
                 name={field.name}

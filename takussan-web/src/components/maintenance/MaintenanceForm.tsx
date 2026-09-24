@@ -36,6 +36,7 @@ import {
   useUploadMaintenancePhotos,
 } from '@/lib/queries/maintenance';
 import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
+import { reduirePhotos } from '@/lib/reduire-photo';
 import { MaintenancePrioritySelector } from './MaintenancePrioritySelector';
 
 /**
@@ -79,7 +80,12 @@ export function MaintenanceForm({
       const id = res.data.id;
       if (photos.length > 0) {
         try {
-          await uploadPhotos.mutateAsync({ id, files: photos, collection: 'photos' });
+          await uploadPhotos.mutateAsync({
+            id,
+            // Réduites dans le navigateur avant l'envoi (TCK-542).
+            files: await reduirePhotos(photos),
+            collection: 'photos',
+          });
         } catch {
           // Photo upload failures should not roll back the created request.
           // The detail page offers a retry path ("Ajouter des photos").

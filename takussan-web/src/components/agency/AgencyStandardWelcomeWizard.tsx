@@ -2,7 +2,9 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { ChartColumn, ShieldCheck, UserPlus } from 'lucide-react';
 
+import { WelcomeIllustration } from '@/components/welcome/WelcomeIllustration';
 import { WelcomeModal } from '@/components/welcome/WelcomeModal';
 import { useAgencyStandardWelcomeOnce } from '@/hooks/useAgencyStandardWelcomeOnce';
 
@@ -21,9 +23,21 @@ export function AgencyStandardWelcomeWizard() {
 
   const slides = useMemo(
     () => [
-      { title: t('slides.invite.title'), body: t('slides.invite.body') },
-      { title: t('slides.roles.title'), body: t('slides.roles.body') },
-      { title: t('slides.reports.title'), body: t('slides.reports.body') },
+      {
+        illustration: <WelcomeIllustration icon={UserPlus} />,
+        title: t('slides.invite.title'),
+        body: t('slides.invite.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={ShieldCheck} />,
+        title: t('slides.roles.title'),
+        body: t('slides.roles.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={ChartColumn} />,
+        title: t('slides.reports.title'),
+        body: t('slides.reports.body'),
+      },
     ],
     [t],
   );

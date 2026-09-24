@@ -21,8 +21,8 @@ function monte() {
     />,
   ));
   return {
-    precedent: screen.getByRole('button', { name: 'Voir les agents précédents' }),
-    suivant: screen.getByRole('button', { name: 'Voir les agents suivants' }),
+    precedent: screen.getByRole('button', { name: 'Voir les interlocuteurs précédents' }),
+    suivant: screen.getByRole('button', { name: 'Voir les interlocuteurs suivants' }),
     liste: screen.getByRole('list'),
   };
 }
@@ -73,8 +73,8 @@ describe('<TeamStrip> — les flèches vivent dans l’en-tête, pas hors du con
   it('garde le défilement par accroche et les libellés des flèches', () => {
     const { liste, precedent, suivant } = monte();
     expect(liste.className.split(/\s+/)).toEqual(expect.arrayContaining(['snap-x', 'overflow-x-auto']));
-    expect(precedent).toHaveAttribute('aria-label', 'Voir les agents précédents');
-    expect(suivant).toHaveAttribute('aria-label', 'Voir les agents suivants');
+    expect(precedent).toHaveAttribute('aria-label', 'Voir les interlocuteurs précédents');
+    expect(suivant).toHaveAttribute('aria-label', 'Voir les interlocuteurs suivants');
     // Trois agents, trois entrées — l'en-tête n'en ajoute pas.
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
   });

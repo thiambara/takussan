@@ -32,7 +32,7 @@ const BROUILLON =
 
 // `ToastProvider` est monté par `(public)/layout.tsx` en production ; `vitest.setup.ts` ne monte
 // aucun provider. Même harnais que `ContactSheet.tck-441.test.tsx`.
-function monter() {
+function monter(destinataireEstAgent?: boolean) {
   render(
     withIntl(
       <ToastProvider>
@@ -41,6 +41,7 @@ function monter() {
           open
           onOpenChange={vi.fn()}
           defaultMessage={BROUILLON}
+          destinataireEstAgent={destinataireEstAgent}
         />
       </ToastProvider>,
     ),
@@ -67,5 +68,25 @@ describe("<PropertyContactMessageDialog>", () => {
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
       BROUILLON,
     );
+  });
+
+  // TCK-573 — un bien publié par un particulier est reçu par son propriétaire : le dialogue ne lui
+  // promet pas « l'agent du bien » (relevé par la vérification adverse de TCK-573).
+  it.each([
+    ["anonyme", null],
+    ["connecté", { id: 1 }],
+  ] as const)("chemin %s : un propriétaire est annoncé comme propriétaire", (_chemin, user) => {
+    useAuthMock.mockReturnValue({ user });
+    monter(false);
+
+    expect(screen.getByText(/transmises au propriétaire du bien/)).toBeInTheDocument();
+    expect(screen.queryByText(/l'agent du bien/)).toBeNull();
+  });
+
+  it("sans indication, ou pour un agent, le texte reste celui de l'agent", () => {
+    useAuthMock.mockReturnValue({ user: null });
+    monter();
+
+    expect(screen.getByText(/transmises à l'agent du bien/)).toBeInTheDocument();
   });
 });

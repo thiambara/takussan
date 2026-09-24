@@ -2,7 +2,9 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { Heart, MessagesSquare, Search } from 'lucide-react';
 
+import { WelcomeIllustration } from '@/components/welcome/WelcomeIllustration';
 import { WelcomeModal } from '@/components/welcome/WelcomeModal';
 import { useWelcomeOnce } from '@/hooks/useWelcomeOnce';
 
@@ -19,9 +21,21 @@ export function CustomerWelcomeWizard() {
 
   const slides = useMemo(
     () => [
-      { title: t('slides.0.title'), body: t('slides.0.body') },
-      { title: t('slides.1.title'), body: t('slides.1.body') },
-      { title: t('slides.2.title'), body: t('slides.2.body') },
+      {
+        illustration: <WelcomeIllustration icon={Search} />,
+        title: t('slides.0.title'),
+        body: t('slides.0.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={Heart} />,
+        title: t('slides.1.title'),
+        body: t('slides.1.body'),
+      },
+      {
+        illustration: <WelcomeIllustration icon={MessagesSquare} />,
+        title: t('slides.2.title'),
+        body: t('slides.2.body'),
+      },
     ],
     [t],
   );

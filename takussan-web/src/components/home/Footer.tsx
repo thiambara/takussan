@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 
+import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { footerLinks, type LienDePiedDePage } from '@/data/navigation';
 
@@ -116,6 +117,14 @@ export function Footer({ className }: FooterProps) {
           <div className="col-span-2 lg:col-span-1">
             <h3 className="font-display text-2xl font-semibold tracking-tight mb-4">{tCommon('appName')}</h3>
             <p className="text-muted-foreground max-w-sm text-pretty">{t('tagline')}</p>
+            {/*
+              TCK-550 — le même choix que le menu mobile, pour qui ne passe jamais par le menu.
+              Sous la signature et non dans la barre du bas : à trois éléments, celle-ci repliait
+              liens juridiques et copyright sur deux lignes dès 1024 px (mesuré). Des BOUTONS et
+              non des liens : ce sont les seuls non-liens du pied de page, et `Footer.test.tsx`
+              (AC1) les tolère nommément, en exigeant qu'ils agissent.
+            */}
+            <ChoixDeLangue className="mt-6" />
           </div>
 
           {colonnes

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\TelephoneJoignable;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProfileRequest extends FormRequest
@@ -21,14 +22,14 @@ class UpdateProfileRequest extends FormRequest
             'avatar_remove' => ['sometimes', 'boolean'],
             // E.164 strict — leading "+", country code [1-9], 6-14 more digits.
             // Empty string is allowed and treated as "clear" in the controller.
-            'phone' => ['sometimes', 'nullable', 'string', 'regex:/^(?:\+[1-9]\d{6,14})?$/'],
+            'phone' => ['sometimes', 'nullable', 'string', 'regex:/^(?:\+[1-9]\d{6,14})?$/', new TelephoneJoignable],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'phone.regex' => 'Le numéro doit être au format international E.164 (ex : +221770000000).',
+            'phone.regex' => __('validation.rules.phone_e164'),
         ];
     }
 }

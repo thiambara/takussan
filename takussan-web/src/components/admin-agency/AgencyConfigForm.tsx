@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useRef, useState, useTransition } from 'react';
+import { useWatch } from 'react-hook-form';
 import { Loader2, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ import {
   uploadAgencyLogoAction,
 } from '@/app/actions/admin-agency';
 import type { Agency } from '@/types/agency';
+import { reduirePhoto } from '@/lib/reduire-photo';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -115,7 +117,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
     });
 
   const { control } = form;
-  const selectedCurrency = (form.watch('currency') || 'XOF').toUpperCase() as CurrencyCode;
+  // TCK-571 — `useWatch`, jamais `form.watch()` lu pendant le rendu. Compilée, la lecture tombait
+  // dans un bloc mis en cache sur dix-neuf dépendances dont AUCUNE ne bouge avec la devise : l'aperçu
+  // restait dans la devise d'origine et l'avertissement ne s'affichait jamais (TCK-564).
+  const selectedCurrency = (useWatch({ control, name: 'currency' }) || 'XOF').toUpperCase() as CurrencyCode;
   const originalCurrency = (agency.currency ?? 'XOF').toUpperCase() as CurrencyCode;
   const currencyChanged = selectedCurrency !== originalCurrency;
 
@@ -134,10 +139,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
     const objectUrl = URL.createObjectURL(file);
     setLogoPreview(objectUrl);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     startLogoTransition(async () => {
+      const formData = new FormData();
+      // Réduit dans le navigateur avant l'envoi (TCK-542).
+      formData.append('file', await reduirePhoto(file));
       const result = await uploadAgencyLogoAction(agency.id, formData);
       if (!result.ok) {
         setLogoError(result.message);

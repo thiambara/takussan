@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Heart, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -17,6 +19,7 @@ import {
 } from '@/lib/queries/favorites';
 import { formatPrice } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 import type { PropertyListItem } from '@/types/property';
 
 const POPOVER_MAX_ITEMS = 5;
@@ -33,7 +36,6 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
   const { user } = useAuth();
   const { ids, isHydrated, count } = useFavorites();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Most recent IDs first, capped to the backend lookup limit.
   const lookupIds = [...ids].reverse().slice(0, BY_IDS_LOOKUP_CAP);
@@ -49,55 +51,62 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
     });
   }, [lookupQuery.data]);
 
-  // Click-outside to close.
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   const handleItemClick = useCallback(() => setOpen(false), []);
 
   // Don't paint the badge until hydrated to avoid SSR/CSR mismatch.
   const showBadge = isHydrated && count > 0;
   const isCompact = variant === 'compact';
 
+  /*
+   * TCK-569 (M4, retour testeur du 2026-09-23) — le panneau est celui de la primitive `Popover`
+   * (base-ui), et non plus un `absolute right-0 w-80` accroché au bouton.
+   *
+   * Sur la barre mobile, le cœur n'est pas au bord de l'écran : le bouton menu (44 px), l'écart
+   * (8 px) et la gouttière (16 px) le suivent. Un panneau de 320 px aligné sur son bord droit
+   * commençait donc à x = −68 à 320 px (la largeur CSS de l'iPhone du testeur, en zoom
+   * d'affichage), −28 à 360, +2 à 390 (mesuré au navigateur) : titre et lien « Voir tous mes
+   * favoris » coupés à gauche, comme sur la capture. Après : 16 px de chaque bord aux trois
+   * largeurs (panneau de 288 px à 320), et rien ne change en bureau (711..1095 à 1366).
+   *
+   * Le positionneur aligne le panneau sur le cœur PUIS le recale dans l'écran, à
+   * `collisionPadding` des bords — la gouttière des pages. `max-w` garde la largeur sous celle de
+   * l'écran moins deux gouttières. La primitive apporte aussi ce que le panneau écrit à la main
+   * n'avait pas : Échap, retour du focus au cœur, fermeture quand le focus le quitte.
+   */
   return (
-    <div ref={containerRef} className={cn('relative', className)}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={t('button.aria')}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className={cn(
-          'relative inline-flex items-center justify-center rounded-full transition-colors',
-          isCompact
-            ? 'p-2 text-muted-foreground hover:text-primary hover:bg-muted'
-            : 'size-9 text-foreground hover:text-primary hover:bg-muted',
-        )}
-      >
-        <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-destructive text-destructive')} />
-        {showBadge && (
-          <span
-            aria-hidden="true"
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
-          >
-            {count > 99 ? '99+' : count}
-          </span>
-        )}
-      </button>
+    <div className={cn('relative', className)}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          aria-label={t('button.aria')}
+          className={cn(
+            'relative inline-flex items-center justify-center rounded-full transition-colors',
+            // TCK-551 (N8) — 36 px dessinés (`p-2` + icône de 20), 44 px touchables : c'était la
+            // seule cible de la barre mobile sous le seuil, à côté d'un bouton menu de 44 × 44.
+            isCompact
+              ? cn('p-2 text-muted-foreground hover:text-primary hover:bg-muted', ZONE_TACTILE_44)
+              : 'size-9 text-foreground hover:text-primary hover:bg-muted',
+          )}
+        >
+          <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-destructive text-destructive')} />
+          {showBadge && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
+            >
+              {count > 99 ? '99+' : count}
+            </span>
+          )}
+        </PopoverTrigger>
 
-      {open && (
-        <div
-          role="dialog"
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          collisionPadding={16}
+          // TCK-572 (solde de TCK-569) — l'appui à côté ferme le panneau et rien d'autre : sans
+          // voile, il tombait aussi sur la carte dessous et ouvrait sa fiche (mesuré à 320 px).
+          voile
           aria-label={t('popover.title')}
-          className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-popover rounded-2xl shadow-xl border border-border z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl shadow-xl ring-border"
         >
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{t('popover.title')}</p>
@@ -122,8 +131,8 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
               </LienLocalise>
             </div>
           )}
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

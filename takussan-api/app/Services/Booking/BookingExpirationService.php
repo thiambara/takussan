@@ -7,6 +7,8 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\User;
 use App\Notifications\BookingExpiredNotification;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +52,43 @@ class BookingExpirationService
     public function isAutoExpirationEnabled(Agency $agency): bool
     {
         return $this->getExpiryThresholdHours($agency) > 0;
+    }
+
+    /**
+     * TCK-575 — l'instant à partir duquel une demande EN ATTENTE expire faute de réponse, ou
+     * `null` si rien ne la fera expirer (ou si elle n'est plus en attente).
+     *
+     * Deux mécanismes expirent une demande, et c'est le PREMIER échu qui s'applique :
+     *
+     * - le seuil de l'agence (`booking_pending_expiry_hours`, 48 h par défaut, 0 = désactivé),
+     *   compté depuis `created_at` — `ExpirePendingBookingsJob`, toutes les 15 minutes ;
+     * - l'échéance propre de la demande, `expires_at` (7 jours par défaut dans
+     *   `BookingService::create`) — `ExpireBookings`, toutes les heures.
+     *
+     * Le front l'affiche à la confirmation d'une demande, au lieu du « sous 48h » écrit en dur qui
+     * ignorait le réglage de l'agence. Mesuré le 2026-09-24 : `expires_at` seul rendait 7 jours
+     * pour une agence au seuil de 48 h — il ne pouvait pas servir tel quel.
+     */
+    public function responseDeadline(Booking $booking): ?CarbonInterface
+    {
+        if ($booking->status !== BookingStatus::Pending || $booking->expired_at !== null) {
+            return null;
+        }
+
+        $echeances = [];
+        if ($booking->expires_at !== null) {
+            $echeances[] = CarbonImmutable::instance($booking->expires_at);
+        }
+
+        $agency = $booking->agency_id !== null ? $booking->agency : null;
+        if ($agency !== null && $booking->created_at !== null) {
+            $heures = $this->getExpiryThresholdHours($agency);
+            if ($heures > 0) {
+                $echeances[] = CarbonImmutable::instance($booking->created_at)->addHours($heures);
+            }
+        }
+
+        return $echeances === [] ? null : min($echeances);
     }
 
     /**

@@ -21,7 +21,7 @@ class BookingController extends Controller
     {
         $user = $request->user();
 
-        $base = Booking::query()->with(['property.address', 'customer']);
+        $base = Booking::query()->with(['property.address', 'customer', 'agency']);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
@@ -49,7 +49,7 @@ class BookingController extends Controller
         $booking = $this->bookings->create($property, $request->user(), $data);
 
         return $this->json([
-            'data' => BookingResource::make($booking->load(['property', 'customer']))->toArray($request),
+            'data' => BookingResource::make($booking->load(['property', 'customer', 'agency']))->toArray($request),
         ], 201);
     }
 
@@ -58,7 +58,7 @@ class BookingController extends Controller
         $this->authorize('view', $booking);
 
         return $this->json([
-            'data' => BookingResource::make($booking->load(['property.address', 'customer']))->toArray($request),
+            'data' => BookingResource::make($booking->load(['property.address', 'customer', 'agency']))->toArray($request),
         ]);
     }
 

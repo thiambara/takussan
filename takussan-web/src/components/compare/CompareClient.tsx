@@ -178,18 +178,56 @@ function CompareEmpty() {
   );
 }
 
+/**
+ * L'attente du comparatif — la MÊME forme que ce qui va la remplacer (TCK-577, vérification
+ * adverse).
+ *
+ * Elle posait une seule grille, bureau comme téléphone, en `repeat(n, minmax(200px, 1fr))` avec une
+ * photo 4:3 par colonne : relevé au navigateur le 2026-09-24, requête du comparatif retenue par CDP,
+ * `/fr/compare` à quatre biens élargissait la page à 864 px à 320, 360 et 390 (`innerWidth` =
+ * `scrollWidth` = 864 : l'émulation mobile agrandit le viewport à la taille du contenu) et à 880 px
+ * pour 768 à 768 — un défilement de côté, puis un saut de mise en page quand l'en-tête compact de
+ * `CompareCarousel` arrivait.
+ *
+ * - sous `md`, le squelette reprend l'en-tête compact : vignettes de 56 px, rangée de titres de
+ *   44 px, puis des critères — mêmes hauteurs, donc le premier critère ne saute pas ;
+ * - au-dessus, les colonnes du tableau, mais en `minmax(0, 1fr)` : elles se partagent la largeur au
+ *   lieu d'en exiger 200 px chacune.
+ */
 function LoadingState({ count }: { count: number }) {
+  const grille = { gridTemplateColumns: `repeat(${Math.max(count, 1)}, minmax(0, 1fr))` };
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${count}, minmax(200px, 1fr))` }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="space-y-3">
-          <Skeleton className="aspect-4/3 w-full rounded-xl" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-32 w-full" />
+    <div aria-busy="true">
+      {/* Mobile — la forme de `CompareCarousel`. */}
+      <div className="md:hidden" data-testid="compare-chargement-mobile">
+        <div className="grid gap-2" style={grille}>
+          {Array.from({ length: count }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
+          ))}
         </div>
-      ))}
+        <div className="mt-1 grid gap-2 border-b border-border py-1.5" style={grille}>
+          {Array.from({ length: count }).map((_, i) => (
+            <Skeleton key={i} className="h-11" />
+          ))}
+        </div>
+        <div className="mt-3 space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-xl" />
+          ))}
+        </div>
+      </div>
+
+      {/* Bureau — les colonnes du tableau. */}
+      <div className="hidden gap-4 md:grid" style={grille} data-testid="compare-chargement-bureau">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="space-y-3">
+            <Skeleton className="aspect-4/3 w-full rounded-xl" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-

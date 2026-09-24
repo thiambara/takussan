@@ -28,7 +28,22 @@ class ConversationController extends Controller
         $user = $request->user();
         $includeArchived = (bool) $request->boolean('archived');
 
-        $paginator = Conversation::with('property')
+        // Reprise du 2026-09-24 — la liste ne rendait NI `participants` NI `unread_count`, que le
+        // front lit tous deux (`useUnreadCount`, `ConversationList`) : la pastille des messages non
+        // lus restait à 0, l'icône « sourdine » et le compte des membres d'un groupe n'apparaissaient
+        // jamais. Est non lu, pour le lecteur, tout message d'un AUTRE postérieur à son
+        // `last_read_at` — hors avis système (« X a rejoint le groupe ») : on ne les attend pas.
+        $paginator = Conversation::with(['property', 'participants.media'])
+            ->withCount(['messages as unread_count' => function ($q) use ($user) {
+                $q->where('messages.type', '!=', MessageType::System->value)
+                    ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
+                    ->whereExists(fn ($p) => $p->selectRaw('1')
+                        ->from('conversation_participants as lecteur')
+                        ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
+                        ->where('lecteur.user_id', $user->id)
+                        ->where(fn ($l) => $l->whereNull('lecteur.last_read_at')
+                            ->orWhereColumn('lecteur.last_read_at', '<', 'messages.created_at')));
+            }])
             ->whereHas('participants', function ($q) use ($user, $includeArchived) {
                 $q->where('user_id', $user->id);
                 // TCK-085 — participants who left a group no longer see it.
@@ -194,7 +209,13 @@ class ConversationController extends Controller
     {
         $this->ensureParticipant($request, $conversation);
 
-        $conversation->loadMissing('property');
+        // TCK-576 (restes de TCK-565) — les membres ACTUELS : la feuille d'infos d'un groupe en
+        // dérive la liste, le rôle de l'utilisateur, et donc l'invitation par nom. Sans eux, elle
+        // affichait « 0 participant » et cachait toute action d'administration.
+        $conversation->loadMissing([
+            'property',
+            'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
+        ]);
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
@@ -216,6 +237,7 @@ class ConversationController extends Controller
             $messages = $conversation->messages()
                 ->where('id', '>', (int) $data['after_id'])
                 ->oldest()
+                ->orderBy('id')
                 // Safety cap if the client missed many ticks (e.g. tab hidden
                 // for a long time). The client re-polls so anything beyond
                 // this cap will be fetched on the next call.
@@ -228,7 +250,11 @@ class ConversationController extends Controller
             ]);
         }
 
-        $query = $conversation->messages()->latest();
+        // Départage par `id` (reprise du 2026-09-24) : `latest()` seul trie sur `created_at`, et des
+        // messages de la même seconde revenaient dans un ordre quelconque sous PostgreSQL — mesuré :
+        // `ConversationMessagesPaginationTest::test_initial_load…` rouge, selon les classes jouées
+        // avant lui. Le curseur (`before_id`, `after_id`) est un `id` : le départage suit le curseur.
+        $query = $conversation->messages()->latest()->orderByDesc('id');
         if (isset($data['before_id'])) {
             $query->where('id', '<', (int) $data['before_id']);
         }

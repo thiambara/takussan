@@ -13,6 +13,7 @@ import { GripVertical, Loader2, Star, Trash2, UploadCloud, X } from 'lucide-reac
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { reduirePhotos } from '@/lib/reduire-photo';
 
 /**
  * MediaManager — TCK-071
@@ -141,7 +142,13 @@ export function MediaManager({
         return;
       }
 
-      const files = Array.from(fileList);
+      // Réduites AVANT la validation : une photo de 12 Mo qui tombe sous le plafond une fois
+      // réduite n'a pas à être refusée (TCK-542). Les lignes s'affichent pendant la réduction.
+      const choisis = Array.from(fileList);
+      setProgress(
+        choisis.map((f) => ({ name: f.name, size: f.size, status: 'pending', progress: 0 })),
+      );
+      const files = await reduirePhotos(choisis);
       const entries: UploadProgress[] = files.map((f) => {
         const err = validateFile(f, accept, maxSize, t);
         return {

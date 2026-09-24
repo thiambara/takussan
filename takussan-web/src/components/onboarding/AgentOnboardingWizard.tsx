@@ -7,6 +7,13 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PhoneInput } from '@/components/ui/phone-input';
+import {
+  INDICATIF_PAR_DEFAUT,
+  numeroComposable,
+  recomposerTelephone,
+  relireTelephoneBrouillon,
+} from '@/lib/phone';
 import {
   Select,
   SelectContent,
@@ -82,6 +89,21 @@ type WizardData = {
 
 const SPECIALIZATIONS: Specialization[] = ['residential', 'commercial', 'luxury', 'mixed'];
 
+/**
+ * TCK-566 — un brouillon relu repasse par la même normalisation que
+ * `initialData` : un numéro écrit par l'ancien champ libre (`771234567`, sans
+ * indicatif) laissait « Envoyer le code » inactif sans explication.
+ */
+function relireBrouillon(data: WizardData): WizardData {
+  return {
+    ...data,
+    phone: {
+      ...data.phone,
+      number: relireTelephoneBrouillon(data.phone?.number, INDICATIF_PAR_DEFAUT),
+    },
+  };
+}
+
 export function AgentOnboardingWizard({
   agentProfileId,
   invitedRole,
@@ -94,7 +116,9 @@ export function AgentOnboardingWizard({
   const initialData: WizardData = useMemo(
     () => ({
       phone: {
-        number: user?.phone ?? '',
+        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et
+        // ne porte que la suite ; une valeur héritée hors format y est remise dans l'ordre.
+        number: user?.phone ? recomposerTelephone(user.phone, INDICATIF_PAR_DEFAUT) : '',
         code: '',
         verified: Boolean(user?.phone_verified_at),
       },
@@ -183,6 +207,7 @@ export function AgentOnboardingWizard({
     <WizardReprenable<WizardData>
       storageKey={`agent-onboarding-${agentProfileId}`}
       initialData={initialData}
+      relireBrouillon={relireBrouillon}
       steps={steps}
       onComplete={handleComplete}
     />
@@ -202,8 +227,13 @@ function PhoneStep({ data, setData }: StepProps) {
   const [debugCode, setDebugCode] = useState<string | null>(null);
 
   const handleSend = () => {
+    if (!numeroComposable(data.phone.number)) return;
     startSend(async () => {
-      const res = await phoneSendOtpAction();
+      // TCK-566 — le numéro TAPÉ part avec la demande : sans lui, le code visait
+      // le numéro déjà enregistré, et l'API rendait « No phone number on file. »
+      // à qui venait de le saisir. L'API l'enregistre (et remet la vérification
+      // à zéro s'il change) avant d'envoyer le SMS.
+      const res = await phoneSendOtpAction(data.phone.number);
       if (!res.ok) {
         toast.add({
           title: t('errors.sendTitle'),
@@ -250,29 +280,27 @@ function PhoneStep({ data, setData }: StepProps) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
         <div className="flex flex-col gap-1">
           <Label htmlFor="agent-phone">{t('fields.phone')}</Label>
-          <Input
+          <PhoneInput
             id="agent-phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="+221…"
             value={data.phone.number}
             disabled={data.phone.verified}
-            onChange={(e) =>
+            onValueChange={(number) =>
               setData({
                 ...data,
-                phone: { ...data.phone, number: e.target.value, verified: false },
+                phone: { ...data.phone, number, verified: false },
               })
             }
           />
         </div>
-        <div className="flex items-end">
+        {/* Aligné sur le CHAMP, pas sur la ligne d'aide de `<PhoneInput>` :
+            `text-sm leading-none` (14 px) + `gap-1` = 18 px (TCK-566). */}
+        <div className="flex items-start sm:mt-4.5">
           <Button
             type="button"
             variant="outline"
             className="h-11 w-full px-4 sm:w-auto"
             onClick={handleSend}
-            disabled={sendPending || data.phone.verified || data.phone.number.trim() === ''}
+            disabled={sendPending || data.phone.verified || !numeroComposable(data.phone.number)}
           >
             {sendPending ? t('sending') : t('sendCta')}
           </Button>

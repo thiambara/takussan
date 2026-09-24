@@ -1,6 +1,6 @@
 'use client';
 
-import { useFieldArray } from 'react-hook-form';
+import { useFieldArray, useWatch } from 'react-hook-form';
 import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -94,9 +94,13 @@ export function CreateInvoiceDialog({
     },
   });
 
-  const items = form.watch('items');
-  const taxRate = form.watch('tax_rate') ?? 0;
-  const currency = form.watch('currency') ?? 'XOF';
+  // TCK-571 — `useWatch`, jamais `form.watch()` lu pendant le rendu (cf. TCK-564). Compilé, ce
+  // composant ne figeait pas ses totaux, mais par CHANCE : `onSuccess` ci-dessus capture `form`, et
+  // le compilateur renonce alors à mettre en cache ce qui en dépend. Mesuré : retirer le
+  // `form.reset` de `onSuccess` suffisait à figer le total d'une ligne ajoutée.
+  const items = useWatch({ control: form.control, name: 'items' });
+  const taxRate = useWatch({ control: form.control, name: 'tax_rate' }) ?? 0;
+  const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'XOF';
 
   const subtotal = (items ?? []).reduce(
     (sum, item) => sum + (item?.quantity ?? 0) * (item?.unit_price ?? 0),

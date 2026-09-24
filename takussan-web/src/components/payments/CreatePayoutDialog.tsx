@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useWatch } from 'react-hook-form';
 
 import {
   Dialog,
@@ -110,11 +111,19 @@ export function CreatePayoutDialog({
     },
   });
 
-  const gross = form.watch('gross_amount') ?? 0;
-  const rate = form.watch('commission_rate') ?? 0;
-  const manualCommission = form.watch('commission_amount');
-  const fees = form.watch('fees_amount') ?? 0;
-  const currency = form.watch('currency') ?? 'XOF';
+  // TCK-571 — `useWatch`, jamais `form.watch()` lu pendant le rendu : le React Compiler met la
+  // lecture en cache sur l'identité — stable — du formulaire, et le récapitulatif resterait celui
+  // de l'ouverture (cf. `property-form/wizard/steps/StepBien.tsx`, TCK-564). Avec `watch()`, ce
+  // composant ne figeait pas, par DEUX effets de bord (mesuré sous vitest compilé, 2026-09-24) :
+  // l'`eslint-disable` de l'effet ci-dessous fait abandonner le compilateur ; et, sans lui, le
+  // `form.reset` d'`onSuccess` capture `form`, et le compilateur ne met plus en cache ce qui en
+  // dépend. Il ne figeait que si les deux disparaissaient (4/4 rouges) — `useWatch` ne dépend
+  // d'aucun des deux.
+  const gross = useWatch({ control: form.control, name: 'gross_amount' }) ?? 0;
+  const rate = useWatch({ control: form.control, name: 'commission_rate' }) ?? 0;
+  const manualCommission = useWatch({ control: form.control, name: 'commission_amount' });
+  const fees = useWatch({ control: form.control, name: 'fees_amount' }) ?? 0;
+  const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'XOF';
 
   // Auto-sync commission_amount with rate × gross whenever the user touches
   // the rate or the gross amount (but allow them to override manually).

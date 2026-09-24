@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { destinationInterne } from '@/lib/redirection-interne';
 
 const OAUTH_ERRORS = ['oauth_invalid', 'oauth_failed', 'oauth_unknown'] as const;
 
@@ -30,8 +31,10 @@ function LoginForm() {
   const { openSession } = useAuth();
   const locale = useCurrentLocale();
   const searchParams = useSearchParams();
-  const raw = searchParams.get('redirect') ?? '/app';
-  const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
+  // Le filtre PARTAGÉ avec le retour OAuth et l'onboarding (TCK-493) : la copie locale laissait
+  // passer `/\evil.tld`, que certains navigateurs lisent `//evil.tld`. C'est aussi par ce paramètre
+  // que la connexion rend la page quittée — la recherche en cours (TCK-568, `hrefConnexion`).
+  const redirectTo = destinationInterne(searchParams.get('redirect'));
   const passwordWasReset = searchParams.get('reset') === '1';
   // Le callback OAuth renvoie ici sur `?error=…` : ce retour n'était LU par personne, et un
   // échec Google ramenait sur un formulaire muet, comme si rien ne s'était passé.

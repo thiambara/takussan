@@ -13,6 +13,11 @@ export interface TeamAgent {
   readonly avatar_url: string | null;
   readonly specialty?: string | null;
   readonly portfolio_count?: number;
+  /**
+   * TCK-573 — l'équipe publique d'une agence mêle ses agents et les propriétaires qui publient sous
+   * son enseigne (TCK-276) : chacun est présenté pour ce qu'il est.
+   */
+  readonly public_role?: 'agent' | 'owner';
 }
 
 interface TeamStripProps {
@@ -36,6 +41,7 @@ function getInitials(name: string): string {
 
 export function TeamStrip({ agents, eyebrow, heading, headingId }: TeamStripProps) {
   const t = useTranslations('publicProfile.team');
+  const tRoles = useTranslations('publicProfile.roles');
   const scrollerRef = useRef<HTMLUListElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -125,6 +131,9 @@ export function TeamStrip({ agents, eyebrow, heading, headingId }: TeamStripProp
           className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {agents.map((a) => {
+            const qualite = [a.public_role ? tRoles(a.public_role) : null, a.specialty]
+              .filter(Boolean)
+              .join(' · ');
             const Inner = (
               <article className="flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-[box-shadow,border-color] duration-150 ease-in-out hover:shadow-md hover:border-primary/30">
                 <Avatar size="lg">
@@ -133,9 +142,9 @@ export function TeamStrip({ agents, eyebrow, heading, headingId }: TeamStripProp
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">{a.full_name}</p>
-                  {a.specialty && (
+                  {qualite !== '' && (
                     <p className="truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                      {a.specialty}
+                      {qualite}
                     </p>
                   )}
                   {typeof a.portfolio_count === 'number' && a.portfolio_count > 0 && (
