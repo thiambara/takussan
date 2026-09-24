@@ -1,13 +1,13 @@
 ---
 id: TCK-569
 title: "Panneaux mobiles : le panneau des favoris débordait à gauche de l'écran ; notifications et menu utilisateur superposables au clavier (au doigt : build de préproduction antérieur, déjà corrigé)"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 69
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -44,7 +44,8 @@ Bord gauche du panneau : **−68 à 320 px** (titre x = −51, lien « Voir tous
 
 **M14 — partiel.**
 
-- *Au doigt, non reproduit sur HEAD.* Sur `/app/messages` à 320 px, compte propriétaire : cloche
+- *Au doigt, non reproduit sur HEAD* (mesure du 2026-09-23, AVANT le voile — le comportement a
+  changé depuis, voir AC5). Sur `/app/messages` à 320 px, compte propriétaire : cloche
   puis avatar → notifications fermées, menu seul ouvert ; avatar puis cloche → les deux fermés ;
   appui dans le vide → fermé. Le panneau à 8..312 (dans l'écran).
 - *La capture est celle d'un build antérieur au 2026-09-16.* Avant `f21ccd17` (TCK-529, revue
@@ -91,8 +92,12 @@ Bord gauche du panneau : **−68 à 320 px** (titre x = −51, lien « Voir tous
 - [x] AC4 — au clavier, ouvrir le menu utilisateur referme les notifications. *(Navigateur à 320 et
       1366 : focus sur l'avatar → notifications déjà fermées, Entrée → menu seul.)*
 - [x] AC5 — au doigt, jamais deux panneaux ouverts ensemble, et un appui dans le vide ferme les
-      notifications. *(Navigateur à 320 : cloche → avatar = menu seul ; avatar → cloche = tout
-      fermé ; cloche → vide = fermé.)*
+      notifications. *(Re-mesuré le 2026-09-24 APRÈS le voile (D3/R1 ci-dessous), navigateur à 320
+      sur `/app/messages` : cloche → notifications seules ; puis avatar → **tout fermé** ; avatar
+      encore → menu seul ; puis cloche → tout fermé ; cloche encore → notifications seules ; appui
+      sous le panneau (160, 600 — le panneau chargé couvre 60..505) → fermé, URL inchangée. La
+      mesure d'avant le voile, « cloche → avatar = menu seul », n'est plus le comportement : un
+      appui à côté d'un panneau ne fait que le fermer, dans les deux sens.)*
 - [x] AC6 — le panneau des notifications reste à 8 px des bords sous `sm` et à 864..1248 à 1366.
       *(Mesuré ; il s'ouvre désormais 4 px sous la barre au lieu d'en chevaucher le bas de 2 px.)*
 - [x] AC7 — chaque correctif porte un test qui rougit sans lui (ablations ci-dessous).
@@ -111,8 +116,56 @@ Bord gauche du panneau : **−68 à 320 px** (titre x = −51, lien « Voir tous
 
 ## Hors périmètre
 
-- Menu utilisateur ouvert, un appui sur la cloche **ferme le menu sans ouvrir** les notifications :
-  c'est le comportement modal par défaut du `Menu` de base-ui (voile interne). Un seul panneau à la
-  fois est respecté ; ouvrir d'un seul appui serait une décision produit.
+- ~~Menu utilisateur ouvert, un appui sur la cloche ferme le menu sans ouvrir les notifications~~ :
+  tranché le 2026-09-24 (voir « Solde de la vérification ») — la règle est désormais la même dans
+  les deux sens.
 - Le déploiement : la préproduction portera le correctif à la prochaine promotion.
 - La recherche et l'espace sous la barre publique mobile (TCK-563).
+
+## Solde de la vérification (2026-09-24)
+
+Défauts et risques résiduels laissés par la vérification du 2026-09-23, chacun reproduit (Chrome
+headless, CDP, émulation mobile + tactile, pile locale) puis soldé :
+
+- **D1 — le `max-w` du panneau des favoris n'était gardé par aucun test** (la géométrie simulée
+  donnait 320 px quoi qu'il arrive). *Test ajouté* : la simulation plafonne la largeur par la classe
+  `max-w-[calc(100vw-2rem)]` résolue à la main, et un test exige 16 px à DROITE aussi à 320 px (sans
+  le plafond : 16..336, débordement). Ablation : `max-w` retiré → 1 rouge ; restauré, md5 identique.
+- **D2 — AC2 donnait 711..1095 quand la vérification mesurait 686..1070** : *re-mesuré, le chiffre
+  du ticket est juste* — 711..1095 à 1366, cœur 1059..1095 (bord droit du panneau sur celui du cœur).
+  Le 686..1070 venait de `Navbar.tsx` modifié en parallèle pendant la vérification.
+- **D3 — un appui à côté du panneau des favoris activait ce qui est dessous** : *reproduit* (320 px,
+  appui en (160, 560) : panneau fermé ET `/fr` → `/fr/properties/parking-couvert-a-pikine-UjterU`).
+  Décision (déléguée par le porteur) : un appui à côté d'un panneau de barre le FERME et ne fait rien
+  d'autre — la règle que TCK-551 a posée pour le menu mobile. *Correctif* : `PopoverContent` reçoit
+  une option `voile` (voile transparent `fixed inset-0 z-[1099]`, sous le panneau `z-[1100]`),
+  prise par les favoris et les notifications. ⚠ Le voile interne de base-ui (`modal`) avait été
+  essayé : sans `z-index`, il passe SOUS le lien étiré des cartes (`absolute inset-0 z-[1]`) —
+  mesuré par `elementFromPoint`, l'appui naviguait encore. Après : panneau fermé, URL `/fr`
+  inchangée ; un appui sur le bouton favori d'une carte sous le voile ne le bascule pas. Tests :
+  `FavoritesPopover.panneau.test.tsx` (voile présent, au-dessus du contenu et sous le panneau ; un
+  appui dessus ferme sans rien activer). Ablations : `voile` retiré des favoris → 1 rouge ; rendu du
+  voile retiré de `ui/popover.tsx` → 2 rouges (favoris, notifications).
+- **R1 — asymétrie menu / cloche** (menu ouvert, un appui sur la cloche ne faisait que fermer ;
+  cloche ouverte, un appui sur l'avatar fermait ET ouvrait le menu) : *tranché* avec D3 — le voile
+  des notifications rend la règle identique dans les deux sens. Mesuré à 320 px sur
+  `/app/messages` : cloche → notifications ; avatar → tout fermé ; avatar → menu ; cloche → tout
+  fermé. Test : `NotificationBell.fermeture.test.tsx` (« un appui sur l'avatar referme le panneau
+  sans ouvrir le menu »). Ablation : `voile` retiré de la cloche → 1 rouge.
+- **R2 — la préproduction montre un build ancien** : *sans objet pour le code* — état de
+  déploiement ; M14 au doigt y est depuis la promotion #296, le reste arrivera à la suivante.
+- **R3 — mesuré sous Chrome en émulation tactile, pas sur un iPhone** : *accepté*, aucun appareil
+  iOS n'est pilotable d'ici.
+- **R4 — le positionneur n'avait pas été mesuré page défilée** : *mesuré* — `/fr`, `scrollY` 600
+  puis 900 panneau ouvert : cœur 216..252 × 16..52 et panneau 16..304 × 60..224 à 320 (16..336 à
+  390), inchangés ; `scrollWidth` = largeur de l'écran.
+
+### Seconde vérification (2026-09-24) — ce qu'elle a relevé, et ce qui en a été fait
+
+- **AC5 coché avec une mesure devenue fausse** (« cloche → avatar = menu seul » : c'était le
+  comportement d'avant le voile) : *reproduit* — après la cloche, un appui sur l'avatar ferme tout ;
+  un second ouvre le menu. *Ticket corrigé* : AC5 porte la mesure re-prise après le voile, et la
+  note du Contexte est datée comme antérieure. ⚠ Premier essai de la re-mesure faussé par la
+  mesure elle-même : un appui en (160, 500) « ne fermait pas » — `elementFromPoint` et la trace des
+  événements montrent un `LI` DU panneau, qui s'étend à 505 une fois ses dix notifications
+  chargées. L'appui sous le panneau (160, 600) ferme. Aucun défaut de comportement.

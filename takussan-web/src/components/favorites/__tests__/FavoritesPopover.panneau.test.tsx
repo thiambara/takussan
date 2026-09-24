@@ -50,20 +50,41 @@ const portePanneau = (el: Element) =>
   !!el.querySelector(':scope > [data-slot=popover-content]');
 
 /**
+ * La largeur maximale que la classe `max-w-[calc(100vw-<n>rem)]` du panneau impose à un écran de
+ * `ecran` px, ou `Infinity` sans elle. jsdom n'applique aucune feuille de style : on résout la
+ * classe à la main, comme `Navbar.pastille-etroite.test.tsx` résout ses requêtes de conteneur.
+ * (Préfixe découpé : Tailwind scanne aussi les tests.)
+ */
+function largeurMaxDeLaClasse(el: Element, ecran: number): number {
+  const prefixe = 'max-w-' + '[calc(100vw-';
+  for (const classe of el.className.split(/\s+/)) {
+    if (!classe.startsWith(prefixe) || !classe.endsWith('rem)]')) continue;
+    return ecran - Number(classe.slice(prefixe.length, -'rem)]'.length)) * 16;
+  }
+  return Infinity;
+}
+
+/** Le panneau lui-même, qu'on interroge sur lui ou sur son porteur. */
+const panneauDe = (el: Element) =>
+  el.matches('[data-slot=popover-content]') ? el : el.querySelector(':scope > [data-slot=popover-content]');
+
+/**
  * Pose l'écran et les rectangles relevés au navigateur : largeur de l'écran, cœur à `coeurGauche`
- * (36 × 36, sous la barre à y = 8), panneau de `largeurPanneau` × 300.
+ * (36 × 36, sous la barre à y = 8), panneau de `largeurPanneau` × 300 — plafonné par son `max-w`,
+ * comme le navigateur le ferait.
  */
 function geometrie(ecran: number, coeurGauche: number, largeurPanneau: number) {
+  const largeur = (el: Element) => Math.min(largeurPanneau, largeurMaxDeLaClasse(panneauDe(el)!, ecran));
   Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: ecran });
   Object.defineProperty(document.documentElement, 'clientHeight', { configurable: true, value: 740 });
   const rectOrigine = Element.prototype.getBoundingClientRect;
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     if (this.matches('button[aria-haspopup]')) return new DOMRect(coeurGauche, 8, 36, 36);
-    if (portePanneau(this)) return new DOMRect(0, 0, largeurPanneau, 300);
+    if (portePanneau(this)) return new DOMRect(0, 0, largeur(this), 300);
     return rectOrigine.call(this);
   });
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
-    return portePanneau(this) ? largeurPanneau : 0;
+    return portePanneau(this) ? largeur(this) : 0;
   });
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
     return portePanneau(this) ? 300 : 0;
@@ -119,6 +140,22 @@ describe('<FavoritesPopover> — le panneau reste dans l’écran (TCK-569, M4)'
     await waitFor(() => expect(bordGauche(panneau)).toBe(16));
   });
 
+  /**
+   * Solde de TCK-569 (vérification du 2026-09-23) : retirer le `max-w` laissait les quatre tests
+   * verts — la géométrie simulée donnait au panneau 320 px quoi qu'il arrive. Or à 320 px, un
+   * panneau de 320 px recalé à 16 px à gauche finit à 336 : il déborde à droite. Le navigateur
+   * mesure 16..304 (288 px) avec la classe ; la simulation applique désormais le plafond.
+   */
+  it('à 320 px, le panneau ne déborde pas non plus à DROITE : 16 px de chaque bord', async () => {
+    geometrie(320, 216, 320);
+    rendre();
+    const panneau = await ouvrir();
+
+    await waitFor(() => expect(bordGauche(panneau)).toBe(16));
+    const largeur = Math.min(320, largeurMaxDeLaClasse(panneau, 320));
+    expect(bordGauche(panneau)! + largeur).toBeLessThanOrEqual(320 - 16);
+  });
+
   it('en bureau, rien ne bouge : bord droit du panneau sur celui du cœur (711 à 1366 px)', async () => {
     geometrie(1366, 1059, 384);
     rendre();
@@ -141,5 +178,40 @@ describe('<FavoritesPopover> — le panneau reste dans l’écran (TCK-569, M4)'
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mes favoris' })).toBeNull());
     expect(coeur).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => expect(coeur).toHaveFocus());
+  });
+
+  /**
+   * Solde de TCK-569 (vérification du 2026-09-23, confirmé le 2026-09-24) : à 320 px, l'appui « à
+   * côté » qui fermait le panneau tombait AUSSI sur la carte dessous et ouvrait sa fiche (`/fr` →
+   * `/fr/properties/parking-couvert-a-pikine-UjterU`). Le voile reçoit cet appui : le panneau se
+   * ferme, rien d'autre. jsdom ne fait pas de test d'impact (`elementFromPoint`) : on garde ce qui
+   * le rend possible — un voile plein écran au-dessus du contenu (lien étiré des cartes :
+   * `z-[1]`), sous le panneau (`z-[1100]`) — puis l'effet d'un appui sur lui.
+   */
+  it('un appui à côté ferme le panneau et n’active rien dessous', async () => {
+    const dessous = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={client}>
+          <button type="button" onClick={dessous}>carte</button>
+          <FavoritesPopover variant="compact" />
+        </QueryClientProvider>,
+      ),
+    );
+    await ouvrir();
+
+    const voile = document.querySelector<HTMLElement>('[data-slot=popover-voile]');
+    expect(voile).not.toBeNull();
+    const classes = voile!.className.split(/\s+/);
+    expect(classes).toEqual(expect.arrayContaining(['fixed', 'inset-0']));
+    const plan = (c: string[]) => Number(c.find((x) => x.startsWith('z-['))?.slice(3, -1));
+    expect(plan(classes)).toBeGreaterThan(1);
+    expect(plan(classes)).toBeLessThan(plan(voile!.nextElementSibling!.className.split(/\s+/)));
+
+    await userEvent.setup().click(voile!);
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mes favoris' })).toBeNull());
+    expect(dessous).not.toHaveBeenCalled();
   });
 });
