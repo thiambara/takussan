@@ -111,5 +111,10 @@ class CreateGroupConversationRequest extends BaseFormRequest
             'lease_id' => Lease::class,
             'maintenance_request_id' => MaintenanceRequest::class,
         ], 'messaging.errors.group_context_forbidden');
+        // L'ordre est un contrat (tenu par `GroupConversationCreationTest`) : la visibilité
+        // d'abord, puis la cohérence entre contextes déjà visibles — jamais « ne concerne pas »
+        // d'un élément qu'on ne peut pas voir.
+        $this->guardLeaseMatchesProperty($v);
+        $this->guardMaintenanceMatchesContext($v);
     }
 }

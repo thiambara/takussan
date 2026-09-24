@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Permissions;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Permissions\StoreRoleDelegationRequest;
 use App\Http\Resources\Permissions\RoleDelegationResource;
 use App\Models\Agency;
@@ -28,7 +29,7 @@ class RoleDelegationController extends Controller
             ->where('agency_id', $agency->id)
             ->allowedFilters(
                 AllowedFilter::exact('status'),
-                AllowedFilter::exact('user_id'),
+                AllowedFilter::custom('user_id', new ExactIdentifierFilter),
             )
             ->defaultSort('-created_at')
             ->with(['user', 'delegator', 'revokedBy']);

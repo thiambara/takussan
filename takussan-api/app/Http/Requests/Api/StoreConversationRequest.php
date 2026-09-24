@@ -93,6 +93,7 @@ class StoreConversationRequest extends BaseFormRequest
                 'property_id' => Property::class,
                 'lease_id' => Lease::class,
             ], 'messaging.errors.conversation_context_forbidden');
+            $this->guardLeaseMatchesProperty($v);
         });
     }
 

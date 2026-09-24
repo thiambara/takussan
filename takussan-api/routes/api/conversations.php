@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\MessagingContactController;
@@ -11,6 +12,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-565 — littérale, donc AVANT `conversations/{conversation}` : sinon « contacts » serait
     // lu comme un identifiant de conversation (404 par liaison de modèle).
     Route::get('conversations/contacts', [MessagingContactController::class, 'index'])->name('conversations.contacts.index');
+    // TCK-576 — le bien et le bail d'un groupe, cherchés par leur nom. Littérales elles aussi : à
+    // déclarer avant toute route `conversations/{conversation}/…` de même forme.
+    Route::get('conversations/context/properties', [ConversationContextController::class, 'properties'])
+        ->name('conversations.context.properties');
+    Route::get('conversations/context/leases', [ConversationContextController::class, 'leases'])
+        ->name('conversations.context.leases');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
     // TCK-565 — les personnes qu'on peut ajouter à CE groupe (même règle que l'ajout, avec lui).
     Route::get('conversations/{conversation}/contacts', [MessagingContactController::class, 'forConversation'])

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Filters\ExactIdentifierFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -50,9 +51,9 @@ class CrossTenantAuditController extends Controller
             ->allowedFilters(
                 AllowedFilter::exact('log_name'),
                 AllowedFilter::exact('event'),
-                AllowedFilter::exact('causer_id'),
+                AllowedFilter::custom('causer_id', new ExactIdentifierFilter),
                 AllowedFilter::exact('causer_type'),
-                AllowedFilter::exact('subject_id'),
+                AllowedFilter::custom('subject_id', new ExactIdentifierFilter),
                 AllowedFilter::partial('subject_type'),
                 AllowedFilter::callback('date_from', fn ($q, $value) => $q->where('created_at', '>=', $value)),
                 AllowedFilter::callback('date_to', fn ($q, $value) => $q->where('created_at', '<=', $value)),

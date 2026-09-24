@@ -417,4 +417,103 @@ class ParticipantManagementTest extends TestCase
             ->where('user_id', $c->id)
             ->value('left_at'));
     }
+
+    /**
+     * Relevé du 2026-09-24 (risque résiduel de TCK-565) : `GET /api/conversations/{id}` ne rendait
+     * PAS `participants`, alors que le front le demande (`include=property,participants`) et que
+     * la feuille d'infos d'un groupe en dérive tout — la liste des membres, et le rôle de
+     * l'utilisateur, donc le renommage, la gestion des rôles et l'INVITATION par nom de TCK-565.
+     * Mesuré sur la pile locale, groupe 241 d'agent1 : clés de `data` sans `participants`. La
+     * feuille affichait « 0 participant » et cachait toutes les actions d'administration.
+     *
+     * Rendu : les membres ACTUELS (un départ n'est pas un membre), leur rôle, et leur nom — jamais
+     * leurs coordonnées : un membre d'un groupe n'a pas à lire l'e-mail des autres.
+     */
+    public function test_le_detail_rend_les_membres_actuels_leur_role_et_leur_nom(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        $b->update(['first_name' => 'Awa', 'last_name' => 'Sarr']);
+        $conversation->participants()->updateExistingPivot($c->id, ['left_at' => now()]);
+        // Réparation 1 (vérificateur, 2026-09-24) : `ChatView` lit la sourdine de l'acteur DANS ce
+        // détail (`currentMute`), et un `is_muted` figé à `false` laissait toute la suite verte.
+        $conversation->participants()->updateExistingPivot($b->id, ['is_muted' => true]);
+
+        Sanctum::actingAs($b);
+
+        $response = $this->getJson("/api/conversations/{$conversation->id}")->assertOk();
+        $membres = collect($response->json('data.participants'));
+
+        $this->assertEqualsCanonicalizing([$admin->id, $b->id], $membres->pluck('user_id')->all(), 'le membre parti n’est pas rendu');
+        $awa = $membres->firstWhere('user_id', $b->id);
+        $this->assertSame('member', $awa['role']);
+        $this->assertSame('Awa Sarr', $awa['user']['full_name']);
+        $this->assertSame(['id', 'full_name', 'avatar_url'], array_keys($awa['user']));
+        $this->assertNull($awa['left_at']);
+        $this->assertNotNull($awa['joined_at']);
+        $this->assertIsInt($awa['id']);
+        $this->assertSame('admin', $membres->firstWhere('user_id', $admin->id)['role']);
+        // Reprise du 2026-09-24 : la sourdine est PRIVÉE. Le lecteur lit la sienne — `ChatView` en
+        // tire `currentMute` —, jamais celle des autres (voir le test suivant).
+        $this->assertTrue($awa['is_muted'], 'le lecteur lit sa propre sourdine');
+        $this->assertArrayNotHasKey('is_muted', $membres->firstWhere('user_id', $admin->id));
+        $this->assertStringNotContainsString($admin->email, $response->getContent());
+
+        // Un tiers n'y a toujours pas accès.
+        Sanctum::actingAs(User::factory()->create());
+        $this->getJson("/api/conversations/{$conversation->id}")->assertForbidden();
+    }
+
+    /**
+     * TCK-576, reprise des défauts mineurs (2026-09-24) — le détail rendait `is_muted` de CHAQUE
+     * membre à tous les membres : n'importe qui dans un groupe savait qui l'avait mis en sourdine.
+     * Le mode silencieux est une préférence PRIVÉE (décision de la session) : il n'est rendu que
+     * pour le participant qui lit. Pour les autres, la clé est ABSENTE, pas `null` — le type du
+     * front la déclare déjà facultative (`is_muted?: boolean`), et ses trois lecteurs ne lisent que
+     * la ligne de l'utilisateur courant.
+     *
+     * Réparation 1 (vérificateur, 2026-09-24) : `last_read_at` reçoit le même traitement, selon la
+     * règle de la session (« s'il n'a aucun consommateur pour les AUTRES membres, même traitement »).
+     * Mesuré : aucun — côté front, la seule occurrence est la déclaration de `types/message.ts` ;
+     * côté API, le compte de non-lus et `markAsRead` ne lisent que la ligne du lecteur. Il vaut
+     * `null` pour les autres, pas absent : le front déclare la clé obligatoire (`string | null`).
+     * Cette version épinglait l'exposition (`assertNotNull` sur le `last_read_at` d'un autre).
+     */
+    public function test_la_sourdine_d_un_membre_n_est_rendue_qu_a_lui_meme(): void
+    {
+        [$admin, $b, $c, $conversation] = $this->makeGroup();
+        $conversation->participants()->updateExistingPivot($admin->id, ['last_read_at' => now()->subHour()]);
+        $conversation->participants()->updateExistingPivot($b->id, ['is_muted' => true, 'last_read_at' => now()]);
+        $conversation->participants()->updateExistingPivot($c->id, ['is_muted' => true, 'last_read_at' => now()]);
+
+        Sanctum::actingAs($admin);
+
+        $membres = collect($this->getJson("/api/conversations/{$conversation->id}")
+            ->assertOk()
+            ->json('data.participants'));
+
+        $this->assertCount(3, $membres);
+        foreach ([$b, $c] as $autre) {
+            $this->assertArrayNotHasKey('is_muted', $membres->firstWhere('user_id', $autre->id), 'la sourdine d’un autre ne sort pas');
+        }
+        $this->assertFalse($membres->firstWhere('user_id', $admin->id)['is_muted'], 'le lecteur lit la sienne');
+
+        // L'état de lecture des autres ne sort pas non plus : la clé reste (type du front), à `null`.
+        foreach ([$b, $c] as $autre) {
+            $ligne = $membres->firstWhere('user_id', $autre->id);
+            $this->assertArrayHasKey('last_read_at', $ligne);
+            $this->assertNull($ligne['last_read_at'], 'la lecture d’un autre ne sort pas');
+        }
+        // Le lecteur lit toujours la sienne.
+        $this->assertNotNull($membres->firstWhere('user_id', $admin->id)['last_read_at'], 'le lecteur lit sa propre lecture');
+
+        // Et c'est bien relatif au LECTEUR : vu par B, c'est la ligne de B qui porte l'état.
+        Sanctum::actingAs($b);
+        $vusParB = collect($this->getJson("/api/conversations/{$conversation->id}")
+            ->assertOk()
+            ->json('data.participants'));
+        $this->assertTrue($vusParB->firstWhere('user_id', $b->id)['is_muted']);
+        $this->assertNotNull($vusParB->firstWhere('user_id', $b->id)['last_read_at']);
+        $this->assertNull($vusParB->firstWhere('user_id', $admin->id)['last_read_at']);
+        $this->assertArrayNotHasKey('is_muted', $vusParB->firstWhere('user_id', $admin->id));
+    }
 }

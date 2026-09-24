@@ -379,7 +379,9 @@ class GroupConversationCreationTest extends TestCase
         $b = User::factory()->create();
         $this->relate($me, $a, $b);
         $bail = Lease::factory()->create(['landlord_id' => $me->id]);
-        $intervention = MaintenanceRequest::factory()->create(['requester_id' => $me->id]);
+        // L'intervention porte sur le bien du bail : depuis la reprise du 2026-09-24, une
+        // intervention d'un AUTRE bien se refuse (les deux fabriques en créaient chacune un).
+        $intervention = MaintenanceRequest::factory()->create(['requester_id' => $me->id, 'property_id' => $bail->property_id]);
 
         Sanctum::actingAs($me);
 
@@ -390,6 +392,221 @@ class GroupConversationCreationTest extends TestCase
             'lease_id' => $bail->id,
             'maintenance_request_id' => $intervention->id,
         ])->assertCreated();
+    }
+
+    /**
+     * Relevé du 2026-09-24 (reprise des restes de TCK-565) : la garde de contexte ne vérifiait
+     * que ce qu'elle TROUVAIT. `exists:properties,id` accepte une ligne supprimée (il ne lit pas
+     * `deleted_at`), puis `Property::query()->find()` la masque (portée `SoftDeletes`) : le modèle
+     * est `null`, et la garde passait son tour. Un groupe se rattachait donc au bien SUPPRIMÉ d'une
+     * autre agence, que l'acteur n'a jamais pu voir — 201. Même chose pour un bail et une demande
+     * d'intervention supprimés. Un contexte qu'on ne peut pas lire se refuse, qu'il soit caché par
+     * la policy ou par la suppression.
+     */
+    public function test_un_contexte_supprime_ne_peut_pas_etre_rattache(): void
+    {
+        $me = User::factory()->create();
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+        $this->relate($me, $a, $b);
+        $ailleurs = Agency::factory()->create();
+        $bien = Property::factory()->create(['agency_id' => $ailleurs->id]);
+        $bail = Lease::factory()->create(['property_id' => $bien->id, 'agency_id' => $ailleurs->id]);
+        $intervention = MaintenanceRequest::factory()->create(['property_id' => $bien->id]);
+        // Supprimés, et même SIENS : un contexte supprimé n'est plus un contexte.
+        $monBien = Property::factory()->create(['user_id' => $me->id]);
+        $bien->delete();
+        $bail->delete();
+        $intervention->delete();
+        $monBien->delete();
+
+        Sanctum::actingAs($me);
+
+        foreach ([
+            'property_id' => $bien->id,
+            'lease_id' => $bail->id,
+            'maintenance_request_id' => $intervention->id,
+            'property_id (le mien)' => $monBien->id,
+        ] as $cas => $id) {
+            $champ = explode(' ', $cas)[0];
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Test',
+                'participants' => [$a->id, $b->id],
+                $champ => $id,
+            ])->assertUnprocessable()->assertJsonValidationErrors([$champ]);
+        }
+
+        $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
+
+        // La directe partage la garde (`GuardsConversationScope`) : même refus.
+        $avant = Conversation::query()->count();
+        $this->postJson('/api/conversations', [
+            'participants' => [$a->id],
+            'property_id' => $monBien->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['property_id']);
+        $this->assertSame($avant, Conversation::query()->count());
+    }
+
+    /**
+     * TCK-576, réparation 1 (vérificateur du 2026-09-24) : la garde de contexte vérifiait chaque
+     * champ SÉPARÉMENT. Un bien et un bail visibles l'un et l'autre, mais sans rapport, passaient :
+     * mesuré sur la pile locale, `property_id=1` + `lease_id=363` (un bail d'un autre bien) → 201.
+     * C'est la paire que le sélecteur du front laissait choisir pendant un chargement ; le serveur
+     * doit la refuser lui-même, quel que soit le client.
+     */
+    public function test_un_bail_qui_ne_concerne_pas_le_bien_choisi_est_refuse(): void
+    {
+        $me = User::factory()->create();
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+        $this->relate($me, $a, $b);
+        $villa = Property::factory()->create(['user_id' => $me->id]);
+        $bureau = Property::factory()->create(['user_id' => $me->id]);
+        $bailDuBureau = Lease::factory()->create(['property_id' => $bureau->id, 'landlord_id' => $me->id]);
+
+        Sanctum::actingAs($me);
+
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Test',
+            'participants' => [$a->id, $b->id],
+            'property_id' => $villa->id,
+            'lease_id' => $bailDuBureau->id,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['lease_id'])
+            ->assertJsonMissingValidationErrors(['property_id'])
+            ->assertJsonPath('errors.lease_id.0', __('messaging.errors.lease_property_mismatch'));
+        $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
+
+        // La directe partage la garde : même refus.
+        $avant = Conversation::query()->count();
+        $this->postJson('/api/conversations', [
+            'participants' => [$a->id],
+            'property_id' => $villa->id,
+            'lease_id' => $bailDuBureau->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['lease_id']);
+        $this->assertSame($avant, Conversation::query()->count());
+
+        // Témoin : le bail AVEC son bien passe, et chacun seul aussi.
+        foreach ([
+            ['property_id' => $bureau->id, 'lease_id' => $bailDuBureau->id],
+            ['lease_id' => $bailDuBureau->id],
+            ['property_id' => $villa->id],
+        ] as $contexte) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Test',
+                'participants' => [$a->id, $b->id],
+            ] + $contexte)->assertCreated();
+        }
+    }
+
+    /**
+     * TCK-576, reprise des défauts mineurs (2026-09-24) — le contrat « la paire se compare APRÈS
+     * la visibilité » n'était tenu par aucun test : inverser l'ordre des deux gardes laissait tout
+     * vert. Or l'ordre inverse répond « ce bail ne concerne pas le bien choisi » à propos d'un bail
+     * qu'on ne peut PAS voir — il confirme son existence et dit quelque chose de son bien. Un bail
+     * invisible ne reçoit que la phrase de visibilité, quel que soit le bien envoyé avec lui.
+     */
+    public function test_un_bail_invisible_avec_un_bien_visible_rend_la_phrase_de_visibilite(): void
+    {
+        $me = User::factory()->create();
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+        $this->relate($me, $a, $b);
+        $monBien = Property::factory()->create(['user_id' => $me->id]);
+        $ailleurs = Agency::factory()->create();
+        $bailAilleurs = Lease::factory()->create([
+            'property_id' => Property::factory()->create(['agency_id' => $ailleurs->id])->id,
+            'agency_id' => $ailleurs->id,
+        ]);
+
+        Sanctum::actingAs($me);
+
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Test',
+            'participants' => [$a->id, $b->id],
+            'property_id' => $monBien->id,
+            'lease_id' => $bailAilleurs->id,
+        ])->assertUnprocessable()
+            ->assertJsonMissingValidationErrors(['property_id'])
+            ->assertJsonPath('errors.lease_id', [__('messaging.errors.group_context_forbidden')]);
+
+        // La directe partage l'ordre : même phrase de visibilité, la sienne.
+        $this->postJson('/api/conversations', [
+            'participants' => [$a->id],
+            'property_id' => $monBien->id,
+            'lease_id' => $bailAilleurs->id,
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.lease_id', [__('messaging.errors.conversation_context_forbidden')]);
+
+        $this->assertSame(0, Conversation::query()->where('lease_id', $bailAilleurs->id)->count());
+    }
+
+    /**
+     * TCK-576, reprise des défauts mineurs (2026-09-24) — la paire bien/bail ignorait la demande
+     * d'intervention : une intervention sur le bureau, rattachée à un groupe sur la villa (ou sur
+     * le bail de la villa), passait — 201, mesuré avant correctif. Refus sur
+     * `maintenance_request_id`, dans la langue de la requête.
+     *
+     * La conversation DIRECTE n'est pas concernée : elle ne lit pas `maintenance_request_id`
+     * (absent de `StoreConversationRequest::rules()`, jamais écrit par le contrôleur).
+     */
+    public function test_une_intervention_d_un_autre_bien_que_le_contexte_est_refusee(): void
+    {
+        $me = User::factory()->create();
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+        $this->relate($me, $a, $b);
+        $villa = Property::factory()->create(['user_id' => $me->id]);
+        $bureau = Property::factory()->create(['user_id' => $me->id]);
+        $bailDeLaVilla = Lease::factory()->create(['property_id' => $villa->id, 'landlord_id' => $me->id]);
+        $bailDuBureau = Lease::factory()->create(['property_id' => $bureau->id, 'landlord_id' => $me->id]);
+        $interventionAuBureau = MaintenanceRequest::factory()->create(['property_id' => $bureau->id, 'requester_id' => $me->id]);
+
+        Sanctum::actingAs($me);
+
+        $phrases = [];
+        foreach ([
+            'fr' => ['property_id' => $villa->id],
+            'en' => ['lease_id' => $bailDeLaVilla->id],
+            'wo' => ['property_id' => $villa->id, 'lease_id' => $bailDeLaVilla->id],
+        ] as $langue => $contexte) {
+            $resp = $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Test',
+                'participants' => [$a->id, $b->id],
+                'maintenance_request_id' => $interventionAuBureau->id,
+            ] + $contexte, ['Accept-Language' => $langue])
+                ->assertUnprocessable()
+                ->assertJsonMissingValidationErrors(['property_id', 'lease_id']);
+
+            $this->assertSame(
+                [__('messaging.errors.maintenance_property_mismatch', [], $langue)],
+                $resp->json('errors.maintenance_request_id'),
+                $langue,
+            );
+            $phrases[] = $resp->json('errors.maintenance_request_id.0');
+        }
+        $this->assertCount(3, array_unique($phrases), 'une phrase par langue, pas une phrase recopiée');
+        $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
+
+        // Témoins : l'intervention avec SON bien, avec un bail de son bien, et seule, passent.
+        foreach ([
+            ['property_id' => $bureau->id],
+            ['lease_id' => $bailDuBureau->id],
+            ['property_id' => $bureau->id, 'lease_id' => $bailDuBureau->id],
+            [],
+        ] as $contexte) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Test',
+                'participants' => [$a->id, $b->id],
+                'maintenance_request_id' => $interventionAuBureau->id,
+            ] + $contexte)->assertCreated();
+        }
     }
 
     /** L'administrateur d'agence est de l'équipe : il range les propriétaires de son agence. */

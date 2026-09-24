@@ -323,20 +323,11 @@ export function useSendMessage(conversationId: number) {
   );
 }
 
-export type CreateConversationPayload = {
-  property_id?: number;
-  lease_id?: number;
-  subject?: string;
-  recipient_id?: number;
-  initial_message: string;
-};
-
-export function useCreateConversation() {
-  return useApiMutation<ApiResponse<Conversation>, CreateConversationPayload>(
-    { path: '/api/conversations', method: 'POST' },
-    { invalidate: [['conversations', 'list']] },
-  );
-}
+// TCK-576 — `useCreateConversation` est retiré : il n'avait aucun appelant, et son corps typé
+// (`recipient_id`, `initial_message`) ne correspondait à rien de ce que `POST /api/conversations`
+// valide (`participants`, et une seule autre personne joignable depuis TCK-565). Un premier
+// contact passe par la fiche publique d'un bien (`PublicPropertyController::contactMessage()`
+// choisit lui-même le destinataire), un groupe par `useCreateGroupConversation`.
 
 /**
  * Upload an attachment — multipart/form-data. React Query's mutation typing
@@ -546,55 +537,85 @@ export function useMessagingContacts(
   );
 }
 
-/** Les biens proposés comme contexte d'un groupe : ceux que `/api/properties` montre à l'acteur. */
-export const GROUP_CONTEXT_PROPERTY_FIELDS: string[] = ['id', 'title'];
+/**
+ * TCK-576 — le bien et le bail d'un groupe se CHERCHENT par leur nom.
+ *
+ * TCK-565 (M11) les avait fait choisir dans deux listes, au lieu de deux identifiants numériques.
+ * Ces listes lisaient `/api/properties` et `/api/leases`, plafonnées à 100 et sans recherche :
+ * mesuré le 2026-09-24, 106 des 206 biens d'un agent de démo et 46 de ses 146 baux ne pouvaient
+ * pas être choisis. Le `filter[search]` de `/api/properties` ne les aurait pas rendus atteignables
+ * non plus : il passe par Meilisearch, qui n'indexe que les biens publics et publiés — un
+ * brouillon ou un bien privé y est introuvable (« Espace de bureau à Mbour », id 145, mesuré).
+ *
+ * D'où deux routes de la messagerie, `/api/conversations/context/{properties,leases}` : recherche
+ * SQL sur le titre et la référence, périmètre = ce que la création d'un groupe accepte (les
+ * policies `view`), liste blanche étroite. Côté écran, `GroupContextPicker`.
+ */
+export const GROUP_CONTEXT_PROPERTY_FIELDS: string[] = ['id', 'title', 'reference_number'];
 export const GROUP_CONTEXT_LEASE_FIELDS: string[] = ['id', 'reference_number', 'property_id'];
-export const GROUP_CONTEXT_PER_PAGE = 100;
+/** Une page du sélecteur, comme celui des participants. Au-delà, on affine la recherche. */
+export const GROUP_CONTEXT_PER_PAGE = 20;
 
-export type GroupContextProperty = { id: number; title: string };
+export type GroupContextProperty = { id: number; title: string; reference_number: string | null };
 export type GroupContextLease = {
   id: number;
   reference_number: string;
   property_id: number;
-  property?: { id: number; title: string } | null;
+  property?: GroupContextProperty | null;
 };
 
-/**
- * M11 — le bien et le bail d'un groupe se CHOISISSENT dans une liste. Ils se saisissaient comme
- * deux identifiants numériques (`<input type="number">`), côte à côte dans une grille à deux
- * colonnes : le même défaut que les participants (personne ne connaît l'identifiant de son bien),
- * et c'est ce qui décalait les deux champs à 360 px — le libellé long passait sur deux lignes.
- */
-export function useGroupPropertyOptions(options: { enabled?: boolean } = {}) {
+export function useGroupPropertyOptions(search: string, options: { enabled?: boolean } = {}) {
+  const terme = search.trim();
   return useApiQuery<PaginatedResponse<GroupContextProperty>>(
-    ['conversations', 'group-context', 'properties'],
-    '/api/properties',
+    ['conversations', 'group-context', 'properties', terme],
+    '/api/conversations/context/properties',
     {
       params: {
         fields: { properties: GROUP_CONTEXT_PROPERTY_FIELDS },
-        sort: ['title'],
+        filter: terme ? { search: terme } : {},
         per_page: GROUP_CONTEXT_PER_PAGE,
       },
       enabled: options.enabled ?? true,
       staleTime: 60_000,
+      // Même raison que `useMessagingContacts` : garder la liste pendant la frappe.
+      placeholderData: (precedent) => precedent,
     },
   );
 }
 
-export function useGroupLeaseOptions(propertyId: number | null, options: { enabled?: boolean } = {}) {
+/**
+ * Les baux, restreints au bien choisi s'il y en a un. La clé porte le bien en position 3 — lue par
+ * `placeholderData` ci-dessous : ne pas la réordonner sans elle.
+ */
+export function useGroupLeaseOptions(
+  propertyId: number | null,
+  search: string,
+  options: { enabled?: boolean } = {},
+) {
+  const terme = search.trim();
+  const filter: Record<string, string | number> = {};
+  if (propertyId) filter.property_id = propertyId;
+  if (terme) filter.search = terme;
   return useApiQuery<PaginatedResponse<GroupContextLease>>(
-    ['conversations', 'group-context', 'leases', propertyId],
-    '/api/leases',
+    ['conversations', 'group-context', 'leases', propertyId, terme],
+    '/api/conversations/context/leases',
     {
       params: {
         fields: { leases: GROUP_CONTEXT_LEASE_FIELDS, properties: GROUP_CONTEXT_PROPERTY_FIELDS },
-        filter: propertyId ? { property_id: propertyId } : {},
+        filter,
         include: ['property'],
-        sort: ['-created_at'],
         per_page: GROUP_CONTEXT_PER_PAGE,
       },
       enabled: options.enabled ?? true,
       staleTime: 60_000,
+      // ⚠ La liste précédente ne se garde que pour le MÊME bien (réparation 1, 2026-09-24). Gardée
+      // sans condition, elle montrait — cliquables — les baux de tous les biens, ou d'un autre
+      // bien, tant que la requête du bien choisi était en vol : mesuré à 2,5 s de latence, le
+      // groupe partait avec la villa d'Almadies et un bail de Mbour. Pendant la frappe (même bien,
+      // autre terme), la garder évite que le popup saute ; au changement de bien, l'écran dit
+      // « Recherche… » plutôt que de proposer ce qu'il ne faut pas.
+      placeholderData: (precedent, requetePrecedente) =>
+        requetePrecedente?.queryKey[3] === propertyId ? precedent : undefined,
     },
   );
 }

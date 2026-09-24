@@ -194,7 +194,13 @@ class ConversationController extends Controller
     {
         $this->ensureParticipant($request, $conversation);
 
-        $conversation->loadMissing('property');
+        // TCK-576 (restes de TCK-565) — les membres ACTUELS : la feuille d'infos d'un groupe en
+        // dérive la liste, le rôle de l'utilisateur, et donc l'invitation par nom. Sans eux, elle
+        // affichait « 0 participant » et cachait toute action d'administration.
+        $conversation->loadMissing([
+            'property',
+            'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
+        ]);
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->toArray($request),
@@ -216,6 +222,7 @@ class ConversationController extends Controller
             $messages = $conversation->messages()
                 ->where('id', '>', (int) $data['after_id'])
                 ->oldest()
+                ->orderBy('id')
                 // Safety cap if the client missed many ticks (e.g. tab hidden
                 // for a long time). The client re-polls so anything beyond
                 // this cap will be fetched on the next call.
@@ -228,7 +235,11 @@ class ConversationController extends Controller
             ]);
         }
 
-        $query = $conversation->messages()->latest();
+        // Départage par `id` (reprise du 2026-09-24) : `latest()` seul trie sur `created_at`, et des
+        // messages de la même seconde revenaient dans un ordre quelconque sous PostgreSQL — mesuré :
+        // `ConversationMessagesPaginationTest::test_initial_load…` rouge, selon les classes jouées
+        // avant lui. Le curseur (`before_id`, `after_id`) est un `id` : le départage suit le curseur.
+        $query = $conversation->messages()->latest()->orderByDesc('id');
         if (isset($data['before_id'])) {
             $query->where('id', '<', (int) $data['before_id']);
         }

@@ -17,7 +17,15 @@ return [
         // TCK-565, réparation 2 — la conversation directe applique le périmètre du groupe.
         'direct_single_participant' => 'Une conversation directe se tient avec une seule autre personne. Pour en réunir plusieurs, créez un groupe.',
         'conversation_context_forbidden' => 'Vous ne pouvez pas rattacher cette conversation à cet élément.',
+        // TCK-576, réparation 1 — un bail et un bien visibles, mais sans rapport, se refusent.
+        'lease_property_mismatch' => 'Ce bail ne concerne pas le bien choisi. Choisissez un bail de ce bien, ou retirez l’un des deux.',
+        // TCK-576, reprise (2026-09-24) — l'intervention doit concerner le bien du contexte.
+        'maintenance_property_mismatch' => 'Cette demande d’intervention ne concerne pas le bien choisi. Choisissez une intervention de ce bien, ou retirez l’un des deux.',
         // TCK-565, passe finale — c'était une phrase française en dur dans AddParticipantsRequest.
         'participants_required' => 'Choisissez au moins une personne à ajouter.',
+    ],
+    // TCK-576, reprise (2026-09-24) — le nom du champ dans un 422, jamais « filter.property id ».
+    'attributes' => [
+        'property_filter' => 'bien',
     ],
 ];
