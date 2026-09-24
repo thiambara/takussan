@@ -29,6 +29,7 @@ const AGENT: AgentPublie = {
   avatar_url: 'https://media.takussan.test/avatars/awa.png',
   agency: { name: 'Immo Dakar', slug: 'immo-dakar' },
   reviews: { average: 4.8, count: 7 },
+  public_role: 'agent',
 };
 
 /**
@@ -111,6 +112,57 @@ describe('TCK-435 — le `@type` des profils ADMET `aggregateRating`', () => {
   });
 });
 
+describe('TCK-573 — un propriétaire n’est jamais balisé comme agent immobilier', () => {
+  const PROPRIETAIRE: AgentPublie = {
+    ...AGENT,
+    slug: 'owner.agency4',
+    full_name: 'Property Owner',
+    specialty: null,
+    agency: null,
+    public_role: 'owner',
+  };
+
+  it('`owner` produit une `Person`, jamais un `RealEstateAgent`', () => {
+    const noeud = jsonLdAgent(PROPRIETAIRE, 'fr');
+
+    expect(noeud['@type']).toBe('Person');
+    expect(JSON.stringify(noeud)).not.toContain('RealEstateAgent');
+    // Ce qu'une `Person` peut porter et que la page affiche reste émis.
+    expect(noeud).toMatchObject({
+      name: 'Property Owner',
+      url: `${ORIGINE_SITE}/fr/agents/owner.agency4`,
+      telephone: AGENT.phone,
+      address: { '@type': 'PostalAddress', addressLocality: 'Dakar' },
+    });
+  });
+
+  it('une `Person` ne porte ni note ni organisation parente — `Person` ne les admet pas', () => {
+    const noeud = jsonLdAgent({ ...PROPRIETAIRE, agency: AGENT.agency }, 'fr');
+
+    expect(noeud).not.toHaveProperty('aggregateRating');
+    expect(noeud).not.toHaveProperty('parentOrganization');
+  });
+
+  it('le contrôle : `agent` reste un `RealEstateAgent`', () => {
+    // Sans lui, une fabrique qui rendrait toujours `Person` passerait les deux cas ci-dessus.
+    expect(jsonLdAgent(AGENT, 'fr')['@type']).toBe('RealEstateAgent');
+  });
+
+  it.each([
+    ['absent', undefined],
+    ['inconnu', 'courtier-associe'],
+  ])('un rôle %s produit une `Person` : on n’affirme un métier que si le serveur l’a dit', (_cas, role) => {
+    // La vérification a remplacé `!== 'agent'` par `=== 'owner'` : les cas `owner` et `agent`
+    // restaient verts. Seul un rôle ni l'un ni l'autre sépare les deux écritures.
+    const noeud = jsonLdAgent(
+      { ...PROPRIETAIRE, public_role: role as unknown as AgentPublie['public_role'] },
+      'fr',
+    );
+
+    expect(noeud['@type']).toBe('Person');
+  });
+});
+
 describe('TCK-435 · AC2 — jamais de note sur zéro avis', () => {
   it('une agence à `count: 0` ne produit AUCUNE clé `aggregateRating`', () => {
     const noeud = jsonLdAgence({ ...AGENCE, reviews: { average: 0, count: 0 } }, 'fr');
@@ -176,7 +228,7 @@ describe('TCK-435 · AC3 — ni « null », ni `undefined`, ni clé vide', () =>
   it('un agent dont tout est nul non plus', () => {
     const noeud = jsonLdAgent(
       { slug: 'agent-nu', full_name: 'Agent Nu', bio: null, phone: null, city: null,
-        specialty: null, avatar_url: null, agency: null },
+        specialty: null, avatar_url: null, agency: null, public_role: 'agent' },
       'fr',
     );
 

@@ -95,12 +95,26 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             onChange={(e) => setRecherche(e.target.value)}
             placeholder={placeholderRecherche}
             aria-label={placeholderRecherche}
-            className="h-11 pl-9 md:h-10"
+            // TCK-573 — 40 px au bureau À LA SOURIS seulement : sur une tablette tactile (768,
+            // 1024), `md:h-10` seul rendait champ et bouton à 40 px, sous la cible de 44 (mesuré).
+            className="h-11 pl-9 md:pointer-fine:h-10"
           />
         </div>
-        <Button type="submit" className="h-11 px-4 md:h-10" disabled={enCours && villeDemandee === null}>
-          {enCours && villeDemandee === null && <Loader2 className="size-4 animate-spin" aria-hidden />}
-          {t('submit')}
+        {/* TCK-573 — sous `sm`, le bouton ne garde que son icône (44 × 44) et son nom accessible :
+            à 320 px, « Rechercher » en toutes lettres laissait 168 px au champ, et son texte
+            d'exemple était coupé (« Nom d'un ager », mesuré). Le nom reste lu par les lecteurs
+            d'écran, et redevient visible dès `sm`. */}
+        <Button
+          type="submit"
+          className="size-11 shrink-0 px-0 sm:w-auto sm:px-4 md:pointer-fine:h-10"
+          disabled={enCours && villeDemandee === null}
+        >
+          {enCours && villeDemandee === null ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Search className="size-4 sm:hidden" aria-hidden />
+          )}
+          <span className="sr-only sm:not-sr-only">{t('submit')}</span>
         </Button>
       </form>
 
@@ -131,7 +145,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             setRecherche('');
             naviguer({ city: '', q: '' });
           }}
-          className="inline-flex min-h-9 w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className="inline-flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline pointer-fine:min-h-9"
         >
           <X className="size-3.5" aria-hidden />
           {t('clear')}
@@ -158,7 +172,9 @@ function CityChip({
       onClick={onClick}
       aria-pressed={actif}
       className={
-        'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-[color,background-color,border-color,scale] active:scale-[0.96] ' +
+        // TCK-573 — 44 px au doigt (`pointer: coarse`, tout téléphone et toute tablette), 36 px
+        // à la souris : la puce mesurait 36 px partout, sous la cible tactile de 44.
+        'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-[color,background-color,border-color,scale] active:scale-[0.96] pointer-fine:min-h-9 ' +
         (actif
           ? 'border-primary bg-primary text-primary-foreground'
           : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground')

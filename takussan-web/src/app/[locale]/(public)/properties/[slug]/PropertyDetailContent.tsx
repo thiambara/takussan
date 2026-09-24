@@ -244,6 +244,7 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
         open={messageOpen}
         onOpenChange={setMessageOpen}
         defaultMessage={brouillon}
+        destinataireEstAgent={destinataire?.is_agent}
       />
     </div>
   );

@@ -33,10 +33,28 @@ interface ContactSheetProps {
    * pas le contact plus difficile, il change seulement ce qui est publié.
    */
   readonly agentSlug?: string;
+  /**
+   * TCK-573 — la qualité de la personne jointe par `agentSlug`, telle que l'API la publie
+   * (`public_role`). Le formulaire anonyme partagé dit par défaut « l'agent du bien » : sur la
+   * fiche d'un propriétaire, il présentait donc le propriétaire comme un agent.
+   *
+   * Le repli est `owner`, comme partout ailleurs sur ces fiches : seul un `agent` EXPLICITE est
+   * présenté comme agent. La piste arrive bien à cette personne (`recipient_user_id`,
+   * `PublicAgentController::contactLead`) : « transmises à ce propriétaire » est exact.
+   */
+  readonly recipientRole?: 'agent' | 'owner' | null;
 }
 
-export function ContactSheet({ name, email, phone, subject, agentSlug }: ContactSheetProps) {
+export function ContactSheet({
+  name,
+  email,
+  phone,
+  subject,
+  agentSlug,
+  recipientRole,
+}: ContactSheetProps) {
   const t = useTranslations('publicProfile.contact');
+  const estAgent = recipientRole === 'agent';
   const [leadOpen, setLeadOpen] = useState(false);
   const mailHref = email
     ? `mailto:${email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`
@@ -146,6 +164,8 @@ export function ContactSheet({ name, email, phone, subject, agentSlug }: Contact
           onOpenChange={setLeadOpen}
           idPrefix="agent-lead"
           title={name}
+          description={estAgent ? t('leadDescriptionAgent') : t('leadDescriptionOwner')}
+          successBody={estAgent ? t('leadSuccessAgent') : t('leadSuccessOwner')}
           onSubmit={(payload) => submitAgentContactLead(agentSlug, payload)}
         />
       )}

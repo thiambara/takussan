@@ -30,6 +30,12 @@ interface PropertyContactMessageDialogProps {
    * sans quoi le même clic donnerait un champ rempli ou vide selon la vitesse du réseau.
    */
   defaultMessage?: string;
+  /**
+   * TCK-573 — la personne qui recevra est-elle un agent ? Un bien publié par un particulier est
+   * reçu par son propriétaire : le dialogue ne lui promet pas « l'agent du bien ». Absent (bien
+   * sans destinataire connu), le texte reste celui de l'agent, comme avant.
+   */
+  destinataireEstAgent?: boolean;
 }
 
 export function PropertyContactMessageDialog({
@@ -37,9 +43,10 @@ export function PropertyContactMessageDialog({
   open,
   onOpenChange,
   defaultMessage,
+  destinataireEstAgent = true,
 }: PropertyContactMessageDialogProps) {
   const { user } = useAuth();
-  const props = { slug, open, onOpenChange, defaultMessage };
+  const props = { slug, open, onOpenChange, defaultMessage, destinataireEstAgent };
   return user ? <AuthenticatedDialog {...props} /> : <AnonymousDialog {...props} />;
 }
 
@@ -48,6 +55,7 @@ function AuthenticatedDialog({
   open,
   onOpenChange,
   defaultMessage,
+  destinataireEstAgent,
 }: PropertyContactMessageDialogProps) {
   const router = useRouter();
   const { submit, submitting, error } = useContactMessage(slug);
@@ -73,7 +81,9 @@ function AuthenticatedDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
-          <DialogDescription>{t('description')}</DialogDescription>
+          <DialogDescription>
+            {destinataireEstAgent === false ? t('descriptionOwner') : t('description')}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Textarea
@@ -107,13 +117,18 @@ function AnonymousDialog({
   open,
   onOpenChange,
   defaultMessage,
+  destinataireEstAgent,
 }: PropertyContactMessageDialogProps) {
+  const t = useTranslations('publicContact');
+  const proprietaire = destinataireEstAgent === false;
   return (
     <AnonymousLeadDialog
       open={open}
       onOpenChange={onOpenChange}
       idPrefix="lead"
       defaultMessage={defaultMessage}
+      description={proprietaire ? t('descriptionOwner') : undefined}
+      successBody={proprietaire ? t('successBodyOwner') : undefined}
       onSubmit={(payload) => submitContactLead(slug, payload)}
     />
   );

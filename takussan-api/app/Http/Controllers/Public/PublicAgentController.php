@@ -152,8 +152,9 @@ class PublicAgentController extends Controller
         $portefeuilles = PublicProfileFacts::portefeuilles('user_id', $ids);
         $agences = PublicProfileFacts::agences($ids);
         $avis = PublicProfileFacts::avis(User::class, $ids);
+        $roles = PublicProfileFacts::rolesPublics($ids);
 
-        $data = $agents->getCollection()->map(function (User $agent) use ($portefeuilles, $agences, $avis) {
+        $data = $agents->getCollection()->map(function (User $agent) use ($portefeuilles, $agences, $avis, $roles) {
             $id = (int) $agent->id;
             $portefeuille = $portefeuilles[$id];
             $agence = $agences[$id] ?? null;
@@ -171,6 +172,10 @@ class PublicAgentController extends Controller
                 'first_name' => $agent->first_name,
                 'last_name' => $agent->last_name,
                 'full_name' => trim($agent->first_name.' '.$agent->last_name),
+                // TCK-573 — `agent` ou `owner` : l'index liste aussi des propriétaires, et le
+                // front ne doit présenter comme « agent » que ceux qui le sont
+                // ({@see PublicProfileFacts::rolesPublics()}).
+                'public_role' => $roles[$id],
                 // `getFirstMediaUrl()` et NON `$agent->avatar_url` : cet attribut n'existe pas sur
                 // `User` (ni colonne, ni accesseur — mesuré le 2026-08-28) et rend toujours null,
                 // y compris là où `show()` l'emploie. `PropertyResource` utilise déjà cette forme.
@@ -258,6 +263,10 @@ class PublicAgentController extends Controller
                 'first_name' => $agent->first_name,
                 'last_name' => $agent->last_name,
                 'full_name' => trim($agent->first_name.' '.$agent->last_name),
+                // TCK-573 — un propriétaire garde sa fiche sous `/agents/…` (liens existants) mais
+                // n'y est jamais présenté comme agent immobilier : titre, libellé et données
+                // structurées en dépendent ({@see PublicProfileFacts::rolesPublics()}).
+                'public_role' => PublicProfileFacts::rolesPublics([(int) $agent->id])[(int) $agent->id],
                 // TCK-441 — `email` N'EST PAS servi ici, et c'est le coeur du ticket.
                 // `User::$email` est l'IDENTIFIANT DE CONNEXION : `fillable` a cote de
                 // `password`, normalise en minuscules pour l'index unique. Le publier sur un

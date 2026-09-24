@@ -47,6 +47,11 @@ export type ProfilPublic = {
   readonly agency?: { readonly slug: string; readonly name: string } | null;
   /** Agents seulement. */
   readonly specialty?: string | null;
+  /**
+   * Agents seulement — TCK-573 : l'index `/agents` liste aussi des PROPRIÉTAIRES, et la carte doit
+   * le dire. Absent pour une agence.
+   */
+  readonly public_role?: 'agent' | 'owner';
 };
 
 export type PageDeProfils = {
@@ -119,6 +124,8 @@ function versProfil(brut: Record<string, unknown>): ProfilPublic {
     },
     agency: (brut.agency ?? null) as ProfilPublic['agency'],
     specialty: (brut.specialty ?? null) as string | null,
+    public_role:
+      brut.public_role === 'agent' || brut.public_role === 'owner' ? brut.public_role : undefined,
   };
 }
 
