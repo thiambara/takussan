@@ -1,7 +1,7 @@
 ---
 id: TCK-581
 title: "Le test « T4 » du vocabulaire dérivé rougit une fois sur quelques centaines : la référence aléatoire du bien est complétée par préfixe"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -68,7 +68,8 @@ de requête du fichier. Unique dans le test (la colonne l'exige), et une valeur 
       **avec**, 11 passés / 49 assertions.
       *Une régression le cocherait-elle ?* Non : retirer l'épinglage refait rougir l'AC.
 - [x] **AC2 — rien d'autre ne bouge.** Le fichier passe trois fois de suite (11 / 49), Pint propre.
-- [ ] **AC3 — suite entière verte** en CI sur la PR.
+- [x] **AC3 — suite entière verte** en CI sur la PR #311 (API CI, run 36117006368 : `lint-and-test`
+      vert, couverture comprise).
 
 ## Hors périmètre — exposition mesurée ailleurs, non corrigée ici
 
