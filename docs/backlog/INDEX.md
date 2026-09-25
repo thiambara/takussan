@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**524 tickets** — 28 ouverts, 494 livrés.
+**525 tickets** — 29 ouverts, 494 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 27 |
-| 🚧 Doing | 1 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 494 |
@@ -64,6 +64,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-581](tickets/TCK-581-test-vocabulaire-t4-intermittent.md) — Le test « T4 » du vocabulaire dérivé rougit une fois sur quelques centaines : la référence aléatoire du bien est complétée par préfixe `S · P1 · bug`
 
 ## 👀 Review
 
