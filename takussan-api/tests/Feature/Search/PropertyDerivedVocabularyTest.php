@@ -64,6 +64,8 @@ class PropertyDerivedVocabularyTest extends TestCase
     /** @var array<string,Property> */
     private array $biens = [];
 
+    private int $sequence = 0;
+
     private function service(): PropertySearchService
     {
         return app(PropertySearchService::class);
@@ -162,10 +164,25 @@ class PropertyDerivedVocabularyTest extends TestCase
         ], 'Almadies', 'Dakar');
     }
 
-    /** @param array<string,mixed> $attributs */
+    /**
+     * ⚠ `reference_number` ÉPINGLÉ, EN CHIFFRES SEULS (TCK-581) : c'est le seul
+     * jeton ALÉATOIRE du document — `Property::booted()` le tire en
+     * `TK-2026-` + six caractères alphanumériques, et le champ est dans
+     * `searchableAttributes`. Même mécanisme que la surface de 150 m² : le
+     * dernier mot est complété par préfixe, et un suffixe tiré en « T4QZXW »
+     * fait répondre le bien à `q=T4` (≈ 1 tirage sur 1900 par bien). Rougi en
+     * CI le 2026-09-13 et le 2026-09-24, toujours d'un id EN TROP ; reproduit
+     * à coup sûr en forçant cette référence sur `villa_r1`. Un compteur à
+     * zéros de tête ne commence par aucun mot de requête de ce fichier.
+     *
+     * @param  array<string,mixed>  $attributs
+     */
     private function publier(array $attributs, string $quartier, string $ville): Property
     {
-        $bien = Property::factory()->published()->create($attributs + ['contract_type' => ContractType::Sale]);
+        $bien = Property::factory()->published()->create($attributs + [
+            'contract_type' => ContractType::Sale,
+            'reference_number' => sprintf('TK-2026-%06d', ++$this->sequence),
+        ]);
         Address::create([
             'addressable_type' => Property::class,
             'addressable_id' => $bien->id,
