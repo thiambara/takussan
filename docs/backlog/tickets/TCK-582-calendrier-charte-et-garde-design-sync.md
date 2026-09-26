@@ -1,7 +1,7 @@
 ---
 id: TCK-582
 title: "Le calendrier rendu à la charte (react-day-picker sous les utilitaires), et une garde sur les deux listes tenues à la main de .design-sync"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
@@ -61,31 +61,31 @@ discret sur aujourd'hui, chevrons sobres, rien de bleu nulle part.
 
 ## Delta à produire
 
-- [ ] Reproduire d'abord le défaut **dans l'application** (et pas seulement dans le bundle
+- [x] Reproduire d'abord le défaut **dans l'application** (et pas seulement dans le bundle
       design-sync) : couleur calculée du jour sélectionné et du chevron, au navigateur.
-- [ ] Charger la feuille de react-day-picker dans une couche cascade placée sous `utilities`, et
+- [x] Charger la feuille de react-day-picker dans une couche cascade placée sous `utilities`, et
       poser l'accent de la bibliothèque sur le jeton `--primary`.
-- [ ] Un test qui échoue avant le correctif et passe après (ablation).
-- [ ] Garde `scripts/check-design-sync-entry.mjs` : chaque fichier `.tsx` de
+- [x] Un test qui échoue avant le correctif et passe après (ablation).
+- [x] Garde `scripts/check-design-sync-entry.mjs` : chaque fichier `.tsx` de
       `takussan-web/src/components/ui/` est réexporté par `.design-sync/entry/index.ts` ; chaque
       nom réexporté par ces fichiers est soit un composant racine, soit exclu par
       `componentSrcMap`, soit un non-composant (minuscule, `*Props`, `*Variants`, constante).
-- [ ] La Repo CI déclenche sur les chemins que la garde lit.
-- [ ] `.design-sync/NOTES.md` : le défaut Calendar passe de « à ticketer » à « corrigé par
+- [x] La Repo CI déclenche sur les chemins que la garde lit.
+- [x] `.design-sync/NOTES.md` : le défaut Calendar passe de « à ticketer » à « corrigé par
       TCK-582 » ; la resynchro reprend le calendrier corrigé.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Dans l'application, le jour sélectionné d'un `DatePicker` ouvert a pour fond la valeur
+- [x] AC1 — Dans l'application, le jour sélectionné d'un `DatePicker` ouvert a pour fond la valeur
       de `--primary` et aucune bordure bleue ; mesuré au navigateur, avant et après.
-- [ ] AC2 — Les chevrons de navigation n'ont plus de remplissage `blue` (ni aucune couleur
+- [x] AC2 — Les chevrons de navigation n'ont plus de remplissage `blue` (ni aucune couleur
       d'accent de la bibliothèque).
-- [ ] AC3 — Les cases de jour mesurent la taille que `calendar.tsx` demande (`size-9`, 36 px), non
+- [x] AC3 — Les cases de jour mesurent la taille que `calendar.tsx` demande (`size-9`, 36 px), non
       les 42 px de la bibliothèque.
-- [ ] AC4 — Le test ajouté échoue quand on retire le correctif, passe avec.
-- [ ] AC5 — La garde échoue quand on ajoute un fichier `ui/nouveau.tsx` non réexporté, et quand on
+- [x] AC4 — Le test ajouté échoue quand on retire le correctif, passe avec.
+- [x] AC5 — La garde échoue quand on ajoute un fichier `ui/nouveau.tsx` non réexporté, et quand on
       retire une sous-partie de `componentSrcMap` ; elle passe sur l'état livré.
-- [ ] AC6 — `npm run lint`, `npx tsc --noEmit` et `npm run test` verts dans `takussan-web`.
+- [x] AC6 — `npm run lint`, `npx tsc --noEmit` et `npm run test` verts dans `takussan-web`.
 
 ## Hors périmètre
 
@@ -95,4 +95,25 @@ discret sur aujourd'hui, chevrons sobres, rien de bleu nulle part.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Relevé avant/après, au navigateur** (page de mesure temporaire, retirée avant commit), en dev
+  PUIS sur `next build` + `next start` : jour sélectionné `rgba(0,0,0,0)` cerclé de `rgb(0,0,255)`
+  en 42 px → `rgb(168, 83, 50)` (= `--primary`) en 36 px ; chevrons `fill: rgb(0,0,255)` →
+  `none` ; zéro élément bleu, sur `Calendar` direct comme dans un `DatePicker` ouvert.
+- **`layer(components)` est perdu par Turbopack, en silence.** Première forme essayée : compilée
+  par Tailwind, compilée par `@tailwindcss/postcss` seul… et absente du CSS servi par Next 16.3.1
+  (zéro règle `.rdp-`, aucun avertissement). `layer(rdp)` est servi. Une couche NOMMÉE se range
+  après `utilities` si rien ne la place : d'où l'énoncé `@layer theme, base, rdp, components,
+  utilities;` AVANT `@import "tailwindcss"`. Le test compile la tête réelle de `globals.css`, pas
+  la ligne seule — compiler la ligne seule était vert sur une feuille qui aurait battu les
+  utilitaires.
+- **Ranger la feuille a démasqué trois intentions de `calendar.tsx` que ses règles écrasaient** :
+  les jours hors mois n'étaient estompés que parce que `.rdp-day_button { color: inherit }` battait
+  `text-foreground` (couleur désormais posée sur le bouton, `[&>button]:…`) ; la nav mesurait
+  44 px contre 36 pour la légende (`h-9`) ; les jours de semaine passent en capitales, comme la
+  classe `uppercase` le demandait depuis toujours.
+- Ablation : chacune des six pièces retirée à son tour (énoncé d'ordre, `layer()`, `layer(components)`,
+  import JS rétabli, accent, `fill-none`) rougit exactement le test qui la garde.
+- La garde `scripts/check-design-sync-entry.mjs` définit une racine comme « a sa fiche ET son
+  aperçu » : c'est le seul ensemble qui existe dans le dépôt, le convertisseur n'en tient aucun.
+- Resynchro claude.ai/design faite (chemin atomique) : carte Calendar recapturée et regradée, passée
+  en `cardMode: column` (à 36 px la grille débordait de sa cellule — `[GRID_OVERFLOW]`).

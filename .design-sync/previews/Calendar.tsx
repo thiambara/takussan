@@ -9,7 +9,7 @@ export function SingleDate() {
       selected={selected}
       onSelect={setSelected}
       defaultMonth={new Date(2026, 9, 1)}
-      className="rounded-xl bg-card ring-1 ring-foreground/10"
+      className="w-fit rounded-xl bg-card ring-1 ring-foreground/10"
     />
   );
 }
@@ -20,7 +20,7 @@ export function WithUnavailableDays() {
       mode="single"
       defaultMonth={new Date(2026, 10, 1)}
       disabled={[{ dayOfWeek: [0] }, new Date(2026, 10, 11), new Date(2026, 10, 12)]}
-      className="rounded-xl bg-card ring-1 ring-foreground/10"
+      className="w-fit rounded-xl bg-card ring-1 ring-foreground/10"
     />
   );
 }

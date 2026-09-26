@@ -109,6 +109,9 @@
     "Toaster": {
       "cardMode": "single",
       "viewport": "480x260"
+    },
+    "Calendar": {
+      "cardMode": "column"
     }
   },
   "readmeHeader": ".design-sync/conventions.md"

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**526 tickets** — 29 ouverts, 495 livrés.
+**526 tickets** — 28 ouverts, 496 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 28 |
+| 📋 Todo | 27 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 495 |
+| ✅ Done | 496 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -60,7 +60,6 @@
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
-- [TCK-582](tickets/TCK-582-calendrier-charte-et-garde-design-sync.md) — Le calendrier rendu à la charte (react-day-picker sous les utilitaires), et une garde sur les deux listes tenues à la main de .design-sync `S · P1 · front`
 
 ## 🚧 Doing
 
@@ -76,7 +75,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 495
+## ✅ Done — 496
+
+<details>
+<summary><strong>Vague 70 — Système de design synchronisé vers claude.ai/design : le calendrier rendu à la charte, et les listes de l'import gardées (2026-09-26)</strong> — 1 ticket</summary>
+
+- [TCK-582](tickets/TCK-582-calendrier-charte-et-garde-design-sync.md) — Le calendrier rendu à la charte (react-day-picker sous les utilitaires), et une garde sur les deux listes tenues à la main de .design-sync `S · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 69 — Retour testeur web et mobile du 2026-09-23 — 28 points vérifiés un par un, corrigés sur une seule branche, revue adverse</strong> — 21 tickets</summary>
