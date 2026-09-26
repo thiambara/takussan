@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**525 tickets** — 28 ouverts, 495 livrés.
+**526 tickets** — 29 ouverts, 495 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 27 |
+| 📋 Todo | 28 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -60,6 +60,7 @@
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
+- [TCK-582](tickets/TCK-582-calendrier-charte-et-garde-design-sync.md) — Le calendrier rendu à la charte (react-day-picker sous les utilitaires), et une garde sur les deux listes tenues à la main de .design-sync `S · P1 · front`
 
 ## 🚧 Doing
 
