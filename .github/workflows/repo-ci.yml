@@ -66,6 +66,11 @@ on:
       # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
+      # `check-design-sync-entry` (TCK-582) compare `takussan-web/src/components/ui` ET les listes de
+      # `.design-sync/` (réexports d'`entry/index.ts`, exclusions de `config.json`, fiches, aperçus).
+      # Le premier côté est couvert par `takussan-web/src/**` ; sans cette ligne, retirer une
+      # exclusion de `config.json` passerait sans que la garde tourne.
+      - '.design-sync/**'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -158,6 +163,7 @@ on:
       # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
+      - '.design-sync/**'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -338,6 +344,15 @@ jobs:
         # Chercher un jeton ne mesure pas une propriété (dette D-23) ; plutôt que de laisser
         # croire le contraire, cette garde écrit ce qu'elle ne couvre pas.
         run: node scripts/check-feedback-states.mjs --report
+
+      - name: Le système de design synchronisé suit ui/ — aucune primitive oubliée, aucune carte nue
+        # `.design-sync/entry/index.ts` réexporte `ui/` à la main, et `componentSrcMap` exclut à la
+        # main les sous-parties : deux listes qui dérivent des fichiers de `ui/` et que rien ne tenait
+        # d'accord. Une primitive oubliée n'est pas synchronisée vers claude.ai/design ; une
+        # sous-partie non exclue y devient une carte racine sans fiche ni aperçu (TCK-582).
+        # Vérifiée par ablation : `ui/nouveau.tsx` non réexporté, `DialogTitle` retiré des
+        # exclusions, un `DialogBody` neuf, un `export default`, un aperçu retiré — rouge sur chacun.
+        run: node scripts/check-design-sync-entry.mjs --report
 
       - name: Il n'y a qu'un jeu de jetons de couleur — le dialecte app-* ne repousse pas
         # `globals.css` déclarait HUIT variables `--app-*` qui redisaient au hex près des jetons

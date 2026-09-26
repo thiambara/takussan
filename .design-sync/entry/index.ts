@@ -1,0 +1,32 @@
+// Entrée du bundle claude.ai/design (window.Takussan). Ne réimplémente rien : réexporte les
+// primitives réelles de takussan-web. Toute nouvelle primitive de `ui/` s'ajoute ici.
+export * from '../../takussan-web/src/components/ui/avatar';
+export * from '../../takussan-web/src/components/ui/badge';
+export * from '../../takussan-web/src/components/ui/button';
+export * from '../../takussan-web/src/components/ui/calendar';
+export * from '../../takussan-web/src/components/ui/card';
+export * from '../../takussan-web/src/components/ui/choice-card';
+export * from '../../takussan-web/src/components/ui/date-picker';
+export * from '../../takussan-web/src/components/ui/date-time-picker';
+export * from '../../takussan-web/src/components/ui/destructive-banner';
+export * from '../../takussan-web/src/components/ui/dialog';
+export * from '../../takussan-web/src/components/ui/dropdown-menu';
+export * from '../../takussan-web/src/components/ui/field-density';
+export * from '../../takussan-web/src/components/ui/input';
+export * from '../../takussan-web/src/components/ui/label';
+export * from '../../takussan-web/src/components/ui/phone-input';
+export * from '../../takussan-web/src/components/ui/popover';
+export * from '../../takussan-web/src/components/ui/select';
+export * from '../../takussan-web/src/components/ui/separator';
+export * from '../../takussan-web/src/components/ui/sheet';
+export * from '../../takussan-web/src/components/ui/skeleton';
+export * from '../../takussan-web/src/components/ui/table';
+export * from '../../takussan-web/src/components/ui/tabs';
+export * from '../../takussan-web/src/components/ui/textarea';
+export * from '../../takussan-web/src/components/ui/toast';
+export * from '../../takussan-web/src/components/ui/warning-banner';
+export * from '../../takussan-web/src/components/feedback/EmptyState';
+export * from '../../takussan-web/src/components/feedback/ErrorState';
+export { cn } from '../../takussan-web/src/lib/utils';
+export * as Icons from '../../takussan-web/src/components/icons';
+export { TakussanProvider, messages } from './provider';
