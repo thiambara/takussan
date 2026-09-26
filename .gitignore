@@ -23,3 +23,15 @@ docs/reference-dploiement/
 # Environnements des piles Compose (ADR-0028) : générés en local par les tests de fumée, portés
 # par Dokploy sur le serveur. Jamais versionnés — seuls les *.example le sont.
 deploy/**/.env
+
+# design-sync (claude.ai/design) — scripts staged, sortie de build, état machine. Le reste de
+# .design-sync/ (config, NOTES, conventions, previews, entry/) est versionné.
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+.design-sync/entry/node_modules
+.design-sync/entry/types/
+.design-sync/entry/dist/
+.design-sync/entry/messages.generated.json

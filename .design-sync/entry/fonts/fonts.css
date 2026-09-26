@@ -1,0 +1,36 @@
+/* Mêmes faces OFL que celles que next/font charge depuis Google dans takussan-web/src/app/layout.tsx
+   (sous-ensemble latin, graisse variable), prises chez Fontsource 5.3.0. Les noms de famille sont
+   ceux que globals.css écrit en dur dans --font-sans / --font-display. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("./dm-sans-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("./dm-sans-latin-wght-italic.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("./bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+/* next/font génère ces deux familles de repli (métriques ajustées sur Arial) et globals.css les
+   nomme juste après la vraie famille. Elles ne servent que le temps du chargement : ici, un simple
+   renvoi à Arial, pour que la pile de polices résolve la même chose que dans l'application. */
+@font-face {
+  font-family: "DM Sans Fallback";
+  src: local("Arial");
+}
+@font-face {
+  font-family: "Bricolage Grotesque Fallback";
+  src: local("Arial");
+}

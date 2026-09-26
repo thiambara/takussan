@@ -1,0 +1,5 @@
+/* Feuille compilée par build.mjs (Tailwind 4) : le globals.css du produit, sur tout le vocabulaire
+   de classes de takussan-web/src plus celui des aperçus de .design-sync/previews. */
+@import "../../takussan-web/src/app/globals.css";
+@source "../../takussan-web/src";
+@source "../previews";
