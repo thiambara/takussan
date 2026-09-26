@@ -4,7 +4,6 @@ import * as React from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { DayPicker, getDefaultClassNames } from "react-day-picker";
 import { fr } from "date-fns/locale";
-import "react-day-picker/style.css";
 
 import { cn } from "@/lib/utils";
 
@@ -14,6 +13,10 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>;
  * shadcn-style Calendar built on top of `react-day-picker` v10. Tokens
  * are mapped to the project's design system (terracotta primary, Bricolage
  * Grotesque headlines via parent inheritance).
+ *
+ * La feuille de la bibliothèque est chargée par `globals.css`, en couche
+ * `components` (TCK-582) : importée ici, elle serait hors couche et battrait
+ * tous les utilitaires ci-dessous.
  *
  * Usage:
  *   <Calendar mode="single" selected={date} onSelect={setDate} />
@@ -34,7 +37,7 @@ export function Calendar({
       className={cn("p-3", className)}
       classNames={{
         ...defaults,
-        root: cn(defaults.root, "rdp-root"),
+        root: cn(defaults.root, "rdp-root [--rdp-accent-color:var(--primary)]"),
         months: cn(defaults.months, "relative flex flex-col gap-4 sm:flex-row"),
         month: cn(defaults.month, "flex flex-col gap-3"),
         month_caption: cn(
@@ -47,7 +50,7 @@ export function Calendar({
         ),
         nav: cn(
           defaults.nav,
-          "absolute inset-x-0 top-0 flex items-center justify-between",
+          "absolute inset-x-0 top-0 flex h-9 items-center justify-between",
         ),
         button_previous: cn(
           defaults.button_previous,
@@ -76,8 +79,8 @@ export function Calendar({
           defaults.today,
           "[&>button]:ring-1 [&>button]:ring-primary/40",
         ),
-        outside: cn(defaults.outside, "text-muted-foreground/50"),
-        disabled: cn(defaults.disabled, "text-muted-foreground/40"),
+        outside: cn(defaults.outside, "text-muted-foreground/50 [&>button]:text-muted-foreground/50"),
+        disabled: cn(defaults.disabled, "text-muted-foreground/40 [&>button]:text-muted-foreground/40"),
         selected: cn(
           defaults.selected,
           "[&>button]:bg-primary [&>button]:text-primary-foreground [&>button:hover]:bg-primary [&>button:hover]:text-primary-foreground",
@@ -89,6 +92,7 @@ export function Calendar({
         ),
         range_end: cn(defaults.range_end, "rdp-range_end"),
         hidden: cn(defaults.hidden, "invisible"),
+        chevron: cn(defaults.chevron, "fill-none"),
         ...classNames,
       }}
       components={{

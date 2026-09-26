@@ -1,7 +1,20 @@
+/*
+ * TCK-582 — la feuille de react-day-picker dans SA couche `rdp`, rangée sous `components` et
+ * `utilities` par l'énoncé d'ordre ci-dessous, qui doit précéder `@import "tailwindcss"` (le rang
+ * d'une couche est celui de sa première apparition). Importée depuis `ui/calendar.tsx`, elle était
+ * hors couche et battait tous les utilitaires du calendrier : sélection sans fond cerclée de bleu,
+ * cases de 42 px, chevrons remplis de bleu.
+ *
+ * ⚠ Pas `layer(components)` : mesuré sous Next 16.3.1, Turbopack sort alors la feuille du CSS
+ * servi, sans erreur ni avertissement. `calendar-charte-tck-582.test.tsx` garde les trois points,
+ * et refuse un retour de l'import côté JS.
+ */
+@layer theme, base, rdp, components, utilities;
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "leaflet/dist/leaflet.css";
+@import "react-day-picker/style.css" layer(rdp);
 
 @custom-variant dark (&:is(.dark *));
 

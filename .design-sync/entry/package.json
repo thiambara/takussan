@@ -1,0 +1,8 @@
+{
+  "name": "takussan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Point d'entrée du système de design pour claude.ai/design — réexporte takussan-web/src/components/ui et feedback. Construit par build.mjs, jamais publié.",
+  "module": "index.ts",
+  "types": "types/.design-sync/entry/index.d.ts"
+}
