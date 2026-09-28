@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition } from 'react';
+import { Logo } from '@/components/brand/Logo';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search, Loader2 } from 'lucide-react';
@@ -354,8 +355,8 @@ export function Navbar({ className }: NavbarProps) {
           `Navbar.gouttiere.test.tsx` le garde. */}
       <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
-        <LienLocalise href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
-          {tCommon('appName')}
+        <LienLocalise href="/" className="shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
+          <Logo nom={tCommon('appName')} />
         </LienLocalise>
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop.
@@ -682,9 +683,9 @@ export function Navbar({ className }: NavbarProps) {
                   href="/"
                   replace
                   onClick={quitterParUnLien}
-                  className="mt-2.5 text-xl font-bold tracking-tighter text-primary hover:opacity-80 transition-opacity"
+                  className="mt-2.5 hover:opacity-80 transition-opacity"
                 >
-                  {tCommon('appName')}
+                  <Logo nom={tCommon('appName')} />
                 </LienLocalise>
                 <SheetTitle className="sr-only">{t('menuTitle')}</SheetTitle>
                 <SheetClose

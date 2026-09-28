@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 
+import { Logo } from '@/components/brand/Logo';
 import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { footerLinks, type LienDePiedDePage } from '@/data/navigation';
@@ -145,8 +146,8 @@ export function Footer({ className }: FooterProps) {
         */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 md:gap-y-10 md:gap-x-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-8">
           <div className="col-span-2 md:col-span-3 lg:col-span-4 lg:row-start-1">
-            <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em] md:text-[32px]">
-              {appName}
+            <p>
+              <Logo nom={appName} taille="pied" />
             </p>
             <p className="mt-4 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground text-pretty">
               {t('tagline')}
