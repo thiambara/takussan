@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 
+import { Logo } from '@/components/brand/Logo';
 import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { footerLinks, type LienDePiedDePage } from '@/data/navigation';
@@ -145,8 +146,8 @@ export function Footer({ className }: FooterProps) {
         */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 md:gap-y-10 md:gap-x-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-8">
           <div className="col-span-2 md:col-span-3 lg:col-span-4 lg:row-start-1">
-            <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em] md:text-[32px]">
-              {appName}
+            <p>
+              <Logo nom={appName} taille="pied" />
             </p>
             <p className="mt-4 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground text-pretty">
               {t('tagline')}
@@ -238,17 +239,23 @@ export function Footer({ className }: FooterProps) {
         débordait ou flottait selon le repli), et la teinte passe par `fill`, qu'aucune garde de
         contraste ne mesure — ce qui est juste : c'est une surface, pas un texte à lire.
         `aria-hidden` : le nom est déjà dit plus haut, une seconde lecture serait du bruit.
+
+        TCK-583 — en CAPITALES, comme le logo : « TAKUSSAN » au-dessus, « Takussan » en dessous, la
+        marque s'écrivait de deux façons dans le même pied de page. Les capitales sont plus larges :
+        la taille passe de 244 à 180 pour que `textLength` ESPACE les lettres au lieu de les
+        tasser, et la `viewBox` se resserre pour garder la même coupe par le bord (≈ 80 % de la
+        hauteur des capitales visible).
       */}
       <div aria-hidden className="pointer-events-none mx-auto mt-6 max-w-[1440px] select-none px-3 md:mt-8 md:px-12">
-        <svg viewBox="0 0 1000 150" className="block h-auto w-full" preserveAspectRatio="xMidYMin meet">
+        <svg viewBox="0 0 1000 120" className="block h-auto w-full" preserveAspectRatio="xMidYMin meet">
           <text
             x="500"
-            y="188"
+            y="145"
             textAnchor="middle"
             textLength="992"
             lengthAdjust="spacing"
-            className="fill-primary/[0.1] font-display font-semibold"
-            style={{ fontSize: 244 }}
+            className="fill-primary/[0.1] font-display font-semibold uppercase"
+            style={{ fontSize: 180 }}
           >
             {appName}
           </text>

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useId, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
-import { Search } from 'lucide-react';
+import { Search, type LucideIcon } from 'lucide-react';
 import { useSuggest } from '@/hooks/useSuggest';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { highlightMatch } from '@/lib/highlightMatch';
@@ -43,6 +43,16 @@ function buildUrl(item: SuggestItem, base: URLSearchParams, locale: Locale): str
   return hrefLocalise(`/properties?${params.toString()}`, locale);
 }
 
+/** Les paramètres de l'URL courante, sur lesquels l'appelant pose les siens (`''` = retirer). */
+function baseImposee(courants: URLSearchParams, imposer?: Readonly<Record<string, string>>): URLSearchParams {
+  const params = new URLSearchParams(courants.toString());
+  for (const [cle, valeur] of Object.entries(imposer ?? {})) {
+    if (valeur === '') params.delete(cle);
+    else params.set(cle, valeur);
+  }
+  return params;
+}
+
 function HighlightedText({ label, query }: { label: string; query: string }) {
   const { before, match, after } = highlightMatch(label, query);
   if (!match) return <span>{label}</span>;
@@ -71,6 +81,14 @@ export interface SearchAutocompleteProps {
    * refermer au geste, sans attendre la page suivante (TCK-549).
    */
   onValider?: () => void;
+  /** L'icône d'entrée du champ — la loupe par défaut ; l'épingle de lieu dans la barre publique. */
+  icone?: LucideIcon;
+  /**
+   * Des paramètres que l'appelant impose à TOUTE URL produite ici — Entrée comme suggestion
+   * choisie. `''` retire le paramètre. La barre publique y passe son choix « Acheter | Louer » :
+   * sans quoi Entrée partait sans lui, et seul le bouton loupe l'appliquait.
+   */
+  imposer?: Readonly<Record<string, string>>;
 }
 
 export function SearchAutocomplete({
@@ -78,6 +96,8 @@ export function SearchAutocomplete({
   variant = 'hero',
   className,
   onQueryChange,
+  icone: Icone = Search,
+  imposer,
   value,
   onValider,
 }: SearchAutocompleteProps) {
@@ -124,7 +144,7 @@ export function SearchAutocomplete({
    */
   const rechercherTexteLibre = useCallback(() => {
     setOpen(false);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = baseImposee(searchParams, imposer);
     // Un champ vidé RETIRE `q` : c'est dans ce champ, et nulle part ailleurs, qu'on l'efface.
     const terme = query.trim();
     if (terme) params.set(parametreDe('q'), terme);
@@ -133,7 +153,7 @@ export function SearchAutocomplete({
     const qs = params.toString();
     onValider?.();
     router.push(hrefLocalise(`/properties${qs ? `?${qs}` : ''}`, locale));
-  }, [router, searchParams, locale, query, onValider]);
+  }, [router, searchParams, imposer, locale, query, onValider]);
 
   const selectItem = useCallback(
     (item: SuggestItem) => {
@@ -143,9 +163,9 @@ export function SearchAutocomplete({
       setQuery(enVigueur);
       onQueryChange?.(enVigueur);
       onValider?.();
-      router.push(buildUrl(item, searchParams, locale));
+      router.push(buildUrl(item, baseImposee(searchParams, imposer), locale));
     },
-    [router, searchParams, locale, enVigueur, setQuery, onQueryChange, onValider],
+    [router, searchParams, imposer, locale, enVigueur, setQuery, onQueryChange, onValider],
   );
 
   const handleKeyDown = useCallback(
@@ -212,7 +232,7 @@ export function SearchAutocomplete({
             : 'rounded-full border border-border bg-card px-4 py-2.5 shadow-sm hover:shadow-md transition-shadow',
         )}
       >
-        <Search className={cn('shrink-0', isNavbar ? 'size-4 text-primary-foreground/60' : 'size-4 text-primary')} />
+        <Icone aria-hidden="true" className={cn('shrink-0', isNavbar ? 'size-4 text-primary-foreground/60' : 'size-4 text-primary')} />
         <input
           ref={inputRef}
           id={inputId}
