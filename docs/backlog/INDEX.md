@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**527 tickets** — 28 ouverts, 497 livrés.
+**528 tickets** — 28 ouverts, 498 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 497 |
+| ✅ Done | 498 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -75,7 +75,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 497
+## ✅ Done — 498
+
+<details>
+<summary><strong>Vague 72 — Accueil : barre de recherche de la maquette (Acheter | Louer segmenté) et revue de design de la page (2026-09-29)</strong> — 1 ticket</summary>
+
+- [TCK-584](tickets/TCK-584-accueil-recherche-segmentee-et-revue.md) — Accueil : la barre de recherche de la maquette (« Acheter | Louer » segmenté et animé), le fond « Coup de cœur » qui disparaissait, et la revue de design de la page `M · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 71 — Identité : le logo « lever de toit » posé sur la chrome publique et en icône du site (2026-09-28)</strong> — 1 ticket</summary>

@@ -65,11 +65,17 @@ export interface LogoProps {
   /** Le nom de la marque, tel qu'il doit être LU (`common.appName`). */
   readonly nom: string;
   readonly taille?: keyof typeof TAILLES;
+  /**
+   * `'des-sm'` : sous 640 px, le symbole seul — le nom reste LU (double `sr-only`), il n'est plus
+   * dessiné. La barre mobile en a besoin : symbole et nom mesurent 158 px, et la pastille de
+   * recherche tombait à 88 px à 390 (58 à 360), « Chercher » tronqué — mesuré le 2026-09-28.
+   */
+  readonly nomVisible?: 'toujours' | 'des-sm';
   readonly className?: string;
 }
 
 /** Le symbole et le nom sur une ligne. À placer DANS le lien d'accueil, qui en tire son nom. */
-export function Logo({ nom, taille = 'barre', className }: LogoProps) {
+export function Logo({ nom, taille = 'barre', nomVisible = 'toujours', className }: LogoProps) {
   const t = TAILLES[taille];
   return (
     <span className={cn('inline-flex items-baseline', t.conteneur, className)}>
@@ -79,6 +85,7 @@ export function Logo({ nom, taille = 'barre', className }: LogoProps) {
         className={cn(
           'font-display font-semibold uppercase leading-none tracking-[0.14em] text-foreground whitespace-nowrap',
           t.nom,
+          nomVisible === 'des-sm' && 'max-sm:hidden',
         )}
       >
         {nom}

@@ -40,6 +40,7 @@ export function PropertyCardCover({
           alt={property.title}
           sizes="260px"
           priority={priority}
+          ton="sombre"
           className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
         />
         {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}

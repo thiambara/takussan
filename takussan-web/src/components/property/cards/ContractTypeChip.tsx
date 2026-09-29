@@ -73,11 +73,12 @@ export function ContractTypeChip({ type, compact = false, className }: ContractT
       } ${className || ''}`}
     >
       <span className="size-1.5 shrink-0 rounded-full bg-current opacity-70" />
-      <span className="truncate">
-        {compact
-          ? t(isSale ? 'sale' : 'rent')
-          : t(isSale ? 'saleLong' : 'rentLong')}
-      </span>
+      {/* Le libellé est le MÊME à toutes les tailles — `compact` ne règle que le gabarit. Il
+          valait « Vente / Location » en compact et « En vente / En location » sinon : sur
+          l'accueil, deux rangées voisines disaient la même chose de deux façons (revue du
+          2026-09-28). La forme LONGUE l'emporte : c'est le mot que les puces de transaction de la
+          barre de filtres reprennent (TCK-552), et la carte de la liste des biens le porte. */}
+      <span className="truncate">{t(isSale ? 'saleLong' : 'rentLong')}</span>
     </span>
   );
 }

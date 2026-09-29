@@ -40,8 +40,10 @@ export function PropertyCardListing({
       className="group w-[340px] sm:w-[440px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
-      <div className="relative flex gap-3 sm:gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)] transition-shadow">
-        <LienDeCarte slug={property.slug} idTitre={idTitre} className="focus-visible:rounded-2xl" />
+      {/* `rounded-[20px]` : rayons CONCENTRIQUES — vignette `rounded-lg` (8) + `p-3` (12). À 16 px,
+          le coin de la carte pinçait celui de la vignette. */}
+      <div className="relative flex gap-3 sm:gap-4 items-stretch p-3 rounded-[20px] bg-card border border-border hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)] transition-shadow">
+        <LienDeCarte slug={property.slug} idTitre={idTitre} className="focus-visible:rounded-[20px]" />
 
         <div className="shrink-0">
           <div className="relative aspect-square w-[128px] sm:w-[170px] rounded-lg overflow-hidden bg-muted">
@@ -55,13 +57,16 @@ export function PropertyCardListing({
             {/* TCK-561 — voile de survol et d'appui (cf. `VoileDInteraction`). */}
             <VoileDInteraction />
 
-            {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
-            <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1.5">
-              <div className="flex min-w-0 flex-wrap items-center gap-1">
-                {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
-                <NewBuildChip condition={property.condition} compact />
-              </div>
+            {/* Le cœur en haut, les pastilles en BAS. Côte à côte sur une vignette de 128 px (sous
+                `sm`), la pastille n'avait que 74 px et « En location » en demande 86 : elle se
+                tronquait sur toute la rangée « À louer » de l'accueil (mesuré le 2026-09-28, 390
+                et 360). En bas, elle dispose de toute la largeur de la vignette. */}
+            <div className="absolute right-2 top-2">
               <ActionsSurPhoto property={property} comparateur={false} />
+            </div>
+            <div className="absolute inset-x-2 bottom-2 flex min-w-0 flex-wrap items-center gap-1">
+              {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
+              <NewBuildChip condition={property.condition} compact />
             </div>
           </div>
         </div>
