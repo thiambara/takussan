@@ -144,7 +144,7 @@ export function PropertyRow({
 
   return (
     <section className="relative">
-      <div className="mb-6 flex items-end justify-between gap-4 px-1">
+      <div className="mb-6 flex items-end justify-between gap-4">
         <div className="min-w-0 space-y-1.5">
           {eyebrow && (
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">

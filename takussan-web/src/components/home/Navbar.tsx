@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition } from 'react';
+import { Logo } from '@/components/brand/Logo';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search, Loader2 } from 'lucide-react';
+import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search, Loader2, MapPin } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
+import { SelecteurDeTransaction, type Transaction } from '@/components/search/SelecteurDeTransaction';
 import { ouvrirLeClavierDansLeGeste } from '@/components/search/clavierDansLeGeste';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { navLinks, categories, moreCategories } from '@/data/navigation';
@@ -90,10 +91,6 @@ export function Navbar({ className }: NavbarProps) {
   const tCategories = useTranslations('property.types');
   const tLinks = useTranslations('nav.links');
   const tCommon = useTranslations('common');
-  const TRANSACTION_OPTIONS = [
-    { value: 'Acheter', label: t('buy') },
-    { value: 'Louer', label: t('rent') },
-  ] as const;
   const [menuOpen, setMenuOpen] = useState(false);
   // TCK-551 — fermer le menu rend le focus au bouton menu, y compris par un appui sur le voile.
   // base-ui ne le fait PAS dans ce cas-là quand le navigateur ignore `focus({ preventScroll })`
@@ -182,7 +179,13 @@ export function Navbar({ className }: NavbarProps) {
     setLocation(qEnVigueur);
     setRechercheOuverte(ouverte);
   }, [qEnVigueur, setLocation]);
-  const [transaction, setTransaction] = useState('');
+  // Le choix « Acheter | Louer » part de la transaction EN VIGUEUR sur la liste (comme le champ et
+  // la pastille mobile), et un second appui le retire : `''` écrit une URL sans `contract_type`.
+  const [transaction, setTransaction] = useStateSyncedWith<Transaction>(
+    transactionEnVigueur === 'sale' || transactionEnVigueur === 'rent' ? transactionEnVigueur : '',
+  );
+  const libellesTransaction = { groupe: t('transactionPlaceholder'), sale: t('buy'), rent: t('rent') };
+  const transactionImposee = { [parametreDe('contract_type')]: transaction };
   const [moreOpen, setMoreOpen] = useState(false);
   const [typeCounts, setTypeCounts] = useState<Record<string, number> | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -301,9 +304,9 @@ export function Navbar({ className }: NavbarProps) {
   const buildSearchUrl = useCallback((overrides: Record<string, string> = {}) => {
     // Preserve any sidebar filter already in the URL
     const params = new URLSearchParams(searchParams.toString());
-    // contract_type from transaction selector (only override if explicitly set)
-    if (transaction === 'Acheter') params.set(parametreDe('contract_type'), 'sale');
-    if (transaction === 'Louer')   params.set(parametreDe('contract_type'), 'rent');
+    // La transaction choisie — `''` la retire : le sélecteur part de celle de l'URL.
+    if (transaction) params.set(parametreDe('contract_type'), transaction);
+    else params.delete(parametreDe('contract_type'));
     // free text from the searchbox maps to full-text search; selecting a
     // city/neighborhood suggestion still writes the dedicated location params.
     // Le champ étant prérempli par `q`, un champ VIDÉ est une demande de le retirer.
@@ -354,43 +357,34 @@ export function Navbar({ className }: NavbarProps) {
           `Navbar.gouttiere.test.tsx` le garde. */}
       <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
-        <LienLocalise href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
-          {tCommon('appName')}
+        <LienLocalise href="/" className="shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
+          <Logo nom={tCommon('appName')} nomVisible="des-sm" />
         </LienLocalise>
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop.
             TCK-505 (#2) — la mise en page de bureau attend `lg` : son contenu mesure 869 px, et à
             768 « Publier » sortait du viewport. Entre 768 et 1023 c'est la barre mobile, qui tient. */}
         <div className="hidden lg:flex flex-col max-w-xl w-full mx-auto gap-0">
-          {/* Search Bar */}
-          <div className="flex items-center bg-card border border-border rounded-full shadow-sm hover:shadow-md transition-shadow">
+          {/* Search Bar — `Accueil.dc.html` : épingle de lieu, champ, « Acheter | Louer » segmenté,
+              loupe ronde de 40 px, dans une pilule de 52 px. */}
+          <div className="flex h-[52px] items-center gap-2 bg-card border border-border rounded-full pl-1 pr-1.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] hover:shadow-md transition-shadow">
             <SearchAutocomplete
               variant="hero"
+              icone={MapPin}
+              imposer={transactionImposee}
               placeholder={t('searchPlaceholder')}
-              className="flex-1 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent"
+              className="flex-1 min-w-0 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent [&>div:first-child>svg]:size-[18px] [&_input]:text-[15px] [&_input]:font-normal"
               value={qEnVigueur}
               onQueryChange={(v) => setLocation(v)}
             />
-            <div className="w-px h-6 bg-border shrink-0" />
-            <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
-              <Home className="w-4 h-4 text-primary" />
-              <Select value={transaction} onValueChange={(v) => setTransaction(v ?? '')} items={TRANSACTION_OPTIONS}>
-                <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-8 text-sm text-foreground font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
-                  <SelectValue placeholder={t('transactionPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Acheter">{t('buy')}</SelectItem>
-                  <SelectItem value="Louer">{t('rent')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <SelecteurDeTransaction valeur={transaction} onChange={setTransaction} libelles={libellesTransaction} />
             <button
               type="button"
               onClick={handleSearch}
-              className="m-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full p-2.5 transition-[background-color,scale] active:scale-[0.96] shrink-0"
+              className="grid size-10 place-items-center bg-primary hover:bg-primary/90 text-primary-foreground rounded-full transition-[background-color,scale] active:scale-[0.96] shrink-0"
               aria-label={t('searchAria')}
             >
-              <Search className="w-4 h-4" />
+              <Search className="size-[18px]" aria-hidden="true" />
             </button>
           </div>
 
@@ -626,11 +620,19 @@ export function Navbar({ className }: NavbarProps) {
                 <div ref={zoneSaisieRef} className="px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                   <SearchAutocomplete
                     variant="hero"
+                    icone={MapPin}
+                    imposer={transactionImposee}
                     placeholder={t('searchPlaceholder')}
                     className="[&_input]:text-base"
                     value={qEnVigueur}
                     onQueryChange={(v) => setLocation(v)}
                     onValider={() => setRechercheOuverte(false)}
+                  />
+                  <SelecteurDeTransaction
+                    valeur={transaction}
+                    onChange={setTransaction}
+                    libelles={libellesTransaction}
+                    className="mt-3 w-full [&>button]:h-11"
                   />
                   <Button
                     type="button"
@@ -682,9 +684,9 @@ export function Navbar({ className }: NavbarProps) {
                   href="/"
                   replace
                   onClick={quitterParUnLien}
-                  className="mt-2.5 text-xl font-bold tracking-tighter text-primary hover:opacity-80 transition-opacity"
+                  className="mt-2.5 hover:opacity-80 transition-opacity"
                 >
-                  {tCommon('appName')}
+                  <Logo nom={tCommon('appName')} />
                 </LienLocalise>
                 <SheetTitle className="sr-only">{t('menuTitle')}</SheetTitle>
                 <SheetClose

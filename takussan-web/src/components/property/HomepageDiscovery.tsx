@@ -105,7 +105,11 @@ export function HomepageDiscovery({
       {/* Cale à la hauteur réelle de la navbar fixe, palier par palier. */}
       <NavbarSpacer />
 
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 pt-12 pb-24 space-y-20">
+      {/* `flex gap-20` et non `space-y-20` : en Tailwind 4, `space-y` pose sa marge SOUS chaque
+          enfant sauf le DERNIER — et le dernier est « Récemment consultés », masqué sans
+          historique. La rangée d'avant gardait donc ses 80 px : 176 px de vide avant le pied de
+          page au lieu de 96, mesuré le 2026-09-28. Un `gap` ignore les enfants masqués. */}
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 pt-12 pb-24 flex flex-col gap-20">
         {/*
           TCK-432 — le `<h1>` de l'accueil, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
           sur le HTML servi rendait 0). `docs/design-guidelines.md` § Typographie pose pourtant
@@ -137,25 +141,29 @@ export function HomepageDiscovery({
           s'additionnent — et dans une v4 qui pose ses écarts en `:where()`, elles ne
           s'additionnent pas.* Aucun test ne pouvait le voir : jsdom ne fait pas de mise en page.
         */}
-        <h1 className="font-display text-[32px] md:text-[40px] leading-[1.05] font-semibold text-foreground mb-12">
-          {tPage('h1')}
-        </h1>
+        {/* Le titre et la première rangée vont ensemble : 48 px entre eux (`mb-12`), 80 entre les
+            rangées — un `gap` unique ne sait pas écrire deux écarts. */}
+        <div>
+          <h1 className="font-display text-[32px] md:text-[40px] leading-[1.05] font-semibold text-foreground text-balance mb-12">
+            {tPage('h1')}
+          </h1>
 
-        <div
-          className="animate-section-enter"
-          style={{ animationDelay: '40ms' }}
-        >
-          <PropertyRow
-            variant="standard"
-            eyebrow={nearEyebrow}
-            title={nearTitle}
-            viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
-            viewAllLabel={viewAll}
-            properties={near?.items ?? NO_ITEMS}
-            loading={loading}
-            error={error}
-            priorityCount={2}
-          />
+          <div
+            className="animate-section-enter"
+            style={{ animationDelay: '40ms' }}
+          >
+            <PropertyRow
+              variant="standard"
+              eyebrow={nearEyebrow}
+              title={nearTitle}
+              viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
+              viewAllLabel={viewAll}
+              properties={near?.items ?? NO_ITEMS}
+              loading={loading}
+              error={error}
+              priorityCount={2}
+            />
+          </div>
         </div>
 
         <div
@@ -174,9 +182,16 @@ export function HomepageDiscovery({
           />
         </div>
 
-        {/* Rangée signature — fond cream + pattern bogolan stylisé (≤5%). */}
+        {/* Rangée signature — fond cream + pattern bogolan stylisé (≤5%).
+
+            ⚠ `isolate` PORTE le fond, il n'est pas décoratif. Le fond est en `-z-10` : sans
+            contexte d'empilement à lui, il se range dans celui de la page et passe SOUS le
+            `bg-background` de la racine. L'animation d'entrée en créait un le temps de jouer
+            (opacité < 1, `transform`), puis `backwards` le rendait à la fin — la carte
+            s'affichait, puis disparaissait. Mesuré le 2026-09-28 : pendant l'animation le fond
+            est peint ; 2,5 s après, le point au cœur de sa marge renvoie `MAIN`. */}
         <section
-          className="animate-section-enter relative"
+          className="animate-section-enter relative isolate"
           style={{ animationDelay: '200ms' }}
         >
           <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">
@@ -213,8 +228,10 @@ export function HomepageDiscovery({
           />
         </div>
 
+        {/* `empty:hidden` : sans historique, le carrousel rend `null` — l'enveloppe vide ne doit
+            pas compter pour un enfant du `gap` (cf. `<main>`). */}
         <div
-          className="animate-section-enter"
+          className="animate-section-enter empty:hidden"
           style={{ animationDelay: '360ms' }}
         >
           <RecentlyViewedCarousel />

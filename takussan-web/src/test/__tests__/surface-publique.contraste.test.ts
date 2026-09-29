@@ -302,8 +302,16 @@ const FICHIERS_HORS_JETONS = 5;
  * les encres avaient changé, mais parce que ce relevé ne lit que les littéraux de `className`.
  * Elles y sont revenues : *une garde qui cesse de voir une encre rend le même chiffre qu'une
  * encre corrigée.*
+ *
+ * **247 → 248 le 2026-09-29 (TCK-584).** `search/SelecteurDeTransaction.tsx`, fichier neuf entré
+ * dans la surface par la `Navbar`, apporte 1 entrée : ses boutons portent `text-muted-foreground` /
+ * `text-foreground` sans fond sur le même élément — le fond est celui du groupe (`bg-muted`) ou de
+ * la pastille qui glisse dessous (`bg-card`). Mesuré : 4,85:1 et 5,72:1 pour l'encre atténuée,
+ * 14,87 et 17,53 pour l'encre pleine — tous au-dessus de 4,5. Relevé en isolant les fichiers
+ * touchés, `HEAD` contre la branche : aucune autre entrée n'a bougé (`PropertyPhoto` a failli en
+ * ajouter une, par un fond en `color-mix` que ce relevé ne lit pas ; il passe par un jeton).
  */
-const ENCRES_INVERSES = 247;
+const ENCRES_INVERSES = 248;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
