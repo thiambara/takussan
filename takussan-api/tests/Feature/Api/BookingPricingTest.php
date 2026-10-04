@@ -155,7 +155,9 @@ class BookingPricingTest extends TestCase
 
         $this->postJson('/api/bookings', [
             'property_id' => $property->id,
-            'start_date' => '2026-10-01',
+            // Calculée : une date écrite en dur passe dans le passé et fait refuser `start_date`
+            // (`after_or_equal:today`) avant que `end_date` soit jugée — rouge depuis le 2026-10-02.
+            'start_date' => now()->addDays(2)->toDateString(),
             'end_date' => '9999-12-31',
         ])->assertStatus(422)->assertJsonValidationErrors(['end_date']);
 

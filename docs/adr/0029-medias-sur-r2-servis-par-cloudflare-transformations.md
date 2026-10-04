@@ -3,6 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-09-21
 - **Tickets** : TCK-538, TCK-539, TCK-540, TCK-541
+- **Amendement du 2026-10-04 (TCK-585)** : les **photos de biens** ne passent plus par Transformations. Leurs conversions sont produites en WebP et servies telles quelles ; le §4 ne vaut plus que pour les autres images du seau public (avatars, logos, plans). Voir [§ Amendement du 2026-10-04](#amendement-du-2026-10-04--les-photos-de-biens-ne-passent-plus-par-transformations-tck-585).
 - **Complète** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) §6-7 (le volume de médias et sa sauvegarde) ; **rend caduc** le choix de Bunny comme CDN par défaut de [`docs/infra/cdn.md`](../infra/cdn.md) (TCK-105), jamais activé (`CDN_ENABLED=false` partout).
 
 ## Contexte
@@ -119,3 +120,65 @@ par Cloudflare Transformations depuis le domaine du seau public.**
 - `takussan-web/src/lib/image-loader.ts` et `NEXT_PUBLIC_MEDIA_URL`, inlinée au build (TCK-540).
 - Bascule de la préproduction, copie des médias existants, sauvegarde du seau privé, relevé dans
   [`docs/infra/hebergement.md`](../infra/hebergement.md) (TCK-541).
+
+## Amendement du 2026-10-04 — les photos de biens ne passent plus par Transformations (TCK-585)
+
+### Pourquoi
+
+Transformations facture une transformation unique **une fois par 30 jours**, en cache ou non
+(documentation de Cloudflare, relue le 2026-10-04). Le catalogue entier est donc recompté chaque
+mois : les robots d'indexation suffisent à toucher chaque photo à chaque palier. La facture suit
+le **nombre de photos**, pas le trafic, et le jeu de six paliers du §4 n'y change que le
+multiplicateur.
+
+Or l'API produit déjà les tailles servies (`thumbnail`, `preview` 800 × 600, `full` ≤ 1600), et
+la sortie de R2 est gratuite. Ce qu'on payait à Cloudflare, c'est seulement le redimensionnement
+au palier exact et le passage de JPEG à AVIF/WebP.
+
+### Décision
+
+1. **Les conversions des photos de biens sont produites en WebP** (`->format('webp')`), aux
+   mêmes dimensions. Le filigrane est réencodé dans le même format (`WatermarkService` choisit
+   son encodeur d'après l'extension).
+2. **Le loader rend telle quelle une conversion de photo en `.webp`**, sans passer par
+   `/cdn-cgi/image/`. Toute autre URL du seau public (avatars, logos, plans, et toute
+   conversion encore en `.jpg`) garde le §4.
+3. **Le loader ne fabrique jamais l'URL d'une conversion à partir d'une autre.** Seule l'API
+   émet une URL de conversion (`PublicPhotoUrl`), après avoir vérifié qu'elle est produite et,
+   si le bien l'exige, filigranée. Une URL dérivée par le front (`-preview` → `-full` selon la
+   largeur) pourrait viser un fichier nu ou absent (TCK-547).
+4. **Le format se décide par média, pas pour tout le parc.** `getUrl()` calcule l'extension à
+   partir de la conversion *déclarée*, jamais du fichier présent : basculer toutes les
+   déclarations d'un coup rendrait une URL `.webp` sur chaque fichier `.jpg` existant, soit un
+   404 sur tout le parc jusqu'à sa régénération. Le marqueur
+   `custom_properties.conversions_format = 'webp'` est posé à la **création** d'une photo, donc
+   avant sa première conversion. Une photo plus ancienne n'en a pas, et ses URL restent en `.jpg`,
+   sur des fichiers qui existent.
+5. **La bascule d'une photo ancienne se fait photo par photo** (`media:convert-photos-to-webp`) :
+   sous verrou, pose du marqueur, conversions marquées non produites et retirées de la trace ;
+   puis suppression des anciens fichiers et régénération. Pendant cette fenêtre, l'API n'émet
+   aucune URL de la photo (rien n'est produit), puis se replie sur `thumbnail` jusqu'à
+   `preview` et `full`. **Jamais un 404, jamais un fichier nu.**
+
+### Ce que ça coûte — mesuré le 2026-10-04 sur la préproduction, une photo réelle (800 × 600)
+
+| Ce qui est servi | Poids |
+|---|---|
+| `preview` en JPEG, servie telle quelle (le repli `onerror=redirect` d'aujourd'hui) | 60 553 o |
+| Transformations, AVIF, `width=384` | 12 573 o |
+| Transformations, AVIF, `width=640` | 25 585 o |
+| Transformations, AVIF, `width=960` (et 1280, 1920 : la source fait 800 px) | 34 378 o |
+| La même `preview` réencodée en WebP qualité 75 par GD (l'encodeur de l'API) | 38 162 o |
+
+```bash
+curl -s -H 'Accept: image/avif,image/webp,*/*' -o /dev/null -w '%{size_download} %{content_type}' \
+  "https://media-preview.takussan.com/cdn-cgi/image/width=640,quality=75,format=auto,onerror=redirect/1993/conversions/268d005ada12bebc61fbe5f02961dbd9769c4992-preview.jpg?v=1790091866"
+```
+
+**L'écart est accepté, et il est là où il est** : la galerie paie à peu près le même poids
+(38 Ko contre 34). Une carte mobile (palier 640) paie +50 % (38 Ko contre 26). Une carte de
+grille sur grand écran (palier 384) paie ×3 (38 Ko contre 13). Contre cela, la facture de
+Transformations pour les photos tombe à zéro, quelle que soit la taille du catalogue, et le
+poids reste inférieur à celui du JPEG que le quota dépassé servait déjà. Une conversion
+intermédiaire (une `card` d'environ 480 px) rapprocherait la carte de l'AVIF à 640 sans rien
+facturer. C'est un ticket à part, à décider sur mesure.

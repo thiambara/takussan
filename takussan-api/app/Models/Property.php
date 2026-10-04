@@ -13,6 +13,7 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use App\Services\Media\AgencyWatermarkContext;
+use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
@@ -680,8 +681,8 @@ class Property extends AbstractModel implements HasMedia
         // Le filigrane n'en dépend pas : il suit `ConversionHasBeenCompletedEvent`, émis
         // après l'écriture de chaque conversion, synchrone ou en file. Tant que `preview`
         // n'est pas produite, son URL rend 404 — jamais l'original (TCK-106).
-        $this->addMediaConversion('thumbnail')->width(300)->height(300)->nonQueued();
-        $this->addMediaConversion('preview')->width(800)->height(600)->queued();
+        $thumbnail = $this->addMediaConversion('thumbnail')->width(300)->height(300)->nonQueued();
+        $preview = $this->addMediaConversion('preview')->width(800)->height(600)->queued();
 
         // TCK-356 — `full` est le PLAFOND PUBLIC, pas un confort : le fichier source
         // n'est servi qu'au détenteur de `viewRaw`. 800 px ne couvraient que 33 % de
@@ -696,7 +697,16 @@ class Property extends AbstractModel implements HasMedia
         // recadré — les photos de biens n'ont pas un ratio unique.
         //
         // Le plafond public vaut donc `min(1600, largeur de la source)`.
-        $this->addMediaConversion('full')->fit(Fit::Max, 1600)->queued();
+        $full = $this->addMediaConversion('full')->fit(Fit::Max, 1600)->queued();
+
+        // TCK-585 — en WebP, servies telles quelles par le front, sans Transformations. Le
+        // format se décide PAR MÉDIA : une photo antérieure au marqueur garde le format de sa
+        // source, sinon son URL viserait un `.webp` qui n'existe pas (`PhotoConversionFormat`).
+        if (PhotoConversionFormat::isWebp($media)) {
+            foreach ([$thumbnail, $preview, $full] as $conversion) {
+                $conversion->format('webp')->quality(PhotoConversionFormat::QUALITY);
+            }
+        }
     }
 
     public function owner(): BelongsTo

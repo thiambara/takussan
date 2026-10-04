@@ -81,6 +81,42 @@ class WatermarkServiceTest extends TestCase
         $this->assertNotEquals($hashBefore, md5_file($path));
     }
 
+    /**
+     * TCK-585 — les conversions des photos sont en WebP. Le filigrane doit s'y poser ET le fichier
+     * rester un WebP : `save()` choisit l'encodeur d'après l'extension.
+     *
+     * Un réencodage seul change l'empreinte du fichier : c'est la ZONE du filigrane qu'on compare,
+     * contre un coin opposé qui ne doit pas bouger.
+     */
+    public function test_applies_watermark_to_a_webp_and_keeps_it_webp(): void
+    {
+        $path = $this->fixtureDir.'/br.webp';
+        $img = imagecreatetruecolor(800, 600);
+        imagefill($img, 0, 0, imagecolorallocate($img, 100, 150, 200));
+        imagewebp($img, $path, 90);
+        imagedestroy($img);
+
+        $this->service->apply($path, $this->makeContext(WatermarkPosition::BottomRight));
+
+        $this->assertSame('image/webp', getimagesize($path)['mime']);
+
+        $rendu = imagecreatefromwebp($path);
+        $ecartMax = function (int $x0, int $y0, int $x1, int $y1) use ($rendu): int {
+            $max = 0;
+            for ($x = $x0; $x < $x1; $x += 4) {
+                for ($y = $y0; $y < $y1; $y += 4) {
+                    $c = imagecolorat($rendu, $x, $y);
+                    $max = max($max, abs((($c >> 16) & 0xFF) - 100) + abs((($c >> 8) & 0xFF) - 150) + abs(($c & 0xFF) - 200));
+                }
+            }
+
+            return $max;
+        };
+
+        $this->assertGreaterThan(60, $ecartMax(560, 528, 800, 600), 'Le coin bas-droit doit porter le filigrane.');
+        $this->assertLessThan(15, $ecartMax(0, 0, 240, 72), 'Le coin haut-gauche ne doit pas bouger : seul le réencodage y touche.');
+    }
+
     public function test_applies_watermark_at_bottom_left(): void
     {
         $path = $this->fixtureDir.'/bl.jpg';

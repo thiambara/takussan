@@ -53,8 +53,8 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0025](0025-repli-de-casse-par-collation-icu.md) | Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu | Accepté |
 | [0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) | La langue est un segment d'URL, toujours présent, et seulement sur la surface publique | Accepté |
 | [0027](0027-le-courtier-sort-de-la-surface-commutable.md) | Le courtier sort de la surface commutable, sans quitter la base | Accepté |
-| [0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) | Les deux projets s'auto-hébergent en conteneurs sur le VPS, orchestrés par Dokploy ; Vercel et la chaîne bash sont retirés | Accepté |
-| [0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) | Les médias vivent dans R2, deux seaux par environnement ; les images publiques sont servies par Cloudflare Transformations | Accepté |
+| [0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) | Les deux projets s'auto-hébergent en conteneurs sur le VPS, orchestrés par Dokploy ; Vercel et la chaîne bash sont retirés | Accepté — amendé le 2026-10-04 : CheckPrint Plus arrêté, le serveur ne porte plus que Takussan |
+| [0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) | Les médias vivent dans R2, deux seaux par environnement ; les images publiques sont servies par Cloudflare Transformations | Accepté — amendé le 2026-10-04 : les photos de biens sont servies en WebP depuis leurs conversions, sans Transformations (TCK-585) |
 
 ## Décisions recensées, pas encore rédigées
 

@@ -7,7 +7,7 @@ family: bug
 estimate: S
 wave: null
 created: 2026-08-24
-updated: 2026-08-24
+updated: 2026-10-04
 depends_on: []
 blocks: [TCK-288]
 spec_refs:
@@ -58,7 +58,8 @@ regarde `failed_jobs`.
 - **Le domaine d'envoi est une seconde question, distincte.** `.env.preview` déclare
   `MAIL_FROM_ADDRESS=no-reply@support.checkprintplus.com` et
   `MAIL_CONTACT_ADDRESS=contact@checkprintplus.com` — l'identité d'un **autre projet** hébergé sur le
-  même serveur. Installer le paquet fera partir des courriels ; encore faut-il qu'ils partent au bon
+  même serveur — **arrêté depuis le 2026-10-04** : son domaine n'est donc plus une option, même
+  provisoire. Installer le paquet fera partir des courriels ; encore faut-il qu'ils partent au bon
   nom, depuis un domaine vérifié côté Resend. Les deux points se corrigent ensemble ou le premier
   aggrave le second.
 - Aucune garde du dépôt ne peut attraper ce défaut aujourd'hui : `check-env-parity.mjs` compare les
