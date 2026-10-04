@@ -81,8 +81,9 @@ const nextConfig: NextConfig = {
     // ── Le loader de Cloudflare Transformations — ADR-0029 §4, TCK-540 ──────────
     //
     // Quand `NEXT_PUBLIC_MEDIA_URL` est posée au build (l'image Docker : images.yml la passe),
-    // `src/lib/image-loader.ts` remplace l'optimiseur de Next : toute photo du seau public devient
-    // `<media>/cdn-cgi/image/width=…,quality=75,format=auto,onerror=redirect/<chemin>?v=…`. Le
+    // `src/lib/image-loader.ts` remplace l'optimiseur de Next : toute image du seau public devient
+    // `<media>/cdn-cgi/image/width=…,quality=75,format=auto,onerror=redirect/<chemin>?v=…` — sauf une
+    // conversion de photo en WebP, servie telle quelle, sans rien facturer (TCK-585). Le
     // conteneur du front (512 Mio) n'encode plus d'AVIF, et le cache des images vit chez
     // Cloudflare au lieu de repartir à zéro à chaque déploiement. Le jeu de largeurs et la
     // qualité unique, et pourquoi (facturation par transformation unique), sont dans ce fichier.

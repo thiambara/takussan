@@ -1,7 +1,7 @@
 ---
 id: TCK-585
 title: "Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles"
-status: todo
+status: review
 phase: P2
 family: full
 estimate: M
@@ -77,21 +77,21 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
 - [ ] **Relevé avant** : nombre de transformations uniques sur 30 jours au tableau de bord de
       préproduction (Images → Transformations), et poids servi d'une carte et d'une tuile de
       galerie (préproduction, `curl -s -o /dev/null -w '%{size_download} %{content_type}'`).
-- [ ] **ADR** : amendement d'ADR-0029 §4, **écrit avant le code**. Il pose que les conversions de
+- [x] **ADR** : amendement d'ADR-0029 §4, **écrit avant le code**. Il pose que les conversions de
       photos sont servies sans transformation, la contrainte n°1, l'ordre de la bascule
       (contrainte n°3), et l'écart de poids mesuré accepté face à l'AVIF au palier exact.
-- [ ] Back — `Property::registerMediaConversions()` : `thumbnail`, `preview` et `full` produites en
+- [x] Back — `Property::registerMediaConversions()` : `thumbnail`, `preview` et `full` produites en
       `->format('webp')`, mêmes dimensions et mêmes modes d'ajustement. `HasMediaConversions` n'est
       pas concerné (avatars et logos sont servis en original).
-- [ ] Back — encodeur WebP disponible dans l'image de l'API et sur `worker-media` (vérifier
+- [x] Back — encodeur WebP disponible dans l'image de l'API et sur `worker-media` (vérifier
       `gd_info()['WebP Support']` ou le pilote Imagick, selon le pilote de `spatie/image`).
-- [ ] Back — `ApplyWatermarkJob` : filigrane appliqué et réécrit en WebP.
-- [ ] Back — régénération des conversions existantes (`RegeneratePhotoConversionsJob` ou commande
+- [x] Back — `ApplyWatermarkJob` : filigrane appliqué et réécrit en WebP.
+- [x] Back — régénération des conversions existantes (`RegeneratePhotoConversionsJob` ou commande
       dédiée), filigrane compris, puis suppression des anciennes conversions `.jpg` du seau public.
       L'ordre suit l'amendement.
-- [ ] Back — tests : conversion produite en `image/webp` ; filigrane présent sur une conversion
+- [x] Back — tests : conversion produite en `image/webp` ; filigrane présent sur une conversion
       WebP ; `PublicPhotoUrl` rend une URL `.webp` ; `PublicPhotoUrlTest` toujours vert.
-- [ ] Front — loader : une URL de **conversion de photo** du seau public est rendue sans passer par
+- [x] Front — loader : une URL de **conversion de photo** du seau public est rendue sans passer par
       `/cdn-cgi/image/`. Toute autre URL du seau public (avatar, logo, plan) garde le comportement
       actuel. La règle de reconnaissance se teste dans `image-loader.test.ts`, contrainte n°1
       comprise.
@@ -105,10 +105,10 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
       et les logos en font toujours.
 - [ ] AC2 — Une conversion `preview` et une conversion `full` servies en préproduction rendent
       `Content-Type: image/webp`, et leur URL est exactement celle que l'API a émise.
-- [ ] AC3 — Une photo d'un bien d'une agence qui exige un filigrane le porte sur les trois
+- [x] AC3 — Une photo d'un bien d'une agence qui exige un filigrane le porte sur les trois
       conversions WebP. Prouvé par un test qui **échoue** quand l'application du filigrane est
       retirée (vérification par ablation).
-- [ ] AC4 — `image-loader.test.ts` démontre que le loader rend, pour une conversion de photo,
+- [x] AC4 — `image-loader.test.ts` démontre que le loader rend, pour une conversion de photo,
       l'URL reçue à l'identique, quelle que soit la largeur demandée. Le test **échoue** si le
       loader réécrit `-preview` en `-full` ou l'inverse.
 - [ ] AC5 — Pendant la bascule de la préproduction, aucune photo publiée ne rend 404 : relevé sur
@@ -134,4 +134,40 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le format se décide par média, et c'est la décision qui porte tout le ticket.** `getUrl()`
+  calcule l'extension depuis la conversion *déclarée*. Déclarer `->format('webp')` pour tout le
+  parc aurait rendu des URL `.webp` sur les fichiers `.jpg` existants dès le déploiement.
+  `PhotoConversionFormat` : marqueur `custom_properties.conversions_format`, posé par
+  `Media::creating` (`AppServiceProvider`) sur toute photo de bien neuve, et lu par
+  `Property::registerMediaConversions($media)`, que Spatie appelle avec le média à la génération
+  comme au calcul d'URL. **Aucune migration de données, aucune fenêtre au déploiement** : une
+  photo sans marqueur reste en `.jpg`, et le loader l'envoie encore à Transformations.
+- **Bascule** : `ConvertPhotoConversionsToWebpJob` (hérite de `RegeneratePhotoConversionsJob`,
+  dont il garde le délai, les rejeux et le fail-closed), mis en file par
+  `media:convert-photos-to-webp`. Sous verrou : marqueur posé, conversions marquées non
+  produites, trace vidée. Puis suppression des `.jpg`, puis régénération. Le marqueur seul aurait
+  suffi à émettre des URL `.webp` sur des fichiers absents. Prouvé par ablation : sans la ligne
+  qui marque les conversions non produites,
+  `test_during_the_switch_the_api_never_emits_the_url_of_a_missing_file` rougit.
+- **Qualité 75 explicite** (`PhotoConversionFormat::QUALITY`) : le pilote GD de `spatie/image`
+  passe `-1` à `imagewebp()`, soit 80 côté libwebp (46 Ko au lieu de 38 sur la photo mesurée).
+- **`ApplyWatermarkJob` n'a pas changé** : `WatermarkService::apply()` choisit déjà son encodeur
+  d'après l'extension. Le nouveau test unitaire compare la *zone* du filigrane à un coin opposé,
+  parce qu'un simple réencodage change l'empreinte du fichier. Prouvé par ablation (service réduit
+  à un réencodage : rouge). Le test existant, qui compare les empreintes, serait vert sans le
+  filigrane.
+- **`PropertyPhotoExposureTest`** : la précondition dérivait la clé de l'original en retirant
+  `-full`, ce qui donne `villa.webp` alors que l'original est `villa.jpg`. La dérivation devine
+  maintenant l'extension de la source, la forme la plus forte de l'attaque. La propriété gardée
+  (rien à cette clé sur le seau public) n'a pas bougé.
+- **Encodeur** : `gd_info()['WebP Support'] = 1` en local et dans
+  `ghcr.io/thiambara/takussan-api:local` (construite le 2026-09-14 à 22:19, après le dernier
+  changement du `Dockerfile` à 22:05).
+- **Relevé avant, partiel** : les poids sont dans l'amendement d'ADR-0029. Le compte de
+  transformations sur 30 jours (tableau de bord Cloudflare) n'a pas été relevé : pas d'accès
+  depuis cette session.
+- **Ce qui reste ouvert, et pourquoi le ticket est en `review`** : AC1, AC2, AC5, AC6 et AC7
+  demandent le déploiement en préproduction, puis `media:convert-photos-to-webp` (runbook :
+  `docs/infra/hebergement.md`, « Basculer les photos en WebP »). Rien de cela n'est joué ici.
+- **Constat hors périmètre** : sur la préproduction, la `thumbnail` d'une source de 800 × 600 mesure
+  400 × 300, pas 300 × 300 (`width(300)->height(300)`). Mesuré, pas expliqué ; non touché.

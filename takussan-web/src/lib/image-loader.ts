@@ -6,7 +6,8 @@ import type { ImageLoaderProps } from 'next/image';
  * Le `loaderFile` de `next/image` — ADR-0029 §4, TCK-540.
  *
  * Toute image du seau public (`NEXT_PUBLIC_MEDIA_URL`) est servie par Cloudflare Transformations :
- * `<media>/cdn-cgi/image/width=…,quality=…,format=auto,onerror=redirect/<chemin+requête>`. Le VPS
+ * `<media>/cdn-cgi/image/width=…,quality=…,format=auto,onerror=redirect/<chemin+requête>` — SAUF une
+ * conversion de photo de bien en WebP, rendue telle quelle (TCK-585, `CONVERSION_DE_PHOTO_WEBP`). Le VPS
  * n'encode plus rien, et le cache vit chez Cloudflare au lieu de repartir à zéro à chaque
  * déploiement du conteneur.
  *
@@ -48,6 +49,20 @@ export const LARGEURS_MEDIA = [128, 384, 640, 960, 1280, 1920] as const;
  */
 export const QUALITE_MEDIA = 75;
 
+/**
+ * Une conversion de photo de bien en WebP : `<id>/conversions/<nom>-<conversion>.webp` — TCK-585,
+ * ADR-0029 (amendement du 2026-10-04). Produite par l'API aux tailles servies (300, 800, ≤ 1600),
+ * elle est rendue telle quelle : Transformations facturerait une transformation unique par photo,
+ * par palier et par période de 30 jours, pour un fichier déjà prêt.
+ *
+ * Mesuré sur la préproduction : une `preview` de 800 × 600 pèse 38 Ko en WebP, contre 26 Ko en
+ * AVIF au palier 640 et 13 Ko au palier 384. L'écart est accepté par l'amendement.
+ *
+ * Tout le reste du seau garde Transformations : les originaux (avatars, logos, plans) et toute
+ * conversion encore en `.jpg` — une photo antérieure au marqueur, pas encore basculée.
+ */
+const CONVERSION_DE_PHOTO_WEBP = /\/conversions\/[^/]+-(?:thumbnail|preview|full)\.webp$/;
+
 export function arrondirLargeur(largeur: number): number {
   return LARGEURS_MEDIA.find((palier) => palier >= largeur) ?? LARGEURS_MEDIA[LARGEURS_MEDIA.length - 1];
 }
@@ -69,6 +84,15 @@ export function construireUrlImage({ src, width, quality }: ImageLoaderProps, me
   // `blob:`, `data:`, chemin relatif : rendus tels quels. Aucun n'atteint ce loader en pratique —
   // les deux premiers sont posés en `unoptimized` —, mais une URL cassée ici casse l'image.
   if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) return src;
+
+  if (mediaUrl && url.origin === mediaUrl && CONVERSION_DE_PHOTO_WEBP.test(url.pathname)) {
+    // TCK-585 — déjà à la taille et au format servis : rendue telle quelle, rien n'est facturé.
+    // JAMAIS remplacée par une autre conversion selon la largeur : seule l'API sait laquelle
+    // est produite et filigranée (`PublicPhotoUrl`) ; une URL dérivée ici pourrait viser un
+    // fichier nu ou absent. Le fragment tait l'avertissement de Next, comme plus bas.
+    url.hash = `w=${width}`;
+    return url.toString();
+  }
 
   if (mediaUrl && url.origin === mediaUrl && !url.pathname.startsWith('/cdn-cgi/')) {
     const options = `width=${arrondirLargeur(width)},quality=${QUALITE_MEDIA},format=auto,onerror=redirect`;

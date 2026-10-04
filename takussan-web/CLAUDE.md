@@ -295,7 +295,8 @@ production (ADR-0028 §3).
 **`NEXT_PUBLIC_MEDIA_URL`** — l'origine du seau public de médias (`https://media-preview.takussan.com`,
 puis `https://media.takussan.com`), [ADR-0029](../docs/adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).
 Posée au build, elle branche `src/lib/image-loader.ts` comme `loaderFile` de `next/image` : toute
-image de ce domaine est servie par Cloudflare Transformations (`/cdn-cgi/image/…`), et
+image de ce domaine est servie par Cloudflare Transformations (`/cdn-cgi/image/…`) — **sauf une
+conversion de photo de bien en WebP, rendue telle quelle** (TCK-585, amendement d'ADR-0029) —, et
 **l'optimiseur de Next ne tourne plus**. Vide — développement, et production Vercel jusqu'à la
 phase F —, le loader n'est pas branché et l'optimiseur reste. L'image Docker refuse de se construire
 sans elle. ⚠ **Ne la poser sur un environnement qu'avec la bascule de ses médias sur R2** : sinon
