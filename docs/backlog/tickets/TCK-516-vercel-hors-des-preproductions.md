@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 64
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-10-04
 depends_on: [TCK-515]
 blocks: [TCK-517]
 spec_refs:
@@ -34,7 +34,8 @@ Relevé à tenir : `docs/infra/frontend-deploiement.json`.
 
 ## Delta à produire
 
-- [ ] `takussan-web/vercel.json` ; `web/vercel.json` dans `thiambara/check-print-plus`
+- [ ] `takussan-web/vercel.json` *(le volet `thiambara/check-print-plus` est caduc : projet arrêté et
+  projet Vercel supprimé le 2026-10-04)*
 - [ ] domaines de préproduction retirés des projets Vercel
 - [ ] relevé `frontend-deploiement.{json,md}` mis à jour, garde `front-deploy-map` verte
 
