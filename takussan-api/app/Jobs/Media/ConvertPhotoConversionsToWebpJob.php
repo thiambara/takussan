@@ -6,7 +6,11 @@ use App\Models\Property;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkTrace;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\Conversions\Conversion;
+use Spatie\MediaLibrary\Conversions\ConversionCollection;
+use Spatie\MediaLibrary\Conversions\FileManipulator;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Throwable;
 
 /**
  * Fait basculer UNE photo de bien antérieure au marqueur vers des conversions WebP (TCK-585,
@@ -19,8 +23,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  *      aucune URL de la photo : aucune conversion n'est produite.
  *   2. Suppression des anciens fichiers, quand leur chemin diffère du nouveau (une source déjà
  *      en `.webp` donne le même nom, et la régénération l'écrasera).
- *   3. Régénération par le parent : `thumbnail` en ligne, `preview` et `full` en file, le
- *      filigrane à la fin de chaque conversion.
+ *   3. Les trois conversions produites ET filigranées DANS ce job, de façon synchrone.
  *
  * **Pourquoi « non produites » en 1 et pas seulement le marqueur.** `getUrl()` calcule
  * l'extension depuis le marqueur : avec le marqueur seul, l'API émettrait des URL `.webp` sur des
@@ -28,6 +31,16 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * produites, les conversions sont cachées, puis réapparaissent une à une, par le repli
  * `full → preview → thumbnail`. Et la trace vidée fait qu'une photo sous filigrane reste cachée
  * jusqu'à `ApplyWatermarkJob` : jamais un fichier nu.
+ *
+ * **Pourquoi tout dans ce job, et non `thumbnail` en ligne et le reste en file comme à l'envoi.**
+ * Mesuré en préproduction le 2026-10-04 : les 858 biens exigent le filigrane. La première version
+ * déléguait au parent (`createDerivedFiles()`) : `preview`, `full` et chaque `ApplyWatermarkJob`
+ * partaient en file DERRIÈRE les 3 446 autres bascules. Une photo basculée restait cachée jusqu'à
+ * ce que la file y arrive, soit environ une heure : 71 photos sur 72 étaient cachées après une
+ * minute, et les bascules restantes ont été retirées de la file. Une file remplie d'un coup ne
+ * sert pas ce qui y est ajouté ensuite. Le job ne peut donc rien y laisser dont sa photo dépend.
+ * Les `ApplyWatermarkJob` que l'écouteur met en file à chaque conversion sortent ensuite sans rien
+ * faire : la trace les dit déjà faits.
  *
  * Le délai, les rejeux et l'échec définitif sont ceux du parent. Un rejeu après une tentative
  * tombée entre 1 et 3 trouve le marqueur posé : il saute la bascule et reprend la régénération.
@@ -50,7 +63,24 @@ class ConvertPhotoConversionsToWebpJob extends RegeneratePhotoConversionsJob
             $this->switchFormat($media);
         }
 
-        parent::handle();
+        $media = $media->fresh();
+        $conversions = ConversionCollection::createForMedia($media)
+            ->filter(fn (Conversion $conversion) => $conversion->shouldBePerformedOn($media->collection_name));
+
+        try {
+            app(FileManipulator::class)->performConversions($conversions, $media);
+        } catch (Throwable $exception) {
+            WatermarkTrace::failClosed($media, Property::watermarkedConversions(), $exception, 'ConvertPhotoConversionsToWebpJob');
+
+            throw $exception;
+        }
+
+        // Sans effet si le bien n'exige pas de filigrane : `ApplyWatermarkJob` le vérifie lui-même.
+        // `handle()` appelé ici, et non `dispatchSync()`, qui passe encore par le gestionnaire de
+        // files : le filigrane ne doit dépendre d'aucune file.
+        foreach (Property::watermarkedConversions() as $conversion) {
+            app()->call([new ApplyWatermarkJob($this->mediaId, $conversion), 'handle']);
+        }
     }
 
     private function switchFormat(Media $media): void

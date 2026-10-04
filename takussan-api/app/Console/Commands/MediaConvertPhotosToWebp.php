@@ -13,9 +13,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * TCK-585 — fait basculer en WebP les photos de biens antérieures au marqueur
  * (`PhotoConversionFormat`), une `ConvertPhotoConversionsToWebpJob` par photo, en file `media`.
  *
- * Une photo n'est cachée que pendant SA bascule, quelques secondes, puis se replie sur
- * `thumbnail` jusqu'à `preview` et `full` (cf. le job). Les autres restent servies en `.jpg`,
- * par Transformations, jusqu'à leur tour. Le parc entier n'est donc jamais caché à la fois.
+ * Une photo n'est cachée que pendant SON job, qui produit et filigrane ses trois conversions
+ * sans rien laisser à la file (cf. le job : une file remplie d'un coup cachait sinon tout le
+ * parc pendant la bascule). Les autres restent servies en `.jpg`, par Transformations, jusqu'à
+ * leur tour.
  *
  * Ne sélectionne que les photos SANS marqueur. Une photo dont la bascule a échoué
  * définitivement porte déjà le marqueur : `media:regenerate-property-conversions --property=…`
