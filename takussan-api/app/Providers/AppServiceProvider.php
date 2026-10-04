@@ -81,6 +81,7 @@ use App\Services\Media\Cdn\CdnHealthGuard;
 use App\Services\Media\Cdn\CdnProviderContract;
 use App\Services\Media\Cdn\CloudflareCdnDriver;
 use App\Services\Media\MediaUrlResolver;
+use App\Services\Media\PhotoConversionFormat;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
 use App\Services\Notifications\Sms\Dlr\MtargetDlrPuller;
@@ -390,6 +391,11 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
         Media::observe(MediaCdnObserver::class);
+
+        // TCK-585 — une photo de bien neuve est marquée « conversions en WebP » AVANT sa
+        // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`
+        // (cf. `PhotoConversionFormat`).
+        Media::creating(fn (Media $media) => PhotoConversionFormat::markNew($media));
     }
 
     private function bootReportingHooks(): void

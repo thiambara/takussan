@@ -121,7 +121,9 @@ class PropertyPhotoExposureTest extends TestCase
         $full = $this->detail($property)['photos'][0]['full'];
         $cle = ltrim(strtok((string) parse_url($full, PHP_URL_PATH), '?'), '/');
         $cle = preg_replace('#^storage/#', '', $cle);
-        $deduite = str_replace(['conversions/', '-full'], '', $cle);
+        // TCK-585 — `full` est en `.webp` : l'attaquant devine aussi l'extension de la source.
+        // La précondition garde ainsi la forme la plus forte de la dérivation.
+        $deduite = preg_replace('#-full\.webp$#', '.'.pathinfo($media->file_name, PATHINFO_EXTENSION), str_replace('conversions/', '', $cle));
 
         $this->assertSame($media->getPathRelativeToRoot(), $deduite, 'Précondition : la dérivation retrouve bien la clé de l\'original.');
         $this->assertFalse($this->public->exists($deduite));

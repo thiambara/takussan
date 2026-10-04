@@ -6,13 +6,13 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**528 tickets** — 28 ouverts, 498 livrés.
+**529 tickets** — 29 ouverts, 498 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 27 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 498 |
 | 🗑️ Obsolete | 2 |
@@ -67,7 +67,7 @@
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
 
 ## ⛔ Blocked
 

@@ -53,6 +53,47 @@ describe('construireUrlImage — seau public', () => {
   });
 });
 
+/**
+ * TCK-585 — une conversion de photo en WebP est servie telle quelle, sans Transformations
+ * (ADR-0029, amendement du 2026-10-04). Une conversion encore en `.jpg` (photo antérieure au
+ * marqueur, pas encore basculée) garde Transformations : la transition se fait photo par photo.
+ */
+describe('construireUrlImage — conversion de photo en WebP', () => {
+  const WEBP = `${MEDIA}/42/conversions/photo-preview.webp?v=1758441600`;
+
+  it.each([96, 384, 640, 1920, 3840])('rend la conversion reçue, sans /cdn-cgi/, à la largeur %i', (width) => {
+    const rendue = construireUrlImage({ src: WEBP, width }, MEDIA);
+    expect(rendue).not.toContain('/cdn-cgi/');
+    expect(rendue.split('#')[0]).toBe(WEBP);
+  });
+
+  it('ne fabrique jamais l’URL d’une autre conversion — seule l’API sait laquelle est filigranée', () => {
+    for (const width of [128, 3840]) {
+      const rendue = construireUrlImage({ src: WEBP, width }, MEDIA);
+      expect(rendue).toContain('-preview.webp');
+      expect(rendue).not.toMatch(/-(full|thumbnail)\./);
+    }
+  });
+
+  it.each(['thumbnail', 'full'])('vaut pour `%s` aussi', (conversion) => {
+    const src = `${MEDIA}/42/conversions/photo-${conversion}.webp?v=1`;
+    expect(construireUrlImage({ src, width: 640 }, MEDIA).split('#')[0]).toBe(src);
+  });
+
+  it('un original en .webp hors de conversions/ (avatar, logo) garde Transformations', () => {
+    expect(construireUrlImage({ src: `${MEDIA}/7/moi.webp?v=1`, width: 128 }, MEDIA)).toContain('/cdn-cgi/image/');
+  });
+
+  it('une conversion encore en .jpg garde Transformations', () => {
+    expect(construireUrlImage({ src: PHOTO, width: 640 }, MEDIA)).toContain('/cdn-cgi/image/');
+  });
+
+  it('hors du seau public, une conversion .webp n’est pas concernée par la règle', () => {
+    const api = 'http://127.0.0.1:8002/storage/42/conversions/photo-preview.webp?v=1';
+    expect(construireUrlImage({ src: api, width: 640 }, '')).toBe(`${api}#w=640`);
+  });
+});
+
 describe('construireUrlImage — tout le reste passe sans casser', () => {
   it('NEXT_PUBLIC_MEDIA_URL vide : l’URL de l’API ressort intacte (hors fragment)', () => {
     const api = 'http://127.0.0.1:8002/storage/42/conversions/photo-preview.jpg?v=1';

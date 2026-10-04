@@ -236,6 +236,21 @@ comptes sont dans TCK-515. Deux pièges payés ce jour-là :
 `takussan-preview-private` ; les conversions se régénèrent ensuite par
 `media:regenerate-property-conversions` — le seau public n'a pas de copie, c'est voulu.
 
+**Basculer les photos en WebP** (TCK-585, une fois par environnement, après le déploiement qui
+l'apporte) : les photos téléversées depuis ce déploiement le sont déjà ; les plus anciennes gardent
+leurs `.jpg`, servis par Transformations, jusqu'à leur bascule. Dans le répertoire de la pile, comme
+pour le seed :
+
+```bash
+docker compose -p <projet> -f compose.api.yml exec worker-media php artisan media:convert-photos-to-webp --dry-run
+docker compose -p <projet> -f compose.api.yml exec worker-media php artisan media:convert-photos-to-webp
+```
+
+La commande met un job par photo en file `media`, que `worker-media` dépile. Une photo est cachée
+quelques secondes pendant sa propre bascule, puis repliée sur `thumbnail` jusqu'à ses deux autres
+conversions : jamais un 404. Le `--dry-run` qui rend `0` est la preuve de fin. Le `.jpg` d'une
+conversion ancienne est supprimé du seau public au passage.
+
 **Restaurer le volume de médias** (avant le 2026-09-22 seulement) : l'archive (`tar` du contenu du volume, entrées `./…`) se lit dans
 R2 depuis le serveur et s'extrait dans un volume **neuf**, jamais par-dessus le volume servi ; puis
 `sha256sum` des deux côtés (plan, tâche D6, étape 3). L'API de Dokploy v0.30.6 n'expose aucune route
