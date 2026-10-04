@@ -1,5 +1,11 @@
 # Auto-hébergement de Takussan et CheckPrint Plus sur le VPS, par Dokploy — plan d'implémentation
 
+> ⚠ **CheckPrint Plus est arrêté depuis le 2026-10-04** (décision du porteur) et a quitté le serveur :
+> projet Dokploy, MySQL, `redis-cpp`, sauvegardes, registre `ghcr.io`, enregistrements DNS web de
+> `checkprintplus.com` et projet Vercel supprimés. **Tout ce que ce plan prescrit pour CheckPrint Plus
+> est caduc** — la tâche F4 est annulée, et F5 ne concerne plus que Takussan. Le reste est conservé
+> comme récit de ce qui a été fait. L'état réel : [`docs/infra/hebergement.md`](../infra/hebergement.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Servir les deux projets (front Next.js, API Laravel, workers, planificateur, données) depuis
@@ -4141,6 +4147,9 @@ reporter dans le relevé et dans le tableau de ce plan.
 
 ### Tâche F4 : basculer la production CheckPrint Plus
 
+> ⚠ **Annulée le 2026-10-04** : CheckPrint Plus est arrêté et n'est plus hébergé (voir l'en-tête).
+> Ne pas l'exécuter.
+
 Dépôt `thiambara/check-print-plus`, mêmes gestes que F2 et F3. Seules les différences sont écrites.
 
 - [ ] **Étape 1 : le code**
@@ -4197,7 +4206,9 @@ passe en proxifié. Même retour arrière qu'en F3 : les enregistrements relevé
 
 ### Tâche F5 : retirer Vercel, clore
 
-Au moins **7 jours** après F3 et F4, sans retour arrière entre-temps.
+Au moins **7 jours** après F3, sans retour arrière entre-temps. *(F4 annulée le 2026-10-04 ; le projet
+Vercel de CheckPrint Plus a déjà été supprimé par le porteur le même jour : tout ce qui suit ne vise
+plus que Takussan.)*
 
 - [ ] **Étape 1 : supprimer les projets Vercel — sur confirmation du porteur, au moment de le faire**
 

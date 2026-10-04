@@ -20,16 +20,13 @@ set -uo pipefail
 ORIGINE=${ORIGINE:-178.18.247.62}
 SEUIL_JOURS=${SEUIL_JOURS:-14}
 # Les noms que Traefik sert sur ce serveur (relevé : docs/infra/hebergement.md, « Ce qui sert
-# quoi »). `api.takussan.com` et `www.takussan.com` s'y ajoutent en F3, étape 3 (les noms de
-# CheckPrint Plus en F4), DÈS QUE leur certificat existe et jamais avant : un nom que Traefik ne
-# route pas rend `TRAEFIK DEFAULT CERT` — c'est le cas d'`api.takussan.com` depuis le 2026-09-13
+# quoi »). `api.takussan.com` et `www.takussan.com` s'y ajoutent en F3, étape 3, DÈS QUE leur
+# certificat existe et jamais avant : un nom que Traefik ne route pas rend `TRAEFIK DEFAULT CERT` — c'est le cas d'`api.takussan.com` depuis le 2026-09-13
 # (TCK-523) — et rougirait ici chaque jour, pour rien.
 NOMS=(
   deploy.takussan.com
   preview.takussan.com
   preview.api.takussan.com
-  preview.checkprintplus.com
-  preview.api.checkprintplus.com
 )
 [ $# -gt 0 ] && NOMS=("$@")
 

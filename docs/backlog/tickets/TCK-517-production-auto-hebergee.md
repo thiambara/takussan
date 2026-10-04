@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-09-14
+updated: 2026-10-04
 depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
@@ -31,8 +31,8 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 
 ## Contraintes strictes (métier)
 
-- `LICENSE_DESKTOP_SECRET` de CheckPrint Plus garde la valeur de l'export : il est partagé avec le
-  binaire de bureau déjà distribué.
+- ~~`LICENSE_DESKTOP_SECRET` de CheckPrint Plus garde la valeur de l'export~~ — caduc : CheckPrint Plus
+  est arrêté depuis le 2026-10-04.
 - La suppression des projets Vercel, irréversible, se fait sur confirmation du porteur, au moins
   7 jours après la bascule.
 
@@ -40,7 +40,7 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 
 - [ ] F1 — re-mesure, bases, clé Meilisearch et sauvegardes de production
 - [ ] F2 à F3 — Takussan : `images.yml` sur `master`, environnement `prod` avec réviseur, bascule DNS
-- [ ] F4 — CheckPrint Plus
+- ~~F4 — CheckPrint Plus~~ — **annulée le 2026-10-04** : projet arrêté, retiré du serveur et de Vercel
 - [ ] F5 — retrait de Vercel, des relevés et de la garde qui le mesuraient
 
 ## Critères d'acceptation

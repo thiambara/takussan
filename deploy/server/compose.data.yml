@@ -1,7 +1,8 @@
-# Données partagées du serveur (ADR-0028 §6) : Meilisearch et un Redis par projet.
+# Données partagées du serveur (ADR-0028 §6) : Meilisearch et un Redis par projet — Takussan
+# seul depuis le 2026-10-04, date à laquelle `redis-cpp` est parti avec CheckPrint Plus.
 #
-# PostgreSQL et MySQL n'y sont PAS : ce sont des services Database de Dokploy, pour la
-# sauvegarde vers R2 et la restauration intégrées. Ce fichier ne porte que ce qui se
+# PostgreSQL n'y est PAS : c'est un service Database de Dokploy, pour la sauvegarde vers R2
+# et la restauration intégrées. Ce fichier ne porte que ce qui se
 # reconstruit — l'index depuis la base, le cache par définition.
 #
 # Aucun port publié : ces services ne sont joignables que depuis `dokploy-network`.
@@ -37,20 +38,9 @@ services:
     networks:
       - dokploy-network
 
-  redis-cpp:
-    image: redis:8-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy volatile-lru --requirepass ${REDIS_CPP_PASSWORD:?REDIS_CPP_PASSWORD manquant}
-    volumes:
-      - redis-cpp:/data
-    mem_limit: 96m
-    networks:
-      - dokploy-network
-
 volumes:
   meili:
   redis-takussan:
-  redis-cpp:
 
 networks:
   dokploy-network:

@@ -6,6 +6,7 @@
 - **Remplace** : [ADR-0017](0017-deploiement-du-front-pilote-par-vercel.md) — **à la bascule du front de production** (phase F du plan) ; d'ici là, ADR-0017 décrit toujours ce qui sert `www.takussan.com`. Remplace aussi une décision recensée et jamais rédigée : *« déploiement zero-downtime par script bash sur VPS — pas de conteneur, pas d'orchestrateur »* ([index](README.md)).
 - **Dettes et tickets concernés** : D-04, D-09, D-10 · TCK-288, TCK-332, TCK-333
 - **Périmètre** : le serveur est **partagé** avec CheckPrint Plus (`thiambara/check-print-plus`). Cet ADR fixe les règles du serveur pour les deux projets ; les fichiers propres à CheckPrint Plus vivent dans son dépôt.
+- **Amendement du 2026-10-04** : CheckPrint Plus est **arrêté** et a quitté le serveur, qui ne porte plus que Takussan. Les décisions de cet ADR valent toujours pour Takussan ; ce qu'elles disent de CheckPrint Plus (MySQL 8.4, `redis-cpp`, application de bureau, phase F4) est historique. Relevé : [`docs/infra/hebergement.md`](../infra/hebergement.md).
 
 ## Contexte
 
