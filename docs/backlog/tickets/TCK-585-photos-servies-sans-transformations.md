@@ -157,6 +157,18 @@ session qui a implémenté.
   suffi à émettre des URL `.webp` sur des fichiers absents. Prouvé par ablation : sans la ligne
   qui marque les conversions non produites,
   `test_during_the_switch_the_api_never_emits_the_url_of_a_missing_file` rougit.
+- **Incident de la première bascule en préproduction (2026-10-04, 22:09 → 22:15 Z), corrigé.** Le
+  job laissait `preview`, `full` et le filigrane à la file. Or 858 biens sur 858 exigent le
+  filigrane, et les 3 446 bascules mises en file d'un coup passaient devant : 71 photos basculées
+  sur 72 étaient cachées après une minute. Les 3 340 bascules pas encore commencées ont été retirées
+  de la file (22:11 Z) ; les 106 photos déjà basculées ont réapparu à 22:15 Z (244 biens publics
+  sur 244 avec photo, tous en 200, dont 14 déjà en `image/webp`). Le job produit et filigrane
+  désormais ses trois conversions lui-même (`performConversions()` puis
+  `ApplyWatermarkJob::handle()`, et non `dispatchSync()`, que `Queue::fake()` intercepte, donc qui
+  dépend encore d'une file). `test_a_watermarked_photo_is_fully_served_at_the_end_of_its_own_switch_job`
+  reproduit l'incident. Au passage, `test_during_the_switch…` jugeait l'existence des fichiers
+  APRÈS le job : vert sans sa règle. Il la juge maintenant à l'instant de chaque conversion, et
+  rougit sous ablation.
 - **Qualité 75 explicite** (`PhotoConversionFormat::QUALITY`) : le pilote GD de `spatie/image`
   passe `-1` à `imagewebp()`, soit 80 côté libwebp (46 Ko au lieu de 38 sur la photo mesurée).
 - **`ApplyWatermarkJob` n'a pas changé** : `WatermarkService::apply()` choisit déjà son encodeur

@@ -246,9 +246,10 @@ docker compose -p <projet> -f compose.api.yml exec worker-media php artisan medi
 docker compose -p <projet> -f compose.api.yml exec worker-media php artisan media:convert-photos-to-webp
 ```
 
-La commande met un job par photo en file `media`, que `worker-media` dépile. Une photo est cachée
-quelques secondes pendant sa propre bascule, puis repliée sur `thumbnail` jusqu'à ses deux autres
-conversions : jamais un 404. Le `--dry-run` qui rend `0` est la preuve de fin. Le `.jpg` d'une
+La commande met un job par photo en file `media`, que `worker-media` dépile. Une photo n'est
+cachée que pendant son propre job, qui produit et filigrane ses trois conversions : jamais un 404,
+et rien n'attend la file. ⚠ Avant le correctif du 2026-10-04, la bascule laissait le filigrane à
+la file et cachait tout le catalogue de la préproduction (ADR-0029, amendement, point 5). Le `--dry-run` qui rend `0` est la preuve de fin. Le `.jpg` d'une
 conversion ancienne est supprimé du seau public au passage.
 
 **Restaurer le volume de médias** (avant le 2026-09-22 seulement) : l'archive (`tar` du contenu du volume, entrées `./…`) se lit dans

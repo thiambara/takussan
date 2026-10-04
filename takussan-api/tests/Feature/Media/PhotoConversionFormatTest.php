@@ -11,8 +11,10 @@ use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkTrace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\Conversions\Events\ConversionWillStartEvent;
 use Spatie\MediaLibrary\Conversions\FileManipulator;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\Support\RemoteDiskFake;
@@ -118,10 +120,23 @@ class PhotoConversionFormatTest extends TestCase
     /** Une photo d'AVANT le marqueur : conversions écrites en `.jpg`, marqueur absent. */
     private function photoAncienne(): Media
     {
-        $media = $this->photo();
+        return $this->rendreAncienne($this->photo());
+    }
+
+    /**
+     * Retire le marqueur et régénère en `.jpg`. ⚠ Efface les `.webp` de la première génération :
+     * restés sur le disque, ils rendaient « présent » le fichier qu'une URL émise trop tôt
+     * viserait, et `test_during_the_switch…` restait vert sans la règle qu'il garde (mesuré par
+     * ablation).
+     */
+    private function rendreAncienne(Media $media): Media
+    {
+        $webp = array_map(fn (string $c) => $media->getPathRelativeToRoot($c), self::CONVERSIONS);
+
         $media->forgetCustomProperty(PhotoConversionFormat::KEY);
         $media->save();
         app(FileManipulator::class)->createDerivedFiles($media);
+        Storage::disk('public')->delete($webp);
 
         return $media->refresh();
     }
@@ -151,29 +166,71 @@ class PhotoConversionFormatTest extends TestCase
         }
     }
 
+    /** Le fichier qu'une URL du disque public désigne existe-t-il ? */
+    private function fichierExiste(string $url): bool
+    {
+        return Storage::disk('public')->exists(preg_replace('#^/?storage/#', '', ltrim((string) parse_url($url, PHP_URL_PATH), '/')));
+    }
+
     /**
-     * AC5 — pendant la bascule, l'API n'émet jamais l'URL d'un fichier absent. `preview` et `full`
-     * sont en file : tant qu'elles ne sont pas produites, le repli rend `thumbnail`, écrite dans
-     * le job même — jamais un `.webp` à venir, jamais un `.jpg` supprimé.
+     * AC5 — PENDANT la bascule, l'API n'émet jamais l'URL d'un fichier absent : relevé juste
+     * avant chaque conversion, l'URL publique est nulle (photo cachée) ou vise un fichier présent
+     * — jamais un `.webp` à venir, jamais un `.jpg` supprimé.
      */
     public function test_during_the_switch_the_api_never_emits_the_url_of_a_missing_file(): void
     {
         $media = $this->photoAncienne();
+        $vues = [];
+
+        // L'existence se juge À L'INSTANT de l'événement : jugée après le job, quand tout est écrit,
+        // ce test restait vert sans la règle qu'il garde (mesuré par ablation).
+        Event::listen(ConversionWillStartEvent::class, function (ConversionWillStartEvent $event) use (&$vues) {
+            foreach (self::CONVERSIONS as $demandee) {
+                $url = PublicPhotoUrl::upTo($event->media->fresh(), $demandee, false);
+                $vues[] = [$url, $url === null || $this->fichierExiste($url)];
+            }
+        });
+
+        (new ConvertPhotoConversionsToWebpJob($media->id))->handle();
+
+        $this->assertNotEmpty($vues);
+
+        foreach ($vues as [$url, $existe]) {
+            $this->assertTrue($existe, "URL émise pendant la bascule sur un fichier absent : {$url}");
+        }
+    }
+
+    /**
+     * Relevé en préproduction le 2026-10-04 : 858 biens sur 858 exigent le filigrane. Si la bascule
+     * laisse `preview`, `full` ou le filigrane à la file, chaque photo reste cachée jusqu'à ce que la
+     * file — remplie par les 3 446 autres bascules — arrive à ses jobs : tout le catalogue
+     * disparaît pendant l'heure de la bascule. La photo doit sortir de SON job entièrement servie,
+     * sans qu'aucun job en file n'ait tourné.
+     */
+    public function test_a_watermarked_photo_is_fully_served_at_the_end_of_its_own_switch_job(): void
+    {
+        $agency = Agency::factory()->create([
+            'primary_admin_id' => User::factory()->create()->id,
+            'settings' => ['watermark_enabled' => true],
+        ]);
+        $property = Property::factory()->create(['user_id' => User::factory()->create()->id, 'agency_id' => $agency->id]);
+        $media = $this->rendreAncienne(
+            $property->addMedia(UploadedFile::fake()->image('villa.jpg', 1200, 900))->usingFileName('villa.jpg')->toMediaCollection('photos')->refresh(),
+        );
 
         Queue::fake();
         (new ConvertPhotoConversionsToWebpJob($media->id))->handle();
         $media->refresh();
 
-        $this->assertFalse($media->hasGeneratedConversion('preview'));
-        $this->assertFalse($media->hasGeneratedConversion('full'));
-
-        foreach (self::CONVERSIONS as $demandee) {
-            $url = PublicPhotoUrl::upTo($media, $demandee, false);
-
-            $this->assertSame($media->getUrl('thumbnail'), $url, "`{$demandee}` doit se replier sur `thumbnail`, seule produite.");
+        foreach (self::CONVERSIONS as $conversion) {
+            $this->assertTrue($media->hasGeneratedConversion($conversion), "`{$conversion}` doit être produite dans le job même.");
+            $this->assertContains($conversion, $media->getCustomProperty(WatermarkTrace::KEY, []), "`{$conversion}` doit être filigranée dans le job même.");
         }
 
-        Storage::disk('public')->assertExists($media->getPathRelativeToRoot('thumbnail'));
+        $url = PublicPhotoUrl::upTo($media, 'full', true);
+        $this->assertNotNull($url);
+        $this->assertStringEndsWith('-full.webp', parse_url($url, PHP_URL_PATH));
+        $this->assertTrue($this->fichierExiste($url));
     }
 
     /** Un rejeu après un échec reprend la régénération ; une photo déjà basculée n'est pas réécrite. */
