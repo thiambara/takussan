@@ -132,6 +132,14 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
 - Un autre service (Bunny Optimizer, imgproxy, Glide, optimiseur de Next sur le VPS) : écarté par
   ADR-0029, qui a sorti l'encodage du VPS.
 
+## Reste sur dev
+
+Le code est sur `dev` depuis la PR #318 (2026-10-04). Ce qui manque ne se fait qu'en préproduction :
+déploiement, puis `media:convert-photos-to-webp` (runbook : `docs/infra/hebergement.md`,
+« Basculer les photos en WebP »), puis le relevé d'AC1, AC2, AC5, AC6 et AC7. Le compte de
+transformations sur 30 jours (AC7) se lit au tableau de bord Cloudflare, hors de portée de la
+session qui a implémenté.
+
 ## Notes d'implémentation
 
 - **Le format se décide par média, et c'est la décision qui porte tout le ticket.** `getUrl()`
