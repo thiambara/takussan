@@ -156,9 +156,18 @@ au palier exact et le passage de JPEG à AVIF/WebP.
    sur des fichiers qui existent.
 5. **La bascule d'une photo ancienne se fait photo par photo** (`media:convert-photos-to-webp`) :
    sous verrou, pose du marqueur, conversions marquées non produites et retirées de la trace ;
-   puis suppression des anciens fichiers et régénération. Pendant cette fenêtre, l'API n'émet
-   aucune URL de la photo (rien n'est produit), puis se replie sur `thumbnail` jusqu'à
-   `preview` et `full`. **Jamais un 404, jamais un fichier nu.**
+   puis suppression des anciens fichiers, puis production **et filigrane des trois conversions
+   dans le même job**. Pendant cette fenêtre, l'API n'émet aucune URL de la photo (rien n'est
+   produit). **Jamais un 404, jamais un fichier nu**, et rien n'est laissé à la file.
+
+   ⚠ **La première version laissait `preview`, `full` et le filigrane à la file, et c'était
+   faux.** Mesuré en préproduction le 2026-10-04 : 858 biens sur 858 exigent le filigrane. Les
+   3 446 bascules mises en file d'un coup passaient devant tout ce qu'elles y ajoutaient : 71
+   photos basculées sur 72 étaient cachées une minute après le lancement, et le catalogue entier
+   l'aurait été pendant environ une heure. Les bascules restantes ont été retirées de la file
+   (22:11 Z), et les photos déjà basculées ont réapparu une fois leurs jobs passés (22:15 Z :
+   244 biens publics sur 244 avec photo, tous en 200). *Une file remplie d'un coup ne sert pas ce
+   qu'on y ajoute ensuite.*
 
 ### Ce que ça coûte — mesuré le 2026-10-04 sur la préproduction, une photo réelle (800 × 600)
 
