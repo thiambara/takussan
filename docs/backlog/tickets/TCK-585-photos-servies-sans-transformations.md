@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 67
 created: 2026-10-04
-updated: 2026-10-04
+updated: 2026-10-05
 depends_on: []
 blocks: []
 spec_refs:
@@ -100,10 +100,10 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur la préproduction, une fiche de bien et une page de recherche ne font **aucune**
+- [x] AC1 — Sur la préproduction, une fiche de bien et une page de recherche ne font **aucune**
       requête `/cdn-cgi/image/` pour une photo de bien (relevé réseau du navigateur). Les avatars
       et les logos en font toujours.
-- [ ] AC2 — Une conversion `preview` et une conversion `full` servies en préproduction rendent
+- [x] AC2 — Une conversion `preview` et une conversion `full` servies en préproduction rendent
       `Content-Type: image/webp`, et leur URL est exactement celle que l'API a émise.
 - [x] AC3 — Une photo d'un bien d'une agence qui exige un filigrane le porte sur les trois
       conversions WebP. Prouvé par un test qui **échoue** quand l'application du filigrane est
@@ -111,9 +111,9 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
 - [x] AC4 — `image-loader.test.ts` démontre que le loader rend, pour une conversion de photo,
       l'URL reçue à l'identique, quelle que soit la largeur demandée. Le test **échoue** si le
       loader réécrit `-preview` en `-full` ou l'inverse.
-- [ ] AC5 — Pendant la bascule de la préproduction, aucune photo publiée ne rend 404 : relevé sur
+- [x] AC5 — Pendant la bascule de la préproduction, aucune photo publiée ne rend 404 : relevé sur
       l'ensemble des `main_photo_url` de l'API publique, avant et après la régénération.
-- [ ] AC6 — Après la régénération, le seau public ne contient plus aucune conversion `.jpg` de
+- [x] AC6 — Après la régénération, le seau public ne contient plus aucune conversion `.jpg` de
       photo (comptage des objets par préfixe).
 - [ ] AC7 — Le relevé avant/après (transformations sur 30 jours, poids d'une carte et d'une tuile)
       est écrit, daté, avec sa commande.
@@ -134,11 +134,11 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
 
 ## Reste sur dev
 
-Le code est sur `dev` depuis la PR #318 (2026-10-04). Ce qui manque ne se fait qu'en préproduction :
-déploiement, puis `media:convert-photos-to-webp` (runbook : `docs/infra/hebergement.md`,
-« Basculer les photos en WebP »), puis le relevé d'AC1, AC2, AC5, AC6 et AC7. Le compte de
-transformations sur 30 jours (AC7) se lit au tableau de bord Cloudflare, hors de portée de la
-session qui a implémenté.
+Le code est sur `dev` depuis la PR #318 (2026-10-04), et sa correction depuis la PR #321. La
+préproduction est basculée (2026-10-05, voir « Relevés en préproduction »). Il ne reste que la
+moitié d'AC7 : le compte de transformations sur 30 jours, avant et après, se lit au tableau de bord
+Cloudflare, hors de portée de la session qui a implémenté. Et ce compte ne baisse qu'en fenêtre
+glissante : il se relève au plus tôt le 2026-11-04.
 
 ## Notes d'implémentation
 
@@ -186,8 +186,51 @@ session qui a implémenté.
 - **Relevé avant, partiel** : les poids sont dans l'amendement d'ADR-0029. Le compte de
   transformations sur 30 jours (tableau de bord Cloudflare) n'a pas été relevé : pas d'accès
   depuis cette session.
-- **Ce qui reste ouvert, et pourquoi le ticket est en `review`** : AC1, AC2, AC5, AC6 et AC7
-  demandent le déploiement en préproduction, puis `media:convert-photos-to-webp` (runbook :
-  `docs/infra/hebergement.md`, « Basculer les photos en WebP »). Rien de cela n'est joué ici.
+- **Ce qui reste ouvert, et pourquoi le ticket est en `review`** : le compte de transformations
+  sur 30 jours d'AC7 (voir « Reste sur dev »). Les poids d'AC7 sont relevés.
 - **Constat hors périmètre** : sur la préproduction, la `thumbnail` d'une source de 800 × 600 mesure
   400 × 300, pas 300 × 300 (`width(300)->height(300)`). Mesuré, pas expliqué ; non touché.
+
+## Relevés en préproduction — 2026-10-05
+
+Build `78d4129b` (PR #321), `media:convert-photos-to-webp` lancé le 2026-10-04 à 23:08 Z sur les
+3 340 photos restantes, file `media` vide à 03:48 Z, soit environ 12 photos par minute sur un
+`worker-media`. Scripts de relevé : ils n'impriment que des comptes et des codes HTTP.
+
+- **AC5** : 121 relevés de l'ensemble des `main_photo_url` de l'API publique, toutes les 2 minutes
+  pendant la bascule. **Aucun 404, aucun code autre que 200**, 0 job échoué. Dans 4 relevés sur
+  121, un bien n'avait pas de photo : c'est la fenêtre prévue par l'amendement (le temps que le job
+  de cette photo tourne, l'API n'en émet aucune URL), et le bien l'avait retrouvée au relevé
+  suivant. Six relevés de plus n'ont rien rendu : coupure réseau du poste (DNS et SSH en échec en
+  même temps), pas du serveur. Dernier relevé : 244 biens sur 244 avec photo, 244 en
+  `image/webp`.
+- **Intégrité, au même moment** : 3 446 photos de biens sur 3 446 portent le marqueur, 0 conversion
+  non produite, et les 3 446 exigent le filigrane, sans aucune conversion sans filigrane.
+- **AC6** : `Storage::disk('r2-media')->allFiles()` rend 10 338 conversions `.webp` (3 446 × 3) et
+  243 `.jpg`, toutes des conversions d'avatar (`User:avatar`, 81 × 3), hors périmètre. **Aucune
+  conversion `.jpg` de photo de bien.**
+- **AC2** : sur la fiche `appartement-lumineux-f6-a-ngor-OExajy`
+  (`/api/public/properties/{slug}`), les 5 photos rendent `thumbnail`, `preview` et `full` en
+  200 et `image/webp`, à l'URL exacte que l'API a émise (aucune redirection).
+- **AC1** : relevé sur le **HTML servi**, pas au navigateur, parce qu'un Chrome sans tête se fige
+  sur l'authentification basique de la préproduction. Le `srcset` qu'y écrit `next/image` est
+  ce que le navigateur demande. Résultat : 0 `/cdn-cgi/image/` pour une photo de bien sur `/fr`
+  (698 URL WebP directes), `/fr/properties` (336) et trois fiches. Sur deux fiches, 14
+  `/cdn-cgi/image/` restent, tous pour un même `.png` original hors `conversions/` : un avatar
+  ou un logo, qui garde Transformations comme prévu. Avant la bascule, `/fr` en comptait 614,
+  tous pour des conversions `.jpg`.
+- **AC7, poids** : média 1993, celui du relevé avant. Sa `preview` en WebP filigranée pèse
+  **34 690 o**, contre 60 553 o en JPEG et 25 585 o en AVIF à `width=640` avant la bascule. Sa
+  `full` pèse aussi 34 690 o (la source fait 800 px, donc `full` n'agrandit rien), contre 34 378 o en
+  AVIF à `width=960`. Sa `thumbnail` pèse 10 002 o. Les chiffres sont reportés dans l'amendement
+  d'ADR-0029.
+
+  ```bash
+  curl -s -H 'Accept: image/avif,image/webp,*/*' -o /dev/null -w '%{size_download} %{content_type}' \
+    "https://media-preview.takussan.com/1993/conversions/268d005ada12bebc61fbe5f02961dbd9769c4992-preview.webp?v=1791163665"
+  ```
+- **Constat, sans conséquence ici** : `ApplyWatermarkOnConversionListener` met toujours un
+  `ApplyWatermarkJob` en file à chaque conversion produite, alors que le job de bascule filigrane
+  lui-même. Ces jobs en double ne refont rien (le filigrane est vérifié sous verrou), mais ils ont
+  porté la file jusqu'à 8 125 jobs pendant la bascule. Ils passent après les bascules, et ne
+  retardent donc aucune photo.
