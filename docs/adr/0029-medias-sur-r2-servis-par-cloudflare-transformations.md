@@ -191,3 +191,19 @@ Transformations pour les photos tombe à zéro, quelle que soit la taille du cat
 poids reste inférieur à celui du JPEG que le quota dépassé servait déjà. Une conversion
 intermédiaire (une `card` d'environ 480 px) rapprocherait la carte de l'AVIF à 640 sans rien
 facturer. C'est un ticket à part, à décider sur mesure.
+
+### Relevé après — 2026-10-05, préproduction basculée
+
+Même photo (média 1993), même commande, sur l'URL que l'API émet désormais (`…-preview.webp`,
+servie sans `/cdn-cgi/image/`) :
+
+| Ce qui est servi | Poids |
+|---|---|
+| `preview` en WebP qualité 75, **filigranée**, servie telle quelle | 34 690 o |
+| `full` (même fichier : la source fait 800 px, `full` n'agrandit rien) | 34 690 o |
+| `thumbnail` | 10 002 o |
+
+L'écart accepté plus haut se confirme : la galerie est au poids de l'AVIF (35 Ko contre 34), et
+une carte mobile paie +36 % (35 Ko contre 26). Le compte de transformations sur 30 jours ne se
+lit qu'au tableau de bord, et il ne baisse qu'en fenêtre glissante : il reste à relever, au plus
+tôt le 2026-11-04 (TCK-585, AC7). Détail de la bascule et des relevés : le ticket.
