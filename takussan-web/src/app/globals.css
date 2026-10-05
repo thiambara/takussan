@@ -717,6 +717,15 @@
   }
 }
 
+/* Une carte reste dans son cadre. Leaflet empile ses calques à 200-700 et ses contrôles à
+   800-1000, mais `.leaflet-container` n'ouvre aucun contexte d'empilement : ces index se
+   comparaient à ceux de la page, et la carte passait au-dessus de l'en-tête collant et de la
+   lightbox (`z-50`). `isolation: isolate` les enferme dans le conteneur, pour toutes les cartes
+   à la fois — `carte-isolee.test.ts` le garde. */
+.leaflet-container {
+  isolation: isolate;
+}
+
 /* TCK-162 — Leaflet price-pill markers. Strip the default white square
    chrome from `.leaflet-div-icon` so only the pill renders. */
 .leaflet-div-icon.takussan-price-marker {
