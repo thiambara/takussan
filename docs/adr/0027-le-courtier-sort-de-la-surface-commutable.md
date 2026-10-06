@@ -1,6 +1,6 @@
 # ADR-0027 — Le courtier sort de la surface commutable, sans quitter la base
 
-- **Statut** : accepté
+- **Statut** : remplacé par [ADR-0030](0030-le-courtier-quitte-le-code-et-la-base.md) le 2026-10-06 — le courtier quitte aussi la base
 - **Date** : 2026-08-31
 - **Ticket** : [TCK-495](../backlog/tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md)
 - **Remplace / amende** : rien. Précise l'application d'[ADR-0002](0002-role-est-un-profil-polymorphe.md).

@@ -2843,6 +2843,54 @@ field format is invalid »*. `SelectActiveProfileTest` comptait six cas, tous su
 
 ---
 
+## 🟡 Consignées en dette par décision du porteur — analyse par acteur (2026-10-06)
+
+L'analyse par acteur du 2026-10-06 (vague 73, TCK-586 → TCK-602) a relevé 160 améliorations. Deux
+ont été **consignées ici plutôt que ticketées**, sur décision du porteur : elles sont réelles, mais
+leur moment n'est pas venu. *Une dette consignée n'est pas une dette oubliée : elle porte sa preuve et
+la condition qui la rouvrira.*
+
+### D-65 — La messagerie et les notifications « en temps réel » interrogent l'API en boucle
+
+`docs/features.md` §1.7 promet en **P1** une « Notification en temps réel (in-app + email) ». Le code
+interroge :
+
+- le fil ouvert toutes les **3 s** (`takussan-web/src/lib/queries/conversations.ts:279`) ;
+- la liste des conversations toutes les **10 s** (`:135`) ;
+- la cloche toutes les **30 s** (`takussan-web/src/components/layout/NotificationBell.tsx:75`).
+
+Aucun transport de diffusion n'est provisionné : `BROADCAST_CONNECTION=log` dans `.env.example:108`
+**et** dans `.env.docker:163`, aucune dépendance `reverb`/`pusher`/`laravel-echo` dans
+`takussan-web/package.json` ni `takussan-api/composer.json`. L'événement `NewNotification` émis par
+`NotificationService` part donc dans le journal. Mesuré le 2026-10-06.
+
+**Ce que ça coûte** : un fil laissé ouvert, c'est de l'ordre de 1 200 requêtes par heure — sur un
+forfait mobile prépayé, c'est la donnée du client qui paie, et sur le serveur une charge sans
+rapport avec l'activité réelle.
+
+*Pas de ticket, sur décision du porteur (2026-10-06) : le temps réel demande un service
+d'infrastructure de plus sous Dokploy (Reverb, ou SSE par le BFF), donc un ADR. À rouvrir quand
+l'API sera en production et que la charge ou le coût mobile seront mesurables. Un repli progressif
+(3 s → 15 s → 60 s après inactivité, arrêt hors focus) reste possible sans ADR.*
+
+### D-66 — Les rôles de collaborateur `co_owner` et `viewer` se saisissent et n'ouvrent rien
+
+`PropertyCollaborator.role` accepte `manager | co_owner | agent | viewer`
+(`takussan-api/app/Models/Enums/CollaboratorRole.php:7-10`, validé par
+`StorePropertyCollaboratorRequest`), et `docs/models-spec.md` les décrit. Mais **aucune policy ne lit
+les collaborateurs d'un bien** : `grep -rn collaborat takussan-api/app/Policies` → 0 ;
+`CollaboratorRole::` n'est lu que par `PrimaryPropertyContact` (pour `Agent`). Un proche ajouté en
+`viewer`, ou un co-indivisaire en `co_owner`, n'obtient donc **aucun** accès — pas même la lecture du
+bien, puisque `PropertyPolicy::view` n'accorde qu'au propriétaire, au membre de l'agence active et au
+super-admin. Mesuré le 2026-10-06.
+
+**Pour qui ça compte** : le bailleur de la diaspora, qui voudrait laisser un proche sur place suivre
+visites, maintenance et loyers — c'était la fonction la plus demandée du rapport « bailleur ».
+
+*Pas de ticket, sur décision du porteur (2026-10-06). Condition de réouverture : TCK-587 (cloisonnement
+des bailleurs d'une même agence) fusionné — c'est le même endroit des policies, et ouvrir des accès
+avant d'avoir fermé ceux qui fuient serait les ouvrir sur une base fausse.*
+
 ## Ce que cet inventaire ne couvre pas
 
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des
