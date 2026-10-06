@@ -23,7 +23,7 @@ spec_refs:
     - docs/models-spec.md#39-serviceprovideragencycollaboration-
     - docs/models-spec.md#34-ownerprofile-
     - docs/models-spec.md#20-message-
-tags: [back, front, maintenance, prestataire, securite, machine-d-etat, notifications, adr-requise]
+tags: [back, front, maintenance, prestataire, securite, machine-d-etat, notifications, messagerie, adr-requise]
 ---
 
 ## Objectif utilisateur
@@ -91,6 +91,17 @@ prestataire). **Chaque constat ci-dessous a été re-mesuré** sur `e3ab4a4e` (a
   (`ServiceProviderOnboardingService.php:145-161`) sans que la demande soit assignée : le prestataire
   atterrit sur un 403. Aucun composant ne produit d'ailleurs ce lien (seul le TODO
   `MaintenanceForm.tsx:4-13`).
+- Carnet de l'agence : `ServiceProviderProfileController::scopeForAgency` (`:55-61`) prend toute
+  collaboration du couple, **sans filtre de statut**. Dès qu'une fin de collaboration existe (B), un
+  prestataire `ended` reste présenté comme prestataire de l'agence.
+- Fin d'onboarding **rejouable** : `POST /api/service-provider/onboard/complete`
+  (`routes/api/onboarding.php:32`) n'a aucune garde « déjà fait » ; l'OTP est sauté si le téléphone
+  est vérifié (`ServiceProviderOnboardingService.php:46-53`). Chaque appel repasse le profil à
+  `active` **quel que soit son statut** (`:64-66`, `suspended` compris) et réactive **toutes** les
+  collaborations `paused` du prestataire (`:68-71`), pas seulement celles d'une invitation en
+  attente. Aujourd'hui seul l'envoi d'invitation pose `paused` (`ServiceProviderInvitationService.php:124-131`)
+  et rien ne pose `suspended` : le défaut devient réel **avec ce ticket**, qui crée la pause par
+  l'agence et donne un sens à `suspended` — le prestataire lèverait l'une et l'autre lui-même.
 
 ### 3. Ce que personne n'apprend (C7, P4, P13, O14)
 
@@ -118,6 +129,14 @@ prestataire). **Chaque constat ci-dessous a été re-mesuré** sur `e3ab4a4e` (a
   écrites et **jamais relues** : ni la ressource ni la fiche n'en exposent une seule.
 - Devis : un `amount` unique et une devise **libre** (`SubmitQuoteRequest.php:26-27`, placeholder
   « XOF, EUR... »).
+- Pièces du devis **sans contrôle de type** : `attachments.*` = `['file', 'max:5120']`
+  (`SubmitQuoteRequest.php:28-29`), aucun `mimes` — contrairement aux photos de la même demande
+  (`UploadPhotosMaintenanceRequestRequest.php:50`, `CompleteMaintenanceRequestRequest.php:40` :
+  `image`, `mimes:jpg,jpeg,png,webp`). Tout fichier part dans la collection `quotes`
+  (`MaintenanceQuoteWorkflow.php:70-71`) ; le champ du front n'a pas d'`accept`
+  (`QuoteSubmitForm.tsx:79-84`). La sortie privée sert un média avec **son** type et en `inline`
+  (`PrivateMediaAccess.php:54-83`) : le jour où E expose `media.quotes`, un `.html` ou un `.svg`
+  déposé par un prestataire s'ouvrirait dans le navigateur de l'agence.
 
 ### 5. Front (P1, P11, P14, P15, P16, P17)
 
@@ -143,6 +162,15 @@ Une conversation peut porter `maintenance_request_id` (`GroupConversationService
 ne la crée, la fiche n'y renvoie pas, et `MessagingReach` ne rend pas un prestataire joignable.
 `MessageType` ne connaît pas l'audio, et l'API d'envoi n'accepte **aucun fichier**
 (`SendMessageConversationRequest` : `content` string requis).
+
+**Usurpation d'un avis système (sécurité)** : la même requête accepte `type` = **tout**
+`MessageType` (`SendMessageConversationRequest.php:44`), que le contrôleur écrit tel quel
+(`ConversationController.php:280-284`). Un participant poste donc un `type=system` : le front le
+rend comme un avis de la plateforme (`ChatView.tsx:409`), il n'est pas compté non lu
+(`ConversationController.php:38`) et **personne ne peut le supprimer ni le corriger**
+(`ConversationPolicy.php:59-62`, `MessageObserver.php:26-57`). `image`/`document` passent de même,
+sans fichier. Le seul auteur légitime d'un avis système est `SystemMessageFactory` (`:93`). Le fil
+par intervention de H y poste ses messages d'étape : la porte doit être fermée avant.
 
 **Articulation avec [TCK-446](TCK-446-spec-muette-sur-le-prestataire.md)** : 446 écrit la spec de ce
 que le produit sert déjà au prestataire ; ce ticket construit. La ligne « consulter ses interventions
@@ -206,9 +234,17 @@ Modèles : `MaintenanceRequest` (colonnes `accepted_at`, `access_instructions`, 
   sauf soumettre un devis), demandeur (`confirm`/`contest`). Le prestataire ne passe **jamais**
   `cancelled` ni `closed`.
 - Est assignable : un utilisateur dont le `ServiceProviderProfile` est `active` et qui a une
-  collaboration `active` avec **l'agence du bien** (option recommandée : plus un membre de l'équipe de
-  cette agence — question au porteur). Le même contrôle garde `view`/`update`/`actAsProvider` côté
-  prestataire : collaboration finie ou profil suspendu = plus d'accès, historique compris.
+  collaboration `active` avec **l'agence du bien** (option retenue par défaut, non tranchée par le
+  porteur : plus un membre de l'équipe de cette agence). Le même contrôle garde
+  `view`/`update`/`actAsProvider` côté prestataire : collaboration finie ou profil suspendu = plus
+  d'accès, historique compris (option retenue par défaut : les données des locataires priment ; 594
+  sert ses factures par un autre chemin).
+- Une pause ou une suspension posée par l'agence ou la plateforme ne se lève **jamais** par le
+  prestataire lui-même : la fin d'onboarding n'active que les collaborations d'une invitation en
+  attente, et refuse un profil `suspended`.
+- Un participant n'écrit que `text` (et `audio` avec son fichier, H) : `system` est réservé à
+  `SystemMessageFactory`.
+- Pièces d'un devis : PDF ou image seulement (`pdf,jpg,jpeg,png,webp`), avant que E ne les expose.
 - Fin de collaboration = `status=ended` + `ended_at`, **jamais** `delete()`. Les interventions non
   terminales du prestataire dans cette agence sont désassignées (retour à `open`, événement émis).
 - Côté donneur d'ordre, l'équipe d'agence se juge par le prédicat « personnel de l'agence » de
@@ -225,7 +261,7 @@ Modèles : `MaintenanceRequest` (colonnes `accepted_at`, `access_instructions`, 
 - Montant décimal en base (principe n°3) ; lignes de devis en chaînes décimales dans le jsonb ;
   devise imposée (celle du bail, sinon de l'agence — `resolveCurrency`, `MaintenanceQuoteWorkflow.php:153`).
 - Clôture automatique d'une demande `completed` sans réponse du demandeur après **7 jours** (option
-  recommandée), tracée comme telle.
+  retenue par défaut, non tranchée par le porteur), tracée comme telle.
 - Aucun littéral de prose dans l'API : clés `__('maintenance.…', $params, $locale)` dans un nouveau
   fichier `lang/{fr,en,wo}/maintenance.php`, langue du **destinataire**.
 - PostgreSQL : index et FK nommés explicitement (< 63 car.) ; pas de `try/catch` sur une contrainte
@@ -234,7 +270,7 @@ Modèles : `MaintenanceRequest` (colonnes `accepted_at`, `access_instructions`, 
 **ADR requis** (avant le code de la sous-partie concernée)
 
 - **ADR 1 — plafond de travaux du bailleur (O14)** : où vit l'accord bailleur–agence ? Option
-  recommandée, minimale : une colonne `works_approval_threshold` (decimal, nullable = pas d'accord
+  retenue par défaut (non tranchée par le porteur), minimale : une colonne `works_approval_threshold` (decimal, nullable = pas d'accord
   requis) sur `owner_profiles`, qui **est** la relation bailleur–agence ; au-delà, l'approbation du
   donneur d'ordre fait passer le devis en `awaiting_owner`, et seul le bailleur du bien tranche.
   Pas d'entité `ManagementMandate` tant que commission et fréquence de versement n'en ont pas besoin.
@@ -252,7 +288,15 @@ Modèles : `MaintenanceRequest` (colonnes `accepted_at`, `access_instructions`, 
   prestataire » sont à 588. Les `notify(` du domaine maintenance réécrits ici font foi (règle 1).
 - **589** (P9) envoie les invitations prestataire par téléphone dans `InvitationService` ; ce ticket
   ne touche que la validation du lien profond (`ServiceProviderInvitationService::normaliseMaintenanceRequestId`)
-  et l'assignation en fin d'onboarding (`ServiceProviderOnboardingService`).
+  et l'assignation en fin d'onboarding (`ServiceProviderOnboardingService`). 589 touche aussi
+  `ServiceProviderOnboardingService::verifyOtp` (retrait du code fixe `123456`) : seul `complete()`
+  (filtre d'activation, refus du profil suspendu, assignation) est à nous ; ordre de fusion
+  indifférent, conflit de lignes voisines.
+- **Messagerie** : `SendMessageConversationRequest` et `MessageType` ne sont dans aucun autre
+  territoire ; ce ticket les prend (fermeture de `type`, audio). `ConversationController::sendMessage`
+  n'est modifié que pour l'écriture du fichier audio.
+- **601** porte les `mimes` des uploads KYC et laisse `SubmitQuoteRequest` hors de son périmètre :
+  ses `mimes` sont à nous (E).
 - **591** ajoute le type `maintenance` au calendrier (P17) : il lit `scheduled_at` et doit réutiliser
   le périmètre `MaintenanceRequest::scopeVisibleTo()` livré ici.
 - **594** crée `MaintenanceRequestObserver` (facture prestataire). **Ce ticket n'en crée pas** ; il
@@ -302,9 +346,19 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       `service_provider` ; `SystemRoleCapabilities::serviceProvider()` rendu vide
 - [ ] Lien profond : `InviteServiceProviderRequest` vérifie que la demande est de l'agence et non
       terminale ; fin d'onboarding : assignation (`accepted_at` null) à la demande de l'invitation
+- [ ] La pause par l'agence (endpoint ci-dessus) écrit `metadata.paused_by` et `metadata.paused_at`
+      sur la collaboration ; `ServiceProviderOnboardingService::complete()` n'active plus que les
+      collaborations `paused` **sans** `metadata.paused_by` (invitation en attente), et sur un profil
+      `suspended` lève un 403 (clé `service_providers.onboarding.errors.suspended`, fr/en/wo) sans
+      rien écrire — au lieu de le repasser à `active` (`:64-66`)
+- [ ] `ServiceProviderProfileController::scopeForAgency` (`:55-61`) : `filter[collaboration_status]`
+      (défaut `active`), `filter[specialty]`, `filter[zone]` — un prestataire `ended` ne figure plus
+      dans le carnet par défaut
 - [ ] Tests : `MaintenanceAssignableProviderTest`, `MaintenanceCollaborationAccessTest`,
       `MaintenanceOwnerIsolationTest`, `ServiceProviderCollaborationLifecycleTest`,
-      `AgencyVisibilityForProviderTest`, `MaintenanceAcceptDeclineTest`, `ServiceProviderInvitationDeepLinkTest`
+      `AgencyVisibilityForProviderTest`, `MaintenanceAcceptDeclineTest`, `ServiceProviderInvitationDeepLinkTest`,
+      `ServiceProviderOnboardingReplayTest`, `ServiceProviderDirectoryFilterTest`,
+      `MembershipCapabilityResolverTest` (cas collaboration `ended` / `paused`)
 
 **C. Événement et notifications (C7, P4, P13, O14 partie notification)**
 
@@ -327,12 +381,15 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **E. Lecture des pièces et kit d'accès (P6, P7, P15 back)**
 
+- [ ] **En premier, avant tout bloc `media`** : `SubmitQuoteRequest` — `attachments.*` →
+      `['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120']` (`:29`). La réécriture de F garde cette
+      règle à l'identique
 - [ ] Collection `before_photos` ; `UploadPhotosMaintenanceRequestRequest` l'accepte pour le
       prestataire accepté
 - [ ] Bloc `media` (URL signées par `PrivateMediaAccess::signedUrl`) ; `quotes` au donneur d'ordre et
       au prestataire seulement
 - [ ] Bloc `access` dans la fenêtre définie ci-dessus
-- [ ] Tests : `MaintenanceMediaExposureTest`, `MaintenanceAccessKitTest`
+- [ ] Tests : `MaintenanceQuoteAttachmentTypeTest`, `MaintenanceMediaExposureTest`, `MaintenanceAccessKitTest`
 
 **F. Devis (P11 back, P12, O14) — ADR 1 d'abord**
 
@@ -350,13 +407,21 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - [ ] Assignation et planification depuis la fiche, invitation d'un nouveau prestataire avec lien profond
 - [ ] Actions, formulaire de devis (y compris après refus) et bouton de création rendus depuis `abilities`
 - [ ] Accepter / refuser ; kit d'accès ; galerie Avant / Après / Devis ; confirmation du locataire
+- [ ] Le prestataire ne se voit plus proposer le lien vers la fiche du bien, qui le mène à un refus
+      (`MaintenanceDetail.tsx:169-177`) : le kit d'accès en tient lieu
+- [ ] Le choix des pièces du devis n'offre que les PDF et images acceptés par l'API ; un refus de type
+      est affiché, les autres pièces restent sélectionnées
 - [ ] Photos de fin envoyées **dans** `PUT …/complete` ; photos « avant » au démarrage ; prise de vue directe
 - [ ] « Mes interventions » triée par créneau, avec quartier et agence
 - [ ] Section prestataire du profil ; `updateTrades` n'écrit que les clés présentes (test back)
 - [ ] Types front alignés (`awaiting_owner`, `abilities`, `media`, `access`)
 
-**H. Fil de discussion et note vocale (P19) — ADR 2 d'abord**
+**H. Fil de discussion et note vocale (P19) — ADR 2 d'abord, sauf la première case**
 
+- [ ] **Sans attendre l'ADR 2, livrable avec A et B** : `SendMessageConversationRequest` — `type` →
+      `['nullable', Rule::in([MessageType::Text->value])]` (`:44`), étendu à `audio` par la case
+      `MessageType::Audio` ci-dessous ; `system`, `image`, `document` postés par un participant → 422
+      qui nomme `type`. `SystemMessageFactory` reste le seul écrivain de `system`
 - [ ] ADR 2 écrit et accepté
 - [ ] À la première assignation : conversation de groupe `maintenance_request_id` (donneur d'ordre
       qui assigne, prestataire, demandeur locataire), créée par `GroupConversationService` ;
@@ -364,13 +429,15 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       chaque `MaintenanceStatusChanged`
 - [ ] `MessageType::Audio` ; envoi d'un fichier audio dans `SendMessageConversationRequest`
 - [ ] Front : « Discuter » sur la fiche ; enregistrer, écouter une note vocale
-- [ ] Tests : `MaintenanceConversationTest`, `AudioMessageTest`
+- [ ] Tests : `MessageTypeSpoofingTest`, `MaintenanceConversationTest`, `AudioMessageTest`
 
 ## Critères d'acceptation
 
 - [ ] **AC1 (P2)** — Prestataire assigné, demande en `quote_submitted` : `PATCH {status: approved}`
       → **422 qui nomme `status`**, statut en base inchangé ; idem `{status: closed}` depuis `open`.
-      Les deux tests rougissent sur `e3ab4a4e` (200 aujourd'hui) et en retirant `prohibited`.
+      `{completed_at: …}` et `{started_at: …}` → 422 qui nomme le champ, colonne inchangée ;
+      `{actual_cost: 15000}` → **403**, `actual_cost` inchangé. Tous rougissent sur `e3ab4a4e` (200
+      aujourd'hui) et en retirant `prohibited` / l'ajout à `PRINCIPAL_FIELDS`.
 - [ ] **AC2 (P10, P14)** — Prestataire : `PUT …/status` vers `cancelled` (depuis `in_progress`) et
       vers `closed` (depuis `completed`) → **403**. Donneur d'ordre : `cancelled` depuis
       `quote_requested` → 200 (422 aujourd'hui).
@@ -381,9 +448,13 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       demande absente de `GET index`, `PATCH` → 403 ; ses demandes non terminales de cette agence
       reviennent à `assigned_to = null`, `status = open`.
 - [ ] **AC5 (O1)** — Deux bailleurs de la même agence, B1 et B2 : B2 sur une intervention du bien de
-      B1 → `show` 403, absente de `index`, `quote/approve` 403, `store` sur le bien de B1 403. Un
+      B1 → `show` 403, absente de `index`, `PATCH {priority}` 403, `quote/approve` 403, `store` sur
+      le bien de B1 403. Un
       agent de l'agence → 200 (témoin). Rouge aujourd'hui pour B2.
 - [ ] **AC6 (B13)** — Prestataire à collaboration `ended` : `GET /api/agencies/{id}` → 404 ; `active` → 200.
+      Même prestataire, collaboration `ended` portant un `agency_role_id` dont le rôle accorde une
+      capacité : `MembershipCapabilityResolver` la **refuse** (accordée aujourd'hui) et
+      `isProviderAt($agencyId)` rend `false` (`true` aujourd'hui) ; `active` → accordée / `true`.
 - [ ] **AC7 (B17)** — Fin puis reprise de la collaboration du même couple : une seule ligne vivante,
       statut `active`, aucune erreur 23505 ; une ligne supprimée en douceur n'empêche pas une création.
 - [ ] **AC8** — Chaque chemin de changement émet **exactement un** `MaintenanceStatusChanged` portant
@@ -413,15 +484,26 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       `awaiting_owner`, bailleur notifié ; le bailleur approuve → `approved` ; un autre bailleur de
       l'agence → 403. Devis de 40 000 → `approved` directement. Seuil nul → comportement actuel.
 - [ ] **AC17 (capacités)** — Un agent dont le rôle personnalisé n'a pas `maintenance.assign` :
-      `PATCH {assigned_to}` → 403 ; avec → 200. Après la migration de données, aucun rôle système
-      `service_provider` ne porte `maintenance.*`.
+      `PATCH {assigned_to}` → 403 ; avec → 200. Un agent dont le rôle n'a pas `maintenance.close` :
+      `PUT …/status {closed}` depuis `completed` → 403 (200 aujourd'hui) ; avec → 200. Après la
+      migration de données, aucun rôle système `service_provider` ne porte `maintenance.*`.
 - [ ] **AC18 (P18)** — Invitation portant la demande d'une **autre** agence → 422. Demande de
       l'agence non terminale : en fin d'onboarding, elle est assignée au nouveau prestataire et son
       `GET show` rend 200.
+- [ ] **AC18b (fin d'onboarding rejouée)** — Prestataire actif, téléphone vérifié, une collaboration
+      `paused` avec `metadata.paused_by` (pause de l'agence) et une `paused` sans (invitation en
+      attente) : `POST /api/service-provider/onboard/complete` → la première **reste `paused`**, la
+      seconde passe `active` (aujourd'hui les deux passent `active` : rouge). Profil `suspended` : même
+      appel → 403, profil toujours `suspended`, aucune collaboration modifiée (aujourd'hui 200 et
+      profil `active` : rouge). Ablation : retirer le filtre `paused_by` ou la garde `suspended` → rouge.
+- [ ] **AC18c (carnet)** — `GET /api/agencies/{id}/service-providers` sans filtre : un prestataire à
+      collaboration `ended` **absent**, un `active` présent ; `filter[collaboration_status]=ended` le
+      rend. Rouge aujourd'hui (le `ended` est listé).
 - [ ] **AC19 (P1, P11, P14 — front, vitest)** — Fiche vue par le prestataire en `quote_submitted` :
       ni « Approuver » ni « Annuler » ; en `rejected` : le formulaire de devis est présent et aucun
       bouton n'appelle `PUT …/status`. Vue par l'agence : pas de formulaire de devis, un bloc
-      d'assignation qui appelle `PATCH` avec `assigned_to` et `scheduled_at`.
+      d'assignation qui appelle `PATCH` avec `assigned_to` et `scheduled_at`. Vue par le prestataire :
+      aucun lien vers `/app/properties/{id}`.
 - [ ] **AC20 (P15 — front)** — Un échec de `PUT …/complete` avec photos affiche une erreur et garde
       les fichiers sélectionnés ; aucune requête d'upload séparée n'est émise après la complétion.
 - [ ] **AC21 (P16, P17)** — `PATCH …/trades` portant seulement `intervention_zones` laisse
@@ -431,8 +513,18 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       prestataire et le locataire ; une seconde assignation n'en crée pas une deuxième ; une note
       `audio` de ≤ 60 s est acceptée (201, fichier privé), un `type=audio` sans fichier ou un fichier
       texte → 422.
+- [ ] **AC22b (avis système usurpé)** — Participant actif d'une conversation :
+      `POST /api/conversations/{id}/messages {content: "…", type: "system"}` → **422 qui nomme
+      `type`**, aucun message créé (201 aujourd'hui, message `system` créé : rouge) ; idem `image` et
+      `document` ; sans `type` ou `type=text` → 201. Ablation : remettre `Rule::enum(MessageType::class)` → rouge.
 - [ ] **AC23** — Aucun `notify(`/`abort(` ajouté ou réécrit par ce ticket ne porte de littéral ;
       chaque clé ajoutée existe en `fr`, `en` et `wo`.
+- [ ] **AC24 (pièces du devis)** — Prestataire assigné, demande en `quote_requested` :
+      `POST …/quote/submit` avec `attachments[0]` = `UploadedFile::fake()->create('devis.html', 10, 'text/html')`
+      → **422 qui nomme `attachments.0`**, statut toujours `quote_requested`, collection `quotes`
+      vide ; idem un `.svg` (`image/svg+xml`). Avec `devis.pdf` (`application/pdf`) → 200 et
+      **1** média dans `quotes`. Rouge aujourd'hui (200 et le `.html` stocké) ; ablation : retirer
+      `mimes` → rouge. Écrit en E avec le corps en vigueur ; F le garde en passant au corps `lines[]`.
 
 ## Hors périmètre
 

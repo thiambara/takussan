@@ -2845,8 +2845,8 @@ field format is invalid »*. `SelectActiveProfileTest` comptait six cas, tous su
 
 ## 🟡 Consignées en dette par décision du porteur — analyse par acteur (2026-10-06)
 
-L'analyse par acteur du 2026-10-06 (vague 73, TCK-586 → TCK-602) a relevé 160 améliorations. Deux
-ont été **consignées ici plutôt que ticketées**, sur décision du porteur : elles sont réelles, mais
+L'analyse par acteur du 2026-10-06 (vague 73, TCK-586 → TCK-602) a relevé 160 améliorations. Cinq
+points ont été **consignés ici plutôt que ticketés**, sur décision du porteur : ils sont réels, mais
 leur moment n'est pas venu. *Une dette consignée n'est pas une dette oubliée : elle porte sa preuve et
 la condition qui la rouvrira.*
 
@@ -2884,12 +2884,65 @@ les collaborateurs d'un bien** : `grep -rn collaborat takussan-api/app/Policies`
 bien, puisque `PropertyPolicy::view` n'accorde qu'au propriétaire, au membre de l'agence active et au
 super-admin. Mesuré le 2026-10-06.
 
+⚠ **Une exception, et elle va dans le mauvais sens** : hors des policies,
+`InventorySignatureService.php:110-118` laisse **tout** collaborateur accepté du bien — `viewer` compris
+— signer l'état des lieux **comme bailleur**. Elle ne joue aujourd'hui que pour les lignes des seeders,
+puisqu'aucune route ne pose `accepted_at`. Ce n'est pas cette dette-ci, c'est un défaut : **TCK-596 le
+corrige**. *Un rôle qui n'ouvre rien, sauf le seul geste qui engage le bailleur.*
+
 **Pour qui ça compte** : le bailleur de la diaspora, qui voudrait laisser un proche sur place suivre
 visites, maintenance et loyers — c'était la fonction la plus demandée du rapport « bailleur ».
 
 *Pas de ticket, sur décision du porteur (2026-10-06). Condition de réouverture : TCK-587 (cloisonnement
 des bailleurs d'une même agence) fusionné — c'est le même endroit des policies, et ouvrir des accès
 avant d'avoir fermé ceux qui fuient serait les ouvrir sur une base fausse.*
+
+### D-67 — Aucun relevé Wave Business ni Orange Money réel n'a servi à régler l'import des relevés
+
+Le rapprochement bancaire lit un CSV par un mapping de colonnes (`takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:12`,
+`DEFAULT_MAPPING` : `date` / `amount` / `label`, date `d/m/Y`, séparateur `,`), fusionné avec
+`agencies.bank_csv_mapping` (`:29`). Ce format par défaut n'est celui d'**aucun** export connu de
+Wave Business ni d'Orange Money : personne n'a eu un fichier réel entre les mains. Les colonnes, le
+format de date, les séparateurs, le CSV ou le XLSX, et le montant brut ou net des frais marchands
+sont **inconnus**. Mesuré le 2026-10-06.
+
+TCK-593 corrige ce qui ne dépend pas d'un fichier réel — le mapping de l'agence devient réglable
+depuis l'écran, le séparateur décimal est déclaré au lieu d'être deviné, les lignes ignorées sont
+comptées et montrées — mais **ne livre aucun préréglage de colonnes par fournisseur**.
+
+*Pas de préréglage, sur décision du porteur (2026-10-06). Condition de réouverture : un export réel
+de chaque fournisseur, même anonymisé. Un préréglage écrit sans fichier serait une supposition
+présentée comme un format.*
+
+### D-68 — Le NINEA et le RCCM ne sont contrôlés que par leur longueur
+
+`SubmitAgencyUpgradeRequestRequest.php:31` valide le NINEA par `['required', 'string', 'max:30']` ;
+aucune règle ne porte sur sa forme, ni sur celle du RCCM, dans aucune `FormRequest`
+(`grep -rn ninea takussan-api/app/Http/Requests`). Une saisie fantaisiste passe donc au dossier KYC
+et à la revue du super-admin, qui est aujourd'hui le seul contrôle. Mesuré le 2026-10-06.
+
+TCK-601 détecte un NINEA ou un RIB professionnel **déjà porté par une autre agence**, par une
+comparaison normalisée (espaces, casse) qui ne suppose aucun format — mais n'écrit aucune règle de
+forme.
+
+*Pas de règle de forme, sur décision du porteur (2026-10-06). Condition de réouverture : trois à cinq
+échantillons réels (NINEA avec et sans COFI, RCCM de Dakar et d'une autre juridiction). Une regex
+écrite sur une hypothèse refuserait des agences réelles, et ce refus-là ne se voit pas : l'agence
+abandonne simplement.*
+
+### D-69 — Cinq capacités du catalogue ne sont jugées par aucun geste, et TCK-587 ne les branche pas
+
+TCK-587 pose une garde : toute capacité de l'enum `Capability` est soit lue par au moins un geste,
+soit inscrite à un inventaire « sans lecteur » qui ne peut que décroître. Il branche celles dont un
+ticket de la vague porte le geste (`maintenance.*` par TCK-592, `payouts.approve` et
+`agency.update_billing` par TCK-594…). Cinq restent **sans aucun geste qui les attende** :
+`agency.update`, `agency.upgrade_request`, `payments.refund`, `messaging.broadcast`,
+`messaging.archive`. Elles s'accordent dans l'éditeur de rôles et ne changent rien — l'éditeur le
+dira désormais (« sans effet pour l'instant »). Relevé du 2026-10-06 (passe de correction de TCK-587).
+
+*Pas de ticket : brancher une capacité sans geste, c'est inventer le geste. Condition de réouverture :
+le ticket qui crée le geste (remboursement, diffusion, archivage de conversation…) la branche et la
+retire de l'inventaire ; la garde de TCK-587 l'exige, puisque l'inventaire ne peut que décroître.*
 
 ## Ce que cet inventaire ne couvre pas
 

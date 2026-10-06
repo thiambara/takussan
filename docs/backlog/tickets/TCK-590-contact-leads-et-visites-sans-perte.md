@@ -60,7 +60,16 @@ re-mesuré sur `e3ab4a4e` ; les écarts avec les rapports sont dans les notes de
   `:126-130`) : **une même visite a deux périmètres**, et le collègue qui gère le bien ne la voit
   pas dans la liste. Aucun geste « prendre en charge » (`takussan-web/src/components/visits/VisitDetail.tsx:90-101`).
 - `notifyConfirmed` sort dès que `visitor` est nul (`PropertyVisitController.php:286-298`) : un
-  visiteur sans compte n'est jamais prévenu. `cancel` (l.165-182) ne prévient personne.
+  visiteur sans compte n'est jamais prévenu. `cancel` (l.165-182) ne prévient personne. `update`
+  (l.95-129) déplace l'heure sans prévenir le visiteur, et `UpdatePropertyVisitRequest.php:38`
+  (`'scheduled_at' => ['sometimes', 'date']`, sans `after:now`) accepte une heure **passée**.
+- `$isStaff` de `store` (`PropertyVisitController.php:67-69`) et `$isAgent` de `feedback`
+  (l.231-234) lisent `$user->agency_id`, le pont qui rend l'agence du profil actif **quel qu'il
+  soit** (`User.php:228-251`) : un **bailleur** de l'agence passe pour du personnel — il réserve
+  une visite sur un bien non public d'un autre bailleur en gardant l'`agent_id` qu'il envoie
+  (l.72-76 sautés), et dépose l'avis « agent » sur les visites des biens d'un autre bailleur.
+  TCK-587 exempte ces deux sites de sa garde **au nom de 590** (`TCK-587`, § Coordination) : s'ils
+  ne sont pas corrigés ici, ils ne le sont nulle part.
 
 ### 2. Les leads sont enregistrés et illisibles (V3 + A2)
 
@@ -73,8 +82,17 @@ re-mesuré sur `e3ab4a4e` ; les écarts avec les rapports sont dans les notes de
 - L'agent reçoit une notification au titre français figé `'Nouveau lead anonyme'`, dont le corps
   est `nom (e-mail) : ` + **80 caractères** du message, **sans le téléphone**
   (`PublicPropertyController.php:926-934`, `PublicAgentController.php:353-359`).
-- Si le contact principal est nul (propriétaire supprimé en douceur, `User` est `SoftDeletes`,
-  sans collaborateur agent), le lead est stocké et personne n'est prévenu (l.926).
+- Si le contact principal est nul, le lead est stocké et personne n'est prévenu (l.926). Ce n'est
+  pas un cas d'école : `DELETE /api/auth/account` (`UserAdminController::deleteOwnAccount` →
+  `anonymize`, l.130-155) supprime en douceur le compte sans dépublier ses biens ; `owner` devient
+  `null` (`User` est `SoftDeletes`) et un bien sans collaborateur `agent` n'a plus personne.
+- Le contact principal peut être **quelqu'un qui n'est plus là** : `PrimaryPropertyContact::agentPrincipal`
+  (`app/Services/Property/PrimaryPropertyContact.php:77-83`) ne filtre que `user !== null`. Un
+  agent **bloqué** (`UserAdminController.php:73`, statut seul, pas de suppression) ou **retiré de
+  l'agence** (`AgentInvitationService::remove` l.163-185 supprime le profil, jamais la ligne de
+  `property_collaborators`) reste destinataire : le lead (nom, téléphone, message), la
+  notification, le fil authentifié (`PublicPropertyController.php:793`, `:833`) et le **numéro
+  affiché aux visiteurs** (`contact()` l.966) partent chez une personne hors de l'agence.
 - `crm.view_all` et `crm.assign` sont accordées à l'agent (`app/Services/Membership/SystemRoleCapabilities.php:82-83`)
   et ne sont lues nulle part.
 
@@ -107,8 +125,12 @@ re-mesuré sur `e3ab4a4e` ; les écarts avec les rapports sont dans les notes de
 - **Sécurité** — `StorePropertyVisitRequest` accepte tout `customer_id` existant et `store` ne le
   retire pas à un non-personnel (seul `agent_id` est retiré, l.72-76) : un client rattache sa
   visite à la fiche client d'une **autre agence**, que `index` montre ensuite à l'utilisateur de
-  cette fiche (l.40). `UpdatePropertyVisitRequest` accepte `agent_id` = **n'importe quel
-  utilisateur** (`exists:users,id`), y compris d'une autre agence.
+  cette fiche (l.40) et dont `PropertyVisitPolicy::view` (l.31) ouvre la lecture **et
+  l'annulation** (`CancelPropertyVisitRequest.php:29` délègue à `view`). Le personnel, lui, peut
+  passer la fiche client d'une autre agence. `UpdatePropertyVisitRequest.php:39` **et**
+  `StorePropertyVisitRequest.php:35` acceptent `agent_id` = **n'importe quel utilisateur**
+  (`exists:users,id`), y compris d'une autre agence — qui devient alors titulaire de `update`
+  (`PropertyVisitPolicy.php:47`) : il confirme, termine, et lit le téléphone du visiteur.
 
 ### 6. Fuseau, créneaux et replanification (V11 + C13)
 
@@ -183,8 +205,12 @@ pas un formulaire administratif.
 ## Contraintes strictes (métier)
 
 1. **Un seul destinataire** : `App\Services\Property\PrimaryPropertyContact::for()` reste la seule
-   règle, pour le lead, la visite, `has_phone` et le numéro composé. Ce ticket l'appelle et ne la
-   modifie pas.
+   règle, pour le lead, la visite, `has_phone`, le numéro composé et le fil authentifié. Ce ticket
+   n'y change **que l'éligibilité** : un collaborateur `agent` n'est retenu que s'il est joignable
+   (statut ni `blocked` ni `deleted`) et, pour un bien d'agence, personnel de l'agence du bien ; le
+   propriétaire n'est retenu que s'il est joignable. L'ordre (TCK-502) ne change pas. À défaut de
+   tout destinataire, ce sont les admins de l'agence du bien ; à défaut d'agence, la demande est
+   refusée (409, code `contact_unavailable`), rien n'est stocké.
 2. **`agent_id` n'est posé que sur le personnel de l'agence du bien** (agent ou admin d'agence,
    jamais bailleur ni client) — à la création publique, en planification console, en prise en
    charge et en `PATCH`. Sinon la visite est « non attribuée ».
@@ -208,21 +234,38 @@ pas un formulaire administratif.
 9. **Pas de prix en devise étrangère** (décision du porteur, 2026-10-06).
 10. Migrations : index et FK nommés explicitement (< 63 caractères), `down()` réversible (les lignes
     sans e-mail ou de canal `whatsapp`/`call` sont supprimées avant de rétablir `NOT NULL`).
+11. **Une heure de visite est toujours future**, à la création comme au `PATCH`, et tout
+    déplacement d'heure par l'agence prévient le visiteur (contrainte 4 pour l'anonyme).
+
+**Options retenues par défaut** (questions non tranchées par le porteur le 2026-10-06) :
+- la demande de visite **sans compte** est ouverte dans l'interface (nom + téléphone, e-mail
+  facultatif) — position produit du 2026-08-27 : la barrière est le limiteur, pas le compte ;
+- un clic WhatsApp / Appeler est enregistré (canal + source, sans identité) et compté par bien,
+  **hors** de la file « à traiter » ;
+- un seul ticket, livrable en deux temps sur la même branche : (a) leads, contact de la fiche,
+  partage ; (b) visites.
 
 **Coordination avec la vague 73**
 
-- **TCK-504** (ouvert) changera *qui* est le contact principal : rien à refaire ici, tout passe par
-  `PrimaryPropertyContact`. Si 590 fusionne d'abord, 504 ajoute « la demande de visite » aux
-  surfaces de son AC1.
+- **TCK-504** (ouvert) changera *qui* est le contact principal et touche aussi
+  `PrimaryPropertyContact` : **seul le filtre d'éligibilité** (`agentPrincipal` et le repli
+  propriétaire) est à 590 ; le choix explicite de 504 passe par le même filtre (un principal
+  désigné puis bloqué ou retiré n'est plus retenu). Ordre de fusion indifférent. Si 590 fusionne
+  d'abord, 504 ajoute « la demande de visite » aux surfaces de son AC1.
 - **TCK-587** possède `PropertyVisitPolicy`. 590 aligne la clause d'`index` sur `view` et n'ajoute
   dans ce fichier qu'**une méthode nouvelle**, `reschedule`. Le prédicat « personnel » s'écrit
   `isAgentAt || isAgencyAdminAt` avec un commentaire `TCK-587` tant que 587 n'est pas fusionné.
   590 donne un lecteur à `crm.view_all` et `crm.assign` : la garde « capacité sans lecteur » de 587
-  doit les compter comme lues.
+  doit les compter comme lues. 587 exempte de sa garde `PropertyVisitController` l.69 et l.234 au
+  nom de 590 : 590 y pose le prédicat et **retire ces deux exemptions** (si 587 a fusionné ; sinon
+  587 ne les crée pas).
+- **TCK-591** possède la passation (`AgentHandoverService`) : elle déplace les collaborations du
+  partant ; le filtre d'éligibilité de 590 couvre le retrait avec `leave_unassigned` et les
+  retraits déjà faits. Ordre indifférent.
 - **TCK-588** possède les canaux et `Concerns/*`, et les rappels planifiés. 590 *implémente*
   `SupportsSms` sur ses notifications sans modifier l'interface, et n'ajoute pas WhatsApp.
-- **TCK-591** possède `Customer` : la conversion d'un lead emprunte `CustomerService::create`, et
-  le dédoublonnage de 591 s'il est fusionné.
+- **TCK-591** possède aussi `Customer` : la conversion d'un lead emprunte `CustomerService::create`,
+  et le dédoublonnage de 591 s'il est fusionné.
 - **TCK-598** possède `PropertyResource` (hors `buildPrimaryContact`, seul bloc touché ici) et le
   cache de la fiche ; `has_phone` ne dépend pas de l'appelant.
 - **TCK-537** possède les purges (leads : 3 ans) ; les nouvelles colonnes suivent la ligne.
@@ -254,12 +297,27 @@ pas un formulaire administratif.
       l'agence du bien ; `filter[unassigned]` et `filter[mine]` déclarés sur `PropertyVisit`.
 - [ ] `POST property-visits/{visit}/claim` + `ClaimPropertyVisitRequest` (409 si déjà attribuée à
       un autre, sauf `crm.assign`).
-- [ ] `UpdatePropertyVisitRequest` : `agent_id` validé par une règle `App\Rules\PersonnelDeLAgence`
-      (agence du bien) ; changer l'agent d'une visite déjà attribuée exige `crm.assign`.
+- [ ] `UpdatePropertyVisitRequest` **et** `StorePropertyVisitRequest` : `agent_id` validé par une
+      règle `App\Rules\PersonnelDeLAgence` (agence du bien) ; changer l'agent d'une visite déjà
+      attribuée exige `crm.assign`. `UpdatePropertyVisitRequest` : `scheduled_at` `after:now`.
+- [ ] `StorePropertyVisitRequest` : `customer_id` validé par une règle `App\Rules\ClientDeLAgence`
+      (la fiche appartient à l'agence du bien) ; `store` retire `customer_id` et `visitor_*` à un
+      non-personnel (ils sont dérivés de lui, contrainte 3).
+- [ ] `store` (l.67-69) et `feedback` (l.231-234) : `$user->agency_id` remplacé par le prédicat
+      « personnel de l'agence du bien » (contrainte 2) ; retrait des deux exemptions de la garde de
+      587 qui les nomment.
+- [ ] `update` : un changement de `scheduled_at` envoie `VisitRescheduledNotification` au visiteur
+      (compte, ou route anonyme selon la contrainte 4).
 
 **2. Leads**
+- [ ] `PrimaryPropertyContact` : filtre d'éligibilité (contrainte 1) dans `agentPrincipal` et sur
+      le repli propriétaire ; `eagerLoads()` charge ce qu'il faut pour ne pas ajouter de requête par
+      collaborateur. Effet attendu sans autre changement : carte, `has_phone`, `contact()`, fil
+      authentifié, lead et visite suivent.
 - [ ] `App\Services\Lead\ContactLeadService` : création (les deux POST publics y délèguent),
-      destinataire, repli vers les admins d'agence, accusé de réception (contrainte 4).
+      destinataire, repli vers les admins d'agence, 409 `contact_unavailable` sans destinataire ni
+      agence (avant tout `create`), accusé de réception (contrainte 4). Le même repli sert
+      `visitRequest` (via `VisitNotifier`).
 - [ ] `App\Http\Controllers\Api\ContactLeadController` (`index`, `show`, `handle`, `assign`,
       `convert`), `routes/api/contact-leads.php`, `App\Policies\PropertyContactLeadPolicy`
       (destinataire, ou personnel de l'agence titulaire de `crm.view_all`), `AssignContactLeadRequest`,
@@ -306,6 +364,8 @@ pas un formulaire administratif.
 
 **Tests** — `tests/Feature/Api/ContactLeadInboxTest`, `ContactLeadConvertTest`,
 `PropertyVisitAssignmentTest`, `PropertyVisitStaffCreateTest`, `PropertyVisitRescheduleTest`,
+`PropertyVisitIsolationTest` (customer_id, agent_id, bailleur de l'agence, avis « agent »),
+`tests/Unit/Services/PrimaryPropertyContactEligibilityTest`,
 `tests/Feature/Public/VisitSlotsTest`, `ContactClickTest`, `AnonymousVisitorNotificationTest` ;
 `PropertyVisitRequestTest`, `PropertyContactLeadTest`, `AgentContactLeadTest` étendus (dont
 `test_anonymous_missing_contact_returns_422`, à adapter). Tests front de la boîte de visite, de la
@@ -319,6 +379,9 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       contact principal est l'agent A : `agent_id` = A, et `VisitRequestedNotification` est envoyée
       à A et au propriétaire (`Notification::fake`).
 - [ ] AC2 **(R)** — Sa 4ᵉ demande active sur le même bien par la route publique rend 422.
+- [ ] AC2b **(R)** — Un client connecté qui a une fiche client dans l'agence Y (créée avant) et une
+      dans l'agence X du bien demande une visite par la route publique : `customer_id` = la fiche
+      de X. S'il n'a qu'une fiche dans Y : `customer_id` nul.
 - [ ] AC3 — Anonyme : nom + `+221771234567` sans e-mail → 201 ; `77 123 45 67` → 422 ; sans
       téléphone → 422. Lead : téléphone seul → 201, ni téléphone ni e-mail → 422.
 - [ ] AC4 **(R)** — L'agent B de l'agence X, ni assigné ni créateur, voit la visite d'un bien de X
@@ -326,15 +389,31 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       la voient pas. Toute visite rendue par `index` passe `PropertyVisitPolicy::view`.
 - [ ] AC5 — B prend en charge : `agent_id` = B ; C (sans `crm.assign`) la reprend → 409 ; un agent
       de Y → 403.
-- [ ] AC6 **(R)** — `PATCH agent_id` vers un utilisateur d'une autre agence → 422.
-- [ ] AC7 **(R)** — Un client qui envoie `customer_id` d'une fiche de l'agence Y crée une visite sans
-      ce `customer_id`, et l'utilisateur de cette fiche ne la voit pas dans `index`.
-- [ ] AC8 — L'agent planifie pour un client sans compte : `visitor_id` nul, `customer_id` et
+- [ ] AC6 **(R)** — `PATCH agent_id` vers un utilisateur d'une autre agence → 422 ; même chose pour
+      `POST /property-visits` par un agent de X ; vers un **bailleur** de X → 422. Dans les deux cas
+      l'utilisateur visé obtient 403 sur `POST …/confirm`.
+- [ ] AC6b **(R)** — `PATCH scheduled_at` à hier → 422. L'agence déplace une visite confirmée d'un
+      visiteur avec compte : `VisitRescheduledNotification` lui est envoyée (une fois) ; d'un
+      visiteur sans compte : à `visitor_email` / `visitor_phone`.
+- [ ] AC7 **(R)** — Un client qui envoie `customer_id` d'une fiche de l'agence Y — ou de la fiche
+      d'un autre client de X — crée une visite sans ce `customer_id` ; l'utilisateur de cette fiche
+      ne la voit pas dans `index`, et `GET /property-visits/{id}` et `POST …/cancel` lui rendent 403.
+      Un agent de X qui envoie `customer_id` d'une fiche de Y → 422.
+- [ ] AC7b **(R)** — Un utilisateur dont le seul profil est bailleur dans l'agence X, non créateur
+      du bien : `POST /property-visits` sur un bien **non public** d'un autre bailleur de X → 403 ;
+      sur un bien public, l'`agent_id` envoyé est ignoré ; `POST …/feedback` `role=agent` sur une
+      visite terminée d'un bien d'un autre bailleur → 403. `scripts/check-agency-scope-clause.mjs`
+      (587) ne liste plus `PropertyVisitController` dans ses exemptions.
+- [ ] AC8 **(R)** — L'agent planifie pour un client sans compte : `visitor_id` nul, `customer_id` et
       `visitor_phone` du client, `agent_id` = l'agent, statut `confirmed`, un SMS à la demande
       part vers le téléphone du client.
 - [ ] AC9 **(R)** — Confirmer une visite anonyme envoie `VisitConfirmedNotification` à la demande,
       vers `visitor_email` et `visitor_phone`, dans la langue enregistrée, avec « 10:00 » suivi du
       fuseau de Dakar. Le dépôt de la demande n'envoie **aucun** SMS.
+- [ ] AC9b **(R)** — L'agence annule une visite anonyme : `VisitCancelledNotification` part vers
+      `visitor_email` et `visitor_phone` ; le visiteur avec compte annule la sienne : l'agent assigné
+      (ou, non attribuée, les admins de l'agence) reçoit `VisitCancelledNotification`. L'envoi au
+      visiteur sans compte ne contient ni le nom saisi ni aucun texte libre.
 - [ ] AC10 — Navigateur réglé sur `Europe/Paris` (test front, fuseau forcé) : choisir 10:00 le
       2026-11-12 envoie `2026-11-12T10:00:00Z`, et 10:00 le 2026-06-15 envoie `2026-06-15T10:00:00Z`.
       Côté serveur, un `scheduled_at` à 07:30 heure de Dakar → 422.
@@ -354,10 +433,24 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       `customer_id` posé et lead traité ; un second `convert` → 409.
 - [ ] AC17 **(R)** — Un agent en anglais reçoit un titre anglais contenant le téléphone du
       visiteur ; `grep -rn "Nouveau lead anonyme" app/` est vide.
-- [ ] AC18 — Propriétaire supprimé en douceur, sans collaborateur : les admins de l'agence sont
-      notifiés du lead et de la demande de visite.
+- [ ] AC18 **(R)** — Propriétaire qui a supprimé son compte (`DELETE /api/auth/account`), bien
+      d'agence sans collaborateur : les admins de l'agence sont notifiés du lead et de la demande de
+      visite, le lead porte `agency_id`. Même bien **sans agence** : `contact-lead` → 409
+      `contact_unavailable` et `property_contact_leads` reste vide.
+- [ ] AC18b **(R)** — Bien d'agence X dont le collaborateur `agent` le plus ancien est (a) bloqué,
+      (b) retiré de X (profil supprimé, ligne de collaboration intacte) : le lead a pour
+      `recipient_user_id` le collaborateur éligible suivant, sinon le propriétaire ; la notification
+      part chez lui seul ; `GET …/contact` rend **son** numéro ; `primary_contact` de la fiche le
+      désigne. Retirer le filtre d'éligibilité rougit les deux cas.
 - [ ] AC19 — `GET …/contact` n'a plus de clé `message` ; `has_phone` faux → ni WhatsApp ni Appeler
-      sur la fiche (test front) ; aucun `alert(` dans les composants de contact de la fiche.
+      sur la fiche (test front) ; aucun `alert(` dans les composants de contact de la fiche ; en
+      anglais, le message prérempli de `wa.me` est en anglais (test front).
+- [ ] AC19b **(R)** — Test front : au clic WhatsApp, `window.open` est appelé **avant** que la
+      requête `…/contact` ne se résolve (promesse laissée en attente), puis la fenêtre ouverte est
+      dirigée vers `wa.me` — aucune fenêtre n'est ouverte après un `await`.
+- [ ] AC19c — Lead `form` déposé avec un e-mail : `ContactLeadReceivedNotification` part vers cet
+      e-mail, une fois, sans recopier le message ; avec un téléphone seul : aucun envoi. Test front :
+      les formulaires de contact et de visite sans compte portent un lien vers `/legal/privacy`.
 - [ ] AC20 — Un clic WhatsApp crée **un** lead `channel=whatsapp` avec sa source, absent du compte
       des non traités.
 - [ ] AC21 — Partage en anglais : le texte WhatsApp contient le type, le prix en F CFA, le quartier
