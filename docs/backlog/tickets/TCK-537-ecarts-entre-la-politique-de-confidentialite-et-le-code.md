@@ -7,7 +7,7 @@ family: bug
 estimate: L
 wave: 66
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-10-06
 depends_on: [TCK-531]
 blocks: []
 spec_refs:
@@ -66,6 +66,12 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 3. La preuve du consentement porte **la version du texte acceptée** (`VERSION_DOCUMENTS` de
    `editeur.ts`, ou un identifiant qui en dérive), l'horodatage, et le document concerné.
 4. Corriger le code, pas le texte — sauf décision écrite du porteur qui en change l'engagement.
+5. **La purge du journal d'activité exempte les journaux `PersonalDataAccess` et `Privacy`**
+   (ajout du 2026-10-06, TCK-601) : ils prouvent qui a consulté une donnée personnelle et comment
+   une demande de droits a été traitée, et se conservent **5 ans** (option retenue par défaut,
+   alignée sur la conservation KYC de la politique). Une purge à 365 jours qui les efface
+   détruirait la preuve que TCK-601 crée. Si 537 fusionne avant 601, ces journaux n'existent pas
+   encore : l'exemption s'écrit quand même, par nom de journal.
 
 ## Delta à produire
 
@@ -74,7 +80,9 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
       réservation et à l'offre. `RegisterRequest` exige la case.
 - [ ] `AccountDeletionService` : anonymiser les champs identifiants de chaque profil du compte.
 - [ ] Planifier `activitylog:clean` ; purges KYC (+5 ans après la fin de la relation) et demandes
-      de contact anonymes (3 ans) ; `docs/models-spec.md` mis à jour.
+      de contact anonymes (3 ans) ; `docs/models-spec.md` mis à jour. La purge du journal d'activité
+      **exempte** `PersonalDataAccess` et `Privacy`, purgés à 5 ans par une purge distincte
+      (contrainte 5).
 - [ ] Décision produit sur l'auteur d'un avis public ; texte aligné.
 - [ ] Tickets à part, ou décision écrite de ne pas les traiter, pour chacun des cinq écarts hors
       politique.
@@ -87,6 +95,9 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
       son `OwnerProfile` ne porte sa valeur d'origine ; ses paiements existent toujours.
 - [ ] AC3 — `php artisan schedule:list` montre la purge du journal d'activité et les deux purges
       ajoutées ; un test prouve chacune par ablation.
+- [ ] AC3b — Une ligne de journal `PersonalDataAccess` et une ligne `Privacy` datées de 400 jours
+      survivent à la purge planifiée, quand une ligne `default` du même âge disparaît ; à 5 ans et un
+      jour, elles disparaissent. Ablation : retirer l'exemption → rouge.
 - [ ] AC4 — Chaque ligne du tableau « Contrat de données » est vraie, ou le texte juridique a été
       changé sur décision écrite du porteur, avec `VERSION_DOCUMENTS` avancée.
 
