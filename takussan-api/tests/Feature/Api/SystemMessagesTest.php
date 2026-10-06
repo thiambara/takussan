@@ -152,6 +152,9 @@ class SystemMessagesTest extends TestCase
         $events = DB::table('messages')
             ->where('conversation_id', $conversation->id)
             ->where('type', 'system')
+            // Sans ORDER BY, PostgreSQL ne garantit aucun ordre : la CI de promotion #325 a lu
+            // `participant_removed` en premier. L'ordre attendu est celui de l'insertion.
+            ->orderBy('id')
             ->get()
             ->map(fn ($row) => json_decode($row->metadata, true)['event'])
             ->all();
