@@ -7,9 +7,9 @@ family: bug
 estimate: M
 wave: null
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-10-06
 depends_on: []
-blocks: []
+blocks: [TCK-602]
 spec_refs:
   features: []
   models: []

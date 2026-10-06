@@ -1,0 +1,382 @@
+---
+id: TCK-590
+title: "Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre"
+status: todo
+phase: P0
+family: full
+estimate: XL
+wave: 73
+created: 2026-10-06
+updated: 2026-10-06
+depends_on: []
+blocks: []
+spec_refs:
+  features:
+    - docs/features.md#12-recherche--découverte-publique
+    - docs/features.md#13-réservations-courte-durée--visites
+    - docs/features.md#16-crm--relation-client
+    - docs/features.md#23-notifications
+  models:
+    - docs/models-spec.md#67-propertycontactlead-
+    - docs/models-spec.md#17-propertyvisit-
+    - docs/models-spec.md#7-customer
+tags: [back, front, leads, visites, contact, crm, notifications, i18n, securite, attribution]
+---
+
+## Objectif utilisateur
+
+- **Visiteur (avec ou sans compte)** : quand il demande une visite ou écrit à l'agent depuis une
+  fiche, avec son seul numéro de téléphone, il sait que sa demande est partie, il reçoit la
+  confirmation de la visite à l'heure de Dakar, et le bouton WhatsApp ouvre bien WhatsApp.
+- **Client connecté** : il choisit un créneau réellement libre et peut le déplacer sans annuler.
+- **Agent et admin d'agence** : chaque demande de contact ou de visite déposée sur un bien de
+  l'agence est lisible en entier, attribuée ou attribuable, convertible en client, et l'agent peut
+  planifier lui-même une visite pour un prospect qui a appelé.
+
+## Contexte
+
+Analyse par acteur du 2026-10-06, vague 73 : points V2, V3, V4, V5, V11, V20 (visiteur), A2, A3,
+A4 (agent), C13 (client) et la partie « visites » de A8 (confirmation au visiteur sans compte).
+V2/A3 et V3/A2 décrivent le même trou vu des deux côtés : ils sont fusionnés. Chaque constat a été
+re-mesuré sur `e3ab4a4e` ; les écarts avec les rapports sont dans les notes de rédaction.
+
+### 1. La demande de visite publique n'arrive chez personne (V2 + A3, A8 visites)
+
+- `PublicPropertyController::visitRequest` (`takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:596-619`)
+  fait un `PropertyVisit::create` direct : **ni `agent_id`, ni notification, ni quota**. Le chemin
+  authentifié, lui, passe par `VisitSchedulingService::createOrFail` puis `notifyRequested`
+  (`app/Http/Controllers/Api/PropertyVisitController.php:82-88`).
+- ⚠ Ce n'est pas un cas d'anonyme : depuis l'interface, **seul un utilisateur connecté** atteint
+  cette route (`takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:157-175`
+  n'offre que « Se connecter » au visiteur ; `src/app/actions/property.ts:60-75`). Le chemin
+  réellement emprunté par tous les clients est donc celui qui ne prévient personne et ne compte
+  pas le quota de 3 visites actives (`app/Services/Visit/VisitSchedulingService.php:130-183`).
+  L'API accepte pourtant l'anonyme (`app/Http/Requests/Public/VisitRequestPublicPropertyRequest.php:23-33`).
+- `$user->customer` (l.601) est un `hasOne` sans unicité (`app/Models/User.php:378-381`) : la
+  visite est rattachée à une fiche client arbitraire, potentiellement d'une autre agence.
+- `PropertyVisitController::index` (l.30-49) ne montre une visite qu'au visiteur, à l'agent
+  assigné, au créateur du bien et au client lié. La policy `view` l'ouvre à l'agence
+  (`app/Policies/PropertyVisitPolicy.php`), le calendrier aussi (`app/Http/Controllers/Api/CalendarController.php:55-67`,
+  `:126-130`) : **une même visite a deux périmètres**, et le collègue qui gère le bien ne la voit
+  pas dans la liste. Aucun geste « prendre en charge » (`takussan-web/src/components/visits/VisitDetail.tsx:90-101`).
+- `notifyConfirmed` sort dès que `visitor` est nul (`PropertyVisitController.php:286-298`) : un
+  visiteur sans compte n'est jamais prévenu. `cancel` (l.165-182) ne prévient personne.
+
+### 2. Les leads sont enregistrés et illisibles (V3 + A2)
+
+- `PropertyContactLead::create` n'a que deux appelants, `PublicPropertyController.php:915` et
+  `app/Http/Controllers/Public/PublicAgentController.php:341`. **Aucune route ne les relit** :
+  `grep -rn "PropertyContactLead\|handled_at" app routes` ne rend que ces écritures. `handled_at`
+  n'est jamais écrit.
+- Le lead d'un bien ne porte pas `agency_id` (`PublicPropertyController.php:915-924`), celui
+  d'un agent si (`PublicAgentController.php:341-351`).
+- L'agent reçoit une notification au titre français figé `'Nouveau lead anonyme'`, dont le corps
+  est `nom (e-mail) : ` + **80 caractères** du message, **sans le téléphone**
+  (`PublicPropertyController.php:926-934`, `PublicAgentController.php:353-359`).
+- Si le contact principal est nul (propriétaire supprimé en douceur, `User` est `SoftDeletes`,
+  sans collaborateur agent), le lead est stocké et personne n'est prévenu (l.926).
+- `crm.view_all` et `crm.assign` sont accordées à l'agent (`app/Services/Membership/SystemRoleCapabilities.php:82-83`)
+  et ne sont lues nulle part.
+
+### 3. Les boutons WhatsApp et Appeler (V4)
+
+- `WhatsAppButton` est rendu sans condition (`.../components/PropertyAgentCard.tsx:130`) et fait
+  `res.phone.replace(...)` alors que `PublicPropertyController::contact` peut rendre `phone: null`
+  (l.966) ; l'erreur finit en `alert()` (`src/components/contact/WhatsAppButton.tsx:23-29`).
+  `window.open` est appelé après un `await` (l.23-27), hors du geste : Safari iOS bloque la fenêtre.
+  « Appeler » finit aussi en `alert()` (`PropertyAgentCard.tsx:50,53`).
+- Le message prérempli est écrit par l'API, en français quelle que soit la langue, signé
+  « Vu sur Takussan.sn » (`PublicPropertyController.php:959-963`) — contraire au principe n°5.
+- La fiche ne dit pas si le contact a un numéro : `buildPrimaryContact` → `buildUserLite`
+  (`app/Http/Resources/PropertyResource.php:304-325`). Aucun de ces contacts n'est compté.
+
+### 4. Le formulaire sans compte exige l'e-mail (V5)
+
+- `ContactLeadPublicRequest` exige `email` et laisse `phone` libre (`string max:32`)
+  (`app/Http/Requests/Public/ContactLeadPublicRequest.php:28-31`) ; la colonne `email` est
+  `NOT NULL` (`database/migrations/2026_05_05_000001_create_property_contact_leads_table.php`).
+  La demande de visite anonyme exige e-mail **et** téléphone, ce dernier non validé
+  (`VisitRequestPublicPropertyRequest.php:31-33`). `TelephoneJoignable` ne sert qu'aux comptes.
+- `src/components/public/AnonymousLeadDialog.tsx` : e-mail obligatoire (l.91, l.162-169), aucune
+  mention d'information sur les données, et rien n'est envoyé au visiteur après l'envoi.
+
+### 5. L'agent ne peut pas planifier une visite pour un client — et deux gardes manquent (A4)
+
+- `src/lib/queries/visits.ts:166-222` n'expose aucune création ; l'API pose toujours
+  `'visitor_id' => $user->id` (`PropertyVisitController.php:82-86`) : l'agent devient le visiteur.
+- **Sécurité** — `StorePropertyVisitRequest` accepte tout `customer_id` existant et `store` ne le
+  retire pas à un non-personnel (seul `agent_id` est retiré, l.72-76) : un client rattache sa
+  visite à la fiche client d'une **autre agence**, que `index` montre ensuite à l'utilisateur de
+  cette fiche (l.40). `UpdatePropertyVisitRequest` accepte `agent_id` = **n'importe quel
+  utilisateur** (`exists:users,id`), y compris d'une autre agence.
+
+### 6. Fuseau, créneaux et replanification (V11 + C13)
+
+- `PropertyVisitDialog.tsx:140-143` : `setHours` puis `toISOString()` dans le fuseau du
+  **navigateur**. Le serveur est en UTC (`config/app.php:70`) et Dakar est à UTC+0 sans heure
+  d'été : un visiteur à Paris qui choisit « 10:00 » crée une visite à 9 h (hiver) ou 8 h (été)
+  heure de Dakar. L'e-mail à l'agent affiche l'heure sans fuseau (`app/Notifications/VisitRequestedNotification.php`, `toMail`).
+- La grille 9 h-19 h est inventée côté client (l.43-52) ; le chevauchement n'est contrôlé qu'à la
+  confirmation, par bien (`VisitSchedulingService::assertNoOverlap`).
+- Seul le gestionnaire peut replanifier (`VisitDetail.tsx:101`) : le client annule et redemande,
+  et son quota peut le bloquer.
+
+### 7. Partage (V20)
+
+`src/lib/share.ts:5` construit `wa.me/?text=<titre> <url>` : ni prix, ni type, ni quartier, ni
+source, texte non traduit ; l'URL est `window.location.href` (`PropertyDetailContent.tsx:115`),
+qui repropage tels quels les paramètres reçus. Aucun paramètre de source n'existe dans le front
+(`grep utm_` vide), aucune colonne de source en base. La canonique de la fiche ne dépend que du
+chemin (`[slug]/page.tsx:94`) : des paramètres de source sont sans effet sur le référencement.
+`src/components/share/ShareButton.tsx` (Web Share API) n'a aucun appelant.
+
+## Contrat de données
+
+**`property_contact_leads`** (spec `#67`, dont la dérive existante — `agency_id`, `property_id`
+nullable — est relevée pour `/sync-specs`) : `name`, `email`, `message` deviennent nullables ;
+ajout de `channel` (`form` | `whatsapp` | `call`, chaîne + contrôle applicatif, ADR-0007),
+`source`, `medium` (chaînes ≤ 40), `locale` (≤ 5), `handled_by_id` (FK users), `customer_id`
+(FK customers). Invariant applicatif : un lead `form` a un nom, un message, et un téléphone **ou**
+un e-mail ; un lead `whatsapp`/`call` n'a aucune identité.
+
+**`property_visits`** (spec `#17`) : ajout de `source`, `medium`, `locale`. Aucun nouveau statut :
+`scheduled` **est** « demandée, à confirmer » (décision déjà prise, cf. TCK-075).
+
+**Endpoints**
+
+| Verbe | Route | Qui |
+|---|---|---|
+| GET | `/api/contact-leads` (`filter[handled]`, `filter[property_id]`, `filter[channel]` défaut `form`, `filter[mine]`, `sort`, `fields[property_contact_leads]`, `include=property,recipient`) | personnel de l'agence |
+| GET | `/api/contact-leads/{lead}` | idem |
+| POST | `/api/contact-leads/{lead}/handle` · `/assign` · `/convert` | idem ; `assign` exige `crm.assign` |
+| POST | `/api/property-visits/{visit}/claim` | personnel de l'agence du bien |
+| POST | `/api/property-visits/{visit}/reschedule` | le visiteur (compte ou client lié) |
+| GET | `/api/public/properties/{slug}/visit-slots?date=AAAA-MM-JJ` | public, `throttle:public-read` |
+| POST | `/api/public/properties/{slug}/contact-click` (`channel`, `source`, `medium`) | public, limiteur dédié |
+
+`visit-slots` rend `{date, timezone: "Africa/Dakar", slots: [{start: ISO-8601 UTC, label: "HH:MM", available: bool}]}`
+— jamais rien sur les visites qui occupent un créneau. `GET …/contact` ne rend plus que `phone` ;
+la fiche expose `primary_contact.has_phone` (booléen). Les deux POST publics existants et la
+demande de visite acceptent `source` et `medium`.
+
+## Direction UX / Artistique
+
+Charte « Ancrage Local Contemporain » (`docs/design-guidelines.md`). Ton : un guichet qui répond,
+pas un formulaire administratif.
+
+- **Visiteur** : demander une visite ne demande pas de compte — nom et téléphone suffisent, avec la
+  même saisie de numéro que le profil (+221 par défaut). Les créneaux pris sont visibles et non
+  choisissables ; l'heure est toujours suivie de « heure de Dakar ». Après l'envoi, un écran dit
+  ce qui va se passer (« l'agent confirme, vous recevez un SMS / un e-mail »). Une ligne discrète
+  renvoie à la politique de confidentialité, sans case à cocher. Nom et téléphone sont retenus
+  pour le contact suivant, sur cet appareil.
+- **Fiche** : pas de bouton qui mène à une erreur — sans numéro, ni WhatsApp ni Appeler. Aucune
+  boîte d'alerte native. WhatsApp s'ouvre dans le geste, y compris sur iPhone. Le message
+  prérempli et le texte de partage sont dans la langue du visiteur, prix en F CFA.
+- **Agent** : une boîte « Demandes » dans la console, avec le nombre de non traitées dans la
+  navigation ; chaque demande se lit en entier et se traite en un geste (WhatsApp, appeler,
+  convertir en client, marquer traitée, attribuer). Dans les visites, un filtre « Non attribuées »
+  et « Prendre en charge ». « Planifier une visite » depuis la fiche bien, la fiche client et le
+  calendrier, avec un repli nom + téléphone quand le prospect n'est pas encore client.
+- **Client** : « Proposer un autre créneau » sur sa visite, qui repasse en attente de confirmation.
+
+## Contraintes strictes (métier)
+
+1. **Un seul destinataire** : `App\Services\Property\PrimaryPropertyContact::for()` reste la seule
+   règle, pour le lead, la visite, `has_phone` et le numéro composé. Ce ticket l'appelle et ne la
+   modifie pas.
+2. **`agent_id` n'est posé que sur le personnel de l'agence du bien** (agent ou admin d'agence,
+   jamais bailleur ni client) — à la création publique, en planification console, en prise en
+   charge et en `PATCH`. Sinon la visite est « non attribuée ».
+3. **`customer_id` appartient toujours à l'agence du bien.** Un non-personnel ne choisit ni
+   `customer_id`, ni `agent_id`, ni `visitor_*` d'un autre : ils sont dérivés de lui.
+4. **Anti-abus des envois au visiteur sans compte** : aucun SMS n'est envoyé au dépôt d'une demande
+   (un numéro saisi par un tiers ferait de la plateforme un relais de SMS payants) ; l'accusé de
+   réception immédiat part **par e-mail seulement**, et seulement si un e-mail est donné. Le SMS
+   ne part qu'après un geste humain de l'agence (confirmation, replanification, annulation). Aucun
+   envoi ne recopie un texte libre du visiteur (ni message, ni nom). Un seul envoi par visite et
+   par événement.
+5. **Aucune prose dans l'API** (règle 1 de la vague) : titres, corps, SMS et e-mails passent par
+   `__('…', $params, $locale)` ; la locale est celle du destinataire (`preferredLocale()`) ou celle
+   enregistrée sur la visite / le lead pour un anonyme. Le message prérempli WhatsApp et le texte
+   de partage sont construits par le front (next-intl).
+6. **L'heure se construit en `Africa/Dakar`**, côté front comme côté serveur ; le serveur refuse un
+   `scheduled_at` qui ne tombe pas sur un créneau de la grille.
+7. **Le numéro du contact n'est révélé qu'au geste** (`GET …/contact`, `throttle:20,10`, anti-
+   moisson) ; `has_phone` est un booléen, jamais le numéro.
+8. `ip` et `user_agent` d'un lead ne sortent jamais par l'API.
+9. **Pas de prix en devise étrangère** (décision du porteur, 2026-10-06).
+10. Migrations : index et FK nommés explicitement (< 63 caractères), `down()` réversible (les lignes
+    sans e-mail ou de canal `whatsapp`/`call` sont supprimées avant de rétablir `NOT NULL`).
+
+**Coordination avec la vague 73**
+
+- **TCK-504** (ouvert) changera *qui* est le contact principal : rien à refaire ici, tout passe par
+  `PrimaryPropertyContact`. Si 590 fusionne d'abord, 504 ajoute « la demande de visite » aux
+  surfaces de son AC1.
+- **TCK-587** possède `PropertyVisitPolicy`. 590 aligne la clause d'`index` sur `view` et n'ajoute
+  dans ce fichier qu'**une méthode nouvelle**, `reschedule`. Le prédicat « personnel » s'écrit
+  `isAgentAt || isAgencyAdminAt` avec un commentaire `TCK-587` tant que 587 n'est pas fusionné.
+  590 donne un lecteur à `crm.view_all` et `crm.assign` : la garde « capacité sans lecteur » de 587
+  doit les compter comme lues.
+- **TCK-588** possède les canaux et `Concerns/*`, et les rappels planifiés. 590 *implémente*
+  `SupportsSms` sur ses notifications sans modifier l'interface, et n'ajoute pas WhatsApp.
+- **TCK-591** possède `Customer` : la conversion d'un lead emprunte `CustomerService::create`, et
+  le dédoublonnage de 591 s'il est fusionné.
+- **TCK-598** possède `PropertyResource` (hors `buildPrimaryContact`, seul bloc touché ici) et le
+  cache de la fiche ; `has_phone` ne dépend pas de l'appelant.
+- **TCK-537** possède les purges (leads : 3 ans) ; les nouvelles colonnes suivent la ligne.
+  **TCK-347** possède la locale des formats : 590 n'introduit aucun format figé.
+- `routes/api/public.php` et `lang/{fr,en,wo}/notifications.php` : ajouts seulement, dans un bloc
+  `TCK-590`.
+
+## Delta à produire
+
+**Données**
+- [ ] Migration `alter_property_contact_leads_for_inbox` : nullables, colonnes du contrat, FK
+      `pcl_handled_by_fk` / `pcl_customer_fk`, index `pcl_agency_handled_idx (agency_id, handled_at)`,
+      et rattrapage de `agency_id` depuis `properties.agency_id` pour les leads de bien.
+- [ ] Migration `add_attribution_to_property_visits` (`source`, `medium`, `locale`).
+- [ ] `PropertyContactLeadFactory` (il n'en existe aucune).
+
+**1. Visites publiques**
+- [ ] `visitRequest` passe par `VisitSchedulingService::createOrFail` ; `agent_id` selon la
+      contrainte 2 ; `customer_id` = la fiche `(user_id, agency_id du bien)` ou `null` ;
+      `source`/`medium`/`locale` enregistrés.
+- [ ] Extraire `notifyRequested`/`notifyConfirmed`/`managingUsers` dans `App\Services\Visit\VisitNotifier`,
+      partagé par les deux contrôleurs. Destinataires d'une demande : agent assigné, contact
+      principal, propriétaire ; si la visite est non attribuée, les admins de l'agence.
+- [ ] Visiteur sans compte prévenu à la confirmation, à la replanification et à l'annulation par
+      l'agence (`Notification::route('mail'|'sms', …)`), `VisitConfirmedNotification` étendue,
+      `VisitRescheduledNotification` et `VisitCancelledNotification` neuves ; le visiteur annulant,
+      l'agence est prévenue.
+- [ ] `index` : clause = visiteur | agent assigné | client lié | créateur du bien | personnel de
+      l'agence du bien ; `filter[unassigned]` et `filter[mine]` déclarés sur `PropertyVisit`.
+- [ ] `POST property-visits/{visit}/claim` + `ClaimPropertyVisitRequest` (409 si déjà attribuée à
+      un autre, sauf `crm.assign`).
+- [ ] `UpdatePropertyVisitRequest` : `agent_id` validé par une règle `App\Rules\PersonnelDeLAgence`
+      (agence du bien) ; changer l'agent d'une visite déjà attribuée exige `crm.assign`.
+
+**2. Leads**
+- [ ] `App\Services\Lead\ContactLeadService` : création (les deux POST publics y délèguent),
+      destinataire, repli vers les admins d'agence, accusé de réception (contrainte 4).
+- [ ] `App\Http\Controllers\Api\ContactLeadController` (`index`, `show`, `handle`, `assign`,
+      `convert`), `routes/api/contact-leads.php`, `App\Policies\PropertyContactLeadPolicy`
+      (destinataire, ou personnel de l'agence titulaire de `crm.view_all`), `AssignContactLeadRequest`,
+      `ConvertContactLeadRequest`, `PropertyContactLeadResource`.
+- [ ] `NewContactLeadNotification` (message complet, téléphone, e-mail, lien vers la demande) et
+      `ContactLeadReceivedNotification` (accusé) ; plus aucun `'Nouveau lead anonyme'`.
+- [ ] Console : boîte « Demandes », compteur de non traitées dans la navigation.
+
+**3. WhatsApp et Appeler**
+- [ ] `contact()` ne rend plus que `phone` ; `has_phone` dans `PropertyResource::buildPrimaryContact()`.
+- [ ] `POST public/properties/{slug}/contact-click` + `ContactClickPublicRequest` + limiteur
+      `public-contact-click` : un lead `channel=whatsapp|call` sans identité.
+- [ ] Fiche : boutons absents sans numéro, ouverture dans le geste, message traduit côté front,
+      erreurs en toast.
+
+**4. Formulaires sans compte**
+- [ ] `ContactLeadPublicRequest` : `email` `required_without:phone`, `phone` `required_without:email`
+      + forme E.164 + `TelephoneJoignable`, `source`/`medium` (`max:40`, `[a-z0-9_.-]`).
+- [ ] `VisitRequestPublicPropertyRequest` : anonyme = nom + téléphone obligatoires, e-mail
+      facultatif ; `scheduled_at` sur un créneau de la grille.
+- [ ] Front : boîte de visite ouverte au visiteur sans compte ; formulaire « téléphone ou e-mail »,
+      mention d'information, écran de suite, mémorisation locale.
+
+**5. Planification console**
+- [ ] `store` personnel : `visitor_id` = utilisateur du client s'il en a un, sinon `null` +
+      `customer_id`/`visitor_*` ; `agent_id` = l'appelant par défaut ; créée confirmée après
+      `assertNoOverlap`, visiteur prévenu. Non-personnel : contrainte 3.
+- [ ] Front : « Planifier une visite » (fiche bien, fiche client, calendrier).
+
+**6. Créneaux et fuseau**
+- [ ] `VisitSchedulingService::availableSlots(Property, CarbonImmutable)` : grille 09:00-19:00 par
+      30 min en `Africa/Dakar`, hors délai de 30 min, hors visites confirmées du bien et de l'agent
+      pressenti ; `GET …/visit-slots` + `VisitSlotsPublicPropertyRequest`.
+- [ ] `POST property-visits/{visit}/reschedule` + `ReschedulePropertyVisitRequest` + méthode
+      `PropertyVisitPolicy::reschedule` (coordination 587) : retour en `scheduled`, agence prévenue.
+- [ ] Notifications : heure formatée en `Africa/Dakar` et suivie du fuseau.
+- [ ] Front : créneaux tirés de l'API, heure construite en `Africa/Dakar`, « Proposer un autre
+      créneau » pour le client.
+
+**7. Partage et attribution**
+- [ ] Front : texte de partage traduit (type · prix F CFA · quartier — URL canonique +
+      `utm_source=<canal>&utm_medium=share`) ; la source d'arrivée est retenue pour la session et
+      envoyée avec le lead, le clic de contact et la demande de visite.
+
+**Tests** — `tests/Feature/Api/ContactLeadInboxTest`, `ContactLeadConvertTest`,
+`PropertyVisitAssignmentTest`, `PropertyVisitStaffCreateTest`, `PropertyVisitRescheduleTest`,
+`tests/Feature/Public/VisitSlotsTest`, `ContactClickTest`, `AnonymousVisitorNotificationTest` ;
+`PropertyVisitRequestTest`, `PropertyContactLeadTest`, `AgentContactLeadTest` étendus (dont
+`test_anonymous_missing_contact_returns_422`, à adapter). Tests front de la boîte de visite, de la
+carte de contact et du partage.
+
+## Critères d'acceptation
+
+Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on retire le correctif.
+
+- [ ] AC1 **(R)** — Un client connecté demande une visite par la route publique sur un bien dont le
+      contact principal est l'agent A : `agent_id` = A, et `VisitRequestedNotification` est envoyée
+      à A et au propriétaire (`Notification::fake`).
+- [ ] AC2 **(R)** — Sa 4ᵉ demande active sur le même bien par la route publique rend 422.
+- [ ] AC3 — Anonyme : nom + `+221771234567` sans e-mail → 201 ; `77 123 45 67` → 422 ; sans
+      téléphone → 422. Lead : téléphone seul → 201, ni téléphone ni e-mail → 422.
+- [ ] AC4 **(R)** — L'agent B de l'agence X, ni assigné ni créateur, voit la visite d'un bien de X
+      dans `GET /property-visits?filter[unassigned]=1` ; un agent de l'agence Y et un client de X ne
+      la voient pas. Toute visite rendue par `index` passe `PropertyVisitPolicy::view`.
+- [ ] AC5 — B prend en charge : `agent_id` = B ; C (sans `crm.assign`) la reprend → 409 ; un agent
+      de Y → 403.
+- [ ] AC6 **(R)** — `PATCH agent_id` vers un utilisateur d'une autre agence → 422.
+- [ ] AC7 **(R)** — Un client qui envoie `customer_id` d'une fiche de l'agence Y crée une visite sans
+      ce `customer_id`, et l'utilisateur de cette fiche ne la voit pas dans `index`.
+- [ ] AC8 — L'agent planifie pour un client sans compte : `visitor_id` nul, `customer_id` et
+      `visitor_phone` du client, `agent_id` = l'agent, statut `confirmed`, un SMS à la demande
+      part vers le téléphone du client.
+- [ ] AC9 **(R)** — Confirmer une visite anonyme envoie `VisitConfirmedNotification` à la demande,
+      vers `visitor_email` et `visitor_phone`, dans la langue enregistrée, avec « 10:00 » suivi du
+      fuseau de Dakar. Le dépôt de la demande n'envoie **aucun** SMS.
+- [ ] AC10 — Navigateur réglé sur `Europe/Paris` (test front, fuseau forcé) : choisir 10:00 le
+      2026-11-12 envoie `2026-11-12T10:00:00Z`, et 10:00 le 2026-06-15 envoie `2026-06-15T10:00:00Z`.
+      Côté serveur, un `scheduled_at` à 07:30 heure de Dakar → 422.
+- [ ] AC11 — Avec une visite confirmée 10:00-10:30 sur le bien, `visit-slots` rend 10:00
+      `available: false` et 10:30 `available: true` ; chaque créneau n'a que les clés
+      `start`, `label`, `available`.
+- [ ] AC12 — Le client replanifie sa visite confirmée : statut `scheduled`, nouvelle heure, agence
+      prévenue ; un autre utilisateur → 403.
+- [ ] AC13 **(R)** — `GET /contact-leads` : l'agent destinataire voit son lead ; un agent de X
+      titulaire de `crm.view_all` voit tous ceux de X ; sans elle, les siens seulement ; un agent de
+      Y, un bailleur et un client de X n'en voient aucun. Retirer le filtre d'agence rougit le test.
+- [ ] AC14 — Un message de 2 000 caractères est rendu entier avec le téléphone ; `ip` et
+      `user_agent` n'apparaissent dans aucune réponse.
+- [ ] AC15 **(R)** — Un lead de bien porte `agency_id` = celui du bien ; la migration rattrape les
+      leads existants.
+- [ ] AC16 — `convert` crée une fiche client dans l'agence du lead, étape `lead`, nom découpé,
+      `customer_id` posé et lead traité ; un second `convert` → 409.
+- [ ] AC17 **(R)** — Un agent en anglais reçoit un titre anglais contenant le téléphone du
+      visiteur ; `grep -rn "Nouveau lead anonyme" app/` est vide.
+- [ ] AC18 — Propriétaire supprimé en douceur, sans collaborateur : les admins de l'agence sont
+      notifiés du lead et de la demande de visite.
+- [ ] AC19 — `GET …/contact` n'a plus de clé `message` ; `has_phone` faux → ni WhatsApp ni Appeler
+      sur la fiche (test front) ; aucun `alert(` dans les composants de contact de la fiche.
+- [ ] AC20 — Un clic WhatsApp crée **un** lead `channel=whatsapp` avec sa source, absent du compte
+      des non traités.
+- [ ] AC21 — Partage en anglais : le texte WhatsApp contient le type, le prix en F CFA, le quartier
+      et une URL avec `utm_source=whatsapp&utm_medium=share` ; aucune devise étrangère ; la canonique
+      de la fiche est inchangée. Arrivé par ce lien, un visiteur qui écrit crée un lead
+      `source=whatsapp`, `medium=share`.
+- [ ] AC22 — Toutes les clés ajoutées existent en `fr`, `en` et `wo` (y compris les
+      `notifications.visit_*` absentes aujourd'hui de `lang/wo`).
+
+## Hors périmètre
+
+- Rappels de visite planifiés et relances de loyer multicanal, canal WhatsApp : TCK-588.
+- Choix explicite de l'agent principal : TCK-504.
+- Périmètre de `PropertyVisitPolicy` (`view`/`update`) et prédicat « personnel » : TCK-587.
+- Dédoublonnage et normalisation des fiches clients, ICS et calendrier : TCK-591.
+- Purges et preuve de consentement : TCK-537. Formats selon la locale : TCK-347.
+- Disponibilités déclarées par l'agent (agenda de travail), lien d'annulation signé pour le
+  visiteur sans compte, prix indicatif en devise étrangère.
+
+## Notes d'implémentation
+
+_(à remplir par implementing-specs)_
