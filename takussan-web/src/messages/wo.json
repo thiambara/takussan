@@ -1225,6 +1225,51 @@
         "invalid_target": "ki ñu tànn bokkul ci liggéeykati ajaas bi",
         "other": "gàntu nañu ko"
       }
+    },
+    "handover": {
+      "title": "Génne {name} ci ajaas bi",
+      "intro": "Li {name} yor ba leegi, kenn war koo jël, walla nga bàyyi ko te xam ko.",
+      "emptyPortfolio": "Dara desul ci loxoom : génne ko du bàyyi dara.",
+      "loadFailed": "Mënunu woon a jàng li mu yor.",
+      "category": {
+        "tasks": "Liggéey yu ubbeeku",
+        "visits": "Seetlu yi di ñëw",
+        "maintenance": "Defar yi nekk ci yoon",
+        "collaborations": "Ndimbalante ci kër yi",
+        "customers": "Kiliyaan yi mu yor",
+        "held_properties": "Kër yi mu yor"
+      },
+      "notTransferable": "jotul a jàll",
+      "successor": "Ki koy jël",
+      "noSuccessor": "Kenn — génne ko te jàllaleewul",
+      "leaveAll": "Dama koy génne te bàyyi li mu yor, kenn du ko yor.",
+      "leavePending": "{count, plural, one {# lu jotul a jàll dina des, kenn du ko yor.} other {# lu jotul a jàll dinañu des, kenn du leen yor.}}",
+      "next": "Xoolaat",
+      "back": "Dellu",
+      "cancel": "Neenal",
+      "reviewIntro": "{successor} dina jël li {name} yor, ginnaaw loolu {name} dina génn ci ajaas bi :",
+      "reviewLine": "{count} × {category}",
+      "reviewPending": "{count, plural, one {# lu des, kenn du ko yor.} other {# lu des, kenn du leen yor.}}",
+      "confirm": "Jàllale te génne",
+      "removeOnly": "Génne ci ajaas bi",
+      "failed": "Génne gi antuwul."
+    },
+    "absences": {
+      "title": "Ñi nekkul ak ñi leen wuutu",
+      "declare": "Yégle ne dinga nekkul",
+      "none": "Kenn nekkul ci ndàgg leegi.",
+      "loadFailed": "Mënunu woon a jàng ñi nekkul.",
+      "row": "{substitute} mooy wuutu {absent} ba {until}",
+      "revoke": "Taxawal",
+      "absent": "Kan mooy nekkul",
+      "me": "Man",
+      "substitute": "Ki koy wuutu",
+      "chooseSubstitute": "Tànnal ab nawle",
+      "until": "Ba",
+      "reason": "Lu tax (bu soxlawul)",
+      "submit": "Yégle",
+      "cancel": "Neenal",
+      "declareFailed": "Yégle gi antuwul."
     }
   },
   "account": {

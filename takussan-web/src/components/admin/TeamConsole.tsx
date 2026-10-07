@@ -14,14 +14,13 @@ import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
 import { AdminUsersTable } from '@/components/admin/users/AdminUsersTable';
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
-import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
+import { HandoverWizard } from '@/components/crm/HandoverWizard';
+import { AgentAbsencesSection } from '@/components/crm/AgentAbsencesSection';
 import { PendingInvitationsSection } from '@/components/admin/PendingInvitationsSection';
 import { fetchAdminUsers, postUserAction } from '@/lib/queries/admin-users';
-import { removeAgencyMember } from '@/lib/queries/agency-members';
 import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
-import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
 import type {
@@ -79,7 +78,6 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { token } = useAuth();
 
   const currentRole = searchParams.get('filter[role]') ?? '';
   const tab: TabValue = ROLE_TO_TAB[currentRole] ?? 'tous';
@@ -192,18 +190,6 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
     onError: (err: ApiError) => setActionError(messageErreur(err)),
   });
 
-  const removeMutation = useMutation({
-    mutationFn: (userId: number) => removeAgencyMember(agencyId, userId, token ?? ''),
-    onSuccess: () => {
-      setActionError(null);
-      setRemoving(null);
-      setDrawerUser(null);
-      invalidateList();
-    },
-    onError: (err) =>
-      setActionError(messageErreur(err, tConsole('genericError'))),
-  });
-
   const setTab = useCallback(
     (next: string) => {
       const value = (TAB_VALUES as readonly string[]).includes(next)
@@ -238,6 +224,8 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
           </TabsList>
         </div>
       </Tabs>
+
+      <AgentAbsencesSection agencyId={agencyId} currentUserId={currentUserId} />
 
       <AdminUsersFilters hideRoleFilter />
 
@@ -303,7 +291,7 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
         canAssignRole={canAssignRole}
         onOpenChange={(open) => !open && setDrawerUser(null)}
         onRemove={(u) => setRemoving(u)}
-        isRemoving={removeMutation.isPending}
+        isRemoving={removing !== null}
       />
 
       <InviteMemberDialog
@@ -313,11 +301,17 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
         onSuccess={invalidateList}
       />
 
-      <ConfirmRemoveDialog
+      {/* TCK-591 §8 — « Retirer » ouvre la passation du portefeuille, puis retire. */}
+      <HandoverWizard
+        agencyId={agencyId}
         member={removing}
-        onCancel={() => setRemoving(null)}
-        onConfirm={(member) => removeMutation.mutate(member.id)}
-        isPending={removeMutation.isPending}
+        onClose={() => setRemoving(null)}
+        onDone={() => {
+          setActionError(null);
+          setRemoving(null);
+          setDrawerUser(null);
+          invalidateList();
+        }}
       />
     </div>
   );

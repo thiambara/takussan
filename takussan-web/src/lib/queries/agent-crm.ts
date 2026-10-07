@@ -317,3 +317,20 @@ export async function searchTaskables(
   const res = await apiRequest<PaginatedResponse<{ id: number; title: string }>>(`/api/properties?${qs}`, { token });
   return res.data.map((p) => ({ id: p.id, label: p.title }));
 }
+
+/**
+ * TCK-591 §8 — retirer un membre en ASSUMANT de laisser son portefeuille en place
+ * (`leave_unassigned`) : sans ce drapeau, un portefeuille non vide rend 422 `portfolio_not_empty`.
+ */
+export async function removeMember(
+  token: string,
+  agencyId: number,
+  userId: number,
+  leaveUnassigned: boolean,
+): Promise<void> {
+  await apiRequest<unknown>(`/api/agencies/${agencyId}/members/${userId}`, {
+    method: 'DELETE',
+    body: leaveUnassigned ? { leave_unassigned: true } : undefined,
+    token,
+  });
+}

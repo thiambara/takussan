@@ -2599,6 +2599,51 @@
         "invalid_target": "the target is not active staff of the agency",
         "other": "refused"
       }
+    },
+    "handover": {
+      "title": "Remove {name} from the agency",
+      "intro": "What {name} still holds must be taken over by someone, or knowingly left unassigned.",
+      "emptyPortfolio": "Their portfolio is empty: removing them leaves nothing pending.",
+      "loadFailed": "Could not load their portfolio.",
+      "category": {
+        "tasks": "Open tasks",
+        "visits": "Upcoming visits",
+        "maintenance": "Ongoing maintenance",
+        "collaborations": "Property collaborations",
+        "customers": "Customers they are the lead contact for",
+        "held_properties": "Held properties"
+      },
+      "notTransferable": "not transferable yet",
+      "successor": "Successor",
+      "noSuccessor": "None — remove without handover",
+      "leaveAll": "I remove this member and leave their portfolio unassigned.",
+      "leavePending": "{count, plural, one {# item cannot be transferred yet and will stay unassigned.} other {# items cannot be transferred yet and will stay unassigned.}}",
+      "next": "Review",
+      "back": "Back",
+      "cancel": "Cancel",
+      "reviewIntro": "{successor} will take over what {name} holds, then {name} will be removed from the agency:",
+      "reviewLine": "{count} × {category}",
+      "reviewPending": "{count, plural, one {# item will stay unassigned.} other {# items will stay unassigned.}}",
+      "confirm": "Transfer and remove",
+      "removeOnly": "Remove from agency",
+      "failed": "The removal did not go through."
+    },
+    "absences": {
+      "title": "Absences and cover",
+      "declare": "Declare an absence",
+      "none": "No current absence.",
+      "loadFailed": "Could not load absences.",
+      "row": "{absent} is covered by {substitute} until {until}",
+      "revoke": "End",
+      "absent": "Who is away",
+      "me": "Me",
+      "substitute": "Covered by",
+      "chooseSubstitute": "Choose a colleague",
+      "until": "Until",
+      "reason": "Reason (optional)",
+      "submit": "Declare",
+      "cancel": "Cancel",
+      "declareFailed": "The absence could not be declared."
     }
   },
   "account": {

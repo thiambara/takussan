@@ -2574,6 +2574,51 @@
         "invalid_target": "la cible n'est pas du personnel actif de l'agence",
         "other": "refusé"
       }
+    },
+    "handover": {
+      "title": "Retirer {name} de l'agence",
+      "intro": "Ce que {name} porte encore doit être repris par quelqu'un, ou laissé sans responsable en connaissance de cause.",
+      "emptyPortfolio": "Son portefeuille est vide : le retrait ne laisse rien en suspens.",
+      "loadFailed": "Impossible de lire son portefeuille.",
+      "category": {
+        "tasks": "Tâches ouvertes",
+        "visits": "Visites à venir",
+        "maintenance": "Interventions en cours",
+        "collaborations": "Collaborations sur des biens",
+        "customers": "Clients dont il est le référent",
+        "held_properties": "Biens détenus"
+      },
+      "notTransferable": "pas encore transmissible",
+      "successor": "Repreneur",
+      "noSuccessor": "Aucun — retirer sans passation",
+      "leaveAll": "Je retire ce membre et laisse son portefeuille sans responsable.",
+      "leavePending": "{count, plural, one {# élément ne peut pas encore être transmis et restera sans responsable.} other {# éléments ne peuvent pas encore être transmis et resteront sans responsable.}}",
+      "next": "Relire",
+      "back": "Retour",
+      "cancel": "Annuler",
+      "reviewIntro": "{successor} reprendra ce que {name} porte, puis {name} sera retiré de l'agence :",
+      "reviewLine": "{count} × {category}",
+      "reviewPending": "{count, plural, one {# élément restera sans responsable.} other {# éléments resteront sans responsable.}}",
+      "confirm": "Transmettre et retirer",
+      "removeOnly": "Retirer de l'agence",
+      "failed": "Le retrait n'a pas abouti."
+    },
+    "absences": {
+      "title": "Absences et remplacements",
+      "declare": "Déclarer une absence",
+      "none": "Aucune absence en cours.",
+      "loadFailed": "Impossible de lire les absences.",
+      "row": "{absent} est remplacé par {substitute} jusqu'au {until}",
+      "revoke": "Mettre fin",
+      "absent": "Qui est absent",
+      "me": "Moi",
+      "substitute": "Remplacé par",
+      "chooseSubstitute": "Choisir un collègue",
+      "until": "Jusqu'au",
+      "reason": "Motif (facultatif)",
+      "submit": "Déclarer",
+      "cancel": "Annuler",
+      "declareFailed": "L'absence n'a pas pu être déclarée."
     }
   },
   "account": {

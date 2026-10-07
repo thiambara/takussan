@@ -23,6 +23,7 @@ import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
 import { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { isAgencyStaffRow } from './isAgencyStaffRow';
 
 interface UserDetailDrawerProps {
   user: AdminAgencyUserRow | null;
@@ -207,7 +208,7 @@ export function UserDetailDrawer({
                     {t('drawer.blockAccount')}
                   </Button>
                 )}
-                {onRemove ? (
+                {onRemove && isAgencyStaffRow(user, assignments) ? (
                   <Button
                     className="w-full"
                     variant="outline"
