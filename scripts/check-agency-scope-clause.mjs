@@ -8,8 +8,9 @@
  *
  *   A. une comparaison de `$user->agency_id` (ou `$actor->`, `$request->user()->`,
  *      `$this->user()->`, `auth()->user()->`, `request()->user()->`, `Auth::user()->`, `?->`
- *      compris) à un `->agency_id` ou à un `->id` (l'agence elle-même) — `===`, `!==`, `==`, `!=`,
- *      dans les deux sens, `(int)` compris ;
+ *      compris, garde nommé `('sanctum')` compris) à un `->agency_id` ou à un `->id` (l'agence
+ *      elle-même) — `===`, `!==`, `==`, `!=`, `<>`, `<=>`, dans les deux sens, `(int)` et
+ *      `(… ?? 0)` compris ;
  *   B. un `where|orWhere|whereIn|orWhereIn('…agency_id', [opérateur,] $user->agency_id)`, la forme
  *      tableau `where(['…agency_id' => $user->agency_id])`, et `whereRaw('… agency_id …',
  *      [$user->agency_id])` — à quelque profondeur de `whereHas` que ce soit.
@@ -17,7 +18,9 @@
  * …sauf si la MÊME instruction appelle aussi `isAgencyAdminAt(` (le droit d'admin, qui implique le
  * personnel) ou le prédicat — `staffAgencyId(`, `isStaffOf(`, `isStaffAt(` — **sur la même
  * agence** : l'argument de l'excuse contient l'un des deux membres comparés, et aucun `||` ne
- * l'en sépare. `… || $user->isAgencyAdminAt(0)` ne blanchit rien (verif-587, G18).
+ * l'en sépare. `… || $user->isAgencyAdminAt(0)` ne blanchit rien (verif-587, G18). L'excuse doit
+ * être **positive** : niée (`! …`), comparée (`=== false`) ou enfermée dans une fonction fléchée
+ * que la clause ne partage pas, elle ne blanchit rien (verif-587 passe 2, N12, N12b, N25).
  *
  * **Pourquoi elle existe.** `User::$agency_id` est l'agence du profil actif QUEL QUE SOIT son type,
  * donc aussi celle d'un bailleur. Onze policies et six `index` ouvraient lecture et écriture sur
@@ -45,6 +48,14 @@
  *       - un `match`/ternaire dont le bras compare deux variables locales ;
  *       - l'excuse ne regarde pas QUI elle juge : `… && isStaffAt($unTiers, $model->agency_id)` dans la
  *         même instruction blanchit encore la clause. (G17 de verif-587, joint par `||`, est vu.)
+ *       - l'excuse niée autrement que par `!` ou une comparaison : `xor`, `and`/`or` en mots, une
+ *         variable qui en garde le résultat (`$admin = …; … && ! $admin`) ;
+ *       - l'accès par tableau ou par nom dynamique : `$model['agency_id']`, `$user->{'agency_id'}` ;
+ *       - `$model->getAttribute('agency_id')` côté RESSOURCE (comme côté acteur, ci-dessus) ;
+ *       - `collect([$user->agency_id])->contains(…)` (parent d'`in_array`) ;
+ *       - `->when($user->agency_id, fn ($q, $a) => $q->where('agency_id', $a))` (variable de closure) ;
+ *       - `whereBelongsTo(Agency::find($user->agency_id))` et toute relation d'agence résolue par modèle ;
+ *       - `??` vers autre chose qu'un littéral ou une variable (`($user->agency_id ?? $x->y) === …`).
  *   · « La même instruction » se découpe sur `;`, `{` et `}` : une clause dont l'excuse
  *     (`isAgencyAdminAt(`) est dans le `if` englobant, et non dans l'instruction, est signalée —
  *     faux rouge assumé, qui se corrige en lisant le prédicat.
@@ -54,7 +65,8 @@
  *
  * `CAS_EPREUVE` tourne à CHAQUE invocation, avant le balayage : cinq formes d'écriture au moins
  * (espacée, `!==`, `&&` en tête, `orWhereHas` imbriqué, `$actor->`), les formes de verif-587
- * (G1, G2, G3, G6, G7, G15, AB-3c, G18) et les formes à laisser passer.
+ * (G1, G2, G3, G6, G7, G15, AB-3c, G18), celles de la passe 2 (N1, N2, N3, N5, N6, N12, N12b, N25)
+ * et les formes à laisser passer.
  *
  * `REFUS_SANS_OCTROI` et `HORS_DETECTION` : deux listes nommées, chacune avec son cliquet
  * bilatéral et sa détection de ligne morte — voir leur déclaration.
@@ -126,11 +138,16 @@ const CLIQUET_HORS_DETECTION = 2;
  * L'agence de l'acteur : `$user`, `$actor`, `$request->user()`, `$this->user()`, `auth()->user()`,
  * `request()->user()`, `Auth::user()` — suivis de `->agency_id` ou `?->agency_id`.
  */
-const ACTEUR = String.raw`(?:\$(?:user|actor)|\$(?:request|this)\s*->\s*user\(\s*\)|(?:auth|request)\(\s*\)\s*->\s*user\(\s*\)|Auth::user\(\s*\))\s*(?:\?->|->)\s*agency_id\b`;
-const ACTEUR_INT = String.raw`(?:\(int\)\s*)?${ACTEUR}`;
+// `()` ou `('sanctum')` (verif-587 passe 2, N5 et N6) ; sans groupe capturant : les motifs qui
+// l'emploient numérotent les leurs.
+const GARDE = String.raw`\(\s*(?:'\w*'|"\w*")?\s*\)`;
+const ACTEUR = String.raw`(?:\$(?:user|actor)|\$(?:request|this)\s*->\s*user${GARDE}|(?:auth|request)${GARDE}\s*->\s*user${GARDE}|Auth::(?:guard${GARDE}\s*->\s*)?user\(\s*\))\s*(?:\?->|->)\s*agency_id\b`;
+/** `(int)` en tête, et `(… ?? 0)` autour (verif-587 passe 2, N2). */
+const ACTEUR_INT = String.raw`(?:\(\s*)?(?:\(int\)\s*)?${ACTEUR}(?:\s*\?\?\s*[\w$'"]+\s*\))?`;
 /** L'autre membre d'une comparaison : un `->agency_id` ou un `->id` (l'agence elle-même, AB-3c). */
 const OPERANDE = String.raw`(?:\(int\)\s*)?\$\w+(?:\s*(?:\?->|->)\s*\w+(?:\(\s*\))?)*?\s*(?:\?->|->)\s*(?:agency_id|id)\b`;
-const CMP = String.raw`\s*[!=]==?\s*`;
+/** `===`, `!==`, `==`, `!=`, `<>` et `<=>` (verif-587 passe 2, N1 et N3). */
+const CMP = String.raw`\s*(?:[!=]==?|<=?>)\s*`;
 /** Forme A : `ACTEUR == OPERANDE` ou `OPERANDE == ACTEUR`, l'opérande étant capturé. */
 const RE_COMPARAISONS = [
   new RegExp(String.raw`${ACTEUR_INT}${CMP}(${OPERANDE})`, 'g'),
@@ -264,17 +281,58 @@ function excusesDe(t) {
 }
 
 /**
+ * Les corps de fonctions fléchées d'une instruction : `[debut, fin[` de ce qui suit `=>` jusqu'à la
+ * première `)` ou `,` non appariée. Une excuse dans un corps que la clause ne partage pas n'est
+ * jamais évaluée avec elle (verif-587 passe 2, N25 : `… && (fn () => $user->isAgencyAdminAt(…))`).
+ */
+function corpsFleches(t) {
+  const out = [];
+  for (const m of t.matchAll(/\bfn\s*\([^()]*\)\s*(?::\s*\??\w+\s*)?=>/g)) {
+    let i = m.index + m[0].length;
+    let prof = 0;
+    for (; i < t.length; i++) {
+      if (t[i] === '(' || t[i] === '[') prof++;
+      else if (t[i] === ')' || t[i] === ']') {
+        if (prof === 0) break;
+        prof--;
+      } else if (t[i] === ',' && prof === 0) break;
+    }
+    out.push([m.index, i]);
+  }
+  return out;
+}
+
+/**
+ * Une excuse est POSITIVE quand son résultat est pris tel quel : ni précédée de `!`, ni comparée
+ * (`=== false`, `false ===`, `!== true`…). `… && ! $user->isAgencyAdminAt(…)` dit l'inverse de
+ * l'excuse — *même agence ET pas admin* accorde à tout bailleur (verif-587 passe 2, N12 et N12b).
+ */
+function positive(t, debut, fin) {
+  // Le receveur (`$user->`, `$this->`, `$request->user()->`, `User::`) et les parenthèses ouvrantes.
+  const avant = t.slice(0, debut)
+    .replace(/(?:\$\w+(?:\s*(?:\?->|->)\s*\w+(?:\([^()]*\))?)*\s*(?:\?->|->)|\w+::)\s*$/, '')
+    .replace(/[\s(]*$/, '');
+  if (/!$/.test(avant) || /(?:[!=]==?|<=?>)$/.test(avant)) return false;
+  return !/^[\s)]*(?:[!=]==?|<=?>)/.test(t.slice(fin));
+}
+
+/**
  * Une excuse ne blanchit une clause que si elle juge **la même agence** : son argument contient le
- * membre comparé (`$kpi->agency_id === … && isAgencyAdminAt((int) $kpi->agency_id)`), et aucun
- * `||` ne la sépare de la clause. `… || $user->isAgencyAdminAt(0)` (verif-587, G18) ne blanchit
- * plus rien : la simple PRÉSENCE du mot suffisait.
+ * membre comparé (`$kpi->agency_id === … && isAgencyAdminAt((int) $kpi->agency_id)`), aucun `||`
+ * ne la sépare de la clause, elle est **positive** et n'est pas enfermée dans une fonction fléchée
+ * que la clause ne partage pas. `… || $user->isAgencyAdminAt(0)` (verif-587, G18) ne blanchit
+ * plus rien : la simple PRÉSENCE du mot suffisait ; ni sa négation (passe 2, N12, N12b, N25).
  */
 function excusee(t, clause, cible) {
   // L'un ou l'autre membre de la comparaison : `(int) $target->agency_id === (int) $user->agency_id
   // && $user->isAgencyAdminAt((int) $user->agency_id)` juge la même agence que `… $target …`.
   const membres = [normal(cible), normal(new RegExp(ACTEUR).exec(t.slice(clause.debut, clause.fin))?.[0] ?? '\0')];
+  const fleches = corpsFleches(t);
+  const dans = (pos, [d, f]) => pos >= d && pos < f;
   return excusesDe(t).some(({ debut, fin, args }) => {
     if (!membres.some((m) => args.includes(m))) return false;
+    if (!positive(t, debut, fin)) return false;
+    if (fleches.some((c) => dans(debut, c) && !dans(clause.debut, c))) return false;
     const entre = debut > clause.fin ? t.slice(clause.fin, debut) : t.slice(fin, clause.debut);
     return !entre.includes('||');
   });
@@ -324,10 +382,24 @@ const CAS_EPREUVE = [
   { php: 'return $user->agency_id === $documentable->id;', attendu: 1 }, // AB-3c (l'agence elle-même)
   { php: 'return $user->agency_id === $model->agency_id || $user->isAgencyAdminAt(0);', attendu: 1 }, // G18
   { php: 'return $user->agency_id === $model->agency_id || $user->isAgencyAdminAt((int) $model->agency_id);', attendu: 1 }, // excuse séparée par ||
+  // verif-587 passe 2 (N1) — l'excuse niée, comparée ou jamais appelée ne blanchit rien
+  { php: 'return $user->agency_id === $model->agency_id && ! $user->isAgencyAdminAt((int) $model->agency_id);', attendu: 1 }, // N12
+  { php: 'return $user->agency_id === $model->agency_id && !($user->isAgencyAdminAt((int) $model->agency_id));', attendu: 1 }, // N12, parenthésée
+  { php: 'return $user->agency_id === $model->agency_id && $user->isAgencyAdminAt((int) $model->agency_id) === false;', attendu: 1 }, // N12b
+  { php: 'return $user->agency_id === $model->agency_id && false === $user->isAgencyAdminAt((int) $model->agency_id);', attendu: 1 }, // N12b, à gauche
+  { php: 'return $user->agency_id === $model->agency_id && (fn () => $user->isAgencyAdminAt((int) $model->agency_id));', attendu: 1 }, // N25
+  { php: 'return $user->agency_id <> $model->agency_id;', attendu: 1 }, // N1
+  { php: 'return ($user->agency_id ?? 0) === $model->agency_id;', attendu: 1 }, // N2
+  { php: 'return $model->agency_id === ($user->agency_id ?? 0);', attendu: 1 }, // N2, à droite
+  { php: 'return ($user->agency_id <=> $model->agency_id) === 0;', attendu: 1 }, // N3
+  { php: "return request()->user('sanctum')->agency_id === $model->agency_id;", attendu: 1 }, // N5
+  { php: "return auth('sanctum')->user()->agency_id === $model->agency_id;", attendu: 1 }, // N6
   // doit laisser passer
   { php: 'return $user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id);', attendu: 0 },
   { php: 'return $user->agency_id !== null && $user->agency_id === $kpi->agency_id && $user->isAgencyAdminAt((int) $kpi->agency_id);', attendu: 0 },
   { php: 'if ((int) $target->agency_id === (int) $user->agency_id && $user->isAgencyAdminAt((int) $user->agency_id)) { return true; }', attendu: 0 },
+  { php: 'return $user->agency_id === $model->agency_id && ($user->isAgencyAdminAt((int) $model->agency_id));', attendu: 0 }, // positive, parenthésée
+  { php: "$q->where(fn ($w) => $w->where('agency_id', $user->agency_id) && $user->isAgencyAdminAt((int) $user->agency_id));", attendu: 0 }, // même corps
   { php: "$q->whereRaw('lower(name) = ?', [$name]);", attendu: 0 },
   { php: 'return $user->id === $documentable->id;', attendu: 0 },
   { php: 'if ($this->isStaffOf($user, $model->agency_id)) { return true; }', attendu: 0 },
