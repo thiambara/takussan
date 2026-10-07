@@ -4,9 +4,15 @@ namespace Tests\Feature\Authorization;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\Capability;
+use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Lease;
+use App\Models\Payout;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,6 +107,70 @@ class InactiveProfileGrantsNothingTest extends ApiTestCase
             ->patchJson("/api/profiles/{$agentProfile->id}/suspend")
             ->assertOk();
         $this->assertSame('suspended', $agentProfile->fresh()->status->value);
+    }
+
+    // ─── Vérification adverse (verif-587, M4) : une assertion par `->active()` du §7 ─────────────
+
+    /**
+     * `isAgentAt()->active()` — un agent SUSPENDU qui est aussi bailleur actif de la même agence :
+     * l'auto-bascule le remet dans l'agence (par son profil de bailleur), et seul le filtre de
+     * statut d'`isAgentAt()` lui ferme le carnet des propriétaires (RIB, pièces) et le tableau de
+     * bord d'agent.
+     */
+    public function test_un_agent_suspendu_bailleur_actif_n_a_plus_les_vues_d_agent(): void
+    {
+        $agent = $this->agencyAgent($this->agency);
+        OwnerProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $this->agency->id, 'status' => OwnerProfileStatus::Active]);
+
+        $this->actingAsApi($agent->fresh());
+        $this->getJson('/api/owners')->assertOk();
+        $this->getJson('/api/dashboard/agent')->assertOk();
+
+        AgentProfile::query()->where('user_id', $agent->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        $this->actingAsApi($agent->fresh());
+        $this->getJson('/api/owners')->assertForbidden();
+        $this->getJson('/api/dashboard/agent')->assertForbidden();
+    }
+
+    /**
+     * `isOwnerAt()->active()` — un bailleur `blocked` ne propose plus de bien. Seul dans l'agence,
+     * il n'a plus d'agence active et le refus ne doit rien au filtre ; le second cas le prouve :
+     * le même bailleur, agent actif de l'agence SANS `properties.create`, n'est refusé que par lui.
+     */
+    public function test_un_bailleur_bloque_ne_propose_plus_de_bien(): void
+    {
+        $bien = ['title' => 'Studio Mermoz', 'type' => 'apartment', 'contract_type' => 'rent', 'rent_period' => 'monthly', 'price' => 150000];
+
+        $seul = User::factory()->withOwnerProfile($this->agency)->create();
+        OwnerProfile::query()->where('user_id', $seul->id)->update(['status' => OwnerProfileStatus::Blocked->value]);
+        $this->actingAsApi($seul->fresh())->postJson('/api/properties', $bien)->assertForbidden();
+
+        $double = $this->agentWithout($this->agency, Capability::PropertiesCreate);
+        $profil = OwnerProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->agency->id, 'status' => OwnerProfileStatus::Active]);
+        $this->actingAsApi($double->fresh())->postJson('/api/properties', $bien)->assertCreated();
+
+        $profil->forceFill(['status' => OwnerProfileStatus::Blocked])->save();
+        $this->actingAsApi($double->fresh())->postJson('/api/properties', $bien)->assertForbidden();
+    }
+
+    /** `PayoutPolicy::update` — l'émetteur d'un versement qui sort du personnel ne le traite plus. */
+    public function test_l_emetteur_suspendu_ne_traite_plus_son_versement(): void
+    {
+        $emetteur = $this->agentWithout($this->agency, Capability::PayoutsCreate);
+        $versement = fn (): Payout => Payout::factory()->create([
+            'landlord_id' => $this->lease->landlord_id,
+            'agency_id' => $this->agency->id,
+            'issued_by_id' => $emetteur->id,
+            'status' => PayoutStatus::Pending,
+        ]);
+
+        // Témoin : émetteur actif, sans `payouts.create`, il traite le sien.
+        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed")->assertOk();
+
+        AgentProfile::query()->where('user_id', $emetteur->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed")->assertForbidden();
     }
 
     private function assertAgentReadsTheLease(User $agent, bool $expected): void

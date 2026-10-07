@@ -1057,3 +1057,16 @@ d'avant**) et B2 reçoit 403. Ablations : `viewMedia` → `update` seul, rouge (
   - `tests/Feature/Api/Lease*`, `PaymentGateway*`, `tests/Feature/Authorization`,
     `tests/Unit/Policies`, `tests/Feature/Tenant`, `tests/Feature/Api/Agency`,
     `UserAdminAgencyScopeTest` et `PayoutTest` : 423 passés.
+
+**M4 et m4 — barrières sans preuve.** Chaque test est neuf, et chacune de ses ablations est rouge :
+
+| Barrière | Test | Ablation → résultat |
+|---|---|---|
+| `isAgentAt()->active()` | `InactiveProfileGrantsNothingTest` : un agent suspendu qui est aussi bailleur actif de l'agence → 403 sur `/api/owners` et `/api/dashboard/agent` (témoin actif : 200) | filtre retiré → 200, rouge |
+| `isOwnerAt()->active()` | même fichier : bailleur `blocked` seul → 403 sur `POST /api/properties`. Ce refus ne doit rien au filtre, car il n'a plus d'agence active. D'où le second cas : le même bailleur, agent actif sans `properties.create`, reçoit 201, puis 403 une fois bloqué | filtre retiré → 201, rouge |
+| `PayoutPolicy::update`, exigence de personnel | même fichier : l'émetteur, agent sans `payouts.create`, traite son versement (200), puis 403 une fois suspendu | exigence retirée → 200, rouge |
+| export des baux du bailleur | `ExportScopingTest::test_an_owner_exports_only_his_own_leases` : les identifiants exportés valent exactement ses baux (1) | `landlord_id` → `agency_id` → rouge |
+| `isStaffAt()->active()` (m4) | `StaffAgencyIdTest` : un agent suspendu, bailleur actif de la même agence, garde `agency_id` mais `staffAgencyId()` est nul | filtre retiré → l'agence au lieu de `null`, rouge |
+
+Les quatre fichiers passent (`InactiveProfileGrantsNothing`, `StaffAgencyId`, `ExportScoping`,
+`ExportCapability`).

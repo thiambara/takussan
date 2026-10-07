@@ -174,6 +174,26 @@ class ExportScopingTest extends ApiTestCase
         $this->assertStringNotContainsString((string) self::AMOUNT_B, $payments);
     }
 
+    /**
+     * Vérification adverse (verif-587, M4) — les BAUX, par valeur attendue : le test précédent
+     * n'assertit que les paiements, et l'export des baux du bailleur ouvert à toute son agence
+     * restait vert.
+     */
+    public function test_an_owner_exports_only_his_own_leases(): void
+    {
+        $this->actingAs($this->ownerA, 'sanctum');
+        $this->materializeRoleProfile($this->ownerA, 'owner', $this->agencyA);
+
+        $lines = $this->dataLines($this->export('leases'));
+        $ids = array_map(static fn (string $line): int => (int) str_getcsv($line, escape: '\\')[0], $lines);
+
+        $this->assertSame(
+            Lease::query()->where('landlord_id', $this->ownerA->id)->pluck('id')->all(),
+            $ids,
+        );
+        $this->assertCount(1, $ids);
+    }
+
     public function test_an_owner_exports_only_his_own_properties(): void
     {
         $this->actingAs($this->ownerA, 'sanctum');

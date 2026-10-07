@@ -82,6 +82,21 @@ class StaffAgencyIdTest extends TestCase
         $this->assertSame($this->agency->id, $user->staffAgencyId());
     }
 
+    /**
+     * Vérification adverse (verif-587, m4) — l'agent suspendu SEUL retombe à `agency_id` nul par le
+     * repli, et le filtre de statut d'`isStaffAt()` n'y est pour rien. Bailleur actif de la même
+     * agence, il garde `agency_id` : seul ce filtre le sort du personnel.
+     */
+    public function test_un_agent_suspendu_et_bailleur_actif_de_la_meme_agence_n_est_pas_personnel(): void
+    {
+        $user = User::factory()->withOwnerProfile($this->agency)->withAgentProfile($this->agency)->create();
+        AgentProfile::query()->where('user_id', $user->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+        $user = $user->fresh();
+
+        $this->assertSame($this->agency->id, $user->agency_id);
+        $this->assertNull($user->staffAgencyId());
+    }
+
     public function test_multi_agences_sans_profil_actif_n_a_aucun_perimetre(): void
     {
         $autre = Agency::factory()->create();
