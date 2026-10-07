@@ -981,8 +981,10 @@ tests et ablations dans les Notes, section « Corrections après vérification a
   demandé n'est donc pas posable sur une échéance de loyer ; le cas qui éprouve la garde de statut
   est un acompte `booking_payments` remboursé intégralement (`refund_amount = amount`, reste dû
   50 000), ajouté à `test_initiation_refusee_sur_une_echeance_deja_payee`. Ablation AC8a
-  (`Refunded` retiré d'`isPayable`) → rouge. Pour les échéances de loyer, la garde de statut reste
-  une défense en profondeur que la donnée rend inobservable.
+  (`Refunded` retiré d'`isPayable`) → rouge. ~~Pour les échéances de loyer, la garde de statut
+  reste une défense en profondeur que la donnée rend inobservable.~~ *Corrigé après la passe 2
+  (N7) : c'était faux — une échéance de loyer `refunded` dont la pénalité reste due, réglage
+  activé, a un `amountDue` non nul sans la garde de statut ; ce cas est désormais éprouvé.*
 - **AC17 (mineur 8) — gel du mapping pour une agence sans mapping.**
   `test_une_agence_sans_mapping_fige_le_defaut_effectif` : le relevé porte
   `CsvDriver::effectiveMapping(null)` (comparé clé par clé : `jsonb` réordonne les clés), puis
@@ -1074,3 +1076,8 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   toujours (`test_la_tabulation_et_l_espace_survivent_au_trim`). Ablations : règle non implicite →
   rouge ; comparaison lâche → rouge (sur `true`, égal à toute chaîne non vide) ; rognage retiré →
   rouge.
+- **N7 — AC8 sur un loyer.** La garde de statut S'OBSERVE sur une échéance de loyer : `refunded`,
+  pénalité due, réglage activé → `amountDue` vaudrait 7 500 sans elle. Le cas est ajouté à
+  `PaymentGatewayInitiateTest::test_initiation_refusee_sur_une_echeance_deja_payee` (409
+  `payment_not_payable`, aucun appel au pilote). Ablation (`Refunded` retiré d'`isPayable`) →
+  rouge sur ce cas. La phrase de la note AC8 qui la disait inobservable est corrigée.

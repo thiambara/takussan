@@ -281,6 +281,14 @@ class PaymentGatewayInitiateTest extends TestCase
         $this->postJson("/api/booking-payments/{$booking['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertStatus(409);
 
+        // Passe 2, N7 — sur un LOYER, la garde de statut s'observe aussi : remboursé, pénalité due,
+        // réglage activé, le reste dû est 0 mais `amountDue` vaudrait 7 500 sans elle.
+        $refundedWithFee = $this->leaseDue(['late_fee_online_collection' => true], ['status' => PaymentStatus::Refunded, 'paid_at' => now()]);
+        Sanctum::actingAs($refundedWithFee['tenant']);
+        $this->postJson("/api/lease-payments/{$refundedWithFee['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409)
+            ->assertJsonPath('message', __('payments.payment_not_payable'));
+
         // Vérification adverse (AC8a) — l'échéance `refunded` ci-dessus est refusée par la garde
         // du montant nul : `lease_payments` n'a pas de `refund_amount`, son reste dû est donc
         // toujours 0. C'est un acompte remboursé INTÉGRALEMENT (`refund_amount = amount`, reste
