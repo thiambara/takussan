@@ -365,7 +365,6 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
             </div>
           </div>
         ))}
-        {user.profiles.broker ? <Badge variant="outline">{t('broker')}</Badge> : null}
         {user.profiles.service_provider ? <Badge variant="outline">{t('serviceProvider')}</Badge> : null}
       </CardContent>
     </Card>
