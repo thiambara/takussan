@@ -3690,6 +3690,10 @@
       },
       "submit": {
         "saving": "Mu ngi denc…"
+      },
+      "lateFeeOnline": {
+        "label": "Jot alaamu yeex yi ak fey ci internet",
+        "hint": "Bu ñu ko taal : luwaasu kër bi ak alaamu yeex bi, ñoo ànd ci fey ci internet. Bu ñu ko fey : luwaasu kër bi rekk lañuy fey ci internet, alaamu yeex bi ñu fey ko ca ajaas ba."
       }
     },
     "inviteMember": {

@@ -5064,6 +5064,10 @@
       },
       "submit": {
         "saving": "Saving…"
+      },
+      "lateFeeOnline": {
+        "label": "Collect late fees with online payment",
+        "hint": "On: the tenant pays the rent and the late fee together online. Off: only the rent is paid online, and the late fee is settled with the agency."
       }
     },
     "inviteMember": {

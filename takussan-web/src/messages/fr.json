@@ -5064,6 +5064,10 @@
       },
       "submit": {
         "saving": "Enregistrement…"
+      },
+      "lateFeeOnline": {
+        "label": "Encaisser les pénalités de retard avec le paiement en ligne",
+        "hint": "Activé : le locataire paie en ligne le loyer et la pénalité de retard ensemble. Désactivé : seul le loyer est payé en ligne, et la pénalité se règle auprès de l’agence."
       }
     },
     "inviteMember": {
