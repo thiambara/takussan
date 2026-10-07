@@ -1,9 +1,16 @@
 'use client';
 
-import { Suspense, use, useEffect } from 'react';
+import { Suspense, use, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { oauthCallback, type OAuthProvider } from '@/lib/auth';
+import {
+  isOAuthTwoFactorChallenge,
+  oauthCallback,
+  oauthSecondFactor,
+  type AuthResponse,
+  type OAuthProvider,
+} from '@/lib/auth';
+import { DefiSecondFacteur } from '@/components/auth/DefiSecondFacteur';
 import { ApiError } from '@/lib/api';
 import { destinationInterne } from '@/lib/redirection-interne';
 import { useAuth } from '@/context/AuthContext';
@@ -30,12 +37,26 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
   // destination voulue est donc toujours atteinte, avec au plus un rebond.
   //
   // TCK-589 — le rappel du fournisseur ne porte pas `redirect` : la destination mémorisée dans
-  // l'onglet au départ (`OAuthButtons`) prend le relais. Lue dans l'effet : le stockage n'existe
+  // l'onglet au départ (`OAuthButtons`) prend le relais. Lue après le rappel : le stockage n'existe
   // pas au rendu serveur.
-  useEffect(() => {
-    const redirectTo = destinationInterne(redirectParam ?? intentionOAuthMemorisee());
-    const apresConnexion = `/onboarding/intention?redirect=${encodeURIComponent(redirectTo)}`;
+  //
+  // TCK-589, vérification adverse B2 — un compte à 2FA reçoit un défi au lieu d'un jeton : la
+  // page affiche la saisie du second facteur, et la session ne s'ouvre qu'après.
+  const [defi, setDefi] = useState<string | null>(null);
 
+  const ouvrir = useCallback(
+    async ({ token, user, expires_at: expiresAt }: AuthResponse) => {
+      const redirectTo = destinationInterne(redirectParam ?? intentionOAuthMemorisee());
+      // TCK-509 — par le contexte : poser le cookie puis `setUser` laissait le jeton d'avant.
+      await openSession(token, user, expiresAt);
+      await refreshUser();
+      oublierIntentionOAuth();
+      router.replace(`/onboarding/intention?redirect=${encodeURIComponent(redirectTo)}`);
+    },
+    [redirectParam, router, openSession, refreshUser],
+  );
+
+  useEffect(() => {
     if (!code || !state) {
       router.replace('/auth/login?error=oauth_invalid');
       return;
@@ -43,18 +64,27 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
 
     (async () => {
       try {
-        const { token, user, expires_at: expiresAt } = await oauthCallback(provider, code, state);
-        // TCK-509 — par le contexte : poser le cookie puis `setUser` laissait le jeton d'avant.
-        await openSession(token, user, expiresAt);
-        await refreshUser();
-        oublierIntentionOAuth();
-        router.replace(apresConnexion);
+        const reponse = await oauthCallback(provider, code, state);
+        if (isOAuthTwoFactorChallenge(reponse)) {
+          setDefi(reponse.challenge);
+          return;
+        }
+        await ouvrir(reponse);
       } catch (err) {
         const msg = err instanceof ApiError ? 'oauth_failed' : 'oauth_unknown';
         router.replace(`/auth/login?error=${msg}`);
       }
     })();
-  }, [provider, code, state, redirectParam, router, openSession, refreshUser]);
+  }, [provider, code, state, router, ouvrir]);
+
+  if (defi !== null) {
+    return (
+      <DefiSecondFacteur
+        onValider={async (preuve) => ouvrir(await oauthSecondFactor(defi, preuve))}
+        onAnnuler={() => router.replace('/auth/login')}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-4 py-12 text-center">

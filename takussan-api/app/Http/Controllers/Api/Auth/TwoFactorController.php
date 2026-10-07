@@ -11,6 +11,7 @@ use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\TwoFactorService;
 use App\Support\Security\TwoFactorRequirement;
+use App\Support\Security\TwoFactorSession;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -108,6 +109,7 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => json_encode($recoveryCodes),
             'metadata' => $metadata,
         ])->save();
+        $this->markSessionVerified($user);
 
         return $this->json([
             'data' => [
@@ -220,8 +222,21 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => json_encode($recoveryCodes),
         ])->save();
         $this->cache->forget($this->renewalKey($user));
+        $this->markSessionVerified($user);
 
         return $this->json(['data' => ['enabled' => true, 'renewed' => true, 'recovery_codes' => $recoveryCodes]]);
+    }
+
+    /**
+     * Vérification adverse B2 — un TOTP vient d'être saisi sur CE jeton : la session est à
+     * deux facteurs ({@see TwoFactorSession}), sans second code.
+     */
+    private function markSessionVerified(User $user): void
+    {
+        $token = $user->currentAccessToken();
+        if ($token instanceof PersonalAccessToken && $token->exists) {
+            SessionTokenIssuer::markStepUp($token);
+        }
     }
 
     private function pendingRenewal(User $user): ?string

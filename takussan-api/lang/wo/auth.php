@@ -27,6 +27,9 @@ return [
         'code_sent' => 'Su nimero bii mënee jot SMS, yónnee nanu ko benn kod.',
         'deletion_code' => 'Takussan : kodu dëggal ngir far sa kont mooy :code. Dina jeex ci :minutes simili.',
     ],
+    'oauth' => [
+        'challenge_invalid' => 'Défi bii jeexna walla jëfandikoo nañu ko ba noppi. Duggaatal.',
+    ],
     'account' => [
         'blocked' => 'Kont bii tëj nañu ko.',
         'locked' => 'Lu bare jéem nga te baaxul. Kont bi tëju na ay simili.',

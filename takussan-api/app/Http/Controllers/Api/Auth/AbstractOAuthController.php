@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Auth\OAuthCallbackRequest;
-use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
-use App\Services\Auth\SessionTokenIssuer;
+use App\Services\Auth\OAuthSessionOpener;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -103,15 +102,8 @@ abstract class AbstractOAuthController extends Controller
 
         $this->maybeUpdateName($user, $request);
 
-        // TCK-589 — émis par le seul émetteur : borné, et refusé (403
-        // `account_blocked`) à un compte bloqué ou supprimé.
-        $issued = app(SessionTokenIssuer::class)->issue($user, $this->provider().'-oauth');
-
-        return $this->json(['data' => [
-            'token' => $issued['token'],
-            'expires_at' => $issued['expires_at']->toIso8601String(),
-            'user' => (new UserResource($user))->toArray($request),
-        ]]);
+        // TCK-589 — B2 : un compte à 2FA reçoit un défi, pas un jeton.
+        return app(OAuthSessionOpener::class)->open($user, $this->provider().'-oauth', $request);
     }
 
     /**

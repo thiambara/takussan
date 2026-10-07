@@ -135,13 +135,43 @@ export async function oauthProviders(): Promise<OAuthProviderAvailability[]> {
   return res.data.providers;
 }
 
+/**
+ * TCK-589, vérification adverse B2 — le rappel OAuth d'un compte à 2FA ne rend pas de jeton
+ * mais un défi, court et à usage unique, que `oauthSecondFactor` solde avec le TOTP ou un code
+ * de récupération.
+ */
+export type OAuthTwoFactorChallenge = {
+  requires_2fa: true;
+  challenge: string;
+  message?: string;
+};
+
+export type OAuthCallbackResponse = AuthResponse | OAuthTwoFactorChallenge;
+
+export function isOAuthTwoFactorChallenge(
+  res: OAuthCallbackResponse,
+): res is OAuthTwoFactorChallenge {
+  return (res as OAuthTwoFactorChallenge).requires_2fa === true;
+}
+
 export async function oauthCallback(
   provider: OAuthProvider,
   code: string,
   state: string,
-): Promise<AuthResponse> {
-  const res = await apiRequest<{ data: AuthResponse }>(
+): Promise<OAuthCallbackResponse> {
+  const res = await apiRequest<{ data: OAuthCallbackResponse }>(
     `/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
   );
+  return res.data;
+}
+
+export async function oauthSecondFactor(
+  challenge: string,
+  proof: { two_factor_code: string } | { recovery_code: string },
+): Promise<AuthResponse> {
+  const res = await apiRequest<{ data: AuthResponse }>('/api/auth/oauth/2fa', {
+    method: 'POST',
+    body: { challenge, ...proof },
+  });
   return res.data;
 }

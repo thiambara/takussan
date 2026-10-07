@@ -145,6 +145,27 @@ un TOTP ou un code de secours — le même défi que la connexion par mot de pas
 **jamais** accepté comme second facteur d'une connexion par mot de passe : deux facteurs qui
 reposeraient sur le même téléphone n'en feraient qu'un.
 
+**Ajouté après vérification adverse (B2, 2026-10-07) : la 2FA exigée juge la SESSION, pas le
+compte.** `two_factor_enabled` dit qu'un TOTP est configuré. Il ne dit pas que le jeton a été
+obtenu avec ce TOTP.
+
+Par OAuth, un compte à 2FA recevait un jeton sans saisir de TOTP, et ce jeton ouvrait la
+console. Deux règles ferment ce passage :
+
+- **Aucun chemin d'entrée n'émet le jeton d'un compte à 2FA sans son second facteur.**
+  - Le mot de passe et le téléphone posaient déjà un défi.
+  - Les rappels OAuth rendent désormais `{requires_2fa, challenge}`. Le défi est un secret haché
+    en cache, lié au compte, valable 5 min, à usage unique, oublié après 5 échecs.
+  - Ce défi se solde par `POST /auth/oauth/2fa`.
+- **Le jeton porte la preuve.** `personal_access_tokens.two_factor_verified_at` est posé à
+  l'émission quand un second facteur vient d'être saisi, puis renouvelé par le step-up et par
+  l'enrôlement.
+  - **Présent**, il vaut « session à deux facteurs ». C'est ce que jugent `RequireTwoFactor` et
+    `EnsureSuperAdmin` (`TwoFactorSession`).
+  - **Récent (10 min)**, il vaut step-up.
+  - Un compte à 2FA dont le jeton n'en porte pas reçoit `two_factor_step_up_required`. Le front
+    résout ce refus sur place, en demandant le TOTP.
+
 ## Alternatives écartées
 
 - **Rattacher la connexion par téléphone au compte qui porte le numéro, même non vérifié.** Le numéro

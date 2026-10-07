@@ -14,7 +14,8 @@ const oauthCallbackMock = vi.fn();
 const openSessionMock = vi.fn();
 let searchParams = new URLSearchParams();
 
-vi.mock('@/lib/auth', () => ({
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth')>()),
   oauthCallback: (...args: unknown[]) => oauthCallbackMock(...args),
 }));
 vi.mock('@/context/AuthContext', () => ({

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
 use App\Http\Controllers\Api\Auth\OAuthController;
 use App\Http\Controllers\Api\Auth\OAuthProviderController;
+use App\Http\Controllers\Api\Auth\OAuthTwoFactorController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Auth\PhoneLoginController;
 use App\Http\Controllers\Api\Auth\PhoneVerificationController;
@@ -125,6 +126,13 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 // for retries while blocking cheap enumeration.
 Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
     Route::get('/providers', OAuthProviderController::class);
+    // TCK-589, vérification adverse B2 — le rappel d'un compte à 2FA rend un défi : le jeton
+    // n'est émis qu'ici, contre un TOTP ou un code de secours.
+    // Préfixe propre : sans lui, la clé est celle du `throttle:60,1` du groupe, et chaque
+    // appel compterait deux fois.
+    Route::post('/2fa', OAuthTwoFactorController::class)
+        ->middleware('throttle:10,1,oauth-2fa')
+        ->name('auth.oauth.2fa');
 
     // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
     // generic `{provider}` route so Laravel matches them first.

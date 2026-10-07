@@ -1048,3 +1048,105 @@ passe désormais par un jeton avec step-up.
 `activate`, `block`, `unlock`, `UserAdmin*`, `UserRole*`, `UserSupport*` ou un super-admin :
 - 422 verts et 1 rouge, en 109 s. Le rouge était l'effet de bord ci-dessus.
 - Après correction du test, `PasswordLoginLockTest` est vert (6).
+
+#### B2 — par OAuth, un compte à 2FA entrait sans TOTP
+
+**Le défi.** Sonde `OAuthSecondFactorProbeTest` rejouée sur la tête d'avant correctif : rappel
+Google d'un super-admin à 2FA → 200 avec jeton, puis console → 200. Elle échoue désormais faute de
+jeton : le rappel rend `requires_2fa=true`, sans jeton.
+
+**Correctif — émettre :**
+- `OAuthSessionOpener` porte l'ouverture de session des **deux** rappels (`OAuthController`,
+  `AbstractOAuthController`). Pour un compte à 2FA, il ne rend pas de jeton mais
+  `{data: {requires_2fa, challenge}}` :
+  - un secret de 64 caractères ;
+  - **haché** en cache (`oauth_2fa:<sha256>`), lié au compte ;
+  - valable 5 min ;
+  - `pull` au succès, donc à usage unique même sous concurrence ;
+  - oublié après 5 seconds facteurs faux.
+- `POST /api/auth/oauth/2fa` (`OAuthTwoFactorController`, `throttle:10,1,oauth-2fa`) solde le défi
+  avec un TOTP ou un code de secours. Chaque échec compte contre le verrou du compte, comme
+  `login`, et `account_locked` est jugé avant.
+- Le préfixe du limiteur est voulu. Sans lui, la clé est celle du `throttle:60,1` du groupe : chaque
+  appel comptait deux fois, et le cinquième essai rendait 429. Mesuré par le test d'épuisement.
+
+**Correctif — juger :**
+- `TwoFactorSession::verified()` : le jeton courant est un `PersonalAccessToken` et porte
+  `two_factor_verified_at`.
+- `RequireTwoFactor` laisse passer un compte à 2FA **seulement** si sa session est vérifiée.
+  Sinon, la requête est jugée comme celle d'un compte sans 2FA. Le refus porte alors
+  `two_factor_step_up_required`, et non `two_factor_required` : le remède est de saisir le TOTP sur
+  ce jeton (step-up), pas de s'enrôler. `GardeDoubleFacteur` résout déjà ce code sur place, y
+  compris pour une lecture.
+- `EnsureSuperAdmin` applique le même juge.
+- `TwoFactorController@confirm` (enrôlement et renouvellement) et
+  `SuperAdminTwoFactorController@confirm` marquent le jeton : le TOTP vient d'y être saisi. Sans
+  cela, l'admin qui vient de s'enrôler se voyait redemander son code à l'action suivante.
+- ADR-0033 §8 complété.
+
+**Front :**
+- `oauthCallback` rend `AuthResponse | OAuthTwoFactorChallenge`, avec le prédicat
+  `isOAuthTwoFactorChallenge` et la fonction `oauthSecondFactor`.
+- La page de rappel affiche `DefiSecondFacteur` : code à 6 chiffres ou de récupération, mêmes
+  libellés que `auth.twoFactorChallenge`, aucune clé neuve. La session ne s'ouvre qu'après le
+  défi.
+
+**Les tests :**
+- `OAuthSecondFactorTest` (9) :
+  - rappels Google et Facebook sans jeton (0 ligne en base) ;
+  - défi réussi qui ouvre la console, avec `two_factor_verified_at` posé ;
+  - code de secours accepté, puis défi rejoué → 422 `oauth_challenge_invalid` ;
+  - cinq faux → 401, puis défi épuisé ;
+  - défi inconnu ;
+  - jeton sans second facteur d'un super-admin à 2FA : 403 `two_factor_step_up_required` sur la
+    console et 403 sur PUT role, puis la console s'ouvre après step-up sur ce jeton ;
+  - jeton sans second facteur d'un admin d'agence à 2FA : 403 sur `PUT agencies/{a}` ;
+  - l'enrôlement marque le jeton.
+- Front, `oauth-callback-second-facteur.test.tsx` (4) : aucune session ni redirection au défi ;
+  session ouverte avec le jeton du défi ; code refusé, saisie ouverte ; code de récupération.
+
+**Rouge avant correctif.** Sept fichiers ont été remis à `HEAD` par `git show`, puis restaurés par
+`cp` (md5 identiques) : **9/9 rouges**. Page de rappel d'avant correctif : **4/4 rouges**.
+
+**Ablations, chacune restaurée par `cp` :**
+
+| Ablation | Résultat |
+|---|---|
+| A1 : le défi OAuth retiré (`if (true)` dans `open`) | 5 rouges, dont les deux rappels |
+| A2 : `RequireTwoFactor` juge le compte | « action d'agence » rouge |
+| A3 : `get` au lieu de `pull` | « ne sert qu'une fois » rouge |
+| A4 : défi inépuisable | « s'épuise » rouge |
+| A5 : l'enrôlement ne marque pas le jeton | rouge |
+| A6 : `EnsureSuperAdmin` seul neutralisé | **vert**, voir ci-dessous |
+| A2 + A6 ensemble | « console » et « action d'agence » rouges |
+| Front : branche du défi retirée | 4 rouges |
+
+A6 reste vert parce que `RequireTwoFactor` couvre aussi `/api/admin/*` : les deux juges se
+recouvrent, comme le docblock d'`EnsureSuperAdmin` le dit.
+
+**Harnais de test.** `TestCase::be()` sert un compte à 2FA incarné **sans jeton** comme après une
+connexion à deux facteurs. Il lui donne un jeton non enregistré, second facteur saisi il y a une
+heure, donc step-up expiré comme avant. Ce jeton est posé aussi sur la garde `sanctum`. Sans cela,
+`auth:sanctum` relit la garde `web` et substitue un `TransientToken`.
+- Le compte suivant, sans 2FA, fait oublier la garde `sanctum`. Sans cet oubli, trois tests qui
+  changent d'acteur agissaient encore au nom du premier (mesuré : `AgencyUpgradeRequestSubmissionTest`,
+  `AgencyTeamInvitationListingTest`).
+- `Sanctum::actingAs` passe un mock de jeton que le juge tient pour vérifié. Ce cas ne se
+  produit qu'en test. Un jeton réel sans la colonne est refusé, et c'est ce que les tests B2
+  éprouvent.
+
+**Rattrapage de B1.** Trois tests incarnaient un super-admin **sans 2FA** sur une action
+d'`AGENCY_TWO_FACTOR` et rougissaient depuis `cff6b739`. Ils n'étaient pas dans la passe de B1.
+On leur donne la 2FA (`withTwoFactor()`) : c'est le comportement voulu par B1.
+- `PayoutStoreAuthorizationTest::test_a_super_admin_creates` ;
+- `AgencyMembersListTest`, 7 tests ;
+- `WatermarkActivationTest::test_activation_through_the_api_queues_the_regeneration`.
+
+**Exécutions :**
+- `tests/Feature/Auth` + 4 fichiers : 314 verts.
+- 78 fichiers qui incarnent un compte à 2FA, un admin, `CreatesAgencyMembers` ou un vrai jeton :
+  732 verts et 3 rouges, en 154 s, charge 4,1 / 5,1 / 8,9. Les 3 rouges étaient le défaut du
+  harnais ci-dessus.
+- 44 autres fichiers qui touchent un super-admin : 388 verts et 8 rouges, en 238 s. Les 8 rouges
+  sont le rattrapage B1 ci-dessus.
+- Après correction : les fichiers concernés plus `tests/Feature/Auth`, 332 verts, puis 24 verts.

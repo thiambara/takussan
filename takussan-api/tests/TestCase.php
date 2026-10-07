@@ -9,6 +9,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as LaravelTestCase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -201,6 +202,34 @@ abstract class TestCase extends LaravelTestCase
         $this->actingAs($user, $guard);
 
         return $user;
+    }
+
+    /**
+     * TCK-589, vérification adverse B2 — la 2FA exigée juge le JETON
+     * (`TwoFactorSession`), plus le compte. Un compte à 2FA incarné SANS jeton est servi
+     * comme après une connexion à deux facteurs : un jeton non enregistré dont le second
+     * facteur a été saisi il y a une heure — session à deux facteurs, step-up expiré, comme
+     * avant. Un test qui éprouve un jeton sans second facteur crée un vrai jeton.
+     */
+    public function be(Authenticatable $user, $guard = null)
+    {
+        if (! $user instanceof User || ! $user->two_factor_enabled || $user->currentAccessToken() !== null) {
+            // Un compte incarné AVANT celui-ci a pu être posé sur la garde `sanctum` (plus bas) :
+            // sans cet oubli, il y resterait et la requête suivante agirait en son nom.
+            if ($guard !== 'sanctum') {
+                $this->app['auth']->guard('sanctum')->forgetUser();
+            }
+
+            return parent::be($user, $guard);
+        }
+
+        $user->withAccessToken((new PersonalAccessToken)->forceFill(['two_factor_verified_at' => now()->subHour()]));
+        parent::be($user, $guard);
+        // Sans cela, `auth:sanctum` relit l'utilisateur de la garde `web` et lui substitue un
+        // `TransientToken` : le jeton ci-dessus serait perdu.
+        $this->app['auth']->guard('sanctum')->setUser($user);
+
+        return $this;
     }
 
     /** TCK-589 — secret TOTP des comptes incarnés avec la 2FA (base32 valide). */

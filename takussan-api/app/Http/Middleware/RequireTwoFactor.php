@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Auth\AuthRefusal;
 use App\Support\Security\ProtectedActions;
 use App\Support\Security\TwoFactorRequirement;
+use App\Support\Security\TwoFactorSession;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,6 +23,10 @@ use Symfony\Component\HttpFoundation\Response;
  *  3. sur les actions MUTANTES des familles de {@see ProtectedActions} : tout admin
  *     d'agence sans 2FA, et tout personnel de l'agence quand celle-ci a coché
  *     `settings.require_team_two_factor`. Jamais un bailleur, jamais un client.
+ *
+ * « Avoir la 2FA », c'est l'avoir saisie POUR CE JETON ({@see TwoFactorSession}, vérification
+ * adverse B2) : un compte à 2FA dont la session ne l'a pas vue reçoit
+ * `two_factor_step_up_required`, que le front résout en demandant le TOTP.
  *
  * Aucun délai de grâce, aucun drapeau : l'admin sans 2FA est enrôlé sur place à
  * sa première 403 (le front lit le code).
@@ -43,13 +48,22 @@ class RequireTwoFactor
             return $this->refuse();
         }
 
-        if ($user->two_factor_enabled) {
+        // B2 — une session à deux facteurs passe ; tout le reste se juge sur ce que la
+        // requête exige. Le compte à 2FA dont CE jeton n'a pas vu le second facteur (entré
+        // par OAuth, jeton d'avant l'enrôlement…) est refusé comme le compte sans 2FA, avec
+        // le code qui le résout sur place : saisir son TOTP (step-up) sur ce jeton.
+        if ($user->two_factor_enabled && TwoFactorSession::verified($user)) {
             return $next($request);
         }
 
+        return $this->requiresTwoFactor($request, $user) ? $this->refuse($user) : $next($request);
+    }
+
+    private function requiresTwoFactor(Request $request, User $user): bool
+    {
         $plateforme = $user->platformProfile()->exists();
         if ($request->is('api/admin', 'api/admin/*') && $plateforme) {
-            return $this->refuse();
+            return true;
         }
 
         // Vérification adverse B1 — `Gate::before` ouvre toute policy au super-admin : hors de
@@ -58,16 +72,12 @@ class RequireTwoFactor
         $action = $request->route()?->getActionName();
         if ($plateforme && ! $request->isMethodSafe()
             && (ProtectedActions::requiresAgencyTwoFactor($action) || ProtectedActions::requiresStepUpForPlatform($action))) {
-            return $this->refuse();
+            return true;
         }
 
-        if (! $request->isMethodSafe()
+        return ! $request->isMethodSafe()
             && ProtectedActions::requiresAgencyTwoFactor($action)
-            && TwoFactorRequirement::requiredAtAgency($user, $this->requestAgencyId($request))) {
-            return $this->refuse();
-        }
-
-        return $next($request);
+            && TwoFactorRequirement::requiredAtAgency($user, $this->requestAgencyId($request));
     }
 
     /** L'agence que vise la requête : `{agency}` de la route, sinon le profil actif. */
@@ -86,8 +96,10 @@ class RequireTwoFactor
         return $agencyId !== null ? (int) $agencyId : null;
     }
 
-    private function refuse(): Response
+    private function refuse(?User $user = null): Response
     {
-        return AuthRefusal::response(403, 'two_factor_required', 'auth.two_factor.required');
+        return $user?->two_factor_enabled
+            ? AuthRefusal::response(403, 'two_factor_step_up_required', 'auth.two_factor.step_up_required')
+            : AuthRefusal::response(403, 'two_factor_required', 'auth.two_factor.required');
     }
 }

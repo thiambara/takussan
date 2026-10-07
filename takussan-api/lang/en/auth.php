@@ -27,6 +27,9 @@ return [
         'code_sent' => 'If this number can receive a text message, a code has just been sent to it.',
         'deletion_code' => 'Takussan: your account deletion confirmation code is :code. It expires in :minutes min.',
     ],
+    'oauth' => [
+        'challenge_invalid' => 'This sign-in challenge has expired or was already used. Please sign in again.',
+    ],
     'account' => [
         'blocked' => 'This account is blocked.',
         'locked' => 'Too many failed attempts. The account is locked for a few minutes.',

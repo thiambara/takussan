@@ -32,6 +32,9 @@ return [
         'code_sent' => 'Si ce numéro peut recevoir un SMS, un code vient d\'y être envoyé.',
         'deletion_code' => 'Takussan : code de confirmation de suppression de compte :code. Il expire dans :minutes min.',
     ],
+    'oauth' => [
+        'challenge_invalid' => 'Ce défi de connexion a expiré ou a déjà servi. Reconnectez-vous.',
+    ],
     'account' => [
         'blocked' => 'Ce compte est bloqué.',
         'locked' => 'Trop de tentatives échouées. Le compte est verrouillé pour quelques minutes.',
