@@ -1603,7 +1603,8 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "Historique, factures et reversements bailleurs — suivi unifié.",
-        "metaTitle": "Paiements"
+        "metaTitle": "Paiements",
+        "customerSubtitle": "Ce que vous devez, vos paiements et vos quittances."
       },
       "calendar": {
         "metaTitle": "Calendrier",
@@ -2754,6 +2755,25 @@
       "markFailed": "Marquer échoué",
       "cancel": "Annuler",
       "close": "Fermer"
+    },
+    "customer": {
+      "nextTitle": "Prochain paiement",
+      "upToDate": "Vous êtes à jour : aucun paiement en attente.",
+      "error": "Impossible de charger vos paiements.",
+      "period": "Loyer du {start} au {end}",
+      "rent": "Loyer",
+      "booking": "Réservation",
+      "dueOn": "échéance le {date}",
+      "paidOn": "Payé le {date}",
+      "lateFeeAtAgency": "Pénalité de retard : {amount}, à régler auprès de l’agence.",
+      "otherDues": "Autres paiements à régler",
+      "historyTitle": "Historique",
+      "emptyTitle": "Aucun paiement pour l’instant",
+      "emptyDescription": "Vos paiements et leurs quittances apparaîtront ici.",
+      "receiptPdf": "Quittance PDF",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageOf": "Page {page} sur {total}"
     }
   },
   "lease": {

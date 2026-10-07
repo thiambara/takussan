@@ -1628,7 +1628,8 @@
       "payments": {
         "title": "Payments",
         "subtitle": "History, invoices and landlord payouts — one unified view.",
-        "metaTitle": "Payments"
+        "metaTitle": "Payments",
+        "customerSubtitle": "What you owe, your payments and your rent receipts."
       },
       "calendar": {
         "metaTitle": "Calendar",
@@ -2779,6 +2780,25 @@
       "markFailed": "Mark as failed",
       "cancel": "Cancel",
       "close": "Close"
+    },
+    "customer": {
+      "nextTitle": "Next payment",
+      "upToDate": "You’re up to date: no payment pending.",
+      "error": "Couldn’t load your payments.",
+      "period": "Rent from {start} to {end}",
+      "rent": "Rent",
+      "booking": "Booking",
+      "dueOn": "due on {date}",
+      "paidOn": "Paid on {date}",
+      "lateFeeAtAgency": "Late fee: {amount}, to be settled with the agency.",
+      "otherDues": "Other payments due",
+      "historyTitle": "History",
+      "emptyTitle": "No payments yet",
+      "emptyDescription": "Your payments and their receipts will show up here.",
+      "receiptPdf": "Rent receipt PDF",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {total}"
     }
   },
   "lease": {

@@ -1405,6 +1405,25 @@
       "markFailed": "Wone ne antuwul",
       "cancel": "Neenal",
       "close": "Tëj"
+    },
+    "customer": {
+      "nextTitle": "Fey bi ci topp",
+      "upToDate": "Leegi yépp jeex na : amul fey buy xaar.",
+      "error": "Mënuñu yeb say fey.",
+      "period": "Luwaasu kër ci {start} ba {end}",
+      "rent": "Luwaasu kër",
+      "booking": "Reserwaasiyoŋ",
+      "dueOn": "bisu pey : {date}",
+      "paidOn": "Fey nañu ko ci {date}",
+      "lateFeeAtAgency": "Alaamu yeex : {amount}, nga fey ko ca ajaas ba.",
+      "otherDues": "Yeneen fey yi des",
+      "historyTitle": "Li weesu",
+      "emptyTitle": "Amul fey ba tey",
+      "emptyDescription": "Say fey ak seeni kitaanse dinañu feeñ fii.",
+      "receiptPdf": "Kitaanceb fey PDF",
+      "previous": "Ginnaaw",
+      "next": "Topp",
+      "pageOf": "Xët {page} ci {total}"
     }
   },
   "lease": {
@@ -6999,7 +7018,8 @@
       "payments": {
         "title": "Pey yi",
         "subtitle": "Taariix, fakteer ak peymaanu boroom kër — benn topptoo.",
-        "metaTitle": "Pey yi"
+        "metaTitle": "Pey yi",
+        "customerSubtitle": "Li nga ameel, say fey ak say kitaanse."
       },
       "calendar": {
         "metaTitle": "Arminaat",

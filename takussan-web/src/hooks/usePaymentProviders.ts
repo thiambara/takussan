@@ -35,7 +35,15 @@ export function usePaymentProviders(agencyId: number | null | undefined) {
     },
   );
 
-  const providers = useMemo<readonly GatewayProvider[]>(() => {
+  // TCK-593 — `GET /api/integrations` est réservé à l'admin d'agence (`IntegrationController::
+  // index`) : pour le locataire, l'appel rend 403, et une liste vide masquait « Payer » à la
+  // seule personne qui paie. Un refus de LIRE la liste ne dit pas qu'aucun fournisseur n'est
+  // configuré : on rend `undefined` (« inconnu »), et le sélecteur s'en tient aux règles de devise
+  // — l'API refuse à l'initiation un fournisseur que l'agence n'a pas.
+  const forbidden = query.error?.status === 403;
+
+  const providers = useMemo<readonly GatewayProvider[] | undefined>(() => {
+    if (forbidden) return undefined;
     if (!query.data) return [];
     const set = new Set<GatewayProvider>();
     for (const row of query.data.data) {
@@ -44,7 +52,7 @@ export function usePaymentProviders(agencyId: number | null | undefined) {
       if (KNOWN_PROVIDERS.includes(provider)) set.add(provider);
     }
     return Array.from(set);
-  }, [query.data]);
+  }, [forbidden, query.data]);
 
   return { providers, isLoading: query.isLoading };
 }
