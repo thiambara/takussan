@@ -9,18 +9,13 @@ import { useAuth } from '@/context/AuthContext';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { ContactGestures } from '@/components/crm/ContactGestures';
 import { CustomerActivityFeed } from '@/components/crm/CustomerActivityFeed';
+import { CustomerTasksPanel } from '@/components/crm/CustomerTasksPanel';
 import { noteBody } from '@/components/crm/noteBody';
-import {
-  createCustomerTask,
-  fetchCustomerTasks,
-  updateTask,
-} from '@/lib/queries/pipeline';
+import { fetchCustomerTasks } from '@/lib/queries/pipeline';
 import {
   createCustomerNote,
   fetchCustomerNotes,
@@ -28,8 +23,7 @@ import {
 } from '@/lib/queries/customers';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import type { Locale } from '@/i18n/config';
-import { formatDate, formatDateTime } from '@/lib/format';
-import type { Task } from '@/types/pipeline';
+import { formatDateTime } from '@/lib/format';
 
 interface CustomerDetailSheetProps {
   customerId: number;
@@ -67,34 +61,6 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerNotes(customerId) });
-    },
-  });
-
-  const taskMutation = useMutation<Task, ApiError, { title: string; due_at?: string }>({
-    mutationFn: async (payload) => {
-      if (!token) throw new ApiError(401, { message: 'unauth' });
-      return createCustomerTask(token, customerId, payload);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId),
-      });
-    },
-  });
-
-  const taskStatusMutation = useMutation<
-    Task,
-    ApiError,
-    { id: number; status: 'open' | 'in_progress' | 'done' | 'cancelled' }
-  >({
-    mutationFn: async ({ id, status }) => {
-      if (!token) throw new ApiError(401, { message: 'unauth' });
-      return updateTask(token, id, { status });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId),
-      });
     },
   });
 
@@ -170,18 +136,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
             </TabsContent>
 
             <TabsContent value="tasks">
-              <TasksTab
-                tasks={tasksQuery.data ?? []}
-                isLoading={tasksQuery.isLoading}
-                onAdd={(payload) => taskMutation.mutate(payload)}
-                isAdding={taskMutation.isPending}
-                onToggleStatus={(task) =>
-                  taskStatusMutation.mutate({
-                    id: task.id,
-                    status: task.status === 'done' ? 'open' : 'done',
-                  })
-                }
-              />
+              <CustomerTasksPanel customerId={customerId} />
             </TabsContent>
 
             <TabsContent value="activity">
@@ -272,91 +227,6 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
               <time className="mt-1 block text-xs tabular-nums text-muted-foreground">
                 {formatDateTime(n.created_at, locale)}
               </time>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-interface TasksTabProps {
-  tasks: Task[];
-  isLoading: boolean;
-  onAdd: (payload: { title: string; due_at?: string }) => void;
-  isAdding: boolean;
-  onToggleStatus: (task: Task) => void;
-}
-
-function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTabProps) {
-  const t = useTranslations('crm.pipeline');
-  const locale = useLocale() as Locale;
-  const [title, setTitle] = useState('');
-  const [due, setDue] = useState('');
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t('tasks.titlePlaceholder')}
-        />
-        <DateTimePicker
-          value={due}
-          onValueChange={setDue}
-        />
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            disabled={title.trim().length === 0 || isAdding}
-            onClick={() => {
-              onAdd({
-                title: title.trim(),
-                due_at: due ? new Date(due).toISOString() : undefined,
-              });
-              setTitle('');
-              setDue('');
-            }}
-          >
-            {t('tasks.add')}
-          </Button>
-        </div>
-      </div>
-      {isLoading ? (
-        <Loading />
-      ) : tasks.length === 0 ? (
-        <Empty />
-      ) : (
-        <ul className="space-y-2">
-          {tasks.map((task) => (
-            <li
-              key={task.id}
-              className="flex items-start gap-3 rounded-lg border border-muted bg-card p-3 text-sm"
-            >
-              <input
-                type="checkbox"
-                className="mt-0.5 size-5 shrink-0 cursor-pointer accent-primary"
-                checked={task.status === 'done'}
-                onChange={() => onToggleStatus(task)}
-                aria-label={t('tasks.toggle')}
-              />
-              <div className="min-w-0 flex-1">
-                <p
-                  className={
-                    task.status === 'done'
-                      ? 'text-muted-foreground line-through'
-                      : 'text-foreground'
-                  }
-                >
-                  {task.title}
-                </p>
-                {task.due_at ? (
-                  <time className="block text-xs tabular-nums text-muted-foreground">
-                    {formatDate(task.due_at, locale, { dateStyle: 'long' })}
-                  </time>
-                ) : null}
-              </div>
             </li>
           ))}
         </ul>

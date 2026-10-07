@@ -1060,6 +1060,54 @@
         "neighborhoodsPlaceholder": "Almadies, Mermoz",
         "help": "Xàjjale dëkk yi ak gox yi ak ay virgule. Bërëb bu amul dara dafay far critère bi."
       }
+    },
+    "tabs": {
+      "tasks": "Liggéey yi",
+      "activity": "Jëf yi",
+      "visits": "Seetlu yi",
+      "bookings": "Reserwaasiyoŋ yi",
+      "leases": "Kontaraa yi",
+      "matches": "Kër yi méngoo"
+    },
+    "tasks": {
+      "loadFailed": "Liggéeyu kiliyaan bii yebuwul.",
+      "retry": "Jéemaat",
+      "empty": "Amul benn liggéey ci kiliyaan bii.",
+      "toggle": "Bind ne « {title} » jeex na",
+      "saveFailed": "Liggéey bi dencuwul."
+    },
+    "linked": {
+      "loadFailed": "Lim bii yebuwul.",
+      "retry": "Jéemaat",
+      "empty": {
+        "visits": "Amul benn seetlu ci kiliyaan bii.",
+        "bookings": "Amul benn reserwaasiyoŋ ci kiliyaan bii.",
+        "leases": "Amul benn kontaraa ci kiliyaan bii."
+      },
+      "untitled": "Amul tur",
+      "unknownStatus": "Beneen nekkin"
+    },
+    "matches": {
+      "loadFailed": "Kër yi méngoo yebuwuñu.",
+      "retry": "Jéemaat",
+      "empty": "Amagul benn këru ajaas bu méngoo.",
+      "emptyHint": "Bindal li kiliyaan bi di seet ci tënk bi : xaalis, xeetu kër, dëkk.",
+      "count": "{count, plural, one {# kër moo méngoo} other {# kër ñoo méngoo}} ak li mu soxla.",
+      "select": "Tànn « {title} » ngir yónne ko",
+      "notShareable": "« {title} » du ci kaw : mënuñu ko yónne",
+      "private": "du ci kaw",
+      "shareIntro": "Asalaa maalekum {firstName}, men naa la won kër yii méngoo ak li ngay seet :",
+      "share": "{count, plural, =0 {Tànnal kër yi ngay yónne} one {Yónne # kër ci WhatsApp} other {Yónne # kër ci WhatsApp}}",
+      "noWhatsapp": "Bu amul nimero bu ñu mën a jot, mënuñu yónne tànn bi ci WhatsApp."
+    },
+    "referent": {
+      "title": "Ki ko yor",
+      "someone": "Benn ci ajaas bi",
+      "none": "Kenn yorul kiliyaan bii.",
+      "me": "Man maa koy yor",
+      "pick": "Tànnal ab ajaŋ",
+      "designate": "Tànn",
+      "failed": "Tànnu ki ko yor antuwul."
     }
   },
   "account": {

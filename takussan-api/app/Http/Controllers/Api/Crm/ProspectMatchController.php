@@ -32,6 +32,8 @@ class ProspectMatchController extends Controller
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Property $p) => [
             'id' => $p->id,
             'title' => $p->title,
+            // Le lien public que la fiche partage par WhatsApp (seuls les biens publics le sont).
+            'slug' => $p->slug,
             'type' => $p->type,
             'contract_type' => $p->contract_type,
             'price' => $p->price,

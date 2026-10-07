@@ -17,6 +17,8 @@ import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
+import { ContactGestures } from '@/components/crm/ContactGestures';
+import { CustomerReferent } from '@/components/crm/CustomerReferent';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
   CUSTOMER_ENUM_NAMESPACES,
@@ -135,6 +137,15 @@ export default async function Page({ params }: { params: Params }) {
           />
         }
       />
+
+      {/* TCK-591 — les deux gestes de la fiche, et son référent. */}
+      <ContactGestures
+        phone={customer.phone}
+        firstName={customer.first_name}
+        fullName={`${customer.first_name} ${customer.last_name}`}
+      />
+
+      <CustomerReferent customerId={customer.id} agencyId={customer.agency_id} relationships={relationships} />
 
       <CustomerTagPickerSection
         customerId={customer.id}

@@ -46,6 +46,7 @@ export interface CustomerDetail extends CustomerListItem {
   added_by_id: number | null;
   user_id: number | null;
   metadata: Record<string, unknown> | null;
+  agency_id?: number | null;
   /** TCK-591 §5 — critères du prospect (`decimal:2` : les montants arrivent en chaîne). */
   seeking_contract_type?: 'sale' | 'rent' | null;
   budget_min?: string | null;
@@ -88,6 +89,8 @@ export interface CustomerRelationship {
   start_date: string;
   end_date: string | null;
   notes: string | null;
+  /** Rendu par `GET /api/customers/{id}/relationships` ; le référent se nomme par lui (TCK-591). */
+  user?: { id: number; name: string; email: string | null } | null;
 }
 
 export type PaginatedCustomers = PaginatedResponse<CustomerListItem>;

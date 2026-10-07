@@ -2409,6 +2409,54 @@
         "neighborhoodsPlaceholder": "Almadies, Mermoz",
         "help": "Séparez les villes et les quartiers par des virgules. Un champ vide efface le critère."
       }
+    },
+    "tabs": {
+      "tasks": "Tâches",
+      "activity": "Activité",
+      "visits": "Visites",
+      "bookings": "Réservations",
+      "leases": "Baux",
+      "matches": "Biens correspondants"
+    },
+    "tasks": {
+      "loadFailed": "Les tâches de ce client n'ont pas pu être chargées.",
+      "retry": "Réessayer",
+      "empty": "Aucune tâche pour ce client.",
+      "toggle": "Marquer « {title} » comme faite",
+      "saveFailed": "La tâche n'a pas pu être enregistrée."
+    },
+    "linked": {
+      "loadFailed": "Cette liste n'a pas pu être chargée.",
+      "retry": "Réessayer",
+      "empty": {
+        "visits": "Aucune visite pour ce client.",
+        "bookings": "Aucune réservation pour ce client.",
+        "leases": "Aucun bail pour ce client."
+      },
+      "untitled": "Sans titre",
+      "unknownStatus": "Autre statut"
+    },
+    "matches": {
+      "loadFailed": "Les biens correspondants n'ont pas pu être chargés.",
+      "retry": "Réessayer",
+      "empty": "Aucun bien de l'agence ne correspond pour l'instant.",
+      "emptyHint": "Renseignez ce que le prospect recherche dans l'aperçu : budget, type de bien, ville.",
+      "count": "{count, plural, one {# bien correspond} other {# biens correspondent}} aux critères.",
+      "select": "Choisir « {title} » pour l'envoi",
+      "notShareable": "« {title} » n'est pas public : il ne peut pas être envoyé",
+      "private": "non public",
+      "shareIntro": "Bonjour {firstName}, voici des biens qui correspondent à votre recherche :",
+      "share": "{count, plural, =0 {Choisissez des biens à envoyer} one {Envoyer # bien sur WhatsApp} other {Envoyer # biens sur WhatsApp}}",
+      "noWhatsapp": "Sans numéro joignable, la sélection ne peut pas être envoyée par WhatsApp."
+    },
+    "referent": {
+      "title": "Référent",
+      "someone": "Un membre de l'agence",
+      "none": "Aucun référent désigné.",
+      "me": "Me désigner",
+      "pick": "Choisir un agent",
+      "designate": "Désigner",
+      "failed": "Le référent n'a pas pu être désigné."
     }
   },
   "account": {

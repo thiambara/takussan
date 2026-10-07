@@ -2434,6 +2434,54 @@
         "neighborhoodsPlaceholder": "Almadies, Mermoz",
         "help": "Separate cities and neighbourhoods with commas. An empty field clears the criterion."
       }
+    },
+    "tabs": {
+      "tasks": "Tasks",
+      "activity": "Activity",
+      "visits": "Viewings",
+      "bookings": "Bookings",
+      "leases": "Leases",
+      "matches": "Matching properties"
+    },
+    "tasks": {
+      "loadFailed": "This customer's tasks could not be loaded.",
+      "retry": "Retry",
+      "empty": "No tasks for this customer.",
+      "toggle": "Mark “{title}” as done",
+      "saveFailed": "The task could not be saved."
+    },
+    "linked": {
+      "loadFailed": "This list could not be loaded.",
+      "retry": "Retry",
+      "empty": {
+        "visits": "No viewings for this customer.",
+        "bookings": "No bookings for this customer.",
+        "leases": "No leases for this customer."
+      },
+      "untitled": "Untitled",
+      "unknownStatus": "Other status"
+    },
+    "matches": {
+      "loadFailed": "Matching properties could not be loaded.",
+      "retry": "Retry",
+      "empty": "No agency property matches yet.",
+      "emptyHint": "Fill in what the prospect is looking for in the overview: budget, property type, city.",
+      "count": "{count, plural, one {# property matches} other {# properties match}} the criteria.",
+      "select": "Pick “{title}” to send",
+      "notShareable": "“{title}” is not public: it cannot be sent",
+      "private": "not public",
+      "shareIntro": "Hello {firstName}, here are properties that match your search:",
+      "share": "{count, plural, =0 {Pick properties to send} one {Send # property on WhatsApp} other {Send # properties on WhatsApp}}",
+      "noWhatsapp": "Without a reachable number, the selection cannot be sent on WhatsApp."
+    },
+    "referent": {
+      "title": "Account owner",
+      "someone": "An agency member",
+      "none": "No account owner yet.",
+      "me": "Assign to me",
+      "pick": "Pick an agent",
+      "designate": "Assign",
+      "failed": "The account owner could not be assigned."
     }
   },
   "account": {

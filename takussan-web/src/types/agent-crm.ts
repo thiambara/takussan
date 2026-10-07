@@ -21,6 +21,7 @@ export interface CustomerActivityEntry {
 export interface MatchingProperty {
   id: number;
   title: string;
+  slug: string | null;
   type: string;
   contract_type: string;
   price: string | number;
@@ -87,4 +88,20 @@ export interface BulkResult {
   updated: number;
   updated_ids: number[];
   failed: BulkFailure[];
+}
+
+/** Une ligne liée à la fiche client (visite, réservation, bail), réduite à ce que l'onglet affiche. */
+export interface CustomerLinkedRecord {
+  id: number;
+  status: string | null;
+  /** Visite : `scheduled_at` ; réservation et bail : `start_date`. */
+  date: string | null;
+  end_date?: string | null;
+  reference_number?: string | null;
+  property: { id: number; title: string } | null;
+}
+
+export interface AgencyStaffMember {
+  id: number;
+  name: string;
 }

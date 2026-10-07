@@ -1,10 +1,12 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
+  AgencyStaffMember,
   AgentAbsence,
   BulkResult,
   CalendarFeedState,
   CustomerActivityEntry,
+  CustomerLinkedRecord,
   MatchingCustomer,
   MatchingProperty,
   MemberPortfolio,
@@ -26,7 +28,93 @@ export const AGENT_CRM_QUERY_KEY = {
   calendarFeed: () => ['agent-crm', 'calendar-feed'] as const,
   portfolio: (agencyId: number, userId: number) => ['agent-crm', 'agency', agencyId, 'portfolio', userId] as const,
   absences: (agencyId: number) => ['agent-crm', 'agency', agencyId, 'absences'] as const,
+  linked: (customerId: number, kind: LinkedKind) => ['agent-crm', 'customer', customerId, 'linked', kind] as const,
+  staff: (agencyId: number) => ['agent-crm', 'agency', agencyId, 'staff'] as const,
 };
+
+export type LinkedKind = 'visits' | 'bookings' | 'leases';
+
+interface LinkedRow {
+  id: number;
+  status?: string | null;
+  scheduled_at?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  reference_number?: string | null;
+  property?: { id: number; title: string } | null;
+}
+
+/**
+ * TCK-591 §4 — ce que la fiche client relie : ses visites, ses réservations, ses baux (le client y
+ * est locataire). Chaque liste reste bornée par la règle de lecture de son propre index.
+ */
+export async function fetchCustomerLinked(
+  token: string,
+  customerId: number,
+  kind: LinkedKind,
+): Promise<CustomerLinkedRecord[]> {
+  const spec = {
+    visits: {
+      path: '/api/property-visits',
+      table: 'property_visits',
+      filter: { customer_id: customerId },
+      cols: ['id', 'property_id', 'status', 'scheduled_at'],
+      sort: '-scheduled_at',
+    },
+    bookings: {
+      path: '/api/bookings',
+      table: 'bookings',
+      filter: { customer_id: customerId },
+      cols: ['id', 'property_id', 'reference_number', 'status', 'start_date', 'end_date'],
+      sort: '-start_date',
+    },
+    leases: {
+      path: '/api/leases',
+      table: 'leases',
+      filter: { tenant_id: customerId },
+      cols: ['id', 'property_id', 'reference_number', 'status', 'start_date', 'end_date'],
+      sort: '-start_date',
+    },
+  }[kind];
+  const qs = buildQueryString({
+    filter: spec.filter,
+    include: ['property'],
+    fields: { [spec.table]: spec.cols, properties: ['id', 'title'] },
+    sort: spec.sort,
+    per_page: 20,
+  });
+  const res = await apiRequest<PaginatedResponse<LinkedRow>>(`${spec.path}?${qs}`, { token });
+  return res.data.map((row) => ({
+    id: row.id,
+    status: row.status ?? null,
+    date: row.scheduled_at ?? row.start_date ?? null,
+    end_date: row.end_date ?? null,
+    reference_number: row.reference_number ?? null,
+    property: row.property ? { id: row.property.id, title: row.property.title } : null,
+  }));
+}
+
+/** Les agents de l'agence (liste réservée à l'administration : un 403 laisse « me désigner » seul). */
+export async function fetchAgencyAgents(token: string, agencyId: number): Promise<AgencyStaffMember[]> {
+  const qs = buildQueryString({
+    filter: { role: 'agent' },
+    fields: { users: ['id', 'first_name', 'last_name'] },
+    per_page: 100,
+  });
+  const res = await apiRequest<PaginatedResponse<{ id: number; first_name: string | null; last_name: string | null }>>(
+    `/api/agencies/${agencyId}/members?${qs}`,
+    { token },
+  );
+  return res.data.map((u) => ({ id: u.id, name: [u.first_name, u.last_name].filter(Boolean).join(' ') }));
+}
+
+export async function setCustomerPrimaryContact(token: string, customerId: number, userId: number): Promise<void> {
+  await apiRequest<unknown>(`/api/customers/${customerId}/primary-contact`, {
+    method: 'POST',
+    body: { user_id: userId },
+    token,
+  });
+}
 
 export async function fetchCustomerActivity(
   token: string,
