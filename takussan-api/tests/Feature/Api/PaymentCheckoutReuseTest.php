@@ -87,6 +87,36 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertSame(['spy_txn_1', 'spy_txn_2', 'spy_txn_3'], $history);
     }
 
+    public function test_l_echec_d_un_ancien_checkout_ne_ferme_pas_le_checkout_courant(): void
+    {
+        // Passe 2, N1 — checkout 1 abandonné, checkout 2 ouvert 31 min plus tard, puis l'échec du
+        // 1 arrive : il fermait le 2, et le clic suivant ouvrait un TROISIÈME checkout vivant.
+        $ctx = $this->leaseDue();
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $this->waveWebhook('spy_txn_1', null, 'checkout.session.payment_failed')->assertOk();
+
+        $this->assertSame('spy_txn_2', $this->initiate($ctx['payment']->id)->assertOk()->json('data.transaction_id'));
+        $this->assertCount(2, $spy->calls);
+
+        $gateway = $ctx['payment']->refresh()->metadata['gateway'];
+        $this->assertArrayNotHasKey('last_failed_at', $gateway);
+        $this->assertNotNull($gateway['transactions'][0]['failed_at'] ?? null, 'L\'échec est tracé sur l\'entrée du checkout 1.');
+
+        // Le checkout 2 vit toujours : l'espèce reste refusée.
+        Sanctum::actingAs($ctx['agent']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/mark-paid", [])->assertStatus(409);
+
+        // L'échec du checkout COURANT, lui, le ferme.
+        $this->waveWebhook('spy_txn_2', null, 'checkout.session.payment_failed')->assertOk();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->assertSame('spy_txn_3', $this->initiate($ctx['payment']->id)->assertOk()->json('data.transaction_id'));
+    }
+
     public function test_le_webhook_d_un_checkout_anterieur_retrouve_son_echeance(): void
     {
         $ctx = $this->leaseDue();

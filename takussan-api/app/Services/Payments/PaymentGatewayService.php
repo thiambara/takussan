@@ -363,10 +363,21 @@ class PaymentGatewayService
                 // `mark-paid` manuel) : un checkout Wave expiré suffisait à la figer. L'échec
                 // reste tracé, sur l'échéance qui garde son statut ouvert.
                 if ($payment instanceof LeasePayment) {
-                    $existingMeta['gateway'] = array_merge(
-                        is_array($existingMeta['gateway'] ?? null) ? $existingMeta['gateway'] : [],
-                        ['last_failed_at' => now()->toIso8601String()],
-                    );
+                    $gateway = is_array($existingMeta['gateway'] ?? null) ? $existingMeta['gateway'] : [];
+                    // TCK-593 (passe 2, N1) — seul l'échec du checkout COURANT le ferme. L'échec
+                    // d'un checkout de l'historique (abandonné, puis expiré chez le fournisseur) se
+                    // trace sur SON entrée : écrit dans `last_failed_at`, il fermait le checkout
+                    // vivant, et le clic suivant en ouvrait un troisième.
+                    if ($transactionId === null || $transactionId === ($gateway['transaction_id'] ?? null)) {
+                        $gateway['last_failed_at'] = now()->toIso8601String();
+                    } elseif (is_array($gateway['transactions'] ?? null)) {
+                        foreach ($gateway['transactions'] as $i => $entry) {
+                            if (($entry['transaction_id'] ?? null) === $transactionId) {
+                                $gateway['transactions'][$i]['failed_at'] = now()->toIso8601String();
+                            }
+                        }
+                    }
+                    $existingMeta['gateway'] = $gateway;
                 } elseif ($current !== PaymentStatus::Paid && $current !== PaymentStatus::Refunded) {
                     $this->writeStatus($payment, PaymentStatus::Failed);
                 }

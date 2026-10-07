@@ -1028,3 +1028,16 @@ tests et ablations dans les Notes, section « Corrections après vérification a
   paiements et rapprochement (57) verts.
 - **Statut `done`.** Décision de la session : la case « Journaux … `SafeExceptionContext` » est
   transférée à TCK-601 et ne bloque plus.
+
+### Corrections après la passe 2 de vérification adverse (VERIF-593 passe 2, refusé : 1 majeur, 5 mineurs), 2026-10-07
+
+Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire et rend le code de
+828427e0 pour ce point), ablation restaurée par `cp`.
+
+- **N1 (majeur) — l'échec d'un ancien checkout fermait le courant.** Branche `FAILED` de
+  `applyStatusToPayment` : `gateway.last_failed_at` n'est posé que si la transaction en échec est
+  le `gateway.transaction_id` courant (ou inconnue) ; sinon l'échec est tracé en `failed_at` sur
+  son entrée de `transactions[]`. Test
+  `PaymentCheckoutReuseTest::test_l_echec_d_un_ancien_checkout_ne_ferme_pas_le_checkout_courant` :
+  la séquence N1 rend `spy_txn_2` (2 appels au pilote, pas 3), l'espèce reste refusée, puis
+  l'échec du checkout courant le ferme bien. Ablation (condition forcée à vrai) → rouge.
