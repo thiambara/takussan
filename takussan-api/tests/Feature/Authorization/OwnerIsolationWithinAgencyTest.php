@@ -185,6 +185,9 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
         return [
             'bien — lire' => ['GET', '/api/properties/{property}', [], 'agent'],
             'bien — modifier' => ['PATCH', '/api/properties/{property}', ['title' => 'Renommé'], 'admin'],
+            // verif-587 (M1) — l'agent relit la proposition d'un bailleur (brouillon privé) avant de
+            // la publier : il doit en voir les photos. `viewMedia` exigeait `update`, donc `update_any`.
+            'bien — médias' => ['GET', '/api/properties/{property}/media', [], 'agent'],
             'bail — lire' => ['GET', '/api/leases/{lease}', [], 'agent'],
             'bail — modifier' => ['PATCH', '/api/leases/{lease}', ['late_fee_grace_days' => 3], 'agent'],
             'loyer — marquer payé' => ['POST', '/api/lease-payments/{payment}/mark-paid', [], 'agent'],

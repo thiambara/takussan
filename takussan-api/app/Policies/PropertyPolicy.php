@@ -65,6 +65,11 @@ class PropertyPolicy extends BasePolicy
      *
      * La distinction n'est pas cosmétique : c'est la seule règle du lot où la visibilité du
      * modèle, et non l'identité de l'appelant, décide.
+     *
+     * TCK-587 (vérification adverse, M1) — qui lit le bien en lit les médias. Exiger `update`
+     * revenait, depuis ADR-0031, à exiger `properties.update_any` sur le bien d'un autre : l'agent
+     * qui relit et publie la proposition d'un bailleur n'en voyait plus les photos. `update`
+     * reste une voie d'accès pour qui modifie le bien sans le lire par `view`.
      */
     public function viewMedia(User $user, Property $property): bool
     {
@@ -72,7 +77,7 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
-        return $this->update($user, $property);
+        return $this->view($user, $property) || $this->update($user, $property);
     }
 
     /**

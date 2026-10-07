@@ -1014,3 +1014,11 @@ agence fermée (l'agent reçoit 403 → rouge). AB-3c rougit aussi la garde : so
   - motif de `CalendarController` corrigé → sortie 1 ;
   - refus de `BankStatementPolicy` retiré → sortie 1 (ligne morte) ;
   - arbre : sortie 0.
+
+**M1 — médias d'un bien.** `PropertyPolicy::viewMedia` accorde à qui passe `view` (personnel
+compris) ou `update`. Avant, il exigeait `update`, donc `properties.update_any` sur le bien d'un
+autre depuis ADR-0031. Ligne `bien — médias` (`GET /api/properties/{property}/media`, bien privé de
+B1) ajoutée à `gestes()` : l'agent du rôle système reçoit 200 (403 avant, **rouge sur le code
+d'avant**) et B2 reçoit 403. Ablations : `viewMedia` → `update` seul, rouge (403 pour l'agent) ;
+`viewMedia` → `true`, rouge (200 pour B2). `OwnerIsolationWithinAgencyTest` passe (97 tests).
+`tests/Feature/Media`, `tests/Unit/Policies` et `PropertyAuthorizationTest` passent (288 tests).
