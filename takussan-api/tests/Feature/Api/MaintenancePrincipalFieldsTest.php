@@ -26,7 +26,7 @@ use Tests\TestCase;
  * Les témoins qui doivent rester verts sont donc de première importance ici :
  * `test_agency_agent_can_change_assignment_and_priority`,
  * `test_property_owner_can_change_assignment_and_priority` et
- * `test_assigned_provider_keeps_status_and_report`. Sans eux, ce fichier serait vert
+ * `test_assigned_provider_keeps_his_report_and_moves_status_through_the_state_machine`. Sans eux, ce fichier serait vert
  * pour la pire des raisons.
  */
 class MaintenancePrincipalFieldsTest extends TestCase
@@ -115,25 +115,33 @@ class MaintenancePrincipalFieldsTest extends TestCase
      * AC3 — non-régression sur ce que §1.8 accorde au prestataire : faire avancer
      * le statut, déposer son rapport, planifier son passage.
      *
+     * ⚠ TCK-592 — ce test FIGEAIT le contournement : il postait `status` par `PATCH`, que le
+     * contrôleur écrivait par `fill()->save()` sans passer par la machine d'état — le même chemin
+     * laissait le prestataire poser `approved` sur son propre devis, ou `closed` depuis `open`. Il
+     * dit désormais ce que §1.8 accorde vraiment : le rapport et le créneau par `PATCH`, le statut
+     * par `PUT …/status`, et `actual_cost` au donneur d'ordre (cf. `MaintenanceStatusBypassTest`).
+     *
      * ⚠ Le rapport passe par `resolution_notes` et NON par `resolution_report` : ce
-     * second champ n'a jamais eu de colonne, et le `PATCH` qui le portait rendait 500
-     * (`SQLSTATE[42703] Undefined column`). Défaut relevé le 2026-08-29 en écrivant ce
-     * test, hors périmètre de TCK-445 — **corrigé depuis par TCK-474**, qui a tranché le
-     * retrait du champ plutôt que la création de la colonne : il est désormais
-     * `prohibited` (422 qui le nomme) et absent de `$fillable`. Le contre-témoin vit
-     * dans `MaintenanceResolutionReportTest`.
+     * second champ n'a jamais eu de colonne (TCK-474, contre-témoin dans
+     * `MaintenanceResolutionReportTest`).
      */
-    public function test_assigned_provider_keeps_status_and_report(): void
+    public function test_assigned_provider_keeps_his_report_and_moves_status_through_the_state_machine(): void
     {
         [$mr, $provider] = $this->scaffold();
 
         Sanctum::actingAs($provider);
 
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
-            'status' => MaintenanceStatus::InProgress->value,
             'resolution_notes' => 'Joint remplacé, mise en eau vérifiée.',
             'scheduled_at' => now()->addDays(2)->toISOString(),
-            'actual_cost' => 15000,
+        ])->assertOk();
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
+            'status' => MaintenanceStatus::InProgress->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors('status');
+
+        $this->putJson("/api/maintenance-requests/{$mr->id}/status", [
+            'status' => MaintenanceStatus::InProgress->value,
         ])->assertOk();
 
         $mr->refresh();

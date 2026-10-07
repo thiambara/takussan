@@ -8,33 +8,33 @@ use Illuminate\Http\UploadedFile;
 
 class MaintenanceQuoteWorkflow
 {
-    /**
-     * @var array<string, array<int, string>>
-     */
-    protected const TRANSITIONS = [
-        'open' => ['quote_requested'],
-        'quote_requested' => ['quote_submitted'],
-        'rejected' => ['quote_submitted'],
-        'quote_submitted' => ['approved', 'rejected'],
-        'approved' => ['in_progress'],
-    ];
+    public function __construct(private readonly MaintenanceStateMachine $machine) {}
 
+    /**
+     * TCK-592 — cette classe portait sa propre table de transitions, sans acteur et sans
+     * l'annulation. Elle lit désormais la table unique.
+     */
     public function canTransitionTo(MaintenanceStatus $from, MaintenanceStatus $to): bool
     {
-        $allowed = self::TRANSITIONS[$from->value] ?? [];
-
-        return in_array($to->value, $allowed, true);
+        return $this->machine->canTransition($from, $to);
     }
 
-    public function requestQuote(MaintenanceRequest $mr): MaintenanceRequest
+    private function assertTransition(MaintenanceRequest $mr, MaintenanceStatus $to): MaintenanceStatus
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
         abort_unless(
-            $this->canTransitionTo($current, MaintenanceStatus::QuoteRequested),
+            $this->canTransitionTo($current, $to),
             422,
-            "Transition from {$current->value} to quote_requested is not allowed."
+            __('maintenance.errors.transition_not_allowed', ['from' => $current->value, 'to' => $to->value]),
         );
+
+        return $current;
+    }
+
+    public function requestQuote(MaintenanceRequest $mr): MaintenanceRequest
+    {
+        $this->assertTransition($mr, MaintenanceStatus::QuoteRequested);
 
         $mr->status = MaintenanceStatus::QuoteRequested;
         $mr->save();
@@ -53,13 +53,7 @@ class MaintenanceQuoteWorkflow
      */
     public function submitQuote(MaintenanceRequest $mr, array $data, array $attachments = []): MaintenanceRequest
     {
-        $current = $mr->status ?? MaintenanceStatus::Open;
-
-        abort_unless(
-            $this->canTransitionTo($current, MaintenanceStatus::QuoteSubmitted),
-            422,
-            "Transition from {$current->value} to quote_submitted is not allowed."
-        );
+        $this->assertTransition($mr, MaintenanceStatus::QuoteSubmitted);
 
         $mr->status = MaintenanceStatus::QuoteSubmitted;
         $mr->quote_amount = $data['amount'];
@@ -82,13 +76,7 @@ class MaintenanceQuoteWorkflow
 
     public function approveQuote(MaintenanceRequest $mr, int $approvedById): MaintenanceRequest
     {
-        $current = $mr->status ?? MaintenanceStatus::Open;
-
-        abort_unless(
-            $this->canTransitionTo($current, MaintenanceStatus::Approved),
-            422,
-            "Transition from {$current->value} to approved is not allowed."
-        );
+        $this->assertTransition($mr, MaintenanceStatus::Approved);
 
         $mr->status = MaintenanceStatus::Approved;
         $mr->quote_decision_at = now();
@@ -105,13 +93,7 @@ class MaintenanceQuoteWorkflow
 
     public function rejectQuote(MaintenanceRequest $mr, string $reason, int $rejectedById): MaintenanceRequest
     {
-        $current = $mr->status ?? MaintenanceStatus::Open;
-
-        abort_unless(
-            $this->canTransitionTo($current, MaintenanceStatus::Rejected),
-            422,
-            "Transition from {$current->value} to rejected is not allowed."
-        );
+        $this->assertTransition($mr, MaintenanceStatus::Rejected);
 
         $mr->status = MaintenanceStatus::Rejected;
         $mr->quote_decision_at = now();
@@ -130,13 +112,7 @@ class MaintenanceQuoteWorkflow
 
     public function start(MaintenanceRequest $mr): MaintenanceRequest
     {
-        $current = $mr->status ?? MaintenanceStatus::Open;
-
-        abort_unless(
-            $this->canTransitionTo($current, MaintenanceStatus::InProgress),
-            422,
-            "Transition from {$current->value} to in_progress is not allowed."
-        );
+        $this->assertTransition($mr, MaintenanceStatus::InProgress);
 
         $mr->status = MaintenanceStatus::InProgress;
         $mr->started_at = now();

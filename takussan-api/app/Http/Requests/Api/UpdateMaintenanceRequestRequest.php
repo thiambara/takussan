@@ -4,7 +4,6 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenancePriority;
-use App\Models\Enums\MaintenanceStatus;
 use Illuminate\Validation\Rule;
 
 /**
@@ -36,7 +35,16 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
      * dans `rules()` — une règle de validation rendrait 422, et un `unset()` en contrôleur
      * rendrait 200 sur un geste refusé.
      */
-    public const PRINCIPAL_FIELDS = ['assigned_to', 'priority'];
+    public const PRINCIPAL_FIELDS = ['assigned_to', 'priority', 'estimated_cost', 'actual_cost'];
+
+    /**
+     * TCK-592 — les colonnes d'ÉTAT. Elles ne s'écrivent que par la machine d'état
+     * (`PUT …/status`, `…/complete`, `…/accept`…), jamais par `fill()` : `PATCH {status: approved}`
+     * laissait le prestataire approuver son propre devis, `{status: closed}` clore depuis `open`.
+     * `prohibited` rend un 422 qui NOMME le champ ; le contrôleur les retire en plus du corps validé,
+     * parce que `prohibited` laisse passer une valeur vide — et `{status: null}` écrirait `null`.
+     */
+    public const STATE_FIELDS = ['status', 'started_at', 'completed_at'];
 
     public function authorize(): bool
     {
@@ -85,12 +93,12 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
         return [
             'assigned_to' => ['sometimes', 'nullable', 'exists:users,id'],
             'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
-            'status' => ['sometimes', Rule::enum(MaintenanceStatus::class)],
+            'status' => ['prohibited'],
             'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],
-            'started_at' => ['sometimes', 'nullable', 'date'],
-            'completed_at' => ['sometimes', 'nullable', 'date'],
+            'started_at' => ['prohibited'],
+            'completed_at' => ['prohibited'],
             'resolution_notes' => ['sometimes', 'nullable', 'string'],
             'resolution_report' => ['prohibited'],
         ];

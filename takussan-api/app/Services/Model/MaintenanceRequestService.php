@@ -4,6 +4,7 @@ namespace App\Services\Model;
 
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\UploadedFile;
 
@@ -11,31 +12,16 @@ class MaintenanceRequestService
 {
     public function __construct(
         protected PrivateMediaAccess $privateMedia,
+        protected MaintenanceStateMachine $machine,
     ) {}
 
     /**
-     * Valid status transitions. `new`/`open` is the entry state; `acknowledged`
-     * and `assigned` are intermediate states handled via the generic update
-     * endpoint (or assignation); here we model the lifecycle:
-     *   open → in_progress → completed (alias: resolved)
-     *   open → cancelled
-     *   in_progress → cancelled
+     * TCK-592 — la table vivait ici, et une seconde dans `MaintenanceQuoteWorkflow`. Les deux
+     * lisent désormais {@see MaintenanceStateMachine::TRANSITIONS}.
      */
-    public const TRANSITIONS = [
-        'open' => ['acknowledged', 'assigned', 'in_progress', 'cancelled'],
-        'acknowledged' => ['assigned', 'in_progress', 'cancelled'],
-        'assigned' => ['in_progress', 'cancelled'],
-        'in_progress' => ['completed', 'cancelled'],
-        'completed' => ['closed'],
-        'closed' => [],
-        'cancelled' => [],
-    ];
-
     public function canTransitionTo(MaintenanceStatus $from, MaintenanceStatus $to): bool
     {
-        $allowed = self::TRANSITIONS[$from->value] ?? [];
-
-        return in_array($to->value, $allowed, true);
+        return $this->machine->canTransition($from, $to);
     }
 
     public function transition(MaintenanceRequest $mr, MaintenanceStatus $to): MaintenanceRequest
@@ -47,11 +33,7 @@ class MaintenanceRequestService
             return $mr;
         }
 
-        abort_unless(
-            $this->canTransitionTo($current, $to),
-            422,
-            "Transition from {$current->value} to {$to->value} is not allowed."
-        );
+        $this->assertTransition($current, $to);
 
         $mr->status = $to;
 
@@ -69,6 +51,19 @@ class MaintenanceRequestService
     }
 
     /**
+     * TCK-592 — un refus de la TABLE est un 422 ; un refus de l'ACTEUR est un 403, rendu avant
+     * d'arriver ici par `MaintenanceRequestPolicy::transitionTo()`.
+     */
+    public function assertTransition(MaintenanceStatus $from, MaintenanceStatus $to): void
+    {
+        abort_unless(
+            $this->machine->canTransition($from, $to),
+            422,
+            __('maintenance.errors.transition_not_allowed', ['from' => $from->value, 'to' => $to->value]),
+        );
+    }
+
+    /**
      * @param  array<string,mixed>  $data
      * @param  array<int,UploadedFile>  $photos
      */
@@ -76,11 +71,7 @@ class MaintenanceRequestService
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
-            $this->canTransitionTo($current, MaintenanceStatus::Completed),
-            422,
-            "Transition from {$current->value} to completed is not allowed."
-        );
+        $this->assertTransition($current, MaintenanceStatus::Completed);
 
         $mr->status = MaintenanceStatus::Completed;
         $mr->completed_at = now();

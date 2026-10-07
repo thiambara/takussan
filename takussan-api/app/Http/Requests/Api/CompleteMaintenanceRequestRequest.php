@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\MaintenanceStatus;
 
 /**
  * TCK-305 — extrait de MaintenanceRequestController::complete(), où les règles étaient écrites en ligne.
@@ -26,7 +27,8 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('maintenanceRequest')) === true;
+        // TCK-592 — terminer est une transition : (acteur, `completed`), pas `update`.
+        return $this->user()?->can('transitionTo', [$this->route('maintenanceRequest'), MaintenanceStatus::Completed]) === true;
     }
 
     /** @return array<string, mixed> */

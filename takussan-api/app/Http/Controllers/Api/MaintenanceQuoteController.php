@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Maintenance\RejectQuoteRequest;
 use App\Http\Requests\Maintenance\SubmitQuoteRequest;
 use App\Http\Resources\MaintenanceRequestResource;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Services\Maintenance\MaintenanceQuoteWorkflow;
@@ -115,8 +116,8 @@ class MaintenanceQuoteController extends Controller
 
     public function start(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        // Provider or agent can start
-        $this->authorize('update', $maintenanceRequest);
+        // TCK-592 — démarrer est une transition : (acteur, `in_progress`).
+        $this->authorize('transitionTo', [$maintenanceRequest, MaintenanceStatus::InProgress]);
 
         $mr = $this->workflow->start($maintenanceRequest);
 

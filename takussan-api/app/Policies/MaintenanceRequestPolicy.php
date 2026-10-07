@@ -2,9 +2,12 @@
 
 namespace App\Policies;
 
+use App\Models\Enums\Capability;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Maintenance\MaintenanceStateMachine;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -73,7 +76,78 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function actAsPrincipal(User $user, MaintenanceRequest $request): bool
     {
-        return self::isPrincipalFor($user, $request->property);
+        $property = $request->property;
+        if (! self::isPrincipalFor($user, $property)) {
+            return false;
+        }
+
+        // TCK-592 — la branche ÉQUIPE exige `maintenance.assign` : un rôle personnalisé qui la retire
+        // retire le geste. Le bailleur du bien commande sur SON bien sans capacité d'agence.
+        return ! self::isTeamPrincipalFor($user, $property)
+            || $user->canActAt(Capability::MaintenanceAssign, $property->agency);
+    }
+
+    /**
+     * TCK-592 — changer le statut se juge par (acteur, cible), jamais par `update` seul.
+     *
+     * Ne dit pas si la transition EXISTE (la table de {@see MaintenanceStateMachine} rend 422) : dit
+     * si cet utilisateur, dans les rôles qu'il tient sur CETTE demande, a le droit de la demander.
+     * La clôture par l'équipe exige `maintenance.close`.
+     */
+    public function transitionTo(User $user, MaintenanceRequest $request, MaintenanceStatus $target): bool
+    {
+        $machine = app(MaintenanceStateMachine::class);
+        $from = $request->status ?? MaintenanceStatus::Open;
+
+        foreach ($this->actorsOf($user, $request) as $actor) {
+            if (! $machine->actorAllows($actor, $from, $target)) {
+                continue;
+            }
+
+            if ($actor === MaintenanceStateMachine::ACTOR_PRINCIPAL
+                && $target === MaintenanceStatus::Closed
+                && self::isTeamPrincipalFor($user, $request->property)
+                && ! $user->canActAt(Capability::MaintenanceClose, $request->property->agency)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * TCK-592 — les rôles que l'utilisateur tient sur CETTE demande. Jamais exclusifs.
+     *
+     * @return list<string>
+     */
+    public function actorsOf(User $user, MaintenanceRequest $request): array
+    {
+        $actors = [];
+        if ($this->isAssignedProvider($user, $request)) {
+            $actors[] = MaintenanceStateMachine::ACTOR_PROVIDER;
+        }
+        if (self::isPrincipalFor($user, $request->property)) {
+            $actors[] = MaintenanceStateMachine::ACTOR_PRINCIPAL;
+        }
+        if ($request->requester_id === $user->id) {
+            $actors[] = MaintenanceStateMachine::ACTOR_REQUESTER;
+        }
+
+        return $actors;
+    }
+
+    /**
+     * TCK-592 — donneur d'ordre AU TITRE DE L'ÉQUIPE d'agence : ni super-admin, ni bailleur du bien.
+     * C'est la seule branche que les capacités `maintenance.*` gardent.
+     */
+    public static function isTeamPrincipalFor(User $user, ?Property $property): bool
+    {
+        return $property !== null
+            && ! $user->isSuperAdmin()
+            && $property->user_id !== $user->id
+            && self::isPrincipalFor($user, $property);
     }
 
     /**
@@ -109,6 +183,11 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function actAsProvider(User $user, MaintenanceRequest $request): bool
     {
-        return $user->isSuperAdmin() || $request->assigned_to === $user->id;
+        return $user->isSuperAdmin() || $this->isAssignedProvider($user, $request);
+    }
+
+    private function isAssignedProvider(User $user, MaintenanceRequest $request): bool
+    {
+        return $request->assigned_to !== null && $request->assigned_to === $user->id;
     }
 }

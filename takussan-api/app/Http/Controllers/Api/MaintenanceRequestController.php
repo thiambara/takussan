@@ -17,10 +17,12 @@ use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Notification;
 
 class MaintenanceRequestController extends Controller
@@ -28,6 +30,7 @@ class MaintenanceRequestController extends Controller
     public function __construct(
         protected NotificationService $notifications,
         protected MaintenanceRequestService $service,
+        protected MaintenanceStateMachine $machine,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -158,7 +161,7 @@ class MaintenanceRequestController extends Controller
     public function update(UpdateMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
 
-        $data = $request->validated();
+        $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
 
         $maintenanceRequest->fill($data)->save();
 
@@ -173,6 +176,16 @@ class MaintenanceRequestController extends Controller
         $data = $request->validated();
 
         $target = MaintenanceStatus::from($data['status']);
+        $current = $maintenanceRequest->status ?? MaintenanceStatus::Open;
+
+        // TCK-592 — les cibles de devis, et la contestation, ont leur endpoint : il porte ce que le
+        // générique ignorerait (montant, validité, plafond du bailleur, commentaire).
+        abort_unless(
+            $current === $target || $this->machine->isGeneric($current, $target),
+            422,
+            __('maintenance.errors.dedicated_endpoint'),
+        );
+
         $maintenanceRequest = $this->service->transition($maintenanceRequest, $target);
 
         return $this->json([
@@ -188,7 +201,7 @@ class MaintenanceRequestController extends Controller
         // Reject ambiguous payloads rather than silently preferring one field.
         if (array_key_exists('cost', $data) && array_key_exists('actual_cost', $data)
             && $data['cost'] !== null && $data['actual_cost'] !== null) {
-            abort(422, 'Provide either `cost` or `actual_cost`, not both.');
+            abort(422, __('maintenance.errors.cost_ambiguous'));
         }
 
         $photos = $request->file('photos', []) ?? [];
@@ -206,7 +219,7 @@ class MaintenanceRequestController extends Controller
         // should not accept new photos (prevents abuse and keeps the audit
         // log on media consistent with the work actually performed).
         if (in_array($maintenanceRequest->status, [MaintenanceStatus::Closed, MaintenanceStatus::Cancelled], true)) {
-            abort(422, 'Cannot upload photos to a closed or cancelled maintenance request.');
+            abort(422, __('maintenance.errors.terminal_request'));
         }
 
         $data = $request->validated();

@@ -553,3 +553,23 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - Les quatre classes `Quote*` (`QuoteSubmitted`, `QuoteApproved`, `QuoteRejected`,
   `MaintenanceQuoteRequested`) n'ont **aucun** `new` dans `app/` (seule la table d'`AppDatabaseChannel`
   les nomme) : supprimées par ce ticket (coordination 588, contrainte 8).
+
+### A — machine d'état et autorisation par acteur
+
+- `MaintenanceStateMachine` porte la table unique (les deux constantes `TRANSITIONS` sont supprimées)
+  et la matrice (acteur, cible). Ajouts à la table : `assigned → quote_requested` (une demande
+  `assigned` n'avait aucun chemin vers le devis), `* → cancelled` depuis les quatre états de devis,
+  `completed → in_progress` (contestation, D). `PUT …/status` refuse en **422** les cibles de devis et la
+  contestation (`isGeneric`) : approuver par le générique contournerait la validité du devis et le
+  plafond du bailleur (F).
+- Le bailleur du bien (`property.user_id`) n'est pas gardé par `maintenance.assign` / `maintenance.close` :
+  ces capacités sont d'agence, et seule la branche **équipe** les lit (`isTeamPrincipalFor`).
+- `PATCH` retire en plus `status`/`started_at`/`completed_at` du corps validé : `prohibited` laisse passer
+  `null`, et `{status: null}` aurait écrit `null`.
+- Exécutions : `php artisan test tests/Feature/Maintenance tests/Unit/Services/Maintenance
+  tests/Feature/Api/MaintenanceRequestTest.php tests/Feature/Services/MaintenanceQuoteWorkflowTest.php
+  tests/Feature/Api/MaintenancePrincipalFieldsTest.php` → 45 verts.
+- Ablations (script `abl.sh` : remplacer, rejouer, restaurer) : `status` non `prohibited` → 2 rouges ;
+  `completed_at` non `prohibited` → 1 rouge ; coûts hors `PRINCIPAL_FIELDS` → 1 rouge (le témoin reste
+  vert) ; `authorize()` du statut ramené à `update` → 1 rouge ; lecteur `maintenance.assign` retiré →
+  1 rouge ; lecteur `maintenance.close` retiré → 1 rouge ; `quote_requested → cancelled` retiré → 1 rouge.
