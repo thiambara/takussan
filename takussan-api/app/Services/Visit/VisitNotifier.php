@@ -48,6 +48,9 @@ class VisitNotifier
     /** Passe 3 (R1) — le filet du destinataire, tous émetteurs confondus. */
     public const SMS_PAR_JOUR_PAR_NUMERO = 20;
 
+    /** Passe 3 (n1′) — SMS de visite par jour pour un même UTILISATEUR émetteur, tous numéros. */
+    public const SMS_PAR_JOUR_PAR_EMETTEUR = 20;
+
     /** Passe 3 (R1) — le code rendu à l'appelant quand le SMS au visiteur est retenu. */
     public const CODE_SMS_RETENU = 'visit_sms_capped';
 
@@ -62,15 +65,15 @@ class VisitNotifier
      * Les événements vers le visiteur rendent le sort du SMS ({@see self::toVisitor()}) :
      * `true` parti, `false` retenu par une borne, `null` aucun SMS prévu.
      */
-    public function confirmed(PropertyVisit $visit): ?bool
+    public function confirmed(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, new VisitConfirmedNotification($visit));
+        return $this->toVisitor($visit, new VisitConfirmedNotification($visit), $emetteur);
     }
 
     /** L'agence a déplacé l'heure : le visiteur est prévenu. */
-    public function rescheduledByAgency(PropertyVisit $visit): ?bool
+    public function rescheduledByAgency(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, new VisitRescheduledNotification($visit));
+        return $this->toVisitor($visit, new VisitRescheduledNotification($visit), $emetteur);
     }
 
     /** Le visiteur propose un autre créneau : l'agence est prévenue. */
@@ -79,9 +82,9 @@ class VisitNotifier
         $this->toAgency($visit, new VisitRescheduledNotification($visit, parLeVisiteur: true));
     }
 
-    public function cancelledByAgency(PropertyVisit $visit): ?bool
+    public function cancelledByAgency(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, new VisitCancelledNotification($visit));
+        return $this->toVisitor($visit, new VisitCancelledNotification($visit), $emetteur);
     }
 
     public function cancelledByVisitor(PropertyVisit $visit): void
@@ -159,13 +162,13 @@ class VisitNotifier
      * Passe 3 (R1) — rend le sort du SMS, pour que l'action le dise à l'appelant : un SMS retenu
      * sans signal laissait l'agent croire le client prévenu.
      */
-    private function toVisitor(PropertyVisit $visit, VisitNotification $notification): ?bool
+    private function toVisitor(PropertyVisit $visit, VisitNotification $notification, ?User $emetteur): ?bool
     {
         $visit->loadMissing(['visitor', 'property']);
 
         try {
             if ($visit->visitor !== null) {
-                $sms = $this->borneLeSms($visit, $visit->visitor, $notification);
+                $sms = $this->borneLeSms($visit, $visit->visitor, $notification, $emetteur);
                 $visit->visitor->notify($notification);
 
                 return $sms;
@@ -180,7 +183,7 @@ class VisitNotifier
             }
 
             $anonymous = Notification::routes($routes);
-            $sms = $this->borneLeSms($visit, $anonymous, $notification);
+            $sms = $this->borneLeSms($visit, $anonymous, $notification, $emetteur);
             $anonymous->notify($notification->locale($visit->locale ?? config('app.locale')));
 
             return $sms;
@@ -207,9 +210,13 @@ class VisitNotifier
      *   - par numéro, tous émetteurs : {@see self::SMS_PAR_JOUR_PAR_NUMERO} par jour, le filet du
      *     destinataire.
      *
+     * Passe 3 (n1′) — et par UTILISATEUR qui agit (`$emetteur`), tous numéros :
+     * {@see self::SMS_PAR_JOUR_PAR_EMETTEUR} par jour. Un particulier faisait partir 15 SMS vers
+     * 3 numéros, 5 chacun, sans rien qui le borne lui.
+     *
      * @return bool|null `true` le SMS part, `false` il est retenu, `null` aucun SMS prévu
      */
-    private function borneLeSms(PropertyVisit $visit, object $notifiable, VisitNotification $notification): ?bool
+    private function borneLeSms(PropertyVisit $visit, object $notifiable, VisitNotification $notification, ?User $emetteur): ?bool
     {
         if (! in_array('sms', $notification->via($notifiable), true)) {
             return null;
@@ -224,16 +231,18 @@ class VisitNotifier
 
         $empreinte = hash_hmac('sha256', $numero, (string) config('app.key'));
         $property = $visit->property;
-        $emetteur = $property?->agency_id !== null
+        $source = $property?->agency_id !== null
             ? 'a'.$property->agency_id
             : 'u'.($property?->user_id ?? 0);
-        $heure = 'visit-sms:h:'.$emetteur.':'.$empreinte;
-        $jour = 'visit-sms:j:'.$emetteur.':'.$empreinte;
+        $heure = 'visit-sms:h:'.$source.':'.$empreinte;
+        $jour = 'visit-sms:j:'.$source.':'.$empreinte;
         $filet = 'visit-sms:n:'.$empreinte;
+        $acteur = $emetteur !== null ? 'visit-sms:u:'.$emetteur->id : null;
 
         if (RateLimiter::tooManyAttempts($heure, self::SMS_PAR_HEURE)
             || RateLimiter::tooManyAttempts($jour, self::SMS_PAR_JOUR)
-            || RateLimiter::tooManyAttempts($filet, self::SMS_PAR_JOUR_PAR_NUMERO)) {
+            || RateLimiter::tooManyAttempts($filet, self::SMS_PAR_JOUR_PAR_NUMERO)
+            || ($acteur !== null && RateLimiter::tooManyAttempts($acteur, self::SMS_PAR_JOUR_PAR_EMETTEUR))) {
             $notification->retenirLeSms();
             Log::notice('visit.sms_retenu', [
                 'visit_id' => $visit->id,
@@ -247,6 +256,9 @@ class VisitNotifier
         RateLimiter::hit($heure, 3600);
         RateLimiter::hit($jour, 86400);
         RateLimiter::hit($filet, 86400);
+        if ($acteur !== null) {
+            RateLimiter::hit($acteur, 86400);
+        }
 
         return true;
     }

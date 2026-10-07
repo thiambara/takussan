@@ -189,7 +189,7 @@ class PropertyVisitController extends Controller
             'type' => $data['type'] ?? VisitType::InPerson->value,
         ]);
 
-        $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']));
+        $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']), $user);
 
         return $this->json($this->avecSortDuSms([
             'data' => PropertyVisitResource::make($visit->refresh())->toArray($request),
@@ -246,7 +246,7 @@ class PropertyVisitController extends Controller
         // une fois. `update` déplaçait l'heure sans prévenir personne.
         $sms = null;
         if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($previous)) {
-            $sms = $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']));
+            $sms = $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']), $request->user());
         }
 
         return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)], $sms));
@@ -304,7 +304,7 @@ class PropertyVisitController extends Controller
         $visit = $this->scheduling->confirmOrFail($visit);
         $visit->load('property', 'visitor');
 
-        $sms = $this->notifier->confirmed($visit);
+        $sms = $this->notifier->confirmed($visit, $request->user());
 
         return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit)->toArray($request)], $sms));
     }
@@ -359,7 +359,7 @@ class PropertyVisitController extends Controller
         if ($byVisitor) {
             $this->notifier->cancelledByVisitor($fresh);
         } else {
-            $sms = $this->notifier->cancelledByAgency($fresh);
+            $sms = $this->notifier->cancelledByAgency($fresh, $user);
         }
 
         return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)], $sms));

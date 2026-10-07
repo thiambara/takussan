@@ -643,4 +643,36 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         $this->getJson("/api/properties/{$sansAgence->id}?fields[properties]=id,title,agency_id")
             ->assertOk()->assertJsonPath('data.agency', null);
     }
+
+    /**
+     * Passe 3 (n1′) — une borne par UTILISATEUR émetteur, tous numéros : 20 SMS de visite par jour.
+     * Sonde P3-A2 prolongée : le particulier d'un bien sans agence relaie vers 5 numéros, confirme
+     * et déplace 4 fois chacun (25 envois tentés, 5 par numéro, sous la borne par numéro) ; 20
+     * partent, les 5 derniers sont retenus et la réponse le dit.
+     */
+    public function test_n1prime_l_emetteur_est_borne_a_vingt_sms_par_jour(): void
+    {
+        $particulier = $this->client(['phone' => '+221770000097']);
+        $bien = $this->bienDe(null, $particulier);
+        $numeros = array_map(fn (int $i) => '+22177999002'.$i, range(0, 4));
+
+        foreach ($numeros as $n => $numero) {
+            $id = $this->demandeAnonyme($bien, $numero);
+            Sanctum::actingAs($particulier);
+            $this->postJson("/api/property-visits/{$id}/confirm")->assertOk();
+            for ($i = 0; $i < 4; $i++) {
+                $derniere = $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: 3 + $i + 5 * $n)])->assertOk();
+            }
+            $this->app['auth']->forgetGuards();
+        }
+
+        $this->assertSame([5, 5, 5, 5, 0], array_map(fn (string $numero) => $this->smsVers($numero), $numeros));
+        $derniere->assertJsonPath('sms_sent', false)->assertJsonPath('sms_code', VisitNotifier::CODE_SMS_RETENU);
+
+        // Un autre émetteur n'est pas touché par la borne du premier.
+        $autre = $this->client(['phone' => '+221770000096']);
+        $id = $this->demandeAnonyme($this->bienDe(null, $autre), $numeros[4]);
+        Sanctum::actingAs($autre);
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertOk()->assertJsonPath('sms_sent', true);
+    }
 }
