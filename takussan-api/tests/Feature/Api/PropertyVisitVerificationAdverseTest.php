@@ -5,12 +5,15 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Notifications\VisitCancelledNotification;
 use App\Notifications\VisitConfirmedNotification;
+use App\Notifications\VisitRescheduledNotification;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -402,6 +405,36 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
 
         Sanctum::actingAs($visiteur);
         $this->postJson("/api/property-visits/{$c->id}/cancel", ['reason' => 'x'])->assertOk();
+    }
+
+    /**
+     * Passe 2 (n2) — l'agent assigné est bloqué, le bien a un bailleur joignable : l'annulation et
+     * le créneau proposé par le visiteur vont aux ADMINS actifs, comme pour une visite non
+     * attribuée — pas au contact principal (sonde S4).
+     */
+    public function test_n2_le_repli_de_l_agent_injoignable_va_aux_admins(): void
+    {
+        $admin = $this->personnel($this->x, 'agency_admin');
+        $agent = $this->personnel($this->x);
+        $bailleur = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $bailleur);
+        $client = $this->client();
+        $visite = fn (int $jours) => PropertyVisit::factory()->create([
+            'property_id' => $bien->id, 'visitor_id' => $client->id, 'agent_id' => $agent->id,
+            'status' => VisitStatus::Confirmed, 'scheduled_at' => $this->creneau(jours: $jours),
+        ]);
+        [$annulee, $deplacee] = [$visite(3), $visite(4)];
+        $agent->update(['status' => UserStatus::Blocked]);
+
+        Sanctum::actingAs($client);
+        $this->postJson("/api/property-visits/{$annulee->id}/cancel")->assertOk();
+        $this->postJson("/api/property-visits/{$deplacee->id}/reschedule", ['scheduled_at' => $this->creneau(jours: 5, heure: 11)])->assertOk();
+
+        Notification::assertSentTo($admin, VisitCancelledNotification::class);
+        Notification::assertSentTo($admin, VisitRescheduledNotification::class);
+        Notification::assertNotSentTo($bailleur, VisitCancelledNotification::class);
+        Notification::assertNotSentTo($bailleur, VisitRescheduledNotification::class);
+        Notification::assertNotSentTo($agent, VisitCancelledNotification::class);
     }
 
     /** M4 (R) — un agent SUSPENDU n'est ni attribuable, ni preneur. */

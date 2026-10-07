@@ -85,8 +85,8 @@ class VisitNotifier
      *
      * Vérification adverse (M2) — un agent assigné qui ne peut plus rien recevoir (bloqué,
      * supprimé, profil suspendu ou retiré de l'agence du bien) ne compte pas : l'événement part
-     * vers le repli de `ContactLeadService::recipientsFor()` (contact principal éligible, sinon
-     * admins actifs). Le repli ne courait que si `agent_id` était nul, et l'annulation ou le
+     * vers le même repli qu'une visite non attribuée — les admins actifs, sinon le contact
+     * principal (passe 2, n2). Le repli ne courait que si `agent_id` était nul, et l'annulation ou le
      * nouveau créneau proposé par le visiteur n'arrivait alors chez personne.
      *
      * @return Collection<int,User>
@@ -112,11 +112,11 @@ class VisitNotifier
             }
         }
 
-        if ($visit->agent_id !== null && ! $agentUtilisable && $property !== null) {
-            $recipients = $recipients->merge($this->leads->recipientsFor($property));
-        }
-
-        if ($visit->agent_id === null && $property !== null) {
+        // Le repli : visite non attribuée, ou agent qui ne peut plus rien recevoir (M2) — les
+        // admins actifs de l'agence, sinon le contact principal. Passe 2 (n2) : l'agent
+        // injoignable suit la règle de la visite non attribuée ; il partait vers le contact
+        // principal, c'est-à-dire souvent vers le bailleur, et l'admin ne recevait rien.
+        if (! $agentUtilisable && $property !== null) {
             $recipients = $recipients->merge($this->leads->agencyAdmins($property->agency_id));
             if ($recipients->filter()->isEmpty()) {
                 $recipients->push(PrimaryPropertyContact::for($property));
