@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgentProfileController;
+use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
@@ -154,6 +155,8 @@ final class ProtectedActions
         SuperAdminInvitationController::class.'@resend',
         SuperAdminInvitationController::class.'@revoke',
         UserImpersonationController::class.'@start',
+        // Vérification adverse B1 — lever le verrou d'un compte rouvre son accès.
+        UserSupportController::class.'@unlock',
         UserSupportController::class.'@reset2fa',
         UserSupportController::class.'@revokeSessions',
         UserSupportController::class.'@destroySession',
@@ -172,6 +175,27 @@ final class ProtectedActions
     public const STEP_UP_FOR_PLATFORM = [
         UserAdminController::class.'@block',
         UserAdminController::class.'@destroy',
+        // Vérification adverse B1 — débloquer un compte, et `PUT users/{u}/role`, qui CRÉE un
+        // super-admin quand l'acteur en est un : hors `/api/admin/*`, ils échappaient aux deux
+        // gardes. Un jeton volé sans step-up promouvait le compte de l'attaquant.
+        UserAdminController::class.'@activate',
+        UserRoleController::class.'@update',
+    ];
+
+    /**
+     * Vérification adverse B1 — les actions dont le contrôleur CONFÈRE un pouvoir plateforme
+     * (écrit un `PlatformProfile`, rouvre un compte, coopte un super-admin) sans être dans
+     * `STEP_UP` ni `STEP_UP_FOR_PLATFORM`, avec la raison. `ProtectedActionsCoverageTest`
+     * repère ces contrôleurs dans le code et casse sur toute action mutante non rangée.
+     *
+     * @var array<string, string>
+     */
+    public const PLATFORM_POWER_EXEMPT = [
+        // Le compte s'efface lui-même : aucun pouvoir conféré.
+        UserAdminController::class.'@deleteOwnAccount' => 'suppression de son propre compte',
+        // Le coopté enrôle SA 2FA : c'est le second facteur lui-même, il n'en a pas encore.
+        SuperAdminTwoFactorController::class.'@enroll' => 'enrôlement de la 2FA du coopté',
+        SuperAdminTwoFactorController::class.'@confirm' => 'confirmation de la 2FA du coopté',
     ];
 
     public static function requiresAgencyTwoFactor(?string $action): bool

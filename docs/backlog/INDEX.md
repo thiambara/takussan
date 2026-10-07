@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**546 tickets** — 43 ouverts, 501 livrés.
+**546 tickets** — 44 ouverts, 500 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 41 |
-| 🚧 Doing | 1 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 501 |
+| ✅ Done | 500 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -78,6 +78,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-589](tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md) — Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai `XL · P1 · full`
 
 ## 👀 Review
 
@@ -89,14 +90,13 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 501
+## ✅ Done — 500
 
 <details>
-<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 3 tickets</summary>
+<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 2 tickets</summary>
 
 - [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
 - [TCK-587](tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md) — Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste `XL · P0 · full`
-- [TCK-589](tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md) — Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai `XL · P1 · full`
 
 </details>
 

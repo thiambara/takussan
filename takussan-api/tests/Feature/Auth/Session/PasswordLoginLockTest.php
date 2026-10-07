@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Testing\TestResponse;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
@@ -68,7 +67,8 @@ class PasswordLoginLockTest extends TestCase
 
         $admin = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => 'JBSWY3DPEHPK3PXP']);
         PlatformProfile::factory()->superAdmin()->create(['user_id' => $admin->id]);
-        Sanctum::actingAs($admin);
+        // Vérification adverse B1 : lever un verrou rouvre un compte, step-up exigé.
+        $this->actingAsWithStepUp($admin);
 
         $this->postJson("/api/admin/users/{$this->user->id}/unlock", ['reason' => 'Identité vérifiée par téléphone'])
             ->assertOk();

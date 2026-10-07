@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth\TwoFactor;
 
+use App\Http\Controllers\Api\UserAdminController;
+use App\Http\Controllers\Api\UserRoleController;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Routing\Router;
@@ -59,10 +61,52 @@ class ProtectedActionsCoverageTest extends TestCase
             ...ProtectedActions::STEP_UP,
             ...ProtectedActions::STEP_UP_FOR_PLATFORM,
             ...array_keys(ProtectedActions::EXEMPT),
+            ...array_keys(ProtectedActions::PLATFORM_POWER_EXEMPT),
         ];
         $orphelines = array_values(array_filter($entrees, fn (string $e) => ! isset($enregistrees[$e])));
 
         $this->assertSame([], $orphelines, "Entrée de ProtectedActions qui ne résout aucune route :\n".implode("\n", $orphelines));
+    }
+
+    /**
+     * Vérification adverse B1 : `PUT /api/users/{u}/role` fabriquait un super-admin hors de
+     * `/api/admin/*`, sans 2FA ni step-up. On ne liste pas ces contrôleurs à la main : on les
+     * TROUVE, par ce que leur code écrit — un profil plateforme, ou un compte rendu actif.
+     * Toute route mutante de l'un d'eux, quel que soit son fichier, figure dans une liste de
+     * step-up ou dans l'exemption motivée.
+     */
+    public function test_toute_action_qui_confere_un_pouvoir_plateforme_exige_le_step_up(): void
+    {
+        $marqueurs = '/PlatformProfile::query\(\)->(firstOrNew|create|firstOrCreate|updateOrCreate|forceCreate)'
+            .'|new PlatformProfile\b|[\'"]status[\'"]\s*=>\s*UserStatus::Active|SuperAdmin(Cooptation|Bootstrap)Service/';
+
+        $conferent = [];
+        $fichiers = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path('Http/Controllers')));
+        foreach ($fichiers as $fichier) {
+            if ($fichier->getExtension() !== 'php' || ! preg_match($marqueurs, file_get_contents($fichier->getPathname()))) {
+                continue;
+            }
+            $relatif = substr($fichier->getPathname(), strlen(app_path()) + 1, -4);
+            $conferent['App\\'.str_replace('/', '\\', $relatif)] = true;
+        }
+        // Plancher : la recherche qui ne trouve plus rien ne doit pas passer pour un vert.
+        $this->assertArrayHasKey(UserRoleController::class, $conferent);
+        $this->assertArrayHasKey(UserAdminController::class, $conferent);
+
+        $oubliees = [];
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            $action = ProtectedActions::normalize($route->getActionName());
+            if (! isset($conferent[explode('@', $action)[0]]) || array_diff($route->methods(), ['GET', 'HEAD', 'OPTIONS']) === []) {
+                continue;
+            }
+            if (! ProtectedActions::requiresStepUp($action)
+                && ! ProtectedActions::requiresStepUpForPlatform($action)
+                && ! array_key_exists($action, ProtectedActions::PLATFORM_POWER_EXEMPT)) {
+                $oubliees[] = implode('|', $route->methods()).' '.$route->uri()." → {$action}";
+            }
+        }
+
+        $this->assertSame([], $oubliees, "Action qui confère un pouvoir plateforme sans step-up :\n".implode("\n", $oubliees));
     }
 
     public function test_les_alias_sans_nom_sont_couverts(): void

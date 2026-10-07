@@ -17,7 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
  *  1. un compte portant `metadata.force_2fa_reconfigure` (réinitialisation par le
  *     support) : 403 `two_factor_required` sur toute route hors `api/auth/*` —
  *     c'est là qu'il se ré-enrôle ;
- *  2. un profil plateforme sans 2FA, sur tout `/api/admin/*` ;
+ *  2. un profil plateforme sans 2FA, sur tout `/api/admin/*` ET sur toute action mutante
+ *     des listes d'agence et de step-up plateforme (B1 : `Gate::before` lui ouvre tout) ;
  *  3. sur les actions MUTANTES des familles de {@see ProtectedActions} : tout admin
  *     d'agence sans 2FA, et tout personnel de l'agence quand celle-ci a coché
  *     `settings.require_team_two_factor`. Jamais un bailleur, jamais un client.
@@ -46,12 +47,22 @@ class RequireTwoFactor
             return $next($request);
         }
 
-        if ($request->is('api/admin', 'api/admin/*') && $user->platformProfile()->exists()) {
+        $plateforme = $user->platformProfile()->exists();
+        if ($request->is('api/admin', 'api/admin/*') && $plateforme) {
+            return $this->refuse();
+        }
+
+        // Vérification adverse B1 — `Gate::before` ouvre toute policy au super-admin : hors de
+        // `/api/admin/*`, une action protégée (rôles, blocage, reversements…) lui était ouverte
+        // sans 2FA. Tout profil plateforme la porte sur TOUTE action listée.
+        $action = $request->route()?->getActionName();
+        if ($plateforme && ! $request->isMethodSafe()
+            && (ProtectedActions::requiresAgencyTwoFactor($action) || ProtectedActions::requiresStepUpForPlatform($action))) {
             return $this->refuse();
         }
 
         if (! $request->isMethodSafe()
-            && ProtectedActions::requiresAgencyTwoFactor($request->route()?->getActionName())
+            && ProtectedActions::requiresAgencyTwoFactor($action)
             && TwoFactorRequirement::requiredAtAgency($user, $this->requestAgencyId($request))) {
             return $this->refuse();
         }

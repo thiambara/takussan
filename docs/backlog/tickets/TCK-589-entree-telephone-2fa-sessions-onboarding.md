@@ -1,7 +1,7 @@
 ---
 id: TCK-589
 title: "Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai"
-status: done
+status: doing
 phase: P1
 family: full
 estimate: XL
@@ -978,3 +978,73 @@ piloté par CDP sur `:9344`. Un bien `rent`/`daily` publié.
   d'autorisation de 587 → 109 verts ; `AgencyStaffTwoFactorTest` ×5 → vert.
 - **Ablations** de la deuxième passe : `TeamMemberSuspensionController@suspend` retiré de la liste
   → `ProtectedActionsCoverageTest` rouge ; `AgentProfileController@destroy` retiré → rouge.
+
+### Corrections après vérification adverse (verif-589, 2026-10-07)
+
+Verdict reçu : **refusé**, avec 2 bloquants, 4 majeurs et 8 mineurs. Le statut repasse à `doing`
+le temps des corrections. Les sondes du vérificateur sont rejouées depuis le scratchpad, sans être
+commitées. Chaque ablation est restaurée par `cp`, avec un contrôle `md5` avant et après.
+
+#### B1 — rôle et déblocage hors de `/api/admin/*`
+
+**Le défaut, confirmé par la sonde `SuperAdminRoleBypassProbeTest`.** Deux routes ne demandaient
+ni 2FA ni step-up :
+- `PUT /api/users/{u}/role {"role":"super_admin"}`, qui crée un `PlatformProfile` quand l'acteur
+  est super-admin ;
+- `POST /api/users/{u}/activate`.
+
+Elles vivent dans `users.php`. La règle « profil plateforme ⇒ 2FA » ne visait que
+`/api/admin/*`, alors que `Gate::before` ouvre au super-admin **toutes** les policies.
+
+**Le correctif :**
+- `STEP_UP_FOR_PLATFORM` gagne `UserRoleController@update` et `UserAdminController@activate`.
+- `STEP_UP` gagne `UserSupportController@unlock` : lever un verrou rouvre un compte.
+- `RequireTwoFactor` : un profil plateforme sans 2FA est refusé sur **toute** action mutante de
+  `AGENCY_TWO_FACTOR` ou de `STEP_UP_FOR_PLATFORM`, quel que soit le fichier de routes.
+- `RequireRecentTwoFactor` vise « tout profil plateforme » et non plus le seul `isSuperAdmin()`.
+- Nouvelle liste `PLATFORM_POWER_EXEMPT`, motivée ligne à ligne. Elle contient
+  `deleteOwnAccount` et l'enrôlement ou la confirmation de la 2FA du coopté.
+
+**La garde, `ProtectedActionsCoverageTest::test_toute_action_qui_confere_un_pouvoir_plateforme_exige_le_step_up`.**
+- Elle ne liste pas les contrôleurs : elle les **trouve** dans `app/Http/Controllers`, par ce que
+  leur code écrit. Les marqueurs sont l'écriture d'un `PlatformProfile`,
+  `'status' => UserStatus::Active` et les services de cooptation et d'amorçage. Elle trouve quatre
+  contrôleurs : `UserRoleController`, `UserAdminController`, `SuperAdminTwoFactorController` et
+  `SuperAdminInvitationController`.
+- Toute route mutante de l'un d'eux, **dans n'importe quel fichier**, doit figurer dans une liste.
+- Un plancher assure que la recherche trouve encore `UserRoleController` et `UserAdminController`.
+- Le test des orphelines lit aussi `PLATFORM_POWER_EXEMPT`.
+
+**Les tests, dans `PlatformPowerStepUpTest` (5 tests).**
+- Un super-admin sans 2FA reçoit 403 `two_factor_required` sur PUT role et sur activate.
+- Un jeton super-admin sans step-up reçoit 403 `two_factor_step_up_required` sur PUT role, activate
+  et unlock.
+- Un super-admin sans 2FA reçoit 403 `two_factor_required` sur `PUT agencies/{a}`, une agence dont
+  il n'est pas membre.
+- Avec step-up, la promotion et le déblocage passent (200).
+- L'admin d'agence change un rôle dans son agence sans step-up.
+
+**Rouge avant correctif.** Les trois fichiers de code ont été remis à `HEAD` (`d63541c1`) par
+`git show`, puis restaurés par `cp` (`md5` identiques) : **3 rouges sur 5**. Ce sont les trois
+refus ; les deux cas qui passent restent verts.
+
+**Ablations, une à une :**
+
+| Ablation | Résultat |
+|---|---|
+| `UserRoleController@update` retiré de `STEP_UP_FOR_PLATFORM` | « jeton sans step-up » et la garde de pouvoir plateforme passent au rouge |
+| Règle plateforme de `RequireTwoFactor` neutralisée (`false &&`) | « ne modifie pas une agence » passe au rouge |
+| `UserSupportController@unlock` retiré de `STEP_UP` | « jeton sans step-up » passe au rouge |
+
+Note sur la deuxième ablation : sans la règle plateforme, le PUT role et l'activate restent
+refusés. C'est `RequireRecentTwoFactor` qui rend `two_factor_required` sur toute action de
+`STEP_UP_FOR_PLATFORM` sans 2FA. La règle de `RequireTwoFactor` sert donc les actions d'**agence**
+ouvertes par `Gate::before`, d'où le test sur `PUT agencies/{a}`.
+
+**Effet de bord voulu.** `PasswordLoginLockTest::test_le_deverrouillage_du_support_agit_enfin`
+passe désormais par un jeton avec step-up.
+
+**Exécutions :** `tests/Feature/Auth/TwoFactor` et 53 fichiers qui touchent `users/{u}/role`,
+`activate`, `block`, `unlock`, `UserAdmin*`, `UserRole*`, `UserSupport*` ou un super-admin :
+- 422 verts et 1 rouge, en 109 s. Le rouge était l'effet de bord ci-dessus.
+- Après correction du test, `PasswordLoginLockTest` est vert (6).
