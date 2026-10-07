@@ -85,11 +85,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
   const canRenew = canRefundDeposit;
 
-  // TCK-090 — Same role gate; the API additionally allows a tenant on
-  // their own lease, but tenants don't reach this dashboard surface — they
-  // hit the public/tenant flow. Status-eligibility is checked just before
-  // rendering the button.
-  const canRequestTermination = canRefundDeposit;
 
   const latePaymentsCount = useMemo(() => {
     const list = paymentsData?.data ?? [];
@@ -122,6 +117,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }
 
   const lease = data.data;
+  // TCK-596 — le préavis s'ouvre au gestionnaire (TCK-090) ET au locataire de CE bail
+  // (`LeasePolicy::requestEarlyTermination`), jamais à « tout client ». Le statut éligible
+  // est vérifié juste avant le rendu du bouton.
+  const isLeaseTenant =
+    user != null && lease.tenant?.user_id != null && lease.tenant.user_id === user.id;
+  const canRequestTermination = canRefundDeposit || isLeaseTenant;
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
 
   async function handleActivate() {
@@ -240,7 +241,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
                 className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => setEarlyTerminationOpen(true)}
               >
-                {tTermination('cta')}
+                {isAgentSurface ? tTermination('cta') : tTermination('cta_tenant')}
               </Button>
             )}
         </div>

@@ -2846,7 +2846,8 @@
       "banner_cancel_request": "Annuler la résiliation",
       "cancelled_toast_title": "Résiliation annulée",
       "cancelled_toast_body": "Le bail revient à l'état actif.",
-      "cancel_failed_title": "L'annulation a échoué"
+      "cancel_failed_title": "L'annulation a échoué",
+      "cta_tenant": "Donner mon préavis"
     },
     "error_generic": "Action impossible.",
     "list": {

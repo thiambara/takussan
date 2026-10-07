@@ -2871,7 +2871,8 @@
       "banner_cancel_request": "Cancel termination",
       "cancelled_toast_title": "Termination cancelled",
       "cancelled_toast_body": "The lease has been reactivated.",
-      "cancel_failed_title": "Failed to cancel"
+      "cancel_failed_title": "Failed to cancel",
+      "cta_tenant": "Give notice"
     },
     "error_generic": "Action failed.",
     "list": {

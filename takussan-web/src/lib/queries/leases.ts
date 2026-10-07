@@ -155,8 +155,16 @@ export type LeasePropertyLite = {
   main_photo_url: string | null;
 };
 
+// TCK-596 — `show` charge toujours le locataire (`LeaseController::show`). Seul `user_id` sert
+// ici : il désigne le compte du locataire, et c'est lui qui ouvre le geste de préavis.
+export type LeaseTenantLite = {
+  id: number;
+  user_id: number | null;
+};
+
 export type LeaseWithRelations = Lease & {
   guarantor?: Guarantor;
+  tenant?: LeaseTenantLite | null;
   payments?: LeasePayment[];
   property?: LeasePropertyLite;
 };

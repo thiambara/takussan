@@ -727,4 +727,13 @@ du Delta et un critère qui rougit sur le code actuel.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Branche `feat/tck-596-cycle-locatif`, partie d'`origin/dev` acf58a66 (586, 587, 588 fusionnés).
+Livrée en **une seule PR** (décision de la session, 2026-10-07), dans l'ordre du ticket.
+
+**§1 — préavis du locataire.** Re-mesuré : `LeaseDetail.tsx:88-92` tel que décrit ; `LeaseController::show`
+charge toujours `tenant` (l.66), donc `tenant.user_id` est dans la charge sans changer `useLease`.
+Le geste s'ouvre à `canRefundDeposit || isLeaseTenant` (gestionnaire inchangé), libellé
+« Donner mon préavis » côté locataire (`lease.early_termination.cta_tenant`, fr/en/wo).
+Preuve : `npx vitest run src/components/leases/__tests__/LeaseDetail.preavis.test.tsx` → 5/5.
+Ablations (restaurées par `cp`) : code d'origine → 2 rouges (locataire : geste, bannière) ;
+« tout client » (`roles.includes('customer')`) → 2 rouges (client tiers, bail sans compte).

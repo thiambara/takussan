@@ -1486,7 +1486,8 @@
       "banner_cancel_request": "Neenal tas bi",
       "cancelled_toast_title": "Tas bi neenal",
       "cancelled_toast_body": "Luwé bi delloo na ci jàpp.",
-      "cancel_failed_title": "Neenal bi am na njuumte"
+      "cancel_failed_title": "Neenal bi am na njuumte",
+      "cta_tenant": "Yégle sama dem"
     },
     "error_generic": "Lu ñu mën a def amul.",
     "list": {
