@@ -475,8 +475,10 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 - [x] `ParseBankStatementJob` : écrit `skipped_lines_count` ; passe `failed` sur exception, et sur un
       fichier dont au moins une ligne est sautée et aucune n'est lue.
 - [ ] Journaux sans contenu de relevé (après TCK-601, qui crée `SafeExceptionContext`) :
-      **Ouverte — attend TCK-601.** Contexte sûr posé EN LIGNE (classe + `sqlstate`, ni message ni
-      trace ni contenu) ; raccords `ParseBankStatementJob.php:131` et `CsvDriver.php:70`, voir Notes.
+      → raccord transféré à TCK-601 (ParseBankStatementJob.php:131, CsvDriver.php:70), qui pose
+      SafeExceptionContext. *Décision de la session, 2026-10-07 : cette case ne bloque plus le
+      passage à `done`. Contexte sûr déjà posé EN LIGNE (classe + `sqlstate`, ni message ni trace
+      ni contenu), voir Notes.*
   - `ParseBankStatementJob`, le `catch` (`l.107-114`) :
     `Log::error('bank_statement_parse_failed', ['statement_id' => $this->statementId] + SafeExceptionContext::of($e))`.
     Ni `getMessage()` ni `getTraceAsString()`. La relance (`throw $e`) et le passage en `failed`
