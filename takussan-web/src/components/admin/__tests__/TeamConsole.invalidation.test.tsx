@@ -69,7 +69,6 @@ vi.mock('@/lib/queries/admin-users', () => ({
     data: [],
     meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 },
   }),
-  postUserAction: vi.fn(),
 }));
 
 vi.mock('@/lib/queries/agency-members', () => ({

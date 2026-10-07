@@ -50,7 +50,11 @@ function fichierDeRoute(chemin: string): string {
 
 const PAGES_PUBLIQUES = [
   ...PAGES_STATIQUES_INDEXABLES.map((p) => fichierDeRoute(p.chemin)),
-  ...Object.keys(ROUTES_DYNAMIQUES_PUBLIQUES).map(fichierDeRoute),
+  // Une route `exclue` (TCK-587 : `/share/[token]`) n'est pas une page publique à annoncer : elle
+  // n'émet pas d'alternates, son URL est un secret.
+  ...Object.entries(ROUTES_DYNAMIQUES_PUBLIQUES)
+    .filter(([, decision]) => decision.exclue === undefined)
+    .map(([chemin]) => fichierDeRoute(chemin)),
 ].sort();
 
 describe('alternatesLangues', () => {

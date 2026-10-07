@@ -21,6 +21,7 @@ use App\Notifications\LeaseRentReviewedNotification;
 use App\Notifications\MaintenanceQuoteRequestedNotification;
 use App\Notifications\NewBookingNotification;
 use App\Notifications\PropertyApprovedNotification;
+use App\Notifications\PropertyProposedNotification;
 use App\Notifications\PropertyRejectedNotification;
 use App\Notifications\QuoteApprovedNotification;
 use App\Notifications\QuoteRejectedNotification;
@@ -118,6 +119,7 @@ class AppDatabaseChannel
         MaintenanceQuoteRequestedNotification::class => NotificationType::Maintenance,
         NewBookingNotification::class => NotificationType::Booking,
         PropertyApprovedNotification::class => NotificationType::System,
+        PropertyProposedNotification::class => NotificationType::System,
         PropertyRejectedNotification::class => NotificationType::System,
         QuoteApprovedNotification::class => NotificationType::Maintenance,
         QuoteRejectedNotification::class => NotificationType::Maintenance,

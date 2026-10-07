@@ -930,3 +930,32 @@ piloté par CDP sur `:9344`. Un bien `rent`/`daily` publié.
   `for g in scripts/check-*.mjs` → aucune garde rouge.
 - **Non lancées ici, par la règle du dépôt** : les suites entières `php artisan test` et
   `npm run test` (`bin/impacted-tests.php --base=dev` rend « SUITE ENTIÈRE ») — à la session.
+
+### Fusion de `origin/dev` après TCK-587 (merge `fd4bd805`)
+
+- Conflits textuels : `docs/adr/README.md` (0031 puis 0033), `INDEX.md` (régénéré),
+  `User.php` (imports des deux côtés), `types/admin-users.ts` (`two_factor_enabled` à côté des
+  profils de 587). Un conflit de types non signalé par git : 587 retire `onQuickAction`
+  d'`AdminUsersTable` — retiré du test de la colonne 2FA (`tsc` le disait).
+- **Conflit de sens, mesuré** : depuis 587 (ADR-0031 §3), un profil non actif ne confère rien.
+  Le récap de l'onboarding agent lisait `GET /api/me/capabilities?agency_id=` alors que le profil
+  est `draft` pendant tout l'assistant : la liste devenait **vide** sur le vrai serveur
+  (`DraftAgentCapabilitiesTest` rougissait après la fusion : `[]` au lieu des deux capacités),
+  tandis que le vitest, sur une réponse simulée, restait vert. Correctif : `GET
+  /api/me/agent-profiles/{id}/role-capabilities` (propriétaire du profil seulement) rend la
+  **promesse du rôle** — `AgencyRole::capabilityEnums()` —, pas un droit présent ; le front lit
+  `useAgentRoleCapabilities(agentProfileId)` et le prop `agencyId` du wizard disparaît.
+  `DraftAgentCapabilitiesTest` est remplacé par `AgentRoleCapabilitiesTest`, qui épingle aussi
+  que `/me/capabilities` reste vide pour un `draft` (ADR-0031 tenu). Ablation : la route calculée
+  par le résolveur (ce que fait `/me/capabilities`) → le cas `draft` rougit.
+- `TwoFactorRequirement` attendait « le prédicat que 587 nommera » : c'est
+  `MembershipCapabilityResolver::isStaffAt` (profil d'agent ou d'admin **actif**, ou délégation
+  active). Le personnel concerné par l'interrupteur d'équipe se juge désormais par lui :
+  le délégué l'est, l'agent suspendu ne l'est plus. Test
+  `test_le_personnel_est_celui_du_predicat_de_587` ; ablation (profil d'agent de tout statut, sans
+  délégation) → rouge.
+- **Exécutions** : `php artisan test` sur les 63 fichiers touchés par 587 ou par cette branche →
+  **642 verts, 2297 assertions** (208 s, charge 8,6 / 11,6 / 12,2) ; vitest sur les 45 fichiers
+  touchés par l'un ou l'autre + `src/components/admin` + `src/components/onboarding` → 95
+  fichiers, **742 verts** ; `tsc --noEmit` et `eslint` propres ; Pint propre ; gardes racine
+  vertes.

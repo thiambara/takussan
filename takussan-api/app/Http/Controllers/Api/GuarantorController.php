@@ -62,7 +62,7 @@ class GuarantorController extends Controller
 
     public function destroy(Request $request, Guarantor $guarantor): JsonResponse
     {
-        $this->authorize('view', $guarantor);
+        $this->authorize('delete', $guarantor);
         $guarantor->delete();
 
         return $this->json(null, 204);

@@ -163,7 +163,6 @@ function rendreMembres() {
         total={1}
         currentUserId={99}
         onSelect={vi.fn()}
-        onQuickAction={vi.fn()}
       />,
     ),
   );

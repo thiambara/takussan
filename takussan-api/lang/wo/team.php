@@ -19,4 +19,11 @@ return [
             'not_owner' => 'Amul nga sañ-sañ ci profil agent bii.',
         ],
     ],
+    // TCK-587 — taxawal ab jëmm ci biir ajaans bi.
+    'suspension' => [
+        'errors' => [
+            'self' => 'Mënoo taxawal sa bopp.',
+            'primary_admin' => 'Mënuñu taxawal njiitu ajaans bi.',
+        ],
+    ],
 ];

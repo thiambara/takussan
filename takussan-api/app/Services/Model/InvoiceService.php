@@ -29,7 +29,8 @@ class InvoiceService
         // TCK-528 — « client ajouté par lui » ne vaut plus que pour un client SANS agence : un client
         // rattaché à une autre agence que celle de l'émetteur était facturé au nom de celle-ci.
         $canIssue = $user->isSuperAdmin()
-            || ($user->agency_id && $customer->agency_id && $customer->agency_id === $user->agency_id)
+            // TCK-587 — le PERSONNEL de l'agence du client (ADR-0031), plus tout membre.
+            || ($customer->agency_id !== null && $user->staffAgencyId() === (int) $customer->agency_id)
             || ($customer->added_by_id === $user->id && $customer->agency_id === null);
         abort_unless($canIssue, 403);
 

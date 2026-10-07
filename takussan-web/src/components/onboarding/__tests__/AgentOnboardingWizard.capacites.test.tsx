@@ -4,13 +4,14 @@ import { render, screen, within } from '@testing-library/react';
 import { withIntl } from '@/test/intl';
 
 /**
- * TCK-589 — AC13 : le récap de l'agent montre les capacités RÉELLES que lui donne son rôle dans
- * l'agence de l'invitation — `GET /api/me/capabilities?agency_id=` —, libellées par
- * `admin.roles.capabilities.*`. Plus aucune table écrite en dur (`ROLE_PERMISSIONS`).
+ * TCK-589 — AC13 : le récap de l'agent montre les capacités que lui accordera le RÔLE de son profil
+ * — `GET /api/me/agent-profiles/{id}/role-capabilities` —, libellées par `admin.roles.capabilities.*`.
+ * Plus aucune table écrite en dur (`ROLE_PERMISSIONS`). Pas `GET /api/me/capabilities` : le profil
+ * est encore `draft` pendant l'assistant, et un profil non actif ne confère rien (ADR-0031 §3).
  */
-const useMyCapabilities = vi.fn();
+const useAgentRoleCapabilities = vi.fn();
 vi.mock('@/hooks/useCan', () => ({
-  useMyCapabilities: (...args: unknown[]) => useMyCapabilities(...args),
+  useAgentRoleCapabilities: (...args: unknown[]) => useAgentRoleCapabilities(...args),
 }));
 vi.mock('@/app/actions/security', () => ({ phoneSendOtpAction: vi.fn(), phoneVerifyOtpAction: vi.fn() }));
 vi.mock('@/app/actions/agent-onboarding', () => ({
@@ -49,14 +50,14 @@ const { AgentOnboardingWizard } = await import('../AgentOnboardingWizard');
 
 describe('récap de l’agent — capacités réelles (AC13)', () => {
   it('rôle personnalisé accordant exactement properties.create et crm.view_all : ces deux libellés, aucun autre', () => {
-    useMyCapabilities.mockReturnValue({
+    useAgentRoleCapabilities.mockReturnValue({
       data: { data: { agency_id: 7, capabilities: ['properties.create', 'crm.view_all'] } },
       isLoading: false,
       isError: false,
     });
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agencyId={7} />));
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
 
-    expect(useMyCapabilities).toHaveBeenCalledWith(7, true);
+    expect(useAgentRoleCapabilities).toHaveBeenCalledWith(11);
     const bloc = screen.getByTestId('agent-capabilities');
     const libelles = within(bloc).getAllByRole('listitem').map((li) => li.textContent?.trim());
     expect(libelles).toEqual(['Créer un bien', "Voir tous les contacts de l'agence"]);
@@ -68,12 +69,12 @@ describe('récap de l’agent — capacités réelles (AC13)', () => {
   });
 
   it('sans capacité dans l’agence : un message, pas une liste inventée', () => {
-    useMyCapabilities.mockReturnValue({
+    useAgentRoleCapabilities.mockReturnValue({
       data: { data: { agency_id: 7, capabilities: [] } },
       isLoading: false,
       isError: false,
     });
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agencyId={7} />));
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
     expect(within(screen.getByTestId('agent-capabilities')).queryAllByRole('listitem')).toHaveLength(0);
     expect(screen.getByText(/Aucun droit ne vous est encore attribué/)).toBeInTheDocument();
   });

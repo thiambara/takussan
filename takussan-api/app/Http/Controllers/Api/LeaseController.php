@@ -31,8 +31,10 @@ class LeaseController extends Controller
             $base->where(function ($q) use ($user) {
                 $q->where('landlord_id', $user->id)
                     ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
-                if ($user->agency_id) {
-                    $q->orWhere('agency_id', $user->agency_id);
+                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
+                // listait les ressources de tous les autres.
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhere('agency_id', $staffAgencyId);
                 }
             });
         }
@@ -120,11 +122,13 @@ class LeaseController extends Controller
      */
     public function attachGuarantor(AttachGuarantorLeaseRequest $request, Lease $lease): JsonResponse
     {
-
         $data = $request->validated();
 
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::findOrFail($data['guarantor_id']);
+            // TCK-587 (vérification adverse, B2) — un garant hors du périmètre de l'émetteur ne se
+            // rattache pas : sa fiche se lirait ensuite par `GET /api/leases/{id}/guarantors`.
+            $this->authorize('view', $guarantor);
         } else {
             $guarantor = Guarantor::create([
                 'first_name' => $data['first_name'],

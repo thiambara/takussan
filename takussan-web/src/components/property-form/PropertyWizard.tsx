@@ -187,7 +187,20 @@ function valeursInitiales(): PropertyFormValues {
  */
 type EtatBrouillon = 'attente' | 'vide' | 'restaure';
 
-export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
+export function PropertyWizard({
+  tags = [],
+  proposition = false,
+}: {
+  readonly tags?: Tag[];
+  /**
+   * TCK-587 (ADR-0031) — l'auteur est un bailleur hors personnel : il PROPOSE le bien à son
+   * agence. Le serveur impose déjà brouillon + privé (`PropertyController::store`) ; l'écran le
+   * dit, et le bouton final n'annonce plus une publication qui n'aura pas lieu. Le parcours ne
+   * porte aucun contrôle de publication ni de visibilité, pour personne : le corps part toujours
+   * en `visibility: 'private'` (`toCreatePayload`).
+   */
+  readonly proposition?: boolean;
+}) {
   const t = useTranslations('property.wizard');
   const tTypeArticle = useTranslations(PROPERTY_ENUM_NAMESPACES.typeArticle);
   const router = useRouter();
@@ -587,6 +600,16 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
           </p>
         ) : null}
 
+        {proposition ? (
+          <p
+            role="note"
+            className="mb-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-pretty text-muted-foreground"
+            data-testid="property-proposal-notice"
+          >
+            {t('proposalNotice')}
+          </p>
+        ) : null}
+
         {repriseAnnoncee ? (
           <p role="status" className="mb-4 text-sm text-muted-foreground">
             {t('draftResumed')}
@@ -601,7 +624,7 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
           direction={direction}
           onNavigate={(prochain, sens) => void naviguer(prochain, sens)}
           onFinish={() => void handleSubmit()}
-          finishLabel={t('publish')}
+          finishLabel={proposition ? t('proposalFinish') : t('publish')}
           busy={isSubmitting}
           footerExtra={
             <Button

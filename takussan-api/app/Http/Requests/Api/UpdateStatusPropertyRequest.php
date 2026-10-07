@@ -28,7 +28,17 @@ class UpdateStatusPropertyRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('property')) === true;
+        $user = $this->user();
+        $property = $this->route('property');
+
+        if ($user?->can('update', $property) !== true) {
+            return false;
+        }
+
+        // TCK-587 — passer un bien en `available` / `published` le met au catalogue : c'est publier,
+        // et `PUT …/status` était un contournement de `publish`.
+        return ! in_array($this->input('status'), [PropertyStatus::Available->value, PropertyStatus::Published->value], true)
+            || $user->can('publish', $property);
     }
 
     /** @return array<string, mixed> */

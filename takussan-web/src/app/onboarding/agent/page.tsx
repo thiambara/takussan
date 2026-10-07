@@ -48,12 +48,12 @@ export default async function AgentOnboardingPage({
     redirect('/app');
   }
 
-  // TCK-589 — le récap lit les capacités RÉELLES de l'agent dans l'agence de l'invitation
-  // (`/api/me/capabilities?agency_id=`) ; il ne retombe plus sur une table écrite en dur.
+  // TCK-589 — le récap lit les capacités que le RÔLE de ce profil accordera
+  // (`/api/me/agent-profiles/{id}/role-capabilities`) ; il ne retombe plus sur une table écrite en dur.
 
   return (
     <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
-      <AgentOnboardingWizard agentProfileId={agent.numeric_id} agencyId={agent.agency_id} />
+      <AgentOnboardingWizard agentProfileId={agent.numeric_id} />
     </OnboardingShell>
   );
 }

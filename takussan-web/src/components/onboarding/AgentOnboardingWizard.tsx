@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { useMyCapabilities } from '@/hooks/useCan';
+import { useAgentRoleCapabilities } from '@/hooks/useCan';
 import {
   WizardReprenable,
   type WizardStep,
@@ -66,11 +66,6 @@ import type {
  */
 export type AgentOnboardingWizardProps = {
   agentProfileId: number;
-  /**
-   * TCK-589 — l'agence de l'invitation : le récap y lit les capacités réelles de l'agent
-   * (`GET /api/me/capabilities?agency_id=`). `null` : aucune capacité à montrer.
-   */
-  agencyId?: number | null;
 };
 
 type Specialization = AgentSpecializationPayload['specialization'];
@@ -110,7 +105,6 @@ function relireBrouillon(data: WizardData): WizardData {
 
 export function AgentOnboardingWizard({
   agentProfileId,
-  agencyId = null,
 }: AgentOnboardingWizardProps) {
   const t = useTranslations('agents.onboarding');
   const router = useRouter();
@@ -200,11 +194,11 @@ export function AgentOnboardingWizard({
         title: t('steps.welcome.title'),
         subtitle: t('steps.welcome.subtitle'),
         render: () => (
-          <WelcomeStep agentProfileId={agentProfileId} agencyId={agencyId} />
+          <WelcomeStep agentProfileId={agentProfileId} />
         ),
       },
     ],
-    [agentProfileId, agencyId, t],
+    [agentProfileId, t],
   );
 
   return (
@@ -552,7 +546,8 @@ function SpecializationStep({
  *
  * Le récap lisait `ROLE_PERMISSIONS`, une table écrite en dur que rien ne reliait au rôle
  * effectivement attribué (la page ne passait même pas `invitedRole`) : un rôle personnalisé
- * affichait les droits d'un agent de base. La source est désormais `GET /api/me/capabilities`,
+ * affichait les droits d'un agent de base. La source est désormais le rôle du profil
+ * (`GET /api/me/agent-profiles/{id}/role-capabilities`),
  * libellée par le même dictionnaire que l'éditeur de rôles (`admin.roles.capabilities.*`).
  */
 function grouperCapacites(capacites: readonly string[]): ReadonlyArray<readonly [string, string[]]> {
@@ -564,16 +559,12 @@ function grouperCapacites(capacites: readonly string[]): ReadonlyArray<readonly 
   return [...groupes.entries()];
 }
 
-function WelcomeStep({
-  agentProfileId,
-  agencyId,
-}: {
-  agentProfileId: number;
-  agencyId: number | null;
-}) {
+function WelcomeStep({ agentProfileId }: { agentProfileId: number }) {
   const t = useTranslations('agents.onboarding.steps.welcome');
   const tRoles = useTranslations('admin.roles');
-  const capacitesQuery = useMyCapabilities(agencyId ?? undefined, agencyId !== null);
+  // Le rôle de CE profil, pas `GET /api/me/capabilities` : le profil est encore `draft` ici, et un
+  // profil non actif ne confère rien (ADR-0031 §3) — la liste y serait vide.
+  const capacitesQuery = useAgentRoleCapabilities(agentProfileId);
   const groupes = grouperCapacites(capacitesQuery.data?.data.capabilities ?? []);
   const [lead, setLead] = useState<AgentFirstLeadEntry | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -601,7 +592,7 @@ function WelcomeStep({
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {t('capabilitiesLabel')}
         </p>
-        {agencyId !== null && capacitesQuery.isLoading ? (
+        {capacitesQuery.isLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">…</p>
         ) : capacitesQuery.isError ? (
           <p className="mt-2 text-sm text-destructive">{t('capabilitiesError')}</p>

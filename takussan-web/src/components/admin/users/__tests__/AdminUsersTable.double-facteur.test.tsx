@@ -33,7 +33,6 @@ describe('colonne 2FA de la console Équipe', () => {
           total={3}
           currentUserId={99}
           onSelect={vi.fn()}
-          onQuickAction={vi.fn()}
         />,
       ),
     );

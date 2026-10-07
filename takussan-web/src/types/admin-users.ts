@@ -28,6 +28,19 @@ export type AdminAgencyUserRow = {
    * un champ absent n'est pas un `false`.
    */
   two_factor_enabled?: boolean;
+  /**
+   * TCK-587 — profils chargés par `include=` : la console y lit le statut du membre DANS
+   * l'agence (suspendu ou non), que `status` — celui du compte — ne dit pas.
+   */
+  agent_profiles?: readonly AdminAgencyProfileRow[];
+  owner_profiles?: readonly AdminAgencyProfileRow[];
+  agency_admin_profiles?: readonly AdminAgencyProfileRow[];
+};
+
+/** TCK-587 — la part d'un profil dont la console a besoin. */
+export type AdminAgencyProfileRow = {
+  agency_id: number;
+  status: string;
 };
 
 export type AdminAgencyUsersResponse = {

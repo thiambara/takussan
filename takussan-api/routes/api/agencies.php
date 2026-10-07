@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
 use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
@@ -36,6 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency-scoped member role assignment.
     Route::put('agencies/{agency}/members/{user}/role', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.role.update');
+
+    // TCK-587 — suspendre / réactiver un membre DANS l'agence (ADR-0031 §2).
+    Route::post('agencies/{agency}/team/{user}/suspend', [TeamMemberSuspensionController::class, 'suspend'])->name('agencies.team.suspend');
+    Route::post('agencies/{agency}/team/{user}/reactivate', [TeamMemberSuspensionController::class, 'reactivate'])->name('agencies.team.reactivate');
 
     // TCK-106 — bulk regenerate watermarks for all property photos in an agency.
     Route::post('agencies/{agency}/regenerate-watermarks', RegenerateWatermarksController::class)->name('agencies.regenerate-watermarks');

@@ -4,7 +4,12 @@ namespace Tests\Feature\Auth\TwoFactor;
 
 use App\Models\Agency;
 use App\Models\AgencyRole;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Integration;
+use App\Models\Profiles\AgentProfile;
+use App\Models\RoleDelegation;
+use App\Models\User;
+use App\Support\Security\TwoFactorRequirement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -72,6 +77,27 @@ class AgencyStaffTwoFactorTest extends TestCase
 
         $this->agency->forceFill(['settings' => ['require_team_two_factor' => true]])->save();
         $this->appeler($route)->assertForbidden()->assertJsonPath('code', 'two_factor_required');
+    }
+
+    /**
+     * Après TCK-587 : le personnel se juge par `MembershipCapabilityResolver::isStaffAt` — un
+     * profil ACTIF ou une délégation active. Le délégué est concerné, l'agent suspendu ne l'est plus.
+     */
+    public function test_le_personnel_est_celui_du_predicat_de_587(): void
+    {
+        $this->agency->forceFill(['settings' => ['require_team_two_factor' => true]])->save();
+
+        $delegue = User::factory()->create();
+        RoleDelegation::factory()->create(['user_id' => $delegue->id, 'agency_id' => $this->agency->id, 'role' => 'agent']);
+        $this->assertTrue(TwoFactorRequirement::requiredAtAgency($delegue, $this->agency->id));
+
+        $suspendu = User::factory()->create();
+        AgentProfile::factory()->create([
+            'user_id' => $suspendu->id,
+            'agency_id' => $this->agency->id,
+            'status' => AgentProfileStatus::Suspended,
+        ]);
+        $this->assertFalse(TwoFactorRequirement::requiredAtAgency($suspendu, $this->agency->id));
     }
 
     public function test_l_interrupteur_d_une_autre_agence_ne_concerne_pas_l_agent(): void

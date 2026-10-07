@@ -4,7 +4,9 @@ namespace App\Support\Security;
 
 use App\Http\Middleware\RequireTwoFactor;
 use App\Models\Agency;
+use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 
 /**
  * TCK-589 — QUI doit porter la 2FA (ADR-0033, contrainte 7) : tout profil
@@ -34,16 +36,25 @@ final class TwoFactorRequirement
             return true;
         }
 
-        // TCK-587 — « personnel de l'agence » = agent OU admin (`isAgentAt ||
-        // isAgencyAdminAt`), en attendant le prédicat que 587 nommera.
-        $staffAgencyIds = $user->agentProfiles()->pluck('agency_id')->map(fn ($id) => (int) $id)->all();
-        if ($agencyId !== null) {
-            $staffAgencyIds = array_values(array_intersect($staffAgencyIds, [$agencyId]));
+        // « Personnel de l'agence » : le prédicat de TCK-587 (ADR-0031 §1) — profil d'agent ou
+        // d'admin ACTIF, ou délégation active de l'un de ces rôles. Les candidates sont les
+        // agences de ses profils d'agent et de ses délégations ; le prédicat tranche.
+        $candidates = $user->agentProfiles()->pluck('agency_id')
+            ->merge(RoleDelegation::query()->where('user_id', $user->id)->pluck('agency_id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->when($agencyId !== null, fn ($ids) => $ids->intersect([$agencyId]))
+            ->values();
+        if ($candidates->isEmpty()) {
+            return false;
         }
 
-        return $staffAgencyIds !== [] && Agency::query()
-            ->whereKey($staffAgencyIds)
+        $resolver = app(MembershipCapabilityResolver::class);
+
+        return Agency::query()
+            ->whereKey($candidates->all())
             ->where('settings->require_team_two_factor', true)
-            ->exists();
+            ->pluck('id')
+            ->contains(fn ($id) => $resolver->isStaffAt($user, (int) $id));
     }
 }
