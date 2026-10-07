@@ -13,18 +13,39 @@
  */
 export const DESTINATION_PAR_DEFAUT = '/app';
 
+/**
+ * Origine sentinelle de la résolution : `.invalid` est réservé (RFC 2606), aucun hôte réel ne la
+ * porte. Une destination qui s'y résout reste sur le site ; toute autre origine en sort.
+ */
+const ORIGINE_SENTINELLE = 'https://x.invalid';
+
+/**
+ * Caractères refusés AVANT toute résolution : les contrôles C0 et DEL, que le parseur d'URL
+ * retire en silence (`/\t/evil.com` y devient `//evil.com`), et l'antislash, que plusieurs
+ * navigateurs normalisent en barre oblique.
+ */
+const CARACTERES_REFUSES = /[\u0000-\u001F\u007F\\]/;
+
 export function destinationInterne(
   brute: string | null | undefined,
   defaut: string = DESTINATION_PAR_DEFAUT,
 ): string {
-  if (typeof brute !== 'string') return defaut;
-  // `//` d'abord : c'est le cas qui commence par `/` tout en sortant du site.
-  if (brute.startsWith('//')) return defaut;
-  if (!brute.startsWith('/')) return defaut;
-  // `/\evil.tld` : certains navigateurs normalisent l'antislash en barre oblique,
-  // ce qui rend `/\evil.tld` équivalent à `//evil.tld`.
-  if (brute.startsWith('/\\')) return defaut;
-  return brute;
+  if (typeof brute !== 'string' || !brute.startsWith('/')) return defaut;
+  // TCK-589, vérification adverse M2 — `/\t/evil.com` passait : le filtre jugeait la chaîne
+  // BRUTE, le navigateur résout la chaîne NETTOYÉE. On refuse ce que le parseur retirerait, puis
+  // on juge le résultat de la résolution, et c'est lui qu'on rend — jamais la chaîne d'entrée.
+  if (CARACTERES_REFUSES.test(brute)) return defaut;
+
+  let url: URL;
+  try {
+    url = new URL(brute, ORIGINE_SENTINELLE);
+  } catch {
+    return defaut;
+  }
+  // `//evil.tld` se résout vers un AUTRE hôte : c'est le cas qui commence par `/` tout en sortant.
+  if (url.origin !== ORIGINE_SENTINELLE) return defaut;
+
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 /**

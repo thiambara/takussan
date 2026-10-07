@@ -562,6 +562,10 @@ nommé (ablation). AC2, AC3, AC6 (sauf le numéro injoignable) et AC17 posent
       externe (`//evil.example`) est écarté. Au navigateur : fiche → Réserver → Créer un compte →
       inscription → retour sur la même fiche, boîte rouverte avec les dates saisies ; idem par
       l'entrée téléphone (drapeau allumé).
+      **Ajouté après vérification adverse (M2)** : `"/\t/evil.com"`, `"/\n/evil.com"`,
+      `"/\\/evil.com"` et `"/\t\\evil.com"` sont écartés (**rouge** sur `e59cb8b2` : rendus tels
+      quels, que le navigateur résout vers `evil.com`). La destination rendue est la forme
+      **résolue** : `redirection-interne.test.ts`.
 - [x] **AC6** — `InvitationBySmsTest` : une invitation de prestataire avec téléphone seul part par
       SMS (envoi au **numéro**, `Mail` jamais), y compris quand ce numéro est porté par un compte
       dont `phone_verified_at` est nul ; relance et rappel aussi ; elle s'accepte et crée un compte
@@ -1217,3 +1221,53 @@ Pris seul, aucun volet ne rougit la séquence du vérificateur : ils se recouvre
 - `tests/Feature/Auth` et `UserSupportTest` : 307 verts et 3 rouges. Ce sont les deux tests de
   `PhoneLoginRateLimitTest` qui supposaient l'ancien comportement, ci-dessus.
 - Après adaptation : `tests/Feature/Auth/Phone` 30 verts, `ThirdPartyLockTest` 8 verts.
+
+#### M2 — redirection ouverte par un caractère de contrôle
+
+**Le défaut.** La sonde `verif589-redirection.test.ts` le reproduisait : `destinationInterne`
+jugeait la chaîne **brute**, alors que le navigateur résout la chaîne **nettoyée**. Le parseur
+d'URL retire tabulations et sauts de ligne, si bien que `/\t/evil.com` devient `//evil.com`, un
+autre hôte. La sonde est verte après correctif (3/3).
+
+**Le correctif, dans `src/lib/redirection-interne.ts`.** `destinationInterne` procède en trois
+temps :
+1. elle refuse d'abord tout contrôle C0, DEL ou antislash ;
+2. elle **résout** ensuite par `new URL(brute, 'https://x.invalid')` et exige la même origine ;
+3. elle rend enfin `pathname + search + hash`, c'est-à-dire ce qui a été jugé, jamais l'entrée.
+
+**Les appelants, relevés un à un.** Le correctif tient en une seule fonction parce que tous les
+lecteurs de `redirect=` passent par elle (`grep` de `get('redirect')`, `redirect=` et
+`router.push|replace`) :
+- par `destinationInterne` ou `avecRedirection` : la connexion, y compris le lien « Créer un
+  compte » et l'entrée téléphone ; l'inscription ; `verify-email` ; le rappel OAuth ;
+  `intention-oauth` ; `/onboarding/intention` ; `lien-connexion` et `RetourAuth` ;
+- hors de la question :
+  - `GardeDoubleFacteur` ne lit aucune destination ;
+  - `EnrolementDoubleFacteurExige` reçoit une destination écrite en dur (`/super-admin` ou
+    `/app`) ;
+  - `proxy.ts` **pose** `redirect=<pathname>` sans le lire, et son lecteur, la connexion, filtre.
+- **Signalé, hors du périmètre** : `PropertyContactMessageDialog` suit `redirect_to` rendu par
+  l'API, une valeur du serveur et non de l'URL.
+
+**Les tests.** Ils vivent dans `redirection-interne.test.ts`, qui passe de 13 à 19 tests :
+- six formes refusées : les quatre du vérificateur, plus `\r` et `\u0000` ;
+- la destination rendue est la forme résolue et reste sur le site (`/app/../../evil.com`,
+  `/%2F%2Fevil.com`, etc.) ;
+- `/app/./biens/../baux` est rendu `/app/baux`.
+
+**Rouge avant correctif** : le fichier d'avant, rejoué, donne **5 rouges**. `"/\\/evil.com"` était
+déjà refusé par l'ancien test de l'antislash initial.
+
+**Ablations, chacune restaurée par `cp` :**
+
+| Ablation | Résultat |
+|---|---|
+| Origine non jugée | `//evil.tld` passe au rouge |
+| Caractères non filtrés | `/\u0000/evil.com` passe au rouge |
+| Chaîne brute rendue | « forme résolue » passe au rouge |
+
+Les deux premières se recouvrent : les autres formes à tabulation sont rattrapées par le jugement
+d'origine.
+
+**Exécutions** : `(auth)`, `components/auth`, `onboarding`, `src/lib`, `proxy` et
+`components/home` donnent **121 fichiers, 1353 tests verts**. `eslint` et `tsc` sont propres.
