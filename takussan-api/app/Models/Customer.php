@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
@@ -126,6 +127,35 @@ class Customer extends AbstractModel
         });
 
         return $filters;
+    }
+
+    /**
+     * TCK-591 §9 — les fiches qu'un utilisateur peut LIRE, en une requête : exactement la règle de
+     * `CustomerPolicy::view` (TCK-587). Super-admin → tout ; personnel de l'agence de son profil
+     * actif tenant `crm.view_all` → l'agence, plus ses propres ajouts ; tout autre compte (personnel
+     * sans la capacité, bailleur, client) → ses seuls ajouts.
+     *
+     * Partagée par `CustomerController::index` et `PipelineStatsService` : le kanban et ses
+     * compteurs ne peuvent plus diverger de la fiche. `$user->agency_id` n'y entre pas — c'est
+     * l'agence du profil actif QUEL QU'IL SOIT, et un bailleur y lisait tout le CRM.
+     *
+     * @param  Builder<Customer>  $query
+     * @return Builder<Customer>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        $staffAgencyId = $user->staffAgencyId();
+        if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
+            return $query->where(function (Builder $inner) use ($user, $staffAgencyId) {
+                $inner->where('agency_id', $staffAgencyId)->orWhere('added_by_id', $user->id);
+            });
+        }
+
+        return $query->where('added_by_id', $user->id);
     }
 
     public function getFullNameAttribute(): string

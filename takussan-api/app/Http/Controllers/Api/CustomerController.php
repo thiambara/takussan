@@ -10,7 +10,6 @@ use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
-use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
@@ -26,24 +25,9 @@ class CustomerController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $base = Customer::query();
-
-        if (! $user->isSuperAdmin()) {
-            // TCK-587 — même règle que `CustomerPolicy::view` : le CRM de l'agence pour le
-            // personnel tenant `crm.view_all`, ses propres clients pour tous les autres. Un
-            // bailleur de l'agence listait tout le CRM, téléphones et pièces d'identité compris.
-            $staffAgencyId = $user->staffAgencyId();
-            if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
-                $base->where(function ($query) use ($user, $staffAgencyId) {
-                    $query
-                        ->where('agency_id', $staffAgencyId)
-                        ->orWhere('added_by_id', $user->id);
-                });
-            } else {
-                $base->where('added_by_id', $user->id);
-            }
-        }
+        // TCK-587 / TCK-591 §9 — la règle de `CustomerPolicy::view`, partagée avec les compteurs du
+        // pipeline. Un bailleur de l'agence listait tout le CRM, téléphones et pièces d'identité compris.
+        $base = Customer::query()->visibleTo($request->user());
 
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch : d'où les deux
