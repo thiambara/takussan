@@ -55,6 +55,8 @@ export interface CustomerNote {
   author_name?: string | null;
   body: string;
   pinned: boolean;
+  /** TCK-591 — nature d'une note d'étape ; le préfixe se rend côté front, dans la langue du lecteur. */
+  kind?: 'loss' | 'conversion' | null;
   created_at: string;
   updated_at: string;
 }

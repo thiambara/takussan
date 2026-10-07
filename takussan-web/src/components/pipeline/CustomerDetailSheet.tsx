@@ -12,7 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Textarea } from '@/components/ui/textarea';
-import { ApiError, apiRequest, buildQueryString } from '@/lib/api';
+import { ApiError } from '@/lib/api';
+import { ContactGestures } from '@/components/crm/ContactGestures';
+import { CustomerActivityFeed } from '@/components/crm/CustomerActivityFeed';
+import { noteBody } from '@/components/crm/noteBody';
 import {
   createCustomerTask,
   fetchCustomerTasks,
@@ -31,34 +34,6 @@ import type { Task } from '@/types/pipeline';
 interface CustomerDetailSheetProps {
   customerId: number;
   onOpenChange: (open: boolean) => void;
-}
-
-interface ActivityRow {
-  id: number;
-  description: string;
-  log_name?: string;
-  created_at: string;
-  causer?: { id: number; name?: string } | null;
-  changes?: { attributes?: Record<string, unknown>; old?: Record<string, unknown> } | null;
-}
-
-async function fetchCustomerActivity(token: string, customerId: number): Promise<ActivityRow[]> {
-  // Audit log endpoint already exposed in TCK-079 era — query scoped to
-  // subject. This intentionally degrades to [] on 404 so the tab still
-  // renders for environments where the audit endpoint isn't enabled.
-  const qs = buildQueryString({
-    filter: { subject_type: 'App\\Models\\Customer', subject_id: customerId },
-    sort: '-created_at',
-    per_page: 30,
-  });
-  try {
-    const res = await apiRequest<{ data: ActivityRow[] }>(`/api/audit-log${qs ? `?${qs}` : ''}`, {
-      token,
-    });
-    return res.data ?? [];
-  } catch {
-    return [];
-  }
 }
 
 export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetailSheetProps) {
@@ -83,12 +58,6 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId),
     queryFn: () => (token ? fetchCustomerTasks(token, customerId) : Promise.resolve([])),
     enabled: !!token && (tab === 'tasks' || tab === 'overview'),
-  });
-
-  const activityQuery = useQuery({
-    queryKey: ['customer', customerId, 'activity'],
-    queryFn: () => (token ? fetchCustomerActivity(token, customerId) : Promise.resolve([])),
-    enabled: !!token && tab === 'activity',
   });
 
   const noteMutation = useMutation<unknown, ApiError, string>({
@@ -172,6 +141,11 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
                 <Loading />
               ) : customer ? (
                 <dl className="space-y-3 text-sm">
+                  <ContactGestures
+                    phone={customer.phone}
+                    firstName={customer.first_name}
+                    fullName={`${customer.first_name} ${customer.last_name}`}
+                  />
                   <Field label={t('fields.phone')} value={customer.phone} />
                   <Field label={t('fields.email')} value={customer.email} />
                   <Field label={t('fields.occupation')} value={customer.occupation} />
@@ -211,7 +185,8 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
             </TabsContent>
 
             <TabsContent value="activity">
-              <ActivityTab rows={activityQuery.data ?? []} isLoading={activityQuery.isLoading} />
+              {/* TCK-591 — le journal de la fiche, plus `/api/audit-log` (403 avalé en liste vide). */}
+              {tab === 'activity' ? <CustomerActivityFeed customerId={customerId} /> : null}
             </TabsContent>
           </div>
         </Tabs>
@@ -243,7 +218,7 @@ function Empty() {
 }
 
 interface NotesTabProps {
-  notes: Array<{ id: number; body: string; pinned: boolean; created_at: string }>;
+  notes: Array<{ id: number; body: string; pinned: boolean; created_at: string; kind?: string | null }>;
   isLoading: boolean;
   onAdd: (body: string) => void;
   isAdding: boolean;
@@ -251,6 +226,7 @@ interface NotesTabProps {
 
 function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
   const t = useTranslations('crm.pipeline');
+  const tNotes = useTranslations('agentCrm.notes');
   const locale = useLocale() as Locale;
   const [body, setBody] = useState('');
 
@@ -292,7 +268,7 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
                   {t('notes.pinned')}
                 </span>
               ) : null}
-              <p className="whitespace-pre-wrap text-foreground">{n.body}</p>
+              <p className="whitespace-pre-wrap text-foreground">{noteBody(n, tNotes)}</p>
               <time className="mt-1 block text-xs tabular-nums text-muted-foreground">
                 {formatDateTime(n.created_at, locale)}
               </time>
@@ -386,26 +362,5 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
         </ul>
       )}
     </div>
-  );
-}
-
-function ActivityTab({ rows, isLoading }: { rows: ActivityRow[]; isLoading: boolean }) {
-  const locale = useLocale() as Locale;
-  if (isLoading) return <Loading />;
-  if (rows.length === 0) return <Empty />;
-  return (
-    <ul className="space-y-2">
-      {rows.map((r) => (
-        <li
-          key={r.id}
-          className="rounded-lg border border-muted bg-card p-3 text-sm"
-        >
-          <p className="text-foreground">{r.description}</p>
-          <time className="block text-xs tabular-nums text-muted-foreground">
-            {formatDateTime(r.created_at, locale)}
-          </time>
-        </li>
-      ))}
-    </ul>
   );
 }

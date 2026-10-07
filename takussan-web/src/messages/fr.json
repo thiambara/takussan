@@ -2328,6 +2328,62 @@
       "filterAria": "Voir les clients tagués {tag}"
     }
   },
+  "agentCrm": {
+    "contact": {
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "callAria": "Appeler {name}",
+      "whatsappAria": "Écrire à {name} sur WhatsApp",
+      "whatsappMessage": "Bonjour {firstName}, c'est votre agent Takussan.",
+      "noPhone": "Aucun numéro enregistré.",
+      "unreachable": "Numéro non joignable tel qu'enregistré : {phone}"
+    },
+    "notes": {
+      "kind": {
+        "loss": "Perte : {reason}",
+        "conversion": "Conversion : {reason}"
+      }
+    },
+    "activity": {
+      "loadFailed": "Le journal de ce client n'a pas pu être chargé.",
+      "retry": "Réessayer",
+      "empty": "Aucune activité pour l'instant.",
+      "loadMore": "Voir plus",
+      "someone": "Quelqu'un",
+      "customer": {
+        "created": "{actor} a créé la fiche",
+        "deleted": "{actor} a supprimé la fiche",
+        "restored": "{actor} a restauré la fiche",
+        "stage": "{actor} a fait passer le client de « {from} » à « {to} »",
+        "fields": "{actor} a modifié : {fields}",
+        "updated": "{actor} a modifié la fiche"
+      },
+      "note": {
+        "created": "{actor} a ajouté une note",
+        "deleted": "{actor} a supprimé une note",
+        "pinned": "{actor} a épinglé une note",
+        "updated": "{actor} a modifié une note"
+      },
+      "task": {
+        "created": "{actor} a créé la tâche « {title} »",
+        "done": "{actor} a terminé la tâche « {title} »",
+        "deleted": "{actor} a supprimé la tâche « {title} »",
+        "updated": "{actor} a modifié la tâche « {title} »"
+      },
+      "generic": "{actor} a modifié la fiche",
+      "fields": {
+        "first_name": "prénom",
+        "last_name": "nom",
+        "email": "e-mail",
+        "phone": "téléphone",
+        "occupation": "profession",
+        "emergency_contact_name": "contact d'urgence",
+        "emergency_contact_phone": "téléphone d'urgence",
+        "status": "statut",
+        "pipeline_stage": "étape"
+      }
+    }
+  },
   "account": {
     "deletion": {
       "section": {

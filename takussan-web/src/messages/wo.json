@@ -979,6 +979,62 @@
       "filterAria": "Xool kiliyaan yi am tag {tag}"
     }
   },
+  "agentCrm": {
+    "contact": {
+      "call": "Woo",
+      "whatsapp": "WhatsApp",
+      "callAria": "Woo {name}",
+      "whatsappAria": "Bindal {name} ci WhatsApp",
+      "whatsappMessage": "Asalaa maalekum {firstName}, sa ajaŋ Takussan la.",
+      "noPhone": "Amul nimero bu ñu bind.",
+      "unreachable": "Nimero bii mënul a jot ni ñu ko binde : {phone}"
+    },
+    "notes": {
+      "kind": {
+        "loss": "Ñàkk : {reason}",
+        "conversion": "Soppiku : {reason}"
+      }
+    },
+    "activity": {
+      "loadFailed": "Mënuñu a yeb li kiliyaan bii def.",
+      "retry": "Jéemaat",
+      "empty": "Amagul dara ba leegi.",
+      "loadMore": "Gis yeneen",
+      "someone": "Kenn",
+      "customer": {
+        "created": "{actor} sos na fiise bi",
+        "deleted": "{actor} far na fiise bi",
+        "restored": "{actor} delloo na fiise bi",
+        "stage": "{actor} jële na kiliyaan bi ci « {from} » yóbbu ko ci « {to} »",
+        "fields": "{actor} soppi na : {fields}",
+        "updated": "{actor} soppi na fiise bi"
+      },
+      "note": {
+        "created": "{actor} yokk na ab bind",
+        "deleted": "{actor} far na ab bind",
+        "pinned": "{actor} téye na ab bind",
+        "updated": "{actor} soppi na ab bind"
+      },
+      "task": {
+        "created": "{actor} sos na liggéey bi « {title} »",
+        "done": "{actor} matal na liggéey bi « {title} »",
+        "deleted": "{actor} far na liggéey bi « {title} »",
+        "updated": "{actor} soppi na liggéey bi « {title} »"
+      },
+      "generic": "{actor} soppi na fiise bi",
+      "fields": {
+        "first_name": "tur",
+        "last_name": "sant",
+        "email": "imeel",
+        "phone": "telefon",
+        "occupation": "liggéey",
+        "emergency_contact_name": "ku ñuy woo bu jafe-jafe amee",
+        "emergency_contact_phone": "telefonu jafe-jafe",
+        "status": "nekkin",
+        "pipeline_stage": "tolluwaay"
+      }
+    }
+  },
   "account": {
     "deletion": {
       "section": {
