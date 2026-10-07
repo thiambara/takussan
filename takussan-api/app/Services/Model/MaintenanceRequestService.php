@@ -19,6 +19,15 @@ class MaintenanceRequestService
      * fin de sa collaboration : rien n'a commencé. `completed` n'y est pas — le travail est rendu, la
      * clôture contradictoire reste au demandeur.
      */
+    /** Les états où le devis de l'ancien prestataire engageait la suite : on revient au devis. */
+    private const QUOTE_RESET_FROM = [
+        MaintenanceStatus::QuoteSubmitted,
+        MaintenanceStatus::AwaitingOwner,
+        MaintenanceStatus::Rejected,
+        MaintenanceStatus::Approved,
+        MaintenanceStatus::InProgress,
+    ];
+
     public const UNSTARTED = ['open', 'acknowledged', 'assigned', 'quote_requested', 'quote_submitted', 'awaiting_owner', 'rejected', 'approved'];
 
     public function __construct(
@@ -105,14 +114,19 @@ class MaintenanceRequestService
             return $mr;
         }
 
+        $from = $mr->status ?? MaintenanceStatus::Open;
+
         $mr->assigned_to = $assignee?->id;
         $mr->accepted_at = null;
+        if ($previous !== null) {
+            $this->resetQuoteOfPreviousProvider($mr, $previous);
+        }
         $mr->save();
 
         $status = $mr->status ?? MaintenanceStatus::Open;
         MaintenanceStatusChanged::dispatch(
             $mr,
-            $status,
+            $from,
             $status,
             $actor,
             $assignee !== null ? MaintenanceStatusChanged::CAUSE_ASSIGNED : MaintenanceStatusChanged::CAUSE_UNASSIGNED,
@@ -120,6 +134,49 @@ class MaintenanceRequestService
         );
 
         return $mr->refresh();
+    }
+
+    /**
+     * TCK-592 (verif-592, mineur 8) — le devis est celui d'un prestataire : réassigner le remet à
+     * zéro. Le nouveau démarrait sur le devis approuvé de l'ancien, sans en avoir soumis aucun.
+     *
+     * Le devis de l'ancien est archivé dans `metadata.previous_quotes[]` `{provider_id, amount,
+     * approved_at}`, les champs du devis sont vidés, et une demande à l'étape du devis ou au-delà
+     * revient en `quote_requested`. Transition retenue, écrite ici et non dans la table (comme
+     * `unassignProviderFromAgency`) : de `quote_submitted`, `awaiting_owner`, `rejected`,
+     * `approved` et `in_progress` vers `quote_requested`. Les pièces jointes du devis (collection
+     * `quotes`) restent sur la demande.
+     */
+    private function resetQuoteOfPreviousProvider(MaintenanceRequest $mr, int $previousProviderId): void
+    {
+        if ($mr->quote_submitted_at === null) {
+            return;
+        }
+
+        $approved = $mr->quote_decision_at !== null && $mr->quote_rejection_reason === null;
+        $metadata = $mr->metadata ?? [];
+        $metadata['previous_quotes'][] = [
+            'provider_id' => $previousProviderId,
+            'amount' => $mr->quote_amount !== null ? (string) $mr->quote_amount : null,
+            'approved_at' => $approved ? $mr->quote_decision_at?->toIso8601String() : null,
+        ];
+        $mr->metadata = $metadata;
+
+        $mr->forceFill([
+            'quote_lines' => null,
+            'quote_amount' => null,
+            'quote_currency' => null,
+            'quote_valid_until' => null,
+            'quote_estimated_duration_days' => null,
+            'quote_submitted_at' => null,
+            'quote_decision_at' => null,
+            'quote_decision_by_id' => null,
+            'quote_rejection_reason' => null,
+        ]);
+
+        if (in_array($mr->status, self::QUOTE_RESET_FROM, true)) {
+            $mr->status = MaintenanceStatus::QuoteRequested;
+        }
     }
 
     public function accept(MaintenanceRequest $mr, User $provider): MaintenanceRequest

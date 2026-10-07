@@ -956,3 +956,22 @@ ablations rend désormais **1 rouge** :
 
 Le code était juste sur `05dce4fc` : ces tests y sont verts. Ils gardent la branche, ils ne
 corrigent rien.
+
+**Mineur 8 — réassignation après un devis.**
+
+- Dans `assign()`, quand un prestataire précédent existait et qu'un devis avait été soumis :
+  - le devis est archivé dans `metadata.previous_quotes[]` `{provider_id, amount, approved_at}`,
+    avec `approved_at` nul s'il n'avait pas été approuvé ;
+  - les neuf champs `quote_*` sont vidés ;
+  - le statut revient à `quote_requested` depuis `quote_submitted`, `awaiting_owner`, `rejected`,
+    `approved` ou `in_progress`.
+- Transition retenue : elle est écrite dans le service, comme `unassignProviderFromAgency`, et non
+  dans la table, où ces arcs n'existent pas.
+- L'événement d'assignation porte maintenant le vrai `from`.
+- Les pièces jointes du devis (collection `quotes`) restent sur la demande.
+- `MaintenanceReassignmentQuoteResetTest` (3 tests) couvre :
+  - v19 : B ne démarre plus (422) et soumet son propre devis ;
+  - un devis soumis, non approuvé ;
+  - une réassignation sans devis, qui ne change pas le statut.
+- Sur `05dce4fc` : 2 rouges.
+- Ablations, 2 rouges chacune : sans remise à zéro, statut inchangé, sans archive.
