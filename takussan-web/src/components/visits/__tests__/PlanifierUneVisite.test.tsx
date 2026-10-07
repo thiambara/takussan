@@ -15,6 +15,8 @@ const plan = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const toastAdd = vi.fn();
 const recherches: string[] = [];
 
+const auth = vi.hoisted(() => ({ roles: ['agent'] as string[] }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: auth.roles } }) }));
 vi.mock('@/lib/queries/visits', () => ({ usePlanVisit: () => plan }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/hooks/useApiQuery', () => ({
@@ -38,6 +40,13 @@ describe('<PlanifierUneVisite> — TCK-590', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     recherches.length = 0;
+    auth.roles = ['agent'];
+  });
+
+  it('un bailleur n’a pas le bouton : l’API ne le laisse pas planifier pour un tiers', () => {
+    auth.roles = ['owner'];
+    render(withIntl(<PlanifierUneVisite property={{ id: 10, libelle: 'Villa à Almadies' }} />));
+    expect(screen.queryByRole('button', { name: 'Planifier une visite' })).not.toBeInTheDocument();
   });
 
   it('depuis la fiche bien, pour un prospect : nom + téléphone, 10:00 à Dakar', async () => {

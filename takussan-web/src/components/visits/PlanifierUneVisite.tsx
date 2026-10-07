@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { CalendarPlus } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { isAdmin, isAgent } from '@/lib/roles';
 import { usePlanVisit } from '@/lib/queries/visits';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
 import { ApiError } from '@/lib/api';
@@ -46,10 +48,16 @@ interface PlanifierUneVisiteProps {
  * `visitor_id = l'appelant`, et l'agent qui planifiait pour le prospect qui venait d'appeler
  * devenait lui-même le visiteur. La visite naît désormais CONFIRMÉE et le client est prévenu ;
  * sans fiche client, le prospect se donne par nom + téléphone.
+ *
+ * Réservé au PERSONNEL (agent, admin) : l'API ne laisse planifier pour un tiers que le personnel
+ * actif de l'agence du bien (vérification adverse, B1/B2). Un bailleur qui l'ouvrirait réserverait
+ * pour lui-même sans le savoir — le bouton ne lui est pas montré.
  */
 export function PlanifierUneVisite({ property, customer }: PlanifierUneVisiteProps) {
   const t = useTranslations('visitPlanning.plan');
+  const { user } = useAuth();
   const [ouvert, setOuvert] = useState(false);
+  if (!user || !(isAgent(user.roles) || isAdmin(user.roles))) return null;
   return (
     <>
       <Button type="button" variant="outline" className="h-10 gap-2 sm:h-8" onClick={() => setOuvert(true)}>
