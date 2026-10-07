@@ -69,6 +69,7 @@
     "(dashboard)/app": [
       "account",
       "agency",
+      "agentCrm",
       "agentWelcome",
       "announcements",
       "bookings",
@@ -112,6 +113,7 @@
       "admin",
       "adminSettings",
       "agency",
+      "agentCrm",
       "announcements",
       "billing",
       "charts",
@@ -183,11 +185,11 @@
     ".": 15,
     "(auth)": 17,
     "publish": 19,
-    "onboarding": 41,
+    "onboarding": 40,
     "(dashboard)": 16,
-    "(dashboard)/app": 69,
-    "(dashboard)/admin": 57,
-    "[locale]/(public)": 39,
-    "(super-admin)/super-admin": 44
+    "(dashboard)/app": 71,
+    "(dashboard)/admin": 59,
+    "[locale]/(public)": 38,
+    "(super-admin)/super-admin": 42
   }
 }

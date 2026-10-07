@@ -11,11 +11,6 @@ import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
 import { AGENT_CRM_QUERY_KEY, fetchCustomerLinked, type LinkedKind } from '@/lib/queries/agent-crm';
 
-const STATUS_NAMESPACE = {
-  visits: 'visits.status',
-  bookings: 'bookings.status',
-  leases: 'lease.status',
-} as const;
 
 /** Écrites en entier : `routes-atteignables.test.ts` vérifie chaque chemin `/app` du front. */
 const DETAIL_HREF: Record<LinkedKind, (id: number) => string> = {
@@ -41,7 +36,14 @@ interface CustomerLinkedRecordsProps {
  */
 export function CustomerLinkedRecords({ customerId, kind }: CustomerLinkedRecordsProps) {
   const t = useTranslations('agentCrm.linked');
-  const tStatus = useTranslations(STATUS_NAMESPACE[kind]);
+  // Trois espaces LITTÉRAUX, et non un `useTranslations(table[kind])` : la garde des frontières
+  // i18n (`check-i18n-namespaces`) doit pouvoir lire quel espace chaque écran atteint.
+  const tStatusByKind = {
+    visits: useTranslations('visits.status'),
+    bookings: useTranslations('bookings.status'),
+    leases: useTranslations('lease.status'),
+  };
+  const tStatus = tStatusByKind[kind];
   const locale = useLocale() as Locale;
   const { token } = useAuth();
 
