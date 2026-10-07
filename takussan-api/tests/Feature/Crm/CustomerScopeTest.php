@@ -7,6 +7,7 @@ use App\Models\AgencyRole;
 use App\Models\Customer;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,6 +107,25 @@ class CustomerScopeTest extends ApiTestCase
         $landlord = $landlord->fresh();
         $this->assertSame([$mine->id], $this->listed($landlord));
         $this->assertSame(1, $this->counted($landlord));
+    }
+
+    /**
+     * verif-591 M1 — un bailleur ACTIF garde ses propres ajouts (§9) ; suspendu dans l'agence
+     * (`blocked`), il n'est plus membre actif et ne les lit plus.
+     */
+    public function test_an_active_landlord_keeps_his_own_adds_a_blocked_one_does_not(): void
+    {
+        $landlord = $this->member('owner');
+        $mine = Customer::factory()->create(['agency_id' => $this->agency->id, 'added_by_id' => $landlord->id]);
+
+        $this->assertSame([$mine->id], $this->listed($landlord));
+        $this->actingAsApi($landlord)->apiGet("/api/customers/{$mine->id}")->assertOk();
+        $this->app['auth']->forgetGuards();
+
+        OwnerProfile::query()->where('user_id', $landlord->id)->update(['status' => OwnerProfileStatus::Blocked->value]);
+        $landlord = $landlord->fresh();
+        $this->assertSame([], $this->listed($landlord));
+        $this->actingAsApi($landlord)->apiGet("/api/customers/{$mine->id}")->assertForbidden();
     }
 
     /** @return list<int> */

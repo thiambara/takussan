@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,7 +21,14 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CustomerPolicy extends BasePolicy
 {
-    /** Lire un client : super-admin, celui qui l'a ajouté, ou le personnel tenant `crm.view_all`. */
+    /**
+     * Lire un client : super-admin, celui qui l'a ajouté, ou le personnel tenant `crm.view_all`.
+     *
+     * TCK-591 (verif-591 M1, décision de la session — modifie la règle de 587) — l'auteur ne garde
+     * sa fiche que tant qu'il est MEMBRE actif (de tout type) de l'agence de la fiche ; une fiche
+     * hors agence garde son auteur. Après passation et retrait, le partant lisait encore la pièce
+     * d'identité de « ses » clients et les modifiait.
+     */
     public function view(User $user, Model $model): bool
     {
         if (! $model instanceof Customer) {
@@ -28,8 +36,15 @@ class CustomerPolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin()
-            || $model->added_by_id === $user->id
+            || $this->isAuthorStillMember($user, $model)
             || $this->seesWholeCrm($user, $model);
+    }
+
+    private function isAuthorStillMember(User $user, Customer $customer): bool
+    {
+        return $customer->added_by_id === $user->id
+            && ($customer->agency_id === null
+                || app(MembershipCapabilityResolver::class)->isMemberAt($user, (int) $customer->agency_id));
     }
 
     /**

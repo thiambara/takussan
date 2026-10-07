@@ -210,4 +210,36 @@ class AgentHandoverTest extends ApiTestCase
 
         $this->assertSame(3, Task::query()->whereIn('id', $this->ids['tasks'])->where('assigned_to_id', $this->leaver->id)->count());
     }
+
+    /**
+     * verif-591 M1 (décision de la session) — après passation et retrait, le partant ne garde ni
+     * les fiches qu'il a ajoutées ni les tâches qu'il a créées : la clause « auteur » exige d'être
+     * encore membre de l'agence. Il ne reprend pas la tâche transmise, ne la supprime pas.
+     */
+    public function test_after_handover_and_removal_the_leaver_keeps_nothing_he_authored(): void
+    {
+        $cid = $this->actingAsApi($this->leaver)->apiPost('/api/customers', [
+            'first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '77 999 88 77', 'id_number' => 'SN123',
+        ])->assertCreated()->json('data.id');
+        $tid = $this->actingAsApi($this->leaver)->apiPost('/api/tasks', [
+            'title' => 'Relance', 'taskable_type' => Customer::class, 'taskable_id' => $cid, 'assigned_to_id' => $this->leaver->id,
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), [
+            'successor_id' => $this->successor->id, 'remove_after' => true,
+        ])->assertOk()->assertJsonPath('data.removed', true);
+        $this->assertSame($this->successor->id, Task::query()->find($tid)->assigned_to_id);
+
+        $leaver = $this->leaver->fresh();
+        $this->assertSame([], $this->actingAsApi($leaver)->apiGet('/api/customers')->assertOk()->json('data'));
+        $this->actingAsApi($leaver)->apiGet("/api/customers/{$cid}")->assertForbidden();
+        $this->actingAsApi($leaver)->apiPut("/api/customers/{$cid}", ['first_name' => 'Modifiée'])->assertForbidden();
+        $this->actingAsApi($leaver)->apiPatch("/api/customers/{$cid}/pipeline-stage", ['pipeline_stage' => 'lost', 'reason' => 'x'])->assertForbidden();
+        $this->assertSame('Awa', Customer::query()->find($cid)->first_name);
+
+        $this->assertSame([], $this->actingAsApi($leaver)->apiGet('/api/tasks')->assertOk()->json('data'));
+        $this->actingAsApi($leaver)->apiPut("/api/tasks/{$tid}", ['assigned_to_id' => $leaver->id])->assertForbidden();
+        $this->actingAsApi($leaver)->apiDelete("/api/tasks/{$tid}")->assertForbidden();
+        $this->assertSame($this->successor->id, Task::query()->find($tid)->assigned_to_id);
+    }
 }

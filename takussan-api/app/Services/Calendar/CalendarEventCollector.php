@@ -69,6 +69,7 @@ class CalendarEventCollector
         // TCK-591 (verif-591 B1) — une affectation n'ouvre l'agenda que dans les agences où l'on est
         // personnel ; le prestataire, qui n'est personnel nulle part, garde ses interventions.
         $staffAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
+        $memberAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
         $isProvider = ! $isAdmin && $user->serviceProviderProfile()->active()->exists();
 
         $restrict = function (Builder $q, string $propertyKey = 'property_id') use ($propertyId, $propertyIds, $agencyFilter, $isAdmin, $userId, $staffAgencyId): void {
@@ -95,7 +96,7 @@ class CalendarEventCollector
             $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId));
         }
         if (in_array('task', $types, true)) {
-            $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds));
+            $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds, $memberAgencyIds));
         }
         if (in_array('lease_event', $types, true)) {
             $events = $events->merge($this->leaseEvents($start, $end, $restrict));
@@ -190,9 +191,10 @@ class CalendarEventCollector
      * écrit ; la description ne sort pas.
      *
      * @param  list<int>  $staffAgencyIds
+     * @param  list<int>  $memberAgencyIds
      * @return Collection<int, array<string, mixed>>
      */
-    private function tasks(Carbon $start, Carbon $end, bool $mine, int $userId, bool $isAdmin, array $staffAgencyIds): Collection
+    private function tasks(Carbon $start, Carbon $end, bool $mine, int $userId, bool $isAdmin, array $staffAgencyIds, array $memberAgencyIds): Collection
     {
         $query = Task::query()
             ->whereNotNull('due_at')
@@ -210,7 +212,13 @@ class CalendarEventCollector
         if ($mine) {
             $query->where($assigned);
         } else {
-            $query->where(fn (Builder $q) => $q->where($assigned)->orWhere('created_by_id', $userId));
+            $created = function (Builder $q) use ($userId, $isAdmin, $memberAgencyIds): void {
+                $q->where('created_by_id', $userId);
+                if (! $isAdmin) {
+                    $q->parentAgencyIn($memberAgencyIds);
+                }
+            };
+            $query->where(fn (Builder $q) => $q->where($assigned)->orWhere($created));
         }
 
         return $query->get()->map(fn (Task $t) => [

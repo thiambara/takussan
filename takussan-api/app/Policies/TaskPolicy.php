@@ -34,9 +34,22 @@ class TaskPolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin()
-            || $model->created_by_id === $user->id
+            || ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model))
             || ($model->assigned_to_id === $user->id && $this->isStaffOfParent($user, $model))
             || $this->coversAssignee($user, $model);
+    }
+
+    /**
+     * TCK-591 (verif-591 M1, décision de la session) — le créateur garde sa tâche tant qu'il est
+     * MEMBRE actif (de tout type) de l'agence du parent ; un parent hors agence garde son créateur.
+     * Après passation et retrait, le partant reprenait la tâche transmise, puis la supprimait.
+     */
+    private function isMemberOfParent(User $user, Task $task): bool
+    {
+        $agencyId = $task->parentAgencyId();
+
+        return $agencyId === null
+            || app(MembershipCapabilityResolver::class)->isMemberAt($user, $agencyId);
     }
 
     /** Personnel de l'agence du parent ; un parent hors agence n'a que des tâches qu'on s'est confiées. */
@@ -78,7 +91,8 @@ class TaskPolicy extends BasePolicy
             return false;
         }
 
-        return $user->isSuperAdmin() || $model->created_by_id === $user->id;
+        return $user->isSuperAdmin()
+            || ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model));
     }
 
     /**

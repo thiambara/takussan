@@ -27,12 +27,14 @@ class TaskController extends Controller
 
         if (! $user->isSuperAdmin()) {
             $covered = app(AgentAvailability::class)->coveredBy($user);
-            $staffAgencyIds = app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
-            $base->where(function ($q) use ($user, $covered, $staffAgencyIds) {
-                // TCK-591 (verif-591 B1) — l'assigné ne voit la tâche que tant qu'il est personnel de
-                // l'agence du parent (`TaskPolicy::view`).
+            $resolver = app(MembershipCapabilityResolver::class);
+            $staffAgencyIds = $resolver->staffAgencyIds($user);
+            $memberAgencyIds = $resolver->memberAgencyIds($user);
+            $base->where(function ($q) use ($user, $covered, $staffAgencyIds, $memberAgencyIds) {
+                // TCK-591 (verif-591 B1, M1) — l'assigné ne voit la tâche que tant qu'il est personnel
+                // de l'agence du parent, le créateur tant qu'il en est membre (`TaskPolicy::view`).
                 $q->where(fn ($a) => $a->where('assigned_to_id', $user->id)->parentAgencyIn($staffAgencyIds))
-                    ->orWhere('created_by_id', $user->id);
+                    ->orWhere(fn ($c) => $c->where('created_by_id', $user->id)->parentAgencyIn($memberAgencyIds));
                 // TCK-591 (ADR-0035) — pendant une absence, le remplaçant voit les tâches de
                 // l'absent rattachées à l'agence de l'absence.
                 foreach ($covered as $absence) {
@@ -87,11 +89,18 @@ class TaskController extends Controller
      */
     protected function authorizeAssignee(User $user, int $assigneeId, ?Model $parent): void
     {
-        if ($assigneeId === $user->id || $user->isSuperAdmin()) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 
+        // TCK-591 (verif-591 M1) — « soi-même » ne court-circuite le contrôle que sur un parent hors
+        // agence ; ailleurs, l'appelant est jugé comme tout assigné. Un retiré se réassignait la
+        // tâche que la passation venait de donner à son repreneur.
         $agencyId = $parent?->getAttribute('agency_id');
+        if ($assigneeId === $user->id && $agencyId === null) {
+            return;
+        }
+
         $assignee = $agencyId !== null ? User::find($assigneeId) : null;
         // TCK-587 — l'assigné est PERSONNEL actif de l'agence du parent.
         $ok = $assignee !== null

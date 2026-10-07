@@ -9,6 +9,7 @@ use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
 use App\Services\Crm\CustomerPhoneNormalizer;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -135,6 +136,9 @@ class Customer extends AbstractModel
      * actif tenant `crm.view_all` → l'agence, plus ses propres ajouts ; tout autre compte (personnel
      * sans la capacité, bailleur, client) → ses seuls ajouts.
      *
+     * TCK-591 (verif-591 M1) — « ses ajouts » : ceux d'une agence dont il est encore MEMBRE actif,
+     * ou hors agence (`CustomerPolicy::view`, même décision).
+     *
      * Partagée par `CustomerController::index` et `PipelineStatsService` : le kanban et ses
      * compteurs ne peuvent plus diverger de la fiche. `$user->agency_id` n'y entre pas — c'est
      * l'agence du profil actif QUEL QU'IL SOIT, et un bailleur y lisait tout le CRM.
@@ -148,14 +152,18 @@ class Customer extends AbstractModel
             return $query;
         }
 
+        $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+        $ownAdds = fn (Builder $q) => $q->where('added_by_id', $user->id)
+            ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
+
         $staffAgencyId = $user->staffAgencyId();
         if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
-            return $query->where(function (Builder $inner) use ($user, $staffAgencyId) {
-                $inner->where('agency_id', $staffAgencyId)->orWhere('added_by_id', $user->id);
+            return $query->where(function (Builder $inner) use ($staffAgencyId, $ownAdds) {
+                $inner->where('agency_id', $staffAgencyId)->orWhere($ownAdds);
             });
         }
 
-        return $query->where('added_by_id', $user->id);
+        return $query->where($ownAdds);
     }
 
     public function getFullNameAttribute(): string
