@@ -2496,7 +2496,8 @@
   "payments": {
     "gateway": {
       "button": {
-        "payOnline": "Payer en ligne"
+        "payOnline": "Payer en ligne",
+        "payAmount": "Payer {amount}"
       },
       "picker": {
         "title": "Choisir un mode de paiement",
@@ -2542,6 +2543,12 @@
       },
       "error": {
         "generic": "Une erreur est survenue, réessayez."
+      },
+      "breakdown": {
+        "rent": "Loyer",
+        "lateFee": "Pénalité de retard",
+        "total": "Total à payer",
+        "lateFeeAtAgency": "Pénalité de retard de {amount} à régler auprès de l’agence — elle n’est pas incluse dans ce paiement."
       }
     },
     "invoices": {
@@ -2893,6 +2900,17 @@
         "late": "En retard",
         "pending": "À venir",
         "other": "Autre"
+      },
+      "listLabel": "Échéances du bail",
+      "dueOn": "Échéance : {date}",
+      "receiptPdf": "Quittance PDF",
+      "lateFee": {
+        "label": "Pénalité de retard",
+        "atAgency": "Pénalité à régler auprès de l’agence",
+        "settled": "Pénalité réglée",
+        "markPaid": "Pénalité réglée",
+        "markedPaid": "Pénalité enregistrée comme réglée.",
+        "markFailed": "La pénalité n’a pas pu être enregistrée comme réglée."
       }
     },
     "fallbackReference": "Bail #{id}",
@@ -5294,6 +5312,14 @@
       "description_label": "Description",
       "submitting": "Envoi…",
       "submit": "Téléverser"
+    },
+    "download": {
+      "inProgress": "Téléchargement…",
+      "errors": {
+        "interdit": "Vous n’avez pas accès à ce document.",
+        "indisponible": "Ce document n’est pas encore disponible.",
+        "echec": "Le téléchargement a échoué. Réessayez."
+      }
     }
   },
   "bookings": {

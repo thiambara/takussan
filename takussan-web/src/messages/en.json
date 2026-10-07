@@ -2521,7 +2521,8 @@
   "payments": {
     "gateway": {
       "button": {
-        "payOnline": "Pay online"
+        "payOnline": "Pay online",
+        "payAmount": "Pay {amount}"
       },
       "picker": {
         "title": "Select a payment method",
@@ -2567,6 +2568,12 @@
       },
       "error": {
         "generic": "Something went wrong, please try again."
+      },
+      "breakdown": {
+        "rent": "Rent",
+        "lateFee": "Late fee",
+        "total": "Total to pay",
+        "lateFeeAtAgency": "Late fee of {amount} to be settled with the agency — it isn’t included in this payment."
       }
     },
     "invoices": {
@@ -2918,6 +2925,17 @@
         "late": "Overdue",
         "pending": "Upcoming",
         "other": "Other"
+      },
+      "listLabel": "Lease instalments",
+      "dueOn": "Due: {date}",
+      "receiptPdf": "Rent receipt PDF",
+      "lateFee": {
+        "label": "Late fee",
+        "atAgency": "Late fee to be settled with the agency",
+        "settled": "Late fee settled",
+        "markPaid": "Late fee settled",
+        "markedPaid": "Late fee recorded as settled.",
+        "markFailed": "The late fee couldn’t be recorded as settled."
       }
     },
     "fallbackReference": "Lease #{id}",
@@ -5294,6 +5312,14 @@
       "description_label": "Description",
       "submitting": "Sending…",
       "submit": "Upload"
+    },
+    "download": {
+      "inProgress": "Downloading…",
+      "errors": {
+        "interdit": "You don’t have access to this document.",
+        "indisponible": "This document isn’t available yet.",
+        "echec": "The download failed. Please try again."
+      }
     }
   },
   "bookings": {

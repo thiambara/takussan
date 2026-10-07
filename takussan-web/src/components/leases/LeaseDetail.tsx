@@ -14,7 +14,7 @@ import {
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import type { Locale } from '@/i18n/config';
@@ -27,6 +27,7 @@ import { LeaseChainTimeline } from './LeaseChainTimeline';
 import { EarlyTerminationDialog } from './EarlyTerminationDialog';
 import { EarlyTerminationBanner } from './EarlyTerminationBanner';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
+import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
 import { useAuth } from '@/context/AuthContext';
@@ -216,12 +217,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
             </>
           )}
           {!isAgentSurface && (
-            <Link
-              href={`/api/leases/${leaseId}/contract/pdf`}
-              className={buttonVariants({ variant: 'outline' })}
+            <BoutonTelechargement
+              chemin={`/api/leases/${leaseId}/contract/pdf`}
+              nomFichier={`bail-${lease.reference_number ?? lease.id}.pdf`}
             >
               {t('downloadContract')}
-            </Link>
+            </BoutonTelechargement>
           )}
           {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
             <Button
@@ -292,7 +293,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
             {t('activateBeforeSchedule')}
           </p>
         ) : null}
-        <LeaseSchedule leaseId={leaseId} agencyId={lease.agency_id ?? null} />
+        <LeaseSchedule
+          leaseId={leaseId}
+          agencyId={lease.agency_id ?? null}
+          canManage={isAgentSurface}
+        />
       </section>
 
       <section className="rounded-xl border border-border bg-card p-5">

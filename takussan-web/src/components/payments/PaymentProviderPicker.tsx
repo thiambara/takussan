@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,9 @@ import {
 } from '@/hooks/useInitiatePayment';
 
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { formatCurrency } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
+import type { DetailMontantDu } from './montant-du';
 
 interface ProviderOption {
   readonly id: GatewayProvider;
@@ -49,6 +52,8 @@ interface PaymentProviderPickerProps {
    * enabled. Pass an empty array if the user must contact admin first.
    */
   readonly availableProviders?: readonly GatewayProvider[];
+  /** TCK-593 — le montant dû, décomposé : loyer, puis pénalité quand elle est encaissée en ligne. */
+  readonly montant?: DetailMontantDu;
 }
 
 const PROVIDER_CURRENCY_SUPPORT: Record<GatewayProvider, (c: string) => boolean> = {
@@ -64,8 +69,11 @@ export function PaymentProviderPicker({
   paymentId,
   currency = 'XOF',
   availableProviders,
+  montant,
 }: PaymentProviderPickerProps) {
   const t = useTranslations('payments.gateway');
+  const locale = useLocale() as Locale;
+  const enDevise = (valeur: number) => formatCurrency(valeur, locale, { currency });
   const messageErreur = useMessageErreurApi();
   // Derive an initial preference from localStorage (set once at mount of the
   // component instance — the parent uses `open` to mount/unmount the modal,
@@ -120,6 +128,35 @@ export function PaymentProviderPicker({
           <DialogTitle>{t('picker.title')}</DialogTitle>
           <DialogDescription>{t('picker.description')}</DialogDescription>
         </DialogHeader>
+
+        {montant && (
+          <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+            <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
+              <dt className="text-muted-foreground">{t('breakdown.rent')}</dt>
+              <dd className="text-right text-foreground">{enDevise(montant.loyer)}</dd>
+              {montant.penaliteIncluse > 0 && (
+                <>
+                  <dt className="text-muted-foreground">{t('breakdown.lateFee')}</dt>
+                  <dd className="text-right text-foreground">{enDevise(montant.penaliteIncluse)}</dd>
+                </>
+              )}
+              <dt className="border-t border-border pt-1 font-medium text-foreground">
+                {t('breakdown.total')}
+              </dt>
+              <dd
+                className="border-t border-border pt-1 text-right font-semibold text-foreground"
+                data-testid="montant-total"
+              >
+                {enDevise(montant.total)}
+              </dd>
+            </dl>
+            {montant.penaliteHorsLigne > 0 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {t('breakdown.lateFeeAtAgency', { amount: enDevise(montant.penaliteHorsLigne) })}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-3 py-2">
           {PROVIDERS.map((provider) => {

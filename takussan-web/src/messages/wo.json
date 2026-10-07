@@ -1147,7 +1147,8 @@
   "payments": {
     "gateway": {
       "button": {
-        "payOnline": "Fey ci internet"
+        "payOnline": "Fey ci internet",
+        "payAmount": "Fey {amount}"
       },
       "picker": {
         "title": "Tànn anam fey",
@@ -1193,6 +1194,12 @@
       },
       "error": {
         "generic": "Lu ñu xamul am na, jeemal ndax."
+      },
+      "breakdown": {
+        "rent": "Luwaasu kër",
+        "lateFee": "Alaamu yeex",
+        "total": "Lépp li ngay fey",
+        "lateFeeAtAgency": "Alaamu yeex bu {amount} nga ciy fey ca ajaas ba — boolewuñu ko ci fey bii."
       }
     },
     "invoices": {
@@ -1544,6 +1551,17 @@
         "late": "Yeex na",
         "pending": "Di ñëw",
         "other": "Weneen"
+      },
+      "listLabel": "Bési fey yu kontaraa bi",
+      "dueOn": "Bisu pey : {date}",
+      "receiptPdf": "Kitaanceb fey PDF",
+      "lateFee": {
+        "label": "Alaamu yeex",
+        "atAgency": "Alaamu yeex bu ñuy fey ca ajaas ba",
+        "settled": "Alaamu yeex bi fey nañu ko",
+        "markPaid": "Alaamu yeex bi fey nañu ko",
+        "markedPaid": "Bind nañu ne alaamu yeex bi fey nañu ko.",
+        "markFailed": "Mënuñu bind ne alaamu yeex bi fey nañu ko."
       }
     },
     "fallbackReference": "Luwé #{id}",
@@ -4694,6 +4712,14 @@
       "description_label": "Leeral",
       "submitting": "Yónnee…",
       "submit": "Yeb"
+    },
+    "download": {
+      "inProgress": "Yeb…",
+      "errors": {
+        "interdit": "Amoo sañ-sañ ci kayit bii.",
+        "indisponible": "Kayit bii jotagul.",
+        "echec": "Yeb bi mënul. Jéemaatal."
+      }
     }
   },
   "bookings": {
