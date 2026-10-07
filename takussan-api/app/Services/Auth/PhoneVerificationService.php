@@ -89,9 +89,14 @@ class PhoneVerificationService
         return $this->issue($this->numberSubject($scope, $phone), $phone, $locale);
     }
 
-    public function verifyCodeFor(string $scope, string $phone, string $code): bool
+    /**
+     * `$consume = false` vérifie le code sans le consommer : la connexion par téléphone d'un
+     * compte à 2FA rend d'abord `requires_2fa`, et le client repose le MÊME code avec
+     * son TOTP. Un code faux compte toujours comme un échec.
+     */
+    public function verifyCodeFor(string $scope, string $phone, string $code, bool $consume = true): bool
     {
-        return $this->check($this->numberSubject($scope, $phone), $phone, $code);
+        return $this->check($this->numberSubject($scope, $phone), $phone, $code, $consume);
     }
 
     /** Secondes avant qu'un nouvel envoi soit possible vers ce sujet. */
@@ -155,7 +160,7 @@ class PhoneVerificationService
         return true;
     }
 
-    private function check(string $subject, string $phone, string $code): bool
+    private function check(string $subject, string $phone, string $code, bool $consume = true): bool
     {
         $entry = $this->cache->get($this->codeKey($subject));
         if (! is_array($entry) || ($entry['phone'] ?? null) !== $phone) {
@@ -163,6 +168,9 @@ class PhoneVerificationService
         }
 
         if (hash_equals((string) $entry['hash'], $this->hash(trim($code)))) {
+            if (! $consume) {
+                return true;
+            }
             $this->cache->forget($this->codeKey($subject));
             $this->cache->forget($this->cooldownKey($subject));
 

@@ -6,6 +6,7 @@ use App\Http\Requests\Auth\RequestAccountDeletionRequest;
 use App\Models\User;
 use App\Notifications\AccountDeletionStepUpCodeNotification;
 use App\Services\Auth\PhoneVerificationService;
+use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
@@ -39,7 +40,10 @@ class DeletionStepUpService
 
     public const RESEND_COOLDOWN_SECONDS = 60;  // 1 / 60s
 
-    public function __construct(private readonly CacheRepository $cache) {}
+    public function __construct(
+        private readonly CacheRepository $cache,
+        private readonly SmsRouterDriver $sms,
+    ) {}
 
     public function canResend(User $user): bool
     {
@@ -63,10 +67,23 @@ class DeletionStepUpService
         $this->cache->put($this->codeKey($user), $code, self::CODE_TTL_SECONDS);
         $this->cache->put($this->cooldownKey($user), true, self::RESEND_COOLDOWN_SECONDS);
 
-        $user->notify(new AccountDeletionStepUpCodeNotification(
-            $code,
-            (int) (self::CODE_TTL_SECONDS / 60),
-        ));
+        // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le code part par
+        // SMS, au numéro VÉRIFIÉ, directement par le routeur (jamais `SmsChannel`).
+        if (($user->email === null || $user->email === '') && $user->phone && $user->phone_verified_at !== null) {
+            $this->sms->send((string) $user->phone, __('auth.phone.deletion_code', [
+                'code' => $code,
+                'minutes' => (int) (self::CODE_TTL_SECONDS / 60),
+            ], $user->preferred_language ?: null), [
+                'event_type' => 'account_deletion_step_up',
+                'is_critical' => true,
+                'bypass_quiet_hours' => true,
+            ]);
+        } else {
+            $user->notify(new AccountDeletionStepUpCodeNotification(
+                $code,
+                (int) (self::CODE_TTL_SECONDS / 60),
+            ));
+        }
 
         return app()->environment('production') ? null : $code;
     }

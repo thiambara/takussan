@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Auth\FacebookOAuthController;
 use App\Http\Controllers\Api\Auth\OAuthController;
 use App\Http\Controllers\Api\Auth\OAuthProviderController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Auth\PhoneLoginController;
 use App\Http\Controllers\Api\Auth\PhoneVerificationController;
 use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
@@ -25,6 +26,15 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,10');
+
+    // TCK-589 (ADR-0033) — entrée par téléphone : le code SMS remplace le mot de
+    // passe. 404 tant que `auth.phone_login.enabled` est éteint.
+    Route::post('/phone/request-code', [PhoneLoginController::class, 'requestCode'])
+        ->middleware('throttle:auth-phone-send')
+        ->name('auth.phone.request-code');
+    Route::post('/phone/verify-code', [PhoneLoginController::class, 'verifyCode'])
+        ->middleware('throttle:auth-phone-verify')
+        ->name('auth.phone.verify-code');
 
     Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword'])
         ->middleware('throttle:auth-password')

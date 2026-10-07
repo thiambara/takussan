@@ -47,7 +47,8 @@ class TwoFactorService
     public function qrCodeUrl(User $user, string $secret): string
     {
         $issuer = rawurlencode(config('app.name', 'Takussan'));
-        $label = rawurlencode($user->email);
+        // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le numéro nomme le compte.
+        $label = rawurlencode((string) ($user->email ?: $user->phone));
 
         return sprintf(
             'otpauth://totp/%s:%s?secret=%s&issuer=%s',

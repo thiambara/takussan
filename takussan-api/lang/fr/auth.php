@@ -29,6 +29,8 @@ return [
         'already_verified' => 'Ce numéro est déjà vérifié.',
         'missing' => 'Aucun numéro de téléphone enregistré.',
         'resend_wait' => 'Patientez avant de demander un nouveau code.',
+        'code_sent' => 'Si ce numéro peut recevoir un SMS, un code vient d\'y être envoyé.',
+        'deletion_code' => 'Takussan : code de confirmation de suppression de compte :code. Il expire dans :minutes min.',
     ],
     'account' => [
         'blocked' => 'Ce compte est bloqué.',

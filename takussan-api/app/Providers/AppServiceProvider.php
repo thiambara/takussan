@@ -334,6 +334,18 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
         RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
 
+        // TCK-589 (ADR-0033 §6) — entrée par téléphone. L'envoi d'un code coûte un SMS
+        // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange
+        // est de 3/jour/MSISDN) ET par IP (20/h). La vérification est bornée par
+        // numéro seul (10/15 min) : changer d'IP ne rouvre pas la force brute.
+        RateLimiter::for('auth-phone-send', fn (Request $request) => [
+            Limit::perMinutes(15, 3)->by('phone:'.$this->phoneRateLimitKey($request)),
+            Limit::perDay(5)->by('phone-day:'.$this->phoneRateLimitKey($request)),
+            Limit::perHour(20)->by('ip:'.$request->ip()),
+        ]);
+        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, 10)
+            ->by('phone:'.$this->phoneRateLimitKey($request)));
+
         // TCK-272 — émission du code e-mail de step-up pour la suppression
         // de compte. Route authentifiée : la clé est l'utilisateur, pas
         // l'IP, pour qu'un NAT partagé ne collabe pas plusieurs comptes.
@@ -348,6 +360,12 @@ class AppServiceProvider extends ServiceProvider
 
             return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
         });
+    }
+
+    /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
+    private function phoneRateLimitKey(Request $request): string
+    {
+        return preg_replace('/\s+/', '', (string) $request->input('phone')) ?? '';
     }
 
     private function visitorRateLimitKey(Request $request): string

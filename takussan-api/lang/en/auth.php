@@ -24,6 +24,8 @@ return [
         'already_verified' => 'This number is already verified.',
         'missing' => 'No phone number on file.',
         'resend_wait' => 'Please wait before requesting another code.',
+        'code_sent' => 'If this number can receive a text message, a code has just been sent to it.',
+        'deletion_code' => 'Takussan: your account deletion confirmation code is :code. It expires in :minutes min.',
     ],
     'account' => [
         'blocked' => 'This account is blocked.',

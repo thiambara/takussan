@@ -757,3 +757,43 @@ en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
     TOTP vaut step-up », est un témoin positif). Un durcissement de `stepUpValidUntil` contre le
     jeton factice de `Sanctum::actingAs()` a été essayé puis **retiré** : son ablation laissait le
     test vert — le mock rend bien `null` sur l'attribut ; le test reste, comme garde.
+
+### §2 — connexion et inscription par téléphone (API)
+
+- **Re-mesuré** sur `5f872f1f` : 2.1 à 2.3 exacts (`users.email` `NOT NULL`, aucune unicité du
+  téléphone, `locked_at` écrit par personne). Les « cinq chemins » qui posaient
+  `phone_verified_at` passent par `markVerified` depuis §1 ; `grep` d'`app/` ne relève plus que
+  des remises à nul (changement de numéro).
+- Migration `2026_10_07_150200_make_email_nullable_and_phone_unique_on_users_table` : `email`
+  nullable, index partiel `users_phone_verified_unique`. **Relevé des doublons** (requête dans
+  l'en-tête de la migration) sur la base de développement : 302 comptes, **0** doublon. Les bases
+  déployées ne sont pas mesurables d'ici : relevé à faire avant la migration (« Pour la session »).
+- `PhoneLoginService` / `PhoneLoginController` / `RequestPhoneLoginCodeRequest` (404 drapeau
+  éteint dans `prepareForValidation`, donc avant toute validation) / `VerifyPhoneLoginCodeRequest`.
+  Écart de conception à noter : le code SMS étant à usage unique, un compte à 2FA recevait
+  `requires_2fa` sur un code **déjà consommé** — `verifyCodeFor(..., consume: false)` vérifie
+  sans consommer quand le TOTP manque, et le client repose le même code avec le TOTP.
+- Compte créé au premier code : `first_name`/`last_name` vides (colonnes `NOT NULL`), e-mail nul,
+  mot de passe machine, `password_set_at` nul, `preferred_language` = langue de la requête ;
+  **aucun** événement `Registered` (il n'y a pas d'e-mail à vérifier).
+- Limiteurs `auth-phone-send` (numéro 3/15 min + 5/24 h, IP 20/h) et `auth-phone-verify`
+  (numéro 10/15 min), clé = numéro saisi sans espaces.
+- `RegisterRequest` **n'est pas modifié** : l'inscription par téléphone EST `verify-code`. Rendre
+  l'e-mail facultatif sur `/auth/register` créerait un compte à mot de passe sur un numéro **non
+  vérifié**, qu'aucun chemin ne reconnecterait (contrainte 2). Coordination 537 : la preuve de
+  consentement devra aussi être écrite par `PhoneLoginService::createAccount`.
+- Chemins qui supposaient un e-mail : `BuildUserDigestJob` et `SendDailyNotificationDigest`
+  sortent sans courriel ; `TwoFactorService::qrCodeUrl` nomme le compte par son numéro ;
+  `MailChannel` ignore déjà une route nulle (relu dans `vendor`, et prouvé par
+  `AccountWithoutEmailTest`) — les 39 `toMail()` n'ont donc rien à changer. `DeletionStepUpService`
+  envoie le code par SMS (routeur direct) à un compte sans e-mail. `InvitationService` : §3.
+- **Exécutions** : `php artisan test tests/Feature/Auth/Phone` (9 classes) → vert ;
+  `tests/Feature/Auth tests/Feature/Onboarding` + 5 fichiers digest / fournisseurs OAuth → 357 verts.
+- **Ablations** : AC2 — `verifiedAccount` sans `whereNotNull('phone_verified_at')` → « un numéro
+  non vérifié ne connecte pas » rouge. AC3 — lecture du verrou retirée de `verify` → 2 rouges
+  (avec / sans compte) ; un 423 rendu par `request-code` sur numéro verrouillé → énumération rouge ;
+  limiteur `auth-phone-verify` indexé sur l'IP → « tient quand l'IP change » rouge. AC16 — test
+  préalable de `markVerified` retiré → **500** (violation de l'index) sur profil et onboarding,
+  rouge. AC17 — voie SMS de `DeletionStepUpService` retirée → rouge (aucun SMS, la notification
+  courriel tombe sur une route nulle). AC4 (téléphone) — couvert par
+  `test_le_code_sms_ne_rouvre_pas_la_session`.

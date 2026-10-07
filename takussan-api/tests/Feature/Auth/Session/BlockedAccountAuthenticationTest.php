@@ -11,11 +11,12 @@ use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Facades\Socialite;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\FakeSmsRouter;
 use Tests\TestCase;
 
 /**
  * TCK-589 AC4 — un compte `blocked` ou `deleted` n'ouvre aucune session, par aucun
- * chemin : mot de passe, téléphone, rappel OAuth Google, jeton émis AVANT le blocage.
+ * chemin : mot de passe, code SMS, rappel OAuth Google, jeton émis AVANT le blocage.
  *
  * Rouge sur `5f872f1f` : `AuthController::login` ne lisait jamais `status`, le mot de
  * passe suffisait à rouvrir une session. Ablations séparées rejouées : retirer la clause
@@ -115,6 +116,28 @@ class BlockedAccountAuthenticationTest extends TestCase
         $this->getJson('/api/auth/oauth/google/callback?code=abc&state=valid')
             ->assertForbidden()
             ->assertJsonPath('code', 'account_blocked');
+    }
+
+    #[DataProvider('statutsFermes')]
+    public function test_le_code_sms_ne_rouvre_pas_la_session(UserStatus $statut): void
+    {
+        config(['auth.phone_login.enabled' => true]);
+        $sms = FakeSmsRouter::install();
+        $user = User::factory()->create([
+            'phone' => '+221770000701',
+            'phone_verified_at' => now(),
+            'status' => $statut->value,
+            'last_login_at' => null,
+        ]);
+
+        $this->postJson('/api/auth/phone/request-code', ['phone' => '+221770000701'])->assertStatus(202);
+        $this->postJson('/api/auth/phone/verify-code', [
+            'phone' => '+221770000701',
+            'code' => $sms->lastCodeFor('+221770000701'),
+        ])->assertForbidden()->assertJsonPath('code', 'account_blocked')->assertJsonMissingPath('token');
+
+        $this->assertNull($user->fresh()->last_login_at);
+        $this->assertSame(1, User::query()->where('phone', '+221770000701')->count());
     }
 
     #[DataProvider('statutsFermes')]

@@ -24,6 +24,8 @@ return [
         'already_verified' => 'Nimero bii dëggal nañu ko ba noppi.',
         'missing' => 'Amul benn nimero telefon.',
         'resend_wait' => 'Xaaral ba noppi laaj beneen kod.',
+        'code_sent' => 'Su nimero bii mënee jot SMS, yónnee nanu ko benn kod.',
+        'deletion_code' => 'Takussan : kodu dëggal ngir far sa kont mooy :code. Dina jeex ci :minutes simili.',
     ],
     'account' => [
         'blocked' => 'Kont bii tëj nañu ko.',
