@@ -853,3 +853,39 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   (`pending`, `failed`, `cancelled`) et `test_un_reversement_hors_fenetre_n_est_pas_suggere`.
   Ablations AC14a (statut non filtré au matcher) → rouge, AC14b (fenêtre retirée) → rouge, garde de
   `confirmMatch` retirée → rouge. `tests/Feature/Api/Accounting` → 58 verts.
+- **V2 (majeur) — deux checkouts sur la même échéance.** `initiate` s'exécute sous `lockForUpdate`
+  de la ligne ; un checkout ouvert depuis moins de `config('payments.checkout_reuse_minutes')`
+  (30, durée de vie d'une session Wave ; `config/payments.php`) et sans échec rapporté depuis est
+  RENDU tel quel. Chez un autre fournisseur, il est refusé en 409 `payments.checkout_in_progress`,
+  puisque deux checkouts ouverts permettent deux encaissements. Chaque initiation s'ajoute à
+  `metadata.gateway.transactions[]` (`transaction_id`, `provider`, `amount`, `late_fee_included`,
+  `initiated_at`). `paymentsForEvent` y cherche l'identifiant quand `transaction_id` ne le porte
+  plus, et le montant figé comparé est celui DE CE checkout (`initiationFor`). Un webhook sans
+  payable journalise `payment_webhook_unmatched` (`provider`, `transaction_id`, `type` seulement).
+  Tests (`PaymentCheckoutReuseTest`) : `test_un_double_clic_rend_le_meme_checkout`,
+  `test_un_autre_fournisseur_est_refuse_tant_que_le_checkout_vit`,
+  `test_un_checkout_expire_ou_en_echec_n_est_plus_reutilise`,
+  `test_le_webhook_d_un_checkout_anterieur_retrouve_son_echeance`,
+  `test_un_webhook_sans_echeance_laisse_une_trace_sans_donnee_personnelle`. Ablations : réutilisation
+  retirée → 2 rouges ; recherche dans l'historique retirée → 2 rouges ; journal de l'orphelin
+  retiré → rouge. Le verrou n'a pas d'ablation : il faudrait deux requêtes réellement simultanées,
+  ce qu'aucun test du dépôt ne sait produire.
+- **V3 (majeur) — espèces puis webhook.** Dans le bloc `SUCCESS`, une échéance déjà `paid` n'est
+  soldée de rien. Si elle n'a pas été soldée par CE règlement (`metadata.gateway.settled_by`, ou
+  un événement `paid` déjà journalisé), `metadata.gateway_duplicate_payment[]` reçoit
+  `{transaction_id, amount, at}` et les admins actifs de l'agence (admin principal et profils
+  d'admin actifs) sont prévenus par `NotificationService::notifyMany`, sous la clé
+  `payments.duplicate_payment.*` (fr/en/wo). `LeasePaymentService::markPaid` rend 409
+  `checkout_in_progress` tant qu'un checkout vit. Tests :
+  `test_le_second_checkout_paye_est_marque_double_encaissement_et_signale`,
+  `test_especes_refusees_tant_que_le_checkout_vit_puis_doublon_marque`,
+  `test_la_verification_forcee_du_meme_reglement_n_est_pas_un_doublon`. Ablations : branche du
+  doublon retirée → 2 rouges ; notification retirée → rouge ; garde de `mark-paid` retirée →
+  rouge ; `settled_by` ignoré → rouge (sur la vérification forcée ; un rejeu de webhook est déjà
+  dédoublonné par `gateway_events`).
+- **V4 (mineur 3) — pénalité réglée deux fois.** `LateFeeSettlement::markPaid` rend 409
+  `checkout_in_progress` quand le checkout ouvert inclut la pénalité. Test
+  `test_la_penalite_incluse_dans_un_checkout_ouvert_ne_se_regle_pas_a_l_agence` ; le témoin
+  (checkout sans pénalité) reste à 200. Ablation → rouge.
+- Les 16 classes qui touchent la passerelle, `mark-paid` ou les webhooks → 131 verts, 2 sautés
+  préexistants.

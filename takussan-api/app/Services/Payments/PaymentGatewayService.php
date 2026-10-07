@@ -7,22 +7,28 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\NotificationType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Model\NotificationService;
 use App\Services\Payments\Drivers\LemonSqueezyDriver;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use App\Services\Payments\Drivers\WaveDriver;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\InputBag;
 
@@ -69,9 +75,34 @@ class PaymentGatewayService
      */
     public function initiate(Model $payment, PaymentProvider $provider, array $meta = []): CheckoutSession
     {
+        // TCK-593 (vérification adverse, V2) — sous verrou de la ligne : deux requêtes simultanées
+        // (double clic, deux onglets) ouvraient deux checkouts, et le second écrasait le
+        // `transaction_id` du premier — dont le webhook ne retrouvait plus rien.
+        return DB::transaction(function () use ($payment, $provider, $meta): CheckoutSession {
+            $payment->newQuery()->whereKey($payment->getKey())->lockForUpdate()->first();
+            $payment->refresh();
+
+            return $this->initiateLocked($payment, $provider, $meta);
+        });
+    }
+
+    /**
+     * @param  array<string,mixed>  $meta
+     */
+    protected function initiateLocked(Model $payment, PaymentProvider $provider, array $meta): CheckoutSession
+    {
         // TCK-593 — on ne paie pas deux fois. La garde vit ici, AVANT la résolution de
         // l'intégration et tout appel au pilote : le bouton masqué du front n'empêchait rien.
         abort_unless($this->isPayable($payment), 409, __('payments.payment_not_payable'));
+
+        // V2 — un checkout encore ouvert est RENDU, pas doublé. Chez un autre fournisseur, il est
+        // refusé : deux checkouts ouverts, c'est deux encaissements possibles.
+        $open = $this->openCheckout($payment);
+        if ($open !== null) {
+            abort_unless(($open['provider'] ?? null) === $provider->value, 409, __('payments.checkout_in_progress'));
+
+            return new CheckoutSession((string) $open['checkout_url'], (string) $open['transaction_id'], $provider->value);
+        }
 
         $agencyId = $this->paymentAgencyId($payment);
         $integration = $this->resolveIntegration($provider, $agencyId);
@@ -135,7 +166,7 @@ class PaymentGatewayService
         $driver = $this->driverFor($integration);
         $status = $driver->verify($transactionId);
 
-        $this->applyStatusToPayment($payment, $status->status, []);
+        $this->applyStatusToPayment($payment, $status->status, [], $transactionId);
 
         return $status;
     }
@@ -222,12 +253,26 @@ class PaymentGatewayService
     {
         DB::transaction(function () use ($event): void {
             $candidates = $this->paymentsForEvent($event);
+
+            // TCK-593 (V2) — un événement qui ne retrouve aucun payable est de l'argent peut-être
+            // encaissé et rattaché à rien : il laisse une trace. Identifiants seulement, aucune
+            // donnée personnelle.
+            if ($candidates === []) {
+                Log::warning('payment_webhook_unmatched', [
+                    'provider' => $event->provider,
+                    'transaction_id' => $event->transactionId,
+                    'type' => $event->type,
+                ]);
+
+                return;
+            }
+
             foreach ($candidates as $payment) {
                 if ($this->isAlreadyProcessed($payment, $event)) {
                     continue;
                 }
 
-                $this->applyStatusToPayment($payment, $this->mapEventTypeToDriverStatus($event->type), $event->metadata);
+                $this->applyStatusToPayment($payment, $this->mapEventTypeToDriverStatus($event->type), $event->metadata, $event->transactionId);
                 $this->markAsProcessed($payment, $event);
             }
         });
@@ -250,7 +295,7 @@ class PaymentGatewayService
      *
      * @param  array<string,mixed>  $metadata
      */
-    protected function applyStatusToPayment(Model $payment, string $providerStatus, array $metadata = []): void
+    protected function applyStatusToPayment(Model $payment, string $providerStatus, array $metadata = [], ?string $transactionId = null): void
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
 
@@ -267,13 +312,40 @@ class PaymentGatewayService
 
         switch ($providerStatus) {
             case PaymentDriverStatus::SUCCESS:
-                $this->assertReportedAmountCoversPayment($payment, $metadata);
+                // TCK-593 (vérification adverse, V3) — un encaissement en ligne sur un payable DÉJÀ
+                // réglé (espèces enregistrées pendant qu'un checkout était ouvert, second checkout)
+                // ne solde rien : il est marqué comme double encaissement, et l'agence prévenue
+                // pour rembourser. Un rejeu du MÊME règlement (vérification forcée) n'est pas un
+                // doublon.
+                if ($current === PaymentStatus::Paid) {
+                    if (! $this->isSettledBy($existingMeta, $transactionId)) {
+                        $existingMeta['gateway_duplicate_payment'] = array_merge(
+                            is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
+                            [[
+                                'transaction_id' => $transactionId,
+                                'amount' => is_numeric($metadata['amount'] ?? null) ? (float) $metadata['amount'] : null,
+                                'at' => now()->toIso8601String(),
+                            ]],
+                        );
+                        $this->notifyDuplicatePayment($payment, $metadata);
+                    }
+                    break;
+                }
+
+                $initiation = $this->initiationFor($existingMeta, $transactionId);
+                $this->assertReportedAmountCoversPayment($payment, $metadata, $initiation['amount']);
                 $this->writeStatus($payment, PaymentStatus::Paid);
                 // TCK-593 — loyer et pénalité réglés ensemble : la pénalité est acquittée dans la
-                // MÊME sauvegarde que le loyer. `late_fee_included` a été figé à l'initiation ;
-                // un réglage d'agence changé depuis ne décide rien ici.
-                if ($payment instanceof LeasePayment && ($existingMeta['late_fee_included'] ?? false) === true) {
+                // MÊME sauvegarde que le loyer. `late_fee_included` a été figé à l'initiation DE CE
+                // CHECKOUT ; un réglage d'agence changé depuis ne décide rien ici.
+                if ($payment instanceof LeasePayment && $initiation['late_fee_included'] === true) {
                     $payment->late_fee_paid_at ??= now();
+                }
+                if ($transactionId !== null) {
+                    $existingMeta['gateway'] = array_merge(
+                        is_array($existingMeta['gateway'] ?? null) ? $existingMeta['gateway'] : [],
+                        ['settled_by' => $transactionId],
+                    );
                 }
                 // `invoices` n'a pas de colonne `paid_at` : l'écrire y ajouterait un attribut
                 // inconnu et ferait échouer le `save()` — `SQLSTATE[42703] column … does not
@@ -325,7 +397,7 @@ class PaymentGatewayService
      *
      * @param  array<string,mixed>  $metadata
      */
-    protected function assertReportedAmountCoversPayment(Model $payment, array $metadata): void
+    protected function assertReportedAmountCoversPayment(Model $payment, array $metadata, ?float $frozenAmount = null): void
     {
         $reported = $metadata['amount'] ?? null;
         $reportedCurrency = isset($metadata['currency']) ? strtoupper((string) $metadata['currency']) : null;
@@ -347,7 +419,7 @@ class PaymentGatewayService
         // TCK-593 — la comparaison porte sur le montant FIGÉ à l'initiation. Une pénalité
         // appliquée — ou un réglage d'agence changé — entre l'ouverture du checkout et le webhook
         // ferait sinon refuser un paiement légitime.
-        $frozen = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway_expected_amount'] ?? null) : null;
+        $frozen = $frozenAmount ?? (is_array($payment->metadata ?? null) ? ($payment->metadata['gateway_expected_amount'] ?? null) : null);
         $expected = is_numeric($frozen) ? (float) $frozen : $this->amountDue($payment);
         if ($expected === null) {
             return;
@@ -367,6 +439,19 @@ class PaymentGatewayService
     protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, float $amount): void
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+        $lateFeeIncluded = $payment instanceof LeasePayment && $this->lateFeeIncluded($payment);
+
+        // TCK-593 (V2) — l'historique des checkouts émis : le webhook d'un checkout antérieur
+        // retrouve encore son payable, et le montant figé DE CE CHECKOUT.
+        $previous = is_array($existingMeta['gateway'] ?? null) ? $existingMeta['gateway'] : [];
+        $transactions = is_array($previous['transactions'] ?? null) ? $previous['transactions'] : [];
+        $transactions[] = [
+            'transaction_id' => $session->transactionId,
+            'provider' => $provider->value,
+            'amount' => $amount,
+            'late_fee_included' => $lateFeeIncluded,
+            'initiated_at' => now()->toIso8601String(),
+        ];
 
         $payment->fill([
             'transaction_id' => $session->transactionId,
@@ -374,12 +459,13 @@ class PaymentGatewayService
                 // TCK-593 — le montant demandé est FIGÉ ici : la garde de sous-paiement compare le
                 // webhook à lui, et le rapprochement bancaire le cherche sur la ligne de relevé.
                 'gateway_expected_amount' => $amount,
-                'late_fee_included' => $payment instanceof LeasePayment && $this->lateFeeIncluded($payment),
+                'late_fee_included' => $lateFeeIncluded,
                 'gateway' => [
                     'provider' => $provider->value,
                     'transaction_id' => $session->transactionId,
                     'checkout_url' => $session->checkoutUrl,
                     'initiated_at' => now()->toIso8601String(),
+                    'transactions' => $transactions,
                 ],
             ]),
         ]);
@@ -410,6 +496,21 @@ class PaymentGatewayService
             }
         }
 
+        // TCK-593 (V2) — le webhook d'un checkout ANTÉRIEUR : son identifiant n'est plus dans
+        // `transaction_id`, il est dans l'historique.
+        if ($matches === []) {
+            foreach ([BookingPayment::class, LeasePayment::class, Invoice::class] as $class) {
+                /** @var class-string<Model> $class */
+                $rows = $class::query()
+                    ->whereJsonContains('metadata->gateway->transactions', [['transaction_id' => $event->transactionId]])
+                    ->lockForUpdate()
+                    ->get();
+                foreach ($rows as $row) {
+                    $matches[] = $row;
+                }
+            }
+        }
+
         // Lemon Squeezy embeds our payment hint in custom_data — fall
         // back to that when the transaction id matching missed.
         if ($matches === [] && ! empty($event->metadata['custom_data']['payment_id'])) {
@@ -425,6 +526,122 @@ class PaymentGatewayService
         }
 
         return $matches;
+    }
+
+    /**
+     * TCK-593 (V2) — le checkout encore OUVERT sur ce payable : émis il y a moins de
+     * `payments.checkout_reuse_minutes`, et sans échec rapporté depuis. `null` sinon.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function openCheckout(Model $payment): ?array
+    {
+        $gateway = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway'] ?? null) : null;
+        if (! is_array($gateway) || empty($gateway['initiated_at']) || empty($gateway['checkout_url']) || empty($gateway['transaction_id'])) {
+            return null;
+        }
+
+        $initiatedAt = Carbon::parse($gateway['initiated_at']);
+        if ($initiatedAt->lt(now()->subMinutes((int) config('payments.checkout_reuse_minutes', 30)))) {
+            return null;
+        }
+
+        if (! empty($gateway['last_failed_at']) && Carbon::parse($gateway['last_failed_at'])->gte($initiatedAt)) {
+            return null;
+        }
+
+        return $gateway;
+    }
+
+    /**
+     * TCK-593 (V3) — un règlement manuel est refusé tant qu'un checkout est ouvert : l'argent
+     * pourrait être encaissé deux fois.
+     */
+    public function assertNoOpenCheckout(Model $payment): void
+    {
+        abort_if($this->openCheckout($payment) !== null, 409, __('payments.checkout_in_progress'));
+    }
+
+    /**
+     * Le montant figé et l'inclusion de la pénalité DU checkout que rapporte l'événement — repli
+     * sur la dernière initiation.
+     *
+     * @param  array<string,mixed>  $meta
+     * @return array{amount: ?float, late_fee_included: bool}
+     */
+    protected function initiationFor(array $meta, ?string $transactionId): array
+    {
+        $transactions = $meta['gateway']['transactions'] ?? [];
+        foreach (is_array($transactions) ? $transactions : [] as $entry) {
+            if ($transactionId !== null && ($entry['transaction_id'] ?? null) === $transactionId) {
+                return [
+                    'amount' => is_numeric($entry['amount'] ?? null) ? (float) $entry['amount'] : null,
+                    'late_fee_included' => ($entry['late_fee_included'] ?? false) === true,
+                ];
+            }
+        }
+
+        return [
+            'amount' => is_numeric($meta['gateway_expected_amount'] ?? null) ? (float) $meta['gateway_expected_amount'] : null,
+            'late_fee_included' => ($meta['late_fee_included'] ?? false) === true,
+        ];
+    }
+
+    /**
+     * Ce payable a-t-il été soldé par CE règlement ? `settled_by`, ou à défaut (règlements
+     * antérieurs à TCK-593) un événement `paid` déjà journalisé pour lui.
+     *
+     * @param  array<string,mixed>  $meta
+     */
+    protected function isSettledBy(array $meta, ?string $transactionId): bool
+    {
+        if ($transactionId === null) {
+            return false;
+        }
+
+        if (($meta['gateway']['settled_by'] ?? null) === $transactionId) {
+            return true;
+        }
+
+        foreach (is_array($meta['gateway_events'] ?? null) ? $meta['gateway_events'] : [] as $entry) {
+            if (($entry['transaction_id'] ?? null) === $transactionId && ($entry['type'] ?? null) === PaymentEvent::TYPE_PAID) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Prévient les admins actifs de l'agence (admin principal + profils d'admin actifs) d'un
+     * double encaissement à rembourser. Texte par clé de domaine.
+     *
+     * @param  array<string,mixed>  $metadata
+     */
+    protected function notifyDuplicatePayment(Model $payment, array $metadata): void
+    {
+        $agencyId = $this->paymentAgencyId($payment);
+        if ($agencyId === null) {
+            return;
+        }
+
+        $userIds = AgencyAdminProfile::query()->active()->where('agency_id', $agencyId)->pluck('user_id')
+            ->push(Agency::query()->whereKey($agencyId)->value('primary_admin_id'))
+            ->filter()
+            ->unique();
+
+        $reference = $payment->getAttribute('reference_number') ?? '#'.$payment->getKey();
+
+        app(NotificationService::class)->notifyMany(
+            User::query()->whereIn('id', $userIds)->get(),
+            NotificationType::Payment,
+            __('payments.duplicate_payment.title'),
+            __('payments.duplicate_payment.body', [
+                'reference' => $reference,
+                'amount' => is_numeric($metadata['amount'] ?? null) ? number_format((float) $metadata['amount'], 0, ',', ' ') : '—',
+            ]),
+            ['payment_type' => $payment::class, 'payment_id' => $payment->getKey(), 'reason' => 'duplicate_payment'],
+        );
     }
 
     protected function isAlreadyProcessed(Model $payment, PaymentEvent $event): bool

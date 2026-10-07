@@ -7,6 +7,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Payments\PaymentGatewayService;
 
 class LeasePaymentService
 {
@@ -39,6 +40,10 @@ class LeasePaymentService
             422,
             'Only pending or late payments can be marked paid.'
         );
+
+        // TCK-593 (vérification adverse, V3) — un règlement manuel pendant qu'un checkout est
+        // ouvert ferait encaisser l'échéance deux fois : refusé tant que le checkout vit.
+        app(PaymentGatewayService::class)->assertNoOpenCheckout($payment);
 
         $payment->update([
             'status' => PaymentStatus::Paid,

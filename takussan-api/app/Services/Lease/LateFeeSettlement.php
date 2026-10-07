@@ -4,6 +4,7 @@ namespace App\Services\Lease;
 
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,6 +26,15 @@ class LateFeeSettlement
             $locked = LeasePayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
             abort_unless($locked->lateFeeOutstanding() > 0, 409, __('payments.late_fee_not_due'));
+
+            // TCK-593 (vérification adverse, V4) — un checkout ouvert qui INCLUT la pénalité
+            // l'encaissera : l'enregistrer réglée à l'agence en même temps la ferait payer deux fois.
+            $gateway = app(PaymentGatewayService::class);
+            abort_if(
+                $gateway->openCheckout($locked) !== null && ($locked->metadata['late_fee_included'] ?? false) === true,
+                409,
+                __('payments.checkout_in_progress'),
+            );
 
             $metadata = is_array($locked->metadata) ? $locked->metadata : [];
             if (! empty($data['payment_method'])) {
