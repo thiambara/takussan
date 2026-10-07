@@ -42,7 +42,7 @@ class KpiConfigController extends Controller
         $validated = $request->validated();
 
         $agencyId = $validated['agency_id'] ?? $user->agency_id;
-        abort_code_unless($agencyId, 422, 'agency.id_required');
+        abort_unless($agencyId, 422, 'agency_id is required.');
 
         if (! $user->isSuperAdmin()) {
             abort_unless((int) $agencyId === (int) $user->agency_id, 403);

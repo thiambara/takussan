@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Architecture;
 
+use App\Services\Membership\MembershipCapabilityResolver;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\ProseLitteraleScanner;
 
@@ -24,6 +25,58 @@ class ProseLitteraleInterditeTest extends TestCase
     private const EXEMPTIONS = [
         'Jobs/SendSavedSearchAlerts.php' => ['forms' => [ProseLitteraleScanner::NOTIFY], 'ticket' => 'TCK-599'],
     ];
+
+    /**
+     * Les fichiers que TCK-587 modifie, et qui fusionne AVANT 588 (complément au brief de la
+     * vague 73, §6) : leurs `abort*()` gardent leur forme jusqu'à cette fusion, pour qu'aucun des
+     * deux tickets ne réécrive les lignes de l'autre. L'exemption expire deux fois :
+     *  - par fichier, comme les autres — un fichier converti la rend périmée ;
+     *  - en bloc, à la fusion de 587 dans la branche : dès que son prédicat
+     *    `MembershipCapabilityResolver::staffAgencyId()` existe ici, le test d'expiration rougit.
+     * `perdus` : le fichier porte aussi des `abort(4xx, __('…'))` dont le rendu jette le message.
+     *
+     * @var array<string, array{forms: list<string>, perdus: bool}>
+     */
+    private const ATTENTE_587 = [
+        'Http/Controllers/Api/AgencyController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => true],
+        'Http/Controllers/Api/AgencyMemberRoleController.php' => ['forms' => [], 'perdus' => true],
+        'Http/Controllers/Api/BookingPaymentController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/DocumentController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/DocumentShareLinkController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/ExportController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/IntegrationController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/InventoryController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/KpiConfigController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/LeaseController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => true],
+        'Http/Controllers/Api/PaymentController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/PropertyController.php' => ['forms' => [], 'perdus' => true],
+        'Http/Controllers/Api/ThresholdAlertController.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Http/Controllers/Api/UserAdminController.php' => ['forms' => [], 'perdus' => true],
+        'Http/Controllers/Api/UserRoleController.php' => ['forms' => [], 'perdus' => true],
+        'Http/Middleware/ResolveActiveProfile.php' => ['forms' => [ProseLitteraleScanner::HTTP_EXCEPTION], 'perdus' => false],
+        'Services/Inventory/InventorySignatureService.php' => ['forms' => [ProseLitteraleScanner::ABORT, ProseLitteraleScanner::HTTP_EXCEPTION], 'perdus' => false],
+        'Services/Model/BookingService.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Services/Model/InvoiceService.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+        'Services/Model/LeaseService.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => true],
+        'Services/Model/PayoutService.php' => ['forms' => [ProseLitteraleScanner::ABORT], 'perdus' => false],
+    ];
+
+    /**
+     * EXEMPTIONS plus la part « prose » de l'attente de 587.
+     *
+     * @return array<string, array{forms: list<string>, ticket: string}>
+     */
+    private function exemptions(): array
+    {
+        $exemptions = self::EXEMPTIONS;
+        foreach (self::ATTENTE_587 as $file => $attente) {
+            if ($attente['forms'] !== []) {
+                $exemptions[$file] = ['forms' => $attente['forms'], 'ticket' => 'TCK-587'];
+            }
+        }
+
+        return $exemptions;
+    }
 
     /**
      * Positifs attendus sur les fixtures, par fichier et par forme — comptés EXACTEMENT.
@@ -92,7 +145,7 @@ class ProseLitteraleInterditeTest extends TestCase
         $scanner = new ProseLitteraleScanner;
         $findings = $scanner->scanDirectory($this->root('app'));
 
-        $errors = $this->verdict($scanner, $findings, self::EXEMPTIONS);
+        $errors = $this->verdict($scanner, $findings, $this->exemptions());
 
         $this->assertSame([], $errors, "Prose écrite en dur dans app/ — passer par abort_code() ou un NotificationCode (ADR-0032) :\n".implode("\n", $errors));
         $this->assertGreaterThan(500, $scanner->fichiersLus);
@@ -109,12 +162,41 @@ class ProseLitteraleInterditeTest extends TestCase
         $scanner = new ProseLitteraleScanner;
         $scanner->scanDirectory($this->root('app'));
 
-        $lieux = array_map(fn (array $p) => "{$p['file']}:{$p['line']}", $scanner->messagesPerdus);
+        $lieux = [];
+        $attendus = array_keys(array_filter(self::ATTENTE_587, fn (array $a) => $a['perdus']));
+        $vus = [];
+        foreach ($scanner->messagesPerdus as $perdu) {
+            if (in_array($perdu['file'], $attendus, true)) {
+                $vus[$perdu['file']] = true;
+
+                continue;
+            }
+            $lieux[] = "{$perdu['file']}:{$perdu['line']}";
+        }
+        foreach ($attendus as $file) {
+            if (! isset($vus[$file])) {
+                $lieux[] = "exemption périmée : {$file} (TCK-587) n'a plus de message perdu — retirer 'perdus'";
+            }
+        }
         $this->assertSame([], $lieux, "abort*() à message non littéral — le message serait perdu, passer par abort_code() :\n".implode("\n", $lieux));
 
         $fixtures = new ProseLitteraleScanner;
         $fixtures->scanDirectory($this->root('tests/fixtures/ProseLitterale'));
         $this->assertSame([['file' => 'Negatifs.php', 'line' => 13]], $fixtures->messagesPerdus);
+    }
+
+    /**
+     * L'attente de 587 n'est pas une tolérance : à la fusion de 587 dans cette branche, son
+     * prédicat arrive, et ce test rougit tant que ATTENTE_587 n'est pas vidée — les aborts de ces
+     * fichiers se convertissent alors, comme partout ailleurs (ADR-0032).
+     */
+    public function test_l_attente_de_587_expire_a_sa_fusion(): void
+    {
+        $this->assertFalse(
+            method_exists(MembershipCapabilityResolver::class, 'staffAgencyId'),
+            'TCK-587 est fusionné : convertir les aborts de ATTENTE_587 en abort_code(), puis vider ATTENTE_587 et retirer ce test.'
+        );
+        $this->assertCount(21, self::ATTENTE_587);
     }
 
     public function test_les_fixtures_rendent_exactement_les_positifs_attendus(): void

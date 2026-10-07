@@ -70,10 +70,10 @@ class BookingPaymentController extends Controller
         $payment->loadMissing('booking');
         abort_unless($payment->booking, 404);
         $this->authorizeBookingAccess($request, $payment->booking);
-        abort_code_unless(
+        abort_unless(
             $payment->status === PaymentStatus::Paid,
             422,
-            'booking_payment.receipt_unpaid'
+            'La quittance est disponible uniquement pour un paiement acquitté.'
         );
 
         $body = $pdf->forBookingPayment($payment);

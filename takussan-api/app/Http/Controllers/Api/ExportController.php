@@ -34,7 +34,7 @@ class ExportController extends Controller
         $validated = $request->validated();
 
         $allowed = ['payments', 'leases', 'customers', 'properties'];
-        abort_code_unless(in_array($entity, $allowed, true), 404, 'export.entity_unknown', ['entity' => $entity]);
+        abort_unless(in_array($entity, $allowed, true), 404, "Unknown entity: {$entity}");
 
         $agencyId = $user->agency_id;
         $isStaff = $user->isSuperAdmin()
@@ -44,12 +44,12 @@ class ExportController extends Controller
             ));
 
         if ($entity === 'customers' && ! $isStaff) {
-            abort_code(403, 'export.crm_staff_only');
+            abort(403, 'CRM export restricted to agency staff.');
         }
         if ($entity === 'properties'
             && ! $isStaff
             && ! ($agencyId !== null && $user->isOwnerAt((int) $agencyId))) {
-            abort_code(403, 'export.properties_staff_or_owner');
+            abort(403, 'Properties export restricted to staff and owners.');
         }
 
         $format = $validated['format'] ?? 'csv';

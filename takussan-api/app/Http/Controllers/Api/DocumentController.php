@@ -54,10 +54,10 @@ class DocumentController extends Controller
         $data = $request->validated();
 
         $fqcn = $this->resolveDocumentableType($data['documentable_type']);
-        abort_code_if($fqcn === null, 422, 'document.unsupported_type');
+        abort_if($fqcn === null, 422, 'Unsupported documentable_type.');
 
         $model = $fqcn::query()->find($data['documentable_id']);
-        abort_code_if($model === null, 404, 'document.owner_not_found');
+        abort_if($model === null, 404, 'Documentable resource not found.');
 
         $user = $request->user();
         $this->authorize('attachTo', [Document::class, $model]);
@@ -91,10 +91,10 @@ class DocumentController extends Controller
 
     public function verify(Request $request, Document $document): JsonResponse
     {
-        abort_code_unless(
+        abort_unless(
             $request->user()->isSuperAdmin(),
             403,
-            'document.verify_forbidden'
+            'Only administrators can verify documents.'
         );
 
         $document->update([

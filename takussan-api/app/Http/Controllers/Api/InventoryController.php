@@ -109,18 +109,18 @@ class InventoryController extends Controller
         // 409 with a clear message. Other non-draft states (pending_signature,
         // disputed) keep the historical 422 response from TCK-031.
         if ($inventory->status === InventoryStatus::Signed) {
-            abort_code(
+            abort(
                 SymfonyResponse::HTTP_CONFLICT,
-                'inventory.signed_locked'
+                'Signed inventories are immutable.'
             );
         }
 
         // Status guard runs BEFORE validation so non-draft inventories fail
         // with a clear 422 "only draft" message instead of generic validation errors.
-        abort_code_unless(
+        abort_unless(
             $inventory->status === InventoryStatus::Draft,
             422,
-            'inventory.not_draft'
+            'Only draft inventories can be edited.'
         );
 
         $data = $request->validated();
@@ -181,11 +181,11 @@ class InventoryController extends Controller
     {
         $this->authorize('view', $inventory);
 
-        abort_code_unless(
+        abort_unless(
             $inventory->signed_at !== null
                 || ($inventory->tenant_signed && $inventory->owner_signed),
             SymfonyResponse::HTTP_CONFLICT,
-            'inventory.pdf_unsigned'
+            'Inventory PDF is available only once both parties have signed.'
         );
 
         $inventory->loadMissing(['lease', 'property.address', 'tenant']);

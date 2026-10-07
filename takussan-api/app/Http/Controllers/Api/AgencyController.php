@@ -43,10 +43,10 @@ class AgencyController extends Controller
         $user = $request->user();
 
         $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
-        abort_code_if(
+        abort_if(
             $alreadyOwns && ! ($user->isSuperAdmin()),
             422,
-            'agency.already_administered'
+            'You already administer an agency.'
         );
 
         $data = $request->validated();
@@ -185,7 +185,7 @@ class AgencyController extends Controller
             ? User::findOrFail($data['user_id'])
             : User::where('email', $data['email'])->first();
 
-        abort_code_if($target === null, 422, 'agency_member.user_not_found_by_email');
+        abort_if($target === null, 422, __('messages.user_not_found_by_email'));
 
         // TCK-142 — agency attachment is now profile-driven. Block if the
         // user already has an active agent profile at a different agency,
@@ -193,7 +193,7 @@ class AgencyController extends Controller
         $existingElsewhere = $target->agentProfiles()
             ->where('agency_id', '!=', $agency->id)
             ->exists();
-        abort_code_if($existingElsewhere, 422, 'agency_member.already_in_other_agency');
+        abort_if($existingElsewhere, 422, __('messages.user_already_in_agency'));
 
         // TCK-278 — Rôle = présence d'un profil polymorphe. On crée toujours
         // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
@@ -226,8 +226,8 @@ class AgencyController extends Controller
     {
         $this->authorizeAdmin($request, $agency);
         $belongsToAgency = $user->agentProfiles()->where('agency_id', $agency->id)->exists();
-        abort_code_if(! $belongsToAgency, 422, 'agency_member.not_in_agency');
-        abort_code_if($user->id === $agency->primary_admin_id, 422, 'agency_member.cannot_remove_primary_admin');
+        abort_if(! $belongsToAgency, 422, __('messages.user_not_in_agency'));
+        abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
 
         // TCK-278 — Last-admin guard : maintenant que le rôle est porté par
         // `AgencyAdminProfile`, on compte les profils admin restants (et non
@@ -255,7 +255,7 @@ class AgencyController extends Controller
                     ->lockForUpdate()
                     ->get(['id'])
                     ->count();
-                abort_code_if($remainingAdmins === 0, 422, 'agency_member.cannot_remove_last_admin');
+                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
             }
 
             $user->agentProfiles()->where('agency_id', $agency->id)->delete();

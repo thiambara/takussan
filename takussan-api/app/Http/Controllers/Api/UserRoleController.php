@@ -46,7 +46,7 @@ class UserRoleController extends Controller
         $data = $request->validated();
 
         if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
-            abort_code(403, 'role.super_admin_grant_forbidden');
+            abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
         // Agency admins can only manage users within their own agency. The
@@ -58,7 +58,7 @@ class UserRoleController extends Controller
                     && ! $user->isOwnerAt($actorAgencyId)
                     && ! $user->isAgencyAdminAt($actorAgencyId))
             ) {
-                abort_code(403, 'user.not_in_active_agency');
+                abort(403, __('messages.target_user_not_in_active_agency'));
             }
         }
 
@@ -68,7 +68,7 @@ class UserRoleController extends Controller
             : ($actor->isSuperAdmin() ? $user->agency_id : $actorAgencyId);
 
         if ($targetAgencyId === null && $data['role'] !== 'super_admin') {
-            abort_code(422, 'user.no_active_agency');
+            abort(422, __('messages.target_user_has_no_active_agency'));
         }
 
         DB::transaction(function () use ($user, $data, $targetAgencyId) {

@@ -7,6 +7,7 @@ use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\User;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * TCK-076 — captures an immutable signature payload for a given role
@@ -83,10 +84,10 @@ class InventorySignatureService
 
     protected function assertSignable(Inventory $inventory): void
     {
-        abort_code_unless(
+        abort_unless(
             in_array($inventory->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true),
             Response::HTTP_CONFLICT,
-            'inventory.cannot_sign'
+            'Inventory cannot be signed in its current state.'
         );
     }
 
@@ -126,10 +127,10 @@ class InventorySignatureService
             : (bool) $inventory->owner_signed;
 
         if ($already) {
-            if ($role === InventorySignRequest::ROLE_TENANT) {
-                abort_code(409, 'inventory.already_signed_tenant');
-            }
-            abort_code(409, 'inventory.already_signed_landlord');
+            throw new ConflictHttpException(sprintf(
+                'Inventory has already been signed by the %s.',
+                $role === InventorySignRequest::ROLE_TENANT ? 'tenant' : 'landlord',
+            ));
         }
     }
 }

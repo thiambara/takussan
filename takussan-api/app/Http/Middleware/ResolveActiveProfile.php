@@ -8,6 +8,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Resolves the **active profile** for the authenticated request. Resolution
@@ -69,7 +70,7 @@ class ResolveActiveProfile
             if ($explicit !== null && $explicit !== '') {
                 $profile = $this->resolver->resolve((string) $explicit, $user);
                 if ($profile === null) {
-                    abort_code(403, 'profile.not_accessible');
+                    throw new AccessDeniedHttpException('Profile not accessible.');
                 }
                 $this->bind($request, $user, $profile);
 
@@ -91,7 +92,7 @@ class ResolveActiveProfile
         if ($explicit !== null && $explicit !== '') {
             $profile = $this->resolver->resolve((string) $explicit, $user);
             if ($profile === null) {
-                abort_code(403, 'profile.not_accessible');
+                throw new AccessDeniedHttpException('Profile not accessible.');
             }
             $this->bind($request, $user, $profile);
 

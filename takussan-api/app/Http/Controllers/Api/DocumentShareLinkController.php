@@ -89,7 +89,7 @@ class DocumentShareLinkController extends Controller
         $link = $this->shareLinks->validate($token, $password);
 
         $media = $link->document->getFirstMedia('file');
-        abort_code_unless($media !== null, 404, 'document.file_missing');
+        abort_unless($media !== null, 404, 'No file attached to this document.');
 
         $this->shareLinks->recordDownload($link);
 

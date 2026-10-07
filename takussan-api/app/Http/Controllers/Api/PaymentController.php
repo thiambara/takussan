@@ -40,7 +40,7 @@ class PaymentController extends Controller
         if ($data['payable_type'] === 'booking') {
             /** @var Booking|null $booking */
             $booking = Booking::find($data['payable_id']);
-            abort_code_unless($booking, 404, 'booking.not_found');
+            abort_unless($booking, 404, 'Booking not found.');
             $this->authorizeBookingManage($user, $booking);
 
             $payment = $this->bookingPayments->create($booking, $user, [
@@ -63,7 +63,7 @@ class PaymentController extends Controller
         // Lease
         /** @var Lease|null $lease */
         $lease = Lease::find($data['payable_id']);
-        abort_code_unless($lease, 404, 'lease.not_found');
+        abort_unless($lease, 404, 'Lease not found.');
         $this->authorizeLeaseManage($user, $lease);
 
         $leaseData = [
@@ -151,7 +151,7 @@ class PaymentController extends Controller
                 $bookingQuery->where('status', $status);
                 $leaseQuery->where('status', $status);
             } else {
-                abort_code(422, 'payment.filter_status_invalid');
+                abort(422, 'Invalid filter[status].');
             }
         }
 
@@ -255,13 +255,13 @@ class PaymentController extends Controller
                 break;
 
             case 'property':
-                abort_code_unless(Property::whereKey($entityId)->exists(), 404, 'property.not_found');
+                abort_unless(Property::whereKey($entityId)->exists(), 404, 'Property not found.');
                 $bookingQuery->whereHas('booking', fn ($q) => $q->where('property_id', $entityId));
                 $leaseQuery->whereHas('lease', fn ($q) => $q->where('property_id', $entityId));
                 break;
 
             default:
-                abort_code(422, 'payment.filter_entity_invalid');
+                abort(422, 'Invalid filter[entity_type].');
         }
     }
 

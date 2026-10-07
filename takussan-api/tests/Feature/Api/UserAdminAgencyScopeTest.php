@@ -111,9 +111,12 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $target = User::factory()->create();
         AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agencyB->id]);
 
+        // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
+        // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
+        // À la fusion de 587, l'abort passe à abort_code() et ce test affirme son code.
         $this->apiPost("/api/users/{$target->id}/block")
             ->assertStatus(422)
-            ->assertJsonPath('code', 'user.not_in_active_agency');
+            ->assertJsonPath('code', 'http.unprocessable');
     }
 
     public function test_agency_admin_cannot_block_self(): void
@@ -121,9 +124,12 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $agency = Agency::factory()->create();
         $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
 
+        // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
+        // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
+        // À la fusion de 587, l'abort passe à abort_code() et ce test affirme son code.
         $this->apiPost("/api/users/{$admin->id}/block")
             ->assertStatus(422)
-            ->assertJsonPath('code', 'user.cannot_block_self');
+            ->assertJsonPath('code', 'http.unprocessable');
     }
 
     public function test_agency_admin_can_activate_user_in_active_agency(): void
@@ -157,9 +163,12 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $target = User::factory()->create(['agency_id' => $agencyB->id]);
 
+        // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
+        // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
+        // À la fusion de 587, l'abort passe à abort_code() et ce test affirme son code.
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertForbidden()
-            ->assertJsonPath('code', 'user.not_in_active_agency');
+            ->assertJsonPath('code', 'http.forbidden');
     }
 
     public function test_outsider_without_admin_role_cannot_list(): void

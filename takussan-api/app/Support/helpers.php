@@ -3,7 +3,7 @@
 /*
  * TCK-588 (ADR-0032) — les trois formes d'une erreur métier codée.
  *
- * `abort_code(403, 'payout.landlord_not_in_agency')` rend
+ * `abort_code(403, 'auth.super_admin_required')` rend
  * `HTTP 403 {code: "payout.landlord_not_in_agency", message: <errors.payout.landlord_not_in_agency>}`.
  * Le code est un LITTÉRAL (la garde de parité le cherche dans `lang/{fr,en,wo}/errors.php`).
  */

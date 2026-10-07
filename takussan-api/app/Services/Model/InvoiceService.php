@@ -64,10 +64,10 @@ class InvoiceService
 
     public function send(Invoice $invoice): Invoice
     {
-        abort_code_unless(
+        abort_unless(
             $invoice->status === InvoiceStatus::Draft,
             422,
-            'invoice.not_draft_send'
+            'Only draft invoices can be sent.'
         );
 
         $invoice->update(['status' => InvoiceStatus::Sent]);
@@ -77,10 +77,10 @@ class InvoiceService
 
     public function markPaid(Invoice $invoice): Invoice
     {
-        abort_code_unless(
+        abort_unless(
             in_array($invoice->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Draft], true),
             422,
-            'invoice.cannot_mark_paid'
+            'Invoice cannot be marked paid in its current state.'
         );
 
         $invoice->update(['status' => InvoiceStatus::Paid]);
@@ -90,10 +90,10 @@ class InvoiceService
 
     public function cancel(Invoice $invoice): Invoice
     {
-        abort_code_if(
+        abort_if(
             in_array($invoice->status, [InvoiceStatus::Paid, InvoiceStatus::Cancelled, InvoiceStatus::Void], true),
             422,
-            'invoice.cannot_cancel'
+            'Invoice cannot be cancelled in its current state.'
         );
 
         $invoice->update(['status' => InvoiceStatus::Cancelled]);
@@ -111,12 +111,12 @@ class InvoiceService
         }
 
         $fqcn = $this->resolveInvoiceableType($typeAlias);
-        abort_code_if($fqcn === null, 422, 'invoice.unsupported_target');
+        abort_if($fqcn === null, 422, 'Unsupported invoiceable_type.');
 
-        abort_code_if(
+        abort_if(
             $fqcn::query()->whereKey($id)->doesntExist(),
             404,
-            'invoice.target_not_found'
+            'Invoiceable resource not found.'
         );
 
         return [$fqcn, $id];

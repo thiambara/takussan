@@ -162,10 +162,10 @@ class PropertyController extends Controller
     public function publish(Request $request, Property $property): JsonResponse
     {
         $this->authorize('update', $property);
-        abort_code_if(
+        abort_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
-            'property.cannot_publish'
+            __('messages.property_cannot_publish')
         );
         $property->update([
             'status' => PropertyStatus::Available,
@@ -181,10 +181,10 @@ class PropertyController extends Controller
     public function unpublish(Request $request, Property $property): JsonResponse
     {
         $this->authorize('update', $property);
-        abort_code_unless(
+        abort_unless(
             in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
-            'property.cannot_unpublish'
+            __('messages.property_cannot_unpublish')
         );
         $property->update([
             'status' => PropertyStatus::Draft,
@@ -244,10 +244,10 @@ class PropertyController extends Controller
         $actor = $request->user();
         $agencyId = $property->agency_id ?? $actor->agency_id;
         if ($agencyId !== null) {
-            abort_code_unless(
+            abort_unless(
                 $target->agency_id === $agencyId || $target->isAgentAt($agencyId),
                 422,
-                'user.not_in_active_agency'
+                __('messages.target_user_not_in_active_agency')
             );
         }
 

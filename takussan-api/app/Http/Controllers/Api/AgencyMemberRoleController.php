@@ -53,18 +53,18 @@ class AgencyMemberRoleController extends Controller
         // {@see AgencyKindGuard::canFormTeam()}.
         AgencyKindGuard::ensureCanFormTeam($agency);
 
-        abort_code_unless(
+        abort_unless(
             $user->isAgentAt($agency->id)
                 || $user->isOwnerAt($agency->id)
                 || $user->isAgencyAdminAt($agency->id),
             422,
-            'agency_member.not_in_agency',
+            __('messages.user_not_in_agency'),
         );
 
         $data = $request->validated();
 
         if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
-            abort_code(403, 'role.super_admin_grant_forbidden');
+            abort(403, __('messages.only_super_admin_can_grant_super_admin'));
         }
 
         // Last-admin invariant : si le target est l'unique agency_admin et
@@ -95,7 +95,7 @@ class AgencyMemberRoleController extends Controller
                     ->lockForUpdate()
                     ->get(['id'])
                     ->count();
-                abort_code_if($remainingAdmins === 0, 422, 'agency_member.cannot_remove_last_admin');
+                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
             }
 
             // Swap profile : delete concurrents, materialize target.

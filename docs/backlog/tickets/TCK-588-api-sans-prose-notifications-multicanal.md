@@ -808,3 +808,33 @@ développement est partagée entre worktrees — la session la jouera après fus
 - AC9 (script) : `check-notification-codes.mjs` — `codes.lease_payment.overdue_digest.sms` retirée de `lang/wo` → rouge (« API wo : … absente ») ; `notifications.codes.visit.reminder.body` retirée de `wo.json` → rouge ; `{property}` retiré de `lease_payment.recorded.body` dans `en.json` → rouge (« placeholders API [amount,property] ≠ front [amount] ») ; enum illisible (0 cas) → rouge. Restauré → vert (31 codes).
 - Front (H) : rendu par code court-circuité (`useTexteNotification` rend toujours le titre de l'API) → 6/8 rouges dans `NotificationRow.test.tsx` (fr, en, wo, formatage, lien, ligne sans cible) ; branche `channel_unavailable` retirée de la matrice → le test de la case indisponible rougit. Restauré → verts.
 - Garde « message perdu » (ajout) : `abort_unless(…, 403, __('errors.http.forbidden'))` dans `NotificationController` → `test_aucun_abort_ne_porte_un_message_que_le_rendu_jetterait` rougit en nommant le fichier:ligne ; restauré → 6/6. Sur l'arbre de la branche 587 (avant fusion), ce relevé compte 55 sites, dont 7 ajoutés par 587.
+
+### Attente de TCK-587 (complément au brief, §6) — 2026-10-07
+
+- **Ordre de fusion 586 → 587 → 588.** `origin/dev` (586, `5f872f1f`) fusionné dans la branche
+  (`3c349461`), INDEX régénéré, `composer dump-autoload -o`. Les fichiers de `app/` que 587 modifie
+  (liste vivante : `git -C …/takussan-tck-587 diff --name-only dev`, 67 fichiers sous `app/` relus
+  le 2026-10-07) et que 588 avait convertis — **20 fichiers**, plus les aborts de `BookingService`
+  (ses `send()` restent) — sont rendus à leur version de `dev` : 59 codes d'`errors.php` attendent
+  sans lecteur. `AppDatabaseChannel` reste (socle A) : 587 n'y ajoute qu'une ligne de table
+  (`PropertyProposedNotification`), conflit attendu, et cette classe neuve de 587 sera à convertir.
+- **Exemption nommée qui expire** : `ProseLitteraleInterditeTest::ATTENTE_587` (21 fichiers, formes
+  exactes, et `perdus` pour les 7 qui portent des `abort(4xx, __('…'))`). Trois ablations :
+  `staffAgencyId()` (le prédicat de 587) ajouté à `MembershipCapabilityResolver` →
+  `test_l_attente_de_587_expire_a_sa_fusion` rouge ; `KpiConfigController:45` converti en
+  `abort_code_unless` → « exemption périmée : …KpiConfigController.php (TCK-587) » ; `perdus` annoncé
+  sur `BookingPaymentController` → « exemption périmée … retirer 'perdus' ». Restauré → 7/7. Une
+  première ablation (message remplacé par un ternaire de littéraux) restait verte, à raison : un
+  littéral dans un ternaire reste un littéral.
+- **AC7** porte désormais sur `auth.super_admin_required` (`GET /api/admin/feature-flags` par un
+  agent, fr/en/wo → 403, code, message localisé) : `PayoutService` est un fichier de 587, comme
+  l'AC le prévoit pour un chemin réécrit ailleurs. `php artisan test tests/Feature/Api/ApiErrorCodeTest.php` → 13/13.
+- **Effet de l'attente, mesuré** : les 19 `abort(…, __('…'))` de ces fichiers perdent leur message
+  sous le rendu d'ADR-0032 (`http.unprocessable`/`http.forbidden`). Un seul test l'affirmait —
+  `UserAdminAgencyScopeTest` (3 cas, réécrits aussi par 587) : il affirme le code d'attente, avec
+  un commentaire qui renvoie à `ATTENTE_587`. Exécutions : les 56 classes de la carte d'impact des
+  fichiers rendus dont le nom touche leur domaine, en deux lots (`phpunit` sur 28 fichiers → 256
+  tests OK ; 28 fichiers + `ApiErrorCodeTest`, `LangGroupParityTest`, `ContactSansCompteTest`,
+  `NotificationTest`, `ApiErrorFormatTest`, `EnsureSuperAdminTest` → 285 tests, 3 échecs, ceux
+  de `UserAdminAgencyScopeTest`, verts après correction : 12/12).
+
