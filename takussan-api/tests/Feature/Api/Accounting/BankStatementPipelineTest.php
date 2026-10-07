@@ -16,6 +16,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Log\Events\MessageLogged;
@@ -420,6 +421,64 @@ class BankStatementPipelineTest extends ApiTestCase
         foreach (['LIBELLE-TEMOIN-8823', 'CONTREPARTIE-TEMOIN-'] as $witness) {
             $this->assertStringNotContainsString($witness, $journal, "Le journal recopie « {$witness} ».");
         }
+    }
+
+    public function test_l_exception_relancee_ne_recopie_pas_le_releve(): void
+    {
+        // Vérification adverse R8 — le worker passe l'exception relancée à `report()` et en écrit
+        // le texte dans `failed_jobs.exception` : relancer la `QueryException` y recopiait le SQL
+        // et ses valeurs liées. L'exception relancée est assainie, sans `previous`.
+        $counterparty = str_pad('CONTREPARTIE-TEMOIN-', 300, 'X');
+        $statement = $this->uploadQueued("date,amount,label,reference,counterparty\n"
+            ."03/04/2026,5000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
+
+        $logged = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$logged): void {
+            $logged[] = ['message' => $e->message, 'context' => array_map(
+                fn ($v) => $v instanceof \Throwable ? (string) $v : $v,
+                $e->context,
+            )];
+        });
+
+        $thrown = null;
+        try {
+            app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+        } catch (\Throwable $e) {
+            $thrown = $e;
+            app(ExceptionHandler::class)->report($e); // ce que fait Illuminate\Queue\Worker
+        }
+
+        $this->assertNotNull($thrown);
+        $this->assertNull($thrown->getPrevious());
+        $this->assertStringContainsString('22001', $thrown->getMessage());
+
+        // `failed_jobs.exception` stocke `(string) $e` : message ET trace.
+        $persisted = (string) $thrown;
+        $journal = json_encode($logged, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        foreach (['LIBELLE-TEMOIN-8823', 'CONTREPARTIE-TEMOIN-', 'CONTREPARTIE-TE'] as $witness) {
+            $this->assertStringNotContainsString($witness, $journal, "Le rapport recopie « {$witness} ».");
+            $this->assertStringNotContainsString($witness, $persisted, "failed_jobs recopierait « {$witness} ».");
+        }
+    }
+
+    public function test_un_csv_qui_n_est_pas_en_utf8_est_refuse_a_l_import(): void
+    {
+        // Vérification adverse R6 — un export latin-1 finissait `failed` sans un mot d'encodage.
+        $latin1 = "date,amount,label\n01/04/2026,1000,".mb_convert_encoding('Loyer réglé Médina', 'ISO-8859-1', 'UTF-8')."\n";
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/agencies/{$this->agency->id}/bank-statements", [
+                'file' => UploadedFile::fake()->createWithContent('statement.csv', $latin1),
+                'source_format' => 'csv',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.file.0', __('reconciliation.validation.file_not_utf8'));
+
+        $this->assertSame(0, BankStatement::query()->where('agency_id', $this->agency->id)->count());
+
+        // Le même texte en UTF-8 passe.
+        $statement = $this->upload("date,amount,label\n01/04/2026,1000,Loyer réglé Médina\n");
+        $this->assertSame('Loyer réglé Médina', $statement->lines()->sole()->label);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────

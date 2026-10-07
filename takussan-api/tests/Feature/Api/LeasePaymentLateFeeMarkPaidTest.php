@@ -75,6 +75,21 @@ class LeasePaymentLateFeeMarkPaidTest extends TestCase
         $this->assertSame('2026-10-01', $ctx['payment']->refresh()->late_fee_paid_at->toDateString());
     }
 
+    public function test_une_date_de_reglement_future_est_refusee(): void
+    {
+        // Vérification adverse V7 — `paid_at` dans un an était enregistré tel quel.
+        $ctx = $this->leaseDue();
+        Sanctum::actingAs($ctx['agent']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", ['paid_at' => now()->addYear()->toDateString()])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('paid_at');
+        $this->assertNull($ctx['payment']->refresh()->late_fee_paid_at);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", ['paid_at' => now()->subDay()->toDateString()])
+            ->assertOk();
+    }
+
     public function test_le_locataire_recoit_403(): void
     {
         $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Paid, 'paid_at' => now()]);

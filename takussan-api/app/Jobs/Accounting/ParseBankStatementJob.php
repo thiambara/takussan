@@ -144,7 +144,17 @@ class ParseBankStatementJob implements ShouldQueue
                 $statement->update(['status' => BankStatementStatus::Failed]);
             }
 
-            throw $e;
+            // TCK-593 (vérification adverse, R8) — relancer `$e` le confiait au rapporteur du
+            // worker et à `failed_jobs.exception`, qui en écrivent le message : le SQL et ses
+            // valeurs liées, soit le relevé. On relance une exception ASSAINIE — classe d'origine
+            // et SQLSTATE, sans `previous` — pour que le job reste en échec sans rien recopier.
+            // Le rapporteur global de TCK-601 ne change rien à ce choix.
+            throw new \RuntimeException(sprintf(
+                'Bank statement #%d parse failed (%s, sqlstate %s).',
+                $this->statementId,
+                $e::class,
+                $e instanceof QueryException ? ($e->errorInfo[0] ?? 'n/a') : 'n/a',
+            ));
         }
     }
 }

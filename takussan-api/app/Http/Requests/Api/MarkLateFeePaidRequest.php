@@ -26,7 +26,8 @@ class MarkLateFeePaidRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'paid_at' => ['nullable', 'date'],
+            // TCK-593 (vérification adverse, V7) — un règlement ne se date pas dans le futur.
+            'paid_at' => ['nullable', 'date', 'before_or_equal:now'],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
         ];
     }

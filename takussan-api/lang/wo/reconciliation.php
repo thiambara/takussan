@@ -21,6 +21,7 @@ return [
         'direction_mismatch' => 'Crédit dañu koy rapprocher ak encaissement, débit ak reversement.',
         'csv_column' => 'Colonne dañu koy wone ak turu en-tête bi walla ak bérébam.',
         'payout_not_completed' => 'Reversement bu ñu yónnee rekk lañu mën rapprocher ak débit.',
+        'file_not_utf8' => 'Fichier bi du UTF-8 : génnéel ko ci UTF-8 ci sa banque walla sa tableur.',
     ],
 
     'status' => [

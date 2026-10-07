@@ -889,3 +889,20 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   (checkout sans pénalité) reste à 200. Ablation → rouge.
 - Les 16 classes qui touchent la passerelle, `mark-paid` ou les webhooks → 131 verts, 2 sautés
   préexistants.
+- **R8 (mineur 1) — la relance du job recopiait le relevé.** `ParseBankStatementJob` relance une
+  `RuntimeException` ASSAINIE (identifiant du relevé, classe d'origine, SQLSTATE), **sans**
+  `previous` : le rapporteur du worker et `failed_jobs.exception` (qui stocke `(string) $e`, trace
+  comprise) n'ont plus rien du relevé. `bootstrap/app.php` n'est pas touché (TCK-601). Test
+  `test_l_exception_relancee_ne_recopie_pas_le_releve` : contrepartie de 300 caractères → 22001,
+  puis `report($e)` comme le fait `Illuminate\Queue\Worker` ; aucun témoin dans le journal ni dans
+  `(string) $e`. Ablations : `throw $e` → rouge ; `previous` remis → rouge ; message d'origine
+  recopié sans `previous` → rouge sur le témoin du journal (la voie qu'on voulait fermer).
+- **R6 (mineur 2) — fichier latin-1.** `StoreBankStatementRequest` refuse un CSV non UTF-8
+  (`mb_check_encoding`) par un 422 `reconciliation.validation.file_not_utf8` (fr/en/wo) sur `file`.
+  OFX exclu : il déclare son propre jeu de caractères (`CHARSET` de l'en-tête), qu'un contrôle
+  UTF-8 refuserait à tort ; un OFX en `1252` mal décodé reste une limite connue. Test
+  `test_un_csv_qui_n_est_pas_en_utf8_est_refuse_a_l_import` (le même texte en UTF-8 passe, accents
+  intacts). Ablation → rouge.
+- **V7 (mineur 4) — date dans le futur.** `MarkLateFeePaidRequest` : `paid_at` en
+  `before_or_equal:now`. Test `test_une_date_de_reglement_future_est_refusee` (hier → 200).
+  Ablation → rouge.

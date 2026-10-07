@@ -21,6 +21,7 @@ return [
         'direction_mismatch' => 'Un crédit se rapproche d\'un encaissement, un débit d\'un reversement.',
         'csv_column' => 'Une colonne se désigne par son nom d\'en-tête ou par sa position.',
         'payout_not_completed' => 'Seul un reversement émis peut être rapproché d\'un débit.',
+        'file_not_utf8' => 'Le fichier n\'est pas encodé en UTF-8 : réexportez-le en UTF-8 depuis votre banque ou votre tableur.',
     ],
 
     'status' => [

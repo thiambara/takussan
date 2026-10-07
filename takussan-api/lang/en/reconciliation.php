@@ -21,6 +21,7 @@ return [
         'direction_mismatch' => 'A credit is reconciled with a collection, a debit with a payout.',
         'csv_column' => 'A column is designated by its header name or by its position.',
         'payout_not_completed' => 'Only a completed payout can be reconciled with a debit.',
+        'file_not_utf8' => 'The file is not UTF-8 encoded: export it again as UTF-8 from your bank or spreadsheet.',
     ],
 
     'status' => [

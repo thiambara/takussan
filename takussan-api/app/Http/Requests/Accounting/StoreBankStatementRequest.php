@@ -40,6 +40,17 @@ class StoreBankStatementRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             if ($this->hasFile('file')) {
+                // TCK-593 (vérification adverse, R6) — un CSV qui n'est pas de l'UTF-8 valide
+                // (export latin-1) faisait échouer l'insertion (`SQLSTATE[22021]`) : relevé `failed`,
+                // zéro ligne sautée, rien ne disait « encodage ». Refusé à l'import, avec la raison.
+                // L'OFX déclare son jeu de caractères dans son en-tête : il n'est pas jugé ici.
+                if ($this->input('source_format') === 'csv'
+                    && ! mb_check_encoding((string) file_get_contents($this->file('file')->getRealPath()), 'UTF-8')) {
+                    $validator->errors()->add('file', __('reconciliation.validation.file_not_utf8'));
+
+                    return;
+                }
+
                 $hash = hash_file('sha256', $this->file('file')->getRealPath());
                 $this->merge(['file_hash' => $hash]);
 
