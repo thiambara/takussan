@@ -16,6 +16,7 @@ use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
+use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\GroupConversationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,8 @@ class ConversationController extends Controller
                     $q->whereNull('conversation_participants.archived_at');
                 }
             })
+            // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
+            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user))
             ->orderByDesc('last_message_at')
             ->paginate((int) $request->input('per_page', 20));
 
@@ -382,16 +385,8 @@ class ConversationController extends Controller
 
     protected function ensureParticipant(Request $request, Conversation $conversation): void
     {
-        $user = $request->user();
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-        // TCK-085 — `left_at != null` means the user already exited the
-        // group; they no longer have read/write access.
-        $isParticipant = $conversation->participants()
-            ->where('user_id', $user->id)
-            ->wherePivotNull('left_at')
-            ->exists();
-        abort_unless($isParticipant, 403);
+        // TCK-085 (groupe quitté) et TCK-592 (fil d'intervention jugé par la demande) : une seule
+        // garde, `ConversationAccess`.
+        abort_unless(app(ConversationAccess::class)->allows($request->user(), $conversation), 403);
     }
 }

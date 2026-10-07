@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Enums\NotificationType;
 use App\Models\Message;
+use App\Services\Messaging\ConversationAccess;
 use App\Services\Model\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,7 +42,11 @@ class NotifyNewMessageJob implements ShouldQueue
             ->when($message->sender_id !== null, fn ($q) => $q->where('users.id', '!=', $message->sender_id))
             ->wherePivot('is_muted', false)
             ->wherePivotNull('left_at')
-            ->get();
+            ->get()
+            // TCK-592 (verif-592, B2) — l'aperçu du message ne part pas à qui n'a plus accès au fil
+            // (prestataire en pause, en fin de collaboration, suspendu).
+            ->filter(fn ($recipient) => app(ConversationAccess::class)->maintenanceAllows($recipient, $message->conversation))
+            ->values();
 
         if ($recipients->isEmpty()) {
             return;

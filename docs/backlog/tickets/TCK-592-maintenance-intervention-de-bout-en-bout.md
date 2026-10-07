@@ -855,3 +855,26 @@ Méthode, à chaque étape :
 - Sur `05dce4fc`, cinq rouges. Le sixième, X17, était juste mais non éprouvé.
 - Chacune des cinq ablations rend 1 rouge : sans `assigned_to` nul, sans état non commencé, sans
   la marque, sans `isAssignable`, invitation de n'importe quel statut.
+
+**B2 — le fil reste ouvert au prestataire écarté.**
+
+- Une seule garde, `App\Services\Messaging\ConversationAccess` : participation active **et**,
+  pour un fil qui porte `maintenance_request_id`, `MaintenanceRequestPolicy::view`.
+- Elle sert partout :
+  - les quatre FormRequests de conversation (`AuthorizesTransitionally::isActiveParticipant`) ;
+  - `ConversationController::ensureParticipant` (`show`, `read`, `archive`) ;
+  - `ConversationPolicy` (sourdine, départ) ;
+  - la liste (`constrainListing` : `MaintenanceRequest::visibleTo`) ;
+  - `NotifyNewMessageJob` : l'aperçu de 80 caractères ne part plus au prestataire écarté.
+- Personne n'est retiré du fil : la policy de la demande suffit, et couvre les états futurs.
+- `MaintenanceThreadAccessTest` (4 tests) couvre la pause posée par l'endpoint (v08), la suspension
+  posée en base (v09) et la fin de collaboration sur une demande `completed` (v10). Pour chacun :
+  fiche 403, conversation 403, messages 403, écriture 403, absente de la liste, aucune
+  notification. Un témoin vérifie qu'un prestataire actif garde le fil.
+- Sur `05dce4fc`, 3 rouges. Ablations, chacune 3 rouges :
+  - requêtes sur la seule participation ;
+  - liste sans contrainte ;
+  - notification sans filtre ;
+  - garde sans la policy de la demande.
+- La messagerie (18 classes, 150 tests), `tests/Feature/Maintenance` et `tests/Unit/Policies` sont
+  verts.
