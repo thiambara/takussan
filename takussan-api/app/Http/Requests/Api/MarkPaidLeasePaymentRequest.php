@@ -32,20 +32,30 @@ class MarkPaidLeasePaymentRequest extends BaseFormRequest
         // TCK-587 — `recordPayment` et non plus `update` : encaisser exige `payments.record` pour le
         // personnel, et le bailleur du bail le peut toujours (`LeasePolicy::recordPayment`).
         return $this->user()?->can('recordPayment', $this->route('payment')?->lease) === true
-            && (! $this->boolean('override_open_checkout') || $this->isAgencyStaff());
+            && (! $this->boolean('override_open_checkout') || $this->mayOverrideOpenCheckout());
     }
 
     /**
      * TCK-593 (passe 2, M5) — passer outre à un checkout ouvert est réservé au PERSONNEL de
      * l'agence du bail (prédicat de TCK-587, profil d'agent ou d'admin actif) : le bailleur, même
      * autorisé à encaisser, et le locataire ne le peuvent pas.
+     *
+     * Passe 3 (m2) — un bail SANS agence n'a pas de personnel : c'est son bailleur qui passe outre
+     * (`landlordWrites` d'une agence `null`), sans quoi le blocage y restait sans recours. Même
+     * motif obligatoire, même journal.
      */
-    private function isAgencyStaff(): bool
+    private function mayOverrideOpenCheckout(): bool
     {
-        $agencyId = $this->route('payment')?->lease?->agency_id;
+        $lease = $this->route('payment')?->lease;
+        if ($lease === null) {
+            return false;
+        }
 
-        return $agencyId !== null
-            && app(MembershipCapabilityResolver::class)->isStaffAt($this->user(), (int) $agencyId);
+        if ($lease->agency_id === null) {
+            return $lease->landlord_id !== null && (int) $lease->landlord_id === $this->user()?->id;
+        }
+
+        return app(MembershipCapabilityResolver::class)->isStaffAt($this->user(), (int) $lease->agency_id);
     }
 
     /** @return array<string, mixed> */

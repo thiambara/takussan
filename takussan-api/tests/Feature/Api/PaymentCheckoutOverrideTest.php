@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\AppNotification;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Integration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -114,5 +115,50 @@ class PaymentCheckoutOverrideTest extends TestCase
         $payment = $ctx['payment']->refresh();
         $this->assertSame(PaymentStatus::Late, $payment->status);
         $this->assertArrayNotHasKey('superseded_at', $payment->metadata['gateway']);
+    }
+
+    /**
+     * Passe 3 (m2) — un bail SANS agence n'a pas de personnel : son checkout bloquait l'espèce
+     * 30 minutes sans recours (409, puis 403 en passant outre). Son bailleur passe outre, au même
+     * prix — motif obligatoire, geste journalisé ; un tiers reçoit toujours 403.
+     */
+    public function test_sur_un_bail_sans_agence_le_bailleur_passe_outre(): void
+    {
+        $ctx = $this->leaseDue();
+        $bailleur = User::factory()->create();
+        $ctx['lease']->update(['agency_id' => null, 'landlord_id' => $bailleur->id]);
+        Integration::query()->where('agency_id', $ctx['agency']->id)->update(['agency_id' => null]);
+        $this->ouvrirUnCheckout($ctx);
+        $url = "/api/lease-payments/{$ctx['payment']->id}/mark-paid";
+        $corps = ['override_open_checkout' => true, 'override_reason' => 'Espèces remises en main propre'];
+
+        // Les tiers : le locataire, un autre bailleur, l'agent d'une agence quelconque — et le
+        // super-admin, qui encaisse (`recordPayment`) mais ne passe pas outre, ici comme dans une
+        // agence (il n'en est pas le personnel).
+        $superAdmin = User::factory()->create();
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
+        foreach ([$ctx['tenant'], User::factory()->create(), $ctx['agent'], $superAdmin->fresh()] as $tiers) {
+            Sanctum::actingAs($tiers);
+            $this->postJson($url, $corps)->assertForbidden();
+            $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", $corps)->assertForbidden();
+        }
+
+        Sanctum::actingAs($bailleur);
+        $this->postJson($url, [])->assertStatus(409)->assertJsonPath('code', 'checkout_in_progress');
+        $this->postJson($url, ['override_open_checkout' => true])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('override_reason');
+        $this->postJson($url, $corps)->assertOk()->assertJsonPath('data.status', 'paid');
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame('Espèces remises en main propre', $payment->metadata['gateway']['superseded_reason']);
+        $log = Activity::query()
+            ->where('subject_id', $payment->id)->where('event', 'open_checkout_overridden')->sole();
+        $this->assertSame($bailleur->id, $log->causer_id);
+        $this->assertSame('mark_paid', $log->properties['gesture']);
+
+        // La pénalité, par le même bailleur : le passage outre est admis aussi.
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", $corps)->assertOk();
+        $this->assertNotNull($payment->refresh()->late_fee_paid_at);
     }
 }
