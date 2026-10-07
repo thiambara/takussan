@@ -2494,7 +2494,8 @@
         "end": "{name} dropped in the {stage} stage.",
         "endNone": "{name} put back in place.",
         "cancel": "Moving {name} was cancelled."
-      }
+      },
+      "stageFailed": "The stage could not be changed."
     },
     "myTasks": {
       "metaTitle": "My tasks",

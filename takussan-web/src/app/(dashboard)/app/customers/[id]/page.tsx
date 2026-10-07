@@ -19,6 +19,7 @@ import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDeta
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { ContactGestures } from '@/components/crm/ContactGestures';
 import { CustomerReferent } from '@/components/crm/CustomerReferent';
+import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
   CUSTOMER_ENUM_NAMESPACES,
@@ -138,12 +139,21 @@ export default async function Page({ params }: { params: Params }) {
         }
       />
 
-      {/* TCK-591 — les deux gestes de la fiche, et son référent. */}
-      <ContactGestures
-        phone={customer.phone}
-        firstName={customer.first_name}
-        fullName={`${customer.first_name} ${customer.last_name}`}
-      />
+      {/* TCK-591 — les deux gestes de la fiche, l'étape sans glisser, et son référent. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ContactGestures
+          phone={customer.phone}
+          firstName={customer.first_name}
+          fullName={`${customer.first_name} ${customer.last_name}`}
+        />
+        {customer.pipeline_stage ? (
+          <CustomerStageControl
+            customerId={customer.id}
+            name={`${customer.first_name} ${customer.last_name}`}
+            stage={customer.pipeline_stage}
+          />
+        ) : null}
+      </div>
 
       <CustomerReferent customerId={customer.id} agencyId={customer.agency_id} relationships={relationships} />
 

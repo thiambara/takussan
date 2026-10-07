@@ -2469,7 +2469,8 @@
         "end": "{name} déposé dans l'étape {stage}.",
         "endNone": "{name} reposé à sa place.",
         "cancel": "Déplacement de {name} annulé."
-      }
+      },
+      "stageFailed": "L'étape n'a pas pu être changée."
     },
     "myTasks": {
       "metaTitle": "Mes tâches",

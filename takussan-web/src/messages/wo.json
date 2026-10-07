@@ -1120,7 +1120,8 @@
         "end": "{name} teg nañu ko ci tolluwaay {stage}.",
         "endNone": "{name} delloo nañu ko ci béreb bi.",
         "cancel": "Randalug {name} bàyyi nañu ko."
-      }
+      },
+      "stageFailed": "Soppi tolluwaay bi antuwul."
     },
     "myTasks": {
       "metaTitle": "Samay liggéey",
