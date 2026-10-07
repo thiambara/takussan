@@ -224,4 +224,82 @@ return [
         'action' => 'Ubbi « Samay xibaar »',
         'expires' => '{1} Mën nga ko wàcce ci xët woowu diirub :count fan.|[2,*] Mën nga ko wàcce ci xët woowu diirub :count fan.',
     ],
+    // ── TCK-590 — jokkoo, laaj ak seetaan (xoolal fichier fr bi) ──────────────────────────
+    'visit_time' => ':date ci :time (waxtu Dakar)',
+
+    'visit_requested_contact' => 'Ngir jokkoo ak ki bëgg seetaan : :contact.',
+
+    'visit_sms' => [
+        'visit_confirmed' => 'Takussan : sa seetaanu « :property » dëggal nañu ko ci :datetime.',
+        'visit_rescheduled' => 'Takussan : sa seetaanu « :property » toxal nañu ko ci :datetime.',
+        'visit_cancelled' => 'Takussan : sa seetaanu « :property » bu waroon am ci :datetime, neenal nañu ko.',
+    ],
+
+    // Wolof ameegul woon caabi yii (TCK-590, AC22).
+    'visit_requested' => [
+        'subject' => 'Laaj bu bees ngir seetaan :property',
+        'greeting' => 'Salaam,',
+        'intro' => 'Am na ku laaj seetaan :property.',
+        'schedule' => 'Waxtu bi ñu laaj : :datetime.',
+    ],
+
+    'visit_confirmed' => [
+        'subject' => 'Seetaanu :property dëggal nañu ko',
+        'greeting' => 'Salaam,',
+        'intro' => 'Sa laaju seetaan ngir :property dëggal nañu ko.',
+        'schedule' => 'Waxtu bi : :datetime.',
+    ],
+
+    'visit_reminder' => [
+        'subject' => 'Fàttalikuwaay : seetaanu :property jege na',
+        'greeting' => 'Salaam,',
+        'intro_24h' => 'Fàttalikuwaay — sa seetaanu :property ëllëg la ci :datetime.',
+        'intro_1h' => 'Fàttalikuwaay — sa seetaanu :property dina tàmbali ci benn waxtu, ci :datetime.',
+    ],
+
+    'visit_rescheduled' => [
+        'subject' => 'Waxtu seetaanu :property soppiku na',
+        'greeting' => 'Salaam,',
+        'intro' => 'Ajaans bi toxal na sa seetaanu :property.',
+        'schedule' => 'Waxtu bu bees : :datetime.',
+    ],
+
+    'visit_rescheduled_by_visitor' => [
+        'subject' => 'Ku bëgg seetaan :property dafa joxe beneen waxtu',
+        'greeting' => 'Salaam,',
+        'intro' => 'Ki bëgg seetaan :property joxe na beneen waxtu. Seetaan bi dafay xaar nga dëggal ko.',
+        'schedule' => 'Waxtu bi mu joxe : :datetime.',
+    ],
+
+    'visit_cancelled' => [
+        'subject' => 'Sa seetaanu :property neenal nañu ko',
+        'greeting' => 'Salaam,',
+        'intro' => 'Ajaans bi neenal na sa seetaanu :property.',
+        'schedule' => 'Waroon na am ci :datetime.',
+    ],
+
+    'visit_cancelled_by_visitor' => [
+        'subject' => 'Ki bëgg seetaan neenal na : :property',
+        'greeting' => 'Salaam,',
+        'intro' => 'Ki bëgg seetaan neenal na seetaanu :property.',
+        'schedule' => 'Waroon na am ci :datetime.',
+    ],
+
+    'contact_lead' => [
+        'title' => 'Laaj bu bees bu :name — :contact',
+        'greeting' => 'Salaam,',
+        'intro_property' => 'Laaju jokkoo agsi na ngir :property.',
+        'intro_agent' => 'Am na ku la yónne laaju jokkoo.',
+        'from' => 'Bu :name — :contact',
+        'action' => 'Ubbi laaj bi',
+    ],
+
+    'contact_lead_received' => [
+        'subject' => 'Sa laaj agsi na',
+        'greeting' => 'Salaam,',
+        'intro_property' => 'Sa laaj ci « :property » yónne nañu ko ajaans bi.',
+        'intro_agent' => 'Sa laaj yónne nañu ko ajaan bi.',
+        'next' => 'Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail.',
+    ],
+    // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
 ];

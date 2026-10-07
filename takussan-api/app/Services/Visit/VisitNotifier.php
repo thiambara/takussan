@@ -1,0 +1,146 @@
+<?php
+
+namespace App\Services\Visit;
+
+use App\Models\PropertyVisit;
+use App\Models\User;
+use App\Notifications\VisitCancelledNotification;
+use App\Notifications\VisitConfirmedNotification;
+use App\Notifications\VisitNotification;
+use App\Notifications\VisitRequestedNotification;
+use App\Notifications\VisitRescheduledNotification;
+use App\Services\Lead\ContactLeadService;
+use App\Services\Property\PrimaryPropertyContact;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Notification;
+
+/**
+ * TCK-590 — qui est prévenu de quoi, pour une visite. Extrait de `PropertyVisitController`
+ * (`notifyRequested`, `notifyConfirmed`, `managingUsers`) pour être partagé avec la demande
+ * publique, qui ne prévenait PERSONNE : `PublicPropertyController::visitRequest` faisait un
+ * `PropertyVisit::create` direct, sans agent, sans notification, sans quota — et c'était le chemin
+ * que tous les clients empruntaient.
+ *
+ * **Vers l'agence** : l'agent assigné, le contact principal du bien, le propriétaire ; si la
+ * visite est non attribuée, les admins de l'agence (le repli de `ContactLeadService`).
+ *
+ * **Vers le visiteur** : son compte s'il en a un ; sinon son e-mail et son téléphone saisis, par
+ * `Notification::route()`, dans la langue enregistrée sur la visite. Un seul envoi par visite et
+ * par événement.
+ *
+ * Un échec d'envoi ne casse jamais la requête qui l'a déclenché.
+ */
+class VisitNotifier
+{
+    public function __construct(private readonly ContactLeadService $leads) {}
+
+    public function requested(PropertyVisit $visit): void
+    {
+        $this->toAgency($visit, new VisitRequestedNotification($visit), withPrimaryAndOwner: true);
+    }
+
+    public function confirmed(PropertyVisit $visit): void
+    {
+        $this->toVisitor($visit, new VisitConfirmedNotification($visit));
+    }
+
+    /** L'agence a déplacé l'heure : le visiteur est prévenu. */
+    public function rescheduledByAgency(PropertyVisit $visit): void
+    {
+        $this->toVisitor($visit, new VisitRescheduledNotification($visit));
+    }
+
+    /** Le visiteur propose un autre créneau : l'agence est prévenue. */
+    public function rescheduledByVisitor(PropertyVisit $visit): void
+    {
+        $this->toAgency($visit, new VisitRescheduledNotification($visit, parLeVisiteur: true));
+    }
+
+    public function cancelledByAgency(PropertyVisit $visit): void
+    {
+        $this->toVisitor($visit, new VisitCancelledNotification($visit));
+    }
+
+    public function cancelledByVisitor(PropertyVisit $visit): void
+    {
+        $this->toAgency($visit, new VisitCancelledNotification($visit, parLeVisiteur: true));
+    }
+
+    /**
+     * Les humains à prévenir côté agence.
+     *
+     * Une demande neuve (`$withPrimaryAndOwner`) va aussi au contact principal et au propriétaire :
+     * ce sont eux qui la voient arriver. Les événements suivants vont à l'agent assigné — à défaut,
+     * aux admins de l'agence, puis au contact principal d'un bien sans agence.
+     *
+     * @return Collection<int,User>
+     */
+    public function agencyRecipients(PropertyVisit $visit, bool $withPrimaryAndOwner = false): Collection
+    {
+        $visit->loadMissing(['agent', 'property']);
+        $property = $visit->property;
+        $property?->loadMissing(PrimaryPropertyContact::eagerLoads());
+
+        $recipients = collect();
+        if ($visit->agent !== null && PrimaryPropertyContact::joignable($visit->agent)) {
+            $recipients->push($visit->agent);
+        }
+
+        if ($property !== null && $withPrimaryAndOwner) {
+            $recipients->push(PrimaryPropertyContact::for($property));
+            if (PrimaryPropertyContact::joignable($property->owner)) {
+                $recipients->push($property->owner);
+            }
+        }
+
+        if ($visit->agent_id === null && $property !== null) {
+            $recipients = $recipients->merge($this->leads->agencyAdmins($property->agency_id));
+            if ($recipients->filter()->isEmpty()) {
+                $recipients->push(PrimaryPropertyContact::for($property));
+            }
+        }
+
+        return $recipients->filter()->unique('id')->values();
+    }
+
+    private function toAgency(PropertyVisit $visit, VisitNotification $notification, bool $withPrimaryAndOwner = false): void
+    {
+        $recipients = $this->agencyRecipients($visit, $withPrimaryAndOwner);
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        try {
+            Notification::send($recipients, $notification);
+        } catch (\Throwable) {
+            // Notification routing failures must never bubble up and break
+            // the originating HTTP request.
+        }
+    }
+
+    private function toVisitor(PropertyVisit $visit, VisitNotification $notification): void
+    {
+        $visit->loadMissing(['visitor', 'property']);
+
+        try {
+            if ($visit->visitor !== null) {
+                $visit->visitor->notify($notification);
+
+                return;
+            }
+
+            $routes = array_filter([
+                'mail' => $visit->visitor_email,
+                'sms' => $visit->visitor_phone,
+            ]);
+            if ($routes === []) {
+                return;
+            }
+
+            $anonymous = Notification::routes($routes);
+            $anonymous->notify($notification->locale($visit->locale ?? config('app.locale')));
+        } catch (\Throwable) {
+            // Silent — see toAgency().
+        }
+    }
+}

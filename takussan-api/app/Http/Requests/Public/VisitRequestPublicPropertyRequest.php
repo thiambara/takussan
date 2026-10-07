@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Public;
 
 use App\Models\Enums\VisitType;
+use App\Rules\CreneauDeVisite;
+use App\Rules\TelephoneJoignable;
 use Illuminate\Validation\Rule;
 
 /**
@@ -11,9 +13,22 @@ use Illuminate\Validation\Rule;
  *
  * La conditionnalité est intacte : un visiteur **anonyme** doit se nommer et se joindre, un
  * visiteur **authentifié** non — le contrôleur retombe alors sur les coordonnées de son compte.
+ *
+ * TCK-590 — sans compte, **nom + téléphone** suffisent : l'e-mail devient facultatif (il était
+ * exigé, et le téléphone, exigé aussi, n'était pas validé). Le téléphone suit la règle du profil.
+ * L'heure tombe sur un créneau de la grille, à Dakar (`CreneauDeVisite`).
  */
 class VisitRequestPublicPropertyRequest extends PublicPropertySlugRequest
 {
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        if ($this->has('visitor_phone')) {
+            $this->merge(['visitor_phone' => ContactLeadPublicRequest::normaliserTelephone($this->input('visitor_phone'))]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -24,13 +39,15 @@ class VisitRequestPublicPropertyRequest extends PublicPropertySlugRequest
         $presence = $anonyme ? 'required' : 'nullable';
 
         return [
-            'scheduled_at' => ['required', 'date', 'after:now'],
+            'scheduled_at' => ['required', 'date', 'after:now', new CreneauDeVisite],
             'type' => ['nullable', Rule::enum(VisitType::class)],
             'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:240'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'visitor_name' => [$presence, 'string', 'max:120'],
-            'visitor_email' => [$presence, 'email'],
-            'visitor_phone' => [$presence, 'string', 'max:30'],
+            'visitor_email' => ['nullable', 'email'],
+            'visitor_phone' => [$presence, 'string', 'max:30', new TelephoneJoignable],
+            'source' => ContactLeadPublicRequest::ATTRIBUTION,
+            'medium' => ContactLeadPublicRequest::ATTRIBUTION,
         ];
     }
 }

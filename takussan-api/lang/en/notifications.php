@@ -250,4 +250,60 @@ return [
         'action' => 'Open “My data”',
         'expires' => '{1} You can download it from that page for :count day.|[2,*] You can download it from that page for :count days.',
     ],
+    // ── TCK-590 — contact, requests and visits ────────────────────────────────────────────
+    'visit_time' => ':date at :time (Dakar time)',
+
+    'visit_requested_contact' => 'To reach the visitor: :contact.',
+
+    'visit_sms' => [
+        'visit_confirmed' => 'Takussan: your visit of “:property” is confirmed for :datetime.',
+        'visit_rescheduled' => 'Takussan: your visit of “:property” has been moved to :datetime.',
+        'visit_cancelled' => 'Takussan: your visit of “:property” planned for :datetime is cancelled.',
+    ],
+
+    'visit_rescheduled' => [
+        'subject' => 'Your visit of :property has a new time',
+        'greeting' => 'Hello,',
+        'intro' => 'The agency has moved your visit of :property.',
+        'schedule' => 'New time: :datetime.',
+    ],
+
+    'visit_rescheduled_by_visitor' => [
+        'subject' => 'A visitor suggests another slot for :property',
+        'greeting' => 'Hello,',
+        'intro' => 'The visitor has suggested another slot for :property. The visit awaits your confirmation.',
+        'schedule' => 'Suggested slot: :datetime.',
+    ],
+
+    'visit_cancelled' => [
+        'subject' => 'Your visit of :property is cancelled',
+        'greeting' => 'Hello,',
+        'intro' => 'The agency has cancelled your visit of :property.',
+        'schedule' => 'It was planned for :datetime.',
+    ],
+
+    'visit_cancelled_by_visitor' => [
+        'subject' => 'Visit cancelled by the visitor: :property',
+        'greeting' => 'Hello,',
+        'intro' => 'The visitor has cancelled their visit of :property.',
+        'schedule' => 'It was planned for :datetime.',
+    ],
+
+    'contact_lead' => [
+        'title' => 'New request from :name — :contact',
+        'greeting' => 'Hello,',
+        'intro_property' => 'A contact request has arrived for :property.',
+        'intro_agent' => 'A contact request has been sent to you.',
+        'from' => 'From :name — :contact',
+        'action' => 'Open the request',
+    ],
+
+    'contact_lead_received' => [
+        'subject' => 'Your request has been sent',
+        'greeting' => 'Hello,',
+        'intro_property' => 'Your request about “:property” has been sent to the agency.',
+        'intro_agent' => 'Your request has been sent to the agent.',
+        'next' => 'They will get back to you shortly, by phone or by email.',
+    ],
+    // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
 ];

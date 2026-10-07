@@ -4,16 +4,25 @@ namespace Tests\Feature\Public;
 
 use App\Models\AppNotification;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\User;
+use App\Notifications\ContactLeadReceivedNotification;
+use App\Notifications\NewContactLeadNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Sanctum\Sanctum;
+use Tests\Support\FabriqueDemandesEtVisites;
 use Tests\TestCase;
 
 class PropertyContactLeadTest extends TestCase
 {
+    use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -67,10 +76,11 @@ class PropertyContactLeadTest extends TestCase
             'recipient_user_id' => $agent->id,
         ]);
 
-        $this->assertDatabaseHas(AppNotification::class, [
-            'user_id' => $agent->id,
-            'title' => 'Nouveau lead anonyme',
-        ]);
+        // TCK-590 — plus de titre figé « Nouveau lead anonyme » : le titre nomme le visiteur et
+        // le moyen de le joindre, dans la langue de l'agent.
+        $notification = AppNotification::query()->where('user_id', $agent->id)->sole();
+        $this->assertStringContainsString('Mamadou Sarr', $notification->title);
+        $this->assertStringContainsString('mamadou@example.com', $notification->title);
     }
 
     public function test_invalid_email_returns_422(): void
@@ -118,5 +128,181 @@ class PropertyContactLeadTest extends TestCase
             ->assertStatus(429);
 
         $this->assertSame(5, PropertyContactLead::query()->count());
+    }
+
+    // ── TCK-590 ─────────────────────────────────────────────────────────────────────────────
+
+    /** AC3 — le téléphone seul suffit ; ni téléphone ni e-mail → 422 ; un numéro sans indicatif → 422. */
+    public function test_un_telephone_seul_suffit_et_il_faut_l_un_des_deux(): void
+    {
+        $property = Property::factory()->published()->create();
+        $url = "/api/public/properties/{$property->slug}/contact-lead";
+
+        $this->postJson($url, ['name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?'])
+            ->assertCreated();
+        $this->assertDatabaseHas('property_contact_leads', ['phone' => '+221771234567', 'email' => null, 'channel' => 'form']);
+
+        $this->postJson($url, ['name' => 'Awa Diop', 'message' => 'Disponible ce samedi ?'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone', 'email']);
+
+        $this->postJson($url, ['name' => 'Awa Diop', 'phone' => '77 123 45 67', 'message' => 'Disponible ce samedi ?'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone']);
+    }
+
+    /** AC15 (R) — une piste de bien porte l'agence du bien. */
+    public function test_la_piste_d_un_bien_porte_l_agence_du_bien(): void
+    {
+        $agency = $this->agence();
+        $agent = $this->personnel($agency);
+        $property = $this->bienDe($agency);
+        $this->collaborateur($property, $agent);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
+        ])->assertCreated();
+
+        $this->assertSame($agency->id, PropertyContactLead::query()->sole()->agency_id);
+    }
+
+    /** AC15 (R) — la migration rattrape l'agence des pistes de bien déjà enregistrées. */
+    public function test_la_migration_rattrape_l_agence_des_pistes_existantes(): void
+    {
+        $agency = $this->agence();
+        $property = $this->bienDe($agency);
+        $migration = require database_path('migrations/2026_10_07_150000_alter_property_contact_leads_for_inbox.php');
+
+        $migration->down();
+        DB::table('property_contact_leads')->insert([
+            'property_id' => $property->id, 'agency_id' => null, 'name' => 'Ancienne', 'email' => 'a@example.com',
+            'message' => 'Piste antérieure au ticket', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $migration->up();
+
+        $this->assertSame($agency->id, (int) DB::table('property_contact_leads')->value('agency_id'));
+        $this->assertSame('form', DB::table('property_contact_leads')->value('channel'));
+    }
+
+    /**
+     * AC18 (R) — un propriétaire qui a supprimé son compte laisse un bien d'agence sans
+     * collaborateur : les admins de l'agence reçoivent la piste, qui porte l'agence.
+     */
+    public function test_sans_destinataire_les_admins_de_l_agence_recoivent_la_piste(): void
+    {
+        Notification::fake();
+        $agency = $this->agence();
+        $admin = $this->personnel($agency, 'agency_admin');
+        $owner = $this->bailleur($agency);
+        $property = $this->bienDe($agency, $owner);
+
+        Sanctum::actingAs($owner);
+        $this->deleteJson('/api/auth/account')->assertSuccessful();
+        $this->app['auth']->forgetGuards();
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
+        ])->assertCreated();
+
+        $lead = PropertyContactLead::query()->sole();
+        $this->assertSame($agency->id, $lead->agency_id);
+        $this->assertNull($lead->recipient_user_id);
+        Notification::assertSentTo($admin, NewContactLeadNotification::class);
+    }
+
+    /** AC18 (R) — même bien SANS agence : 409 `contact_unavailable`, et rien n'est écrit. */
+    public function test_sans_destinataire_ni_agence_la_demande_est_refusee_sans_rien_ecrire(): void
+    {
+        $owner = User::factory()->create();
+        $property = $this->bienDe(null, $owner);
+
+        Sanctum::actingAs($owner);
+        $this->deleteJson('/api/auth/account')->assertSuccessful();
+        $this->app['auth']->forgetGuards();
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
+        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
+
+        $this->assertDatabaseCount('property_contact_leads', 0);
+    }
+
+    /**
+     * AC19c — l'accusé de réception part vers l'e-mail donné, une fois, sans recopier le message ;
+     * avec un téléphone seul, aucun envoi au visiteur.
+     */
+    public function test_l_accuse_de_reception_part_par_e_mail_seulement(): void
+    {
+        Notification::fake();
+        $property = Property::factory()->published()->create();
+        $url = "/api/public/properties/{$property->slug}/contact-lead";
+        $message = 'Message confidentiel du visiteur, à ne pas relayer.';
+
+        $this->postJson($url, ['name' => 'Awa Diop', 'email' => 'awa@example.com', 'message' => $message])->assertCreated();
+
+        Notification::assertSentOnDemandTimes(ContactLeadReceivedNotification::class, 1);
+        Notification::assertSentOnDemand(
+            ContactLeadReceivedNotification::class,
+            function (ContactLeadReceivedNotification $n, array $channels, AnonymousNotifiable $to) use ($message) {
+                $mail = $n->toMail($to);
+                $texte = implode(' ', [...$mail->introLines, ...$mail->outroLines, $mail->subject]);
+
+                return $channels === ['mail']
+                    && $to->routes === ['mail' => 'awa@example.com']
+                    && ! str_contains($texte, $message)
+                    && ! str_contains($texte, 'Awa Diop');
+            },
+        );
+
+        $this->postJson($url, ['name' => 'Moussa Fall', 'phone' => '+221771234567', 'message' => 'Rappelez-moi svp.'])->assertCreated();
+        Notification::assertSentOnDemandTimes(ContactLeadReceivedNotification::class, 1);
+    }
+
+    /** AC17 (R) — un agent en anglais reçoit un titre anglais qui contient le téléphone du visiteur. */
+    public function test_l_agent_anglophone_recoit_un_titre_anglais_avec_le_telephone(): void
+    {
+        $agent = User::factory()->create(['preferred_language' => 'en']);
+        $property = Property::factory()->published()->create(['user_id' => $agent->id]);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Is it still available?',
+        ], ['Accept-Language' => 'fr'])->assertCreated();
+
+        $title = AppNotification::query()->where('user_id', $agent->id)->sole()->title;
+        $this->assertStringStartsWith('New request from', $title);
+        $this->assertStringContainsString('+221771234567', $title);
+    }
+
+    /** AC21 — la source d'arrivée accompagne la piste. */
+    public function test_la_source_d_arrivee_est_enregistree(): void
+    {
+        $property = Property::factory()->published()->create();
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Vu sur WhatsApp, disponible ?',
+            'source' => 'whatsapp', 'medium' => 'share',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('property_contact_leads', ['source' => 'whatsapp', 'medium' => 'share']);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Vu sur WhatsApp, disponible ?',
+            'source' => 'Une phrase entière',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['source']);
+    }
+
+    /** La boîte d'une agence sans admin reste lisible : la piste est gardée, sous l'agence. */
+    public function test_une_agence_sans_admin_garde_la_piste(): void
+    {
+        $agency = $this->agence();
+        AgencyAdminProfile::query()->where('agency_id', $agency->id)->delete();
+        $owner = User::factory()->create(['status' => 'blocked']);
+        $property = $this->bienDe($agency, $owner);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
+        ])->assertCreated();
+
+        $this->assertSame($agency->id, PropertyContactLead::query()->sole()->agency_id);
     }
 }

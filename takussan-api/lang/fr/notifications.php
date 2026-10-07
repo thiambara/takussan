@@ -255,4 +255,62 @@ return [
         'action' => 'Ouvrir « Mes données »',
         'expires' => '{1} Elle reste téléchargeable depuis cette page pendant :count jour.|[2,*] Elle reste téléchargeable depuis cette page pendant :count jours.',
     ],
+    // ── TCK-590 — contact, demandes et visites ────────────────────────────────────────────
+    // L'heure d'une visite est toujours donnée à Dakar, suivie du fuseau.
+    'visit_time' => ':date à :time (heure de Dakar)',
+
+    'visit_requested_contact' => 'Pour joindre le visiteur : :contact.',
+
+    // Les SMS ne suivent qu'un geste de l'agence, et ne recopient aucun texte du visiteur.
+    'visit_sms' => [
+        'visit_confirmed' => 'Takussan : votre visite de « :property » est confirmée le :datetime.',
+        'visit_rescheduled' => 'Takussan : votre visite de « :property » est déplacée au :datetime.',
+        'visit_cancelled' => 'Takussan : votre visite de « :property » prévue le :datetime est annulée.',
+    ],
+
+    'visit_rescheduled' => [
+        'subject' => 'Votre visite de :property change d\'heure',
+        'greeting' => 'Bonjour,',
+        'intro' => 'L\'agence a déplacé votre visite de :property.',
+        'schedule' => 'Nouvel horaire : :datetime.',
+    ],
+
+    'visit_rescheduled_by_visitor' => [
+        'subject' => 'Un visiteur propose un autre créneau pour :property',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Le visiteur a proposé un autre créneau pour :property. La visite attend votre confirmation.',
+        'schedule' => 'Créneau proposé : :datetime.',
+    ],
+
+    'visit_cancelled' => [
+        'subject' => 'Votre visite de :property est annulée',
+        'greeting' => 'Bonjour,',
+        'intro' => 'L\'agence a annulé votre visite de :property.',
+        'schedule' => 'Elle était prévue le :datetime.',
+    ],
+
+    'visit_cancelled_by_visitor' => [
+        'subject' => 'Visite annulée par le visiteur : :property',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Le visiteur a annulé sa visite de :property.',
+        'schedule' => 'Elle était prévue le :datetime.',
+    ],
+
+    'contact_lead' => [
+        'title' => 'Nouvelle demande de :name — :contact',
+        'greeting' => 'Bonjour,',
+        'intro_property' => 'Une demande de contact est arrivée pour :property.',
+        'intro_agent' => 'Une demande de contact vous est adressée.',
+        'from' => 'De :name — :contact',
+        'action' => 'Ouvrir la demande',
+    ],
+
+    'contact_lead_received' => [
+        'subject' => 'Votre demande a bien été transmise',
+        'greeting' => 'Bonjour,',
+        'intro_property' => 'Votre demande concernant « :property » a bien été transmise à l\'agence.',
+        'intro_agent' => 'Votre demande a bien été transmise à l\'agent.',
+        'next' => 'Elle vous répondra au plus vite, par téléphone ou par e-mail.',
+    ],
+    // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
 ];

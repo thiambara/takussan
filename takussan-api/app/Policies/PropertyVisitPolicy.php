@@ -48,4 +48,18 @@ class PropertyVisitPolicy extends BasePolicy
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
     }
+
+    /**
+     * TCK-590 — proposer un autre créneau : le VISITEUR seul, par son compte ou par la fiche
+     * client liée. Le gestionnaire déplace l'heure par `update`.
+     */
+    public function reschedule(User $user, Model $model): bool
+    {
+        if (! $model instanceof PropertyVisit) {
+            return false;
+        }
+
+        return $model->visitor_id === $user->id
+            || ($model->customer && $model->customer->user_id === $user->id);
+    }
 }

@@ -2,7 +2,12 @@
 
 namespace App\Services\Property;
 
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
@@ -45,6 +50,19 @@ use App\Models\User;
  *
  * `invited_at` + `id` est donc l'« ordre explicite » de la contrainte 1 du ticket : déterministe,
  * indépendant de l'ordre d'insertion, et sans colonne neuve à remplir.
+ *
+ * ## Qui est éligible (TCK-590)
+ *
+ * L'ordre ne dit pas tout : le premier de la liste peut ne plus être là. Un agent **bloqué**
+ * (statut seul, rien n'est supprimé) ou **retiré de l'agence** (`AgentInvitationService::remove`
+ * supprime son profil, jamais sa ligne de `property_collaborators`) restait destinataire — le lead
+ * (nom, téléphone, message), la notification, le fil authentifié et le **numéro affiché aux
+ * visiteurs** partaient chez quelqu'un hors de l'agence. Un collaborateur `agent` n'est donc
+ * retenu que s'il est joignable (ni `blocked` ni `deleted`) et, pour un bien d'agence, PERSONNEL
+ * de l'agence du bien ; le propriétaire, que s'il est joignable. L'ordre ne change pas.
+ *
+ * Le personnel se lit ici sur les profils CHARGÉS (cf. {@see self::eagerLoads()}) : un appel par
+ * collaborateur serait une requête par ligne sur chaque fiche publique.
  */
 class PrimaryPropertyContact
 {
@@ -56,7 +74,9 @@ class PrimaryPropertyContact
      */
     public static function for(Property $property): ?User
     {
-        return self::agentPrincipal($property)?->user ?? $property->owner;
+        $owner = $property->owner;
+
+        return self::agentPrincipal($property)?->user ?? (self::joignable($owner) ? $owner : null);
     }
 
     /**
@@ -67,19 +87,63 @@ class PrimaryPropertyContact
      * avatar sur la carte de la fiche, et `getFirstMediaUrl()` sur une relation non chargée est
      * une requête de plus par appel.
      *
+     * TCK-590 — `agentProfiles` et `agencyAdminProfiles` : l'éligibilité juge le personnel de
+     * l'agence sur eux, en mémoire.
+     *
      * @return list<string>
      */
     public static function eagerLoads(): array
     {
-        return ['owner', 'collaborators.user.media'];
+        return [
+            'owner',
+            'collaborators.user.media',
+            'collaborators.user.agentProfiles',
+            'collaborators.user.agencyAdminProfiles',
+        ];
+    }
+
+    /**
+     * Un compte qui peut encore recevoir : ni bloqué, ni supprimé. Un compte supprimé en douceur
+     * (`SoftDeletes`) n'arrive même pas jusqu'ici : la relation le rend nul.
+     */
+    public static function joignable(?User $user): bool
+    {
+        return $user !== null
+            && ! in_array($user->status, [UserStatus::Blocked, UserStatus::Deleted], true);
     }
 
     private static function agentPrincipal(Property $property): ?PropertyCollaborator
     {
         return $property->collaborators
-            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent && $c->user !== null)
+            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent && self::eligible($c->user, $property))
             ->sort(self::ordre(...))
             ->first();
+    }
+
+    /**
+     * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence (agent ou admin).
+     *
+     * TCK-587 — le prédicat « personnel » du dépôt est `MembershipCapabilityResolver::isStaffAt()`,
+     * qui interroge la base ; il est relu ici sur les profils chargés pour ne pas ajouter une
+     * requête par collaborateur. Les deux disent la même chose hors délégation de rôle — un
+     * délégué n'est pas collaborateur d'un bien.
+     */
+    private static function eligible(?User $user, Property $property): bool
+    {
+        if (! self::joignable($user)) {
+            return false;
+        }
+
+        $agencyId = $property->agency_id;
+        if ($agencyId === null) {
+            return true;
+        }
+
+        return $user->agentProfiles->contains(
+            fn (AgentProfile $p) => (int) $p->agency_id === (int) $agencyId && $p->status === AgentProfileStatus::Active,
+        ) || $user->agencyAdminProfiles->contains(
+            fn (AgencyAdminProfile $p) => (int) $p->agency_id === (int) $agencyId && $p->status === AgencyAdminProfileStatus::Active,
+        );
     }
 
     /**

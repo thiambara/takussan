@@ -302,7 +302,12 @@ class PropertyResource extends BaseResource
     {
         $contact = PrimaryPropertyContact::for($this->resource);
 
-        return $contact === null ? null : $this->buildUserLite($contact);
+        // TCK-590 — la fiche sait si le contact a un numéro, sans le révéler : sans numéro, ni
+        // WhatsApp ni Appeler (qui menaient à une erreur). Le numéro lui-même ne sort qu'au geste
+        // (`GET …/contact`, sous limiteur), jamais ici — contrainte 7.
+        return $contact === null ? null : $this->buildUserLite($contact) + [
+            'has_phone' => is_string($contact->phone) && $contact->phone !== '',
+        ];
     }
 
     /**

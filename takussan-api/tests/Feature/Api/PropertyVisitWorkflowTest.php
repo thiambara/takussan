@@ -37,7 +37,7 @@ class PropertyVisitWorkflowTest extends TestCase
 
         $this->postJson('/api/property-visits', [
             'property_id' => $property->id,
-            'scheduled_at' => now()->addDays(2)->toIso8601String(),
+            'scheduled_at' => now()->addDays(2)->setTime(10, 0)->toIso8601String(),
             'type' => VisitType::InPerson->value,
             'duration_minutes' => 30,
         ])->assertCreated();
@@ -145,7 +145,7 @@ class PropertyVisitWorkflowTest extends TestCase
 
         $this->postJson('/api/property-visits', [
             'property_id' => $property->id,
-            'scheduled_at' => now()->addDays(10)->toIso8601String(),
+            'scheduled_at' => now()->addDays(10)->setTime(10, 0)->toIso8601String(),
             'type' => VisitType::InPerson->value,
         ])->assertStatus(422);
     }

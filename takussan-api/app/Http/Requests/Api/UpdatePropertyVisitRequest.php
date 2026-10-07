@@ -4,6 +4,8 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\VisitType;
+use App\Models\PropertyVisit;
+use App\Rules\PersonnelDeLAgence;
 use Illuminate\Validation\Rule;
 
 /**
@@ -13,6 +15,10 @@ use Illuminate\Validation\Rule;
  * 65 FormRequest. Une contrainte métier ne pouvait pas être revue sans d'abord chercher laquelle
  * des deux l'endpoint avait retenue. `scripts/check-inline-validation.mjs` (Repo CI) casse
  * désormais sur tout `validate()` rouvert dans un contrôleur.
+ *
+ * TCK-590 — `scheduled_at` acceptait une heure PASSÉE (`sometimes|date`), et `agent_id`
+ * n'importe quel compte de la plateforme (`exists:users,id`), qui devenait titulaire de `update`.
+ * L'heure est future (contrainte 11), l'agent est du personnel de l'agence du bien (contrainte 2).
  */
 class UpdatePropertyVisitRequest extends BaseFormRequest
 {
@@ -34,9 +40,12 @@ class UpdatePropertyVisitRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $visit = $this->route('visit');
+        $agencyId = $visit instanceof PropertyVisit ? $visit->property?->agency_id : null;
+
         return [
-            'scheduled_at' => ['sometimes', 'date'],
-            'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'scheduled_at' => ['sometimes', 'date', 'after:now'],
+            'agent_id' => ['sometimes', 'nullable', 'integer', new PersonnelDeLAgence($agencyId)],
             'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:5'],
             'notes' => ['sometimes', 'nullable', 'string'],
             'type' => ['sometimes', Rule::enum(VisitType::class)],

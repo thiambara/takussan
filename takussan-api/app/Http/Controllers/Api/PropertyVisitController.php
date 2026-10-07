@@ -4,40 +4,57 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CancelPropertyVisitRequest;
+use App\Http\Requests\Api\ClaimPropertyVisitRequest;
 use App\Http\Requests\Api\CompletePropertyVisitRequest;
 use App\Http\Requests\Api\FeedbackPropertyVisitRequest;
+use App\Http\Requests\Api\ReschedulePropertyVisitRequest;
 use App\Http\Requests\Api\StorePropertyVisitRequest;
 use App\Http\Requests\Api\UpdatePropertyVisitRequest;
 use App\Http\Resources\PropertyVisitResource;
+use App\Models\Customer;
+use App\Models\Enums\Capability;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitRequestedNotification;
+use App\Rules\PersonnelDeLAgence;
+use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Notification;
 
 class PropertyVisitController extends Controller
 {
-    public function __construct(protected VisitSchedulingService $scheduling) {}
+    public function __construct(
+        protected VisitSchedulingService $scheduling,
+        protected VisitNotifier $notifier,
+    ) {}
 
+    /**
+     * TCK-590 — la clause est celle de `PropertyVisitPolicy::view` : visiteur, agent assigné,
+     * client lié, créateur du bien, **personnel de l'agence du bien**. Elle omettait ce dernier :
+     * une même visite avait deux périmètres, et le collègue qui gère le bien ne la voyait pas dans
+     * la liste alors que le calendrier et `show` la lui ouvraient.
+     */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
         $base = PropertyVisit::query();
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
+            $staffAgencyId = $this->staffAgencyId($user);
+
+            $base->where(function ($q) use ($user, $staffAgencyId) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere('agent_id', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
+
+                if ($staffAgencyId !== null) {
+                    $q->orWhereHas('property', fn ($p) => $p->where('agency_id', $staffAgencyId));
+                }
             });
         }
 
@@ -57,6 +74,23 @@ class PropertyVisitController extends Controller
         ]);
     }
 
+    /**
+     * TCK-590 — deux gestes sous une même route.
+     *
+     *   · **Le gestionnaire du bien planifie pour un client** (le prospect qui a appelé) : le
+     *     visiteur est l'utilisateur de la fiche client s'il en a un, sinon personne — la fiche et
+     *     le nom + téléphone en tiennent lieu ; l'agent est l'appelant par défaut s'il est du
+     *     personnel ; la visite naît CONFIRMÉE après le garde de chevauchement, et le visiteur est
+     *     prévenu. L'API posait toujours `visitor_id = $user->id` : l'agent devenait le visiteur.
+     *   · **Tout autre réserve pour lui-même**, sur un bien public : `customer_id`, `agent_id` et
+     *     `visitor_*` sont DÉRIVÉS de lui (contrainte 3) — il ne choisit ni la fiche d'un autre,
+     *     ni l'agent.
+     *
+     * Le « personnel » se juge sur l'agence DU BIEN (`PersonnelDeLAgence`) : `$user->agency_id`
+     * rendait l'agence du profil actif quel qu'il soit, et un BAILLEUR de l'agence passait pour du
+     * personnel — il réservait sur le bien non public d'un autre bailleur en gardant l'`agent_id`
+     * qu'il envoyait.
+     */
     public function store(StorePropertyVisitRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -64,31 +98,81 @@ class PropertyVisitController extends Controller
         $property = Property::findOrFail($data['property_id']);
         $user = $request->user();
 
-        $isStaff = $user->isSuperAdmin()
-            || $property->user_id === $user->id
-            || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id);
+        if ($request->managesProperty()) {
+            return $this->planForCustomer($request, $property, $user, $data);
+        }
 
         // Non-staff users can only book visits on publicly visible properties.
-        if (! $isStaff) {
-            $isPublic = Property::query()->where('id', $property->id)->public()->exists();
-            abort_unless($isPublic, 403, 'This property is not available for visits.');
-            unset($data['agent_id']);
-        }
+        $isPublic = Property::query()->where('id', $property->id)->public()->exists();
+        abort_unless($isPublic, 403, __('visits.not_bookable'));
+
+        $customerId = $property->agency_id !== null
+            ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
+            : null;
 
         // TCK-075 — a visitor cannot stack more than N active visits per
         // property. Quota check + insert are wrapped in a transaction
         // with row-level locks to close the TOCTOU race between two
         // concurrent booking requests from the same visitor.
-        $visit = $this->scheduling->createOrFail($property, $user, array_merge($data, [
+        $visit = $this->scheduling->createOrFail($property, $user, [
+            'property_id' => $property->id,
             'visitor_id' => $user->id,
+            'customer_id' => $customerId,
+            'agent_id' => null,
+            'visitor_name' => trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: null,
+            'visitor_email' => $user->email,
+            'visitor_phone' => $user->phone,
+            'scheduled_at' => $data['scheduled_at'],
+            'duration_minutes' => $data['duration_minutes'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'source' => $data['source'] ?? null,
+            'medium' => $data['medium'] ?? null,
+            'locale' => app()->getLocale(),
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'status' => VisitStatus::Scheduled->value,
-        ]));
+        ]);
 
-        $this->notifyRequested($visit->fresh(['property', 'agent']));
+        $this->notifier->requested($visit->fresh(['property', 'agent']));
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->toArray($request),
+        ], 201);
+    }
+
+    /**
+     * @param  array<string,mixed>  $data
+     */
+    private function planForCustomer(StorePropertyVisitRequest $request, Property $property, User $user, array $data): JsonResponse
+    {
+        $customer = isset($data['customer_id']) ? Customer::query()->find($data['customer_id']) : null;
+
+        $agentId = array_key_exists('agent_id', $data) && $data['agent_id'] !== null
+            ? (int) $data['agent_id']
+            : (PersonnelDeLAgence::estPersonnel($user, $property->agency_id) ? $user->id : null);
+
+        $visitor = $customer?->user_id !== null ? User::query()->find($customer->user_id) : null;
+
+        $visit = $this->scheduling->createConfirmedOrFail($property, $visitor, [
+            'property_id' => $property->id,
+            'visitor_id' => $visitor?->id,
+            'customer_id' => $customer?->id,
+            'agent_id' => $agentId,
+            'visitor_name' => $data['visitor_name'] ?? ($customer !== null ? trim($customer->first_name.' '.$customer->last_name) : null),
+            'visitor_phone' => $data['visitor_phone'] ?? $customer?->phone,
+            'visitor_email' => $data['visitor_email'] ?? $customer?->email,
+            'scheduled_at' => $data['scheduled_at'],
+            'duration_minutes' => $data['duration_minutes'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'source' => $data['source'] ?? null,
+            'medium' => $data['medium'] ?? null,
+            'locale' => $visitor?->preferredLocale() ?? app()->getLocale(),
+            'type' => $data['type'] ?? VisitType::InPerson->value,
+        ]);
+
+        $this->notifier->confirmed($visit->fresh(['property', 'visitor']));
+
+        return $this->json([
+            'data' => PropertyVisitResource::make($visit->refresh())->toArray($request),
         ], 201);
     }
 
@@ -110,6 +194,14 @@ class PropertyVisitController extends Controller
         // which silently breaks the feedback-window lockout.
         $data = $request->validated();
 
+        // TCK-590 (contrainte 2) — changer l'agent d'une visite DÉJÀ attribuée à un autre est un
+        // geste d'attribution : il exige `crm.assign` dans l'agence du bien.
+        if (array_key_exists('agent_id', $data)
+            && $visit->agent_id !== null
+            && ($data['agent_id'] === null || (int) $data['agent_id'] !== $visit->agent_id)) {
+            abort_unless($this->canAssign($request->user(), $visit), 403, __('visits.reassign_forbidden'));
+        }
+
         // Reschedule of a confirmed visit must re-check overlap on the
         // new slot before persisting.
         if ($visit->status === VisitStatus::Confirmed
@@ -123,7 +215,51 @@ class PropertyVisitController extends Controller
             $this->scheduling->assertNoOverlap($visit, $newStart, $newDuration);
         }
 
+        $previous = $visit->scheduled_at;
         $visit->fill($data)->save();
+
+        // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
+        // une fois. `update` déplaçait l'heure sans prévenir personne.
+        if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($previous)) {
+            $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']));
+        }
+
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+    }
+
+    /**
+     * TCK-590 — « Prendre en charge » : l'appelant, personnel de l'agence du bien
+     * (`ClaimPropertyVisitRequest`), devient l'agent de la visite. Reprendre une visite déjà
+     * attribuée à un AUTRE est un 409, sauf pour qui détient `crm.assign`.
+     */
+    public function claim(ClaimPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_if(
+            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
+            422,
+            __('visits.reschedule_inactive'),
+        );
+
+        if ($visit->agent_id !== null && $visit->agent_id !== $user->id && ! $this->canAssign($user, $visit)) {
+            abort(409, __('visits.already_assigned'));
+        }
+
+        $visit->update(['agent_id' => $user->id]);
+
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+    }
+
+    /**
+     * TCK-590 — le visiteur propose un autre créneau : nouvelle heure, la visite repasse en
+     * attente de confirmation, l'agence est prévenue.
+     */
+    public function reschedule(ReschedulePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
+    {
+        $visit = $this->scheduling->rescheduleOrFail($visit, Carbon::parse($request->validated('scheduled_at')));
+
+        $this->notifier->rescheduledByVisitor($visit->fresh(['property', 'agent']));
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
     }
@@ -139,7 +275,7 @@ class PropertyVisitController extends Controller
         $visit = $this->scheduling->confirmOrFail($visit);
         $visit->load('property', 'visitor');
 
-        $this->notifyConfirmed($visit);
+        $this->notifier->confirmed($visit);
 
         return $this->json(['data' => PropertyVisitResource::make($visit)->toArray($request)]);
     }
@@ -177,6 +313,14 @@ class PropertyVisitController extends Controller
             'cancelled_at' => now(),
             'cancellation_reason' => $data['reason'] ?? null,
         ]);
+
+        // TCK-590 — `cancel` ne prévenait personne. Le visiteur qui annule prévient l'agence ;
+        // l'agence qui annule prévient le visiteur.
+        $user = $request->user();
+        $byVisitor = $visit->visitor_id === $user->id
+            || ($visit->customer !== null && $visit->customer->user_id === $user->id);
+        $fresh = $visit->fresh(['property', 'visitor', 'agent']);
+        $byVisitor ? $this->notifier->cancelledByVisitor($fresh) : $this->notifier->cancelledByAgency($fresh);
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
     }
@@ -228,10 +372,12 @@ class PropertyVisitController extends Controller
 
         $isCustomer = $visit->visitor_id === $user->id
             || ($visit->customer && $visit->customer->user_id === $user->id);
+        // TCK-590 — le personnel de l'agence DU BIEN, plus « l'agence du profil actif » : un
+        // bailleur de l'agence déposait l'avis « agent » sur les visites des biens d'un autre.
         $isAgent = $user->isSuperAdmin()
             || $visit->agent_id === $user->id
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
 
         if ($role === 'customer') {
             abort_unless($isCustomer, 403, 'Only the visitor can submit customer feedback.');
@@ -266,56 +412,23 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * @param  PropertyVisit  $visit  already loaded with `property` / `agent`.
-     */
-    protected function notifyRequested(PropertyVisit $visit): void
-    {
-        $recipients = $this->managingUsers($visit);
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
-        try {
-            Notification::send($recipients, new VisitRequestedNotification($visit));
-        } catch (\Throwable) {
-            // Notification routing failures must never bubble up and break
-            // the originating HTTP request.
-        }
-    }
-
-    protected function notifyConfirmed(PropertyVisit $visit): void
-    {
-        $visitor = $visit->visitor;
-        if (! $visitor) {
-            return;
-        }
-
-        try {
-            Notification::send(collect([$visitor]), new VisitConfirmedNotification($visit));
-        } catch (\Throwable) {
-            // Silent — see notifyRequested().
-        }
-    }
-
-    /**
-     * Return the humans we should alert when a visit is requested: the
-     * assigned agent (if any) and the property owner.
+     * L'agence dont l'appelant est PERSONNEL, celle de son profil actif — ou rien.
      *
-     * @return Collection<int,User>
+     * TCK-587 — à remplacer par `MembershipCapabilityResolver::staffAgencyId()`.
      */
-    protected function managingUsers(PropertyVisit $visit): Collection
+    private function staffAgencyId(User $user): ?int
     {
-        $recipients = collect();
-        $property = $visit->property;
-        if ($visit->agent_id && $visit->agent) {
-            $recipients->push($visit->agent);
-        }
-        if ($property && $property->owner) {
-            if (! $recipients->contains(fn ($u) => $u->id === $property->owner->id)) {
-                $recipients->push($property->owner);
-            }
-        }
+        $agencyId = $user->agency_id;
 
-        return $recipients;
+        return PersonnelDeLAgence::estPersonnel($user, $agencyId) ? (int) $agencyId : null;
+    }
+
+    /** `crm.assign` dans l'agence du bien de la visite. */
+    private function canAssign(User $user, PropertyVisit $visit): bool
+    {
+        $agency = $visit->property?->agency;
+
+        return $user->isSuperAdmin()
+            || ($agency !== null && $user->canActAt(Capability::CrmAssign, $agency));
     }
 }

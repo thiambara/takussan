@@ -7,6 +7,7 @@ use App\Http\Requests\ListSimilarPropertiesRequest;
 use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
 use App\Http\Requests\Public\ByIdsPublicPropertyRequest;
 use App\Http\Requests\Public\ComparePublicPropertyRequest;
+use App\Http\Requests\Public\ContactClickPublicRequest;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
@@ -14,6 +15,7 @@ use App\Http\Requests\Public\MapPublicPropertyRequest;
 use App\Http\Requests\Public\ReportPublicPropertyRequest;
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
+use App\Http\Requests\Public\VisitSlotsPublicPropertyRequest;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
@@ -21,7 +23,9 @@ use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
@@ -30,12 +34,13 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Lease;
 use App\Models\Property;
-use App\Models\PropertyContactLead;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
+use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
@@ -44,7 +49,10 @@ use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
+use App\Services\Visit\VisitNotifier;
+use App\Services\Visit\VisitSchedulingService;
 use App\Support\DistanceHaversine;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -316,7 +324,8 @@ class PublicPropertyController extends Controller
             // route est `$isDetail` pour `PropertyResource` : sans eux, `owner` et
             // `primary_contact` partaient en chargement paresseux, soit deux requêtes par bien
             // comparé. C'était déjà vrai d'`owner` avant ce ticket.
-            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media'])
+            // TCK-590 — les profils du collaborateur : l'éligibilité du contact se juge sur eux.
+            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media', 'collaborators.user.agentProfiles', 'collaborators.user.agencyAdminProfiles'])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereIn('id', $ids)
@@ -502,6 +511,9 @@ class PublicPropertyController extends Controller
                 // TCK-502 — `.media` en plus : la fiche nomme désormais le CONTACT PRINCIPAL,
                 // qui peut être un collaborateur, et sa carte porte son avatar.
                 'collaborators.user.media',
+                // TCK-590 — l'éligibilité du contact principal se juge sur ses profils chargés.
+                'collaborators.user.agentProfiles',
+                'collaborators.user.agencyAdminProfiles',
                 'documents.media',
                 'priceHistory',
                 'reviews' => fn ($q) => $q->where('is_approved', true),
@@ -593,29 +605,83 @@ class PublicPropertyController extends Controller
         return $this->json(null, 204);
     }
 
-    public function visitRequest(VisitRequestPublicPropertyRequest $request, string $slug): JsonResponse
+    /**
+     * Demande de visite depuis la fiche publique — avec ou sans compte.
+     *
+     * TCK-590 — elle faisait un `PropertyVisit::create` direct : **ni `agent_id`, ni
+     * notification, ni quota**, alors que c'est le chemin que TOUS les clients empruntent. Elle
+     * passe désormais par les mêmes garde-fous que le chemin authentifié :
+     *
+     *   · le quota de visites actives (`VisitSchedulingService::createOrFail`) ;
+     *   · `agent_id` = le contact principal **s'il est personnel de l'agence du bien**, sinon la
+     *     visite est « non attribuée » (contrainte 2) ;
+     *   · `customer_id` = la fiche du visiteur DANS l'agence du bien, ou rien — `$user->customer`
+     *     était un `hasOne` sans unicité, qui rattachait une fiche arbitraire, d'une autre agence ;
+     *   · l'agence est prévenue (`VisitNotifier`), avec le repli vers ses admins ; sans
+     *     destinataire ni agence, 409 avant toute écriture (contrainte 1) ;
+     *   · le dépôt n'envoie AUCUN SMS au visiteur (contrainte 4).
+     */
+    public function visitRequest(VisitRequestPublicPropertyRequest $request, VisitSchedulingService $scheduling, VisitNotifier $notifier, ContactLeadService $leads, string $slug): JsonResponse
     {
-        $property = $request->property();
+        $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
         $user = $request->user();
         $data = $request->validated();
 
-        $visit = PropertyVisit::create([
+        if ($leads->recipientsFor($property)->isEmpty() && $property->agency_id === null) {
+            $leads->refuseUnavailable();
+        }
+
+        $primary = PrimaryPropertyContact::for($property);
+        $agentId = PersonnelDeLAgence::estPersonnel($primary, $property->agency_id) ? $primary->id : null;
+
+        $customerId = ($user !== null && $property->agency_id !== null)
+            ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
+            : null;
+
+        $visit = $scheduling->createOrFail($property, $user, [
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
-            'customer_id' => $user?->customer?->id,
+            'customer_id' => $customerId,
+            'agent_id' => $agentId,
             'scheduled_at' => $data['scheduled_at'],
             'type' => $data['type'] ?? VisitType::InPerson->value,
-            'duration_minutes' => $data['duration_minutes'] ?? 30,
+            'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,
             'status' => VisitStatus::Scheduled->value,
             'visitor_name' => $data['visitor_name'] ?? trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')) ?: null,
             'visitor_email' => $data['visitor_email'] ?? $user?->email,
             'visitor_phone' => $data['visitor_phone'] ?? $user?->phone,
             'notes' => $data['notes'] ?? null,
+            'source' => $data['source'] ?? null,
+            'medium' => $data['medium'] ?? null,
+            'locale' => app()->getLocale(),
         ]);
+
+        $notifier->requested($visit->fresh(['property', 'agent']));
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->toArray($request),
         ], 201);
+    }
+
+    /**
+     * TCK-590 — les créneaux d'une journée, à Dakar : `{date, timezone, slots: [{start, label,
+     * available}]}`. Rien sur les visites qui occupent un créneau.
+     */
+    public function visitSlots(VisitSlotsPublicPropertyRequest $request, VisitSchedulingService $scheduling, string $slug): JsonResponse
+    {
+        $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
+        $date = CarbonImmutable::createFromFormat('Y-m-d', $request->validated('date'), VisitSchedulingService::TIMEZONE)->startOfDay();
+
+        $primary = PrimaryPropertyContact::for($property);
+        $agent = PersonnelDeLAgence::estPersonnel($primary, $property->agency_id) ? $primary : null;
+
+        return $this->json([
+            'data' => [
+                'date' => $date->format('Y-m-d'),
+                'timezone' => VisitSchedulingService::TIMEZONE,
+                'slots' => $scheduling->availableSlots($property, $date, $agent),
+            ],
+        ]);
     }
 
     /**
@@ -891,12 +957,15 @@ class PublicPropertyController extends Controller
     /**
      * Anonymous lead capture endpoint (TCK-161). Lets a non-authenticated
      * visitor send a one-shot contact message to the property's primary
-     * agent (or owner) without creating an account. Persists the lead for
-     * moderation/anti-spam follow-up and pings the recipient via the
-     * existing notification channel. A filled honeypot returns 201 silently
-     * — bots get a normal-looking success without polluting the database.
+     * agent (or owner) without creating an account. A filled honeypot returns
+     * 201 silently — bots get a normal-looking success without polluting the
+     * database.
+     *
+     * TCK-590 — la piste, son destinataire, le repli vers les admins de l'agence, le 409 sans
+     * destinataire ni agence et l'accusé de réception vivent dans `ContactLeadService`, partagé
+     * avec le contact d'un agent.
      */
-    public function contactLead(ContactLeadPublicRequest $request, NotificationService $notifications, PropertyConversationResolver $resolver, string $slug): JsonResponse
+    public function contactLead(ContactLeadPublicRequest $request, ContactLeadService $leads, PropertyConversationResolver $resolver, string $slug): JsonResponse
     {
         $data = $request->validated();
 
@@ -906,34 +975,30 @@ class PublicPropertyController extends Controller
 
         $property = $this->publicPropertyForContact($slug, $resolver);
 
-        // TCK-500 — ce calcul était écrit ici À L'IDENTIQUE une troisième fois. Le service ne
-        // vaut que s'il est le seul à savoir : une copie oubliée finit toujours par diverger,
-        // et un lead anonyme livré à un autre agent que le message authentifié serait un défaut
-        // qu'aucun des deux endpoints ne montrerait seul.
-        $primaryAgent = $resolver->recipientFor($property);
-
-        $lead = PropertyContactLead::create([
-            'property_id' => $property->id,
-            'recipient_user_id' => $primaryAgent?->id,
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'message' => $data['message'],
-            'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
-        ]);
-
-        if ($primaryAgent !== null) {
-            $notifications->notify(
-                $primaryAgent,
-                NotificationType::Message,
-                'Nouveau lead anonyme',
-                $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
-                ['property_id' => $property->id, 'lead_id' => $lead->id],
-            );
-        }
+        $leads->forProperty($property, $data, $request);
 
         return $this->json(['data' => ['accepted' => true]], 201);
+    }
+
+    /**
+     * TCK-590 — un clic WhatsApp / Appeler est compté : une piste de canal `whatsapp` / `call`,
+     * sans identité, hors de la file « à traiter ». Limiteur dédié : un compteur n'a pas à
+     * consommer le crédit des demandes de contact.
+     */
+    public function contactClick(ContactClickPublicRequest $request, ContactLeadService $leads, string $slug): JsonResponse
+    {
+        $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
+        $data = $request->validated();
+
+        $leads->recordClick(
+            $property,
+            ContactLeadChannel::from($data['channel']),
+            $data['source'] ?? null,
+            $data['medium'] ?? null,
+            $request,
+        );
+
+        return $this->json(null, 204);
     }
 
     /**
@@ -946,25 +1011,17 @@ class PublicPropertyController extends Controller
     public function contact(string $slug): JsonResponse
     {
         $property = Property::query()
-            ->with([...PrimaryPropertyContact::eagerLoads(), 'address'])
+            ->with(PrimaryPropertyContact::eagerLoads())
             ->public()
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $address = $property->address;
-        $location = $address
-            ? trim(($address->neighborhood ? $address->neighborhood.', ' : '').$address->city)
-            : '';
-
-        $message = "Bonjour, je suis intéressé(e) par votre bien :\n"
-            ."{$property->title}\n"
-            .number_format((float) $property->price, 0, ',', ' ').' FCFA'
-            .($location ? " - {$location}" : '')."\n"
-            .'Vu sur Takussan.sn';
-
+        // TCK-590 — le message prérempli (« Bonjour, je suis intéressé(e)… Vu sur Takussan.sn »)
+        // était écrit ICI, en français quelle que soit la langue du visiteur : le front le
+        // construit désormais (principe n°5). L'endpoint ne rend plus que ce que le front ne peut
+        // pas savoir — le numéro, révélé au geste et sous limiteur (contrainte 7).
         return $this->json([
             'phone' => PrimaryPropertyContact::for($property)?->phone,
-            'message' => $message,
         ]);
     }
 }

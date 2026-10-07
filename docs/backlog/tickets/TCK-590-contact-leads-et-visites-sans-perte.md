@@ -1,13 +1,13 @@
 ---
 id: TCK-590
 title: "Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre"
-status: todo
+status: doing
 phase: P0
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: []
 spec_refs:
@@ -472,4 +472,16 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Étape 1 — API : boîte des demandes, éligibilité du contact principal, visites (2026-10-07).**
+
+- Re-mesuré avant d'écrire : `PropertyContactLead::create` avait deux appelants et aucun lecteur ;
+  `handled_at` jamais écrit ; `agentPrincipal` filtrait `user !== null` seul ; `/contact` rendait un
+  `message` français figé ; `lang/wo/notifications.php` n'avait aucune clé `visit_*`.
+- Prédicat « personnel » : `PersonnelDeLAgence::estPersonnel` = `isAgentAt || isAgencyAdminAt`
+  (commentaire TCK-587), en attendant `isStaffAt`. Le personnel qui planifie n'est **pas** tenu à la
+  grille 09:00–18:30 ; seules les routes du client (demande publique, `store` non gestionnaire,
+  `reschedule`) le sont.
+- Ablation AC13 (×2) : `agencyScopeFor` rendant l'agence du profil sans `crm.view_all` ni
+  prédicat → `ContactLeadInboxTest` rouge ; clause d'`index` retirée → rouge ; restauré → vert.
+- Ablation AC18b : `self::eligible(...)` remplacé par `$c->user !== null` → 3 tests rouges
+  (bloqué, retiré, repli propriétaire) ; restauré → vert.
