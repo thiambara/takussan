@@ -4,6 +4,7 @@ namespace Tests\Feature\Dashboard;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -11,6 +12,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
+use Tests\Concerns\CreatesAgencyMembers;
 
 /**
  * TCK-285 — `ExportDataService::scopeToActor()` balayé PAR ACTEUR.
@@ -27,6 +29,7 @@ use Tests\ApiTestCase;
  */
 class ExportScopingTest extends ApiTestCase
 {
+    use CreatesAgencyMembers;
     use RefreshDatabase;
 
     private const AMOUNT_A = 111111;      // agence A, bail du propriétaire A
@@ -112,9 +115,14 @@ class ExportScopingTest extends ApiTestCase
         $this->assertStringNotContainsString((string) self::AMOUNT_B, $payments);
     }
 
+    /**
+     * TCK-587 (ADR-0031 §2) — l'agent du rôle système n'exporte plus : `payments.export` et
+     * `crm.export` ne sont pas dans son rôle (`ExportCapabilityTest`). Le périmètre se vérifie donc
+     * sur un agent dont le rôle personnalisé les porte.
+     */
     public function test_an_agent_exports_his_agency_and_only_his_agency(): void
     {
-        $this->apiActingAsRole('agent', ['agency' => $this->agencyA]);
+        $this->actingAs($this->agentWith($this->agencyA, Capability::PaymentsExport, Capability::CrmExport), 'sanctum');
 
         $payments = $this->export('payments');
         $this->assertStringContainsString((string) self::AMOUNT_A, $payments);

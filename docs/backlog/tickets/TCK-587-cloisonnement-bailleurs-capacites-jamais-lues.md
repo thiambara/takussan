@@ -744,3 +744,51 @@ actif ne donne plus d'agence : l'assertion de fixture s'inverse). Aide `Tests\Co
 Une ablation reste **verte** : `UpdateVisibilityPropertyRequest` revenu à `update`. Le contrôleur
 délègue à `publish()`, qui autorise `publish` : la requête est une seconde barrière (elle donne le
 403 avant la validation), pas la seule.
+
+### Étape 2 — §5 et §6 (back)
+
+**Exports.** `ExportController::show` : table entité → capacité, contrôlée en tête, avant toute
+requête ; un membre du personnel sans la capacité reçoit 403, le bailleur (non personnel) garde
+ses biens et baux, le CRM lui reste refusé. Les deux `abort` en dur passent par
+`errors.export_unknown_entity` / `errors.export_forbidden` (`lang/{fr,en,wo}/errors.php`, créé ici
+avec les SEULES clés de ce ticket — TCK-588 crée le même fichier : à la fusion, réunir les deux
+listes). Journal : `activity('export')`, événement `data_exported`, propriétés `entity`,
+`filters` (`from`, `to`, `limit`), `row_count`, `agency_id`, `format`. `ExportDataService::scopeToActor`
+lit le prédicat. `ExportScopingTest::test_an_agent_exports_his_agency…` passe sur un agent dont le
+rôle porte les deux capacités : l'agent du rôle système n'exporte plus (conséquence ADR-0031).
+
+**Blocage de compte** (`UserAdminController::block|activate`) : super-admin seul ; le helper
+`ensureTargetInActorScope` n'avait plus d'appelant et est retiré. `UserAdminAgencyScopeTest` : les
+quatre tests qui affirmaient le blocage par l'admin d'agence sont réécrits en refus (AC7).
+
+**Suspension dans l'agence** : `POST /api/agencies/{agency}/team/{user}/suspend|reactivate`,
+`SuspendTeamMemberRequest` (`team.suspend`, appelant PERSONNEL de l'agence de la route),
+`TeamMemberSuspensionService`. Écart de re-mesure : **un jeton Sanctum ne porte aucun profil**
+(`personal_access_tokens` n'a ni colonne ni nom qui le désigne ; le profil actif se résout à chaque
+requête). « Les jetons dont le profil actif est dans l'agence » sont donc pris comme : tous les
+jetons d'un membre qui n'a plus AUCUN profil actif ; s'il en garde un ailleurs, ses jetons servent
+cette autre agence et la suspension prend effet ici sans eux (ADR-0031 §3 : dès la requête
+suivante). Le profil agent passe par `AgentInvitationService::suspend` comme le Delta le demande —
+qui exige aussi `isAgencyAdminAt` ou `team.invite` : un rôle personnalisé tenant `team.suspend`
+sans `team.invite` serait refusé sur un agent (403), pas sur un bailleur ni un admin.
+
+**Inventaire** `CapabilityEnforcementInventory::AWAITING` : les 16 lignes du tableau, re-mesurées
+(TCK-592 n'est pas fusionné : `maintenance.*` y restent). `GET /api/capabilities` rend
+`not_enforced` (AC10). Garde `scripts/check-capability-readers.mjs` (Repo CI) : 45 capacités,
+29 lues, 16 inscrites, cliquet 16 ; dix cas d'auto-épreuve plus le cas « lue ET inscrite ».
+`--ref=<commit>` classe un autre arbre : sur `e3ab4a4e` comme sur `32dd0b39`, **31 sans lecteur**,
+dont `properties.create|delete|publish` et `leases.create` ; `invoices.create` et
+`payouts.create` **lues** (par `createCapability()`, ability invoquée par `StoreInvoiceRequest` /
+`StorePayoutRequest`) — AC8.
+
+**Ablations, étape 2** :
+
+| Retrait | Test | Résultat |
+|---|---|---|
+| capacité d'export (`canActAt(self::CAPABILITY…)` → `true`) | `ExportCapabilityTest` | rouge, 200 |
+| journal `->log('data_exported')` | idem | rouge, aucune ligne |
+| `team.suspend` de `SuspendTeamMemberRequest` | `TeamMemberSuspensionTest` | rouge, 200 |
+| refus de `primary_admin_id` | idem | rouge, 200 |
+| profils de l'agence seulement (sans `agency_id`) | bailleur de deux agences | rouge |
+| lecture de `bookings.validate`, `bookings.cancel`, `invoices.send`, `invoices.write_off`, `payments.record` (bail), `crm.view_all`, `properties.update_own` — chacune seule | `BranchedCapabilitiesTest` | rouge ×7 |
+| AC8 : cas ajouté à l'enum ; capacité inscrite branchée ; ligne retirée sans baisser le cliquet | `check-capability-readers.mjs` | sortie 1 ×3 |

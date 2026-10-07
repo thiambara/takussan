@@ -48,13 +48,27 @@ trait CreatesAgencyMembers
         return $this->memberWithout(AgencyRoleBaseType::AgencyAdmin, $agency, ...$removed);
     }
 
+    /** Un agent dont le rôle personnalisé est le rôle système d'agent PLUS les capacités données. */
+    protected function agentWith(Agency $agency, Capability ...$added): User
+    {
+        return $this->memberWithRole(
+            AgencyRoleBaseType::Agent,
+            $agency,
+            array_values(array_unique([...app(SystemRoleCapabilities::class)->for(AgencyRoleBaseType::Agent), ...$added], SORT_REGULAR)),
+        );
+    }
+
     private function memberWithout(AgencyRoleBaseType $type, Agency $agency, Capability ...$removed): User
     {
-        $capabilities = array_values(array_filter(
+        return $this->memberWithRole($type, $agency, array_values(array_filter(
             app(SystemRoleCapabilities::class)->for($type),
             static fn (Capability $c): bool => ! in_array($c, $removed, true),
-        ));
+        )));
+    }
 
+    /** @param  array<int, Capability>  $capabilities */
+    private function memberWithRole(AgencyRoleBaseType $type, Agency $agency, array $capabilities): User
+    {
         $role = AgencyRole::factory()
             ->ofType($type)
             ->withCapabilities($capabilities)
