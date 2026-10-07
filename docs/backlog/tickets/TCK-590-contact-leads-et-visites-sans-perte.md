@@ -485,3 +485,19 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
   prédicat → `ContactLeadInboxTest` rouge ; clause d'`index` retirée → rouge ; restauré → vert.
 - Ablation AC18b : `self::eligible(...)` remplacé par `$c->user !== null` → 3 tests rouges
   (bloqué, retiré, repli propriétaire) ; restauré → vert.
+
+**Étape 2 — épreuves des visites et des pistes (2026-10-07).** Six classes neuves
+(`VisitRequestRoutingTest`, `VisitSlotsTest`, `PropertyVisitAssignmentTest`,
+`PropertyVisitIsolationTest`, `PropertyVisitNotificationTest`, `PropertyVisitRescheduleTest`) plus
+`ContactLeadInboxTest`, `ContactLeadConvertTest`, `PropertyContactClickTest`. Chaque correctif a été
+retiré, un à la fois, par un script qui restaure le fichier et vérifie la restauration ; **15 sur 15
+rougissent** : notification de la demande publique (AC1, AC18), quota (AC2), fiche de l'agence du
+bien (AC2b), clause d'agence d'`index` (AC4), `PersonnelDeLAgence` (AC6), prévenir au déplacement
+(AC6b), `customer_id` dérivé (AC7), prédicat sur l'agence du bien (AC7b), `visitor_id` du client
+planifié (AC8), envoi à la demande au visiteur sans compte (AC9, AC9b), annulation par le visiteur
+(AC9b), `agency_id` du lead (AC15) et son rattrapage, repli sur les admins (AC18), téléphone dans le
+titre (AC17).
+- AC6 « le bailleur visé obtient 403 sur `confirm` » dépend de `PropertyVisitPolicy::update`, qui
+  lit encore `$user->agency_id` — périmètre de TCK-587. Le test est écrit et s'active seul quand
+  `MembershipCapabilityResolver::isStaffAt` existe (`markTestIncomplete` d'ici là).
+
