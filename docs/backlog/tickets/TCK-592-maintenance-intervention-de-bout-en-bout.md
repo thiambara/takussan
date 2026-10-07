@@ -431,6 +431,21 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - [x] Front : « Discuter » sur la fiche ; enregistrer, écouter une note vocale
 - [x] Tests : `MessageTypeSpoofingTest`, `MaintenanceConversationTest`, `AudioMessageTest`
 
+### Ajouté après vérification adverse (verif-592, 2026-10-07)
+
+- [x] B1 — lien profond d'onboarding : une fois par invitation acceptée, demande libre et non
+      commencée, prestataire assignable, sous verrou (`ServiceProviderOnboardingService`)
+- [x] B2 — `ConversationAccess` : un fil d'intervention exige `MaintenanceRequestPolicy::view` en
+      lecture, écriture, liste et notification
+- [x] M1 — coût réel au donneur d'ordre à `complete` ; `OwnerApprovalThreshold` pour le devis et
+      `actual_cost`
+- [x] M2 — `update()` et `assign()` refusent l'état terminal
+- [x] m1 — arrondi à l'unité de la devise dans `priceLines`
+- [x] m8 — la réassignation archive et remet le devis à zéro
+- [x] m9 — `manageQuotes` lit `maintenance.assign` ; limiteur `conversation-message` ; e-mail du
+      demandeur après acceptation
+
+
 ## Critères d'acceptation
 
 - [x] **AC1 (P2)** — Prestataire assigné, demande en `quote_submitted` : `PATCH {status: approved}`
@@ -525,6 +540,57 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       vide ; idem un `.svg` (`image/svg+xml`). Avec `devis.pdf` (`application/pdf`) → 200 et
       **1** média dans `quotes`. Rouge aujourd'hui (200 et le `.html` stocké) ; ablation : retirer
       `mimes` → rouge. Écrit en E avec le corps en vigueur ; F le garde en passant au corps `lines[]`.
+
+### Ajoutés après vérification adverse (verif-592)
+
+Chaque AC ci-dessous a été vérifié deux fois :
+
+- rouge sur `05dce4fc`, sauf mention contraire (fichiers de production remis à leur version
+  `05dce4fc`, restaurés par `cp`) ;
+- rouge à son ablation, restaurée par `cp`.
+
+Le détail est dans les Notes, section « Corrections après vérification adverse ».
+
+- [x] **AC25 (B1)** — `onboard/complete` rejoué rend 200 et ne fait rien de plus : il ne reprend
+      ni une demande réassignée et démarrée (v07), ni une demande libérée entre-temps.
+      `completed`, une demande tenue par un autre, un prestataire en pause et une invitation non
+      acceptée ne déclenchent aucune assignation.
+      Preuve : `ServiceProviderInvitationDeepLinkTest`, 5 rouges sur `05dce4fc`, 5 ablations
+      rouges (dont X17).
+- [x] **AC26 (B2)** — Un prestataire en pause (v08), suspendu (v09) ou en fin de collaboration sur
+      une demande `completed` (v10) n'a plus accès au fil :
+      - la conversation et ses messages rendent 403, en lecture comme en écriture ;
+      - la conversation est absente de sa liste ;
+      - il ne reçoit plus de notification de message.
+
+      Un prestataire actif garde le fil.
+      Preuve : `MaintenanceThreadAccessTest`, 3 rouges sur `05dce4fc`, 4 ablations rouges.
+- [x] **AC27 (M1)** — Le prestataire qui porte `cost` ou `actual_cost` à `complete` reçoit 403
+      (v04). Un `actual_cost` au-delà du plafond du bailleur et de ce qu'il a approuvé reçoit 422
+      quand l'équipe l'écrit (v05) ; le bailleur, lui, l'écrit. Égal au plafond : l'équipe
+      l'écrit.
+      Preuve : `MaintenanceActualCostTest`, 4 rouges sur `05dce4fc`, 5 ablations API et 2 ablations
+      front rouges.
+- [x] **AC28 (M2)** — Une demande `closed` ou `cancelled` rend 422 `terminal_request` au `PATCH`
+      et à l'assignation (v01, v02, v03). En `completed`, les notes restent au prestataire et le
+      coût au donneur d'ordre.
+      Preuve : `MaintenanceTerminalRequestTest`, 3 rouges sur `05dce4fc`, 2 ablations rouges.
+- [x] **AC29 (m1)** — En XOF, 1,5 × 333,33 donne 500 (v06), chaque ligne puis le total arrondis à
+      l'unité, la moitié vers le haut. En EUR, 1,5 × 10,01 donne 15,02.
+      Preuve : `MaintenanceStructuredQuoteTest`, 2 rouges sur `05dce4fc`, 4 ablations rouges.
+- [x] **AC30 (m2 à m6)** — Les branches X5, X7, X14, X25 et X11 sont gardées.
+      Preuve : `MaintenanceGuardedBranchesTest`, 5 tests, chaque ablation 1 rouge. Le code était
+      juste sur `05dce4fc` : ces tests y sont verts.
+- [x] **AC31 (m8)** — Réassigner après un devis l'archive dans `metadata.previous_quotes[]`, le vide
+      et revient en `quote_requested` ; B ne démarre plus sur le devis de A (v19).
+      Preuve : `MaintenanceReassignmentQuoteResetTest`, 2 rouges sur `05dce4fc`, 3 ablations rouges.
+- [x] **AC32 (m9)** — Quatre points, chacun rouge sur `05dce4fc` sauf le dernier, et chacun avec
+      ses ablations rouges :
+      - un agent sans capacité `maintenance.*` reçoit 403 pour décider d'un devis (v16) ;
+      - le 31ᵉ message en une minute reçoit 429, et un autre utilisateur poste encore ;
+      - l'e-mail du demandeur n'atteint le prestataire qu'après acceptation ;
+      - le prestataire ne voit pas le bloc d'assignation (F1 : 2 rouges).
+
 
 ## Hors périmètre
 
