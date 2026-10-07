@@ -3,8 +3,11 @@
 namespace Tests\Feature\Crm;
 
 use App\Models\Agency;
+use App\Models\AgencyRole;
 use App\Models\Customer;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
@@ -82,6 +85,27 @@ class CustomerScopeTest extends ApiTestCase
                 $this->assertTrue($user->can('view', Customer::query()->findOrFail($id)), "fiche {$id} rendue sans passer view");
             }
         }
+    }
+
+    /**
+     * AC16 — le prédicat, pas la capacité seule : une agence peut donner `crm.view_all` au rôle de
+     * ses bailleurs, et ce bailleur ne lit pas pour autant le CRM — il n'est pas du personnel.
+     */
+    public function test_a_landlord_holding_crm_view_all_still_sees_only_his_own(): void
+    {
+        $agent = $this->member('agent');
+        $landlord = $this->member('owner');
+        $role = AgencyRole::factory()
+            ->ofType(AgencyRoleBaseType::Owner)
+            ->withCapabilities([Capability::PropertiesUpdateOwn, Capability::CrmViewAll])
+            ->create(['agency_id' => $this->agency->id]);
+        OwnerProfile::query()->where('user_id', $landlord->id)->update(['agency_role_id' => $role->id]);
+        $mine = Customer::factory()->create(['agency_id' => $this->agency->id, 'added_by_id' => $landlord->id]);
+        Customer::factory()->count(3)->create(['agency_id' => $this->agency->id, 'added_by_id' => $agent->id]);
+
+        $landlord = $landlord->fresh();
+        $this->assertSame([$mine->id], $this->listed($landlord));
+        $this->assertSame(1, $this->counted($landlord));
     }
 
     /** @return list<int> */
