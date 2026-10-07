@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\Currency;
 use App\Models\Lease;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
@@ -63,21 +65,18 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $currency = $this->lease->currency?->value ?? '';
 
         $message = (new MailMessage)
             ->subject(__('notifications.lease_deposit_refunded.subject', ['reference' => $reference]))
             ->greeting(__('notifications.lease_deposit_refunded.greeting'))
             ->line(__('notifications.lease_deposit_refunded.intro', [
                 'reference' => $reference,
-                'amount' => number_format($this->refunded, 2),
-                'currency' => $currency,
+                'amount' => app(CurrencyFormatter::class)->format($this->refunded, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
             ]));
 
         if ($this->retained > 0) {
             $message->line(__('notifications.lease_deposit_refunded.retention', [
-                'amount' => number_format($this->retained, 2),
-                'currency' => $currency,
+                'amount' => app(CurrencyFormatter::class)->format($this->retained, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
                 'reason' => $this->reason !== '' ? $this->reason : '—',
             ]));
         }

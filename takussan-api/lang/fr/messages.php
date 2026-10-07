@@ -73,24 +73,6 @@ return [
     'lease_rent_review_effective_date_invalid' => 'La date d\'effet est invalide.',
     'lease_rent_use_dedicated_endpoint' => 'Le loyer doit être modifié via PATCH /api/leases/{id}/rent pour garantir la traçabilité.',
 
-    // Notifications
-    'new_maintenance_title' => 'Nouvelle demande de maintenance',
-    'new_maintenance_body' => 'Une demande de maintenance a été soumise pour :property.',
-    'payment_reminder_title' => 'Rappel de paiement',
-    'payment_reminder_body' => 'Votre loyer pour :property est dû le :date.',
-    'late_payment_title' => 'Paiement en retard',
-    'late_payment_body' => 'Votre paiement pour :property est en retard depuis le :date.',
-    'visit_reminder_title' => 'Rappel de visite',
-    'visit_reminder_body' => 'Vous avez une visite prévue demain pour :property.',
-    'overdue_invoice_title' => 'Facture en retard',
-    'overdue_invoice_body' => 'La facture #:reference est en retard de paiement.',
-    'booking_confirmed_title' => 'Réservation confirmée',
-    'booking_confirmed_body' => 'Votre réservation pour :property a été confirmée.',
-    'lease_activated_title' => 'Bail activé',
-    'lease_activated_body' => 'Votre bail pour :property est maintenant actif.',
-    'new_message_title' => 'Nouveau message',
-    'new_message_body' => ':sender vous a envoyé un message.',
-
     // TCK-588 — accusés de réception des réponses de succès (plus aucune prose dans le code).
     'activity_log_export_queued' => 'Export en préparation, téléchargement imminent…',
     'booking_expired_manually' => 'La réservation a été expirée manuellement.',

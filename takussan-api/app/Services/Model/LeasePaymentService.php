@@ -2,11 +2,13 @@
 
 namespace App\Services\Model;
 
-use App\Models\Enums\NotificationType;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Notifications\NotificationRenderer;
 
 class LeasePaymentService
 {
@@ -49,29 +51,27 @@ class LeasePaymentService
 
         $payment->refresh();
 
-        // Notify tenant and landlord
+        // Notify tenant and landlord — TCK-588 : le reçu du bailleur nomme le bien et le locataire.
         $lease = $payment->lease;
         if ($lease) {
+            $lease->loadMissing(['property', 'tenant.user', 'landlord']);
             $tenantUser = $lease->tenant?->user;
             $landlord = $lease->landlord;
+            $amount = NotificationRenderer::money($payment->amount, $payment->currency);
+            $target = NotificationTarget::of('lease', $lease->id);
 
             if ($tenantUser) {
-                $this->notifications->notify(
-                    $tenantUser,
-                    NotificationType::Payment,
-                    'Paiement enregistré',
-                    'Votre paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
-                    ['lease_payment_id' => $payment->id],
-                );
+                $this->notifications->send($tenantUser, NotificationCode::LeasePaymentRecorded, [
+                    'amount' => $amount,
+                    'property' => $lease->property?->title,
+                ], $target);
             }
             if ($landlord) {
-                $this->notifications->notify(
-                    $landlord,
-                    NotificationType::Payment,
-                    'Paiement reçu',
-                    'Un paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
-                    ['lease_payment_id' => $payment->id],
-                );
+                $this->notifications->send($landlord, NotificationCode::LeasePaymentReceivedLandlord, [
+                    'amount' => $amount,
+                    'property' => $lease->property?->title,
+                    'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
+                ], $target);
             }
         }
 

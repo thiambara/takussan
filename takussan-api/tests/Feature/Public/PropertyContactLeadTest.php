@@ -67,9 +67,10 @@ class PropertyContactLeadTest extends TestCase
             'recipient_user_id' => $agent->id,
         ]);
 
+        // TCK-588 — un code, rendu dans la langue de l'agent ; plus de titre français en dur.
         $this->assertDatabaseHas(AppNotification::class, [
             'user_id' => $agent->id,
-            'title' => 'Nouveau lead anonyme',
+            'code' => 'lead.received',
         ]);
     }
 

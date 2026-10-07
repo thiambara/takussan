@@ -2,7 +2,12 @@
 
 namespace App\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
+use App\Models\Enums\NotificationType;
 use App\Models\Property;
+use App\Models\User;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,12 +47,28 @@ class PropertyRejectedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Votre bien a été refusé : '.$this->property->title)
-            ->greeting('Bonjour,')
-            ->line('Votre bien "'.($this->property->title).'" a été refusé pour la raison suivante :')
-            ->line($this->rejectionReason)
-            ->line('Vous pouvez corriger votre annonce et la resoumettre depuis votre espace agent.')
+            ->subject($this->render($notifiable, 'mail_subject'))
+            ->greeting(__('notifications.greeting'))
+            ->line($this->render($notifiable, 'mail_body'))
             ->salutation(__('notifications.salutation'));
+    }
+
+    /**
+     * TCK-588 (ADR-0032) — la ligne in-app porte le code `property.rejected`.
+     *
+     * @return array<string,mixed>
+     */
+    public function toAppNotification(object $notifiable): array
+    {
+        return [
+            'type' => NotificationType::System,
+            'code' => NotificationCode::PropertyRejected->value,
+            'params' => $this->params(),
+            'target' => NotificationTarget::of('property', $this->property->id)->toArray(),
+            'title' => $this->render($notifiable, 'title'),
+            'body' => $this->render($notifiable, 'body'),
+            'data' => $this->toArray($notifiable),
+        ];
     }
 
     public function toArray(object $notifiable): array
@@ -56,8 +77,25 @@ class PropertyRejectedNotification extends Notification implements ShouldQueue
             'property_id' => $this->property->id,
             'property_title' => $this->property->title,
             'rejection_reason' => $this->rejectionReason,
-            'title' => 'Bien refusé : '.$this->property->title,
+            'title' => $this->render($notifiable, 'title'),
         ];
+    }
+
+    /** @return array{property: ?string, reason: string} */
+    private function params(): array
+    {
+        return ['property' => $this->property->title, 'reason' => $this->rejectionReason];
+    }
+
+    private function render(object $notifiable, string $surface): string
+    {
+        return app(NotificationRenderer::class)->render(
+            NotificationCode::PropertyRejected,
+            $this->params(),
+            app()->getLocale(),
+            $notifiable instanceof User ? $notifiable->timezone : null,
+            $surface,
+        );
     }
 
     public function toBroadcast(object $notifiable): BroadcastMessage

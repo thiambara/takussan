@@ -73,24 +73,6 @@ return [
     'lease_rent_review_effective_date_invalid' => 'The effective date is invalid.',
     'lease_rent_use_dedicated_endpoint' => 'The rent must be updated through PATCH /api/leases/{id}/rent to guarantee traceability.',
 
-    // Notifications
-    'new_maintenance_title' => 'New maintenance request',
-    'new_maintenance_body' => 'A maintenance request has been submitted for :property.',
-    'payment_reminder_title' => 'Payment reminder',
-    'payment_reminder_body' => 'Your rent for :property is due on :date.',
-    'late_payment_title' => 'Late payment',
-    'late_payment_body' => 'Your payment for :property is overdue since :date.',
-    'visit_reminder_title' => 'Visit reminder',
-    'visit_reminder_body' => 'You have a visit scheduled tomorrow for :property.',
-    'overdue_invoice_title' => 'Overdue invoice',
-    'overdue_invoice_body' => 'Invoice #:reference is overdue.',
-    'booking_confirmed_title' => 'Booking confirmed',
-    'booking_confirmed_body' => 'Your booking for :property has been confirmed.',
-    'lease_activated_title' => 'Lease activated',
-    'lease_activated_body' => 'Your lease for :property is now active.',
-    'new_message_title' => 'New message',
-    'new_message_body' => ':sender sent you a message.',
-
     // TCK-588 — accusés de réception des réponses de succès (plus aucune prose dans le code).
     'activity_log_export_queued' => 'Export being prepared, download coming shortly…',
     'booking_expired_manually' => 'The booking has been expired manually.',

@@ -2,9 +2,9 @@
 
 namespace App\Listeners\Accounting;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Events\Accounting\BankStatementImported;
-use App\Models\BankStatement;
-use App\Models\Enums\NotificationType;
 use App\Services\Model\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -21,19 +21,10 @@ class NotifyStatementImported implements ShouldQueue
             return;
         }
 
-        $title = __('reconciliation.notifications.imported.title');
-        $body = __('reconciliation.notifications.imported.body', [
-            'bank' => $statement->bank_name ?? '—',
-            'lines_count' => $statement->lines_count,
-        ]);
-
-        $this->notificationService->notify(
-            user: $user,
-            type: NotificationType::BankStatementImported,
-            title: $title,
-            body: $body,
-            referenceableType: BankStatement::class,
-            referenceableId: $statement->id,
-        );
+        // TCK-588 (ADR-0032) — rendu dans la langue du destinataire, pas dans celle du worker.
+        $this->notificationService->send($user, NotificationCode::BankStatementImported, [
+            'bank' => $statement->bank_name,
+            'lines' => (int) $statement->lines_count,
+        ], NotificationTarget::of('finances'));
     }
 }

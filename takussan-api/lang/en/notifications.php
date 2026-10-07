@@ -93,13 +93,6 @@ return [
         'schedule' => 'Scheduled for: :datetime.',
     ],
 
-    'visit_reminder' => [
-        'subject' => 'Reminder: upcoming visit for :property',
-        'greeting' => 'Hello,',
-        'intro_24h' => 'Reminder — your visit for :property is scheduled tomorrow at :datetime.',
-        'intro_1h' => 'Reminder — your visit for :property starts in about an hour at :datetime.',
-    ],
-
     'task_due_reminder' => [
         'subject' => 'Reminder: task due soon — :title',
         'greeting' => 'Hello,',
@@ -109,8 +102,8 @@ return [
     'lease_late_fee_applied' => [
         'subject' => 'Late fee applied on payment :reference',
         'greeting' => 'Hello,',
-        'intro' => 'A late fee of :amount :currency has been applied to payment :reference.',
-        'details' => 'Computed at :percent% of the remaining balance (:base :currency).',
+        'intro' => 'A late fee of :amount has been applied to payment :reference.',
+        'details' => 'Computed at :percent% of the remaining balance (:base).',
     ],
 
     'account_deletion_requested' => [
@@ -158,8 +151,8 @@ return [
     'lease_deposit_refunded' => [
         'subject' => 'Deposit refund — lease :reference',
         'greeting' => 'Hello,',
-        'intro' => 'Your deposit for lease :reference has been refunded — :amount :currency.',
-        'retention' => 'A retention of :amount :currency has been applied. Reason: :reason.',
+        'intro' => 'Your deposit for lease :reference has been refunded — :amount.',
+        'retention' => 'A retention of :amount has been applied. Reason: :reason.',
     ],
 
     'lease_renewed' => [
@@ -198,7 +191,7 @@ return [
 
     'lease_early_termination' => [
         'greeting' => 'Hello,',
-        'penalty_line' => 'Early termination penalty: :amount :currency. Due before the effective date.',
+        'penalty_line' => 'Early termination penalty: :amount. Due before the effective date.',
         'requested' => [
             'subject' => 'Early termination requested — lease :reference',
             'intro' => 'An early termination has been requested on lease :reference. Effective date: :date.',
@@ -216,7 +209,7 @@ return [
     'lease_rent_reviewed' => [
         'subject' => 'Rent review — lease :reference',
         'greeting' => 'Hello,',
-        'intro' => 'The monthly rent of lease :reference has been reviewed: :old → :new :currency.',
+        'intro' => 'The monthly rent of lease :reference has been reviewed: :old → :new.',
         'effective' => 'Effective date: :date.',
         'reason' => 'Reason: :reason',
     ],
@@ -225,7 +218,7 @@ return [
         'subject' => 'Reminder — invoice :reference overdue',
         'greeting' => 'Hello,',
         'intro' => 'Invoice :reference is :days days overdue (due date: :due_date).',
-        'amount' => 'Amount due: :amount :currency.',
+        'amount' => 'Amount due: :amount.',
         'cta' => 'Please settle the invoice as soon as possible to avoid further reminders.',
     ],
 
@@ -255,5 +248,229 @@ return [
     'admin_alert' => [
         'test_message' => '[TEST] :event triggered by a synthetic test.',
         'activity_message' => ':event — actor :actor, subject :subject',
+    ],
+
+    // TCK-588 — salutation et bouton des e-mails rendus par code (CodedNotification).
+    'greeting' => 'Hello,',
+    'open' => 'Open',
+
+    // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
+    'codes' => [
+        'lease_payment' => [
+            'due_soon' => [
+                'title' => 'Rent due on :due_date',
+                'body' => 'Your rent of :amount for :property is due on :due_date.',
+                'body_link' => 'Your rent of :amount for :property is due on :due_date. Pay online: :payment_url',
+                'sms' => 'Takussan: rent of :amount due on :due_date (:property).',
+                'sms_link' => 'Takussan: rent of :amount due on :due_date. Pay: :payment_url',
+            ],
+            'overdue' => [
+                'title' => 'Rent overdue',
+                'body' => '{1} Your rent of :amount for :property, due on :due_date, is :days day overdue.|[0,*] Your rent of :amount for :property, due on :due_date, is :days days overdue.',
+                'body_link' => '{1} Your rent of :amount for :property, due on :due_date, is :days day overdue. Pay online: :payment_url|[0,*] Your rent of :amount for :property, due on :due_date, is :days days overdue. Pay online: :payment_url',
+                'sms' => '{1} Takussan: rent of :amount is :days day overdue (:property).|[0,*] Takussan: rent of :amount is :days days overdue (:property).',
+                'sms_link' => '{1} Takussan: rent of :amount is :days day overdue. Pay: :payment_url|[0,*] Takussan: rent of :amount is :days days overdue. Pay: :payment_url',
+            ],
+            'overdue_landlord' => [
+                'title' => 'Unpaid rent: :property',
+                'body' => '{1} The rent of :amount from :tenant for :property is :days day overdue.|[0,*] The rent of :amount from :tenant for :property is :days days overdue.',
+                'sms' => '{1} Takussan: rent of :amount from :tenant (:property) is :days day overdue.|[0,*] Takussan: rent of :amount from :tenant (:property) is :days days overdue.',
+            ],
+            'overdue_digest' => [
+                'title' => '{1} :count overdue rent|[0,*] :count overdue rents',
+                'body' => '{1} :count payment on your leases is overdue, totalling :total.|[0,*] :count payments on your leases are overdue, totalling :total.',
+                'sms' => '{1} Takussan: :count overdue rent (:total).|[0,*] Takussan: :count overdue rents (:total).',
+            ],
+            'recorded' => [
+                'title' => 'Payment recorded',
+                'body' => 'Your payment of :amount for :property has been recorded.',
+                'sms' => 'Takussan: payment of :amount recorded (:property).',
+            ],
+            'received_landlord' => [
+                'title' => 'Rent received: :property',
+                'body' => ':tenant paid :amount for :property.',
+                'sms' => 'Takussan: :tenant paid :amount (:property).',
+            ],
+        ],
+        'booking' => [
+            'created' => [
+                'title' => 'New booking',
+                'body' => 'Booking :reference was requested for :property, from :start_date to :end_date.',
+                'sms' => 'Takussan: new booking :reference (:property).',
+            ],
+            'confirmed' => [
+                'title' => 'Booking confirmed',
+                'body' => 'Your booking :reference for :property, from :start_date to :end_date, is confirmed.',
+                'sms' => 'Takussan: booking :reference confirmed (:property, :start_date).',
+            ],
+            'rejected' => [
+                'title' => 'Booking declined',
+                'body' => 'Your booking :reference for :property was declined.',
+                'sms' => 'Takussan: booking :reference declined (:property).',
+            ],
+            'cancelled' => [
+                'title' => 'Booking cancelled',
+                'body' => 'Your booking :reference for :property was cancelled.',
+                'sms' => 'Takussan: booking :reference cancelled (:property).',
+            ],
+        ],
+        'visit' => [
+            'reminder' => [
+                'title' => 'Visit reminder: :property',
+                'body' => 'Reminder: the visit of :property is scheduled for :scheduled_at.',
+                'sms' => 'Takussan: visit of :property on :scheduled_at.',
+            ],
+        ],
+        'message' => [
+            'received' => [
+                'title' => 'New message from :sender',
+                'body' => ':sender: :excerpt',
+                'sms' => 'Takussan: new message from :sender.',
+            ],
+        ],
+        'lead' => [
+            'received' => [
+                'title' => 'New contact without an account',
+                'body' => ':name (:email): :excerpt',
+                'sms' => 'Takussan: new contact from :name.',
+            ],
+        ],
+        'kyc' => [
+            'submitted' => [
+                'title' => 'Agency KYC to review',
+                'body' => 'The KYC file of :agency has been submitted.',
+                'sms' => 'Takussan: KYC of :agency to review.',
+            ],
+            'verified' => [
+                'title' => 'Agency KYC verified',
+                'body' => 'Your KYC file has been verified.',
+                'sms' => 'Takussan: your KYC file is verified.',
+            ],
+            'rejected' => [
+                'title' => 'Agency KYC rejected',
+                'body' => 'Your KYC file was rejected: :reason',
+                'sms' => 'Takussan: your KYC file was rejected.',
+            ],
+        ],
+        'role_delegation' => [
+            'activated' => [
+                'title' => 'Role delegated — :role',
+                'body' => 'You have been granted the :role role until :ends_at.',
+                'sms' => 'Takussan: :role role granted until :ends_at.',
+            ],
+            'activated_delegator' => [
+                'title' => 'Role delegated — :role',
+                'body' => 'The delegation to :beneficiary for the :role role is now active.',
+                'sms' => 'Takussan: :role delegation to :beneficiary is active.',
+            ],
+            'expired' => [
+                'title' => 'Delegation expired — :role',
+                'body' => 'Your delegation for the :role role has ended.',
+                'sms' => 'Takussan: :role delegation ended.',
+            ],
+            'expired_delegator' => [
+                'title' => 'Delegation expired — :role',
+                'body' => 'The delegation to :beneficiary for the :role role has expired.',
+                'sms' => 'Takussan: :role delegation to :beneficiary expired.',
+            ],
+            'revoked' => [
+                'title' => 'Delegation revoked — :role',
+                'body' => 'Your delegation for the :role role has been revoked.',
+                'sms' => 'Takussan: :role delegation revoked.',
+            ],
+            'revoked_delegator' => [
+                'title' => 'Delegation revoked — :role',
+                'body' => 'You have revoked the delegation from :beneficiary for the :role role.',
+                'sms' => 'Takussan: :role delegation of :beneficiary revoked.',
+            ],
+        ],
+        'bank_statement' => [
+            'imported' => [
+                'title' => 'Statement imported',
+                'body' => '{1} Your statement :bank (:lines line) is ready for reconciliation.|[0,*] Your statement :bank (:lines lines) is ready for reconciliation.',
+                'sms' => 'Takussan: statement :bank imported.',
+            ],
+            'finalized' => [
+                'title' => 'Statement finalized',
+                'body' => 'The statement from :period_start to :period_end has been finalized (:confirmed/:total lines reconciled).',
+                'sms' => 'Takussan: statement from :period_start to :period_end finalized.',
+            ],
+        ],
+        'maintenance' => [
+            'created' => [
+                'title' => 'New maintenance request',
+                'body' => 'A maintenance request (:reference) was submitted for :property.',
+                'sms' => 'Takussan: maintenance request :reference (:property).',
+            ],
+        ],
+        'maintenance_quote' => [
+            'requested' => [
+                'title' => 'Quote requested: :request',
+                'body' => 'A quote is requested from you for the job ":request".',
+                'sms' => 'Takussan: quote requested for ":request".',
+            ],
+            'submitted' => [
+                'title' => 'Quote submitted: :request',
+                'body' => 'A quote of :amount was submitted for the job ":request".',
+                'sms' => 'Takussan: quote of :amount submitted for ":request".',
+            ],
+            'approved' => [
+                'title' => 'Quote approved: :request',
+                'body' => 'Your quote for the job ":request" was approved.',
+                'sms' => 'Takussan: quote approved for ":request".',
+            ],
+            'rejected' => [
+                'title' => 'Quote rejected: :request',
+                'body' => 'Your quote for the job ":request" was rejected.',
+                'sms' => 'Takussan: quote rejected for ":request".',
+            ],
+        ],
+        'property' => [
+            'approved' => [
+                'title' => 'Property approved: :property',
+                'body' => 'Your property ":property" was approved and is now visible on the platform.',
+                'sms' => 'Takussan: listing ":property" approved.',
+            ],
+            'rejected' => [
+                'title' => 'Property rejected: :property',
+                'body' => 'Your property ":property" was rejected. Reason: :reason. You can fix the listing and resubmit it from your workspace.',
+                'sms' => 'Takussan: listing ":property" rejected.',
+            ],
+        ],
+    ],
+
+    // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).
+    'threshold_alert_mail' => [
+        'subject' => '[Takussan] KPI alert — :metric',
+        'intro' => 'A monitored metric has crossed its threshold.',
+        'above' => ':metric: :value is above :threshold (severity: :severity).',
+        'below' => ':metric: :value is below :threshold (severity: :severity).',
+        'action' => 'Open the dashboard',
+        'cooldown' => '{1} This alert will not be sent again for :hours hour.|[0,*] This alert will not be sent again for :hours hours.',
+    ],
+    'urgent_maintenance' => [
+        'subject' => 'URGENT: :title',
+        'subject_escalation' => 'URGENT ESCALATION: :title',
+        'greeting' => 'Hello,',
+        'intro' => 'An URGENT maintenance request was submitted for the property.',
+        'job' => 'Job: :title',
+        'intro_escalation' => 'Maintenance request #:id (:title) is URGENT and has not been handled for more than 30 minutes.',
+        'cta' => 'Please take charge of this request immediately.',
+        'title' => 'Urgent: :title',
+        'title_escalation' => 'Urgent escalation: :title',
+    ],
+    'activity_log_export' => [
+        'subject' => 'Your audit log export is ready',
+        'greeting' => 'Hello,',
+        'intro' => '{1} Your audit log export (:count entry) is ready.|[0,*] Your audit log export (:count entries) is ready.',
+        'expires' => 'The download link expires in 24 hours.',
+        'action' => 'Download the export',
+        'file' => 'File: :filename',
+    ],
+    'report_export' => [
+        'subject' => 'Your report export is ready',
+        'intro' => 'The export of the report ":report" is ready for download.',
+        'action' => 'Download',
+        'expires' => 'This link expires in 7 days.',
     ],
 ];

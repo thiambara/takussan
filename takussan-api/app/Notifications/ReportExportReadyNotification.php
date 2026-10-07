@@ -21,9 +21,9 @@ class ReportExportReadyNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Votre export de rapport est prêt')
-            ->line("L'export du rapport « {$this->export->report} » est prêt au téléchargement.")
-            ->action('Télécharger', url("/api/admin/reports/{$this->export->report}/exports/{$this->export->id}/download"))
-            ->line('Ce lien expire dans 7 jours.');
+            ->subject(__('notifications.report_export.subject'))
+            ->line(__('notifications.report_export.intro', ['report' => $this->export->report]))
+            ->action(__('notifications.report_export.action'), url("/api/admin/reports/{$this->export->report}/exports/{$this->export->id}/download"))
+            ->line(__('notifications.report_export.expires'));
     }
 }

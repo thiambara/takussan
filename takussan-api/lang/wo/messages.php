@@ -33,6 +33,14 @@ return [
     'target_user_has_no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
     'target_user_not_in_active_agency' => 'Jàngalekat bi tànn nga ñoom du ci sa agence bi nga di liggéeyal.',
 
+    // Integrations — TCK-588 : ces quatre clés lues par le code manquaient en wolof (repli anglais).
+    'integration_inactive' => 'Intégration bi dafa fay. Taalal ko balaa ngay ko test.',
+    'integration_missing_credentials' => 'Amul benn identifiant bu ñu defar ngir intégration bii.',
+    'integration_test_ok' => 'Jokkoo ak :provider seet nañu ko, baax na.',
+
+    // Tags
+    'tag_in_use' => 'Tag bii ñu ngi koy jëfandikoo ci benn walla ay kër walla ay kiliyaan.',
+
     // Lease
     'lease_cannot_terminate' => 'Luwé yi jàpp walla yi ñu baaxal rekk la ñu mën tas.',
     'lease_renewal_status_not_renewable' => 'Luwé yi jàpp walla yi jeex rekk la ñu mën a yeesalaat.',

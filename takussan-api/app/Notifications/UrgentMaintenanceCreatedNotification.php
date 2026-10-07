@@ -45,31 +45,37 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
     public function toMail(object $notifiable): MailMessage
     {
         $title = $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id;
-        $subjectPrefix = $this->isEscalation ? 'ESCALADE URGENTE' : 'URGENT';
 
         $mail = (new MailMessage)
-            ->subject("{$subjectPrefix}: ".$title)
-            ->greeting('Bonjour,');
+            ->subject(__($this->isEscalation
+                ? 'notifications.urgent_maintenance.subject_escalation'
+                : 'notifications.urgent_maintenance.subject', ['title' => $title]))
+            ->greeting(__('notifications.urgent_maintenance.greeting'));
 
         if ($this->isEscalation) {
-            $mail->line("La demande de maintenance #{$this->maintenanceRequest->id} ({$title}) est URGENTE et n'a pas été traitée depuis plus de 30 minutes.");
+            $mail->line(__('notifications.urgent_maintenance.intro_escalation', [
+                'id' => $this->maintenanceRequest->id,
+                'title' => $title,
+            ]));
         } else {
-            $mail->line('Une demande de maintenance URGENTE a été soumise pour le bien.')
-                ->line("Intervention: {$title}");
+            $mail->line(__('notifications.urgent_maintenance.intro'))
+                ->line(__('notifications.urgent_maintenance.job', ['title' => $title]));
         }
 
         return $mail
-            ->line('Veuillez prendre en charge cette demande immédiatement.')
+            ->line(__('notifications.urgent_maintenance.cta'))
             ->salutation(__('notifications.salutation'));
     }
 
     public function toArray(object $notifiable): array
     {
-        $prefix = $this->isEscalation ? 'Escalade urgente' : 'Urgent';
-
         return [
             'maintenance_request_id' => $this->maintenanceRequest->id,
-            'title' => "{$prefix}: ".($this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id),
+            'title' => __($this->isEscalation
+                ? 'notifications.urgent_maintenance.title_escalation'
+                : 'notifications.urgent_maintenance.title', [
+                    'title' => $this->maintenanceRequest->title ?? '#'.$this->maintenanceRequest->id,
+                ]),
             'priority' => 'urgent',
             'escalation' => $this->isEscalation,
         ];

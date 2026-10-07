@@ -28,13 +28,13 @@ class ActivityLogExportReadyNotification extends Notification implements ShouldQ
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Votre export du journal d\'audit est prêt')
-            ->greeting('Bonjour,')
-            ->line("Votre export du journal d'audit ({$this->rowCount} entrées) est prêt.")
-            ->line('Le lien de téléchargement expire dans 24 heures.')
-            ->action('Télécharger l\'export', $this->downloadUrl)
-            ->line('Fichier : '.$this->filename)
-            ->salutation('Cordialement, l\'équipe Takussan');
+            ->subject(__('notifications.activity_log_export.subject'))
+            ->greeting(__('notifications.activity_log_export.greeting'))
+            ->line(trans_choice('notifications.activity_log_export.intro', $this->rowCount, ['count' => $this->rowCount]))
+            ->line(__('notifications.activity_log_export.expires'))
+            ->action(__('notifications.activity_log_export.action'), $this->downloadUrl)
+            ->line(__('notifications.activity_log_export.file', ['filename' => $this->filename]))
+            ->salutation(__('notifications.salutation'));
     }
 
     /**

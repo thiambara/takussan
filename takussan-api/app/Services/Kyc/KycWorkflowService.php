@@ -2,11 +2,11 @@
 
 namespace App\Services\Kyc;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
-use App\Models\Enums\NotificationChannel;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\KycDossier;
 use App\Models\User;
@@ -178,22 +178,18 @@ class KycWorkflowService
 
     private function notifySubmitted(KycDossier $dossier): void
     {
-        $subjectName = $dossier->subject instanceof Agency ? $dossier->subject->name : 'Dossier';
+        $subjectName = $dossier->subject instanceof Agency ? $dossier->subject->name : null;
         User::query()
             ->whereHas('platformProfile', fn ($query) => $query
                 ->whereNull('revoked_at')
                 ->where('level', PlatformProfileLevel::SuperAdmin->value))
             ->get()
-            ->each(function (User $user) use ($dossier, $subjectName): void {
-                $this->notifications->notify(
-                    user: $user,
-                    type: NotificationType::System,
-                    title: 'KYC agence à instruire',
-                    body: "Le dossier KYC de {$subjectName} a été soumis.",
-                    data: ['event' => 'kyc_submitted', 'dossier_id' => $dossier->id],
-                    channel: NotificationChannel::App,
-                    referenceableType: 'kyc_dossier',
-                    referenceableId: $dossier->id,
+            ->each(function (User $user) use ($subjectName): void {
+                $this->notifications->send(
+                    $user,
+                    NotificationCode::KycSubmitted,
+                    ['agency' => $subjectName],
+                    NotificationTarget::of('kyc_review'),
                 );
             });
     }
@@ -206,21 +202,13 @@ class KycWorkflowService
             return;
         }
 
-        $this->notifications->notify(
-            user: $admin,
-            type: NotificationType::System,
-            title: $verified ? 'KYC agence vérifié' : 'KYC agence rejeté',
-            body: $verified
-                ? 'Votre dossier KYC a été vérifié.'
-                : 'Votre dossier KYC a été rejeté : '.$dossier->rejection_reason,
-            data: [
-                'event' => $verified ? 'kyc_verified' : 'kyc_rejected',
-                'dossier_id' => $dossier->id,
-                'rejection_reason' => $dossier->rejection_reason,
-            ],
-            channel: NotificationChannel::App,
-            referenceableType: 'kyc_dossier',
-            referenceableId: $dossier->id,
+        // TCK-588 — le verdict obéit à `kyc_status_changed` (critique : in-app et e-mail
+        // toujours), et non plus à « Alerte seuil KPI » par le type `system`.
+        $this->notifications->send(
+            $admin,
+            $verified ? NotificationCode::KycVerified : NotificationCode::KycRejected,
+            $verified ? [] : ['reason' => $dossier->rejection_reason],
+            NotificationTarget::of('agency_kyc'),
         );
     }
 }

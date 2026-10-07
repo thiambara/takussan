@@ -242,6 +242,14 @@ final class ProseLitteraleScanner
 
                 continue;
             }
+            // Les arguments d'une MÉTHODE (`$this->render($n, 'mail_subject')`, `Number::format(…)`)
+            // calculent une valeur : ce sont des identifiants, pas le texte affiché. Une FONCTION
+            // (`sprintf`, `implode`) reste lue — c'est elle qui porte une phrase imbriquée.
+            if ($tok->is(T_STRING) && in_array($t[$i - 1]->text ?? null, ['->', '?->', '::'], true) && ($t[$i + 1]->text ?? null) === '(') {
+                $i = $this->closing($t, $i + 1);
+
+                continue;
+            }
             // Une chaîne interpolée employée comme clé de tableau (`"templates.{$locale}.body" =>`).
             if ($tok->text === '"') {
                 $end = $i + 1;

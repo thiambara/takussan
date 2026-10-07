@@ -2,11 +2,12 @@
 
 namespace App\Services\Model;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -105,21 +106,10 @@ class BookingService
         ]));
 
         // Notify the landlord (property owner)
-        $recipients = collect();
         $owner = $property->owner;
         if ($owner) {
-            $recipients->push($owner);
+            $this->notifyBooking($owner, NotificationCode::BookingCreated, $booking);
         }
-
-        $this->notifications->notifyMany(
-            $recipients,
-            NotificationType::Booking,
-            'Nouvelle réservation',
-            'Une réservation a été créée pour '.$property->title.'.',
-            ['booking_id' => $booking->id],
-            referenceableType: 'booking',
-            referenceableId: $booking->id,
-        );
 
         return $booking;
     }
@@ -195,13 +185,7 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation confirmée',
-                'Votre réservation '.$booking->reference_number.' a été confirmée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingConfirmed, $booking);
         }
 
         return $booking;
@@ -225,13 +209,7 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation refusée',
-                'Votre réservation '.$booking->reference_number.' a été refusée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingRejected, $booking);
         }
 
         return $booking;
@@ -295,15 +273,22 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation annulée',
-                'Votre réservation '.$booking->reference_number.' a été annulée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingCancelled, $booking);
         }
 
         return $booking;
+    }
+
+    /** TCK-588 (ADR-0032) — une notification de réservation, rendue dans la langue de son destinataire. */
+    private function notifyBooking(User $to, NotificationCode $code, Booking $booking): void
+    {
+        $booking->loadMissing('property');
+
+        $this->notifications->send($to, $code, [
+            'reference' => $booking->reference_number ?? (string) $booking->id,
+            'property' => $booking->property?->title,
+            'start_date' => $booking->start_date?->toDateString(),
+            'end_date' => $booking->end_date?->toDateString(),
+        ], NotificationTarget::of('booking', $booking->id));
     }
 }
