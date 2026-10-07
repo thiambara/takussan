@@ -2266,7 +2266,12 @@
         "since": "Since {date}",
         "until": " until {date}",
         "primaryContact": " · main contact",
-        "statusSuffix": " · status {status}"
+        "statusSuffix": " · status {status}",
+        "type": {
+          "owner_tenant": "Landlord / tenant",
+          "agent_client": "Agent / client",
+          "other": "Other relationship"
+        }
       },
       "documents": {
         "empty_title": "No document attached",
@@ -6670,7 +6675,6 @@
         "empty": "No agency profile.",
         "agencyFallback": "Agency {id}",
         "agencyLink": "Agency",
-        "broker": "Broker",
         "serviceProvider": "Service provider"
       },
       "sessions": {

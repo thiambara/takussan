@@ -49,7 +49,6 @@ class UserDetailController extends Controller
                 'agency_admin' => $query->whereHas('agencyAdminProfiles'),
                 'agent' => $query->whereHas('agentProfiles'),
                 'owner' => $query->whereHas('ownerProfiles'),
-                'broker' => $query->whereHas('brokerProfile'),
                 'service_provider' => $query->whereHas('serviceProviderProfile'),
                 default => $query->whereRaw('1 = 0'),
             };
@@ -83,7 +82,6 @@ class UserDetailController extends Controller
             'agentProfiles.agency',
             'ownerProfiles.agency',
             'agencyAdminProfiles.agency',
-            'brokerProfile',
             'serviceProviderProfile',
             'platformProfile',
         ]);
@@ -98,7 +96,6 @@ class UserDetailController extends Controller
             'agentProfiles.agency',
             'ownerProfiles.agency',
             'agencyAdminProfiles.agency',
-            'brokerProfile',
             'serviceProviderProfile',
             'platformProfile',
         ]);
@@ -172,8 +169,8 @@ class UserDetailController extends Controller
     /**
      * TCK-278 — Reconstruit la liste `(role, team_id)` à partir des profils
      * polymorphes (cf. Règle 5). `team_id` = `agency_id` du profil ; null
-     * pour `super_admin` (PlatformProfile global) et pour broker /
-     * service_provider (rattachement user-scoped).
+     * pour `super_admin` (PlatformProfile global) et pour service_provider
+     * (rattachement user-scoped).
      */
     private function attachRoleRows($users): void
     {
@@ -192,9 +189,6 @@ class UserDetailController extends Controller
             }
             foreach ($user->ownerProfiles ?? [] as $profile) {
                 $rows[] = ['name' => 'owner', 'team_id' => $profile->agency_id];
-            }
-            if ($user->brokerProfile) {
-                $rows[] = ['name' => 'broker', 'team_id' => null];
             }
             if ($user->serviceProviderProfile) {
                 $rows[] = ['name' => 'service_provider', 'team_id' => null];

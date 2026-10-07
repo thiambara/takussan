@@ -126,15 +126,6 @@ class AgencyModerationController extends Controller
                     and agent_profiles.deleted_at is null
                     and agent_profiles.status = 'active'
                 union
-                select broker_profiles.user_id
-                from broker_profiles
-                inner join broker_agency_collaborations
-                    on broker_agency_collaborations.broker_profile_id = broker_profiles.id
-                where broker_agency_collaborations.agency_id = agencies.id
-                    and broker_agency_collaborations.deleted_at is null
-                    and broker_agency_collaborations.status = 'active'
-                    and broker_profiles.deleted_at is null
-                union
                 select service_provider_profiles.user_id
                 from service_provider_profiles
                 inner join service_provider_agency_collaborations

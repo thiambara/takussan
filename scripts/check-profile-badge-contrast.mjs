@@ -48,9 +48,10 @@
  *     agency_admin         13,32         12,71          11,27          12,45
  *     owner                13,40         12,79          11,45          12,75
  *     agent                14,16         13,54           9,85          10,88
- *     broker               13,32         12,74          10,24          11,41
  *     service_provider     11,50         10,97           8,10           8,99
  *     (repli)              14,87         14,87          12,53          12,53
+ *
+ * (La ligne du courtier a été retirée avec le type — TCK-495, puis ADR-0030.)
  *
  * AVANT (`text-chart-N`), 12 couples sur 20 échouaient, minimum **2,87:1**.
  *
@@ -107,8 +108,7 @@ const PROFILE_TS = join(SRC, 'types', 'profile.ts');
  * d'apparence saine (« 16 mesures ≥ 4,5:1 »). Un ensemble amputé n'est pas « conforme ».
  *
  * ⚠⚠ **TCK-495 — cette liste était RECOPIÉE ici, et elle a menti dès qu'un type a bougé.**
- * `['agency_admin', 'owner', 'agent', 'broker', 'service_provider']` : le retrait du courtier de
- * `PROFILE_TYPES` a fait rougir cette garde sur un défaut de CONTRASTE qui n'existait pas, en
+ * Cinq types, dont le courtier : son retrait de `PROFILE_TYPES` a fait rougir cette garde sur un défaut de CONTRASTE qui n'existait pas, en
  * accusant la table du composant d'être « amputée » alors qu'elle était juste. *Une garde qui
  * recopie ce qu'elle surveille est le défaut qu'elle existe pour attraper ailleurs* — c'est le
  * même motif que TCK-329, TCK-476 et le `SelectActiveProfileRequest` du back.

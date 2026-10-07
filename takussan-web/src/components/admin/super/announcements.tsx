@@ -56,7 +56,8 @@ const SEVERITY_TONES: Record<AnnouncementSeverity, StatusTone> = {
 /**
  * Les rôles ciblables par une annonce.
  *
- * ⚠ **TCK-495 — `broker` en a été retiré, et cette liste reste une RECOPIE.**
+ * ⚠ **TCK-495 — `broker` en a été retiré (le courtier a depuis quitté le code,
+ * ADR-0030), et cette liste reste une RECOPIE.**
  * `AnnouncementResolver` croise `segment.roles` avec `HasProfiles::profileTypes()` :
  * un slug qui n'y figure pas cible zéro compte, en silence, sans que rien ne le
  * dise à qui rédige l'annonce. Garder `broker` ici aurait donc laissé une case

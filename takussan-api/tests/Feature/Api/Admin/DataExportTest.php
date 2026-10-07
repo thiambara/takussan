@@ -3,8 +3,10 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Jobs\Privacy\PurgeExpiredDataExports;
+use App\Models\Agency;
 use App\Models\DataExport;
 use App\Models\Enums\DataExportStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Privacy\DataExportBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,6 +90,22 @@ class DataExportTest extends TestCase
 
         $this->assertStringContainsString('alpha@example.test', $profile);
         $this->assertStringNotContainsString('bravo@example.test', $profile);
+    }
+
+    /**
+     * TCK-586, AC9 — l'export taisait le profil qui donne le plus de droits. La ligne voisine,
+     * celle du courtier, a quitté le code (ADR-0030).
+     */
+    public function test_l_export_d_un_admin_d_agence_contient_son_profil_d_admin(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+
+        $profiles = app(DataExportBuilder::class)->payloads($admin)['profile.json']['profiles'];
+
+        $this->assertSame([$agency->id], array_column($profiles['agency_admins'], 'agency_id'));
+        $this->assertArrayNotHasKey('broker', $profiles);
     }
 
     public function test_purge_marks_expired_and_deletes_archive(): void

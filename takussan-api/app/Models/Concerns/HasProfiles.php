@@ -8,7 +8,6 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -54,11 +53,6 @@ trait HasProfiles
         return $this->hasMany(AgencyAdminProfile::class);
     }
 
-    public function brokerProfile(): HasOne
-    {
-        return $this->hasOne(BrokerProfile::class);
-    }
-
     public function serviceProviderProfile(): HasOne
     {
         return $this->hasOne(ServiceProviderProfile::class);
@@ -79,21 +73,8 @@ trait HasProfiles
      * Eloquent : précharger via `$user->load(['ownerProfiles', 'agentProfiles',
      * 'agencyAdminProfiles', 'serviceProviderProfile'])` en amont si besoin.
      *
-     * ⚠ **TCK-495 — `brokerProfile` a été RETIRÉ d'ici, et ce n'était pas
-     * optionnel.** Les trois appelants de cette méthode — le sélecteur
-     * (`MeProfilesController`), l'auto-bascule (`ResolveActiveProfile`) et
-     * `User::getAgencyIdAttribute()` — traitent tous son résultat comme « un
-     * profil qu'on peut rendre actif ». Or `ProfileResource` appelle
-     * `ActiveProfileResolver::aliasFor()`, qui **lève une
-     * `InvalidArgumentException` pour une classe absente de `TYPE_MAP`.
-     * Retirer l'alias sans retirer le profil d'ici aurait donc rendu **500** sur
-     * `GET /api/me/profiles` à tout compte portant un `BrokerProfile` — et les
-     * seeders en créent un (`UserSeeder`, `TestSeeder`). Le ticket ne
-     * l'anticipait pas ; `ProfilesEndpointTest` l'épingle maintenant.
-     *
-     * La relation `brokerProfile()` reste, et les lectures de modèle aussi
-     * (admin, export RGPD, `PropertyResource`) : ce qui disparaît est la
-     * COMMUTATION, pas la donnée.
+     * TCK-495 a retiré le courtier de cette liste (ADR-0027), et ADR-0030 l'a
+     * retiré du code et de la base : les profils polymorphes sont cinq.
      */
     public function profiles(): Collection
     {
@@ -125,8 +106,8 @@ trait HasProfiles
     /**
      * Whether the user holds a profile of the given concrete class. When
      * `$agencyId` is given, restrict the check to that agency for profile
-     * classes that are agency-scoped (Owner, Agent). Broker/ServiceProvider
-     * are user-scoped and ignore `$agencyId`.
+     * classes that are agency-scoped (Owner, Agent, AgencyAdmin).
+     * ServiceProvider is user-scoped and ignores `$agencyId`.
      */
     public function hasProfile(string $class, ?int $agencyId = null): bool
     {
@@ -140,7 +121,6 @@ trait HasProfiles
             AgencyAdminProfile::class => $agencyId === null
                 ? $this->agencyAdminProfiles()->exists()
                 : $this->agencyAdminProfiles()->where('agency_id', $agencyId)->exists(),
-            BrokerProfile::class => $this->brokerProfile()->exists(),
             ServiceProviderProfile::class => $this->serviceProviderProfile()->exists(),
             default => false,
         };
@@ -180,7 +160,6 @@ trait HasProfiles
     public function isProfessional(): bool
     {
         return $this->agentProfiles()->exists()
-            || $this->brokerProfile()->exists()
             || $this->serviceProviderProfile()->exists();
     }
 
@@ -233,12 +212,8 @@ trait HasProfiles
         if ($this->ownerProfiles()->exists()) {
             $types->push('owner');
         }
-        // TCK-495 — `broker` était poussé ici. Il ne l'est plus : le courtier
-        // sort de la surface commutable (ADR-0027). La ligne de base survit,
-        // l'alias non — et ce `roles` est ce que le front lit pour bâtir son
-        // menu. Émettre un rôle auquel `buildNavItems` n'associe aucune entrée
-        // rend une barre latérale au socle nu ; le laisser sortir d'ici est ce
-        // qui empêche ce cas d'exister.
+        // Le courtier n'est plus un profil (ADR-0030) : `roles` ne nomme que
+        // ce à quoi `buildNavItems` côté front associe une entrée de menu.
         if ($this->serviceProviderProfile()->exists()) {
             $types->push('service_provider');
         }

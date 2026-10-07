@@ -7,10 +7,10 @@ namespace App\Models\Enums;
  *
  * @deprecated TCK-278 — un rôle n'est plus une valeur portée par l'utilisateur
  * mais un **profil polymorphe** scopé par agence (`OwnerProfile`,
- * `AgentProfile`, `AgencyAdminProfile`, `BrokerProfile`,
- * `ServiceProviderProfile`, `PlatformProfile`), et une autorisation est une
- * `Capability` résolue pour un couple *(utilisateur, agence)* par
- * `MembershipCapabilityResolver` (ADR-0002 / ADR-0003).
+ * `AgentProfile`, `AgencyAdminProfile`, `ServiceProviderProfile`,
+ * `PlatformProfile` ; le courtier a quitté le code, ADR-0030), et une
+ * autorisation est une `Capability` résolue pour un couple *(utilisateur,
+ * agence)* par `MembershipCapabilityResolver` (ADR-0002 / ADR-0003).
  *
  * Cette enum **survit uniquement comme vocabulaire de CONTRAT HTTP** : elle
  * nomme les valeurs acceptées par `PUT /api/users/{user}/role`
