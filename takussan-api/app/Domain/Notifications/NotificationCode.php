@@ -87,6 +87,9 @@ enum NotificationCode: string
 
     public const PARAM_TEXT = 'text';
 
+    /** Un lien : jamais tronqué, contrairement à un texte dans un SMS. */
+    public const PARAM_URL = 'url';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -183,7 +186,7 @@ enum NotificationCode: string
     public function optionalParams(): array
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url' => self::PARAM_TEXT],
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url' => self::PARAM_URL],
             default => [],
         };
     }

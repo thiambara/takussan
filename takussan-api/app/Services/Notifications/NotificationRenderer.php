@@ -29,6 +29,14 @@ class NotificationRenderer
 
     public const DEFAULT_TIMEZONE = 'Africa/Dakar';
 
+    /**
+     * Longueur maximale d'un paramètre TEXTE dans un SMS. Un texte accentué part en UCS-2 :
+     * deux segments, c'est 134 caractères. Sans plafond, un intitulé de bien de 49 caractères
+     * (le plus long du jeu de données, mesuré le 2026-10-07) et un nom de locataire poussaient
+     * `lease_payment.overdue_landlord` à trois segments.
+     */
+    public const SMS_TEXT_MAX = 32;
+
     public function __construct(
         private readonly CurrencyFormatter $currency,
         private readonly NotificationTemplateService $templates,
@@ -49,7 +57,7 @@ class NotificationRenderer
             throw new \InvalidArgumentException("Surface inconnue : {$surface}");
         }
 
-        $formatted = $this->format($code, $params, $locale, $timezone ?: self::DEFAULT_TIMEZONE);
+        $formatted = $this->format($code, $params, $locale, $timezone ?: self::DEFAULT_TIMEZONE, $surface === 'sms' ? self::SMS_TEXT_MAX : null);
 
         $fromTemplate = $this->fromTemplate($code, $params, $formatted, $locale, $surface, $firstName);
         if ($fromTemplate !== null) {
@@ -65,12 +73,13 @@ class NotificationRenderer
     }
 
     /**
-     * Les paramètres formatés pour un texte, dans la langue et le fuseau du destinataire.
+     * Les paramètres formatés pour un texte, dans la langue et le fuseau du destinataire. Un
+     * `$textMax` tronque les paramètres texte (SMS).
      *
      * @param  array<string, mixed>  $params
      * @return array<string, string>
      */
-    public function format(NotificationCode $code, array $params, string $locale, string $timezone): array
+    public function format(NotificationCode $code, array $params, string $locale, string $timezone, ?int $textMax = null): array
     {
         $out = [];
         foreach ($code->params() + $code->optionalParams() as $name => $type) {
@@ -80,7 +89,8 @@ class NotificationRenderer
                 NotificationCode::PARAM_DATE => $this->date($value, $locale, null),
                 NotificationCode::PARAM_DATETIME => $this->date($value, $locale, $timezone),
                 NotificationCode::PARAM_COUNT => (string) (int) $value,
-                default => is_scalar($value) && (string) $value !== '' ? (string) $value : '—',
+                NotificationCode::PARAM_URL => is_string($value) && $value !== '' ? $value : '—',
+                default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
 
@@ -135,6 +145,13 @@ class NotificationRenderer
         }
 
         return false;
+    }
+
+    private function text(string $value, ?int $max): string
+    {
+        return $max !== null && mb_strlen($value) > $max
+            ? rtrim(mb_substr($value, 0, $max - 3)).'...'
+            : $value;
     }
 
     private function formatMoney(mixed $value, string $locale): string
