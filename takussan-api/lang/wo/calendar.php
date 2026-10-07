@@ -8,6 +8,7 @@ return [
     'errors' => [
         'cross_agency_forbidden' => 'Saytukat yu platform bi rekk ñoo mën a xool ajandaa beneen ajaans.',
         'window_too_long' => 'Diir bi nga laaj ëpp na :days fan. Wàññi ko.',
+        'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
     ],
     'feed' => [
         'name' => 'Takussan — samay ndaje',

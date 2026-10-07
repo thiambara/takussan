@@ -162,18 +162,17 @@ class TaskAuthorizationTest extends ApiTestCase
 
     public function test_an_assignee_outside_the_parent_scope_does_not_read_the_label(): void
     {
-        // Assignée à un bailleur par le passé (avant la garde) : il voit la tâche, pas le nom.
+        // Assignée à un bailleur par le passé (avant la garde). Depuis verif-591 B1, l'affectation
+        // ne vaut que pour le personnel de l'agence du parent : il ne voit plus la tâche du tout,
+        // ni son libellé.
         $landlord = $this->member('owner', $this->agency);
         $task = Task::factory()->forCustomer($this->customer())->create([
             'created_by_id' => $this->agent->id,
             'assigned_to_id' => $landlord->id,
         ]);
 
-        $this->actingAsApi($landlord)->apiGet("/api/tasks/{$task->id}")
-            ->assertOk()
-            ->assertJsonPath('data.taskable.type', 'customer')
-            ->assertJsonPath('data.taskable.label', null)
-            ->assertJsonPath('data.taskable.phone', null);
+        $this->actingAsApi($landlord)->apiGet("/api/tasks/{$task->id}")->assertForbidden();
+        $this->assertSame([], $this->actingAsApi($landlord)->apiGet('/api/tasks')->assertOk()->json('data'));
     }
 
     public function test_the_assignee_refusal_is_translated(): void

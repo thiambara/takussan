@@ -27,8 +27,11 @@ class TaskController extends Controller
 
         if (! $user->isSuperAdmin()) {
             $covered = app(AgentAvailability::class)->coveredBy($user);
-            $base->where(function ($q) use ($user, $covered) {
-                $q->where('assigned_to_id', $user->id)
+            $staffAgencyIds = app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
+            $base->where(function ($q) use ($user, $covered, $staffAgencyIds) {
+                // TCK-591 (verif-591 B1) — l'assigné ne voit la tâche que tant qu'il est personnel de
+                // l'agence du parent (`TaskPolicy::view`).
+                $q->where(fn ($a) => $a->where('assigned_to_id', $user->id)->parentAgencyIn($staffAgencyIds))
                     ->orWhere('created_by_id', $user->id);
                 // TCK-591 (ADR-0035) — pendant une absence, le remplaçant voit les tâches de
                 // l'absent rattachées à l'agence de l'absence.

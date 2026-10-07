@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Agency\AgentAvailability;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,8 +21,11 @@ use Illuminate\Database\Eloquent\Model;
 class TaskPolicy extends BasePolicy
 {
     /**
-     * Lire une tâche : super-admin, créateur, ou assigné. **Pas de clause d'agence** — une tâche
-     * est personnelle, et c'est la seule règle du lot qui ne regarde pas l'agence.
+     * Lire une tâche : super-admin, créateur, ou assigné.
+     *
+     * TCK-591 (verif-591 B1) — l'affectation ne vaut que tant qu'on est PERSONNEL de l'agence du
+     * parent (Contraintes 1 : « la quitter éteint ce qu'elle ouvrait »). Un agent retiré lisait,
+     * cochait et réécrivait les tâches de l'agence qui lui restaient assignées.
      */
     public function view(User $user, Model $model): bool
     {
@@ -31,8 +35,17 @@ class TaskPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $model->created_by_id === $user->id
-            || $model->assigned_to_id === $user->id
+            || ($model->assigned_to_id === $user->id && $this->isStaffOfParent($user, $model))
             || $this->coversAssignee($user, $model);
+    }
+
+    /** Personnel de l'agence du parent ; un parent hors agence n'a que des tâches qu'on s'est confiées. */
+    private function isStaffOfParent(User $user, Task $task): bool
+    {
+        $agencyId = $task->parentAgencyId();
+
+        return $agencyId === null
+            || app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
     }
 
     /**

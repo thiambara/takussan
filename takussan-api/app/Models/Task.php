@@ -101,6 +101,31 @@ class Task extends AbstractModel
         return $this->morphTo();
     }
 
+    /** L'agence du parent (client ou bien) : c'est elle qui dit à quelle équipe la tâche appartient. */
+    public function parentAgencyId(): ?int
+    {
+        $agencyId = $this->taskable?->getAttribute('agency_id');
+
+        return $agencyId !== null ? (int) $agencyId : null;
+    }
+
+    /**
+     * TCK-591 (verif-591 B1) — les tâches dont le parent est hors de toute agence, ou dans l'une des
+     * agences données. Forme SQL de la borne que `TaskPolicy::view` applique à une ligne.
+     *
+     * @param  Builder<Task>  $query
+     * @param  list<int>  $agencyIds
+     * @return Builder<Task>
+     */
+    public function scopeParentAgencyIn(Builder $query, array $agencyIds): Builder
+    {
+        return $query->where(function (Builder $q) use ($agencyIds) {
+            $q->whereNull('taskable_type')
+                ->orWhereHasMorph('taskable', [Customer::class, Property::class], fn (Builder $parent) => $parent
+                    ->where(fn (Builder $w) => $w->whereNull('agency_id')->orWhereIn('agency_id', $agencyIds)));
+        });
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');

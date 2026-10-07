@@ -8,6 +8,7 @@ return [
     'errors' => [
         'cross_agency_forbidden' => "Seuls les administrateurs de la plateforme consultent l'agenda d'une autre agence.",
         'window_too_long' => "La période demandée dépasse :days jours. Réduisez l'intervalle.",
+        'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
     ],
     'feed' => [
         'name' => 'Takussan — mes rendez-vous',

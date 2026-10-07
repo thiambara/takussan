@@ -15,6 +15,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -65,6 +66,10 @@ class CalendarEventCollector
     ): Collection {
         $isAdmin = $user->isSuperAdmin();
         $userId = (int) $user->id;
+        // TCK-591 (verif-591 B1) — une affectation n'ouvre l'agenda que dans les agences où l'on est
+        // personnel ; le prestataire, qui n'est personnel nulle part, garde ses interventions.
+        $staffAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
+        $isProvider = ! $isAdmin && $user->serviceProviderProfile()->active()->exists();
 
         $restrict = function (Builder $q, string $propertyKey = 'property_id') use ($propertyId, $propertyIds, $agencyFilter, $isAdmin, $userId, $staffAgencyId): void {
             if ($propertyId) {
@@ -90,13 +95,13 @@ class CalendarEventCollector
             $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId));
         }
         if (in_array('task', $types, true)) {
-            $events = $events->merge($this->tasks($start, $end, $mine, $userId));
+            $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds));
         }
         if (in_array('lease_event', $types, true)) {
             $events = $events->merge($this->leaseEvents($start, $end, $restrict));
         }
         if (in_array('maintenance', $types, true)) {
-            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter));
+            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter, $staffAgencyIds, $isProvider));
         }
 
         return $events->sortBy('start')->values();
@@ -184,9 +189,10 @@ class CalendarEventCollector
      * qui lui sont assignées (`mine` : assignées seulement). Le titre est celui que l'agent a
      * écrit ; la description ne sort pas.
      *
+     * @param  list<int>  $staffAgencyIds
      * @return Collection<int, array<string, mixed>>
      */
-    private function tasks(Carbon $start, Carbon $end, bool $mine, int $userId): Collection
+    private function tasks(Carbon $start, Carbon $end, bool $mine, int $userId, bool $isAdmin, array $staffAgencyIds): Collection
     {
         $query = Task::query()
             ->whereNotNull('due_at')
@@ -194,10 +200,17 @@ class CalendarEventCollector
             ->where('due_at', '<=', $end->copy()->endOfDay())
             ->where('status', '!=', TaskStatus::Cancelled->value);
 
+        $assigned = function (Builder $q) use ($userId, $isAdmin, $staffAgencyIds): void {
+            $q->where('assigned_to_id', $userId);
+            if (! $isAdmin) {
+                $q->parentAgencyIn($staffAgencyIds);
+            }
+        };
+
         if ($mine) {
-            $query->where('assigned_to_id', $userId);
+            $query->where($assigned);
         } else {
-            $query->where(fn (Builder $q) => $q->where('assigned_to_id', $userId)->orWhere('created_by_id', $userId));
+            $query->where(fn (Builder $q) => $q->where($assigned)->orWhere('created_by_id', $userId));
         }
 
         return $query->get()->map(fn (Task $t) => [
@@ -275,6 +288,7 @@ class CalendarEventCollector
      * fusion.
      *
      * @param  list<int>  $propertyIds
+     * @param  list<int>  $staffAgencyIds
      * @return Collection<int, array<string, mixed>>
      */
     private function maintenance(
@@ -287,7 +301,17 @@ class CalendarEventCollector
         ?int $propertyId,
         array $propertyIds,
         ?int $agencyFilter,
+        array $staffAgencyIds = [],
+        bool $isProvider = false,
     ): Collection {
+        // L'intervention assignée à l'appelant : au prestataire partout, au personnel dans ses agences.
+        $assigned = function (Builder $q) use ($userId, $isAdmin, $isProvider, $staffAgencyIds): void {
+            $q->where('assigned_to', $userId);
+            if (! $isAdmin && ! $isProvider) {
+                $q->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $staffAgencyIds));
+            }
+        };
+
         $query = MaintenanceRequest::query()
             ->whereNotNull('scheduled_at')
             ->whereDate('scheduled_at', '>=', $start)
@@ -300,7 +324,7 @@ class CalendarEventCollector
             ]);
 
         if ($mine) {
-            $query->where('assigned_to', $userId);
+            $query->where($assigned);
         }
 
         if ($isAdmin) {
@@ -312,8 +336,8 @@ class CalendarEventCollector
             if ($propertyIds !== []) {
                 $query->whereIn('property_id', $propertyIds);
             }
-            $query->where(function (Builder $q) use ($restrict, $userId): void {
-                $q->where('assigned_to', $userId)
+            $query->where(function (Builder $q) use ($restrict, $assigned): void {
+                $q->where($assigned)
                     ->orWhere(fn (Builder $scoped) => $restrict($scoped));
             });
         }

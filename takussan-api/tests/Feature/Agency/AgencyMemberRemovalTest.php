@@ -7,9 +7,12 @@ use App\Models\AgencyRole;
 use App\Models\CalendarFeed;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\VisitStatus;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
@@ -156,5 +159,62 @@ class AgencyMemberRemovalTest extends ApiTestCase
 
         $this->assertSame($agent->id, $visit->fresh()->agent_id);
         $this->actingAsApi($agent->fresh())->apiGet($uri)->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    /**
+     * AC21, étendu (verif-591 B1) — retiré avec `leave_unassigned`, l'agent perd aussi la tâche et
+     * l'intervention qui lui restent assignées : ni lecture, ni écriture, ni agenda. Et il ne
+     * recrée pas de lien d'agenda hors agence : ce lien-là est celui du prestataire (ADR-0034 §2).
+     */
+    public function test_an_agent_removed_with_leave_unassigned_loses_his_tasks_interventions_and_feed(): void
+    {
+        $agent = $this->member('agent');
+        $task = $this->openTaskFor($agent);
+        $task->update(['due_at' => now()->addDays(2)]);
+        $property = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $this->member('owner')->id]);
+        MaintenanceRequest::factory()->create([
+            'property_id' => $property->id,
+            'assigned_to' => $agent->id,
+            'status' => MaintenanceStatus::Assigned,
+            'scheduled_at' => now()->addDays(3),
+        ]);
+        $uri = '/api/calendar?types[]=task&types[]=maintenance&start_date='.now()->toDateString().'&end_date='.now()->addDays(10)->toDateString();
+
+        $this->actingAsApi($agent)->apiGet($uri)->assertOk()->assertJsonCount(2, 'data');
+        $this->actingAsApi($agent)->apiGet("/api/tasks/{$task->id}")->assertOk();
+
+        $this->remove($this->admin, $agent, ['leave_unassigned' => true])->assertOk();
+        $agent = $agent->fresh();
+
+        $this->assertSame($agent->id, $task->fresh()->assigned_to_id);
+        $this->actingAsApi($agent)->apiGet($uri)->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAsApi($agent)->apiGet('/api/tasks')->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAsApi($agent)->apiGet("/api/tasks/{$task->id}")->assertForbidden();
+        $this->actingAsApi($agent)->apiPut("/api/tasks/{$task->id}", ['status' => 'done'])->assertForbidden();
+        $this->assertNotSame('done', $task->fresh()->status?->value);
+
+        $this->actingAsApi($agent)->apiPost('/api/me/calendar-feed')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'calendar_feed_not_staff');
+        $this->assertSame(0, CalendarFeed::query()->where('user_id', $agent->id)->whereNull('revoked_at')->count());
+    }
+
+    /** ADR-0034 §2 — le prestataire garde son lien hors agence ; un lien hors agence d'un autre compte n'est pas servi. */
+    public function test_only_a_provider_is_served_an_agencyless_feed(): void
+    {
+        $provider = User::factory()->create();
+        ServiceProviderProfile::factory()->create(['user_id' => $provider->id]);
+        $url = $this->actingAsApi($provider)->apiPost('/api/me/calendar-feed')->assertCreated()->json('data.url');
+        $this->app['auth']->forgetGuards();
+        $this->get((string) parse_url($url, PHP_URL_PATH))->assertOk();
+
+        // Un lien hors agence posé avant la garde, pour un compte qui n'est pas prestataire.
+        $token = str_repeat('a', 40);
+        CalendarFeed::query()->create([
+            'user_id' => $this->member('agent')->id,
+            'agency_id' => null,
+            'token_hash' => CalendarFeed::hashToken($token),
+        ]);
+        $this->get("/api/calendar-feed/{$token}.ics")->assertNotFound();
     }
 }

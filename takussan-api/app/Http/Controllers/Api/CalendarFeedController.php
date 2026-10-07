@@ -46,7 +46,14 @@ class CalendarFeedController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $issued = $this->feeds->issue($user, $user->staffAgencyId());
+        $agencyId = $user->staffAgencyId();
+        if ($agencyId === null && ! $this->feeds->mayHoldAgencylessFeed($user)) {
+            return $this->json([
+                'code' => 'calendar_feed_not_staff',
+                'message' => __('calendar.errors.feed_not_staff'),
+            ], 403);
+        }
+        $issued = $this->feeds->issue($user, $agencyId);
 
         return $this->json(['data' => [
             'active' => true,

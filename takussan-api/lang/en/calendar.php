@@ -8,6 +8,7 @@ return [
     'errors' => [
         'cross_agency_forbidden' => "Only platform administrators can view another agency's calendar.",
         'window_too_long' => 'The requested period exceeds :days days. Narrow the range.',
+        'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
     ],
     'feed' => [
         'name' => 'Takussan — my appointments',

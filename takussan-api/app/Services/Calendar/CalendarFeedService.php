@@ -5,6 +5,7 @@ namespace App\Services\Calendar;
 use App\Models\CalendarFeed;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -33,6 +34,13 @@ class CalendarFeedService
      */
     public function issue(User $user, ?int $agencyId): array
     {
+        // TCK-591 (verif-591 B1, ADR-0034 §2) — un lien hors agence n'existe que pour le prestataire.
+        // Un agent retiré, qui n'est plus personnel nulle part, en recevait un neuf que le retrait
+        // ne pouvait pas couper.
+        if ($agencyId === null && ! $this->mayHoldAgencylessFeed($user)) {
+            throw new AuthorizationException(__('calendar.errors.feed_not_staff'));
+        }
+
         $token = Str::random(40);
 
         $feed = DB::transaction(function () use ($user, $agencyId, $token) {
@@ -93,7 +101,18 @@ class CalendarFeedService
             return null;
         }
 
+        // TCK-591 (verif-591 B1) — un lien hors agence n'est servi qu'à un prestataire.
+        if ($feed->agency_id === null && ! $this->mayHoldAgencylessFeed($feed->user)) {
+            return null;
+        }
+
         return $feed;
+    }
+
+    /** ADR-0034 §2 — le lien sans agence est celui du prestataire, qui n'est personnel nulle part. */
+    public function mayHoldAgencylessFeed(User $user): bool
+    {
+        return $user->isSuperAdmin() || $user->serviceProviderProfile()->active()->exists();
     }
 
     /**
