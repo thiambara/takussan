@@ -44,7 +44,12 @@ trait ValidatesCustomerContactAndCriteria
             'allow_duplicate' => ['sometimes', 'boolean'],
             'seeking_contract_type' => [...$optional, Rule::enum(ContractType::class)],
             'budget_min' => [...$optional, 'numeric', 'min:0'],
-            'budget_max' => [...$optional, 'numeric', 'min:0', 'gte:budget_min'],
+            // `gte:budget_min` ne s'applique que si le plancher est donné : la règle nue refuse un
+            // plafond seul (« jusqu'à 300 000 »), un nombre n'étant jamais du même type que `null`.
+            'budget_max' => [...$optional, 'numeric', 'min:0', Rule::when(
+                fn () => is_numeric($this->input('budget_min')),
+                ['gte:budget_min'],
+            )],
             'seeking_property_types' => [...$optional, 'array', 'max:20'],
             'seeking_property_types.*' => [Rule::enum(PropertyType::class)],
             'seeking_cities' => [...$optional, 'array', 'max:20'],
