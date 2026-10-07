@@ -2516,6 +2516,49 @@
         "submit": "Créer la tâche",
         "failed": "La tâche n'a pas pu être créée."
       }
+    },
+    "calendar": {
+      "mine": "Mes rendez-vous",
+      "types": {
+        "task": "Tâches",
+        "lease_event": "Échéances de bail",
+        "maintenance": "Interventions"
+      },
+      "eventType": {
+        "task": "Tâche",
+        "lease_event": "Échéance de bail",
+        "maintenance": "Intervention"
+      },
+      "helper": {
+        "task": "Vos tâches, à leur échéance",
+        "lease_event": "Fins et renouvellements de baux",
+        "maintenance": "Interventions planifiées"
+      },
+      "leaseKind": {
+        "end": "Fin de bail",
+        "renewal": "Renouvellement"
+      },
+      "open": {
+        "task": "Voir mes tâches",
+        "maintenance": "Ouvrir l'intervention"
+      },
+      "feed": {
+        "title": "S'abonner depuis un autre agenda",
+        "intro": "Vos rendez-vous dans Google Agenda ou le calendrier de votre téléphone, mis à jour automatiquement. Le lien est personnel : ne le partagez pas.",
+        "onceOnly": "Copiez ce lien maintenant : il ne sera plus affiché.",
+        "linkLabel": "Lien d'abonnement",
+        "copy": "Copier",
+        "copied": "Copié",
+        "google": "Ajouter à Google Agenda",
+        "apple": "Ajouter au calendrier du téléphone",
+        "activeSince": "Un lien est actif depuis le {date}.",
+        "lastAccess": "Dernière lecture : {date}.",
+        "create": "Créer un lien d'abonnement",
+        "rotate": "Générer un nouveau lien",
+        "rotateHint": "Générer un nouveau lien éteint l'ancien.",
+        "revoke": "Désactiver le lien",
+        "failed": "L'opération n'a pas abouti."
+      }
     }
   },
   "account": {

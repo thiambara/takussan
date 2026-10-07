@@ -2541,6 +2541,49 @@
         "submit": "Create task",
         "failed": "The task could not be created."
       }
+    },
+    "calendar": {
+      "mine": "My appointments",
+      "types": {
+        "task": "Tasks",
+        "lease_event": "Lease dates",
+        "maintenance": "Maintenance"
+      },
+      "eventType": {
+        "task": "Task",
+        "lease_event": "Lease date",
+        "maintenance": "Maintenance job"
+      },
+      "helper": {
+        "task": "Your tasks, on their due date",
+        "lease_event": "Lease ends and renewals",
+        "maintenance": "Scheduled maintenance jobs"
+      },
+      "leaseKind": {
+        "end": "Lease end",
+        "renewal": "Renewal"
+      },
+      "open": {
+        "task": "See my tasks",
+        "maintenance": "Open the job"
+      },
+      "feed": {
+        "title": "Subscribe from another calendar",
+        "intro": "Your appointments in Google Calendar or your phone's calendar, kept up to date. The link is personal: do not share it.",
+        "onceOnly": "Copy this link now: it will not be shown again.",
+        "linkLabel": "Subscription link",
+        "copy": "Copy",
+        "copied": "Copied",
+        "google": "Add to Google Calendar",
+        "apple": "Add to phone calendar",
+        "activeSince": "A link has been active since {date}.",
+        "lastAccess": "Last read: {date}.",
+        "create": "Create a subscription link",
+        "rotate": "Generate a new link",
+        "rotateHint": "Generating a new link turns the old one off.",
+        "revoke": "Turn the link off",
+        "failed": "That did not work."
+      }
     }
   },
   "account": {

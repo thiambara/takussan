@@ -1167,6 +1167,49 @@
         "submit": "Sos liggéey bi",
         "failed": "Liggéey bi sosuwul."
       }
+    },
+    "calendar": {
+      "mine": "Samay ndaje",
+      "types": {
+        "task": "Liggéey yi",
+        "lease_event": "Àppu kontaraa yi",
+        "maintenance": "Defaraat yi"
+      },
+      "eventType": {
+        "task": "Liggéey",
+        "lease_event": "Àppu kontaraa",
+        "maintenance": "Defaraat"
+      },
+      "helper": {
+        "task": "Sa liggéey yi, ci seen àpp",
+        "lease_event": "Jeexitalu ak yeesalu kontaraa yi",
+        "maintenance": "Defaraat yi ñu jagleel bés"
+      },
+      "leaseKind": {
+        "end": "Jeexitalu kontaraa",
+        "renewal": "Yeesal"
+      },
+      "open": {
+        "task": "Gis samay liggéey",
+        "maintenance": "Ubbi defaraat bi"
+      },
+      "feed": {
+        "title": "Bokk ci beneen arminaat",
+        "intro": "Sa ndaje yi ci Google Agenda walla ci arminaatu sa telefon, ñuy yeesal ko. Lëkkalekaay bi yaw rekk la : bul ko séddoo.",
+        "onceOnly": "Duppil lëkkalekaay bii léegi : dootuñu ko wone.",
+        "linkLabel": "Lëkkalekaayu bokk",
+        "copy": "Duppi",
+        "copied": "Duppi na",
+        "google": "Yokk ko ci Google Agenda",
+        "apple": "Yokk ko ci arminaatu telefon bi",
+        "activeSince": "Am na lëkkalekaay bu dox dale ko {date}.",
+        "lastAccess": "Mujjantal jàng : {date}.",
+        "create": "Sos lëkkalekaayu bokk",
+        "rotate": "Sos lëkkalekaay bu bees",
+        "rotateHint": "Sos bu bees dafay fey bi njëkk.",
+        "revoke": "Fey lëkkalekaay bi",
+        "failed": "Lii antuwul."
+      }
     }
   },
   "account": {
