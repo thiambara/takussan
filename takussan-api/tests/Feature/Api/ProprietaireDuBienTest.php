@@ -107,8 +107,9 @@ class ProprietaireDuBienTest extends ApiTestCase
 
         Sanctum::actingAs($a);
         $this->assertSame([], $this->getJson('/api/property-visits')->json('data'));
-        $this->postJson("/api/property-visits/{$annulee->id}/cancel", ['reason' => 'x']);
-        $this->patchJson("/api/property-visits/{$deplacee->id}", ['scheduled_at' => $this->creneau(jours: 5)]);
+        // Passe 2, écart (b) — sur un bien d'agence, le geste lui-même est refusé.
+        $this->postJson("/api/property-visits/{$annulee->id}/cancel", ['reason' => 'x'])->assertForbidden();
+        $this->patchJson("/api/property-visits/{$deplacee->id}", ['scheduled_at' => $this->creneau(jours: 5)])->assertForbidden();
 
         Notification::assertNothingSentTo(new AnonymousNotifiable);
     }

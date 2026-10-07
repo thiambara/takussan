@@ -11,7 +11,6 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\VisitConfirmedNotification;
-use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -313,16 +312,11 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
     }
 
     /**
-     * M3 — le geste lui-même est refusé (403). Il dépend de `PropertyVisitPolicy::view`/`update`,
-     * qui lisent encore `$user->agency_id` : territoire de TCK-587. Rouge aujourd'hui ; il
-     * s'active seul quand `isStaffAt` existe, et doit alors passer au vert.
+     * M3 — le geste lui-même est refusé (403). `PropertyVisitPolicy` lit encore
+     * `$user->agency_id` (TCK-587) ; le contrôleur le refuse désormais lui-même (passe 2, écart b).
      */
     public function test_m3_le_bailleur_tiers_ne_peut_ni_annuler_ni_deplacer(): void
     {
-        if (! method_exists(MembershipCapabilityResolver::class, 'isStaffAt')) {
-            $this->markTestIncomplete('TCK-587 : PropertyVisitPolicy::view/update lisent encore user->agency_id.');
-        }
-
         $b = $this->bailleur($this->x);
         $visite = PropertyVisit::factory()->create([
             'property_id' => $this->bienDe($this->x, $this->bailleur($this->x))->id,
@@ -332,6 +326,53 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         Sanctum::actingAs($b);
         $this->postJson("/api/property-visits/{$visite->id}/cancel", ['reason' => 'x'])->assertForbidden();
         $this->patchJson("/api/property-visits/{$visite->id}", ['scheduled_at' => $this->creneau(jours: 4)])->assertForbidden();
+    }
+
+    /**
+     * Passe 2, écart (b) — sur un bien d'agence, le bailleur PROPRIÉTAIRE lui-même n'annule ni ne
+     * déplace : il n'est pas « l'agence » de la contrainte 4. La séquence N1 du vérificateur
+     * s'arrête au premier `PATCH`. Le personnel, lui, garde le geste.
+     */
+    public function test_b_sur_un_bien_d_agence_seul_le_personnel_annule_ou_deplace(): void
+    {
+        $this->personnel($this->x, 'agency_admin');
+        $bailleur = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $bailleur);
+
+        $id = $this->postJson("/api/public/properties/{$bien->slug}/visit-request", [
+            'visitor_name' => 'Victime', 'visitor_phone' => '+221779990005', 'scheduled_at' => $this->creneau(),
+        ])->assertCreated()->json('data.id');
+
+        Sanctum::actingAs($bailleur);
+        $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: 3)])->assertForbidden();
+        $this->postJson("/api/property-visits/{$id}/cancel", ['reason' => 'x'])->assertForbidden();
+        $this->deleteJson("/api/property-visits/{$id}")->assertForbidden();
+        $this->assertSame(0, $this->smsVers('+221779990005'));
+        $this->assertNotSame(VisitStatus::Cancelled, PropertyVisit::query()->findOrFail($id)->status);
+
+        Sanctum::actingAs($this->personnel($this->x));
+        $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: 3)])->assertOk();
+        $this->postJson("/api/property-visits/{$id}/cancel", ['reason' => 'x'])->assertOk();
+    }
+
+    /** Écart (b) — sur un bien SANS agence, le propriétaire garde le geste, et le visiteur l'annulation de la sienne. */
+    public function test_b_sur_un_bien_sans_agence_le_proprietaire_annule_et_deplace(): void
+    {
+        $particulier = $this->client();
+        $bien = $this->bienDe(null, $particulier);
+        $visiteur = $this->client();
+        $visite = fn (int $jours) => PropertyVisit::factory()->create([
+            'property_id' => $bien->id, 'visitor_id' => $visiteur->id, 'status' => VisitStatus::Confirmed,
+            'scheduled_at' => $this->creneau(jours: $jours),
+        ]);
+        [$a, $b, $c] = [$visite(3), $visite(4), $visite(5)];
+
+        Sanctum::actingAs($particulier);
+        $this->patchJson("/api/property-visits/{$a->id}", ['scheduled_at' => $this->creneau(jours: 6)])->assertOk();
+        $this->postJson("/api/property-visits/{$b->id}/cancel", ['reason' => 'x'])->assertOk();
+
+        Sanctum::actingAs($visiteur);
+        $this->postJson("/api/property-visits/{$c->id}/cancel", ['reason' => 'x'])->assertOk();
     }
 
     /** M4 (R) — un agent SUSPENDU n'est ni attribuable, ni preneur. */

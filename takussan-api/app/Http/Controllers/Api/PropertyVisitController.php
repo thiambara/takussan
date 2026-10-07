@@ -186,6 +186,10 @@ class PropertyVisitController extends Controller
 
     public function update(UpdatePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
+        // Vérification adverse, passe 2 (b) — déplacer l'heure, c'est parler au visiteur au nom
+        // de l'agence : sur un bien d'agence, le personnel seul (cf. `agitPourLeBien`).
+        abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
+
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -228,8 +232,7 @@ class PropertyVisitController extends Controller
 
         // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
         // une fois. `update` déplaçait l'heure sans prévenir personne.
-        if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($previous)
-            && $this->agitPourLeBien($request->user(), $visit)) {
+        if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($previous)) {
             $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']));
         }
 
@@ -309,6 +312,14 @@ class PropertyVisitController extends Controller
 
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
+        // TCK-590 — `cancel` ne prévenait personne. Le visiteur qui annule prévient l'agence ;
+        // l'agence qui annule prévient le visiteur. Vérification adverse, passe 2 (b) : quiconque
+        // n'est pas le visiteur annule AU NOM DE L'AGENCE, et doit donc agir pour le bien.
+        $user = $request->user();
+        $byVisitor = $visit->visitor_id === $user->id
+            || ($visit->customer !== null && $visit->customer->user_id === $user->id);
+        abort_unless($byVisitor || $this->agitPourLeBien($user, $visit), 403, __('visits.staff_only'));
+
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -323,15 +334,10 @@ class PropertyVisitController extends Controller
             'cancellation_reason' => $data['reason'] ?? null,
         ]);
 
-        // TCK-590 — `cancel` ne prévenait personne. Le visiteur qui annule prévient l'agence ;
-        // l'agence qui annule prévient le visiteur.
-        $user = $request->user();
-        $byVisitor = $visit->visitor_id === $user->id
-            || ($visit->customer !== null && $visit->customer->user_id === $user->id);
         $fresh = $visit->fresh(['property', 'visitor', 'agent']);
         if ($byVisitor) {
             $this->notifier->cancelledByVisitor($fresh);
-        } elseif ($this->agitPourLeBien($user, $visit)) {
+        } else {
             $this->notifier->cancelledByAgency($fresh);
         }
 
@@ -437,23 +443,36 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * L'appelant agit-il au nom de ceux qui gèrent le bien : super-admin, agent de la visite,
-     * personnel actif de l'agence du bien, ou propriétaire du bien ?
+     * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc annuler ou déplacer
+     * une visite, et en prévenir le visiteur ?
      *
-     * Vérification adverse (M3) — `cancel` et `update` passent par `PropertyVisitPolicy`, qui lit
-     * encore `$user->agency_id` (TCK-587) : un bailleur de l'agence y annule ou déplace la visite
-     * du bien d'un AUTRE bailleur. 590 y avait ajouté l'envoi au visiteur, par SMS : quiconque
-     * n'était pas le visiteur prévenait « au nom de l'agence ». L'envoi est désormais réservé à
-     * ceux-là ; le refus du geste lui-même (403) revient à la policy de 587.
+     *   · **bien d'agence** : le super-admin et le personnel ACTIF de l'agence du bien, rien
+     *     d'autre. Le bailleur n'est pas « l'agence » de la contrainte 4 ;
+     *   · **bien sans agence** : le super-admin, l'agent de la visite s'il est joignable, et le
+     *     propriétaire (cf. `PrimaryPropertyContact::estProprietaire`).
+     *
+     * Vérification adverse (M3, puis passe 2 : M7 et écart b) — `cancel` et `update` passent par
+     * `PropertyVisitPolicy`, qui lit encore `$user->agency_id` et `property.user_id` (TCK-587) : un
+     * bailleur de l'agence y annulait ou déplaçait la visite du bien d'un AUTRE bailleur, l'agent
+     * parti créateur du bien celle de « son » bien, et chaque déplacement partait en SMS au
+     * visiteur (le relais B2′). Le geste lui-même est désormais refusé (403) ici, sans attendre 587.
      */
     private function agitPourLeBien(User $user, PropertyVisit $visit): bool
     {
         $property = $visit->property;
 
-        return $user->isSuperAdmin()
-            || $visit->agent_id === $user->id
-            || ($property !== null && PrimaryPropertyContact::estProprietaire($user, $property))
-            || ($property !== null && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        if ($property === null) {
+            return $visit->agent_id === $user->id;
+        }
+        if ($property->agency_id !== null) {
+            return PersonnelDeLAgence::estPersonnel($user, $property->agency_id);
+        }
+
+        return ($visit->agent_id === $user->id && PrimaryPropertyContact::joignable($user))
+            || PrimaryPropertyContact::estProprietaire($user, $property);
     }
 
     /** `crm.assign` dans l'agence du bien de la visite. */

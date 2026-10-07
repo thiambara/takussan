@@ -10,4 +10,5 @@ return [
     'reassign_forbidden' => 'Changing the agent of an already assigned visit requires the assign right.',
     'visitor_contact_required' => 'Enter the prospect\'s name and phone, or choose a customer record.',
     'not_bookable' => 'This property is not open for visits.',
+    'staff_only' => 'Only the staff of the property\'s agency can cancel or move this visit.',
 ];
