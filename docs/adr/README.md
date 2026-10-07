@@ -58,6 +58,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0030](0030-le-courtier-quitte-le-code-et-la-base.md) | Le courtier quitte le code et la base | Accepté |
 | [0034](0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md) | L'agenda sort de la plateforme par un lien secret, haché, révocable, propre à une agence | Accepté |
 | [0035](0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) | L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit | Accepté |
+| [0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) | L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire | Accepté — appliqué à la fusion de TCK-504 |
 
 ## Décisions recensées, pas encore rédigées
 
