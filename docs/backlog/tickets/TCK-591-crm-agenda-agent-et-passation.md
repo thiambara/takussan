@@ -1,7 +1,7 @@
 ---
 id: TCK-591
 title: "Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -562,7 +562,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] Front : assistant de passation déclenché par « Retirer » ; « Déclarer une absence ».
 
 **9. Cloisonnement du CRM (passe de correction)**
-- [ ] `Customer::scopeVisibleTo(User)` (règle de `CustomerPolicy::view` réécrite par 587 : super-admin
+- [x] `Customer::scopeVisibleTo(User)` (règle de `CustomerPolicy::view` réécrite par 587 : super-admin
       → tout ; personnel de l'agence titulaire de `crm.view_all` → l'agence ; sinon → `added_by_id =
       moi`) ; `CustomerController::index` et `PipelineStatsService::scopedQuery` l'emploient — plus de
       `$user->agency_id` dans ces deux fichiers.
@@ -573,7 +573,7 @@ téléphone tenu d'une main, entre deux visites**.
       personnel ; ses fiches existantes restent lisibles.
 
 **10. Tests**
-- [ ] `CustomerScopeTest`, `TaskAuthorizationTest`, `CustomerNoteKindTest`, `PropertyAssignAgentTest`,
+- [x] `CustomerScopeTest`, `TaskAuthorizationTest`, `CustomerNoteKindTest`,
       `AgencyMemberRemovalTest`, `CustomerPhoneAndDuplicateTest`, `CustomerActivityEndpointTest`, `PrimaryContactScopeTest`,
       `ProspectMatcherTest`, `SendProspectMatchDigestTest`, `TaskDueFilterTest`,
       `CalendarScopeTest`, `CalendarNewTypesTest`, `CalendarFeedTest`, `PropertyBulkVisibilityTest`,
@@ -645,7 +645,7 @@ téléphone tenu d'une main, entre deux visites**.
       client (mesuré au navigateur, cf. Notes).
 - [ ] AC15, part « au doigt dans le `<select>` natif » — changer l'étape au doigt, mesuré sur un
       vrai téléphone → transféré à TCK-603 (AC6)
-- [ ] AC16 — **sécurité, prouvé par ablation** (CRM) : agence A avec 3 clients ajoutés par un agent
+- [x] AC16 — **sécurité, prouvé par ablation** (CRM) : agence A avec 3 clients ajoutés par un agent
       et 1 ajouté par un bailleur B de A (seul profil `OwnerProfile`). `GET /api/customers` par B rend
       **exactement** l'identifiant de sa fiche (4 aujourd'hui) ; `GET /api/customers/pipeline-stats`
       par B rend `stage_counts` de somme **1** ; un agent de A du rôle système (`crm.view_all`) en
@@ -655,7 +655,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] AC17 — **sécurité** : `POST /api/customers` par un compte sans profil → **403** ; par un
       bailleur de A → **403** (201 aujourd'hui dans les deux cas) ; par un agent de A → 201 avec
       `agency_id = A`.
-- [ ] AC18 — **sécurité, prouvé par ablation** (tâches) : `POST /api/tasks` avec `assigned_to_id`
+- [x] AC18 — **sécurité, prouvé par ablation** (tâches) : `POST /api/tasks` avec `assigned_to_id`
       d'un bailleur de A → 422 `task_assignee_not_staff` (201 aujourd'hui) ; `PUT /api/tasks/{t}` avec
       l'`assigned_to_id` d'un agent d'une **autre** agence → 422 (200 aujourd'hui) ; `DELETE` par
       l'assigné non créateur → **403** (204 aujourd'hui), par le créateur → 204 ; `POST /api/tasks`
@@ -905,3 +905,50 @@ téléphone tenu d'une main, entre deux visites**.
   front « Changer l'agent responsable » en lot, les catégories de biens de la passation, AC4, AC22,
   AC29, AC30, la part « biens » d'AC12 et la part « select natif au doigt » d'AC15. Les cases
   transférées restent décochées ici, marquées `→ transféré à TCK-603`.
+
+### 2026-10-07 — après la fusion de TCK-587 (`fd4bd805`, PR #329)
+
+- **Fusion** (`732b3f1c`) — conflits : `AgencyController` (le retrait reste délégué à
+  `AgencyMemberRemovalService`, sous `removeMember`), `CustomerPolicy` (le `view`/`delete` de 587, plus
+  `create` et `matchProperties` de 591 sur `staffAgencyId()` / `isStaffOf()`), console d'équipe
+  (suspension de 587 et assistant de passation côte à côte), `INDEX.md` et `namespaces.json`
+  régénérés. Le test AC23 perd la prop `onQuickAction`, retirée par 587 (`tsc` l'a signalée).
+- **Prédicats** (`cb315e78`) — tiers → `MembershipCapabilityResolver::isStaffAt()` (repreneur,
+  référent, assigné de tâche, destinataire du récapitulatif, porteur du flux iCalendar, absent,
+  éligible d'intervention) ; appelant → `staffAgencyId()` / `isStaffOf()` (absences, correspondances
+  d'un bien, création d'une fiche, agenda et flux). `CalendarEventCollector::staffAgencyIdOf` supprimé.
+  Les deux prédicats diffèrent de l'ancienne expression (`isAgentAt || isAgencyAdminAt`, qui ne compte
+  plus que les profils actifs depuis 587) par la seule **délégation** active d'un rôle de personnel.
+  Gardes : `HORS_DETECTION` de `check-agency-scope-clause` vidée (cliquet 2 → 0) ; lignes
+  `team.remove` et `crm.assign` retirées de `CapabilityEnforcementInventory` (cliquet 16 → 14).
+- **AC18 entier** — les deux sauts `requiresTck587()` retirés : `TaskAuthorizationTest` 8/8 verts.
+  Ablations, restaurées par `cp` : `CustomerPolicy::view` ramené à la règle d'avant 587
+  (`$user->agency_id === $model->agency_id`) → les 2 tests rouges ; `TaskPolicy::attachTo` ramené à la
+  règle d'avant 591 pour un client → les 2 rouges.
+- **§9 + AC16** (`8b54495e`, `24cdb6a6`) — `Customer::scopeVisibleTo(User)`, employé par
+  `CustomerController::index` et `PipelineStatsService::scopedQuery` (587 y avait recopié la règle
+  deux fois). Ablations, restaurées par `cp` : `index` sur `$user->agency_id` → rouge ;
+  `PipelineStatsService` sur `$user->agency_id` → rouge (`4` au lieu de `1`) ; la portée sans
+  `crm.view_all` → rouge. **La portée sur `$user->agency_id` restait VERTE** : la capacité seule
+  filtrait le bailleur du rôle système. Ajouté : un bailleur dont le rôle d'agence tient
+  `crm.view_all` ne voit que sa fiche (`24cdb6a6`) — l'ablation rougit alors.
+- **Défaut de fusion trouvé par la suite ciblée** (`fd020958`, `0fe7b82d`) — 587 fait de la visibilité
+  un geste `publish` ; `bulk-visibility` jugeait encore `update`. Après fusion, l'agent du rôle
+  système (sans `properties.update_any`) était refusé sur tout le lot (`PropertyBulkVisibilityTest`
+  rouge), et un bailleur l'aurait été accepté sur son propre bien que `PUT …/visibility` lui refuse.
+  Le service juge `publish` ; test ajouté (le bailleur est refusé à l'unité et en lot) ; ablation
+  `publish` → `update` → 3 rouges. Front : « Dépublier » en lot n'est proposé qu'avec
+  `properties.publish` (`useGestesDuBien`, comme le menu d'un bien) ; ablation → rouge.
+- **Tests** (premier plan, `load average` 16 à 32 pendant les passages) : `tests/Feature/Crm`,
+  `Calendar`, `Api/Agency`, `Authorization` → 278 verts ; `Agency`, `Property`, `Unit/Policies` et
+  voisins → 180 (2 rouges avant le correctif `publish`, verts après) ; toute classe qui appelle
+  `/api/customers` ou les compteurs du pipeline → 243 verts. Front : `vitest` sur `admin`,
+  `admin-agency`, `calendar`, `crm`, `customer*`, `property-dashboard`, `src/app`, `src/lib` → 2030
+  verts + 1 rouge (`PropertyList.bulk` : `useCan` lu depuis 587 sans `QueryClient`), vert après
+  `0fe7b82d` ; lint, `tsc --noEmit`, `check:i18n`, `check:i18n-namespaces`, `check:classes-emises`
+  propres ; toutes les gardes racine vertes.
+- **Relevé hors périmètre, mesuré** : `PipelineStatsService` lit les transitions d'étape dans
+  `activity_log.properties`, alors qu'activitylog v5.1 les écrit dans `attribute_changes`. Mesure
+  (test jetable, retiré) : un `PATCH …/pipeline-stage` écrit `properties = []`,
+  `attribute_changes = {"old":{"pipeline_stage":"lead"},"attributes":{"pipeline_stage":"prospect"}}`,
+  et `stage_changes_last_30d` rend **0**. `avg_time_in_stage` lit les mêmes chemins. Non corrigé ici.
