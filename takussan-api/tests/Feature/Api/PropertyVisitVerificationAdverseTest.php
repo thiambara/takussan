@@ -210,6 +210,35 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         ])->assertCreated();
     }
 
+    /**
+     * Passe 2 (n1) — la borne par destinataire porte sur le numéro NORMALISÉ, saisi ou lu sur la
+     * fiche : alterner le numéro et des fiches au même numéro ne la contourne plus (sonde N2).
+     */
+    public function test_n1_la_borne_par_destinataire_lit_le_numero_de_la_fiche(): void
+    {
+        $agent = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x);
+        Sanctum::actingAs($agent);
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/property-visits', [
+                'property_id' => $bien->id, 'visitor_name' => 'A', 'visitor_phone' => '+221776660003',
+                'scheduled_at' => $this->creneau(jours: 2 + $i),
+            ])->assertCreated();
+        }
+        for ($i = 0; $i < 2; $i++) {
+            $fiche = $this->ficheClient($this->x, null, ['phone' => '77 666 00 03']);
+            $this->postJson('/api/property-visits', [
+                'property_id' => $bien->id, 'customer_id' => $fiche->id, 'scheduled_at' => $this->creneau(jours: 5 + $i),
+            ])->assertCreated();
+        }
+
+        $fiche = $this->ficheClient($this->x, null, ['phone' => '00221 77 666 00 03']);
+        $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'customer_id' => $fiche->id, 'scheduled_at' => $this->creneau(jours: 8),
+        ])->assertStatus(429);
+    }
+
     /** B2 (R) — et par ÉMETTEUR : 30 planifications par heure pour un même compte. */
     public function test_b2_le_limiteur_borne_l_emetteur(): void
     {

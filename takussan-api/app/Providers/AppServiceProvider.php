@@ -323,10 +323,19 @@ class AppServiceProvider extends ServiceProvider
         // confirmée et fait partir un SMS. Deux bornes : par ÉMETTEUR (le compte, la route est
         // authentifiée) et par DESTINATAIRE (le numéro saisi, ramené à E.164, ou la fiche client) —
         // une agence légitime ne prévient pas dix fois le même client dans l'heure.
+        //
+        // Passe 2 (n1) — le destinataire est le NUMÉRO normalisé, d'où qu'il vienne : saisi, ou lu
+        // sur la fiche choisie (la priorité de `planForCustomer`). La clé `fiche:<id>` seule se
+        // contournait en alternant le numéro et des fiches portant ce même numéro.
         RateLimiter::for('visit-planning', function (Request $request) {
             $limites = [Limit::perHour(30)->by('emetteur:'.($request->user()?->id ?? $request->ip()))];
 
             $telephone = TelephoneSaisi::normaliser($request->input('visitor_phone'));
+            if ((! is_string($telephone) || $telephone === '') && is_numeric($request->input('customer_id'))) {
+                $telephone = TelephoneSaisi::normaliser(
+                    Customer::query()->whereKey((int) $request->input('customer_id'))->value('phone'),
+                );
+            }
             $destinataire = is_string($telephone) && $telephone !== ''
                 ? 'tel:'.$telephone
                 : (is_numeric($request->input('customer_id')) ? 'fiche:'.(int) $request->input('customer_id') : null);
