@@ -773,6 +773,10 @@ développement est partagée entre worktrees — la session la jouera après fus
 - **`visitor_phone` est une saisie libre** (`max:30`) et `PhoneNumber::normalize` est strict
   (E.164) : un « 77 123 45 67 » au format national n'est pas routable, le rappel n'atteint que
   l'agent. Normaliser la saisie publique relève de TCK-590.
+- **Un abort à message traduit perd son message** (`abort(403, __('…'))`) : le rendu ne garde que
+  le code d'une `ApiError`. Ce n'est pas de la prose en dur — la garde (a)-(g) le laisse passer, et
+  l'AC8 le range parmi les négatifs — mais `ProseLitteraleScanner::$messagesPerdus` le relève à
+  part, et `app/` doit en compter zéro.
 - **Parité de placeholders** : elle a trouvé un écart déjà présent sur `dev`
   (`wo` `lease_early_termination.cancelled.intro` sans `:reference`), corrigé — texte wolof à faire
   relire, comme l'ensemble des textes `wo` ajoutés.
@@ -803,4 +807,4 @@ développement est partagée entre worktrees — la session la jouera après fus
 - LangGroupParityTest : 218 codes d'erreur distincts lus (littéraux + constantes `self::CODE_*` résolues, 4 dans `KycWorkflowService`), plus les `http.*` de `HttpErrorCode`.
 - AC9 (script) : `check-notification-codes.mjs` — `codes.lease_payment.overdue_digest.sms` retirée de `lang/wo` → rouge (« API wo : … absente ») ; `notifications.codes.visit.reminder.body` retirée de `wo.json` → rouge ; `{property}` retiré de `lease_payment.recorded.body` dans `en.json` → rouge (« placeholders API [amount,property] ≠ front [amount] ») ; enum illisible (0 cas) → rouge. Restauré → vert (31 codes).
 - Front (H) : rendu par code court-circuité (`useTexteNotification` rend toujours le titre de l'API) → 6/8 rouges dans `NotificationRow.test.tsx` (fr, en, wo, formatage, lien, ligne sans cible) ; branche `channel_unavailable` retirée de la matrice → le test de la case indisponible rougit. Restauré → verts.
-
+- Garde « message perdu » (ajout) : `abort_unless(…, 403, __('errors.http.forbidden'))` dans `NotificationController` → `test_aucun_abort_ne_porte_un_message_que_le_rendu_jetterait` rougit en nommant le fichier:ligne ; restauré → 6/6. Sur l'arbre de la branche 587 (avant fusion), ce relevé compte 55 sites, dont 7 ajoutés par 587.
