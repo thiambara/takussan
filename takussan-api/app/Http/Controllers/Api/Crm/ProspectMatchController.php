@@ -27,7 +27,7 @@ class ProspectMatchController extends Controller
             ->with('address:id,addressable_id,addressable_type,city,neighborhood')
             ->orderByDesc('properties.published_at')
             ->orderByDesc('properties.id')
-            ->paginate($this->perPage($request));
+            ->paginate($this->pageSize($request));
 
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Property $p) => [
             'id' => $p->id,
@@ -58,7 +58,7 @@ class ProspectMatchController extends Controller
         $paginator = $this->matcher->customersFor($property)
             ->orderByDesc('customers.updated_at')
             ->orderByDesc('customers.id')
-            ->paginate($this->perPage($request));
+            ->paginate($this->pageSize($request));
 
         return $this->paginated($paginator, $paginator->getCollection()->map(function (Customer $c) use ($viewer) {
             $visible = $viewer->can('view', $c);
@@ -71,7 +71,7 @@ class ProspectMatchController extends Controller
         })->values()->all());
     }
 
-    private function perPage(Request $request): int
+    private function pageSize(Request $request): int
     {
         return max(1, min(self::MAX_PER_PAGE, (int) $request->input('per_page', 20)));
     }

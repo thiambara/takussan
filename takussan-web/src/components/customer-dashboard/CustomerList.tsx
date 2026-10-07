@@ -27,12 +27,14 @@ import { CUSTOMER_STATUS_TONE, PIPELINE_STAGE_TONE } from '@/components/customer
 interface CustomerListProps {
   readonly page: PaginatedResponse<CustomerListItem>;
   readonly onTagClick?: (name: string) => void;
+  /** TCK-591 §9 — `false` pour un compte hors personnel : l'état vide ne propose pas de créer. */
+  readonly canAdd?: boolean;
 }
 
-export function CustomerList({ page, onTagClick }: CustomerListProps) {
+export function CustomerList({ page, onTagClick, canAdd = true }: CustomerListProps) {
   const t = useTranslations('crm.list');
   const { data: customers, meta } = page;
-  if (!customers || customers.length === 0) return <CustomersEmpty />;
+  if (!customers || customers.length === 0) return <CustomersEmpty canAdd={canAdd} />;
 
   /**
    * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
@@ -171,7 +173,7 @@ function CustomerStatusBadge({ status }: { status: CustomerListItem['status'] })
   return <StatusBadge label={label} tone={CUSTOMER_STATUS_TONE[status] ?? 'neutral'} />;
 }
 
-function CustomersEmpty() {
+function CustomersEmpty({ canAdd }: { readonly canAdd: boolean }) {
   const t = useTranslations('crm.list');
   return (
     <EmptyState
@@ -179,9 +181,11 @@ function CustomersEmpty() {
       title={t('empty_title')}
       description={t('empty_description')}
       action={
-        <Link href="/app/customers/new" className={buttonVariants()}>
-          {t('empty_cta')}
-        </Link>
+        canAdd ? (
+          <Link href="/app/customers/new" className={buttonVariants()}>
+            {t('empty_cta')}
+          </Link>
+        ) : undefined
       }
     />
   );

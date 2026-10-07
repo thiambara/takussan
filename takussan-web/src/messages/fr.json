@@ -2619,6 +2619,11 @@
       "submit": "Déclarer",
       "cancel": "Annuler",
       "declareFailed": "L'absence n'a pas pu être déclarée."
+    },
+    "propertyMatches": {
+      "count": "{count, plural, one {# prospect correspond} other {# prospects correspondent}}",
+      "hidden": "Un prospect suivi par un collègue",
+      "more": "{count, plural, one {et # autre} other {et # autres}}"
     }
   },
   "account": {

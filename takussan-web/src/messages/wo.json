@@ -1270,6 +1270,11 @@
       "submit": "Yégle",
       "cancel": "Neenal",
       "declareFailed": "Yégle gi antuwul."
+    },
+    "propertyMatches": {
+      "count": "{count, plural, one {# kiliyaan mu ngi ko sàkku} other {# kiliyaan ñu ngi ko sàkku}}",
+      "hidden": "Kiliyaan bu ab nawle yor",
+      "more": "{count, plural, one {ak # leneen} other {ak # yeneen}}"
     }
   },
   "account": {

@@ -2644,6 +2644,11 @@
       "submit": "Declare",
       "cancel": "Cancel",
       "declareFailed": "The absence could not be declared."
+    },
+    "propertyMatches": {
+      "count": "{count, plural, one {# prospect matches} other {# prospects match}}",
+      "hidden": "A prospect followed by a colleague",
+      "more": "{count, plural, one {and # more} other {and # more}}"
     }
   },
   "account": {
