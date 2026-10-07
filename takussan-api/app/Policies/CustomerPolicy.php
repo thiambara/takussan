@@ -52,4 +52,19 @@ class CustomerPolicy extends BasePolicy
 
         return $agencyId !== null && ($user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId));
     }
+
+    /**
+     * TCK-591 §5 — rapprocher un prospect du portefeuille : lire le client ET être du personnel de
+     * son agence (les biens privés de l'agence en sortent).
+     *
+     * TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion.
+     */
+    public function matchProperties(User $user, Customer $customer): bool
+    {
+        $agencyId = $customer->agency_id;
+
+        return $agencyId !== null
+            && $this->view($user, $customer)
+            && ($user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId));
+    }
 }

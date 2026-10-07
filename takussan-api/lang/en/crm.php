@@ -13,4 +13,8 @@ return [
     'tasks' => [
         'assignee_not_staff' => 'The assignee must be yourself or a staff member of the agency.',
     ],
+    'match_digest' => [
+        'title' => 'Properties match your prospects',
+        'body' => ':properties new or repriced property(ies) match :prospects of your prospects.',
+    ],
 ];

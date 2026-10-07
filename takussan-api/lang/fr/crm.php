@@ -13,4 +13,8 @@ return [
     'tasks' => [
         'assignee_not_staff' => "L'assigné doit être vous-même ou un membre du personnel de l'agence.",
     ],
+    'match_digest' => [
+        'title' => 'Des biens correspondent à vos prospects',
+        'body' => ':properties bien(s) récent(s) ou dont le prix a changé correspondent à :prospects de vos prospects.',
+    ],
 ];

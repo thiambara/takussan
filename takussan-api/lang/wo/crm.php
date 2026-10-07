@@ -13,4 +13,8 @@ return [
     'tasks' => [
         'assignee_not_staff' => 'Ki nga jox liggéey bi war na doon yaw walla kenn ci liggéeykat yu ajaans bi.',
     ],
+    'match_digest' => [
+        'title' => 'Ay kër dëppoo nañu ak say kiliyaan',
+        'body' => ':properties kër yu bees walla yu seen njëg soppiku dëppoo nañu ak :prospects ci say kiliyaan.',
+    ],
 ];
