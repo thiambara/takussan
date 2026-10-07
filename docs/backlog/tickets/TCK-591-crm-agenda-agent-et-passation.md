@@ -760,4 +760,23 @@ téléphone tenu d'une main, entre deux visites**.
   **Ablations** (après commit) : `staffAgencyId: $user->agency_id` dans le contrôleur → AC2 rouge
   (le bailleur voit le bien de l'agent) ; branche `agent_id = moi OR périmètre` rétablie dans le
   collecteur → AC21 rouge (l'agent retiré voit encore sa visite).
+- **§1, §4 (API), §5 (migration), §8 (référent), §9 (`create`)** (`c66b826c`) — re-mesuré :
+  `StoreCustomerRequest.php:37` / `UpdateCustomerRequest.php:44` (`phone` libre),
+  `CustomerController.php:100-101` et `:192-193` (préfixes), `IndexAuditLogRequest` réservé aux
+  admins, `SetPrimaryContactCustomerRequest.php:36` (`exists:users,id`), `StoreCustomerRequest::authorize`
+  → `true` : conformes. **Écart** : spatie/activitylog est en **v5.1** ; les changements de champs
+  vivent dans la colonne `activity_log.attribute_changes`, plus dans `properties` (le Contexte 7 et
+  le Delta §7 écrivent `properties->'old'->>'user_id'` : la commande de réparation devra lire
+  `attribute_changes`). La normalisation passe par `prepareForValidation` (trait
+  `ValidatesCustomerContactAndCriteria`) puis `TelephoneJoignable`, et par les mutateurs de
+  `Customer` pour tout autre chemin. Le détecteur ne nomme que les fiches que l'appelant peut voir
+  (`existing[].id/name` à `null` sinon). Deux tests existants encodaient les défauts et ont été
+  réécrits : `CustomerTest::test_agent_creates_customer…` (un compte sans profil créait un client),
+  `CustomerCrmTest::test_set_primary_contact*` (référent = compte quelconque).
+  `php artisan test tests/Feature/Crm/{CustomerPhoneAndDuplicateTest,CustomerNoteKindTest,CustomerActivityEndpointTest,PrimaryContactScopeTest,CustomerScopeTest}.php`
+  → 20 verts ; `tests/Feature/Api/Customer*Test.php`, `CustomerSearchTest`,
+  `AuthorizationPrecedesValidationTest`, `PropertyDomainValidationTest` → verts.
+  **Ablations** (après commit) : `SetPrimaryContactCustomerRequest` d'origine → AC3 rouge (200 au lieu
+  de 422 ; 200 au lieu de 403) ; `StoreCustomerRequest::authorize` → `true` → AC17 rouge (201) ;
+  `Auditable` retiré de `CustomerNote` et `Task` → AC6 rouge (1 entrée au lieu de 3).
 
