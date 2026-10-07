@@ -67,8 +67,7 @@ class MaintenanceRequestPolicy extends BasePolicy
             return true;
         }
 
-        $agencyId = $user->agency_id;
-        if ($agencyId !== null && ($user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId))) {
+        if ($user->staffAgencyId() !== null) {
             return true;
         }
 
@@ -259,12 +258,11 @@ class MaintenanceRequestPolicy extends BasePolicy
             return true;
         }
 
-        // TCK-592 — un bailleur n'est donneur d'ordre que de SES biens (ligne ci-dessus) ; l'équipe,
-        // de ceux de son agence. TCK-587 : le prédicat « personnel de l'agence » remplacera
-        // `isAgentAt || isAgencyAdminAt` à la fusion.
-        return $user->agency_id !== null
-            && (int) $property->agency_id === (int) $user->agency_id
-            && ($user->isAgentAt((int) $user->agency_id) || $user->isAgencyAdminAt((int) $user->agency_id));
+        // TCK-592 — un bailleur n'est donneur d'ordre que de SES biens (ligne ci-dessus) ; le
+        // personnel (TCK-587), de ceux de l'agence de son profil actif.
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && (int) $property->agency_id === $staffAgencyId;
     }
 
     /**

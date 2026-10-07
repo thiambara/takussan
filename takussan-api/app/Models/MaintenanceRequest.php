@@ -119,11 +119,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
 
         $eligibility = app(ProviderEligibility::class);
         $assignableAgencyIds = $eligibility->agencyIdsWhereAssignable($user);
-        $activeAgencyId = $user->agency_id;
-        // TCK-587 — `staffAgencyId()` à la fusion.
-        $staffAgencyId = $activeAgencyId !== null && $eligibility->isStaffAt($user, (int) $activeAgencyId)
-            ? (int) $activeAgencyId
-            : null;
+        $staffAgencyId = $user->staffAgencyId();
 
         return $query->where(function (Builder $q) use ($user, $assignableAgencyIds, $staffAgencyId): void {
             $q->where('requester_id', $user->id)

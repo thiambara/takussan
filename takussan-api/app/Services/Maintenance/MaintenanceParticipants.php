@@ -5,6 +5,7 @@ namespace App\Services\Maintenance;
 use App\Models\Enums\Capability;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Support\Collection;
 
 /**
@@ -30,13 +31,17 @@ class MaintenanceParticipants
 
         $agency = $property->agency;
         if ($agency !== null) {
-            // TCK-587 — le prédicat « personnel de l'agence » remplacera ces deux relations.
+            // Candidats par profil ou délégation, tous états ; le prédicat du personnel (TCK-587)
+            // tranche — un agent suspendu n'est plus prévenu.
+            $resolver = app(MembershipCapabilityResolver::class);
             $team = User::query()
                 ->where(fn ($q) => $q
                     ->whereHas('agentProfiles', fn ($p) => $p->where('agency_id', $agency->id))
-                    ->orWhereHas('agencyAdminProfiles', fn ($p) => $p->where('agency_id', $agency->id)))
+                    ->orWhereHas('agencyAdminProfiles', fn ($p) => $p->where('agency_id', $agency->id))
+                    ->orWhereHas('roleDelegations', fn ($d) => $d->where('agency_id', $agency->id)))
                 ->get()
-                ->filter(fn (User $member): bool => $member->canActAt(Capability::MaintenanceAssign, $agency));
+                ->filter(fn (User $member): bool => $resolver->isStaffAt($member, (int) $agency->id)
+                    && $member->canActAt(Capability::MaintenanceAssign, $agency));
 
             $principals = $principals->merge($team);
         }

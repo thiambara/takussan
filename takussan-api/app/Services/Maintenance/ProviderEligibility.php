@@ -7,6 +7,7 @@ use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 
 /**
  * TCK-592 — qui peut RECEVOIR une intervention, et qui la GARDE.
@@ -61,16 +62,17 @@ class ProviderEligibility
     }
 
     /**
-     * TCK-587 — à remplacer par `MembershipCapabilityResolver::isStaffAt()` (prédicat « personnel de
-     * l'agence ») à la fusion de 587 dans `dev`.
+     * Le prédicat « personnel de l'agence » de TCK-587 (ADR-0031 §1) : profil agent ou admin ACTIF,
+     * ou délégation active de l'un de ces rôles. Un agent suspendu n'est ni assignable ni assigné.
      */
     public function isStaffAt(User $user, int $agencyId): bool
     {
-        return $user->isAgentAt($agencyId) || $user->isAgencyAdminAt($agencyId);
+        return app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
     }
 
     /**
-     * TCK-587 — idem : les agences où le prédicat du personnel répond vrai.
+     * Les agences où le même prédicat répond vrai : les candidates (profils et délégations, tous
+     * états) passent chacune par {@see self::isStaffAt()}, seul juge.
      *
      * @return list<int>
      */
@@ -78,8 +80,11 @@ class ProviderEligibility
     {
         return $user->agentProfiles()->pluck('agency_id')
             ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
+            ->merge($user->roleDelegations()->pluck('agency_id'))
+            ->filter()
             ->map(fn ($id) => (int) $id)
             ->unique()
+            ->filter(fn (int $id): bool => $this->isStaffAt($user, $id))
             ->values()
             ->all();
     }
