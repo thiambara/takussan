@@ -1,7 +1,7 @@
 ---
 id: TCK-591
 title: "Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent"
-status: done
+status: doing
 phase: P1
 family: full
 estimate: XL
