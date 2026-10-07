@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\CalendarFeed;
-use App\Services\Calendar\CalendarEventCollector;
 use App\Services\Calendar\CalendarFeedService;
 use App\Services\Calendar\IcsCalendarRenderer;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +27,7 @@ class CalendarFeedController extends Controller
     public function current(Request $request): JsonResponse
     {
         $user = $request->user();
-        $agencyId = CalendarEventCollector::staffAgencyIdOf($user);
+        $agencyId = $user->staffAgencyId();
 
         $feed = CalendarFeed::query()
             ->active()
@@ -47,7 +46,7 @@ class CalendarFeedController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $issued = $this->feeds->issue($user, CalendarEventCollector::staffAgencyIdOf($user));
+        $issued = $this->feeds->issue($user, $user->staffAgencyId());
 
         return $this->json(['data' => [
             'active' => true,
@@ -60,7 +59,7 @@ class CalendarFeedController extends Controller
     public function destroy(Request $request): JsonResponse
     {
         $user = $request->user();
-        $this->feeds->revoke($user, CalendarEventCollector::staffAgencyIdOf($user));
+        $this->feeds->revoke($user, $user->staffAgencyId());
 
         return $this->json(null, 204);
     }

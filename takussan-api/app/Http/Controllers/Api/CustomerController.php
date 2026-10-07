@@ -65,8 +65,8 @@ class CustomerController extends Controller
 
         $user = $request->user();
         // TCK-591 — la fiche entre dans le CRM de l'agence où l'appelant est PERSONNEL
-        // (`CustomerPolicy::create` l'a établi). TCK-587 : `$user->staffAgencyId()` à sa fusion.
-        $agencyId = $user->agency_id;
+        // (`CustomerPolicy::create` l'a établi ; `null` pour le super-admin hors agence).
+        $agencyId = $user->staffAgencyId();
 
         if (! $allowDuplicate && ($response = $this->duplicateResponse($duplicates, $agencyId, $data, $user)) !== null) {
             return $response;

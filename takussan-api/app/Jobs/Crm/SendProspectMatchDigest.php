@@ -10,6 +10,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\ProspectMatcher;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -137,12 +138,12 @@ class SendProspectMatchDigest implements ShouldQueue
         return null;
     }
 
-    /** TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion. */
+    /** TCK-587 — PERSONNEL actif de l'agence (profil ou délégation actifs). */
     private function isStaffAt(int $userId, int $agencyId): bool
     {
         $user = User::query()->find($userId);
 
-        return $user !== null && ($user->isAgentAt($agencyId) || $user->isAgencyAdminAt($agencyId));
+        return $user !== null && app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
     }
 
     private function alreadySent(int $userId, string $date): bool

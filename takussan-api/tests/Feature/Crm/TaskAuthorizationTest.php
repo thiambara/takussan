@@ -34,17 +34,6 @@ class TaskAuthorizationTest extends ApiTestCase
         $this->agent = $this->member('agent', $this->agency);
     }
 
-    /**
-     * `CustomerPolicy::view` laisse lire tout le CRM à un bailleur de l'agence jusqu'à la fusion de
-     * TCK-587 (qui pose `User::staffAgencyId()`). Saut qui expire seul : retiré à la fusion.
-     */
-    private function requiresTck587(): void
-    {
-        if (! method_exists(User::class, 'staffAgencyId')) {
-            $this->markTestSkipped('attend TCK-587 (CustomerPolicy::view réécrite)');
-        }
-    }
-
     private function member(string $role, Agency $agency): User
     {
         $user = User::factory()->create();
@@ -129,7 +118,6 @@ class TaskAuthorizationTest extends ApiTestCase
 
     public function test_a_landlord_cannot_attach_a_task_to_a_customer_he_did_not_add(): void
     {
-        $this->requiresTck587();
         $landlord = $this->member('owner', $this->agency);
         $customer = $this->customer();
 
@@ -174,7 +162,6 @@ class TaskAuthorizationTest extends ApiTestCase
 
     public function test_an_assignee_outside_the_parent_scope_does_not_read_the_label(): void
     {
-        $this->requiresTck587();
         // Assignée à un bailleur par le passé (avant la garde) : il voit la tâche, pas le nom.
         $landlord = $this->member('owner', $this->agency);
         $task = Task::factory()->forCustomer($this->customer())->create([

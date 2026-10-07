@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Agency\AgentAvailability;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
@@ -89,11 +90,9 @@ class TaskController extends Controller
 
         $agencyId = $parent?->getAttribute('agency_id');
         $assignee = $agencyId !== null ? User::find($assigneeId) : null;
-        // TCK-587 — prédicat « personnel de l'agence » ; remplacé par `isStaffAt()` à sa fusion.
-        $ok = $assignee !== null && (
-            $assignee->isAgentAt((int) $agencyId)
-            || $assignee->isAgencyAdminAt((int) $agencyId)
-        );
+        // TCK-587 — l'assigné est PERSONNEL actif de l'agence du parent.
+        $ok = $assignee !== null
+            && app(MembershipCapabilityResolver::class)->isStaffAt($assignee, (int) $agencyId);
 
         if (! $ok) {
             throw new HttpResponseException($this->json([

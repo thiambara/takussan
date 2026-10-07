@@ -98,11 +98,11 @@ class RoleDelegationPolicy
      * TCK-591 (ADR-0035) — voir les absences de l'agence : tout son personnel (savoir qui couvre
      * qui est une information de travail, pas d'administration).
      *
-     * TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion.
+     * TCK-587 — l'appelant est PERSONNEL de cette agence, celle de son profil actif.
      */
     public function viewAbsences(User $user, Agency $agency): bool
     {
-        return $user->isAgentAt((int) $agency->id) || $user->isAgencyAdminAt((int) $agency->id);
+        return $user->staffAgencyId() === (int) $agency->id;
     }
 
     /**

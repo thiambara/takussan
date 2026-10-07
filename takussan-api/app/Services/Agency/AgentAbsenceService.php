@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Permissions\RoleDelegationService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Carbon;
@@ -96,9 +97,9 @@ class AgentAbsenceService
         $this->delegations->revoke($absence, $actor);
     }
 
-    /** TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion. */
+    /** TCK-587 — PERSONNEL actif de l'agence (profil ou délégation actifs). */
     private function isStaffAt(User $user, int $agencyId): bool
     {
-        return $user->isAgentAt($agencyId) || $user->isAgencyAdminAt($agencyId);
+        return app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
     }
 }

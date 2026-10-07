@@ -4,6 +4,7 @@ namespace App\Services\Calendar;
 
 use App\Models\CalendarFeed;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -86,10 +87,9 @@ class CalendarFeedService
             return null;
         }
 
-        // TCK-587 — prédicat « personnel de l'agence », remplacé par `isStaffAt()` à sa fusion.
+        // TCK-587 — le porteur du flux doit rester PERSONNEL actif de l'agence du flux.
         if ($feed->agency_id !== null
-            && ! $feed->user->isAgentAt((int) $feed->agency_id)
-            && ! $feed->user->isAgencyAdminAt((int) $feed->agency_id)) {
+            && ! app(MembershipCapabilityResolver::class)->isStaffAt($feed->user, (int) $feed->agency_id)) {
             return null;
         }
 

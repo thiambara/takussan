@@ -119,24 +119,6 @@ class CalendarEventCollector
         });
     }
 
-    /**
-     * L'agence où l'utilisateur est PERSONNEL (agent ou admin d'agence), dans l'agence de son profil
-     * actif ; `null` pour un bailleur, un client, un prestataire.
-     *
-     * TCK-587 — expression équivalente au prédicat `User::staffAgencyId()`, remplacée à sa fusion.
-     */
-    public static function staffAgencyIdOf(User $user): ?int
-    {
-        $agencyId = $user->agency_id;
-        if ($agencyId === null) {
-            return null;
-        }
-
-        return ($user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId))
-            ? (int) $agencyId
-            : null;
-    }
-
     /** @return Collection<int, array<string, mixed>> */
     private function bookings(Carbon $start, Carbon $end, \Closure $restrict): Collection
     {

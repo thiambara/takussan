@@ -7,6 +7,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -156,9 +157,9 @@ class AgentHandoverService
         return [[], []];
     }
 
-    /** TCK-592 — règle d'éligibilité d'une intervention ; avant sa fusion, le personnel de l'agence (TCK-587). */
+    /** TCK-592 — règle d'éligibilité d'une intervention ; avant sa fusion, le personnel actif de l'agence (TCK-587). */
     private function eligibleForMaintenance(User $user, int $agencyId): bool
     {
-        return $user->isAgentAt($agencyId) || $user->isAgencyAdminAt($agencyId);
+        return app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
     }
 }

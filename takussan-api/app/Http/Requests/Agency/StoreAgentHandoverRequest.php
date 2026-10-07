@@ -5,6 +5,7 @@ namespace App\Http\Requests\Agency;
 use App\Models\Agency;
 use App\Models\User;
 use App\Services\Agency\AgentPortfolio;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -54,9 +55,9 @@ class StoreAgentHandoverRequest extends FormRequest
             $member = $this->route('user');
             foreach ($this->successorIds() as $field => $id) {
                 $candidate = User::query()->find($id);
-                // TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion.
+                // TCK-587 — le repreneur est PERSONNEL actif de l'agence (profil ou délégation actifs).
                 $staff = $candidate !== null
-                    && ($candidate->isAgentAt((int) $agency->id) || $candidate->isAgencyAdminAt((int) $agency->id));
+                    && app(MembershipCapabilityResolver::class)->isStaffAt($candidate, (int) $agency->id);
                 if (! $staff || (int) $id === (int) $member->id) {
                     $v->errors()->add($field, __('team_handover.handover.successor_not_staff'));
                 }

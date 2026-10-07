@@ -38,7 +38,7 @@ class CalendarController extends Controller
 
         $events = $this->collector->collect(
             user: $user,
-            staffAgencyId: CalendarEventCollector::staffAgencyIdOf($user),
+            staffAgencyId: $user->staffAgencyId(),
             start: Carbon::parse($validated['start_date']),
             end: Carbon::parse($validated['end_date']),
             types: collect($validated['types'] ?? CalendarEventCollector::DEFAULT_TYPES)->unique()->values()->all(),

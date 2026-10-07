@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Closure;
 
 /**
@@ -52,9 +53,9 @@ class SetPrimaryContactCustomerRequest extends BaseFormRequest
                 function (string $attribute, mixed $value, Closure $fail): void {
                     $agencyId = $this->route('customer')?->agency_id;
                     $target = User::find((int) $value);
-                    // TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion.
+                    // TCK-587 — la cible est PERSONNEL actif de l'agence de la fiche.
                     $isStaff = $agencyId !== null && $target !== null
-                        && ($target->isAgentAt((int) $agencyId) || $target->isAgencyAdminAt((int) $agencyId));
+                        && app(MembershipCapabilityResolver::class)->isStaffAt($target, (int) $agencyId);
                     if (! $isStaff) {
                         $fail(__('crm.customers.primary_contact_not_staff'));
                     }
