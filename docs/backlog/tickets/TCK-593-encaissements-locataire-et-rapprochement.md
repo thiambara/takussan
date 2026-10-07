@@ -682,3 +682,17 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   `test_webhook_compare_au_montant_fige_…` rouge (AC7) ; `late_fee_paid_at` non posé → 2 rouges
   (AC6) ; autorisation par `LeasePaymentPolicy::update` → `test_le_locataire_recoit_403` rouge (AC5).
 
+### Partie 2 — quittances et historique (back), 2026-10-07
+
+- Re-mesuré : `DocumentPdfController::receipt` sans contrôle de statut, gabarit daté de
+  `paid_at ?? due_date`, statut brut affiché. Conforme.
+- `ReceiptPdfTest` 7 verts : `test_quittance_refusee_pour_une_echeance_impayee` (422 sur `pending`,
+  `late`, `failed`, `partially_paid` ; PDF sur `paid`), `test_quittance_dit_la_penalite_restant_due`,
+  `test_quittance_dit_la_penalite_acquittee`. Le contenu se lit sur le HTML du gabarit, rendu avec
+  les données que la VRAIE route lui a passées (capturées par `View::composer`) : le texte d'un PDF
+  compressé ne se lit pas. Ablations : garde retirée → `…_impayee` rouge ; ligne de pénalité forcée à
+  « acquittée » → `…_restant_due` rouge.
+- `PaymentHistoryTest` 11 verts (`test_filtre_de_statut_en_liste`,
+  `test_l_historique_porte_la_penalite_et_le_montant_du`). Voisins `PaymentRegistrationTest`,
+  `PaymentReceiptPdfTest` verts.
+

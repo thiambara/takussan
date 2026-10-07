@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -29,6 +30,9 @@ class DocumentPdfController extends Controller
     {
         abort_unless($payment->lease_id === $lease->id, 404);
         $this->authorizeReceipt($request, $lease);
+        // TCK-593 — une quittance atteste un paiement : en délivrer une pour un impayé créerait une
+        // preuve contre le bailleur. Même règle que le reçu de réservation.
+        abort_unless($payment->status === PaymentStatus::Paid, 422, __('payments.receipt_unpaid'));
 
         $lease->loadMissing(['property.address', 'tenant', 'agency']);
 
