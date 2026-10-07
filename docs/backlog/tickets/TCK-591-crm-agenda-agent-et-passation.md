@@ -491,6 +491,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [ ] `PropertyBulkVisibilityRequest`, `PropertyBulkAssignRequest` ; `PropertyBulkVisibilityService`,
       `PropertyBulkAssignService` sur le modèle de `PropertyBulkArchiveService` ; routes déclarées
       avant `{property}` (`routes/api/properties.php:19`).
+      *Moitié livrée : `bulk-visibility` (requête, service, route) ; `bulk-assign` attend TCK-504.*
 - [ ] `PropertyController::assignAgent` (corps, l.238-259) : **supprimer**
       `$property->update(['user_id' => $target->id])` (l.254) ; à la place, désigner la cible
       **agent responsable** selon l'ADR « agent responsable » (Delta 0 ; option retenue par défaut :
@@ -599,7 +600,7 @@ téléphone tenu d'une main, entre deux visites**.
       **suspendu** de l'agence, idem. Le refus vient de la règle de cible de **TCK-587** (Delta §3,
       AC5b), que `PropertyBulkAssignService` appelle (Contraintes 9) : on remplace l'appel par
       `true` → le bien passe en `updated`, rouge.
-- [ ] AC5 — sur 5 biens dont 1 d'une autre agence et 1 déjà privé, `bulk-visibility` rend
+- [x] AC5 — sur 5 biens dont 1 d'une autre agence et 1 déjà privé, `bulk-visibility` rend
       `updated = 3`, `failed` = `[{forbidden}, {unchanged}]` + l'identifiant inconnu en `not_found` ;
       une exception levée au 2ᵉ bien autorisé laisse les 3 inchangés (transaction).
 - [x] AC6 — `GET /api/customers/{c}/activity` rend **200** à un agent de l'agence avec **exactement**
@@ -836,3 +837,11 @@ téléphone tenu d'une main, entre deux visites**.
   non-personnel), d'où l'assertion `revoked_at` ajoutée, puis rouge ; exigence d'`AgentProfile`
   rétablie → AC23 rouge ; dédoublonnage des collaborations retiré → rouge ; transaction retirée →
   « erreur à mi-parcours » rouge ; repreneur bailleur accepté → rouge.
+- **§7 `bulk-visibility`** (`86a6da43`) — livré en avance sur TCK-504 parce qu'il n'en dépend pas
+  (dépublier ne touche ni `user_id` ni l'agent responsable) ; `bulk-assign`, `assignAgent`, la règle
+  de cible, `ResponsibleAgentAssigner` et la commande de réparation **attendent TCK-504**. Re-mesuré :
+  `bulk-archive` (`PropertyController.php:297-314`) valide `exists:properties,id` — un identifiant
+  inconnu y est un 422 ; `bulk-visibility` le rend au contraire en `not_found` dans le bilan, comme
+  l'exige AC5. Au plus 100 identifiants (Contrat). `php artisan test tests/Feature/Property/PropertyBulkVisibilityTest.php`
+  → 3 verts. **Ablations** : contrôle `update` retiré → rouge (le bien de l'autre agence passe) ;
+  transaction retirée → rouge (le premier bien reste dépublié après la panne injectée au second).
