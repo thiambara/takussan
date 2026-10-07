@@ -14,7 +14,8 @@
  *   5. `return Capability::X` d'un `viewCapability|createCapability|updateCapability|deleteCapability()`
  *      de `XPolicy`, **seulement si** la policy ne surcharge pas l'ability (`view`, `create`…) et
  *      que l'ability est invoquée pour ce modèle quelque part (`can('create', X::class)`,
- *      `authorize('delete', $x…)`).
+ *      `authorize('delete', $x…)`) ;
+ *   6. un middleware `'can:x.y'`, dans `app/` ou `routes/` (balayés tous deux).
  *
  * Un nom de route, un docblock, la liste blanche de `resolvePlatform()`, le seed des rôles système
  * ne lisent rien.
@@ -31,6 +32,21 @@
  *   · « Lue » ne veut pas dire « bien lue » : `can('x.y')` dans une branche morte compte.
  *   · Forme 5 : l'invocation est reconnue au NOM de la variable (`$payout` pour `Payout`) ou à
  *     `X::class`. Une variable mal nommée fait perdre la lecture.
+ *   · Lectures RÉELLES qu'elle ne voit pas (faux « sans lecteur », verif-587 m1) — une ligne par
+ *     forme ; le ticket qui branche une capacité sous l'une d'elles retire sa ligne d'inventaire à
+ *     la main, la garde ne le lui signalera pas :
+ *       - `Gate::allows('x.y')`, `Gate::authorize('x.y')`, `Gate::check(…)` ;
+ *       - `$this->authorize('x.y', …)` ;
+ *       - un argument nommé : `canActAt(capability: Capability::X, …)` ;
+ *       - `canAny([...])` ;
+ *       - `@can('x.y')` dans une vue Blade (`resources/` n'est pas balayé).
+ *   · Fausses lectures qu'elle compte (faux « lue », verif-587 m1) : la capacité perd sa mention
+ *     « sans effet » dans l'éditeur de rôles alors qu'elle ne décide rien :
+ *       - H5 : une méthode qui prend PLUSIEURS paramètres `Capability` et n'en juge qu'un — la
+ *         forme 3 compte tout `Capability::X` de l'appel, quelle que soit sa position ;
+ *       - H7 : `Capability::X` dans la même instruction, après l'appel à une méthode qui juge son
+ *         paramètre — la forme 3 lit l'appel jusqu'au `;`, pas jusqu'à sa parenthèse fermante ;
+ *       - le résultat d'une lecture ignoré (`$u->can(Capability::X); return true;`).
  *
  * ## Ses propres tests
  *
@@ -62,7 +78,10 @@ const CLIQUET = 16;
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;
 
-/** Commentaires blanchis ; une chaîne ne garde son contenu que s'il a la forme d'un identifiant. */
+/**
+ * Commentaires blanchis ; une chaîne ne garde son contenu que s'il a la forme d'un identifiant, ou
+ * d'un middleware `can:x.y` (forme 6).
+ */
 function sansCommentaires(src) {
   let out = '';
   let i = 0;
@@ -75,7 +94,8 @@ function sansCommentaires(src) {
       let j = i + 1;
       while (j < n && src[j] !== c) j += src[j] === '\\' ? 2 : 1;
       const contenu = src.slice(i + 1, j);
-      out += c + (/^[\w.]*$/.test(contenu) ? contenu : blanc(contenu)) + (j < n ? c : '');
+      const garde = /^[\w.]*$/.test(contenu) || /^can:[a-z_]+\.[a-z_]+(?:,[\w.$]*)*$/.test(contenu);
+      out += c + (garde ? contenu : blanc(contenu)) + (j < n ? c : '');
       i = j + 1;
     } else if (c === '/' && d === '*') {
       const fin = src.indexOf('*/', i + 2);
@@ -140,6 +160,10 @@ function lecteurs(arbre, cas) {
     for (const m of net.matchAll(/\b(?:canActAt|can|cannot)\s*\(\s*'([a-z_]+\.[a-z_]+)'/g)) {
       lire(m[1], `${chemin} (chaîne)`);
     }
+    // 6. Middleware `can:x.y` (routes ou contrôleur) — verif-587, m1.
+    for (const m of net.matchAll(/(['"])can:([a-z_]+\.[a-z_]+)/g)) {
+      lire(m[2], `${chemin} (middleware can:)`);
+    }
     // 3. Méthode du fichier qui juge son paramètre `Capability`.
     for (const m of net.matchAll(/\bfunction\s+(\w+)\s*\(([^)]*)\)/g)) {
       const param = /\bCapability\s+\$(\w+)/.exec(m[2]);
@@ -181,6 +205,7 @@ function lecteurs(arbre, cas) {
 const CAS_FIGES = { PropertiesDelete: 'properties.delete', MaintenanceAssign: 'maintenance.assign', PayoutsCreate: 'payouts.create', LeasesRenew: 'leases.renew', InvoicesSend: 'invoices.send', ReportsExport: 'reports.export' };
 const CAS_EPREUVE = [
   { nom: 'nom de route', arbre: { 'routes/x.php': "Route::delete('p', [C::class, 'x'])->name('properties.delete');", 'app/Http/X.php': "<?php $r->name('properties.delete');" }, lues: [] },
+  { nom: 'middleware can: dans les routes', arbre: { 'routes/x.php': "Route::get('e', [C::class, 'x'])->middleware('can:reports.export');" }, lues: ['reports.export'] },
   { nom: 'docblock', arbre: { 'app/Policies/XPolicy.php': '<?php /** canActAt(Capability::PropertiesDelete, $a) */ class XPolicy {}' }, lues: [] },
   {
     nom: 'deleteCapability() déclarée, jamais atteinte',
@@ -262,12 +287,13 @@ function arbreLocal() {
     }
   };
   marcher(join(API, 'app'));
+  marcher(join(API, 'routes'));
   return out;
 }
 
 function arbreGit(ref) {
   const out = {};
-  const liste = execFileSync('git', ['ls-tree', '-r', '--name-only', ref, 'takussan-api/app'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
+  const liste = execFileSync('git', ['ls-tree', '-r', '--name-only', ref, 'takussan-api/app', 'takussan-api/routes'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
   for (const chemin of liste.split('\n').filter((l) => l.endsWith('.php'))) {
     out[chemin.slice('takussan-api/'.length)] = execFileSync('git', ['show', `${ref}:${chemin}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
   }

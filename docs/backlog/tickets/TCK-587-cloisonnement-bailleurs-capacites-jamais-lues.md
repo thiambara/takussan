@@ -1070,3 +1070,15 @@ d'avant**) et B2 reçoit 403. Ablations : `viewMedia` → `update` seul, rouge (
 
 Les quatre fichiers passent (`InactiveProfileGrantsNothing`, `StaffAgencyId`, `ExportScoping`,
 `ExportCapability`).
+
+**m1 — `check-capability-readers.mjs`.** L'en-tête déclare, une ligne par forme :
+- les lectures réelles non vues : `Gate::allows|authorize|check`, `$this->authorize('x.y')`,
+  l'argument nommé, `canAny`, `@can` en Blade ;
+- les fausses lectures comptées : H5, H7, le résultat ignoré.
+
+Forme 6 ajoutée : le middleware `'can:x.y'`. `routes/` est maintenant balayé (arbre local et
+`--ref`), et un cas d'épreuve couvre cette forme. L'ablation qui retire la forme 6 fait sortir la
+garde en 1 sur elle-même. Aujourd'hui, aucune route ne porte `can:`, et le classement de
+l'arbre ne change pas (45 capacités : 29 lues, 16 inscrites). `--ref=e3ab4a4e` classe toujours
+`properties.create|delete|publish` et `leases.create` sans lecteur, `invoices.create` et
+`payouts.create` lues.
