@@ -13,23 +13,48 @@ import { Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { buildExportUrl, type ExportEntity, type ExportFormat } from '@/lib/queries/exports';
+import { useCan } from '@/hooks/useCan';
 import { useTranslations } from 'next-intl';
 
 type Props = {
-  canExportCustomers: boolean;
+  /** Personnel d'une agence (agent, admin) : ses exports sont jugés par capacité. */
+  staff: boolean;
 };
 
 const FORMATS: readonly ExportFormat[] = ['csv', 'xlsx', 'pdf'];
 
-export function ExportForm({ canExportCustomers }: Props) {
+/**
+ * TCK-587 (ADR-0031 §2) — la capacité qui ouvre chaque export au PERSONNEL, comme
+ * `ExportController::CAPABILITY`. Le bailleur n'en tient aucune : il exporte ses paiements, ses
+ * baux et ses biens, jamais les clients de l'agence.
+ */
+const CAPACITE: Record<ExportEntity, string> = {
+  payments: 'payments.export',
+  leases: 'reports.export',
+  customers: 'crm.export',
+  properties: 'reports.export',
+};
+const TOUTES: readonly ExportEntity[] = ['payments', 'leases', 'customers', 'properties'];
+const DU_BAILLEUR: readonly ExportEntity[] = ['payments', 'leases', 'properties'];
+
+export function ExportForm({ staff }: Props) {
   const t = useTranslations('dashboard.exports');
-  const [entity, setEntity] = useState<ExportEntity>('payments');
+  const tenues: Record<string, boolean> = {
+    'payments.export': useCan('payments.export').can,
+    'reports.export': useCan('reports.export').can,
+    'crm.export': useCan('crm.export').can,
+  };
+  const entities = staff ? TOUTES.filter((e) => tenues[CAPACITE[e]]) : DU_BAILLEUR;
+  const [choix, setEntity] = useState<ExportEntity>('payments');
+  // Le choix par défaut peut ne pas être offert (un rôle sans `payments.export`).
+  const entity = entities.includes(choix) ? choix : entities[0];
   const [format, setFormat] = useState<ExportFormat>('csv');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [isPending, startTransition] = useTransition();
 
   function handleDownload() {
+    if (!entity) return;
     startTransition(() => {
       const url = buildExportUrl({
         entity,
@@ -45,9 +70,14 @@ export function ExportForm({ canExportCustomers }: Props) {
     });
   }
 
-  const entities: ExportEntity[] = canExportCustomers
-    ? ['payments', 'leases', 'customers', 'properties']
-    : ['payments', 'leases', 'properties'];
+  if (entities.length === 0) {
+    return (
+      <p className="max-w-xl rounded-2xl bg-card p-6 text-sm text-pretty text-muted-foreground" data-testid="exports-none">
+        {t('noneAllowed')}
+      </p>
+    );
+  }
+
   // Libellés du dictionnaire : la table française en dur s'affichait telle quelle en anglais.
   const entityItems = entities.map((e) => ({ value: e, label: t(`entities.${e}`) }));
   const formatItems = FORMATS.map((f) => ({ value: f, label: t(`formats.${f}`) }));

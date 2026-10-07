@@ -40,7 +40,7 @@ trait LeaseDueFixture
     protected function leaseDue(?array $settings = null, array $payment = []): array
     {
         $agency = Agency::factory()->create(['currency' => Currency::XOF, 'settings' => $settings]);
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        $agent = User::factory()->withAgentProfile($agency)->create();
         $tenant = User::factory()->create();
         $customer = Customer::factory()->create(['user_id' => $tenant->id]);
 

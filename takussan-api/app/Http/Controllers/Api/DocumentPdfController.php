@@ -50,7 +50,8 @@ class DocumentPdfController extends Controller
 
     public function invoice(Request $request, Invoice $invoice): Response
     {
-        $this->authorizeInvoice($request, $invoice);
+        // TCK-587 — la règle de `InvoicePolicy::view`, que l'ancien helper recopiait à l'identique.
+        $this->authorize('view', $invoice);
 
         $invoice->loadMissing(['customer', 'agency']);
 
@@ -66,7 +67,8 @@ class DocumentPdfController extends Controller
 
     public function leaseContract(Request $request, Lease $lease): Response
     {
-        $this->authorizeLease($request, $lease);
+        // TCK-587 — la règle de `LeasePolicy::view`, que l'ancien helper recopiait à l'identique.
+        $this->authorize('view', $lease);
 
         $lease->loadMissing(['property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
@@ -94,7 +96,10 @@ class DocumentPdfController extends Controller
 
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
         $isLandlord = $lease->landlord_id === $user->id;
-        $isAgency = $user->agency_id && $user->agency_id === $lease->agency_id;
+        // TCK-587 — le PERSONNEL de l'agence du bail (ADR-0031) : un autre bailleur de l'agence
+        // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
+        $staffAgencyId = $user->staffAgencyId();
+        $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
         $isCollab = (bool) $lease->property?->collaborators()
             ->where('user_id', $user->id)
             ->whereNotNull('accepted_at')
@@ -102,37 +107,5 @@ class DocumentPdfController extends Controller
         $isAdmin = $user->isSuperAdmin();
 
         abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);
-    }
-
-    /**
-     * Facture : destinataire (customer.user_id) + émetteur + agence + admin.
-     */
-    protected function authorizeInvoice(Request $request, Invoice $invoice): void
-    {
-        $user = $request->user();
-        abort_unless($user, 401);
-
-        $isRecipient = $invoice->customer && $invoice->customer->user_id === $user->id;
-        $isIssuer = $invoice->issued_by_id === $user->id;
-        $isAgency = $user->agency_id && $user->agency_id === $invoice->agency_id;
-        $isAdmin = $user->isSuperAdmin();
-
-        abort_unless($isAdmin || $isRecipient || $isIssuer || $isAgency, 403);
-    }
-
-    /**
-     * Bail : parties (bailleur, locataire), agence propriétaire et admin.
-     */
-    protected function authorizeLease(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        abort_unless($user, 401);
-
-        $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
-        $isLandlord = $lease->landlord_id === $user->id;
-        $isAgency = $user->agency_id && $user->agency_id === $lease->agency_id;
-        $isAdmin = $user->isSuperAdmin();
-
-        abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency, 403);
     }
 }

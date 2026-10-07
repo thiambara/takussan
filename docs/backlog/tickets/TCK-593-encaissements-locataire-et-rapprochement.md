@@ -1,7 +1,7 @@
 ---
 id: TCK-593
 title: "Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -1003,3 +1003,28 @@ tests et ablations dans les Notes, section « Corrections après vérification a
   l’historique` et le filtre mis à jour. Ablations : rappel retiré → rouge ; `partially_paid`
   retiré → rouge. Front : vitest des deux dossiers 53 verts, ESLint 0, `tsc --noEmit` propre,
   `check:i18n` vert.
+
+### Fusion de `origin/dev` après TCK-587 (fd4bd805), 2026-10-07
+
+- **Conflits.** Un seul conflit de code : `LeasePaymentController` — l'action `markLateFeePaid` de
+  593 est gardée, l'ancien helper `authorizeLeaseAccess` que 587 a retiré l'est aussi (aucun
+  appelant). `PaymentController`, `DocumentPdfController`, `AgencyController`, les
+  `lang/*/notifications.php` et les `messages/*.json` ont fusionné sans conflit ; `INDEX.md` est
+  régénéré.
+- **Alignement de `MarkLateFeePaidRequest` sur 587.** L'autorisation passe de `update` à
+  `LeasePolicy::recordPayment` : personnel titulaire de `payments.record`, ou bailleur du bail non
+  bloqué dans l'agence (`landlordWrites`). Le locataire et le bailleur bloqué ne règlent jamais une
+  pénalité. Tests `test_un_bailleur_bloque_ne_regle_pas_la_penalite` et
+  `test_sans_payments_record_le_personnel_ne_regle_pas_la_penalite` (chacun avec son témoin à 200).
+  Ablations : `update` remis → rouge (le personnel sans `payments.record` passe) ; `view` → 3
+  rouges. Le bailleur bloqué seul ne discrimine pas `update` de `recordPayment`, puisque 587 a
+  posé `landlordWrites` dans les deux.
+- **Fixture.** `LeaseDueFixture` créait son « agent » par le pont `agency_id` de la fabrique, qui
+  pose un `OwnerProfile` : sous `recordPayment`, ce faux agent n'encaissait plus. Il est désormais
+  créé par `withAgentProfile()`.
+- **Classes rejouées.** Les 15 classes touchées par les conflits, l'alignement et la fixture
+  (dont `TeamMemberSuspensionTest`, `BranchedCapabilitiesTest`, `AgencySettingsMergeTest`,
+  `PaymentGatewayVerifyTest`) → 156 verts. Front : `tsc --noEmit`, `check:i18n`, vitest
+  paiements et rapprochement (57) verts.
+- **Statut `done`.** Décision de la session : la case « Journaux … `SafeExceptionContext` » est
+  transférée à TCK-601 et ne bloque plus.

@@ -29,7 +29,9 @@ class StoreLeasePaymentRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('lease')) === true;
+        // TCK-587 — `recordPayment` et non plus `update` : encaisser exige `payments.record` pour le
+        // personnel, et le bailleur du bail le peut toujours (`LeasePolicy::recordPayment`).
+        return $this->user()?->can('recordPayment', $this->route('lease')) === true;
     }
 
     /** @return array<string, mixed> */

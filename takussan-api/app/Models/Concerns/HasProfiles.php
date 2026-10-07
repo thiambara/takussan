@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -126,11 +127,32 @@ trait HasProfiles
         };
     }
 
+    /**
+     * TCK-587 (ADR-0031 §3) — `isOwnerAt`, `isAgentAt` et `isAgencyAdminAt` jugent un DROIT : ils ne
+     * comptent que les profils ACTIFS. Ils ne filtraient que `deleted_at` (redondant : les trois
+     * modèles sont `SoftDeletes`), si bien qu'un co-admin suspendu suspendait encore les autres
+     * (`AgentInvitationService::suspend`). Un site qui teste une APPARTENANCE — doublon
+     * d'invitation, réactivation, liste d'équipe — emploie {@see self::hasProfileAt()}, sans filtre
+     * de statut.
+     */
     public function isOwnerAt(int $agencyId): bool
     {
         return $this->ownerProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
+            ->exists();
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §2, vérification adverse m3) — bailleur SUSPENDU dans cette agence
+     * (`blocked`, par `POST /api/agencies/{a}/team/{u}/suspend`). Il reste partie à ses baux et en
+     * garde la lecture ; il en perd les écritures dans cette agence.
+     */
+    public function isBlockedOwnerAt(int $agencyId): bool
+    {
+        return $this->ownerProfiles()
+            ->where('agency_id', $agencyId)
+            ->where('status', OwnerProfileStatus::Blocked->value)
             ->exists();
     }
 
@@ -138,7 +160,7 @@ trait HasProfiles
     {
         return $this->agentProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 
@@ -146,7 +168,7 @@ trait HasProfiles
     {
         return $this->agencyAdminProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 

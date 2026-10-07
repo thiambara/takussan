@@ -169,7 +169,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_creates_property_with_address(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/properties', [
@@ -202,7 +202,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_rent_period_defaults_to_monthly_when_contract_is_rent(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/properties', [
@@ -372,7 +372,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_negative_price_returns_422(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/properties', [
@@ -386,7 +386,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_negative_bedrooms_returns_422(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/properties', [

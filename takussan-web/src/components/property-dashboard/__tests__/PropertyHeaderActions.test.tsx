@@ -10,6 +10,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
+// TCK-587 — les menus d'un bien lisent `properties.publish` et `properties.delete` ; ce fichier
+// éprouve autre chose, sous un membre qui les tient. Le cloisonnement a son propre fichier
+// (`PropertyActions.capacites.test.tsx`).
+vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));
+
 vi.mock('@/app/actions/dashboard-properties', () => ({
   deletePropertyAction: vi.fn(),
   duplicatePropertyAction: vi.fn(),

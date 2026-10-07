@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesAgencyMembers;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
@@ -16,6 +19,7 @@ use Tests\TestCase;
  */
 class LeasePaymentLateFeeMarkPaidTest extends TestCase
 {
+    use CreatesAgencyMembers;
     use LeaseDueFixture;
     use RefreshDatabase;
 
@@ -97,6 +101,43 @@ class LeasePaymentLateFeeMarkPaidTest extends TestCase
 
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid")->assertForbidden();
         $this->assertNull($ctx['payment']->refresh()->late_fee_paid_at);
+    }
+
+    /**
+     * Alignement sur TCK-587 (`LeasePolicy::recordPayment` / `landlordWrites`) : un bailleur bloqué
+     * dans l'agence du bail ne règle pas la pénalité ; débloqué, il la règle.
+     */
+    public function test_un_bailleur_bloque_ne_regle_pas_la_penalite(): void
+    {
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Paid, 'paid_at' => now()]);
+        $bailleur = User::factory()->withOwnerProfile($ctx['agency'])->create();
+        $ctx['lease']->update(['landlord_id' => $bailleur->id]);
+        OwnerProfile::query()->where('user_id', $bailleur->id)->update(['status' => 'blocked']);
+        Sanctum::actingAs($bailleur->fresh());
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid")->assertForbidden();
+        $this->assertNull($ctx['payment']->refresh()->late_fee_paid_at);
+
+        OwnerProfile::query()->where('user_id', $bailleur->id)->update(['status' => 'active']);
+        Sanctum::actingAs($bailleur->fresh());
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid")->assertOk();
+    }
+
+    /**
+     * Alignement sur TCK-587 — régler une pénalité, c'est ENCAISSER : le personnel sans
+     * `payments.record` est refusé. `LeasePolicy::update` n'exigeait aucune capacité.
+     */
+    public function test_sans_payments_record_le_personnel_ne_regle_pas_la_penalite(): void
+    {
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Paid, 'paid_at' => now()]);
+        $url = "/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid";
+
+        Sanctum::actingAs($this->agentWithout($ctx['agency'], Capability::PaymentsRecord));
+        $this->postJson($url)->assertForbidden();
+        $this->assertNull($ctx['payment']->refresh()->late_fee_paid_at);
+
+        Sanctum::actingAs($this->agencyAgent($ctx['agency']));
+        $this->postJson($url)->assertOk();
     }
 
     public function test_un_tiers_recoit_403(): void

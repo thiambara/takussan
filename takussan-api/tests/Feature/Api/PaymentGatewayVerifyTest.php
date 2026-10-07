@@ -48,7 +48,10 @@ class PaymentGatewayVerifyTest extends ApiTestCase
         parent::setUp();
 
         $this->agency = Agency::factory()->create();
-        $this->admin = User::factory()->create(['agency_id' => $this->agency->id]);
+        // TCK-587 — un profil ADMIN, pas `['agency_id' => …]` : ce raccourci fabrique un bailleur,
+        // qui n'a plus le périmètre de l'agence (ADR-0031).
+        $this->admin = User::factory()->create();
+        $this->materializeRoleProfile($this->admin, 'agency_admin', $this->agency);
         $this->agency->update(['primary_admin_id' => $this->admin->id]);
 
         Integration::factory()->create([

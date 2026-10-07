@@ -27,7 +27,7 @@ class PropertyResourceRawFlagTest extends TestCase
             'primary_admin_id' => $admin->id,
             'settings' => ['watermark_enabled' => true],
         ]);
-        $admin->update(['agency_id' => $agency->id]);
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         $property = Property::factory()->create([
             'agency_id' => $agency->id,
@@ -45,7 +45,7 @@ class PropertyResourceRawFlagTest extends TestCase
     {
         [, , $property] = $this->createSetup();
 
-        $agent = User::factory()->create(['agency_id' => $property->agency_id]);
+        $agent = User::factory()->withAgentProfile($property->agency_id)->create();
 
         $response = $this->actingAs($agent)
             ->getJson("/api/properties/{$property->id}");

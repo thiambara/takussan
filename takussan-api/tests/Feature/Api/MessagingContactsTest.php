@@ -390,7 +390,10 @@ class MessagingContactsTest extends ApiTestCase
         $this->assertSame([$proprietaire->id], $this->contactIds('?filter[search]=Fatou'));
 
         foreach ($horsJeu as $cas => $acteur) {
-            $this->assertSame($agency->id, $acteur->fresh()->agency_id, "{$cas} : la fixture doit garder une agence");
+            // TCK-587 (ADR-0031 §3) — un profil non actif ne donne plus d'agence par l'auto-bascule :
+            // l'acteur n'a ni agence ni périmètre, et c'est la première des deux barrières. La
+            // seconde (`staffAgencyId()`) est éprouvée par `StaffAgencyIdTest`.
+            $this->assertNull($acteur->fresh()->agency_id, "{$cas} : un profil non actif ne donne plus d'agence");
             $this->actingAsApi($acteur);
 
             $this->assertNotContains($proprietaire->id, $this->contactIds(), "{$cas} : ne liste pas les propriétaires");

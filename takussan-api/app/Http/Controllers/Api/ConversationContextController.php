@@ -95,12 +95,14 @@ class ConversationContextController extends Controller
 
         $base = Lease::query();
         if (! $user->isSuperAdmin()) {
-            // {@see LeasePolicy::view()} : bailleur, périmètre d'agence, ou locataire.
+            // {@see LeasePolicy::view()} : bailleur, personnel de l'agence, ou locataire.
             $base->where(function (Builder $q) use ($user) {
                 $q->where('leases.landlord_id', $user->id)
                     ->orWhereHas('tenant', fn (Builder $t) => $t->where('user_id', $user->id));
-                if ($user->agency_id !== null) {
-                    $q->orWhere('leases.agency_id', $user->agency_id);
+                // TCK-587 — le personnel de l'agence, comme la policy (ADR-0031) : un bailleur de l'agence
+                // se voyait proposer les baux des autres comme contexte de conversation.
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhere('leases.agency_id', $staffAgencyId);
                 }
             });
         }
@@ -130,7 +132,7 @@ class ConversationContextController extends Controller
     }
 
     /**
-     * {@see PropertyPolicy::view()} en requête : le bien de l'acteur, ou un bien de son agence.
+     * {@see PropertyPolicy::view()} en requête : le bien de l'acteur, ou un bien de l'agence dont il est personnel.
      *
      * @param  Builder<Property>  $base
      */
@@ -142,8 +144,10 @@ class ConversationContextController extends Controller
 
         $base->where(function (Builder $q) use ($user) {
             $q->where('properties.user_id', $user->id);
-            if ($user->agency_id !== null) {
-                $q->orWhere('properties.agency_id', $user->agency_id);
+            // TCK-587 — le personnel de l'agence, comme la policy (ADR-0031) : un bailleur de l'agence
+            // se voyait proposer les biens des autres comme contexte de conversation.
+            if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                $q->orWhere('properties.agency_id', $staffAgencyId);
             }
         });
     }

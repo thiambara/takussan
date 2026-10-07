@@ -12,14 +12,15 @@ use Illuminate\Validation\Rule;
 class MarkLateFeePaidRequest extends BaseFormRequest
 {
     /**
-     * Même autorisation que l'encaissement du loyer (`MarkPaidLeasePaymentRequest`) : la règle vit
-     * dans la policy du bail, et le locataire en est exclu. `LeasePaymentPolicy::update`, que le
-     * ticket nommait, admet le LOCATAIRE (c'est elle qui ouvre le checkout) : un locataire aurait pu
-     * déclarer sa propre pénalité réglée.
+     * Même autorisation que l'encaissement du loyer (`MarkPaidLeasePaymentRequest`) :
+     * `LeasePolicy::recordPayment` (TCK-587) — le personnel titulaire de `payments.record`, ou le
+     * bailleur du bail tant qu'il n'est pas bloqué dans l'agence (`landlordWrites`). Le locataire en
+     * est exclu : `LeasePaymentPolicy::update`, que le ticket nommait, l'admet (c'est elle qui ouvre
+     * le checkout), et il aurait pu déclarer sa propre pénalité réglée.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('payment')?->lease) === true;
+        return $this->user()?->can('recordPayment', $this->route('payment')?->lease) === true;
     }
 
     /** @return array<string, mixed> */

@@ -122,7 +122,13 @@ class ResolveActiveProfile
         // TCK-278 — Auto-bascule : tolère plusieurs profils dans la même
         // agence (multi-rôles agent+owner) ; multi-agences reste sans
         // auto-bascule (sécurité explicite, le user doit choisir).
-        $profiles = $user->profiles();
+        //
+        // TCK-587 (ADR-0031 §3) — seuls les profils ACTIFS comptent, comme sur le chemin explicite
+        // (`ActiveProfileResolver::resolve()`). Sans ce filtre, un agent suspendu de sa seule agence
+        // y était rebasculé à chaque requête et en gardait le périmètre.
+        $profiles = $user->profiles()
+            ->filter(fn ($p) => ActiveProfileResolver::isActiveProfile($p))
+            ->values();
         if ($profiles->isNotEmpty()) {
             $agencyIds = $profiles
                 ->map(fn ($p) => $p->agency_id ?? null)

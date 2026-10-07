@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class LeasePaymentPolicy extends BasePolicy
 {
-    /** Périmètre d'agence du bail, bailleur, ou locataire. */
+    /** Personnel de l'agence du bail, bailleur, ou locataire. */
     public function update(User $user, Model $model): bool
     {
         if (! $model instanceof LeasePayment) {
@@ -29,8 +29,10 @@ class LeasePaymentPolicy extends BasePolicy
             return false;
         }
 
-        return ($user->agency_id && $user->agency_id === $lease->agency_id)
-            || $lease->landlord_id === $user->id
+        // TCK-587 — le personnel de l'agence du bail (ADR-0031), le bailleur s'il n'y est pas
+        // suspendu (m3), ou le locataire.
+        return $this->isStaffOf($user, $lease->agency_id)
+            || $this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)
             || ($lease->tenant?->user_id === $user->id);
     }
 }
