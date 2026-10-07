@@ -726,4 +726,23 @@ téléphone tenu d'une main, entre deux visites**.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### 2026-10-07 — branche `feat/tck-591-crm-agenda-agent-et-passation`, base `5f872f1f`
+
+- **ADR** : 0034 (agenda, lien secret haché), 0035 (absence = délégation `absence_cover` qui n'accorde
+  rien), 0036 (agent responsable = principal de TCK-504) — trois commits, avant le code.
+- **Clés de langue API** : le brief du lot B impose un fichier de domaine propre plutôt
+  qu'`errors.php` (créé en parallèle par 587 et 588). Les clés sont donc `crm.tasks.*`,
+  `calendar.errors.*`, `team_handover.*` au lieu des `errors.tasks.*` / `errors.calendar.*` du Delta ;
+  588 les déplacera s'il le juge bon.
+- **§3 Tâches** (`7398e98c`) — re-mesuré : `TaskController::authorizeAssignee` l.83-87 (`isOwnerAt`),
+  `update` l.99-111 sans contrôle, `destroy` par `view` l.115, `TaskPolicy::attachTo` par
+  `$user->agency_id` : conformes au Contexte. L'agence jugée pour l'assigné est désormais celle du
+  **parent** de la tâche (plus celle du profil actif de l'appelant). Le libellé `taskable.label` n'est
+  rendu qu'à qui passe `attachTo`.
+  `php artisan test tests/Feature/Crm/TaskAuthorizationTest.php tests/Feature/Crm/TaskDueFilterTest.php
+  tests/Feature/Api/TaskTest.php tests/Feature/Crm/TaskReminderTest.php` → 25 verts, 2 sautés.
+  **Ablation** (les trois fichiers d'app remis à `5f872f1f`) : 5 rouges sur 6 exécutés (bailleur
+  assignable, `PUT` sans contrôle, suppression par l'assigné, libellé absent, 422 non traduit).
+  Les 2 sautés (bailleur qui rattache à un client qu'il n'a pas ajouté ; libellé caché à l'assigné
+  hors périmètre) attendent la `CustomerPolicy::view` de TCK-587 : saut qui expire seul
+  (`method_exists(User::class, 'staffAgencyId')`), retiré à la fusion.
