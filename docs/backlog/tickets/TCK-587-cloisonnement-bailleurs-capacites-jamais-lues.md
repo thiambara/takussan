@@ -1022,3 +1022,38 @@ B1) ajoutée à `gestes()` : l'agent du rôle système reçoit 200 (403 avant, *
 d'avant**) et B2 reçoit 403. Ablations : `viewMedia` → `update` seul, rouge (403 pour l'agent) ;
 `viewMedia` → `true`, rouge (200 pour B2). `OwnerIsolationWithinAgencyTest` passe (97 tests).
 `tests/Feature/Media`, `tests/Unit/Policies` et `PropertyAuthorizationTest` passent (288 tests).
+
+**M2, M3, m2, m3 — suspension dans l'agence** (`TeamMemberSuspensionService`, ADR-0031 §2 complété) :
+- **M2.** Suspendre ne touche que les profils `active`. Réactiver ne touche que `suspended` (agent,
+  admin) ou `blocked` (bailleur). Si rien n'est à changer, la réponse est 422 avec
+  `errors.team_nothing_to_suspend` ou `errors.team_nothing_to_reactivate`. Le refus porte aussi
+  sur la suspension : un `draft` suspendu devenait `blocked`, puis actif une fois réactivé.
+  Tests : agent et bailleur `draft`, admin `archived` → 422 et inchangés, aucune ligne d'activité ;
+  membre suspendu avec une invitation bailleur `draft` → seul le profil d'agent revient.
+- **M3.** Une cible qui a un profil `agency_admin` dans l'agence ne se suspend, ni ne se réactive,
+  que par un super-admin ou un admin actif de l'agence. Sinon 403 `errors.team_admin_suspension_reserved`.
+  Test : agent tenant `team.suspend` et `team.invite` → 403 sur un co-admin, qui reste actif ;
+  le même agent → 200 sur un agent.
+- **m2.** Test : bailleur de deux agences avec un jeton, suspendu de A → `tokens()->count() === 1`.
+- **m3.** Le bailleur garde la lecture et perd les écritures dans l'agence où il est `blocked` :
+  - `HasProfiles::isBlockedOwnerAt()` ;
+  - `BasePolicy::landlordWrites()`, appliqué aux six méthodes d'écriture de `LeasePolicy` (pas à
+    `view`) et à `LeasePaymentPolicy::update` ;
+  - `LeaseService::create` refuse le bailleur bloqué dans l'agence du bien.
+
+  Test : bloqué dans A → 200 sur la lecture du bail et de ses loyers ; 403 sur l'encaissement
+  (`POST …/payments` et `mark-paid`), la modification et la création d'un bail ; son bail dans B,
+  où il est actif → 200.
+- **Ablations, chacune seule, toutes rouges :**
+  - filtre M2 retiré (le code d'avant) ;
+  - réactivation de tout statut d'agent ;
+  - refus M3 retiré ;
+  - jetons toujours révoqués (m2) ;
+  - `landlordWrites` sans le blocage ;
+  - `LeaseService` sans le blocage ;
+  - `isBlockedOwnerAt` toujours vrai, qui rougit l'assertion sur l'agence B.
+- **Exécutions :**
+  - `TeamMemberSuspensionTest` : 11 passés ;
+  - `tests/Feature/Api/Lease*`, `PaymentGateway*`, `tests/Feature/Authorization`,
+    `tests/Unit/Policies`, `tests/Feature/Tenant`, `tests/Feature/Api/Agency`,
+    `UserAdminAgencyScopeTest` et `PayoutTest` : 423 passés.

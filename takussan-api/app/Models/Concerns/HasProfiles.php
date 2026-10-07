@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -139,6 +140,19 @@ trait HasProfiles
         return $this->ownerProfiles()
             ->where('agency_id', $agencyId)
             ->active()
+            ->exists();
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §2, vérification adverse m3) — bailleur SUSPENDU dans cette agence
+     * (`blocked`, par `POST /api/agencies/{a}/team/{u}/suspend`). Il reste partie à ses baux et en
+     * garde la lecture ; il en perd les écritures dans cette agence.
+     */
+    public function isBlockedOwnerAt(int $agencyId): bool
+    {
+        return $this->ownerProfiles()
+            ->where('agency_id', $agencyId)
+            ->where('status', OwnerProfileStatus::Blocked->value)
             ->exists();
     }
 

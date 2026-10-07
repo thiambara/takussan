@@ -91,7 +91,7 @@ class LeasePolicy extends BasePolicy
             return false;
         }
 
-        if ($user->id === $model->landlord_id) {
+        if ($this->landlordWrites($user, $model->landlord_id, $model->agency_id)) {
             return true;
         }
 
@@ -112,7 +112,7 @@ class LeasePolicy extends BasePolicy
      */
     public function recordPayment(User $user, Lease $lease): bool
     {
-        if ($user->id === $lease->landlord_id) {
+        if ($this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
 
@@ -133,7 +133,7 @@ class LeasePolicy extends BasePolicy
     {
         // TCK-278 — Le landlord direct est toujours autorisé sur ses propres
         // baux (cf. requestEarlyTermination), peu importe son agence.
-        if ($user->id === $lease->landlord_id) {
+        if ($this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
 
@@ -156,7 +156,7 @@ class LeasePolicy extends BasePolicy
     {
         // TCK-278 — Le landlord direct est toujours autorisé sur ses propres
         // baux (cf. requestEarlyTermination).
-        if ($user->id === $lease->landlord_id) {
+        if ($this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
 
@@ -188,7 +188,7 @@ class LeasePolicy extends BasePolicy
         // baux (pre-existing : check déplacé avant `can()` puisque la résolution
         // par capacité passe désormais par le profil agence, qui peut être
         // null pour un bailleur particulier sans agency rattachée).
-        if ($user->id === $lease->landlord_id) {
+        if ($this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
 
@@ -219,7 +219,7 @@ class LeasePolicy extends BasePolicy
     {
         // TCK-278 — Le landlord direct est toujours autorisé (cf.
         // requestEarlyTermination).
-        if ($user->id === $lease->landlord_id) {
+        if ($this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
 
@@ -240,7 +240,7 @@ class LeasePolicy extends BasePolicy
     {
         // TCK-278 — Le landlord direct est toujours autorisé (cf.
         // requestEarlyTermination).
-        if ($user->id === $lease->landlord_id) {
+        if ($this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
 

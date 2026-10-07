@@ -3,8 +3,12 @@
 namespace Tests\Feature\Api\Agency;
 
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -144,5 +148,129 @@ class TeamMemberSuspensionTest extends ApiTestCase
 
         $this->actingAsApi($this->adminA);
         $this->suspend($agent)->assertOk();
+    }
+
+    // ─── Vérification adverse (verif-587) ─────────────
+
+    private function reactivate(User $target): TestResponse
+    {
+        return $this->postJson("/api/agencies/{$this->agencyA->id}/team/{$target->id}/reactivate");
+    }
+
+    /** M2 — réactiver ne touche que ce que la suspension a posé : une invitation reste une invitation. */
+    public function test_reactiver_laisse_une_invitation_draft_et_un_profil_archive_tels_quels(): void
+    {
+        $invite = User::factory()->create();
+        $agentDraft = AgentProfile::factory()->create(['user_id' => $invite->id, 'agency_id' => $this->agencyA->id, 'status' => 'draft']);
+        $ownerDraft = OwnerProfile::factory()->create(['user_id' => $invite->id, 'agency_id' => $this->agencyA->id, 'status' => 'draft']);
+        $archive = User::factory()->create();
+        $adminArchived = AgencyAdminProfile::factory()->create(['user_id' => $archive->id, 'agency_id' => $this->agencyA->id, 'status' => 'archived']);
+
+        $this->actingAsApi($this->adminA);
+        $this->reactivate($invite)->assertStatus(422)->assertJsonPath('message', __('errors.team_nothing_to_reactivate'));
+        $this->reactivate($archive)->assertStatus(422);
+        // Ni suspendre : un `draft` suspendu deviendrait `blocked`, puis actif à la réactivation.
+        $this->suspend($invite)->assertStatus(422)->assertJsonPath('message', __('errors.team_nothing_to_suspend'));
+
+        $this->assertSame('draft', $agentDraft->fresh()->status->value);
+        $this->assertSame('draft', $ownerDraft->fresh()->status->value);
+        $this->assertSame('archived', $adminArchived->fresh()->status->value);
+        $this->assertSame(0, Activity::query()->whereIn('event', ['team_member_suspended', 'team_member_reactivated'])->count());
+    }
+
+    /** M2 — un membre suspendu ET invité ailleurs dans l'agence : seul le profil suspendu revient. */
+    public function test_reactiver_ne_rend_actif_que_le_profil_suspendu(): void
+    {
+        $membre = $this->agencyAgent($this->agencyA);
+        $ownerDraft = OwnerProfile::factory()->create(['user_id' => $membre->id, 'agency_id' => $this->agencyA->id, 'status' => 'draft']);
+
+        $this->actingAsApi($this->adminA);
+        $this->suspend($membre)->assertOk()->assertJsonCount(1, 'data.profiles');
+        $this->reactivate($membre)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.profiles')
+            ->assertJsonPath('data.profiles.0.type', 'agent')
+            ->assertJsonPath('data.profiles.0.status', 'active');
+
+        $this->assertSame('draft', $ownerDraft->fresh()->status->value);
+    }
+
+    /** M3 — `team.suspend` délégué à un agent ne lui permet pas d'écarter un admin. */
+    public function test_un_agent_tenant_team_suspend_ne_suspend_pas_un_co_admin(): void
+    {
+        $coAdmin = $this->agencyAdmin($this->agencyA);
+        $agent = $this->agentWith($this->agencyA, Capability::TeamSuspend, Capability::TeamInvite);
+
+        $this->actingAsApi($agent);
+        $this->suspend($coAdmin)->assertForbidden()->assertJsonPath('message', __('errors.team_admin_suspension_reserved'));
+        $this->assertSame('active', AgencyAdminProfile::query()->where('user_id', $coAdmin->id)->sole()->status->value);
+
+        // La capacité vaut pour le reste de l'équipe.
+        $this->suspend($this->agencyAgent($this->agencyA))->assertOk();
+    }
+
+    /** m2 — un bailleur qui garde un profil actif ailleurs garde ses jetons. */
+    public function test_un_bailleur_de_deux_agences_garde_son_jeton(): void
+    {
+        $bailleur = User::factory()->withOwnerProfile($this->agencyA)->withOwnerProfile($this->agencyB)->create();
+        $bailleur->createToken('session');
+
+        $this->actingAsApi($this->adminA);
+        $this->suspend($bailleur)->assertOk();
+
+        $this->assertSame(1, $bailleur->tokens()->count());
+    }
+
+    /**
+     * m3 (décision de la session, ADR-0031 §2) — un bailleur suspendu (`blocked`) dans une agence
+     * reste partie à ses baux : il en garde la LECTURE, il en perd les ÉCRITURES dans cette agence.
+     * Son bail dans une autre agence où il est actif ne change pas.
+     */
+    public function test_un_bailleur_bloque_lit_ses_baux_sans_plus_y_ecrire(): void
+    {
+        $bailleur = User::factory()->withOwnerProfile($this->agencyA)->withOwnerProfile($this->agencyB)->create();
+        $bailDe = function (Agency $agency) use ($bailleur): Lease {
+            $property = Property::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $agency->id]);
+            $customer = Customer::factory()->create(['agency_id' => $agency->id, 'added_by_id' => $bailleur->id]);
+
+            return Lease::factory()->create([
+                'property_id' => $property->id,
+                'landlord_id' => $bailleur->id,
+                'tenant_id' => $customer->id,
+                'agency_id' => $agency->id,
+            ]);
+        };
+        $bailA = $bailDe($this->agencyA);
+        $bailB = $bailDe($this->agencyB);
+        $loyerA = LeasePayment::factory()->create(['lease_id' => $bailA->id, 'payer_id' => $bailA->tenant_id, 'status' => PaymentStatus::Pending]);
+
+        $this->actingAsApi($this->adminA);
+        $this->suspend($bailleur)->assertOk();
+
+        $this->actingAsApi($bailleur->fresh());
+        $this->getJson("/api/leases/{$bailA->id}")->assertOk();
+        $this->getJson("/api/leases/{$bailA->id}/payments")->assertOk();
+        $this->postJson("/api/leases/{$bailA->id}/payments", [
+            'amount' => 400000,
+            'payment_type' => 'rent',
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-01-31',
+            'due_date' => '2026-01-05',
+        ])->assertForbidden();
+        $this->postJson("/api/lease-payments/{$loyerA->id}/mark-paid")->assertForbidden();
+        $this->patchJson("/api/leases/{$bailA->id}", ['late_fee_grace_days' => 3])->assertForbidden();
+        $this->postJson('/api/leases', [
+            'property_id' => $bailA->property_id,
+            'tenant_id' => $bailA->tenant_id,
+            'type' => 'residential_rent',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addYear()->toDateString(),
+            'monthly_rent' => 400000,
+            'payment_day' => 5,
+        ])->assertForbidden();
+        $this->assertSame('pending', $loyerA->fresh()->status->value);
+
+        // Dans B, où il est actif, rien ne change.
+        $this->patchJson("/api/leases/{$bailB->id}", ['late_fee_grace_days' => 3])->assertOk();
     }
 }

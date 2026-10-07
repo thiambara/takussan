@@ -29,9 +29,10 @@ class LeasePaymentPolicy extends BasePolicy
             return false;
         }
 
-        // TCK-587 — le personnel de l'agence du bail, plus tout membre de l'agence (ADR-0031).
+        // TCK-587 — le personnel de l'agence du bail (ADR-0031), le bailleur s'il n'y est pas
+        // suspendu (m3), ou le locataire.
         return $this->isStaffOf($user, $lease->agency_id)
-            || $lease->landlord_id === $user->id
+            || $this->landlordWrites($user, $lease->landlord_id, $lease->agency_id)
             || ($lease->tenant?->user_id === $user->id);
     }
 }

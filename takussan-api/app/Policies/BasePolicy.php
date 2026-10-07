@@ -117,6 +117,21 @@ abstract class BasePolicy
     }
 
     /**
+     * TCK-587 (ADR-0031 §2, vérification adverse m3) — le bailleur ÉCRIT sur ce qui le désigne
+     * (`landlord_id`), sauf s'il est suspendu (`blocked`) dans l'agence de la ressource : il en garde
+     * la lecture (il reste partie au contrat), il en perd les gestes — encaisser, modifier, renouveler,
+     * résilier, réviser.
+     */
+    protected function landlordWrites(User $user, mixed $landlordId, mixed $agencyId): bool
+    {
+        if ($landlordId === null || (int) $landlordId !== $user->id) {
+            return false;
+        }
+
+        return $agencyId === null || ! $user->isBlockedOwnerAt((int) $agencyId);
+    }
+
+    /**
      * Le modèle est passé en contexte pour que la Gate dérivée de l'enum
      * (`AppServiceProvider`) en tire l'agence — sans quoi elle retomberait sur
      * le profil actif, ce qui est juste en HTTP mais faux en job et en console.

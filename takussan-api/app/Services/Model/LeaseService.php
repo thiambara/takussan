@@ -30,7 +30,8 @@ class LeaseService
         // bail sur le bien d'un autre, et `leases.create` n'avait aucun lecteur.
         $staffAgencyId = $user->staffAgencyId();
         $canCreate = $user->isSuperAdmin()
-            || $property->user_id === $user->id
+            || ($property->user_id === $user->id
+                && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id)))
             || ($property->agency_id !== null
                 && $staffAgencyId === (int) $property->agency_id
                 && $user->can(Capability::LeasesCreate->value, $property));

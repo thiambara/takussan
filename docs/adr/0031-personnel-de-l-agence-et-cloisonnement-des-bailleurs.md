@@ -86,6 +86,20 @@ Conséquences d'application retenues par défaut (le porteur a donné son feu ve
   non actif sur ses profils de l'agence et révoque les jetons dont le profil actif y est ; bloquer un
   compte (`users.status`) redevient un geste du super-admin seul.
 
+Précisions décidées par la session après la vérification adverse (2026-10-07) :
+
+- **Suspendre ou réactiver un administrateur exige d'être soi-même admin actif de l'agence**
+  (`isAgencyAdminAt`). `team.suspend` suffit pour le reste de l'équipe. Sans cette précision, la
+  capacité déléguée à un rôle d'agent lui permettait d'écarter les admins non principaux.
+- **Suspendre et réactiver sont symétriques.** Suspendre ne touche que les profils `active`.
+  Réactiver ne touche que ceux qu'une suspension a posés : `suspended` pour l'agent et l'admin,
+  `blocked` pour le bailleur. Une invitation `draft`, un profil `inactive` ou `archived` restent tels
+  quels, et la demande rend 422 s'il n'y a rien à changer.
+- **Un bailleur suspendu (`blocked`) dans une agence garde la lecture de ses baux et loyers** : il
+  reste partie au contrat. **Il y perd les écritures** : encaisser, modifier, renouveler, résilier,
+  réviser, créer un bail. Ses droits de bailleur reposent sur l'identité (`landlord_id`) ; la
+  suspension les borne à la lecture dans l'agence qui l'a suspendu, et ne change rien ailleurs.
+
 ### 3. Un profil non actif ne confère rien
 
 Un profil `suspended`, `draft`, `inactive`, `blocked` ou `archived` ne confère **ni capacité**
