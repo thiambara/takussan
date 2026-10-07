@@ -1,7 +1,7 @@
 ---
 id: TCK-588
 title: "L'API n'écrit plus de prose : une notification est un code rendu dans la langue du destinataire, part sur WhatsApp ou SMS y compris vers un contact sans compte, et une erreur métier porte un code"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -523,12 +523,10 @@ fusionne avant ou après celui-ci.
 ### F. Erreurs (AD20)
 - [x] `ApiError`, `app/Support/helpers.php`, le rendu de `bootstrap/app.php` (dont `http.<statut>`),
       `lang/{fr,en,wo}/errors.php`.
-- [ ] Conversion, par domaine (plusieurs PR possibles) : 186 `abort*`, 22 `'message' =>`,
+- [x] Conversion, par domaine (plusieurs PR possibles) : 186 `abort*`, 22 `'message' =>`,
       10 `ValidationException` et 6 `HttpException`. Le `$msg` construit à
       `PaymentGatewayService:77-79` devient un code avec paramètres ; `:86` ne nomme plus aucune
       classe (`payment.amount_unresolved`).
-      *Faite partout sauf dans les 21 fichiers que TCK-587 modifie (`ATTENTE_587`) : 587 fusionne
-      avant 588 (complément au brief, §6) ; ils se convertissent après sa fusion dans `dev`.*
 - [x] `KycWorkflowService::refuse()` est supprimée : ses quatre appelants (l.69, 158, 165, 196)
       deviennent `abort_code(422, self::CODE_…, $params)`. Les codes existants (`kyc.locked`,
       `kyc.unknown_document_type`, `kyc.not_transitionable`, `kyc.documents_missing`) sont gardés à
@@ -540,7 +538,7 @@ fusionne avant ou après celui-ci.
       595).
 
 ### G. Gardes
-- [ ] `tests/Unit/Architecture/ProseLitteraleInterditeTest.php` (tokenizer, sur `app/`) refuse un
+- [x] `tests/Unit/Architecture/ProseLitteraleInterditeTest.php` (tokenizer, sur `app/`) refuse un
       littéral contenant une lettre aux positions suivantes :
       - (a) le message d'un `abort*` ;
       - (b) le titre ou le corps de `->notify(`/`->notifyMany(` ;
@@ -557,8 +555,6 @@ fusionne avant ou après celui-ci.
 
       Aucune exemption hors 599, qui expire. Échec si 0 fichier scanné ou 0 appel reconnu. Fixtures
       `tests/Fixtures/ProseLitterale/` (positifs et négatifs comptés exactement).
-      *La garde est en place et prouvée (AC8), mais elle porte en plus l'exemption nommée
-      `ATTENTE_587`, qui expire à la fusion de 587 : « aucune exemption hors 599 » sera vrai alors.*
 - [x] `tests/Unit/Lang/LangGroupParityTest.php` vérifie :
   - les mêmes fichiers de groupe, les mêmes clés et les mêmes placeholders dans les trois langues,
     à une exception nommée : `en/validation.php`, qui ne porte que les surcharges du dictionnaire du
@@ -679,12 +675,9 @@ fusionne avant ou après celui-ci.
 - [x] **AC9 — Parités.** `LangGroupParityTest` et `check-notification-codes.mjs` sont verts. Chacun
       rougit dans trois cas : une clé `codes.*` retirée en `wo` côté API, la même retirée de
       `wo.json` côté front, un placeholder retiré d'une traduction.
-- [ ] **AC10 — Zéro littéral.** La garde compte 0 littéral hors exemption. `BookingService::confirm`
+- [x] **AC10 — Zéro littéral.** La garde compte 0 littéral hors exemption. `BookingService::confirm`
       émet `booking.confirmed`, et un client qui a activé WhatsApp pour `booking_status_changed` le
       reçoit sur WhatsApp.
-      *0 littéral hors exemption, mais les exemptions comptent `ATTENTE_587` (21 fichiers de 587) ;
-      le volet `booking.confirmed` → WhatsApp est vérifié (`NotificationPreferenceRoutingTest`).
-      Se coche à la fusion de 587, quand l'exemption est retirée.*
 - [x] **AC11 — Éditeur de gabarits effectif.** Un gabarit actif `payment_received` (e-mail, fr)
       remplace le sujet et le corps de l'e-mail `lease_payment.recorded` d'un locataire fr. Désactivé,
       c'est la clé de `lang/` qui s'applique. Le test rougit si le rendu ignore le registre.
@@ -883,4 +876,44 @@ référence. Chaque classe en avant-plan, `php vendor/bin/phpunit <fichier>` :
   `GET /api/notifications`). Serveurs et Chrome arrêtés ensuite.
   Écart vu en capture : la cloche paraît translucide si on la photographie pendant son animation
   d'ouverture ; 2 s plus tard elle est opaque (`opacity: 1`, fond blanc) — pas un défaut.
+
+### Après la fusion de TCK-587 (`fd4bd805`) — 2026-10-07
+
+- `origin/dev` fusionné (`2dd606d5`) : 12 conflits, tous des réunions — ADR-0031 et 0032 dans
+  `docs/adr/README.md`, `lang/*/errors.php` (clés par domaine de 588 + 8 clés plates de 587),
+  `lang/*/notifications.php` (`property_proposed` de 587), messages front ; `UserAdminAgencyScopeTest`
+  pris de 587 ; INDEX régénéré ; `composer dump-autoload -o`.
+- **Re-mesuré, et différent de ce que l'attente supposait** : rejouer mon diff de conversion depuis
+  `5f872f1f` aurait **défait 586** dans ces fichiers (ma conversion datait d'avant 586 : le diff
+  ramenait les requêtes sur `broker_profiles`, 6 rouges dans `AgencyTest`). Le diff rejoué part de
+  la base de ma branche (`32dd0b39..b6c17193`) ; seules les lignes d'`abort*` changent, vérifié par
+  un filtre du diff. Cinq fichiers où 587 a réécrit la logique (`AgencyMemberRoleController`,
+  `BookingPaymentController`, `ExportController`, `PropertyController`, `UserAdminController`) sont
+  convertis à la main sur la version de 587.
+- 587 ajoutait **13** sites à message traduit (pas 7) : ses 8 clés `errors.*` plus
+  `team.suspension.errors.{self,primary_admin}` et `messages.target_user_not_in_active_agency` dans
+  `TeamMemberSuspensionService`. Codes : `export.forbidden`, `share_link.password_in_query`,
+  `user.account_block_reserved`, `agency.staff_only`, `team.{admin_suspension_reserved,
+  nothing_to_suspend, nothing_to_reactivate, suspension_self, suspension_primary_admin}` ; les deux
+  clés de `team.php` le quittent ; `export.crm_staff_only`/`properties_staff_or_owner`, que la
+  logique de 587 ne lit plus, sont retirés.
+- **AC10** : `ATTENTE_587` retirée, la garde revient à son état d'avant l'attente (`git diff` vide
+  sur le fichier). Scan de `app/` : 983 fichiers, 530 appels, 2 littéraux, tous deux dans
+  `Jobs/SendSavedSearchAlerts.php` (exemption TCK-599), 0 message perdu.
+  `php vendor/bin/phpunit tests/Unit/Architecture/ProseLitteraleInterditeTest.php` → OK (6, 10).
+  Ablations : `abort(403, 'Export interdit.')` remis dans `ExportController:62` → « (a)
+  …ExportController.php:62 « Export interdit. » », rouge ; `abort(403, __('errors.export.forbidden'))`
+  (la forme de 587) → le test du message perdu nomme `ExportController.php:62`, rouge ; restauré →
+  vert. Volet WhatsApp de `booking.confirmed` : `NotificationPreferenceRoutingTest` → OK (8, 20).
+- **AC7** retrouve le cas de l'AC (reversement à un bailleur d'une autre agence →
+  `payout.landlord_not_in_agency`, fr/en/wo) ; le cas `auth.super_admin_required` reste en plus.
+  `ApiErrorCodeTest` → OK (16, 64).
+- Exécutions (charge `9.18 11.78 12.29`) : les classes de la carte d'impact des fichiers convertis
+  dont le nom touche leur domaine, plus les 22 fichiers de test de 587, en deux lots → 336 tests
+  (un rouge, `DocumentShareLinkPasswordTransportTest`, conversion écrasée par le diff rejoué,
+  refaite : 17/17) puis 505 tests (2 rouges, les assertions d'attente de `UserAdminAgencyScopeTest`,
+  passées au code : 12/12). Toutes les classes d'AC rejouées : vertes (détail dans le rapport).
+  Front : vitest 4 fichiers / 24 tests, `lint` 0, `tsc` 0, `check:i18n` 0,
+  `check:i18n-namespaces` vert, `check-notification-codes` vert (31 codes). Pint propre. Gardes
+  racine : toutes vertes.
 
