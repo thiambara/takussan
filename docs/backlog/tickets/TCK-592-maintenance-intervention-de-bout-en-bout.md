@@ -988,3 +988,16 @@ corrigent rien.
   - le témoin, avec `maintenance.assign`, reçoit 200.
 - Sur `05dce4fc` : 1 rouge. L'ablation (retour à `isPrincipalFor`) donne 1 rouge.
 - `check-capability-readers` reste vert.
+
+**Mineur 9b — limiteur sur `POST /api/conversations/{id}/messages`.**
+
+- Limiteur nommé `conversation-message`, sur le modèle de ceux d'`AppServiceProvider` : 30 par
+  minute, par utilisateur authentifié. Sans utilisateur, la clé de visiteur sert de repli.
+- `ConversationMessageRateLimitTest` :
+  - 30 messages passent, le 31ᵉ reçoit 429 ;
+  - un autre participant poste encore.
+- Ablations :
+  - sans le middleware : 1 rouge ;
+  - clé par IP : 1 rouge. Sous `Sanctum::actingAs`, `visitorRateLimitKey` retombe sur l'IP :
+    c'est ce rouge qui a fait retenir `$request->user()`.
+- Les 46 tests qui postent un message sont verts.
