@@ -1117,3 +1117,56 @@ suite. Corrigé :
   - `npm run lint` : 0 erreur ;
   - `npx tsc --noEmit` : propre ;
   - gardes racine et web : vertes.
+
+### Étape 7 — seconde passe de vérification (acceptée, N1 et N2)
+
+La seconde passe (`verif-587-passe2.md`) **accepte** les corrections, avec un majeur (N1) et un
+mineur (N2) nouveaux.
+
+- **N1, garde `check-agency-scope-clause.mjs`** (commit `793cc820`). La règle d'excuse acceptait
+  sa propre négation : `… && ! $user->isAgencyAdminAt(…)` blanchissait la clause, qui accorde alors
+  à tout bailleur de l'agence. Une excuse ne blanchit plus que si elle est **positive** : ni `!`, ni
+  comparée (`=== false`, `false ===`), ni enfermée dans une fonction fléchée que la clause ne
+  partage pas. Elle reste non séparée par `||` et sur la même agence (G18). Ce qui est désormais vu,
+  et ajouté à `CAS_EPREUVE` : N12 (et sa forme parenthésée), N12b (à droite et à gauche), N25,
+  ainsi que N1 `<>`, N3 `<=>`, N2 `(… ?? 0)` des deux côtés, N5 et N6 (garde nommé `('sanctum')`).
+  Deux formes à laisser passer sont ajoutées : l'excuse positive parenthésée, et la clause et
+  l'excuse dans le même corps de fonction fléchée. Les autres formes du tableau N1 sont déclarées
+  dans l'en-tête, une ligne chacune : `xor`/`and`/`or`, accès par tableau et `{'…'}`,
+  `getAttribute` côté ressource, `collect()->contains`, `when()`, `whereBelongsTo()`, et `??` vers
+  une expression.
+  - Ablations (copie de la garde), chacune fait sortir la garde en 1 sur ses propres cas :
+    - règle « positive » retirée : 4 cas ;
+    - règle « fonction fléchée » retirée : 1 cas (N25) ;
+    - `<>`/`<=>` retirés : 2 cas ;
+    - garde nommé retiré : 2 cas ;
+    - `?? 0` retiré : 1 cas.
+  - Insertion dans `LeasePolicy::view` sur l'arbre : N12, N12b et N25 font chacun sortir la
+    garde en 1.
+- **N2, bailleur `blocked`** (décision de la session : on étend la règle ; ADR-0031 §2 reste vrai
+  tel qu'il est écrit). `BasePolicy::landlordWrites($user, $authorId, $agencyId)` sert désormais à
+  tout geste que le bailleur fait en son nom dans l'agence :
+  - `InventoryPolicy::update`, par le propriétaire du bien et par `conducted_by` ;
+  - `PropertyVisitPolicy::update`, par le propriétaire du bien ;
+  - `DocumentPolicy::update` et `delete`, par `uploaded_by`, l'agence étant celle du porteur ;
+  - le partage, par la nouvelle `DocumentPolicy::share()`, qui reprend à l'identique la règle de
+    `StoreDocumentShareLinkRequest::authorize()` ; celle-ci y délègue désormais. La révocation et
+    la liste des liens (`authorizeDocument`) sont inchangées : retirer un lien réduit l'exposition.
+  - Un profil de personnel actif dans la même agence écrit toujours (il agit en agent).
+  - Tests, dans `TeamMemberSuspensionTest` : un par geste, chacun avec la lecture à 200, le geste à
+    403 dans A et le contrôle positif dans B. S'y ajoute
+    `test_un_agent_actif_au_profil_de_bailleur_bloque_ecrit_en_agent`.
+  - Ablations (`t587bin/ablate.py`), toutes rouges :
+    - EDL par le propriétaire (200 ≠ 403) ;
+    - EDL par `conducted_by` (200 ≠ 403) ;
+    - visite (200 ≠ 403) ;
+    - partage par le téléverseur (201 ≠ 403) ;
+    - partage par le porteur (201 ≠ 403) ;
+    - suppression (204 ≠ 403) ;
+    - `isBlockedOwnerAt` neutralisé dans la règle commune (200 ≠ 403) ;
+    - exemption du personnel retirée (403 ≠ 204).
+- **Exécutions :**
+  - les 24 classes qui touchent documents, EDL, visites et partage, plus
+    `TeamMemberSuspensionTest` et `tests/Feature/Authorization` : 490 tests, verts (102 s) ;
+  - Pint propre ; gardes racine vertes.
+  - Le front n'est pas touché par cette étape : la suite entière de `c5900cf8` vaut.
