@@ -52,7 +52,17 @@ class MaintenanceRequestController extends Controller
             ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
             ->paginate();
 
-        return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));
+        // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
+        // bien inclus vient avec son adresse, et ici avec l'agence (le front demande `agency_id`).
+        if (in_array('property', explode(',', (string) $request->query('include')), true)) {
+            $paginator->getCollection()->loadMissing(['property.address', 'property.agency:id,name']);
+        }
+
+        return $this->paginated(
+            $paginator,
+            MaintenanceRequestResource::collection($paginator)->toArray($request),
+            ['abilities' => ['can_create' => $user->can('openRequests', MaintenanceRequest::class)]],
+        );
     }
 
     public function indexForProperty(Request $request, Property $property): JsonResponse

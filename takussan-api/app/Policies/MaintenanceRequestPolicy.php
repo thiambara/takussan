@@ -3,7 +3,9 @@
 namespace App\Policies;
 
 use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
@@ -52,6 +54,29 @@ class MaintenanceRequestPolicy extends BasePolicy
         return $user->isSuperAdmin()
             || $this->isAssignedProvider($user, $model)
             || self::isPrincipalFor($user, $model->property);
+    }
+
+    /**
+     * TCK-592 (P14) — ouvrir une demande quelque part : les mêmes que `store()` (donneur d'ordre d'un
+     * bien, ou locataire d'un bail actif), jugés sans bien. Rendu dans `meta.abilities.can_create`
+     * de la liste : « Nouvelle demande » n'est plus proposée au prestataire, qui prenait un 403.
+     */
+    public function openRequests(User $user): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $agencyId = $user->agency_id;
+        if ($agencyId !== null && ($user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId))) {
+            return true;
+        }
+
+        return Property::query()->where('user_id', $user->id)->exists()
+            || Lease::query()
+                ->where('status', LeaseStatus::Active)
+                ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
+                ->exists();
     }
 
     /**

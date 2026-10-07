@@ -714,3 +714,18 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
   Maintenance,Media}`, `GroupConversationCreationTest`, `tests/Unit/Http/Resources` → 474 verts.
 - Ablations : taille non bornée → 1 rouge ; type de fichier non contrôlé → 1 ; fichier non requis → 1 ;
   réassignation sans échange → 2 ; aucun avis d'étape → 1 ; un fil par assignation → 3.
+
+### G (côté API) — ce que le front lit pour ne plus deviner
+
+- `abilities` gagne `can_request_quote` (`manageQuotes` + machine), `can_decide_quote` (`decideQuote`,
+  `quote_submitted|awaiting_owner`) et `can_view_quote_pdf` (`viewQuote`, devis soumis) — chacun rejoué
+  contre l'endpoint dans `MaintenanceAbilitiesTest`.
+- Liste : `meta.abilities.can_create` (`MaintenanceRequestPolicy::openRequests`, mêmes portes que `store`
+  jugées sans bien) ; avec `include=property`, le bien vient avec adresse (quartier) et agence `{id, name}`.
+- `updateTrades` n'écrit que les clés présentes ; une liste vide explicite efface toujours.
+- Exécutions : `MaintenanceAbilitiesTest`, `MaintenanceProviderListTest`, `ServiceProviderTradesPartialUpdateTest`,
+  `ServiceProviderOnboardingTest` → 20 verts ; `tests/Feature/Maintenance` + `tests/Unit/Http/Resources` → 179 ;
+  les 19 autres fichiers qui appellent `maintenance-requests` → 136 verts.
+- Ablations : clé métiers absente lue comme vide → 2 rouges ; création ouverte à tous → 1 ; liste sans
+  adresse ni agence → 1 ; décision proposée à l'équipe en `awaiting_owner` → 1.
+

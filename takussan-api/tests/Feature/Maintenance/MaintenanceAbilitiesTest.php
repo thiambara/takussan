@@ -79,6 +79,49 @@ class MaintenanceAbilitiesTest extends TestCase
     }
 
     /** @return array<string, mixed> */
+    /** G — « Demander un devis » au donneur d'ordre, tant que la machine l'autorise. */
+    public function test_principal_may_request_a_quote_from_open_only(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Open);
+
+        $this->assertFalse($this->abilities($provider, $mr->id)['can_request_quote']);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/request")->assertForbidden();
+
+        $this->assertTrue($this->abilities($landlord, $mr->id)['can_request_quote']);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/request")->assertOk();
+
+        $this->assertFalse($this->abilities($landlord, $mr->id)['can_request_quote']);
+    }
+
+    /** ADR-0037 — en `awaiting_owner`, « Approuver » n'est proposé qu'au bailleur du bien. */
+    public function test_only_the_landlord_decides_a_quote_awaiting_owner(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'agency' => $agency] = $this->maintenanceScenario(
+            MaintenanceStatus::AwaitingOwner,
+            ['quote_amount' => 75000, 'quote_submitted_at' => now(), 'quote_valid_until' => now()->addWeek()],
+        );
+
+        $this->assertFalse($this->abilities($this->agentOf($agency), $mr->id)['can_decide_quote']);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertForbidden();
+
+        $this->assertTrue($this->abilities($landlord, $mr->id)['can_decide_quote']);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk();
+    }
+
+    /** Le PDF du devis : prestataire et donneurs d'ordre, jamais le demandeur seul. */
+    public function test_quote_pdf_is_offered_to_whom_may_read_it(): void
+    {
+        ['mr' => $mr, 'tenant' => $tenant, 'provider' => $provider] = $this->maintenanceScenario(
+            MaintenanceStatus::QuoteSubmitted,
+            ['quote_amount' => 25000, 'quote_submitted_at' => now(), 'accepted_at' => now()],
+        );
+
+        $this->assertFalse($this->abilities($tenant, $mr->id)['can_view_quote_pdf'] ?? false);
+        $this->get("/api/maintenance-requests/{$mr->id}/quote/pdf")->assertForbidden();
+
+        $this->assertTrue($this->abilities($provider, $mr->id)['can_view_quote_pdf']);
+    }
+
     private function abilities(User $user, int $id): array
     {
         Sanctum::actingAs($user);

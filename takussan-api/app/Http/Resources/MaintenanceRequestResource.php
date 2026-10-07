@@ -197,6 +197,12 @@ class MaintenanceRequestResource extends BaseResource
 
         return [
             'can_manage_quotes' => $user->can('manageQuotes', $mr),
+            'can_request_quote' => $user->can('manageQuotes', $mr)
+                && $machine->canTransition($status, MaintenanceStatus::QuoteRequested),
+            // ADR-0037 — en `awaiting_owner`, seul le bailleur du bien tranche : `decideQuote` le dit.
+            'can_decide_quote' => $user->can('decideQuote', $mr)
+                && in_array($status, [MaintenanceStatus::QuoteSubmitted, MaintenanceStatus::AwaitingOwner], true),
+            'can_view_quote_pdf' => $mr->quote_submitted_at !== null && $user->can('viewQuote', $mr),
             'can_submit_quote' => $isProvider
                 && in_array($status, [MaintenanceStatus::QuoteRequested, MaintenanceStatus::Rejected], true),
             'can_accept' => $canRespond,
@@ -272,6 +278,9 @@ class MaintenanceRequestResource extends BaseResource
                 'region' => $address?->region,
                 'country' => $address?->country,
             ],
+            'agency' => $property->relationLoaded('agency') && $property->agency !== null
+                ? ['id' => $property->agency->id, 'name' => $property->agency->name]
+                : null,
         ];
     }
 
