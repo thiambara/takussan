@@ -49,7 +49,7 @@ class ContactLeadPublicRequest extends BaseFormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'email' => ['nullable', 'required_without:phone', 'email:rfc', 'max:180'],
-            'phone' => ['nullable', 'required_without:email', 'string', 'max:32', new TelephoneJoignable],
+            'phone' => ['nullable', 'required_without:email', 'string', 'max:32', new TelephoneJoignable, new TelephoneSaisi],
             'message' => ['required', 'string', 'min:5', 'max:2000'],
             'source' => self::ATTRIBUTION,
             'medium' => self::ATTRIBUTION,

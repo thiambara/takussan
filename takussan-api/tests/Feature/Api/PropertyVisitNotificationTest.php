@@ -3,7 +3,9 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
@@ -140,6 +142,44 @@ class PropertyVisitNotificationTest extends ApiTestCase
         Notification::assertNotSentTo($visiteur, VisitCancelledNotification::class);
     }
 
+    /**
+     * Vérification adverse (M2) — l'agent assigné ne peut plus rien recevoir (bloqué, retiré de
+     * l'agence) : l'annulation et le nouveau créneau du visiteur partent vers le repli — ici les
+     * admins actifs, le bien n'ayant pas de contact principal éligible.
+     */
+    public function test_m2_agent_assigne_injoignable_le_repli_est_prevenu(): void
+    {
+        $visiteur = $this->client();
+        $admin = $this->personnel($this->x, 'agency_admin');
+        $bloque = $this->personnel($this->x);
+        $retire = $this->personnel($this->x);
+        $bloque->update(['status' => UserStatus::Blocked]);
+        AgentProfile::query()->where('user_id', $retire->id)->first()->delete();
+        // Le bien n'a aucun contact principal éligible (propriétaire bloqué, aucun collaborateur) :
+        // le repli de `recipientsFor()` tombe sur les admins actifs.
+        $this->bien->owner->update(['status' => UserStatus::Blocked]);
+
+        foreach ([$bloque, $retire] as $agent) {
+            $annulee = PropertyVisit::factory()->create([
+                'property_id' => $this->bien->id, 'visitor_id' => $visiteur->id, 'agent_id' => $agent->id,
+                'status' => VisitStatus::Confirmed,
+            ]);
+            $deplacee = PropertyVisit::factory()->create([
+                'property_id' => $this->bien->id, 'visitor_id' => $visiteur->id, 'agent_id' => $agent->id,
+                'status' => VisitStatus::Confirmed,
+                'scheduled_at' => CarbonImmutable::now(VisitSchedulingService::TIMEZONE)->addDays(5)->setTime(10, 0)->utc(),
+            ]);
+
+            Sanctum::actingAs($visiteur);
+            $this->postJson("/api/property-visits/{$annulee->id}/cancel")->assertOk();
+            $this->postJson("/api/property-visits/{$deplacee->id}/reschedule", ['scheduled_at' => $this->creneau(jours: 6)])->assertOk();
+
+            Notification::assertSentTo($admin, VisitCancelledNotification::class, fn ($n) => $n->visit->id === $annulee->id);
+            Notification::assertSentTo($admin, VisitRescheduledNotification::class, fn ($n) => $n->visit->id === $deplacee->id);
+            Notification::assertNotSentTo($agent, VisitCancelledNotification::class);
+        }
+    }
+
     /** AC8 (R) — l'agent planifie pour un client sans compte : visite confirmée, SMS au client. */
     public function test_l_agent_planifie_pour_un_client_sans_compte(): void
     {
@@ -204,6 +244,43 @@ class PropertyVisitNotificationTest extends ApiTestCase
             VisitConfirmedNotification::class,
             fn ($n, array $channels, AnonymousNotifiable $notifiable) => $notifiable->routes['sms'] === '+221787654321',
         );
+    }
+
+    /**
+     * Vérification adverse (M6) — la fiche client porte un numéro saisi au format national
+     * (`customers.phone`, TCK-591) : la visite planifiée l'enregistre en E.164, et le SMS part.
+     */
+    public function test_m6_le_numero_national_d_une_fiche_est_normalise(): void
+    {
+        $fiche = $this->ficheClient($this->x, null, ['phone' => '77 654 32 10', 'email' => null]);
+
+        Sanctum::actingAs($this->agent);
+        $id = $this->postJson('/api/property-visits', [
+            'property_id' => $this->bien->id, 'customer_id' => $fiche->id, 'scheduled_at' => $this->creneau(heure: 8),
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('+221776543210', PropertyVisit::query()->findOrFail($id)->visitor_phone);
+        Notification::assertSentOnDemand(
+            VisitConfirmedNotification::class,
+            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $channels === ['sms']
+                && $notifiable->routes['sms'] === '+221776543210',
+        );
+    }
+
+    /** m7 — un fixe est un numéro de contact valable, mais la confirmation ne part que par e-mail. */
+    public function test_m7_un_fixe_ne_recoit_pas_de_sms(): void
+    {
+        $visite = $this->visiteAnonyme(['visitor_phone' => '+221338201234']);
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson("/api/property-visits/{$visite->id}/confirm")->assertOk();
+
+        Notification::assertSentOnDemand(
+            VisitConfirmedNotification::class,
+            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $channels === ['mail']
+                && $notifiable->routes['sms'] === '+221338201234',
+        );
+        Notification::assertSentOnDemandTimes(VisitConfirmedNotification::class, 1);
     }
 
     /** AC8 — sans fiche, le prospect se donne par nom + téléphone ; l'un sans l'autre → 422. */

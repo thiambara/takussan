@@ -4,9 +4,11 @@ namespace App\Policies;
 
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -32,8 +34,39 @@ class PropertyContactLeadPolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin()
-            || $model->recipient_user_id === $user->id
+            || ($model->recipient_user_id === $user->id && $this->resteDestinataire($user, $model))
             || $this->readsWholeAgency($user, $model->agency_id);
+    }
+
+    /**
+     * Le destinataire ne lit la demande que s'il appartient ENCORE à son monde : demande sans
+     * agence, personnel actif de l'agence de la demande, ou propriétaire du bien visé.
+     *
+     * Vérification adverse (M1) — `recipient_user_id` n'est pas réécrit quand un agent quitte
+     * l'agence : il gardait sa boîte, lisait nom, téléphone et message, et convertissait la
+     * demande en fiche client DE L'AGENCE qu'il avait quittée. AC18b fermait la fuite pour les
+     * demandes neuves ; elle restait ouverte sur toutes celles déjà reçues.
+     */
+    private function resteDestinataire(User $user, PropertyContactLead $lead): bool
+    {
+        return $lead->agency_id === null
+            || PersonnelDeLAgence::estPersonnel($user, $lead->agency_id)
+            || ($lead->property_id !== null
+                && Property::query()->whereKey($lead->property_id)->where('user_id', $user->id)->exists());
+    }
+
+    /**
+     * La même règle, en clause d'`index` : les demandes qui sont adressées à l'appelant ET qu'il
+     * peut encore lire.
+     */
+    public function scopeDestinataire(Builder $query, User $user): void
+    {
+        $agences = PersonnelDeLAgence::agencesOuPersonnel($user);
+
+        $query->where('recipient_user_id', $user->id)
+            ->where(fn (Builder $q) => $q->whereNull('agency_id')
+                ->orWhereIn('agency_id', $agences)
+                ->orWhereHas('property', fn (Builder $p) => $p->where('user_id', $user->id)));
     }
 
     /** Marquer traitée, convertir : qui peut la lire peut la traiter. */

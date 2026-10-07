@@ -119,6 +119,12 @@ class VisitRequestRoutingTest extends TestCase
         $canaux = collect(Notification::sentNotifications())->flatten(3)->pluck('channels')->flatten();
         $this->assertNotEmpty($canaux);
         $this->assertNotContains('sms', $canaux->all());
+
+        // Vérification adverse (m4) — le drapeau lui-même : adressée à un numéro, la notification
+        // de DÉPÔT ne prend jamais le canal SMS. Sans cette ligne, forcer `envoieUnSms()` à vrai
+        // laissait le test vert (le dépôt ne s'adresse simplement jamais au visiteur).
+        $demande = PropertyVisit::query()->sole();
+        $this->assertNotContains('sms', (new VisitRequestedNotification($demande))->via(Notification::route('sms', '+221771234567')));
     }
 
     /** AC10 (serveur) — une heure hors de la grille de Dakar est refusée. */

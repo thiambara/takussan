@@ -9,6 +9,7 @@ use App\Notifications\VisitConfirmedNotification;
 use App\Notifications\VisitNotification;
 use App\Notifications\VisitRequestedNotification;
 use App\Notifications\VisitRescheduledNotification;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Lead\ContactLeadService;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Support\Collection;
@@ -73,6 +74,12 @@ class VisitNotifier
      * ce sont eux qui la voient arriver. Les événements suivants vont à l'agent assigné — à défaut,
      * aux admins de l'agence, puis au contact principal d'un bien sans agence.
      *
+     * Vérification adverse (M2) — un agent assigné qui ne peut plus rien recevoir (bloqué,
+     * supprimé, profil suspendu ou retiré de l'agence du bien) ne compte pas : l'événement part
+     * vers le repli de `ContactLeadService::recipientsFor()` (contact principal éligible, sinon
+     * admins actifs). Le repli ne courait que si `agent_id` était nul, et l'annulation ou le
+     * nouveau créneau proposé par le visiteur n'arrivait alors chez personne.
+     *
      * @return Collection<int,User>
      */
     public function agencyRecipients(PropertyVisit $visit, bool $withPrimaryAndOwner = false): Collection
@@ -82,7 +89,10 @@ class VisitNotifier
         $property?->loadMissing(PrimaryPropertyContact::eagerLoads());
 
         $recipients = collect();
-        if ($visit->agent !== null && PrimaryPropertyContact::joignable($visit->agent)) {
+        $agentUtilisable = $visit->agent !== null && ($property?->agency_id === null
+            ? PrimaryPropertyContact::joignable($visit->agent)
+            : PersonnelDeLAgence::estPersonnel($visit->agent, $property->agency_id));
+        if ($agentUtilisable) {
             $recipients->push($visit->agent);
         }
 
@@ -91,6 +101,10 @@ class VisitNotifier
             if (PrimaryPropertyContact::joignable($property->owner)) {
                 $recipients->push($property->owner);
             }
+        }
+
+        if ($visit->agent_id !== null && ! $agentUtilisable && $property !== null) {
+            $recipients = $recipients->merge($this->leads->recipientsFor($property));
         }
 
         if ($visit->agent_id === null && $property !== null) {

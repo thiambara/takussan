@@ -51,6 +51,26 @@ class ContactLeadConvertTest extends ApiTestCase
         $this->assertSame(1, Customer::query()->where('agency_id', $x->id)->count());
     }
 
+    /**
+     * Vérification adverse (m2) — une demande SANS agence ne devient pas une fiche de l'agence
+     * active de l'acteur : 422 codé, aucune fiche.
+     */
+    public function test_m2_une_demande_sans_agence_ne_se_convertit_pas(): void
+    {
+        $z = $this->agence();
+        $bailleur = $this->bailleur($z);
+        $lead = PropertyContactLead::factory()->create([
+            'property_id' => $this->bienDe(null, $bailleur)->id, 'agency_id' => null, 'recipient_user_id' => $bailleur->id,
+        ]);
+
+        Sanctum::actingAs($bailleur);
+        $this->postJson("/api/contact-leads/{$lead->id}/convert")
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'lead_without_agency');
+        $this->assertDatabaseCount('customers', 0);
+        $this->assertNull($lead->fresh()->customer_id);
+    }
+
     public function test_un_clic_ne_se_convertit_pas_et_un_tiers_est_refuse(): void
     {
         $x = $this->agence();

@@ -37,8 +37,8 @@ class ContactLeadController extends Controller
         if (! $user->isSuperAdmin()) {
             $agencyId = $policy->agencyScopeFor($user);
 
-            $base->where(function ($q) use ($user, $agencyId) {
-                $q->where('recipient_user_id', $user->id);
+            $base->where(function ($q) use ($user, $agencyId, $policy) {
+                $q->where(fn ($d) => $policy->scopeDestinataire($d, $user));
                 if ($agencyId !== null) {
                     $q->orWhere('agency_id', $agencyId);
                 }

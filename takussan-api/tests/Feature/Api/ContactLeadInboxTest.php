@@ -4,8 +4,10 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\AgencyRole;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
+use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Notifications\NewContactLeadNotification;
@@ -184,6 +186,39 @@ class ContactLeadInboxTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.recipient_user_id', $cible->id);
         Notification::assertSentTo($cible, NewContactLeadNotification::class);
+    }
+
+    /**
+     * Vérification adverse (M1) — l'agent RETIRÉ de l'agence perd la demande qui lui était
+     * adressée : ni liste, ni lecture, ni traitement, ni conversion dans l'agence quittée.
+     */
+    public function test_m1_l_agent_retire_perd_sa_boite(): void
+    {
+        $restreint = $this->agentSansVueGlobale();
+        $this->sienne->update(['recipient_user_id' => $restreint->id]);
+        $this->assertSame([$this->sienne->id], $this->idsVusPar($restreint));
+
+        AgentProfile::query()->where('user_id', $restreint->id)->first()->delete();
+        $parti = $restreint->fresh();
+
+        $this->assertSame([], $this->idsVusPar($parti));
+        $this->getJson("/api/contact-leads/{$this->sienne->id}")->assertForbidden();
+        $this->postJson("/api/contact-leads/{$this->sienne->id}/handle")->assertForbidden();
+        $this->postJson("/api/contact-leads/{$this->sienne->id}/convert")->assertForbidden();
+        $this->assertDatabaseCount('customers', 0);
+        $this->assertNull($this->sienne->fresh()->handled_at);
+    }
+
+    /** M4 (R) — un agent SUSPENDU n'est pas attribuable. */
+    public function test_m4_une_demande_ne_s_attribue_pas_a_un_agent_suspendu(): void
+    {
+        $suspendu = $this->personnel($this->x);
+        AgentProfile::query()->where('user_id', $suspendu->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        Sanctum::actingAs($this->personnel($this->x, 'agency_admin'));
+        $this->postJson("/api/contact-leads/{$this->sienne->id}/assign", ['user_id' => $suspendu->id])
+            ->assertUnprocessable()->assertJsonValidationErrors(['user_id']);
+        $this->assertSame($this->destinataire->id, $this->sienne->fresh()->recipient_user_id);
     }
 
     /**

@@ -157,6 +157,18 @@ class PropertyContactLeadTest extends TestCase
             ->assertJsonValidationErrors(['phone']);
     }
 
+    /** Vérification adverse (m6) — « +77 … » n'est pas un « +7 » : 422, rien d'écrit. */
+    public function test_un_indicatif_manquant_est_refuse(): void
+    {
+        $url = '/api/public/properties/'.Property::factory()->published()->create()->slug.'/contact-lead';
+        foreach (['+77 123 45 67', '00 77 123 45 67'] as $faux) {
+            $this->postJson($url, ['name' => 'Awa Diop', 'phone' => $faux, 'message' => 'Disponible ce samedi ?'])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['phone']);
+        }
+        $this->assertDatabaseMissing('property_contact_leads', ['phone' => '+771234567']);
+    }
+
     /**
      * Les numéros déjà enregistrés au format national — visites et pistes — sont rattrapés en
      * E.164 ; un numéro qu'aucune forme connue n'explique reste tel quel.
@@ -320,8 +332,12 @@ class PropertyContactLeadTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors(['source']);
     }
 
-    /** La boîte d'une agence sans admin reste lisible : la piste est gardée, sous l'agence. */
-    public function test_une_agence_sans_admin_garde_la_piste(): void
+    /**
+     * Décision de la session (vérification adverse, m3) — une agence sans admin actif ni contact
+     * joignable : personne ne lirait la demande. 409 `contact_unavailable` avant toute écriture,
+     * pour la piste comme pour la visite — jamais un 201 pour une demande que personne ne lira.
+     */
+    public function test_une_agence_sans_personne_pour_lire_refuse_la_demande(): void
     {
         $agency = $this->agence();
         AgencyAdminProfile::query()->where('agency_id', $agency->id)->delete();
@@ -330,8 +346,14 @@ class PropertyContactLeadTest extends TestCase
 
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
-        ])->assertCreated();
+        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable')
+            ->assertJsonPath('message', __('leads.contact_unavailable'));
 
-        $this->assertSame($agency->id, PropertyContactLead::query()->sole()->agency_id);
+        $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
+            'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567', 'scheduled_at' => $this->creneau(),
+        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
+
+        $this->assertDatabaseCount('property_contact_leads', 0);
+        $this->assertDatabaseCount('property_visits', 0);
     }
 }

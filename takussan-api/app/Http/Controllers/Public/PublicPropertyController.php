@@ -627,7 +627,7 @@ class PublicPropertyController extends Controller
         $user = $request->user();
         $data = $request->validated();
 
-        if ($leads->recipientsFor($property)->isEmpty() && $property->agency_id === null) {
+        if ($leads->recipientsFor($property)->isEmpty()) {
             $leads->refuseUnavailable();
         }
 

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\PreferenceResolver;
 use App\Support\HeureDeVisite;
+use App\Support\TelephoneSaisi;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -59,7 +60,8 @@ abstract class VisitNotification extends Notification implements ShouldQueue, Su
             if (! empty($notifiable->routes['mail'])) {
                 $channels[] = 'mail';
             }
-            if ($this->envoieUnSms() && ! empty($notifiable->routes['sms'])) {
+            // Vérification adverse (m7) — un fixe est un numéro de contact, pas un destinataire de SMS.
+            if ($this->envoieUnSms() && TelephoneSaisi::recoitLesSms($notifiable->routes['sms'] ?? null)) {
                 $channels[] = 'sms';
             }
 
