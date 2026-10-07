@@ -160,6 +160,46 @@ class StatementParserTest extends TestCase
         $this->assertSame(2, $result['context']->tally->skipped);
     }
 
+    public function test_un_point_non_declare_n_est_pas_lu_comme_decimale(): void
+    {
+        // Vérification adverse R1 — au mapping par défaut (virgule décimale, aucun séparateur de
+        // milliers), `150.000` était lu 150. Il est sauté et compté ; `150,5` reste lu.
+        $default = $this->parseCsv("date,amount,label\n01/04/2026,150.000,A\n02/04/2026,\"150,5\",B\n", []);
+        $this->assertCount(1, $default['lines']);
+        $this->assertEqualsWithDelta(150.5, $default['lines'][0]->amount, 0.001);
+        $this->assertSame(1, $default['context']->tally->skipped);
+
+        // Avec le point déclaré décimal, une virgule non déclarée est sautée de même.
+        $point = $this->parseCsv("date,amount,label\n01/04/2026,\"150,000\",A\n", ['decimal_separator' => '.']);
+        $this->assertCount(0, $point['lines']);
+        $this->assertSame(1, $point['context']->tally->skipped);
+    }
+
+    public function test_le_sens_par_colonne_reconnait_les_valeurs_francaises_et_saute_les_autres(): void
+    {
+        // Vérification adverse R2 — « Débit », « D » et une valeur vide étaient lus comme des
+        // crédits, et un montant négatif stocké négatif.
+        $csv = "date,amount,label,sens\n"
+            ."01/04/2026,285000,A,Débit\n"
+            ."02/04/2026,285000,B,D\n"
+            ."03/04/2026,285000,C,DR\n"
+            ."04/04/2026,285000,D,Crédit\n"
+            ."05/04/2026,-285000,E,cr\n"
+            ."06/04/2026,285000,F,\n"
+            ."07/04/2026,285000,G,virement\n";
+
+        $result = $this->parseCsv($csv, ['sign_convention' => 'direction_column', 'direction_column' => 'sens']);
+
+        $this->assertSame(
+            ['debit', 'debit', 'debit', 'credit', 'credit'],
+            array_map(fn ($l) => $l->direction->value, $result['lines']),
+        );
+        foreach ($result['lines'] as $line) {
+            $this->assertEqualsWithDelta(285000.0, $line->amount, 0.001);
+        }
+        $this->assertSame(2, $result['context']->tally->skipped);
+    }
+
     /**
      * @param  array<string, mixed>  $mapping  recouvre le mapping effectif par défaut
      * @return array{lines: list<ParsedLine>, context: ParserContext}

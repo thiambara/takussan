@@ -835,3 +835,15 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   7 500,45 → 7 500). Ablations : arrondi du calculateur retiré → 2 rouges ; arrondi d'`amountDue`
   retiré → 1 rouge ; `HALF_DOWN` → 1 rouge. Voisins (15 classes : passerelle, pénalités, ressources,
   historique) → 95 verts, 2 sautés préexistants.
+- **R1 (majeur) — séparateur non déclaré.** Après retrait du séparateur de milliers déclaré, un
+  `.` ou une `,` qui n'est pas le séparateur décimal déclaré fait sauter et compter la ligne
+  (`150.000` au mapping par défaut était lu 150). Test
+  `StatementParserTest::test_un_point_non_declare_n_est_pas_lu_comme_decimale`. Ablation (contrôle
+  retiré) → rouge.
+- **R2 (majeur) — `direction_column`.** `parseDirection` reconnaît `debit/débit/d/dr` et
+  `credit/crédit/c/cr` (casse et accents ignorés) ; toute autre valeur, vide comprise, saute et
+  compte la ligne ; le montant passe par `abs()`. Test
+  `test_le_sens_par_colonne_reconnait_les_valeurs_francaises_et_saute_les_autres`. Ablations :
+  `d`/`dr` retirés → rouge ; défaut « crédit » rétabli → rouge ; `abs()` retiré de cette branche →
+  rouge (la première forme visait par erreur la branche `amount_signed` et restait verte : rejouée
+  sur la bonne). `tests/Feature/Api/Accounting` + `tests/Unit/Services/Accounting` → 67 verts.

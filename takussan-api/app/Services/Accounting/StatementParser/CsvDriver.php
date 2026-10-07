@@ -119,10 +119,8 @@ class CsvDriver implements StatementParserInterface
                 : BankStatementLineDirection::Debit;
             $amount = abs($amount);
         } else {
-            $dirValue = strtolower(trim($record[$mapping['direction_column'] ?? 'direction'] ?? 'credit'));
-            $direction = $dirValue === 'debit'
-                ? BankStatementLineDirection::Debit
-                : BankStatementLineDirection::Credit;
+            $direction = $this->parseDirection($record[$mapping['direction_column'] ?? 'direction'] ?? null);
+            $amount = abs($amount);
         }
 
         $currency = $defaultCurrency;
@@ -140,6 +138,23 @@ class CsvDriver implements StatementParserInterface
             counterparty: $this->nullIfEmpty($record[$mapping['counterparty_column']] ?? null),
             raw: $record,
         );
+    }
+
+    /**
+     * TCK-593 (vérification adverse, R2) — le sens lu dans sa colonne, sans tenir compte de la
+     * casse ni des accents : `debit`/`débit`/`d`/`dr`, `credit`/`crédit`/`c`/`cr`. Toute autre
+     * valeur, vide comprise, fait sauter la ligne : un « Débit » lu « crédit » échappait à la garde
+     * de sens et pouvait s'apparier à une échéance de loyer. Le message ne porte pas la valeur.
+     */
+    private function parseDirection(?string $raw): BankStatementLineDirection
+    {
+        $value = strtr(mb_strtolower(trim((string) $raw)), ['é' => 'e', 'è' => 'e', 'ê' => 'e']);
+
+        return match ($value) {
+            'debit', 'd', 'dr' => BankStatementLineDirection::Debit,
+            'credit', 'c', 'cr' => BankStatementLineDirection::Credit,
+            default => throw new \RuntimeException('Invalid direction'),
+        };
     }
 
     private function nullIfEmpty(?string $value): ?string
@@ -169,6 +184,15 @@ class CsvDriver implements StatementParserInterface
 
         if ($thousandsSeparator !== null && $thousandsSeparator !== '' && $thousandsSeparator !== $decimalSeparator) {
             $s = str_replace($thousandsSeparator, '', $s);
+        }
+
+        // TCK-593 (vérification adverse, R1) — un `.` ou une `,` qui n'est pas le séparateur
+        // décimal déclaré n'est pas deviné : au mapping par défaut (virgule), `150.000` était lu
+        // 150, l'erreur ×1000 que la déclaration devait fermer. La ligne est sautée et comptée.
+        foreach (['.', ','] as $separator) {
+            if ($separator !== $decimalSeparator && str_contains($s, $separator)) {
+                throw new \RuntimeException('Invalid amount');
+            }
         }
 
         if ($decimalSeparator !== '.') {
