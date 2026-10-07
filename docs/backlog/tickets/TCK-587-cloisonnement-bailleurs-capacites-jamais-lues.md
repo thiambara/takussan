@@ -1,13 +1,13 @@
 ---
 id: TCK-587
 title: "Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste"
-status: todo
+status: doing
 phase: P0
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: []
 spec_refs:
