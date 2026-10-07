@@ -1108,6 +1108,19 @@
       "pick": "Tànnal ab ajaŋ",
       "designate": "Tànn",
       "failed": "Tànnu ki ko yor antuwul."
+    },
+    "pipeline": {
+      "stageSelect": "Tolluwaayu {name}",
+      "loadMore": "Yeb yeneen ({shown} ci {total})",
+      "dnd": {
+        "instructions": "Ngir randal ab kart, bësal Espace, soppi kolon ak fleks yi, bësaat Espace ngir teg ko walla Échap ngir bàyyi. Entrée dafay ubbi fiise bi.",
+        "start": "{name} jël nañu ko.",
+        "over": "{name} nekk na ci kaw tolluwaay {stage}.",
+        "overNone": "{name} nekkul ci benn tolluwaay.",
+        "end": "{name} teg nañu ko ci tolluwaay {stage}.",
+        "endNone": "{name} delloo nañu ko ci béreb bi.",
+        "cancel": "Randalug {name} bàyyi nañu ko."
+      }
     }
   },
   "account": {

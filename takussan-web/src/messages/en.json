@@ -2482,6 +2482,19 @@
       "pick": "Pick an agent",
       "designate": "Assign",
       "failed": "The account owner could not be assigned."
+    },
+    "pipeline": {
+      "stageSelect": "Stage of {name}",
+      "loadMore": "Load more ({shown} of {total})",
+      "dnd": {
+        "instructions": "To move a card, press Space, change column with the arrow keys, then press Space to drop it or Escape to cancel. Enter opens the record.",
+        "start": "Picked up {name}.",
+        "over": "{name} is over the {stage} stage.",
+        "overNone": "{name} is not over any stage.",
+        "end": "{name} dropped in the {stage} stage.",
+        "endNone": "{name} put back in place.",
+        "cancel": "Moving {name} was cancelled."
+      }
     }
   },
   "account": {

@@ -5,14 +5,23 @@ import { useDraggable } from '@dnd-kit/core';
 import { Calendar, ListTodo } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { ContactGestures } from '@/components/crm/ContactGestures';
 import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
+
+import { PIPELINE_STAGES } from './constants';
 
 interface PipelineCardProps {
   customer: PipelineCustomerCard;
   onSelect: (id: number) => void;
+  /**
+   * TCK-591 — changer l'étape SANS glisser : au doigt sur 360 px (où la vue mobile n'a pas de
+   * glisser-déposer) comme au clavier. Absent sur l'aperçu de glisser.
+   */
+  onStageChange?: (customer: PipelineCustomerCard, to: CustomerPipelineStage) => void;
   /** When true, this card is the drag preview ghost. */
   isDragging?: boolean;
 }
@@ -24,12 +33,18 @@ function initialsOf(card: PipelineCustomerCard): string {
 }
 
 
+/** Ce qui se passe dans le sélecteur d'étape ou sur un geste de contact ne remonte pas à la carte. */
+const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
 export function PipelineCard({
   customer,
   onSelect,
+  onStageChange,
   isDragging,
 }: PipelineCardProps) {
   const t = useTranslations('crm.pipeline.card');
+  const tStage = useTranslations('crm.pipeline.stage');
+  const tCrm = useTranslations('agentCrm.pipeline');
   // La locale de l'APP, pas celle du navigateur : `Intl.DateTimeFormat(undefined)` rendait
   // « Sep 2, 2026 » dans une interface française.
   const locale = useLocale() as Locale;
@@ -53,11 +68,17 @@ export function PipelineCard({
       {...listeners}
       tabIndex={0}
       onClick={() => onSelect(customer.id)}
+      // TCK-591 — Entrée ouvre la fiche ; Espace appartient au capteur clavier de dnd-kit (saisir,
+      // déplacer aux flèches, reposer). Il ouvrait la fiche lui aussi : le glisser au clavier
+      // n'existait pas.
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter') {
           e.preventDefault();
           onSelect(customer.id);
+          return;
         }
+        listeners?.onKeyDown?.(e);
       }}
       style={style}
       className={cn(
@@ -102,6 +123,28 @@ export function PipelineCard({
           </div>
         </div>
       </div>
+      {onStageChange ? (
+        // `pointerdown` arrêté : sinon le capteur de pointeur de la carte le prend pour un début de
+        // glisser, et le sélecteur ne s'ouvre pas.
+        <div className="mt-2 flex flex-wrap items-center gap-2" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
+          <select
+            value={customer.pipeline_stage}
+            onChange={(e) => onStageChange(customer, e.target.value as CustomerPipelineStage)}
+            aria-label={tCrm('stageSelect', { name: `${customer.first_name} ${customer.last_name}` })}
+            className="min-h-11 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            {PIPELINE_STAGES.map((stage) => (
+              <option key={stage} value={stage}>{tStage(stage)}</option>
+            ))}
+          </select>
+          <ContactGestures
+            compact
+            phone={customer.phone}
+            firstName={customer.first_name}
+            fullName={`${customer.first_name} ${customer.last_name}`}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

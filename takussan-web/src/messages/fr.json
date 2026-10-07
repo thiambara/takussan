@@ -2457,6 +2457,19 @@
       "pick": "Choisir un agent",
       "designate": "Désigner",
       "failed": "Le référent n'a pas pu être désigné."
+    },
+    "pipeline": {
+      "stageSelect": "Étape de {name}",
+      "loadMore": "Charger plus ({shown} sur {total})",
+      "dnd": {
+        "instructions": "Pour déplacer une carte, appuyez sur Espace, changez de colonne avec les flèches, puis appuyez sur Espace pour la reposer ou sur Échap pour annuler. Entrée ouvre la fiche.",
+        "start": "{name} saisi.",
+        "over": "{name} au-dessus de l'étape {stage}.",
+        "overNone": "{name} hors de toute étape.",
+        "end": "{name} déposé dans l'étape {stage}.",
+        "endNone": "{name} reposé à sa place.",
+        "cancel": "Déplacement de {name} annulé."
+      }
     }
   },
   "account": {
