@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 43 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 42 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 499 |
@@ -66,7 +66,6 @@
 - [TCK-590](tickets/TCK-590-contact-leads-et-visites-sans-perte.md) — Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre `XL · P0 · full`
 - [TCK-591](tickets/TCK-591-crm-agenda-agent-et-passation.md) — Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent `XL · P1 · full`
 - [TCK-592](tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md) — Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul `XL · P1 · full`
-- [TCK-593](tickets/TCK-593-encaissements-locataire-et-rapprochement.md) — Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris `XL · P1 · full`
 - [TCK-594](tickets/TCK-594-sorties-d-argent-calculees-et-validees.md) — Les sorties d'argent ne sont ni calculées, ni contrôlées, ni tracées : le brut d'un reversement se saisit à la main, une seule personne crée, approuve et paie, et la facture porte un numéro aléatoire `XL · P1 · full`
 - [TCK-595](tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md) — Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté `XL · P1 · full`
 - [TCK-596](tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) — Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce `XL · P1 · full`
@@ -80,6 +79,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-593](tickets/TCK-593-encaissements-locataire-et-rapprochement.md) — Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris `XL · P1 · full`
 
 ## 👀 Review
 

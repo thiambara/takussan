@@ -1,13 +1,13 @@
 ---
 id: TCK-593
 title: "Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: [TCK-602]
 spec_refs:
@@ -642,4 +642,14 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Partie 5 — réglage d'agence (back), 2026-10-07
+
+- Re-mesuré : `AgencyController::update` faisait bien `fill($request->validated())` sans fusion,
+  et `AgencyUpdateRequest` portait `'settings' => ['sometimes', 'nullable', 'array']`. Conforme au
+  ticket.
+- `php artisan test tests/Feature/Api/Agency/AgencySettingsMergeTest.php` → 5 verts (19 assertions).
+  Ablations : fusion retirée (`if (false)`) → `test_un_patch_de_settings_n_efface_pas_les_autres_cles`
+  et `test_une_cle_a_null_revient_au_defaut` rouges ; `nullable` remis → `test_settings_null_est_refuse`
+  rouge. Rendues, 5 verts.
+- Voisins rejoués : `AgencyTest`, `AgencyCurrencyUpdateTest` (17 verts), `WatermarkActivationTest`,
+  `WatermarkTraceDuringRegenerationTest` (17 verts).
