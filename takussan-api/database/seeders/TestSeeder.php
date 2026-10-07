@@ -10,7 +10,6 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -37,7 +36,7 @@ class TestSeeder extends Seeder
     {
         $this->agency = Agency::factory()->create();
 
-        $roles = ['super_admin', 'agency_admin', 'agent', 'owner', 'broker', 'service_provider'];
+        $roles = ['super_admin', 'agency_admin', 'agent', 'owner', 'service_provider'];
         foreach ($roles as $role) {
             $user = User::factory()->create();
             $this->materializeProfile($user, $role);
@@ -64,7 +63,6 @@ class TestSeeder extends Seeder
                 ['user_id' => $user->id, 'agency_id' => $this->agency->id],
                 ['status' => OwnerProfileStatus::Active->value],
             ),
-            'broker' => BrokerProfile::factory()->create(['user_id' => $user->id]),
             'service_provider' => ServiceProviderProfile::query()->firstOrCreate(
                 ['user_id' => $user->id],
                 ['status' => ServiceProviderProfileStatus::Active->value],

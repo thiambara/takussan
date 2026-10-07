@@ -10,7 +10,6 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -71,7 +70,7 @@ class PublicRoleTest extends TestCase
             ->assertJsonPath('data.public_role', 'agent');
     }
 
-    public function test_un_profil_d_agent_ou_d_admin_suspendu_ne_fait_pas_un_agent_un_admin_actif_et_un_courtier_en_sont(): void
+    public function test_un_profil_d_agent_ou_d_admin_suspendu_ne_fait_pas_un_agent_un_admin_actif_en_est_un(): void
     {
         $agence = Agency::factory()->create(['status' => AgencyStatus::Active]);
 
@@ -81,8 +80,9 @@ class PublicRoleTest extends TestCase
         $admin = $this->publieur('admin-agence', $agence);
         AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agence->id]);
 
-        $courtier = $this->publieur('courtier');
-        BrokerProfile::factory()->create(['user_id' => $courtier->id]);
+        // TCK-586 — l'ancien courtier, sans agence : un profil hors de toute agence le présentait
+        // en agent. Le profil a quitté le code (ADR-0030) ; reste un simple publieur.
+        $this->publieur('courtier');
 
         // Le filtre `active()` vaut pour les DEUX profils d'agence : un admin suspendu n'exerce plus
         // (TCK-573, relevé par la vérification — le retirer côté admin laissait la suite verte).
@@ -92,7 +92,7 @@ class PublicRoleTest extends TestCase
         $this->getJson('/api/public/agents/agent-suspendu')->assertJsonPath('data.public_role', 'owner');
         $this->getJson('/api/public/agents/admin-suspendu')->assertJsonPath('data.public_role', 'owner');
         $this->getJson('/api/public/agents/admin-agence')->assertJsonPath('data.public_role', 'agent');
-        $this->getJson('/api/public/agents/courtier')->assertJsonPath('data.public_role', 'agent');
+        $this->getJson('/api/public/agents/courtier')->assertJsonPath('data.public_role', 'owner');
     }
 
     /**
@@ -188,8 +188,10 @@ class PublicRoleTest extends TestCase
      * sans profil » et « agent actif » : la mutation
      * `'public_role' => $profile !== null ? 'agent' : 'owner'` le laissait vert — alors qu'elle
      * présente en agent un profil SUSPENDU (qui reste dans l'équipe : la liste des membres n'est
-     * pas filtrée par statut) et en propriétaire un ADMIN d'agence actif ou un COURTIER qui publie
-     * sous l'enseigne, tous deux sans `AgentProfile`.
+     * pas filtrée par statut) et en propriétaire un ADMIN d'agence actif, sans `AgentProfile`.
+     *
+     * TCK-586 — `equipe-courtier` reste, sans profil : un simple publieur sous l'enseigne, compté
+     * en propriétaire. Il était compté en agent sur la foi d'un profil courtier (ADR-0030).
      */
     public function test_l_equipe_suit_la_regle_des_roles_publics_et_non_la_presence_d_un_profil_d_agent(): void
     {
@@ -201,8 +203,7 @@ class PublicRoleTest extends TestCase
         $admin = User::factory()->create(['username' => 'equipe-admin-actif', 'status' => UserStatus::Active]);
         AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agence->id]);
 
-        $courtier = $this->publieur('equipe-courtier', $agence);
-        BrokerProfile::factory()->create(['user_id' => $courtier->id]);
+        $this->publieur('equipe-courtier', $agence);
 
         $reponse = $this->getJson('/api/public/agencies/equipe-statuts')->assertOk();
 
@@ -210,9 +211,9 @@ class PublicRoleTest extends TestCase
         $this->assertSame([
             'equipe-admin-actif' => 'agent',
             'equipe-agent-suspendu' => 'owner',
-            'equipe-courtier' => 'agent',
+            'equipe-courtier' => 'owner',
         ], $roles);
-        $reponse->assertJsonPath('data.stats.agents', 2);
+        $reponse->assertJsonPath('data.stats.agents', 1);
     }
 
     /**
@@ -249,5 +250,31 @@ class PublicRoleTest extends TestCase
 
         // Hors de toute agence, la personne reste ce qu'elle est : un agent immobilier.
         $this->getJson('/api/public/agents/equipe-agent-de-b')->assertJsonPath('data.public_role', 'agent');
+    }
+
+    /**
+     * TCK-586 — sur la fiche d'un bien, `is_agent` veut dire agent DE L'AGENCE DU BIEN. Un
+     * publieur sans profil d'agent dans cette agence — qu'il n'en ait aucun, ou qu'il soit agent
+     * ailleurs — n'est pas présenté en agent. (Un profil courtier, hors de toute agence, suffisait.)
+     */
+    public function test_la_fiche_d_un_bien_ne_presente_pas_en_agent_un_publieur_sans_profil_d_agent_dans_l_agence(): void
+    {
+        $agence = Agency::factory()->create(['status' => AgencyStatus::Active]);
+        $autre = Agency::factory()->create(['status' => AgencyStatus::Active]);
+
+        $nu = $this->publieur('publieur-sans-profil', $agence);
+        $agentAilleurs = $this->publieur('publieur-agent-ailleurs', $agence);
+        AgentProfile::factory()->create(['user_id' => $agentAilleurs->id, 'agency_id' => $autre->id]);
+        $agentIci = $this->publieur('publieur-agent-ici', $agence);
+        AgentProfile::factory()->create(['user_id' => $agentIci->id, 'agency_id' => $agence->id]);
+
+        $attendus = [$nu->id => false, $agentAilleurs->id => false, $agentIci->id => true];
+        $obtenus = [];
+        foreach (array_keys($attendus) as $userId) {
+            $slug = Property::query()->where('user_id', $userId)->value('slug');
+            $obtenus[$userId] = $this->getJson('/api/public/properties/'.$slug)->assertOk()->json('data.owner.is_agent');
+        }
+
+        $this->assertSame($attendus, $obtenus);
     }
 }

@@ -5,7 +5,6 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
@@ -268,8 +267,9 @@ class PropertyResource extends BaseResource
     /**
      * TCK-142 — `is_agent` used to derive from a now-dropped column. "Agent"
      * here means the user holds a professional profile that can list
-     * properties on behalf of the property's agency: an active AgentProfile
-     * in that agency, or a BrokerProfile collaborating with it.
+     * properties on behalf of the property's agency: an AgentProfile in that
+     * agency. Un profil hors de toute agence ne suffit pas — c'est ce qui
+     * présentait le courtier en agent sur n'importe quelle fiche (ADR-0030).
      *
      * TCK-502 — la méthode ne prend plus « le propriétaire » mais « un utilisateur » : le contact
      * principal peut être un collaborateur, et la question posée est la même pour lui.
@@ -277,11 +277,8 @@ class PropertyResource extends BaseResource
     private function actsAsAgent(User $user): bool
     {
         $agency = $this->resource->agency;
-        if ($agency !== null && $user->isAgentAt($agency->id)) {
-            return true;
-        }
 
-        return $user->hasProfile(BrokerProfile::class);
+        return $agency !== null && $user->isAgentAt($agency->id);
     }
 
     /**

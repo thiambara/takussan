@@ -181,7 +181,7 @@ class ServiceProviderInvitationService
     /**
      * Throws 403 if the agency is neither `standard` nor `individual`. In
      * the current data model the enum only has those two values, so this
-     * is a defensive guard against future kinds (`broker`, `community`…).
+     * is a defensive guard against future kinds.
      */
     protected function assertAgencyCanInvite(Agency $agency): void
     {
