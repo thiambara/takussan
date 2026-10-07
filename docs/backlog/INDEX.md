@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 41 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 40 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 501 |
@@ -67,7 +67,6 @@
 - [TCK-593](tickets/TCK-593-encaissements-locataire-et-rapprochement.md) — Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris `XL · P1 · full`
 - [TCK-594](tickets/TCK-594-sorties-d-argent-calculees-et-validees.md) — Les sorties d'argent ne sont ni calculées, ni contrôlées, ni tracées : le brut d'un reversement se saisit à la main, une seule personne crée, approuve et paie, et la facture porte un numéro aléatoire `XL · P1 · full`
 - [TCK-595](tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md) — Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté `XL · P1 · full`
-- [TCK-596](tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) — Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce `XL · P1 · full`
 - [TCK-597](tickets/TCK-597-avis-signalements-et-moderation.md) — Avis et signalements : un admin d'agence modère les avis de toutes les agences, un signalement tranché laisse l'annonce en ligne, et ni un agent ni un prestataire ne peuvent être notés `XL · P1 · full`
 - [TCK-598](tickets/TCK-598-site-public-fiche-cachable-et-confiance.md) — Site public : la fiche publique divulgue la part de commission des collaborateurs et ne peut pas être mise en cache ; le coût d'entrée, la confiance, le bien loué, les quartiers et l'installation manquent `XL · P1 · full`
 - [TCK-599](tickets/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md) — Une alerte de recherche qu'on règle, qui liste les bons biens et marche sans compte ; des favoris qui ne servent plus un bien redevenu privé et préviennent quand il baisse ou disparaît `XL · P1 · full`
@@ -78,6 +77,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-596](tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) — Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce `XL · P1 · full`
 
 ## 👀 Review
 
