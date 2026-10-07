@@ -5,51 +5,55 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Payout;
+use App\Models\ServiceProviderBill;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
 
 class PayoutTest extends TestCase
 {
+    use BuildsMoneyOut;
     use CreatesAgencyMembers;
     use RefreshDatabase;
 
     public function test_agency_user_can_create_payout(): void
     {
-        $agency = Agency::factory()->create();
+        $agency = $this->moneyAgency(['commission_rate' => 10]);
         // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `payouts.create`.
         $agent = User::factory()->withAgentProfile($agency)->create();
-        $landlord = User::factory()->create(['agency_id' => $agency->id]);
+        $landlord = $this->landlordOf($agency);
+        // TCK-594 — le brut se lit sur les loyers encaissés : 1 000 000 au taux du bail (10 %).
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 10), 1_000_000);
 
         Sanctum::actingAs($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
-            'gross_amount' => 1000000,
-            'commission_amount' => 100000,
-            'fees_amount' => 5000,
+            'lease_payment_ids' => [$rent->id],
         ])->assertCreated()
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.gross_amount', 1000000)
             ->assertJsonPath('data.commission_amount', 100000)
-            ->assertJsonPath('data.net_amount', 895000);
+            ->assertJsonPath('data.net_amount', 900000);
     }
 
     public function test_scheduled_payout_gets_scheduled_status(): void
     {
-        $agency = Agency::factory()->create();
+        $agency = $this->moneyAgency();
         // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `payouts.create`.
         $agent = User::factory()->withAgentProfile($agency)->create();
-        $landlord = User::factory()->create(['agency_id' => $agency->id]);
+        $landlord = $this->landlordOf($agency);
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 500_000);
 
         Sanctum::actingAs($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
-            'gross_amount' => 500000,
+            'lease_payment_ids' => [$rent->id],
             'scheduled_at' => now()->addDays(5)->toISOString(),
         ])->assertCreated()
             ->assertJsonPath('data.status', 'scheduled');
@@ -64,7 +68,7 @@ class PayoutTest extends TestCase
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
-            'gross_amount' => 100000,
+            'lease_payment_ids' => [1],
         ])->assertForbidden();
     }
 
@@ -79,24 +83,34 @@ class PayoutTest extends TestCase
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
-            'gross_amount' => 100000,
+            'lease_payment_ids' => [1],
         ])->assertForbidden();
     }
 
     public function test_negative_net_amount_returns_422(): void
     {
-        $agency = Agency::factory()->create();
+        $agency = $this->moneyAgency();
         // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `payouts.create`.
         $agent = User::factory()->withAgentProfile($agency)->create();
-        $landlord = User::factory()->create(['agency_id' => $agency->id]);
+        $landlord = $this->landlordOf($agency);
+        $lease = $this->leaseOf($agency, $landlord);
+        $rent = $this->leasePayment($lease, 100_000);
+        // TCK-594 — des frais d'intervention qui dépassent le loyer rendraient un net négatif.
+        $bill = ServiceProviderBill::factory()->validated()->create([
+            'agency_id' => $agency->id,
+            'property_id' => $lease->property_id,
+            'amount' => 200_000,
+        ]);
 
         Sanctum::actingAs($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
-            'gross_amount' => 100000,
-            'commission_amount' => 200000,
+            'lease_payment_ids' => [$rent->id],
+            'service_provider_bill_ids' => [$bill->id],
         ])->assertStatus(422);
+
+        $this->assertDatabaseCount('payouts', 0);
     }
 
     public function test_landlord_can_view_own_payout(): void
@@ -132,7 +146,7 @@ class PayoutTest extends TestCase
     public static function transitions(): array
     {
         return [
-            'mark-processed' => ['mark-processed', ['transaction_id' => 'TX-1']],
+            'mark-processed' => ['mark-processed', ['transaction_id' => 'TX-1', 'payment_method' => 'cash']],
             'mark-failed' => ['mark-failed', ['failed_reason' => 'Banque']],
             'cancel' => ['cancel', []],
         ];
@@ -208,6 +222,7 @@ class PayoutTest extends TestCase
 
         $this->postJson("/api/payouts/{$payout->id}/mark-processed", [
             'transaction_id' => 'TX-123',
+            'payment_method' => 'check',
         ])->assertOk()
             ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.transaction_id', 'TX-123');

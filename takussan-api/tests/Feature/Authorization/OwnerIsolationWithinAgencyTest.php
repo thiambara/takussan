@@ -192,7 +192,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'bail — modifier' => ['PATCH', '/api/leases/{lease}', ['late_fee_grace_days' => 3], 'agent'],
             'loyer — marquer payé' => ['POST', '/api/lease-payments/{payment}/mark-paid', [], 'agent'],
             'versement — lire' => ['GET', '/api/payouts/{payout}', [], 'agent'],
-            'versement — traiter' => ['POST', '/api/payouts/{payout}/mark-processed', [], 'agent'],
+            'versement — traiter' => ['POST', '/api/payouts/{payout}/mark-processed', ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'], 'agent'],
             'facture — lire' => ['GET', '/api/invoices/{invoice}', [], 'agent'],
             'facture — envoyer' => ['POST', '/api/invoices/{invoice}/send', [], 'agent'],
             'réservation — lire' => ['GET', '/api/bookings/{booking}', [], 'agent'],

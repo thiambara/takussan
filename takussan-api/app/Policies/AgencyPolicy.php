@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
 
@@ -54,5 +55,16 @@ class AgencyPolicy
 
         return $user->activeProfile()?->agency_id === $agency->id
             && $user->isAgencyAdminAt((int) $agency->id);
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4) — le seuil des quatre yeux se règle par qui administre l'agence ET
+     * détient `payouts.approve` à cette agence : celui qui approuve décide quand on approuve. Le
+     * remettre à `null` est le même geste — désactiver le contrôle n'est pas moins sensible.
+     */
+    public function updatePayoutThreshold(User $user, Agency $agency): bool
+    {
+        return $this->update($user, $agency)
+            && $user->canActAt(Capability::PayoutsApprove, $agency);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\ApprovePayoutRequest;
 use App\Http\Requests\Api\MarkFailedPayoutRequest;
 use App\Http\Requests\Api\MarkProcessedPayoutRequest;
 use App\Http\Requests\Api\StorePayoutRequest;
@@ -65,12 +66,24 @@ class PayoutController extends Controller
         ]);
     }
 
+    /**
+     * TCK-594 (ADR-0039 §4) — le second geste d'un reversement au-dessus du seuil de l'agence.
+     */
+    public function approve(ApprovePayoutRequest $request, Payout $payout): JsonResponse
+    {
+        $payout = $this->payouts->approve($payout, $request->user());
+
+        return $this->json([
+            'data' => PayoutResource::make($payout)->toArray($request),
+        ]);
+    }
+
     public function markProcessed(MarkProcessedPayoutRequest $request, Payout $payout): JsonResponse
     {
 
         $data = $request->validated();
 
-        $payout = $this->payouts->markProcessed($payout, $data);
+        $payout = $this->payouts->markProcessed($payout, $data, $request->user());
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),

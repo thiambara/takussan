@@ -10,6 +10,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\BuildsMoneyOut;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
  */
 class PayoutStoreAuthorizationTest extends TestCase
 {
+    use BuildsMoneyOut;
     use RefreshDatabase;
 
     private Agency $agency;
@@ -34,12 +36,18 @@ class PayoutStoreAuthorizationTest extends TestCase
         $this->landlord = User::factory()->withOwnerProfile($this->agency)->create();
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * TCK-594 — le corps cite un loyer encaissé du bailleur : le brut n'est plus une saisie.
+     *
+     * @return array<string,mixed>
+     */
     private function body(?User $landlord = null): array
     {
+        $landlord ??= $this->landlord;
+
         return [
-            'landlord_id' => ($landlord ?? $this->landlord)->id,
-            'gross_amount' => 100000,
+            'landlord_id' => $landlord->id,
+            'lease_payment_ids' => [$this->leasePayment($this->leaseOf($this->agency, $landlord), 100_000)->id],
         ];
     }
 
@@ -127,7 +135,8 @@ class PayoutStoreAuthorizationTest extends TestCase
         $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 
-        $this->postJson('/api/payouts', $this->body())->assertCreated();
+        // TCK-594 — sans profil d'agence, le super-admin désigne l'agence au nom de laquelle il verse.
+        $this->postJson('/api/payouts', $this->body() + ['agency_id' => $this->agency->id])->assertCreated();
 
         $this->assertDatabaseCount('payouts', 1);
     }

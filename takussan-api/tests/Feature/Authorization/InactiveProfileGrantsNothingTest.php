@@ -166,11 +166,11 @@ class InactiveProfileGrantsNothingTest extends ApiTestCase
         ]);
 
         // Témoin : émetteur actif, sans `payouts.create`, il traite le sien.
-        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed")->assertOk();
+        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'])->assertOk();
 
         AgentProfile::query()->where('user_id', $emetteur->id)->update(['status' => AgentProfileStatus::Suspended->value]);
 
-        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed")->assertForbidden();
+        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'])->assertForbidden();
     }
 
     private function assertAgentReadsTheLease(User $agent, bool $expected): void

@@ -212,6 +212,10 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+#### Sorties d'argent (TCK-594, ADR-0039)
+72. [PayoutMethod](#72-payoutmethod-) 🆕
+73. [ServiceProviderBill](#73-serviceproviderbill-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -2920,6 +2924,73 @@ traite `key` comme un identifiant court opaque.
 > de timestamps dans la migration. Seul `seen_at` a un sens ici. Ce n'est pas un oubli : avec
 > [26. PropertyPriceHistory](#26-propertypricehistory-), ce sont les **deux seuls** modèles du dépôt
 > à couper les timestamps (mesuré le 2026-08-16).
+
+---
+
+### 72. PayoutMethod 🆕
+
+> **Entrée minimale posée par TCK-594** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0039 §6.
+
+**Table :** `payout_methods`
+**Description :** Destination de paiement d'un utilisateur (bailleur, prestataire) : numéro mobile
+money ou compte bancaire. Un reversement Wave / Orange Money / Free Money / virement ne se marque
+payé que vers une destination **vérifiée** du bénéficiaire.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire (`cascadeOnDelete`, `payout_methods_user_fk`) |
+| kind | string(30) | | | `PayoutMethodKind` : `wave`, `orange_money`, `free_money`, `bank_transfer` |
+| account_identifier | text | | | Numéro ou IBAN — cast `encrypted`, `$hidden`, hors `$queryFields` et de la recherche |
+| account_holder_name | text | oui | null | Nom du titulaire — cast `encrypted`, `$hidden` |
+| masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`, `PayoutMethod::mask()`, provisoire jusqu'à TCK-601) |
+| is_default | boolean | | false | |
+| verified_at | timestamp | oui | null | Toute modification la remet à `null` |
+| verified_by_id | FK users | oui | null | `nullOnDelete` |
+| deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** `user()`, `verifier()` → belongsTo User. Inverse : `Payout.payoutMethod()` (withTrashed).
+
+---
+
+### 73. ServiceProviderBill 🆕
+
+> **Entrée minimale posée par TCK-594** ; description complète par `/sync-specs`. Source :
+> ADR-0039 §8.
+
+**Table :** `service_provider_bills`
+**Description :** Facture d'intervention **reçue** d'un prestataire, créée quand une demande de
+maintenance passe `completed` avec un prestataire assigné. Validée par l'agence, payée par un
+`Payout` `payee_role = service_provider` ; refacturable au bailleur, elle s'impute sur son
+reversement (`imputed_payout_id`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| maintenance_request_id | FK maintenance_requests | | | `cascadeOnDelete` |
+| agency_id | FK agencies | oui | null | `nullOnDelete` |
+| property_id | FK properties | oui | null | `nullOnDelete` |
+| provider_id | FK users | | | Prestataire (`restrictOnDelete`) |
+| reference_number | string | | | Unique |
+| provider_reference | string | oui | null | Référence de la facture du prestataire |
+| amount | decimal(14,2) | | | Coût réel, à défaut devis approuvé |
+| currency | string(3) | | 'XOF' | |
+| exceeds_quote | boolean | | false | Coût réel > devis approuvé |
+| status | string(30) | | 'pending_validation' | `ServiceProviderBillStatus` : `pending_validation`, `validated`, `rejected`, `paid`, `cancelled` |
+| validated_by_id | FK users | oui | null | |
+| validated_at | timestamp | oui | null | |
+| rejection_reason | text | oui | null | |
+| rechargeable_to_landlord | boolean | | true | |
+| imputed_payout_id | FK payouts | oui | null | Reversement bailleur qui la retient (`nullOnDelete`) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** index unique partiel `sp_bills_one_open_per_request` sur `maintenance_request_id`
+`WHERE status NOT IN ('rejected','cancelled')` — une seule facture ouverte par demande.
+
+**Relations :** `maintenanceRequest()`, `agency()`, `property()`, `provider()`, `validator()`,
+`imputedPayout()` → belongsTo ; `payouts()` → hasMany Payout (`service_provider_bill_id`).
 
 ---
 

@@ -30,7 +30,6 @@ final class CapabilityEnforcementInventory
     public const AWAITING = [
         'maintenance.assign' => 'TCK-592',
         'maintenance.close' => 'TCK-592',
-        'payouts.approve' => 'TCK-594',
         'agency.update_billing' => 'TCK-594',
         'bookings.refund' => 'TCK-596',
         'leases.sign' => 'TCK-596',

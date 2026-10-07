@@ -5,10 +5,12 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
+use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -20,6 +22,8 @@ class Invoice extends AbstractModel
         'invoiceable_id', 'invoiceable_type',
         'customer_id', 'issued_by_id', 'agency_id',
         'reference_number', 'status',
+        // TCK-594 (ADR-0039 §7) — séquence attribuée à l'émission, avoir.
+        'kind', 'credited_invoice_id', 'sequence_year', 'sequence_number',
         'issue_date', 'due_date',
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
         // TCK-285 / D-51 — `PaymentGatewayService::recordInitiation()` les écrit par `fill()`,
@@ -31,9 +35,17 @@ class Invoice extends AbstractModel
         'bank_reconciled_at', 'bank_statement_line_id',
     ];
 
+    /** TCK-594 — le défaut de la colonne, lisible avant le premier `refresh()`. */
+    protected $attributes = [
+        'kind' => 'invoice',
+    ];
+
     protected $casts = [
         'status' => InvoiceStatus::class,
+        'kind' => InvoiceKind::class,
         'currency' => Currency::class,
+        'sequence_year' => 'integer',
+        'sequence_number' => 'integer',
         'issue_date' => 'date',
         'due_date' => 'date',
         'subtotal' => 'decimal:2',
@@ -46,16 +58,17 @@ class Invoice extends AbstractModel
         'bank_reconciled_at' => 'datetime',
     ];
 
-    protected static array $requestFilterable = ['customer_id', 'issued_by_id', 'agency_id', 'status', 'currency', 'invoiceable_type'];
+    protected static array $requestFilterable = ['customer_id', 'issued_by_id', 'agency_id', 'status', 'kind', 'credited_invoice_id', 'currency', 'invoiceable_type'];
 
     protected static array $requestSortable = ['id', 'created_at', 'issue_date', 'due_date', 'total_amount'];
 
-    protected static array $requestLoadable = ['customer', 'issuer', 'agency'];
+    protected static array $requestLoadable = ['customer', 'issuer', 'agency', 'creditNotes', 'creditedInvoice'];
 
     protected static array $queryFields = [
         'id', 'customer_id', 'issued_by_id', 'agency_id',
         'invoiceable_id', 'invoiceable_type',
-        'reference_number', 'status', 'issue_date', 'due_date',
+        'reference_number', 'status', 'kind', 'credited_invoice_id', 'sequence_year', 'sequence_number',
+        'issue_date', 'due_date',
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
         'notes', 'last_reminder_sent_at', 'reminders_sent_count',
         'created_at', 'updated_at',
@@ -111,6 +124,18 @@ class Invoice extends AbstractModel
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /** TCK-594 — l'avoir qui annule cette facture (une facture émise ne s'annule que par lui). */
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(self::class, 'credited_invoice_id');
+    }
+
+    /** TCK-594 — pour un avoir, la facture qu'il annule. */
+    public function creditedInvoice(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'credited_invoice_id');
     }
 
     public function bankStatementLine(): BelongsTo

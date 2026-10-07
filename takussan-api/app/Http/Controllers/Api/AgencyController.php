@@ -18,6 +18,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -83,6 +84,15 @@ class AgencyController extends Controller
         abort_unless($request->user()->can('update', $agency), 403);
 
         $data = $request->validated();
+
+        // TCK-594 (ADR-0039 §4) — le seuil ne passe jamais par `fill()` : il a sa propre capacité,
+        // sa règle des deux approbateurs et sa trace. Jugé AVANT l'écriture du reste : un 422 sur le
+        // seuil n'enregistre rien.
+        if (array_key_exists('payout_approval_threshold', $data)) {
+            abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
+            app(PayoutApprovalThreshold::class)->change($agency, $request->user(), $data['payout_approval_threshold']);
+            unset($data['payout_approval_threshold']);
+        }
 
         $agency->fill($data)->save();
 

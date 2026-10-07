@@ -674,4 +674,55 @@ le ticket nommé (vérifié dans son texte).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Partie 1 — calcul, pièces uniques, caution au locataire, quatre yeux d'agence, échéance (lot A)
+
+- **Calcul** : `App\Services\Payout\PayoutCalculator`. Lignes éligibles : `LeasePayment` `paid` de
+  type `rent`, `charges`, `penalty`, `regularization` ; `BookingPayment` `paid` de type `deposit`,
+  `advance` (le `fee` est un revenu de l'agence, il n'est jamais reversé). Commission **par ligne** au
+  taux du bail, à défaut à celui de l'agence, arrondie à `Currency::decimalPlaces()` (0 pour XOF).
+  Des devises mêlées rendent 422. Lecture : `GET /api/payouts/preparation` (avant `{payout}` dans
+  `routes/api/payouts.php`).
+- **Création** : `POST /api/payouts` ne prend que des identifiants (`lease_payment_ids`,
+  `booking_payment_ids`, `service_provider_bill_ids`) ; `lease_id`, `booking_id`, `gross_amount`,
+  `commission_amount`, `fees_amount` sont `prohibited`. Chaque pièce est relue **sous verrou** (baux,
+  réservations, factures, par id croissant) et rejugée : périmètre agence + bailleur, éligibilité, pas
+  déjà dans un pivot. `lease_id` / `booking_id` ne sont posés que si une seule origine existe ; sinon
+  l'origine se lit dans les pivots. Le CHECK `lease_id IS NOT NULL OR booking_id IS NOT NULL` que
+  `models-spec.md` § 28 décrit **n'existe dans aucune migration** (mesuré : `grep` des migrations,
+  2026-10-07) — à corriger par `/sync-specs`.
+- **Une seule fois** : index uniques `payout_lp_lease_payment_unique` et
+  `payout_bp_booking_payment_unique` (migration `200400`, qui purge d'abord les pivots des reversements
+  `cancelled`/`failed` puis les doublons). La violation est attrapée **hors** de `DB::transaction` et
+  devient 409 (piège PostgreSQL n° 1). `cancel` et `mark-failed` détachent les pièces.
+- **Caution** : `payee_role` (`landlord` par défaut, `tenant`, `service_provider`). `DepositRefundService`
+  écrit `tenant` ; la migration `200300` reprend les existants (même bail, même montant, même seconde
+  que leur `LeasePayment` `deposit_refund`). `beneficiaryUserId()` lit l'utilisateur du locataire.
+- **Quatre yeux** : `App\Support\SegregationOfDuties::assertDistinct()` — comparaison d'**utilisateurs**
+  (deux profils ou deux agences ne font pas deux personnes ; le super-admin y est soumis, `Gate::before`
+  ne le dispense pas). Préparer : ≠ bénéficiaire. Approuver : ≠ émetteur, ≠ bénéficiaire. Payer :
+  ≠ approbateur, ≠ bénéficiaire. Sans seuil (`null`, défaut, aucune reprise), un reversement naît
+  `pending` et son émetteur le paie seul (AC6a). L'approbation fige `metadata.approved_net_amount` ;
+  un net modifié ensuite rend 422 au paiement. `approve` ne se rejoue pas (422 hors
+  `awaiting_approval`).
+- **Seuil** : `PATCH /api/agencies/{id}` avec `payout_approval_threshold` → `AgencyPolicy::updatePayoutThreshold`
+  (administre l'agence ET détient `payouts.approve`) puis `PayoutApprovalThreshold::change` : 422
+  `money_out.threshold.needs_two_approvers` sous deux détenteurs actifs (`PayoutApprovers`), trace
+  `agency_payout_threshold_changed` `{old, new}`. La colonne est **retirée de `$fillable`** : elle ne
+  s'écrit que par ce service.
+- **Échéance** : `payouts:remind-due` (07:30, Africa/Dakar), idempotente par
+  `metadata.due_reminded_at` posé **avant** l'envoi.
+- **Paiement** : référence obligatoire hors espèces (requête ET service), destination vérifiée du
+  bénéficiaire pour mobile money / virement (`unverified_destination`), sauf la caution rendue au
+  locataire (il peut n'avoir aucun compte). Pilote `ManualDisbursementDriver` derrière
+  `DisbursementDriverContract`.
+- **Super-admin** : son `agency_id` du corps l'emporte désormais sur le profil qu'il tiendrait par
+  ailleurs (avant : seulement s'il n'avait aucun profil).
+- **`AgencyKindFlipService`** écrit désormais `rccm`, `ninea`, `legal_name`, `legal_address` en
+  colonnes (une valeur curée de `metadata.legal_info` gagne sur la demande) ; `rib_pro` reste dans
+  `metadata` (sa suppression est chez TCK-601).
+- **`payouts.approve`** quitte `CapabilityEnforcementInventory::AWAITING` ; `CLIQUET` 16 → 15.
+- Notifications : `App\Notifications\Payouts\*`, database + mail, textes sous `money_out.notifications.*`.
+  Elles fournissent `toAppNotification()` au lieu d'étendre la table `TYPES` d'`AppDatabaseChannel`.
+- **Non tenu (noté)** : « une agence `individual` n'émet pas de `Payout` à un tiers » n'est pas
+  appliqué par le code.
+

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\Payments\DisbursementDriverContract;
 use App\Listeners\Admin\DispatchAlerts;
 use App\Models\Agency;
 use App\Models\AgencyRole;
@@ -101,6 +102,7 @@ use App\Services\Notifications\Whatsapp\CloudApiWhatsappDriver;
 use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
+use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -130,6 +132,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
+        $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
     }
 
     public function boot(Dispatcher $events): void

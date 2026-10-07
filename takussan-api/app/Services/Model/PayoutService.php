@@ -2,88 +2,271 @@
 
 namespace App\Services\Model;
 
+use App\Contracts\Payments\DisbursementDriverContract;
+use App\Models\Agency;
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Enums\PayeeRole;
+use App\Models\Enums\PaymentMethod;
+use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PayoutMethodKind;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Enums\ServiceProviderBillStatus;
+use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PayoutMethod;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\ServiceProviderBill;
 use App\Models\User;
+use App\Notifications\Payouts\PayoutAwaitingApprovalNotification;
+use App\Notifications\Payouts\PayoutFailedNotification;
+use App\Notifications\Payouts\PayoutProcessedNotification;
+use App\Services\Payout\PayoutApprovers;
+use App\Services\Payout\PayoutCalculator;
+use App\Support\SegregationOfDuties;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 
+/**
+ * Les sorties d'argent de l'agence : au bailleur, au prestataire, au locataire (caution).
+ *
+ * TCK-594 (ADR-0039) — le brut n'est plus une saisie : il se recalcule ici depuis les pièces citées
+ * ({@see PayoutCalculator}), qui doivent relever de l'agence de l'émetteur et du bailleur désigné. Un
+ * paiement n'est reversé qu'une fois (index uniques des pivots). Trois gestes — préparer, approuver,
+ * marquer payé — que {@see SegregationOfDuties} interdit à une même personne de tenir deux fois de
+ * suite. Un reversement mobile money ou virement ne se paie que vers une destination vérifiée du
+ * bénéficiaire, avec une référence.
+ */
 class PayoutService
 {
     /**
-     * @param  array<string,mixed>  $data
+     * Les moyens de paiement qui exigent une destination vérifiée, et la nature de destination que
+     * chacun accepte (`null` = toute destination mobile money).
+     *
+     * @var array<string, list<PayoutMethodKind>|null>
+     */
+    private const DESTINATION_KINDS = [
+        'wave' => [PayoutMethodKind::Wave],
+        'orange_money' => [PayoutMethodKind::OrangeMoney],
+        'free_money' => [PayoutMethodKind::FreeMoney],
+        'mobile_money' => [PayoutMethodKind::Wave, PayoutMethodKind::OrangeMoney, PayoutMethodKind::FreeMoney],
+        'bank_transfer' => [PayoutMethodKind::BankTransfer],
+    ];
+
+    public function __construct(
+        private readonly PayoutCalculator $calculator,
+        private readonly PayoutApprovers $approvers,
+        private readonly DisbursementDriverContract $disbursement,
+    ) {}
+
+    /**
+     * Un reversement au bailleur, depuis les pièces citées.
+     *
+     * @param  array<string,mixed>  $data  lease_payment_ids[], booking_payment_ids[],
+     *                                     service_provider_bill_ids[], payout_method_id, period_*,
+     *                                     payment_method, scheduled_at, notes
      */
     public function create(User $user, User $landlord, array $data): Payout
     {
+        $agency = $this->issuingAgency($user, $data);
+
+        // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur.
         abort_unless(
-            $user->isSuperAdmin() || $user->agency_id,
+            // TCK-587 — APPARTENANCE du bénéficiaire, sans filtre de statut.
+            $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)
+            || $landlord->hasProfileAt((int) $agency->id, AgentProfile::class)
+            || $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
             403,
-            'Only agency members or admins can issue payouts.'
+            __('money_out.payout.landlord_not_member'),
         );
 
-        // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur. La règle comparait
-        // `$landlord->agency_id`, qui vaut `null` pour un bailleur sans agence comme pour un bailleur
-        // présent dans plusieurs agences : les deux passaient, vers n'importe quelle agence.
-        $agencyId = $user->agency_id;
-        abort_if(
-            $agencyId && ! (
-                // TCK-587 — APPARTENANCE du bénéficiaire, sans filtre de statut.
-                $landlord->hasProfileAt((int) $agencyId, OwnerProfile::class)
-                || $landlord->hasProfileAt((int) $agencyId, AgentProfile::class)
-                || $landlord->hasProfileAt((int) $agencyId, AgencyAdminProfile::class)
-            ),
-            403,
-            'Landlord does not belong to your agency.'
-        );
+        // ADR-0039 §4 — le bénéficiaire ne prépare pas son propre reversement.
+        SegregationOfDuties::assertDistinct($user, [$landlord->id], SegregationOfDuties::STEP_PREPARE);
 
-        $gross = (float) $data['gross_amount'];
-        $commission = isset($data['commission_amount']) ? (float) $data['commission_amount'] : 0;
-        $fees = isset($data['fees_amount']) ? (float) $data['fees_amount'] : 0;
-        $net = round($gross - $commission - $fees, 2);
+        $leaseIds = $this->ids($data['lease_payment_ids'] ?? []);
+        $bookingIds = $this->ids($data['booking_payment_ids'] ?? []);
+        $billIds = $this->ids($data['service_provider_bill_ids'] ?? []);
 
-        abort_if($net < 0, 422, 'Net amount cannot be negative.');
+        if ($leaseIds === [] && $bookingIds === [] && $billIds === []) {
+            throw ValidationException::withMessages(['lease_payment_ids' => __('money_out.payout.no_items')]);
+        }
 
-        return Payout::create([
-            'landlord_id' => $landlord->id,
-            'lease_id' => $data['lease_id'] ?? null,
-            'booking_id' => $data['booking_id'] ?? null,
-            'agency_id' => $user->agency_id,
-            'issued_by_id' => $user->id,
-            'reference_number' => ReferenceNumberGenerator::payout(),
-            'status' => isset($data['scheduled_at']) ? PayoutStatus::Scheduled->value : PayoutStatus::Pending->value,
-            'period_start' => $data['period_start'] ?? null,
-            'period_end' => $data['period_end'] ?? null,
-            'gross_amount' => $gross,
-            'commission_amount' => $commission,
-            'fees_amount' => $fees ?: null,
-            'net_amount' => $net,
-            'currency' => $data['currency'] ?? 'XOF',
-            'payment_method' => $data['payment_method'] ?? null,
-            'scheduled_at' => $data['scheduled_at'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
+        // AC19 — le périmètre se vérifie AVANT toute écriture : rien n'est écrit sur un refus.
+        $this->assertItemsInScope($agency, $landlord, $leaseIds, $bookingIds, $billIds);
+        $destination = $this->destinationOf($data['payout_method_id'] ?? null, $landlord->id);
+
+        try {
+            // Piège PostgreSQL n° 1 : une violation d'unicité n'est JAMAIS attrapée dans la
+            // transaction. Elle la traverse, le rollback a lieu, puis elle devient 409 ici.
+            $payout = DB::transaction(fn (): Payout => $this->createLocked(
+                $user, $landlord, $agency, $leaseIds, $bookingIds, $billIds, $destination, $data,
+            ));
+        } catch (UniqueConstraintViolationException) {
+            abort(409, __('money_out.payout.already_paid_out'));
+        }
+
+        $this->notifyApprovers($payout, $agency);
+
+        return $payout->refresh();
     }
 
     /**
+     * TCK-594 (ADR-0039 §8) — payer une facture d'intervention validée : un `Payout`
+     * `service_provider`, soumis au même seuil, aux mêmes quatre yeux et à la même destination
+     * vérifiée qu'un reversement au bailleur.
+     *
      * @param  array<string,mixed>  $data
      */
-    public function markProcessed(Payout $payout, array $data = []): Payout
+    public function createForBill(User $user, ServiceProviderBill $bill, array $data): Payout
     {
-        abort_unless(
-            in_array($payout->status, [PayoutStatus::Pending, PayoutStatus::Scheduled, PayoutStatus::Processing], true),
-            422,
-            'Payout cannot be marked processed in its current state.'
-        );
+        SegregationOfDuties::assertDistinct($user, [$bill->provider_id], SegregationOfDuties::STEP_PREPARE);
 
-        $payout->update([
-            'status' => PayoutStatus::Completed,
-            'processed_at' => $data['processed_at'] ?? now(),
-            'transaction_id' => $data['transaction_id'] ?? $payout->transaction_id,
-            'payment_method' => $data['payment_method'] ?? $payout->payment_method,
-        ]);
+        $agency = Agency::query()->findOrFail($bill->agency_id);
+        $destination = $this->destinationOf($data['payout_method_id'] ?? null, (int) $bill->provider_id);
+
+        $payout = DB::transaction(function () use ($user, $bill, $agency, $destination, $data): Payout {
+            /** @var ServiceProviderBill $locked */
+            $locked = ServiceProviderBill::query()->whereKey($bill->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== ServiceProviderBillStatus::Validated) {
+                abort(422, __('money_out.bill.not_payable'));
+            }
+
+            $live = Payout::query()
+                ->where('service_provider_bill_id', $locked->id)
+                ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::holdingItems()))
+                ->exists();
+            abort_if($live, 409, __('money_out.bill.already_in_payout'));
+
+            $amount = (float) $locked->amount;
+
+            return Payout::create([
+                'service_provider_bill_id' => $locked->id,
+                'agency_id' => $agency->id,
+                'landlord_id' => $locked->provider_id,
+                'payee_role' => PayeeRole::ServiceProvider->value,
+                'issued_by_id' => $user->id,
+                'reference_number' => ReferenceNumberGenerator::payout(),
+                'status' => $this->initialStatus($agency, $amount, $data['scheduled_at'] ?? null)->value,
+                'gross_amount' => $amount,
+                'commission_amount' => 0,
+                'net_amount' => $amount,
+                'currency' => $locked->currency?->value ?? 'XOF',
+                'payment_method' => $data['payment_method'] ?? null,
+                'payout_method_id' => $destination?->id,
+                'scheduled_at' => $data['scheduled_at'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ]);
+        });
+
+        $this->notifyApprovers($payout, $agency);
 
         return $payout->refresh();
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4) — le second geste. Il n'est permis que depuis `awaiting_approval` : il
+     * ne se rejoue pas. Le net approuvé est figé ; un paiement dont le net aurait changé est refusé.
+     */
+    public function approve(Payout $payout, User $actor): Payout
+    {
+        DB::transaction(function () use ($payout, $actor): void {
+            /** @var Payout $locked */
+            $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+
+            abort_unless($locked->status === PayoutStatus::AwaitingApproval, 422, __('money_out.payout.not_awaiting_approval'));
+
+            SegregationOfDuties::assertDistinct(
+                $actor,
+                [$locked->issued_by_id, $locked->beneficiaryUserId()],
+                SegregationOfDuties::STEP_APPROVE,
+            );
+
+            $locked->update([
+                'status' => $locked->scheduled_at !== null ? PayoutStatus::Scheduled : PayoutStatus::Pending,
+                'approved_by_id' => $actor->id,
+                'approved_at' => now(),
+                'metadata' => array_merge($locked->metadata ?? [], [
+                    'approved_net_amount' => (string) $locked->net_amount,
+                ]),
+            ]);
+        });
+
+        return $payout->refresh();
+    }
+
+    /**
+     * Le troisième geste : l'argent est parti. Référence obligatoire hors espèces, destination
+     * vérifiée du bénéficiaire pour le mobile money et le virement, payeur ≠ approbateur.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    public function markProcessed(Payout $payout, array $data, User $actor): Payout
+    {
+        DB::transaction(function () use ($payout, $data, $actor): void {
+            /** @var Payout $locked */
+            $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+
+            abort_if($locked->status === PayoutStatus::AwaitingApproval, 422, __('money_out.payout.awaiting_approval'));
+            abort_unless(
+                in_array($locked->status, [PayoutStatus::Pending, PayoutStatus::Scheduled, PayoutStatus::Processing], true),
+                422,
+                __('money_out.payout.cannot_process'),
+            );
+
+            SegregationOfDuties::assertDistinct(
+                $actor,
+                [$locked->approved_by_id, $locked->beneficiaryUserId()],
+                SegregationOfDuties::STEP_PAY,
+            );
+
+            $approvedNet = $locked->metadata['approved_net_amount'] ?? null;
+            abort_if(
+                $locked->approved_by_id !== null && $approvedNet !== null
+                    && round((float) $approvedNet, 2) !== round((float) $locked->net_amount, 2),
+                422,
+                __('money_out.payout.amount_changed_since_approval'),
+            );
+
+            $method = $this->paymentMethodOf($data['payment_method'] ?? null, $locked);
+            abort_if($method === null, 422, __('money_out.payout.payment_method_required'));
+
+            $reference = isset($data['transaction_id']) ? trim((string) $data['transaction_id']) : '';
+            abort_if($method !== PaymentMethod::Cash && $reference === '', 422, __('money_out.payout.reference_required'));
+
+            $destination = $this->verifiedDestination($locked, $method, $data['payout_method_id'] ?? null);
+
+            $locked->update([
+                'status' => PayoutStatus::Completed,
+                'processed_at' => $data['processed_at'] ?? now(),
+                'processed_by_id' => $actor->id,
+                'transaction_id' => $reference !== '' ? $reference : $locked->transaction_id,
+                'payment_method' => $method,
+                'payout_method_id' => $destination?->id ?? $locked->payout_method_id,
+                'notes' => isset($data['notes']) && trim((string) $data['notes']) !== '' ? $data['notes'] : $locked->notes,
+                'metadata' => array_merge(
+                    $locked->metadata ?? [],
+                    $this->disbursement->disburse($locked, $destination, $reference !== '' ? $reference : null),
+                ),
+            ]);
+
+            if ($locked->payee_role === PayeeRole::ServiceProvider && $locked->service_provider_bill_id !== null) {
+                ServiceProviderBill::query()->whereKey($locked->service_provider_bill_id)
+                    ->update(['status' => ServiceProviderBillStatus::Paid->value]);
+            }
+        });
+
+        $payout->refresh();
+        $this->notifyBeneficiary($payout, new PayoutProcessedNotification($payout));
+
+        return $payout;
     }
 
     /**
@@ -91,21 +274,28 @@ class PayoutService
      */
     public function markFailed(Payout $payout, array $data): Payout
     {
+        abort_if($payout->status === PayoutStatus::AwaitingApproval, 422, __('money_out.payout.awaiting_approval'));
         abort_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
             422,
-            'Payout cannot be marked failed in its current state.'
+            __('money_out.payout.cannot_fail'),
         );
 
         $reason = isset($data['failed_reason']) ? trim((string) $data['failed_reason']) : '';
-        abort_if($reason === '', 422, 'A failure reason is required when marking a payout as failed.');
+        abort_if($reason === '', 422, __('money_out.payout.failed_reason_required'));
 
-        $payout->update([
-            'status' => PayoutStatus::Failed,
-            'failed_reason' => $reason,
-        ]);
+        DB::transaction(function () use ($payout, $reason): void {
+            $payout->update([
+                'status' => PayoutStatus::Failed,
+                'failed_reason' => $reason,
+            ]);
+            $this->detachItems($payout);
+        });
 
-        return $payout->refresh();
+        $payout->refresh();
+        $this->notifyBeneficiary($payout, new PayoutFailedNotification($payout));
+
+        return $payout;
     }
 
     public function cancel(Payout $payout): Payout
@@ -113,11 +303,294 @@ class PayoutService
         abort_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
             422,
-            'Payout cannot be cancelled in its current state.'
+            __('money_out.payout.cannot_cancel'),
         );
 
-        $payout->update(['status' => PayoutStatus::Cancelled]);
+        DB::transaction(function () use ($payout): void {
+            $payout->update(['status' => PayoutStatus::Cancelled]);
+            $this->detachItems($payout);
+        });
 
         return $payout->refresh();
+    }
+
+    /**
+     * @param  list<int>  $leaseIds
+     * @param  list<int>  $bookingIds
+     * @param  list<int>  $billIds
+     * @param  array<string,mixed>  $data
+     */
+    private function createLocked(
+        User $user,
+        User $landlord,
+        Agency $agency,
+        array $leaseIds,
+        array $bookingIds,
+        array $billIds,
+        ?PayoutMethod $destination,
+        array $data,
+    ): Payout {
+        // ADR-0039 §3 — le point de sérialisation est la LIGNE PARENT (bail, réservation), jamais un
+        // `lockForUpdate()` sur un agrégat (piège PostgreSQL n° 2). L'ordre des verrous est fixe.
+        $leasePayments = LeasePayment::query()->whereIn('id', $leaseIds)->get();
+        Lease::query()->whereIn('id', $leasePayments->pluck('lease_id')->unique()->sort()->values())
+            ->orderBy('id')->lockForUpdate()->get(['id']);
+        $bookingPayments = BookingPayment::query()->whereIn('id', $bookingIds)->get();
+        Booking::query()->whereIn('id', $bookingPayments->pluck('booking_id')->unique()->sort()->values())
+            ->orderBy('id')->lockForUpdate()->get(['id']);
+        $bills = ServiceProviderBill::query()->whereIn('id', $billIds)->orderBy('id')->lockForUpdate()->get();
+
+        // Relu sous verrou : une pièce reversée entre la vérification et le verrou rend 409. La
+        // course que ce test ne voit pas, l'index unique la refuse — et elle devient 409 aussi.
+        $alreadyOut = ($leaseIds !== [] && DB::table('payout_lease_payment')->whereIn('lease_payment_id', $leaseIds)->exists())
+            || ($bookingIds !== [] && DB::table('payout_booking_payment')->whereIn('booking_payment_id', $bookingIds)->exists())
+            || $bills->contains(fn (ServiceProviderBill $bill) => $bill->imputed_payout_id !== null);
+        abort_if($alreadyOut, 409, __('money_out.payout.already_paid_out'));
+
+        $computation = $this->calculator->compute(
+            $agency,
+            $leasePayments->load('lease:id,reference_number,property_id,commission_rate'),
+            $bookingPayments->load('booking:id,reference_number,property_id'),
+            $bills,
+        );
+        $totals = $computation['totals'];
+        abort_if($totals['net'] < 0, 422, __('money_out.payout.negative_net'));
+
+        $paidAt = $leasePayments->pluck('paid_at')->concat($bookingPayments->pluck('paid_at'))->filter();
+        $leaseOrigin = $bookingPayments->isEmpty() ? $leasePayments->pluck('lease_id')->unique() : collect();
+        $bookingOrigin = $leasePayments->isEmpty() ? $bookingPayments->pluck('booking_id')->unique() : collect();
+
+        $payout = Payout::create([
+            // L'origine : un seul bail (resp. réservation) → sa colonne ; sinon les pivots la portent.
+            'lease_id' => $leaseOrigin->count() === 1 ? $leaseOrigin->first() : null,
+            'booking_id' => $bookingOrigin->count() === 1 ? $bookingOrigin->first() : null,
+            'agency_id' => $agency->id,
+            'landlord_id' => $landlord->id,
+            'payee_role' => PayeeRole::Landlord->value,
+            'issued_by_id' => $user->id,
+            'reference_number' => ReferenceNumberGenerator::payout(),
+            'status' => $this->initialStatus($agency, $totals['net'], $data['scheduled_at'] ?? null)->value,
+            'period_start' => $data['period_start'] ?? $this->dateOf($paidAt->min()),
+            'period_end' => $data['period_end'] ?? $this->dateOf($paidAt->max()),
+            'gross_amount' => $totals['gross'],
+            'commission_amount' => $totals['commission'],
+            'fees_amount' => $totals['fees'] > 0 ? $totals['fees'] : null,
+            'net_amount' => $totals['net'],
+            'currency' => $computation['currency'],
+            'payment_method' => $data['payment_method'] ?? null,
+            'payout_method_id' => $destination?->id,
+            'scheduled_at' => $data['scheduled_at'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        if ($leaseIds !== []) {
+            $payout->leasePayments()->attach($leaseIds);
+        }
+        if ($bookingIds !== []) {
+            $payout->bookingPayments()->attach($bookingIds);
+        }
+        if ($billIds !== []) {
+            ServiceProviderBill::query()->whereIn('id', $billIds)->update(['imputed_payout_id' => $payout->id]);
+        }
+
+        return $payout;
+    }
+
+    /**
+     * L'agence au nom de laquelle on verse : celle du profil actif. Le super-admin la désigne
+     * (`agency_id`) — c'est lui qui l'emporte sur le profil qu'il tiendrait par ailleurs ; pour
+     * tout autre, `agency_id` est ignoré.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    private function issuingAgency(User $user, array $data): Agency
+    {
+        $agencyId = $user->isSuperAdmin() && isset($data['agency_id'])
+            ? (int) $data['agency_id']
+            : $user->agency_id;
+
+        abort_if($agencyId === null, 403, __('money_out.payout.agency_required'));
+
+        return Agency::query()->findOrFail($agencyId);
+    }
+
+    /**
+     * TCK-594 (AC19) — chaque pièce citée relève de l'agence ET du bailleur, et c'est un encaissement
+     * reversable. Une pièce inconnue est traitée comme étrangère : on ne dit pas qu'elle n'existe pas.
+     *
+     * @param  list<int>  $leaseIds
+     * @param  list<int>  $bookingIds
+     * @param  list<int>  $billIds
+     */
+    private function assertItemsInScope(Agency $agency, User $landlord, array $leaseIds, array $bookingIds, array $billIds): void
+    {
+        $leaseTypes = array_map(fn ($t) => $t->value, PayoutCalculator::LEASE_TYPES);
+        $leasePayments = LeasePayment::query()->with('lease:id,agency_id,landlord_id')->whereIn('id', $leaseIds)->get()->keyBy('id');
+        foreach ($leaseIds as $id) {
+            $payment = $leasePayments->get($id);
+            if ($payment === null || $payment->lease === null
+                || (int) $payment->lease->agency_id !== (int) $agency->id
+                || (int) $payment->lease->landlord_id !== (int) $landlord->id) {
+                $this->foreignItem('lease_payment_ids', $id);
+            }
+            if ($payment->status !== PaymentStatus::Paid || ! in_array($payment->payment_type?->value, $leaseTypes, true)) {
+                $this->ineligibleItem('lease_payment_ids', $id);
+            }
+        }
+
+        $bookingTypes = array_map(fn ($t) => $t->value, PayoutCalculator::BOOKING_TYPES);
+        $bookingPayments = BookingPayment::query()->with('booking:id,agency_id,property_id', 'booking.property:id,user_id')
+            ->whereIn('id', $bookingIds)->get()->keyBy('id');
+        foreach ($bookingIds as $id) {
+            $payment = $bookingPayments->get($id);
+            if ($payment === null || $payment->booking === null
+                || (int) $payment->booking->agency_id !== (int) $agency->id
+                || (int) $payment->booking->property?->user_id !== (int) $landlord->id) {
+                $this->foreignItem('booking_payment_ids', $id);
+            }
+            if ($payment->status !== PaymentStatus::Paid || ! in_array($payment->payment_type?->value, $bookingTypes, true)) {
+                $this->ineligibleItem('booking_payment_ids', $id);
+            }
+        }
+
+        $bills = ServiceProviderBill::query()->with('property:id,user_id')->whereIn('id', $billIds)->get()->keyBy('id');
+        foreach ($billIds as $id) {
+            $bill = $bills->get($id);
+            if ($bill === null
+                || (int) $bill->agency_id !== (int) $agency->id
+                || (int) $bill->property?->user_id !== (int) $landlord->id) {
+                $this->foreignItem('service_provider_bill_ids', $id);
+            }
+            if (! $bill->rechargeable_to_landlord
+                || ! in_array($bill->status, [ServiceProviderBillStatus::Validated, ServiceProviderBillStatus::Paid], true)) {
+                $this->ineligibleItem('service_provider_bill_ids', $id);
+            }
+        }
+    }
+
+    private function foreignItem(string $field, int $id): never
+    {
+        throw ValidationException::withMessages([$field => __('money_out.payout.foreign_item', ['id' => $id])]);
+    }
+
+    private function ineligibleItem(string $field, int $id): never
+    {
+        throw ValidationException::withMessages([$field => __('money_out.payout.ineligible_item', ['id' => $id])]);
+    }
+
+    /** Une destination citée à la préparation appartient au bénéficiaire (vérifiée ou non). */
+    private function destinationOf(mixed $payoutMethodId, int $beneficiaryId): ?PayoutMethod
+    {
+        if ($payoutMethodId === null || $payoutMethodId === '') {
+            return null;
+        }
+
+        $method = PayoutMethod::query()->whereKey((int) $payoutMethodId)->where('user_id', $beneficiaryId)->first();
+        if ($method === null) {
+            throw ValidationException::withMessages(['payout_method_id' => __('money_out.payout.foreign_destination')]);
+        }
+
+        return $method;
+    }
+
+    private function paymentMethodOf(mixed $requested, Payout $payout): ?PaymentMethod
+    {
+        if ($requested instanceof PaymentMethod) {
+            return $requested;
+        }
+        if (is_string($requested) && $requested !== '') {
+            return PaymentMethod::tryFrom($requested);
+        }
+
+        return $payout->payment_method;
+    }
+
+    /**
+     * ADR-0039 §6 — le mobile money et le virement ne partent que vers une destination VÉRIFIÉE du
+     * bénéficiaire, de la nature du moyen choisi. Le locataire d'une caution rendue n'a pas
+     * toujours de compte : sa destination reste hors de ce contrôle (Notes du ticket).
+     */
+    private function verifiedDestination(Payout $payout, PaymentMethod $method, mixed $requestedId): ?PayoutMethod
+    {
+        $kinds = self::DESTINATION_KINDS[$method->value] ?? null;
+        if ($kinds === null || $payout->payee_role === PayeeRole::Tenant) {
+            return null;
+        }
+
+        $id = ($requestedId !== null && $requestedId !== '') ? (int) $requestedId : $payout->payout_method_id;
+        $destination = $id === null ? null : PayoutMethod::query()
+            ->whereKey($id)
+            ->where('user_id', $payout->beneficiaryUserId())
+            ->verified()
+            ->first();
+
+        abort_if(
+            $destination === null || ! in_array($destination->kind, $kinds, true),
+            422,
+            __('money_out.payout.unverified_destination'),
+        );
+
+        return $destination;
+    }
+
+    private function initialStatus(Agency $agency, float $net, mixed $scheduledAt): PayoutStatus
+    {
+        // ADR-0039 §4 — pas de seuil par défaut (porteur, 2026-10-06) : `null` ⇒ jamais d'attente.
+        $threshold = $agency->payout_approval_threshold;
+        if ($threshold !== null && $net >= (float) $threshold) {
+            return PayoutStatus::AwaitingApproval;
+        }
+
+        return $scheduledAt !== null && $scheduledAt !== '' ? PayoutStatus::Scheduled : PayoutStatus::Pending;
+    }
+
+    /**
+     * Les pièces d'un reversement annulé ou échoué redeviennent reversables (ADR-0039 §3).
+     */
+    private function detachItems(Payout $payout): void
+    {
+        DB::table('payout_lease_payment')->where('payout_id', $payout->id)->delete();
+        DB::table('payout_booking_payment')->where('payout_id', $payout->id)->delete();
+        ServiceProviderBill::query()->where('imputed_payout_id', $payout->id)->update(['imputed_payout_id' => null]);
+    }
+
+    private function notifyApprovers(Payout $payout, Agency $agency): void
+    {
+        if ($payout->status !== PayoutStatus::AwaitingApproval) {
+            return;
+        }
+
+        $excluded = array_filter([(int) $payout->issued_by_id, $payout->beneficiaryUserId()]);
+        $recipients = $this->approvers->holders($agency)
+            ->reject(fn (User $user): bool => in_array((int) $user->id, $excluded, true));
+
+        if ($recipients->isNotEmpty()) {
+            Notification::send($recipients, new PayoutAwaitingApprovalNotification($payout));
+        }
+    }
+
+    private function notifyBeneficiary(Payout $payout, object $notification): void
+    {
+        $beneficiaryId = $payout->beneficiaryUserId();
+        $beneficiary = $beneficiaryId !== null ? User::query()->find($beneficiaryId) : null;
+        $beneficiary?->notify($notification);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function ids(mixed $values): array
+    {
+        return Collection::wrap($values)
+            ->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v) => (int) $v)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function dateOf(mixed $value): ?string
+    {
+        return $value === null ? null : Carbon::parse($value)->toDateString();
     }
 }

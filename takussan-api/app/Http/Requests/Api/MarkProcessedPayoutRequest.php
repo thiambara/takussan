@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\PaymentMethod;
+use App\Models\Payout;
 use Illuminate\Validation\Rule;
 
 /**
@@ -31,12 +32,26 @@ class MarkProcessedPayoutRequest extends BaseFormRequest
         return $this->user()?->can('update', $this->route('payout')) === true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * TCK-594 (ADR-0039 §4, §6) — la référence est obligatoire hors espèces
+     * (`required_unless:payment_method,cash`, le moyen se lisant sur la requête, à défaut sur le
+     * reversement) ; en espèces, une note suffit. Le moyen est exigé s'il n'est pas déjà connu.
+     *
+     * Point de raccord TCK-589 : le step-up 2FA s'ajoute sur la route, pas ici.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
+        $payout = $this->route('payout');
+        $known = $payout instanceof Payout ? $payout->payment_method?->value : null;
+        $method = $this->input('payment_method') ?? $known;
+
         return [
-            'transaction_id' => ['nullable', 'string'],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
+            'payment_method' => [$known === null ? 'required' : 'nullable', Rule::enum(PaymentMethod::class)],
+            'transaction_id' => [$method === PaymentMethod::Cash->value ? 'nullable' : 'required', 'string', 'max:255'],
+            'notes' => [$method === PaymentMethod::Cash->value ? 'required_without:transaction_id' : 'nullable', 'nullable', 'string', 'max:2000'],
+            'payout_method_id' => ['nullable', 'integer'],
         ];
     }
 }

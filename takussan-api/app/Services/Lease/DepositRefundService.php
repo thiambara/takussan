@@ -6,6 +6,7 @@ use App\Events\Lease\LeaseDepositRefunded;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
@@ -97,6 +98,9 @@ class DepositRefundService
                 'lease_id' => $lease->id,
                 'agency_id' => $lease->agency_id,
                 'landlord_id' => $lease->landlord_id,
+                // TCK-594 (ADR-0039 §2) — l'argent rendu au LOCATAIRE : ce n'est pas un reversement au
+                // bailleur, et aucun lecteur de « reversé au bailleur » ne doit le compter.
+                'payee_role' => PayeeRole::Tenant->value,
                 'issued_by_id' => $issuedBy->id,
                 'reference_number' => ReferenceNumberGenerator::payout(),
                 'status' => PayoutStatus::Pending->value,

@@ -21,6 +21,14 @@ class AgencyResource extends BaseResource
             'website' => $this->website,
             'commission_rate' => $this->commission_rate !== null ? (float) $this->commission_rate : null,
             'currency' => $this->currency?->value ?? 'XOF',
+            // TCK-594 (ADR-0039 §4, §5) — le seuil des quatre yeux (`null` = désactivé), la TVA par
+            // défaut des factures et les mentions légales que le PDF imprime.
+            'payout_approval_threshold' => $this->payout_approval_threshold !== null ? (float) $this->payout_approval_threshold : null,
+            'default_tax_rate' => $this->default_tax_rate !== null ? (float) $this->default_tax_rate : null,
+            'legal_name' => $this->legal_name,
+            'ninea' => $this->ninea,
+            'rccm' => $this->rccm,
+            'legal_address' => $this->legal_address,
             'is_verified' => (bool) $this->is_verified,
             'status' => $this->status?->value,
             'properties_count' => $this->properties_count,
