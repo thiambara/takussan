@@ -242,4 +242,34 @@ class AgentHandoverTest extends ApiTestCase
         $this->actingAsApi($leaver)->apiDelete("/api/tasks/{$tid}")->assertForbidden();
         $this->assertSame($this->successor->id, Task::query()->find($tid)->assigned_to_id);
     }
+
+    /**
+     * verif-591 M2 — la passation ne s'applique qu'à un membre de l'équipe : celle d'un bailleur
+     * est refusée (422 `member_not_staff`), portefeuille compris, et sa co-propriété reste à lui.
+     * Pour un agent, seules ses collaborations d'AGENT passent : une co-propriété ne se passe pas.
+     */
+    public function test_only_a_team_member_is_handed_over_and_only_his_agent_collaborations(): void
+    {
+        $landlord = $this->member('owner');
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $coOwned = PropertyCollaborator::query()->create([
+            'property_id' => $property->id, 'user_id' => $landlord->id, 'role' => CollaboratorRole::CoOwner,
+            'invited_at' => now(), 'accepted_at' => now(),
+        ]);
+        $base = "/api/agencies/{$this->agency->id}/members/{$landlord->id}";
+
+        $this->actingAsApi($this->admin)->apiGet("{$base}/portfolio")
+            ->assertStatus(422)->assertJsonPath('code', 'member_not_staff');
+        $this->actingAsApi($this->admin)->apiPost("{$base}/handover", ['successor_id' => $this->successor->id])
+            ->assertStatus(422)->assertJsonPath('code', 'member_not_staff');
+        $this->assertSame($landlord->id, $coOwned->fresh()->user_id);
+
+        $leaversCoOwnership = PropertyCollaborator::query()->create([
+            'property_id' => $property->id, 'user_id' => $this->leaver->id, 'role' => CollaboratorRole::CoOwner,
+        ]);
+        $this->actingAsApi($this->admin)->apiGet($this->url('portfolio'))->assertJsonPath('data.portfolio.collaborations', 2);
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])
+            ->assertOk()->assertJsonPath('data.moved.collaborations', 2);
+        $this->assertSame($this->leaver->id, $leaversCoOwnership->fresh()->user_id);
+    }
 }

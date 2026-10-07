@@ -17,6 +17,7 @@ return [
     ],
     'handover' => [
         'successor_not_staff' => "Le repreneur doit être un agent ou un administrateur de l'agence, autre que le partant.",
+        'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
         'successor_required' => 'Choisissez un repreneur, ou confirmez que le portefeuille reste sans repreneur.',
     ],
 ];

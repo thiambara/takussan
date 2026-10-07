@@ -4,6 +4,7 @@ namespace App\Services\Agency;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\VisitStatus;
@@ -80,8 +81,10 @@ class AgentPortfolio
                 ->where('assigned_to', $member->id)
                 ->whereNotIn('status', self::CLOSED_MAINTENANCE)
                 ->whereHas('property', $inAgency),
+            // verif-591 M2 — une collaboration d'AGENT se passe ; une co-propriété, non.
             'collaborations' => PropertyCollaborator::query()
                 ->where('user_id', $member->id)
+                ->where('role', CollaboratorRole::Agent)
                 ->whereHas('property', $inAgency),
             'customers' => UserCustomerRelationship::query()
                 ->where('user_id', $member->id)

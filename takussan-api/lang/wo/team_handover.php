@@ -16,6 +16,7 @@ return [
     ],
     'handover' => [
         'successor_not_staff' => 'Ki koy jël war na doon ajaŋ walla njiitu ajaans bi, te du ki dem.',
+        'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
         'successor_required' => 'Tànnal ku koy jël, walla nangu ne liggéey yi dañuy des te kenn du leen jël.',
     ],
 ];

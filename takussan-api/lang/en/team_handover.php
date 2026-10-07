@@ -16,6 +16,7 @@ return [
     ],
     'handover' => [
         'successor_not_staff' => 'The successor must be an agent or an administrator of the agency, other than the departing member.',
+        'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
         'successor_required' => 'Choose a successor, or confirm that the portfolio stays unassigned.',
     ],
 ];
