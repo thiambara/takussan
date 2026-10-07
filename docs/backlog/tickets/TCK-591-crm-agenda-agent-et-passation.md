@@ -482,7 +482,7 @@ téléphone tenu d'une main, entre deux visites**.
       l.51 par clé `__('errors.calendar.cross_agency_forbidden')` ; `task` (personnelles, `due_at`), `lease_event` (`end_date`,
       `renewal_date`), `maintenance` (`scheduled_at` ; personnel : biens de l'agence ; prestataire :
       `assigned_to = moi`) ; `mine=1` = `agent_id`/`assigned_to_id`/`assigned_to` = moi.
-- [ ] `CalendarFeedController` + `IcsCalendarRenderer` selon l'ADR ; révocation des flux au retrait.
+- [x] `CalendarFeedController` + `IcsCalendarRenderer` selon l'ADR ; révocation des flux au retrait.
 - [ ] Front : types, légende et filtre « Mes rendez-vous » ; abonnement ; la page s'ouvre au
       prestataire (option retenue par défaut, cf. Contraintes 9 / 446) et ne lui demande que le type
       `maintenance` — le raccourci de `DashboardShortcuts.tsx:78` cesse de mener à une redirection.
@@ -538,7 +538,10 @@ téléphone tenu d'une main, entre deux visites**.
       `held_properties` (`user_id` = le partant) → `user_id` ← repreneur du personnel de la même
       agence, selon la question 2 de l'ADR « agent responsable ». Un bien dont `user_id` est un
       bailleur n'entre dans aucune des deux catégories par son `user_id`.
-- [ ] `App\Services\Agency\AgencyMemberRemovalService::remove(Agency, User $member, User $actor, bool
+      *Livré sauf les deux catégories de biens — attend TCK-504 : `held_properties` est compté
+      (inventaire, garde du retrait) mais pas transmis ; `responsible_properties` attend la marque
+      de principal.*
+- [x] `App\Services\Agency\AgencyMemberRemovalService::remove(Agency, User $member, User $actor, bool
       $leaveUnassigned)` — **seul** chemin de retrait : `AgencyController::removeAgent` et
       `AgentInvitationService::remove` y délèguent. Il garde les deux gardes actuelles
       (`primary_admin_id`, dernier admin sous verrou, `AgencyController.php:230-260`), accepte un
@@ -547,13 +550,13 @@ téléphone tenu d'une main, entre deux visites**.
       (422 `portfolio_not_empty`), journalise `agent_removed` / `agency_admin_removed`
       (`activity('Membership')`, propriétés `agency_id`, profils supprimés, `leave_unassigned`) et
       révoque les flux iCalendar du membre dans l'agence.
-- [ ] Autorisation du retrait par la capacité `team.remove` dans l'agence de la route (au lieu de
+- [x] Autorisation du retrait par la capacité `team.remove` dans l'agence de la route (au lieu de
       `can('update', $agency)`, `AgencyController.php:274-277`) — lecteur de la capacité.
 - [ ] Front : « Retirer de l'agence » n'est proposé que sur un membre du personnel (agent, admin
       d'agence), jamais sur un bailleur seul.
 - [ ] `SetPrimaryContactCustomerRequest` : `user_id` = personnel de l'agence du client ; capacité
       `crm.assign` ; front : désigner le référent depuis la fiche.
-- [ ] Absence selon l'ADR (migration, service, résolveur `AgentAvailability::substituteFor()`),
+- [x] Absence selon l'ADR (migration, service, résolveur `AgentAvailability::substituteFor()`),
       `TaskPolicy::view` étendu au remplaçant pendant la période.
 - [ ] Front : assistant de passation déclenché par « Retirer » ; « Déclarer une absence ».
 
@@ -625,13 +628,13 @@ téléphone tenu d'une main, entre deux visites**.
       (`PrimaryPropertyContact::for` = repreneur) **avec `user_id` toujours = B**, `user_id` du bien
       saisi = repreneur —, la collaboration en double n'existe qu'une fois, `activity_log` porte une
       entrée par catégorie ; une erreur injectée à mi-parcours ne déplace rien.
-- [ ] AC13 — `DELETE /api/agencies/{a}/members/{u}` sur un agent au portefeuille non vide, sans
+- [x] AC13 — `DELETE /api/agencies/{a}/members/{u}` sur un agent au portefeuille non vide, sans
       passation ni `leave_unassigned`, rend 422 `portfolio_not_empty` ; avec, il journalise
       `agent_removed` (rouge sur le code actuel, qui ne journalise pas). Un agent tenant un rôle
       personnalisé **avec** `team.remove` retire un collègue (200 ; 403 aujourd'hui) ; un admin dont
       le rôle **retire** `team.remove` reçoit 403 (200 aujourd'hui). `primary_admin_id` et dernier
       admin : 422 inchangés. Après retrait, le flux iCalendar du retiré rend 404.
-- [ ] AC14 — pendant une absence active de X remplacé par Y, Y voit les tâches de X et le résolveur
+- [x] AC14 — pendant une absence active de X remplacé par Y, Y voit les tâches de X et le résolveur
       rend Y ; après la date de fin, plus rien ; aucune ligne existante n'a changé.
 - [ ] AC15 — front : depuis un écran de 360 px, au clavier comme au doigt, l'agent change l'étape
       d'un client, coche une tâche, et ouvre WhatsApp sur le bon numéro avec le message prérempli ;
@@ -662,7 +665,7 @@ téléphone tenu d'une main, entre deux visites**.
       `message` vaut `__('errors.calendar.cross_agency_forbidden')` dans la locale demandée — **deux
       chaînes différentes** en `fr` et `en` (aujourd'hui la même chaîne anglaise) ; même vérification
       pour le 422 d'assigné de tâche (AC18).
-- [ ] AC21 — **sécurité, prouvé par ablation** : un agent X retiré de A avec `leave_unassigned=true`,
+- [x] AC21 — **sécurité, prouvé par ablation** : un agent X retiré de A avec `leave_unassigned=true`,
       qui garde une visite planifiée `agent_id = X` sur un bien de A, ne la reçoit plus dans
       `GET /api/calendar` (il la reçoit aujourd'hui) ; rouge si l'on rétablit la clause `agent_id = moi`
       sans condition d'agence.
@@ -797,3 +800,39 @@ téléphone tenu d'une main, entre deux visites**.
   (le bien de l'autre agence sort) ; `alreadySent` retiré → rouge (`MultipleRecordsFoundException`,
   deux notifications) ; `matchProspects` → `true` → rouge (le bailleur lit les prospects) ; garde
   « au moins un critère » retirée → rouge (un client sans critère correspond).
+- **§8 absence** (`ff28048c`) — re-mesuré : `role_delegations` sans colonne d'absent, `delegator_id`
+  = l'auteur ; `delegationsAllow` lit `AgencyRoleBaseType::tryFrom()` et `hasActiveAgencyDelegation`
+  filtre par rôle : un rôle `absence_cover` n'accorde rien sans toucher au résolveur. Conforme à
+  l'ADR-0035. Ajouts : la ligne d'absence est créée sans événement `RoleDelegationCreated` /
+  `Activated` (les trois `NotifyDelegation*` ignorent de toute façon une absence, pour les
+  événements que le job d'activation et la révocation émettent) ; chevauchement jugé sous verrou de
+  la ligne de l'absent ; la couverture d'une tâche se juge dans l'agence de son `taskable`.
+  `php artisan test tests/Feature/Agency/AgentAbsenceTest.php` → 6 verts ; délégations
+  (`tests/Unit/Policies/RoleDelegationPolicyTest.php`, `tests/Feature/Api/Permissions`,
+  `ProcessRoleDelegationsJobTest`) → 59 verts. **Ablations** (après commit) : `coversAssignee`
+  retiré → rouge ; routage retiré → rouge ; absence écrite en rôle `agency_admin` → rouge (les
+  capacités du remplaçant changent) ; filtre de la console des délégations retiré → rouge ;
+  garde de `NotifyDelegationRevoked` retirée → rouge (une notification part) ; contrôle de
+  chevauchement retiré → rouge.
+- **§8 retrait et passation** (`c20440e8`, `+1`) — re-mesuré : `AgencyController.php:225-266` exigeait
+  un `AgentProfile` (admin seul → 422 `user_not_in_agency`), sans journal, autorisé par
+  `can('update', $agency)` ; `AgentInvitationService::remove` journalisait sous `Invitation` : conforme.
+  `AgentPortfolio` porte UNE requête par catégorie, partagée par l'inventaire, la passation et la
+  garde `portfolio_not_empty` (qui rend les comptes). Seul le travail en cours compte (tâches
+  ouvertes, visites à venir planifiées/confirmées, interventions non closes). **Écarts** :
+  `held_properties` est compté mais non transmis (TCK-504) — un agent qui tient des biens de
+  l'agence ne se retire donc qu'avec `leave_unassigned` d'ici là ; le retrait révoque aussi les
+  délégations et absences où figure le membre ; `AgentInvitationService::remove` garde la
+  suppression directe pour une invitation jamais acceptée (profil sans compte) ; `team.remove` est
+  lue sous le profil actif de l'agence de la route plus le court-circuit `primary_admin_id`
+  (`AgencyPolicy::removeMember`). L'éligibilité d'une intervention (TCK-592) est, avant sa fusion,
+  le personnel de l'agence : le repreneur l'est toujours, aucune désassignation n'est donc
+  observable aujourd'hui. `php artisan test tests/Feature/Agency/{AgencyMemberRemovalTest,AgentHandoverTest,AgentRemovalJournalTest}.php`
+  → 12 verts ; `TeamFormationBoundaryTest`, `TeamManagementTest`, `AgencyMembersListTest`,
+  `LastAdminGuardTest`, `AgencyRoleAssignmentTest`, `AgencyIndividualCustomRolesTest`,
+  `InviteAgentTest` → 65 verts. **Ablations** (après commit) : `authorizeAdmin` rétabli → AC13
+  rouge ; garde de portefeuille retirée → rouge ; journal retiré → rouge ; révocation du flux
+  retirée → **vert** d'abord (le flux mourait quand même : `CalendarFeedService::resolve` refuse un
+  non-personnel), d'où l'assertion `revoked_at` ajoutée, puis rouge ; exigence d'`AgentProfile`
+  rétablie → AC23 rouge ; dédoublonnage des collaborations retiré → rouge ; transaction retirée →
+  « erreur à mi-parcours » rouge ; repreneur bailleur accepté → rouge.
