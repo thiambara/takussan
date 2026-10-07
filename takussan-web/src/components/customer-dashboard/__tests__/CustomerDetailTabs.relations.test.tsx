@@ -52,9 +52,9 @@ describe('CustomerDetailTabs — onglet relations', () => {
   });
 
   it('affiche un libellé neutre pour une valeur inconnue, jamais son code', async () => {
-    await ongletRelations([relation(2, 'broker_client')]);
+    await ongletRelations([relation(2, 'guarantor_client')]);
 
     expect(screen.getByText('Autre relation')).toBeInTheDocument();
-    expect(screen.queryByText(/broker/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/guarantor/)).not.toBeInTheDocument();
   });
 });
