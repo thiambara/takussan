@@ -60,7 +60,7 @@ class MaintenanceRequestResource extends BaseResource
             'accepted_at' => $this->iso($this->accepted_at),
             'access_instructions' => $this->access_instructions,
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
-            'requester' => $this->whenLoaded('requester', fn () => $this->userSummary($this->requester)),
+            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user())),
             'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
             'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
             'created_at' => $this->iso($this->created_at),
@@ -282,6 +282,25 @@ class MaintenanceRequestResource extends BaseResource
                 ? ['id' => $property->agency->id, 'name' => $property->agency->name]
                 : null,
         ];
+    }
+
+    /**
+     * TCK-592 (verif-592, mineur 9) — l'e-mail du demandeur suit son téléphone (P6) : au prestataire
+     * assigné, seulement APRÈS acceptation. `include=requester` le lui rendait avant.
+     */
+    private function requesterSummary(?User $viewer): ?array
+    {
+        $summary = $this->userSummary($this->requester);
+
+        if ($summary !== null && $viewer !== null
+            && $this->assigned_to === $viewer->id
+            && $this->requester_id !== $viewer->id
+            && ! $this->isPrincipal($viewer)
+            && ! $this->opensAccess($viewer)) {
+            unset($summary['email']);
+        }
+
+        return $summary;
     }
 
     private function userSummary(?User $user): ?array

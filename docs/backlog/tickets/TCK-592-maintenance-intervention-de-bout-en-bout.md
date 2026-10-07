@@ -1001,3 +1001,16 @@ corrigent rien.
   - clé par IP : 1 rouge. Sous `Sanctum::actingAs`, `visitorRateLimitKey` retombe sur l'IP :
     c'est ce rouge qui a fait retenir `$request->user()`.
 - Les 46 tests qui postent un message sont verts.
+
+**Mineur 9c — e-mail du demandeur avant acceptation.**
+
+- `requesterSummary()` retire `email` pour le prestataire assigné qui n'est ni demandeur ni donneur
+  d'ordre, tant que le kit d'accès ne lui est pas ouvert (`opensAccess` : accepté, non terminal).
+  C'est la règle du téléphone.
+- La règle vaut pour la fiche comme pour la liste.
+- Test : `MaintenanceAccessKitTest::test_requester_email_reaches_the_provider_only_after_acceptance`.
+- Sur `05dce4fc` : 1 rouge.
+- Ablations :
+  - sans retrait : 1 rouge ;
+  - jamais après acceptation : 1 rouge.
+- Le front type déjà `email?` comme facultatif.

@@ -72,6 +72,28 @@ class MaintenanceAccessKitTest extends TestCase
     }
 
     /** Photos « avant » : au prestataire accepté seulement. */
+    /** verif-592, mineur 9 — l'e-mail du demandeur suit son téléphone : après acceptation. */
+    public function test_requester_email_reaches_the_provider_only_after_acceptance(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'tenant' => $tenant, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::Assigned);
+
+        Sanctum::actingAs($provider);
+        $show = $this->getJson("/api/maintenance-requests/{$mr->id}?include=requester")->assertOk();
+        $this->assertSame($tenant->id, $show->json('data.requester.id'));
+        $this->assertArrayNotHasKey('email', $show->json('data.requester'));
+        $row = collect($this->getJson('/api/maintenance-requests?include=requester')->assertOk()->json('data'))->firstWhere('id', $mr->id);
+        $this->assertArrayNotHasKey('email', $row['requester']);
+
+        $this->postJson("/api/maintenance-requests/{$mr->id}/accept")->assertOk();
+        $this->getJson("/api/maintenance-requests/{$mr->id}?include=requester")
+            ->assertJsonPath('data.requester.email', $tenant->email);
+
+        // Le donneur d'ordre le lit sans condition.
+        Sanctum::actingAs($landlord);
+        $this->getJson("/api/maintenance-requests/{$mr->id}?include=requester")
+            ->assertJsonPath('data.requester.email', $tenant->email);
+    }
+
     public function test_before_photos_require_acceptance(): void
     {
         Storage::fake(config('media-library.disk_name'));
