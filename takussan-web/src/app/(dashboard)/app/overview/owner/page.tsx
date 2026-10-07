@@ -12,6 +12,8 @@ import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
 import type { Payout } from '@/types/invoice';
 import { PageHeader } from '@/components/console';
+import { getMeAction } from '@/app/actions/auth';
+import { isAdmin, isAgent } from '@/lib/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.overviewOwner');
@@ -33,6 +35,10 @@ export default async function OwnerDashboardPage() {
   const data = payload.data;
   const ts = payload.timeseries;
   const pendingPayouts = await fetchPendingOwnerPayouts(data.owner_id);
+  // TCK-587 — le bailleur hors personnel PROPOSE un bien à son agence ; il ne l'ajoute pas au
+  // catalogue. `getMeAction` est mémoïsé par rendu : le layout de ce segment l'a déjà lu.
+  const { roles } = await getMeAction();
+  const proposition = !isAgent(roles) && !isAdmin(roles);
 
   return (
     <div className="space-y-6">
@@ -45,9 +51,11 @@ export default async function OwnerDashboardPage() {
       {(data.portfolio?.total ?? 0) === 0 && (
         <section className="rounded-2xl border border-dashed border-border bg-card p-6">
           <h2 className="text-base font-semibold text-foreground">{t('emptyTitle')}</h2>
-          <p className="mt-1 text-sm text-pretty text-muted-foreground">{t('emptyBodyFull')}</p>
+          <p className="mt-1 text-sm text-pretty text-muted-foreground">
+            {proposition ? t('proposalEmptyBody') : t('emptyBodyFull')}
+          </p>
           <Link href="/app/properties/new" className={buttonVariants({ className: 'mt-4' })}>
-            {t('emptyCta')}
+            {proposition ? t('proposalEmptyCta') : t('emptyCta')}
           </Link>
         </section>
       )}

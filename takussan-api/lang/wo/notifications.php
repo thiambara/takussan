@@ -302,4 +302,9 @@ return [
         'next' => 'Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail.',
     ],
     // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
+
+    // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
+    'property_proposed' => [
+        'title' => 'Kër gu ab boroom kër yónnee : :title',
+    ],
 ];

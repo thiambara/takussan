@@ -112,6 +112,7 @@
       "dashboard": "Dashboard",
       "myProperties": "My properties",
       "publishProperty": "Publish a property",
+      "proposeProperty": "Propose a property to my agency",
       "myFavorites": "My favourites",
       "savedSearches": "Saved searches",
       "myVisits": "My viewings",
@@ -1291,6 +1292,8 @@
       },
       "publish": "Publish listing",
       "resumeLater": "Resume later",
+      "proposalFinish": "Propose to my agency",
+      "proposalNotice": "Your agency will review this property before publishing it: it stays private until then.",
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
       "close": "Close",
       "loadingDraft": "Restoring your draft…",
@@ -1445,6 +1448,8 @@
       "noPayouts": "No payouts scheduled yet.",
       "chartTitle": "Cash flow and occupancy over 12 months",
       "emptyBodyFull": "Add your first property to enable bookings, leases, documents and maintenance requests.",
+      "proposalEmptyBody": "Propose your first property to your agency: it will review it, then publish it. Bookings, leases and documents will follow.",
+      "proposalEmptyCta": "Propose a property to my agency",
       "propertiesHint": "{rented} rented · {available} available",
       "expectedHint": "Expected: {amount}",
       "seeModule": "Open the module",
@@ -1526,6 +1531,7 @@
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
+      "noneAllowed": "Your role in this agency includes no export. An administrator can grant you one.",
       "entities": {
         "payments": "Payments",
         "leases": "Leases",
@@ -1673,7 +1679,8 @@
       },
       "propertyNew": {
         "metaTitle": "Publish a property",
-        "title": "Publish a property"
+        "title": "Publish a property",
+        "proposalTitle": "Propose a property to my agency"
       },
       "privacy": {
         "metaTitle": "Privacy",
@@ -4662,6 +4669,8 @@
         "clear": "Uncheck all",
         "platform_reserved": "Platform-reserved",
         "platform_reserved_hint": "This capability belongs to the Takussan team and cannot be granted to an agency role.",
+        "not_enforced": "No effect yet",
+        "not_enforced_hint": "No action in the app checks this capability yet. Ticking it prepares the role; it takes effect once the action is wired.",
         "toggle_domain": "Show or hide the {domain} domain",
         "domain_selected": "{count}/{total}"
       },
@@ -4914,6 +4923,18 @@
       }
     },
     "team": {
+      "suspension": {
+        "suspend": "Suspend from agency",
+        "reactivate": "Reactivate in agency",
+        "suspendedBadge": "Suspended in agency",
+        "suspendTitle": "Suspend {name} from the agency?",
+        "suspendDescription": "{name} will no longer be able to act in this agency, and their sessions open here will be closed. Their account is not affected: it stays active, and their other agencies do not change.",
+        "reactivateTitle": "Reactivate {name} in the agency?",
+        "reactivateDescription": "{name} will regain the rights of their role in this agency.",
+        "cancel": "Cancel",
+        "confirmSuspend": "Suspend",
+        "confirmReactivate": "Reactivate"
+      },
       "removeDialog": {
         "title": "Remove this member?",
         "cancel": "Cancel",
@@ -8131,5 +8152,28 @@
   },
   "publicLeadErrors": {
     "contactUnavailable": "No one can receive requests for this property right now: yours was not sent. Please try again later."
+  },
+  "shareReception": {
+    "metaTitle": "Shared document",
+    "title": "A document shared with you",
+    "loading": "Opening the link…",
+    "name": "Document",
+    "size": "Size",
+    "expiresAt": "Available until {date}",
+    "downloadsLeft": "{count, plural, one {# download left} other {# downloads left}}",
+    "download": "Download",
+    "downloading": "Downloading…",
+    "downloadError": "The download did not complete. Please try again in a moment.",
+    "passwordTitle": "This document is protected",
+    "passwordHint": "Enter the password the sender gave you.",
+    "passwordLabel": "Password",
+    "submit": "Open the document",
+    "wrongPassword": "Incorrect password.",
+    "goneTitle": "This link is no longer valid",
+    "goneDescription": "It has expired, been revoked, or reached its maximum number of downloads. Ask the sender for a new link.",
+    "notFoundTitle": "Link not found",
+    "notFoundDescription": "Check the address you received, or ask the sender for a new link.",
+    "error": "The document could not be loaded. Please try again in a moment.",
+    "retry": "Try again"
   }
 }

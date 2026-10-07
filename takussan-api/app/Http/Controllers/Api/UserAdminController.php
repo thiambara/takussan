@@ -56,19 +56,19 @@ class UserAdminController extends Controller
         return $this->paginated($paginator, $paginator->items());
     }
 
+    /**
+     * TCK-587 (ADR-0031 §2) — bloquer un COMPTE est un geste du super-admin seul.
+     *
+     * L'admin d'agence y avait accès, pour un compte qui n'est pas celui de son agence : un
+     * bailleur présent dans deux agences était coupé des deux par l'admin de l'une, et l'admin
+     * d'agence réactivait un compte bloqué par le super-admin. L'admin d'agence suspend désormais
+     * un membre DANS son agence (`Agency\TeamMemberSuspensionController`).
+     */
     public function block(Request $request, User $user): JsonResponse
     {
         $actor = $request->user();
-        $agencyId = $request->activeProfile()?->agency_id;
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
-            403,
-        );
+        abort_unless($actor->isSuperAdmin(), 403, __('errors.account_block_reserved'));
         abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
-
-        $this->ensureTargetInActorScope($request, $user);
 
         $user->update(['status' => UserStatus::Blocked]);
         $user->tokens()->delete();
@@ -78,43 +78,11 @@ class UserAdminController extends Controller
 
     public function activate(Request $request, User $user): JsonResponse
     {
-        $actor = $request->user();
-        $agencyId = $request->activeProfile()?->agency_id;
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
-            403,
-        );
-
-        $this->ensureTargetInActorScope($request, $user);
+        abort_unless($request->user()->isSuperAdmin(), 403, __('errors.account_block_reserved'));
 
         $user->update(['status' => UserStatus::Active]);
 
         return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
-    }
-
-    /**
-     * TCK-147 — for non-global actors, enforce that the target holds an
-     * agent or owner profile in the actor's active agency. `super_admin`
-     * and global `admin` bypass this check (cross-tenant by design).
-     */
-    protected function ensureTargetInActorScope(Request $request, User $target): void
-    {
-        $actor = $request->user();
-        if ($actor->isSuperAdmin()) {
-            return;
-        }
-
-        $agencyId = $request->activeProfile()?->agency_id;
-        AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
-        if ($agencyId === null
-            || (! $target->isAgentAt($agencyId)
-                && ! $target->isOwnerAt($agencyId)
-                && ! $target->isAgencyAdminAt($agencyId))
-        ) {
-            abort(422, __('messages.target_user_not_in_active_agency'));
-        }
     }
 
     public function destroy(Request $request, User $user): JsonResponse

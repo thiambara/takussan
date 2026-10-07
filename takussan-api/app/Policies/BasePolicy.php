@@ -98,6 +98,48 @@ abstract class BasePolicy
     }
 
     /**
+     * TCK-587 (ADR-0031 §1) — l'appelant est-il PERSONNEL de cette agence (agent ou admin actif, ou
+     * délégation active de ces rôles, dans l'agence de son profil actif) ?
+     *
+     * C'est la seule forme du « périmètre d'agence » qu'une policy écrit. Elle remplace
+     * `$user->agency_id === $model->agency_id`, qui était vraie pour un BAILLEUR de l'agence :
+     * chacun lisait et modifiait les baux, loyers et versements de tous les autres.
+     */
+    protected function isStaffOf(User $user, mixed $agencyId): bool
+    {
+        if ($agencyId === null) {
+            return false;
+        }
+
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §2, vérification adverse m3) — le bailleur ÉCRIT sur ce qui le désigne
+     * (`landlord_id`), sauf s'il est suspendu (`blocked`) dans l'agence de la ressource : il en garde
+     * la lecture (il reste partie au contrat), il en perd les gestes — encaisser, modifier, renouveler,
+     * résilier, réviser.
+     *
+     * Vérification adverse passe 2 (N2) — la règle vaut pour tout ce que le bailleur écrit en son
+     * nom propre dans l'agence, pas pour le seul bail : état des lieux, visite, document (modifier,
+     * supprimer, partager). `$authorId` est la colonne qui le désigne (`landlord_id`, `user_id` du
+     * bien, `conducted_by`, `uploaded_by`). Un profil de PERSONNEL actif dans la même agence écrit
+     * toujours : c'est en tant que personnel qu'il agit, pas en tant que bailleur.
+     */
+    protected function landlordWrites(User $user, mixed $authorId, mixed $agencyId): bool
+    {
+        if ($authorId === null || (int) $authorId !== $user->id) {
+            return false;
+        }
+
+        return $agencyId === null
+            || ! $user->isBlockedOwnerAt((int) $agencyId)
+            || $this->isStaffOf($user, $agencyId);
+    }
+
+    /**
      * Le modèle est passé en contexte pour que la Gate dérivée de l'enum
      * (`AppServiceProvider`) en tire l'agence — sans quoi elle retomberait sur
      * le profil actif, ce qui est juste en HTTP mais faux en job et en console.

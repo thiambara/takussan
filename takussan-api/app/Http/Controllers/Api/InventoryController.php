@@ -48,9 +48,11 @@ class InventoryController extends Controller
                         $tq->where('user_id', $user->id);
                     });
 
-                if ($user->agency_id) {
-                    $q->orWhereHas('property', function ($pq) use ($user) {
-                        $pq->where('agency_id', $user->agency_id);
+                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
+                // listait les ressources de tous les autres.
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhereHas('property', function ($pq) use ($staffAgencyId) {
+                        $pq->where('agency_id', $staffAgencyId);
                     });
                 }
             });

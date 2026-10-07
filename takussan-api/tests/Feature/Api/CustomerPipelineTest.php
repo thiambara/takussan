@@ -83,7 +83,7 @@ class CustomerPipelineTest extends TestCase
     public function test_pipeline_stats_scoped_to_agency_when_user_in_agency(): void
     {
         $agency = Agency::factory()->create();
-        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $user = User::factory()->withAgentProfile($agency)->create();
         $colleague = User::factory()->create(['agency_id' => $agency->id]);
         $outsider = User::factory()->create();
 
@@ -100,7 +100,7 @@ class CustomerPipelineTest extends TestCase
     public function test_pipeline_index_and_stats_share_active_agency_scope(): void
     {
         $agency = Agency::factory()->create();
-        $user = User::factory()->create(['agency_id' => $agency->id]);
+        $user = User::factory()->withAgentProfile($agency)->create();
         $colleague = User::factory()->create(['agency_id' => $agency->id]);
         $outsider = User::factory()->create();
 

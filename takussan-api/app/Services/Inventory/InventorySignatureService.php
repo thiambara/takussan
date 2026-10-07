@@ -106,7 +106,10 @@ class InventorySignatureService
 
         // landlord
         $isOwner = $property && $property->user_id === $user->id;
-        $isAgencyStaff = $user->agency_id && $property && $property->agency_id === $user->agency_id;
+        // TCK-587 — « staff » l'était de nom seulement : la clause valait pour tout membre de
+        // l'agence, bailleur compris (ADR-0031).
+        $isAgencyStaff = $property !== null && $property->agency_id !== null
+            && $user->staffAgencyId() === (int) $property->agency_id;
         $isCollaborator = $property
             ? (bool) $property->collaborators()
                 ->where('user_id', $user->id)

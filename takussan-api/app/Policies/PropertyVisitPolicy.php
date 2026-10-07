@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * TCK-306 — reprise EXACTE de `PropertyVisitController::authorizeAccess()` / `authorizeManage()`.
+ *
+ * TCK-587 (ADR-0031) — le « périmètre d'agence » est le PERSONNEL de l'agence du bien : la clause
+ * comparait `$user->agency_id`, vraie pour un autre bailleur de l'agence.
  */
 class PropertyVisitPolicy extends BasePolicy
 {
@@ -27,7 +30,7 @@ class PropertyVisitPolicy extends BasePolicy
             || $model->visitor_id === $user->id
             || $model->agent_id === $user->id
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id)
+            || ($property && $this->isStaffOf($user, $property->agency_id))
             || ($model->customer && $model->customer->user_id === $user->id);
     }
 
@@ -43,10 +46,12 @@ class PropertyVisitPolicy extends BasePolicy
 
         $property = $model->property;
 
+        // TCK-587 (ADR-0031 §2, passe 2 N2) — le propriétaire suspendu dans l'agence du bien ne
+        // déplace ni n'annule plus la visite.
         return $user->isSuperAdmin()
             || $model->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || ($property && $this->landlordWrites($user, $property->user_id, $property->agency_id))
+            || ($property && $this->isStaffOf($user, $property->agency_id));
     }
 
     /**

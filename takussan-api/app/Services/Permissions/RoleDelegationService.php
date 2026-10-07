@@ -8,6 +8,9 @@ use App\Events\Permissions\RoleDelegationExpired;
 use App\Events\Permissions\RoleDelegationRevoked;
 use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -64,7 +67,9 @@ class RoleDelegationService
         // TCK-146 — membership is profile-driven; the legacy single-agency
         // accessor is null for multi-profile users without an active context
         // and would falsely reject an otherwise-valid delegation target.
-        if (! $user->isAgentAt($agency->id) && ! $user->isOwnerAt($agency->id)) {
+        // TCK-587 — APPARTENANCE du délégataire, sans filtre de statut.
+        if (! $user->hasProfileAt((int) $agency->id, AgentProfile::class)
+            && ! $user->hasProfileAt((int) $agency->id, OwnerProfile::class)) {
             throw ValidationException::withMessages([
                 'user_id' => __('role_delegations.validation.user_not_in_agency'),
             ]);
@@ -187,13 +192,14 @@ class RoleDelegationService
     private function nativeProfileTypes(User $user, Agency $agency): array
     {
         $types = [];
-        if ($user->isAgencyAdminAt((int) $agency->id)) {
+        // TCK-587 — les profils POSSÉDÉS, quel que soit leur statut : c'est une appartenance.
+        if ($user->hasProfileAt((int) $agency->id, AgencyAdminProfile::class)) {
             $types[] = 'agency_admin';
         }
-        if ($user->isAgentAt((int) $agency->id)) {
+        if ($user->hasProfileAt((int) $agency->id, AgentProfile::class)) {
             $types[] = 'agent';
         }
-        if ($user->isOwnerAt((int) $agency->id)) {
+        if ($user->hasProfileAt((int) $agency->id, OwnerProfile::class)) {
             $types[] = 'owner';
         }
 

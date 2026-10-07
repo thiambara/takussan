@@ -19,7 +19,9 @@ class LeaseTest extends TestCase
     {
         $landlord = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $landlord->id]);
-        $tenant = Customer::factory()->create();
+        // TCK-587 (B2) — le locataire doit être dans le périmètre du bailleur : un client de
+        // fabrique appartient à un inconnu, et `LeaseService::create` refuse de le rattacher.
+        $tenant = Customer::factory()->create(['added_by_id' => $landlord->id]);
 
         Sanctum::actingAs($landlord);
 

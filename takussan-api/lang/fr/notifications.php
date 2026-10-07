@@ -313,4 +313,9 @@ return [
         'next' => 'Elle vous répondra au plus vite, par téléphone ou par e-mail.',
     ],
     // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
+
+    // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
+    'property_proposed' => [
+        'title' => 'Bien proposé par un bailleur : :title',
+    ],
 ];

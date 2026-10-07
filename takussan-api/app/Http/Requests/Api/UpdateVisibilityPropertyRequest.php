@@ -28,7 +28,10 @@ class UpdateVisibilityPropertyRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('property')) === true;
+        // TCK-587 — rendre public ou privé, c'est publier ou dépublier : le contrôleur délègue à
+        // `publish()` / `unpublish()`, qui exigent l'ability `publish`. Juger ICI la même ability
+        // garde le 403 avant la validation ; `update` laissait le bailleur rendre public son brouillon.
+        return $this->user()?->can('publish', $this->route('property')) === true;
     }
 
     /** @return array<string, mixed> */

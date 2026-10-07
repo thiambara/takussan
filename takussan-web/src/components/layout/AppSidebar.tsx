@@ -163,6 +163,17 @@ export function buildNavItems(user: User): NavItem[] {
       section: 'catalog',
       emphasized: true,
     });
+  } else if (isOwner(roles)) {
+    // TCK-587 (ADR-0031) — le bailleur hors personnel ne publie pas : il PROPOSE un bien à son
+    // agence, qui le relit et le publie (`PropertyController::store` impose brouillon + privé).
+    // L'hôte d'une agence individuelle est son administrateur : il garde « Publier un bien ».
+    items.push({
+      href: '/app/properties/new',
+      labelKey: 'proposeProperty',
+      icon: PlusCircle,
+      section: 'catalog',
+      emphasized: true,
+    });
   }
 
   // Discovery shortcuts (Wave 3 / TCK-047).
