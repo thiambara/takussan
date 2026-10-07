@@ -2407,6 +2407,33 @@
         "status": "status",
         "pipeline_stage": "stage"
       }
+    },
+    "form": {
+      "duplicate": {
+        "title": "This customer seems to exist already in the agency.",
+        "hidden": "A record you cannot open",
+        "matchedOn": {
+          "phone": "same phone",
+          "email": "same email"
+        },
+        "open": "Open their record",
+        "createAnyway": "Create anyway",
+        "saveAnyway": "Save anyway"
+      },
+      "criteria": {
+        "title": "What the prospect is looking for",
+        "contractType": "Buy or rent",
+        "any": "Either",
+        "minBedrooms": "Bedrooms (minimum)",
+        "budgetMin": "Minimum budget (FCFA)",
+        "budgetMax": "Maximum budget (FCFA)",
+        "propertyTypes": "Property types",
+        "cities": "Cities",
+        "citiesPlaceholder": "Dakar, Thiès",
+        "neighborhoods": "Neighbourhoods",
+        "neighborhoodsPlaceholder": "Almadies, Mermoz",
+        "help": "Separate cities and neighbourhoods with commas. An empty field clears the criterion."
+      }
     }
   },
   "account": {
@@ -7527,6 +7554,12 @@
     }
   },
   "validation": {
+    "agentCrm": {
+      "criteriaInvalid": "Unrecognised value.",
+      "budgetInvalid": "Enter an amount in figures.",
+      "budgetRange": "The maximum budget must be greater than or equal to the minimum.",
+      "bedroomsInvalid": "Enter a number between 0 and 50."
+    },
     "common": {
       "required": "This field is required.",
       "emailRequired": "The email address is required.",

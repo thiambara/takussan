@@ -2382,6 +2382,33 @@
         "status": "statut",
         "pipeline_stage": "étape"
       }
+    },
+    "form": {
+      "duplicate": {
+        "title": "Ce client semble déjà exister dans l'agence.",
+        "hidden": "Une fiche que vous ne pouvez pas ouvrir",
+        "matchedOn": {
+          "phone": "même téléphone",
+          "email": "même e-mail"
+        },
+        "open": "Ouvrir sa fiche",
+        "createAnyway": "Créer quand même",
+        "saveAnyway": "Enregistrer quand même"
+      },
+      "criteria": {
+        "title": "Ce que le prospect recherche",
+        "contractType": "Achat ou location",
+        "any": "Indifférent",
+        "minBedrooms": "Chambres (minimum)",
+        "budgetMin": "Budget minimum (FCFA)",
+        "budgetMax": "Budget maximum (FCFA)",
+        "propertyTypes": "Types de bien",
+        "cities": "Villes",
+        "citiesPlaceholder": "Dakar, Thiès",
+        "neighborhoods": "Quartiers",
+        "neighborhoodsPlaceholder": "Almadies, Mermoz",
+        "help": "Séparez les villes et les quartiers par des virgules. Un champ vide efface le critère."
+      }
     }
   },
   "account": {
@@ -7527,6 +7554,12 @@
     }
   },
   "validation": {
+    "agentCrm": {
+      "criteriaInvalid": "Valeur non reconnue.",
+      "budgetInvalid": "Saisissez un montant en chiffres.",
+      "budgetRange": "Le budget maximum doit être supérieur ou égal au minimum.",
+      "bedroomsInvalid": "Saisissez un nombre entre 0 et 50."
+    },
     "agency": {
       "nameRequired": "Le nom est requis.",
       "nameTooLong": "Le nom est trop long.",

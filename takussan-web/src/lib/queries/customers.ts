@@ -44,6 +44,14 @@ export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   'user_id',
   'metadata',
   'updated_at',
+  // TCK-591 §5 — critères du prospect.
+  'seeking_contract_type',
+  'budget_min',
+  'budget_max',
+  'seeking_property_types',
+  'seeking_cities',
+  'seeking_neighborhoods',
+  'min_bedrooms',
 ] as const;
 
 export interface DashboardCustomerFilters {

@@ -1033,6 +1033,33 @@
         "status": "nekkin",
         "pipeline_stage": "tolluwaay"
       }
+    },
+    "form": {
+      "duplicate": {
+        "title": "Kiliyaan bii mel na ni dafa am ba noppi ci ajaas bi.",
+        "hidden": "Fiise boo mënul a ubbi",
+        "matchedOn": {
+          "phone": "benn telefon",
+          "email": "benn e-mail"
+        },
+        "open": "Ubbi fiiseem",
+        "createAnyway": "Sos ko rekk",
+        "saveAnyway": "Denc ko rekk"
+      },
+      "criteria": {
+        "title": "Li kiliyaan bi di seet",
+        "contractType": "Jënd walla luwe",
+        "any": "Benn bu nekk",
+        "minBedrooms": "Néeg (lu gën a tuuti)",
+        "budgetMin": "Xaalis bu gën a tuuti (FCFA)",
+        "budgetMax": "Xaalis bu gën a bare (FCFA)",
+        "propertyTypes": "Xeeti kër",
+        "cities": "Dëkk yi",
+        "citiesPlaceholder": "Dakar, Thiès",
+        "neighborhoods": "Gox yi",
+        "neighborhoodsPlaceholder": "Almadies, Mermoz",
+        "help": "Xàjjale dëkk yi ak gox yi ak ay virgule. Bërëb bu amul dara dafay far critère bi."
+      }
     }
   },
   "account": {
@@ -7527,6 +7554,12 @@
     }
   },
   "validation": {
+    "agentCrm": {
+      "criteriaInvalid": "Lii xamuñu ko.",
+      "budgetInvalid": "Bindal xaalis bi ak ay siifar.",
+      "budgetRange": "Xaalis bu gën a bare war na tollu walla ëpp bu gën a tuuti.",
+      "bedroomsInvalid": "Bindal ab siifar diggante 0 ak 50."
+    },
     "common": {
       "required": "Palanteer bii fàww la.",
       "emailRequired": "Adresu email bi fàww la.",
