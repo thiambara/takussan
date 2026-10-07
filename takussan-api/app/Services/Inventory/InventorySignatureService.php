@@ -6,22 +6,30 @@ use App\Http\Requests\InventorySignRequest;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\User;
+use App\Services\Lease\LandlordSignatory;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * TCK-076 — captures an immutable signature payload for a given role
  * (tenant | landlord). Once both parties have signed, the inventory is locked
  * and `signed_at` is stamped.
  *
- * Business rules enforced here (not in the controller):
- *   - Only the tenant linked to the lease may sign as `tenant`.
- *   - The landlord of the property, an accepted agency collaborator or an
- *     admin may sign as `landlord`.
+ * Business rules enforced here (not in the controller — no policy guards the route, this service
+ * is the only guard):
+ *   - Only the tenant of the lease may sign as `tenant` — not even the super-admin (TCK-596).
+ *   - `landlord` follows {@see LandlordSignatory}: the landlord of the lease for himself, or a
+ *     member of the lease agency's staff holding `leases.sign`, on his behalf. No property
+ *     collaborator, whatever its role, no super-admin, no other landlord of the agency (TCK-596).
+ *     Who signed and for whom is recorded (`owner_signed_by_user_id`, `…_on_behalf_of_user_id`).
  *   - A role can only be signed once (409 on re-sign — AC4).
  *   - Signatures are accepted while the inventory is `draft` or
  *     `pending_signature`; never on `signed` or `disputed`.
  *   - Each payload is hashed (SHA-256) for tamper detection — the hash lands
  *     in the JSON API, the raw base64 stays hidden server-side.
+ *   - At the second signature the traceability hash is FROZEN, and it covers the room photos
+ *     (TCK-596): the PDF is recomposed at download time, so an unfrozen hash would follow the
+ *     document instead of attesting it.
  */
 class InventorySignatureService
 {
@@ -44,11 +52,14 @@ class InventorySignatureService
             $inventory->owner_signed_at = $now;
             $inventory->owner_signature_data = $signature;
             $inventory->owner_signature_hash = $hash;
+            $inventory->owner_signed_by_user_id = $user->id;
+            $inventory->owner_signed_on_behalf_of_user_id = LandlordSignatory::onBehalfOf($user, $inventory->lease);
         }
 
         if ($inventory->tenant_signed && $inventory->owner_signed) {
             $inventory->status = InventoryStatus::Signed;
             $inventory->signed_at = $now;
+            $inventory->traceability_hash = $this->frozenTraceabilityHash($inventory);
         } elseif ($inventory->status === InventoryStatus::Draft) {
             // First signature promotes a draft to pending_signature so the
             // counterparty can see it's awaiting their action.
@@ -61,11 +72,24 @@ class InventorySignatureService
     }
 
     /**
-     * Short, deterministic hash for footer traceability (first 12 chars of
-     * a SHA-256 over the inventory identity + rooms snapshot). Stable across
-     * renders so the same PDF always shows the same fingerprint.
+     * L'empreinte IMPRIMÉE sur le PDF : la colonne figée à la seconde signature quand elle existe
+     * (TCK-596), sinon l'ancien calcul — un état des lieux signé avant ce ticket garde l'empreinte
+     * qu'il imprimait déjà.
      */
     public function traceabilityHash(Inventory $inventory): string
+    {
+        return $inventory->traceability_hash ?? $this->legacyTraceabilityHash($inventory);
+    }
+
+    /**
+     * Short, deterministic hash for footer traceability (first 16 chars of
+     * a SHA-256 over the inventory identity + rooms snapshot). Stable across
+     * renders so the same PDF always shows the same fingerprint.
+     *
+     * ⚠ Ne pas modifier : c'est l'empreinte déjà remise des états des lieux signés avant TCK-596.
+     * `InventoryTraceabilityHashTest` en fige une valeur.
+     */
+    public function legacyTraceabilityHash(Inventory $inventory): string
     {
         $material = json_encode([
             'id' => $inventory->id,
@@ -81,6 +105,39 @@ class InventorySignatureService
         return substr(hash('sha256', (string) $material), 0, 16);
     }
 
+    /**
+     * TCK-596 — SHA-256 complet, calculé UNE fois à la seconde signature. Il couvre ce que couvrait
+     * l'ancien calcul, le signataire du bailleur, et chaque photo par pièce (triées par id) : son
+     * `room_name` et le SHA-256 de ses octets, lus par le disque (ADR-0029, jamais `getPath()`).
+     */
+    public function frozenTraceabilityHash(Inventory $inventory): string
+    {
+        $photos = $inventory->getMedia('room_photos')
+            ->sortBy('id')
+            ->map(fn ($media) => [
+                'room_name' => $media->getCustomProperty('room_name'),
+                'sha256' => hash('sha256', (string) Storage::disk($media->disk)->get($media->getPathRelativeToRoot())),
+            ])
+            ->values()
+            ->all();
+
+        $material = json_encode([
+            'id' => $inventory->id,
+            'property_id' => $inventory->property_id,
+            'lease_id' => $inventory->lease_id,
+            'type' => $inventory->type?->value,
+            'conducted_at' => optional($inventory->conducted_at)->toIso8601String(),
+            'rooms' => $inventory->rooms,
+            'tenant_signature_hash' => $inventory->tenant_signature_hash,
+            'owner_signature_hash' => $inventory->owner_signature_hash,
+            'owner_signed_by_user_id' => $inventory->owner_signed_by_user_id,
+            'owner_signed_on_behalf_of_user_id' => $inventory->owner_signed_on_behalf_of_user_id,
+            'room_photos' => $photos,
+        ], JSON_UNESCAPED_UNICODE);
+
+        return hash('sha256', (string) $material);
+    }
+
     protected function assertSignable(Inventory $inventory): void
     {
         abort_code_unless(
@@ -90,36 +147,33 @@ class InventorySignatureService
         );
     }
 
-    protected function authorizeRole(Inventory $inventory, User $user, string $role): void
+    /**
+     * Le rôle demandé est-il celui de `$user` sur cet état des lieux ? Même prédicat que
+     * {@see self::authorizeRole()} ; `InventoryResource::can_sign_as` l'expose au front.
+     */
+    public function canSignAs(Inventory $inventory, User $user, string $role): bool
     {
-        $property = $inventory->property;
-        $tenant = $inventory->tenant;
-        $isAdmin = $user->isSuperAdmin();
-
-        if ($role === InventorySignRequest::ROLE_TENANT) {
-            $allowed = $isAdmin || ($tenant && $tenant->user_id === $user->id);
-            abort_unless($allowed, Response::HTTP_FORBIDDEN);
-
-            return;
+        $lease = $inventory->lease;
+        if ($lease === null) {
+            return false;
         }
 
-        // landlord
-        $isOwner = $property && $property->user_id === $user->id;
-        // TCK-587 — « staff » l'était de nom seulement : la clause valait pour tout membre de
-        // l'agence, bailleur compris (ADR-0031).
-        $isAgencyStaff = $property !== null && $property->agency_id !== null
-            && $user->staffAgencyId() === (int) $property->agency_id;
-        $isCollaborator = $property
-            ? (bool) $property->collaborators()
-                ->where('user_id', $user->id)
-                ->whereNotNull('accepted_at')
-                ->exists()
-            : false;
+        if ($role === InventorySignRequest::ROLE_TENANT) {
+            $tenant = $lease->tenant;
 
-        abort_unless(
-            $isAdmin || $isOwner || $isAgencyStaff || $isCollaborator,
-            Response::HTTP_FORBIDDEN,
-        );
+            return $tenant !== null && $tenant->user_id !== null && (int) $tenant->user_id === (int) $user->id;
+        }
+
+        return LandlordSignatory::allows($user, $lease);
+    }
+
+    /**
+     * TCK-596 — personne ne signe pour une autre partie. `inventories.lease_id` est non nul : le bail
+     * existe toujours, et c'est LUI qui désigne les parties (locataire du bail, bailleur du bail).
+     */
+    protected function authorizeRole(Inventory $inventory, User $user, string $role): void
+    {
+        abort_unless($this->canSignAs($inventory, $user, $role), Response::HTTP_FORBIDDEN);
     }
 
     protected function assertRoleNotAlreadySigned(Inventory $inventory, string $role): void

@@ -60,6 +60,9 @@ class DateInventoryByValueTest extends TestCase
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
         'App\Http\Resources\CustomerResource::tasks_count' => "`whenCounted('tasks')` — un compteur ENTIER, jamais une date. "
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
+        'App\Http\Resources\InventoryResource::can_sign_as' => '`when()` sur un lecteur posé par `forViewer()`, '
+            .'que seul `InventoryController::show` appelle (TCK-596) : une liste de rôles (`tenant`, `landlord`), '
+            .'jamais une date.',
         'App\Http\Resources\LeaseResource::renewals_count' => "`whenCounted('renewals')` — même forme, même absence de date.",
     ];
 

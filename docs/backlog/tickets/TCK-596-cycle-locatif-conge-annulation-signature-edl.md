@@ -737,3 +737,24 @@ Le geste s'ouvre à `canRefundDeposit || isLeaseTenant` (gestionnaire inchangé)
 Preuve : `npx vitest run src/components/leases/__tests__/LeaseDetail.preavis.test.tsx` → 5/5.
 Ablations (restaurées par `cp`) : code d'origine → 2 rouges (locataire : geste, bannière) ;
 « tout client » (`roles.includes('customer')`) → 2 rouges (client tiers, bail sans compte).
+
+**§5 — état des lieux, API.** Re-mesuré sur acf58a66 : `authorizeRole` porte déjà la clause « personnel »
+de 587 (`staffAgencyId()`), donc l'« autre bailleur de la même agence » est **déjà** refusé sur `dev`
+(il passait sur e3ab4a4e) ; super-admin, collaborateurs de tout rôle et agent sans `leases.sign`
+passaient encore. `LandlordSignatory` juge `leases.sign` par `canActAt(…, agence du bail)` et non par
+`$user->can()` (sinon `Gate::before` rouvre la voie du super-admin). **Ajout** : un bailleur suspendu
+dans l'agence du bail perd la signature (règle `landlordWrites` d'ADR-0031 §2, que la vérification
+adverse cherche) ; il reste lecteur. `tenant` = locataire **du bail** (`lease.tenant`), plus
+`inventory.tenant_id`. `room_photos` sort groupé dans l'ordre des pièces (`[{room_name, photos:[{id,url,room_name}]}]`),
+`show` seulement ; `can_sign_as` aussi (`InventoryResource::forViewer`). Empreinte : SHA-256 complet figé
+à la 2ᵉ signature, matière = ancienne matière + signataire bailleur + photos (id trié, `room_name`, SHA-256
+des octets lus par le disque) ; `legacyTraceabilityHash()` inchangé, valeur figée `d5ea363043d795f2`
+calculée par la formule d'e3ab4a4e hors du code testé.
+Preuve : `php artisan test tests/Feature/Api/InventorySignatureTest.php tests/Feature/Api/InventoryTest.php
+tests/Feature/Api/InventoryRoomPhotosTest.php tests/Feature/Api/InventoryTraceabilityHashTest.php
+tests/Unit/Services/LandlordSignatoryTest.php` → 76 verts ; + 16 classes voisines (capacités, validation,
+médias, ressources…) → 311 verts. Ablations rejouées (restaurées par `cp`, journal `scratchpad/t596/ablations.log`) :
+A5.1 `authorizeRole` d'acf58a66 → 8 rouges ; A5.2 requête des collaborateurs seule → 4 ; A5.3 appel sans corps
+→ 2 ; A5.4 upload sans garde → 3 ; A5.5 `room_name` libre → 1 ; A5.6 suppression sans filtre de collection
+→ 1 ; A5.7 suppression sans garde → 3 ; A5.8 photos hors empreinte → 1 ; A5.9 colonne ignorée → 1 ;
+A5.10 clause `users.agency_id` d'e3ab4a4e → 4. `leases.sign` sort de `CapabilityEnforcementInventory`, cliquet 16 → 15.
