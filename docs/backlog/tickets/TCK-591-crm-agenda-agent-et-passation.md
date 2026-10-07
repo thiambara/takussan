@@ -488,10 +488,9 @@ téléphone tenu d'une main, entre deux visites**.
       `maintenance` — le raccourci de `DashboardShortcuts.tsx:78` cesse de mener à une redirection.
 
 **7. Actions en masse (A17)**
-- [ ] `PropertyBulkVisibilityRequest`, `PropertyBulkAssignRequest` ; `PropertyBulkVisibilityService`,
-      `PropertyBulkAssignService` sur le modèle de `PropertyBulkArchiveService` ; routes déclarées
-      avant `{property}` (`routes/api/properties.php:19`).
-      *Moitié livrée : `bulk-visibility` (requête, service, route) ; `bulk-assign` attend TCK-504.*
+- [x] `PropertyBulkVisibilityRequest` ; `PropertyBulkVisibilityService` sur le modèle de
+      `PropertyBulkArchiveService` ; route déclarée avant `{property}` (`routes/api/properties.php:19`).
+- [ ] `PropertyBulkAssignRequest`, `PropertyBulkAssignService`, route `bulk-assign` → transféré à TCK-603
 - [ ] `PropertyController::assignAgent` (corps, l.238-259) : **supprimer**
       `$property->update(['user_id' => $target->id])` (l.254) ; à la place, désigner la cible
       **agent responsable** selon l'ADR « agent responsable » (Delta 0 ; option retenue par défaut :
@@ -501,15 +500,15 @@ téléphone tenu d'une main, entre deux visites**.
       principal ; l'ancien principal reste collaborateur, sans la marque, `commission_share`
       intact). Le tout sous
       `DB::transaction`, ligne parent verrouillée (`Property::whereKey()->lockForUpdate()`, piège
-      PostgreSQL n°2). La réponse charge `owner` et `PrimaryPropertyContact::eagerLoads()`.
+      PostgreSQL n°2). La réponse charge `owner` et `PrimaryPropertyContact::eagerLoads()`. → transféré à TCK-603
 - [ ] Règle de cible : celle de **TCK-587** (Contraintes 9), appelée par `assignAgent` **et** par
       `PropertyBulkAssignService` — 591 ne la réécrit pas ; en lot, son refus devient
-      `invalid_target`. Le contrôle maison l.247-251 (`$target->agency_id === $agencyId`) disparaît.
+      `invalid_target`. Le contrôle maison l.247-251 (`$target->agency_id === $agencyId`) disparaît. → transféré à TCK-603
 - [ ] `PropertyBulkAssignService` : même désignation que l'unitaire (un seul service
       `App\Services\Property\ResponsibleAgentAssigner::assign(Property, User $target, User $actor)`
       appelé par les deux), **jamais** d'écriture de `user_id` ; cible déjà responsable →
       `unchanged`. Journal : `activity('Property')`, évènement `responsible_agent_changed`
-      (`property_id`, ancien et nouveau responsable) — la trace qui manquait au geste.
+      (`property_id`, ancien et nouveau responsable) — la trace qui manquait au geste. → transféré à TCK-603
 - [ ] **Réparation des biens déjà réattribués** — commande
       `properties:repair-reassigned-owners {--dry-run}` (idempotente). Source : `activity_log`
       `log_name = 'Property'`, `event = 'updated'`, `properties->'old'->>'user_id'` ≠
@@ -524,24 +523,25 @@ téléphone tenu d'une main, entre deux visites**.
       (`hebergement.md:23`) — rien à réparer en production ; la commande se joue **une fois sur la
       préproduction** `takussan_preview` (`hebergement.md:80`) après le déploiement de 591,
       `--dry-run` d'abord, résultat consigné dans les Notes d'implémentation ; une remise à zéro
-      par le seed (`hebergement.md:213`) la rend sans objet. En local, `migrate:fresh --seed` suffit.
+      par le seed (`hebergement.md:213`) la rend sans objet. En local, `migrate:fresh --seed` suffit. → transféré à TCK-603
 - [ ] Front : les trois actions passent par `bulk-*` ; bilan chiffré et motivé (`invalid_target`
       dit que la cible n'est pas du personnel actif de l'agence) ; seuls les refus restent
       sélectionnés ; la liste est rafraîchie dès qu'au moins un bien a changé, succès partiel
       compris. Le geste s'intitule « Changer l'agent responsable » ; la liste et la fiche distinguent
-      propriétaire et agent responsable (`owner` / `primary_contact`).
+      propriétaire et agent responsable (`owner` / `primary_contact`). → transféré à TCK-603
 
 **8. Passation et absence (AD14)**
-- [ ] `App\Services\Agency\AgentHandoverService` (`inventory()`, `transfer()`) ; `AgentHandoverController`
+- [x] `App\Services\Agency\AgentHandoverService` (`inventory()`, `transfer()`) ; `AgentHandoverController`
       + `StoreAgentHandoverRequest` (repreneur unique ou par catégorie, `leave_unassigned`,
-      `remove_after`) ; autorisation par `team.remove`. Catégories de biens (Contraintes 3) :
+      `remove_after`) ; autorisation par `team.remove` — tâches, visites, interventions,
+      collaborations, clients ; `held_properties` compté (inventaire, garde du retrait).
+- [ ] Catégories de biens de la passation (Contraintes 3) :
       `responsible_properties` → `ResponsibleAgentAssigner` vers le repreneur (jamais `user_id`) ;
       `held_properties` (`user_id` = le partant) → `user_id` ← repreneur du personnel de la même
       agence, selon la question 2 de l'ADR « agent responsable ». Un bien dont `user_id` est un
       bailleur n'entre dans aucune des deux catégories par son `user_id`.
-      *Livré sauf les deux catégories de biens — attend TCK-504 : `held_properties` est compté
-      (inventaire, garde du retrait) mais pas transmis ; `responsible_properties` attend la marque
-      de principal.*
+      *`held_properties` est compté mais pas transmis ; `responsible_properties` attend la marque
+      de principal de TCK-504.* → transféré à TCK-603
 - [x] `App\Services\Agency\AgencyMemberRemovalService::remove(Agency, User $member, User $actor, bool
       $leaveUnassigned)` — **seul** chemin de retrait : `AgencyController::removeAgent` et
       `AgentInvitationService::remove` y délèguent. Il garde les deux gardes actuelles
@@ -577,9 +577,9 @@ téléphone tenu d'une main, entre deux visites**.
       `AgencyMemberRemovalTest`, `CustomerPhoneAndDuplicateTest`, `CustomerActivityEndpointTest`, `PrimaryContactScopeTest`,
       `ProspectMatcherTest`, `SendProspectMatchDigestTest`, `TaskDueFilterTest`,
       `CalendarScopeTest`, `CalendarNewTypesTest`, `CalendarFeedTest`, `PropertyBulkVisibilityTest`,
-      `PropertyBulkAssignTest`, `AgentHandoverTest`, `AgentRemovalJournalTest`, `AgentAbsenceTest`,
-      `PropertyReassignmentKeepsOwnerTest`, `RepairReassignedOwnersCommandTest` ;
-      vitest des écrans touchés.
+      `AgentHandoverTest`, `AgentRemovalJournalTest`, `AgentAbsenceTest` ; vitest des écrans touchés.
+- [ ] `PropertyAssignAgentTest`, `PropertyBulkAssignTest`, `PropertyReassignmentKeepsOwnerTest`,
+      `RepairReassignedOwnersCommandTest` → transféré à TCK-603
 
 ## Critères d'acceptation
 
@@ -599,7 +599,7 @@ téléphone tenu d'une main, entre deux visites**.
       en `failed` avec `invalid_target`, ne modifie ni `user_id` ni l'agent responsable ; vers un agent
       **suspendu** de l'agence, idem. Le refus vient de la règle de cible de **TCK-587** (Delta §3,
       AC5b), que `PropertyBulkAssignService` appelle (Contraintes 9) : on remplace l'appel par
-      `true` → le bien passe en `updated`, rouge.
+      `true` → le bien passe en `updated`, rouge. → transféré à TCK-603
 - [x] AC5 — sur 5 biens dont 1 d'une autre agence et 1 déjà privé, `bulk-visibility` rend
       `updated = 3`, `failed` = `[{forbidden}, {unchanged}]` + l'identifiant inconnu en `not_found` ;
       une exception levée au 2ᵉ bien autorisé laisse les 3 inchangés (transaction).
@@ -622,13 +622,15 @@ téléphone tenu d'une main, entre deux visites**.
       correspond à un bien de l'agence à 250 000 / Dakar / 3 chambres, privé compris, et à **aucun**
       bien d'une autre agence ni à 350 000 ; le récapitulatif quotidien notifie son référent une
       fois, et personne quand rien ne correspond.
-- [ ] AC12 — passation d'un agent portant 3 tâches, 2 visites à venir, 1 intervention, 2
-      collaborations (dont une où le repreneur collabore déjà), 1 bien dont il est agent responsable
-      et dont `user_id` est un **bailleur** B, 1 bien qu'il a saisi (`user_id` = lui) et 2 clients
-      référents : après `POST …/handover`, tout est au repreneur — agent responsable du bien de B
+- [x] AC12 — passation d'un agent portant 3 tâches, 2 visites à venir, 1 intervention, 2
+      collaborations (dont une où le repreneur collabore déjà) et 2 clients référents : après
+      `POST …/handover`, tout est au repreneur, la collaboration en double n'existe qu'une fois,
+      `activity_log` porte une entrée par catégorie ; une erreur injectée à mi-parcours ne déplace
+      rien (`AgentHandoverTest`).
+- [ ] AC12, part « biens » — 1 bien dont il est agent responsable et dont `user_id` est un
+      **bailleur** B, 1 bien qu'il a saisi (`user_id` = lui) : agent responsable du bien de B
       (`PrimaryPropertyContact::for` = repreneur) **avec `user_id` toujours = B**, `user_id` du bien
-      saisi = repreneur —, la collaboration en double n'existe qu'une fois, `activity_log` porte une
-      entrée par catégorie ; une erreur injectée à mi-parcours ne déplace rien.
+      saisi = repreneur → transféré à TCK-603 (AC5)
 - [x] AC13 — `DELETE /api/agencies/{a}/members/{u}` sur un agent au portefeuille non vide, sans
       passation ni `leave_unassigned`, rend 422 `portfolio_not_empty` ; avec, il journalise
       `agent_removed` (rouge sur le code actuel, qui ne journalise pas). Un agent tenant un rôle
@@ -637,9 +639,12 @@ téléphone tenu d'une main, entre deux visites**.
       admin : 422 inchangés. Après retrait, le flux iCalendar du retiré rend 404.
 - [x] AC14 — pendant une absence active de X remplacé par Y, Y voit les tâches de X et le résolveur
       rend Y ; après la date de fin, plus rien ; aucune ligne existante n'a changé.
-- [ ] AC15 — front : depuis un écran de 360 px, au clavier comme au doigt, l'agent change l'étape
-      d'un client, coche une tâche, et ouvre WhatsApp sur le bon numéro avec le message prérempli ;
-      la console ne contient plus d'appel à `/api/audit-log` depuis la fiche client.
+- [x] AC15 — front : depuis un écran de 360 px, au clavier, l'agent change l'étape d'un client ; au
+      clavier comme au doigt, il coche une tâche ; au doigt, il ouvre WhatsApp sur le bon numéro avec
+      le message prérempli ; la console ne contient plus d'appel à `/api/audit-log` depuis la fiche
+      client (mesuré au navigateur, cf. Notes).
+- [ ] AC15, part « au doigt dans le `<select>` natif » — changer l'étape au doigt, mesuré sur un
+      vrai téléphone → transféré à TCK-603 (AC6)
 - [ ] AC16 — **sécurité, prouvé par ablation** (CRM) : agence A avec 3 clients ajoutés par un agent
       et 1 ajouté par un bailleur B de A (seul profil `OwnerProfile`). `GET /api/customers` par B rend
       **exactement** l'identifiant de sa fiche (4 aujourd'hui) ; `GET /api/customers/pipeline-stats`
@@ -673,7 +678,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [ ] AC22 — **sécurité** (cible de la réattribution unitaire) : `PUT /api/properties/{p}/assigned-agent`
       avec l'`user_id` d'un bailleur de A → 422 `messages.target_user_not_in_active_agency` (200
       aujourd'hui : `$target->agency_id === $agencyId`, l.248, laisse passer le bailleur) ; vers un
-      agent d'une autre agence → 422. (Règle de 587, appelée ici — l'AC5b de 587 la porte aussi.)
+      agent d'une autre agence → 422. (Règle de 587, appelée ici — l'AC5b de 587 la porte aussi.) → transféré à TCK-603
 - [x] AC23 — retrait : `DELETE /api/agencies/{a}/members/{u}` sur un admin d'agence **sans**
       `AgentProfile` (ni `primary_admin_id`, ni dernier admin) → 200 et son `AgencyAdminProfile` est
       supprimé (422 `user_not_in_agency` aujourd'hui) ; sur un bailleur seul → 422 `member_not_staff`.
@@ -702,7 +707,7 @@ téléphone tenu d'une main, entre deux visites**.
       `bulk-assign` sur P et sur un bien Q saisi par l'agent X (`user_id` = X) : `user_id` de P = B et
       de Q = X, inchangés, responsable = Y sur les deux. Ablation : rétablir
       `$property->update(['user_id' => $target->id])` dans `assignAgent` → rouge (`user_id` et
-      `landlord_id` = Y).
+      `landlord_id` = Y). → transféré à TCK-603
 - [ ] AC30 — réparation (`RepairReassignedOwnersCommandTest`) : jeu où P (`user_id` B) a été
       réattribué à X puis à Y comme le faisait l'ancien `assignAgent` — deux
       `$property->update(['user_id' => …])` dans le test, qui écrivent la même signature
@@ -712,7 +717,7 @@ téléphone tenu d'une main, entre deux visites**.
       rien n'est écrit, la sortie annonce `restored = 1`, `leases_fixed = 1`, `leases_to_review = 1`.
       Sans `--dry-run` : `user_id` = B, responsable = Y, bail `draft` → `landlord_id` = B, bail
       `active` inchangé et listé par identifiant. Second passage : `restored = 0` (idempotente). Un
-      bien dont `user_id` n'a jamais changé n'est pas touché.
+      bien dont `user_id` n'a jamais changé n'est pas touché. → transféré à TCK-603
 
 ## Hors périmètre
 
@@ -894,3 +899,9 @@ téléphone tenu d'une main, entre deux visites**.
   le sélecteur natif, que CDP ne pilote pas ; AC15 reste donc ouvert sur ce seul point. Relevé en
   passant, hors 591 : la modale d'accueil de l'agent recouvre la page au premier passage ; les onglets
   de la fiche font 25 px de haut (primitive `Tabs`).
+- **Découpage (2026-10-07, décision de la session)** — tout ce qui dépend de TCK-504 sort de 591 vers
+  [TCK-603](TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md) (`todo`, après 504 et
+  591) : `bulk-assign`, `ResponsibleAgentAssigner`, `assignAgent`, la commande de réparation, le
+  front « Changer l'agent responsable » en lot, les catégories de biens de la passation, AC4, AC22,
+  AC29, AC30, la part « biens » d'AC12 et la part « select natif au doigt » d'AC15. Les cases
+  transférées restent décochées ici, marquées `→ transféré à TCK-603`.

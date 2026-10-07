@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**546 tickets** — 45 ouverts, 499 livrés.
+**547 tickets** — 46 ouverts, 499 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 42 |
+| 📋 Todo | 43 |
 | 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
@@ -75,6 +75,7 @@
 - [TCK-600](tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md) — Console plateforme : la suspension d'agence ne suspend rien, l'impersonation n'impersonne pas, un compte bloqué se reconnecte, tout opérateur est super-admin, et paramètres, drapeaux, santé et alertes ne pilotent ni ne mesurent rien `XL · P0 · full`
 - [TCK-601](tickets/TCK-601-donnees-personnelles-audit-kyc.md) — Données personnelles et audit : RIB et pièces en clair, journal d'agence qui montre les actes d'une autre agence et cache ceux des admins, consultations non tracées, aucun registre des demandes de droits `XL · P1 · full`
 - [TCK-602](tickets/TCK-602-paiement-sans-compte-journal-webhooks.md) — Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable `XL · P1 · full`
+- [TCK-603](tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md) — Changer l'agent responsable sans déposséder le bailleur : bulk-assign, réattribution unitaire, réparation des biens réattribués, biens du partant à la passation (complément de TCK-591, après TCK-504) `L · P1 · full`
 
 ## 🚧 Doing
 
