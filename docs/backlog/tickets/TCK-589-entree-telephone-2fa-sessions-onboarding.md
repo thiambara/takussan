@@ -1,7 +1,7 @@
 ---
 id: TCK-589
 title: "Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -343,7 +343,7 @@ onboarding). Le ticket passe à `done` à la fusion de la troisième.
 
 ### 0. Décision
 
-- [ ] **ADR-00NN à écrire et accepter avant le code** — « Le numéro de téléphone vérifié est-il un
+- [x] **ADR-00NN à écrire et accepter avant le code** — « Le numéro de téléphone vérifié est-il un
       identifiant de connexion, et à quelles conditions ? ». Il consigne la décision du porteur du
       2026-10-06 (tout livrer, derrière `config('auth.phone_login.enabled')` faux par défaut,
       allumé par environnement après un envoi réel mesuré) et tranche : identifiant principal
@@ -356,151 +356,152 @@ onboarding). Le ticket passe à `done` à la fusion de la troisième.
 
 ### 1. Le code part vraiment (vaut drapeau éteint)
 
-- [ ] `PhoneVerificationService::sendSms()` envoie par `SmsRouterDriver` (contexte `is_critical`,
+- [x] `PhoneVerificationService::sendSms()` envoie par `SmsRouterDriver` (contexte `is_critical`,
       `bypass_quiet_hours`, `event_type = phone_otp`) ; texte en clé `auth.phone.sms_code`. Le
       pilote `log-stub` disparaît.
-- [ ] Code haché en cache ; compteur d'échecs par code dans `verifyOtp()` (5 → code invalidé,
+- [x] Code haché en cache ; compteur d'échecs par code dans `verifyOtp()` (5 → code invalidé,
       un nouveau doit être demandé) — vaut pour la vérification du profil comme pour la connexion.
-- [ ] Retrait du code fixe `123456` des quatre `verifyOtp()` d'onboarding (`Agent`, `Owner`,
+- [x] Retrait du code fixe `123456` des quatre `verifyOtp()` d'onboarding (`Agent`, `Owner`,
       `ServiceProvider`, `HostIndividual`) et de leurs docblocks.
-- [ ] `sendOtp()` ne rend plus le code ; `PhoneVerificationController::resend` ne rend plus
+- [x] `sendOtp()` ne rend plus le code ; `PhoneVerificationController::resend` ne rend plus
       `debug_code` (l.68). `PhoneVerificationTest::test_send_otp_returns_debug_code_outside_production`
       est **inversé** (le champ est absent) ; `PhoneVerificationTest` et
       `HostIndividualOnboardingTest` lisent le code par le faux pilote SMS
       (`Tests\Support\FakeSmsRouter`, lié dans le conteneur).
-- [ ] Front : le type de l'action d'envoi perd `debug_code` ; les cinq composants de 1.6 n'ont
+- [x] Front : le type de l'action d'envoi perd `debug_code` ; les cinq composants de 1.6 n'ont
       plus de branche qui affiche un code (clés `otpSentDebug` / `sentDebug` / `bodyDebug`
       retirées des trois langues).
-- [ ] Tests : `PhoneOtpDeliveryTest`, `OnboardingFixedCodeRemovedTest`, `PhoneOtpAttemptLimitTest`.
+- [x] Tests : `PhoneOtpDeliveryTest`, `OnboardingFixedCodeRemovedTest`, `PhoneOtpAttemptLimitTest`.
 
 ### 2. Connexion et inscription par téléphone
 
-- [ ] Migration `make_email_nullable_and_phone_unique_on_users_table` : `email` nullable (l'index
+- [x] Migration `make_email_nullable_and_phone_unique_on_users_table` : `email` nullable (l'index
       `users_email_lower_unique` reste valide), index unique partiel `users_phone_verified_unique`
       sur `phone` `WHERE phone_verified_at IS NOT NULL AND deleted_at IS NULL` — après un relevé
       des doublons existants dans chaque base (commande de relevé jointe à la PR).
-- [ ] `config/auth.php` : `phone_login.enabled` = `env('PHONE_LOGIN_ENABLED', false)` ; clé
+- [x] `config/auth.php` : `phone_login.enabled` = `env('PHONE_LOGIN_ENABLED', false)` ; clé
       ajoutée **vide** à `.env.example` et à `.env.docker` (parité gardée par
       `check-env-parity.mjs`). Drapeau éteint, les deux routes ci-dessous rendent 404.
       `OAuthProviderController` rend `data.phone_login`.
-- [ ] Routes `POST auth/phone/request-code` (`throttle:auth-phone-send`) et
+- [x] Routes `POST auth/phone/request-code` (`throttle:auth-phone-send`) et
       `POST auth/phone/verify-code` (`throttle:auth-phone-verify`) ; contrôleur
       `App\Http\Controllers\Api\Auth\PhoneLoginController` ; FormRequests
       `RequestPhoneLoginCodeRequest`, `VerifyPhoneLoginCodeRequest` (`TelephoneJoignable`,
       `PhoneNumber::normalize`) ; service `App\Services\Auth\PhoneLoginService` (code par numéro,
       pas par utilisateur ; création du compte au premier code valide, `phone_verified_at` posé,
       mot de passe aléatoire, `password_set_at` nul ; challenge TOTP si `two_factor_enabled`).
-- [ ] Limiteurs nommés `auth-phone-send` (numéro + IP) et `auth-phone-verify` (numéro) ; verrou
+- [x] Limiteurs nommés `auth-phone-send` (numéro + IP) et `auth-phone-verify` (numéro) ; verrou
       du numéro écrit dans `metadata.locked_at` du compte et lu par `login` comme par
       `verify-code` — l'action « déverrouiller » de la console agit enfin sur quelque chose.
-- [ ] `PhoneVerificationService::markVerified(User, string $phone)` (contrainte 5 ter) remplace
+- [x] `PhoneVerificationService::markVerified(User, string $phone)` (contrainte 5 ter) remplace
       les cinq écritures de `phone_verified_at` relevées au § 2 du Contexte ;
       `PhoneVerificationController::resend` refuse aussi `409 phone_taken` dès l'envoi, avant de
       dépenser un SMS. Ne dépend pas du drapeau.
-- [ ] `App\Services\Account\DeletionStepUpService` : code de step-up par SMS (même envoi qu'au
+- [x] `App\Services\Account\DeletionStepUpService` : code de step-up par SMS (même envoi qu'au
       §1) pour un compte sans e-mail.
-- [ ] Inventaire des chemins qui supposent un e-mail — relevé `grep -rn "Mail::to(" app` : deux
+- [x] Inventaire des chemins qui supposent un e-mail — relevé `grep -rn "Mail::to(" app` : deux
       envois de résumé sur `$user->email` (`Jobs/SendDailyNotificationDigest.php`,
       `Jobs/Notifications/BuildUserDigestJob.php`) et les trois de `InvitationService` ; plus les
       39 notifications à `toMail()` (routage `mail` à rendre nul sans e-mail) ; chacun traité, un
       test prouve qu'une notification à un compte sans e-mail ne lève pas.
-- [ ] Front : connexion et inscription « téléphone d'abord » (saisie du numéro, code, renvoi
+- [x] Front : connexion et inscription « téléphone d'abord » (saisie du numéro, code, renvoi
       à rebours, challenge 2FA), affichées seulement quand `phone_login` est vrai ; drapeau
       éteint, les pages actuelles sont inchangées. L'intention (§4) traverse ce chemin aussi.
-- [ ] Tests : `PhoneLoginTest`, `PhoneLoginRateLimitTest`, `PhoneLoginEnumerationTest`,
+- [x] Tests : `PhoneLoginTest`, `PhoneLoginRateLimitTest`, `PhoneLoginEnumerationTest`,
       `PhoneLoginFlagTest`, `PhoneNumberUniquenessTest`, `AccountWithoutEmailTest` ; tests vitest
       des pages d'entrée (drapeau vrai / faux). Tous les tests §2-§3 posent le drapeau à vrai.
 
 ### 3. Invitations par téléphone
 
-- [ ] Migration `add_phone_to_invitations_table` : `phone` (string 30, nullable), `email`
+- [x] Migration `add_phone_to_invitations_table` : `phone` (string 30, nullable), `email`
       nullable, contrainte `invitations_email_or_phone_check` ; index `invitations_phone_status_idx`.
-- [ ] `InviteAgentRequest`, `InviteOwnerRequest`, `InviteServiceProviderRequest` : `phone` passe
+- [x] `InviteAgentRequest`, `InviteOwnerRequest`, `InviteServiceProviderRequest` : `phone` passe
       **toujours** par `TelephoneJoignable` (vaut drapeau éteint : un numéro injoignable n'est plus
       stocké) ; drapeau allumé, `email` `required_without:phone` et `phone`
       `required_without:email` ; drapeau éteint, `email` reste `required`.
-- [ ] `InvitationService::send/resend/remindPending` : SMS (lien court vers `/invitations/{token}`)
-      quand l'e-mail manque, adressé **au numéro** (contrainte 4 ; voie 588 ou `SmsRouterDriver`
+- [x] `InvitationService::send/resend/remindPending` : SMS (lien court vers `/invitations/{token}`)
+      *(lien : celui du courriel, `/invitations/accept?token=` — aucune des deux pages n'existe
+      côté front, cf. Notes §3)* quand l'e-mail manque, adressé **au numéro** (contrainte 4 ; voie 588 ou `SmsRouterDriver`
       selon l'ordre de fusion) ; dédoublonnage `liveSlotOccupant` sur le téléphone aussi.
       `acceptAsNewUser` : compte créé sur le numéro, vérifié par `markVerified` (le lien est arrivé
       sur ce numéro), `email` nul.
-- [ ] Tests : `InvitationBySmsTest` (envoi, relance, rappel, acceptation sans e-mail, doublon 409,
+- [x] Tests : `InvitationBySmsTest` (envoi, relance, rappel, acceptation sans e-mail, doublon 409,
       numéro porté par un compte non vérifié, drapeau éteint).
 
 ### 4. Entrée et sortie de session (vaut drapeau éteint)
 
-- [ ] `AuthController::login` : 403 `account_blocked` pour `blocked` et `deleted` ; le rappel unique
+- [x] `AuthController::login` : 403 `account_blocked` pour `blocked` et `deleted` ; le rappel unique
       `AccessTokenGate` (coordination 600) refuse tout jeton d'un compte non `active` — couvre
       OAuth (`OAuthController.php:66`, `AbstractOAuthController.php:105`, qui refusent aussi
       l'émission).
-- [ ] Verrou du mot de passe (contrainte 5 bis) dans `AuthController::login` : compteur
+- [x] Verrou du mot de passe (contrainte 5 bis) dans `AuthController::login` : compteur
       `metadata.failed_login_attempts` sur un compte existant, `locked_at` au 10e échec, 423
       `account_locked` tant que le verrou court — **avant** la vérification du mot de passe, pour
       que le bon mot de passe n'y échappe pas ; remise à zéro au succès. Même verrou lu par
       `verify-code` (§2).
-- [ ] `AuthController::register` rend `{token, expires_at, user}` ; `AuthRegistrationTest:29`
+- [x] `AuthController::register` rend `{token, expires_at, user}` ; `AuthRegistrationTest:29`
       inversé, avec un commentaire qui cite 4.2.
-- [ ] Front : l'inscription ouvre la session avec le jeton rendu ; plus aucun appel de
+- [x] Front : l'inscription ouvre la session avec le jeton rendu ; plus aucun appel de
       `set-token` sans jeton depuis l'inscription. « Créer un compte » dans la boîte de réservation
       anonyme ; `redirect` (assaini comme celui de la connexion) transmis connexion → inscription
       → vérification d'e-mail → fiche, et par l'entrée téléphone et Google ; intention
       `?action=reserver&debut=…&fin=…` qui rouvre la boîte pré-remplie.
-- [ ] Tests : `BlockedAccountAuthenticationTest` (mot de passe, téléphone, OAuth, jeton existant),
+- [x] Tests : `BlockedAccountAuthenticationTest` (mot de passe, téléphone, OAuth, jeton existant),
       `PasswordLoginLockTest` ; tests vitest de l'inscription et du lien « Créer un compte ».
 
 ### 5. 2FA exigée
 
-- [ ] `App\Http\Middleware\RequireTwoFactor` (règles du point 7 des contraintes ; utilisateur lu
+- [x] `App\Http\Middleware\RequireTwoFactor` (règles du point 7 des contraintes ; utilisateur lu
       par la garde `sanctum` explicitement, piège `SetLocaleMiddleware.php:63`) et
       `App\Http\Middleware\RequireRecentTwoFactor` (point 9), branchés dans `bootstrap/app.php` ;
       listes d'actions dans `App\Support\Security\ProtectedActions`.
-- [ ] `EnsureSuperAdmin` : 403 `two_factor_required` si `two_factor_enabled` est faux (bloc seul).
-- [ ] Réglage d'agence `settings.require_team_two_factor` (`AgencyUpdateRequest` +
+- [x] `EnsureSuperAdmin` : 403 `two_factor_required` si `two_factor_enabled` est faux (bloc seul).
+- [x] Réglage d'agence `settings.require_team_two_factor` (`AgencyUpdateRequest` +
       `AgencyController::update`, capacité `agency.update` ; 586 et 592 touchent d'autres blocs du
       même contrôleur, l.332-343).
-- [ ] `TwoFactorController::disable` : 422 `two_factor_mandatory` (point 10) ; activité nommée
+- [x] `TwoFactorController::disable` : 422 `two_factor_mandatory` (point 10) ; activité nommée
       `two_factor_disabled` (`activity('Security')->event('two_factor_disabled')`) ; entrée
       `two_factor_disabled` dans `AlertableEvents` (coordination 600).
-- [ ] `metadata.force_2fa_reconfigure` lu par `RequireTwoFactor` (403 `two_factor_required` hors
+- [x] `metadata.force_2fa_reconfigure` lu par `RequireTwoFactor` (403 `two_factor_required` hors
       `auth/*`) et par `GET /auth/me` (le front redirige vers l'enrôlement) ;
       `TwoFactorController::confirm` et `SuperAdminTwoFactorController::confirm` l'effacent.
-- [ ] `TeamController::index` : `two_factor_enabled` par membre (champ calculé, **pas** via
+- [x] `TeamController::index` : `two_factor_enabled` par membre (champ calculé, **pas** via
       `User::$queryFields`, qui l'exposerait à toute liste d'utilisateurs).
-- [ ] Front : 403 `two_factor_required` → enrôlement sur place puis retour ; l'onboarding admin
+- [x] Front : 403 `two_factor_required` → enrôlement sur place puis retour ; l'onboarding admin
       d'agence rend la 2FA obligatoire (plus de « passer ») ; garde du layout super-admin sur
       `two_factor_enabled` ; colonne 2FA de l'équipe ; interrupteur d'agence.
-- [ ] Tests : `SuperAdminTwoFactorEnforcementTest`, `AgencyStaffTwoFactorTest`,
+- [x] Tests : `SuperAdminTwoFactorEnforcementTest`, `AgencyStaffTwoFactorTest`,
       `ProtectedActionsCoverageTest` (garde du point 8), `ForceTwoFactorReconfigureTest`,
       `TwoFactorDisableTest` ; tests vitest du layout super-admin et de l'onboarding admin.
 
 ### 6. Sessions bornées et step-up
 
-- [ ] `config/sanctum.php` : `expiration` = durée absolue (43 200 min, option retenue par
+- [x] `config/sanctum.php` : `expiration` = durée absolue (43 200 min, option retenue par
       défaut) — couvre les jetons hérités par `created_at`.
-- [ ] Migration `add_session_bounds_to_personal_access_tokens_table` : `idle_timeout_minutes`
+- [x] Migration `add_session_bounds_to_personal_access_tokens_table` : `idle_timeout_minutes`
       (smallint nullable), `two_factor_verified_at` (timestamp nullable).
-- [ ] Émission (`login`, `register`, téléphone, OAuth) par un seul `App\Services\Auth\SessionTokenIssuer` :
+- [x] Émission (`login`, `register`, téléphone, OAuth) par un seul `App\Services\Auth\SessionTokenIssuer` :
       `expires_at`, inactivité (7 j ; super-admin `platform.session_max_minutes` absolus et 30 min
       d'inactivité), `two_factor_verified_at` posé quand un TOTP vient d'être saisi.
-- [ ] `POST auth/two-factor/step-up` (`throttle:5,1`) ; `recovery-codes` et `regenerate` sous
+- [x] `POST auth/two-factor/step-up` (`throttle:5,1`) ; `recovery-codes` et `regenerate` sous
       `RequireRecentTwoFactor`.
-- [ ] `Schedule::command('sanctum:prune-expired --hours=24')` dans `routes/console.php`.
-- [ ] Front : `set-token` dérive `maxAge` d'`expires_at` ; 403 `two_factor_step_up_required` →
+- [x] `Schedule::command('sanctum:prune-expired --hours=24')` dans `routes/console.php`.
+- [x] Front : `set-token` dérive `maxAge` d'`expires_at` ; 403 `two_factor_step_up_required` →
       boîte de code puis rejeu de l'action.
-- [ ] Tests : `TokenLifetimeTest` (absolu, inactivité, super-admin, jeton hérité),
+- [x] Tests : `TokenLifetimeTest` (absolu, inactivité, super-admin, jeton hérité),
       `StepUpTwoFactorTest` (par jeton, 10 min, codes de secours), `TokenPruneScheduleTest` ;
       test vitest de `set-token`.
 
 ### 7. Onboarding qui dit vrai
 
-- [ ] Pages `onboarding/owner`, `onboarding/agent`, `onboarding/service-provider` : lire le
+- [x] Pages `onboarding/owner`, `onboarding/agent`, `onboarding/service-provider` : lire le
       paramètre de reprise ; à défaut le premier profil `pending` ; à défaut `/app`.
-- [ ] Récap de l'agent : capacités lues dans `GET /api/me/capabilities?agency_id=` de l'agence de
+- [x] Récap de l'agent : capacités lues dans `GET /api/me/capabilities?agency_id=` de l'agence de
       l'invitation, libellés `admin.roles.capabilities.*` ; `ROLE_PERMISSIONS` supprimée.
-- [ ] `GET /api/agencies/{agency}/setup-status` — `App\Http\Controllers\Api\Agency\AgencySetupStatusController`,
+- [x] `GET /api/agencies/{agency}/setup-status` — `App\Http\Controllers\Api\Agency\AgencySetupStatusController`,
       service `App\Services\Agency\AgencySetupStatus`, autorisation par `agency.update` dans
       l'agence ; carte « Mise en service » sur `/admin`.
-- [ ] Tests : `AgencySetupStatusTest` ; tests vitest des trois pages de reprise et du récap.
+- [x] Tests : `AgencySetupStatusTest` ; tests vitest des trois pages de reprise et du récap.
 
 ### Après la fusion — geste d'exploitation, pas une tâche de code
 
@@ -519,101 +520,101 @@ nommé (ablation). AC2, AC3, AC6 (sauf le numéro injoignable) et AC17 posent
 `auth.phone_login.enabled = true` ; AC2b teste les deux positions ; les autres valent drapeau
 éteint.
 
-- [ ] **AC1** — `PhoneOtpDeliveryTest` : un utilisateur dont `phone_verified_at` est **nul**
+- [x] **AC1** — `PhoneOtpDeliveryTest` : un utilisateur dont `phone_verified_at` est **nul**
       appelle `POST /auth/phone/send-otp` → le faux `SmsRouterDriver` reçoit **un** appel, avec ce
       numéro, `is_critical = true`, et un texte qui contient le code ; la réponse n'a **pas** de
       `debug_code` ; le code reçu valide `POST /auth/phone/verify-otp` (200) et
       `phone_verified_at` est posé. Même chose pour l'envoi d'un onboarding bailleur. **Rouge**
       (aujourd'hui : routeur jamais appelé, `debug_code` présent). Ablations : remettre le pilote
       `log-stub` → rouge ; envoyer par une notification sur `SmsChannel` → rouge (abandon 1.4).
-- [ ] **AC1b** — `OnboardingFixedCodeRemovedTest` : en environnement `testing`, `123456` (le
+- [x] **AC1b** — `OnboardingFixedCodeRemovedTest` : en environnement `testing`, `123456` (le
       faux pilote ayant émis un autre code) est **refusé (422)** par les quatre onboardings —
       agent, bailleur, prestataire, hôte. **Rouge** (accepté aujourd'hui : `testing` ≠
       `production`). Ablation : remettre la ligne dans un seul service → son cas rougit.
-- [ ] **AC1c** — `PhoneOtpAttemptLimitTest` : cinq codes faux sur `POST /auth/phone/verify-otp`
+- [x] **AC1c** — `PhoneOtpAttemptLimitTest` : cinq codes faux sur `POST /auth/phone/verify-otp`
       (limiteur de route remis à zéro entre les appels par `RateLimiter::clear`), puis le **bon**
       code → 422 et `phone_verified_at` reste nul. **Rouge** (200 aujourd'hui). Ablation du
       compteur → rouge.
-- [ ] **AC2** — `PhoneLoginTest` : un numéro inconnu + code valide crée **un** compte
+- [x] **AC2** — `PhoneLoginTest` : un numéro inconnu + code valide crée **un** compte
       (`phone_verified_at` posé, `email` nul, `password_set_at` nul) et rend un jeton valide sur
       `GET /auth/me` ; le même numéro reconnecte **ce** compte (même `id`, `is_new_account`
       faux) ; un compte `two_factor_enabled` reçoit `requires_2fa` puis se connecte avec le TOTP.
       Un numéro présent mais non vérifié sur un compte existant ne connecte **pas** ce compte.
-- [ ] **AC2b** — `PhoneLoginFlagTest` : drapeau éteint, `request-code` et `verify-code` rendent
+- [x] **AC2b** — `PhoneLoginFlagTest` : drapeau éteint, `request-code` et `verify-code` rendent
       404, `GET /auth/oauth/providers` rend `phone_login: false`, et `InviteServiceProviderRequest`
       sans e-mail rend 422 ; drapeau allumé, `phone_login: true`. Vitest : la page de connexion
       n'affiche l'entrée par téléphone que si `phone_login` est vrai.
-- [ ] **AC3** — `PhoneLoginEnumerationTest` / `PhoneLoginRateLimitTest` : `request-code` rend le
+- [x] **AC3** — `PhoneLoginEnumerationTest` / `PhoneLoginRateLimitTest` : `request-code` rend le
       même statut et le même corps pour un numéro avec et sans compte. Au 6e code faux, le code
       est invalidé ; au-delà du seuil de l'ADR, le numéro est verrouillé (423) même avec le bon
       code ; le limiteur par numéro tient quand l'IP change. Ablation du verrou → rouge.
-- [ ] **AC4** — `BlockedAccountAuthenticationTest` : un compte `blocked` (puis `deleted`) reçoit
+- [x] **AC4** — `BlockedAccountAuthenticationTest` : un compte `blocked` (puis `deleted`) reçoit
       403 `account_blocked` au mot de passe, au téléphone et au rappel OAuth Google, et un jeton
       émis **avant** le blocage rend 401 sur `GET /auth/me`. **Rouge** (le login rend 200).
       Ablations séparées : retirer la clause de `login` → rouge ; retirer la clause d'`AccessTokenGate`
       → rouge.
-- [ ] **AC5** — `AuthRegistrationTest` : `POST /auth/register` rend un `token` et un
+- [x] **AC5** — `AuthRegistrationTest` : `POST /auth/register` rend un `token` et un
       `expires_at`, et ce jeton rend 200 sur `GET /auth/me`. **Rouge** (aucun jeton aujourd'hui).
       Vitest : la page d'inscription ouvre la session avec le jeton reçu et n'appelle jamais
       `set-token` sans jeton ; **rouge** (`openSession(undefined, …)` aujourd'hui).
-- [ ] **AC5b** — Vitest : le lien « Créer un compte » de `/auth/login?redirect=/properties/x`
+- [x] **AC5b** — Vitest : le lien « Créer un compte » de `/auth/login?redirect=/properties/x`
       porte `redirect=/properties/x` (**rouge** : `href="/auth/register"` nu) ; un `redirect`
       externe (`//evil.example`) est écarté. Au navigateur : fiche → Réserver → Créer un compte →
       inscription → retour sur la même fiche, boîte rouverte avec les dates saisies ; idem par
       l'entrée téléphone (drapeau allumé).
-- [ ] **AC6** — `InvitationBySmsTest` : une invitation de prestataire avec téléphone seul part par
+- [x] **AC6** — `InvitationBySmsTest` : une invitation de prestataire avec téléphone seul part par
       SMS (envoi au **numéro**, `Mail` jamais), y compris quand ce numéro est porté par un compte
       dont `phone_verified_at` est nul ; relance et rappel aussi ; elle s'accepte et crée un compte
       sans e-mail au numéro vérifié. Un numéro injoignable (`+330612345678`) rend 422 **drapeau
       éteint comme allumé** — **rouge** (accepté aujourd'hui).
-- [ ] **AC7** — `SuperAdminTwoFactorEnforcementTest` / `TwoFactorDisableTest` : un super-admin sans
+- [x] **AC7** — `SuperAdminTwoFactorEnforcementTest` / `TwoFactorDisableTest` : un super-admin sans
       2FA reçoit 403 `two_factor_required` sur `GET /api/admin/users` (**rouge**) ;
       `POST /auth/two-factor/disable` rend 422 `two_factor_mandatory` pour lui, avec son mot de
       passe comme avec un code (**rouge**, 200 aujourd'hui) ; pour un client, `disable` réussit et
       écrit une activité d'événement `two_factor_disabled` (**rouge** : seule une `updated`
       générique existe), et `AlertableEvents::has('two_factor_disabled')` est vrai. Vitest : le
       layout super-admin redirige un compte sans 2FA vers l'enrôlement (**rouge**).
-- [ ] **AC7b** — `ForceTwoFactorReconfigureTest` : après `POST /admin/users/{u}/reset-2fa`, le
+- [x] **AC7b** — `ForceTwoFactorReconfigureTest` : après `POST /admin/users/{u}/reset-2fa`, le
       compte se reconnecte et reçoit 403 `two_factor_required` sur une route hors `auth/*` ;
       `GET /auth/me` expose l'obligation ; après `two-factor/confirm`, la clé est effacée et la
       route rend 200. **Rouge** (la clé n'est lue par personne).
-- [ ] **AC8** — `AgencyStaffTwoFactorTest` : un admin d'agence sans 2FA reçoit 403
+- [x] **AC8** — `AgencyStaffTwoFactorTest` : un admin d'agence sans 2FA reçoit 403
       `two_factor_required` sur `POST /payouts`, sur `PATCH /integrations/{id}` (l'alias **sans
       nom**) et sur `PUT /agencies/{a}/roles/{r}/capabilities` (**rouge**) ; un bailleur sans 2FA
       n'est pas concerné ; avec l'interrupteur d'agence, un agent sans 2FA reçoit 403 sur ces
       mêmes routes. Ablation : retirer le middleware → rouge. Vitest : l'onboarding admin d'agence
       n'offre plus de « passer » à l'étape 2FA (**rouge**, `onSkip` aujourd'hui).
-- [ ] **AC9** — `ProtectedActionsCoverageTest` rougit si l'on ajoute à `integrations.php` une
+- [x] **AC9** — `ProtectedActionsCoverageTest` rougit si l'on ajoute à `integrations.php` une
       route mutante absente de la liste, et si une entrée de la liste ne résout aucune route.
-- [ ] **AC10** — `TokenLifetimeTest` : un jeton de plus de 30 jours, ou inutilisé depuis plus de
+- [x] **AC10** — `TokenLifetimeTest` : un jeton de plus de 30 jours, ou inutilisé depuis plus de
       7 jours, rend 401 ; un jeton super-admin rend 401 après `platform.session_max_minutes`
       (valeur modifiée en test à 2 min) et après 30 min d'inactivité ; un jeton hérité sans
       `expires_at` créé il y a 31 jours rend 401. **Rouge.** `TokenPruneScheduleTest` : le
       planificateur contient `sanctum:prune-expired` (**rouge**). Vitest : `set-token` pose un
       `maxAge` égal à `expires_at − maintenant` (**rouge** : 7 j fixes).
-- [ ] **AC11** — `StepUpTwoFactorTest` : `POST /admin/users/{u}/impersonate` et
+- [x] **AC11** — `StepUpTwoFactorTest` : `POST /admin/users/{u}/impersonate` et
       `GET /auth/two-factor/recovery-codes` rendent 403 `two_factor_step_up_required` sans
       step-up (**rouge**), 200 dans les 10 min qui suivent un step-up **sur le même jeton**, 403
       sur un second jeton du même utilisateur, et 403 à 10 min 01.
-- [ ] **AC12** — Avec deux profils bailleur (un `active` chez A, un `pending` chez B), le lien
+- [x] **AC12** — Avec deux profils bailleur (un `active` chez A, un `pending` chez B), le lien
       `?owner=<B>` monte l'assistant sur B, et sans paramètre aussi ; idem agent et prestataire.
       **Rouge** (premier profil du type aujourd'hui).
-- [ ] **AC13** — Un agent invité avec un rôle personnalisé accordant exactement
+- [x] **AC13** — Un agent invité avec un rôle personnalisé accordant exactement
       `properties.create` et `crm.view_all` voit **ces deux** libellés au récap, et aucun autre.
       **Rouge** (`ROLE_PERMISSIONS.agent` aujourd'hui).
-- [ ] **AC14** — `setup-status` d'une agence neuve rend les 7 étapes à `done:false` ; chacune passe
+- [x] **AC14** — `setup-status` d'une agence neuve rend les 7 étapes à `done:false` ; chacune passe
       à `true` quand sa condition est posée (KYC `verified`, logo, `commission_rate`, intégration
       active, un membre, un bien publié, 2FA de l'admin) ; un agent de l'agence reçoit 403.
-- [ ] **AC15** — `PasswordLoginLockTest` : 10 mots de passe faux, puis le **bon** → 423
+- [x] **AC15** — `PasswordLoginLockTest` : 10 mots de passe faux, puis le **bon** → 423
       `account_locked` (**rouge**, 200 aujourd'hui) ; `POST /admin/users/{u}/unlock` rend alors 200
       (**rouge**, toujours 409 aujourd'hui) et la connexion suivante 200 ; sans geste du support,
       le verrou tombe à 15 min 01 ; un succès avant le seuil remet le compteur à zéro. Ablation : ne
       lire le verrou que sur la branche d'échec → le cas « bon mot de passe → 423 » rougit.
-- [ ] **AC16** — `PhoneNumberUniquenessTest` : deux comptes portent le même numéro, A l'a vérifié ;
+- [x] **AC16** — `PhoneNumberUniquenessTest` : deux comptes portent le même numéro, A l'a vérifié ;
       B le vérifie par le profil **et** par l'onboarding bailleur → **409 `phone_taken`** (pas 500,
       pas 200) et `phone_verified_at` de B reste nul. **Rouge** (200 aujourd'hui). Ablation :
       retirer le test préalable de `markVerified` → 500 (violation d'index unique) → rouge.
-- [ ] **AC17** — `AccountWithoutEmailTest` : un compte créé par téléphone (sans e-mail) reçoit une
+- [x] **AC17** — `AccountWithoutEmailTest` : un compte créé par téléphone (sans e-mail) reçoit une
       notification à `toMail()` sans exception, et `POST /auth/me/deletion-request/step-up` envoie
       le code par SMS (faux routeur appelé une fois, `Mail` jamais) ; le code reçu permet de
       créer la demande de suppression.
@@ -829,3 +830,103 @@ en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
 - **Ablations** : envoi SMS retiré de `deliver()` → 4 rouges ; `markVerified` retiré de
   l'acceptation → rouge ; créneau par numéro neutralisé → « seconde invitation → 409 » rouge ;
   `TelephoneJoignable` retiré de la branche drapeau éteint → « injoignable, drapeau éteint » rouge.
+
+### §7 — mise en service (API, commit `b3f4c308`)
+
+- **Re-mesuré** sur `5f872f1f` : aucune route `setup-status`, aucun service ; la seule relance est
+  `BrandingBanner` (logo). Écart : le Delta dit « autorisation par `agency.update` » ;
+  `AgencyPolicy` explique pourquoi cette règle ne s'écrit **pas** `canActAt(Capability::AgencyUpdate)`
+  (le résolveur n'exige pas que le profil actif soit sur l'agence visée et ignore
+  `primary_admin_id`). Le contrôleur appelle donc `can('update', $agency)` — la règle
+  `agency.update` dans l'agence, telle que la policy l'écrit une seule fois.
+- `App\Services\Agency\AgencySetupStatus` — sept étapes lues sur la base, jamais sur un drapeau :
+  `kyc_verified` (dossier `verified`, lu **sans** `dossierForAgency`, qui crée le dossier) ;
+  `logo` (collection `logo`) ; `commission_rate` non nul (la fabrique en pose un : le test le
+  vide) ; `payment_integration` = intégration **active** de Wave ou d'Orange Money — écart
+  assumé avec « intégration active » de l'AC : le formulaire d'intégrations accepte un fournisseur
+  libre (`twilio`, `stripe`…), qui n'encaisse rien pour l'agence ; `first_member` = une
+  **deuxième personne** active (agent ou admin) — compté en personnes, car le fondateur porte
+  souvent un profil d'agent **et** un d'admin (`AgencyController::addAgent`,
+  `AgencyProvisioningService`) ; `first_published_property` = `Property::scopePublic()`
+  **composé** (pas de cinquième liste de statuts) ; `admin_two_factor` = **tous** les admins
+  actifs (et `primary_admin_id`) ont la 2FA.
+- AC13, côté API : le récap du front lit `GET /api/me/capabilities?agency_id=` **pendant**
+  l'onboarding, profil d'agent encore `draft`. Re-mesuré : `isAgentAt` et
+  `MembershipCapabilityResolver::roleAllows` ne filtrent pas le statut — la réponse est déjà
+  juste. `DraftAgentCapabilitiesTest` l'épingle (vert sans changement : c'est une garde, pas un
+  correctif).
+- **Exécutions** : `php artisan test tests/Feature/Agency/AgencySetupStatusTest.php` → 15 verts ;
+  `tests/Feature/Api/Me/DraftAgentCapabilitiesTest.php` → vert ;
+  `ProtectedActionsCoverageTest` → vert (route `GET`, hors familles mutantes).
+- **Ablations** (AC14) : autorisation retirée → 2 rouges (agent, admin d'une autre agence) ;
+  filtre Wave / Orange Money retiré → rouge ; `first_member` à « ≥ 1 » → 8 rouges ;
+  `admin_two_factor` à « un admin suffit » → rouge ; `->public()` retiré → « un brouillon n'est
+  pas un bien publié » rouge.
+
+### Front (commits `0c2a1970`, `b80ef974`, `80a48290`)
+
+- §1 : le type de l'action d'envoi perd `debug_code`, six composants n'affichent plus de code,
+  9 clés retirées par langue. §4 : `set-token` dérive `maxAge` d'`expires_at` (7 j à défaut, rien
+  de durable pour un jeton échu) ; l'inscription ouvre la session avec le jeton rendu ; `redirect`
+  assaini (`lib/redirection-interne.ts`) traverse connexion → inscription → vérification d'e-mail
+  → `/onboarding/intention`, l'entrée téléphone et Google ; `?action=reserver&debut=&fin=` rouvre
+  la boîte pré-remplie puis nettoie l'URL. §2 : entrée « téléphone d'abord »
+  (`ConnexionParTelephone`) affichée seulement si `data.phone_login`. §5/§6 : `GardeDoubleFacteur`
+  — une 403 `two_factor_required` ouvre l'enrôlement sur place, une 403
+  `two_factor_step_up_required` une boîte de code, puis l'action est rejouée ; garde du layout
+  super-admin ; plus de « Plus tard » à l'étape 2FA de l'onboarding admin ; colonne 2FA de
+  l'équipe ; interrupteur `require_team_two_factor`. §7 : reprise sur le bon profil
+  (`lib/onboarding-reprise.ts`), récap des vraies capacités (`ROLE_PERMISSIONS` supprimée), carte
+  `MiseEnService` sur `/admin` (aucune étape inventée : une clé inconnue n'est pas affichée).
+- **Écart mesuré au navigateur, corrigé (`80a48290`)** — deux ruptures que les tests de page ne
+  pouvaient pas voir (ils simulent `router.push`) :
+  1. `proxy.ts` renvoie toute page `/auth/*` d'une session ouverte vers `/app`. L'inscription
+     ouvrant désormais la session puis menant à `/auth/verify-email`, l'intention mourait là
+     (relevé : `/auth/register?redirect=…` → `/app`). `/auth/verify-email` est exemptée — c'est
+     la page d'un compte connecté (son renvoi de lien exige le jeton).
+  2. `/onboarding/intention` (TCK-493) : « Je cherche un logement » menait à `/properties` en
+     ignorant le `redirect` ; seul « Je verrai plus tard » l'honorait. Il ramène désormais à la
+     destination demandée quand il y en a une.
+  Ablations : `proxy.ts` de `dev` → le cas `verify-email` rougit ; choix `search` sans `retour`
+  → le test TCK-589 de `QuestionDIntention` rougit.
+- **Ablations par retour au code de `dev`** (`revert_run.py` : la source de `dev`, le test neuf,
+  restauration) : AC5/AC5b (`register` + `login`) → 4 rouges ; AC7 (layout super-admin) → 2 ;
+  AC10 (`set-token`) → 3 ; AC8 (assistant admin) → 1 ; AC13 (assistant agent) → 2 ; AC12 (trois
+  pages d'onboarding) → 12 ; AC2b (page de connexion) → 7.
+- ⚠ La boîte de réservation **anonyme** n'a pas de champs de dates : les « dates saisies » de
+  l'AC5b ne peuvent venir que d'une intention déjà portée par l'URL (lien partagé, retour de
+  connexion). C'est ce chemin qui est mesuré ci-dessous.
+
+### AC5b au navigateur (2026-10-07)
+
+API du worktree sur `:8104` (base isolée `takussan_tck589`, Redis base 9 préfixée,
+`PHONE_LOGIN_ENABLED=true`, `SMS_LOG_FALLBACK=true`), `next dev` sur `:3104`, Chrome headless
+piloté par CDP sur `:9344`. Un bien `rent`/`daily` publié.
+
+- **E-mail, sans dates** : fiche → « Réserver » → boîte anonyme, lien « Créer un compte » =
+  `/auth/register?redirect=%2Fproperties%2F<slug>%3Faction%3Dreserver` → inscription (voie
+  e-mail) → `/auth/verify-email?redirect=…` → « Continuer » → `/onboarding/intention?redirect=…`
+  → « Je cherche un logement » → `/fr/properties/<slug>`, boîte « Réserver ce bien » rouverte,
+  URL nettoyée.
+- **E-mail, avec dates** (`debut=2026-11-02`, `fin=2026-11-05`) : même chemin, boîte rouverte
+  « Arrivée 2 novembre 2026 · Départ 5 novembre 2026 ».
+- **Téléphone, avec dates** (`2026-10-27` → `2026-10-30`) : « Se connecter » → entrée téléphone
+  en tête → `+221771234589` → code lu dans le journal (pilote `log`) → compte créé →
+  orientation → retour sur la fiche, boîte rouverte « Arrivée 27 octobre 2026 · Départ 30 octobre
+  2026 », devis de 3 nuits affiché.
+- Avant `80a48290`, le premier chemin s'arrêtait sur `/app` (puis sur `/fr/properties`).
+
+### Exécutions nommées finales (après `80a48290`)
+
+- `php artisan test` sur les **41** fichiers de test que la branche touche
+  (`git diff --name-only dev..HEAD -- takussan-api/tests`) → **277 verts, 1230 assertions**,
+  35 s. Vaut pour AC1, AC1b, AC1c, AC2, AC2b, AC3, AC4, AC5, AC6, AC7, AC7b, AC8, AC9, AC10,
+  AC11, AC13 (API), AC14, AC15, AC16, AC17.
+- `npx vitest run` sur les **26** fichiers de test que la branche touche → **240 verts** ; puis
+  `src/__tests__ src/components/onboarding src/app/onboarding src/app/(auth) src/components/auth`
+  → 26 fichiers, 182 verts. Vaut pour la part vitest d'AC2b, AC5, AC5b, AC7, AC8, AC10, AC12,
+  AC13.
+- `npx tsc --noEmit` propre, `eslint` propre sur les fichiers touchés, `./vendor/bin/pint` propre,
+  `for g in scripts/check-*.mjs` → aucune garde rouge.
+- **Non lancées ici, par la règle du dépôt** : les suites entières `php artisan test` et
+  `npm run test` (`bin/impacted-tests.php --base=dev` rend « SUITE ENTIÈRE ») — à la session.
