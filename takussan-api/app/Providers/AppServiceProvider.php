@@ -41,6 +41,7 @@ use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
+use App\Observers\MaintenanceRequestObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
@@ -383,6 +384,8 @@ class AppServiceProvider extends ServiceProvider
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
+        // TCK-594 (ADR-0039 §8) — l'intervention terminée produit sa facture d'intervention.
+        MaintenanceRequest::observe(MaintenanceRequestObserver::class);
         User::observe(UserObserver::class);
         PlatformProfile::observe(PlatformProfileObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);

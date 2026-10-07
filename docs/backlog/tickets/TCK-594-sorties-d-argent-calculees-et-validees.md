@@ -801,3 +801,21 @@ le ticket nommé (vérifié dans son texte).
   référence, destination masquée — une ligne sans valeur ne s'écrit pas), `PayoutFailedNotification`
   (motif). Base + e-mail ; WhatsApp/SMS viendront par les canaux de TCK-588.
 
+### Partie 5 — facture d'intervention (§ 6)
+
+- **`MaintenanceRequestObserver`** (`ShouldHandleEventsAfterCommit`, enregistré dans
+  `AppServiceProvider`) : au passage à `completed` (et à une création directement `completed`), avec
+  `assigned_to` et un montant > 0 — `actual_cost` s'il est fourni, sinon le devis **approuvé**
+  (`quote_decision_at` posé ET `quote_rejection_reason` nul) —, une facture `pending_validation` par
+  `insertOrIgnore` contre `sp_bills_one_open_per_request`. `exceeds_quote` = coût réel > devis approuvé.
+  `rechargeable_to_landlord` vaut `true` à la création ; la validation peut le changer.
+- **Routes** : `GET /api/service-provider-bills`, `GET …/{bill}`, `POST …/{serviceProviderBill}/validate|reject|pay`.
+  Lecture : le prestataire voit les siennes, le personnel celles de son agence ; une facture hors de
+  ce périmètre rend **404** (résolue dans le périmètre avant toute policy). Gestes :
+  `ServiceProviderBillPolicy::manage` (personnel de l'agence + `payouts.create`), et
+  `SegregationOfDuties` interdit au prestataire de valider ou rejeter sa propre facture. Valider et
+  rejeter ne se font que depuis `pending_validation`, sous verrou.
+- `pay` → `PayoutService::createForBill` : `Payout` `payee_role = service_provider`, même seuil, mêmes
+  quatre yeux, même destination vérifiée ; un second `pay` sur une facture déjà dans un reversement
+  vivant rend 409. `markProcessed` passe la facture à `paid`.
+
