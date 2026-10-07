@@ -418,18 +418,18 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **H. Fil de discussion et note vocale (P19) — ADR 2 d'abord, sauf la première case**
 
-- [ ] **Sans attendre l'ADR 2, livrable avec A et B** : `SendMessageConversationRequest` — `type` →
+- [x] **Sans attendre l'ADR 2, livrable avec A et B** : `SendMessageConversationRequest` — `type` →
       `['nullable', Rule::in([MessageType::Text->value])]` (`:44`), étendu à `audio` par la case
       `MessageType::Audio` ci-dessous ; `system`, `image`, `document` postés par un participant → 422
       qui nomme `type`. `SystemMessageFactory` reste le seul écrivain de `system`
-- [ ] ADR 2 écrit et accepté
-- [ ] À la première assignation : conversation de groupe `maintenance_request_id` (donneur d'ordre
+- [x] ADR 2 écrit et accepté
+- [x] À la première assignation : conversation de groupe `maintenance_request_id` (donneur d'ordre
       qui assigne, prestataire, demandeur locataire), créée par `GroupConversationService` ;
       réassignation = échange du participant prestataire ; message système (code d'événement) à
       chaque `MaintenanceStatusChanged`
-- [ ] `MessageType::Audio` ; envoi d'un fichier audio dans `SendMessageConversationRequest`
+- [x] `MessageType::Audio` ; envoi d'un fichier audio dans `SendMessageConversationRequest`
 - [ ] Front : « Discuter » sur la fiche ; enregistrer, écouter une note vocale
-- [ ] Tests : `MessageTypeSpoofingTest`, `MaintenanceConversationTest`, `AudioMessageTest`
+- [x] Tests : `MessageTypeSpoofingTest`, `MaintenanceConversationTest`, `AudioMessageTest`
 
 ## Critères d'acceptation
 
@@ -699,3 +699,18 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
   plafond ignoré → 1 ; `awaiting_owner` ouvert à l'équipe → 1 ; le bailleur attend aussi → 1 ;
   `quote_lines` rendues au locataire → 1 (ce dernier était **vert** avant que le test d'AC10 n'assère
   aussi l'absence de `quote_lines` et `quote_currency` : assertion ajoutée).
+
+### H — fil par intervention et note vocale (ADR-0038, 23e24f87)
+
+- `SyncMaintenanceConversation` (écouteur synchrone, découvert) : à la première `CAUSE_ASSIGNED`,
+  conversation de groupe `maintenance_request_id` (créateur = l'acteur, sinon le bailleur ; assigné +
+  demandeur) ; réassignation, désassignation, refus → échange du participant prestataire ; un message
+  `system` codé (`event=maintenance`, cause, statuts) à chaque événement, rendu par `maintenance.system.*`.
+  `conversation_id` est rendu au seul participant actif, sur le détail.
+- `MessageType::Audio` : `audio` requis/interdit selon `type`, mimes webm/ogg/mp4/m4a/aac/mpeg, ≤ 2 Mo,
+  `duration` 1..60 déclarée (ADR-0038 §3) ; fichier dans `attachments` (privée), `MessageResource` rend
+  `attachments[]` signés et `metadata`.
+- Exécutions : `AudioMessageTest` (7) + `MaintenanceConversationTest` (4) verts ; `tests/Feature/{Messaging,
+  Maintenance,Media}`, `GroupConversationCreationTest`, `tests/Unit/Http/Resources` → 474 verts.
+- Ablations : taille non bornée → 1 rouge ; type de fichier non contrôlé → 1 ; fichier non requis → 1 ;
+  réassignation sans échange → 2 ; aucun avis d'étape → 1 ; un fil par assignation → 3.

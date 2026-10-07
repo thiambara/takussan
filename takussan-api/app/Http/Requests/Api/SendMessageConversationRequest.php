@@ -45,14 +45,35 @@ class SendMessageConversationRequest extends BaseFormRequest
      * `document` passaient de même, sans fichier. Le seul auteur légitime d'un avis système est
      * `SystemMessageFactory`, qui n'emprunte pas cette route.
      */
-    public const PARTICIPANT_TYPES = [MessageType::Text];
+    public const PARTICIPANT_TYPES = [MessageType::Text, MessageType::Audio];
+
+    /**
+     * ADR-0038 — formats que produisent les navigateurs mobiles (`MediaRecorder`) et les lecteurs
+     * courants. `video/webm` : ce que `finfo` rend pour un enregistrement Chrome sans piste vidéo.
+     */
+    public const AUDIO_MIMETYPES = [
+        'audio/webm', 'video/webm', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mpeg',
+    ];
+
+    /** ADR-0038 — la borne APPLIQUÉE (Ko). La durée, elle, est déclarée par le client. */
+    public const AUDIO_MAX_KB = 2048;
+
+    public const AUDIO_MAX_SECONDS = 60;
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
-            'content' => ['required', 'string'],
+            'content' => ['required_unless:type,audio', 'nullable', 'string'],
             'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
+            'audio' => [
+                'required_if:type,audio', 'prohibited_unless:type,audio',
+                'file', 'mimetypes:'.implode(',', self::AUDIO_MIMETYPES), 'max:'.self::AUDIO_MAX_KB,
+            ],
+            'duration' => [
+                'required_if:type,audio', 'prohibited_unless:type,audio',
+                'integer', 'min:1', 'max:'.self::AUDIO_MAX_SECONDS,
+            ],
         ];
     }
 }

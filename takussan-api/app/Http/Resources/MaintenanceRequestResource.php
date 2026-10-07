@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Listeners\Maintenance\SyncMaintenanceConversation;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -79,6 +80,7 @@ class MaintenanceRequestResource extends BaseResource
 
         if ($user !== null && $this->isDetailRequest($request)) {
             $data['media'] = $this->mediaBlock($user);
+            $data['conversation_id'] = $this->conversationIdFor($user);
             $data['abilities'] = $this->abilitiesBlock($user);
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
@@ -206,6 +208,24 @@ class MaintenanceRequestResource extends BaseResource
             'can_contest_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::InProgress]),
             'transitions' => $transitions,
         ];
+    }
+
+    /**
+     * TCK-592 (P19) — « Discuter » : le fil de l'intervention, si l'utilisateur y participe encore.
+     */
+    private function conversationIdFor(User $user): ?int
+    {
+        $conversation = SyncMaintenanceConversation::conversationFor($this->resource);
+        if ($conversation === null) {
+            return null;
+        }
+
+        $isParticipant = $conversation->participants()
+            ->where('users.id', $user->id)
+            ->wherePivotNull('left_at')
+            ->exists();
+
+        return $isParticipant ? $conversation->id : null;
     }
 
     private function isPrincipal(?User $user): bool

@@ -242,6 +242,7 @@ class ConversationController extends Controller
                 // for a long time). The client re-polls so anything beyond
                 // this cap will be fetched on the next call.
                 ->limit(200)
+                ->with('media')
                 ->get();
 
             return $this->json([
@@ -259,7 +260,8 @@ class ConversationController extends Controller
             $query->where('id', '<', (int) $data['before_id']);
         }
 
-        $messages = $query->limit($perPage)->get();
+        // TCK-592 — `MessageResource` rend `attachments` : les médias chargés d'un coup.
+        $messages = $query->limit($perPage)->with('media')->get();
 
         return $this->json([
             'data' => MessageResource::collection($messages)->toArray($request),
@@ -277,12 +279,22 @@ class ConversationController extends Controller
         // Group the message insert, conversation pointer update, sender
         // read-marker and participant auto-unarchive in one transaction so
         // a mid-write failure can't leave half of them applied.
-        $message = DB::transaction(function () use ($conversation, $sender, $data) {
+        // TCK-592 — ADR-0038 : une note vocale porte son fichier (collection privée `attachments`)
+        // et sa durée déclarée ; son texte est un aperçu neutre pour la liste des conversations.
+        $isAudio = ($data['type'] ?? null) === MessageType::Audio->value;
+        $audio = $isAudio ? $request->file('audio') : null;
+
+        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio) {
             $message = $conversation->messages()->create([
                 'sender_id' => $sender->id,
-                'content' => $data['content'],
+                'content' => $isAudio ? __('messaging.audio_preview') : $data['content'],
                 'type' => $data['type'] ?? MessageType::Text->value,
+                'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
             ]);
+
+            if ($audio !== null) {
+                $message->addMedia($audio)->toMediaCollection('attachments');
+            }
 
             $conversation->update([
                 'last_message_id' => $message->id,
