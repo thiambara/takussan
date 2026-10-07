@@ -923,3 +923,14 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   `paid_amount = 50 000` → `amount_due = 100 000` réglage désactivé, 107 500 activé, et le pilote
   reçoit 10 000 000 / 10 750 000 centimes. Ablation AC3b (`amount` au lieu de `remaining_amount`)
   → rouge.
+- **AC18 (mineur 6) — détail du relevé.** Test front `le détail dit combien de lignes ont été
+  sautées, et qu’un relevé a échoué` (`rapprochement.test.tsx`) : 3 sautées → « 3 lignes non lues
+  — vérifiez le paramétrage CSV. » dans l'alerte du détail ; `failed` sans ligne sautée → le
+  message d'échec. Ablation AC18b (`count: 0` dans `StatementDetail.tsx`) → rouge.
+- **Vue client (mineur 7).** `CustomerPayments.tsx` rappelle `rappelPenalite(row)` sur les cartes
+  `paid` de loyer de l'historique (le cas par défaut : loyer payé en ligne, pénalité due à
+  l'agence), et `STATUTS_DUS` vaut `pending,partially_paid,late,failed` (le filtre serveur accepte
+  tout `PaymentStatus`). Tests `rappelle la pénalité restant due sur un loyer PAYÉ de
+  l’historique` et le filtre mis à jour. Ablations : rappel retiré → rouge ; `partially_paid`
+  retiré → rouge. Front : vitest des deux dossiers 53 verts, ESLint 0, `tsc --noEmit` propre,
+  `check:i18n` vert.

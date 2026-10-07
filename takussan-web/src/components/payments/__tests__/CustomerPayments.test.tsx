@@ -99,11 +99,25 @@ function rendre() {
 }
 
 describe('CustomerPayments (TCK-593 Partie 2)', () => {
-  it('filtre les dus côté serveur : pending, late, failed', () => {
+  it('filtre les dus côté serveur : pending, partially_paid, late, failed', () => {
     rendre();
     expect(usePaymentsHistory).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'pending,late,failed' }),
+      expect.objectContaining({ status: 'pending,partially_paid,late,failed' }),
     );
+  });
+
+  // Ajouté après vérification adverse : réglage désactivé (le cas par défaut), le locataire paie
+  // le loyer en ligne et la pénalité reste due — elle disparaissait de /app/payments.
+  it('rappelle la pénalité restant due sur un loyer PAYÉ de l’historique', () => {
+    const payeAvecPenalite = ligne({ id: 13, late_fee_amount: 7500, late_fee_outstanding: 7500 });
+    usePaymentsHistory.mockImplementation((params: { status?: string }) =>
+      params.status ? reponse([]) : reponse([payeAvecPenalite, ligne({ id: 11 })]),
+    );
+    rendre();
+    const cartes = within(screen.getByTestId('historique-client')).getAllByRole('listitem');
+    const rappel = within(cartes[0]).getByTestId('penalite-hors-ligne');
+    expect(texte(rappel.textContent)).toContain('7 500 F CFA');
+    expect(within(cartes[1]).queryByTestId('penalite-hors-ligne')).toBeNull();
   });
 
   it('affiche en tête amount_due tel que l’API le rend, et « Payer » de ce montant', () => {

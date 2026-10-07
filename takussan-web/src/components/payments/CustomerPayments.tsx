@@ -26,10 +26,13 @@ import { PayOnlineButton } from './PayOnlineButton';
  * prochain montant dû vient donc en tête, avec « Payer » sans défiler, puis l'historique en cartes
  * — pas de table qui défile sur téléphone.
  *
- * Les dus sont filtrés CÔTÉ SERVEUR (`filter[status]=pending,late,failed`) et le montant affiché est
- * `amount_due` tel que l'API le calcule : la page n'additionne rien.
+ * Les dus sont filtrés CÔTÉ SERVEUR (`filter[status]=pending,partially_paid,late,failed`) et le
+ * montant affiché est `amount_due` tel que l'API le calcule : la page n'additionne rien.
+ *
+ * Une pénalité restant due sur un loyer PAYÉ (le cas par défaut, réglage désactivé) n'a pas sa
+ * place dans les dus — rien n'est payable en ligne — mais reste rappelée sur sa carte d'historique.
  */
-const STATUTS_DUS = 'pending,late,failed';
+const STATUTS_DUS = 'pending,partially_paid,late,failed';
 const PAR_PAGE = 20;
 
 /**
@@ -211,6 +214,7 @@ export function CustomerPayments() {
                         ? t('dueOn', { date: formatDate(row.due_date, locale) })
                         : null}
                   </p>
+                  {row.source === 'lease' && row.status === 'paid' && rappelPenalite(row)}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium tabular-nums text-foreground">

@@ -228,6 +228,19 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     await waitFor(() => expect(q.match).toHaveBeenCalledWith({ lineId: 101, payment_type: 'payout', payment_id: 5 }));
   });
 
+  // Ajouté après vérification adverse (AC18b) : seule la LISTE était éprouvée — forcer le compte
+  // à 0 dans le détail laissait la suite verte.
+  it('le détail dit combien de lignes ont été sautées, et qu’un relevé a échoué', () => {
+    q.useBankStatement.mockReturnValue(ok({ data: releve({ skipped_lines_count: 3 }) }));
+    const { unmount } = render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(screen.getByRole('alert')).toHaveTextContent('3 lignes non lues — vérifiez le paramétrage CSV.');
+    unmount();
+
+    q.useBankStatement.mockReturnValue(ok({ data: releve({ status: 'failed', reconciled_ratio: null }) }));
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(screen.getByRole('alert')).toHaveTextContent(fr.admin.reconciliation.list.failed);
+  });
+
   it('un relevé finalisé ne propose plus aucun geste', () => {
     q.useBankStatement.mockReturnValue(ok({ data: releve({ status: 'reconciled', finalized_at: '2026-10-02T00:00:00Z' }) }));
     render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
