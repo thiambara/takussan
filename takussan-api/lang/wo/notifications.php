@@ -183,7 +183,7 @@ return [
         ],
         'cancelled' => [
             'subject' => 'Tas bu jëkk neenal — luwé :reference',
-            'intro' => 'Tas bu jëkk laaj bi neenal nañ ko. Luwé bi des ci jàpp.',
+            'intro' => 'Tas bu jëkk laaj bi (luwé :reference) neenal nañ ko. Luwé bi des ci jàpp.',
         ],
         'confirmed' => [
             'subject' => 'Luwé jeex na — :reference',
