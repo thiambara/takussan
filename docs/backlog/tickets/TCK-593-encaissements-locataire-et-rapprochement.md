@@ -374,66 +374,67 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 
 ### Partie 1 — Téléchargements (C1)
 
-- [ ] Front : le contrat (`LeaseDetail`) et le reçu d'acompte (`BookingDetail`) se téléchargent
+- [x] Front : le contrat (`LeaseDetail`) et le reçu d'acompte (`BookingDetail`) se téléchargent
       authentifiés depuis l'API, sur l'un des deux motifs existants. Une seule mécanique est réutilisée
       pour le contrat, le reçu et les quittances.
-- [ ] Tests Vitest : l'URL appelée est celle de l'API (et non l'origine Next), elle porte le Bearer, et
+- [x] Tests Vitest : l'URL appelée est celle de l'API (et non l'origine Next), elle porte le Bearer, et
       un 403/422 affiche un message localisé.
 
 ### Partie 2 — Quittances et vue Paiements du locataire (C2)
 
-- [ ] `DocumentPdfController::receipt` : `abort_unless($payment->status === PaymentStatus::Paid, 422, __('payments.receipt_unpaid'))`.
-- [ ] `rent.blade.php` : date = `paid_at` ; statut libellé en français (« Acquitté »), jamais la valeur
+- [x] `DocumentPdfController::receipt` : `abort_unless($payment->status === PaymentStatus::Paid, 422, __('payments.receipt_unpaid'))`.
+- [x] `rent.blade.php` : date = `paid_at` ; statut libellé en français (« Acquitté »), jamais la valeur
       brute ; ligne « Pénalité de retard » distincte quand `late_fee_amount > 0`, avec « acquittée »
       si `late_fee_paid_at` est posé, sinon « restant due, à régler auprès de l'agence ». Le montant
       acquitté du loyer reste `amount` ; la pénalité ne s'y additionne que si elle est acquittée, sur
       une ligne « Total acquitté » à part.
-- [ ] `PaymentController::history` : `filter[status]` en liste, et `leaseRow` + `late_fee_amount`,
+- [x] `PaymentController::history` : `filter[status]` en liste, et `leaseRow` + `late_fee_amount`,
       `late_fee_outstanding`, `late_fee_payable_online`, `amount_due`.
-- [ ] Front : vue Paiements dédiée au client seul (`isCustomerOnly`), avec prochaine somme due,
+- [x] Front : vue Paiements dédiée au client seul (`isCustomerOnly`), avec prochaine somme due,
       pénalité non incluse montrée à part, historique en cartes, quittance par échéance payée et onglet
       Reversements masqué. Un profil pro garde la vue actuelle.
-- [ ] Front : `LeaseSchedule` reste utilisable sur téléphone (« Payer » atteignable sans défilement
+- [x] Front : `LeaseSchedule` reste utilisable sur téléphone (« Payer » atteignable sans défilement
       horizontal) et n'offre « Payer » que si `amount_due > 0` (donc jamais pour `paid` ni `refunded`,
       et toujours pour `failed`), plus une quittance par échéance payée. Côté gestionnaire, l'action
       « Pénalité réglée » sur une échéance à `late_fee_outstanding > 0`.
-- [ ] Tests : `ReceiptPdfTest::test_quittance_refusee_pour_une_echeance_impayee`,
+- [x] Tests : `ReceiptPdfTest::test_quittance_refusee_pour_une_echeance_impayee`,
       `ReceiptPdfTest::test_quittance_dit_la_penalite_restant_due` (rendu de la vue), et
       `PaymentHistoryTest` (liste de statuts, `late_fee_amount` et `late_fee_outstanding` présents).
 
 ### Partie 3 — Ce qui est dû (C3)
 
-- [ ] Migration `add_late_fee_paid_at_to_lease_payments_table` : `late_fee_paid_at` (datetime,
+- [x] Migration `add_late_fee_paid_at_to_lease_payments_table` : `late_fee_paid_at` (datetime,
       nullable), `down()` réel. `LeasePayment` : `fillable`, `casts`, et
       `lateFeeOutstanding(): float`.
-- [ ] `Agency::collectsLateFeesOnline(): bool` = `(bool) data_get($this->settings, 'late_fee_online_collection', false)`.
-- [ ] `PaymentGatewayService` : `paymentAmount` → `amountDue`. Pour `LeasePayment` :
+- [x] `Agency::collectsLateFeesOnline(): bool` = `(bool) data_get($this->settings, 'late_fee_online_collection', false)`.
+- [x] `PaymentGatewayService` : `paymentAmount` → `amountDue`. Pour `LeasePayment` :
       `remaining_amount + (collectsLateFeesOnline ? lateFeeOutstanding : 0)`, `0` hors statut payable ;
       inchangé pour `BookingPayment` et `Invoice`. `recordInitiation` fige
       `metadata.gateway_expected_amount` et `metadata.late_fee_included`.
       `assertReportedAmountCoversPayment` compare au montant figé quand il existe, à `amountDue` sinon.
-- [ ] `PaymentGatewayService::initiate` : garde `payment_not_payable` (409) du point 5 des contraintes,
+- [x] `PaymentGatewayService::initiate` : garde `payment_not_payable` (409) du point 5 des contraintes,
       **avant** tout appel au pilote.
-- [ ] `PaymentGatewayService::applyStatusToPayment` : bloc `SUCCESS` — sur un `LeasePayment` dont
+- [x] `PaymentGatewayService::applyStatusToPayment` : bloc `SUCCESS` — sur un `LeasePayment` dont
       `metadata.late_fee_included` est vrai, poser `late_fee_paid_at` avec `paid_at`. Bloc `FAILED` —
       sur un `LeasePayment`, ne plus écrire `status = failed` ; tracer `metadata.gateway.last_failed_at`.
-- [ ] Migration `reopen_failed_lease_payments` (données) : `lease_payments.status = 'failed'` →
+- [x] Migration `reopen_failed_lease_payments` (données) : `lease_payments.status = 'failed'` →
       `'pending'`, avec le marqueur `metadata.reopened_from_failed_at` ; `down()` restaure les seules
       lignes marquées.
-- [ ] Route `POST lease-payments/{payment}/late-fee/mark-paid` (`lease-payments.late-fee.mark-paid`),
+- [x] Route `POST lease-payments/{payment}/late-fee/mark-paid` (`lease-payments.late-fee.mark-paid`),
       `LeasePaymentController::markLateFeePaid`, `MarkLateFeePaidRequest`, autorisée par
-      `LeasePaymentPolicy::update` telle quelle. Pose `late_fee_paid_at`, journalise
+      `LeasePaymentPolicy::update` telle quelle *(écart : la règle du `mark-paid` du loyer, sans clause
+      locataire — sinon l'AC5 « le locataire → 403 » est inatteignable ; voir Notes)*. Pose `late_fee_paid_at`, journalise
       `late_fee_paid` ; 409 `late_fee_not_due` si `lateFeeOutstanding() <= 0`.
-- [ ] `LeasePaymentResource` : `amount_due`, `late_fee_outstanding`, `late_fee_paid_at`,
+- [x] `LeasePaymentResource` : `amount_due`, `late_fee_outstanding`, `late_fee_paid_at`,
       `late_fee_payable_online`, `receipt_available`.
-- [ ] `LeasePaymentLateFeeNotification` / `NotifyTenantOfLateFee` : le paramètre
+- [x] `LeasePaymentLateFeeNotification` / `NotifyTenantOfLateFee` : le paramètre
       `late_fee_payable_online` (lu sur l'agence du bail à l'envoi) entre dans `toArray` et choisit
       l'une des deux phrases du point 7 (`notifications.lease_late_fee_applied.pay_online` /
       `.pay_at_agency`).
-- [ ] Front : `types/lease.ts` aligné champ par champ sur `LeasePaymentResource` (`late_fee` →
+- [x] Front : `types/lease.ts` aligné champ par champ sur `LeasePaymentResource` (`late_fee` →
       `late_fee_amount`, champs fantômes retirés, nouveaux champs ajoutés), et le sélecteur de
       fournisseur affiche `amount_due` décomposé ; une pénalité non incluse y est rappelée à part.
-- [ ] Tests :
+- [x] Tests :
   - `PaymentGatewayInitiateTest::test_penalite_exclue_quand_l_agence_ne_l_encaisse_pas_en_ligne` ;
   - `…::test_penalite_incluse_quand_l_agence_l_encaisse_en_ligne` ;
   - `…::test_agence_neuve_n_encaisse_pas_la_penalite_en_ligne` ;
@@ -449,31 +450,33 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 
 ### Partie 4 — Rapprochement (AD10)
 
-- [ ] Migration `add_bank_reconciliation_to_payouts_table` : `bank_reconciled_at`,
+- [x] Migration `add_bank_reconciliation_to_payouts_table` : `bank_reconciled_at`,
       `bank_statement_line_id` (FK `payouts_bank_line_fk`, `nullOnDelete`) et unique partiel
       `payouts_bank_line_unique` `WHERE bank_statement_line_id IS NOT NULL`, avec un `down()` réel.
-- [ ] Migration `add_parse_outcome_to_bank_statements_table` : `csv_mapping` (jsonb, nullable,
+- [x] Migration `add_parse_outcome_to_bank_statements_table` : `csv_mapping` (jsonb, nullable,
       instantané) et `skipped_lines_count` (unsignedInteger, défaut 0).
       `BankStatementStatus::Failed = 'failed'` (chaîne, pas d'`enum()` SQL, ADR-0007).
-- [ ] `ReconciliationMatcher` : branche débit → `Payout` `completed`, même agence, même devise,
+- [x] `ReconciliationMatcher` : branche débit → `Payout` `completed`, même agence, même devise,
       `net_amount` exact, fenêtre sur `processed_at`. Côté crédit, le montant comparé à une
       `LeasePayment` est `metadata.gateway_expected_amount` quand il existe, `amount` sinon.
-- [ ] `ReconciliationManager::ALLOWED_PAYMENT_TYPES`, `BankStatementLineController::PAYMENT_TYPE_MAP`,
+- [x] `ReconciliationManager::ALLOWED_PAYMENT_TYPES`, `BankStatementLineController::PAYMENT_TYPE_MAP`,
       `MatchBankStatementLineRequest` et `PaymentSearchService` : ajouter `payout`, avec une garde de
       sens (crédit ↔ encaissement, débit ↔ reversement, 422 `reconciliation.validation.direction_mismatch`).
-- [ ] Contrôleur `BankCsvMappingController` (`show`, `update`) + `UpdateBankCsvMappingRequest`
+- [x] Contrôleur `BankCsvMappingController` (`show`, `update`) + `UpdateBankCsvMappingRequest`
       (colonnes, `has_header`, `date_format`, `delimiter`, `sign_convention`, `direction_column`,
       `decimal_separator` **requis** `in:.,,`, `thousands_separator` `nullable|in:.,,, ,'`),
       autorisés par `BankStatementPolicy::create`. Routes `GET|PUT agencies/{agency}/bank-statements/csv-mapping`.
-- [ ] `BankStatementController::store` fige `csv_mapping` (mapping effectif de l'agence) sur le relevé,
+- [x] `BankStatementController::store` fige `csv_mapping` (mapping effectif de l'agence) sur le relevé,
       et `ParseBankStatementJob` lit cet instantané, puis l'agence en repli.
-- [ ] `CsvDriver` : `parseAmount` retire U+0020, U+00A0 et U+202F, puis applique les séparateurs
+- [x] `CsvDriver` : `parseAmount` retire U+0020, U+00A0 et U+202F, puis applique les séparateurs
       **déclarés** (`decimal_separator`, `thousands_separator`) ; le défaut du code déclare
       `decimal_separator => ','` (comportement actuel des fichiers à virgule). Toute ligne sautée —
       exception **ou** `return null` (l.64-66) — est comptée et rendue au job.
-- [ ] `ParseBankStatementJob` : écrit `skipped_lines_count` ; passe `failed` sur exception, et sur un
+- [x] `ParseBankStatementJob` : écrit `skipped_lines_count` ; passe `failed` sur exception, et sur un
       fichier dont au moins une ligne est sautée et aucune n'est lue.
 - [ ] Journaux sans contenu de relevé (après TCK-601, qui crée `SafeExceptionContext`) :
+      **Ouverte — attend TCK-601.** Contexte sûr posé EN LIGNE (classe + `sqlstate`, ni message ni
+      trace ni contenu) ; raccords `ParseBankStatementJob.php:131` et `CsvDriver.php:70`, voir Notes.
   - `ParseBankStatementJob`, le `catch` (`l.107-114`) :
     `Log::error('bank_statement_parse_failed', ['statement_id' => $this->statementId] + SafeExceptionContext::of($e))`.
     Ni `getMessage()` ni `getTraceAsString()`. La relance (`throw $e`) et le passage en `failed`
@@ -486,9 +489,9 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
     `throw new \RuntimeException('Invalid date')`, **sans la valeur**. Sinon, le `message` que
     `SafeExceptionContext` garde pour une exception autre que `QueryException` la réintroduirait.
     La ligne refusée est comptée comme sautée, comme toute autre.
-- [ ] Front : écran de rapprochement sous les finances de l'agence (réglage du mapping, import,
+- [x] Front : écran de rapprochement sous les finances de l'agence (réglage du mapping, import,
       relevés, lignes, suggestions, recherche manuelle, ignorer, clôturer), en fr/en/wo.
-- [ ] Tests :
+- [x] Tests :
   - `BankReconciliationTest::test_un_debit_est_suggere_sur_le_reversement_emis` ;
   - `…::test_un_credit_ne_s_apparie_pas_a_un_reversement` ;
   - `…::test_un_reversement_n_est_rapproche_qu_une_fois` ;
@@ -504,15 +507,15 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 
 ### Partie 5 — Réglage d'agence (décision du porteur)
 
-- [ ] `AgencyUpdateRequest` : `'settings' => ['sometimes', 'array']` (plus `nullable`) et
+- [x] `AgencyUpdateRequest` : `'settings' => ['sometimes', 'array']` (plus `nullable`) et
       `'settings.late_fee_online_collection' => ['sometimes', 'nullable', 'boolean']`.
-- [ ] `AgencyController::update` : `settings` fusionné avec l'existant —
+- [x] `AgencyController::update` : `settings` fusionné avec l'existant —
       `array_replace($agency->settings ?? [], $data['settings'])`, puis retrait des clés valant `null` —
       avant `fill()`. Rien d'autre ne bouge dans la méthode.
-- [ ] Front : l'écran des paramètres de l'agence porte l'interrupteur, éteint par défaut, avec son
+- [x] Front : l'écran des paramètres de l'agence porte l'interrupteur, éteint par défaut, avec son
       explication (Direction UX) ; l'enregistrement de l'écran n'envoie que les clés de `settings`
       qu'il gère et n'en efface aucune autre. fr/en/wo.
-- [ ] Tests :
+- [x] Tests :
   - `AgencySettingsMergeTest::test_un_patch_de_settings_n_efface_pas_les_autres_cles` ;
   - `…::test_une_cle_a_null_revient_au_defaut` ;
   - `…::test_settings_null_est_refuse` ;
@@ -521,13 +524,13 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Connecté comme locataire du bail, « Télécharger le contrat » produit un fichier PDF non
+- [x] **AC1** — Connecté comme locataire du bail, « Télécharger le contrat » produit un fichier PDF non
       vide, de même pour le reçu d'un acompte payé. Le test front vérifie que la requête vise l'origine
       de l'API avec le Bearer : il **rougit** si on remet le lien relatif.
-- [ ] **AC2** — `GET /api/leases/{l}/receipts/{p}/pdf` sur une échéance `pending` → **422**, alors que
+- [x] **AC2** — `GET /api/leases/{l}/receipts/{p}/pdf` sur une échéance `pending` → **422**, alors que
       le même appel sur une échéance `paid` rend un PDF. Ce test rougit sur le code actuel (200 sur
       `pending`) et redevient rouge si la garde est retirée.
-- [ ] **AC3 — même échéance, deux réglages.** Échéance de 150 000 XOF, `late_fee_amount = 7 500`,
+- [x] **AC3 — même échéance, deux réglages.** Échéance de 150 000 XOF, `late_fee_amount = 7 500`,
       `late_fee_paid_at = NULL`, statut `late` :
       - réglage **désactivé** : `initiate` transmet au pilote Wave **15 000 000** (150 000 ×100),
         `amount_due = 150000`, `late_fee_outstanding = 7500`, `late_fee_payable_online = false` dans la
@@ -536,61 +539,61 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
         `late_fee_payable_online = true`.
       Le cas activé rougit sur le code actuel (150 000), le cas désactivé aussi (`late_fee_outstanding`
       absent). Retirer la lecture du réglage fait rougir l'un des deux.
-- [ ] **AC4 — défaut d'une agence neuve.** Une agence créée par `POST /api/agencies` n'a pas la clé
+- [x] **AC4 — défaut d'une agence neuve.** Une agence créée par `POST /api/agencies` n'a pas la clé
       `late_fee_online_collection` et `collectsLateFeesOnline()` vaut `false` ; sur un bail de cette
       agence, l'échéance de l'AC3 s'initie à **150 000**. L'écran des paramètres de cette agence montre
       l'interrupteur éteint.
-- [ ] **AC5 — statut après paiement, réglage désactivé.** Sur l'échéance de l'AC3, réglage désactivé, un
+- [x] **AC5 — statut après paiement, réglage désactivé.** Sur l'échéance de l'AC3, réglage désactivé, un
       webhook `success` de 150 000 laisse : `status = paid`, `paid_at` posé, `late_fee_amount = 7500`,
       `late_fee_paid_at = NULL`, `late_fee_outstanding = 7500`. La quittance rendue contient « restant
       due » et « 7 500 » sur la ligne de pénalité, et le loyer acquitté vaut 150 000. Puis
       `POST /api/lease-payments/{p}/late-fee/mark-paid` par l'agent → 200, `late_fee_paid_at` posé,
       `status` toujours `paid` ; un second appel → **409** `late_fee_not_due` ; le locataire → 403.
-- [ ] **AC6 — statut après paiement, réglage activé.** Même échéance, réglage activé : un webhook
+- [x] **AC6 — statut après paiement, réglage activé.** Même échéance, réglage activé : un webhook
       `success` de 157 500 laisse `status = paid` **et** `late_fee_paid_at` posé, `late_fee_outstanding
       = 0` ; la quittance dit la pénalité « acquittée ». Un webhook de 150 000 sur ce checkout est
       refusé (422 de sous-paiement).
-- [ ] **AC7 — montant figé.** Un checkout est ouvert à 150 000 (réglage activé) **avant**
+- [x] **AC7 — montant figé.** Un checkout est ouvert à 150 000 (réglage activé) **avant**
       l'application de la pénalité, et son webhook `success` de 150 000 arrive **après**
       (`late_fee_amount` vaut alors 7 500) : l'échéance est soldée sans 422, puisque la comparaison
       porte sur le montant figé ; `late_fee_paid_at` reste `NULL` (`late_fee_included = false`). Un
       webhook de 140 000 sur ce même checkout reste refusé. De même, désactiver le réglage après
       l'ouverture d'un checkout à 157 500 ne fait pas refuser un webhook de 157 500.
-- [ ] **AC8 — on ne paie pas deux fois.** `initiate` sur une échéance `paid` → **409**
+- [x] **AC8 — on ne paie pas deux fois.** `initiate` sur une échéance `paid` → **409**
       `payment_not_payable`, idem `refunded` et `BookingPayment` `paid`, avec **zéro** appel au pilote
       (pilote simulé). Sur une échéance `failed`, `initiate` répond 200. Rouge sur le code actuel
       (200 sur `paid`).
-- [ ] **AC9 — un échec ne fige pas l'échéance.** Une échéance `late` reçoit un webhook `failed` : elle
+- [x] **AC9 — un échec ne fige pas l'échéance.** Une échéance `late` reçoit un webhook `failed` : elle
       reste `late`, `metadata.gateway.last_failed_at` est posé, et `POST lease-payments/{p}/mark-paid`
       réussit ensuite (200). Rouge sur le code actuel (`status = failed`, puis 422). Après la
       migration, une ligne `failed` existante est `pending` et `ApplyLateFeesJob` la pénalise si elle
       est en retard.
-- [ ] **AC10 — notification = écran.** À l'application d'une pénalité, la notification du locataire
+- [x] **AC10 — notification = écran.** À l'application d'une pénalité, la notification du locataire
       (`toArray`) porte `late_fee_payable_online` égal à celui de la ressource de la même échéance, et
       son courriel contient la phrase « à régler auprès de votre agence » quand le réglage est
       désactivé, « ajoutée au montant de votre paiement en ligne » quand il est activé.
-- [ ] **AC11 — un réglage n'en efface aucun autre.** Agence avec `settings = {watermark_enabled: false,
+- [x] **AC11 — un réglage n'en efface aucun autre.** Agence avec `settings = {watermark_enabled: false,
       timezone: 'Africa/Dakar'}` : `PATCH /api/agencies/{a}` avec
       `settings = {late_fee_online_collection: true}` → `watermark_enabled` vaut toujours `false` et
       `timezone` est conservé. Rouge sur le code actuel (clés effacées, filigrane réactivé). Un
       `settings.late_fee_online_collection = null` retire la clé ; `settings: null` → 422.
-- [ ] **AC12** — `types/lease.ts` ne contient plus `late_fee:`. Une échéance à `late_fee_amount = 7500`
-      affiche « +7 500 FCFA » dans l'échéancier, vérifié sur la valeur rendue et pas seulement sur la
+- [x] **AC12** — `types/lease.ts` ne contient plus `late_fee:`. Une échéance à `late_fee_amount = 7500`
+      affiche « +7 500 FCFA » *(rendu réel : « +7 500 F CFA », format `Intl`)* dans l'échéancier, vérifié sur la valeur rendue et pas seulement sur la
       présence d'un nœud. Avec `late_fee_payable_online = false`, le montant du bouton de paiement vaut
       150 000 et la pénalité figure à part avec « à régler auprès de l'agence ».
-- [ ] **AC13** — Un compte client seul ne voit pas d'onglet Reversements sur `/app/payments`, et voit en
+- [x] **AC13** — Un compte client seul ne voit pas d'onglet Reversements sur `/app/payments`, et voit en
       tête la prochaine somme due avec l'action de paiement. Un admin d'agence voit toujours les trois
       onglets. Sur une largeur de 360 px, « Payer » et « Quittance PDF » sont atteignables sans
       défilement horizontal (`scrollWidth === clientWidth` sur le conteneur de la liste). « Payer »
       n'apparaît pas pour une échéance `refunded`.
-- [ ] **AC14** — Un relevé contenant un débit de 285 000 XOF à J+1 d'un `Payout` `completed` de
+- [x] **AC14** — Un relevé contenant un débit de 285 000 XOF à J+1 d'un `Payout` `completed` de
       `net_amount = 285 000` de la même agence produit une suggestion `payout` de confiance ≥ 70.
       Confirmer pose `bank_reconciled_at` sur le reversement, et une seconde ligne ne peut plus s'y
       apparier (422, index unique). Un `Payout` d'une autre agence n'est jamais proposé (403 en
       confirmation forcée). Un crédit de 157 500 est suggéré sur l'échéance de l'AC6.
-- [ ] **AC15** — Un crédit ne peut pas être confirmé sur un `Payout`, ni un débit sur une `LeasePayment`
+- [x] **AC15** — Un crédit ne peut pas être confirmé sur un `Payout`, ni un débit sur une `LeasePayment`
       (422 `direction_mismatch`).
-- [ ] **AC16** — Un CSV dont un montant vaut `150 000` (espace insécable) donne une ligne à 150 000, et
+- [x] **AC16** — Un CSV dont un montant vaut `150 000` (espace insécable) donne une ligne à 150 000, et
       non 150. Avec `decimal_separator = '.'` et `thousands_separator = ','`, `150,000` donne 150 000.
       Un fichier à 10 lignes dont 2 illisibles finit `ready_for_review` avec `lines_count = 8` et
       `skipped_lines_count = 2`. Un fichier de 5 lignes dont les colonnes ne portent pas les noms du
@@ -598,13 +601,13 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
       `ready_for_review`, 0 ligne). Un fichier qui fait lever le parseur finit `failed`. Une ligne
       datée `31/13/2026` (format `d/m/Y`) est sautée et comptée. Le code actuel l'importe au
       `2027-01-31`, et le test rougit si l'on retire la comparaison `format() !== $rawDate`.
-- [ ] **AC17** — `PUT csv-mapping` sans `decimal_separator` → 422. Un relevé importé garde son
+- [x] **AC17** — `PUT csv-mapping` sans `decimal_separator` → 422. Un relevé importé garde son
       `csv_mapping` ; modifier ensuite le mapping de l'agence ne change pas `csv_mapping` sur ce relevé.
       Un agent (non admin) reçoit 403 sur `PUT csv-mapping`.
-- [ ] **AC18** — L'écran de rapprochement permet, à un admin d'agence, de régler le mapping puis
+- [x] **AC18** — L'écran de rapprochement permet, à un admin d'agence, de régler le mapping puis
       d'importer un CSV ; un relevé `failed` ou à lignes ignorées affiche leur nombre (test Vitest sur la
       valeur rendue).
-- [ ] **AC19 — aucune valeur témoin de la ligne dans le journal.** `Log::spy()` (ou un écouteur
+- [x] **AC19 — aucune valeur témoin de la ligne dans le journal.** `Log::spy()` (ou un écouteur
       `MessageLogged`) capte message **et** contexte, sérialisés, de tout ce que journalise
       l'analyse. Deux fichiers sont importés :
       - un CSV avec, parmi des lignes lisibles, une ligne à la date non numérique `JJ/01/2026` et au
@@ -619,6 +622,10 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
       second, les bindings de la `QueryException` portent les deux témoins. Le test redevient rouge
       si l'on remet `getMessage()` dans l'un ou l'autre `catch`, si l'on remet `record`, ou si l'on
       remet la valeur dans le message de `l.71` (`31/13/2026` réapparaît).
+      *Vérifié : `BankStatementPipelineTest::test_le_journal_ne_porte_aucune_valeur_du_releve`. Rouge
+      avec `getMessage()` dans le job, avec `record`, et avec `getMessage()` + la valeur dans
+      `CsvDriver` ; chacune de ces deux dernières SEULE reste verte, puisque l'autre défense suffit
+      (voir Notes).*
 
 ## Hors périmètre
 
@@ -706,8 +713,11 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 - **SafeExceptionContext (TCK-601) n'existe pas encore sur la branche** (`grep -rn SafeExceptionContext
   takussan-api/app` → 0). Les deux `catch` portent un contexte sûr EN LIGNE — classe de l'exception,
   plus `sqlstate` (et le point de levée) côté job — sans `getMessage()` ni trace, avec le commentaire
-  « Raccord TCK-601 » à l'endroit exact où `SafeExceptionContext::of($e)` le remplacera. La case
-  « Journaux » reste donc ouverte : elle nomme une API qui n'existe pas.
+  « Raccord TCK-601 » à l'endroit exact où `SafeExceptionContext::of($e)` le remplacera :
+  `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:131` et
+  `takussan-api/app/Services/Accounting/StatementParser/CsvDriver.php:70`. La case « Journaux » reste
+  ouverte (accord de la session, 2026-10-07) : elle nomme une API qui n'existe pas, et 601 fera le
+  branchement.
 - Le message de la date refusée est `Invalid date`, sans la valeur, et l'exception Carbon d'un texte
   non numérique est ramenée à ce même message (`createFromFormat` dans un `try`).
 - **Deux ajouts hors de la lettre du ticket, chacun sur un défaut mesuré en cours de route :**
@@ -764,3 +774,49 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
     les deux tombent. La trace remise dans le job reste verte aussi : PHP y rend les tableaux de
     liaison en `Array` et tronque les chaînes à 15 caractères — ce n'est pas une garde que ce test
     porte.
+
+### Front (Parties 1 à 5), 2026-10-07 — repris des notes de l'agent front
+
+- `39dc1ec2` (Parties 1 et 3, échéancier) : liens relatifs re-mesurés à `LeaseDetail.tsx:218` et
+  `BookingDetail.tsx:364`. Mécanique unique `src/hooks/useTelechargementApi.ts` +
+  `src/components/documents/BoutonTelechargement.tsx` (origine de l'API, Bearer, `Accept-Language`,
+  blob) ; 401/403 → « interdit », 404/409/422 → « indisponible », jamais la prose serveur.
+  Échéancier : table → liste, plus aucun `overflow-x`. **Écart d'affichage (AC12)** : `Intl` rend
+  « +7 500 F CFA », et non « FCFA » ; les tests assertent la valeur réellement rendue. Ablations
+  rouges : fetch relatif, Bearer retiré, `<Link>`/`<a>` relatifs restaurés, 403 non catégorisé,
+  `late_fee:` réintroduit, total additionné côté client, « Payer » sur `status !== 'paid'`,
+  « Pénalité réglée » sans `canManage`.
+- `c3701daa` (Partie 5) : `settings` porte toujours `late_fee_online_collection` ; interrupteur
+  `<input type="checkbox" role="switch">`. Ablations rouges : défaut lu `!== false`, clé non
+  envoyée, `settings` ré-étalé.
+- `9fc5b0c5` (Partie 2, vue client) : **écart back mesuré** — `GET /api/integrations` rend 403 à tout
+  non-admin (`IntegrationController.php:22`) : « Payer » n'apparaissait jamais au locataire. Le
+  front traite ce 403 comme « fournisseurs inconnus » (filtre par devise seule) ; un fournisseur
+  absent de l'agence n'est refusé qu'à l'initiation. Ablations rouges : vue toujours en onglets /
+  toujours client, montant `amount + late_fee_amount`, filtre de statut retiré, quittance sur
+  toute ligne, rappel de pénalité retiré, 403 → `[]`.
+- `ed4b626d` (Partie 4, écran) : `/admin/finances/reconciliation` et `/[statementId]`. Construit
+  contre le contrat avant le back ; **re-vérifié contre le back réel** après `c2e1f6cd` : les
+  colonnes reviennent en entier ou en chaîne telles qu'envoyées, `match_confidence` est un entier
+  60–95 (échelle 0–100, prévue), `direction` est bien lu par la recherche, la tabulation passe.
+  Écran chargé au navigateur contre l'API (`GET bank-statements` et `GET csv-mapping` servis).
+
+### Mesures au navigateur (AC13), 2026-10-07
+
+- Base isolée `takussan_t593` (créée puis supprimée), `migrate:fresh --seed`, API sur 8108, Next sur
+  3108, Chrome sans tête sur 9348 piloté par CDP direct (`scratchpad/t593/measure.mjs`), session
+  vidée avant chaque connexion. Locataire `khady-thiam-bptj@example.org` (5 échéances `late`),
+  locale `fr`, émulation mobile :
+  - 360 px — `/app/payments` : `innerWidth` 360, `scrollWidth` du document 360, listes 294/294 et
+    328/328, 21 actions « Payer … » / « Quittance PDF », 0 hors de l'écran, aucun onglet ;
+    `/app/leases/2` : liste « Échéances du bail » 326/326, 14 actions, 0 hors de l'écran ;
+  - 390 px — mêmes pages : 324/324, 358/358 et 356/356, 0 action hors de l'écran.
+  - Admin d'agence `admin@dakarimmo.sn`, 360 et 390 px : onglets Historique, Factures,
+    Reversements ; document 360/390.
+- Exécutions nommées de la session de ce ticket : `npx vitest run` sur les 13 chemins du ticket →
+  43 fichiers, **200 verts** ; `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n` → 0 ;
+  gardes racine `scripts/check-*.mjs` → toutes vertes ;
+  `LeaseContractPdfTest::test_le_locataire_du_bail_telecharge_son_contrat` (AC1, ajouté) et
+  `BookingPaymentTest --filter=receipt` → verts.
+- **Suites entières : non lancées — lancées par la session.**
+
