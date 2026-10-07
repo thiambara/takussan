@@ -1230,3 +1230,37 @@ Chaque point : un commit, un test rouge sans le correctif, ablation restaurée p
 - **Repro du vérificateur rejouée** (`Pass3AdversarialTest`, copiée puis retirée) : 9 verts.
   Mesures : `[M5-sans-agence] init=200 plain=409 over=200`, `[FEE-fallback] amount=7500` (« The late
   fee of 7 500… »), `[M5-qui]` inchangé (super-admin 403).
+
+### Fusion de `origin/dev` après TCK-588 (acf58a66), 2026-10-07
+
+Merge daa88ff6. Conflits résolus en gardant la logique de 593 et la forme de 588 :
+`LeasePaymentService::markPaid` (passage outre et journal ; `send()` et codes),
+`PaymentGatewayService` (`amountDue()` ; `abort_code`), `PaymentController` (filtre de statut en
+liste, `payment.filter_status_invalid`), `BankStatementController` (ré-import d'un relevé `failed`,
+`reconciliation.duplicate_file`), `lang/*/notifications.php` (intro et détails de 588, phrases
+`pay_online` / `pay_at_agency` de 593).
+
+Conversion aux codes (ADR-0032), dans le même commit pour que la fusion soit verte — la garde
+`ProseLitteraleInterditeTest` rougissait sur 4 sites de 593 dès la fusion :
+
+- `abort(4xx, __('payments.*'))` → `abort_code` : `payment.not_payable` (409, deux sites),
+  `lease_payment.receipt_unpaid` (422), `lease_payment.late_fee_not_due` (409).
+- Le 409 du checkout ouvert est une `ApiError` `payment.checkout_in_progress` ; le checkout en
+  cours est une donnée à côté du code (`->with(['checkout' => …])`). Le front (`checkoutEnCours`)
+  lit ce code.
+- Le double encaissement passe par `NotificationService::send()` : `NotificationCode::PaymentDuplicate`
+  (`payment.duplicate`) et `PaymentDuplicateLateFee` (`payment.duplicate_late_fee`), paramètres
+  `amount` (monnaie) et `reference`, type `payment`, **non désactivable** (une somme à rembourser),
+  cible le bail (sinon la liste des paiements). Textes API (`title`, `body`, `sms`) et front
+  (`title`, `body`) en fr/en/wo.
+- `lang/*/payments.php` est supprimé : ses phrases vivent dans `errors.php` et
+  `notifications.php`.
+
+Vérifié : `ProseLitteraleInterditeTest` et `tests/Unit/Lang` verts, `check-notification-codes` (33
+codes) vert ; classes de paiement, de quittance, de pénalité, de webhook et de notification (155
+verts, 2 ignorés), `tests/Feature/Api/Accounting` (63), `tests/Feature/Authorization` (151),
+`tests/Feature/Api/Agency` (74), `PlatformPayoutTest` + `tests/Feature/Notifications` (109) ;
+vitest baux + paiements (78) ; ESLint, `tsc`, `check:i18n`, `check-i18n-namespaces` verts.
+Ablations : code de notification unique → 2 rouges ; checkout hors du corps → rouge ; code d'erreur
+remplacé → rouge ; ancien code lu par le front → 4 rouges ; restaurées par `cp`.
+
