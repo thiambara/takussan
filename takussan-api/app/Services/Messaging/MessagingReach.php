@@ -78,7 +78,9 @@ class MessagingReach
     public function query(User $actor, ?Conversation $conversation = null): Builder
     {
         $agencyId = $actor->agency_id;
-        $actorIsStaff = $agencyId !== null && $this->isActiveStaffAt($actor, $agencyId);
+        // TCK-587 — le prédicat unique du personnel (ADR-0031 §1) ; ce fichier en portait sa propre
+        // copie, sans les délégations.
+        $actorIsStaff = $agencyId !== null && $actor->staffAgencyId() === (int) $agencyId;
         $contextAgencyId = $conversation !== null ? $this->contextAgencyId($conversation) : null;
 
         return User::query()
@@ -164,12 +166,6 @@ class MessagingReach
     {
         $reach->orWhereHas('agentProfiles', fn (Builder $p) => $p->active()->where('agency_id', $agencyId))
             ->orWhereHas('agencyAdminProfiles', fn (Builder $p) => $p->active()->where('agency_id', $agencyId));
-    }
-
-    private function isActiveStaffAt(User $actor, int $agencyId): bool
-    {
-        return $actor->agentProfiles()->active()->where('agency_id', $agencyId)->exists()
-            || $actor->agencyAdminProfiles()->active()->where('agency_id', $agencyId)->exists();
     }
 
     /** L'agence du bien de la conversation, ou du bien de son bail — `null` sans contexte. */

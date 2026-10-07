@@ -69,10 +69,13 @@ export const PAGES_STATIQUES_INDEXABLES: readonly PageIndexable[] = [
  * que quelqu'un ait tranché si elle entre au sitemap. *Un `TODO` dans un commentaire n'est lu par
  * personne ; une entrée manquante dans cette table fait rougir.*
  *
- * `source: null` = délibérément absente du sitemap, avec le ticket qui la fera entrer.
+ * `source: null` = délibérément absente du sitemap, avec le ticket qui la fera entrer — ou,
+ * `exclue`, le ticket qui a décidé qu'elle n'y entrera JAMAIS, la raison écrite en commentaire au
+ * droit de l'entrée (sa page déclare alors `noindex`, et elle n'émet pas d'`alternates` :
+ * `alternates.test.ts` l'écarte).
  */
 export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
-  Record<string, { readonly source: string | null; readonly ticket?: string }>
+  Record<string, { readonly source: string | null; readonly ticket?: string; readonly exclue?: string }>
 > = {
   '/properties/[slug]': { source: 'catalogue' },
   // TCK-436 a livré `GET /api/public/agencies` et `GET /api/public/agents` — les deux
@@ -82,6 +85,12 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
   // divergerait de l'index le jour où l'une des deux bouge, et annoncerait des URL rendant 404.
   '/agencies/[slug]': { source: 'agences' },
   '/agents/[slug]': { source: 'agents' },
+  // TCK-587 §8 — la réception d'un lien de partage de document. Le jeton EST le droit d'accès :
+  // l'URL est un secret, jamais une page à annoncer.
+  '/share/[token]': {
+    source: null,
+    exclue: 'TCK-587',
+  },
 };
 
 /**

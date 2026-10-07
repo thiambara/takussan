@@ -255,4 +255,9 @@ return [
         'action' => 'Ouvrir « Mes données »',
         'expires' => '{1} Elle reste téléchargeable depuis cette page pendant :count jour.|[2,*] Elle reste téléchargeable depuis cette page pendant :count jours.',
     ],
+
+    // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
+    'property_proposed' => [
+        'title' => 'Bien proposé par un bailleur : :title',
+    ],
 ];

@@ -7,6 +7,7 @@ use App\Http\Requests\Api\MarkFailedPayoutRequest;
 use App\Http\Requests\Api\MarkProcessedPayoutRequest;
 use App\Http\Requests\Api\StorePayoutRequest;
 use App\Http\Resources\PayoutResource;
+use App\Models\Enums\Capability;
 use App\Models\Payout;
 use App\Models\User;
 use App\Services\Model\PayoutService;
@@ -27,8 +28,11 @@ class PayoutController extends Controller
             $base->where(function ($q) use ($user) {
                 $q->where('landlord_id', $user->id)
                     ->orWhere('issued_by_id', $user->id);
-                if ($user->agency_id) {
-                    $q->orWhere('agency_id', $user->agency_id);
+                // TCK-587 — les versements de l'agence : le personnel tenant `payouts.create`, comme
+                // `PayoutPolicy::view` (ADR-0031). Un bailleur de l'agence listait ceux des autres.
+                if (($staffAgencyId = $user->staffAgencyId()) !== null
+                    && $user->can(Capability::PayoutsCreate->value)) {
+                    $q->orWhere('agency_id', $staffAgencyId);
                 }
             });
         }

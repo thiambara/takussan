@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, Lock } from 'lucide-react';
+import { ChevronDown, CircleDashed, Lock } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,15 @@ interface CapabilityMatrixProps {
  * il ne l'a pas, et une ligne absente ne répond pas à cette question. Une
  * ligne désactivée avec son motif y répond.
  *
+ * ## Les capacités sans effet restent COCHABLES (TCK-587)
+ *
+ * `not_enforced` liste les capacités qu'aucun geste ne juge encore
+ * (`CapabilityEnforcementInventory`). Avant TCK-587, retirer `payouts.approve`
+ * à un rôle n'y changeait rien, et l'écran laissait croire le contraire. La
+ * mention le dit ; la case reste active, parce que préparer un rôle pour le
+ * jour où le geste sera branché est légitime. Une réservée plateforme ne la
+ * porte pas : elle est déjà grisée avec son propre motif.
+ *
  * ## Cases natives, pas de primitive
  *
  * `<input type="checkbox">` plutôt qu'un composant : il n'existe pas de
@@ -54,6 +63,10 @@ export function CapabilityMatrix({
   const reserved = useMemo(
     () => new Set(catalogue.platform_reserved),
     [catalogue.platform_reserved],
+  );
+  const notEnforced = useMemo(
+    () => new Set((catalogue.not_enforced ?? []).map((row) => row.capability)),
+    [catalogue.not_enforced],
   );
   const selected = useMemo(() => new Set(value), [value]);
 
@@ -153,6 +166,7 @@ export function CapabilityMatrix({
                 <ul className="border-t border-border">
                   {group.capabilities.map((capability) => {
                     const isReserved = reserved.has(capability);
+                    const isNotEnforced = !isReserved && notEnforced.has(capability);
                     const isChecked = selected.has(capability);
                     return (
                       <li key={capability} className="border-b border-border/50 last:border-b-0">
@@ -198,6 +212,17 @@ export function CapabilityMatrix({
                             >
                               <Lock className="size-3" aria-hidden="true" />
                               {t('matrix.platform_reserved')}
+                            </Badge>
+                          ) : null}
+                          {isNotEnforced ? (
+                            <Badge
+                              variant="outline"
+                              className="shrink-0 gap-1"
+                              title={t('matrix.not_enforced_hint')}
+                              data-testid={`capability-not-enforced-${capability}`}
+                            >
+                              <CircleDashed className="size-3" aria-hidden="true" />
+                              {t('matrix.not_enforced')}
                             </Badge>
                           ) : null}
                         </label>

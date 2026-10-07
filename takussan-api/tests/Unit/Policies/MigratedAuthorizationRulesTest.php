@@ -284,7 +284,9 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_payout_view_admits_the_beneficiary_but_update_does_not(): void
     {
         $beneficiaire = $this->quidam();
-        $emetteur = $this->quidam();
+        // TCK-587 (ADR-0031 §2) — l'émetteur ne gère le versement que s'il est du PERSONNEL de
+        // l'agence émettrice ; émettre exige `payouts.create`, un émetteur sans profil n'existe pas.
+        $emetteur = User::factory()->withAgentProfile($this->agency)->create();
         $payout = Payout::factory()->create([
             'landlord_id' => $beneficiaire->id,
             'issued_by_id' => $emetteur->id,

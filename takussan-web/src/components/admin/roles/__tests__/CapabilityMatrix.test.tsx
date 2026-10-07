@@ -173,4 +173,44 @@ describe('<CapabilityMatrix>', () => {
     expect(screen.getAllByText('quantum.entangle').length).toBeGreaterThan(0);
     expect(screen.getByText('quantum')).toBeInTheDocument();
   });
+
+  /**
+   * TCK-587 (AC10) — `not_enforced` signale une capacité qu'aucun geste ne juge encore. La case
+   * reste cochable : préparer un rôle est légitime, c'est l'effet qui ne l'est pas encore.
+   */
+  it('mentionne « Sans effet pour l’instant » sur payouts.approve, case cochable', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      withIntl(
+        <CapabilityMatrix
+          catalogue={{
+            domains: [
+              { domain: 'payouts', capabilities: ['payouts.create', 'payouts.approve'] },
+              { domain: 'properties', capabilities: ['properties.moderate'] },
+            ],
+            total: 3,
+            platform_reserved: ['properties.moderate'],
+            not_enforced: [
+              { capability: 'payouts.approve', ticket: 'TCK-594' },
+              { capability: 'properties.moderate', ticket: 'réservée plateforme' },
+            ],
+          }}
+          value={[]}
+          onChange={onChange}
+        />,
+      ),
+    );
+
+    const mention = screen.getByTestId('capability-not-enforced-payouts.approve');
+    expect(mention).toHaveTextContent("Sans effet pour l'instant");
+    expect(mention).toHaveAttribute('title', expect.stringContaining('prépare le rôle'));
+    expect(screen.queryByTestId('capability-not-enforced-payouts.create')).not.toBeInTheDocument();
+    // Une réservée plateforme garde son seul motif : elle est déjà grisée.
+    expect(screen.queryByTestId('capability-not-enforced-properties.moderate')).not.toBeInTheDocument();
+
+    expect(box('payouts.approve')).toBeEnabled();
+    await user.click(box('payouts.approve'));
+    expect(onChange).toHaveBeenCalledWith(['payouts.approve']);
+  });
 });

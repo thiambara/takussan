@@ -110,7 +110,7 @@ class DocumentController extends Controller
 
     public function destroy(Request $request, Document $document): JsonResponse
     {
-        $this->authorize('update', $document);
+        $this->authorize('delete', $document);
         $document->delete();
 
         return $this->json([], 204);

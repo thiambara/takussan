@@ -418,8 +418,65 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * Le user a-t-il, dans cette agence, un profil du type donné dont le
+     * TCK-587 (ADR-0031 §1) — l'agence du profil actif si l'utilisateur y est PERSONNEL, sinon `null`.
+     *
+     * C'est le seul prédicat de périmètre d'agence du dépôt : toute clause qui ouvrait une ressource
+     * sur `$user->agency_id === $model->agency_id` le lit désormais. Cette comparaison-là était vraie
+     * pour un BAILLEUR de l'agence — `getAgencyIdAttribute()` rend l'agence du profil actif quel que
+     * soit son type —, si bien que chaque bailleur lisait et modifiait les baux, loyers et versements
+     * de tous les autres. `scripts/check-agency-scope-clause.mjs` refuse qu'on la réécrive.
+     *
+     * L'agence est celle du profil actif (contrat TCK-146) ; le profil actif n'a pas besoin d'être
+     * lui-même un profil de personnel : un bailleur qui est aussi agent de la même agence est
+     * personnel quel que soit celui des deux que l'auto-bascule a retenu.
+     */
+    public function staffAgencyId(User $user): ?int
+    {
+        $agencyId = $user->agency_id;
+        if ($agencyId === null) {
+            return null;
+        }
+
+        return $this->isStaffAt($user, (int) $agencyId) ? (int) $agencyId : null;
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §1) — l'utilisateur est-il personnel de cette agence : un `AgentProfile` ou un
+     * `AgencyAdminProfile` ACTIF, ou une `RoleDelegation` active de rôle `agent` / `agency_admin` ?
+     *
+     * La délégation compte : sans elle, déléguer `agent` conférerait des capacités (TCK-395) que le
+     * périmètre rendrait inutilisables. Exposée pour juger un TIERS — la cible d'une affectation
+     * (`PropertyController::assignAgent`) — là où {@see self::staffAgencyId()} juge l'appelant.
+     */
+    public function isStaffAt(User $user, int $agencyId): bool
+    {
+        foreach ([AgencyRoleBaseType::Agent, AgencyRoleBaseType::AgencyAdmin] as $type) {
+            $class = $type->profileClass();
+            if ($class !== null && $class::query()
+                ->where('user_id', $user->id)
+                ->where('agency_id', $agencyId)
+                ->active()
+                ->exists()) {
+                return true;
+            }
+        }
+
+        return RoleDelegation::query()
+            ->where('user_id', $user->id)
+            ->where('agency_id', $agencyId)
+            ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+            ->active()
+            ->exists();
+    }
+
+    /**
+     * Le user a-t-il, dans cette agence, un profil ACTIF du type donné dont le
      * rôle accorde la capacité ?
+     *
+     * ⚠ TCK-587 (ADR-0031 §3) — le filtre `->active()` manquait, alors que les docblocks de
+     * {@see self::allows()} et de {@see self::resolveAgencyScoped()} annonçaient déjà « les profils
+     * actifs » : un agent `suspended`, un admin `suspended`, un bailleur `blocked` gardaient chaque
+     * capacité de leur rôle, et suspendre un membre ne lui retirait rien.
      */
     private function roleAllows(User $user, int $agencyId, AgencyRoleBaseType $type, Capability $capability): bool
     {
@@ -431,6 +488,7 @@ class MembershipCapabilityResolver
         $roleIds = $class::query()
             ->where('user_id', $user->id)
             ->where('agency_id', $agencyId)
+            ->active()
             ->whereNotNull('agency_role_id')
             ->pluck('agency_role_id');
 

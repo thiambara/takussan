@@ -62,9 +62,12 @@ class BookingService
             'You cannot book your own property.'
         );
 
+        // TCK-587 (ADR-0031) — le PERSONNEL de l'agence du bien. La clause « même agence » valait
+        // pour un autre bailleur de l'agence : il réservait un bien privé ou non publié, sans
+        // client. Il suit désormais le chemin du client. Le disjoint `$property->user_id ===
+        // $user->id` était mort : le propriétaire est refusé plus haut.
         $isStaff = $user->isSuperAdmin()
-            || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id)
-            || $property->user_id === $user->id;
+            || ($property->agency_id !== null && $user->staffAgencyId() === (int) $property->agency_id);
 
         if (! $isStaff) {
             abort_unless(
