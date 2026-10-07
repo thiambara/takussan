@@ -15,7 +15,7 @@ class TestSeederTest extends TestCase
         $seeder = new TestSeeder;
         $seeder->run();
 
-        $roles = ['super_admin', 'agency_admin', 'agent', 'owner', 'broker', 'service_provider'];
+        $roles = ['super_admin', 'agency_admin', 'agent', 'owner', 'service_provider'];
 
         $this->assertCount(count($roles), $seeder->users);
 
@@ -30,7 +30,6 @@ class TestSeederTest extends TestCase
                 'agency_admin' => $this->assertTrue($user->isAgencyAdminAt($agencyId)),
                 'agent' => $this->assertTrue($user->isAgentAt($agencyId)),
                 'owner' => $this->assertTrue($user->isOwnerAt($agencyId)),
-                'broker' => $this->assertNotNull($user->brokerProfile),
                 'service_provider' => $this->assertNotNull($user->serviceProviderProfile),
             };
         }

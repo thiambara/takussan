@@ -88,6 +88,27 @@ class UserDetailTest extends TestCase
             ->assertJsonMissingPath('data.two_factor_recovery_codes');
     }
 
+    /**
+     * TCK-586, AC5 — le courtier a quitté le code (ADR-0030). La clé `profiles.broker` était émise
+     * pour TOUT utilisateur, et lisait un `status` qui n'existait pas en base : `null` en silence.
+     * Le filtre de rôle qui le nommait tombe dans la branche par défaut — une liste vide, pas une
+     * erreur.
+     */
+    public function test_la_fiche_ne_porte_plus_de_profil_courtier(): void
+    {
+        $this->actingAsRole('super_admin');
+        $user = User::factory()->create();
+
+        $this->getJson("/api/admin/users/{$user->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $user->id)
+            ->assertJsonMissingPath('data.profiles.broker');
+
+        $this->getJson('/api/admin/users?filter[role]=broker')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
     public function test_sessions_endpoint_returns_active_sanctum_tokens_only(): void
     {
         $this->actingAsRole('super_admin');

@@ -82,7 +82,7 @@ class DataExportBuilder
                 'profiles' => [
                     'owners' => $user->ownerProfiles()->get()->toArray(),
                     'agents' => $user->agentProfiles()->get()->toArray(),
-                    'broker' => $user->brokerProfile()->first()?->toArray(),
+                    'agency_admins' => $user->agencyAdminProfiles()->get()->toArray(),
                     'service_provider' => $user->serviceProviderProfile()->first()?->toArray(),
                 ],
             ],

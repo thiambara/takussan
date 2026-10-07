@@ -17,7 +17,7 @@ import { USER_ROLES } from '../user';
  *
  *   - `broker` était émis par le back et ABSENT de l'union — écart soldé le
  *     lendemain, par le RETRAIT du rôle et non par son ajout au front
- *     (TCK-495 / ADR-0027) ;
+ *     (TCK-495 / ADR-0027), puis par son départ du code (ADR-0030) ;
  *   - `customer` et `tenant` étaient déclarés dans l'union et JAMAIS émis, si
  *     bien que `isCustomer()` et `isTenant()` rendaient `false` en toutes
  *     circonstances — et que quatre surfaces front bâties dessus (menu latéral,
@@ -77,7 +77,8 @@ describe('parité UserRole ↔ HasProfiles::profileTypes()', () => {
    * TCK-495 — ce cas affirmait l'inverse : *« émet broker — l'écart où le back
    * en disait plus que le front »*. Il n'a pas été supprimé, il a été RETOURNÉ,
    * parce que l'écart qu'il nommait a été soldé par une décision et non par un
-   * alignement de listes (ADR-0027).
+   * alignement de listes (ADR-0027, puis ADR-0030 : le courtier a quitté le
+   * code et la base).
    *
    * ⚠ **La garde de parité aurait été verte dans les deux sens** — back et
    * front d'accord sur `broker` présent, ou d'accord sur `broker` absent. C'est

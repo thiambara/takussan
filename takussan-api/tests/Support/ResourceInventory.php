@@ -117,12 +117,9 @@ final class ResourceInventory
             'raison' => '« Profil » est POLYMORPHE : quatre tables distinctes, aucun modèle `Profile`. '
                 .'Les quatre sont éprouvées, pas un représentant — le principe non négociable n°1 en '
                 .'fait quatre contrats et non un. '
-                .'⚠ TCK-495 — `BrokerProfile` figurait ici et en a été retiré : ce n\'est PAS un '
-                .'allègement de la garde, c\'est que `ProfileResource` ne sait plus le rendre. Elle '
-                .'demande son alias à `ActiveProfileResolver::aliasFor()`, qui LÈVE pour une classe '
-                .'absente de `TYPE_MAP` — et le courtier en est sorti (ADR-0027). Le lui donner '
-                .'quand même faisait échouer cette garde sur une exception, pas sur une date mal '
-                .'formée. La liste des sujets suit la liste des alias ; elle ne la précède pas.',
+                .'La liste des sujets suit la liste des alias de `ActiveProfileResolver::TYPE_MAP` ; '
+                .'elle ne la précède pas (`aliasFor()` LÈVE pour une classe absente de la carte). '
+                .'Le profil courtier y a figuré, puis a quitté le code (TCK-495, ADR-0030).',
         ],
     ];
 

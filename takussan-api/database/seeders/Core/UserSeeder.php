@@ -11,8 +11,6 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerAgencyCollaboration;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
@@ -166,9 +164,8 @@ class UserSeeder extends Seeder
      * seed payload. Since TCK-271, agency admins also get a materialized
      * {@see AgencyAdminProfile} so the cookie-based active profile resolver
      * can pin the agency context unambiguously and policies reading
-     * `$user->agency_id` keep returning the correct value. Brokers and
-     * service providers are user-scoped, so the agency only enters via the
-     * collaboration pivot.
+     * `$user->agency_id` keep returning the correct value. Service providers
+     * are user-scoped, so the agency only enters via the collaboration pivot.
      */
     private function seedProfileFor(User $user, Agency $agency, ?string $persona): void
     {
@@ -181,7 +178,6 @@ class UserSeeder extends Seeder
                 ['user_id' => $user->id, 'agency_id' => $agency->id],
                 ['status' => AgentProfileStatus::Active->value],
             ),
-            'broker' => $this->seedBrokerProfile($user, $agency),
             'service_provider' => $this->seedServiceProviderProfile($user, $agency),
             'admin' => $this->seedAgencyAdminProfile($user, $agency),
             null => null,
@@ -194,21 +190,6 @@ class UserSeeder extends Seeder
         return AgencyAdminProfile::query()->firstOrCreate(
             ['user_id' => $user->id, 'agency_id' => $agency->id],
             ['status' => AgencyAdminProfileStatus::Active->value],
-        );
-    }
-
-    private function seedBrokerProfile(User $user, Agency $agency): void
-    {
-        $broker = BrokerProfile::query()->firstOrCreate(
-            ['user_id' => $user->id],
-            ['license_number' => 'BRK-'.strtoupper(Str::random(8)).'-'.$user->id],
-        );
-        BrokerAgencyCollaboration::query()->firstOrCreate(
-            ['broker_profile_id' => $broker->id, 'agency_id' => $agency->id],
-            [
-                'status' => CollaborationStatus::Active->value,
-                'started_at' => $user->created_at?->toDateString() ?? now()->toDateString(),
-            ],
         );
     }
 

@@ -893,7 +893,12 @@
         "since": "Dale ci {date}",
         "until": " ba {date}",
         "primaryContact": " · jokkoo bu njëkk",
-        "statusSuffix": " · nekkin {status}"
+        "statusSuffix": " · nekkin {status}",
+        "type": {
+          "owner_tenant": "Boroom kër / luwékat",
+          "agent_client": "Ajaŋ / kiliyaan",
+          "other": "Beneen jokkoo"
+        }
       },
       "documents": {
         "empty_title": "Amul dokimaa bu ñu boole",
@@ -6071,7 +6076,6 @@
         "empty": "Amul benn profilu ajaans.",
         "agencyFallback": "Ajaans {id}",
         "agencyLink": "Ajaans",
-        "broker": "Broker",
         "serviceProvider": "Jottalikatu liggéey"
       },
       "sessions": {

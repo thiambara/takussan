@@ -159,7 +159,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                     'agency_admin' => $q->whereHas('agencyAdminProfiles'),
                     'owner' => $q->whereHas('ownerProfiles'),
                     'service_provider' => $q->whereHas('serviceProviderProfile'),
-                    'broker' => $q->whereHas('brokerProfile'),
                     'super_admin' => $q->whereHas('platformProfile', fn (Builder $pp) => $pp
                         ->whereNull('revoked_at')
                         ->where('level', PlatformProfileLevel::SuperAdmin->value)),

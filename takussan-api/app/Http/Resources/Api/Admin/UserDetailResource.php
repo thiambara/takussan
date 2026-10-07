@@ -48,10 +48,6 @@ class UserDetailResource extends BaseResource
                     'agency_name' => $profile->agency?->name,
                     'status' => $profile->status?->value,
                 ])->values()->all(),
-                'broker' => $this->brokerProfile ? [
-                    'id' => $this->brokerProfile->id,
-                    'status' => $this->brokerProfile->status?->value,
-                ] : null,
                 'service_provider' => $this->serviceProviderProfile ? [
                     'id' => $this->serviceProviderProfile->id,
                     'status' => $this->serviceProviderProfile->status?->value,

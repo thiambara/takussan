@@ -2247,7 +2247,12 @@
         "since": "Depuis le {date}",
         "until": " jusqu'au {date}",
         "primaryContact": " · contact principal",
-        "statusSuffix": " · statut {status}"
+        "statusSuffix": " · statut {status}",
+        "type": {
+          "owner_tenant": "Bailleur / locataire",
+          "agent_client": "Agent / client",
+          "other": "Autre relation"
+        }
       },
       "documents": {
         "empty_title": "Aucun document associé",
@@ -6676,8 +6681,7 @@
         "empty": "Aucun profil agence.",
         "agencyFallback": "Agence {id}",
         "agencyLink": "Agence",
-        "broker": "Broker",
-        "serviceProvider": "Service provider"
+        "serviceProvider": "Prestataire"
       },
       "sessions": {
         "title": "Sessions actives",

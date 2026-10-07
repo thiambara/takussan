@@ -6,7 +6,6 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
@@ -40,7 +39,7 @@ class SeedingContext
     /**
      * Users bucketed by agency, then by **persona** — matches the spatie role
      * name so callers can bridge between identity and authorization without
-     * an extra mapping table. Allowed personas: admin, agent, owner, broker,
+     * an extra mapping table. Allowed personas: admin, agent, owner,
      * service_provider.
      *
      * @var array<int, array<string, Collection<int, User>>>
@@ -110,7 +109,7 @@ class SeedingContext
     }
 
     /**
-     * Bucket the user under its agency and persona (admin/agent/owner/broker/
+     * Bucket the user under its agency and persona (admin/agent/owner/
      * service_provider). When `$persona` is null, the user is treated as a
      * cross-tenant system user (super admins, …) and stored apart.
      */
@@ -153,7 +152,6 @@ class SeedingContext
         $persona = match ($profileClass) {
             OwnerProfile::class => 'owner',
             AgentProfile::class => 'agent',
-            BrokerProfile::class => 'broker',
             ServiceProviderProfile::class => 'service_provider',
             default => null,
         };

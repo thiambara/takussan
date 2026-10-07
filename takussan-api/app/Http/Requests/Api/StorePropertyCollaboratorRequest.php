@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\CollaboratorRole;
+use App\Rules\CollaboratorEligibleForProperty;
 use Illuminate\Validation\Rule;
 
 /**
@@ -35,7 +36,13 @@ class StorePropertyCollaboratorRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'exists:users,id'],
+            // TCK-586 — un collaborateur appartient à l'agence du bien, selon son rôle.
+            'user_id' => [
+                'required',
+                'integer',
+                'exists:users,id',
+                new CollaboratorEligibleForProperty($this->route('property'), $this->input('role')),
+            ],
             'role' => ['required', Rule::enum(CollaboratorRole::class)],
             'commission_share' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];

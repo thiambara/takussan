@@ -310,7 +310,7 @@ class AgencyController extends Controller
             ->merge($user->ownerProfiles()->pluck('agency_id'))
             // `agencyAdminProfiles` manquait, et c'est le profil qui donne le plus de droits.
             //
-            // La liste couvrait agent, owner, broker et service_provider — mais pas l'admin
+            // La liste couvrait agent, owner et service_provider — mais pas l'admin
             // d'agence. Tant que `user.agency_id` résolvait, l'agence entrait par la première
             // ligne ; pour un compte MULTI-AGENCES, `ResolveActiveProfile` refuse la bascule
             // automatique, `agency_id` vaut `null`, et l'agence dont l'utilisateur est
@@ -329,12 +329,6 @@ class AgencyController extends Controller
             // *Resserrer une moitié d'une paire incohérente ne la rend pas cohérente ; cela
             // déplace l'incohérence là où personne ne l'attend.*
             ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
-            ->merge(DB::table('broker_profiles')
-                ->join('broker_agency_collaborations', 'broker_agency_collaborations.broker_profile_id', '=', 'broker_profiles.id')
-                ->where('broker_profiles.user_id', $user->id)
-                ->whereNull('broker_profiles.deleted_at')
-                ->whereNull('broker_agency_collaborations.deleted_at')
-                ->pluck('broker_agency_collaborations.agency_id'))
             ->merge(DB::table('service_provider_profiles')
                 ->join('service_provider_agency_collaborations', 'service_provider_agency_collaborations.service_provider_profile_id', '=', 'service_provider_profiles.id')
                 ->where('service_provider_profiles.user_id', $user->id)

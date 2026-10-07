@@ -14,7 +14,6 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
@@ -285,12 +284,12 @@ class PublicAgencyController extends Controller
         // 2026-09-24). `rolesPublics()` ne connaît aucune agence : un agent ou un admin actif de
         // l'agence B qui publie ici, en bailleur, un bien sous l'enseigne A y était présenté en
         // agent, et compté dans `stats.agents`. Le rôle retenu est la CONJONCTION : la règle
-        // publique, et un profil actif ici (ou un courtier, qui n'appartient à aucune agence).
+        // publique, et un profil actif ici. (Un courtier était compté ici sans appartenir à
+        // aucune agence ; le courtier a quitté le code, ADR-0030.)
         $professionnelsIci = $teamUserIds->isEmpty()
             ? collect()
             : AgentProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
                 ->merge(AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id'))
-                ->merge(BrokerProfile::query()->whereIn('user_id', $teamUserIds)->pluck('user_id'))
                 ->map(fn ($id) => (int) $id)
                 ->flip();
 

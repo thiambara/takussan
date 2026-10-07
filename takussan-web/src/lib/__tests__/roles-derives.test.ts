@@ -119,7 +119,8 @@ describe('les prédicats dérivés', () => {
 
   /**
    * TCK-495 — deux cas vivaient ici sur `broker` : `isBroker()` et le
-   * `getPrimaryRole` d'un courtier. Le prédicat est supprimé avec le rôle, et
+   * `getPrimaryRole` d'un courtier. Le prédicat est supprimé avec le rôle
+   * (le courtier a depuis quitté le code, ADR-0030), et
    * la propriété que le second mesurait — **`getPrimaryRole` ne rend jamais
    * `null` à un compte qui porte un rôle** — n'est pas perdue : elle est
    * reprise ci-dessous sur l'union entière, ce qui la rend plus forte que sur

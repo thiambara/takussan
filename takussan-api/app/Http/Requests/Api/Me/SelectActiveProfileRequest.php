@@ -25,8 +25,8 @@ class SelectActiveProfileRequest extends BaseFormRequest
     /**
      * Le motif est DÉRIVÉ de `ActiveProfileResolver::TYPE_MAP`, jamais recopié.
      *
-     * ⚠ Il l'était : la regex listait `owner|agent|broker|service_provider` et
-     * omettait `agency_admin` — l'alias que l'onboarding hôte épingle lui-même
+     * ⚠ Il l'était : la regex listait quatre alias (dont celui du courtier,
+     * retiré depuis, ADR-0030) et omettait `agency_admin` — l'alias que l'onboarding hôte épingle lui-même
      * comme profil actif. Conséquence mesurée : un hôte pouvait quitter son
      * espace administrateur pour son espace propriétaire, et jamais y revenir —
      * 422 « The profile id field format is invalid » sur son propre profil, que
