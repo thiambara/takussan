@@ -15,6 +15,9 @@ use App\Models\Enums\MaintenanceStatus;
  */
 class CompleteMaintenanceRequestRequest extends BaseFormRequest
 {
+    /** Les champs de coût, réservés au donneur d'ordre. */
+    public const PRINCIPAL_FIELDS = ['cost', 'actual_cost'];
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -27,8 +30,18 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
+        $user = $this->user();
+        $maintenanceRequest = $this->route('maintenanceRequest');
+
         // TCK-592 — terminer est une transition : (acteur, `completed`), pas `update`.
-        return $this->user()?->can('transitionTo', [$this->route('maintenanceRequest'), MaintenanceStatus::Completed]) === true;
+        if ($user?->can('transitionTo', [$maintenanceRequest, MaintenanceStatus::Completed]) !== true) {
+            return false;
+        }
+
+        // TCK-592 (verif-592, M1) — le coût est un champ du DONNEUR D'ORDRE, ici comme au `PATCH`
+        // (AC1) : sa seule PRÉSENCE exige `actAsPrincipal`, et le prestataire prend un 403.
+        return ! $this->hasAny(self::PRINCIPAL_FIELDS)
+            || $user->can('actAsPrincipal', $maintenanceRequest) === true;
     }
 
     /** @return array<string, mixed> */

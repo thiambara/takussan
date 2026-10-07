@@ -878,3 +878,32 @@ Méthode, à chaque étape :
   - garde sans la policy de la demande.
 - La messagerie (18 classes, 150 tests), `tests/Feature/Maintenance` et `tests/Unit/Policies` sont
   verts.
+
+**M1 — `actual_cost` par `PUT …/complete` (option a).**
+
+- `CompleteMaintenanceRequestRequest` : la seule présence de `cost` ou `actual_cost` exige
+  `actAsPrincipal`. Le prestataire prend un 403, comme au `PATCH` (AC1).
+- Nouveau `OwnerApprovalThreshold`, qui lit seul le plafond d'ADR-0037 (le workflow du devis
+  l'emprunte). Un `actual_cost` écrit par un autre que le bailleur est refusé par un 422 codé
+  `maintenance.errors.actual_cost_needs_owner` (fr, en, wo) s'il dépasse **à la fois** :
+  - le plafond ;
+  - ce que le bailleur a lui-même approuvé (`quote_decision_by_id` = bailleur).
+- Le bailleur l'inscrit : c'est son accord, comme pour un devis au-delà du plafond.
+- La règle s'applique au `PATCH` et à `complete`.
+- Front : `MaintenanceCompleteForm` ne montre et n'envoie le coût qu'avec `withCost`, lu de
+  `abilities.can_assign`.
+- Tests :
+  - `MaintenanceActualCostTest` (4) : v04, v05, égalité au plafond, montant approuvé par le
+    bailleur. Sur `05dce4fc`, 4 rouges.
+  - `MaintenanceCompleteForm.test.tsx` : +2.
+- Ablations, toutes rouges :
+
+  | Ablation | Résultat |
+  |---|---|
+  | `complete` sans `actAsPrincipal` | 2 rouges |
+  | `PATCH` sans plafond | 3 rouges |
+  | `complete` sans plafond | 1 rouge |
+  | accord du bailleur ignoré | 1 rouge |
+  | égalité au plafond (`>= 0`) | 1 rouge |
+  | front, champ de coût pour tous | 1 rouge |
+  | front, coût envoyé | 1 rouge |

@@ -130,7 +130,11 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
       <StatusActions request={request} onComplete={() => setCompleteOpen(true)} />
 
       {completeOpen && abilities?.can_complete ? (
-        <MaintenanceCompleteForm id={request.id} onClose={() => setCompleteOpen(false)} />
+        <MaintenanceCompleteForm
+          id={request.id}
+          onClose={() => setCompleteOpen(false)}
+          withCost={abilities.can_assign === true}
+        />
       ) : null}
 
       <MaintenanceGallery request={request} />

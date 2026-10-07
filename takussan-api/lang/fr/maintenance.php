@@ -28,6 +28,7 @@ return [
         'already_accepted' => 'L\'intervention est déjà acceptée.',
         'terminal_request' => 'Une demande clôturée ou annulée ne reçoit plus de pièces.',
         'cost_ambiguous' => 'Indiquez soit « cost », soit « actual_cost », pas les deux.',
+        'actual_cost_needs_owner' => 'Ce coût dépasse le plafond de travaux du bailleur et ce qu\'il a approuvé : seul le bailleur peut l\'inscrire.',
         'before_photos_requires_acceptance' => 'Les photos « avant » sont réservées au prestataire qui a accepté l\'intervention.',
         'quote_expired' => 'Ce devis n\'est plus valable : sa date de validité est passée.',
         'invitation_request_invalid' => 'La demande d\'intervention liée doit appartenir à cette agence et ne pas être clôturée ni annulée.',

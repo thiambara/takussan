@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -180,6 +181,11 @@ class MaintenanceRequestController extends Controller
 
         // TCK-592 — l'assignation a son chemin (`accepted_at` remis à nul, événement) : elle ne passe
         // pas par `fill()`.
+        // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
+        if (($data['actual_cost'] ?? null) !== null) {
+            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
+        }
+
         $assignmentChanged = array_key_exists('assigned_to', $data);
         $assigneeId = $data['assigned_to'] ?? null;
         unset($data['assigned_to']);

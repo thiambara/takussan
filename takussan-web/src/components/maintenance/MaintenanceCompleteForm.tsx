@@ -25,13 +25,18 @@ import { reduirePhotos } from '@/lib/reduire-photo';
  * `/photos` APRÈS la transition, et leur échec était avalé : la demande passait « terminée »
  * sans preuve, sans que personne le voie. Désormais un échec n'écrit rien, s'affiche, et les
  * fichiers choisis restent pour réessayer.
+ *
+ * TCK-592 (verif-592, M1) — le coût réel est un champ du DONNEUR D'ORDRE (`withCost`, lu de
+ * `abilities.can_assign`) : le prestataire qui le portait à la complétion prend un 403.
  */
 export function MaintenanceCompleteForm({
   id,
   onClose,
+  withCost = false,
 }: {
   readonly id: number;
   readonly onClose: () => void;
+  readonly withCost?: boolean;
 }) {
   const t = useTranslations('maintenance.complete');
   const tCommon = useTranslations('common');
@@ -50,6 +55,7 @@ export function MaintenanceCompleteForm({
     onSubmit: async (values) =>
       complete.mutateAsync({
         ...values,
+        actual_cost: withCost ? values.actual_cost : undefined,
         // Réduites dans le navigateur avant l'envoi (TCK-542).
         photos: photos.length > 0 ? await reduirePhotos(photos) : undefined,
       }),
@@ -81,15 +87,17 @@ export function MaintenanceCompleteForm({
         rows={4}
       />
 
-      <FormInput
-        name="actual_cost"
-        control={form.control}
-        label={t('cost_label')}
-        type="number"
-        min={0}
-        step="100"
-        placeholder="0"
-      />
+      {withCost ? (
+        <FormInput
+          name="actual_cost"
+          control={form.control}
+          label={t('cost_label')}
+          type="number"
+          min={0}
+          step="100"
+          placeholder="0"
+        />
+      ) : null}
 
       <div>
         <label

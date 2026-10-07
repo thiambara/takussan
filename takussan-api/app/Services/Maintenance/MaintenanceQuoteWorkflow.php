@@ -5,7 +5,6 @@ namespace App\Services\Maintenance;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Http\UploadedFile;
@@ -20,6 +19,7 @@ class MaintenanceQuoteWorkflow
     public function __construct(
         private readonly MaintenanceStateMachine $machine,
         private readonly MaintenanceRequestService $requests,
+        private readonly OwnerApprovalThreshold $threshold,
     ) {}
 
     /**
@@ -199,7 +199,7 @@ class MaintenanceQuoteWorkflow
 
     private function isLandlord(MaintenanceRequest $mr, int $userId): bool
     {
-        return $mr->property !== null && (int) $mr->property->user_id === $userId;
+        return $this->threshold->isLandlord($mr, $userId);
     }
 
     /**
@@ -207,17 +207,7 @@ class MaintenanceQuoteWorkflow
      */
     private function exceedsOwnerThreshold(MaintenanceRequest $mr): bool
     {
-        $property = $mr->property;
-        if ($property === null || $property->agency_id === null || $property->user_id === null || $mr->quote_amount === null) {
-            return false;
-        }
-
-        $threshold = OwnerProfile::query()
-            ->where('user_id', $property->user_id)
-            ->where('agency_id', $property->agency_id)
-            ->value('works_approval_threshold');
-
-        return $threshold !== null && bccomp((string) $mr->quote_amount, (string) $threshold, 2) === 1;
+        return $this->threshold->exceeds($mr, $mr->quote_amount);
     }
 
     public function rejectQuote(MaintenanceRequest $mr, string $reason, int $rejectedById, ?User $actor = null): MaintenanceRequest

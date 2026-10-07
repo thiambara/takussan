@@ -58,4 +58,22 @@ describe('<MaintenanceCompleteForm>', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(upload.mutateAsync).not.toHaveBeenCalled();
   });
+
+  // verif-592, M1 — le coût réel est au donneur d'ordre : le prestataire ne le voit ni ne l'envoie.
+  it('sans withCost (prestataire), aucun champ de coût et aucun coût envoyé', async () => {
+    complete.mutateAsync.mockResolvedValue({ data: {} });
+    render(withIntl(<MaintenanceCompleteForm id={7} onClose={() => undefined} />));
+
+    expect(screen.queryByLabelText('Coût réel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Marquer terminé' }));
+
+    await waitFor(() => expect(complete.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(complete.mutateAsync.mock.calls[0][0].actual_cost).toBeUndefined();
+  });
+
+  it('avec withCost (donneur d\'ordre), le coût réel se saisit', () => {
+    render(withIntl(<MaintenanceCompleteForm id={7} onClose={() => undefined} withCost />));
+
+    expect(screen.getByLabelText('Coût réel')).toBeInTheDocument();
+  });
 });

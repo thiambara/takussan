@@ -7,6 +7,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -216,7 +217,14 @@ class MaintenanceRequestService
 
         $this->assertTransition($current, MaintenanceStatus::Completed);
 
-        DB::transaction(function () use ($mr, $data, $photos): void {
+        // TCK-592 (verif-592, M1) — seul le donneur d'ordre porte un coût ici (403 au FormRequest),
+        // et au-delà du plafond du bailleur, c'est l'accord du bailleur qui s'applique.
+        $cost = $data['cost'] ?? $data['actual_cost'] ?? null;
+        if ($cost !== null && $actor !== null) {
+            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($mr, $cost, $actor->id);
+        }
+
+        DB::transaction(function () use ($mr, $data, $photos, $cost): void {
             $mr->status = MaintenanceStatus::Completed;
             $mr->completed_at = now();
 
@@ -224,7 +232,6 @@ class MaintenanceRequestService
                 $mr->resolution_notes = $data['resolution_notes'];
             }
 
-            $cost = $data['cost'] ?? $data['actual_cost'] ?? null;
             if ($cost !== null) {
                 $mr->actual_cost = $cost;
             }
