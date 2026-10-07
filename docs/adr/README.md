@@ -57,6 +57,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) | Les médias vivent dans R2, deux seaux par environnement ; les images publiques sont servies par Cloudflare Transformations | Accepté — amendé le 2026-10-04 : les photos de biens sont servies en WebP depuis leurs conversions, sans Transformations (TCK-585) |
 | [0030](0030-le-courtier-quitte-le-code-et-la-base.md) | Le courtier quitte le code et la base | Accepté |
 | [0034](0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md) | L'agenda sort de la plateforme par un lien secret, haché, révocable, propre à une agence | Accepté |
+| [0035](0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) | L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
