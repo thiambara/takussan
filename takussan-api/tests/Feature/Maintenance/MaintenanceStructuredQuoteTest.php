@@ -20,6 +20,51 @@ class MaintenanceStructuredQuoteTest extends TestCase
 {
     use MaintenanceActors, RefreshDatabase;
 
+    /**
+     * verif-592, mineur 1 (sonde v06) — XOF n'a pas de sous-unité : chaque ligne puis le total
+     * s'arrondissent à l'unité, au plus proche, la moitié vers le haut. 1,5 × 333,33 = 499,995 →
+     * 500 (la troncature rendait 499,99).
+     */
+    public function test_xof_lines_and_total_are_rounded_to_the_unit(): void
+    {
+        ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested);
+
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", [
+            'lines' => [
+                ['label' => 'Tuyau', 'kind' => 'supply', 'quantity' => '1.5', 'unit_price' => '333.33'],
+                ['label' => 'Collier', 'kind' => 'supply', 'quantity' => '0.5', 'unit_price' => '1.01'],
+                ['label' => 'Joint', 'kind' => 'supply', 'quantity' => '1', 'unit_price' => '0.49'],
+            ],
+            'valid_until' => now()->addWeek()->toDateString(),
+        ])->assertOk();
+
+        $mr->refresh();
+        $this->assertSame('XOF', $mr->quote_currency);
+        $this->assertSame('500.00', $mr->quote_lines[0]['total']);
+        $this->assertSame('1.00', $mr->quote_lines[1]['total']);
+        $this->assertSame('0.00', $mr->quote_lines[2]['total']);
+        $this->assertSame('501.00', (string) $mr->quote_amount);
+    }
+
+    /** Une devise à sous-unité garde ses 2 décimales, arrondies et non tronquées. */
+    public function test_a_currency_with_cents_is_rounded_to_the_cent(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'agency' => $agency] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested);
+        $agency->forceFill(['currency' => 'EUR'])->save();
+
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", [
+            'lines' => [['label' => 'Tuyau', 'kind' => 'supply', 'quantity' => '1.5', 'unit_price' => '10.01']],
+            'valid_until' => now()->addWeek()->toDateString(),
+        ])->assertOk();
+
+        $mr->refresh();
+        $this->assertSame('EUR', $mr->quote_currency);
+        $this->assertSame('15.02', $mr->quote_lines[0]['total']);
+        $this->assertSame('15.02', (string) $mr->quote_amount);
+    }
+
     public function test_amount_is_computed_from_the_lines(): void
     {
         ['mr' => $mr, 'provider' => $provider, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested);

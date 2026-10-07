@@ -922,3 +922,21 @@ Méthode, à chaque étape :
 - Ablations :
   - `update` sans garde : 2 rouges ;
   - `assign` sans garde : 1 rouge.
+
+**Mineur 1 — montants à l'unité de la devise.**
+
+- `priceLines($input, $currency)` arrondit chaque ligne, puis le total, à l'unité de la devise
+  résolue : `Currency::decimalPlaces()` donne 0 pour le XOF et le XAF, 2 pour l'EUR et l'USD.
+- Mode : au plus proche, la moitié vers le haut. Il est écrit dans une seule méthode,
+  `roundToUnit`.
+- Le produit est d'abord calculé exactement, sur 4 décimales. Aucun `bcmul` ne tronque plus.
+- L'aide de TCK-593 (V1) n'est pas sur `dev` : elle n'est pas accessible d'ici.
+- Tests ajoutés à `MaintenanceStructuredQuoteTest` :
+  - XOF : 1,5 × 333,33 → 500 (v06), 0,5 × 1,01 → 1, 0,49 → 0, total 501 ;
+  - EUR : 1,5 × 10,01 → 15,02.
+- Sur `05dce4fc` : 2 rouges.
+- Ablations :
+  - ligne tronquée : 2 rouges ;
+  - arrondi en troncature : 2 rouges ;
+  - échelle fixée à 2 : 1 rouge ;
+  - échelle fixée à 0 : 1 rouge.

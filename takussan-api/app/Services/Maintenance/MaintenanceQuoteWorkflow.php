@@ -3,6 +3,7 @@
 namespace App\Services\Maintenance;
 
 use App\Events\Maintenance\MaintenanceStatusChanged;
+use App\Models\Enums\Currency;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -72,7 +73,8 @@ class MaintenanceQuoteWorkflow
     {
         $from = $this->assertTransition($mr, MaintenanceStatus::QuoteSubmitted);
 
-        [$lines, $amount] = $this->priceLines($data['lines'] ?? []);
+        $currency = $this->resolveCurrency($mr);
+        [$lines, $amount] = $this->priceLines($data['lines'] ?? [], $currency);
 
         $mr->status = MaintenanceStatus::QuoteSubmitted;
         // Chiffrer l'intervention, c'est l'accepter : le prestataire qui a remis un devis ne la
@@ -82,7 +84,7 @@ class MaintenanceQuoteWorkflow
         }
         $mr->quote_lines = $lines;
         $mr->quote_amount = $amount;
-        $mr->quote_currency = $this->resolveCurrency($mr);
+        $mr->quote_currency = $currency;
         $mr->quote_valid_until = $data['valid_until'] ?? null;
         $mr->quote_estimated_duration_days = $data['estimated_duration_days'] ?? null;
         $mr->quote_submitted_at = now();
@@ -108,18 +110,24 @@ class MaintenanceQuoteWorkflow
     }
 
     /**
+     * Chaque ligne, puis le total, à l'UNITÉ de la devise (verif-592, mineur 1) : 0 décimale pour
+     * le XOF (principe n°3 : pas de sous-unité). `bcmul(…, 2)` tronquait — 1,5 × 333,33 donnait
+     * 499,99 XOF, un montant qu'aucun paiement ne réglera.
+     *
      * @param  array<int, array<string, mixed>>  $input
      * @return array{0: list<array{label: string, kind: string, quantity: string, unit_price: string, total: string}>, 1: string}
      */
-    public function priceLines(array $input): array
+    public function priceLines(array $input, string $currency = 'XOF'): array
     {
+        $scale = Currency::tryFrom($currency)?->decimalPlaces() ?? 2;
         $lines = [];
         $total = '0.00';
 
         foreach ($input as $line) {
             $quantity = $this->decimal($line['quantity'] ?? 0);
             $unitPrice = $this->decimal($line['unit_price'] ?? 0);
-            $lineTotal = bcmul($quantity, $unitPrice, 2);
+            // Deux facteurs à 2 décimales : le produit exact tient en 4.
+            $lineTotal = $this->roundToUnit(bcmul($quantity, $unitPrice, 4), $scale);
 
             $lines[] = [
                 'label' => (string) ($line['label'] ?? ''),
@@ -131,7 +139,21 @@ class MaintenanceQuoteWorkflow
             $total = bcadd($total, $lineTotal, 2);
         }
 
-        return [$lines, $total];
+        return [$lines, $this->roundToUnit($total, $scale)];
+    }
+
+    /**
+     * Au plus proche, la moitié en s'éloignant de zéro (« moitié vers le haut » pour un montant
+     * positif), à `$scale` décimales ; rendu sur 2 décimales, l'échelle de la colonne.
+     */
+    private function roundToUnit(string $amount, int $scale): string
+    {
+        $half = bcdiv('5', bcpow('10', (string) ($scale + 1)), $scale + 1);
+        $rounded = bccomp($amount, '0', 4) < 0
+            ? bcsub($amount, $half, $scale)
+            : bcadd($amount, $half, $scale);
+
+        return bcadd($rounded, '0', 2);
     }
 
     private function decimal(mixed $value): string
