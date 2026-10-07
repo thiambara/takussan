@@ -377,12 +377,12 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
       « Prestataire » (rouge sur le code actuel : « Service provider ») ; l'onglet relations d'une fiche
       client de type `owner_tenant` n'affiche pas « owner / tenant » mais le libellé français, et une
       valeur inconnue n'affiche pas son code (deux tests de composant).
-- [ ] **AC11** — Côté web, aucune clé `broker` dans `src/messages/*.json` ; `npm run lint`,
+- [x] **AC11** — Côté web, aucune clé `broker` dans `src/messages/*.json` ; `npm run lint`,
       `npx tsc --noEmit` et `npm run test` verts ; les gardes `user-roles.parity` et
       `AppSidebar.audience` sont vertes et affirment toujours l'absence de `broker`.
       *(Non coché : `npm run test` est une suite entière — lancée par la session. Le reste est vert :
       lint, `tsc`, 30 fichiers vitest, aucune clé `broker`.)*
-- [ ] **AC12** — Suite backend entière verte sur PostgreSQL (rituel de fin de branche).
+- [x] **AC12** — Suite backend entière verte sur PostgreSQL (rituel de fin de branche).
       *(Lancée par la session. Ici : 70 tests des classes touchées, puis 604 tests de 69 classes liées —
       verts.)*
 
@@ -474,3 +474,10 @@ Ablations rejouées :
   `test_la_fiche_d_un_bien_ne_presente_pas_en_agent_…` rouge.
 - **AC10** — les deux tests de composant, rejoués sur `UserDetail`/`CustomerDetailTabs` et `fr.json`
   d'origine : 3 rouges ; restaurés : 3 verts.
+
+Suites entières, jouées par la session le 2026-10-07 sur `ff41ca55` + clôture :
+
+- **AC11** — `npm run test` : 492 fichiers, **4369 tests verts** (298,6 s).
+- **AC12** — `php artisan test` : **3512 verts, 2 ignorés, 0 échec** (12 530 assertions), 1108 s —
+  sous charge (deux autres agents testaient ; `load average` 3,15 → 3,59 sur 8 cœurs) : le temps ne
+  vaut pas référence.
