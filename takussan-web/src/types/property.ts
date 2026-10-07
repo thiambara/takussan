@@ -75,6 +75,11 @@ export interface PropertyOwnerLite {
   avatar_url: string | null;
   is_agent: boolean;
   member_since: string | null;
+  /**
+   * TCK-590 — le contact a-t-il un numéro ? Un booléen, jamais le numéro : celui-ci n'est révélé
+   * qu'au geste (`GET …/contact`, limité). Faux ou absent, la fiche n'offre ni WhatsApp ni Appeler.
+   */
+  has_phone?: boolean;
 }
 
 export interface PropertyAgencyLite {

@@ -98,6 +98,7 @@
       "other": "Beneen"
     },
     "sidebar": {
+      "leads": "Laaj yi",
       "dashboard": "Taablo",
       "myProperties": "Samay kër",
       "publishProperty": "Yebbi kër",
@@ -7996,5 +7997,136 @@
       "frenchOnly": "Téere bii ci farañse rekk la am léegi."
     },
     "otherDocuments": "Yeneen téere"
+  },
+  "propertyContact": {
+    "whatsapp": {
+      "prefill": "Asalaa maalekum, « {title} » bi ma gis ci Takussan dafa ma soxal : {url}"
+    },
+    "call": {
+      "cta": "Woo",
+      "aria": "Woo ki ñuy jokkoo ngir {title}",
+      "calling": "Mi ngi woo…"
+    },
+    "errors": {
+      "title": "Jokkoo bi amul",
+      "phone": "Nimero bi mënul ñëw. Jéemaatal ci kanam."
+    },
+    "share": {
+      "text": "{type} · {price} · {quarter} — {url}",
+      "textNoQuarter": "{type} · {price} — {url}",
+      "subject": "{type} ci Takussan"
+    },
+    "privacy": {
+      "notice": "Say xibaar dañu leen jëfandikoo rekk ngir topp laaj bii.",
+      "link": "Politig sutura"
+    },
+    "lead": {
+      "phone": "Telefon",
+      "contactRequired": "Joxal benn nimero telefon walla imeel ngir ñu mën la tontu.",
+      "phoneInvalid": "Nimero bii mati wul."
+    },
+    "visit": {
+      "nameLabel": "Sa tur",
+      "phoneLabel": "Telefon",
+      "emailLabel": "Imeel",
+      "optional": "(du lu war)",
+      "nameRequired": "Bindal sa tur.",
+      "phoneRequired": "Joxal nimero bu ajaa bi mën la woo.",
+      "dakarTime": "waxtu Dakar",
+      "slotTaken": "{time} — jël nañu ko",
+      "slotsLoading": "Mi ngi yeb waxtu yi…",
+      "slotsError": "Waxtu yi mënuñu ñëw.",
+      "noSlots": "Amatul waxtu bu wéy bés boobu. Tànnal beneen bés.",
+      "done": {
+        "title": "Laaj bi yónnee nañu ko",
+        "bodySms": "Ajaa bi dina dëggal waxtu {when}. Dinga jot SMS ci {phone} su ko defee.",
+        "bodyAccount": "Ajaa bi dina dëggal waxtu {when}. Dinañu la yëgal ci sa kont ak ci imeel.",
+        "bodyEmail": "Dinañu yónnee itam imeel ci {email}.",
+        "close": "Tëj"
+      }
+    }
+  },
+  "contactLeads": {
+    "title": "Laaj yi",
+    "description": "Bataaxal yi ñu bayyi ci site bi : jàng leen, topp leen, def leen ay kiliyaan.",
+    "filters": {
+      "todo": "Ñoo war a topp",
+      "handled": "Topp nañu leen",
+      "all": "Yépp"
+    },
+    "empty": {
+      "todo": "Amul benn laaj buy xaar.",
+      "handled": "Amagul benn laaj bu ñu topp.",
+      "all": "Jotagul benn laaj.",
+      "description": "Laaj yi ñu bayyi ci say kër ak sa xët ajaa ci lañuy ñëw."
+    },
+    "error": "Laaj yi mënuñu ñëw.",
+    "anonymous": "Ganaa",
+    "aboutProperty": "Ci mbirum « {title} »",
+    "aboutAgent": "Jokkoo bu jub",
+    "receivedAt": "Jot nañu ko {date}",
+    "handledAt": "Topp nañu ko {date}",
+    "source": "Jóge na ci {source}",
+    "recipient": "Ngir {name}",
+    "actions": {
+      "whatsapp": "WhatsApp",
+      "call": "Woo",
+      "email": "Imeel",
+      "convert": "Def ko kiliyaan",
+      "openCustomer": "Xool xët kiliyaan bi",
+      "handle": "Màndargaal ni topp nañu ko",
+      "assign": "Jox ko"
+    },
+    "whatsappReply": "Asalaa maalekum {name}, maa ngi topp sa laaj ci Takussan.",
+    "whatsappReplyProperty": "Asalaa maalekum {name}, maa ngi topp sa laaj ci Takussan ci mbirum « {title} ».",
+    "assign": {
+      "title": "Jox laaj bi",
+      "description": "Naatangoo bi nga tànn dina ko jot te dinañu ko yëgal.",
+      "label": "Naatangoo",
+      "placeholder": "Tànnal benn naatangoo",
+      "submit": "Jox ko",
+      "cancel": "Bàyyi"
+    },
+    "toasts": {
+      "handled": "Laaj bi màndargaal nañu ko ni topp nañu ko.",
+      "converted": "Xët kiliyaan bi sos nañu ko.",
+      "assigned": "Laaj bi jox nañu ko.",
+      "error": "Jëf ji antuwul."
+    }
+  },
+  "visitPlanning": {
+    "unassigned": "Ñu jaggagul",
+    "unassignedEmpty": "Amul benn seetlu buy xaar ajaa.",
+    "unassignedBadge": "Kenn jaggagu ko",
+    "claim": "Jagg ko",
+    "claimed": "Jagg nga seetlu bi.",
+    "claimConflict": "Benn naatangoo jagg na ko ba noppi.",
+    "actionError": "Jëf ji antuwul.",
+    "plan": {
+      "cta": "Waajal seetlu",
+      "title": "Waajal seetlu",
+      "description": "Seetlu bi dañu koy dëggal léegi te kiliyaan bi dinañu ko yëgal.",
+      "property": "Kër",
+      "propertyPlaceholder": "Seet benn kër",
+      "customer": "Kiliyaan",
+      "customerPlaceholder": "Seet benn kiliyaan",
+      "noCustomer": "Doonagul kiliyaan : tur ak telefon",
+      "name": "Turu ki ñuy xaar",
+      "phone": "Telefon",
+      "date": "Bés",
+      "time": "Waxtu",
+      "dakarTime": "waxtu Dakar",
+      "submit": "Waajal",
+      "cancel": "Bàyyi",
+      "success": "Seetlu bi waajal nañu ko te dëggal nañu ko.",
+      "required": "Tànnal kër, bés ak waxtu, ak kiliyaan walla tur ak telefon."
+    },
+    "propose": {
+      "cta": "Digle beneen waxtu",
+      "title": "Digle beneen waxtu",
+      "description": "Seetlu bi dina dellu ci xaar : ajaa bi dina dëggal waxtu bu bees bi.",
+      "submit": "Digle",
+      "success": "Waxtu bu bees bi digle nañu ko."
+    }
   }
 }

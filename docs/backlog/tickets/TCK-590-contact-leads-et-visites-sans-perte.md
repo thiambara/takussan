@@ -501,3 +501,14 @@ titre (AC17).
   lit encore `$user->agency_id` — périmètre de TCK-587. Le test est écrit et s'active seul quand
   `MembershipCapabilityResolver::isStaffAt` existe (`markTestIncomplete` d'ici là).
 
+**Étape 3 — front public : contact, WhatsApp, partage, visite sans compte (2026-10-07).**
+- WhatsApp ouvre une fenêtre vide DANS le geste puis la dirige vers `wa.me` ; ablation (ouverture
+  déplacée après l'`await`) → AC19b rouge. `has_phone` faux → ni Appeler ni WhatsApp ; ablation
+  (`hasPhone = true`) → rouge. Les deux `alert()` de `PropertyAgentCard` sont des toasts.
+- Heure à Dakar : `lib/visites/heure-de-dakar.ts`, éprouvé navigateur forcé à `Europe/Paris`
+  (`process.env.TZ`, précondition vérifiée) ; ablation (`setHours` + `toISOString`, l'ancien
+  calcul) → AC10 rouge. Les créneaux viennent de `visit-slots` ; un créneau pris est grisé.
+- Partage : type · prix F CFA · quartier, lien signé par canal ; ablation (`urlDePartage` rend
+  l'URL nue) → AC21 rouge. Source d'arrivée retenue en `sessionStorage` par le layout public.
+- Garde de contraste : une dette d'ardoise devenue sans objet retirée (le lien « Se connecter » de
+  la boîte de visite n'existe plus), cliquet des encres inverses 248 → 256, cause écrite.

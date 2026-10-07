@@ -3,6 +3,7 @@
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import type { AnonymousLeadPayload } from '@/types/contact-lead';
 import type {
   BookingRequestPayload,
   OfferRequestPayload,
@@ -164,7 +165,7 @@ export async function submitContactMessage(
  */
 export async function submitContactLead(
   slug: string,
-  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+  payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
   try {
     await apiRequest(`/api/public/properties/${slug}/contact-lead`, {
@@ -194,7 +195,7 @@ export async function submitContactLead(
  */
 export async function submitAgentContactLead(
   slug: string,
-  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+  payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
   try {
     await apiRequest(`/api/public/agents/${encodeURIComponent(slug)}/contact-lead`, {

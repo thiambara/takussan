@@ -150,6 +150,7 @@
       "meta",
       "nav",
       "property",
+      "propertyContact",
       "publicContact",
       "publicProfile",
       "publicProfileIndex",
@@ -183,11 +184,11 @@
     ".": 15,
     "(auth)": 17,
     "publish": 19,
-    "onboarding": 41,
+    "onboarding": 40,
     "(dashboard)": 16,
-    "(dashboard)/app": 69,
-    "(dashboard)/admin": 57,
-    "[locale]/(public)": 39,
-    "(super-admin)/super-admin": 44
+    "(dashboard)/app": 68,
+    "(dashboard)/admin": 56,
+    "[locale]/(public)": 40,
+    "(super-admin)/super-admin": 43
   }
 }
