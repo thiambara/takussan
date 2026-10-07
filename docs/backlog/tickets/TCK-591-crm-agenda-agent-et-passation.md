@@ -428,11 +428,11 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] `App\Services\Crm\CustomerDuplicateDetector` (même agence, téléphone normalisé ou e-mail replié)
       → 409 `customer_duplicate` ; champ `allow_duplicate` (bool) dans les deux FormRequests.
 - [x] Commande `crm:normalize-customer-phones {--dry-run}` : compte normalisés / non normalisables.
-- [ ] Front : saisie de téléphone du profil (TCK-574) dans le formulaire client ; gestes « Appeler » et
+- [x] Front : saisie de téléphone du profil (TCK-574) dans le formulaire client ; gestes « Appeler » et
       « WhatsApp » sur la fiche, la carte de pipeline et la tâche ; doublon présenté comme une aide.
 
 **2. Pipeline (A10)**
-- [ ] Front : changement d'étape sans glisser (carte et fiche), capteur clavier et annonces
+- [x] Front : changement d'étape sans glisser (carte et fiche), capteur clavier et annonces
       accessibles, pagination « charger plus » (la `meta` de pagination n'est plus jetée), compteurs
       d'onglet et de colonne tirés de `stage_counts`.
 
@@ -447,7 +447,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] `TaskPolicy::attachTo` délègue à la policy du parent : `can('view', $customer)` (règle de
       587) / `can('update', $property)` — plus de lecture de `$user->agency_id`. Le `taskable.label`
       n'est rendu qu'à qui passe ce même contrôle.
-- [ ] Front : page « Mes tâches » (filtres, cocher, créer une tâche sur un client ou un bien) ; lien
+- [x] Front : page « Mes tâches » (filtres, cocher, créer une tâche sur un client ou un bien) ; lien
       « Tâches du jour » du tableau de bord agent vers elle (`/app/tasks?filter[due]=today`).
 
 **4. Fiche client unique (A12)**
@@ -457,7 +457,7 @@ téléphone tenu d'une main, entre deux visites**.
       journalisées : le journal dit « note ajoutée », pas son contenu).
 - [x] Migration `add_kind_to_customer_notes_table` (cf. Contrat) ; `update` et `updatePipelineStage`
       écrivent `kind` + le motif seul ; plus de `'Conversion : '` / `'Perte : '` dans le code.
-- [ ] Front : une seule fiche (aperçu, notes, tâches, activité, visites, réservations, baux,
+- [x] Front : une seule fiche (aperçu, notes, tâches, activité, visites, réservations, baux,
       documents, relations) ; le tiroir en est la vue réduite ; plus d'appel à `/api/audit-log` ;
       une erreur de chargement de l'activité est montrée (et relançable), jamais rendue en liste
       vide ; le préfixe des notes `conversion`/`loss` est traduit à l'affichage.
@@ -470,7 +470,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] Job `SendProspectMatchDigest` (quotidien, planifié) : biens publiés ou dont le prix a changé
       (`PropertyPriceHistory`) depuis 24 h → une notification par référent (sinon `added_by`), par
       clé `__()`, jamais vide.
-- [ ] Front : critères sur la fiche ; « N prospects correspondent » sur la fiche bien ; partage
+- [x] Front : critères sur la fiche ; « N prospects correspondent » sur la fiche bien ; partage
       WhatsApp de la sélection.
 
 **6. Calendrier (A16, P17)**
@@ -483,7 +483,7 @@ téléphone tenu d'une main, entre deux visites**.
       `renewal_date`), `maintenance` (`scheduled_at` ; personnel : biens de l'agence ; prestataire :
       `assigned_to = moi`) ; `mine=1` = `agent_id`/`assigned_to_id`/`assigned_to` = moi.
 - [x] `CalendarFeedController` + `IcsCalendarRenderer` selon l'ADR ; révocation des flux au retrait.
-- [ ] Front : types, légende et filtre « Mes rendez-vous » ; abonnement ; la page s'ouvre au
+- [x] Front : types, légende et filtre « Mes rendez-vous » ; abonnement ; la page s'ouvre au
       prestataire (option retenue par défaut, cf. Contraintes 9 / 446) et ne lui demande que le type
       `maintenance` — le raccourci de `DashboardShortcuts.tsx:78` cesse de mener à une redirection.
 
@@ -553,13 +553,13 @@ téléphone tenu d'une main, entre deux visites**.
       révoque les flux iCalendar du membre dans l'agence.
 - [x] Autorisation du retrait par la capacité `team.remove` dans l'agence de la route (au lieu de
       `can('update', $agency)`, `AgencyController.php:274-277`) — lecteur de la capacité.
-- [ ] Front : « Retirer de l'agence » n'est proposé que sur un membre du personnel (agent, admin
+- [x] Front : « Retirer de l'agence » n'est proposé que sur un membre du personnel (agent, admin
       d'agence), jamais sur un bailleur seul.
-- [ ] `SetPrimaryContactCustomerRequest` : `user_id` = personnel de l'agence du client ; capacité
+- [x] `SetPrimaryContactCustomerRequest` : `user_id` = personnel de l'agence du client ; capacité
       `crm.assign` ; front : désigner le référent depuis la fiche.
 - [x] Absence selon l'ADR (migration, service, résolveur `AgentAvailability::substituteFor()`),
       `TaskPolicy::view` étendu au remplaçant pendant la période.
-- [ ] Front : assistant de passation déclenché par « Retirer » ; « Déclarer une absence ».
+- [x] Front : assistant de passation déclenché par « Retirer » ; « Déclarer une absence ».
 
 **9. Cloisonnement du CRM (passe de correction)**
 - [ ] `Customer::scopeVisibleTo(User)` (règle de `CustomerPolicy::view` réécrite par 587 : super-admin
@@ -569,7 +569,7 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] `CustomerPolicy::create` (personnel de l'agence du profil actif, ou super-admin — bloc neuf,
       cf. Contraintes 9) ; `StoreCustomerRequest::authorize` → `can('create', Customer::class)` ;
       `store` écrit `agency_id` = l'agence où l'appelant est personnel.
-- [ ] Front : ni « Ajouter un client » ni lien vers le pipeline pour un compte qui n'est pas du
+- [x] Front : ni « Ajouter un client » ni lien vers le pipeline pour un compte qui n'est pas du
       personnel ; ses fiches existantes restent lisibles.
 
 **10. Tests**
@@ -656,7 +656,7 @@ téléphone tenu d'une main, entre deux visites**.
       l'assigné non créateur → **403** (204 aujourd'hui), par le créateur → 204 ; `POST /api/tasks`
       par un bailleur de A sur un client de A qu'il n'a pas ajouté → **403** (201 aujourd'hui) et la
       réponse ne contient pas son nom.
-- [ ] AC19 — `PATCH /api/customers/{c}/pipeline-stage` vers `lost` avec `reason = "Budget"` crée une
+- [x] AC19 — `PATCH /api/customers/{c}/pipeline-stage` vers `lost` avec `reason = "Budget"` crée une
       note épinglée `kind = loss`, `body = "Budget"` (aujourd'hui `"Perte : Budget"`) ; idem par
       `PUT /api/customers/{c}` vers `converted` (`kind = conversion`). La migration convertit une note
       existante `"Perte : X"` en `kind = loss`, `body = "X"`, et son `down()` la restaure à
@@ -674,21 +674,21 @@ téléphone tenu d'une main, entre deux visites**.
       avec l'`user_id` d'un bailleur de A → 422 `messages.target_user_not_in_active_agency` (200
       aujourd'hui : `$target->agency_id === $agencyId`, l.248, laisse passer le bailleur) ; vers un
       agent d'une autre agence → 422. (Règle de 587, appelée ici — l'AC5b de 587 la porte aussi.)
-- [ ] AC23 — retrait : `DELETE /api/agencies/{a}/members/{u}` sur un admin d'agence **sans**
+- [x] AC23 — retrait : `DELETE /api/agencies/{a}/members/{u}` sur un admin d'agence **sans**
       `AgentProfile` (ni `primary_admin_id`, ni dernier admin) → 200 et son `AgencyAdminProfile` est
       supprimé (422 `user_not_in_agency` aujourd'hui) ; sur un bailleur seul → 422 `member_not_staff`.
       Front (vitest) : la ligne d'un bailleur seul ne propose pas « Retirer de l'agence ».
-- [ ] AC24 — front (vitest) : la requête d'activité qui échoue (403 ou 500) affiche un état d'erreur
+- [x] AC24 — front (vitest) : la requête d'activité qui échoue (403 ou 500) affiche un état d'erreur
       avec « Réessayer », **pas** le message « aucune activité » (aujourd'hui l'erreur est avalée en
       liste vide, `CustomerDetailSheet.tsx:58-60`).
-- [ ] AC25 — front (vitest) : `stage_counts.lead = 73` et 50 cartes chargées → l'onglet et la colonne
+- [x] AC25 — front (vitest) : `stage_counts.lead = 73` et 50 cartes chargées → l'onglet et la colonne
       affichent **73** (50 aujourd'hui) ; « Charger plus » demande `page=2` et affiche la 51ᵉ carte.
-- [ ] AC26 — front (vitest) : « Tâches du jour » du tableau de bord agent pointe sur
+- [x] AC26 — front (vitest) : « Tâches du jour » du tableau de bord agent pointe sur
       `/app/tasks?filter[due]=today` (aujourd'hui `/app/overview/agent`, la page elle-même).
-- [ ] AC27 — front (vitest) : un prestataire atteint `/app/calendar` sans redirection (aujourd'hui
+- [x] AC27 — front (vitest) : un prestataire atteint `/app/calendar` sans redirection (aujourd'hui
       redirigé vers `/app`) et la page ne demande que `types[]=maintenance` ; côté API,
       `GET /api/calendar?types[]=booking&types[]=visit` par ce prestataire rend une liste vide.
-- [ ] AC28 — front (vitest) : un lot de 5 où l'API rend `updated = 3` et 2 refus (`unchanged`,
+- [x] AC28 — front (vitest) : un lot de 5 où l'API rend `updated = 3` et 2 refus (`unchanged`,
       `invalid_target`) affiche « 3 … 2 refusés » avec les deux motifs, laisse **exactement** les 2 refus
       sélectionnés et rafraîchit la liste (aujourd'hui : premier message seul, sélection entière, pas
       de rafraîchissement).
@@ -845,3 +845,38 @@ téléphone tenu d'une main, entre deux visites**.
   l'exige AC5. Au plus 100 identifiants (Contrat). `php artisan test tests/Feature/Property/PropertyBulkVisibilityTest.php`
   → 3 verts. **Ablations** : contrôle `update` retiré → rouge (le bien de l'autre agence passe) ;
   transaction retirée → rouge (le premier bien reste dépublié après la panne injectée au second).
+- **Front** (`4f8cf536` → `57ec39c4`, onze commits) — re-mesuré : la fiche et le tiroir appelaient
+  `/api/audit-log` (403 avalé en liste vide, `CustomerDetailSheet.tsx:58-60`), le kanban ne déclarait
+  que `PointerSensor` et jetait la `meta`, « Tâches du jour » bouclait sur `/app/overview/agent`,
+  `/app/calendar` redirigeait le prestataire, l'écran Équipe proposait « Retirer » sur toute ligne :
+  conformes au Contexte. **Deux défauts d'API trouvés par le front** et corrigés (`57803016`) :
+  `gte:budget_min` refusait un plafond seul (la règle échoue quand l'autre champ est nul) ;
+  `CustomerResource` ne rendait pas les critères. `ProspectMatchController::perPage()` renommé
+  `pageSize()` (nom réservé par `check-pagination-envelope`). Écarts : « Changer l'agent
+  responsable » reste unitaire tant que `bulk-assign` attend TCK-504 (la case du front §7 reste
+  ouverte) ; le select « Qui est absent » n'est proposé qu'avec `team.delegate_role` (la policy
+  `declareAbsence` en est juge) ; le pipeline reste **atteignable par URL** pour un bailleur (sa garde
+  `assertCanReachAgentArea` est inchangée : « surface partagée agence + bailleur », gardée par
+  `garde.test.tsx`) — seul le lien disparaît, l'API (§9 `scopeVisibleTo`, après 587) bornera ce qu'il
+  y lit. `ConfirmRemoveDialog`, orphelin, est supprimé.
+  Tests nommés : `CustomerActivityFeed`, `noteBody`, `CustomerForm.doublon`, `CustomerMatches`,
+  `CustomerLinkedRecords`, `PipelineKanban.pagination`, `taches-du-jour.tck-591`, `MyTasks`,
+  `CalendarPage.audience.tck-591`, `calendar.tck-591`, `PropertyList.bulk.tck-591`,
+  `AdminUsersTable.retrait.tck-591`, `HandoverWizard`, `AgentAbsencesSection`,
+  `PropertyMatchingCustomers`, `personnel.tck-591`, `CustomerStageControl` ; `vitest run src/app
+  src/components/crm src/components/customer-dashboard src/lib` → 1660 verts ; `src/components/admin`
+  → 300 verts ; lint, `tsc --noEmit`, `check:i18n` propres. API : `CustomerCriteriaValidationTest`
+  (rouge avant le correctif), `CustomerNoteKindTest`, `AgencyMemberRemovalTest`,
+  `CalendarNewTypesTest`, `TaskAuthorizationTest` → 21 verts, 2 sautés (587).
+  **Ablations** (après commit, restaurées par `git checkout HEAD --`) : état d'erreur du journal
+  (AC24) ; renvoi `allow_duplicate` ; partage WhatsApp des seuls liens publics ; totaux de
+  `stage_counts` (AC25) ; lien « Tâches du jour » (AC26) ; garde de l'agenda du prestataire (AC27) ;
+  sélection des refus et rafraîchissement (AC28) ; palette `maintenance` sous le seuil de contraste
+  (le test TCK-484 l'attrape) ; « Retirer » sans `isAgencyStaffRow` → AC23 front rouge (2) ; retrait
+  sans repreneur sans l'aveu → rouge ; entrées CRM du bailleur (`staff = true`) → rouge ; prospect
+  masqué rendu en lien → rouge ; compte pris sur la page reçue au lieu de `meta.total` → rouge ;
+  étape terminale sans motif depuis la fiche → rouge. Toutes rouges, toutes restaurées.
+  **Non vérifié** : AC15 au navigateur (360 px, clavier et doigt) — la base de la copie de travail
+  devrait porter les migrations de 591, et la base de dev partagée ne doit pas être migrée depuis
+  une branche ; les gestes sont éprouvés en vitest (select d'étape, capteur clavier, case de tâche,
+  lien `wa.me` prérempli), pas au doigt.
