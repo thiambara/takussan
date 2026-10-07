@@ -820,3 +820,18 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   `BookingPaymentTest --filter=receipt` → verts.
 - **Suites entières : non lancées — lancées par la session.**
 
+
+### Corrections après vérification adverse (VERIF-593, refusé : 1 bloquant, 5 majeurs, 9 mineurs), 2026-10-07
+
+- **V1 (bloquant) — montant fractionnaire.** Repro reproduite : pénalité 7 500,05, pilote à
+  157 501, montant figé 157 501,05, webhook 422. Correctif : la pénalité est arrondie à l'unité de la
+  devise dès `LateFeeCalculator::compute` (plafond compris), et `PaymentGatewayService::amountDue`
+  arrondit aussi avant de figer et de transmettre (`Currency::decimalPlacesOf`, XOF/XAF : 0) ; mode
+  `PHP_ROUND_HALF_UP` écrit dans le code. Tests (`PaymentWebhookTest`) :
+  `test_une_penalite_fractionnaire_est_encaissee_au_montant_demande` (vrai calculateur, base
+  150 000 − 33 333 → 5 833 ; initiation 12 250 000 ; webhook 122 500 → 200, `paid`),
+  `test_une_penalite_fractionnaire_deja_enregistree_est_arrondie_au_montant_du` (7 500,05 en base →
+  157 500), `test_la_penalite_est_arrondie_a_l_unite_la_moitie_vers_le_haut` (7 500,5 → 7 501 ;
+  7 500,45 → 7 500). Ablations : arrondi du calculateur retiré → 2 rouges ; arrondi d'`amountDue`
+  retiré → 1 rouge ; `HALF_DOWN` → 1 rouge. Voisins (15 classes : passerelle, pénalités, ressources,
+  historique) → 95 verts, 2 sautés préexistants.

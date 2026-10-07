@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Contracts\Payments\PaymentDriverContract;
 use App\Models\Agency;
 use App\Models\BookingPayment;
+use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentProvider;
@@ -599,12 +600,23 @@ class PaymentGatewayService
 
             $fee = $this->lateFeeIncluded($payment) ? $payment->lateFeeOutstanding() : 0.0;
 
-            return round((float) $payment->remaining_amount + $fee, 2);
+            return $this->roundToCurrencyUnit((float) $payment->remaining_amount + $fee, $payment);
         }
 
         $amount = $payment->amount ?? $payment->getAttribute('total_amount');
 
-        return is_numeric($amount) ? (float) $amount : null;
+        return is_numeric($amount) ? $this->roundToCurrencyUnit((float) $amount, $payment) : null;
+    }
+
+    /**
+     * TCK-593 — le montant dû est arrondi à l'UNITÉ de la devise, au plus proche, la moitié vers
+     * le haut, AVANT d'être figé et transmis : c'est ce que le fournisseur encaissera (les pilotes
+     * Wave et Orange Money demandent un entier pour le XOF). Montant affiché = montant figé =
+     * montant encaissé ; sinon le webhook d'un paiement encaissé est refusé pour sous-paiement.
+     */
+    private function roundToCurrencyUnit(float $amount, Model $payment): float
+    {
+        return round($amount, Currency::decimalPlacesOf($payment->getAttribute('currency')), PHP_ROUND_HALF_UP);
     }
 
     /**

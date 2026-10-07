@@ -11,6 +11,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Property;
+use App\Services\Lease\LateFeeCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
@@ -232,6 +233,68 @@ class PaymentWebhookTest extends TestCase
         $this->assertNotNull($payment->paid_at);
         $this->assertNotNull($payment->late_fee_paid_at);
         $this->assertSame(0.0, $payment->lateFeeOutstanding());
+    }
+
+    /**
+     * TCK-593 (vérification adverse, V1) — une pénalité FRACTIONNAIRE, calculée par le vrai
+     * calculateur, ne fait plus refuser le paiement encaissé. Base : 150 000 − 33 333 déjà payés =
+     * 116 667 ; 5 % = 5 833,35 → arrondie à 5 833 (XOF, sans sous-unité). Avant : le fournisseur
+     * encaissait 122 500 (il arrondit à l'entier), le montant figé valait 122 500,35, et le webhook
+     * était refusé en 422 — le locataire, débité, voyait encore « Payer ».
+     */
+    public function test_une_penalite_fractionnaire_est_encaissee_au_montant_demande(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true], [
+            'status' => PaymentStatus::PartiallyPaid,
+            'metadata' => ['paid_amount' => 33_333],
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]);
+
+        $fee = app(LateFeeCalculator::class)->apply($ctx['payment']->fresh());
+        $this->assertSame(5_833.0, $fee);
+
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        // Ce que le pilote transmet est un entier d'unités, égal au montant figé.
+        $this->assertSame(12_250_000, $spy->calls[0]['amount_cents']);
+        $this->assertEquals(122_500, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
+
+        $this->waveWebhook('spy_txn_1', 122_500)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertNotNull($payment->late_fee_paid_at);
+    }
+
+    /**
+     * V1 — une pénalité fractionnaire DÉJÀ enregistrée (avant l'arrondi du calculateur) : c'est
+     * `amountDue` qui arrondit, avant de figer et de transmettre.
+     */
+    public function test_une_penalite_fractionnaire_deja_enregistree_est_arrondie_au_montant_du(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true], ['late_fee_amount' => 7_500.05]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->assertSame(15_750_000, $spy->calls[0]['amount_cents']);
+        $this->assertEquals(157_500, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
+
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+        $this->assertSame(PaymentStatus::Paid, $ctx['payment']->refresh()->status);
+    }
+
+    /** V1 — l'arrondi est au plus proche, la moitié vers le haut : 7 500,5 → 7 501. */
+    public function test_la_penalite_est_arrondie_a_l_unite_la_moitie_vers_le_haut(): void
+    {
+        $up = $this->leaseDue(null, ['amount' => 150_010, 'status' => PaymentStatus::Pending, 'late_fee_amount' => null, 'late_fee_applied_at' => null]);
+        $down = $this->leaseDue(null, ['amount' => 150_009, 'status' => PaymentStatus::Pending, 'late_fee_amount' => null, 'late_fee_applied_at' => null]);
+
+        $this->assertSame(7_501.0, app(LateFeeCalculator::class)->compute($up['payment']->fresh()));
+        $this->assertSame(7_500.0, app(LateFeeCalculator::class)->compute($down['payment']->fresh()));
     }
 
     /**
