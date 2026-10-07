@@ -36,6 +36,8 @@ const EVENTS: readonly string[] = [
   'booking_status_changed',
   'lease_payment_due',
   'lease_payment_overdue',
+  // TCK-588 — le reçu de paiement a son propre interrupteur (il obéissait à « échéance »).
+  'lease_payment_received',
   'maintenance_status_changed',
   'review_received',
   'saved_search_match',
@@ -49,7 +51,10 @@ const GROUPS: { key: string; events: string[] }[] = [
     key: 'bookings',
     events: ['booking_request', 'booking_status_changed'],
   },
-  { key: 'leases', events: ['lease_payment_due', 'lease_payment_overdue'] },
+  {
+    key: 'leases',
+    events: ['lease_payment_due', 'lease_payment_overdue', 'lease_payment_received'],
+  },
   { key: 'maintenance', events: ['maintenance_status_changed'] },
   { key: 'reviews', events: ['review_received'] },
   { key: 'alerts', events: ['saved_search_match', 'visit_reminder', 'threshold_alert'] },
@@ -212,7 +217,9 @@ export function NotificationPreferencesMatrix() {
             ? t('reasons.inappAlwaysOn')
             : cell.reason === 'phone_not_verified'
               ? t('reasons.phoneNotVerified')
-              : undefined;
+              : cell.reason === 'channel_unavailable'
+                ? t('reasons.channelUnavailable')
+                : undefined;
         return (
           <label
             className={

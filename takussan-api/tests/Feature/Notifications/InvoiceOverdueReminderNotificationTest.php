@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\InvoiceOverdueReminderNotification;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -63,7 +64,12 @@ class InvoiceOverdueReminderNotificationTest extends TestCase
 
         $this->assertSame('Reminder — invoice INV-2026-0042 overdue', $mail->subject);
         $this->assertStringContainsString('15', $rendered);
-        $this->assertStringContainsString('XOF', $rendered);
+        // TCK-588 — le montant passe par CurrencyFormatter dans la langue du destinataire : plus
+        // de « 1 500 » à espace dans une phrase anglaise, ni de code ISO accolé.
+        $this->assertStringContainsString(
+            e(app(CurrencyFormatter::class)->format((float) $invoice->total_amount, Currency::XOF, 'en')),
+            $rendered,
+        );
     }
 
     public function test_to_array_payload_shape_for_inapp(): void

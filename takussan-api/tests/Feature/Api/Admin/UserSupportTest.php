@@ -126,7 +126,7 @@ class UserSupportTest extends TestCase
             'reason' => 'test',
         ])
             ->assertStatus(409)
-            ->assertJsonPath('message', 'Support actions cannot target another super-admin.');
+            ->assertJsonPath('code', 'support.target_super_admin');
     }
 
     public function test_agency_admin_gets_403_on_support_endpoints(): void

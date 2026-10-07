@@ -46,7 +46,7 @@ class FailedJobService
     public function retryAll(): int
     {
         $count = DB::table('failed_jobs')->count();
-        abort_if($count > self::BULK_RETRY_LIMIT, 409, 'Too many failed jobs to retry at once.');
+        abort_code_if($count > self::BULK_RETRY_LIMIT, 409, 'failed_job.bulk_retry_limit');
         if ($count > 0) {
             Artisan::call('queue:retry', ['id' => ['all']]);
         }

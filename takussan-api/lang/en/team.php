@@ -19,11 +19,4 @@ return [
             'not_owner' => "You don't have access to this agent profile.",
         ],
     ],
-    // TCK-587 — suspending a member within the agency.
-    'suspension' => [
-        'errors' => [
-            'self' => 'You cannot suspend yourself.',
-            'primary_admin' => "The agency's primary administrator cannot be suspended.",
-        ],
-    ],
 ];

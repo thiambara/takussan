@@ -7,7 +7,6 @@ use App\Models\AgencySubscription;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class QuotaResolver
 {
@@ -86,7 +85,7 @@ class QuotaResolver
             ->count();
 
         if ($count >= (int) $limit) {
-            throw new HttpException(422, 'Active listing quota exceeded for this agency plan.');
+            abort_code(422, 'quota.listings_exceeded');
         }
     }
 
@@ -107,7 +106,7 @@ class QuotaResolver
             ->count();
 
         if ($count >= (int) $limit) {
-            throw new HttpException(422, 'Agent quota exceeded for this agency plan.');
+            abort_code(422, 'quota.agents_exceeded');
         }
     }
 }

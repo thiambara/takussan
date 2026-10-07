@@ -71,7 +71,7 @@ class PaymentGatewayController extends Controller
             'booking-payments' => BookingPayment::query()->findOrFail($id),
             'lease-payments' => LeasePayment::query()->findOrFail($id),
             'invoices' => Invoice::query()->findOrFail($id),
-            default => abort(404, 'Unknown payment type.'),
+            default => abort_code(404, 'payment.type_unknown'),
         };
 
         return $model;

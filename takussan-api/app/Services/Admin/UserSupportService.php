@@ -5,7 +5,6 @@ namespace App\Services\Admin;
 use App\Models\User;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\PersonalAccessToken;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class UserSupportService
 {
@@ -15,7 +14,7 @@ class UserSupportService
 
         $status = Password::broker()->sendResetLink(['email' => $target->email]);
         if ($status !== Password::RESET_LINK_SENT) {
-            throw new HttpException(502, 'Password reset email could not be sent.');
+            abort_code(502, 'mail.password_reset_not_sent');
         }
 
         $target->tokens()->delete();
@@ -30,7 +29,7 @@ class UserSupportService
         $this->guardTarget($actor, $target);
         $metadata = $target->metadata ?? [];
 
-        abort_if(empty($metadata['locked_at']), 409, 'Account is not locked.');
+        abort_code_if(empty($metadata['locked_at']), 409, 'support.account_not_locked');
 
         unset($metadata['locked_at'], $metadata['failed_login_attempts']);
         $target->forceFill(['metadata' => $metadata])->save();
@@ -42,7 +41,7 @@ class UserSupportService
     {
         $this->guardTarget($actor, $target);
 
-        abort_unless($target->two_factor_enabled, 409, 'Two-factor authentication is already disabled.');
+        abort_code_unless($target->two_factor_enabled, 409, 'support.two_factor_already_disabled');
 
         $metadata = $target->metadata ?? [];
         $metadata['force_2fa_reconfigure'] = true;
@@ -67,7 +66,7 @@ class UserSupportService
         }
         $revoked = $query->delete();
 
-        abort_if($revoked === 0, 409, 'No revocable sessions found.');
+        abort_code_if($revoked === 0, 409, 'support.no_revocable_session');
 
         return $this->log($actor, $target, 'super_admin_sessions_revoked', $reason, [
             'revoked_count' => $revoked,
@@ -79,7 +78,7 @@ class UserSupportService
     {
         $this->guardTarget($actor, $target);
         $currentId = $this->currentTokenId($actor);
-        abort_if($currentId !== null && $currentId === $tokenId, 409, 'Cannot revoke the current super-admin session.');
+        abort_code_if($currentId !== null && $currentId === $tokenId, 409, 'support.cannot_revoke_current');
 
         $token = PersonalAccessToken::query()
             ->where('tokenable_type', User::class)
@@ -95,7 +94,7 @@ class UserSupportService
 
     private function guardTarget(User $actor, User $target): void
     {
-        abort_if($target->isSuperAdmin(), 409, 'Support actions cannot target another super-admin.');
+        abort_code_if($target->isSuperAdmin(), 409, 'support.target_super_admin');
     }
 
     private function currentTokenId(User $actor): ?int

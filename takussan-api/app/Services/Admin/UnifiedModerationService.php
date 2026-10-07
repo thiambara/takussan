@@ -70,7 +70,7 @@ class UnifiedModerationService
             'property' => $this->decideProperty(Property::findOrFail($sourceId), $actor, $decision, $reason),
             'property_report' => $this->decidePropertyReport(PropertyReport::with('property')->findOrFail($sourceId), $actor, $decision, $reason),
             'review' => $this->decideReview(Review::findOrFail($sourceId), $actor, $decision, $reason),
-            default => throw ValidationException::withMessages(['id' => 'Unsupported moderation item id.']),
+            default => throw ValidationException::withMessages(['id' => __('errors.moderation.item_id_invalid')]),
         };
 
         activity('Admin')
@@ -268,12 +268,12 @@ class UnifiedModerationService
     private function parseQueueId(string $queueId): array
     {
         if (! str_contains($queueId, ':')) {
-            throw ValidationException::withMessages(['id' => 'Invalid moderation item id.']);
+            throw ValidationException::withMessages(['id' => __('errors.moderation.item_id_invalid')]);
         }
 
         [$sourceType, $rawId] = explode(':', $queueId, 2);
         if (! in_array($sourceType, ['property', 'property_report', 'review'], true) || ! ctype_digit($rawId)) {
-            throw ValidationException::withMessages(['id' => 'Invalid moderation item id.']);
+            throw ValidationException::withMessages(['id' => __('errors.moderation.item_id_invalid')]);
         }
 
         return [$sourceType, (int) $rawId];

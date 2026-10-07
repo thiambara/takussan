@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Maintenance\RejectQuoteRequest;
 use App\Http\Requests\Maintenance\SubmitQuoteRequest;
 use App\Http\Resources\MaintenanceRequestResource;
-use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Services\Maintenance\MaintenanceQuoteWorkflow;
 use App\Services\Model\NotificationService;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,13 +29,9 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->requestQuote($maintenanceRequest);
 
         if ($mr->assigned_to) {
-            $this->notifications->notify(
-                $mr->assignee,
-                NotificationType::Maintenance,
-                'Demande de devis pour: '.$mr->title,
-                "Une demande de devis a été requise pour l'intervention: {$mr->title}.",
-                ['maintenance_request_id' => $mr->id],
-            );
+            $this->notifications->send($mr->assignee, NotificationCode::MaintenanceQuoteRequested, [
+                'request' => $mr->title,
+            ], NotificationTarget::of('maintenance', $mr->id));
         }
 
         return $this->json([
@@ -56,13 +54,10 @@ class MaintenanceQuoteController extends Controller
         // Notify Agent or Owner (who requested it, or property owner)
         $notifiable = $mr->requester ?? $mr->property?->owner;
         if ($notifiable) {
-            $this->notifications->notify(
-                $notifiable,
-                NotificationType::Maintenance,
-                'Devis soumis pour: '.$mr->title,
-                "Un devis de {$mr->quote_amount} {$mr->quote_currency} a été soumis pour l'intervention: {$mr->title}.",
-                ['maintenance_request_id' => $mr->id],
-            );
+            $this->notifications->send($notifiable, NotificationCode::MaintenanceQuoteSubmitted, [
+                'request' => $mr->title,
+                'amount' => NotificationRenderer::money($mr->quote_amount, $mr->quote_currency),
+            ], NotificationTarget::of('maintenance', $mr->id));
         }
 
         return $this->json([
@@ -77,13 +72,9 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->approveQuote($maintenanceRequest, $request->user()->id);
 
         if ($mr->assigned_to) {
-            $this->notifications->notify(
-                $mr->assignee,
-                NotificationType::Maintenance,
-                'Devis approuvé pour: '.$mr->title,
-                "Votre devis pour l'intervention: {$mr->title} a été approuvé.",
-                ['maintenance_request_id' => $mr->id],
-            );
+            $this->notifications->send($mr->assignee, NotificationCode::MaintenanceQuoteApproved, [
+                'request' => $mr->title,
+            ], NotificationTarget::of('maintenance', $mr->id));
         }
 
         return $this->json([
@@ -99,13 +90,9 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->rejectQuote($maintenanceRequest, $data['reason'], $request->user()->id);
 
         if ($mr->assigned_to) {
-            $this->notifications->notify(
-                $mr->assignee,
-                NotificationType::Maintenance,
-                'Devis rejeté pour: '.$mr->title,
-                "Votre devis pour l'intervention: {$mr->title} a été rejeté.",
-                ['maintenance_request_id' => $mr->id],
-            );
+            $this->notifications->send($mr->assignee, NotificationCode::MaintenanceQuoteRejected, [
+                'request' => $mr->title,
+            ], NotificationTarget::of('maintenance', $mr->id));
         }
 
         return $this->json([

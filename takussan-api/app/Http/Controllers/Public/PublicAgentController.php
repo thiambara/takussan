@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
@@ -350,13 +350,11 @@ class PublicAgentController extends Controller
             'user_agent' => substr((string) $request->userAgent(), 0, 255),
         ]);
 
-        $notifications->notify(
-            $agent,
-            NotificationType::Message,
-            'Nouveau lead anonyme',
-            $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
-            ['agent_id' => $agent->id, 'lead_id' => $lead->id],
-        );
+        $notifications->send($agent, NotificationCode::LeadReceived, [
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'excerpt' => mb_strimwidth($data['message'], 0, 80, '…'),
+        ]);
 
         return $this->json(['data' => ['accepted' => true]], 201);
     }

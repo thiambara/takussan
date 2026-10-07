@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\Currency;
 use App\Models\Invoice;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -58,8 +60,7 @@ class InvoiceOverdueReminderNotification extends Notification implements ShouldQ
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->invoice->reference_number ?? '#'.$this->invoice->id;
-        $currency = $this->invoice->currency?->value ?? 'XOF';
-        $amount = number_format((float) $this->invoice->total_amount, 0, '.', ' ');
+        $amount = app(CurrencyFormatter::class)->format((float) $this->invoice->total_amount, $this->invoice->currency ?? Currency::XOF, app()->getLocale());
         $dueDate = $this->invoice->due_date?->toDateString() ?? '—';
 
         return (new MailMessage)
@@ -72,7 +73,6 @@ class InvoiceOverdueReminderNotification extends Notification implements ShouldQ
             ]))
             ->line(__('notifications.invoice_reminder_sent.amount', [
                 'amount' => $amount,
-                'currency' => $currency,
             ]))
             ->line(__('notifications.invoice_reminder_sent.cta'))
             ->salutation(__('notifications.salutation'));

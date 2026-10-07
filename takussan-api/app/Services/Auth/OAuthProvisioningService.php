@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Provider-agnostic OAuth user provisioning. Resolves an existing User by
@@ -66,10 +65,7 @@ class OAuthProvisioningService
         //    attacker-controlled email.
         $email = $socialUser->getEmail();
         if ($email !== null && User::where('email', $email)->exists()) {
-            throw new HttpException(
-                409,
-                'Un compte existe déjà avec cette adresse email. Connectez-vous avec votre mot de passe puis liez votre compte depuis vos paramètres.'
-            );
+            abort_code(409, 'auth.oauth_email_taken');
         }
 
         // 3. Truly new user: create and (optionally) mark email as verified.

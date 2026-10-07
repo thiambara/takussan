@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Property;
 use App\Models\User;
@@ -9,7 +10,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Tests\TestCase;
 
 /**
@@ -45,7 +45,8 @@ class FiltreIdentifiantTest extends TestCase
 
         $this->getJson('/api/properties?filter[user_id]='.urlencode($valeur))
             ->assertStatus(400)
-            ->assertJsonPath('message', 'Filter value for `user_id` must be an integer identifier.');
+            ->assertJsonPath('code', 'filter.identifier_invalid')
+            ->assertJsonPath('params.filter', 'user_id');
     }
 
     public function test_un_identifiant_entier_filtre_toujours_seul_ou_en_liste(): void
@@ -75,7 +76,7 @@ class FiltreIdentifiantTest extends TestCase
         // `users.added_by_id` : un `*_id` déclaré par `User::$requestFilterable`, sans route dédiée.
         $request = Request::create('/', 'GET', ['filter' => ['added_by_id' => 'abc']]);
 
-        $this->expectException(BadRequestHttpException::class);
+        $this->expectException(ApiError::class);
         User::buildQuery(request: $request)->get();
     }
 }
