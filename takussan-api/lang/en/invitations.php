@@ -18,6 +18,7 @@ return [
         'duplicate_pending' => 'An invitation is already pending for this email (#:id).',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
+        'phone_mismatch' => 'The signed-in account\'s phone number does not match the invitation.',
         'token_not_found' => 'This invitation cannot be found.',
         'token_expired' => 'This invitation has expired.',
         'token_accepted' => 'This invitation has already been accepted.',
@@ -30,5 +31,10 @@ return [
         'already_accepted' => 'This invitation has already been accepted and cannot be revoked.',
         'invalid_role' => 'The requested role is not allowed for invitations.',
         'cross_agency' => 'You cannot invite someone into a different agency.',
+    ],
+    // TCK-589 — invitation adressée à un numéro (lien par SMS, sans e-mail).
+    'sms' => [
+        'invite' => 'Takussan: :inviter invites you to join :agency as :role. Accept here: :url',
+        'reminder' => 'Takussan: reminder — your invitation to join :agency is waiting: :url',
     ],
 ];

@@ -797,3 +797,35 @@ en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
   rouge. AC17 — voie SMS de `DeletionStepUpService` retirée → rouge (aucun SMS, la notification
   courriel tombe sur une route nulle). AC4 (téléphone) — couvert par
   `test_le_code_sms_ne_rouvre_pas_la_session`.
+
+### §3 — invitations par téléphone (API)
+
+- **Re-mesuré** sur `5f872f1f` : 3.1 exact (`invitations.email` `NOT NULL`, trois `Mail::to()`
+  aux lignes 219, 388, 460 ; `phone` en `nullable|string|max:30`). Écarts : (1) le téléphone
+  saisi n'atteint même pas `InvitationService::send()` — les trois services par rôle le rangent
+  seulement dans les métadonnées du profil brouillon ; (2) **le front ne sert aucune page
+  d'acceptation** : le courriel pointe vers `/invitations/accept?token=…` et aucune route de
+  `takussan-web/src/app` ne la sert (`find src/app -ipath "*invit*"` → rien). Le SMS reprend le
+  lien du courriel (un seul contrat de lien) plutôt que le `/invitations/{token}` du Delta, qui
+  n'existe pas davantage ; la page manquante est au rapport, hors périmètre.
+- Migration `2026_10_07_150300_add_phone_to_invitations_table` : `phone` (30), `email`
+  nullable, `invitations_email_or_phone_check`, `invitations_phone_status_idx`.
+- `InvitationService` : un seul point d'envoi `deliver()` (envoi, relance, rappel) — courriel
+  s'il y a un e-mail, sinon SMS **au numéro** par `SmsRouterDriver` (`is_critical`), texte
+  `invitations.sms.invite|reminder`. **Raccord TCK-588** : `ContactSansCompte` n'existe pas sur
+  `dev` ; le SMS passera par `NotificationService::send(ContactSansCompte::…)` quand 588 aura
+  fusionné (commentaire posé dans `deliver()`). Créneau de dédoublonnage `(numéro, type,
+  agence)` quand l'e-mail manque ; compte titulaire = celui qui a **vérifié** le numéro ;
+  `acceptAsNewUser` crée le compte au numéro, `email` et `email_verified_at` nuls, puis
+  `markVerified` ; `acceptForAuthenticatedUser` compare le numéro vérifié (403
+  `invitations.errors.phone_mismatch`).
+- Les trois `Invite*Request` : `phone` passe toujours par `TelephoneJoignable` ; drapeau allumé,
+  `email` `required_without:phone` et l'inverse. Les trois services par rôle acceptent un e-mail
+  nul (garde « déjà actif dans l'agence » et recherche du prestataire existant **par e-mail
+  seulement**) et transmettent le numéro. ⚠ `ServiceProviderInvitationService` est à TCK-592 :
+  trois lignes touchées (e-mail facultatif, garde conditionnelle, `phone` transmis).
+- **Exécutions** : `php artisan test tests/Feature/Invitation` + 24 fichiers qui invitent →
+  337 verts.
+- **Ablations** : envoi SMS retiré de `deliver()` → 4 rouges ; `markVerified` retiré de
+  l'acceptation → rouge ; créneau par numéro neutralisé → « seconde invitation → 409 » rouge ;
+  `TelephoneJoignable` retiré de la branche drapeau éteint → « injoignable, drapeau éteint » rouge.

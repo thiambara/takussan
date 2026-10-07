@@ -25,6 +25,7 @@ return [
         'duplicate_pending' => 'Am na ndaw lu xaaru ngir email bi (#:id).',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',
+        'phone_mismatch' => 'Nimero kont bi nga duggee waxul ak bu woote bi.',
         'token_not_found' => 'Lëkkalekaay bi gisuñu ko.',
         'token_expired' => 'Lëkkalekaay bi jeex na.',
         'token_accepted' => 'Lëkkalekaay bi nanguwoon nañu ko.',
@@ -37,5 +38,10 @@ return [
         'already_accepted' => 'Invitation bi nanguwoon nañu ko, mënuñu koo indi ci suuf.',
         'invalid_role' => 'Wàll bi laaj nga, du baax ngir invitation.',
         'cross_agency' => 'Mënul nga woo nit ci agence wenn.',
+    ],
+    // TCK-589 — invitation adressée à un numéro (lien par SMS, sans e-mail).
+    'sms' => [
+        'invite' => 'Takussan : :inviter dafa la woo nga bokk ci :agency ni :role. Nangul fii : :url',
+        'reminder' => 'Takussan : fàttali — sa woote ngir bokk ci :agency ngi lay xaar : :url',
     ],
 ];
