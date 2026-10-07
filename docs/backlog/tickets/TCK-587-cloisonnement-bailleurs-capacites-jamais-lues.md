@@ -1082,3 +1082,16 @@ garde en 1 sur elle-même. Aujourd'hui, aucune route ne porte `can:`, et le clas
 l'arbre ne change pas (45 capacités : 29 lues, 16 inscrites). `--ref=e3ab4a4e` classe toujours
 `properties.create|delete|publish` et `leases.create` sans lecteur, `invoices.create` et
 `payouts.create` lues.
+
+**Re-vérification après les corrections.** `php bin/impacted-tests.php --base=dev --run` est
+retombé sur la SUITE ENTIÈRE : `TeamMemberSuspensionController` manque à la carte, qui a
+33 commits de retard. Lancé par erreur, il a été arrêté au plafond de 600 s ; il revient à la
+session. Les 296 fichiers candidats ont été joués en quatre lots, en avant-plan :
+- 577 tests, OK ;
+- 598 tests, OK (2 ignorés) ;
+- 745 tests, OK ;
+- 605 tests, OK.
+
+Soit 2 525 tests, verts. La machine était chargée (moyennes de 20 à 27) : les durées ne sont pas
+des mesures. Toutes les gardes de `scripts/` sont vertes, et Pint passe. Le front n'a pas bougé
+dans cette étape. **La suite backend entière reste à la session.**
