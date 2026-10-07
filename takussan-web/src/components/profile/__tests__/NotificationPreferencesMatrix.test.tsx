@@ -218,6 +218,22 @@ describe('<NotificationPreferencesMatrix>', () => {
     expect(smsBox.checked).toBe(false);
   });
 
+  it('TCK-588 — une case channel_unavailable est inactive et dit pourquoi', async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      data: buildGrid([
+        { event: 'review_received', channel: 'push', enabled: false, locked: true, reason: 'channel_unavailable' },
+      ]),
+    });
+    render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Nouvel avis'));
+
+    const box = screen.getByRole('checkbox', { name: /Nouvel avis.*Push/i }) as HTMLInputElement;
+    expect(box).toBeDisabled();
+    expect(box.checked).toBe(false);
+    expect(box.closest('label')).toHaveAttribute('title', 'Aucun message de ce type ne part sur ce canal.');
+  });
+
   it('surfaces the server error from the query', async () => {
     getMock.mockResolvedValue({ ok: false, message: 'Preference endpoint down.' });
     render(wrap(<NotificationPreferencesMatrix />));
