@@ -325,7 +325,11 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $this->getJson("/api/property-visits/{$visiteA->id}")->assertOk();
         $this->patchJson("/api/property-visits/{$visiteA->id}", ['scheduled_at' => $nouvelle])->assertForbidden();
         $this->assertTrue($visiteA->fresh()->scheduled_at->equalTo($visiteA->scheduled_at));
-        $this->patchJson("/api/property-visits/{$visiteB->id}", ['scheduled_at' => $nouvelle])->assertOk();
+        // TCK-590 (vérification adverse passe 2, écart b, décision de la session) — sur un bien
+        // d'AGENCE, seul le personnel déplace ou annule une visite : le bailleur actif de B ne le
+        // fait pas davantage. Avant la fusion, ce test attendait 200 ici.
+        $this->patchJson("/api/property-visits/{$visiteB->id}", ['scheduled_at' => $nouvelle])
+            ->assertForbidden()->assertJsonPath('message', __('visits.staff_only'));
     }
 
     /**

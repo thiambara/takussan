@@ -108,9 +108,10 @@ class PropertyContactLeadPolicy extends BasePolicy
      */
     public function agencyScopeFor(User $user): ?int
     {
-        $agencyId = $user->agency_id;
+        // TCK-587 — l'agence du profil actif, s'il y est personnel : `staffAgencyId()`.
+        $agencyId = $user->staffAgencyId();
 
-        return $this->readsWholeAgency($user, $agencyId) ? (int) $agencyId : null;
+        return $this->readsWholeAgency($user, $agencyId) ? $agencyId : null;
     }
 
     private function readsWholeAgency(User $user, mixed $agencyId): bool

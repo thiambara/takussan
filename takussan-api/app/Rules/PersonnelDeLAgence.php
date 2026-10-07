@@ -2,12 +2,9 @@
 
 namespace App\Rules;
 
-use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgentProfileStatus;
-use App\Models\Enums\OwnerProfileStatus;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
-use BackedEnum;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -28,18 +25,17 @@ class PersonnelDeLAgence implements ValidationRule
     public function __construct(private readonly ?int $agencyId) {}
 
     /**
-     * L'utilisateur est-il personnel ACTIF de cette agence : joignable (ni bloqué, ni supprimé),
-     * et titulaire d'un profil agent ou admin de cette agence au statut `active` ?
+     * L'utilisateur est-il personnel ACTIF de cette agence : joignable (ni bloqué, ni supprimé), et
+     * personnel au sens de {@see MembershipCapabilityResolver::isStaffAt()} (TCK-587, ADR-0031 §1) —
+     * un profil agent ou admin de cette agence au statut `active`, ou une délégation active de ces
+     * rôles ?
      *
      * C'est LA définition du personnel pour tout le ticket — attribution, prise en charge,
      * planification, boîte des demandes, contact principal (`PrimaryPropertyContact`). Il y en
      * avait deux : le contact principal exigeait un profil actif, l'attribution non, et un agent
-     * SUSPENDU recevait des visites et des demandes qu'il ne traiterait pas (vérification
-     * adverse, M4). Les profils déjà chargés sont relus sans requête ; sinon la base est
-     * interrogée.
-     *
-     * TCK-587 — à brancher sur `MembershipCapabilityResolver::isStaffAt()` après sa fusion, en
-     * vérifiant qu'il filtre le statut du profil.
+     * SUSPENDU recevait des visites et des demandes qu'il ne traiterait pas (vérification adverse,
+     * M4). Depuis la fusion de 587, elle n'ajoute à `isStaffAt()` que la joignabilité du compte :
+     * plus aucune lecture de statut de profil n'est écrite ici.
      */
     public static function estPersonnel(?User $user, mixed $agencyId): bool
     {
@@ -47,15 +43,13 @@ class PersonnelDeLAgence implements ValidationRule
             return false;
         }
 
-        $agencyId = (int) $agencyId;
-
-        return self::profilActif($user, 'agentProfiles', $agencyId, AgentProfileStatus::Active)
-            || self::profilActif($user, 'agencyAdminProfiles', $agencyId, AgencyAdminProfileStatus::Active);
+        return app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId);
     }
 
     /**
      * Les agences où l'utilisateur est personnel actif — la même définition, en liste, pour une
-     * clause d'`index`.
+     * clause d'`index` : les agences candidates (profils et délégations), jugées une à une par
+     * {@see self::estPersonnel()}.
      *
      * @return list<int>
      */
@@ -65,19 +59,21 @@ class PersonnelDeLAgence implements ValidationRule
             return [];
         }
 
-        return $user->agentProfiles()->where('status', AgentProfileStatus::Active->value)->pluck('agency_id')
-            ->merge($user->agencyAdminProfiles()->where('status', AgencyAdminProfileStatus::Active->value)->pluck('agency_id'))
+        return $user->agentProfiles()->pluck('agency_id')
+            ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
+            ->merge($user->roleDelegations()->pluck('agency_id'))
             ->map(fn ($id) => (int) $id)
             ->unique()
+            ->filter(fn (int $id) => self::estPersonnel($user, $id))
             ->values()
             ->all();
     }
 
     /**
      * Vérification adverse (M7) — l'utilisateur est-il BAILLEUR actif de cette agence : joignable,
-     * et titulaire d'un profil propriétaire de cette agence au statut `active` ? C'est ce qui fait
-     * d'un `property.user_id` le propriétaire d'un bien d'agence (cf.
-     * {@see PrimaryPropertyContact::estProprietaire()}).
+     * et titulaire d'un profil propriétaire actif de cette agence (`isOwnerAt`, filtré sur le statut
+     * depuis TCK-587) ? C'est ce qui fait d'un `property.user_id` le propriétaire d'un bien d'agence
+     * (cf. {@see PrimaryPropertyContact::estProprietaire()}).
      */
     public static function estBailleur(?User $user, mixed $agencyId): bool
     {
@@ -85,7 +81,7 @@ class PersonnelDeLAgence implements ValidationRule
             return false;
         }
 
-        return self::profilActif($user, 'ownerProfiles', (int) $agencyId, OwnerProfileStatus::Active);
+        return $user->isOwnerAt((int) $agencyId);
     }
 
     /**
@@ -99,25 +95,11 @@ class PersonnelDeLAgence implements ValidationRule
             return [];
         }
 
-        return $user->ownerProfiles()->where('status', OwnerProfileStatus::Active->value)->pluck('agency_id')
+        return $user->ownerProfiles()->active()->pluck('agency_id')
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->values()
             ->all();
-    }
-
-    private static function profilActif(User $user, string $relation, int $agencyId, BackedEnum $actif): bool
-    {
-        if ($user->relationLoaded($relation)) {
-            return $user->getRelation($relation)->contains(
-                fn ($profil) => (int) $profil->agency_id === $agencyId && $profil->status === $actif,
-            );
-        }
-
-        return $user->{$relation}()
-            ->where('agency_id', $agencyId)
-            ->where('status', $actif->value)
-            ->exists();
     }
 
     public function validate(string $attribute, mixed $value, Closure $fail): void

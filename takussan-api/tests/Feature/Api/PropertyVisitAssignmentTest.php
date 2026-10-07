@@ -9,7 +9,6 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
@@ -134,13 +133,9 @@ class PropertyVisitAssignmentTest extends ApiTestCase
         $this->postJson("/api/property-visits/{$this->visite->id}/confirm")->assertForbidden();
     }
 
-    /** AC6 — le bailleur visé n'administre pas la visite. Le périmètre de `update` est TCK-587. */
+    /** AC6 — le bailleur visé n'administre pas la visite (`PropertyVisitPolicy::update`, TCK-587). */
     public function test_le_bailleur_vise_ne_confirme_pas(): void
     {
-        if (! method_exists(MembershipCapabilityResolver::class, 'isStaffAt')) {
-            $this->markTestIncomplete('TCK-587 : PropertyVisitPolicy::update lit encore user->agency_id.');
-        }
-
         Sanctum::actingAs($this->bailleur($this->x));
         $this->postJson("/api/property-visits/{$this->visite->id}/confirm")->assertForbidden();
     }

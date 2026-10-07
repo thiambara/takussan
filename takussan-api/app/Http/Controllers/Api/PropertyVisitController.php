@@ -46,7 +46,7 @@ class PropertyVisitController extends Controller
         $base = PropertyVisit::query();
 
         if (! $user->isSuperAdmin()) {
-            $staffAgencyId = $this->staffAgencyId($user);
+            $staffAgencyId = $user->staffAgencyId();
             // Vérification adverse (M7) — le créateur d'un bien d'agence n'en est le propriétaire
             // que s'il y est bailleur actif (`PrimaryPropertyContact::estProprietaire`).
             $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
@@ -431,18 +431,6 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * L'agence dont l'appelant est PERSONNEL, celle de son profil actif — ou rien.
-     *
-     * TCK-587 — à remplacer par `MembershipCapabilityResolver::staffAgencyId()`.
-     */
-    private function staffAgencyId(User $user): ?int
-    {
-        $agencyId = $user->agency_id;
-
-        return PersonnelDeLAgence::estPersonnel($user, $agencyId) ? (int) $agencyId : null;
-    }
-
-    /**
      * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc annuler ou déplacer
      * une visite, et en prévenir le visiteur ?
      *
@@ -451,11 +439,13 @@ class PropertyVisitController extends Controller
      *   · **bien sans agence** : le super-admin, l'agent de la visite s'il est joignable, et le
      *     propriétaire (cf. `PrimaryPropertyContact::estProprietaire`).
      *
-     * Vérification adverse (M3, puis passe 2 : M7 et écart b) — `cancel` et `update` passent par
-     * `PropertyVisitPolicy`, qui lit encore `$user->agency_id` et `property.user_id` (TCK-587) : un
-     * bailleur de l'agence y annulait ou déplaçait la visite du bien d'un AUTRE bailleur, l'agent
-     * parti créateur du bien celle de « son » bien, et chaque déplacement partait en SMS au
-     * visiteur (le relais B2′). Le geste lui-même est désormais refusé (403) ici, sans attendre 587.
+     * Vérification adverse (M3, puis passe 2 : M7 et écart b) — un bailleur de l'agence annulait
+     * ou déplaçait la visite du bien d'un AUTRE bailleur, l'agent parti créateur du bien celle de
+     * « son » bien, et chaque déplacement partait en SMS au visiteur (le relais B2′). Depuis la
+     * fusion de TCK-587, `PropertyVisitPolicy::update` refuse le bailleur tiers ; elle garde le
+     * propriétaire d'un bien d'agence (`landlordWrites`), que cette règle refuse ici (écart b,
+     * décision de la session). Les deux gardes se recouvrent pour le bailleur tiers : l'ablation
+     * de l'une seule laisse le test vert, celle des deux le rougit.
      */
     private function agitPourLeBien(User $user, PropertyVisit $visit): bool
     {

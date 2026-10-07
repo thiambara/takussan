@@ -122,21 +122,30 @@ class PrimaryPropertyContactEligibilityTest extends TestCase
     }
 
     /**
-     * `eagerLoads()` porte ce qu'il faut : juger l'éligibilité ne coûte AUCUNE requête de plus,
-     * quel que soit le nombre de collaborateurs.
+     * Depuis TCK-587, juger le personnel est une requête (`isStaffAt`, la définition unique) :
+     * l'éligibilité ne doit pas en coûter une par collaborateur. Le coût ne dépend pas de leur
+     * nombre — on s'arrête au premier éligible dans l'ordre.
      */
     public function test_l_eligibilite_ne_coute_aucune_requete_par_collaborateur(): void
     {
-        [$property] = $this->bienADeuxAgents();
-        $agency = $property->agency;
+        $cout = function (Property $property): int {
+            $chargee = Property::query()->with(PrimaryPropertyContact::eagerLoads())->findOrFail($property->id);
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            PrimaryPropertyContact::for($chargee);
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $n;
+        };
+
+        [$deux] = $this->bienADeuxAgents();
+        [$six] = $this->bienADeuxAgents();
         foreach (range(1, 4) as $i) {
-            $this->collaborateur($property, $this->personnel($agency), "2026-06-0{$i} 09:00:00");
+            $this->collaborateur($six, $this->personnel($six->agency), "2026-06-0{$i} 09:00:00");
         }
 
-        $chargee = Property::query()->with(PrimaryPropertyContact::eagerLoads())->findOrFail($property->id);
-
-        DB::enableQueryLog();
-        PrimaryPropertyContact::for($chargee);
-        $this->assertSame([], DB::getQueryLog());
+        $this->assertSame($cout($deux), $cout($six));
+        $this->assertLessThanOrEqual(3, $cout($six));
     }
 }

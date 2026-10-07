@@ -35,7 +35,6 @@ final class CapabilityEnforcementInventory
         'bookings.refund' => 'TCK-596',
         'leases.sign' => 'TCK-596',
         'team.remove' => 'TCK-591',
-        'crm.assign' => 'TCK-590 / TCK-591',
         'agency.update_kyc' => 'TCK-601',
         'properties.moderate' => 'réservée plateforme',
         'reports.view_global' => 'réservée plateforme',

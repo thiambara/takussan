@@ -58,8 +58,9 @@ use App\Rules\PersonnelDeLAgence;
  * retenu que s'il est joignable (ni `blocked` ni `deleted`) et, pour un bien d'agence, PERSONNEL
  * de l'agence du bien ; le propriétaire, que s'il est joignable. L'ordre ne change pas.
  *
- * Le personnel se lit ici sur les profils CHARGÉS (cf. {@see self::eagerLoads()}) : un appel par
- * collaborateur serait une requête par ligne sur chaque fiche publique.
+ * Le personnel se juge par `PersonnelDeLAgence::estPersonnel()`, branché sur
+ * `MembershipCapabilityResolver::isStaffAt()` depuis la fusion de TCK-587 : une seule définition,
+ * au prix d'une requête par collaborateur `agent` examiné (l'ordre s'arrête au premier éligible).
  */
 class PrimaryPropertyContact
 {
@@ -105,20 +106,13 @@ class PrimaryPropertyContact
      * avatar sur la carte de la fiche, et `getFirstMediaUrl()` sur une relation non chargée est
      * une requête de plus par appel.
      *
-     * TCK-590 — `agentProfiles` et `agencyAdminProfiles` : l'éligibilité juge le personnel de
-     * l'agence sur eux, en mémoire ; et ceux du propriétaire, avec `ownerProfiles` (M7).
-     *
      * @return list<string>
      */
     public static function eagerLoads(): array
     {
         return [
-            'owner.ownerProfiles',
-            'owner.agentProfiles',
-            'owner.agencyAdminProfiles',
+            'owner',
             'collaborators.user.media',
-            'collaborators.user.agentProfiles',
-            'collaborators.user.agencyAdminProfiles',
         ];
     }
 
@@ -134,16 +128,18 @@ class PrimaryPropertyContact
 
     private static function agentPrincipal(Property $property): ?PropertyCollaborator
     {
+        // L'ordre d'abord, l'éligibilité ensuite, et seulement jusqu'au premier éligible : depuis
+        // TCK-587, juger le personnel est une requête (`isStaffAt`), et la fiche ne doit pas en
+        // payer une par collaborateur.
         return $property->collaborators
-            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent && self::eligible($c->user, $property))
+            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent)
             ->sort(self::ordre(...))
-            ->first();
+            ->first(fn (PropertyCollaborator $c) => self::eligible($c->user, $property));
     }
 
     /**
-     * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence (agent ou admin) —
-     * la définition unique de `PersonnelDeLAgence::estPersonnel()`, qui relit ici les profils
-     * chargés par {@see self::eagerLoads()} sans ajouter de requête par collaborateur.
+     * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence — la définition unique
+     * de `PersonnelDeLAgence::estPersonnel()`.
      */
     private static function eligible(?User $user, Property $property): bool
     {
