@@ -522,6 +522,38 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   - un test Vitest du formulaire : l'interrupteur se lit et s'envoie, et le reste de `settings` n'est
     pas envoyé à vide.
 
+### Partie 6 — Corrections après vérification adverse (ajoutée le 2026-10-07)
+
+Cases ajoutées après la vérification adverse (refus : 1 bloquant, 5 majeurs, 9 mineurs). Détail,
+tests et ablations dans les Notes, section « Corrections après vérification adverse ».
+
+- [x] **V1** — montant arrondi à l'unité de la devise (`Currency::decimalPlacesOf`, moitié vers le
+      haut) dans `LateFeeCalculator` et `PaymentGatewayService::amountDue`, avant d'être figé et
+      transmis (c24d34a6).
+- [x] **V2** — un checkout ouvert depuis moins de `payments.checkout_reuse_minutes` (30) est rendu
+      au second clic, sous verrou ; un autre fournisseur → 409 ; historique
+      `metadata.gateway.transactions[]` cherché par les webhooks ; webhook orphelin journalisé
+      (`payment_webhook_unmatched`, identifiants seulement) (57ccbbc2).
+- [x] **V3** — encaissement en ligne sur une échéance déjà `paid` : rien n'est soldé,
+      `metadata.gateway_duplicate_payment[]` est posé et les admins actifs sont notifiés ;
+      `gateway.settled_by` distingue le rejeu du doublon ; `mark-paid` → 409 tant qu'un checkout vit
+      (57ccbbc2).
+- [x] **V4** — `late-fee/mark-paid` → 409 quand le checkout ouvert inclut la pénalité (57ccbbc2).
+- [x] **R1 / R2** — `CsvDriver` : un `.` ou une `,` non déclaré fait sauter la ligne ; le sens par
+      colonne reconnaît `debit/débit/d/dr` et `credit/crédit/c/cr`, toute autre valeur fait sauter
+      la ligne, montant en `abs()` (0c88313e).
+- [x] **R9** — `confirmMatch` refuse un reversement non `completed` (422
+      `reconciliation.validation.payout_not_completed`) (630c4bf3).
+- [x] **R8** — l'échec d'analyse relance une exception ASSAINIE (classe + SQLSTATE, sans
+      `previous`) : ni le rapporteur du worker ni `failed_jobs` ne recopient le relevé. Remplace la
+      relance `throw $e` prévue à la Partie 4 (a4bf7271).
+- [x] **R6** — un CSV non UTF-8 est refusé à l'import (422 `file_not_utf8`, fr/en/wo) (a4bf7271).
+- [x] **V7** — `late-fee/mark-paid` : `paid_at` `before_or_equal:now` (a4bf7271).
+- [x] **Preuves renforcées** — AC8 (acompte remboursé intégralement), AC17 (agence sans mapping),
+      AC3 (paiement partiel) (f543f433) ; AC18 (détail du relevé) (7a8782ba).
+- [x] **Vue client** — pénalité rappelée sur les loyers payés de l'historique, `partially_paid`
+      parmi les dus (7a8782ba).
+
 ## Critères d'acceptation
 
 - [x] **AC1** — Connecté comme locataire du bail, « Télécharger le contrat » produit un fichier PDF non
@@ -626,6 +658,41 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
       avec `getMessage()` dans le job, avec `record`, et avec `getMessage()` + la valeur dans
       `CsvDriver` ; chacune de ces deux dernières SEULE reste verte, puisque l'autre défense suffit
       (voir Notes).*
+
+- [x] **AC20 (ajouté après vérification adverse, V1)** — une pénalité fractionnaire calculée par le
+      vrai calculateur (base 150 000 − 33 333) est demandée, figée et encaissée au même montant
+      entier : le webhook Wave de ce montant rend 200 et l'échéance passe `paid`.
+      *Vérifié : `PaymentWebhookTest::test_une_penalite_fractionnaire_est_encaissee_au_montant_demande`
+      et deux voisins ; rouge sans l'arrondi (3 ablations).*
+- [x] **AC21 (ajouté après vérification adverse, V2)** — un double clic n'ouvre qu'un checkout ; le
+      webhook d'un checkout antérieur retrouve son échéance ; un webhook sans échéance laisse une
+      trace sans donnée personnelle.
+      *Vérifié : `PaymentCheckoutReuseTest` (4 tests) ; rouge sans la réutilisation, sans
+      l'historique, sans le journal de l'orphelin.*
+- [x] **AC22 (ajouté après vérification adverse, V3/V4)** — un second encaissement est marqué et
+      signalé aux admins, jamais avalé ; la vérification forcée du même règlement n'est pas un
+      doublon ; espèces et pénalité à l'agence → 409 tant qu'un checkout vit.
+      *Vérifié : `PaymentCheckoutReuseTest` (5 tests) ; rouge sans la marque, la notification,
+      `settled_by`, les deux gardes 409.*
+- [x] **AC23 (ajouté après vérification adverse, R1/R2/R6)** — un séparateur non déclaré et un sens
+      inconnu font sauter la ligne ; un CSV latin-1 est refusé à l'import par un 422 localisé.
+      *Vérifié : `StatementParserTest` (2 tests), `BankStatementPipelineTest::test_un_csv_qui_n_est_pas_en_utf8_est_refuse_a_l_import` ;
+      rouges sous ablation.*
+- [x] **AC24 (ajouté après vérification adverse, R9)** — un reversement non émis n'est ni suggéré ni
+      confirmable ; un reversement hors fenêtre n'est pas suggéré.
+      *Vérifié : `BankReconciliationTest` (2 tests) ; ablations AC14a, AC14b et garde → rouges.*
+- [x] **AC25 (ajouté après vérification adverse, R8/V7)** — l'exception relancée par l'analyse, passée
+      à `report()` comme le fait le worker, ne porte aucun témoin du relevé, ni dans le journal ni
+      dans `(string) $e` ; une date de règlement de pénalité future → 422.
+      *Vérifié : `BankStatementPipelineTest::test_l_exception_relancee_ne_recopie_pas_le_releve`
+      (3 ablations rouges), `LeasePaymentLateFeeMarkPaidTest::test_une_date_de_reglement_future_est_refusee`.*
+- [x] **AC26 (ajouté après vérification adverse, preuves)** — les ablations AC3b, AC8a, AC17a et
+      AC18b, vertes à la vérification, rougissent ; la pénalité d'un loyer payé reste visible au
+      locataire.
+      *Vérifié : `LeasePaymentResourceContractTest::test_une_echeance_payee_en_partie_ne_demande_que_son_reste`,
+      `PaymentGatewayInitiateTest::test_initiation_refusee_sur_une_echeance_deja_payee`,
+      `BankCsvMappingTest::test_une_agence_sans_mapping_fige_le_defaut_effectif`,
+      `rapprochement.test.tsx`, `CustomerPayments.test.tsx`.*
 
 ## Hors périmètre
 
