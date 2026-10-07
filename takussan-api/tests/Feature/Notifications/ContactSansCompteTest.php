@@ -3,9 +3,14 @@
 namespace Tests\Feature\Notifications;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Jobs\SendPropertyVisitReminders;
+use App\Models\AppNotification;
 use App\Models\Customer;
+use App\Models\Enums\VisitStatus;
 use App\Models\Integration;
 use App\Models\NotificationTemplate;
+use App\Models\Property;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\Concerns\SupportsSms;
@@ -239,6 +244,36 @@ class ContactSansCompteTest extends TestCase
 
         $this->assertSame(0, $this->whatsappSent());
         $this->assertSame(1, $this->smsSent());
+    }
+
+    /**
+     * AC6 — une visite confirmée d'un anonyme (`visitor_id` nul, `visitor_phone` saisi) : le rappel
+     * 24 h part par SMS fr vers ce numéro, l'agent est notifié comme avant, et un second passage
+     * n'envoie rien.
+     */
+    public function test_ac6_le_visiteur_anonyme_recoit_son_rappel_de_visite_par_sms(): void
+    {
+        $agent = User::factory()->create();
+        PropertyVisit::factory()->create([
+            'property_id' => Property::factory()->create(['title' => 'Villa Almadies'])->id,
+            'visitor_id' => null,
+            'customer_id' => null,
+            'visitor_name' => 'Awa Diop',
+            'visitor_phone' => '+221 77 123 45 67',
+            'agent_id' => $agent->id,
+            'status' => VisitStatus::Confirmed,
+            'scheduled_at' => now()->addHours(24),
+        ]);
+
+        (new SendPropertyVisitReminders)->handle();
+        (new SendPropertyVisitReminders)->handle();
+
+        $this->assertSame(1, $this->smsSent());
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'lampush')
+            && str_contains(json_encode($req->data(), JSON_UNESCAPED_UNICODE), 'Villa Almadies')
+            && str_contains(json_encode($req->data(), JSON_UNESCAPED_UNICODE), 'visite de Villa Almadies'));
+        $this->assertSame(1, AppNotification::query()->where('user_id', $agent->id)->where('code', NotificationCode::VisitReminder->value)->count());
+        $this->assertSame(0, AppNotification::query()->where('user_id', '!=', $agent->id)->count());
     }
 
     public function test_un_code_non_transactionnel_ne_vise_jamais_un_contact(): void
