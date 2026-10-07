@@ -792,3 +792,19 @@ dont `properties.create|delete|publish` et `leases.create` ; `invoices.create` e
 | profils de l'agence seulement (sans `agency_id`) | bailleur de deux agences | rouge |
 | lecture de `bookings.validate`, `bookings.cancel`, `invoices.send`, `invoices.write_off`, `payments.record` (bail), `crm.view_all`, `properties.update_own` — chacune seule | `BranchedCapabilitiesTest` | rouge ×7 |
 | AC8 : cas ajouté à l'enum ; capacité inscrite branchée ; ligne retirée sans baisser le cliquet | `check-capability-readers.mjs` | sortie 1 ×3 |
+
+### Étape 3 — §8 (back)
+
+`POST /api/share/{token}` et `POST /api/share/{token}/download` (`share.show.post`,
+`share.download.post`). Les `GET` correspondants n'ont **aucun** `throttle` sur `dev` (re-mesuré,
+`routes/api/documents.php`) : les `POST` n'en ont donc pas non plus — TCK-602 posera le même sur
+les quatre. Le mot de passe se lit par `post('password')` ; une query qui en porte un est refusée
+en 400 `errors.share_password_in_query` avant `validate()`, sur `GET` comme sur `POST`, sans
+incrément de `downloads_count`. `DocumentShareLinkTest` (l.141) et `DocumentShareLinkDownloadTest`
+(l.181, 190) réécrits en `POST`.
+
+**Écart d'AC15 :** « rouge à nouveau si `post('password')` redevient `input('password')` » ne
+s'observe pas SEUL — le refus de la query, en tête, masque la différence (les deux ne diffèrent
+que par la query). Mesuré : refus retiré + `input()` → `POST ?password=…` rend **200** ; refus
+retiré + `post()` → **401** ; refus seul retiré → rouge (400 attendu, 401 vu). Les deux couches
+sont donc chacune nécessaires, mais seule la seconde est observable isolément.

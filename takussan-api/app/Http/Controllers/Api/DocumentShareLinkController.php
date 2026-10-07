@@ -61,7 +61,7 @@ class DocumentShareLinkController extends Controller
 
     public function show(Request $request, string $token): JsonResponse
     {
-        $password = $request->input('password');
+        $password = $this->passwordFromBody($request);
         $link = $this->shareLinks->validate($token, $password);
         $document = $link->document;
 
@@ -86,7 +86,7 @@ class DocumentShareLinkController extends Controller
 
     public function download(Request $request, string $token, PrivateMediaAccess $access): StreamedResponse|JsonResponse
     {
-        $password = $request->input('password');
+        $password = $this->passwordFromBody($request);
         $link = $this->shareLinks->validate($token, $password);
 
         $media = $link->document->getFirstMedia('file');
@@ -108,6 +108,24 @@ class DocumentShareLinkController extends Controller
         $this->shareLinks->revoke($link);
 
         return $this->json(null, 204);
+    }
+
+    /**
+     * TCK-587 §8 — le mot de passe d'un lien protégé se lit dans le CORPS (formulaire ou JSON),
+     * jamais dans l'URL.
+     *
+     * `input('password')` lisait aussi la query : le mot de passe voyageait dans
+     * `GET /api/share/{t}?password=…`, donc dans l'historique, les journaux d'accès et l'en-tête
+     * `Referer`. Une URL qui le porte est refusée en 400 AVANT toute validation — l'accepter en
+     * l'ignorant laisserait croire à l'appelant qu'elle fonctionne.
+     */
+    private function passwordFromBody(Request $request): ?string
+    {
+        abort_if($request->query->has('password'), 400, __('errors.share_password_in_query'));
+
+        $password = $request->post('password');
+
+        return is_string($password) ? $password : null;
     }
 
     protected function authorizeDocument(Request $request, Document $document): void

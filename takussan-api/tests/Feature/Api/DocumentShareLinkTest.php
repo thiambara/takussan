@@ -138,7 +138,8 @@ class DocumentShareLinkTest extends TestCase
 
         $this->getJson("/api/share/{$token}")->assertStatus(401);
 
-        $this->getJson("/api/share/{$token}?password=secret1234")->assertOk();
+        // TCK-587 §8 — le mot de passe passe par le corps d'un POST, jamais par l'URL.
+        $this->postJson("/api/share/{$token}", ['password' => 'secret1234'])->assertOk();
     }
 
     /**
