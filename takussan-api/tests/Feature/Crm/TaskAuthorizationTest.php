@@ -175,6 +175,28 @@ class TaskAuthorizationTest extends ApiTestCase
         $this->assertSame([], $this->actingAsApi($landlord)->apiGet('/api/tasks')->assertOk()->json('data'));
     }
 
+    /**
+     * verif-591 M1 — « soi-même » ne court-circuite plus le contrôle d'assigné sur un parent d'agence :
+     * le bailleur qui rattache une tâche à SA fiche ne se l'assigne pas (il n'est pas du personnel).
+     * Il la crée sans assigné.
+     */
+    public function test_assigning_oneself_on_an_agency_parent_requires_being_staff(): void
+    {
+        $landlord = $this->member('owner', $this->agency);
+        $customer = $this->customer($landlord);
+        $body = ['title' => 'Rappeler', 'taskable_type' => Customer::class, 'taskable_id' => $customer->id];
+
+        $this->actingAsApi($landlord)->apiPost('/api/tasks', $body + ['assigned_to_id' => $landlord->id])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'task_assignee_not_staff');
+        $this->assertDatabaseCount('tasks', 0);
+
+        $this->actingAsApi($landlord)->apiPost('/api/tasks', $body)->assertCreated();
+        $this->actingAsApi($this->agent)->apiPost('/api/tasks', [
+            'title' => 'Moi', 'taskable_type' => Customer::class, 'taskable_id' => $this->customer()->id, 'assigned_to_id' => $this->agent->id,
+        ])->assertCreated();
+    }
+
     public function test_the_assignee_refusal_is_translated(): void
     {
         $landlord = $this->member('owner', $this->agency);
