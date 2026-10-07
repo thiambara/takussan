@@ -3,13 +3,15 @@
 namespace App\Services\Onboarding;
 
 use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\InvitationStatus;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
+use App\Models\Invitation;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
-use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,9 @@ use Illuminate\Validation\ValidationException;
  */
 class ServiceProviderOnboardingService
 {
+    /** Les états où le lien profond assigne encore : rien n'a commencé. */
+    private const DEEP_LINK_ASSIGNABLE = [MaintenanceStatus::Open, MaintenanceStatus::Acknowledged];
+
     public function __construct(private readonly PhoneVerificationService $phoneVerification) {}
 
     /**
@@ -64,9 +69,10 @@ class ServiceProviderOnboardingService
             }
         }
 
-        $redirectMaintenanceRequestId = $this->resolveMaintenanceRequestRedirect($sp);
+        $invitation = $this->acceptedInvitation($sp);
+        $redirectMaintenanceRequestId = $this->resolveMaintenanceRequestRedirect($invitation);
 
-        return DB::transaction(function () use ($sp, $user, $redirectMaintenanceRequestId): array {
+        return DB::transaction(function () use ($sp, $user, $invitation, $redirectMaintenanceRequestId): array {
             // Defensive ownership check inside the transaction — the
             // caller (controller) already gates, but routing changes
             // could leak past the gate later.
@@ -89,7 +95,7 @@ class ServiceProviderOnboardingService
 
             $this->markPhoneVerified($user);
 
-            $this->assignDeepLinkedRequest($redirectMaintenanceRequestId, $user);
+            $this->assignDeepLinkedRequest($invitation, $redirectMaintenanceRequestId, $user);
 
             activity('Onboarding')
                 ->performedOn($sp)
@@ -153,38 +159,58 @@ class ServiceProviderOnboardingService
 
     /**
      * TCK-592 (P18) — la demande du lien profond est ASSIGNÉE au nouveau prestataire (acceptation à
-     * venir) : sans cela, le renvoi en fin d'onboarding menait à un 403. Seulement si elle est
-     * encore ouverte et que le prestataire y est désormais assignable (collaboration active avec
-     * l'agence du bien) — l'invitation l'a vérifiée à l'émission, l'état a pu changer depuis.
+     * venir) : sans cela, le renvoi en fin d'onboarding menait à un 403.
+     *
+     * La fin d'onboarding est REJOUABLE (verif-592, B1) : rejouée après une réassignation, elle
+     * reprenait l'intervention au prestataire en plein travaux. N'assigne donc que si les trois
+     * conditions tiennent, sous verrou de la ligne :
+     *
+     *  - l'invitation n'a encore assigné personne (`metadata.deep_link_assigned_at`, une fois) ;
+     *  - la demande est libre (`assigned_to` nul) et non commencée (`open`, `acknowledged`) ;
+     *  - le prestataire y est assignable (collaboration active avec l'agence du bien) —
+     *    l'invitation l'a vérifié à l'émission, l'état a pu changer depuis.
      */
-    protected function assignDeepLinkedRequest(?int $maintenanceRequestId, User $user): void
+    protected function assignDeepLinkedRequest(?Invitation $invitation, ?int $maintenanceRequestId, User $user): void
     {
-        if ($maintenanceRequestId === null) {
+        if ($invitation === null || $maintenanceRequestId === null
+            || data_get($invitation->metadata, 'deep_link_assigned_at') !== null) {
             return;
         }
 
-        $mr = MaintenanceRequest::query()->with('property')->find($maintenanceRequestId);
+        $mr = MaintenanceRequest::query()->with('property')->lockForUpdate()->find($maintenanceRequestId);
         if ($mr === null
-            || app(MaintenanceStateMachine::class)->isTerminal($mr->status)
+            || $mr->assigned_to !== null
+            || ! in_array($mr->status, self::DEEP_LINK_ASSIGNABLE, true)
             || ! app(ProviderEligibility::class)->isAssignable($user, $mr->property)) {
             return;
         }
 
         app(MaintenanceRequestService::class)->assign($mr, $user, null);
+
+        $invitation->forceFill([
+            'metadata' => array_merge($invitation->metadata ?? [], ['deep_link_assigned_at' => now()->toIso8601String()]),
+        ])->save();
     }
 
     /**
-     * Pull the deep-link maintenance request id from the most recent
-     * accepted invitation that bound this SP profile. The
+     * L'invitation dont l'acceptation a lié ce profil — la plus récente ACCEPTÉE. Une invitation
+     * envoyée, expirée ou révoquée ne porte aucun lien profond à honorer.
+     */
+    protected function acceptedInvitation(ServiceProviderProfile $sp): ?Invitation
+    {
+        return $sp->invitations()
+            ->where('status', InvitationStatus::Accepted->value)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * The deep-link maintenance request id of the accepted invitation. The
      * ServiceProviderInvitationService stores it in
      * `metadata.from_maintenance_request_id` (TCK-260).
      */
-    protected function resolveMaintenanceRequestRedirect(ServiceProviderProfile $sp): ?int
+    protected function resolveMaintenanceRequestRedirect(?Invitation $invitation): ?int
     {
-        $invitation = $sp->invitations()
-            ->orderByDesc('id')
-            ->first();
-
         if ($invitation === null) {
             return null;
         }

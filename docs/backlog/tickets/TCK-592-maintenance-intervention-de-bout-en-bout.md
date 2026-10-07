@@ -828,3 +828,30 @@ Exécuté au premier plan :
   `admin/roles` : 231 verts ;
 - toutes les gardes racine sont vertes, `gen-index --check` et `check-backlog` aussi.
 
+
+### Corrections après vérification adverse (verif-592 : REFUSÉ, 2 bloquants, 2 majeurs, 9 mineurs)
+
+Méthode, à chaque étape :
+
+- La reproduction du vérificateur (`Verif592AdversarialTest`) est rejouée hors commit.
+- Les tests neufs sont rejoués avec les fichiers de production remis à leur version `05dce4fc`
+  (`git show 05dce4fc:… >` le fichier), puis restaurés par `cp` et vérifiés par `cmp`.
+- Chaque ablation est restaurée de la même manière.
+
+**B1 — fin d'onboarding rejouée.**
+
+- `assignDeepLinkedRequest()` n'assigne plus que sous verrou de la ligne, et seulement si quatre
+  conditions tiennent :
+  - l'invitation n'a encore assigné personne (`metadata.deep_link_assigned_at`, posé à
+    l'assignation) ;
+  - la demande est libre (`assigned_to` nul) ;
+  - elle n'a pas commencé (`open`, `acknowledged`) ;
+  - le prestataire y est assignable.
+- L'invitation lue est désormais la plus récente **acceptée**, et non plus la plus récente quel que
+  soit son statut.
+- `ServiceProviderInvitationDeepLinkTest` gagne six tests : rejeu après réassignation (v07), rejeu
+  après désassignation, demande prise entre-temps, demande `completed`, prestataire en pause (X17),
+  invitation non acceptée.
+- Sur `05dce4fc`, cinq rouges. Le sixième, X17, était juste mais non éprouvé.
+- Chacune des cinq ablations rend 1 rouge : sans `assigned_to` nul, sans état non commencé, sans
+  la marque, sans `isAssignable`, invitation de n'importe quel statut.
