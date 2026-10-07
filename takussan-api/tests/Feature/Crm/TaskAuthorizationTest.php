@@ -1,0 +1,205 @@
+<?php
+
+namespace Tests\Feature\Crm;
+
+use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\TaskStatus;
+use App\Models\Property;
+use App\Models\Task;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\ApiTestCase;
+
+/**
+ * TCK-591 — les quatre gardes des tâches (AC18, et le 422 traduit d'AC20).
+ *
+ * Chacune rendait l'inverse sur `5f872f1f` : un bailleur était assignable, un `PUT` poussait la
+ * tâche chez n'importe qui, l'assigné supprimait la tâche de son admin, et un bailleur rattachait
+ * une tâche à n'importe quel client de l'agence.
+ */
+class TaskAuthorizationTest extends ApiTestCase
+{
+    use RefreshDatabase;
+
+    private Agency $agency;
+
+    private User $agent;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->agency = Agency::factory()->create();
+        $this->agent = $this->member('agent', $this->agency);
+    }
+
+    /**
+     * `CustomerPolicy::view` laisse lire tout le CRM à un bailleur de l'agence jusqu'à la fusion de
+     * TCK-587 (qui pose `User::staffAgencyId()`). Saut qui expire seul : retiré à la fusion.
+     */
+    private function requiresTck587(): void
+    {
+        if (! method_exists(User::class, 'staffAgencyId')) {
+            $this->markTestSkipped('attend TCK-587 (CustomerPolicy::view réécrite)');
+        }
+    }
+
+    private function member(string $role, Agency $agency): User
+    {
+        $user = User::factory()->create();
+        $this->materializeRoleProfile($user, $role, $agency);
+
+        return $user;
+    }
+
+    private function customer(?User $addedBy = null): Customer
+    {
+        return Customer::factory()->create([
+            'agency_id' => $this->agency->id,
+            'added_by_id' => ($addedBy ?? $this->agent)->id,
+            'first_name' => 'Awa',
+            'last_name' => 'Diop',
+        ]);
+    }
+
+    public function test_a_landlord_of_the_agency_is_not_an_assignable_member(): void
+    {
+        $landlord = $this->member('owner', $this->agency);
+        $customer = $this->customer();
+
+        $this->actingAsApi($this->agent)->apiPost('/api/tasks', [
+            'title' => 'Rappeler',
+            'taskable_type' => Customer::class,
+            'taskable_id' => $customer->id,
+            'assigned_to_id' => $landlord->id,
+        ])->assertStatus(422)->assertJsonPath('code', 'task_assignee_not_staff');
+
+        $this->assertDatabaseCount('tasks', 0);
+    }
+
+    public function test_a_colleague_of_the_agency_is_assignable(): void
+    {
+        $colleague = $this->member('agent', $this->agency);
+        $customer = $this->customer();
+
+        $this->actingAsApi($this->agent)->apiPost('/api/tasks', [
+            'title' => 'Rappeler',
+            'taskable_type' => Customer::class,
+            'taskable_id' => $customer->id,
+            'assigned_to_id' => $colleague->id,
+        ])->assertCreated()->assertJsonPath('data.assignee.id', $colleague->id);
+    }
+
+    public function test_reassigning_by_put_replays_the_assignee_check(): void
+    {
+        $outsider = $this->member('agent', Agency::factory()->create());
+        $task = Task::factory()->forCustomer($this->customer())->create([
+            'created_by_id' => $this->agent->id,
+            'assigned_to_id' => $this->agent->id,
+        ]);
+
+        $this->actingAsApi($this->agent)
+            ->apiPut("/api/tasks/{$task->id}", ['assigned_to_id' => $outsider->id])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'task_assignee_not_staff');
+
+        $this->assertSame($this->agent->id, $task->fresh()->assigned_to_id);
+    }
+
+    public function test_only_the_creator_deletes_a_task(): void
+    {
+        $admin = $this->member('agency_admin', $this->agency);
+        $task = Task::factory()->forCustomer($this->customer())->create([
+            'created_by_id' => $admin->id,
+            'assigned_to_id' => $this->agent->id,
+        ]);
+
+        $this->actingAsApi($this->agent)->apiDelete("/api/tasks/{$task->id}")->assertForbidden();
+        $this->assertNotSoftDeleted('tasks', ['id' => $task->id]);
+
+        // L'assigné garde `update` : il coche sa tâche.
+        $this->actingAsApi($this->agent)
+            ->apiPut("/api/tasks/{$task->id}", ['status' => TaskStatus::Done->value])
+            ->assertOk();
+
+        $this->actingAsApi($admin)->apiDelete("/api/tasks/{$task->id}")->assertNoContent();
+        $this->assertSoftDeleted('tasks', ['id' => $task->id]);
+    }
+
+    public function test_a_landlord_cannot_attach_a_task_to_a_customer_he_did_not_add(): void
+    {
+        $this->requiresTck587();
+        $landlord = $this->member('owner', $this->agency);
+        $customer = $this->customer();
+
+        $response = $this->actingAsApi($landlord)->apiPost('/api/tasks', [
+            'title' => 'Espionner',
+            'taskable_type' => Customer::class,
+            'taskable_id' => $customer->id,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertStringNotContainsString('Diop', $response->getContent());
+        $this->assertDatabaseCount('tasks', 0);
+    }
+
+    public function test_the_taskable_label_is_rendered_to_whoever_may_attach_to_the_parent(): void
+    {
+        $customer = $this->customer();
+        $property = Property::factory()->create([
+            'agency_id' => $this->agency->id,
+            'user_id' => $this->agent->id,
+            'title' => 'Villa des Almadies',
+        ]);
+        Task::factory()->forCustomer($customer)->create(['created_by_id' => $this->agent->id]);
+        Task::factory()->create([
+            'taskable_type' => Property::class,
+            'taskable_id' => $property->id,
+            'created_by_id' => $this->agent->id,
+        ]);
+
+        $rows = collect($this->actingAsApi($this->agent)->apiGet('/api/tasks')->assertOk()->json('data'))
+            ->keyBy(fn ($row) => $row['taskable']['type']);
+
+        $this->assertSame(['type' => 'customer', 'id' => $customer->id, 'label' => 'Awa Diop'], $rows['customer']['taskable']);
+        $this->assertSame(['type' => 'property', 'id' => $property->id, 'label' => 'Villa des Almadies'], $rows['property']['taskable']);
+    }
+
+    public function test_an_assignee_outside_the_parent_scope_does_not_read_the_label(): void
+    {
+        $this->requiresTck587();
+        // Assignée à un bailleur par le passé (avant la garde) : il voit la tâche, pas le nom.
+        $landlord = $this->member('owner', $this->agency);
+        $task = Task::factory()->forCustomer($this->customer())->create([
+            'created_by_id' => $this->agent->id,
+            'assigned_to_id' => $landlord->id,
+        ]);
+
+        $this->actingAsApi($landlord)->apiGet("/api/tasks/{$task->id}")
+            ->assertOk()
+            ->assertJsonPath('data.taskable.type', 'customer')
+            ->assertJsonPath('data.taskable.label', null);
+    }
+
+    public function test_the_assignee_refusal_is_translated(): void
+    {
+        $landlord = $this->member('owner', $this->agency);
+        $customer = $this->customer();
+        $body = [
+            'title' => 'Rappeler',
+            'taskable_type' => Customer::class,
+            'taskable_id' => $customer->id,
+            'assigned_to_id' => $landlord->id,
+        ];
+
+        $fr = $this->actingAsApi($this->agent)->postJson('/api/tasks', $body, ['Accept-Language' => 'fr'])
+            ->assertStatus(422)->json('message');
+        $en = $this->actingAsApi($this->agent)->postJson('/api/tasks', $body, ['Accept-Language' => 'en'])
+            ->assertStatus(422)->json('message');
+
+        $this->assertSame(__('crm.tasks.assignee_not_staff', [], 'fr'), $fr);
+        $this->assertSame(__('crm.tasks.assignee_not_staff', [], 'en'), $en);
+        $this->assertNotSame($fr, $en);
+    }
+}

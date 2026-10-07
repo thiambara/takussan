@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Models\Customer;
+use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -38,13 +40,26 @@ class TaskPolicy extends BasePolicy
     }
 
     /**
-     * TCK-306 — reprise de `TaskController::authorizeTaskable()` : rattacher une tâche à un bien
-     * ou à un client.
+     * TCK-591 — supprimer une tâche est le geste de son CRÉATEUR (ou du super-admin). L'assigné
+     * garde `update` — cocher, commenter — mais n'efface plus la tâche qu'on lui a confiée.
+     */
+    public function delete(User $user, Model $model): bool
+    {
+        if (! $model instanceof Task) {
+            return false;
+        }
+
+        return $user->isSuperAdmin() || $model->created_by_id === $user->id;
+    }
+
+    /**
+     * Rattacher une tâche à un bien ou à un client — et, par `TaskController::taskable()`, en lire
+     * le libellé.
      *
-     * Les colonnes de propriété diffèrent selon le modèle — `Property` par `user_id`, `Customer`
-     * par `added_by_id` — d'où la lecture des deux via `getAttribute()`, une colonne absente
-     * valant `null` et étant simplement ignorée. Le commentaire d'origine le disait déjà ; il est
-     * conservé parce que c'est la seule chose qui rend cette méthode lisible.
+     * TCK-591 — la règle est celle du PARENT : voir le client (`CustomerPolicy::view`), modifier le
+     * bien (`PropertyPolicy::update`). Elle jugeait l'agence par `$user->agency_id`, l'agence du
+     * profil actif QUEL QU'IL SOIT : un bailleur rattachait une tâche à n'importe quel client de
+     * l'agence — et le libellé que la réponse porte aurait énuméré les noms du CRM.
      */
     public function attachTo(User $user, Model $parent): bool
     {
@@ -52,10 +67,10 @@ class TaskPolicy extends BasePolicy
             return true;
         }
 
-        $agencyId = $user->agency_id;
-
-        return ($agencyId && (int) ($parent->getAttribute('agency_id') ?? 0) === (int) $agencyId)
-            || $parent->getAttribute('added_by_id') === $user->id
-            || $parent->getAttribute('user_id') === $user->id;
+        return match (true) {
+            $parent instanceof Customer => $user->can('view', $parent),
+            $parent instanceof Property => $user->can('update', $parent),
+            default => false,
+        };
     }
 }
