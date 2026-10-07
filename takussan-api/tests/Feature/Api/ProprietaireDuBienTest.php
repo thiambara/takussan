@@ -156,4 +156,79 @@ class ProprietaireDuBienTest extends ApiTestCase
 
         $this->assertSame('+221770004444', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('phone'));
     }
+
+    /** Une visite planifiée par le personnel pour une fiche du CRM de X, sur ce bien. */
+    private function visitePourUneFiche($bien, array $attributes = []): PropertyVisit
+    {
+        $fiche = $this->ficheClient($this->x, attributes: [
+            'first_name' => 'Fatou', 'last_name' => 'Sarr', 'phone' => '+221776665544', 'email' => 'fatou@exemple.sn',
+        ]);
+
+        return PropertyVisit::factory()->create($attributes + [
+            'property_id' => $bien->id, 'customer_id' => $fiche->id, 'visitor_id' => null,
+            'agent_id' => $this->admin->id, 'visitor_name' => 'Fatou Sarr', 'visitor_phone' => '+221776665544',
+            'status' => VisitStatus::Confirmed, 'scheduled_at' => $this->creneau(jours: 3),
+        ]);
+    }
+
+    /** Passe 3 (M7′) — l'agent parti créateur du bien ne lit plus la visite, ni ne la clôt. */
+    public function test_m7prime_l_agent_parti_createur_ne_lit_ni_ne_clot_la_visite(): void
+    {
+        [$a, $bien] = $this->agentParti();
+        $visite = $this->visitePourUneFiche($bien);
+
+        Sanctum::actingAs($a);
+        $this->getJson("/api/property-visits/{$visite->id}")->assertForbidden();
+        $this->postJson("/api/property-visits/{$visite->id}/complete")->assertForbidden();
+        $this->assertSame([], $this->getJson('/api/property-visits?include=customer')->json('data'));
+        $this->assertSame(VisitStatus::Confirmed, $visite->fresh()->status);
+    }
+
+    /** Passe 3 (M7′) — l'agent assigné puis retiré de l'agence perd la lecture, au détail et à l'index. */
+    public function test_m7prime_l_agent_assigne_parti_ne_lit_plus_la_visite(): void
+    {
+        $g = $this->personnel($this->x);
+        $visite = $this->visitePourUneFiche($this->bienDe($this->x), ['agent_id' => $g->id]);
+        AgentProfile::query()->where('user_id', $g->id)->get()->each->delete();
+
+        Sanctum::actingAs($g->fresh());
+        $this->getJson("/api/property-visits/{$visite->id}")->assertForbidden();
+        $this->assertSame([], $this->getJson('/api/property-visits?include=customer')->json('data'));
+    }
+
+    /**
+     * Passe 3 (M7′) — le bailleur actif lit la visite de son bien, au détail ET à l'index, sans la
+     * fiche client : ni `customer`, ni `customer_id`, ni le nom ou le téléphone de la fiche.
+     */
+    public function test_m7prime_le_bailleur_actif_lit_la_visite_sans_la_fiche_client(): void
+    {
+        $b = $this->bailleur($this->x);
+        $visite = $this->visitePourUneFiche($this->bienDe($this->x, $b));
+
+        Sanctum::actingAs($b);
+        $detail = $this->getJson("/api/property-visits/{$visite->id}")->assertOk();
+        $detail->assertJsonPath('data.customer_id', null)->assertJsonPath('data.customer', null);
+        $liste = $this->getJson('/api/property-visits?include=customer')->assertOk();
+        $this->assertSame([$visite->id], collect($liste->json('data'))->pluck('id')->all());
+        $liste->assertJsonPath('data.0.customer_id', null)->assertJsonPath('data.0.customer', null);
+
+        foreach ([$detail, $liste] as $reponse) {
+            $this->assertStringNotContainsString('fatou@exemple.sn', $reponse->getContent());
+            $this->assertStringNotContainsString('"Sarr"', $reponse->getContent());
+        }
+    }
+
+    /** Passe 3 (M7′) — le personnel de l'agence garde la fiche, au détail et à l'index. */
+    public function test_m7prime_le_personnel_lit_la_fiche_client(): void
+    {
+        $visite = $this->visitePourUneFiche($this->bienDe($this->x));
+
+        Sanctum::actingAs($this->personnel($this->x));
+        $this->getJson("/api/property-visits/{$visite->id}")->assertOk()
+            ->assertJsonPath('data.customer_id', $visite->customer_id)
+            ->assertJsonPath('data.customer.phone', '+221776665544');
+        $this->getJson('/api/property-visits?include=customer')->assertOk()
+            ->assertJsonPath('data.0.customer_id', $visite->customer_id)
+            ->assertJsonPath('data.0.customer.email', 'fatou@exemple.sn');
+    }
 }

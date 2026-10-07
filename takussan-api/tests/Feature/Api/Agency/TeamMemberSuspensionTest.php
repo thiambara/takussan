@@ -322,7 +322,10 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $visiteB = PropertyVisit::factory()->create(['property_id' => $bienB->id]);
         $nouvelle = now()->addDays(5)->setTime(10, 0)->toIso8601String();
 
-        $this->getJson("/api/property-visits/{$visiteA->id}")->assertOk();
+        // TCK-590 (passe 3, M7′, décision de la session) — `property.user_id` ne fait le
+        // propriétaire d'un bien d'agence que s'il y est bailleur ACTIF : le bailleur bloqué perd
+        // aussi la lecture de la visite. Avant M7′, ce test attendait 200 ici.
+        $this->getJson("/api/property-visits/{$visiteA->id}")->assertForbidden();
         $this->patchJson("/api/property-visits/{$visiteA->id}", ['scheduled_at' => $nouvelle])->assertForbidden();
         $this->assertTrue($visiteA->fresh()->scheduled_at->equalTo($visiteA->scheduled_at));
         // TCK-590 (vérification adverse passe 2, écart b, décision de la session) — sur un bien

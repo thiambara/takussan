@@ -2,8 +2,11 @@
 
 namespace App\Policies;
 
+use App\Http\Resources\PropertyVisitResource;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -26,10 +29,17 @@ class PropertyVisitPolicy extends BasePolicy
 
         $property = $model->property;
 
+        // TCK-590 (passe 3, M7′) — `property.user_id` ne fait le propriétaire d'un bien d'agence
+        // que s'il y est bailleur actif (`estProprietaire`, définition de M7) : l'agent parti qui
+        // a créé le bien ne lit plus la visite. L'agent assigné, de même, ne la lit sur un bien
+        // d'agence que tant qu'il en est du personnel. La fiche client reste au seul personnel
+        // ({@see PropertyVisitResource}).
         return $user->isSuperAdmin()
             || $model->visitor_id === $user->id
-            || $model->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
+            || ($model->agent_id === $user->id
+                && ($property === null || $property->agency_id === null
+                    || PersonnelDeLAgence::estPersonnel($user, $property->agency_id)))
+            || ($property && PrimaryPropertyContact::estProprietaire($user, $property))
             || ($property && $this->isStaffOf($user, $property->agency_id))
             || ($model->customer && $model->customer->user_id === $user->id);
     }
@@ -47,7 +57,10 @@ class PropertyVisitPolicy extends BasePolicy
         $property = $model->property;
 
         // TCK-587 (ADR-0031 §2, passe 2 N2) — le propriétaire suspendu dans l'agence du bien ne
-        // déplace ni n'annule plus la visite.
+        // déplace ni n'annule plus la visite. TCK-590 (passe 3) : sur un bien d'AGENCE, aucun
+        // bailleur, actif ou bloqué, n'écrit plus une visite — `update`, `confirm`, `complete` et
+        // `cancel` passent par `PropertyVisitController::agitPourLeBien`, réservé au personnel.
+        // La branche `landlordWrites` ne décide donc plus que pour un bien sans agence.
         return $user->isSuperAdmin()
             || $model->agent_id === $user->id
             || ($property && $this->landlordWrites($user, $property->user_id, $property->agency_id))

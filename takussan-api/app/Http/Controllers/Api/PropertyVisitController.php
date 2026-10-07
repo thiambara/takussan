@@ -50,10 +50,14 @@ class PropertyVisitController extends Controller
             // Vérification adverse (M7) — le créateur d'un bien d'agence n'en est le propriétaire
             // que s'il y est bailleur actif (`PrimaryPropertyContact::estProprietaire`).
             $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
+            // Passe 3 (M7′) — l'agent assigné ne lit la visite d'un bien d'agence que tant qu'il
+            // est du personnel de cette agence : parti ou suspendu, il la perd, comme dans `view`.
+            $personnelDe = PersonnelDeLAgence::agencesOuPersonnel($user);
 
-            $base->where(function ($q) use ($user, $staffAgencyId, $bailleurDe) {
+            $base->where(function ($q) use ($user, $staffAgencyId, $bailleurDe, $personnelDe) {
                 $q->where('visitor_id', $user->id)
-                    ->orWhere('agent_id', $user->id)
+                    ->orWhere(fn ($a) => $a->where('agent_id', $user->id)
+                        ->whereHas('property', fn ($p) => $p->whereNull('agency_id')->orWhereIn('agency_id', $personnelDe)))
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id)
                         ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $bailleurDe)))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
@@ -67,6 +71,14 @@ class PropertyVisitController extends Controller
         $paginator = PropertyVisit::buildQuery($base, $request)
             ->defaultSort('-scheduled_at')
             ->paginate();
+
+        // Passe 3 (M7′) — l'agence de chaque bien de la page, en une requête : la ressource en
+        // décide si la fiche client est rendue, sans relire le bien ligne par ligne.
+        $request->attributes->set('visits.property_agencies', Property::query()
+            ->whereIn('id', $paginator->getCollection()->pluck('property_id')->filter()->unique())
+            ->pluck('agency_id', 'id')
+            ->map(fn ($id) => $id === null ? null : (int) $id)
+            ->all());
 
         return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));
     }
