@@ -746,3 +746,18 @@ téléphone tenu d'une main, entre deux visites**.
   Les 2 sautés (bailleur qui rattache à un client qu'il n'a pas ajouté ; libellé caché à l'assigné
   hors périmètre) attendent la `CustomerPolicy::view` de TCK-587 : saut qui expire seul
   (`method_exists(User::class, 'staffAgencyId')`), retiré à la fusion.
+- **§6 Agenda** (`e2f8291f`) — re-mesuré : `CalendarController.php:45` (`$user->agency_id`), `:51`
+  (littéral anglais), `:128` (`agent_id = moi` sans condition) conformes au Contexte. Le périmètre vit
+  dans `App\Services\Calendar\CalendarEventCollector`, partagé par la console et le flux `.ics`.
+  **Lecture de `mine=1`** : le Delta dit « `agent_id`/`assigned_to_id`/`assigned_to` = moi » et AC8
+  attend sous `mine=1` les échéances de bail de l'agence : `mine` filtre donc les seuls types qui ont
+  une colonne d'affectation (visite, tâche, intervention) ; réservations et échéances de bail n'en ont
+  pas et restent au périmètre. Le jeu d'AC8 assigne l'intervention à l'agent.
+  Événements : clé stable `key` (`<type>-<id>[-<kind>]`) ajoutée à chaque événement.
+  Endpoint ajouté hors tableau du Contrat : `GET /api/me/calendar-feed` (état du lien, sans jeton),
+  dont l'écran d'abonnement a besoin.
+  `php artisan test tests/Feature/Calendar tests/Feature/Api/CalendarTest.php` → 25 verts.
+  **Ablations** (après commit) : `staffAgencyId: $user->agency_id` dans le contrôleur → AC2 rouge
+  (le bailleur voit le bien de l'agent) ; branche `agent_id = moi OR périmètre` rétablie dans le
+  collecteur → AC21 rouge (l'agent retiré voit encore sa visite).
+
