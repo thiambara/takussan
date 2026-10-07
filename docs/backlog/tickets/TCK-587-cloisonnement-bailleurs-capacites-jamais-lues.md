@@ -857,3 +857,80 @@ garde), vert avec, de nouveau vert après restauration.
 **Vérifications :** `npx tsc --noEmit` propre, `npm run lint` 0 erreur, les 128 fichiers de test des
 répertoires touchés verts (980 tests), toutes les gardes de `scripts/` et de `takussan-web/scripts/`
 vertes.
+
+### Étape 5 — fusion de `dev` (TCK-586) et re-vérification
+
+**Fusion** `origin/dev` (merge 5f872f1f, TCK-586) → `48fcf5eb` ; `INDEX.md` régénéré, pas résolu à
+la main ; `composer dump-autoload -o` (modèles du courtier supprimés). Correctif post-fusion
+`18bb9b38` :
+
+- `CollaboratorEligibleForProperty::eligible()` lit le prédicat du personnel
+  (`MembershipCapabilityResolver::isStaffAt($user, $agencyId)`) — la règle de 586 jugeait encore
+  par profil. Ablation : `isStaffAt` → `isOwnerAt` → `PropertyCollaboratorTest` rouge.
+- Les 403 nommés restants passent par `lang/{fr,en,wo}/errors.php` : `account_block_reserved`
+  (`UserAdminController::block|activate`), `staff_only` (`KpiConfigController`,
+  `ThresholdAlertController`). Le fichier porte **cinq** clés, toutes de ce ticket.
+- `OwnerIsolationWithinAgencyTest` : `PropertyFactory` tire `rent_period` au hasard, et un bien
+  mensuel ou annuel est refusé à la réservation (422 `rent_period_not_bookable`). Les biens
+  réservables de la fixture portent `RESERVABLE` (location à la nuitée) — trois exécutions
+  consécutives, 76/76.
+
+**Exécutions nommées** (`php artisan test <fichier>`, worktree, après `18bb9b38`) :
+
+| AC | Fichier | Résultat |
+|---|---|---|
+| AC1, AC1b, AC1c, AC1d | `tests/Feature/Authorization/OwnerIsolationWithinAgencyTest.php` | 76 passés |
+| AC2 | `tests/Feature/Api/PayoutTest.php` | 21 passés |
+| AC3, AC4, AC5b | `tests/Feature/Api/PropertyAuthorizationTest.php` | 17 passés |
+| AC5 | `tests/Feature/Api/DestroyAuthorizationTest.php` | 7 passés |
+| AC6 | `tests/Feature/Api/ExportCapabilityTest.php` | 14 passés |
+| AC7 | `tests/Feature/Api/UserAdminAgencyScopeTest.php` · `tests/Feature/Api/Agency/TeamMemberSuspensionTest.php` | 12 · 6 passés |
+| AC12 | `tests/Feature/Authorization/BranchedCapabilitiesTest.php` | 30 passés |
+| AC13 | `tests/Feature/Authorization/InactiveProfileGrantsNothingTest.php` | 2 passés |
+| AC15 | `tests/Feature/Api/DocumentShareLinkPasswordTransportTest.php` | 7 passés |
+| ADR-0031 | `tests/Feature/Authorization/StaffAgencyIdTest.php` · `tests/Feature/Api/PropertyCollaboratorTest.php` | 9 · 19 passés |
+| AC8, AC9 | `node scripts/check-capability-readers.mjs` · `node scripts/check-agency-scope-clause.mjs` | sortie 0 (45 capacités : 29 lues, 16 inscrites) · sortie 0 (578 fichiers, 0 violation, 10 exemptions) |
+| AC10, AC11, AC14, AC15 (web) | `npm run test` dans `takussan-web/` | 157 fichiers, 1 300 tests verts ; `npx tsc --noEmit` propre ; `npm run lint` 0 erreur |
+
+Au-delà des AC : une liste de 296 fichiers de test candidats, dont 180 sous `tests/Feature/Api`,
+jouée en quatre lots de config phpunit — 2 494 tests, verts (572 · 598 dont 2 ignorés · 719 · 605). Toutes les gardes racine et web vertes ;
+`gen-index.mjs --check` vert. **La suite backend entière n'a pas été lancée : elle revient à la
+session.**
+
+**Ablations rejouées sur le code fusionné** (un remplacement, le test, restauration vérifiée par
+comparaison d'octets ; tout rouge sans le correctif) :
+
+| AC | Retrait | Test | Résultat |
+|---|---|---|---|
+| AC1 | `LeasePolicy::view` → `$user->agency_id === $model->agency_id` | `OwnerIsolationWithinAgencyTest` | rouge, 200 au lieu de 403 |
+| AC1 | `LeaseController::index` → bloc d'avant (`if ($user->agency_id) …`) | idem (listes) | rouge, le bail de B1 dans la liste de B2 |
+| AC1b | `LeasePaymentController::index` sans `authorize('view')` | idem (hors policy) | rouge, 200 |
+| AC1b | `ConversationContextController` (baux) → bloc d'avant | idem, `test_le_contexte_de_conversation…` | rouge |
+| AC1c | `LeaseService` sans `leases.create` | idem | rouge, 201 |
+| AC1d | `BookingService` `$isStaff` → `$user->agency_id` | idem | rouge |
+| AC2 | `PayoutPolicy::update` sans le refus du bénéficiaire | `PayoutTest` | rouge, 200 |
+| AC3 | `StorePropertyRequest::authorize()` → `true` | `PropertyAuthorizationTest` | rouge, 201 |
+| AC4 | `destroy` → `authorize('update')` | idem | rouge, 204 |
+| AC5 | `CustomerController::destroy` → `authorize('view')` | `DestroyAuthorizationTest` | rouge, 204 |
+| AC5 | `DocumentPolicy::delete` retiré | idem | rouge, l'auteur reçoit 403 |
+| AC5b | `assignAgent` → `$target->agency_id === $agencyId` | `PropertyAuthorizationTest` | rouge, 200 au lieu de 422 |
+| AC6 | `canActAt(capacité d'export)` → `true` | `ExportCapabilityTest` | rouge, 200 |
+| AC6 | `->log('data_exported')` retiré | idem | rouge (`sole()` sans ligne, 4 erreurs) |
+| AC7 | `SuspendTeamMemberRequest` sans `team.suspend` | `TeamMemberSuspensionTest` | rouge, 200 |
+| AC7 | refus sur `primary_admin_id` retiré | idem | rouge, 200 au lieu de 422 |
+| AC12 | `BookingPolicy::validate` sans `bookings.validate` | `BranchedCapabilitiesTest` | rouge, 200 |
+| AC13 | `->active()` de `roleAllows()` · de `isAgencyAdminAt()` · filtre de l'auto-bascule, chacun seul | `InactiveProfileGrantsNothingTest` | rouge ×3 (200 · 200 · `'agent:1'`) |
+| AC15 | refus de la query retiré, query lue | `DocumentShareLinkPasswordTransportTest` | rouge, 200 au lieu de 400 |
+| AC8 | cas ajouté à l'enum · `payouts.approve` lue sans retirer sa ligne · ligne retirée, cliquet inchangé | `check-capability-readers.mjs` | sortie 1 ×3 (base : 0) |
+| AC9 | cinq formes (`===`, ordre inversé, `==`, `!==`, `!=`) dans `LeasePolicy::view` | `check-agency-scope-clause.mjs` | sortie 1 ×5 (base : 0) |
+
+Une première version de l'ablation `LeaseController::index` est restée **verte** : elle ne
+remplaçait que l'`orWhere` et gardait `staffAgencyId() !== null` en condition, si bien que le
+bailleur n'entrait jamais dans la clause. Ce n'était pas l'état d'avant. Rejouée sur le bloc
+d'avant entier, elle rougit. Les ablations web de l'étape 4 n'ont pas été rejouées : la fusion de
+586 ne touche aucun des fichiers du front qu'elles visent.
+
+**Observation d'outillage** : une config phpunit posée HORS du dépôt (dans le répertoire temporaire
+de la session) a vu ce répertoire vidé pendant l'exécution, puis recréé avec une copie de
+`app/...` et un `.phpunit.result.cache`. Un test résout donc un chemin relatif à la config, et non
+à `base_path()`. Il n'a pas été identifié. Le worktree, lui, n'a pas bougé.
