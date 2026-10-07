@@ -23,7 +23,13 @@ async function errorFromApi(
     getTranslations('serverActions.properties'),
   ]);
   if (e instanceof ApiError) {
-    const data = (e.data ?? {}) as { message?: string; errors?: Record<string, string[]> };
+    const data = (e.data ?? {}) as { code?: string; message?: string; errors?: Record<string, string[]> };
+    // TCK-590 — personne ne lirait la demande (bien sans contact joignable, agence sans admin
+    // actif) : l'API refuse AVANT d'écrire, et le visiteur l'apprend dans sa langue, sans
+    // croire qu'on le rappellera.
+    if (e.status === 409 && data.code === 'contact_unavailable') {
+      return { status: 409, message: tRacine('publicLeadErrors.contactUnavailable') };
+    }
     return {
       status: e.status,
       // ⚠️ C'était `data.message ?? t('apiError', …)`, et `data.message` relayait TEL QUEL le

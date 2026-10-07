@@ -8128,5 +8128,8 @@
       "submit": "Proposer",
       "success": "Nouveau créneau proposé."
     }
+  },
+  "publicLeadErrors": {
+    "contactUnavailable": "Personne ne peut recevoir de demande pour ce bien en ce moment : la vôtre n’a pas été envoyée. Réessayez plus tard."
   }
 }

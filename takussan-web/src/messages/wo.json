@@ -8128,5 +8128,8 @@
       "submit": "Digle",
       "success": "Waxtu bu bees bi digle nañu ko."
     }
+  },
+  "publicLeadErrors": {
+    "contactUnavailable": "Kenn mënul jot laaj ci kër gii léegi : sa laaj yónnewul. Jéemaatal ci kanam."
   }
 }

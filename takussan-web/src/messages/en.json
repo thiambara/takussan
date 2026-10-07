@@ -8128,5 +8128,8 @@
       "submit": "Propose",
       "success": "New slot proposed."
     }
+  },
+  "publicLeadErrors": {
+    "contactUnavailable": "No one can receive requests for this property right now: yours was not sent. Please try again later."
   }
 }
