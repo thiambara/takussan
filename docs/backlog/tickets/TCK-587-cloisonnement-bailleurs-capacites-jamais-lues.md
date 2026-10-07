@@ -966,3 +966,51 @@ rouge (201) ; du garant au rattachement → rouge (201). `LeaseTest::test_landlo
 rattachait un client de fabrique (ajouté par un inconnu) : c'était le défaut lui-même. Le client est
 désormais ajouté par le bailleur. Après correctif : `OwnerIsolationWithinAgencyTest` 80 passés ;
 les fichiers qui créent un bail ou rattachent un garant, 103 passés.
+
+**B3 — `DocumentPolicy` : branches non éprouvées.** La fixture d'`OwnerIsolationWithinAgencyTest`
+porte maintenant un document par type de rattachement : bail, réservation, client et état des lieux
+déposés par le bailleur ; agence déposé par l'admin. L'agent n'y est donc admis que par la branche,
+jamais comme téléverseur. Le fichier gagne sept lignes dans `gestes()` : `document (<type>) — lire`
+pour les cinq types, plus `— versions` (bail, agence). Il gagne aussi un test de suppression
+(B2 → 403 sur chacun des six documents, document toujours là). Fichier : 94 puis 95 tests, verts.
+
+Ablations (`ablate.py`, chacune seule), toutes **rouges** : AB-3 (bail `|| isOwnerAt`), AB-3b
+(bail, clause d'origine littérale), AB-3c (agence, `$user->agency_id === $documentable->id`),
+réservation `|| isOwnerAt`, client `|| isOwnerAt`, état des lieux `|| isOwnerAt`, et branche
+agence fermée (l'agent reçoit 403 → rouge). AB-3c rougit aussi la garde : sortie 1 sur
+`DocumentPolicy.php:128 (attachTo)` (voir M5).
+
+**M5 — `check-agency-scope-clause.mjs`.**
+- **Excuse.** Elle ne vaut que si son argument contient l'un des deux membres comparés, sans `||`
+  entre elle et la clause. Les sites réels qui s'en servaient restent propres (`KpiConfig*`,
+  `ThresholdAlert*`, `Integration*`, `MediaPolicy::delete`) : ils jugent tous l'agence comparée, ou
+  celle de l'acteur, avec `&&`.
+- **Formes ajoutées :**
+  - l'acteur par `auth()->user()`, `request()->user()` ou `Auth::user()` ;
+  - l'opérande `->id` ;
+  - le `where` à 3 arguments, `whereIn`, la forme tableau, et `whereRaw`. Les chaînes SQL qui
+    nomment `agency_id` gardent un marqueur ; leur phrase reste blanchie.
+- **`CAS_EPREUVE`** couvre G1, G2, G3, G6, G7, G15, AB-3c, G18 et l'excuse séparée par `||`. Elle
+  doit laisser passer quatre formes : l'excuse de `KpiConfig`, celle de `MediaPolicy`, un
+  `whereRaw` sans agence, et `$user->id === $x->id`.
+- **Nouveaux sites relevés par la détection de `->id`.** Trois refus qui n'accordent rien :
+  - `BankStatementPolicy::viewAny` ;
+  - `RoleDelegationPolicy::viewAny` ;
+  - `StoreRoleDelegationRequest::validateBeneficiaryInAgency`, où `$user` est le bénéficiaire.
+
+  Réécrits par le prédicat, ils rendaient 32 tests rouges : l'administrateur principal des
+  fixtures n'a pas de profil d'admin actif. Le changement d'accès est hors ticket, donc le code est
+  remis. Les trois sites sont inscrits dans `REFUS_SANS_OCTROI`, chacun justifié, avec un cliquet
+  bilatéral (3) et une détection de ligne morte. Limite : comme une exemption, l'inscription
+  tolère toute clause de la méthode.
+- **`HORS_DETECTION`** : `CalendarController::index` → TCK-591 et `TaskPolicy::attachTo` → TCK-591.
+  Chaque ligne est vérifiée par son motif (`$agencyId = $user->agency_id;`), avec un cliquet
+  bilatéral (2).
+- **En-tête** : une ligne par forme non vue.
+- **Épreuves**, faites avec la copie du script du vérificateur (`guard-mut.py`, 18 formes dans
+  `LeasePolicy::view`) :
+  - sortie 1 sur G1, G2, G3, G6, G7, G11, G13, G15, G17 et G18 ;
+  - sortie 0, comme l'en-tête le déclare, sur G4, G5, G8, G9, G10, G12, G14 et G16 ;
+  - motif de `CalendarController` corrigé → sortie 1 ;
+  - refus de `BankStatementPolicy` retiré → sortie 1 (ligne morte) ;
+  - arbre : sortie 0.

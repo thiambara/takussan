@@ -7,12 +7,17 @@
  * `app/Http/Requests` et `app/Services` :
  *
  *   A. une comparaison de `$user->agency_id` (ou `$actor->`, `$request->user()->`,
- *      `$this->user()->`) à un `->agency_id` — `===`, `!==`, `==`, `!=` ;
- *   B. un `where(…agency_id…, $user->agency_id)` / `orWhere(…)`, à quelque profondeur de
- *      `whereHas` qu'il soit.
+ *      `$this->user()->`, `auth()->user()->`, `request()->user()->`, `Auth::user()->`, `?->`
+ *      compris) à un `->agency_id` ou à un `->id` (l'agence elle-même) — `===`, `!==`, `==`, `!=`,
+ *      dans les deux sens, `(int)` compris ;
+ *   B. un `where|orWhere|whereIn|orWhereIn('…agency_id', [opérateur,] $user->agency_id)`, la forme
+ *      tableau `where(['…agency_id' => $user->agency_id])`, et `whereRaw('… agency_id …',
+ *      [$user->agency_id])` — à quelque profondeur de `whereHas` que ce soit.
  *
  * …sauf si la MÊME instruction appelle aussi `isAgencyAdminAt(` (le droit d'admin, qui implique le
- * personnel) ou le prédicat — `staffAgencyId(`, `isStaffOf(`, `isStaffAt(`.
+ * personnel) ou le prédicat — `staffAgencyId(`, `isStaffOf(`, `isStaffAt(` — **sur la même
+ * agence** : l'argument de l'excuse contient l'un des deux membres comparés, et aucun `||` ne
+ * l'en sépare. `… || $user->isAgencyAdminAt(0)` ne blanchit rien (verif-587, G18).
  *
  * **Pourquoi elle existe.** `User::$agency_id` est l'agence du profil actif QUEL QUE SOIT son type,
  * donc aussi celle d'un bailleur. Onze policies et six `index` ouvraient lecture et écriture sur
@@ -30,8 +35,16 @@
  *
  * ## Ce qu'elle NE prouve PAS
  *
- *   · Elle cherche des FORMES. Une variable intermédiaire (`$a = $user->agency_id; … $a === …`)
- *     lui échappe, de même qu'un `isOwnerAt(` / `isAgentAt(` employé comme périmètre.
+ *   · Elle cherche des FORMES. Ce qui lui échappe, une ligne par forme (verif-587, M5) :
+ *       - variable intermédiaire : `$a = $user->agency_id; … $a === …` (sites connus : `HORS_DETECTION`) ;
+ *       - `$user->getAttribute('agency_id')`, `optional($user)->agency_id` ;
+ *       - `$user->activeProfile()?->agency_id` ;
+ *       - un périmètre jugé par profil : `isOwnerAt(`, `isAgentAt(`, `hasProfileAt(` ;
+ *       - `whereAgencyId($user->agency_id)` (where dynamique), `in_array($m->agency_id, [$user->agency_id])` ;
+ *       - `whereRaw` dont la valeur est interpolée dans la chaîne (`"agency_id = {$user->agency_id}"`) ;
+ *       - un `match`/ternaire dont le bras compare deux variables locales ;
+ *       - l'excuse ne regarde pas QUI elle juge : `… && isStaffAt($unTiers, $model->agency_id)` dans la
+ *         même instruction blanchit encore la clause. (G17 de verif-587, joint par `||`, est vu.)
  *   · « La même instruction » se découpe sur `;`, `{` et `}` : une clause dont l'excuse
  *     (`isAgencyAdminAt(`) est dans le `if` englobant, et non dans l'instruction, est signalée —
  *     faux rouge assumé, qui se corrige en lisant le prédicat.
@@ -40,7 +53,11 @@
  * ## Ses propres tests
  *
  * `CAS_EPREUVE` tourne à CHAQUE invocation, avant le balayage : cinq formes d'écriture au moins
- * (espacée, `!==`, `&&` en tête, `orWhereHas` imbriqué, `$actor->`) et les formes à laisser passer.
+ * (espacée, `!==`, `&&` en tête, `orWhereHas` imbriqué, `$actor->`), les formes de verif-587
+ * (G1, G2, G3, G6, G7, G15, AB-3c, G18) et les formes à laisser passer.
+ *
+ * `REFUS_SANS_OCTROI` et `HORS_DETECTION` : deux listes nommées, chacune avec son cliquet
+ * bilatéral et sa détection de ligne morte — voir leur déclaration.
  * Une garde dont le motif régresse sort en 1 sur elle-même.
  *
  * Usage :
@@ -79,15 +96,59 @@ const EXEMPTIONS = new Map([
 /** Le nombre d'exemptions. Bilatéral : il suit `EXEMPTIONS.size`, dans les deux sens. */
 const CLIQUET = 10;
 
-const ACTEUR = String.raw`\$(?:user|actor|request\s*->\s*user\(\s*\)|this\s*->\s*user\(\s*\))\s*(?:\?->|->)\s*agency_id\b`;
-const RE_ACTEUR = new RegExp(ACTEUR, 'g');
-const RE_AGENCE = /(?:\?->|->)\s*agency_id\b/g;
-const RE_COMPARAISON = /[!=]==?/;
-const RE_WHERE = new RegExp(
-  String.raw`\b(?:or)?where\s*\(\s*(['"])[\w.]*agency_id\1\s*,\s*(?:\(int\)\s*)?${ACTEUR}`,
-  'i',
-);
-const RE_EXCUSE = /\b(?:isAgencyAdminAt|staffAgencyId|isStaffOf|isStaffAt)\s*\(/;
+/**
+ * Des REFUS qui n'accordent rien : `if ($user->agency_id !== $agency->id) return false;` suivi d'un
+ * droit qui exige déjà l'admin ou l'administrateur principal. Ce n'est pas une fuite, mais la forme
+ * est celle qui en fait une ailleurs : chaque site est nommé, justifié, compté (cliquet bilatéral)
+ * et refusé s'il ne correspond plus à rien. Les réécrire par le prédicat change l'accès de
+ * l'administrateur principal sans profil d'admin actif (32 tests rouges, mesuré) : hors ticket.
+ */
+const REFUS_SANS_OCTROI = new Map([
+  ['app/Policies/BankStatementPolicy.php::viewAny', "la suite exige l'administrateur principal ou isAgencyAdminAt"],
+  ['app/Policies/RoleDelegationPolicy.php::viewAny', "la suite exige l'administrateur principal ou team.delegate_role en direct"],
+  ['app/Http/Requests/Permissions/StoreRoleDelegationRequest.php::validateBeneficiaryInAgency', "`$user` y est le BÉNÉFICIAIRE (validation), pas l'appelant"],
+]);
+const CLIQUET_REFUS = 3;
+
+/**
+ * Sites connus que la garde NE DÉTECTE PAS (variable intermédiaire, `getAttribute`) : inscrits à la
+ * main au nom du ticket qui les corrige, et vérifiés par recherche du motif dans le fichier. Quand
+ * le motif disparaît, la ligne est morte et la garde échoue : le ticket retire sa ligne et baisse
+ * `CLIQUET_HORS_DETECTION`. Sans cette liste, rien ne forcerait leur fermeture (verif-587, M5).
+ */
+const HORS_DETECTION = [
+  { site: 'app/Http/Controllers/Api/CalendarController.php::index', motif: '$agencyId = $user->agency_id;', ticket: 'TCK-591' },
+  { site: 'app/Policies/TaskPolicy.php::attachTo', motif: '$agencyId = $user->agency_id;', ticket: 'TCK-591' },
+];
+const CLIQUET_HORS_DETECTION = 2;
+
+/**
+ * L'agence de l'acteur : `$user`, `$actor`, `$request->user()`, `$this->user()`, `auth()->user()`,
+ * `request()->user()`, `Auth::user()` — suivis de `->agency_id` ou `?->agency_id`.
+ */
+const ACTEUR = String.raw`(?:\$(?:user|actor)|\$(?:request|this)\s*->\s*user\(\s*\)|(?:auth|request)\(\s*\)\s*->\s*user\(\s*\)|Auth::user\(\s*\))\s*(?:\?->|->)\s*agency_id\b`;
+const ACTEUR_INT = String.raw`(?:\(int\)\s*)?${ACTEUR}`;
+/** L'autre membre d'une comparaison : un `->agency_id` ou un `->id` (l'agence elle-même, AB-3c). */
+const OPERANDE = String.raw`(?:\(int\)\s*)?\$\w+(?:\s*(?:\?->|->)\s*\w+(?:\(\s*\))?)*?\s*(?:\?->|->)\s*(?:agency_id|id)\b`;
+const CMP = String.raw`\s*[!=]==?\s*`;
+/** Forme A : `ACTEUR == OPERANDE` ou `OPERANDE == ACTEUR`, l'opérande étant capturé. */
+const RE_COMPARAISONS = [
+  new RegExp(String.raw`${ACTEUR_INT}${CMP}(${OPERANDE})`, 'g'),
+  new RegExp(String.raw`(${OPERANDE})${CMP}${ACTEUR_INT}`, 'g'),
+];
+/** Une chaîne SQL qui nomme `agency_id` (`whereRaw('agency_id = ?', …)`), voir `sansCommentaires`. */
+const SQL_AGENCE = '§agency_id§';
+/**
+ * Forme B : `where|orWhere|whereIn|orWhereIn('…agency_id', [op,] [ACTEUR])`, la forme tableau
+ * `where(['…agency_id' => ACTEUR])`, et `whereRaw('… agency_id …', [ACTEUR])`.
+ */
+const RE_WHERES = [
+  new RegExp(String.raw`\b(?:or)?where(?:In)?\s*\(\s*(['"])[\w.]*agency_id\1\s*,\s*(?:(['"])[^'"]*\2\s*,\s*)?\[?\s*${ACTEUR_INT}`, 'gi'),
+  new RegExp(String.raw`\b(?:or)?where\s*\(\s*\[[^\]]*?(['"])[\w.]*agency_id\1\s*=>\s*${ACTEUR_INT}`, 'gi'),
+  new RegExp(String.raw`\b(?:or)?whereRaw\s*\(\s*(['"])${SQL_AGENCE}[^'"]*\1\s*,\s*\[[^\]]*?${ACTEUR_INT}`, 'gi'),
+];
+/** Les excuses : un appel au droit d'admin ou au prédicat, dont on lit les arguments. */
+const RE_EXCUSE = /\b(?:isAgencyAdminAt|staffAgencyId|isStaffOf|isStaffAt)\s*\(/g;
 
 /**
  * Remplace les commentaires par des blancs (sauts de ligne gardés). Une chaîne ne garde son
@@ -106,7 +167,10 @@ function sansCommentaires(src) {
       let j = i + 1;
       while (j < n && src[j] !== c) j += src[j] === '\\' ? 2 : 1;
       const contenu = src.slice(i + 1, j);
-      out += c + (/^[\w.]*$/.test(contenu) ? contenu : blanc(contenu)) + (j < n ? c : '');
+      // Une chaîne SQL qui nomme `agency_id` garde un marqueur (forme `whereRaw`) ; sa phrase,
+      // elle, est blanchie comme les autres : une phrase qui CITE la clause n'est pas la clause.
+      const garde = /^[\w.]*$/.test(contenu) ? contenu : (/agency_id/.test(contenu) ? SQL_AGENCE : '') + blanc(contenu);
+      out += c + garde + (j < n ? c : '');
       i = j + 1;
     } else if (c === '/' && d === '*') {
       const fin = src.indexOf('*/', i + 2);
@@ -181,18 +245,57 @@ function instructions(net) {
   return out;
 }
 
+const normal = (x) => x.replace(/\(int\)/g, '').replace(/\s+/g, '').replace(/\?->/g, '->');
+
+/** Les excuses d'une instruction : `{ debut, fin, args }`, `args` normalisés. */
+function excusesDe(t) {
+  const out = [];
+  for (const m of t.matchAll(RE_EXCUSE)) {
+    let i = m.index + m[0].length;
+    let prof = 1;
+    while (i < t.length && prof > 0) {
+      if (t[i] === '(') prof++;
+      else if (t[i] === ')') prof--;
+      i++;
+    }
+    out.push({ debut: m.index, fin: i, args: normal(t.slice(m.index + m[0].length, i - 1)) });
+  }
+  return out;
+}
+
+/**
+ * Une excuse ne blanchit une clause que si elle juge **la même agence** : son argument contient le
+ * membre comparé (`$kpi->agency_id === … && isAgencyAdminAt((int) $kpi->agency_id)`), et aucun
+ * `||` ne la sépare de la clause. `… || $user->isAgencyAdminAt(0)` (verif-587, G18) ne blanchit
+ * plus rien : la simple PRÉSENCE du mot suffisait.
+ */
+function excusee(t, clause, cible) {
+  // L'un ou l'autre membre de la comparaison : `(int) $target->agency_id === (int) $user->agency_id
+  // && $user->isAgencyAdminAt((int) $user->agency_id)` juge la même agence que `… $target …`.
+  const membres = [normal(cible), normal(new RegExp(ACTEUR).exec(t.slice(clause.debut, clause.fin))?.[0] ?? '\0')];
+  return excusesDe(t).some(({ debut, fin, args }) => {
+    if (!membres.some((m) => args.includes(m))) return false;
+    const entre = debut > clause.fin ? t.slice(clause.fin, debut) : t.slice(fin, clause.debut);
+    return !entre.includes('||');
+  });
+}
+
 /** Les violations d'un source PHP : `{ ligne, methode, forme, texte }`. */
 function violationsDe(src) {
   const trouvees = [];
   for (const ins of instructions(sansCommentaires(src))) {
     const t = ins.texte;
-    if (RE_EXCUSE.test(t)) continue;
-    const acteurs = [...t.matchAll(RE_ACTEUR)].length;
     let forme = null;
-    if (RE_WHERE.test(t)) {
-      forme = 'B — where(…agency_id, $user->agency_id)';
-    } else if (acteurs > 0 && [...t.matchAll(RE_AGENCE)].length > acteurs && RE_COMPARAISON.test(t)) {
-      forme = 'A — $user->agency_id comparé à un ->agency_id';
+    for (const re of RE_WHERES) {
+      for (const m of t.matchAll(re)) {
+        const acteur = new RegExp(ACTEUR).exec(m[0])[0];
+        if (!excusee(t, { debut: m.index, fin: m.index + m[0].length }, acteur)) forme ??= 'B — where(…agency_id, $user->agency_id)';
+      }
+    }
+    for (const re of RE_COMPARAISONS) {
+      for (const m of t.matchAll(re)) {
+        if (!excusee(t, { debut: m.index, fin: m.index + m[0].length }, m[1])) forme ??= 'A — $user->agency_id comparé à un ->agency_id ou à un ->id';
+      }
     }
     if (forme) trouvees.push({ ligne: ins.ligne, methode: ins.methode, forme, texte: t.trim().replace(/\s+/g, ' ') });
   }
@@ -211,8 +314,22 @@ const CAS_EPREUVE = [
   { php: "$q->where( \"agency_id\" , $request->user()->agency_id );", attendu: 1 },
   { php: 'return (int) $target->agency_id === (int) $user?->agency_id;', attendu: 1 },
   { php: '$ok = $user->agency_id\n    && $property->agency_id === $user->agency_id;', attendu: 1 },
+  // verif-587 (M5) — formes ajoutées
+  { php: "$q->where('agency_id', '=', $user->agency_id);", attendu: 1 }, // G1
+  { php: "$q->whereIn('agency_id', [$user->agency_id]);", attendu: 1 }, // G2
+  { php: "$q->where(['status' => 'x', 'agency_id' => $user->agency_id]);", attendu: 1 }, // G3
+  { php: 'return auth()->user()->agency_id === $model->agency_id;', attendu: 1 }, // G6
+  { php: 'return request()->user()?->agency_id === $model->agency_id;', attendu: 1 }, // G7
+  { php: "$q->whereRaw('agency_id = ?', [$user->agency_id]);", attendu: 1 }, // G15
+  { php: 'return $user->agency_id === $documentable->id;', attendu: 1 }, // AB-3c (l'agence elle-même)
+  { php: 'return $user->agency_id === $model->agency_id || $user->isAgencyAdminAt(0);', attendu: 1 }, // G18
+  { php: 'return $user->agency_id === $model->agency_id || $user->isAgencyAdminAt((int) $model->agency_id);', attendu: 1 }, // excuse séparée par ||
   // doit laisser passer
   { php: 'return $user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id);', attendu: 0 },
+  { php: 'return $user->agency_id !== null && $user->agency_id === $kpi->agency_id && $user->isAgencyAdminAt((int) $kpi->agency_id);', attendu: 0 },
+  { php: 'if ((int) $target->agency_id === (int) $user->agency_id && $user->isAgencyAdminAt((int) $user->agency_id)) { return true; }', attendu: 0 },
+  { php: "$q->whereRaw('lower(name) = ?', [$name]);", attendu: 0 },
+  { php: 'return $user->id === $documentable->id;', attendu: 0 },
   { php: 'if ($this->isStaffOf($user, $model->agency_id)) { return true; }', attendu: 0 },
   { php: "$q->orWhere('agency_id', $user->staffAgencyId());", attendu: 0 },
   { php: '// $user->agency_id === $model->agency_id', attendu: 0 },
@@ -255,6 +372,7 @@ if (fichiers.length < PLANCHER_FICHIERS) {
 const violations = [];
 const tolerees = [];
 const exemptionsVues = new Set();
+const refusVus = new Set();
 for (const f of fichiers) {
   const r = relApi(f);
   for (const v of violationsDe(readFileSync(f, 'utf8'))) {
@@ -262,6 +380,8 @@ for (const f of fichiers) {
     if (EXEMPTIONS.has(cle)) {
       exemptionsVues.add(cle);
       tolerees.push({ cle, ...v });
+    } else if (REFUS_SANS_OCTROI.has(cle)) {
+      refusVus.add(cle);
     } else {
       violations.push({ r, ...v });
     }
@@ -269,6 +389,27 @@ for (const f of fichiers) {
 }
 
 let echec = false;
+
+const refusMorts = [...REFUS_SANS_OCTROI.keys()].filter((cle) => !refusVus.has(cle));
+if (refusMorts.length > 0 || REFUS_SANS_OCTROI.size !== CLIQUET_REFUS) {
+  echec = true;
+  for (const cle of refusMorts) console.error(`✗ refus sans octroi mort (plus aucune clause) : ${cle} — retire la ligne et baisse CLIQUET_REFUS.`);
+  if (REFUS_SANS_OCTROI.size !== CLIQUET_REFUS) console.error(`✗ CLIQUET_REFUS vaut ${CLIQUET_REFUS}, mais REFUS_SANS_OCTROI en compte ${REFUS_SANS_OCTROI.size}.`);
+}
+
+for (const { site, motif, ticket } of HORS_DETECTION) {
+  const [chemin] = site.split('::');
+  const p = join(API, chemin);
+  if (!existsSync(p) || !readFileSync(p, 'utf8').includes(motif)) {
+    echec = true;
+    console.error(`✗ site hors détection disparu : ${site} (${ticket}) — le motif \`${motif}\` n'y est plus.`);
+    console.error('  Le ticket qui corrige le site retire sa ligne de HORS_DETECTION et baisse CLIQUET_HORS_DETECTION.');
+  }
+}
+if (HORS_DETECTION.length !== CLIQUET_HORS_DETECTION) {
+  echec = true;
+  console.error(`✗ CLIQUET_HORS_DETECTION vaut ${CLIQUET_HORS_DETECTION}, mais HORS_DETECTION en compte ${HORS_DETECTION.length}.`);
+}
 
 const mortes = [...EXEMPTIONS.keys()].filter((cle) => !exemptionsVues.has(cle));
 if (mortes.length > 0) {
@@ -290,6 +431,10 @@ if (REPORT) {
   console.log(`Balayage   : ${fichiers.length} fichiers PHP sous ${DOSSIERS.map(relApi).join(', ')}`);
   console.log(`Exemptions : ${EXEMPTIONS.size} (cliquet ${CLIQUET})`);
   for (const t of tolerees) console.log(`  toléré · ${t.cle}:${t.ligne} → ${EXEMPTIONS.get(t.cle)}\n      ${t.texte.slice(0, 140)}`);
+  console.log(`Refus sans octroi : ${REFUS_SANS_OCTROI.size} (cliquet ${CLIQUET_REFUS})`);
+  for (const [cle, motif] of REFUS_SANS_OCTROI) console.log(`  · ${cle} — ${motif}`);
+  console.log(`Hors détection : ${HORS_DETECTION.length} (cliquet ${CLIQUET_HORS_DETECTION})`);
+  for (const h of HORS_DETECTION) console.log(`  · ${h.site} → ${h.ticket}`);
   console.log(`Violations : ${violations.length}\n`);
 }
 
@@ -315,6 +460,6 @@ if (violations.length > 0) {
 
 if (echec) process.exit(1);
 
-console.log(`✓ périmètre d'agence : ${fichiers.length} fichiers balayés, 0 clause hors du prédicat — ${tolerees.length} tolérée(s) par ${EXEMPTIONS.size} exemption(s) nommée(s).`);
+console.log(`✓ périmètre d'agence : ${fichiers.length} fichiers balayés, 0 clause hors du prédicat — ${tolerees.length} tolérée(s) par ${EXEMPTIONS.size} exemption(s) nommée(s), ${REFUS_SANS_OCTROI.size} refus sans octroi, ${HORS_DETECTION.length} site(s) hors détection inscrit(s).`);
 console.log('  ⚠ PORTÉE : cherche des formes ; une variable intermédiaire lui échappe (voir l\'en-tête).');
 process.exit(0);
