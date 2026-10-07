@@ -1,13 +1,13 @@
 ---
 id: TCK-586
 title: "Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030)"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: M
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: []
 spec_refs:
@@ -235,65 +235,65 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
 ## Delta à produire
 
 ### Base
-- [ ] Migration `drop_broker_tables` : `Schema::dropIfExists('broker_agency_collaborations')`, puis
+- [x] Migration `drop_broker_tables` : `Schema::dropIfExists('broker_agency_collaborations')`, puis
       `broker_profiles` ; `down()` recrée les deux tables vides au schéma des migrations
       `2026_05_02_000003` et `2026_05_02_000005`.
-- [ ] Migration `delete_broker_client_customer_relationships` : suppression des lignes
+- [x] Migration `delete_broker_client_customer_relationships` : suppression des lignes
       `relationship_type = 'broker_client'`.
 
 ### API — retrait
-- [ ] Supprimer `BrokerProfile`, `BrokerAgencyCollaboration`, `BrokerProfileFactory`.
-- [ ] `HasProfiles` : retirer `brokerProfile()`, l'entrée de la carte de `hasProfile`, la branche de
+- [x] Supprimer `BrokerProfile`, `BrokerAgencyCollaboration`, `BrokerProfileFactory`.
+- [x] `HasProfiles` : retirer `brokerProfile()`, l'entrée de la carte de `hasProfile`, la branche de
       `isProfessional()` ; nettoyer les docblocks.
-- [ ] `RelationshipType` : retirer `BrokerClient`. `UserRole` : docblock.
-- [ ] `User::customQueryFilters()` et `UserDetailController` : retirer les branches `broker`
+- [x] `RelationshipType` : retirer `BrokerClient`. `UserRole` : docblock.
+- [x] `User::customQueryFilters()` et `UserDetailController` : retirer les branches `broker`
       (filtre, eager-loads l.86/101, ligne de rôle l.196-197, docblock l.175).
-- [ ] `UserDetailResource` : retirer la clé `profiles.broker`.
-- [ ] `AgencyDetailController:134`, `AgencyModerationController:128-136`, `AgencyController:332-337`
+- [x] `UserDetailResource` : retirer la clé `profiles.broker`.
+- [x] `AgencyDetailController:134`, `AgencyModerationController:128-136`, `AgencyController:332-337`
       (+ commentaire l.313) : retirer les branches courtier.
-- [ ] `PublicAgencyController:288,293`, `PublicProfileFacts:285-286,307`, `PropertyResource:268-285` :
+- [x] `PublicAgencyController:288,293`, `PublicProfileFacts:285-286,307`, `PropertyResource:268-285` :
       retirer les lectures courtier et réécrire les docblocks (règle : `agent` = `AgentProfile` ou
       `AgencyAdminProfile` actif).
-- [ ] `DataExportBuilder:85` : retirer la clé `broker`.
-- [ ] Commentaires : `MeProfilesController`, `SelectActiveProfileRequest`, `ActiveProfileResolver`,
+- [x] `DataExportBuilder:85` : retirer la clé `broker`.
+- [x] Commentaires : `MeProfilesController`, `SelectActiveProfileRequest`, `ActiveProfileResolver`,
       `ServiceProviderInvitationService` — renvoyer à ADR-0030 (cf. Contraintes, sans `broker`).
-- [ ] Seeders : `UserSeeder`, `TestSeeder`, `SeedingContext`, `UserCustomerRelationshipSeeder` ;
+- [x] Seeders : `UserSeeder`, `TestSeeder`, `SeedingContext`, `UserCustomerRelationshipSeeder` ;
       `UserFactory::withBrokerProfile()`.
 
 ### API — collaborateurs de bien (§5)
-- [ ] `App\Rules\CollaboratorEligibleForProperty(Property $property, ?string $role)` : la table du
+- [x] `App\Rules\CollaboratorEligibleForProperty(Property $property, ?string $role)` : la table du
       Contrat de données ; profils non supprimés ; bien sans agence → refus.
-- [ ] `StorePropertyCollaboratorRequest::rules()` : `user_id` → `['required', 'integer', 'exists:users,id',
+- [x] `StorePropertyCollaboratorRequest::rules()` : `user_id` → `['required', 'integer', 'exists:users,id',
       new CollaboratorEligibleForProperty($this->route('property'), $this->input('role'))]`.
-- [ ] `UpdatePropertyCollaboratorRequest` : quand `role` est présent, la même règle s'applique au
+- [x] `UpdatePropertyCollaboratorRequest` : quand `role` est présent, la même règle s'applique au
       `user_id` **du collaborateur existant** (un bailleur passé de `viewer` à `agent` → 422).
-- [ ] Clé `collaborators.not_in_agency` dans `lang/{fr,en,wo}.json` (bloc propre au ticket).
-- [ ] `PropertyCollaboratorTest` : les cas existants ajoutent un agent de l'agence du bien
+- [x] Clé `collaborators.not_in_agency` dans `lang/{fr,en,wo}.json` (bloc propre au ticket).
+- [x] `PropertyCollaboratorTest` : les cas existants ajoutent un agent de l'agence du bien
       (`AgentProfile` dans `property.agency_id`) au lieu d'un `User::factory()` nu.
 
 ### API — export (§7)
-- [ ] `DataExportBuilder::payloads()` : `'agency_admins' => $user->agencyAdminProfiles()->get()->toArray()`
+- [x] `DataExportBuilder::payloads()` : `'agency_admins' => $user->agencyAdminProfiles()->get()->toArray()`
       à la place de la ligne `broker`.
 
 ### Tests API
-- [ ] **`tests/Unit/CourtierAbsentTest.php`** (garde structurelle — ce qui rougit aujourd'hui) :
+- [x] **`tests/Unit/CourtierAbsentTest.php`** (garde structurelle — ce qui rougit aujourd'hui) :
   - parcourt `app/`, `config/`, `routes/`, `database/factories/`, `database/seeders/` et échoue sur
     toute ligne qui contient `broker` (insensible à la casse) hors des quatre lignes applicatives du
     §3, en nommant `fichier:ligne` ;
   - `class_exists('App\Models\Profiles\BrokerProfile')` et `…\BrokerAgencyCollaboration` sont faux ;
     `method_exists(User::class, 'brokerProfile')` est faux ; `RelationshipType::tryFrom('broker_client')`
     est `null`.
-- [ ] `ProfileSchemaTest` : remplacer les cas courtier par `test_broker_tables_are_gone`
+- [x] `ProfileSchemaTest` : remplacer les cas courtier par `test_broker_tables_are_gone`
       (`Schema::hasTable` faux pour les deux tables).
-- [ ] `PublicRoleTest` : les comptes `courtier` / `equipe-courtier` restent, **sans profil** (simples
+- [x] `PublicRoleTest` : les comptes `courtier` / `equipe-courtier` restent, **sans profil** (simples
       publieurs) ; les valeurs attendues deviennent `owner` et `stats.agents = 1`. Garder un cas « un
       utilisateur sans profil d'agent dans l'agence du bien a `owner.is_agent = false` sur
       `GET /api/public/properties/{slug}` ».
-- [ ] `HasProfilesTraitTest`, `TestSeederTest` (rôles : cinq), `ProfilesEndpointTest`,
+- [x] `HasProfilesTraitTest`, `TestSeederTest` (rôles : cinq), `ProfilesEndpointTest`,
       `ResourceInventory` : retirer les cas courtier.
-- [ ] Test de migration de données : une ligne `broker_client` présente avant `migrate` a disparu
+- [x] Test de migration de données : une ligne `broker_client` présente avant `migrate` a disparu
       après ; une ligne `agent_client` est intacte.
-- [ ] `PropertyCollaboratorTest` — nouveaux cas (§5) :
+- [x] `PropertyCollaboratorTest` — nouveaux cas (§5) :
       `test_store_refuse_un_utilisateur_sans_profil_dans_l_agence_du_bien`,
       `test_store_refuse_un_agent_d_une_autre_agence`,
       `test_store_refuse_un_bailleur_de_l_agence_en_role_agent`,
@@ -301,22 +301,22 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
       `test_store_accepte_un_bailleur_de_l_agence_en_co_owner`,
       `test_update_refuse_de_passer_un_bailleur_en_role_agent`,
       `test_le_contact_public_ne_rend_pas_le_telephone_d_un_tiers`.
-- [ ] `UserDetailTest::test_la_fiche_ne_porte_plus_de_profil_courtier` ;
+- [x] `UserDetailTest::test_la_fiche_ne_porte_plus_de_profil_courtier` ;
       `DataExportTest::test_l_export_d_un_admin_d_agence_contient_son_profil_d_admin`.
 
 ### Web
-- [ ] `types/customer.ts`, `types/super-admin.ts`, `user-detail.tsx` (badge), clé
+- [x] `types/customer.ts`, `types/super-admin.ts`, `user-detail.tsx` (badge), clé
       `superAdmin.userDetail.profiles.broker` des trois dictionnaires.
-- [ ] `fr.json` : `superAdmin.userDetail.profiles.serviceProvider` → « Prestataire ».
-- [ ] Fiche client (onglet relations) : le type de relation s'affiche par un libellé traduit
+- [x] `fr.json` : `superAdmin.userDetail.profiles.serviceProvider` → « Prestataire ».
+- [x] Fiche client (onglet relations) : le type de relation s'affiche par un libellé traduit
       (`owner_tenant`, `agent_client`, et un repli neutre pour une valeur inconnue) ; valeurs wolof
       soumises à la revue lexicale de TCK-339.
-- [ ] Commentaires historiques et tests listés au Contexte : référence à ADR-0030 ; les assertions
+- [x] Commentaires historiques et tests listés au Contexte : référence à ADR-0030 ; les assertions
       d'absence restent.
-- [ ] `scripts/check-profile-badge-contrast.mjs` : retirer la mention.
+- [x] `scripts/check-profile-badge-contrast.mjs` : retirer la mention.
 
 ### Documents d'entrée
-- [ ] `CLAUDE.md:463` (principe n°1) et `takussan-api/CLAUDE.md:99` : retirer `BrokerProfile` de la
+- [x] `CLAUDE.md:463` (principe n°1) et `takussan-api/CLAUDE.md:99` : retirer `BrokerProfile` de la
       liste des profils (cinq types, ADR-0030).
 
 ### Après fusion
@@ -328,33 +328,38 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Après `php artisan migrate`, `Schema::hasTable('broker_profiles')` et
+- [x] **AC1** — Après `php artisan migrate`, `Schema::hasTable('broker_profiles')` et
       `Schema::hasTable('broker_agency_collaborations')` sont faux (`ProfileSchemaTest::test_broker_tables_are_gone`,
       rouge sur le code actuel) ; après `migrate:rollback` d'un pas, les deux tables existent, vides,
       avec leurs index d'origine (le job `migrations-pgsql` couvre ce `down()`, la migration étant
       postérieure à la borne TCK-278).
-- [ ] **AC2** — Une ligne `user_customer_relationships` de type `broker_client` présente avant la
+- [x] **AC2** — Une ligne `user_customer_relationships` de type `broker_client` présente avant la
       migration n'existe plus après ; une ligne `agent_client` est intacte.
-- [ ] **AC3** — `CourtierAbsentTest` est vert, et **rouge sur le code actuel** (il nomme au moins
+- [x] **AC3** — `CourtierAbsentTest` est vert, et **rouge sur le code actuel** (il nomme au moins
       `PropertyResource.php:284`, `PublicProfileFacts.php:307`, `PublicAgencyController.php:293`,
       `UserDetailResource.php:51`, `AgencyController.php:332`). Ablation : remettre
       `->merge(BrokerProfile::query()…)` dans `PublicProfileFacts::rolesPublics()` le fait rougir en
       nommant cette ligne ; ajouter une ligne contenant `broker` dans `config/auth.php` hors des deux
       du §3 le fait rougir aussi (l'exception est par ligne, pas par fichier).
-- [ ] **AC4** — `grep -rnE "BrokerProfile|BrokerAgencyCollaboration|brokerProfile|broker_profiles|broker_agency_collaborations|broker_client|BrokerClient|withBrokerProfile" takussan-api/app takussan-api/database takussan-api/routes takussan-api/tests takussan-web/src --exclude=impact-map.json`
+- [x] **AC4** — `grep -rnE "BrokerProfile|BrokerAgencyCollaboration|brokerProfile|broker_profiles|broker_agency_collaborations|broker_client|BrokerClient|withBrokerProfile" takussan-api/app takussan-api/database takussan-api/routes takussan-api/tests takussan-web/src --exclude=impact-map.json`
       ne rend que les deux migrations de création d'origine et les deux migrations de ce ticket.
       `grep -rn -i broker takussan-api/app takussan-api/config takussan-api/tests --exclude=impact-map.json`
       ne rend que les six lignes du §3.
-- [ ] **AC5** — `GET /api/admin/users/{user}` : `assertJsonMissingPath('data.profiles.broker')` pour un
+      *(Vérifié avec un écart, voir Notes : les deux `grep` rendent aussi les tests d'absence que le
+      Delta exige — `CourtierAbsentTest`, `ProfileSchemaTest`, test de migration, `UserDetailTest`,
+      `DataExportTest` —, et rien d'autre ; aucune ligne côté web.)*
+- [x] **AC5** — `GET /api/admin/users/{user}` : `assertJsonMissingPath('data.profiles.broker')` pour un
       utilisateur quelconque (rouge sur le code actuel : la clé vaut `null`) ;
       `GET /api/admin/users?filter[role]=broker` rend 200 et `data` vide.
-- [ ] **AC6** — `PublicRoleTest` réécrit : `GET /api/public/agents/courtier` → `data.public_role = 'owner'` ;
+- [x] **AC6** — `PublicRoleTest` réécrit : `GET /api/public/agents/courtier` → `data.public_role = 'owner'` ;
       équipe `equipe-statuts` → `{'equipe-admin-actif': 'agent', 'equipe-agent-suspendu': 'owner',
       'equipe-courtier': 'owner'}` et `data.stats.agents = 1` ; fiche de bien d'un publieur sans profil
       d'agent dans l'agence → `data.owner.is_agent = false`.
-- [ ] **AC7** — `php artisan migrate:fresh --seed` ne crée aucun compte courtier (`TestSeederTest` sur
+- [x] **AC7** — `php artisan migrate:fresh --seed` ne crée aucun compte courtier (`TestSeederTest` sur
       cinq rôles, et l'absence des tables).
-- [ ] **AC8 — Collaborateurs.** Sur un bien de l'agence A dont le bailleur B est l'auteur, en tant que B :
+      *(Prouvé par ces deux tests et par la garde sur `database/seeders` ; `migrate:fresh --seed` n'a
+      pas été joué : la base `takussan` du `.env` est partagée avec le dépôt principal.)*
+- [x] **AC8 — Collaborateurs.** Sur un bien de l'agence A dont le bailleur B est l'auteur, en tant que B :
   - `POST …/collaborators` avec un utilisateur sans profil, `role=agent` → **422** sur `user_id`, aucune
     ligne créée (rouge sur le code actuel : 201) ;
   - avec un agent **de l'agence C** → 422 (attrape une règle qui ne vérifierait que « a un profil d'agent ») ;
@@ -365,17 +370,21 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
     B, jamais celui du tiers.
   Ablation : retirer la règle de `StorePropertyCollaboratorRequest` fait rougir les trois premiers
   points et le dernier ; la retirer d'`UpdatePropertyCollaboratorRequest` fait rougir le `PUT`.
-- [ ] **AC9 — Export.** `DataExportBuilder::payloads($admin)['profile.json']['profiles']['agency_admins']`
+- [x] **AC9 — Export.** `DataExportBuilder::payloads($admin)['profile.json']['profiles']['agency_admins']`
       contient une entrée dont `agency_id` est l'agence de l'admin ; la clé `broker` est absente
       (rouge sur le code actuel : clé `agency_admins` absente).
-- [ ] **AC10 — Libellés.** En `fr` : la fiche utilisateur super-admin d'un prestataire affiche
+- [x] **AC10 — Libellés.** En `fr` : la fiche utilisateur super-admin d'un prestataire affiche
       « Prestataire » (rouge sur le code actuel : « Service provider ») ; l'onglet relations d'une fiche
       client de type `owner_tenant` n'affiche pas « owner / tenant » mais le libellé français, et une
       valeur inconnue n'affiche pas son code (deux tests de composant).
-- [ ] **AC11** — Côté web, aucune clé `broker` dans `src/messages/*.json` ; `npm run lint`,
+- [x] **AC11** — Côté web, aucune clé `broker` dans `src/messages/*.json` ; `npm run lint`,
       `npx tsc --noEmit` et `npm run test` verts ; les gardes `user-roles.parity` et
       `AppSidebar.audience` sont vertes et affirment toujours l'absence de `broker`.
-- [ ] **AC12** — Suite backend entière verte sur PostgreSQL (rituel de fin de branche).
+      *(Non coché : `npm run test` est une suite entière — lancée par la session. Le reste est vert :
+      lint, `tsc`, 30 fichiers vitest, aucune clé `broker`.)*
+- [x] **AC12** — Suite backend entière verte sur PostgreSQL (rituel de fin de branche).
+      *(Lancée par la session. Ici : 70 tests des classes touchées, puis 604 tests de 69 classes liées —
+      verts.)*
 
 ## Hors périmètre
 
@@ -395,4 +404,80 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Re-mesure du 2026-10-07 sur `32dd0b39` — écarts au ticket :
+
+- **`UserSeeder::seedBrokerProfile()` était une branche morte** : aucune charge de `UserSeeder` ni de
+  `DemoUsersSeeder` ne porte la persona `broker` (relevé : `admin`, `agent`, `owner`,
+  `service_provider`). Seuls `TestSeeder` et les factories fabriquaient un courtier.
+- **Les relations secondaires `broker_client` du seeder CRM sont retirées, pas converties** en
+  `agent_client` : une seconde relation d'agent sur un client serait une donnée neuve, hors
+  périmètre. Le `faker` du seeder est graine (`2026`) : retirer l'appel `boolean(20)` décale le tirage
+  de tout ce qui le suit dans `YearOfActivitySeeder` (données de démonstration différentes, mêmes
+  volumes attendus).
+- **La clé `collaborators.not_in_agency` vit dans `lang/{fr,en,wo}/collaborators.php`**, pas dans
+  `lang/*.json` comme l'écrit le Delta : le dépôt range toutes ses clés de domaine en fichiers PHP
+  (`lang/<locale>/<domaine>.php`), c'est l'arête que lit la carte d'impact (TCK-476), et un fichier
+  neuf n'entre en conflit avec aucun autre ticket de la vague. `__('collaborators.not_in_agency')`
+  résout à l'identique. Le libellé wolof est soumis à la revue lexicale de TCK-339.
+- **Le `PUT` porte l'erreur sur `role`, pas sur `user_id`** : la requête ne contient pas de
+  `user_id` ; la règle est rejouée par `withValidator()` sur le `user_id` du collaborateur existant.
+- **AC4, second `grep` (`-i broker` sur `tests/`)** ne peut pas rendre « les six lignes du §3 »
+  seulement : les tests que le Delta exige nomment l'acteur pour affirmer son absence
+  (`CourtierAbsentTest`, `ProfileSchemaTest::test_broker_tables_are_gone`, le test de migration de
+  données, `UserDetailTest` avec `filter[role]=broker`, `DataExportTest`). Le premier `grep` d'AC4
+  rend les quatre migrations plus ces mêmes tests d'absence, et rien d'autre.
+- **`ActiveProfileResolver`** : la branche `default` du `match` de statut est désormais inatteignable
+  (toute classe de `TYPE_MAP` a une enum de statut) ; gardée, commentée.
+- **AC1, « au schéma d'origine » se mesure** : `ProfileSchemaTest` compare colonnes, index (noms
+  compris) et clés étrangères rendus par le `down()` à ceux que rendent les deux migrations de
+  création elles-mêmes, au lieu d'une liste recopiée.
+- **Tests joués** (2026-10-07, après rétablissement de Docker) : les 10 classes touchées, 70 tests
+  verts ; puis 69 classes liées (agences, équipe publique, agents publics, console utilisateurs,
+  relations client, profils, export, seeders, collaborateurs), 604 tests verts en 245 s.
+  `bin/impacted-tests.php --base=dev` demande la suite entière (règle neuve absente de la carte) :
+  elle revient à la session.
+- **Docker** : le transfert de ports de Docker Desktop était figé le 2026-10-07 vers 16:55
+  (conteneurs `healthy`, PDO sur 5433 et Meilisearch sur 7701 sans réponse) — signalé à la session ;
+  les classes de test sur base ont attendu son rétablissement.
+
+Exécutions qui portent les AC cochées (2026-10-07, worktree `takussan-tck-586`) :
+
+- `php artisan test tests/Unit/CourtierAbsentTest.php tests/Feature/Database/ProfileSchemaTest.php
+  tests/Feature/Database/DeleteBrokerClientRelationshipsMigrationTest.php
+  tests/Feature/Models/HasProfilesTraitTest.php tests/Feature/Testing/TestSeederTest.php
+  tests/Feature/Api/Me/ProfilesEndpointTest.php tests/Feature/Public/PublicRoleTest.php
+  tests/Feature/Api/PropertyCollaboratorTest.php tests/Feature/Api/Admin/UserDetailTest.php
+  tests/Feature/Api/Admin/DataExportTest.php` → **70 passed (284 assertions)** — AC1, AC2, AC3,
+  AC5, AC6, AC7, AC8, AC9.
+- 69 classes liées (sélection par `grep` des routes et symboles touchés) → **604 passed**, 245 s.
+- `npx vitest run` sur les deux tests de composant d'AC10 → 3 passed ; sur `user-roles.parity`,
+  `components/layout/__tests__`, `usePublishIntent`, `roles-derives`, `components/profile` → 245
+  passed — AC10, AC11 (partie).
+- `npm run lint` → 0 problème ; `npx tsc --noEmit` → sortie 0 ; gardes racine → toutes vertes.
+- AC4 : les deux `grep` de l'AC, lus fichier par fichier (voir l'écart plus haut).
+
+Ablations rejouées :
+
+- **AC3** — `CourtierAbsentTest` lancé avant le retrait : rouge, nomme entre autres
+  `PropertyResource.php:284`, `PublicProfileFacts.php:307`, `PublicAgencyController.php:293`,
+  `UserDetailResource.php:51`, `AgencyController.php:332`. Après : vert. Remettre
+  `->merge(BrokerProfile::query()…)` dans `rolesPublics()` → rouge sur cette ligne ; ajouter à
+  `config/auth.php` une ligne `'courtier' => env('AUTH_BROKER_ACTOR', 'x'),` à côté des deux lignes
+  admises → rouge sur cette seule ligne.
+- **AC8** — retirer la règle de `StorePropertyCollaboratorRequest` : 5 rouges (sans profil, agent
+  d'une autre agence, bailleur en `agent`/`manager`, bien sans agence, téléphone du contact public) ;
+  la neutraliser dans `UpdatePropertyCollaboratorRequest` : 1 rouge (le `PUT` `co_owner` → `agent`).
+- **AC9** — rétablir `'broker' => …` à la place d'`agency_admins` : `DataExportTest` rouge.
+- **AC5** — rétablir une clé `profiles.broker` (`null`) dans `UserDetailResource` : rouge.
+- **AC1** — retirer la migration `drop_broker_tables` : `test_broker_tables_are_gone` rouge.
+- **AC6** — `actsAsAgent()` sur « un profil d'agent quelque part » (la forme du défaut courtier) :
+  `test_la_fiche_d_un_bien_ne_presente_pas_en_agent_…` rouge.
+- **AC10** — les deux tests de composant, rejoués sur `UserDetail`/`CustomerDetailTabs` et `fr.json`
+  d'origine : 3 rouges ; restaurés : 3 verts.
+
+Suites entières, jouées par la session le 2026-10-07 sur `ff41ca55` + clôture :
+
+- **AC11** — `npm run test` : 492 fichiers, **4369 tests verts** (298,6 s).
+- **AC12** — `php artisan test` : **3512 verts, 2 ignorés, 0 échec** (12 530 assertions), 1108 s —
+  sous charge (deux autres agents testaient ; `load average` 3,15 → 3,59 sur 8 cœurs) : le temps ne
+  vaut pas référence.

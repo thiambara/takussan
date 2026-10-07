@@ -96,7 +96,8 @@ modèles le portent ; `User` redéfinit ses propres options avec une whitelist e
 Trois briques :
 
 1. **Profils** — `app/Models/Profiles/` : `OwnerProfile`, `AgentProfile`, `AgencyAdminProfile`,
-   `BrokerProfile`, `ServiceProviderProfile`, `PlatformProfile` (+ 2 pivots de collaboration).
+   `ServiceProviderProfile`, `PlatformProfile` (+ 1 pivot de collaboration, celui du prestataire).
+   Le courtier a quitté le code et la base (ADR-0030).
 2. **Capacités** — `app/Models/Enums/Capability.php` : enum string de 44 cas `<domaine>.<verbe>` sur
    12 domaines, avec `domain()`.
 3. **Résolution** — `app/Services/Membership/MembershipCapabilityResolver::allows(User, Capability,

@@ -29,7 +29,7 @@ import type { ProfileType } from '@/types/profile';
  * possède déjà. `service_provider` n'y figure pas volontairement : il ne
  * matérialise pas l'agence personnelle que cet assistant crée. (`broker` était
  * cité ici pour la même raison ; il n'est plus un `ProfileType` depuis le
- * 2026-08-31 — TCK-495, ADR-0027.)
+ * 2026-08-31 — TCK-495, ADR-0027 — et a quitté le code depuis, ADR-0030.)
  */
 const PROFILS_LIES_A_UNE_AGENCE = new Set<ProfileType>(['owner', 'agent', 'agency_admin']);
 

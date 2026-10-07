@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\Agency;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
@@ -80,8 +79,8 @@ class UserFactory extends Factory
      * 'agency_id' => $a->id])` pattern that lives in dozens of tests. Strips
      * the now-dropped column from the attributes and queues an OwnerProfile
      * on that agency in `afterCreating`. Tests that need a different profile
-     * type should call the explicit `withAgentProfile()` / `withBrokerProfile()`
-     * states instead.
+     * type should call the explicit `withAgentProfile()` /
+     * `withServiceProviderProfile()` states instead.
      */
     public function configure(): static
     {
@@ -145,13 +144,6 @@ class UserFactory extends Factory
                 'user_id' => $user->id,
                 'agency_id' => $agencyId,
             ]);
-        });
-    }
-
-    public function withBrokerProfile(): static
-    {
-        return $this->afterCreating(function (User $user): void {
-            BrokerProfile::factory()->create(['user_id' => $user->id]);
         });
     }
 

@@ -22,6 +22,13 @@ import { CustomerDocumentsPanel } from './CustomerDocumentsPanel';
  * Tabs shell for the customer detail page — TCK-042.
  */
 
+/**
+ * TCK-586 — le type de relation s'affichait par son code (`owner_tenant` → « owner / tenant »)
+ * dans toutes les langues. Une valeur que le front ne connaît pas s'affiche par un libellé
+ * neutre, jamais par son code.
+ */
+const TYPES_DE_RELATION_CONNUS = new Set(['owner_tenant', 'agent_client']);
+
 interface CustomerDetailTabsProps {
   readonly customer: CustomerDetail;
   readonly notes: CustomerNote[];
@@ -81,7 +88,7 @@ export function CustomerDetailTabs({
                 className="rounded-xl bg-card p-4 text-sm"
               >
                 <p className="font-semibold text-foreground">
-                  {rel.relationship_type.replace('_', ' / ')}
+                  {t(`type.${TYPES_DE_RELATION_CONNUS.has(rel.relationship_type) ? rel.relationship_type : 'other'}`)}
                 </p>
                 <p className="text-xs tabular-nums text-muted-foreground">
                   {t('since', { date: formatDateTime(rel.start_date, locale) })}

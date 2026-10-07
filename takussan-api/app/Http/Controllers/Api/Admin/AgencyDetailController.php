@@ -131,7 +131,7 @@ class AgencyDetailController extends Controller
             ->orderBy('last_name');
 
         $users = User::buildQuery($base, $request)
-            ->with(['agencyAdminProfiles', 'agentProfiles', 'ownerProfiles', 'brokerProfile', 'serviceProviderProfile', 'platformProfile'])
+            ->with(['agencyAdminProfiles', 'agentProfiles', 'ownerProfiles', 'serviceProviderProfile', 'platformProfile'])
             ->paginate(min(max((int) $request->query('per_page', 15), 1), 100));
 
         return $this->json([

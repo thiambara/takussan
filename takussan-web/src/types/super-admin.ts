@@ -230,7 +230,6 @@ export type AdminUserDetail = {
   profiles: {
     agent: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null; license_number: string | null }>;
     owner: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null }>;
-    broker: { id: number; status: string | null } | null;
     service_provider: { id: number; status: string | null } | null;
   };
   agencies: Array<{ id: number; name: string; slug: string }>;

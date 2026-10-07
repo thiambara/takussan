@@ -90,7 +90,7 @@ export function isTenant(roles: UserRole[]): boolean {
  * sans lui donner de rang ici casse la compilation. La version précédente était
  * un tableau littéral, que `tsc` ne pouvait pas juger incomplet. C'est le patron
  * déjà retenu pour `TYPE_RANK` dans `ProfileSwitcher` (TCK-329), et c'est lui
- * qui a signalé le retrait de `broker` (TCK-495) plutôt que de le laisser
+ * qui a signalé le retrait de `broker` (TCK-495, ADR-0030) plutôt que de le laisser
  * passer : une clé de trop dans une table exhaustive est une erreur `tsc`, pas
  * un rang inerte.
  */

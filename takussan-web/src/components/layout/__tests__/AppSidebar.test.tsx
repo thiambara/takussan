@@ -174,7 +174,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   // TCK-494 avait ajouté ici une ligne `broker: ['/app', '/app/messages',
   // '/app/documents']` — le socle nu, c'est-à-dire un rôle qui n'ouvre RIEN.
   // TCK-495 a tranché ce constat : le courtier sort de la surface commutable
-  // (ADR-0027) et n'est plus émis par `profileTypes()`, donc plus un `UserRole`.
+  // (ADR-0027), puis quitte le code (ADR-0030) : il n'est plus un `UserRole`.
   // La ligne n'est pas devenue fausse, elle n'a plus de sujet.
   service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
   super_admin: [
@@ -524,7 +524,7 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
     const jamaisSondees = ROLES.filter((role) => !sondesAttendues(role).has('pendingVisits'));
     // TCK-494 avait ajouté `broker` à cette liste — un courtier ne sondait aucune visite parce
     // qu'il n'avait AUCUNE entrée de menu au-delà du socle. La ligne disait le défaut au lieu de
-    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus. Le prestataire reste
+    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus (ADR-0030). Le prestataire reste
     // seul, et pour une raison qui, elle, est voulue : ses visites ne le concernent pas.
     expect(jamaisSondees).toEqual(['service_provider']);
   });

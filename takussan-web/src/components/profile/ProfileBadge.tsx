@@ -80,7 +80,7 @@ const TYPE_COLOR: Record<ProfileType, string> = {
   //     agent                14,16         13,54           9,85          10,88
   //     service_provider     11,50         10,97           8,10           8,99
   //
-  // (La ligne `broker  13,32  12,74  10,24  11,41` a été retirée avec le type — TCK-495. La
+  // (La ligne `broker  13,32  12,74  10,24  11,41` a été retirée avec le type — TCK-495, ADR-0030. La
   // mesure reste vraie de `--chart-4`, elle n'a simplement plus de type à décrire.)
   //
   // ⚠ Ces chiffres sont ceux de la GARDE, qui arrondit l'aplat composé à l'entier comme le fait

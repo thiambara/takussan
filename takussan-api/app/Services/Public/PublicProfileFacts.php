@@ -6,7 +6,6 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Property;
 use App\Models\Review;
 use Illuminate\Database\Eloquent\Builder;
@@ -282,13 +281,12 @@ final class PublicProfileFacts
      * ────────────────────────────────────────────────────────────────────────────────────────────
      *
      * `agent` pour un professionnel de l'immobilier en exercice — `AgentProfile` ou
-     * `AgencyAdminProfile` **actif**, ou `BrokerProfile` (le courtier, que la fiche de bien présente
-     * déjà comme agent : `PropertyResource::actsAsAgent()`) —, `owner` pour tout le reste. Le repli est `owner` et non `agent` parce que
+     * `AgencyAdminProfile` **actif** —, `owner` pour tout le reste. Le repli est `owner` et non `agent` parce que
      * chaque personne listée ici publie un bien dont elle est le bailleur (TCK-142) : c'est la
      * seule qualité que la surface puisse affirmer sans rien savoir d'autre. Un profil d'agent
      * suspendu ou inactif ne fait pas d'une personne un « agent immobilier » aux yeux du public.
      *
-     * Trois requêtes, quel que soit N — même contrainte que le reste de cette classe.
+     * Deux requêtes, quel que soit N — même contrainte que le reste de cette classe.
      *
      * @param  array<int,int>  $userIds
      * @return array<int, 'agent'|'owner'> indexé par `user_id`, une entrée par identifiant demandé
@@ -304,7 +302,6 @@ final class PublicProfileFacts
             ->whereIn('user_id', $userIds)
             ->pluck('user_id')
             ->merge(AgencyAdminProfile::query()->active()->whereIn('user_id', $userIds)->pluck('user_id'))
-            ->merge(BrokerProfile::query()->whereIn('user_id', $userIds)->pluck('user_id'))
             ->map(fn ($id) => (int) $id)
             ->flip();
 

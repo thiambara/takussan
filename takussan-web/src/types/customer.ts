@@ -72,7 +72,7 @@ export interface CustomerRelationship {
   id: number;
   user_id: number;
   customer_id: number;
-  relationship_type: 'owner_tenant' | 'agent_client' | 'broker_client' | string;
+  relationship_type: 'owner_tenant' | 'agent_client' | string;
   is_primary: boolean;
   status: 'active' | 'ended' | 'suspended' | string;
   start_date: string;

@@ -7,7 +7,6 @@ use App\Models\Enums\RelationshipType;
 use App\Models\Profiles\AgentProfile;
 use App\Models\UserCustomerRelationship;
 use Database\Seeders\Support\SeedingContext;
-use Database\Seeders\Support\Timeline;
 use Illuminate\Database\Seeder;
 
 class UserCustomerRelationshipSeeder extends Seeder
@@ -43,25 +42,6 @@ class UserCustomerRelationshipSeeder extends Seeder
                         'updated_at' => $startedAt,
                     ],
                 );
-
-                // ~20% of customers also have a secondary broker relationship.
-                if ($this->ctx->faker()->boolean(20)) {
-                    $secondary = $agentIds->reject(fn ($id) => $id === $primaryAgent)->random();
-                    UserCustomerRelationship::updateOrCreate(
-                        [
-                            'user_id' => $secondary,
-                            'customer_id' => $customer->id,
-                            'relationship_type' => RelationshipType::BrokerClient->value,
-                        ],
-                        [
-                            'status' => RelationshipStatus::Active->value,
-                            'is_primary' => false,
-                            'started_at' => Timeline::randomDateBetween($startedAt, Timeline::seedEnd())->toDateString(),
-                            'created_at' => $startedAt,
-                            'updated_at' => $startedAt,
-                        ],
-                    );
-                }
             }
         }
     }

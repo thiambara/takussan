@@ -126,8 +126,9 @@ const SOCLE = ['/app', '/app/messages', '/app/documents'];
  * quelque part » —, pas une preuve de justesse. La table `ATTENDU` ci-dessus est
  * ce qui juge du détail.
  *
- * Vérifié par ablation : remettre `'broker' => BrokerProfile::class` dans
- * `TYPE_MAP` fait rougir ce test en nommant `broker`.
+ * Vérifié par ablation (TCK-495) : remettre l'alias `broker` dans `TYPE_MAP`
+ * faisait rougir ce test en le nommant. Le courtier a depuis quitté le code
+ * (ADR-0030) ; un alias sans écran ajouté demain rougirait de même.
  */
 const RESOLVER_PHP = join(
   dirname(fileURLToPath(import.meta.url)),
