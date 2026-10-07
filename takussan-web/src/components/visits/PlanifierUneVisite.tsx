@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { CalendarPlus } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
-import { useAuth } from '@/context/AuthContext';
-import { isAdmin, isAgent } from '@/lib/roles';
+import { useMyProfiles } from '@/hooks/useProfiles';
 import { usePlanVisit } from '@/lib/queries/visits';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
 import { ApiError } from '@/lib/api';
@@ -39,6 +38,26 @@ interface PlanifierUneVisiteProps {
   readonly property?: Choix;
   /** Depuis la fiche client : le client est fixé. */
   readonly customer?: Choix;
+  /**
+   * L'agence du bien, quand on la connaît (fiche bien). `null` : bien sans agence, qui n'a aucun
+   * personnel. Omise : l'agence du profil actif (fiche client, calendrier).
+   */
+  readonly agencyId?: number | null;
+}
+
+const PROFILS_DU_PERSONNEL: ReadonlySet<string> = new Set(['agent', 'agency_admin']);
+
+/**
+ * Le profil ACTIF est-il du personnel actif de l'agence visée ? Le pendant, côté affichage, de
+ * `PersonnelDeLAgence::estPersonnel()` : un profil agent ou admin, au statut `active`, dans
+ * l'agence du bien. Ce n'est qu'une politesse — l'API décide.
+ */
+function usePersonnelActif(agencyId: number | null | undefined): boolean {
+  const { data } = useMyProfiles();
+  const actif = data?.data.find((p) => p.id === data.meta.active_profile_id);
+  if (!actif || !PROFILS_DU_PERSONNEL.has(actif.type) || actif.status !== 'active') return false;
+  if (agencyId === undefined) return actif.agency_id !== null;
+  return agencyId !== null && actif.agency_id === agencyId;
 }
 
 /**
@@ -52,12 +71,16 @@ interface PlanifierUneVisiteProps {
  * Réservé au PERSONNEL (agent, admin) : l'API ne laisse planifier pour un tiers que le personnel
  * actif de l'agence du bien (vérification adverse, B1/B2). Un bailleur qui l'ouvrirait réserverait
  * pour lui-même sans le savoir — le bouton ne lui est pas montré.
+ *
+ * Passe 2 (n4) — la garde lisait les rôles GLOBAUX (`isAgent(user.roles)`) : un agent SUSPENDU,
+ * ou dont le profil actif est celui d'une autre agence, voyait le bouton, et l'API, qui le traite
+ * en non-personnel, le faisait réserver pour lui-même. Elle lit désormais le profil actif.
  */
-export function PlanifierUneVisite({ property, customer }: PlanifierUneVisiteProps) {
+export function PlanifierUneVisite({ property, customer, agencyId }: PlanifierUneVisiteProps) {
   const t = useTranslations('visitPlanning.plan');
-  const { user } = useAuth();
+  const personnel = usePersonnelActif(agencyId);
   const [ouvert, setOuvert] = useState(false);
-  if (!user || !(isAgent(user.roles) || isAdmin(user.roles))) return null;
+  if (!personnel) return null;
   return (
     <>
       <Button type="button" variant="outline" className="h-10 gap-2 sm:h-8" onClick={() => setOuvert(true)}>

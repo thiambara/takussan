@@ -157,6 +157,9 @@ export async function fetchDashboardProperties(
  */
 export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   ...DASHBOARD_PROPERTY_FIELDS,
+  // TCK-590 (passe 2, n4) — « Planifier une visite » se juge sur le profil actif DANS
+  // l'agence du bien (`PlanifierUneVisite`).
+  'agency_id',
   'description',
   'bathrooms',
   'furnished',

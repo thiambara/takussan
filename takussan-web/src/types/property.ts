@@ -149,6 +149,8 @@ export interface PropertyPriceHistoryItem {
 }
 
 export interface PropertyDetail extends PropertyListItem {
+  /** TCK-590 — absente du JSON quand `fields[properties]` ne la demande pas. */
+  agency_id?: number | null;
   type_label: string;
   contract_type_label: string | null;
   rent_period_label: string | null;

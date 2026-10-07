@@ -108,7 +108,10 @@ export default async function Page({ params }: { params: Params }) {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <PlanifierUneVisite property={{ id: property.id, libelle: property.title }} />
+            <PlanifierUneVisite
+              property={{ id: property.id, libelle: property.title }}
+              agencyId={property.agency_id ?? null}
+            />
             <PropertyHeaderActions property={property} />
           </div>
         }
