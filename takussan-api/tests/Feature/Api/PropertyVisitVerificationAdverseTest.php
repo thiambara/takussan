@@ -387,6 +387,73 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         $this->postJson("/api/property-visits/{$id}/cancel", ['reason' => 'x'])->assertOk();
     }
 
+    /** Une demande anonyme publique au numéro donné, sur ce bien : l'id de la visite en attente. */
+    private function demandeAnonyme(Property $bien, string $numero): int
+    {
+        return (int) $this->postJson("/api/public/properties/{$bien->slug}/visit-request", [
+            'visitor_name' => 'Victime', 'visitor_phone' => $numero, 'scheduled_at' => $this->creneau(),
+        ])->assertCreated()->json('data.id');
+    }
+
+    /**
+     * Passe 3 (B2″) — sur un bien d'agence, `confirm` et `complete` sont des gestes de l'agence :
+     * le bailleur propriétaire ACTIF n'en fait aucun, et aucun SMS ne part (sonde P3-A1).
+     */
+    public function test_b2seconde_le_bailleur_actif_ne_confirme_ni_ne_clot(): void
+    {
+        $this->personnel($this->x, 'agency_admin');
+        $bailleur = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $bailleur);
+        $id = $this->demandeAnonyme($bien, '+221779990301');
+
+        Sanctum::actingAs($bailleur);
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertForbidden()
+            ->assertJsonPath('message', __('visits.staff_only'));
+        $this->postJson("/api/property-visits/{$id}/complete")->assertForbidden();
+
+        $this->assertSame(0, $this->smsVers('+221779990301'));
+        $this->assertSame(VisitStatus::Scheduled, PropertyVisit::query()->findOrFail($id)->status);
+    }
+
+    /** Passe 3 (B2″, M7′) — l'agent PARTI, créateur du bien, ne confirme ni ne clôt (sonde P3-B1). */
+    public function test_b2seconde_l_agent_parti_createur_ne_confirme_ni_ne_clot(): void
+    {
+        $this->personnel($this->x, 'agency_admin');
+        $parti = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x, $parti);
+        AgentProfile::query()->where('user_id', $parti->id)->get()->each->delete();
+        $id = $this->demandeAnonyme($bien, '+221779990302');
+
+        Sanctum::actingAs($parti->fresh());
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertForbidden();
+        $this->postJson("/api/property-visits/{$id}/complete")->assertForbidden();
+
+        $this->assertSame(0, $this->smsVers('+221779990302'));
+        $this->assertSame(VisitStatus::Scheduled, PropertyVisit::query()->findOrFail($id)->status);
+    }
+
+    /** Passe 3 (B2″) — l'agent SUSPENDU encore assigné à la visite ne confirme ni ne clôt (sonde P3-B2). */
+    public function test_b2seconde_l_agent_suspendu_encore_assigne_ne_confirme_ni_ne_clot(): void
+    {
+        $this->personnel($this->x, 'agency_admin');
+        $suspendu = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x);
+        $id = $this->demandeAnonyme($bien, '+221779990303');
+        PropertyVisit::query()->whereKey($id)->update(['agent_id' => $suspendu->id]);
+        AgentProfile::query()->where('user_id', $suspendu->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        Sanctum::actingAs($suspendu->fresh());
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertForbidden();
+        $this->postJson("/api/property-visits/{$id}/complete")->assertForbidden();
+
+        $this->assertSame(0, $this->smsVers('+221779990303'));
+
+        // Le personnel actif, lui, confirme : le SMS part.
+        Sanctum::actingAs($this->personnel($this->x));
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertOk();
+        $this->assertSame(1, $this->smsVers('+221779990303'));
+    }
+
     /** Écart (b) — sur un bien SANS agence, le propriétaire garde le geste, et le visiteur l'annulation de la sienne. */
     public function test_b_sur_un_bien_sans_agence_le_proprietaire_annule_et_deplace(): void
     {

@@ -10,5 +10,5 @@ return [
     'reassign_forbidden' => 'Changer l\'agent d\'une visite déjà attribuée demande le droit d\'attribuer.',
     'visitor_contact_required' => 'Indiquez le nom et le téléphone du prospect, ou choisissez une fiche client.',
     'not_bookable' => 'Ce bien n\'est pas ouvert aux visites.',
-    'staff_only' => 'Seul le personnel de l\'agence du bien peut annuler ou déplacer cette visite.',
+    'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',
 ];

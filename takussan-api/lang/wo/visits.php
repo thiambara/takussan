@@ -10,5 +10,5 @@ return [
     'reassign_forbidden' => 'Soppi ajaanu seetaan bu ñu joxe ba noppi, laaj na sañ-sañu joxe.',
     'visitor_contact_required' => 'Bindal turu ak telefonu kiliyaan bi, walla nga tànn fiche kiliyaan.',
     'not_bookable' => 'Kër gii ubbiwul ngir seetaan.',
-    'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a neenal walla toxal seetaan bii.',
+    'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a dëggal, jeexal, neenal walla toxal seetaan bii.',
 ];

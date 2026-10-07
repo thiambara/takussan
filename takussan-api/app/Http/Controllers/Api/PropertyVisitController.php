@@ -279,6 +279,10 @@ class PropertyVisitController extends Controller
     public function confirm(Request $request, PropertyVisit $visit): JsonResponse
     {
         $this->authorize('update', $visit);
+        // Vérification adverse, passe 3 (B2″) — confirmer, c'est le geste qui fait partir le SMS au
+        // visiteur (contrainte 4) : la même garde que `update` et `cancel`. Sur un bien d'agence,
+        // le bailleur, l'agent parti et l'agent suspendu encore assigné confirmaient (200 + SMS).
+        abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
 
         // TCK-075 AC2 — source-state check, overlap guard and status
         // flip happen inside a single DB transaction with row-level
@@ -294,6 +298,9 @@ class PropertyVisitController extends Controller
 
     public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
+        // Passe 3 (B2″, M7′) — clore la visite est un geste de l'agence, comme la confirmer.
+        abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
+
         abort_unless(
             in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true),
             422,
@@ -431,8 +438,8 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc annuler ou déplacer
-     * une visite, et en prévenir le visiteur ?
+     * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc confirmer, clore,
+     * annuler ou déplacer une visite, et en prévenir le visiteur ?
      *
      *   · **bien d'agence** : le super-admin et le personnel ACTIF de l'agence du bien, rien
      *     d'autre. Le bailleur n'est pas « l'agence » de la contrainte 4 ;
