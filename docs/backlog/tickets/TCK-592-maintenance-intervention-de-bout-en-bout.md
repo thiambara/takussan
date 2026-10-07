@@ -975,3 +975,16 @@ corrigent rien.
   - une réassignation sans devis, qui ne change pas le statut.
 - Sur `05dce4fc` : 2 rouges.
 - Ablations, 2 rouges chacune : sans remise à zéro, statut inchangé, sans archive.
+
+**Mineur 9a — décider d'un devis lit une capacité.**
+
+- `manageQuotes` délègue à `actAsPrincipal` : le bailleur du bien, ou le personnel qui tient
+  `maintenance.assign`. C'est la capacité la plus juste de `maintenance.*` : commander le devis,
+  c'est commander l'intervention.
+- `decideQuote` hérite de cette règle hors `awaiting_owner`.
+- Test `MaintenanceCapabilitiesTest::test_agent_without_any_maintenance_capability_cannot_decide_a_quote`
+  (v16) :
+  - un agent sans capacité reçoit 403 en approbation et en refus ;
+  - le témoin, avec `maintenance.assign`, reçoit 200.
+- Sur `05dce4fc` : 1 rouge. L'ablation (retour à `isPrincipalFor`) donne 1 rouge.
+- `check-capability-readers` reste vert.

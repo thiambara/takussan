@@ -111,7 +111,10 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function manageQuotes(User $user, MaintenanceRequest $request): bool
     {
-        return self::isPrincipalFor($user, $request->property);
+        // TCK-592 (verif-592, mineur 9) — ne lisait aucune capacité : un agent dont le rôle n'en
+        // porte aucune `maintenance.*` approuvait un devis. Commander le devis, c'est commander
+        // l'intervention : la même règle qu'`actAsPrincipal` (`maintenance.assign` pour l'équipe).
+        return $this->actAsPrincipal($user, $request);
     }
 
     /**

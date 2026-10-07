@@ -73,6 +73,21 @@ class MaintenanceCapabilitiesTest extends TestCase
     /**
      * @param  array<int,Capability>  $capabilities
      */
+    /** verif-592, mineur 9 (sonde v16) — décider d'un devis lit `maintenance.assign`. */
+    public function test_agent_without_any_maintenance_capability_cannot_decide_a_quote(): void
+    {
+        ['mr' => $mr, 'agency' => $agency] = $this->maintenanceScenario(MaintenanceStatus::QuoteSubmitted, ['quote_amount' => 1000, 'quote_submitted_at' => now()]);
+
+        Sanctum::actingAs($this->agentWithCapabilities($agency, []));
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertForbidden();
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/reject", ['reason' => 'Trop cher pour ce bien'])->assertForbidden();
+        $this->assertSame(MaintenanceStatus::QuoteSubmitted, $mr->refresh()->status);
+
+        Sanctum::actingAs($this->agentWithCapabilities($agency, [Capability::MaintenanceAssign]));
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk();
+        $this->assertSame(MaintenanceStatus::Approved, $mr->refresh()->status);
+    }
+
     private function agentWithCapabilities($agency, array $capabilities): User
     {
         $role = AgencyRole::factory()
