@@ -133,4 +133,33 @@ describe('<VisitDetail> — TCK-590', () => {
     render(withIntl(<VisitDetail id={1} />));
     expect(screen.queryByRole('button', { name: 'Proposer un autre créneau' })).not.toBeInTheDocument();
   });
+  it('passe 3 (R1) — un SMS retenu par une borne est dit à l’agent, un SMS parti ne l’est pas', async () => {
+    const user = userEvent.setup();
+    mutation.mutateAsync.mockResolvedValueOnce({
+      data: visite({ status: 'confirmed' }),
+      sms_sent: false,
+      sms_code: 'visit_sms_capped',
+      sms_message: 'Le SMS au visiteur n’est pas parti…',
+    });
+    const { unmount } = render(withIntl(<VisitDetail id={1} />));
+    await user.click(screen.getByRole('button', { name: 'Confirmer la visite' }));
+    await waitFor(() =>
+      expect(toastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Le SMS au visiteur n’est pas parti.', type: 'warning' }),
+      ),
+    );
+    unmount();
+
+    // SMS parti, puis aucun SMS prévu (visiteur sans numéro : pas de `sms_sent`) : rien à dire.
+    for (const reponse of [{ sms_sent: true }, {}]) {
+      toastAdd.mockClear();
+      mutation.mutateAsync.mockResolvedValueOnce({ data: visite({ status: 'confirmed' }), ...reponse });
+      const rendu = render(withIntl(<VisitDetail id={1} />));
+      await user.click(screen.getByRole('button', { name: 'Confirmer la visite' }));
+      await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' })));
+      expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'warning' }));
+      rendu.unmount();
+    }
+  });
 });
+

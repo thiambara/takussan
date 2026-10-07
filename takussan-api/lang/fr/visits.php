@@ -11,4 +11,5 @@ return [
     'visitor_contact_required' => 'Indiquez le nom et le téléphone du prospect, ou choisissez une fiche client.',
     'not_bookable' => 'Ce bien n\'est pas ouvert aux visites.',
     'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',
+    'sms_withheld' => 'Le SMS au visiteur n\'est pas parti : la limite d\'envoi vers ce numéro est atteinte. Prévenez-le par un autre moyen.',
 ];

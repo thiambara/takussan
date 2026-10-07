@@ -103,6 +103,23 @@ describe('<PlanifierUneVisite> — TCK-590', () => {
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
   });
 
+  it('passe 3 (R1) — la visite est planifiée mais le SMS retenu : l’agent le sait', async () => {
+    plan.mutateAsync.mockResolvedValueOnce({ data: { id: 5 }, sms_sent: false, sms_code: 'visit_sms_capped' });
+    const user = await ouvrir(<PlanifierUneVisite property={{ id: 10, libelle: 'Villa à Almadies' }} />);
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-12' } });
+    await user.selectOptions(screen.getByLabelText(/^Heure/), '10:00');
+    await user.type(screen.getByLabelText('Nom du prospect'), 'Moussa Fall');
+    await user.type(screen.getByLabelText('Téléphone'), '771234567');
+    await user.click(screen.getByRole('button', { name: 'Planifier' }));
+
+    await waitFor(() =>
+      expect(toastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Le SMS au visiteur n’est pas parti.', type: 'warning' }),
+      ),
+    );
+  });
+
   it('depuis la fiche client : le client est fixé, on cherche le bien', async () => {
     const user = await ouvrir(<PlanifierUneVisite customer={{ id: 45, libelle: 'Awa Diop' }} />);
 

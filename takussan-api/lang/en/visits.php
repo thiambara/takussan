@@ -11,4 +11,5 @@ return [
     'visitor_contact_required' => 'Enter the prospect\'s name and phone, or choose a customer record.',
     'not_bookable' => 'This property is not open for visits.',
     'staff_only' => 'Only the staff of the property\'s agency can confirm, complete, cancel or move this visit.',
+    'sms_withheld' => 'The text message to the visitor was not sent: the sending limit for this number has been reached. Let them know another way.',
 ];

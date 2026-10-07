@@ -6,6 +6,7 @@ import { CalendarPlus } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { usePlanVisit } from '@/lib/queries/visits';
+import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -115,6 +116,7 @@ function PlanifierDialog({
   onClose,
 }: PlanifierUneVisiteProps & { readonly onClose: () => void }) {
   const t = useTranslations('visitPlanning.plan');
+  const tPlanning = useTranslations('visitPlanning');
   const toast = useToast();
   const plan = usePlanVisit();
 
@@ -155,12 +157,20 @@ function PlanifierDialog({
     }
     setErreur(null);
     try {
-      await plan.mutateAsync({
+      const reponse = await plan.mutateAsync({
         property_id: propertyId,
         scheduled_at: instantADakar(jour, heure),
         ...(prospect ? { visitor_name: name.trim(), visitor_phone: phone } : { customer_id: customerId }),
       });
       toast.add({ title: t('success'), type: 'success' });
+      // Passe 3 (R1) — la visite est créée, mais le SMS au client a été retenu : l'agent le sait.
+      if (smsRetenu(reponse)) {
+        toast.add({
+          title: tPlanning('smsWithheld.title'),
+          description: tPlanning('smsWithheld.description'),
+          type: 'warning',
+        });
+      }
       onClose();
     } catch (err) {
       const message = err instanceof ApiError ? (err.data as { message?: string } | null)?.message : undefined;

@@ -11,4 +11,5 @@ return [
     'visitor_contact_required' => 'Bindal turu ak telefonu kiliyaan bi, walla nga tànn fiche kiliyaan.',
     'not_bookable' => 'Kër gii ubbiwul ngir seetaan.',
     'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a dëggal, jeexal, neenal walla toxal seetaan bii.',
+    'sms_withheld' => 'SMS bi jëm ci kiy seetaan demul : yemu yónnee ci nimero bii jot na. Xamal ko ci beneen yoon.',
 ];

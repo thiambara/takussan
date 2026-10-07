@@ -8,6 +8,7 @@ import type {
   VisitStatus,
   VisitType,
 } from '@/types/visit';
+import type { SortDuSms } from '@/lib/visites/sort-du-sms';
 
 /**
  * TCK-075 — React Query hooks for `/api/property-visits`.
@@ -167,8 +168,14 @@ export function useVisit(id: number | null | undefined) {
   );
 }
 
+/**
+ * TCK-590 (passe 3, R1) — les actions de l'agence qui préviennent le visiteur rendent aussi le
+ * sort du SMS ({@link SortDuSms}).
+ */
+export type VisitActionResponse = ApiResponse<PropertyVisit> & SortDuSms;
+
 export function useConfirmVisit(id: number) {
-  return useApiMutation<ApiResponse<PropertyVisit>, void>(
+  return useApiMutation<VisitActionResponse, void>(
     { path: `/api/property-visits/${id}/confirm`, method: 'POST' },
     {
       invalidate: [
@@ -195,7 +202,7 @@ export function useCompleteVisit(id: number) {
 }
 
 export function useCancelVisit(id: number) {
-  return useApiMutation<ApiResponse<PropertyVisit>, { reason?: string }>(
+  return useApiMutation<VisitActionResponse, { reason?: string }>(
     { path: `/api/property-visits/${id}/cancel`, method: 'POST' },
     {
       invalidate: [
@@ -208,7 +215,7 @@ export function useCancelVisit(id: number) {
 
 export function useUpdateVisit(id: number) {
   return useApiMutation<
-    ApiResponse<PropertyVisit>,
+    VisitActionResponse,
     { scheduled_at?: string; duration_minutes?: number; notes?: string }
   >(
     { path: `/api/property-visits/${id}`, method: 'PATCH' },
@@ -278,7 +285,7 @@ export interface PlanVisitPayload {
 }
 
 export function usePlanVisit() {
-  return useApiMutation<ApiResponse<PropertyVisit>, PlanVisitPayload>(
+  return useApiMutation<VisitActionResponse, PlanVisitPayload>(
     { path: '/api/property-visits', method: 'POST' },
     { invalidate: [['visits'], ['calendar']] },
   );

@@ -8148,6 +8148,10 @@
       "description": "La visite repasse en attente : l’agent confirme le nouveau créneau.",
       "submit": "Proposer",
       "success": "Nouveau créneau proposé."
+    },
+    "smsWithheld": {
+      "title": "Le SMS au visiteur n’est pas parti.",
+      "description": "La limite d’envoi vers ce numéro est atteinte. Prévenez le client par un autre moyen."
     }
   },
   "publicLeadErrors": {

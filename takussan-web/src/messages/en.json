@@ -8148,6 +8148,10 @@
       "description": "The viewing goes back to pending: the agent confirms the new slot.",
       "submit": "Propose",
       "success": "New slot proposed."
+    },
+    "smsWithheld": {
+      "title": "The text message to the visitor was not sent.",
+      "description": "The sending limit for this number has been reached. Let the client know another way."
     }
   },
   "publicLeadErrors": {

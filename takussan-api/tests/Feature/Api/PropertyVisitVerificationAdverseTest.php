@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Notifications\VisitCancelledNotification;
 use App\Notifications\VisitConfirmedNotification;
 use App\Notifications\VisitRescheduledNotification;
+use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -549,5 +550,75 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
 
         Notification::assertSentOnDemand(VisitConfirmedNotification::class);
         $this->assertInstanceOf(User::class, $agent);
+    }
+
+    /**
+     * Passe 3 (R1) — la séquence P3-A4 du vérificateur. Un particulier épuise SA borne vers le
+     * numéro d'un tiers (10 SMS en deux heures) ; une agence légitime qui planifie ensuite une
+     * visite pour ce numéro envoie toujours son SMS, à +3 h comme à +23 h. Et l'appelant dont le
+     * SMS est retenu le sait : `sms_sent: false` et un code.
+     */
+    public function test_r1_un_emetteur_qui_epuise_sa_borne_ne_coupe_pas_l_agence_legitime(): void
+    {
+        $numero = '+221779990010';
+        $particulier = $this->client(['phone' => '+221770000098']);
+        $bien = $this->bienDe(null, $particulier);
+        $id = $this->demandeAnonyme($bien, $numero);
+
+        Sanctum::actingAs($particulier);
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertOk()->assertJsonPath('sms_sent', true);
+        $deplacer = fn (int $jours) => $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: $jours)])->assertOk();
+        foreach (range(3, 6) as $jours) {
+            $deplacer($jours);
+        }
+        $this->travel(61)->minutes();
+        foreach (range(7, 11) as $jours) {
+            $deplacer($jours)->assertJsonPath('sms_sent', true);
+        }
+        $this->assertSame(10, $this->smsVers($numero));
+        $deplacer(12)->assertJsonPath('sms_sent', false)
+            ->assertJsonPath('sms_code', VisitNotifier::CODE_SMS_RETENU)
+            ->assertJsonPath('sms_message', __('visits.sms_withheld'));
+        $this->assertSame(10, $this->smsVers($numero));
+
+        $y = $this->agence();
+        $agentY = $this->personnel($y);
+        $bienY = $this->bienDe($y);
+        Sanctum::actingAs($agentY);
+        foreach ([3 * 60 - 61, 20 * 60] as $i => $minutes) {
+            $this->travel($minutes)->minutes();
+            $this->postJson('/api/property-visits', [
+                'property_id' => $bienY->id, 'visitor_name' => 'Victime', 'visitor_phone' => $numero,
+                'scheduled_at' => $this->creneau(jours: 14 + $i),
+            ])->assertCreated()->assertJsonPath('data.status', VisitStatus::Confirmed->value)
+                ->assertJsonPath('sms_sent', true)->assertJsonMissingPath('sms_code');
+            $this->assertSame(11 + $i, $this->smsVers($numero));
+        }
+    }
+
+    /**
+     * Passe 3 (R1) — le filet du destinataire : tous émetteurs confondus, 20 SMS de visite par
+     * jour vers un même numéro. Deux agences en font 10 chacune ; la troisième est retenue.
+     */
+    public function test_r1_le_filet_par_numero_borne_tous_les_emetteurs(): void
+    {
+        $numero = '+221779990011';
+        foreach (range(1, 3) as $n) {
+            $agence = $this->agence();
+            $bien = $this->bienDe($agence);
+            Sanctum::actingAs($this->personnel($agence));
+            $id = $this->postJson('/api/property-visits', [
+                'property_id' => $bien->id, 'visitor_name' => 'Victime', 'visitor_phone' => $numero,
+                'scheduled_at' => $this->creneau(),
+            ])->assertCreated()->json('data.id');
+            foreach (range(1, 9) as $i) {
+                if ($i === 5) {
+                    $this->travel(61)->minutes();
+                }
+                $reponse = $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: 2 + $i)])->assertOk();
+            }
+            $this->assertSame(min(20, 10 * $n), $this->smsVers($numero));
+        }
+        $reponse->assertJsonPath('sms_sent', false)->assertJsonPath('sms_code', VisitNotifier::CODE_SMS_RETENU);
     }
 }

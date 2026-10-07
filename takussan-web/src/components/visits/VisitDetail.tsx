@@ -14,6 +14,7 @@ import {
   useVisit,
 } from '@/lib/queries/visits';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
+import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { useCreneaux } from '@/lib/visites/useCreneaux';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
@@ -124,13 +125,26 @@ export function VisitDetail({ id }: { id: number }) {
     }
   }
 
+  // TCK-590 (passe 3, R1) — un SMS retenu par une borne se dit à l'agent : sans ce signal, il
+  // croyait le client prévenu.
+  function signalerSmsRetenu(reponse: unknown) {
+    if (smsRetenu(reponse)) {
+      toast.add({
+        title: tPlanning('smsWithheld.title'),
+        description: tPlanning('smsWithheld.description'),
+        type: 'warning',
+      });
+    }
+  }
+
   async function handleConfirm() {
-    await confirm.mutateAsync();
+    const reponse = await confirm.mutateAsync();
     toast.add({
       title: t('toasts.confirmed.title'),
       description: t('toasts.confirmed.description'),
       type: 'success',
     });
+    signalerSmsRetenu(reponse);
   }
 
   async function handleComplete() {
@@ -147,12 +161,13 @@ export function VisitDetail({ id }: { id: number }) {
   // Elles passent par un `Dialog` (patron de `BookingDetail`) ; appels, paramètres et format
   // envoyé sont inchangés.
   async function submitCancel(reason: string) {
-    await cancel.mutateAsync({ reason });
+    const reponse = await cancel.mutateAsync({ reason });
     toast.add({
       title: t('toasts.cancelled.title'),
       description: t('toasts.cancelled.description'),
       type: 'success',
     });
+    signalerSmsRetenu(reponse);
     setDialog(null);
     router.push('/app/visits');
   }
@@ -161,12 +176,13 @@ export function VisitDetail({ id }: { id: number }) {
     // TCK-590 — le champ se lit à l'heure de Dakar, comme la grille des visites : `new Date(champ)`
     // l'interprétait dans le fuseau du navigateur, et l'agent à Paris décalait la visite d'une heure.
     const iso = instantADakar(nextSlot.slice(0, 10), nextSlot.slice(11, 16));
-    await updateVisit.mutateAsync({ scheduled_at: iso });
+    const reponse = await updateVisit.mutateAsync({ scheduled_at: iso });
     toast.add({
       title: t('toasts.rescheduled.title'),
       description: t('toasts.rescheduled.description'),
       type: 'success',
     });
+    signalerSmsRetenu(reponse);
     setDialog(null);
   }
 

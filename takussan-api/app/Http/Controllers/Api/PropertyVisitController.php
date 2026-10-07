@@ -189,11 +189,11 @@ class PropertyVisitController extends Controller
             'type' => $data['type'] ?? VisitType::InPerson->value,
         ]);
 
-        $this->notifier->confirmed($visit->fresh(['property', 'visitor']));
+        $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']));
 
-        return $this->json([
+        return $this->json($this->avecSortDuSms([
             'data' => PropertyVisitResource::make($visit->refresh())->toArray($request),
-        ], 201);
+        ], $sms), 201);
     }
 
     public function update(UpdatePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
@@ -244,11 +244,12 @@ class PropertyVisitController extends Controller
 
         // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
         // une fois. `update` déplaçait l'heure sans prévenir personne.
+        $sms = null;
         if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($previous)) {
-            $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']));
+            $sms = $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']));
         }
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)], $sms));
     }
 
     /**
@@ -303,9 +304,9 @@ class PropertyVisitController extends Controller
         $visit = $this->scheduling->confirmOrFail($visit);
         $visit->load('property', 'visitor');
 
-        $this->notifier->confirmed($visit);
+        $sms = $this->notifier->confirmed($visit);
 
-        return $this->json(['data' => PropertyVisitResource::make($visit)->toArray($request)]);
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit)->toArray($request)], $sms));
     }
 
     public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
@@ -354,13 +355,14 @@ class PropertyVisitController extends Controller
         ]);
 
         $fresh = $visit->fresh(['property', 'visitor', 'agent']);
+        $sms = null;
         if ($byVisitor) {
             $this->notifier->cancelledByVisitor($fresh);
         } else {
-            $this->notifier->cancelledByAgency($fresh);
+            $sms = $this->notifier->cancelledByAgency($fresh);
         }
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)], $sms));
     }
 
     /**
@@ -466,6 +468,29 @@ class PropertyVisitController extends Controller
      * décision de la session). Les deux gardes se recouvrent pour le bailleur tiers : l'ablation
      * de l'une seule laisse le test vert, celle des deux le rougit.
      */
+    /**
+     * Passe 3 (R1) — le sort du SMS au visiteur, dit à l'appelant : `sms_sent` quand un SMS était
+     * prévu ; s'il a été retenu par une borne, un code et son libellé. Le front affiche le sien
+     * pour le code (`visits.smsWithheld`).
+     *
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    private function avecSortDuSms(array $payload, ?bool $sms): array
+    {
+        if ($sms === null) {
+            return $payload;
+        }
+
+        $payload['sms_sent'] = $sms;
+        if ($sms === false) {
+            $payload['sms_code'] = VisitNotifier::CODE_SMS_RETENU;
+            $payload['sms_message'] = __('visits.sms_withheld');
+        }
+
+        return $payload;
+    }
+
     private function agitPourLeBien(User $user, PropertyVisit $visit): bool
     {
         $property = $visit->property;

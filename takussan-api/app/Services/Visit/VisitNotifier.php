@@ -37,10 +37,19 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class VisitNotifier
 {
-    /** Vérification adverse (B2′) — SMS de visite vers un même numéro, toutes causes confondues. */
+    /**
+     * Vérification adverse (B2′, passe 3 R1) — SMS de visite vers un même numéro, par ÉMETTEUR :
+     * l'agence du bien, ou le particulier pour un bien sans agence.
+     */
     public const SMS_PAR_HEURE = 5;
 
     public const SMS_PAR_JOUR = 10;
+
+    /** Passe 3 (R1) — le filet du destinataire, tous émetteurs confondus. */
+    public const SMS_PAR_JOUR_PAR_NUMERO = 20;
+
+    /** Passe 3 (R1) — le code rendu à l'appelant quand le SMS au visiteur est retenu. */
+    public const CODE_SMS_RETENU = 'visit_sms_capped';
 
     public function __construct(private readonly ContactLeadService $leads) {}
 
@@ -49,15 +58,19 @@ class VisitNotifier
         $this->toAgency($visit, new VisitRequestedNotification($visit), withPrimaryAndOwner: true);
     }
 
-    public function confirmed(PropertyVisit $visit): void
+    /**
+     * Les événements vers le visiteur rendent le sort du SMS ({@see self::toVisitor()}) :
+     * `true` parti, `false` retenu par une borne, `null` aucun SMS prévu.
+     */
+    public function confirmed(PropertyVisit $visit): ?bool
     {
-        $this->toVisitor($visit, new VisitConfirmedNotification($visit));
+        return $this->toVisitor($visit, new VisitConfirmedNotification($visit));
     }
 
     /** L'agence a déplacé l'heure : le visiteur est prévenu. */
-    public function rescheduledByAgency(PropertyVisit $visit): void
+    public function rescheduledByAgency(PropertyVisit $visit): ?bool
     {
-        $this->toVisitor($visit, new VisitRescheduledNotification($visit));
+        return $this->toVisitor($visit, new VisitRescheduledNotification($visit));
     }
 
     /** Le visiteur propose un autre créneau : l'agence est prévenue. */
@@ -66,9 +79,9 @@ class VisitNotifier
         $this->toAgency($visit, new VisitRescheduledNotification($visit, parLeVisiteur: true));
     }
 
-    public function cancelledByAgency(PropertyVisit $visit): void
+    public function cancelledByAgency(PropertyVisit $visit): ?bool
     {
-        $this->toVisitor($visit, new VisitCancelledNotification($visit));
+        return $this->toVisitor($visit, new VisitCancelledNotification($visit));
     }
 
     public function cancelledByVisitor(PropertyVisit $visit): void
@@ -142,16 +155,20 @@ class VisitNotifier
         }
     }
 
-    private function toVisitor(PropertyVisit $visit, VisitNotification $notification): void
+    /**
+     * Passe 3 (R1) — rend le sort du SMS, pour que l'action le dise à l'appelant : un SMS retenu
+     * sans signal laissait l'agent croire le client prévenu.
+     */
+    private function toVisitor(PropertyVisit $visit, VisitNotification $notification): ?bool
     {
         $visit->loadMissing(['visitor', 'property']);
 
         try {
             if ($visit->visitor !== null) {
-                $this->borneLeSms($visit, $visit->visitor, $notification);
+                $sms = $this->borneLeSms($visit, $visit->visitor, $notification);
                 $visit->visitor->notify($notification);
 
-                return;
+                return $sms;
             }
 
             $routes = array_filter([
@@ -159,14 +176,17 @@ class VisitNotifier
                 'sms' => $visit->visitor_phone,
             ]);
             if ($routes === []) {
-                return;
+                return null;
             }
 
             $anonymous = Notification::routes($routes);
-            $this->borneLeSms($visit, $anonymous, $notification);
+            $sms = $this->borneLeSms($visit, $anonymous, $notification);
             $anonymous->notify($notification->locale($visit->locale ?? config('app.locale')));
+
+            return $sms;
         } catch (\Throwable) {
             // Silent — see toAgency().
+            return null;
         }
     }
 
@@ -176,30 +196,44 @@ class VisitNotifier
      * Le limiteur de `POST /property-visits` ne voyait qu'une des quatre portes : une demande
      * anonyme déposée au numéro d'un tiers, confirmée, puis déplacée huit fois, faisait partir
      * 9 SMS en 9 requêtes. Ici, tout SMS de visite vers un même numéro E.164 — confirmation,
-     * replanification, annulation, planification — compte sur la même clé : au plus
-     * {@see self::SMS_PAR_HEURE} par heure et {@see self::SMS_PAR_JOUR} par jour. Au-delà, le SMS
-     * est retenu (l'e-mail et le fil partent) et l'événement est journalisé sous une empreinte : le
-     * numéro n'apparaît ni dans le journal ni dans la clé du cache.
+     * replanification, annulation, planification — compte. Au-delà d'une borne, le SMS est retenu
+     * (l'e-mail et le fil partent) et l'événement est journalisé sous une empreinte : le numéro
+     * n'apparaît ni dans le journal ni dans la clé du cache.
+     *
+     * Passe 3 (R1) — la clé était GLOBALE au numéro : un particulier qui l'épuisait coupait pour
+     * 24 h les SMS de toute agence légitime vers ce client. Deux bornes désormais :
+     *   - par (numéro, émetteur), l'émetteur étant l'agence du bien, ou le particulier pour un bien
+     *     sans agence : {@see self::SMS_PAR_HEURE} par heure, {@see self::SMS_PAR_JOUR} par jour ;
+     *   - par numéro, tous émetteurs : {@see self::SMS_PAR_JOUR_PAR_NUMERO} par jour, le filet du
+     *     destinataire.
+     *
+     * @return bool|null `true` le SMS part, `false` il est retenu, `null` aucun SMS prévu
      */
-    private function borneLeSms(PropertyVisit $visit, object $notifiable, VisitNotification $notification): void
+    private function borneLeSms(PropertyVisit $visit, object $notifiable, VisitNotification $notification): ?bool
     {
         if (! in_array('sms', $notification->via($notifiable), true)) {
-            return;
+            return null;
         }
 
         $numero = TelephoneSaisi::normaliser($notifiable instanceof AnonymousNotifiable
             ? ($notifiable->routes['sms'] ?? null)
             : ($notifiable->routeNotificationFor('sms', $notification) ?? $notifiable->phone ?? null));
         if (! is_string($numero) || $numero === '') {
-            return;
+            return null;
         }
 
         $empreinte = hash_hmac('sha256', $numero, (string) config('app.key'));
-        $heure = 'visit-sms:h:'.$empreinte;
-        $jour = 'visit-sms:j:'.$empreinte;
+        $property = $visit->property;
+        $emetteur = $property?->agency_id !== null
+            ? 'a'.$property->agency_id
+            : 'u'.($property?->user_id ?? 0);
+        $heure = 'visit-sms:h:'.$emetteur.':'.$empreinte;
+        $jour = 'visit-sms:j:'.$emetteur.':'.$empreinte;
+        $filet = 'visit-sms:n:'.$empreinte;
 
         if (RateLimiter::tooManyAttempts($heure, self::SMS_PAR_HEURE)
-            || RateLimiter::tooManyAttempts($jour, self::SMS_PAR_JOUR)) {
+            || RateLimiter::tooManyAttempts($jour, self::SMS_PAR_JOUR)
+            || RateLimiter::tooManyAttempts($filet, self::SMS_PAR_JOUR_PAR_NUMERO)) {
             $notification->retenirLeSms();
             Log::notice('visit.sms_retenu', [
                 'visit_id' => $visit->id,
@@ -207,10 +241,13 @@ class VisitNotifier
                 'destinataire' => substr($empreinte, 0, 16),
             ]);
 
-            return;
+            return false;
         }
 
         RateLimiter::hit($heure, 3600);
         RateLimiter::hit($jour, 86400);
+        RateLimiter::hit($filet, 86400);
+
+        return true;
     }
 }

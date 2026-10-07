@@ -8148,6 +8148,10 @@
       "description": "Seetlu bi dina dellu ci xaar : ajaa bi dina dëggal waxtu bu bees bi.",
       "submit": "Digle",
       "success": "Waxtu bu bees bi digle nañu ko."
+    },
+    "smsWithheld": {
+      "title": "SMS bi jëm ci kiy seetaan demul.",
+      "description": "Yemu yónnee ci nimero bii jot na. Xamal kiliyaa bi ci beneen yoon."
     }
   },
   "publicLeadErrors": {
