@@ -576,6 +576,20 @@ Notes, section « Corrections après la passe 2 ».
 - [x] **Observation retenue** — une pénalité réglée à l'agence puis encaissée en ligne est marquée
       en double et signalée (333505da).
 
+### Partie 8 — Corrections après la passe 3 de vérification adverse (ajoutée le 2026-10-07)
+
+Cases ajoutées après la passe 3 (refus : 1 bloquant, 3 mineurs). Détail, tests et ablations dans les
+Notes, section « Corrections après la passe 3 ».
+
+- [x] **B1** — le jeu « quittance » d'`OwnerIsolationWithinAgencyTest` (TCK-587) porte une
+      échéance payée : il éprouve l'isolation, plus la garde d'impayé (85d020b3).
+- [x] **m1** — en repli, la part de pénalité en double est la pénalité de l'échéance, plus le
+      checkout entier (c7db2280).
+- [x] **m2** — sur un bail sans agence, son bailleur passe outre au checkout ouvert, motif
+      obligatoire et geste journalisé ; un tiers reçoit 403 (4962e48b).
+- [x] **m3** — l'échéancier n'offre de passer outre qu'à qui l'API l'accorde ; les autres lisent
+      le message du 409 (de3ba1c1).
+
 ## Critères d'acceptation
 
 - [x] **AC1** — Connecté comme locataire du bail, « Télécharger le contrat » produit un fichier PDF non
@@ -738,6 +752,23 @@ Notes, section « Corrections après la passe 2 ».
       un doublon signalé ; ni le locataire ni le bailleur ne passent outre ; l'échéancier le propose
       au 409 avec confirmation et motif.
       *Vérifié : `PaymentCheckoutOverrideTest` (3), `LeaseSchedule.test.tsx` ; rouges sous ablation.*
+      *Passe 3 (m2) : sauf sur un bail sans agence, où son bailleur passe outre — AC32.*
+- [x] **AC31 (ajouté après la passe 3, B1/m1)** — l'isolation de la quittance entre bailleurs d'une
+      même agence s'éprouve sur une échéance payée ; la part de pénalité marquée en double vaut la
+      pénalité (7 500) même quand l'historique du checkout ne la porte pas.
+      *Vérifié : `OwnerIsolationWithinAgencyTest` (97), `tests/Feature/Authorization` (151),
+      `tests/Feature/Api/Agency` (74), `PaymentCheckoutReuseTest::test_la_part_de_penalite_d_un_checkout_sans_late_fee_amount_est_la_penalite` ;
+      rouges sous ablation.*
+- [x] **AC32 (ajouté après la passe 3, m2)** — sur un bail sans agence, le bailleur du bail
+      enregistre loyer et pénalité malgré un checkout ouvert, motif obligatoire, geste journalisé ;
+      le locataire, un autre bailleur, un agent et le super-admin reçoivent 403.
+      *Vérifié : `PaymentCheckoutOverrideTest::test_sur_un_bail_sans_agence_le_bailleur_passe_outre` ;
+      rouge sous ablation, dans chacune des deux requêtes.*
+- [x] **AC33 (ajouté après la passe 3, m3)** — au 409 `checkout_in_progress` sur « Pénalité
+      réglée », le dialogue « passer outre » ne s'ouvre que pour un profil d'agent ou d'admin actif
+      de l'agence du bail, ou pour le bailleur d'un bail sans agence ; les autres lisent le montant
+      en cours et l'heure de reprise, sans offre.
+      *Vérifié : `LeaseSchedule.test.tsx` (3 tests) ; rouges sous ablation.*
 
 ## Hors périmètre
 
@@ -1147,7 +1178,8 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   pénalité reste celle de l'agence, et `gateway_duplicate_payment[]` reçoit
   `{transaction_id, amount: part pénalité, at, kind: late_fee}` ; les admins sont prévenus par
   `payments.duplicate_payment.late_fee_body` (fr/en/wo). Repli pour une entrée antérieure :
-  montant figé − reste dû du loyer. Test
+  montant figé − reste dû du loyer *(faux : lu après le passage à `paid`, il valait le checkout
+  entier — corrigé en passe 3, m1)*. Test
   `PaymentCheckoutReuseTest::test_une_penalite_reglee_entre_temps_a_l_agence_est_marquee_en_double`
   (avec le témoin : pénalité non réglée, soldée sans doublon). Ablations : retour au `??=` → rouge ;
   part de pénalité non figée → rouge ; corps de notification générique → rouge.
@@ -1155,3 +1187,46 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   rouge attendu — N2 supposait le checkout rendu (`assertOk`) ; il est désormais refusé en 409,
   c'est le correctif. Mesures : `[N1] driver_calls=2 third_txn=spy_txn_2`, `[N4] dup=null`,
   `[N5] delimiter_vide=422 delimiter_espace=422`, `[N7] http=409 cents=[]`.
+
+### Corrections après la passe 3 de vérification adverse (VERIF-593 passe 3, refusé : 1 bloquant, 3 mineurs), 2026-10-07
+
+Chaque point : un commit, un test rouge sans le correctif, ablation restaurée par `cp`.
+
+- **B1 (bloquant) — la fusion de 587 rougissait `OwnerIsolationWithinAgencyTest`, jeu « quittance ».**
+  Le code est juste (P2 : pas de quittance d'impayé, 422), le test était périmé : il demandait la
+  quittance de l'échéance `Pending` de la fixture. Le jeu porte désormais sa propre échéance,
+  `paidPayment`, payée avec `paid_at` ; l'échéance en attente reste celle de « loyer — marquer
+  payé », qui en a besoin. Ablations : échéance remise en attente → rouge ; route remise sur
+  `{payment}` → rouge. Puis, en entier : `tests/Feature/Authorization` 151 verts,
+  `tests/Feature/Api/Agency` 74 verts ; les autres classes de quittance (`ReceiptPdfTest`,
+  `BookingPaymentTest`, `PaymentReceiptPdfTest`) 20 verts.
+- **m1 — le repli de la part de pénalité marquait le loyer entier.** `$feePart` est évalué après
+  `writeStatus(Paid)` : `remaining_amount` y vaut 0, la part valait le checkout (157 500). Le repli
+  lit la pénalité de l'échéance, arrondie à l'unité de la devise
+  (`roundToCurrencyUnit((float) $payment->late_fee_amount)`). Test
+  `PaymentCheckoutReuseTest::test_la_part_de_penalite_d_un_checkout_sans_late_fee_amount_est_la_penalite`
+  (rouge avant : `157500 ≠ 7500`), qui vérifie aussi le corps de la notification. Ablation (ancien
+  repli) → rouge.
+- **m2 — bail sans agence, blocage sans recours.** `MarkPaidLeasePaymentRequest` et
+  `MarkLateFeePaidRequest` : `isAgencyStaff()` devient `mayOverrideOpenCheckout()` — personnel
+  actif de l'agence du bail, ou, quand l'agence est nulle, le bailleur du bail (`landlordWrites`
+  d'une agence `null`). Motif obligatoire et journal inchangés (mêmes services). Test
+  `PaymentCheckoutOverrideTest::test_sur_un_bail_sans_agence_le_bailleur_passe_outre` : locataire,
+  autre bailleur, agent quelconque et super-admin → 403 sur les deux gestes ; le bailleur → 409
+  sans passer outre, 422 sans motif, 200 avec, journal `open_checkout_overridden` à son nom, puis la
+  pénalité. Ablations, dans chacune des deux requêtes : branche → `false` → rouge ; branche →
+  `true` → rouge (le super-admin, qui encaisse par `recordPayment`, passerait outre — c'est le seul
+  tiers que `recordPayment` laisse entrer sur un bail sans agence, d'où sa présence dans le test).
+- **m3 — le dialogue proposé au bailleur, que l'API refuse ensuite.** `peutPasserOutreAuCheckout`
+  (`src/components/leases/passer-outre.ts`) reprend la règle de l'API : profil `agent` ou
+  `agency_admin`, `active`, de l'agence du bail (lus par `useMyProfiles`) ; sur un bail sans
+  agence, l'utilisateur est son bailleur (`landlordId`, nouvelle prop passée par `LeaseDetail`).
+  Les délégations n'y figurent pas : un délégué n'encaisse pas du tout. Pour les autres, le 409
+  rend un toast `payments.gateway.error.checkoutInProgress` (montant, heure de reprise) au lieu du
+  dialogue. Tests `LeaseSchedule.test.tsx` : bailleur d'agence, agent d'une autre agence, agent
+  suspendu → toast, aucun dialogue ; bailleur d'un bail sans agence → dialogue ; tiers d'un bail
+  sans agence → toast. Ablations : offre sans garde → 2 rouges ; branche sans agence → `false` /
+  → `true` → rouge ; statut, agence ou type de profil retirés → rouge chacun.
+- **Repro du vérificateur rejouée** (`Pass3AdversarialTest`, copiée puis retirée) : 9 verts.
+  Mesures : `[M5-sans-agence] init=200 plain=409 over=200`, `[FEE-fallback] amount=7500` (« The late
+  fee of 7 500… »), `[M5-qui]` inchangé (super-admin 403).
