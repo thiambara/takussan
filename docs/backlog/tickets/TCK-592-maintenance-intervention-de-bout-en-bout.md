@@ -381,15 +381,15 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **E. Lecture des pièces et kit d'accès (P6, P7, P15 back)**
 
-- [ ] **En premier, avant tout bloc `media`** : `SubmitQuoteRequest` — `attachments.*` →
+- [x] **En premier, avant tout bloc `media`** : `SubmitQuoteRequest` — `attachments.*` →
       `['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120']` (`:29`). La réécriture de F garde cette
       règle à l'identique
-- [ ] Collection `before_photos` ; `UploadPhotosMaintenanceRequestRequest` l'accepte pour le
+- [x] Collection `before_photos` ; `UploadPhotosMaintenanceRequestRequest` l'accepte pour le
       prestataire accepté
-- [ ] Bloc `media` (URL signées par `PrivateMediaAccess::signedUrl`) ; `quotes` au donneur d'ordre et
+- [x] Bloc `media` (URL signées par `PrivateMediaAccess::signedUrl`) ; `quotes` au donneur d'ordre et
       au prestataire seulement
-- [ ] Bloc `access` dans la fenêtre définie ci-dessus
-- [ ] Tests : `MaintenanceQuoteAttachmentTypeTest`, `MaintenanceMediaExposureTest`, `MaintenanceAccessKitTest`
+- [x] Bloc `access` dans la fenêtre définie ci-dessus
+- [x] Tests : `MaintenanceQuoteAttachmentTypeTest`, `MaintenanceMediaExposureTest`, `MaintenanceAccessKitTest`
 
 **F. Devis (P11 back, P12, O14) — ADR 1 d'abord**
 
@@ -652,3 +652,26 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - Ablations : confirm/contest ouverts à tout lecteur (`return true`) → 2 rouges (prestataire, autre
   bailleur) ; seuil à 6 jours → 1 ; contestation
   sans remise à nul de `completed_at` → 1.
+
+### E — lecture des pièces, kit d'accès, `abilities`
+
+- `SubmitQuoteRequest` (`mimes:pdf,jpg,jpeg,png,webp`) committé **seul et avant** le bloc `media`
+  (03da56b5). `MaintenanceQuoteAttachmentTypeTest` : `.html`, `.svg`, `.txt` → 422 sur `attachments.0` ;
+  témoin PDF + image → 200. Ablation `mimes` retiré → 3 rouges.
+- `media`, `access` et `abilities` ne sont rendus que pour **la demande de la route**
+  (`{maintenanceRequest}` lié) : la liste n'en porte pas (sinon une requête de médias et une batterie
+  de policies par ligne). Garde `hasParameter()` : une route non liée lève sur `parameters()`
+  (`DateInventoryByValueTest` l'a montré).
+- `access` : prestataire assigné ET `accepted_at` ET ni `closed` ni `cancelled` ET `actAsProvider`
+  (collaboration toujours active). `access_instructions` n'est lu, en clair, que par le donneur
+  d'ordre ; le demandeur ne le reçoit pas.
+- `abilities.transitions` suit les deux portes de `PUT …/status` : `update` puis (acteur, cible),
+  cibles génériques seulement. Le demandeur n'y a rien — il confirme par son geste.
+- Photos « avant » : `before_photos` (privée), prestataire assigné (403 sinon), accepté (422
+  `before_photos_requires_acceptance` sinon). `MediaDiskCollectionsTest` enregistre la collection.
+- Disque de test : la sortie privée **redirige** (302, le disque factice émet une URL temporaire) ; le
+  test de téléchargement accepte 200 ou 302 et vérifie la signature (une signature altérée → 403).
+- Exécutions : `tests/Unit/Http/Resources tests/Feature/Media tests/Feature/Maintenance` → 355 verts.
+- Ablations : `media.quotes` pour tous → 1 rouge ; kit d'accès avant acceptation → 1 ; après clôture
+  ou annulation → 2 ; photos « avant » sans acceptation → 1 ; transitions sans la porte `update` → 1 ;
+  consignes rendues au demandeur → 1.

@@ -299,6 +299,13 @@ class MaintenanceRequestController extends Controller
             $this->authorize('update', $maintenanceRequest);
         }
 
+        // TCK-592 (P7) — les photos « avant » : le prestataire assigné, une fois l'intervention
+        // acceptée. Avant acceptation, il n'est pas encore passé sur place.
+        if ($collection === 'before_photos') {
+            $this->authorize('actAsProvider', $maintenanceRequest);
+            abort_if($maintenanceRequest->accepted_at === null, 422, __('maintenance.errors.before_photos_requires_acceptance'));
+        }
+
         $added = $this->service->addPhotos($maintenanceRequest, $request->file('photos', []), $collection);
 
         return $this->json(['data' => $added], 201);

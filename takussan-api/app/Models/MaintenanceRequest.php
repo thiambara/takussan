@@ -141,6 +141,8 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         $this->addMediaCollection('photos');
         $this->addMediaCollection('completion_photos');
         $this->addMediaCollection('quotes');
+        // TCK-592 (P7) — l'état constaté par le prestataire AVANT d'intervenir.
+        $this->addMediaCollection('before_photos');
     }
 
     /**
