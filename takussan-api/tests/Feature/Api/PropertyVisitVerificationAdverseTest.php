@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\VisitConfirmedNotification;
@@ -15,6 +16,7 @@ use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
@@ -54,6 +56,43 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
     private function idFicheTierce(): int
     {
         return (int) Customer::query()->where('email', 'secret@example.com')->value('id');
+    }
+
+    /** Les SMS réellement partis vers ce numéro (le canal `sms` figure dans l'envoi). */
+    private function smsVers(string $numero): int
+    {
+        $n = 0;
+        foreach (Notification::sentNotifications() as $parId) {
+            foreach ($parId as $classes) {
+                foreach ($classes as $envois) {
+                    foreach ($envois as $envoi) {
+                        $a = $envoi['notifiable'] ?? null;
+                        if ($a instanceof AnonymousNotifiable && ($a->routes['sms'] ?? null) === $numero
+                            && in_array('sms', $envoi['channels'], true)) {
+                            $n++;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $n;
+    }
+
+    /** La séquence du vérificateur (N1) : demande anonyme au numéro d'un tiers, confirmation, 8 déplacements. */
+    private function relais(User $acteur, Property $bien, string $numero, int $deplacements = 8): int
+    {
+        $id = $this->postJson("/api/public/properties/{$bien->slug}/visit-request", [
+            'visitor_name' => 'Victime', 'visitor_phone' => $numero, 'scheduled_at' => $this->creneau(),
+        ])->assertCreated()->json('data.id');
+
+        Sanctum::actingAs($acteur);
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertOk();
+        for ($i = 0; $i < $deplacements; $i++) {
+            $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: 3 + $i)])->assertOk();
+        }
+
+        return (int) $id;
     }
 
     /** Aucune coordonnée de la fiche tierce n'est rendue, ni écrite, ni prévenue. */
@@ -191,6 +230,63 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
             'property_id' => $bien->id, 'visitor_name' => 'Client 31', 'visitor_phone' => '+221771099999',
             'scheduled_at' => $this->creneau(jours: 6),
         ])->assertStatus(429);
+    }
+
+    /**
+     * B2′ (R) — le relais rouvert par une autre porte : demande anonyme, confirmation, 8 `PATCH`.
+     * 9 SMS en 9 requêtes avant la borne au point d'envoi ; 5 après, et l'annulation qui suit n'en
+     * fait pas partir un sixième. L'e-mail, lui, n'est pas borné.
+     */
+    public function test_b2prime_le_relais_par_confirmation_et_deplacements_est_borne(): void
+    {
+        Log::spy();
+        $this->personnel($this->x, 'agency_admin');
+        $agent = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x);
+
+        $id = $this->relais($agent, $bien, '+221779990001');
+        $this->postJson("/api/property-visits/{$id}/cancel", ['reason' => 'x'])->assertOk();
+
+        $this->assertSame(5, $this->smsVers('+221779990001'));
+        Log::shouldHaveReceived('notice')->withArgs(fn (string $message, array $contexte) => $message === 'visit.sms_retenu'
+            && ! str_contains(json_encode($contexte), '779990001'))->times(5);
+    }
+
+    /** B2′ (R) — même borne sur un bien SANS agence, où le particulier propriétaire déplace (N1b). */
+    public function test_b2prime_le_particulier_proprietaire_est_borne_aussi(): void
+    {
+        $particulier = $this->client(['phone' => '+221770000099']);
+        $bien = $this->bienDe(null, $particulier);
+
+        $this->relais($particulier, $bien, '+221779990002');
+
+        $this->assertSame(5, $this->smsVers('+221779990002'));
+    }
+
+    /** B2′ (R) — 5 par heure, 10 par jour : la deuxième heure en rend 5, la troisième aucun. */
+    public function test_b2prime_dix_sms_par_jour_vers_un_meme_numero(): void
+    {
+        $this->personnel($this->x, 'agency_admin');
+        $agent = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x);
+
+        $id = $this->relais($agent, $bien, '+221779990003', deplacements: 5);
+        $this->assertSame(5, $this->smsVers('+221779990003'));
+
+        foreach ([10, 10] as $attendu) {
+            $this->travel(61)->minutes();
+            for ($i = 0; $i < 6; $i++) {
+                $this->patchJson("/api/property-visits/{$id}", ['scheduled_at' => $this->creneau(jours: 10 + $i, heure: 11)])->assertOk();
+            }
+            $this->assertSame($attendu, $this->smsVers('+221779990003'));
+        }
+
+        // Un autre numéro n'est pas touché par la borne du premier.
+        $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'visitor_name' => 'Awa', 'visitor_phone' => '+221779990004',
+            'scheduled_at' => $this->creneau(jours: 20),
+        ])->assertCreated();
+        $this->assertSame(1, $this->smsVers('+221779990004'));
     }
 
     /**

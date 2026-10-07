@@ -12,8 +12,12 @@ use App\Notifications\VisitRescheduledNotification;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Lead\ContactLeadService;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\TelephoneSaisi;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * TCK-590 — qui est prévenu de quoi, pour une visite. Extrait de `PropertyVisitController`
@@ -33,6 +37,11 @@ use Illuminate\Support\Facades\Notification;
  */
 class VisitNotifier
 {
+    /** Vérification adverse (B2′) — SMS de visite vers un même numéro, toutes causes confondues. */
+    public const SMS_PAR_HEURE = 5;
+
+    public const SMS_PAR_JOUR = 10;
+
     public function __construct(private readonly ContactLeadService $leads) {}
 
     public function requested(PropertyVisit $visit): void
@@ -138,6 +147,7 @@ class VisitNotifier
 
         try {
             if ($visit->visitor !== null) {
+                $this->borneLeSms($visit, $visit->visitor, $notification);
                 $visit->visitor->notify($notification);
 
                 return;
@@ -152,9 +162,54 @@ class VisitNotifier
             }
 
             $anonymous = Notification::routes($routes);
+            $this->borneLeSms($visit, $anonymous, $notification);
             $anonymous->notify($notification->locale($visit->locale ?? config('app.locale')));
         } catch (\Throwable) {
             // Silent — see toAgency().
         }
+    }
+
+    /**
+     * Vérification adverse (B2′) — la borne vit au POINT D'ENVOI, pas sur une route.
+     *
+     * Le limiteur de `POST /property-visits` ne voyait qu'une des quatre portes : une demande
+     * anonyme déposée au numéro d'un tiers, confirmée, puis déplacée huit fois, faisait partir
+     * 9 SMS en 9 requêtes. Ici, tout SMS de visite vers un même numéro E.164 — confirmation,
+     * replanification, annulation, planification — compte sur la même clé : au plus
+     * {@see self::SMS_PAR_HEURE} par heure et {@see self::SMS_PAR_JOUR} par jour. Au-delà, le SMS
+     * est retenu (l'e-mail et le fil partent) et l'événement est journalisé sous une empreinte : le
+     * numéro n'apparaît ni dans le journal ni dans la clé du cache.
+     */
+    private function borneLeSms(PropertyVisit $visit, object $notifiable, VisitNotification $notification): void
+    {
+        if (! in_array('sms', $notification->via($notifiable), true)) {
+            return;
+        }
+
+        $numero = TelephoneSaisi::normaliser($notifiable instanceof AnonymousNotifiable
+            ? ($notifiable->routes['sms'] ?? null)
+            : ($notifiable->routeNotificationFor('sms', $notification) ?? $notifiable->phone ?? null));
+        if (! is_string($numero) || $numero === '') {
+            return;
+        }
+
+        $empreinte = hash_hmac('sha256', $numero, (string) config('app.key'));
+        $heure = 'visit-sms:h:'.$empreinte;
+        $jour = 'visit-sms:j:'.$empreinte;
+
+        if (RateLimiter::tooManyAttempts($heure, self::SMS_PAR_HEURE)
+            || RateLimiter::tooManyAttempts($jour, self::SMS_PAR_JOUR)) {
+            $notification->retenirLeSms();
+            Log::notice('visit.sms_retenu', [
+                'visit_id' => $visit->id,
+                'notification' => class_basename($notification),
+                'destinataire' => substr($empreinte, 0, 16),
+            ]);
+
+            return;
+        }
+
+        RateLimiter::hit($heure, 3600);
+        RateLimiter::hit($jour, 86400);
     }
 }

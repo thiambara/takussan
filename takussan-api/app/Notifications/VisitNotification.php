@@ -7,6 +7,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Visit\VisitNotifier;
 use App\Support\HeureDeVisite;
 use App\Support\TelephoneSaisi;
 use Illuminate\Bus\Queueable;
@@ -37,6 +38,9 @@ abstract class VisitNotification extends Notification implements ShouldQueue, Su
 
     public const EVENT_TYPE = 'visit_reminder';
 
+    /** Posé par {@see VisitNotifier} quand le numéro a épuisé sa borne. */
+    private bool $smsRetenu = false;
+
     public function __construct(public PropertyVisit $visit) {}
 
     /** Le préfixe des clés `notifications.<cle>.*`. */
@@ -50,6 +54,19 @@ abstract class VisitNotification extends Notification implements ShouldQueue, Su
         return false;
     }
 
+    /** Vérification adverse (B2′) — l'e-mail et le fil partent, le SMS non. */
+    public function retenirLeSms(): static
+    {
+        $this->smsRetenu = true;
+
+        return $this;
+    }
+
+    private function smsPermis(): bool
+    {
+        return $this->envoieUnSms() && ! $this->smsRetenu;
+    }
+
     /**
      * @return list<string>
      */
@@ -61,7 +78,7 @@ abstract class VisitNotification extends Notification implements ShouldQueue, Su
                 $channels[] = 'mail';
             }
             // Vérification adverse (m7) — un fixe est un numéro de contact, pas un destinataire de SMS.
-            if ($this->envoieUnSms() && TelephoneSaisi::recoitLesSms($notifiable->routes['sms'] ?? null)) {
+            if ($this->smsPermis() && TelephoneSaisi::recoitLesSms($notifiable->routes['sms'] ?? null)) {
                 $channels[] = 'sms';
             }
 
@@ -81,7 +98,7 @@ abstract class VisitNotification extends Notification implements ShouldQueue, Su
         if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
             $channels[] = 'broadcast';
         }
-        if ($this->envoieUnSms() && $resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_SMS)) {
+        if ($this->smsPermis() && $resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_SMS)) {
             $channels[] = 'sms';
         }
 
@@ -124,7 +141,7 @@ abstract class VisitNotification extends Notification implements ShouldQueue, Su
 
     public function shouldSendSms(): bool
     {
-        return $this->envoieUnSms();
+        return $this->smsPermis();
     }
 
     public function isCriticalSms(): bool
