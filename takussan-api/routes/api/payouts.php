@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\PayoutController;
+use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\PayoutPreparationController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,4 +19,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('payouts/{payout}/mark-failed', [PayoutController::class, 'markFailed'])
         ->name('payouts.mark-failed');
     Route::post('payouts/{payout}/cancel', [PayoutController::class, 'cancel'])->name('payouts.cancel');
+
+    // TCK-594 (ADR-0039 §6) — les destinations d'un bénéficiaire, côté agence (masquées).
+    Route::get('payout-methods', [PayoutMethodController::class, 'index'])->name('payout-methods.index');
+    Route::post('payout-methods/{payoutMethod}/verify', [PayoutMethodController::class, 'verify'])->name('payout-methods.verify');
 });

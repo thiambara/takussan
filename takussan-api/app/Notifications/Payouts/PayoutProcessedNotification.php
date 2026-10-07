@@ -16,7 +16,13 @@ class PayoutProcessedNotification extends MoneyOutNotification
 
     protected function lines(): array
     {
-        return ['intro', 'reference_line', 'destination_line'];
+        // Une ligne sans valeur ne s'écrit pas : un paiement en espèces n'a ni référence obligatoire
+        // ni destination.
+        return array_values(array_filter([
+            'intro',
+            $this->payout->transaction_id ? 'reference_line' : null,
+            ($this->payout->metadata['destination_masked'] ?? null) ? 'destination_line' : null,
+        ]));
     }
 
     protected function data(): array

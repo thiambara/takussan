@@ -778,3 +778,26 @@ le ticket nommé (vérifié dans son texte).
   `metadata.legal_info` est la méthode `backfill()` de la migration `200500` (rejouée par le test).
   ⚠ `AgencyResource` expose encore `metadata` tel quel, `legal_info.rib_pro` compris : c'est TCK-601.
 
+### Partie 4 — destinations de paiement et avis (§ 4)
+
+- **Routes** : `GET|POST /api/me/payout-methods`, `PATCH|DELETE /api/me/payout-methods/{payoutMethod}`
+  (le titulaire), `GET /api/payout-methods?filter[user_id]=` et `POST /api/payout-methods/{payoutMethod}/verify`
+  (l'agence). Le contrat ne listait pas `PATCH` : il est ajouté, car « modifier une destination la
+  dé-vérifie et notifie le titulaire » exige un geste de modification.
+- **`PayoutMethodPolicy`** : le titulaire seul modifie et supprime ; l'agence lit (masquées) et vérifie
+  quand le lecteur est du personnel, détient `payouts.create` à son agence, et que le titulaire y est
+  bailleur (`OwnerProfile`) ou prestataire en collaboration. `PayoutMethodService::verify` refuse en
+  plus le titulaire lui-même par `SegregationOfDuties` (le super-admin, que `Gate::before` laisse
+  passer la policy, y compris).
+- **Vérification d'office** : un numéro mobile money égal (normalisé) au téléphone **vérifié** du
+  titulaire. Tout le reste attend l'agence.
+- **Chiffrement (raccord TCK-601)** : `account_identifier` et `account_holder_name` en `text`, cast
+  `encrypted`, `$hidden`, hors `$queryFields`, modèle **non** `Auditable`. Le masquage passe par
+  `PayoutMethod::mask()` seul (quatre derniers caractères) : **c'est la méthode que 601 remplace.**
+  La liste blanche d'audit d'`Agency` n'existe pas encore : 594 n'y inscrit rien (à faire par 601 ou
+  par la seconde fusion).
+- **Avis** : `PayoutMethodChangedNotification` (ajout, modification, suppression ; critique : e-mail
+  quelles que soient les préférences ; seule la forme masquée), `PayoutProcessedNotification` (net,
+  référence, destination masquée — une ligne sans valeur ne s'écrit pas), `PayoutFailedNotification`
+  (motif). Base + e-mail ; WhatsApp/SMS viendront par les canaux de TCK-588.
+
