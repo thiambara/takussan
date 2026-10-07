@@ -3,6 +3,7 @@
 namespace App\Services\Calendar;
 
 use App\Models\CalendarFeed;
+use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -92,6 +93,12 @@ class CalendarFeedService
             ->first();
 
         if ($feed === null || $feed->user === null) {
+            return null;
+        }
+
+        // TCK-591 (verif-591 M4) — un compte qui n'est plus actif (bloqué) ne reçoit plus son flux,
+        // même si un lien a survécu au blocage.
+        if ($feed->user->status !== UserStatus::Active) {
             return null;
         }
 

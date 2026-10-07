@@ -4,6 +4,7 @@ namespace Tests\Feature\Calendar;
 
 use App\Models\Agency;
 use App\Models\CalendarFeed;
+use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
@@ -128,5 +129,29 @@ class CalendarFeedTest extends ApiTestCase
     public function test_an_unknown_token_is_a_404(): void
     {
         $this->get('/api/calendar-feed/'.str_repeat('a', 40).'.ics')->assertNotFound();
+    }
+
+    /**
+     * verif-591 M4 — bloquer un compte coupe son flux : le blocage révoque ses liens, et un lien qui
+     * aurait survécu n'est pas servi tant que le compte n'est pas actif.
+     */
+    public function test_blocking_the_account_kills_its_feed(): void
+    {
+        $path = $this->issue();
+        $this->get($path)->assertOk();
+
+        $root = User::factory()->create();
+        $this->materializeRoleProfile($root, 'super_admin');
+        $this->actingAsApi($root)->apiPost("/api/users/{$this->agent->id}/block")->assertOk();
+        $this->app['auth']->forgetGuards();
+
+        $this->assertNotNull(CalendarFeed::query()->where('user_id', $this->agent->id)->sole()->revoked_at);
+        $this->get($path)->assertNotFound();
+
+        // Un lien qui aurait survécu au blocage (posé à la main) n'est pas servi non plus.
+        CalendarFeed::query()->where('user_id', $this->agent->id)->update(['revoked_at' => null]);
+        $this->get($path)->assertNotFound();
+        $this->agent->fresh()->update(['status' => UserStatus::Active]);
+        $this->get($path)->assertOk();
     }
 }
