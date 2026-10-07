@@ -976,3 +976,5 @@ piloté par CDP sur `:9344`. Un bien `rent`/`daily` publié.
   routes `profiles`) → 677 verts, 1 rouge, l'intermittent ci-dessus (332 s, charge 7,2 / 14,2 /
   14,8) ; après correctif, `tests/Feature/Auth/TwoFactor` + les cinq fichiers d'équipe et
   d'autorisation de 587 → 109 verts ; `AgencyStaffTwoFactorTest` ×5 → vert.
+- **Ablations** de la deuxième passe : `TeamMemberSuspensionController@suspend` retiré de la liste
+  → `ProtectedActionsCoverageTest` rouge ; `AgentProfileController@destroy` retiré → rouge.
