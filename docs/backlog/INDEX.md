@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**546 tickets** — 46 ouverts, 498 livrés.
+**546 tickets** — 45 ouverts, 499 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 43 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 498 |
+| ✅ Done | 499 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -80,7 +80,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
 
 ## 👀 Review
 
@@ -92,7 +91,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 498
+## ✅ Done — 499
+
+<details>
+<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 1 ticket</summary>
+
+- [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
+
+</details>
 
 <details>
 <summary><strong>Vague 72 — Accueil : barre de recherche de la maquette (Acheter | Louer segmenté) et revue de design de la page (2026-09-29)</strong> — 1 ticket</summary>

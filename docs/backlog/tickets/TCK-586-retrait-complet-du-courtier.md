@@ -1,7 +1,7 @@
 ---
 id: TCK-586
 title: "Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030)"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -380,10 +380,10 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
 - [ ] **AC11** — Côté web, aucune clé `broker` dans `src/messages/*.json` ; `npm run lint`,
       `npx tsc --noEmit` et `npm run test` verts ; les gardes `user-roles.parity` et
       `AppSidebar.audience` sont vertes et affirment toujours l'absence de `broker`.
-      *(Non coché : lint, `tsc` et 30 fichiers vitest touchés sont verts, aucune clé `broker` ;
-      `npm run test` entier revient à la session.)*
+      *(Non coché : `npm run test` est une suite entière — lancée par la session. Le reste est vert :
+      lint, `tsc`, 30 fichiers vitest, aucune clé `broker`.)*
 - [ ] **AC12** — Suite backend entière verte sur PostgreSQL (rituel de fin de branche).
-      *(À la session. Ici : 70 tests des classes touchées, puis 604 tests de 69 classes liées —
+      *(Lancée par la session. Ici : 70 tests des classes touchées, puis 604 tests de 69 classes liées —
       verts.)*
 
 ## Hors périmètre
@@ -439,6 +439,22 @@ Re-mesure du 2026-10-07 sur `32dd0b39` — écarts au ticket :
 - **Docker** : le transfert de ports de Docker Desktop était figé le 2026-10-07 vers 16:55
   (conteneurs `healthy`, PDO sur 5433 et Meilisearch sur 7701 sans réponse) — signalé à la session ;
   les classes de test sur base ont attendu son rétablissement.
+
+Exécutions qui portent les AC cochées (2026-10-07, worktree `takussan-tck-586`) :
+
+- `php artisan test tests/Unit/CourtierAbsentTest.php tests/Feature/Database/ProfileSchemaTest.php
+  tests/Feature/Database/DeleteBrokerClientRelationshipsMigrationTest.php
+  tests/Feature/Models/HasProfilesTraitTest.php tests/Feature/Testing/TestSeederTest.php
+  tests/Feature/Api/Me/ProfilesEndpointTest.php tests/Feature/Public/PublicRoleTest.php
+  tests/Feature/Api/PropertyCollaboratorTest.php tests/Feature/Api/Admin/UserDetailTest.php
+  tests/Feature/Api/Admin/DataExportTest.php` → **70 passed (284 assertions)** — AC1, AC2, AC3,
+  AC5, AC6, AC7, AC8, AC9.
+- 69 classes liées (sélection par `grep` des routes et symboles touchés) → **604 passed**, 245 s.
+- `npx vitest run` sur les deux tests de composant d'AC10 → 3 passed ; sur `user-roles.parity`,
+  `components/layout/__tests__`, `usePublishIntent`, `roles-derives`, `components/profile` → 245
+  passed — AC10, AC11 (partie).
+- `npm run lint` → 0 problème ; `npx tsc --noEmit` → sortie 0 ; gardes racine → toutes vertes.
+- AC4 : les deux `grep` de l'AC, lus fichier par fichier (voir l'écart plus haut).
 
 Ablations rejouées :
 
