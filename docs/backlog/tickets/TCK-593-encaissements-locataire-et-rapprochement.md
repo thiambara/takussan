@@ -1053,3 +1053,14 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   → rouge ; lecture du corps retirée côté front → rouge. Piège noté : un `vi.fn()` qui rejette
   laisse une rejection signalée non gérée par Vitest 4 même quand l'appelant l'attrape ; le test
   mocke donc par une fonction simple.
+- **N4 — règlement hérité marqué doublon.** `isSettledBy` tient aussi pour soldée par une
+  transaction la ligne qui la porte encore dans `gateway.transaction_id` **sans aucune clé
+  `settled_by`** (règlement par `verify()` antérieur au déploiement). La règle seule aurait rendu
+  muet le doublon d'un règlement MANUEL (V3) : `LeasePaymentService::markPaid` et
+  `InvoiceService::markPaid` posent désormais `gateway.settled_by = manual`
+  (`PaymentGatewayService::markManualSettlement`, `SETTLED_MANUALLY`). Tests
+  `PaymentCheckoutReuseTest::test_un_reglement_anterieur_a_settled_by_n_est_pas_son_propre_doublon`
+  (avec le témoin manuel) et `InvoiceTest::test_une_facture_reglee_a_la_main_garde_le_checkout_paye_pour_doublon`.
+  Ablations : règle héritée retirée → rouge ; marque retirée du loyer → 2 rouges ; de la facture →
+  rouge. Les acomptes (`booking_payments`) ne se règlent pas à la main sur une ligne existante :
+  le geste manuel crée une ligne neuve, sans checkout.

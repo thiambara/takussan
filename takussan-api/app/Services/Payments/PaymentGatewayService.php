@@ -39,6 +39,9 @@ use Symfony\Component\HttpFoundation\InputBag;
  */
 class PaymentGatewayService
 {
+    /** Passe 2, N4 — la valeur de `gateway.settled_by` d'un règlement manuel. */
+    public const SETTLED_MANUALLY = 'manual';
+
     /**
      * Resolve the active `Integration` for `(provider, agency)`. Falls back
      * to a global integration (`agency_id = null`) when no agency-specific
@@ -572,6 +575,22 @@ class PaymentGatewayService
     }
 
     /**
+     * Passe 2, N4 — un règlement MANUEL (espèces, virement saisi) le dit sur la ligne :
+     * `metadata.gateway.settled_by = manual`. Sans cette marque, un checkout payé après coup ne se
+     * distinguerait pas d'un règlement en ligne antérieur à `settled_by`. Pose l'attribut ; la
+     * sauvegarde est celle de l'appelant.
+     */
+    public function markManualSettlement(Model $payment): void
+    {
+        $meta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+        $meta['gateway'] = array_merge(
+            is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [],
+            ['settled_by' => self::SETTLED_MANUALLY],
+        );
+        $payment->metadata = $meta;
+    }
+
+    /**
      * TCK-593 (V3) — un règlement manuel est refusé tant qu'un checkout est ouvert : l'argent
      * pourrait être encaissé deux fois.
      */
@@ -659,7 +678,16 @@ class PaymentGatewayService
             return false;
         }
 
-        if (($meta['gateway']['settled_by'] ?? null) === $transactionId) {
+        $gateway = is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [];
+        if (($gateway['settled_by'] ?? null) === $transactionId) {
+            return true;
+        }
+
+        // Passe 2, N4 — un règlement ANTÉRIEUR à `settled_by` (vérifié par `verify()`, qui ne
+        // journalise aucun événement) n'a ni marque ni événement : la ligne qui porte encore CETTE
+        // transaction a été soldée par elle. Un règlement manuel, lui, pose `settled_by = manual`
+        // (`markManualSettlement`) : son checkout payé ensuite reste un doublon.
+        if (! array_key_exists('settled_by', $gateway) && ($gateway['transaction_id'] ?? null) === $transactionId) {
             return true;
         }
 

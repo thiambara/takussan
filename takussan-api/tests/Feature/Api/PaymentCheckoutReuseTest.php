@@ -226,6 +226,41 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertArrayNotHasKey('gateway_duplicate_payment', $ctx['payment']->refresh()->metadata);
     }
 
+    public function test_un_reglement_anterieur_a_settled_by_n_est_pas_son_propre_doublon(): void
+    {
+        // Passe 2, N4 — une échéance soldée par `verify()` AVANT le déploiement : ni `settled_by`
+        // ni événement journalisé. Le webhook de CE règlement, arrivé après, était marqué doublon
+        // et les admins prévenus « à rembourser ».
+        $ctx = $this->leaseDue();
+        $ctx['payment']->forceFill([
+            'status' => PaymentStatus::Paid,
+            'paid_at' => now(),
+            'transaction_id' => 'legacy_txn',
+            'metadata' => ['gateway' => [
+                'provider' => 'wave',
+                'transaction_id' => 'legacy_txn',
+                'checkout_url' => 'https://pay.example/legacy',
+                'initiated_at' => now()->subDays(2)->toIso8601String(),
+            ]],
+        ])->save();
+
+        $this->waveWebhook('legacy_txn', 150_000)->assertOk();
+        $this->assertArrayNotHasKey('gateway_duplicate_payment', $ctx['payment']->refresh()->metadata);
+
+        // Le témoin : la même ligne réglée À LA MAIN (marque `manual`) — le webhook de son checkout
+        // reste un doublon.
+        $other = $this->leaseDue();
+        $this->spyDriver();
+        Sanctum::actingAs($other['tenant']);
+        $this->initiate($other['payment']->id)->assertOk();
+        $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();
+        Sanctum::actingAs($other['agent']);
+        $this->postJson("/api/lease-payments/{$other['payment']->id}/mark-paid", [])->assertOk();
+        $this->assertSame(PaymentGatewayService::SETTLED_MANUALLY, $other['payment']->refresh()->metadata['gateway']['settled_by']);
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+        $this->assertCount(1, $other['payment']->refresh()->metadata['gateway_duplicate_payment']);
+    }
+
     public function test_especes_refusees_tant_que_le_checkout_vit_puis_doublon_marque(): void
     {
         $ctx = $this->leaseDue();

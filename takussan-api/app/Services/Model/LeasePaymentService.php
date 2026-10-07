@@ -43,7 +43,9 @@ class LeasePaymentService
 
         // TCK-593 (vérification adverse, V3) — un règlement manuel pendant qu'un checkout est
         // ouvert ferait encaisser l'échéance deux fois : refusé tant que le checkout vit.
-        app(PaymentGatewayService::class)->assertNoOpenCheckout($payment);
+        $gateway = app(PaymentGatewayService::class);
+        $gateway->assertNoOpenCheckout($payment);
+        $gateway->markManualSettlement($payment);
 
         $payment->update([
             'status' => PaymentStatus::Paid,
