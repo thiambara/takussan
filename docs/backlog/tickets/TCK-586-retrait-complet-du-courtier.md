@@ -395,4 +395,44 @@ s'affiche par un libellé neutre (« Autre relation »), jamais par son code bru
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Re-mesure du 2026-10-07 sur `32dd0b39` — écarts au ticket :
+
+- **`UserSeeder::seedBrokerProfile()` était une branche morte** : aucune charge de `UserSeeder` ni de
+  `DemoUsersSeeder` ne porte la persona `broker` (relevé : `admin`, `agent`, `owner`,
+  `service_provider`). Seuls `TestSeeder` et les factories fabriquaient un courtier.
+- **Les relations secondaires `broker_client` du seeder CRM sont retirées, pas converties** en
+  `agent_client` : une seconde relation d'agent sur un client serait une donnée neuve, hors
+  périmètre. Le `faker` du seeder est graine (`2026`) : retirer l'appel `boolean(20)` décale le tirage
+  de tout ce qui le suit dans `YearOfActivitySeeder` (données de démonstration différentes, mêmes
+  volumes attendus).
+- **La clé `collaborators.not_in_agency` vit dans `lang/{fr,en,wo}/collaborators.php`**, pas dans
+  `lang/*.json` comme l'écrit le Delta : le dépôt range toutes ses clés de domaine en fichiers PHP
+  (`lang/<locale>/<domaine>.php`), c'est l'arête que lit la carte d'impact (TCK-476), et un fichier
+  neuf n'entre en conflit avec aucun autre ticket de la vague. `__('collaborators.not_in_agency')`
+  résout à l'identique. Le libellé wolof est soumis à la revue lexicale de TCK-339.
+- **Le `PUT` porte l'erreur sur `role`, pas sur `user_id`** : la requête ne contient pas de
+  `user_id` ; la règle est rejouée par `withValidator()` sur le `user_id` du collaborateur existant.
+- **AC4, second `grep` (`-i broker` sur `tests/`)** ne peut pas rendre « les six lignes du §3 »
+  seulement : les tests que le Delta exige nomment l'acteur pour affirmer son absence
+  (`CourtierAbsentTest`, `ProfileSchemaTest::test_broker_tables_are_gone`, le test de migration de
+  données, `UserDetailTest` avec `filter[role]=broker`, `DataExportTest`). Le premier `grep` d'AC4
+  rend les quatre migrations plus ces mêmes tests d'absence, et rien d'autre.
+- **`ActiveProfileResolver`** : la branche `default` du `match` de statut est désormais inatteignable
+  (toute classe de `TYPE_MAP` a une enum de statut) ; gardée, commentée.
+- **AC1, « au schéma d'origine » se mesure** : `ProfileSchemaTest` compare colonnes, index (noms
+  compris) et clés étrangères rendus par le `down()` à ceux que rendent les deux migrations de
+  création elles-mêmes, au lieu d'une liste recopiée.
+- **Docker** : le transfert de ports de Docker Desktop était figé le 2026-10-07 vers 16:55
+  (conteneurs `healthy`, PDO sur 5433 et Meilisearch sur 7701 sans réponse) — signalé à la session ;
+  les classes de test sur base ont attendu son rétablissement.
+
+Ablations rejouées :
+
+- **AC3** — `CourtierAbsentTest` lancé avant le retrait : rouge, nomme entre autres
+  `PropertyResource.php:284`, `PublicProfileFacts.php:307`, `PublicAgencyController.php:293`,
+  `UserDetailResource.php:51`, `AgencyController.php:332`. Après : vert. Remettre
+  `->merge(BrokerProfile::query()…)` dans `rolesPublics()` → rouge sur cette ligne ; ajouter à
+  `config/auth.php` une ligne `'courtier' => env('AUTH_BROKER_ACTOR', 'x'),` à côté des deux lignes
+  admises → rouge sur cette seule ligne.
+- **AC10** — les deux tests de composant, rejoués sur `UserDetail`/`CustomerDetailTabs` et `fr.json`
+  d'origine : 3 rouges ; restaurés : 3 verts.
