@@ -65,6 +65,8 @@ class CustomerNoteController extends Controller
             'id' => $note->id,
             'customer_id' => $note->customer_id,
             'body' => $note->body,
+            // TCK-591 — `conversion` | `loss` | null : le préfixe se rend côté front.
+            'kind' => $note->kind?->value,
             'pinned' => $note->pinned,
             'author' => $note->relationLoaded('author') && $note->author
                 ? ['id' => $note->author->id, 'name' => $note->author->getFullNameAttribute()]

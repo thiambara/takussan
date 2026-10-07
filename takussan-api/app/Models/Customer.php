@@ -7,6 +7,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Services\Crm\CustomerPhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,6 +50,9 @@ class Customer extends AbstractModel
         'id_type', 'id_number', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone',
         'status', 'pipeline_stage', 'notes', 'metadata',
+        // TCK-591 — critères de recherche du prospect.
+        'seeking_contract_type', 'budget_min', 'budget_max',
+        'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
     ];
 
     protected $casts = [
@@ -56,7 +60,27 @@ class Customer extends AbstractModel
         'status' => CustomerStatus::class,
         'pipeline_stage' => CustomerPipelineStage::class,
         'metadata' => 'array',
+        'budget_min' => 'decimal:2',
+        'budget_max' => 'decimal:2',
+        'seeking_property_types' => 'array',
+        'seeking_cities' => 'array',
+        'seeking_neighborhoods' => 'array',
+        'min_bedrooms' => 'integer',
     ];
+
+    /**
+     * TCK-591 — tout chemin d'écriture normalise le téléphone (formulaire, `findOrCreateFromUser`,
+     * conversion de lead) : la règle vit sur l'attribut, pas dans chaque appelant.
+     */
+    public function setPhoneAttribute(?string $value): void
+    {
+        $this->attributes['phone'] = CustomerPhoneNormalizer::normalize($value);
+    }
+
+    public function setEmergencyContactPhoneAttribute(?string $value): void
+    {
+        $this->attributes['emergency_contact_phone'] = CustomerPhoneNormalizer::normalize($value);
+    }
 
     protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
@@ -74,6 +98,8 @@ class Customer extends AbstractModel
         'id_type', 'id_number', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone',
         'status', 'pipeline_stage', 'metadata',
+        'seeking_contract_type', 'budget_min', 'budget_max',
+        'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
         'created_at', 'updated_at',
     ];
 
@@ -159,6 +185,12 @@ class Customer extends AbstractModel
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class, 'tenant_id');
+    }
+
+    /** TCK-591 — les visites rattachées au client (`property_visits.customer_id`). */
+    public function visits(): HasMany
+    {
+        return $this->hasMany(PropertyVisit::class);
     }
 
     public function leasePayments(): HasMany

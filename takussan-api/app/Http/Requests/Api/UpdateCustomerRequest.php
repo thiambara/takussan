@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ValidatesCustomerContactAndCriteria;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
@@ -19,6 +20,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateCustomerRequest extends BaseFormRequest
 {
+    use ValidatesCustomerContactAndCriteria;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -41,7 +44,6 @@ class UpdateCustomerRequest extends BaseFormRequest
             'first_name' => ['sometimes', 'string'],
             'last_name' => ['sometimes', 'string'],
             'email' => ['sometimes', 'nullable', 'email'],
-            'phone' => ['sometimes', 'nullable', 'string'],
             'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
             'id_number' => ['sometimes', 'nullable', 'string'],
             'occupation' => ['sometimes', 'nullable', 'string'],
@@ -51,6 +53,7 @@ class UpdateCustomerRequest extends BaseFormRequest
             // TCK-083 — optional reason captured when transitioning to a
             // terminal stage (`converted`/`lost`). Persisted as a CustomerNote.
             'reason' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            ...$this->contactAndCriteriaRules('sometimes'),
         ];
     }
 }

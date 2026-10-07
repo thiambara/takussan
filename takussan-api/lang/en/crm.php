@@ -6,6 +6,10 @@
  */
 
 return [
+    'customers' => [
+        'duplicate' => 'A customer of your agency already has this phone number or email address.',
+        'primary_contact_not_staff' => "The account manager must be an agent or an administrator of the customer's agency.",
+    ],
     'tasks' => [
         'assignee_not_staff' => 'The assignee must be yourself or a staff member of the agency.',
     ],

@@ -35,4 +35,21 @@ class CustomerPolicy extends BasePolicy
     {
         return $this->view($user, $model);
     }
+
+    /**
+     * TCK-591 — créer une fiche est un geste du PERSONNEL de l'agence du profil actif (agent, admin
+     * d'agence), ou du super-admin. `StoreCustomerRequest::authorize()` rendait `true` : un bailleur,
+     * ou un compte sans profil, créait une fiche dans le CRM de l'agence de son profil actif.
+     */
+    public function create(User $user): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // TCK-587 — prédicat « personnel de l'agence » ; `$user->staffAgencyId() !== null` à sa fusion.
+        $agencyId = $user->agency_id;
+
+        return $agencyId !== null && ($user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId));
+    }
 }

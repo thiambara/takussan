@@ -6,6 +6,10 @@
  */
 
 return [
+    'customers' => [
+        'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
+        'primary_contact_not_staff' => "Le référent doit être un agent ou un administrateur de l'agence du client.",
+    ],
     'tasks' => [
         'assignee_not_staff' => "L'assigné doit être vous-même ou un membre du personnel de l'agence.",
     ],

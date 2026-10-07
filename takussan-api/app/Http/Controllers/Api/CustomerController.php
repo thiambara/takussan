@@ -10,9 +10,13 @@ use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
+use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Crm\CustomerActivityFeed;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\PipelineStatsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,14 +52,24 @@ class CustomerController extends Controller
         return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
     }
 
-    public function store(StoreCustomerRequest $request): JsonResponse
+    public function store(StoreCustomerRequest $request, CustomerDuplicateDetector $duplicates): JsonResponse
     {
         $data = $request->validated();
+        $allowDuplicate = (bool) ($data['allow_duplicate'] ?? false);
+        unset($data['allow_duplicate']);
 
         $user = $request->user();
+        // TCK-591 — la fiche entre dans le CRM de l'agence où l'appelant est PERSONNEL
+        // (`CustomerPolicy::create` l'a établi). TCK-587 : `$user->staffAgencyId()` à sa fusion.
+        $agencyId = $user->agency_id;
+
+        if (! $allowDuplicate && ($response = $this->duplicateResponse($duplicates, $agencyId, $data, $user)) !== null) {
+            return $response;
+        }
+
         $customer = Customer::create(array_merge($data, [
             'added_by_id' => $user->id,
-            'agency_id' => $user->agency_id,
+            'agency_id' => $agencyId,
             'status' => CustomerStatus::Active->value,
             'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
         ]));
@@ -63,6 +77,40 @@ class CustomerController extends Controller
         return $this->json([
             'data' => CustomerResource::make($customer)->toArray($request),
         ], 201);
+    }
+
+    /**
+     * TCK-591 — un client de la même agence au même téléphone normalisé ou au même e-mail replié :
+     * 409 `customer_duplicate` avec les fiches trouvées, que le front présente comme une aide
+     * (« ouvrir sa fiche » / « créer quand même » → `allow_duplicate=true`).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function duplicateResponse(
+        CustomerDuplicateDetector $duplicates,
+        ?int $agencyId,
+        array $data,
+        User $user,
+        ?Customer $current = null,
+    ): ?JsonResponse {
+        $phone = array_key_exists('phone', $data) ? $data['phone'] : null;
+        $email = array_key_exists('email', $data) ? $data['email'] : null;
+        if ($current !== null) {
+            // À la mise à jour, seul un champ qui CHANGE peut créer un doublon.
+            $phone = $phone !== null && $phone !== $current->phone ? $phone : null;
+            $email = $email !== null && $email !== $current->email ? $email : null;
+        }
+
+        $existing = $duplicates->find($agencyId, $phone, $email, $user, $current?->id);
+        if ($existing === []) {
+            return null;
+        }
+
+        return $this->json([
+            'code' => 'customer_duplicate',
+            'message' => __('crm.customers.duplicate'),
+            'existing' => $existing,
+        ], 409);
     }
 
     public function show(Request $request, Customer $customer): JsonResponse
@@ -77,13 +125,18 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer, CustomerDuplicateDetector $duplicates): JsonResponse
     {
-
         $data = $request->validated();
 
         $reason = $data['reason'] ?? null;
-        unset($data['reason']);
+        $allowDuplicate = (bool) ($data['allow_duplicate'] ?? false);
+        unset($data['reason'], $data['allow_duplicate']);
+
+        if (! $allowDuplicate
+            && ($response = $this->duplicateResponse($duplicates, $customer->agency_id, $data, $request->user(), $customer)) !== null) {
+            return $response;
+        }
 
         $oldStage = $customer->pipeline_stage;
         $customer->fill($data)->save();
@@ -93,14 +146,7 @@ class CustomerController extends Controller
             $isTerminal = $newStage === CustomerPipelineStage::Converted
                 || $newStage === CustomerPipelineStage::Lost;
             if ($isTerminal && $newStage !== $oldStage && $reason !== null && trim($reason) !== '') {
-                CustomerNote::create([
-                    'customer_id' => $customer->id,
-                    'author_id' => $request->user()->id,
-                    'body' => __($newStage === CustomerPipelineStage::Converted
-                        ? 'Conversion : '
-                        : 'Perte : ').$reason,
-                    'pinned' => true,
-                ]);
+                $this->pinStageNote($customer, $newStage, $reason, $request->user());
             }
         }
 
@@ -185,19 +231,48 @@ class CustomerController extends Controller
             || $newStage === CustomerPipelineStage::Lost;
         $reason = $data['reason'] ?? null;
         if ($isTerminal && $newStage !== $oldStage && $reason !== null && trim($reason) !== '') {
-            CustomerNote::create([
-                'customer_id' => $customer->id,
-                'author_id' => $request->user()->id,
-                'body' => ($newStage === CustomerPipelineStage::Converted
-                    ? 'Conversion : '
-                    : 'Perte : ').$reason,
-                'pinned' => true,
-            ]);
+            $this->pinStageNote($customer, $newStage, $reason, $request->user());
         }
 
         return $this->json([
             'data' => CustomerResource::make($customer->refresh())->toArray($request),
         ]);
+    }
+
+    /**
+     * TCK-591 — la note épinglée d'un passage en « converti » / « perdu » porte sa NATURE
+     * (`kind`) et le seul motif saisi. Le préfixe était écrit en français dans le corps même de
+     * la note : un agent anglophone le lisait en français. Il se rend désormais côté front, dans
+     * la langue du lecteur.
+     */
+    private function pinStageNote(Customer $customer, CustomerPipelineStage $stage, string $reason, User $author): void
+    {
+        CustomerNote::create([
+            'customer_id' => $customer->id,
+            'author_id' => $author->id,
+            'kind' => $stage === CustomerPipelineStage::Converted
+                ? CustomerNoteKind::Conversion
+                : CustomerNoteKind::Loss,
+            'body' => trim($reason),
+            'pinned' => true,
+        ]);
+    }
+
+    /**
+     * TCK-591 — le journal de la fiche : le client, ses notes, ses tâches. Autorisé par la
+     * lecture du client, et non plus par `/api/audit-log` (réservé aux admins : l'onglet
+     * « Activité » était vide en silence pour un agent).
+     */
+    public function activity(Request $request, Customer $customer, CustomerActivityFeed $feed): JsonResponse
+    {
+        $this->authorize('view', $customer);
+
+        $paginator = $feed->paginate($customer, (int) $request->input('per_page', 20));
+
+        return $this->paginated(
+            $paginator,
+            $paginator->getCollection()->map(fn ($log) => $feed->format($log))->values()->all(),
+        );
     }
 
     /**
