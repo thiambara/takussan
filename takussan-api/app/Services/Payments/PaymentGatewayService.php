@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Contracts\Payments\PaymentDriverContract;
 use App\Models\Agency;
 use App\Models\BookingPayment;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
@@ -67,6 +68,10 @@ class PaymentGatewayService
      */
     public function initiate(Model $payment, PaymentProvider $provider, array $meta = []): CheckoutSession
     {
+        // TCK-593 — on ne paie pas deux fois. La garde vit ici, AVANT la résolution de
+        // l'intégration et tout appel au pilote : le bouton masqué du front n'empêchait rien.
+        abort_unless($this->isPayable($payment), 409, __('payments.payment_not_payable'));
+
         $agencyId = $this->paymentAgencyId($payment);
         $integration = $this->resolveIntegration($provider, $agencyId);
         abort_unless($integration, 404, 'No active integration for provider '.$provider->value.' on this agency.');
@@ -79,7 +84,7 @@ class PaymentGatewayService
             abort(422, $msg);
         }
 
-        $amount = $this->paymentAmount($payment);
+        $amount = $this->amountDue($payment);
         abort_if(
             $amount === null,
             422,
@@ -89,14 +94,15 @@ class PaymentGatewayService
         // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
         // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
         $amountCents = (int) round($amount * 100);
-        abort_if($amountCents <= 0, 422, 'Cannot initiate a checkout for a non-positive amount.');
+        // TCK-593 — un montant dû nul n'est pas une donnée invalide, c'est une échéance soldée.
+        abort_if($amountCents <= 0, 409, __('payments.payment_not_payable'));
 
         $driver = $this->driverFor($integration);
         $session = $driver->initiate($payment, $amountCents, $currency, $meta);
 
         // Persist the gateway hint on the payment so the verify endpoint
         // and the webhook can find this row again.
-        $this->recordInitiation($payment, $provider, $session);
+        $this->recordInitiation($payment, $provider, $session, $amount);
 
         // Bump `last_used_at` for the integration UI surface.
         $integration->forceFill(['last_used_at' => now()])->save();
@@ -262,6 +268,12 @@ class PaymentGatewayService
             case PaymentDriverStatus::SUCCESS:
                 $this->assertReportedAmountCoversPayment($payment, $metadata);
                 $this->writeStatus($payment, PaymentStatus::Paid);
+                // TCK-593 — loyer et pénalité réglés ensemble : la pénalité est acquittée dans la
+                // MÊME sauvegarde que le loyer. `late_fee_included` a été figé à l'initiation ;
+                // un réglage d'agence changé depuis ne décide rien ici.
+                if ($payment instanceof LeasePayment && ($existingMeta['late_fee_included'] ?? false) === true) {
+                    $payment->late_fee_paid_at ??= now();
+                }
                 // `invoices` n'a pas de colonne `paid_at` : l'écrire y ajouterait un attribut
                 // inconnu et ferait échouer le `save()` — `SQLSTATE[42703] column … does not
                 // exist` sur PostgreSQL. (Ce commentaire opposait « MySQL lève / SQLite
@@ -273,7 +285,16 @@ class PaymentGatewayService
                 }
                 break;
             case PaymentDriverStatus::FAILED:
-                if ($current !== PaymentStatus::Paid && $current !== PaymentStatus::Refunded) {
+                // TCK-593 — un échec de paiement en ligne ne change pas l'état du LOYER. Écrire
+                // `failed` sortait l'échéance de tous les circuits (pénalités, relances,
+                // `mark-paid` manuel) : un checkout Wave expiré suffisait à la figer. L'échec
+                // reste tracé, sur l'échéance qui garde son statut ouvert.
+                if ($payment instanceof LeasePayment) {
+                    $existingMeta['gateway'] = array_merge(
+                        is_array($existingMeta['gateway'] ?? null) ? $existingMeta['gateway'] : [],
+                        ['last_failed_at' => now()->toIso8601String()],
+                    );
+                } elseif ($current !== PaymentStatus::Paid && $current !== PaymentStatus::Refunded) {
                     $this->writeStatus($payment, PaymentStatus::Failed);
                 }
                 break;
@@ -322,7 +343,11 @@ class PaymentGatewayService
             return;
         }
 
-        $expected = $this->paymentAmount($payment);
+        // TCK-593 — la comparaison porte sur le montant FIGÉ à l'initiation. Une pénalité
+        // appliquée — ou un réglage d'agence changé — entre l'ouverture du checkout et le webhook
+        // ferait sinon refuser un paiement légitime.
+        $frozen = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway_expected_amount'] ?? null) : null;
+        $expected = is_numeric($frozen) ? (float) $frozen : $this->amountDue($payment);
         if ($expected === null) {
             return;
         }
@@ -338,13 +363,17 @@ class PaymentGatewayService
         );
     }
 
-    protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session): void
+    protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, float $amount): void
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
 
         $payment->fill([
             'transaction_id' => $session->transactionId,
             'metadata' => array_merge($existingMeta, [
+                // TCK-593 — le montant demandé est FIGÉ ici : la garde de sous-paiement compare le
+                // webhook à lui, et le rapprochement bancaire le cherche sur la ligne de relevé.
+                'gateway_expected_amount' => $amount,
+                'late_fee_included' => $payment instanceof LeasePayment && $this->lateFeeIncluded($payment),
                 'gateway' => [
                     'provider' => $provider->value,
                     'transaction_id' => $session->transactionId,
@@ -537,7 +566,10 @@ class PaymentGatewayService
     }
 
     /**
-     * Le montant dû par ce payable, quelle que soit la colonne qui le porte.
+     * Le montant dû par ce payable, quelle que soit la colonne qui le porte — **la** définition de
+     * « combien est dû » (TCK-593 : renommage de `paymentAmount`). L'initiation, la garde de
+     * sous-paiement, `amount_due` de `LeasePaymentResource`, l'historique et le sélecteur de
+     * fournisseur la lisent tous ; aucun écran ne refait l'addition.
      *
      * `BookingPayment` et `LeasePayment` le stockent dans `amount`, `Invoice` dans
      * `total_amount`. Lire un `$payment->amount` nu sur une facture rend `null`, que
@@ -550,14 +582,62 @@ class PaymentGatewayService
      * méthode — une seule définition de « combien est dû », comme `AgencyPolicy::update()`
      * est la seule définition de « qui administre cette agence » (TCK-290).
      *
+     * Sur une échéance de loyer (TCK-593) : le loyer **restant**, plus la pénalité restant due si
+     * l'agence du bail l'encaisse en ligne (`Agency::collectsLateFeesOnline()`, absent = non) ; `0`
+     * hors statut payable — une échéance `paid` dont la pénalité reste due ne demande rien en ligne,
+     * la pénalité se règle à l'agence.
+     *
      * Rend `null` — et jamais `0.0` — quand aucun montant n'est lisible : l'appelant doit
      * pouvoir distinguer « rien à payer » de « je ne sais pas ».
      */
-    protected function paymentAmount(Model $payment): ?float
+    public function amountDue(Model $payment): ?float
     {
+        if ($payment instanceof LeasePayment) {
+            if (! $this->isPayable($payment)) {
+                return 0.0;
+            }
+
+            $fee = $this->lateFeeIncluded($payment) ? $payment->lateFeeOutstanding() : 0.0;
+
+            return round((float) $payment->remaining_amount + $fee, 2);
+        }
+
         $amount = $payment->amount ?? $payment->getAttribute('total_amount');
 
         return is_numeric($amount) ? (float) $amount : null;
+    }
+
+    /**
+     * TCK-593 — la pénalité restant due de cette échéance est-elle INCLUSE dans `amountDue()` ?
+     *
+     * Vrai seulement si l'échéance est payable, qu'une pénalité reste due, et que l'agence du bail
+     * l'encaisse en ligne — réglage lu maintenant. Un bail sans agence vaut « non ». La
+     * notification de pénalité et la ressource lisent la même réponse.
+     */
+    public function lateFeeIncluded(LeasePayment $payment): bool
+    {
+        return $this->isPayable($payment)
+            && $payment->lateFeeOutstanding() > 0
+            && ($payment->lease?->agency?->collectsLateFeesOnline() ?? false);
+    }
+
+    /**
+     * TCK-593 — ce payable peut-il encore être payé en ligne ?
+     *
+     * Une échéance ou un acompte `paid`/`refunded` non ; une facture hors `sent|overdue` non. Une
+     * échéance `failed` (données antérieures à TCK-593) reste payable : réessayer après un échec est
+     * le cas nominal. Tout payable dont le montant dû est nul ne l'est pas non plus — c'est
+     * `initiate()` qui le vérifie, sur le montant calculé.
+     */
+    public function isPayable(Model $payment): bool
+    {
+        if ($payment instanceof Invoice) {
+            return in_array($payment->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue], true);
+        }
+
+        $status = $this->currentPaymentStatus($payment);
+
+        return ! in_array($status, [PaymentStatus::Paid, PaymentStatus::Refunded], true);
     }
 
     protected function paymentCurrency(Model $payment): string

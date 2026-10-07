@@ -111,6 +111,9 @@ return [
         'greeting' => 'Hello,',
         'intro' => 'A late fee of :amount :currency has been applied to payment :reference.',
         'details' => 'Computed at :percent% of the remaining balance (:base :currency).',
+        // TCK-593 — ce que dit la notification est ce que dit l'écran (`late_fee_payable_online`).
+        'pay_online' => 'It will be added to the amount of your online payment.',
+        'pay_at_agency' => 'It is to be settled with your agency; it will not be requested with the online payment.',
     ],
 
     'account_deletion_requested' => [

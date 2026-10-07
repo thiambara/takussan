@@ -97,7 +97,7 @@ class PaymentGatewayVerifyTest extends ApiTestCase
      * facture porte `total_amount` (donc 422 « montant non positif » sur TOUTE facture).
      *
      * La migration `2026_08_16_090000_add_gateway_columns_to_invoices_table` et
-     * `PaymentGatewayService::paymentAmount()` ont fermé les deux. La sonde s'est éteinte
+     * `PaymentGatewayService::amountDue()` ont fermé les deux. La sonde s'est éteinte
      * d'elle-même, sans que personne n'ait à se souvenir de venir la retirer — c'est tout
      * l'intérêt de sonder la CAUSE plutôt que le symptôme.
      *

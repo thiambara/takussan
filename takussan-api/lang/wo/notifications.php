@@ -87,6 +87,9 @@ return [
         'greeting' => 'Salaam,',
         'intro' => 'Penalité di yengul bu :amount :currency, ñu ko teg ci paye :reference.',
         'details' => 'Ñu ko jeem ci :percent % bi des ci montant bi (:base :currency).',
+        // TCK-593 — ce que dit la notification est ce que dit l'écran (`late_fee_payable_online`).
+        'pay_online' => 'Dinañu ko yokk ci xaalis bi ngay fey ci internet.',
+        'pay_at_agency' => 'Ci sa ajaans nga koy fey ; duñu ko laaj bu ngay fey ci internet.',
     ],
 
     'account_deletion_requested' => [

@@ -653,3 +653,32 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   rouge. Rendues, 5 verts.
 - Voisins rejoués : `AgencyTest`, `AgencyCurrencyUpdateTest` (17 verts), `WatermarkActivationTest`,
   `WatermarkTraceDuringRegenerationTest` (17 verts).
+
+### Partie 3 — ce qui est dû (back), 2026-10-07
+
+- Re-mesuré : `paymentAmount` rendait `amount` seul (l.556-561), `initiate` n'avait aucune garde de
+  statut, la branche `FAILED` écrivait `failed` sur tout payable. Conforme au ticket.
+- **Écart au ticket — autorisation de la route de pénalité.** Le ticket demande
+  `LeasePaymentPolicy::update` « telle quelle », or elle admet le LOCATAIRE (c'est elle qui ouvre son
+  checkout) : l'AC5 « le locataire → 403 » était inatteignable. `MarkLateFeePaidRequest::authorize`
+  délègue donc à la même règle que le `mark-paid` du loyer (`can('update', $payment->lease)`, sans
+  clause locataire). Quand TCK-587 fusionne, `MarkPaidLeasePaymentRequest` passe à `recordPayment` :
+  aligner `MarkLateFeePaidRequest` sur lui à ce moment-là.
+- Garde `payment_not_payable` posée en tête d'`initiate`, avant même la résolution de l'intégration ;
+  un montant dû nul rend aussi 409 (et non plus 422 « non-positive amount »).
+- `lateFeeIncluded()` est la seule lecture du réglage : `amountDue`, la ressource, la notification et
+  le figeage `metadata.late_fee_included` l'appellent.
+- Tests (exécutions nommées) : `PaymentGatewayInitiateTest` 13 verts, `PaymentWebhookTest` 11,
+  `LeasePaymentLateFeeMarkPaidTest` 6, `LeasePaymentLateFeeNotificationTest` 5,
+  `LeasePaymentResourceContractTest` 5, `ReopenFailedLeasePaymentsMigrationTest` 2. Voisins :
+  `PaymentGatewaySchemaContractTest`, `PaymentGatewayVerifyTest`, `PaymentAmountScaleTest`,
+  `PaymentDriverTest`, `PaymentWebhookMultiTenantTest`, `PaymentStatusTransitionTest`,
+  `PaymentHistoryTest`, `ApplyLateFeesJobTest`, `PaymentRegistrationTest`, `BookingPaymentTest`,
+  `LateFeeCalculatorTest` → 82 verts, 2 sautés (préexistants, `PaymentWebhookMultiTenantTest:129`).
+- Ablations (chacune rejouée puis rendue) : garde d'initiation retirée → `test_initiation_refusee_…`
+  rouge (AC8) ; `FAILED` réécrit `failed` → `test_echec_en_ligne_…` rouge (AC9) ; réglage jamais lu
+  (`&& false`) → 4 rouges dont `test_penalite_incluse_…` ; réglage toujours vrai → 3 rouges dont
+  `test_penalite_exclue_…` et `test_agence_neuve_…` (AC3/AC4) ; comparaison au montant figé retirée →
+  `test_webhook_compare_au_montant_fige_…` rouge (AC7) ; `late_fee_paid_at` non posé → 2 rouges
+  (AC6) ; autorisation par `LeasePaymentPolicy::update` → `test_le_locataire_recoit_403` rouge (AC5).
+

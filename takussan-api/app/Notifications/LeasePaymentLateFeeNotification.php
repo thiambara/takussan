@@ -26,6 +26,9 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
         public float $amount,
         public float $percent,
         public float $base,
+        // TCK-593 — la pénalité est-elle incluse dans le paiement en ligne ? Lu sur l'agence du bail
+        // à l'envoi, par la même méthode que `LeasePaymentResource::late_fee_payable_online`.
+        public bool $lateFeePayableOnline = false,
     ) {}
 
     /**
@@ -67,6 +70,7 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
                 'base' => number_format($this->base, 2),
                 'currency' => $currency,
             ]))
+            ->line($this->settlementLine())
             ->salutation(__('notifications.salutation'));
     }
 
@@ -82,10 +86,20 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
             'percent' => $this->percent,
             'base' => $this->base,
             'currency' => $this->payment->currency?->value,
+            'late_fee_payable_online' => $this->lateFeePayableOnline,
+            'settlement' => $this->settlementLine(),
             'title' => __('notifications.lease_late_fee_applied.subject', [
                 'reference' => $this->payment->reference_number ?? '#'.$this->payment->id,
             ]),
         ];
+    }
+
+    /** TCK-593 — où et comment régler la pénalité : l'une des deux phrases, jamais les deux. */
+    private function settlementLine(): string
+    {
+        return $this->lateFeePayableOnline
+            ? __('notifications.lease_late_fee_applied.pay_online')
+            : __('notifications.lease_late_fee_applied.pay_at_agency');
     }
 
     public function toBroadcast(object $notifiable): BroadcastMessage

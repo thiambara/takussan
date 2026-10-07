@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MarkLateFeePaidRequest;
 use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
 use App\Http\Requests\Api\StoreLeasePaymentRequest;
 use App\Http\Resources\LeasePaymentResource;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Lease\LateFeeSettlement;
 use App\Services\Model\LeasePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,10 @@ class LeasePaymentController extends Controller
         $payments = $lease->payments()
             ->orderBy('period_start', 'desc')
             ->paginate((int) $request->input('per_page', 20));
+
+        // TCK-593 — `amount_due` lit le réglage de l'agence du bail : un bail, une agence, chargés
+        // une fois pour toute la page plutôt qu'une fois par échéance.
+        $payments->getCollection()->each->setRelation('lease', $lease->loadMissing('agency'));
 
         return $this->paginated($payments, LeasePaymentResource::collection($payments)->toArray($request));
     }
@@ -50,6 +56,19 @@ class LeasePaymentController extends Controller
 
         return $this->json([
             'data' => LeasePaymentResource::make($payment)->toArray($request),
+        ]);
+    }
+
+    /**
+     * TCK-593 — l'agence enregistre une pénalité de retard réglée chez elle. 409
+     * `late_fee_not_due` s'il n'en reste aucune.
+     */
+    public function markLateFeePaid(MarkLateFeePaidRequest $request, LeasePayment $payment, LateFeeSettlement $settlement): JsonResponse
+    {
+        $payment = $settlement->markPaid($payment, $request->user(), $request->validated());
+
+        return $this->json([
+            'data' => LeasePaymentResource::make($payment->refresh())->toArray($request),
         ]);
     }
 
