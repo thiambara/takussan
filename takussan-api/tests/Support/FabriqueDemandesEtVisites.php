@@ -6,6 +6,8 @@ use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Customer;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\ContractType;
+use App\Models\Enums\RentPeriod;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -78,7 +80,11 @@ trait FabriqueDemandesEtVisites
             $factory = $factory->published();
         }
 
+        // Vérification adverse — `contract_type` et `rent_period` étaient tirés au hasard : sans
+        // effet mesuré aujourd'hui, mais un vert qui dépend d'un tirage n'en est pas un.
         return $factory->create([
+            'contract_type' => ContractType::Rent->value,
+            'rent_period' => RentPeriod::Monthly->value,
             'agency_id' => $agency?->id,
             'user_id' => ($owner ?? User::factory()->create())->id,
             'visibility' => $public ? 'public' : 'private',

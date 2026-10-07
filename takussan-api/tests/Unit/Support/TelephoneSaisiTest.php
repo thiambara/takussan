@@ -5,7 +5,7 @@ namespace Tests\Unit\Support;
 use App\Rules\TelephoneJoignable;
 use App\Support\TelephoneSaisi;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 /**
  * TCK-590 — relevé par TCK-588 : « 77 123 45 67 » était enregistré tel quel et le rappel de
@@ -29,13 +29,54 @@ class TelephoneSaisiTest extends TestCase
         ];
     }
 
+    /** Ramenée à E.164 et ACCEPTÉE comme numéro de contact — ce qui ne dit pas qu'elle reçoit un SMS (m7). */
     #[DataProvider('saisies')]
-    public function test_la_saisie_est_ramenee_a_e164_joignable(string $saisie, string $attendu): void
+    public function test_la_saisie_est_ramenee_a_e164_et_acceptee(string $saisie, string $attendu): void
     {
         $normalise = TelephoneSaisi::normaliser($saisie);
 
         $this->assertSame($attendu, $normalise);
         $this->assertNull(TelephoneJoignable::defaut($normalise));
+        $this->assertTrue($this->passeLaRegle($normalise));
+    }
+
+    /** m7 — un fixe sénégalais est un contact, pas un destinataire de SMS ; un mobile, si. */
+    public function test_seul_un_mobile_recoit_les_sms(): void
+    {
+        $this->assertTrue(TelephoneSaisi::recoitLesSms('+221771234567'));
+        $this->assertFalse(TelephoneSaisi::recoitLesSms('+221338201234'));
+        $this->assertTrue(TelephoneSaisi::recoitLesSms('+33612345678'));
+        $this->assertFalse(TelephoneSaisi::recoitLesSms(null));
+    }
+
+    /** @return array<string, array{string}> */
+    public static function indicatifsManquants(): array
+    {
+        return [
+            '+ devant le national' => ['+77 123 45 67'],
+            '00 devant le national' => ['00 77 123 45 67'],
+            '+ devant le fixe' => ['+33 820 12 34'],
+        ];
+    }
+
+    /**
+     * m6 — un `+` (ou `00`) devant un numéro national nu donnait `+771234567` : la forme E.164, un
+     * « +7 » à neuf chiffres que rien n'achemine. La règle le refuse au lieu de le fabriquer.
+     */
+    #[DataProvider('indicatifsManquants')]
+    public function test_un_indicatif_manquant_est_refuse(string $saisie): void
+    {
+        $this->assertFalse($this->passeLaRegle((string) TelephoneSaisi::normaliser($saisie)));
+    }
+
+    private function passeLaRegle(string $valeur): bool
+    {
+        $echec = false;
+        (new TelephoneSaisi)->validate('phone', $valeur, function () use (&$echec) {
+            $echec = true;
+        });
+
+        return ! $echec;
     }
 
     /** @return array<string, array{string}> */

@@ -2,7 +2,11 @@
 
 namespace App\Rules;
 
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
+use BackedEnum;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -23,18 +27,63 @@ class PersonnelDeLAgence implements ValidationRule
     public function __construct(private readonly ?int $agencyId) {}
 
     /**
-     * L'utilisateur est-il personnel de cette agence ?
+     * L'utilisateur est-il personnel ACTIF de cette agence : joignable (ni bloqué, ni supprimé),
+     * et titulaire d'un profil agent ou admin de cette agence au statut `active` ?
      *
-     * TCK-587 — `isAgentAt || isAgencyAdminAt` tant que le prédicat de 587
-     * (`MembershipCapabilityResolver::isStaffAt()`) n'est pas sur cette branche.
+     * C'est LA définition du personnel pour tout le ticket — attribution, prise en charge,
+     * planification, boîte des demandes, contact principal (`PrimaryPropertyContact`). Il y en
+     * avait deux : le contact principal exigeait un profil actif, l'attribution non, et un agent
+     * SUSPENDU recevait des visites et des demandes qu'il ne traiterait pas (vérification
+     * adverse, M4). Les profils déjà chargés sont relus sans requête ; sinon la base est
+     * interrogée.
+     *
+     * TCK-587 — à brancher sur `MembershipCapabilityResolver::isStaffAt()` après sa fusion, en
+     * vérifiant qu'il filtre le statut du profil.
      */
     public static function estPersonnel(?User $user, mixed $agencyId): bool
     {
-        if ($user === null || $agencyId === null) {
+        if ($user === null || $agencyId === null || ! PrimaryPropertyContact::joignable($user)) {
             return false;
         }
 
-        return $user->isAgentAt((int) $agencyId) || $user->isAgencyAdminAt((int) $agencyId);
+        $agencyId = (int) $agencyId;
+
+        return self::profilActif($user, 'agentProfiles', $agencyId, AgentProfileStatus::Active)
+            || self::profilActif($user, 'agencyAdminProfiles', $agencyId, AgencyAdminProfileStatus::Active);
+    }
+
+    /**
+     * Les agences où l'utilisateur est personnel actif — la même définition, en liste, pour une
+     * clause d'`index`.
+     *
+     * @return list<int>
+     */
+    public static function agencesOuPersonnel(User $user): array
+    {
+        if (! PrimaryPropertyContact::joignable($user)) {
+            return [];
+        }
+
+        return $user->agentProfiles()->where('status', AgentProfileStatus::Active->value)->pluck('agency_id')
+            ->merge($user->agencyAdminProfiles()->where('status', AgencyAdminProfileStatus::Active->value)->pluck('agency_id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private static function profilActif(User $user, string $relation, int $agencyId, BackedEnum $actif): bool
+    {
+        if ($user->relationLoaded($relation)) {
+            return $user->getRelation($relation)->contains(
+                fn ($profil) => (int) $profil->agency_id === $agencyId && $profil->status === $actif,
+            );
+        }
+
+        return $user->{$relation}()
+            ->where('agency_id', $agencyId)
+            ->where('status', $actif->value)
+            ->exists();
     }
 
     public function validate(string $attribute, mixed $value, Closure $fail): void

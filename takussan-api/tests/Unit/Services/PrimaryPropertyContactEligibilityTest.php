@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
@@ -102,6 +103,15 @@ class PrimaryPropertyContactEligibilityTest extends TestCase
         $property = $this->bienDe(null, $owner);
 
         $this->assertNull(PrimaryPropertyContact::for($property->load(PrimaryPropertyContact::eagerLoads())));
+    }
+
+    /** Vérification adverse (m1) — un collaborateur au profil SUSPENDU n'est pas contact principal. */
+    public function test_l_agent_suspendu_n_est_plus_le_contact_principal(): void
+    {
+        [$property, $ancien, $suivant] = $this->bienADeuxAgents();
+        AgentProfile::query()->where('user_id', $ancien->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        $this->assertLesQuatreSurfacesDesignent($property, $suivant, $ancien);
     }
 
     public function test_l_ordre_d_invitation_reste_la_regle_entre_eligibles(): void

@@ -1,0 +1,287 @@
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\Agency;
+use App\Models\Customer;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\VisitStatus;
+use App\Models\Profiles\AgentProfile;
+use App\Models\PropertyVisit;
+use App\Models\User;
+use App\Notifications\VisitConfirmedNotification;
+use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Visit\VisitSchedulingService;
+use Carbon\CarbonImmutable;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\Sanctum;
+use Tests\ApiTestCase;
+use Tests\Support\FabriqueDemandesEtVisites;
+
+/**
+ * TCK-590 — les défauts de la vérification adverse (VERIF-590), côté visites.
+ *
+ * Cause racine de B1 et B2 : `StorePropertyVisitRequest::managesProperty()` comptait le CRÉATEUR
+ * du bien parmi ceux qui planifient pour un tiers. Le créateur est aussi le bailleur
+ * propriétaire, et l'agent qui a créé le bien puis quitté l'agence : ils lisaient n'importe quelle
+ * fiche client de l'agence, et faisaient partir un SMS vers un numéro libre.
+ */
+class PropertyVisitVerificationAdverseTest extends ApiTestCase
+{
+    use FabriqueDemandesEtVisites;
+    use RefreshDatabase;
+
+    private Agency $x;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Notification::fake();
+
+        $this->x = $this->agence();
+    }
+
+    private function ficheTierce(): void
+    {
+        $this->ficheClient($this->x, null, [
+            'first_name' => 'Fatou', 'last_name' => 'Secrete',
+            'phone' => '+221775550001', 'email' => 'secret@example.com',
+        ]);
+    }
+
+    private function idFicheTierce(): int
+    {
+        return (int) Customer::query()->where('email', 'secret@example.com')->value('id');
+    }
+
+    /** Aucune coordonnée de la fiche tierce n'est rendue, ni écrite, ni prévenue. */
+    private function assertRienDeLaFiche(string $json): void
+    {
+        $this->assertStringNotContainsString('+221775550001', $json);
+        $this->assertStringNotContainsString('secret@example.com', $json);
+        $this->assertStringNotContainsString('Secrete', $json);
+        $this->assertDatabaseMissing('property_visits', ['visitor_phone' => '+221775550001']);
+        $this->assertDatabaseMissing('property_visits', ['customer_id' => $this->idFicheTierce()]);
+        Notification::assertNothingSentTo(new AnonymousNotifiable);
+    }
+
+    /** B1 (R) — le bailleur propriétaire n'emprunte pas la fiche d'un client de l'agence. */
+    public function test_b1_le_bailleur_proprietaire_ne_lit_pas_une_fiche_de_l_agence(): void
+    {
+        $bailleur = $this->bailleur($this->x);
+        $this->ficheTierce();
+        Sanctum::actingAs($bailleur);
+
+        // Bien privé : il n'est ni personnel ni réservable → 403, rien d'écrit.
+        $prive = $this->bienDe($this->x, $bailleur, public: false);
+        $this->postJson('/api/property-visits', [
+            'property_id' => $prive->id, 'customer_id' => $this->idFicheTierce(), 'scheduled_at' => $this->creneau(),
+        ])->assertForbidden();
+
+        // Bien public : il réserve pour LUI-MÊME (contrainte 3) — la fiche envoyée est ignorée.
+        $public = $this->bienDe($this->x, $bailleur);
+        $reponse = $this->postJson('/api/property-visits', [
+            'property_id' => $public->id, 'customer_id' => $this->idFicheTierce(), 'scheduled_at' => $this->creneau(),
+        ])->assertCreated();
+        $this->assertNull($reponse->json('data.customer_id'));
+        $this->assertSame($bailleur->id, $reponse->json('data.visitor_id'));
+        $this->assertSame(VisitStatus::Scheduled->value, $reponse->json('data.status'));
+
+        $this->assertRienDeLaFiche($reponse->getContent());
+    }
+
+    /** B1 (R) — l'agent qui a créé le bien puis a quitté l'agence non plus. */
+    public function test_b1_l_agent_retire_createur_du_bien_ne_lit_pas_une_fiche(): void
+    {
+        $ancien = $this->personnel($this->x);
+        $prive = $this->bienDe($this->x, $ancien, public: false);
+        $public = $this->bienDe($this->x, $ancien);
+        AgentProfile::query()->where('user_id', $ancien->id)->first()->delete();
+        $this->ficheTierce();
+        Sanctum::actingAs($ancien->fresh());
+
+        $this->postJson('/api/property-visits', [
+            'property_id' => $prive->id, 'customer_id' => $this->idFicheTierce(), 'scheduled_at' => $this->creneau(),
+        ])->assertForbidden();
+
+        $reponse = $this->postJson('/api/property-visits', [
+            'property_id' => $public->id, 'customer_id' => $this->idFicheTierce(), 'scheduled_at' => $this->creneau(),
+        ])->assertCreated();
+        $this->assertNull($reponse->json('data.customer_id'));
+
+        $this->assertRienDeLaFiche($reponse->getContent());
+        $this->assertRienDeLaFiche($this->getJson('/api/property-visits?include=customer')->assertOk()->getContent());
+    }
+
+    /**
+     * B2 (R) — un bailleur ne crée pas de visite confirmée vers un numéro libre : bien privé →
+     * 403 à chaque essai ; bien public → une visite EN ATTENTE, à son propre numéro. Aucun SMS.
+     */
+    public function test_b2_un_bailleur_ne_relaie_aucun_sms(): void
+    {
+        $bailleur = $this->bailleur($this->x, ['phone' => '+221770000099']);
+        Sanctum::actingAs($bailleur);
+
+        $prive = $this->bienDe($this->x, $bailleur, public: false);
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/property-visits', [
+                'property_id' => $prive->id, 'visitor_name' => 'X', 'visitor_phone' => '+221776660002',
+                'scheduled_at' => $this->creneau(jours: 3 + $i),
+            ])->assertForbidden();
+        }
+
+        $public = $this->bienDe($this->x, $bailleur);
+        $id = $this->postJson('/api/property-visits', [
+            'property_id' => $public->id, 'visitor_name' => 'X', 'visitor_phone' => '+221776660002',
+            'scheduled_at' => $this->creneau(),
+        ])->assertCreated()->json('data.id');
+
+        $visite = PropertyVisit::query()->findOrFail($id);
+        $this->assertSame(VisitStatus::Scheduled, $visite->status);
+        $this->assertSame('+221770000099', $visite->visitor_phone);
+        $this->assertDatabaseMissing('property_visits', ['visitor_phone' => '+221776660002']);
+        Notification::assertNothingSentTo(new AnonymousNotifiable);
+        Notification::assertNotSentTo($bailleur, VisitConfirmedNotification::class);
+    }
+
+    /** B2 (R) — la planification est bornée par DESTINATAIRE : 5 visites par heure vers un même numéro. */
+    public function test_b2_le_limiteur_borne_les_sms_par_destinataire(): void
+    {
+        $agent = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x);
+        Sanctum::actingAs($agent);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/property-visits', [
+                'property_id' => $bien->id, 'visitor_name' => 'Moussa Fall', 'visitor_phone' => '77 666 00 02',
+                'scheduled_at' => $this->creneau(jours: 2 + $i),
+            ])->assertCreated();
+        }
+        // Même numéro, autre écriture : la clé est la forme E.164.
+        $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'visitor_name' => 'Moussa Fall', 'visitor_phone' => '+221776660002',
+            'scheduled_at' => $this->creneau(jours: 9),
+        ])->assertStatus(429);
+
+        // Un autre destinataire passe encore.
+        $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567',
+            'scheduled_at' => $this->creneau(jours: 10),
+        ])->assertCreated();
+    }
+
+    /** B2 (R) — et par ÉMETTEUR : 30 planifications par heure pour un même compte. */
+    public function test_b2_le_limiteur_borne_l_emetteur(): void
+    {
+        $agent = $this->personnel($this->x);
+        $bien = $this->bienDe($this->x);
+        Sanctum::actingAs($agent);
+
+        for ($i = 0; $i < 30; $i++) {
+            $this->postJson('/api/property-visits', [
+                'property_id' => $bien->id, 'visitor_name' => 'Client '.$i,
+                'visitor_phone' => sprintf('+2217710%05d', $i),
+                'scheduled_at' => $this->creneau(jours: 2 + intdiv($i, 10), heure: 9 + ($i % 10)),
+            ])->assertCreated();
+        }
+
+        $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'visitor_name' => 'Client 31', 'visitor_phone' => '+221771099999',
+            'scheduled_at' => $this->creneau(jours: 6),
+        ])->assertStatus(429);
+    }
+
+    /**
+     * M3 (R) — un bailleur de X qui annule ou déplace la visite du bien d'un AUTRE bailleur ne
+     * prévient pas le visiteur « au nom de l'agence ». (Le geste lui-même : voir le test suivant.)
+     */
+    public function test_m3_le_bailleur_tiers_ne_previent_pas_le_visiteur(): void
+    {
+        $b = $this->bailleur($this->x);
+        $bienDeC = $this->bienDe($this->x, $this->bailleur($this->x));
+        $visite = fn (string $phone) => PropertyVisit::factory()->create([
+            'property_id' => $bienDeC->id, 'visitor_id' => null, 'visitor_phone' => $phone,
+            'visitor_email' => null, 'status' => VisitStatus::Confirmed,
+            'scheduled_at' => CarbonImmutable::now(VisitSchedulingService::TIMEZONE)->addDays(3)->setTime(10, 0)->utc(),
+        ]);
+        $annulee = $visite('+221771010101');
+        $deplacee = $visite('+221771010102');
+
+        Sanctum::actingAs($b);
+        $this->postJson("/api/property-visits/{$annulee->id}/cancel", ['reason' => 'x']);
+        $this->patchJson("/api/property-visits/{$deplacee->id}", ['scheduled_at' => $this->creneau(jours: 4)]);
+
+        Notification::assertNothingSentTo(new AnonymousNotifiable);
+    }
+
+    /**
+     * M3 — le geste lui-même est refusé (403). Il dépend de `PropertyVisitPolicy::view`/`update`,
+     * qui lisent encore `$user->agency_id` : territoire de TCK-587. Rouge aujourd'hui ; il
+     * s'active seul quand `isStaffAt` existe, et doit alors passer au vert.
+     */
+    public function test_m3_le_bailleur_tiers_ne_peut_ni_annuler_ni_deplacer(): void
+    {
+        if (! method_exists(MembershipCapabilityResolver::class, 'isStaffAt')) {
+            $this->markTestIncomplete('TCK-587 : PropertyVisitPolicy::view/update lisent encore user->agency_id.');
+        }
+
+        $b = $this->bailleur($this->x);
+        $visite = PropertyVisit::factory()->create([
+            'property_id' => $this->bienDe($this->x, $this->bailleur($this->x))->id,
+            'visitor_id' => null, 'status' => VisitStatus::Confirmed,
+        ]);
+
+        Sanctum::actingAs($b);
+        $this->postJson("/api/property-visits/{$visite->id}/cancel", ['reason' => 'x'])->assertForbidden();
+        $this->patchJson("/api/property-visits/{$visite->id}", ['scheduled_at' => $this->creneau(jours: 4)])->assertForbidden();
+    }
+
+    /** M4 (R) — un agent SUSPENDU n'est ni attribuable, ni preneur. */
+    public function test_m4_un_agent_suspendu_n_est_pas_du_personnel(): void
+    {
+        $admin = $this->personnel($this->x, 'agency_admin');
+        $suspendu = $this->personnel($this->x);
+        AgentProfile::query()->where('user_id', $suspendu->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        $bien = $this->bienDe($this->x);
+        $visite = PropertyVisit::factory()->create([
+            'property_id' => $bien->id, 'visitor_id' => $this->client()->id, 'agent_id' => null, 'status' => VisitStatus::Scheduled,
+        ]);
+
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/property-visits/{$visite->id}", ['agent_id' => $suspendu->id])
+            ->assertUnprocessable()->assertJsonValidationErrors(['agent_id']);
+
+        Sanctum::actingAs($suspendu->fresh());
+        $this->postJson("/api/property-visits/{$visite->id}/claim")->assertForbidden();
+        $this->assertNull($visite->fresh()->agent_id);
+    }
+
+    /** m5 — `duration_minutes` plafonné à 240, comme sur la route publique. */
+    public function test_m5_la_duree_est_plafonnee(): void
+    {
+        Sanctum::actingAs($this->personnel($this->x));
+
+        $this->postJson('/api/property-visits', [
+            'property_id' => $this->bienDe($this->x)->id, 'visitor_name' => 'Awa', 'visitor_phone' => '+221771234567',
+            'scheduled_at' => $this->creneau(), 'duration_minutes' => 100000,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['duration_minutes']);
+    }
+
+    /** Le personnel légitime n'a rien perdu : il planifie, la visite naît confirmée, le client est prévenu. */
+    public function test_le_personnel_planifie_toujours(): void
+    {
+        $agent = $this->personnel($this->x);
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/property-visits', [
+            'property_id' => $this->bienDe($this->x)->id, 'visitor_name' => 'Awa', 'visitor_phone' => '+221771234567',
+            'scheduled_at' => $this->creneau(), 'duration_minutes' => 240,
+        ])->assertCreated()->assertJsonPath('data.status', VisitStatus::Confirmed->value);
+
+        Notification::assertSentOnDemand(VisitConfirmedNotification::class);
+        $this->assertInstanceOf(User::class, $agent);
+    }
+}

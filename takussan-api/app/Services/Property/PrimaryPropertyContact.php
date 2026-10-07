@@ -2,15 +2,12 @@
 
 namespace App\Services\Property;
 
-use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\UserStatus;
-use App\Models\Profiles\AgencyAdminProfile;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 
 /**
  * TCK-502 — **qui répond pour ce bien.** Une seule définition, pour tout le monde.
@@ -121,12 +118,9 @@ class PrimaryPropertyContact
     }
 
     /**
-     * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence (agent ou admin).
-     *
-     * TCK-587 — le prédicat « personnel » du dépôt est `MembershipCapabilityResolver::isStaffAt()`,
-     * qui interroge la base ; il est relu ici sur les profils chargés pour ne pas ajouter une
-     * requête par collaborateur. Les deux disent la même chose hors délégation de rôle — un
-     * délégué n'est pas collaborateur d'un bien.
+     * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence (agent ou admin) —
+     * la définition unique de `PersonnelDeLAgence::estPersonnel()`, qui relit ici les profils
+     * chargés par {@see self::eagerLoads()} sans ajouter de requête par collaborateur.
      */
     private static function eligible(?User $user, Property $property): bool
     {
@@ -134,16 +128,7 @@ class PrimaryPropertyContact
             return false;
         }
 
-        $agencyId = $property->agency_id;
-        if ($agencyId === null) {
-            return true;
-        }
-
-        return $user->agentProfiles->contains(
-            fn (AgentProfile $p) => (int) $p->agency_id === (int) $agencyId && $p->status === AgentProfileStatus::Active,
-        ) || $user->agencyAdminProfiles->contains(
-            fn (AgencyAdminProfile $p) => (int) $p->agency_id === (int) $agencyId && $p->status === AgencyAdminProfileStatus::Active,
-        );
+        return $property->agency_id === null || PersonnelDeLAgence::estPersonnel($user, $property->agency_id);
     }
 
     /**

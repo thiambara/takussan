@@ -6,7 +6,11 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('property-visits', [PropertyVisitController::class, 'index'])->name('property-visits.index');
     Route::get('property-visits/{visit}', [PropertyVisitController::class, 'show'])->name('property-visits.show');
-    Route::post('property-visits', [PropertyVisitController::class, 'store'])->name('property-visits.store');
+    // TCK-590 — la planification confirmée fait partir un SMS : bornée par émetteur et par
+    // destinataire (`visit-planning`, vérification adverse B2).
+    Route::post('property-visits', [PropertyVisitController::class, 'store'])
+        ->middleware('throttle:visit-planning')
+        ->name('property-visits.store');
     Route::put('property-visits/{visit}', [PropertyVisitController::class, 'update'])->name('property-visits.update');
     Route::patch('property-visits/{visit}', [PropertyVisitController::class, 'update']);
     Route::post('property-visits/{visit}/confirm', [PropertyVisitController::class, 'confirm'])->name('property-visits.confirm');

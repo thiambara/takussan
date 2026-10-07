@@ -64,6 +64,10 @@ class PropertyVisitAssignmentTest extends ApiTestCase
         $clientDeX = $this->client();
         $this->ficheClient($this->x, $clientDeX);
         $this->assertSame([], $this->nonAttribueesVuesPar($clientDeX));
+
+        // Vérification adverse (M5) — un BAILLEUR de X n'est pas du personnel : la clause d'agence
+        // de la liste ne s'ouvre pas à lui (il y lirait les téléphones de tous les visiteurs).
+        $this->assertSame([], $this->nonAttribueesVuesPar($this->bailleur($this->x)));
     }
 
     /** AC4 — toute visite rendue par `index` passe `PropertyVisitPolicy::view`. */

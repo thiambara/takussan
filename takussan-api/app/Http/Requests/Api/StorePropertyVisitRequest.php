@@ -23,8 +23,7 @@ use Illuminate\Validation\Rule;
  *
  * TCK-590 — les règles dépendent de QUI planifie :
  *
- *   · **le gestionnaire du bien** (personnel de son agence, créateur du bien, super-admin)
- *     planifie pour un client : `customer_id` est une fiche DE L'AGENCE DU BIEN
+ *   · **le personnel de l'agence du bien** (ou un super-admin) planifie pour un client : `customer_id` est une fiche DE L'AGENCE DU BIEN
  *     (`ClientDeLAgence`), `agent_id` un membre de son personnel (`PersonnelDeLAgence`), et sans
  *     fiche le prospect se donne par nom + téléphone ;
  *   · **tout autre** réserve pour lui-même : `customer_id`, `agent_id` et `visitor_*` sont
@@ -60,7 +59,15 @@ class StorePropertyVisitRequest extends BaseFormRequest
     }
 
     /**
-     * L'appelant gère-t-il ce bien : super-admin, créateur, ou personnel de son agence ?
+     * L'appelant planifie-t-il pour un tiers : super-admin, ou personnel ACTIF de l'agence du bien ?
+     *
+     * Le CRÉATEUR du bien n'y figure plus (vérification adverse, B1 et B2) : `property.user_id`
+     * est aussi le bailleur propriétaire, et l'agent qui a créé le bien puis a quitté l'agence.
+     * Classés gestionnaires, ils lisaient n'importe quelle fiche client de l'agence par
+     * `customer_id` — la réponse en recopiait nom, téléphone et e-mail — et faisaient partir une
+     * visite CONFIRMÉE, donc un SMS, vers un numéro libre, sur un bien même privé. La contrainte 4
+     * ne laisse partir un SMS qu'après un geste de L'AGENCE. Le créateur non-personnel réserve
+     * pour lui-même, comme tout visiteur.
      */
     public function managesProperty(): bool
     {
@@ -69,7 +76,6 @@ class StorePropertyVisitRequest extends BaseFormRequest
 
         return $user !== null && $property !== null && (
             $user->isSuperAdmin()
-            || $property->user_id === $user->id
             || PersonnelDeLAgence::estPersonnel($user, $property->agency_id)
         );
     }
@@ -101,12 +107,14 @@ class StorePropertyVisitRequest extends BaseFormRequest
                 ? ['required', 'date', 'after:now']
                 : ['required', 'date', 'after:now', new CreneauDeVisite],
             'type' => ['nullable', Rule::enum(VisitType::class)],
-            'duration_minutes' => ['nullable', 'integer', 'min:5'],
+            // Vérification adverse (m5) — le plafond de la route publique : une visite de 100 000
+            // minutes, une fois confirmée, bloquait le bien.
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:240'],
             'visitor_name' => $manager
                 ? ['nullable', 'required_without:customer_id', 'string', 'max:120']
                 : ['nullable', 'string'],
             'visitor_phone' => $manager
-                ? ['nullable', 'required_without:customer_id', 'string', 'max:30', new TelephoneJoignable]
+                ? ['nullable', 'required_without:customer_id', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi]
                 : ['nullable', 'string'],
             'visitor_email' => ['nullable', 'email'],
             'notes' => ['nullable', 'string'],
