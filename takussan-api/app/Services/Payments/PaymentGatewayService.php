@@ -355,9 +355,11 @@ class PaymentGatewayService
                         // Passe 2 (observation retenue) — la pénalité de ce checkout a été réglée
                         // ENTRE-TEMPS à l'agence (session du fournisseur plus longue que la fenêtre de
                         // réutilisation, ou passage outre du personnel) : sa part est encaissée deux
-                        // fois. Marquée et signalée comme en V3, au montant de la pénalité.
+                        // fois. Marquée et signalée comme en V3, au montant de la pénalité. Repli
+                        // (entrée sans `late_fee_amount`) : la pénalité de l'échéance, celle-là même
+                        // qui a été réglée — jamais `remaining_amount`, déjà nul après `writeStatus`.
                         $feePart = $initiation['late_fee_amount']
-                            ?? max(0.0, ($initiation['amount'] ?? 0.0) - (float) $payment->remaining_amount);
+                            ?? $this->roundToCurrencyUnit((float) $payment->late_fee_amount, $payment);
                         $existingMeta['gateway_duplicate_payment'] = array_merge(
                             is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
                             [[

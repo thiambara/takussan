@@ -350,6 +350,37 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertArrayNotHasKey('gateway_duplicate_payment', $other['payment']->metadata);
     }
 
+    public function test_la_part_de_penalite_d_un_checkout_sans_late_fee_amount_est_la_penalite(): void
+    {
+        // Passe 3 (m1) — un checkout ouvert avant que l'historique ne fige `late_fee_amount` : le
+        // repli lisait `remaining_amount` APRÈS le passage à `paid`, donc 0, et la part valait le
+        // checkout entier (157 500). La part en double est la pénalité réglée à l'agence.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
+        $ctx['agency']->update(['primary_admin_id' => $admin->id]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $payment = $ctx['payment']->refresh();
+        $metadata = $payment->metadata;
+        unset($metadata['gateway']['transactions'][0]['late_fee_amount']);
+        $payment->forceFill(['metadata' => $metadata])->save();
+
+        $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();
+        Sanctum::actingAs($ctx['agent']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", [])->assertOk();
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+
+        $duplicate = $ctx['payment']->refresh()->metadata['gateway_duplicate_payment'] ?? [];
+        $this->assertCount(1, $duplicate);
+        $this->assertSame('late_fee', $duplicate[0]['kind']);
+        $this->assertEquals(7_500, $duplicate[0]['amount']);
+        $notification = AppNotification::query()->where('user_id', $admin->id)
+            ->where('title', __('payments.duplicate_payment.title'))->sole();
+        $this->assertStringContainsString('7 500', $notification->body);
+        $this->assertStringNotContainsString('157 500', $notification->body);
+    }
+
     public function test_un_webhook_sans_echeance_laisse_une_trace_sans_donnee_personnelle(): void
     {
         $logged = [];
