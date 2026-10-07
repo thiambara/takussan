@@ -2938,7 +2938,16 @@
         "settled": "Pénalité réglée",
         "markPaid": "Pénalité réglée",
         "markedPaid": "Pénalité enregistrée comme réglée.",
-        "markFailed": "La pénalité n’a pas pu être enregistrée comme réglée."
+        "markFailed": "La pénalité n’a pas pu être enregistrée comme réglée.",
+        "override": {
+          "title": "Un paiement en ligne est en cours",
+          "description": "Un paiement en ligne de {amount} est en cours sur cette échéance. Enregistrez la pénalité seulement si vous l’avez bien reçue.",
+          "confirm": "Je confirme avoir reçu le paiement. Le paiement en ligne en cours sera signalé s’il aboutit.",
+          "reason": "Motif",
+          "reasonPlaceholder": "Ex. : espèces reçues au guichet",
+          "submit": "Enregistrer quand même",
+          "cancel": "Annuler"
+        }
       }
     },
     "fallbackReference": "Bail #{id}",

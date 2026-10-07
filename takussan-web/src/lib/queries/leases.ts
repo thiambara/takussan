@@ -326,6 +326,12 @@ export type MarkLateFeePaidPayload = {
   paymentId: number;
   paid_at?: string;
   payment_method?: string;
+  /**
+   * Passe 2 (M5) — un checkout en ligne qui inclut la pénalité est ouvert : le personnel passe
+   * outre, motif obligatoire. Le checkout écarté, payé quand même, sera signalé en double.
+   */
+  override_open_checkout?: boolean;
+  override_reason?: string;
 };
 
 export function useMarkLateFeePaid(leaseId: number) {

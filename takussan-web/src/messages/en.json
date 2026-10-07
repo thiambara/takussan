@@ -2963,7 +2963,16 @@
         "settled": "Late fee settled",
         "markPaid": "Late fee settled",
         "markedPaid": "Late fee recorded as settled.",
-        "markFailed": "The late fee couldn’t be recorded as settled."
+        "markFailed": "The late fee couldn’t be recorded as settled.",
+        "override": {
+          "title": "An online payment is in progress",
+          "description": "An online payment of {amount} is in progress for this instalment. Only record the late fee if you have actually received it.",
+          "confirm": "I confirm I received the payment. The online payment in progress will be flagged if it goes through.",
+          "reason": "Reason",
+          "reasonPlaceholder": "E.g. cash received at the counter",
+          "submit": "Record anyway",
+          "cancel": "Cancel"
+        }
       }
     },
     "fallbackReference": "Lease #{id}",

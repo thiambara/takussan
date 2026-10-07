@@ -12,11 +12,12 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
+import { ApiError } from '@/lib/api';
 import type { LeasePayment } from '@/types/lease';
 import { LeaseSchedule } from '../LeaseSchedule';
 
@@ -24,9 +25,22 @@ const useLeasePayments = vi.fn();
 const markLateFeePaid = vi.fn();
 const providers = vi.fn<() => string[]>(() => []);
 
+/**
+ * Passe 2 (M5) — le refus que l'API rendrait au PREMIER enregistrement (sans passage outre). Rejeté
+ * hors de `vi.fn()` : sous Vitest 4, une promesse rejetée rendue par un `vi.fn()` est signalée non
+ * gérée même quand l'appelant l'attrape.
+ */
+let refusSansPassageOutre: unknown = null;
+
 vi.mock('@/lib/queries/leases', () => ({
   useLeasePayments: (...args: unknown[]) => useLeasePayments(...args),
-  useMarkLateFeePaid: () => ({ mutateAsync: markLateFeePaid, isPending: false }),
+  useMarkLateFeePaid: () => ({
+    mutateAsync: (variables: { override_open_checkout?: boolean }) =>
+      refusSansPassageOutre !== null && !variables.override_open_checkout
+        ? Promise.reject(refusSansPassageOutre)
+        : markLateFeePaid(variables),
+    isPending: false,
+  }),
 }));
 
 vi.mock('@/hooks/usePaymentProviders', () => ({
@@ -119,6 +133,7 @@ function ligne(reference: RegExp) {
 }
 
 beforeEach(() => {
+  refusSansPassageOutre = null;
   vi.clearAllMocks();
   providers.mockReturnValue([]);
   avecEcheances([PAYEE]);
@@ -200,6 +215,45 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
     expect(markLateFeePaid).toHaveBeenCalledWith({ paymentId: 12 });
+  });
+
+  it('un checkout en ligne en cours : passer outre exige la confirmation et un motif (M5)', async () => {
+    avecEcheances([enRetard()]);
+    markLateFeePaid.mockResolvedValue({});
+    refusSansPassageOutre = new ApiError(409, {
+      message: 'Un paiement en ligne est en cours sur cette échéance.',
+      code: 'checkout_in_progress',
+      checkout: { amount: 157500, currency: 'XOF', retry_after: '2026-10-07T10:30:00+00:00' },
+    });
+    rendre(true);
+
+    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    const dialogue = await screen.findByRole('dialog');
+    const o = fr.lease.schedule.lateFee.override;
+    expect(texte(within(dialogue).getByText(/Un paiement en ligne de/).textContent)).toContain('157 500 F CFA');
+    expect(markLateFeePaid).not.toHaveBeenCalled();
+
+    const enregistrer = within(dialogue).getByRole('button', { name: o.submit });
+    expect(enregistrer).toBeDisabled();
+    // Le motif seul ne suffit pas : la case de confirmation est requise.
+    fireEvent.change(within(dialogue).getByLabelText(o.reason), { target: { value: ' Espèces au guichet ' } });
+    expect(enregistrer).toBeDisabled();
+    fireEvent.click(within(dialogue).getByRole('checkbox', { name: o.confirm }));
+    expect(enregistrer).toBeEnabled();
+    // La case seule non plus : sans motif, rien ne part.
+    fireEvent.change(within(dialogue).getByLabelText(o.reason), { target: { value: '   ' } });
+    expect(enregistrer).toBeDisabled();
+    fireEvent.change(within(dialogue).getByLabelText(o.reason), { target: { value: ' Espèces au guichet ' } });
+
+    fireEvent.click(enregistrer);
+    await waitFor(() =>
+      expect(markLateFeePaid).toHaveBeenCalledWith({
+        paymentId: 12,
+        override_open_checkout: true,
+        override_reason: 'Espèces au guichet',
+      }),
+    );
+    refusSansPassageOutre = null;
   });
 
   it('pas de « Pénalité réglée » pour le locataire', () => {

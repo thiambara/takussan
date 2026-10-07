@@ -1582,7 +1582,16 @@
         "settled": "Alaamu yeex bi fey nañu ko",
         "markPaid": "Alaamu yeex bi fey nañu ko",
         "markedPaid": "Bind nañu ne alaamu yeex bi fey nañu ko.",
-        "markFailed": "Mënuñu bind ne alaamu yeex bi fey nañu ko."
+        "markFailed": "Mënuñu bind ne alaamu yeex bi fey nañu ko.",
+        "override": {
+          "title": "Fey ci internet mu ngi dox",
+          "description": "Fey bu {amount} ci internet mu ngi dox ci bii fey. Bindal pénalité bi su fekkee jot nga ko dëgg.",
+          "confirm": "Dama seede ne jot naa fey bi. Fey bi ci internet dinañu ko xamle su àntoo.",
+          "reason": "Lu tax",
+          "reasonPlaceholder": "Misaal : xaalis bu ñu jot ci guichet bi",
+          "submit": "Bind ko rekk",
+          "cancel": "Neenal"
+        }
       }
     },
     "fallbackReference": "Luwé #{id}",

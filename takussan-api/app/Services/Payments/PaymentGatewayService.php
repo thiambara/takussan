@@ -571,7 +571,66 @@ class PaymentGatewayService
             return null;
         }
 
+        // Passe 2, M5 — le personnel a passé outre (règlement reçu au guichet) : ce checkout ne
+        // bloque plus rien ; payé quand même, il deviendra un double encaissement signalé.
+        if (! empty($gateway['superseded_at']) && Carbon::parse($gateway['superseded_at'])->gte($initiatedAt)) {
+            return null;
+        }
+
         return $gateway;
+    }
+
+    /**
+     * Passe 2, M5 — le personnel de l'agence passe outre au checkout ouvert pour enregistrer un
+     * règlement reçu hors ligne. Le checkout est marqué `superseded_at` (sur la ligne et sur son
+     * entrée de l'historique), avec le motif saisi. Pose l'attribut, la sauvegarde est celle de
+     * l'appelant, qui journalise ensuite par `logCheckoutOverride`. Rend le checkout écarté, ou
+     * `null` s'il n'y en avait pas.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function supersedeOpenCheckout(Model $payment, string $reason): ?array
+    {
+        $open = $this->openCheckout($payment);
+        if ($open === null) {
+            return null;
+        }
+
+        $now = now()->toIso8601String();
+        $meta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+        $gateway = is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [];
+        $gateway['superseded_at'] = $now;
+        $gateway['superseded_reason'] = $reason;
+        foreach (is_array($gateway['transactions'] ?? null) ? $gateway['transactions'] : [] as $i => $entry) {
+            if (($entry['transaction_id'] ?? null) === ($open['transaction_id'] ?? null)) {
+                $gateway['transactions'][$i]['superseded_at'] = $now;
+            }
+        }
+        $meta['gateway'] = $gateway;
+        $payment->metadata = $meta;
+
+        return $open;
+    }
+
+    /**
+     * Le journal du passage outre : identifiants du checkout et geste, sans donnée personnelle —
+     * le motif, texte libre, reste sur la ligne (`gateway.superseded_reason`).
+     *
+     * @param  array<string,mixed>  $open
+     */
+    public function logCheckoutOverride(Model $payment, ?User $by, array $open, string $gesture): void
+    {
+        activity(class_basename($payment))
+            ->causedBy($by)
+            ->performedOn($payment)
+            ->withProperties([
+                'gesture' => $gesture,
+                'transaction_id' => $open['transaction_id'] ?? null,
+                'provider' => $open['provider'] ?? null,
+                'checkout_amount' => $this->openCheckoutAmount($payment, $open),
+            ])
+            ->event('open_checkout_overridden')
+            ->log('open_checkout_overridden');
     }
 
     /**

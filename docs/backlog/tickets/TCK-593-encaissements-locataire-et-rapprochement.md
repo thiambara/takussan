@@ -1081,3 +1081,19 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   `PaymentGatewayInitiateTest::test_initiation_refusee_sur_une_echeance_deja_payee` (409
   `payment_not_payable`, aucun appel au pilote). Ablation (`Refunded` retiré d'`isPayable`) →
   rouge sur ce cas. La phrase de la note AC8 qui la disait inobservable est corrigée.
+- **M5 — l'espèce bloquée 30 min par un checkout abandonné.** `mark-paid` et
+  `late-fee/mark-paid` acceptent `override_open_checkout: true` avec `override_reason` obligatoire
+  (`required_if_accepted`, max 500). Passer outre est réservé au PERSONNEL de l'agence du bail
+  (`MembershipCapabilityResolver::isStaffAt`, prédicat de 587) en plus de `recordPayment` : le
+  locataire et le bailleur — même autorisé à encaisser — reçoivent 403. Le checkout est marqué
+  `superseded_at` (ligne et entrée de l'historique) avec `superseded_reason` ; `openCheckout` ne le
+  voit plus. Le geste est journalisé (`activity_log`, événement `open_checkout_overridden` :
+  geste, `transaction_id`, fournisseur, montant du checkout — le motif, texte libre, reste sur la
+  ligne et ne va pas au journal). Payé quand même, le checkout suit le chemin V3 : doublon marqué,
+  admins prévenus. Front : au 409 `checkout_in_progress` sur « Pénalité réglée », l'échéancier
+  ouvre `PasserOutreDialog` (montant du checkout, case « Je confirme avoir reçu le paiement… »,
+  motif), fr/en/wo. Le loyer n'a pas de geste « marquer payé » au front : le passage outre y est
+  servi par l'API seule. Tests `PaymentCheckoutOverrideTest` (3) et `LeaseSchedule.test.tsx`.
+  Ablations : contrôle du personnel retiré (loyer, pénalité) → rouges ; motif facultatif → rouge ;
+  journal retiré → rouge ; `superseded_at` ignoré par `openCheckout` → rouge ; front : dialogue
+  non ouvert, case ou motif non exigés → rouges.

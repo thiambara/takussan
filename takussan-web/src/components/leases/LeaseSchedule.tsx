@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock } from 'lucide-react';
 import { useLeasePayments, useMarkLateFeePaid } from '@/lib/queries/leases';
@@ -18,6 +18,8 @@ import { BoutonTelechargement } from '@/components/documents/BoutonTelechargemen
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useToast } from '@/components/ui/toast';
+import { checkoutEnCours, type CheckoutEnCours } from '@/components/payments/checkout-en-cours';
+import { PasserOutreDialog } from './PasserOutreDialog';
 
 interface LeaseScheduleProps {
   readonly leaseId: number;
@@ -64,6 +66,11 @@ export function LeaseSchedule({ leaseId, agencyId, canManage = false }: LeaseSch
   const { data, isLoading, isError } = paymentsQuery;
   const { providers } = usePaymentProviders(agencyId ?? null);
   const markLateFeePaid = useMarkLateFeePaid(leaseId);
+  // Passe 2 (M5) — l'échéance dont un checkout en ligne bloque l'enregistrement de la pénalité.
+  const [bloquee, setBloquee] = useState<{
+    paymentId: number;
+    checkout: CheckoutEnCours;
+  } | null>(null);
 
   const payments = useMemo(() => data?.data ?? [], [data]);
 
@@ -89,104 +96,125 @@ export function LeaseSchedule({ leaseId, agencyId, canManage = false }: LeaseSch
     );
   }
 
-  async function constaterPenaliteReglee(p: LeasePayment) {
+  async function constaterPenaliteReglee(paymentId: number, motifPassageOutre?: string) {
     try {
-      await markLateFeePaid.mutateAsync({ paymentId: p.id });
+      await markLateFeePaid.mutateAsync(
+        motifPassageOutre === undefined
+          ? { paymentId }
+          : { paymentId, override_open_checkout: true, override_reason: motifPassageOutre },
+      );
+      setBloquee(null);
       toast.add({ title: t('lateFee.markedPaid'), type: 'success' });
     } catch (err) {
+      // Un checkout en ligne vit : on propose de passer outre au lieu d'un refus nu.
+      const enCours = motifPassageOutre === undefined ? checkoutEnCours(err) : null;
+      if (enCours) {
+        setBloquee({ paymentId, checkout: enCours });
+        return;
+      }
       toast.add({ title: messageErreur(err, t('lateFee.markFailed')), type: 'error' });
     }
   }
 
   return (
-    <ul
-      className="divide-y divide-border rounded-xl border border-border bg-card text-sm tabular-nums"
-      aria-label={t('listLabel')}
-      data-testid="echeancier"
-    >
-      {payments.map((p) => {
-        const st = displayStatus(p);
-        const enDevise = (valeur: number) =>
-          formatCurrency(valeur, locale, { currency: p.currency });
-        const penaliteHorsLigne = p.late_fee_outstanding > 0 && !p.late_fee_payable_online;
-        return (
-          <li
-            key={p.id}
-            className={cn(
-              'flex flex-col gap-3 px-4 py-3 transition-colors lg:flex-row lg:items-center lg:gap-6',
-              st === 'late' && 'bg-destructive/10',
-            )}
-          >
-            <div className="min-w-0 lg:w-64 lg:shrink-0">
-              <p className="font-medium text-foreground">
-                {formatDate(p.period_start, locale)} → {formatDate(p.period_end, locale)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t('dueOn', {
-                  date: p.due_date ? formatDate(p.due_date, locale) : '—',
-                })}
-              </p>
-            </div>
-
-            <div className="min-w-0 lg:flex-1">
-              <p className="font-medium text-foreground">
-                {enDevise(p.amount)}
-                {typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 && (
-                  <span className="ml-1 text-xs text-destructive" data-testid="penalite">
-                    +{enDevise(p.late_fee_amount)}
-                  </span>
-                )}
-              </p>
-              {typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {p.late_fee_paid_at
-                    ? t('lateFee.settled')
-                    : penaliteHorsLigne
-                      ? t('lateFee.atAgency')
-                      : t('lateFee.label')}
+    <>
+      <ul
+        className="divide-y divide-border rounded-xl border border-border bg-card text-sm tabular-nums"
+        aria-label={t('listLabel')}
+        data-testid="echeancier"
+      >
+        {payments.map((p) => {
+          const st = displayStatus(p);
+          const enDevise = (valeur: number) =>
+            formatCurrency(valeur, locale, { currency: p.currency });
+          const penaliteHorsLigne = p.late_fee_outstanding > 0 && !p.late_fee_payable_online;
+          return (
+            <li
+              key={p.id}
+              className={cn(
+                'flex flex-col gap-3 px-4 py-3 transition-colors lg:flex-row lg:items-center lg:gap-6',
+                st === 'late' && 'bg-destructive/10',
+              )}
+            >
+              <div className="min-w-0 lg:w-64 lg:shrink-0">
+                <p className="font-medium text-foreground">
+                  {formatDate(p.period_start, locale)} → {formatDate(p.period_end, locale)}
                 </p>
-              )}
-            </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('dueOn', {
+                    date: p.due_date ? formatDate(p.due_date, locale) : '—',
+                  })}
+                </p>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <Badge
-                variant={st === 'paid' ? 'default' : st === 'late' ? 'destructive' : 'outline'}
-              >
-                {tScheduleStatus(st)}
-              </Badge>
-              {p.amount_due > 0 && (
-                <PayOnlineButton
-                  paymentType="lease-payments"
-                  paymentId={p.id}
-                  currency={p.currency}
-                  availableProviders={providers}
-                  montant={detailMontantDu(p)}
-                />
-              )}
-              {p.receipt_available && (
-                <BoutonTelechargement
-                  chemin={`/api/leases/${leaseId}/receipts/${p.id}/pdf`}
-                  nomFichier={`quittance-${p.reference_number ?? p.id}.pdf`}
-                  size="sm"
+              <div className="min-w-0 lg:flex-1">
+                <p className="font-medium text-foreground">
+                  {enDevise(p.amount)}
+                  {typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 && (
+                    <span className="ml-1 text-xs text-destructive" data-testid="penalite">
+                      +{enDevise(p.late_fee_amount)}
+                    </span>
+                  )}
+                </p>
+                {typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {p.late_fee_paid_at
+                      ? t('lateFee.settled')
+                      : penaliteHorsLigne
+                        ? t('lateFee.atAgency')
+                        : t('lateFee.label')}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                <Badge
+                  variant={st === 'paid' ? 'default' : st === 'late' ? 'destructive' : 'outline'}
                 >
-                  {t('receiptPdf')}
-                </BoutonTelechargement>
-              )}
-              {canManage && p.late_fee_outstanding > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void constaterPenaliteReglee(p)}
-                  disabled={markLateFeePaid.isPending}
-                >
-                  {t('lateFee.markPaid')}
-                </Button>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+                  {tScheduleStatus(st)}
+                </Badge>
+                {p.amount_due > 0 && (
+                  <PayOnlineButton
+                    paymentType="lease-payments"
+                    paymentId={p.id}
+                    currency={p.currency}
+                    availableProviders={providers}
+                    montant={detailMontantDu(p)}
+                  />
+                )}
+                {p.receipt_available && (
+                  <BoutonTelechargement
+                    chemin={`/api/leases/${leaseId}/receipts/${p.id}/pdf`}
+                    nomFichier={`quittance-${p.reference_number ?? p.id}.pdf`}
+                    size="sm"
+                  >
+                    {t('receiptPdf')}
+                  </BoutonTelechargement>
+                )}
+                {canManage && p.late_fee_outstanding > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void constaterPenaliteReglee(p.id)}
+                    disabled={markLateFeePaid.isPending}
+                  >
+                    {t('lateFee.markPaid')}
+                  </Button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <PasserOutreDialog
+        checkout={bloquee?.checkout ?? null}
+        occupe={markLateFeePaid.isPending}
+        onAnnuler={() => setBloquee(null)}
+        onConfirmer={(motif) => {
+          if (bloquee) void constaterPenaliteReglee(bloquee.paymentId, motif);
+        }}
+      />
+    </>
   );
 }

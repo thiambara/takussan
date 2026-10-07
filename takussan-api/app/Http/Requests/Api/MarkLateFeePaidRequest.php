@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\PaymentMethod;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Validation\Rule;
 
 /**
@@ -20,7 +21,21 @@ class MarkLateFeePaidRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('recordPayment', $this->route('payment')?->lease) === true;
+        return $this->user()?->can('recordPayment', $this->route('payment')?->lease) === true
+            && (! $this->boolean('override_open_checkout') || $this->isAgencyStaff());
+    }
+
+    /**
+     * TCK-593 (passe 2, M5) — passer outre à un checkout ouvert est réservé au PERSONNEL de
+     * l'agence du bail (prédicat de TCK-587, profil d'agent ou d'admin actif) : le bailleur, même
+     * autorisé à encaisser, et le locataire ne le peuvent pas.
+     */
+    private function isAgencyStaff(): bool
+    {
+        $agencyId = $this->route('payment')?->lease?->agency_id;
+
+        return $agencyId !== null
+            && app(MembershipCapabilityResolver::class)->isStaffAt($this->user(), (int) $agencyId);
     }
 
     /** @return array<string, mixed> */
@@ -30,6 +45,9 @@ class MarkLateFeePaidRequest extends BaseFormRequest
             // TCK-593 (vérification adverse, V7) — un règlement ne se date pas dans le futur.
             'paid_at' => ['nullable', 'date', 'before_or_equal:now'],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
+            // Passe 2, M5 — passer outre au checkout ouvert, motif obligatoire.
+            'override_open_checkout' => ['sometimes', 'boolean'],
+            'override_reason' => ['nullable', 'string', 'max:500', 'required_if_accepted:override_open_checkout'],
         ];
     }
 }

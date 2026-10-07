@@ -53,7 +53,7 @@ class LeasePaymentController extends Controller
 
         $data = $request->validated();
 
-        $payment = $this->payments->markPaid($payment, $data);
+        $payment = $this->payments->markPaid($payment, $data, $request->user());
 
         return $this->json([
             'data' => LeasePaymentResource::make($payment)->toArray($request),

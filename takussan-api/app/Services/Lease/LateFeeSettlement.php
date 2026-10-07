@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 class LateFeeSettlement
 {
     /**
-     * @param  array{paid_at?: ?string, payment_method?: ?string}  $data
+     * @param  array{paid_at?: ?string, payment_method?: ?string, override_open_checkout?: bool, override_reason?: ?string}  $data
      */
     public function markPaid(LeasePayment $payment, User $by, array $data = []): LeasePayment
     {
@@ -31,8 +31,14 @@ class LateFeeSettlement
             // l'encaissera : l'enregistrer réglée à l'agence en même temps la ferait payer deux fois.
             $gateway = app(PaymentGatewayService::class);
             $open = $gateway->openCheckout($locked);
+            $overridden = null;
             if ($open !== null && ($locked->metadata['late_fee_included'] ?? false) === true) {
-                $gateway->refuseOpenCheckout($locked, $open);
+                // Passe 2, M5 — sauf passage outre du personnel, motif à l'appui : le checkout
+                // écarté, payé quand même, verra sa part de pénalité marquée en double.
+                if (empty($data['override_open_checkout'])) {
+                    $gateway->refuseOpenCheckout($locked, $open);
+                }
+                $overridden = $gateway->supersedeOpenCheckout($locked, (string) ($data['override_reason'] ?? ''));
             }
 
             $metadata = is_array($locked->metadata) ? $locked->metadata : [];
@@ -45,6 +51,10 @@ class LateFeeSettlement
                 'late_fee_paid_at' => $data['paid_at'] ?? now(),
                 'metadata' => $metadata,
             ])->save();
+
+            if ($overridden !== null) {
+                $gateway->logCheckoutOverride($locked, $by, $overridden, 'late_fee_mark_paid');
+            }
 
             activity('LeasePayment')
                 ->causedBy($by)
