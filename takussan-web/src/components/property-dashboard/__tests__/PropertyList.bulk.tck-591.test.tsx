@@ -13,7 +13,18 @@ import { withIntl } from '@/test/intl';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
 
-const { refresh, bulkUnpublish } = vi.hoisted(() => ({ refresh: vi.fn(), bulkUnpublish: vi.fn() }));
+const { refresh, bulkUnpublish, canPublish } = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  bulkUnpublish: vi.fn(),
+  canPublish: { value: true },
+}));
+
+vi.mock('@/hooks/useCan', () => ({
+  useCan: (capability: string) => ({
+    can: capability === 'properties.publish' ? canPublish.value : true,
+    isLoading: false,
+  }),
+}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh }),
@@ -90,5 +101,19 @@ describe('PropertyList — actions en masse (AC28)', () => {
       screen.getAllByRole('checkbox', { name: `Sélectionner Bien ${n}` }).every((c) => (c as HTMLInputElement).checked);
     expect([1, 2, 3, 4, 5].filter(coche)).toEqual([4, 5]);
     expect(within(barre).getByText('2 biens sélectionnés')).toBeInTheDocument();
+  });
+
+  it('ne propose pas « Dépublier » sans properties.publish (TCK-587, comme à l’unité)', async () => {
+    canPublish.value = false;
+    try {
+      const user = userEvent.setup();
+      render(withIntl(<PropertyList page={page} />));
+      await user.click(screen.getByRole('checkbox', { name: 'Sélectionner tous les biens' }));
+      const barre = screen.getByRole('region', { name: 'Actions groupées' });
+      expect(within(barre).getByRole('button', { name: /Archiver/ })).toBeInTheDocument();
+      expect(within(barre).queryByRole('button', { name: /Dépublier/ })).toBeNull();
+    } finally {
+      canPublish.value = true;
+    }
   });
 });

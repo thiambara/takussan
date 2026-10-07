@@ -48,6 +48,7 @@ import {
 import type { BulkResult } from '@/types/agent-crm';
 
 import { PropertyRowActions } from './PropertyRowActions';
+import { useGestesDuBien } from './useGestesDuBien';
 
 /**
  * Dashboard property list — 6-column desktop table + compact mobile cards.
@@ -674,6 +675,8 @@ function BulkActionBar({
   readonly onClear: () => void;
 }) {
   const t = useTranslations('property.dashboard.list');
+  // TCK-587 — dépublier est un geste `properties.publish`, en lot comme à l'unité.
+  const { canPublish } = useGestesDuBien();
   const items = agentOptions.map((agent) => ({
     value: String(agent.id),
     label:
@@ -706,16 +709,18 @@ function BulkActionBar({
         )}
         {t('bulkArchive')}
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
-        disabled={pending}
-        onClick={onUnpublish}
-      >
-        {t('bulkUnpublish')}
-      </Button>
+      {canPublish ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
+          disabled={pending}
+          onClick={onUnpublish}
+        >
+          {t('bulkUnpublish')}
+        </Button>
+      ) : null}
       {agentOptions.length > 0 ? (
         <div className="flex items-center gap-2">
           <div className="min-w-[180px]">
