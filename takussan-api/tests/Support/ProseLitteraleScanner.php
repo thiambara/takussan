@@ -80,12 +80,22 @@ final class ProseLitteraleScanner
     public int $fichiersLus = 0;
 
     /**
+     * Les `abort*()` dont le message n'est PAS un littéral — `abort(403, __('…'))`, une variable.
+     * Pas de la prose en dur, mais un message PERDU : `bootstrap/app.php` rend toute
+     * `HttpException` hors `ApiError` en `http.<statut>`. Relevé à part des formes (a)-(g).
+     *
+     * @var list<array{file: string, line: int}>
+     */
+    public array $messagesPerdus = [];
+
+    /**
      * @return list<array{file: string, line: int, form: string, literal: string}>
      */
     public function scanDirectory(string $root): array
     {
         $this->appelsReconnus = 0;
         $this->fichiersLus = 0;
+        $this->messagesPerdus = [];
         $findings = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS));
         $files = [];
@@ -98,8 +108,12 @@ final class ProseLitteraleScanner
         foreach ($files as $path) {
             $relative = ltrim(substr($path, strlen(rtrim($root, '/'))), '/');
             $this->fichiersLus++;
+            $perdus = count($this->messagesPerdus);
             foreach ($this->scanSource((string) file_get_contents($path), str_starts_with($relative, 'Notifications/')) as $finding) {
                 $findings[] = ['file' => $relative] + $finding;
+            }
+            for ($k = $perdus; $k < count($this->messagesPerdus); $k++) {
+                $this->messagesPerdus[$k]['file'] = $relative;
             }
         }
 
@@ -134,7 +148,11 @@ final class ProseLitteraleScanner
                 $args = $this->arguments($t, $i + 1);
                 $arg = $args[self::ABORTS[$name]] ?? null;
                 if ($arg !== null) {
-                    $findings = [...$findings, ...$this->prose($t, $arg, self::ABORT)];
+                    $prose = $this->prose($t, $arg, self::ABORT);
+                    $findings = [...$findings, ...$prose];
+                    if ($prose === []) {
+                        $this->messagesPerdus[] = ['file' => '', 'line' => $tok->line];
+                    }
                 }
 
                 continue;

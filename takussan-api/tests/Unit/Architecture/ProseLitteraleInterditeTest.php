@@ -98,6 +98,25 @@ class ProseLitteraleInterditeTest extends TestCase
         $this->assertGreaterThan(500, $scanner->fichiersLus);
     }
 
+    /**
+     * Un `abort*()` à message TRADUIT n'est pas de la prose en dur, mais son message est PERDU :
+     * `bootstrap/app.php` rend toute `HttpException` hors `ApiError` en `http.<statut>`. Le
+     * relevé est à part des formes (a)-(g) — `abort(403, __('…'))` reste un négatif des fixtures —
+     * et il doit être vide sur `app/` : un tel abort passe par `abort_code()`.
+     */
+    public function test_aucun_abort_ne_porte_un_message_que_le_rendu_jetterait(): void
+    {
+        $scanner = new ProseLitteraleScanner;
+        $scanner->scanDirectory($this->root('app'));
+
+        $lieux = array_map(fn (array $p) => "{$p['file']}:{$p['line']}", $scanner->messagesPerdus);
+        $this->assertSame([], $lieux, "abort*() à message non littéral — le message serait perdu, passer par abort_code() :\n".implode("\n", $lieux));
+
+        $fixtures = new ProseLitteraleScanner;
+        $fixtures->scanDirectory($this->root('tests/fixtures/ProseLitterale'));
+        $this->assertSame([['file' => 'Negatifs.php', 'line' => 13]], $fixtures->messagesPerdus);
+    }
+
     public function test_les_fixtures_rendent_exactement_les_positifs_attendus(): void
     {
         $scanner = new ProseLitteraleScanner;
