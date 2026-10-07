@@ -36,12 +36,23 @@ class SendMessageConversationRequest extends BaseFormRequest
         return $this->isActiveParticipant($this->route('conversation'));
     }
 
+    /**
+     * TCK-592 — les types qu'un PARTICIPANT écrit.
+     *
+     * `type` acceptait tout `MessageType`, que le contrôleur écrivait tel quel : un participant
+     * postait un `system`, rendu comme un avis de la plateforme, non compté non lu, et que personne
+     * ne pouvait supprimer ni corriger (`ConversationPolicy`, `MessageObserver`). `image` et
+     * `document` passaient de même, sans fichier. Le seul auteur légitime d'un avis système est
+     * `SystemMessageFactory`, qui n'emprunte pas cette route.
+     */
+    public const PARTICIPANT_TYPES = [MessageType::Text];
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
             'content' => ['required', 'string'],
-            'type' => ['nullable', Rule::enum(MessageType::class)],
+            'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
         ];
     }
 }

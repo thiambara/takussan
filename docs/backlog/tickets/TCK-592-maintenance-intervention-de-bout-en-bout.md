@@ -573,3 +573,10 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
   `completed_at` non `prohibited` → 1 rouge ; coûts hors `PRINCIPAL_FIELDS` → 1 rouge (le témoin reste
   vert) ; `authorize()` du statut ramené à `update` → 1 rouge ; lecteur `maintenance.assign` retiré →
   1 rouge ; lecteur `maintenance.close` retiré → 1 rouge ; `quote_requested → cancelled` retiré → 1 rouge.
+
+### H (première case) — fermeture de `type`
+
+- `SendMessageConversationRequest::PARTICIPANT_TYPES = [Text]` (`Rule::in`), étendu à `Audio` avec l'ADR 2.
+  Le front n'envoie jamais `type` (`useSendMessage` : `{content}` seul) — rien à adapter.
+- `php artisan test tests/Feature/Messaging/MessageTypeSpoofingTest.php` → 2 verts. Ablation
+  `Rule::enum(MessageType::class)` remis → 1 rouge (le refus), le témoin `text` reste vert.
