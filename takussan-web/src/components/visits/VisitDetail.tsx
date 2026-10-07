@@ -6,11 +6,15 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   useCancelVisit,
+  useClaimVisit,
   useCompleteVisit,
   useConfirmVisit,
+  useProposeVisitSlot,
   useUpdateVisit,
   useVisit,
 } from '@/lib/queries/visits';
+import { instantADakar } from '@/lib/visites/heure-de-dakar';
+import { useCreneaux } from '@/lib/visites/useCreneaux';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
@@ -54,6 +58,9 @@ export function VisitDetail({ id }: { id: number }) {
   const complete = useCompleteVisit(id);
   const cancel = useCancelVisit(id);
   const updateVisit = useUpdateVisit(id);
+  const claim = useClaimVisit(id);
+  const tPlanning = useTranslations('visitPlanning');
+  const [proposer, setProposer] = useState(false);
   const toast = useToast();
 
   if (isLoading) {
@@ -99,6 +106,23 @@ export function VisitDetail({ id }: { id: number }) {
     (status === 'confirmed' || status === 'scheduled') &&
     (isPastSlot || status === 'confirmed');
   const canReschedule = isManager && (status === 'scheduled' || status === 'confirmed');
+  const isActive = status === 'scheduled' || status === 'confirmed';
+  // TCK-590 — la visite déposée sur le site n'a pas d'agent : le personnel de l'agence la prend
+  // en charge. Le serveur tranche la course (409 si un collègue l'a prise entre-temps).
+  const canClaim =
+    !!user && (hasAgentRole(user.roles) || isAdmin(user.roles)) && isActive && visit.agent_id == null;
+  // Le visiteur ne pouvait qu'annuler : il propose désormais un autre créneau, tiré de la grille.
+  const canPropose = isVisitor && !isManager && isActive && !!visit.property?.slug;
+
+  async function handleClaim() {
+    try {
+      await claim.mutateAsync();
+      toast.add({ title: tPlanning('claimed'), type: 'success' });
+    } catch (err) {
+      const conflict = err instanceof ApiError && err.status === 409;
+      toast.add({ title: tPlanning(conflict ? 'claimConflict' : 'actionError'), type: 'error' });
+    }
+  }
 
   async function handleConfirm() {
     await confirm.mutateAsync();
@@ -134,7 +158,9 @@ export function VisitDetail({ id }: { id: number }) {
   }
 
   async function submitReschedule(nextSlot: string) {
-    const iso = new Date(nextSlot).toISOString();
+    // TCK-590 — le champ se lit à l'heure de Dakar, comme la grille des visites : `new Date(champ)`
+    // l'interprétait dans le fuseau du navigateur, et l'agent à Paris décalait la visite d'une heure.
+    const iso = instantADakar(nextSlot.slice(0, 10), nextSlot.slice(11, 16));
     await updateVisit.mutateAsync({ scheduled_at: iso });
     toast.add({
       title: t('toasts.rescheduled.title'),
@@ -210,6 +236,16 @@ export function VisitDetail({ id }: { id: number }) {
 
         {/* Sous `sm`, les actions s'empilent en pleine largeur : cibles de 40 px, aucune coupée. */}
         <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:flex-wrap">
+          {canClaim && (
+            <Button onClick={() => void handleClaim()} disabled={claim.isPending} className="h-10 sm:h-8">
+              {tPlanning('claim')}
+            </Button>
+          )}
+          {canPropose && (
+            <Button onClick={() => setProposer(true)} variant="outline" className="h-10 sm:h-8">
+              {tPlanning('propose.cta')}
+            </Button>
+          )}
           {canConfirm && (
             <Button onClick={handleConfirm} disabled={confirm.isPending} className="h-10 sm:h-8">
               {t('actions.confirm')}
@@ -267,7 +303,99 @@ export function VisitDetail({ id }: { id: number }) {
         onCancel={submitCancel}
         onReschedule={submitReschedule}
       />
+
+      {proposer && visit.property?.slug ? (
+        <ProposerUnCreneau visitId={visit.id} slug={visit.property.slug} onClose={() => setProposer(false)} />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * TCK-590 — le visiteur propose un autre créneau, choisi dans la grille que le serveur rend pour
+ * ce bien (créneaux pris inclus, non choisissables). L'heure est construite à Dakar.
+ */
+function ProposerUnCreneau({ visitId, slug, onClose }: { visitId: number; slug: string; onClose: () => void }) {
+  const t = useTranslations('visitPlanning');
+  const tDetail = useTranslations('visits.detail');
+  const toast = useToast();
+  const propose = useProposeVisitSlot(visitId);
+  const [jour, setJour] = useState('');
+  const [heure, setHeure] = useState<string | null>(null);
+  const creneaux = useCreneaux(slug, jour || null);
+
+  async function valider(e: React.FormEvent) {
+    e.preventDefault();
+    if (!jour || !heure) return;
+    try {
+      await propose.mutateAsync({ scheduled_at: instantADakar(jour, heure) });
+      toast.add({ title: t('propose.success'), type: 'success' });
+      onClose();
+    } catch (err) {
+      const message = err instanceof ApiError ? (err.data as { message?: string } | null)?.message : undefined;
+      toast.add({ title: message ?? t('actionError'), type: 'error' });
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={(e) => void valider(e)} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>{t('propose.title')}</DialogTitle>
+            <DialogDescription>{t('propose.description')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label htmlFor={`visit-${visitId}-propose-date`} className="block text-sm font-medium text-foreground">
+              {t('plan.date')}
+            </label>
+            <Input
+              id={`visit-${visitId}-propose-date`}
+              type="date"
+              value={jour}
+              onChange={(e) => {
+                setJour(e.target.value);
+                setHeure(null);
+              }}
+            />
+          </div>
+          {creneaux.etat === 'charge' ? (
+            <fieldset className="space-y-1.5">
+              <legend className="text-sm font-medium text-foreground">
+                {t('plan.time')} <span className="font-normal text-muted-foreground">({t('plan.dakarTime')})</span>
+              </legend>
+              <div className="grid grid-cols-4 gap-2">
+                {creneaux.creneaux.map((c) => (
+                  <Button
+                    key={c.label}
+                    type="button"
+                    variant={heure === c.label ? 'default' : 'outline'}
+                    disabled={!c.available}
+                    aria-pressed={heure === c.label}
+                    onClick={() => setHeure(c.label)}
+                    className="h-10 tabular-nums disabled:text-muted-foreground sm:h-8"
+                  >
+                    {c.label}
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+          ) : creneaux.etat === 'erreur' ? (
+            <p role="alert" className="text-sm text-destructive">
+              {t('actionError')}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              {tDetail('dialogs.dismiss')}
+            </Button>
+            <Button type="submit" disabled={!jour || !heure || propose.isPending}>
+              {t('propose.submit')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

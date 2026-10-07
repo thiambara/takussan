@@ -77,6 +77,7 @@
       "common",
       "compare",
       "console",
+      "contactLeads",
       "crm",
       "customer",
       "dashboard",
@@ -103,6 +104,7 @@
       "tenant",
       "ui",
       "validation",
+      "visitPlanning",
       "visits",
       "welcome",
       "wizardDrafts"
@@ -186,7 +188,7 @@
     "publish": 19,
     "onboarding": 40,
     "(dashboard)": 16,
-    "(dashboard)/app": 68,
+    "(dashboard)/app": 69,
     "(dashboard)/admin": 56,
     "[locale]/(public)": 40,
     "(super-admin)/super-admin": 43

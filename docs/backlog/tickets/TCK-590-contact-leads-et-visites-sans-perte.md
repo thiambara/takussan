@@ -512,3 +512,20 @@ titre (AC17).
   l'URL nue) → AC21 rouge. Source d'arrivée retenue en `sessionStorage` par le layout public.
 - Garde de contraste : une dette d'ardoise devenue sans objet retirée (le lien « Se connecter » de
   la boîte de visite n'existe plus), cliquet des encres inverses 248 → 256, cause écrite.
+
+**Étape 4 — console : boîte « Demandes de contact », visites non attribuées, planification
+(2026-10-07).**
+- `/app/leads` (agent, admin, bailleur) : message entier, téléphone, e-mail, destinataire, source ;
+  répondre (WhatsApp pré-rempli, appel, e-mail), convertir, marquer traitée. Compteur de non
+  traitées dans le menu (`meta.total`, comme TCK-377). « Attribuer » réservé à l'admin : la liste
+  des collègues (`GET /agencies/{id}/members`) est gardée par `can('update', $agency)` — un agent
+  détient `crm.assign` mais n'aurait qu'un menu vide. Ablation (message tronqué à 80) → rouge.
+- Visites : onglet « Non attribuées » pour le personnel (`filter[unassigned]`) ; « Prendre en
+  charge » sur une visite sans agent, 409 dit « un collègue l'a prise » ; le visiteur « propose un
+  autre créneau » dans la grille de `visit-slots`. Ablations : condition `agent_id == null`
+  retirée, onglet ouvert au bailleur, proposition construite dans le fuseau du navigateur → rouge.
+- « Planifier une visite » sur la fiche bien, la fiche client et le calendrier ; heure à Dakar
+  (ablation : `new Date(…)` → rouge). La replanification de l'agence (`datetime-local`) se lit
+  aussi à Dakar : elle décalait d'une heure depuis Paris ; le test existant a été réécrit.
+- `ContactLeadInboxTest` rejoue la requête exacte de la console (champs clairsemés sur trois
+  tables, deux inclusions) : une colonne refusée y serait un 400 dans la boîte entière.

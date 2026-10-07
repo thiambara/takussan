@@ -186,6 +186,43 @@ class ContactLeadInboxTest extends ApiTestCase
         Notification::assertSentTo($cible, NewContactLeadNotification::class);
     }
 
+    /**
+     * La requête EXACTE de la console (`useContactLeads`) : champs clairsemés sur trois tables,
+     * deux inclusions, tri, filtre. Une colonne refusée ici serait un 400 dans la boîte entière.
+     */
+    public function test_la_requete_de_la_console_est_acceptee(): void
+    {
+        Sanctum::actingAs($this->destinataire);
+
+        $champs = 'id,property_id,agency_id,recipient_user_id,channel,source,medium,name,email,phone,message,'
+            .'handled_at,handled_by_id,customer_id,created_at';
+        $reponse = $this->getJson('/api/contact-leads?'.http_build_query([
+            'fields' => [
+                'property_contact_leads' => $champs,
+                'properties' => 'id,title,slug',
+                'users' => 'id,first_name,last_name',
+            ],
+            'filter' => ['handled' => '0'],
+            'include' => 'property,recipient',
+            'sort' => '-created_at',
+            'page' => 1,
+            'per_page' => 20,
+        ]))->assertOk();
+
+        $premiere = collect($reponse->json('data'))->firstWhere('id', $this->sienne->id);
+        $this->assertNotNull($premiere);
+        $this->assertSame($this->sienne->message, $premiere['message']);
+        $this->assertSame($this->sienne->property_id, $premiere['property']['id']);
+        $this->assertArrayHasKey('slug', $premiere['property']);
+        $this->assertSame($this->destinataire->id, $premiere['recipient']['id']);
+        $this->assertSame(2, $reponse->json('meta.total'));
+
+        // Le compteur du menu : le seul `id`, une page d'une ligne, le total dans `meta`.
+        $this->getJson('/api/contact-leads?fields[property_contact_leads]=id&filter[handled]=0&per_page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+    }
+
     /** AC17 — plus aucun titre figé « Nouveau lead anonyme » dans `app/`. */
     public function test_plus_aucun_titre_fige_dans_app(): void
     {

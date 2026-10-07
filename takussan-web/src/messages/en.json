@@ -108,7 +108,7 @@
       "other": "Other"
     },
     "sidebar": {
-      "leads": "Requests",
+      "leads": "Contact requests",
       "dashboard": "Dashboard",
       "myProperties": "My properties",
       "publishProperty": "Publish a property",
@@ -8047,7 +8047,7 @@
     }
   },
   "contactLeads": {
-    "title": "Requests",
+    "title": "Contact requests",
     "description": "Messages left on the public site: read them, handle them, turn them into clients.",
     "filters": {
       "todo": "To handle",

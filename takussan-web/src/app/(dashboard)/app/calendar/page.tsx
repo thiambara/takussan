@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { CalendarPage } from '@/components/calendar/CalendarPage';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.calendar');
@@ -14,7 +15,7 @@ export default async function Page() {
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
   return (
     <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('subtitle')} />
+      <PageHeader title={t('title')} description={t('subtitle')} actions={<PlanifierUneVisite />} />
       <CalendarPage />
     </div>
   );

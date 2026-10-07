@@ -108,7 +108,7 @@
       "other": "Autre"
     },
     "sidebar": {
-      "leads": "Demandes",
+      "leads": "Demandes de contact",
       "dashboard": "Tableau de bord",
       "myProperties": "Mes biens",
       "publishProperty": "Publier un bien",
@@ -8047,7 +8047,7 @@
     }
   },
   "contactLeads": {
-    "title": "Demandes",
+    "title": "Demandes de contact",
     "description": "Les messages laissés sur le site public : à lire, à traiter, à transformer en client.",
     "filters": {
       "todo": "À traiter",

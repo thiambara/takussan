@@ -98,7 +98,7 @@
       "other": "Beneen"
     },
     "sidebar": {
-      "leads": "Laaj yi",
+      "leads": "Laaj jokkoo",
       "dashboard": "Taablo",
       "myProperties": "Samay kër",
       "publishProperty": "Yebbi kër",
@@ -8047,7 +8047,7 @@
     }
   },
   "contactLeads": {
-    "title": "Laaj yi",
+    "title": "Laaj jokkoo yi",
     "description": "Bataaxal yi ñu bayyi ci site bi : jàng leen, topp leen, def leen ay kiliyaan.",
     "filters": {
       "todo": "Ñoo war a topp",

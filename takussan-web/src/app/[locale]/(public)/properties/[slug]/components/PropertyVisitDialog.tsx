@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CalendarIcon, ClockIcon, MapPinIcon, VideoIcon, KeyIcon, SparklesIcon } from 'lucide-react';
 import {
   Dialog,
@@ -18,10 +18,10 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { useVisitRequest } from '@/hooks/useVisitRequest';
 import { MentionDeConfidentialite } from '@/components/public/MentionDeConfidentialite';
-import { apiFetch } from '@/lib/api';
 import { arrivee } from '@/lib/attribution';
 import { lireCoordonnees, retenirCoordonnees } from '@/lib/coordonnees-retenues';
 import { instantADakar, jourChoisi } from '@/lib/visites/heure-de-dakar';
+import { useCreneaux } from '@/lib/visites/useCreneaux';
 import type { VisitType } from '@/types/visit';
 import { cn } from '@/lib/utils';
 
@@ -40,46 +40,6 @@ const VISIT_TYPES: Array<{ value: VisitType; Icon: typeof MapPinIcon }> = [
 ];
 
 const TELEPHONE_RE = /^\+\d{8,15}$/;
-
-/** Un créneau tel que `GET …/visit-slots` le rend : rien sur la visite qui l'occupe. */
-interface Creneau {
-  readonly start: string;
-  readonly label: string;
-  readonly available: boolean;
-}
-
-type EtatDesCreneaux =
-  | { readonly etat: 'attente' }
-  | { readonly etat: 'charge'; readonly creneaux: readonly Creneau[] }
-  | { readonly etat: 'erreur' };
-
-/**
- * Les créneaux d'un jour, tirés de l'API. La grille, le délai de 30 minutes et les visites
- * confirmées qui occupent un créneau sont jugés par le SERVEUR : la boîte les recalculait seule,
- * dans le fuseau du navigateur, et proposait des heures que l'agent avait déjà prises.
- */
-function useCreneaux(slug: string, jour: string | null): EtatDesCreneaux {
-  const [etat, setEtat] = useState<{ jour: string; valeur: EtatDesCreneaux } | null>(null);
-
-  useEffect(() => {
-    if (!jour) return;
-    let actif = true;
-    apiFetch<{ data: { slots: Creneau[] } }>(
-      `/public/properties/${encodeURIComponent(slug)}/visit-slots?date=${jour}`,
-    )
-      .then((res) => {
-        if (actif) setEtat({ jour, valeur: { etat: 'charge', creneaux: res.data.slots } });
-      })
-      .catch(() => {
-        if (actif) setEtat({ jour, valeur: { etat: 'erreur' } });
-      });
-    return () => {
-      actif = false;
-    };
-  }, [slug, jour]);
-
-  return etat && etat.jour === jour ? etat.valeur : { etat: 'attente' };
-}
 
 function formatDateLabel(date: Date | undefined, locale: string, repli: string): string {
   if (!date) return repli;
