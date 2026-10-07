@@ -12,6 +12,8 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Auth\AccessTokenGate;
+use App\Services\Auth\SessionTokenIssuer;
 use App\Support\CaseInsensitive;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -517,6 +519,18 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     public function hasPendingDeletionRequest(): bool
     {
         return $this->deletion_requested_at !== null;
+    }
+
+    /**
+     * TCK-589 — un compte `blocked` ou `deleted` (ou supprimé en douceur) n'ouvre
+     * aucune session, par aucun chemin : lu à l'émission du jeton
+     * ({@see SessionTokenIssuer}) ET à chaque requête ({@see AccessTokenGate}).
+     * `inactive` n'est pas un refus : c'est un compte qui n'a pas encore servi.
+     */
+    public function canOpenSession(): bool
+    {
+        return ! $this->trashed()
+            && ! in_array($this->status, [UserStatus::Blocked, UserStatus::Deleted], true);
     }
 
     /**

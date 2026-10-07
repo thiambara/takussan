@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\CallbackOAuthRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
+use App\Services\Auth\SessionTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -63,10 +64,13 @@ class OAuthController extends Controller
 
         // Google asserts email verification via its OIDC contract; mark verified.
         $user = $this->provisioning->provision($provider, $socialUser, markEmailVerified: true);
-        $token = $user->createToken($provider.'-oauth')->plainTextToken;
+        // TCK-589 — émis par le seul émetteur : borné, et refusé (403
+        // `account_blocked`) à un compte bloqué ou supprimé.
+        $issued = app(SessionTokenIssuer::class)->issue($user, $provider.'-oauth');
 
         return $this->json(['data' => [
-            'token' => $token,
+            'token' => $issued['token'],
+            'expires_at' => $issued['expires_at']->toIso8601String(),
             'user' => (new UserResource($user))->toArray($request),
         ]]);
     }

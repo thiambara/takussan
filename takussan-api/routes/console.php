@@ -73,6 +73,10 @@ Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlap
 Schedule::command('invitations:expire')->hourly()->withoutOverlapping();
 Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
 
+// TCK-589 — les jetons expirés (durée absolue ou `expires_at`) sont purgés chaque jour ;
+// 24 h de grâce pour qu'un jeton tout juste échu reste lisible dans la liste des sessions.
+Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlapping();
+
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();
 

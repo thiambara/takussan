@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
+use App\Services\Auth\SessionTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -102,10 +103,13 @@ abstract class AbstractOAuthController extends Controller
 
         $this->maybeUpdateName($user, $request);
 
-        $token = $user->createToken($this->provider().'-oauth')->plainTextToken;
+        // TCK-589 — émis par le seul émetteur : borné, et refusé (403
+        // `account_blocked`) à un compte bloqué ou supprimé.
+        $issued = app(SessionTokenIssuer::class)->issue($user, $this->provider().'-oauth');
 
         return $this->json(['data' => [
-            'token' => $token,
+            'token' => $issued['token'],
+            'expires_at' => $issued['expires_at']->toIso8601String(),
             'user' => (new UserResource($user))->toArray($request),
         ]]);
     }

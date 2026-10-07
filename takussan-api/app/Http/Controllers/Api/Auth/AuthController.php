@@ -8,6 +8,9 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\AuthRefusal;
+use App\Services\Auth\LoginLock;
+use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\TwoFactorService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +21,11 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function __construct(private readonly TwoFactorService $twoFactorService) {}
+    public function __construct(
+        private readonly TwoFactorService $twoFactorService,
+        private readonly SessionTokenIssuer $tokens,
+        private readonly LoginLock $lock,
+    ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -37,8 +44,17 @@ class AuthController extends Controller
 
         event(new Registered($user));
 
+        // TCK-589 (4.2) — l'inscription CONNECTE. `a4c01808` avait retiré le jeton
+        // (« user must verify email first »), mais aucune route n'exige
+        // `email_verified_at` et le même compte se connectait aussitôt par
+        // `/auth/login` : le front appelait `openSession(undefined, …)` et
+        // `set-token` sans jeton EFFAÇAIT le cookie.
+        $issued = $this->tokens->issue($user, 'auth_token');
+
         return $this->json([
             'message' => __('auth.registration_successful'),
+            'token' => $issued['token'],
+            'expires_at' => $issued['expires_at']->toIso8601String(),
             'user' => new UserResource($user),
         ], 201);
     }
@@ -47,8 +63,24 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->input('email'))->first();
 
+        // TCK-589 (contrainte 5 bis) — le verrou se lit AVANT le mot de passe :
+        // le bon mot de passe n'y échappe pas.
+        if ($user && $this->lock->isLocked($user)) {
+            return AuthRefusal::response(423, 'account_locked', 'auth.account.locked');
+        }
+
         if (! $user || ! Hash::check($request->input('password'), $user->password)) {
+            if ($user) {
+                $this->lock->recordFailure($user);
+            }
+
             return $this->json(['message' => __('auth.failed')], 401);
+        }
+
+        // TCK-589 (4.1) — un compte bloqué ne se reconnecte plus. Jugé APRÈS le mot
+        // de passe : le statut d'un compte ne se révèle qu'à qui en a le secret.
+        if (! $user->canOpenSession()) {
+            return AuthRefusal::response(403, 'account_blocked', 'auth.account.blocked');
         }
 
         // Password OK — challenge for 2FA if enabled. The caller must repost
@@ -79,6 +111,8 @@ class AuthController extends Controller
             }
 
             if (! $authorized) {
+                $this->lock->recordFailure($user);
+
                 return $this->json([
                     'requires_2fa' => true,
                     'message' => __('auth.two_factor_invalid'),
@@ -86,14 +120,17 @@ class AuthController extends Controller
             }
         }
 
+        $this->lock->clear($user);
         Auth::setUser($user);
         $user->update(['last_login_at' => now()]);
 
         $tokenName = (string) ($request->input('device_name') ?: 'auth_token');
-        $token = $user->createToken($tokenName)->plainTextToken;
+        // Un TOTP vient d'être saisi : le jeton naît avec un step-up de 10 min.
+        $issued = $this->tokens->issue($user, $tokenName, twoFactorJustVerified: (bool) $user->two_factor_enabled);
 
         return $this->json([
-            'token' => $token,
+            'token' => $issued['token'],
+            'expires_at' => $issued['expires_at']->toIso8601String(),
             'user' => new UserResource($user),
         ]);
     }

@@ -671,3 +671,27 @@ en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
   - AC1c — retirer le seuil de `check()` → `cinq_codes_faux_invalident_le_code` rouge, l'autre vert.
   - AC1b — remettre le `123456` dans `OwnerOnboardingService` seul → `test_bailleur` rouge, les
     trois autres verts.
+
+### §4 + §6 (API) — entrée et sortie de session, sessions bornées
+
+- **Re-mesuré** : 4.1, 4.2, 4.4 exacts. `Guard::isValidAccessToken` (Sanctum 4.3.3) juge déjà
+  `expires_at` et `sanctum.expiration` sur `created_at` avant le rappel : `AccessTokenGate` n'ajoute
+  que le statut du compte et l'inactivité (`last_used_at ?? created_at`, mis à jour par Sanctum
+  APRÈS la validation). Écart non signalé par le ticket : les rappels OAuth n'ont **aucun défi 2FA**
+  (un compte `two_factor_enabled` entre par Google sans TOTP) — hors Delta, au rapport.
+- `SessionTokenIssuer` (seul émetteur : login, register, OAuth ; téléphone au §2) refuse aussi un
+  compte fermé : défense en profondeur. Conséquence mesurée par ablation : retirer la clause de
+  `login` seule laissait l'AC4 « mot de passe » vert (l'émetteur refusait encore). Le test garde
+  donc ce qui distingue les deux : le refus de `login` tombe **avant** le défi 2FA et avant toute
+  écriture (`last_login_at`) — `test_le_refus_precede_le_defi_2fa_et_toute_ecriture`.
+- `LoginLock` : un TOTP faux après le bon mot de passe compte aussi comme un échec (sinon le
+  verrou ne bornerait pas la force brute du second facteur).
+- **Exécutions** : `php artisan test tests/Feature/Auth/Session` → vert ; 16 fichiers qui émettent
+  ou lisent un vrai jeton (`grep -rl "createToken\|withToken\|auth/login\|oauth/.*/callback"`)
+  + `tests/Feature/Auth` → 332 tests verts.
+- **Ablations** : AC4 — clause de `login` retirée → `le_refus_precede_le_defi_2fa…` rouge (2/9) ;
+  clause d'`AccessTokenGate` retirée → `un_jeton_emis_avant_le_blocage_rend_401` rouge (2/7) ;
+  clause de l'émetteur retirée → rappel OAuth rouge. AC15 — lecture du verrou retirée → 3/6 rouges
+  dont « bon mot de passe → 423 ». AC10 — `sanctum.expiration` remis à `null` → le jeton hérité de
+  31 j passe (rouge) ; clause d'inactivité retirée → 2 rouges (7 j, super-admin 30 min).
+

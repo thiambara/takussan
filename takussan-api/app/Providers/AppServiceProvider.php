@@ -75,6 +75,7 @@ use App\Policies\PropertyVisitPolicy;
 use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
+use App\Services\Auth\AccessTokenGate;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
@@ -136,6 +137,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->bootRequestMacros();
         $this->bootRateLimiters();
+        // TCK-589 — le rappel UNIQUE de Sanctum (statut du compte + bornes de session).
+        // Un second `authenticateAccessTokensUsing` écraserait celui-ci : TCK-600 ajoute
+        // sa clause DANS `AccessTokenGate`, pas ici.
+        AccessTokenGate::register();
         $this->bootObservers();
         $this->bootReportingHooks();
         $this->bootGatesAndPolicies();
