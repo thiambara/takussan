@@ -145,9 +145,26 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
         ]);
         $guarantor = Guarantor::factory()->create(['added_by_id' => $landlord->id]);
 
+        // Vérification adverse (verif-587, B3) — un document par type de rattachement : chaque
+        // branche de `DocumentPolicy::attachTo()` a sa clause d'agence, et un seul document de
+        // bien laissait les cinq autres rouvrir la fuite sans qu'aucun test rougisse. Déposés par
+        // le bailleur, sauf celui de l'agence (KYC, statuts) : l'agent n'y est donc admis que par
+        // la branche, jamais comme téléverseur.
+        $attached = fn (Model $to, User $by): Document => Document::factory()->create([
+            'documentable_id' => $to->getKey(),
+            'documentable_type' => $to::class,
+            'uploaded_by' => $by->id,
+        ]);
+        $leaseDocument = $attached($lease, $landlord);
+        $bookingDocument = $attached($booking, $landlord);
+        $customerDocument = $attached($customer, $landlord);
+        $inventoryDocument = $attached($inventory, $landlord);
+        $agencyDocument = $attached($this->agency, $this->admin);
+
         return compact(
             'property', 'customer', 'lease', 'payment', 'booking', 'payout',
             'invoice', 'document', 'inventory', 'visit', 'guarantor',
+            'leaseDocument', 'bookingDocument', 'customerDocument', 'inventoryDocument', 'agencyDocument',
         );
     }
 
@@ -177,6 +194,13 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'facture — envoyer' => ['POST', '/api/invoices/{invoice}/send', [], 'agent'],
             'réservation — lire' => ['GET', '/api/bookings/{booking}', [], 'agent'],
             'document — lire' => ['GET', '/api/documents/{document}', [], 'agent'],
+            'document (bail) — lire' => ['GET', '/api/documents/{leaseDocument}', [], 'agent'],
+            'document (bail) — versions' => ['GET', '/api/documents/{leaseDocument}/versions', [], 'agent'],
+            'document (réservation) — lire' => ['GET', '/api/documents/{bookingDocument}', [], 'agent'],
+            'document (client) — lire' => ['GET', '/api/documents/{customerDocument}', [], 'agent'],
+            'document (état des lieux) — lire' => ['GET', '/api/documents/{inventoryDocument}', [], 'agent'],
+            'document (agence) — lire' => ['GET', '/api/documents/{agencyDocument}', [], 'agent'],
+            'document (agence) — versions' => ['GET', '/api/documents/{agencyDocument}/versions', [], 'agent'],
             'état des lieux — lire' => ['GET', '/api/inventories/{inventory}', [], 'agent'],
             'état des lieux — modifier' => ['PATCH', '/api/inventories/{inventory}', ['notes' => 'relu'], 'agent'],
             'visite — lire' => ['GET', '/api/property-visits/{visit}', [], 'agent'],
@@ -195,6 +219,17 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
         $this->actingAsApi($this->b2)
             ->json($method, $this->uri($template), $body)
             ->assertForbidden();
+    }
+
+    /** Supprimer un document est réservé à son téléverseur, quel que soit son rattachement. */
+    public function test_un_autre_bailleur_ne_supprime_aucun_document_de_b1(): void
+    {
+        foreach (['document', 'leaseDocument', 'bookingDocument', 'customerDocument', 'inventoryDocument', 'agencyDocument'] as $key) {
+            $this->actingAsApi($this->b2)
+                ->deleteJson("/api/documents/{$this->r[$key]->getKey()}")
+                ->assertForbidden();
+            $this->assertModelExists($this->r[$key]);
+        }
     }
 
     /** @param  array<string, mixed>  $body */
