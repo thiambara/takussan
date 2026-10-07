@@ -15,6 +15,8 @@ export type User = CanonicalUser;
 export type AuthResponse = {
   token: string;
   user: User;
+  /** TCK-589 — fin de validité du jeton (ISO 8601) : le cookie n'y survit pas. */
+  expires_at?: string;
 };
 
 /**

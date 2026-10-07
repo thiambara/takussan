@@ -44,6 +44,9 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 'idem — PhoneVerificationService.php:22',
   'onboarding.host.steps.identity.otp.sentBody': 'idem — PhoneVerificationService.php:22',
   'profile.contact.otpSent': 'idem — PhoneVerificationService.php:22',
+  // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
+  'auth.phoneLogin.codeSentTo':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
   'agency.tenantOnboardingPending.emptyDescription':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
   'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',

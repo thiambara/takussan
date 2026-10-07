@@ -64,6 +64,8 @@ export const agencyFormSchema = z.object({
     ),
   timezone: z.string().trim().max(64, msgValidation('agency.timezoneTooLong')),
   moderation_required: z.boolean(),
+  /** TCK-589 — `settings.require_team_two_factor` : second facteur exigé de toute l'équipe. */
+  require_team_two_factor: z.boolean(),
 });
 
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
@@ -104,6 +106,9 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
   if (currency !== null) settings.currency = currency.toUpperCase();
   const timezone = emptyToNull(values.timezone);
   if (timezone !== null) settings.timezone = timezone;
+  // TCK-589 — toujours émis, `false` compris : décocher doit lever l'exigence, pas la laisser
+  // en place faute d'avoir été envoyé.
+  settings.require_team_two_factor = values.require_team_two_factor;
 
   return {
     name: values.name.trim(),

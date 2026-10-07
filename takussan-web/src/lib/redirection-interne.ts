@@ -28,6 +28,19 @@ export function destinationInterne(
 }
 
 /**
+ * TCK-589 — `chemin` portant la destination `brute`, assainie ; `chemin` seul quand il n'y en a pas
+ * (ou qu'elle sortirait du site). C'est par là que l'intention survit au détour par l'inscription :
+ * le lien « Créer un compte » de la connexion, puis `/auth/verify-email`, la relaient jusqu'à
+ * `/onboarding/intention`, qui la rend.
+ */
+export function avecRedirection(chemin: string, brute: string | null | undefined): string {
+  const destination = destinationInterne(brute, '');
+  if (destination === '') return chemin;
+  const separateur = chemin.includes('?') ? '&' : '?';
+  return `${chemin}${separateur}redirect=${encodeURIComponent(destination)}`;
+}
+
+/**
  * Faut-il poser la question d'orientation à ce compte ? (TCK-493)
  *
  * ⚠ **Toute la décision vit ici, et nulle part ailleurs.** Les quatre chemins

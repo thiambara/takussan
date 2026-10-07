@@ -32,6 +32,8 @@ describe('agencyFormSchema', () => {
     timezone: '',
     // TCK-098 added this required boolean to the schema.
     moderation_required: false,
+    // TCK-589 — second facteur exigé de l'équipe.
+    require_team_two_factor: false,
   };
 
   it('accepts minimal valid input', () => {
@@ -91,6 +93,14 @@ describe('agencyFormSchema', () => {
       currency: 'XOF',
     });
   });
+
+  it.each([true, false])(
+    'TCK-589 — `settings.require_team_two_factor` part toujours, %s compris',
+    (exige) => {
+      const payload = normaliseAgencyForm({ ...base, require_team_two_factor: exige });
+      expect(payload.settings).toMatchObject({ require_team_two_factor: exige });
+    },
+  );
 });
 
 describe('validateAgencyLogoFile', () => {

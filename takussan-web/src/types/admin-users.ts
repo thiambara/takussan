@@ -22,6 +22,12 @@ export type AdminAgencyUserRow = {
   last_login_at: string | null;
   created_at: string;
   roles?: Array<UserRole | { name: UserRole }>;
+  /**
+   * TCK-589 — second facteur du membre. Optionnel : absent quand la liste ne l'a pas demandé
+   * (sparse fieldset). La colonne affiche alors « Non communiquée », jamais « Non activée » —
+   * un champ absent n'est pas un `false`.
+   */
+  two_factor_enabled?: boolean;
 };
 
 export type AdminAgencyUsersResponse = {

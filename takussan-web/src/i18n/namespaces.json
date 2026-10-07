@@ -38,6 +38,7 @@
       "validation"
     ],
     "onboarding": [
+      "admin",
       "agency",
       "agents",
       "announcements",
@@ -58,6 +59,7 @@
     "(dashboard)": [
       "account",
       "announcements",
+      "auth",
       "common",
       "errors",
       "messaging",
@@ -71,6 +73,7 @@
       "agency",
       "agentWelcome",
       "announcements",
+      "auth",
       "bookings",
       "calendar",
       "charts",
@@ -113,6 +116,7 @@
       "adminSettings",
       "agency",
       "announcements",
+      "auth",
       "billing",
       "charts",
       "common",
@@ -162,6 +166,7 @@
     "(super-admin)/super-admin": [
       "adminTags",
       "announcements",
+      "auth",
       "billing",
       "common",
       "console",
@@ -181,13 +186,13 @@
   },
   "plafondsPourcent": {
     ".": 15,
-    "(auth)": 17,
+    "(auth)": 18,
     "publish": 19,
-    "onboarding": 41,
-    "(dashboard)": 16,
-    "(dashboard)/app": 69,
-    "(dashboard)/admin": 57,
+    "onboarding": 49,
+    "(dashboard)": 19,
+    "(dashboard)/app": 72,
+    "(dashboard)/admin": 60,
     "[locale]/(public)": 39,
-    "(super-admin)/super-admin": 44
+    "(super-admin)/super-admin": 47
   }
 }

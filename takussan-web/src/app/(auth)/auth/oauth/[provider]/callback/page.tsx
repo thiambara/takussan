@@ -7,6 +7,7 @@ import { oauthCallback, type OAuthProvider } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 import { destinationInterne } from '@/lib/redirection-interne';
 import { useAuth } from '@/context/AuthContext';
+import { intentionOAuthMemorisee, oublierIntentionOAuth } from '@/components/auth/intention-oauth';
 import { useTranslations } from 'next-intl';
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ['google', 'facebook', 'apple'];
@@ -18,7 +19,7 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
   const params = useSearchParams();
   const code = params.get('code');
   const state = params.get('state');
-  const redirectTo = destinationInterne(params.get('redirect'));
+  const redirectParam = params.get('redirect');
   // TCK-493 — on ne va plus DIRECTEMENT à la destination. Une première connexion
   // Google atterrissait sur `/app`, c'est-à-dire un tableau de bord vide, sans
   // qu'on ait rien demandé au compte qui venait de se créer.
@@ -27,9 +28,14 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
   // neuf, et le lui faire deviner produirait un quatrième juge. `/onboarding/intention`
   // décide, et renvoie vers `redirect` quand il n'a rien à demander — la
   // destination voulue est donc toujours atteinte, avec au plus un rebond.
-  const apresConnexion = `/onboarding/intention?redirect=${encodeURIComponent(redirectTo)}`;
-
+  //
+  // TCK-589 — le rappel du fournisseur ne porte pas `redirect` : la destination mémorisée dans
+  // l'onglet au départ (`OAuthButtons`) prend le relais. Lue dans l'effet : le stockage n'existe
+  // pas au rendu serveur.
   useEffect(() => {
+    const redirectTo = destinationInterne(redirectParam ?? intentionOAuthMemorisee());
+    const apresConnexion = `/onboarding/intention?redirect=${encodeURIComponent(redirectTo)}`;
+
     if (!code || !state) {
       router.replace('/auth/login?error=oauth_invalid');
       return;
@@ -37,17 +43,18 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
 
     (async () => {
       try {
-        const { token, user } = await oauthCallback(provider, code, state);
+        const { token, user, expires_at: expiresAt } = await oauthCallback(provider, code, state);
         // TCK-509 — par le contexte : poser le cookie puis `setUser` laissait le jeton d'avant.
-        await openSession(token, user);
+        await openSession(token, user, expiresAt);
         await refreshUser();
+        oublierIntentionOAuth();
         router.replace(apresConnexion);
       } catch (err) {
         const msg = err instanceof ApiError ? 'oauth_failed' : 'oauth_unknown';
         router.replace(`/auth/login?error=${msg}`);
       }
     })();
-  }, [provider, code, state, apresConnexion, router, openSession, refreshUser]);
+  }, [provider, code, state, redirectParam, router, openSession, refreshUser]);
 
   return (
     <div className="flex flex-col items-center gap-4 py-12 text-center">
