@@ -2584,6 +2584,21 @@
         "revoke": "Turn the link off",
         "failed": "That did not work."
       }
+    },
+    "bulk": {
+      "summary": {
+        "archive": "{updated, plural, =0 {No property archived} one {# property archived} other {# properties archived}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}",
+        "unpublish": "{updated, plural, =0 {No property unpublished} one {# property unpublished} other {# properties unpublished}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}"
+      },
+      "failure": "{title}: {reason}",
+      "reason": {
+        "not_found": "not found",
+        "forbidden": "you are not allowed to change it",
+        "unchanged": "already in that state",
+        "already_archived": "already archived",
+        "invalid_target": "the target is not active staff of the agency",
+        "other": "refused"
+      }
     }
   },
   "account": {

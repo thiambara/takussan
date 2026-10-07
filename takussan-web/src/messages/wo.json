@@ -1210,6 +1210,21 @@
         "revoke": "Fey lëkkalekaay bi",
         "failed": "Lii antuwul."
       }
+    },
+    "bulk": {
+      "summary": {
+        "archive": "{updated, plural, =0 {Benn kër dencuñu ko} other {# kër lañu denc}}{failed, plural, =0 {.} other { — # lañu gàntu :}}",
+        "unpublish": "{updated, plural, =0 {Benn kër génnewuñu ko} other {# kër lañu génne}}{failed, plural, =0 {.} other { — # lañu gàntu :}}"
+      },
+      "failure": "{title} : {reason}",
+      "reason": {
+        "not_found": "gisuñu ko",
+        "forbidden": "amoo sañ-sañu soppi ko",
+        "unchanged": "noppi na ci nekkin boobu",
+        "already_archived": "dencees na ko ba noppi",
+        "invalid_target": "ki ñu tànn bokkul ci liggéeykati ajaas bi",
+        "other": "gàntu nañu ko"
+      }
     }
   },
   "account": {

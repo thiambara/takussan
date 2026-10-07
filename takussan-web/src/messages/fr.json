@@ -2559,6 +2559,21 @@
         "revoke": "Désactiver le lien",
         "failed": "L'opération n'a pas abouti."
       }
+    },
+    "bulk": {
+      "summary": {
+        "archive": "{updated, plural, =0 {Aucun bien archivé} one {# bien archivé} other {# biens archivés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}",
+        "unpublish": "{updated, plural, =0 {Aucun bien dépublié} one {# bien dépublié} other {# biens dépubliés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}"
+      },
+      "failure": "{title} : {reason}",
+      "reason": {
+        "not_found": "introuvable",
+        "forbidden": "vous n'avez pas le droit de le modifier",
+        "unchanged": "déjà dans cet état",
+        "already_archived": "déjà archivé",
+        "invalid_target": "la cible n'est pas du personnel actif de l'agence",
+        "other": "refusé"
+      }
     }
   },
   "account": {

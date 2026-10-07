@@ -42,9 +42,10 @@ import {
 } from '@/lib/schemas/property';
 import {
   assignPropertyAgentAction,
-  updatePropertyStatusAction,
-  updatePropertyVisibilityAction,
+  bulkArchivePropertiesAction,
+  bulkUnpublishPropertiesAction,
 } from '@/app/actions/dashboard-properties';
+import type { BulkResult } from '@/types/agent-crm';
 
 import { PropertyRowActions } from './PropertyRowActions';
 
@@ -78,6 +79,8 @@ export function PropertyList({
   const [pending, startTransition] = useTransition();
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkFailures, setBulkFailures] = useState<BulkResult['failed']>([]);
+  const tBulk = useTranslations('agentCrm.bulk');
   const visibleIds = useMemo(
     () => properties?.map((property) => property.id) ?? [],
     [properties],
@@ -131,6 +134,43 @@ export function PropertyList({
       router.refresh();
     });
   };
+
+  /**
+   * TCK-591 §7 (AC28) — le bilan d'un lot : combien ont changé, lesquels sont refusés et POURQUOI.
+   * Seuls les refus restent sélectionnés (on peut les corriger et relancer) ; la liste se rafraîchit
+   * dès qu'un bien a changé, succès partiel compris.
+   */
+  const runBatch = (
+    action: (ids: number[]) => Promise<{ ok: boolean; message?: string; data?: BulkResult }>,
+    kind: 'archive' | 'unpublish',
+  ) => {
+    if (selectedIds.length === 0) return;
+    setBulkError(null);
+    setBulkMessage(null);
+    setBulkFailures([]);
+    startTransition(async () => {
+      const result = await action(selectedIds);
+      if (!result.ok || !result.data) {
+        setBulkError(result.message ?? t('bulkError'));
+        return;
+      }
+      const { updated, failed } = result.data;
+      setSelectedIds(failed.map((f) => f.id));
+      setBulkFailures(failed);
+      setBulkMessage(tBulk(`summary.${kind}`, { updated, failed: failed.length }));
+      if (updated > 0) router.refresh();
+    });
+  };
+
+  const titleOf = (id: number) => properties.find((p) => p.id === id)?.title ?? `#${id}`;
+  const KNOWN_REASONS = new Set(['not_found', 'forbidden', 'unchanged', 'invalid_target', 'already_archived']);
+  const failureLines = bulkFailures.map((f) => ({
+    id: f.id,
+    text: tBulk('failure', {
+      title: titleOf(f.id),
+      reason: tBulk(`reason.${KNOWN_REASONS.has(f.reason) ? f.reason : 'other'}`),
+    }),
+  }));
 
   const selectedCount = selectedIds.length;
 
@@ -301,7 +341,8 @@ export function PropertyList({
       </ul>
 
       {/* Sticky bulk actions toolbar */}
-      {selectedCount > 0 ? (
+      {/* Le bilan reste lisible quand le lot a tout traité et que la sélection s'est vidée. */}
+      {selectedCount > 0 || bulkMessage ? (
         <BulkActionBar
           selectedCount={selectedCount}
           pending={pending}
@@ -311,18 +352,9 @@ export function PropertyList({
           setBulkAgentId={setBulkAgentId}
           agentOptions={agentOptions}
           currentUserId={currentUserId}
-          onArchive={() =>
-            runBulk(
-              (id) => updatePropertyStatusAction(id, 'archived'),
-              t('bulkArchived'),
-            )
-          }
-          onUnpublish={() =>
-            runBulk(
-              (id) => updatePropertyVisibilityAction(id, 'private'),
-              t('bulkUnpublished'),
-            )
-          }
+          failureLines={failureLines}
+          onArchive={() => runBatch(bulkArchivePropertiesAction, 'archive')}
+          onUnpublish={() => runBatch(bulkUnpublishPropertiesAction, 'unpublish')}
           onAssign={() =>
             runBulk(
               (id) => assignPropertyAgentAction(id, Number(bulkAgentId)),
@@ -334,6 +366,7 @@ export function PropertyList({
             setBulkAgentId('');
             setBulkError(null);
             setBulkMessage(null);
+            setBulkFailures([]);
           }}
         />
       ) : null}
@@ -620,6 +653,7 @@ function BulkActionBar({
   setBulkAgentId,
   agentOptions,
   currentUserId,
+  failureLines = [],
   onArchive,
   onUnpublish,
   onAssign,
@@ -633,6 +667,7 @@ function BulkActionBar({
   readonly setBulkAgentId: (v: string) => void;
   readonly agentOptions: readonly { id: number; name: string }[];
   readonly currentUserId?: number;
+  readonly failureLines?: readonly { id: number; text: string }[];
   readonly onArchive: () => void;
   readonly onUnpublish: () => void;
   readonly onAssign: () => void;
@@ -719,8 +754,15 @@ function BulkActionBar({
         </span>
       ) : null}
       {bulkMessage ? (
-        <span role="status" className="text-success">
+        <span role="status" className="basis-full">
           {bulkMessage}
+          {failureLines.length > 0 ? (
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-primary-foreground/80" data-testid="bulk-failures">
+              {failureLines.map((line) => (
+                <li key={line.id}>{line.text}</li>
+              ))}
+            </ul>
+          ) : null}
         </span>
       ) : null}
       <button
