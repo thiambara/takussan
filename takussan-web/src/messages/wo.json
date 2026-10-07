@@ -8006,5 +8006,28 @@
       "frenchOnly": "Téere bii ci farañse rekk la am léegi."
     },
     "otherDocuments": "Yeneen téere"
+  },
+  "shareReception": {
+    "metaTitle": "Dokimaa ñu séddoo",
+    "title": "Dokimaa bu ñu la séddoo",
+    "loading": "Ñu ngi ubbi lien bi…",
+    "name": "Dokimaa",
+    "size": "Réyaay",
+    "expiresAt": "Mën nañu ko jot ba {date}",
+    "downloadsLeft": "{count, plural, one {# yebal bu des} other {# yebal yu des}}",
+    "download": "Yebal",
+    "downloading": "Ñu ngi koy yebal…",
+    "downloadError": "Yebal bi antuwul. Jéemaatal ci kanam tuuti.",
+    "passwordTitle": "Dokimaa bii dañu ko aar",
+    "passwordHint": "Bindal baatu jàll bi ki la ko yónnee jox la.",
+    "passwordLabel": "Baatu jàll",
+    "submit": "Ubbi dokimaa bi",
+    "wrongPassword": "Baatu jàll bi baaxul.",
+    "goneTitle": "Lien bii doxatul",
+    "goneDescription": "Jamono ji jeex na, dañu ko neenal, walla yebal yi mu war a am jeex nañu. Laajal ki la ko yónnee benn lien bu bees.",
+    "notFoundTitle": "Gisuñu lien bi",
+    "notFoundDescription": "Seetal adrees bi nga jot, walla laajal ki la ko yónnee benn lien bu bees.",
+    "error": "Mënuñu woon a yeb dokimaa bi. Jéemaatal ci kanam tuuti.",
+    "retry": "Jéemaat"
   }
 }

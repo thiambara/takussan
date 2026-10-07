@@ -8006,5 +8006,28 @@
       "frenchOnly": "This document is only available in French for now."
     },
     "otherDocuments": "Other documents"
+  },
+  "shareReception": {
+    "metaTitle": "Shared document",
+    "title": "A document shared with you",
+    "loading": "Opening the link…",
+    "name": "Document",
+    "size": "Size",
+    "expiresAt": "Available until {date}",
+    "downloadsLeft": "{count, plural, one {# download left} other {# downloads left}}",
+    "download": "Download",
+    "downloading": "Downloading…",
+    "downloadError": "The download did not complete. Please try again in a moment.",
+    "passwordTitle": "This document is protected",
+    "passwordHint": "Enter the password the sender gave you.",
+    "passwordLabel": "Password",
+    "submit": "Open the document",
+    "wrongPassword": "Incorrect password.",
+    "goneTitle": "This link is no longer valid",
+    "goneDescription": "It has expired, been revoked, or reached its maximum number of downloads. Ask the sender for a new link.",
+    "notFoundTitle": "Link not found",
+    "notFoundDescription": "Check the address you received, or ask the sender for a new link.",
+    "error": "The document could not be loaded. Please try again in a moment.",
+    "retry": "Try again"
   }
 }

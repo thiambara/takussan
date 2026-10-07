@@ -8006,5 +8006,28 @@
       "frenchOnly": "Ce document n'est disponible qu'en français pour le moment."
     },
     "otherDocuments": "Autres documents"
+  },
+  "shareReception": {
+    "metaTitle": "Document partagé",
+    "title": "Document partagé avec vous",
+    "loading": "Ouverture du lien…",
+    "name": "Document",
+    "size": "Taille",
+    "expiresAt": "Disponible jusqu'au {date}",
+    "downloadsLeft": "{count, plural, one {# téléchargement restant} other {# téléchargements restants}}",
+    "download": "Télécharger",
+    "downloading": "Téléchargement…",
+    "downloadError": "Le téléchargement n'a pas abouti. Réessayez dans un instant.",
+    "passwordTitle": "Ce document est protégé",
+    "passwordHint": "Saisissez le mot de passe que l'expéditeur vous a communiqué.",
+    "passwordLabel": "Mot de passe",
+    "submit": "Ouvrir le document",
+    "wrongPassword": "Mot de passe incorrect.",
+    "goneTitle": "Ce lien n'est plus valide",
+    "goneDescription": "Il a expiré, a été révoqué, ou a atteint son nombre maximal de téléchargements. Demandez un nouveau lien à l'expéditeur.",
+    "notFoundTitle": "Lien introuvable",
+    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à l'expéditeur.",
+    "error": "Le document n'a pas pu être chargé. Réessayez dans un instant.",
+    "retry": "Réessayer"
   }
 }

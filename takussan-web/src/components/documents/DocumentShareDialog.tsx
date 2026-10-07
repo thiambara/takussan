@@ -48,9 +48,15 @@ function ttlToExpiresAt(ttl: TTLOption): string {
   return new Date(Date.now() + ms).toISOString();
 }
 
+/**
+ * TCK-587 §8 — l'URL de la PAGE de réception (`[locale]/(public)/share/[token]`), sans langue :
+ * le proxy pose celle du destinataire. Elle visait `${origin}/api/share/{token}`, une URL du front
+ * où rien ne répondait, et le destinataire d'un lien protégé n'avait aucun formulaire.
+ */
 function buildShareUrl(token: string): string {
-  if (typeof window === 'undefined') return `/share/${token}`;
-  return `${window.location.origin}/api/share/${token}`;
+  const chemin = `/share/${encodeURIComponent(token)}`;
+  if (typeof window === 'undefined') return chemin;
+  return `${window.location.origin}${chemin}`;
 }
 
 interface DocumentShareDialogProps {
