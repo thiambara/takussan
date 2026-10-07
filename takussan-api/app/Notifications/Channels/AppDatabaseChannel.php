@@ -18,13 +18,9 @@ use App\Notifications\LeaseEarlyTerminationNotification;
 use App\Notifications\LeasePaymentLateFeeNotification;
 use App\Notifications\LeaseRenewedNotification;
 use App\Notifications\LeaseRentReviewedNotification;
-use App\Notifications\MaintenanceQuoteRequestedNotification;
 use App\Notifications\NewBookingNotification;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyRejectedNotification;
-use App\Notifications\QuoteApprovedNotification;
-use App\Notifications\QuoteRejectedNotification;
-use App\Notifications\QuoteSubmittedNotification;
 use App\Notifications\SuperAdminAcceptedBroadcast;
 use App\Notifications\SuperAdminInvitedBroadcast;
 use App\Notifications\TaskDueReminderNotification;
@@ -115,13 +111,9 @@ class AppDatabaseChannel
         LeasePaymentLateFeeNotification::class => NotificationType::Payment,
         LeaseRenewedNotification::class => NotificationType::Lease,
         LeaseRentReviewedNotification::class => NotificationType::Lease,
-        MaintenanceQuoteRequestedNotification::class => NotificationType::Maintenance,
         NewBookingNotification::class => NotificationType::Booking,
         PropertyApprovedNotification::class => NotificationType::System,
         PropertyRejectedNotification::class => NotificationType::System,
-        QuoteApprovedNotification::class => NotificationType::Maintenance,
-        QuoteRejectedNotification::class => NotificationType::Maintenance,
-        QuoteSubmittedNotification::class => NotificationType::Maintenance,
         SuperAdminAcceptedBroadcast::class => NotificationType::System,
         SuperAdminInvitedBroadcast::class => NotificationType::System,
         TaskDueReminderNotification::class => NotificationType::System,

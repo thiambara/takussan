@@ -118,11 +118,14 @@ class MaintenanceRequestController extends Controller
         }
 
         if ($owner && $owner->id !== $user->id) {
+            // TCK-592 — clé de traduction rendue dans la langue du DESTINATAIRE, pas de l'auteur.
+            $locale = $owner->preferredLocale();
+            $params = ['title' => $mr->title, 'property' => $property->title];
             $this->notifications->notify(
                 $owner,
                 NotificationType::Maintenance,
-                'Nouvelle demande de maintenance',
-                'Une demande de maintenance a été soumise pour '.$property->title.'.',
+                __('maintenance.notifications.created.title', $params, $locale),
+                __('maintenance.notifications.created.body', $params, $locale),
                 ['maintenance_request_id' => $mr->id],
             );
         }

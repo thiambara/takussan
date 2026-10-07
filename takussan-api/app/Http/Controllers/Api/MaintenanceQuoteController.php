@@ -7,35 +7,27 @@ use App\Http\Requests\Maintenance\RejectQuoteRequest;
 use App\Http\Requests\Maintenance\SubmitQuoteRequest;
 use App\Http\Resources\MaintenanceRequestResource;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Services\Maintenance\MaintenanceQuoteWorkflow;
-use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MaintenanceQuoteController extends Controller
 {
+    /**
+     * TCK-592 — aucune notification ici : chaque geste émet `MaintenanceStatusChanged`, que
+     * `NotifyMaintenanceParticipants` traduit pour chaque destinataire. La prose française écrite en
+     * dur notifiait le demandeur du prix (P13) et jamais l'agence.
+     */
     public function __construct(
         protected MaintenanceQuoteWorkflow $workflow,
-        protected NotificationService $notifications,
     ) {}
 
     public function requestQuote(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $this->authorize('manageQuotes', $maintenanceRequest);
 
-        $mr = $this->workflow->requestQuote($maintenanceRequest);
-
-        if ($mr->assigned_to) {
-            $this->notifications->notify(
-                $mr->assignee,
-                NotificationType::Maintenance,
-                'Demande de devis pour: '.$mr->title,
-                "Une demande de devis a été requise pour l'intervention: {$mr->title}.",
-                ['maintenance_request_id' => $mr->id],
-            );
-        }
+        $mr = $this->workflow->requestQuote($maintenanceRequest, $request->user());
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),
@@ -52,19 +44,7 @@ class MaintenanceQuoteController extends Controller
             $attachments = [$attachments];
         }
 
-        $mr = $this->workflow->submitQuote($maintenanceRequest, $data, $attachments);
-
-        // Notify Agent or Owner (who requested it, or property owner)
-        $notifiable = $mr->requester ?? $mr->property?->owner;
-        if ($notifiable) {
-            $this->notifications->notify(
-                $notifiable,
-                NotificationType::Maintenance,
-                'Devis soumis pour: '.$mr->title,
-                "Un devis de {$mr->quote_amount} {$mr->quote_currency} a été soumis pour l'intervention: {$mr->title}.",
-                ['maintenance_request_id' => $mr->id],
-            );
-        }
+        $mr = $this->workflow->submitQuote($maintenanceRequest, $data, $attachments, $request->user());
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),
@@ -75,17 +55,7 @@ class MaintenanceQuoteController extends Controller
     {
         $this->authorize('manageQuotes', $maintenanceRequest);
 
-        $mr = $this->workflow->approveQuote($maintenanceRequest, $request->user()->id);
-
-        if ($mr->assigned_to) {
-            $this->notifications->notify(
-                $mr->assignee,
-                NotificationType::Maintenance,
-                'Devis approuvé pour: '.$mr->title,
-                "Votre devis pour l'intervention: {$mr->title} a été approuvé.",
-                ['maintenance_request_id' => $mr->id],
-            );
-        }
+        $mr = $this->workflow->approveQuote($maintenanceRequest, $request->user()->id, $request->user());
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),
@@ -97,17 +67,7 @@ class MaintenanceQuoteController extends Controller
         $this->authorize('manageQuotes', $maintenanceRequest);
 
         $data = $request->validated();
-        $mr = $this->workflow->rejectQuote($maintenanceRequest, $data['reason'], $request->user()->id);
-
-        if ($mr->assigned_to) {
-            $this->notifications->notify(
-                $mr->assignee,
-                NotificationType::Maintenance,
-                'Devis rejeté pour: '.$mr->title,
-                "Votre devis pour l'intervention: {$mr->title} a été rejeté.",
-                ['maintenance_request_id' => $mr->id],
-            );
-        }
+        $mr = $this->workflow->rejectQuote($maintenanceRequest, $data['reason'], $request->user()->id, $request->user());
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),
@@ -119,7 +79,7 @@ class MaintenanceQuoteController extends Controller
         // TCK-592 — démarrer est une transition : (acteur, `in_progress`).
         $this->authorize('transitionTo', [$maintenanceRequest, MaintenanceStatus::InProgress]);
 
-        $mr = $this->workflow->start($maintenanceRequest);
+        $mr = $this->workflow->start($maintenanceRequest, $request->user());
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),

@@ -4,13 +4,25 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\User;
+use App\Policies\MaintenanceRequestPolicy;
 use Illuminate\Http\Request;
 
 class MaintenanceRequestResource extends BaseResource
 {
+    /**
+     * TCK-592 (P13) — le prix négocié est une affaire entre le prestataire et les donneurs d'ordre :
+     * le demandeur locataire ne reçoit plus les `quote_*` — clés ABSENTES, pas nulles. Retirées à
+     * la main plutôt que par `mergeWhen()` : les contrôleurs appellent `toArray()` directement, qui
+     * ne résout pas les valeurs conditionnelles.
+     */
+    private const QUOTE_FIELDS = [
+        'quote_amount', 'quote_currency', 'quote_submitted_at', 'quote_decision_at',
+        'quote_decision_by_id', 'quote_rejection_reason', 'quote_decision_by',
+    ];
+
     public function toArray(Request $request): array
     {
-        return [
+        $data = [
             'id' => $this->id,
             'property_id' => $this->property_id,
             'lease_id' => $this->lease_id,
@@ -39,6 +51,25 @@ class MaintenanceRequestResource extends BaseResource
             'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
             'created_at' => $this->iso($this->created_at),
         ];
+
+        if (! $this->seesQuote($request->user())) {
+            $data = array_diff_key($data, array_flip(self::QUOTE_FIELDS));
+        }
+
+        return $data;
+    }
+
+    /**
+     * Le prestataire assigné et les donneurs d'ordre (bailleur du bien, équipe de l'agence).
+     */
+    private function seesQuote(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return ($this->assigned_to !== null && $this->assigned_to === $user->id)
+            || MaintenanceRequestPolicy::isPrincipalFor($user, $this->property);
     }
 
     private function propertySummary(): ?array

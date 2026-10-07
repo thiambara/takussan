@@ -362,15 +362,15 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **C. Événement et notifications (C7, P4, P13, O14 partie notification)**
 
-- [ ] `App\Events\Maintenance\MaintenanceStatusChanged` émis par **chaque** chemin qui change le
+- [x] `App\Events\Maintenance\MaintenanceStatusChanged` émis par **chaque** chemin qui change le
       statut ou l'assignation (machine, devis, `complete`, accept/decline, confirm/contest, auto-clôture)
-- [ ] Écouteur `App\Listeners\Maintenance\NotifyMaintenanceParticipants` (découvert, pas
+- [x] Écouteur `App\Listeners\Maintenance\NotifyMaintenanceParticipants` (découvert, pas
       d'`Event::listen`) : prestataire à l'assignation et aux décisions ; demandeur à chaque étape (avec
       `scheduled_at`) ; donneurs d'ordre (équipe + bailleur du bien) au devis soumis, au refus, à la fin
-- [ ] Réécrire les `notify(` de `MaintenanceRequestController` et `MaintenanceQuoteController` en clés
+- [x] Réécrire les `notify(` de `MaintenanceRequestController` et `MaintenanceQuoteController` en clés
       `lang/{fr,en,wo}/maintenance.php`
-- [ ] `MaintenanceRequestResource` : `quote_*` masqués au demandeur non donneur d'ordre
-- [ ] Tests : `MaintenanceStatusChangedEventTest`, `MaintenanceNotificationsTest`
+- [x] `MaintenanceRequestResource` : `quote_*` masqués au demandeur non donneur d'ordre
+- [x] Tests : `MaintenanceStatusChangedEventTest`, `MaintenanceNotificationsTest`
 
 **D. Clôture contradictoire (P10, C7)**
 
@@ -612,3 +612,27 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - Écart re-mesuré : la policy seule ne fait rougir qu'**un** test d'accès (le profil suspendu) — une
   collaboration finie désassigne déjà, l'accès tombe par `assigned_to`. Les deux gardes se recouvrent
   pour `ended`, pas pour `suspended`.
+
+### C — événement et notifications
+
+- Chaque geste du devis émet l'événement ; `start` emprunte la transition du service (une seule
+  source pour `started_at`, `accepted_at` et l'événement). Soumettre un devis pose `accepted_at` :
+  chiffrer, c'est accepter (un refus ensuite → 422).
+- `NotifyMaintenanceParticipants` (découvert : `php artisan event:list` le liste, aucun `Event::listen`)
+  rend chaque texte dans la langue du destinataire (`preferredLocale()`). Les donneurs d'ordre sont
+  le bailleur du bien et l'équipe de l'agence qui tient `maintenance.assign` (`MaintenanceParticipants`,
+  relu par H pour le fil). L'auteur d'un geste n'en est jamais notifié ; un destinataire à deux rôles
+  n'en reçoit qu'une.
+- Le demandeur ne voit que `acknowledged / assigned / in_progress / completed / closed / cancelled` —
+  aucun état de devis. Les `quote_*` (et `quote_decision_by`) sont retirés de la ressource pour qui
+  n'est ni prestataire assigné ni donneur d'ordre : `mergeWhen()` n'est **pas** utilisable ici, les
+  contrôleurs appellent `toArray()` directement et une valeur conditionnelle n'y est jamais résolue.
+  `DateRepresentationTest` prend désormais le prestataire comme appelant représentatif.
+- Les quatre classes `Quote*` mortes et leurs lignes d'`AppDatabaseChannel` sont **supprimées**
+  (coordination 588). Seuls `tests/impact-map.json` (généré) et un ticket clos (TCK-095) les nomment.
+- Exécutions : `tests/Feature/Maintenance tests/Feature/ServiceProvider tests/Feature/Api/Maintenance*
+  …MaintenanceQuoteControllerTest …MaintenanceQuoteWorkflowTest tests/Feature/Notifications
+  tests/Unit/Http/Resources …` → 270 verts (après correction de `DateRepresentationTest`).
+- Ablations : devis soumis sans événement → 1 rouge ; `start` qui émet deux fois → 1 ; devis notifié au
+  demandeur → 1 ; titre rendu sans la langue du destinataire → 3 ; `quote_*` rendus au locataire → 1 ;
+  auteur notifié → 1 ; refus sans motif → 1 ; équipe retirée des donneurs d'ordre → 2.
