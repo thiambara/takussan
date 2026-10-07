@@ -472,4 +472,9 @@ return [
         'action' => 'Yeb',
         'expires' => 'Lien bii dina jeex ci 7 fan.',
     ],
+
+    // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
+    'property_proposed' => [
+        'title' => 'Kër gu ab boroom kër yónnee : :title',
+    ],
 ];

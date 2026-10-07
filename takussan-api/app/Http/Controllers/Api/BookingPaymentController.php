@@ -21,7 +21,8 @@ class BookingPaymentController extends Controller
 
     public function index(Request $request, Booking $booking): JsonResponse
     {
-        $this->authorizeBookingAccess($request, $booking);
+        // TCK-587 — la règle de `BookingPolicy::view`, à l'identique : l'ancien helper la recopiait.
+        $this->authorize('view', $booking);
 
         $payments = $booking->payments()
             ->latest()
@@ -69,7 +70,7 @@ class BookingPaymentController extends Controller
     {
         $payment->loadMissing('booking');
         abort_unless($payment->booking, 404);
-        $this->authorizeBookingAccess($request, $payment->booking);
+        $this->authorize('view', $payment->booking);
         abort_unless(
             $payment->status === PaymentStatus::Paid,
             422,
@@ -97,18 +98,5 @@ class BookingPaymentController extends Controller
         return $this->json([
             'data' => BookingPaymentResource::make($payment)->toArray($request),
         ]);
-    }
-
-    protected function authorizeBookingAccess(Request $request, Booking $booking): void
-    {
-        $user = $request->user();
-        $property = $booking->property;
-        $ok = $user->isSuperAdmin()
-            || $booking->created_by_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
-            || ($booking->customer && $booking->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
     }
 }

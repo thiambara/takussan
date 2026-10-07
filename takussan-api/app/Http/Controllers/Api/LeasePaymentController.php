@@ -18,7 +18,8 @@ class LeasePaymentController extends Controller
 
     public function index(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeLeaseAccess($request, $lease);
+        // TCK-587 — la règle de `LeasePolicy::view`, à l'identique : l'ancien helper la recopiait.
+        $this->authorize('view', $lease);
 
         $payments = $lease->payments()
             ->orderBy('period_start', 'desc')
@@ -51,16 +52,5 @@ class LeasePaymentController extends Controller
         return $this->json([
             'data' => LeasePaymentResource::make($payment)->toArray($request),
         ]);
-    }
-
-    protected function authorizeLeaseAccess(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id)
-            || ($lease->tenant && $lease->tenant->user_id === $user->id);
-
-        abort_unless($ok, 403);
     }
 }

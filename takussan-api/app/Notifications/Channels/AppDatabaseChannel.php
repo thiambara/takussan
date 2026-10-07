@@ -20,6 +20,7 @@ use App\Notifications\LeaseRenewedNotification;
 use App\Notifications\LeaseRentReviewedNotification;
 use App\Notifications\NewBookingNotification;
 use App\Notifications\PropertyApprovedNotification;
+use App\Notifications\PropertyProposedNotification;
 use App\Notifications\PropertyRejectedNotification;
 use App\Notifications\SuperAdminAcceptedBroadcast;
 use App\Notifications\SuperAdminInvitedBroadcast;
@@ -112,6 +113,7 @@ class AppDatabaseChannel
         LeaseRentReviewedNotification::class => NotificationType::Lease,
         NewBookingNotification::class => NotificationType::Booking,
         PropertyApprovedNotification::class => NotificationType::System,
+        PropertyProposedNotification::class => NotificationType::System,
         PropertyRejectedNotification::class => NotificationType::System,
         SuperAdminAcceptedBroadcast::class => NotificationType::System,
         SuperAdminInvitedBroadcast::class => NotificationType::System,

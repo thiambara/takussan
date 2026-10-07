@@ -101,6 +101,7 @@
       "dashboard": "Taablo",
       "myProperties": "Samay kër",
       "publishProperty": "Yebbi kër",
+      "proposeProperty": "Digle sa ajaans benn kër",
       "myFavorites": "Yi ma bëgg",
       "savedSearches": "Seet yi ñu denc",
       "myVisits": "Samay seetlu",
@@ -3288,6 +3289,8 @@
         "clear": "Neenal lépp",
         "platform_reserved": "Plaatfoom bi rekk",
         "platform_reserved_hint": "Sañ-sañ bii ekibu Takussan moo ko moom, mënuñu koo jox wàllu ajaans.",
+        "not_enforced": "Amul njeexital léegi",
+        "not_enforced_hint": "Benn jëf ci aplikaasioŋ bi saytuwul sañ-sañ bii ba léegi. Tànn ko, rol bi lay waajal ; dina dox bu jëf ji jàppee.",
         "toggle_domain": "Wone walla nëbb wàllu {domain}",
         "domain_selected": "{count}/{total}"
       },
@@ -3540,6 +3543,18 @@
       }
     },
     "team": {
+      "suspension": {
+        "suspend": "Taxawal ci ajaas bi",
+        "reactivate": "Doxalaat ci ajaas bi",
+        "suspendedBadge": "Taxawal nañu ko ci ajaas bi",
+        "suspendTitle": "Taxawal {name} ci ajaas bi ?",
+        "suspendDescription": "{name} dootul mën a def dara ci ajaas bii, te ay jokkoom yu ubbiku fii dañuy tëju. Kontam soppikuwul : mu ngi dox rekk, te ay ajaasam yu ci des soppikuwuñu.",
+        "reactivateTitle": "Doxalaat {name} ci ajaas bi ?",
+        "reactivateDescription": "{name} dina délluwaat ci sañ-sañi rolam ci ajaas bii.",
+        "cancel": "Neenal",
+        "confirmSuspend": "Taxawal",
+        "confirmReactivate": "Doxalaat"
+      },
       "removeDialog": {
         "title": "Dindi way-bokk bii ?",
         "cancel": "Neenal",
@@ -4509,6 +4524,8 @@
       },
       "publish": "Teg anons bi",
       "resumeLater": "Dellusiwaat ci kanam",
+      "proposalFinish": "Digle ko sa ajaans",
+      "proposalNotice": "Sa ajaans dina seet kër gii balaa koy siiwal : dina nekk ci kumpa ba loolu.",
       "missingId": "Kër gi sos na, waaye jotunu ko benn nimero. Wutal ko ci limu kër yi.",
       "close": "Tëj",
       "loadingDraft": "Ñu ngi dellusi sa brouillon…",
@@ -6788,6 +6805,8 @@
       "noPayouts": "Amul benn peymaan bu ñu tëral ba tey.",
       "chartTitle": "Xaalis ak dalal ci 12 weer",
       "emptyBodyFull": "Yokkal sa njëkk kër ngir ubbi réservasioŋ, kontaraa, dokimaa ak ñaanu wattu.",
+      "proposalEmptyBody": "Digle sa ajaans sa kër bu jëkk : dina ko seet, door koo siiwal. Ay dencukaay, ay kontraa ak ay dokimaa dinañu ci topp.",
+      "proposalEmptyCta": "Digle sa ajaans benn kër",
       "propertiesHint": "{rented} luwaa · {available} jot",
       "expectedHint": "Ñu ngi ko xaar : {amount}",
       "seeModule": "Xool modil bi",
@@ -6869,6 +6888,7 @@
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
+      "noneAllowed": "Sa rol ci ajaans bii amul benn génné. Benn yorkat mën na la ko jox.",
       "entities": {
         "payments": "Fey yi",
         "leases": "Kontaraa yi",
@@ -7016,7 +7036,8 @@
       },
       "propertyNew": {
         "metaTitle": "Génne benn kër",
-        "title": "Génne benn kër"
+        "title": "Génne benn kër",
+        "proposalTitle": "Digle sa ajaans benn kër"
       },
       "privacy": {
         "metaTitle": "Sutura",
@@ -8168,5 +8189,28 @@
       "next": "Ca kanam",
       "pageOf": "Xët {page} ci {last}"
     }
+  },
+  "shareReception": {
+    "metaTitle": "Dokimaa ñu séddoo",
+    "title": "Dokimaa bu ñu la séddoo",
+    "loading": "Ñu ngi ubbi lien bi…",
+    "name": "Dokimaa",
+    "size": "Réyaay",
+    "expiresAt": "Mën nañu ko jot ba {date}",
+    "downloadsLeft": "{count, plural, one {# yebal bu des} other {# yebal yu des}}",
+    "download": "Yebal",
+    "downloading": "Ñu ngi koy yebal…",
+    "downloadError": "Yebal bi antuwul. Jéemaatal ci kanam tuuti.",
+    "passwordTitle": "Dokimaa bii dañu ko aar",
+    "passwordHint": "Bindal baatu jàll bi ki la ko yónnee jox la.",
+    "passwordLabel": "Baatu jàll",
+    "submit": "Ubbi dokimaa bi",
+    "wrongPassword": "Baatu jàll bi baaxul.",
+    "goneTitle": "Lien bii doxatul",
+    "goneDescription": "Jamono ji jeex na, dañu ko neenal, walla yebal yi mu war a am jeex nañu. Laajal ki la ko yónnee benn lien bu bees.",
+    "notFoundTitle": "Gisuñu lien bi",
+    "notFoundDescription": "Seetal adrees bi nga jot, walla laajal ki la ko yónnee benn lien bu bees.",
+    "error": "Mënuñu woon a yeb dokimaa bi. Jéemaatal ci kanam tuuti.",
+    "retry": "Jéemaat"
   }
 }

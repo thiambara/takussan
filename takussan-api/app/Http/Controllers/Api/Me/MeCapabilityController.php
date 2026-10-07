@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api\Me;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,9 +87,11 @@ class MeCapabilityController extends Controller
             // `hasProfileAt()` exige un TYPE de profil ; la question ici est
             // « un profil, n'importe lequel ». On compose les prédicats déjà
             // écrits plutôt que d'interroger les tables à la main.
-            $member = $user->isAgencyAdminAt($explicit)
-                || $user->isAgentAt($explicit)
-                || $user->isOwnerAt($explicit)
+            // TCK-587 — APPARTENANCE : un membre suspendu reçoit une liste vide de capacités (le
+            // résolveur ne compte plus ses profils), pas un refus.
+            $member = $user->hasProfileAt((int) $explicit, AgencyAdminProfile::class)
+                || $user->hasProfileAt((int) $explicit, AgentProfile::class)
+                || $user->hasProfileAt((int) $explicit, OwnerProfile::class)
                 || $user->isProviderAt($explicit);
 
             return $member ? Agency::query()->find($explicit) : null;

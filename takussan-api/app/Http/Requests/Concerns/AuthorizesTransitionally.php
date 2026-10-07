@@ -100,7 +100,8 @@ trait AuthorizesTransitionally
 
         return $user->isSuperAdmin()
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
+            // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
+            || ($booking->agency_id !== null && $user->staffAgencyId() === (int) $booking->agency_id)
             || ($booking->customer && $booking->customer->user_id === $user->id);
     }
 }

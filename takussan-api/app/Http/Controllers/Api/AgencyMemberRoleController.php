@@ -54,9 +54,10 @@ class AgencyMemberRoleController extends Controller
         AgencyKindGuard::ensureCanFormTeam($agency);
 
         abort_unless(
-            $user->isAgentAt($agency->id)
-                || $user->isOwnerAt($agency->id)
-                || $user->isAgencyAdminAt($agency->id),
+            // TCK-587 — APPARTENANCE de la cible, pas un droit : un membre suspendu reste membre.
+            $user->hasProfileAt((int) $agency->id, AgentProfile::class)
+                || $user->hasProfileAt((int) $agency->id, OwnerProfile::class)
+                || $user->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
             422,
             __('messages.user_not_in_agency'),
         );
@@ -74,7 +75,7 @@ class AgencyMemberRoleController extends Controller
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
             if ($data['role'] !== 'agency_admin'
                 && $locked
-                && $locked->isAgencyAdminAt((int) $agency->id)) {
+                && $locked->hasProfileAt((int) $agency->id, AgencyAdminProfile::class)) {
                 $remainingAdmins = AgencyAdminProfile::query()
                     ->where('agency_id', $agency->id)
                     ->whereNull('deleted_at')

@@ -478,4 +478,9 @@ return [
         'action' => 'Télécharger',
         'expires' => 'Ce lien expire dans 7 jours.',
     ],
+
+    // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
+    'property_proposed' => [
+        'title' => 'Bien proposé par un bailleur : :title',
+    ],
 ];

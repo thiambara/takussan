@@ -14,8 +14,9 @@ use Tests\ApiTestCase;
 
 /**
  * TCK-147 — `/api/users` opened to `agency_admin` (auto-scoped to their
- * active profile's agency) and `block`/`activate` available to
- * `agency_admin` for users in their agency.
+ * active profile's agency). `block`/`activate` were opened to `agency_admin`
+ * as well, and closed again by TCK-587: blocking an ACCOUNT is the super
+ * admin's gesture only (ADR-0031 §2).
  */
 class UserAdminAgencyScopeTest extends ApiTestCase
 {
@@ -87,7 +88,13 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $this->assertTrue($ids->contains($userB->id));
     }
 
-    public function test_agency_admin_can_block_user_in_active_agency(): void
+    /**
+     * TCK-587 (ADR-0031 §2, AC7) — bloquer un COMPTE redevient un geste du super-admin seul. Ces
+     * tests affirmaient l'inverse depuis TCK-147 : l'admin d'agence bloquait le compte d'un membre
+     * de son agence — un compte qui vit aussi dans d'autres agences. Il le suspend désormais dans
+     * son agence (`TeamMemberSuspensionTest`).
+     */
+    public function test_agency_admin_cannot_block_an_account_even_in_its_agency(): void
     {
         $agency = Agency::factory()->create();
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
@@ -95,11 +102,9 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $target = User::factory()->create();
         AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agency->id]);
 
-        $this->apiPost("/api/users/{$target->id}/block")
-            ->assertOk()
-            ->assertJsonPath('data.status', UserStatus::Blocked->value);
+        $this->apiPost("/api/users/{$target->id}/block")->assertForbidden();
 
-        $this->assertSame(UserStatus::Blocked, $target->fresh()->status);
+        $this->assertSame(UserStatus::Active, $target->fresh()->status);
     }
 
     public function test_agency_admin_cannot_block_user_in_other_agency(): void
@@ -111,18 +116,12 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $target = User::factory()->create();
         AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agencyB->id]);
 
-        // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
-        // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
-        // À la fusion de 587, l'abort passe à abort_code() et ce test affirme son code.
-        $this->apiPost("/api/users/{$target->id}/block")
-            ->assertStatus(422)
-            ->assertJsonPath('code', 'http.unprocessable');
+        $this->apiPost("/api/users/{$target->id}/block")->assertForbidden();
     }
 
-    public function test_agency_admin_cannot_block_self(): void
+    public function test_super_admin_cannot_block_self(): void
     {
-        $agency = Agency::factory()->create();
-        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $admin = $this->apiActingAsRole('super_admin');
 
         // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
         // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
@@ -132,7 +131,7 @@ class UserAdminAgencyScopeTest extends ApiTestCase
             ->assertJsonPath('code', 'http.unprocessable');
     }
 
-    public function test_agency_admin_can_activate_user_in_active_agency(): void
+    public function test_agency_admin_cannot_reactivate_an_account_blocked_by_the_super_admin(): void
     {
         $agency = Agency::factory()->create();
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
@@ -140,9 +139,9 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $target = User::factory()->create(['status' => UserStatus::Blocked->value]);
         AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agency->id]);
 
-        $this->apiPost("/api/users/{$target->id}/activate")
-            ->assertOk()
-            ->assertJsonPath('data.status', UserStatus::Active->value);
+        $this->apiPost("/api/users/{$target->id}/activate")->assertForbidden();
+
+        $this->assertSame(UserStatus::Blocked, $target->fresh()->status);
     }
 
     public function test_super_admin_can_block_any_user(): void

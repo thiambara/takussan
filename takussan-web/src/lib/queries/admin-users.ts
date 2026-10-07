@@ -67,22 +67,6 @@ export async function fetchAdminUsers(
 }
 
 /**
- * Toggle a user's status. The backend exposes two distinct endpoints
- * (`/block` and `/activate`) rather than a PATCH — block additionally
- * revokes Sanctum tokens (TCK-147 hardening).
- */
-export async function postUserAction(
-  userId: number,
-  action: 'block' | 'activate',
-): Promise<unknown> {
-  const res = await fetch(`/api/admin-users/${userId}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<unknown>(res);
-}
-
-/**
  * Replace the user's role(s) with the single role provided. Backed by
  * `PUT /api/users/{user}/role` (TCK-014, syncRoles semantics). Returns
  * 422 if the target user has no resolvable agency context, or 403 with

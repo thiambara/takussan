@@ -28,8 +28,10 @@ class BookingController extends Controller
                 $q->where('created_by_id', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-                if ($user->agency_id) {
-                    $q->orWhere('agency_id', $user->agency_id);
+                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
+                // listait les ressources de tous les autres.
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhere('agency_id', $staffAgencyId);
                 }
             });
         }
@@ -64,7 +66,8 @@ class BookingController extends Controller
 
     public function confirm(Request $request, Booking $booking): JsonResponse
     {
-        $this->authorize('update', $booking);
+        // TCK-587 — `validate` : `bookings.validate` pour le personnel (`BookingPolicy`).
+        $this->authorize('validate', $booking);
         $booking = $this->bookings->confirm($booking);
 
         return $this->json([
