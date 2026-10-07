@@ -695,3 +695,65 @@ en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
   dont « bon mot de passe → 423 ». AC10 — `sanctum.expiration` remis à `null` → le jeton hérité de
   31 j passe (rouge) ; clause d'inactivité retirée → 2 rouges (7 j, super-admin 30 min).
 
+
+### §5 + step-up (API) — 2FA exigée
+
+- **Re-mesuré** sur `5f872f1f` : 5.1 exact (`EnsureSuperAdmin` ne lit que le profil ; `disable`
+  accepte le seul mot de passe ; `force_2fa_reconfigure` n'est **écrit** qu'à
+  `UserSupportService.php:48` et lu nulle part ; `recovery-codes` aux lignes 72-73 d'`auth.php`).
+  Écarts : (1) la console d'équipe `/admin/team` ne lit **pas** `GET /agencies/{a}/team` mais
+  `GET /api/users` (`UserAdminController::index`, via le BFF `admin-users`) : la colonne 2FA est
+  donc calculée aux **deux** endroits (une requête par page, jamais via `User::$queryFields`) ;
+  (2) `AgencyController::update` remplaçait `settings` en bloc : poser l'interrupteur seul aurait
+  effacé les réglages de filigrane — `settings` se fusionne désormais (`array_replace`).
+- `App\Support\Security\ProtectedActions` : `FAMILIES` (fichier de routes ⇒ tout le fichier, ou
+  ses seuls contrôleurs pour `agencies.php`), `AGENCY_TWO_FACTOR` (30 actions), `EXEMPT` (avec
+  raison : acceptation publique d'invitation, création d'agence), `STEP_UP` (console : reversements
+  plateforme, intégrations, paramètres, feature flags, cooptation, impersonation, reset 2FA,
+  révocation de sessions ; codes de secours) et `STEP_UP_FOR_PLATFORM` (`UserAdminController`
+  block/destroy : step-up seulement quand l'appelant est super-admin — ces actions servent aussi
+  l'admin d'agence sur son équipe). `PATCH agencies/{agency}` est protégé : il porte la commission
+  et l'interrupteur lui-même. `App\Support\Security\TwoFactorRequirement` dit QUI doit porter la
+  2FA (lu par le middleware et par `disable`).
+- `RequireTwoFactor` et `RequireRecentTwoFactor` en fin de groupe `api`, après
+  `ResolveActiveProfile` (donc avant `auth:sanctum` : utilisateur lu par la garde `sanctum`).
+  L'agence d'une action d'agent : `{agency}` de la route, sinon le profil actif. Bloc 2FA ajouté
+  **après** celui du profil dans `EnsureSuperAdmin` (coordination 600).
+- `TwoFactorController` : `disable` → 422 `two_factor_mandatory` pour un compte soumis à
+  l'exigence ; activité `Security` / `two_factor_disabled` ; `stepUp` (`POST
+  auth/two-factor/step-up`, `throttle:5,1`) pose `two_factor_verified_at` sur LE jeton et rend
+  `{data: {valid_until}}` ; `confirm` (et `SuperAdminTwoFactorController::confirm`) efface
+  `force_2fa_reconfigure`. **Renouvellement de l'appareil** (contrainte 10) : `enable` sur une 2FA
+  active, sous step-up, met un nouveau secret en attente (cache chiffré, 10 min) ; `confirm` le
+  prouve et le substitue, `qr` le rend. *Pas d'écran front pour ce geste* : au rapport.
+- `AlertableEvents` : une entrée `two_factor_disabled`. ⚠ L'alerte part par les règles que les
+  super-admins configurent ; elle ne distingue pas compte privilégié et client (un compte soumis à
+  l'exigence ne peut de toute façon plus désactiver).
+- Tests : la 2FA étant exigée, `actingAsRole('super_admin'|'agency_admin')` incarne désormais le
+  rôle **avec** sa 2FA (surchargeable), et le super-admin agit par un vrai jeton portant un step-up
+  frais (`actingAsWithStepUp`, garde `sanctum`). Nouvel état `UserFactory::withTwoFactor()`. Douze
+  fichiers existants qui fabriquaient un admin à la main ont reçu `withTwoFactor()` /
+  `actingAsWithStepUp()` — dont `MultiProfileStrictAccessTest` où les deux cas **403** auraient
+  sinon passé pour la mauvaise raison (`two_factor_required`). `TwoFactorTest::enable_fails_if_already_enabled`
+  affirme désormais 403 `two_factor_step_up_required` (c'est le renouvellement).
+- **Exécutions** : `php artisan test tests/Feature/Auth/TwoFactor` → 7 classes vertes ; balayage des
+  fichiers qui frappent une route protégée ou fabriquent un profil plateforme / admin
+  (`grep -rlE "api/admin|/api/payouts|/api/integrations|/roles|role-delegations|/invite|/api/invitations|/api/users|/members|two-factor|agencies/"`
+  puis `grep -rlE "agency_admin|AgencyAdminProfile|super_admin|PlatformProfile|two_factor|force_2fa"`,
+  166 fichiers en 7 lots) → tous verts après correction des fixtures ci-dessus.
+- **Ablations** :
+  - AC7 — la clause `/api/admin/*` du middleware seule retirée : vert (le bloc d'`EnsureSuperAdmin`
+    tient) ; le bloc seul retiré : vert (le middleware tient) ; **les deux** : rouge. Deux verrous
+    indépendants, voulus. `disable` sans la clause « exigée » → 4 rouges ; événement renommé
+    `updated` → 2 rouges.
+  - AC7b — clause `force_2fa_reconfigure` du middleware retirée → rouge ; `unset` de `confirm`
+    retiré → rouge ; champ de `UserResource` retiré → rouge.
+  - AC8 — `RequireTwoFactor` retiré de `bootstrap/app.php` → 6 rouges (admin ×3, agent ×3).
+  - AC9 — une route `POST integrations/{integration}/rotate` ajoutée à `integrations.php` → rouge ;
+    une entrée `PayoutController@approve` (inexistante) ajoutée à la liste → rouge. La première
+    exécution réelle a d'ailleurs trouvé deux oublis : `AgencyController@store` (exempté, raison
+    écrite) et `@destroy` (protégé).
+  - AC11 — `RequireRecentTwoFactor` retiré → 4 rouges sur 5 (le cinquième, « la connexion par
+    TOTP vaut step-up », est un témoin positif). Un durcissement de `stepUpValidUntil` contre le
+    jeton factice de `Sanctum::actingAs()` a été essayé puis **retiré** : son ablation laissait le
+    test vert — le mock rend bien `null` sur l'attribut ; le test reste, comme garde.

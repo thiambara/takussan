@@ -29,7 +29,7 @@ class AgencyRoleAssignmentTest extends ApiTestCase
         parent::setUp();
 
         $this->agency = Agency::factory()->create();
-        $this->admin = User::factory()->create();
+        $this->admin = User::factory()->withTwoFactor()->create();
         AgencyAdminProfile::factory()->create([
             'user_id' => $this->admin->id,
             'agency_id' => $this->agency->id,

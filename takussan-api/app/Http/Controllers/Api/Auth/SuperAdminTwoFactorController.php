@@ -110,9 +110,14 @@ class SuperAdminTwoFactorController extends Controller
         );
 
         DB::transaction(function () use ($user): void {
+            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support.
+            $metadata = $user->metadata ?? [];
+            unset($metadata['force_2fa_reconfigure']);
+
             $user->forceFill([
                 'two_factor_enabled' => true,
                 'force_2fa_at_first_login' => false,
+                'metadata' => $metadata,
             ])->save();
 
             $this->attachSuperAdminRole($user);

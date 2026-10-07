@@ -35,5 +35,6 @@ return [
         'step_up_invalid' => 'Kod 2FA bi baaxul.',
         'mandatory' => 'Dëggal ñaareel bi war na ci sa kont : mën nga ko yeesal, mënuloo ko fey.',
         'not_enabled' => 'Dëggal ñaareel bi doxul.',
+        'renewal_missing' => 'Tàmbalil ci sos benn sekere bu bees (yeesal sa jumtukaay).',
     ],
 ];

@@ -79,6 +79,9 @@ class UserSupportTest extends TestCase
     {
         $actor = $this->actingAsRole('super_admin');
         $actor->createToken('operator');
+        // TCK-589 — le super-admin agit par un vrai jeton (step-up) : les siens se
+        // comptent avant, pour affirmer qu'aucun n'est touché.
+        $jetonsActeur = $actor->tokens()->count();
         $target = User::factory()->create();
         $target->createToken('mobile');
         $target->createToken('web');
@@ -88,7 +91,7 @@ class UserSupportTest extends TestCase
         ])->assertOk();
 
         $this->assertSame(0, $target->tokens()->count());
-        $this->assertSame(1, $actor->tokens()->count());
+        $this->assertSame($jetonsActeur, $actor->tokens()->count());
         $this->assertAudit($actor, $target, 'super_admin_sessions_revoked', 'Session suspecte');
     }
 

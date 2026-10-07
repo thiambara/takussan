@@ -38,7 +38,7 @@ class PlatformReservedCapabilityTest extends TestCase
 
     private function agencyAdmin(Agency $agency): User
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withTwoFactor()->create();
         AgencyAdminProfile::factory()->create([
             'user_id' => $user->id,
             'agency_id' => $agency->id,

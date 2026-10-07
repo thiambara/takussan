@@ -35,5 +35,6 @@ return [
         'step_up_invalid' => 'Invalid two-factor code.',
         'mandatory' => 'Two-factor authentication is mandatory for your account: it can be renewed, not turned off.',
         'not_enabled' => 'Two-factor authentication is not enabled.',
+        'renewal_missing' => 'Start by generating a new secret (device renewal).',
     ],
 ];

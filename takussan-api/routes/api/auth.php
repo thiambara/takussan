@@ -69,8 +69,14 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::get('/two-factor/qr', [TwoFactorController::class, 'qr']);
     Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:5,1');
     Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1');
+    // TCK-589 — les codes de secours exigent un step-up (`RequireRecentTwoFactor`,
+    // liste `ProtectedActions::STEP_UP`) : une session volée ne contourne plus le TOTP.
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
     Route::post('/two-factor/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+    // TCK-589 — step-up : un TOTP frais, porté par CE jeton pendant 10 minutes.
+    Route::post('/two-factor/step-up', [TwoFactorController::class, 'stepUp'])
+        ->middleware('throttle:5,1')
+        ->name('auth.two-factor.step-up');
 
     // TCK-264 — Mandatory TOTP enrollment for a freshly-coopted
     // super-admin. The spatie role is deferred until /confirm flips

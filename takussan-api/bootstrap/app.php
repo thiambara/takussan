@@ -3,6 +3,8 @@
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\MaintenanceMode;
+use App\Http\Middleware\RequireRecentTwoFactor;
+use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
@@ -61,6 +63,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // la seconde orpheline — elle décrivait donc toujours une API supprimée.
         $middleware->api(append: [
             ResolveActiveProfile::class,
+            // TCK-589 — 2FA exigée (plateforme, admin et personnel d'agence sur les
+            // familles protégées, réinitialisation par le support), puis step-up par
+            // jeton sur les actions sensibles. Listes : `App\Support\Security\ProtectedActions`.
+            RequireTwoFactor::class,
+            RequireRecentTwoFactor::class,
         ]);
         // TCK-102 — alias the SMS webhook IP allowlist middleware.
         // TCK-144 — alias the super-admin gate for the /api/admin/* namespace.

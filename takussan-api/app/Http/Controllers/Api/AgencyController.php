@@ -83,6 +83,12 @@ class AgencyController extends Controller
 
         $data = $request->validated();
 
+        // TCK-589 — `settings` se FUSIONNE : poser `require_team_two_factor` seul
+        // ne doit pas effacer les réglages de filigrane, et inversement.
+        if (is_array($data['settings'] ?? null)) {
+            $data['settings'] = array_replace($agency->settings ?? [], $data['settings']);
+        }
+
         $agency->fill($data)->save();
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);

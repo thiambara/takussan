@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Auth\AuthRefusal;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,13 @@ class EnsureSuperAdmin
 
         if (! $user->isSuperAdmin()) {
             return new JsonResponse(['message' => 'Super-admin access required.'], 403);
+        }
+
+        // TCK-589 — la console plateforme exige la 2FA (ADR-0033, contrainte 7).
+        // Redondant avec `RequireTwoFactor` sur `/api/admin/*` : ce bloc tient même
+        // si la route quitte un jour ce préfixe.
+        if (! $user->two_factor_enabled) {
+            return AuthRefusal::response(403, 'two_factor_required', 'auth.two_factor.required');
         }
 
         return $next($request);

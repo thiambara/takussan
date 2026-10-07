@@ -40,5 +40,6 @@ return [
         'step_up_invalid' => 'Code de double authentification invalide.',
         'mandatory' => 'La double authentification est obligatoire pour votre compte : elle se renouvelle, elle ne se désactive pas.',
         'not_enabled' => 'La double authentification n\'est pas activée.',
+        'renewal_missing' => 'Commencez par générer un nouveau secret (renouvellement de l\'appareil).',
     ],
 ];
