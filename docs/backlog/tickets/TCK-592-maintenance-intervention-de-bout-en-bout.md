@@ -940,3 +940,19 @@ Méthode, à chaque étape :
   - arrondi en troncature : 2 rouges ;
   - échelle fixée à 2 : 1 rouge ;
   - échelle fixée à 0 : 1 rouge.
+
+**Mineurs 2 à 6 — cinq branches justes, mais non éprouvées.**
+
+`MaintenanceGuardedBranchesTest` compte 5 tests, un par ablation du vérificateur. Chacune de ces
+ablations rend désormais **1 rouge** :
+
+| Ablation | Branche gardée | Réponse attendue |
+|---|---|---|
+| X5 | `confirm-resolution` sans `maintenance.close` | 403 |
+| X7 | créneau posé par un prestataire non accepté | 403 |
+| X14 | refus après un démarrage par le donneur d'ordre | 422 |
+| X25 | `{status: null, started_at: null}` | rien n'est écrit |
+| X11 | devis égal au plafond | approuvé directement |
+
+Le code était juste sur `05dce4fc` : ces tests y sont verts. Ils gardent la branche, ils ne
+corrigent rien.
