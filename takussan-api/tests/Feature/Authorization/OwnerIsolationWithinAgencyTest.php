@@ -10,10 +10,12 @@ use App\Models\Document;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\ContractType;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\RentPeriod;
 use App\Models\Guarantor;
 use App\Models\Inventory;
 use App\Models\Invoice;
@@ -93,6 +95,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'user_id' => $landlord->id,
             'agency_id' => $agencyId,
             'visibility' => PropertyVisibility::Private,
+            ...self::RESERVABLE,
         ]);
         $customer = Customer::factory()->create(['agency_id' => $agencyId, 'added_by_id' => $landlord->id]);
         $lease = Lease::factory()->create([
@@ -391,6 +394,13 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
     // ─── AC1d — réserver le bien d'un autre bailleur ─────────────
 
     /** @return array<string, mixed> */
+    /**
+     * Un bien RÉSERVABLE : la fabrique tire `rent_period` au hasard, et un bien loué au mois ou à
+     * l'année est refusé en 422 (`rent_period_not_bookable`) avant toute question d'autorisation —
+     * le test rougissait une fois sur deux, sans rapport avec ce qu'il éprouve.
+     */
+    private const RESERVABLE = ['contract_type' => ContractType::Rent, 'rent_period' => RentPeriod::Daily];
+
     private function bookingPayload(Property $property, array $extra = []): array
     {
         return array_merge([
@@ -413,6 +423,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'user_id' => $this->b1->id,
             'agency_id' => $this->agency->id,
             'visibility' => PropertyVisibility::Public,
+            ...self::RESERVABLE,
         ]);
 
         $customerId = $this->actingAsApi($this->b2)
@@ -433,6 +444,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'user_id' => $this->b1->id,
             'agency_id' => $this->agency->id,
             'visibility' => PropertyVisibility::Public,
+            ...self::RESERVABLE,
         ]);
         $client = Customer::factory()->create(['agency_id' => $this->agency->id, 'added_by_id' => $this->agent->id]);
 

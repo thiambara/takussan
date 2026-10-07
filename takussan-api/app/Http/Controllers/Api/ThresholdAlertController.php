@@ -19,7 +19,7 @@ class ThresholdAlertController extends Controller
         $user = $request->user();
         // TCK-587 — configuration de l'agence : son PERSONNEL (ADR-0031), plus tout membre.
         $staffAgencyId = $user->staffAgencyId();
-        abort_unless($staffAgencyId !== null || $user->isSuperAdmin(), 403);
+        abort_unless($staffAgencyId !== null || $user->isSuperAdmin(), 403, __('errors.staff_only'));
 
         $base = ThresholdAlert::query();
         if (! $user->isSuperAdmin()) {

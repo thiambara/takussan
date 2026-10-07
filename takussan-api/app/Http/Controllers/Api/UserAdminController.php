@@ -67,7 +67,7 @@ class UserAdminController extends Controller
     public function block(Request $request, User $user): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor->isSuperAdmin(), 403);
+        abort_unless($actor->isSuperAdmin(), 403, __('errors.account_block_reserved'));
         abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
 
         $user->update(['status' => UserStatus::Blocked]);
@@ -78,7 +78,7 @@ class UserAdminController extends Controller
 
     public function activate(Request $request, User $user): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin(), 403);
+        abort_unless($request->user()->isSuperAdmin(), 403, __('errors.account_block_reserved'));
 
         $user->update(['status' => UserStatus::Active]);
 

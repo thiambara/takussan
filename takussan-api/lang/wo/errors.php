@@ -8,4 +8,6 @@ return [
     'export_unknown_entity' => 'Export bii amul.',
     'export_forbidden' => 'Amuloo sañ-sañ génne donne yii.',
     'share_password_in_query' => 'Baatu jàll bu lien bi, ci biir laaj bi lañu koy yónnee, du ci URL bi.',
+    'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
+    'staff_only' => 'Xibaar yii, liggéeykati ajaans bi rekk ñoo ko moom.',
 ];
