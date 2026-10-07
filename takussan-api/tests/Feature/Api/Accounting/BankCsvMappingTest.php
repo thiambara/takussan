@@ -8,6 +8,7 @@ use App\Models\BankStatement;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\Currency;
 use App\Models\User;
+use App\Services\Accounting\StatementParser\CsvDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -156,6 +157,42 @@ class BankCsvMappingTest extends ApiTestCase
 
         // Et l'analyse, jouée APRÈS le changement, lit l'instantané : au mapping actuel de
         // l'agence (virgule), ce fichier à point-virgule ne donnerait aucune ligne.
+        app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+
+        $statement->refresh();
+        $this->assertSame(BankStatementStatus::ReadyForReview, $statement->status);
+        $this->assertSame(1, $statement->lines_count);
+        $this->assertSame('150000.00', (string) $statement->lines()->sole()->amount);
+    }
+
+    public function test_une_agence_sans_mapping_fige_le_defaut_effectif(): void
+    {
+        // Vérification adverse (AC17a) — figer `$agency->bank_csv_mapping` BRUT laissait
+        // `csv_mapping = null` sur le relevé d'une agence sans mapping : le job lisait alors le
+        // mapping de l'agence au moment de l'ANALYSE, et le gel promis n'avait pas lieu.
+        Queue::fake();
+        $this->assertNull($this->agency->bank_csv_mapping);
+
+        $id = $this->actingAs($this->admin)
+            ->postJson("/api/agencies/{$this->agency->id}/bank-statements", [
+                'file' => UploadedFile::fake()->createWithContent('s.csv', "date,amount,label\n01/04/2026,150000,A\n"),
+                'source_format' => 'csv',
+            ])
+            ->assertStatus(202)
+            ->json('data.id');
+
+        $statement = BankStatement::findOrFail($id);
+        // `jsonb` range les clés à sa façon : on compare les valeurs, pas l'ordre.
+        $expected = CsvDriver::effectiveMapping(null);
+        $frozen = $statement->csv_mapping;
+        $this->assertIsArray($frozen);
+        ksort($expected);
+        ksort($frozen);
+        $this->assertSame($expected, $frozen);
+
+        // L'agence règle ensuite un mapping à point-virgule : le relevé déjà importé se lit au
+        // défaut figé, pas au mapping actuel (qui n'y trouverait aucune ligne).
+        $this->actingAs($this->admin)->putJson($this->url(), $this->mapping())->assertOk();
         app()->call([new ParseBankStatementJob($statement->id), 'handle']);
 
         $statement->refresh();

@@ -65,6 +65,27 @@ class LeasePaymentResourceContractTest extends TestCase
             ->assertJsonPath('data.0.late_fee_payable_online', true);
     }
 
+    /**
+     * AC3 (ajouté après vérification adverse, AC3b) — une échéance payée EN PARTIE ne demande que
+     * son reste : `amount` à la place de `remaining_amount` dans `amountDue` demandait le loyer
+     * entier, et aucun test n'avait de paiement partiel. Ce qui est montré est ce qui est transmis.
+     */
+    public function test_une_echeance_payee_en_partie_ne_demande_que_son_reste(): void
+    {
+        $spy = $this->spyDriver();
+        foreach ([false => [100000, 10_000_000], true => [107500, 10_750_000]] as $online => [$due, $cents]) {
+            $ctx = $this->leaseDue(['late_fee_online_collection' => (bool) $online], ['metadata' => ['paid_amount' => 50_000]]);
+            Sanctum::actingAs($ctx['tenant']);
+
+            $this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertOk()
+                ->assertJsonPath('data.0.remaining_amount', 100000)
+                ->assertJsonPath('data.0.amount_due', $due);
+
+            $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+            $this->assertSame($cents, end($spy->calls)['amount_cents']);
+        }
+    }
+
     /** Une échéance payée dont la pénalité reste due ne demande rien en ligne. */
     public function test_echeance_payee_amount_due_nul_et_quittance_disponible(): void
     {

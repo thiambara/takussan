@@ -281,6 +281,22 @@ class PaymentGatewayInitiateTest extends TestCase
         $this->postJson("/api/booking-payments/{$booking['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertStatus(409);
 
+        // Vérification adverse (AC8a) — l'échéance `refunded` ci-dessus est refusée par la garde
+        // du montant nul : `lease_payments` n'a pas de `refund_amount`, son reste dû est donc
+        // toujours 0. C'est un acompte remboursé INTÉGRALEMENT (`refund_amount = amount`, reste
+        // dû = 50 000) qui éprouve la garde de STATUT.
+        $refundedBooking = $this->makeContext('wave');
+        $refundedBooking['payment']->update([
+            'status' => PaymentStatus::Refunded,
+            'paid_at' => now(),
+            'refund_amount' => 50000,
+        ]);
+        $this->assertEquals(50000, $refundedBooking['payment']->refresh()->remaining_amount);
+        Sanctum::actingAs($refundedBooking['owner']);
+        $this->postJson("/api/booking-payments/{$refundedBooking['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409)
+            ->assertJsonPath('message', __('payments.payment_not_payable'));
+
         $this->assertSame([], $spy->calls, 'Le pilote ne doit jamais être appelé sur un paiement réglé.');
     }
 

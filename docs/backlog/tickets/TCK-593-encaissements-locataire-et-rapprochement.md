@@ -906,3 +906,20 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
 - **V7 (mineur 4) — date dans le futur.** `MarkLateFeePaidRequest` : `paid_at` en
   `before_or_equal:now`. Test `test_une_date_de_reglement_future_est_refusee` (hier → 200).
   Ablation → rouge.
+- **AC8 (mineur 5) — le cas `refunded` passait pour une mauvaise raison.** `lease_payments` n'a pas
+  de colonne `refund_amount` : une échéance de loyer `refunded` a TOUJOURS un reste dû nul, et la
+  garde du montant nul la refuse avant que la garde de statut serve. Le `refund_amount => 150000`
+  demandé n'est donc pas posable sur une échéance de loyer ; le cas qui éprouve la garde de statut
+  est un acompte `booking_payments` remboursé intégralement (`refund_amount = amount`, reste dû
+  50 000), ajouté à `test_initiation_refusee_sur_une_echeance_deja_payee`. Ablation AC8a
+  (`Refunded` retiré d'`isPayable`) → rouge. Pour les échéances de loyer, la garde de statut reste
+  une défense en profondeur que la donnée rend inobservable.
+- **AC17 (mineur 8) — gel du mapping pour une agence sans mapping.**
+  `test_une_agence_sans_mapping_fige_le_defaut_effectif` : le relevé porte
+  `CsvDriver::effectiveMapping(null)` (comparé clé par clé : `jsonb` réordonne les clés), puis
+  l'agence règle un mapping à point-virgule et l'analyse lit encore le défaut figé. Ablation AC17a
+  (mapping brut) → rouge.
+- **AC3 (mineur 9) — paiement partiel.** `test_une_echeance_payee_en_partie_ne_demande_que_son_reste` :
+  `paid_amount = 50 000` → `amount_due = 100 000` réglage désactivé, 107 500 activé, et le pilote
+  reçoit 10 000 000 / 10 750 000 centimes. Ablation AC3b (`amount` au lieu de `remaining_amount`)
+  → rouge.
