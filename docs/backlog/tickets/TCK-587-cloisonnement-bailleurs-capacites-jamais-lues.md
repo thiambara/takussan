@@ -1,7 +1,7 @@
 ---
 id: TCK-587
 title: "Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste"
-status: doing
+status: done
 phase: P0
 family: full
 estimate: XL
@@ -367,113 +367,113 @@ Aucune migration de schéma. Endpoints :
 ## Delta à produire
 
 ### 0. Décision
-- [ ] ADR (prochain numéro libre) « Le personnel de l'agence et le cloisonnement des bailleurs ;
+- [x] ADR (prochain numéro libre) « Le personnel de l'agence et le cloisonnement des bailleurs ;
       capacités sans lecteur » — accepté avant le code (contrainte 1).
 
 ### 1. Cloisonnement
-- [ ] `MembershipCapabilityResolver::staffAgencyId()` + `User::staffAgencyId()` (proxy) ; tests
+- [x] `MembershipCapabilityResolver::staffAgencyId()` + `User::staffAgencyId()` (proxy) ; tests
       unitaires : agent actif, agent suspendu, admin, bailleur seul, bailleur + agent même agence,
       multi-agences sans profil actif, délégation active / échue.
-- [ ] Policies : `Lease` (7 clauses), `LeasePayment`, `Payout` (`view`/`update`), `Invoice`,
+- [x] Policies : `Lease` (7 clauses), `LeasePayment`, `Payout` (`view`/`update`), `Invoice`,
       `Booking`, `Document` (6 branches dont `Agency`), `Inventory`, `PropertyVisit`, `Property`,
       `Customer`, `Guarantor` → prédicat.
-- [ ] `index` : `LeaseController`, `PayoutController`, `InvoiceController`, `BookingController`,
+- [x] `index` : `LeaseController`, `PayoutController`, `InvoiceController`, `BookingController`,
       `InventoryController` (bloc `where` seul), `PropertyController` (bailleur : `user_id` seul),
       `CustomerController` (bloc `where` l.27-37 seul : personnel avec `crm.view_all` → l'agence ;
       sinon `added_by_id = moi`), aligné sur `CustomerPolicy::view` du §4.
-- [ ] Helpers : `LeasePaymentController::authorizeLeaseAccess`,
+- [x] Helpers : `LeasePaymentController::authorizeLeaseAccess`,
       `BookingPaymentController::authorizeBookingAccess`, `DocumentShareLinkController::authorizeDocument`,
       `DocumentPdfController::authorize{Receipt,Invoice,Lease}` → délégation à la policy du modèle
       quand la règle est identique (et retrait de leur entrée `EXEMPTIONS_JUSTIFIEES`), sinon
       prédicat (la quittance garde sa branche collaborateur, `DocumentPdfController.php:94-97`).
       `ConversationContextController:102-104,145-147` → prédicat. (`FavoriteController:36` : TCK-599.)
-- [ ] `LeaseService::create` : `property.user_id === user` OU (personnel de l'agence du bien ET
+- [x] `LeaseService::create` : `property.user_id === user` OU (personnel de l'agence du bien ET
       `leases.create`).
-- [ ] `BookingService::create` (l.65-67, *consolidation*) : `$isStaff = $user->isSuperAdmin() ||
+- [x] `BookingService::create` (l.65-67, *consolidation*) : `$isStaff = $user->isSuperAdmin() ||
       ($property->agency_id !== null && $user->staffAgencyId() === $property->agency_id)`. Le disjoint
       mort `$property->user_id === $user->id` disparaît. Un bailleur de l'agence suit dès lors le
       chemin du client : bien public exigé (l.69-75), `customer_id` absent résolu en son propre
       client (l.86-91), `customer_id` d'un tiers refusé (l.85, l.94). Rien d'autre dans la méthode
       (contrainte 10, 596 / 588).
-- [ ] Garde `scripts/check-agency-scope-clause.mjs` : interdit, sous `app/Policies`,
+- [x] Garde `scripts/check-agency-scope-clause.mjs` : interdit, sous `app/Policies`,
       `app/Http/Controllers`, `app/Services`, toute comparaison de `$user->agency_id` à un
       `->agency_id` et tout `where|orWhere('…agency_id', $user->agency_id)`, sauf instruction qui
       appelle aussi `isAgencyAdminAt(` ou le prédicat ; exemptions `fichier::méthode → TCK-NNN`
       refusées si mortes ; cliquet **bilatéral** sur leur nombre ; s'auto-éprouve à chaque
       invocation sur ≥ 5 formes d'écriture (espacée, `!==`, `&&` en tête, `orWhereHas` imbriqué,
       `$actor->`).
-- [ ] Tests : `tests/Feature/Authorization/OwnerIsolationWithinAgencyTest.php` — une agence, deux
+- [x] Tests : `tests/Feature/Authorization/OwnerIsolationWithinAgencyTest.php` — une agence, deux
       bailleurs B1/B2 (chacun bien, bail, loyer, réservation, versement, facture, document, état des
       lieux, visite, client ajouté), un agent. Fournisseur de données par endpoint : B2 → 403 sur
       `show`/`update` de chaque ressource de B1 et absent de chaque `index` ; agent → 200.
 
 ### 2. Versements et factures
-- [ ] `PayoutPolicy::view` : bénéficiaire, émetteur, ou personnel tenant `payouts.create`.
+- [x] `PayoutPolicy::view` : bénéficiaire, émetteur, ou personnel tenant `payouts.create`.
       `update` : refus si bénéficiaire ; sinon émetteur personnel ou personnel tenant `payouts.create`.
-- [ ] `InvoicePolicy` : abilities `send` (`invoices.send`), `markPaid` (`payments.record`), `cancel`
+- [x] `InvoicePolicy` : abilities `send` (`invoices.send`), `markPaid` (`payments.record`), `cancel`
       (`invoices.write_off`), toutes réservées au personnel ; `InvoiceController` les invoque.
-- [ ] `LeasePolicy::recordPayment` : bailleur du bail, ou personnel de l'agence du bail tenant
+- [x] `LeasePolicy::recordPayment` : bailleur du bail, ou personnel de l'agence du bail tenant
       `payments.record` ; `StoreLeasePaymentRequest::authorize()` (l.30-33) et
       `MarkPaidLeasePaymentRequest::authorize()` (l.29-32), qui jugent aujourd'hui par `update`,
       l'invoquent.
-- [ ] `PayoutTest::test_landlord_of_same_agency_cannot_manage_own_payout` (bailleur AVEC profil
+- [x] `PayoutTest::test_landlord_of_same_agency_cannot_manage_own_payout` (bailleur AVEC profil
       dans l'agence, sur les trois transitions) ; l'ancien test sans agence reste.
-- [ ] Web : actions du détail d'un versement conditionnées à la capacité (via `useCan`) et au fait
+- [x] Web : actions du détail d'un versement conditionnées à la capacité (via `useCan`) et au fait
       de ne pas être le bénéficiaire.
 
 ### 3. Biens
-- [ ] `PropertyPolicy::create` : `properties.create` dans l'agence du profil actif, OU bailleur
+- [x] `PropertyPolicy::create` : `properties.create` dans l'agence du profil actif, OU bailleur
       actif de cette agence (**proposition** : le contrôleur impose `draft` + `private`).
       `update` : auteur personnel ou bailleur → `properties.update_own` ; autre bien de l'agence →
       `properties.update_any`. `delete` : `properties.delete` dans l'agence du bien. Nouvelle ability
       `publish` : `properties.publish`.
-- [ ] `PropertyController` : `authorize('create', Property::class)` en tête de `store` ;
+- [x] `PropertyController` : `authorize('create', Property::class)` en tête de `store` ;
       `destroy` → `delete` ; `publish`/`unpublish` → `publish`. `UpdateVisibilityPropertyRequest`
       (→ `public`) et `UpdateStatusPropertyRequest` (→ `available`/`published`) exigent aussi `publish`.
-- [ ] Proposition du bailleur (contrainte 5, option retenue par défaut) : notification
+- [x] Proposition du bailleur (contrainte 5, option retenue par défaut) : notification
       `PropertyProposedNotification` (canal `database`) à chaque admin **actif** de l'agence, par clé
       `__('notifications.property_proposed…')` ; le bailleur ne peut ensuite ni la publier ni la
       rendre publique (`publish`, `PUT …/visibility`, `PUT …/status` → 403).
-- [ ] Web : « Mes biens » du bailleur = ses biens ; « Proposer un bien à mon agence » remplace
+- [x] Web : « Mes biens » du bailleur = ses biens ; « Proposer un bien à mon agence » remplace
       « Ajouter un bien » pour le bailleur non-personnel (menu, état vide, formulaire sans publication).
-- [ ] `PropertyController::assignAgent` (l.238-258) : la cible doit être du **personnel actif** de
+- [x] `PropertyController::assignAgent` (l.238-258) : la cible doit être du **personnel actif** de
       l'agence du bien (prédicat appliqué à la cible), sinon 422 `messages.target_user_not_in_active_agency`
       — aujourd'hui `$target->agency_id === $agencyId` (l.248) laisse passer un bailleur, qui devient
       `properties.user_id`. Règle exposée en une méthode que le `bulk-assign` de TCK-591 réutilise.
-- [ ] Tests `tests/Feature/Api/PropertyAuthorizationTest.php`.
+- [x] Tests `tests/Feature/Api/PropertyAuthorizationTest.php`.
 
 ### 4. Suppressions
-- [ ] `CustomerPolicy::delete` : auteur personnel, ou personnel tenant `crm.view_all` ;
+- [x] `CustomerPolicy::delete` : auteur personnel, ou personnel tenant `crm.view_all` ;
       `CustomerPolicy::view` : auteur, ou personnel avec `crm.view_all` (sinon ses seuls clients).
       `GuarantorPolicy::delete` : auteur, ou personnel de l'agence de l'auteur.
       `DocumentPolicy::delete` = règle actuelle d'`update` (comportement constant).
-- [ ] `destroy` de `Customer`, `Guarantor`, `Document` → `authorize('delete', …)`.
-- [ ] `BookingPolicy` : abilities `validate` (`bookings.validate` pour le personnel ; propriétaire du
+- [x] `destroy` de `Customer`, `Guarantor`, `Document` → `authorize('delete', …)`.
+- [x] `BookingPolicy` : abilities `validate` (`bookings.validate` pour le personnel ; propriétaire du
       bien) et `cancel` (client de la réservation, propriétaire du bien, ou personnel avec
       `bookings.cancel`) ; `confirm`/`reject` → `validate`, `CancelBookingRequest` → `cancel`.
-- [ ] Tests `tests/Feature/Api/DestroyAuthorizationTest.php` (HTTP, pas d'appel direct de policy).
+- [x] Tests `tests/Feature/Api/DestroyAuthorizationTest.php` (HTTP, pas d'appel direct de policy).
 
 ### 5. Exports et suspension
-- [ ] `ExportController::show` : table entité → capacité (`customers` → `crm.export`, `payments` →
+- [x] `ExportController::show` : table entité → capacité (`customers` → `crm.export`, `payments` →
       `payments.export`, `leases`/`properties` → `reports.export` pour le personnel ; le bailleur
       garde l'export de **ses** biens et baux) ; contrôle en tête, avant toute requête.
       `ExportDataService::scopeToActor` lit le prédicat.
-- [ ] Journal : `activity('export')` événement `data_exported`, propriétés `entity`, `filters`,
+- [x] Journal : `activity('export')` événement `data_exported`, propriétés `entity`, `filters`,
       `row_count`, `agency_id`.
-- [ ] `UserAdminController::block|activate` : super-admin seul.
-- [ ] `Agency\TeamMemberSuspensionController` + `SuspendTeamMemberRequest` (`team.suspend` dans
+- [x] `UserAdminController::block|activate` : super-admin seul.
+- [x] `Agency\TeamMemberSuspensionController` + `SuspendTeamMemberRequest` (`team.suspend` dans
       l'agence de la route = agence du profil actif) + `App\Services\Membership\TeamMemberSuspensionService` :
       suspend **tous** les profils de la cible dans l'agence (agent → `suspended` via
       `AgentInvitationService::suspend`, admin → `suspended`, bailleur → `blocked`), refuse
       `primary_admin_id` et soi-même (422), révoque les jetons dont le profil actif est dans
       l'agence, journalise ; `reactivate` symétrique.
-- [ ] Web : « Suspendre de l'agence » / « Réactiver » dans la console d'équipe ; la console
+- [x] Web : « Suspendre de l'agence » / « Réactiver » dans la console d'équipe ; la console
       super-admin garde le blocage de compte.
-- [ ] Tests `tests/Feature/Api/ExportCapabilityTest.php`,
+- [x] Tests `tests/Feature/Api/ExportCapabilityTest.php`,
       `tests/Feature/Api/Agency/TeamMemberSuspensionTest.php`.
 
 ### 6. Capacités sans lecteur
-- [ ] `App\Services\Membership\CapabilityEnforcementInventory` : `const AWAITING` — une ligne par
+- [x] `App\Services\Membership\CapabilityEnforcementInventory` : `const AWAITING` — une ligne par
       capacité sans lecteur, valeur = ticket qui la branche. État visé à la fusion de 587 (16 lignes) :
 
       | Capacité | Valeur | Preuve que le ticket la branche |
@@ -495,122 +495,122 @@ Aucune migration de schéma. Endpoints :
       `properties.create|update_own|delete|publish`, `leases.create`, `bookings.validate|cancel`,
       `invoices.send|write_off`, `payments.record|export`, `crm.view_all|export`, `reports.export`,
       `team.suspend`.
-- [ ] Garde `scripts/check-capability-readers.mjs` (rejouée par `repo-ci.yml`) : chaque cas de
+- [x] Garde `scripts/check-capability-readers.mjs` (rejouée par `repo-ci.yml`) : chaque cas de
       l'enum est **soit** lu (définition du §6 du Contexte, `*Capability()` compté seulement si
       l'ability est invoquée pour ce modèle), **soit** dans l'inventaire — jamais les deux, jamais
       aucun. Cliquet bilatéral sur la taille. S'auto-éprouve à chaque invocation sur des extraits
       figés (≥ 5 formes, dont nom de route, docblock, déclaration `deleteCapability()` non atteinte).
-- [ ] `CapabilityController::index` : `not_enforced` lu depuis l'inventaire.
-- [ ] Web : mention « sans effet pour l'instant » dans l'éditeur de rôles.
-- [ ] Tests `tests/Feature/Authorization/BranchedCapabilitiesTest.php` : un fournisseur de données
+- [x] `CapabilityController::index` : `not_enforced` lu depuis l'inventaire.
+- [x] Web : mention « sans effet pour l'instant » dans l'éditeur de rôles.
+- [x] Tests `tests/Feature/Authorization/BranchedCapabilitiesTest.php` : un fournisseur de données
       par capacité branchée (AC12).
 
 ### 7. Profils non actifs (passe de correction)
-- [ ] `MembershipCapabilityResolver::roleAllows()` : ne lit que les profils `->active()` (scopes
+- [x] `MembershipCapabilityResolver::roleAllows()` : ne lit que les profils `->active()` (scopes
       `AgentProfile.php:68`, `AgencyAdminProfile.php:66`, `OwnerProfile.php:75`) ; docblocks l.61-62
       et 367-369 rendus vrais. `staffAgencyId()` (§1) applique la même condition.
-- [ ] `HasProfiles::isOwnerAt/isAgentAt/isAgencyAdminAt` : ajoutent `->active()`. Les sites qui
+- [x] `HasProfiles::isOwnerAt/isAgentAt/isAgencyAdminAt` : ajoutent `->active()`. Les sites qui
       testent une **appartenance** et non un droit (doublon d'invitation, réactivation, liste
       d'équipe) passent sur une variante explicite `hasProfileAt(AgencyRoleBaseType $type, int $agencyId)`
       sans filtre de statut ; l'inventaire des 112 appels est fait à l'implémentation, chaque site
       classé « droit » ou « appartenance » dans la PR.
-- [ ] `ResolveActiveProfile::handle` (auto-bascule, l.125-135) et `User::getAgencyIdAttribute()`
+- [x] `ResolveActiveProfile::handle` (auto-bascule, l.125-135) et `User::getAgencyIdAttribute()`
       (repli, l.243-250) : ne retiennent que les profils actifs — même règle que le chemin explicite
       (`ActiveProfileResolver.php:99-108`).
-- [ ] `AgencyController.php:322-330` : le commentaire est réécrit (la visibilité reste sans filtre
+- [x] `AgencyController.php:322-330` : le commentaire est réécrit (la visibilité reste sans filtre
       de statut, délibérément : un membre suspendu voit l'agence sans y agir).
-- [ ] Tests `tests/Feature/Authorization/InactiveProfileGrantsNothingTest.php` (AC13).
+- [x] Tests `tests/Feature/Authorization/InactiveProfileGrantsNothingTest.php` (AC13).
 
 ### 8. Lien de partage : le mot de passe hors de l'URL (consolidation)
-- [ ] `routes/api/documents.php` : `Route::post('share/{token}', …'show')` et
+- [x] `routes/api/documents.php` : `Route::post('share/{token}', …'show')` et
       `Route::post('share/{token}/download', …'download')`, noms `share.show.post` /
       `share.download.post`, même `throttle` que le `GET` correspondant (contrainte 10, 602).
-- [ ] `DocumentShareLinkController::show|download` : refus **400** `__('errors.share_password_in_query')`
+- [x] `DocumentShareLinkController::show|download` : refus **400** `__('errors.share_password_in_query')`
       si `$request->query->has('password')`, en tête, avant `validate()` ; le mot de passe se lit par
       `$request->post('password')` (corps seul : formulaire ou JSON) — plus jamais par `input()`.
       Le reste des deux méthodes est inchangé.
-- [ ] Clé `errors.share_password_in_query` en `fr` / `en` / `wo`.
-- [ ] Tests : `DocumentShareLinkTest.php:141` et `DocumentShareLinkDownloadTest.php:181,190`
+- [x] Clé `errors.share_password_in_query` en `fr` / `en` / `wo`.
+- [x] Tests : `DocumentShareLinkTest.php:141` et `DocumentShareLinkDownloadTest.php:181,190`
       réécrits en `POST` avec mot de passe dans le corps ; nouveau
       `tests/Feature/Api/DocumentShareLinkPasswordTransportTest.php` (AC15).
-- [ ] Web (intentionnel) : une **page publique de réception** d'un lien de partage, sur l'origine
+- [x] Web (intentionnel) : une **page publique de réception** d'un lien de partage, sur l'origine
       du front, hors de `/app` : elle affiche le nom et la taille du document (`GET`), demande le mot
       de passe quand l'API rend 401, l'envoie par `POST` dans le corps et déclenche le
       téléchargement sans jamais placer le mot de passe dans une URL. `DocumentShareDialog` distribue
       l'URL de cette page (`buildShareUrl`, l.51-54), plus `…/api/share/{token}` sur l'origine du
       front, qui ne répond pas. Textes `fr` / `en` / `wo` ; états lien expiré / révoqué / épuisé (410)
       et mot de passe faux (401) nommés.
-- [ ] Test de composant de la page (AC15).
+- [x] Test de composant de la page (AC15).
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — `OwnerIsolationWithinAgencyTest` : pour chacune des 11 ressources du §1, un bailleur
+- [x] **AC1** — `OwnerIsolationWithinAgencyTest` : pour chacune des 11 ressources du §1, un bailleur
       **ayant un profil dans la même agence** reçoit 403 sur la ressource d'un autre bailleur et ne la
       trouve dans aucune liste (`GET /api/customers` compris : le client ajouté par B1 en est absent
       pour B2) ; l'agent de l'agence reçoit 200. Le test rougit sur `e3ab4a4e`, et redevient rouge si
       l'on rétablit la clause `agency_id === agency_id` dans **une seule** policy ou dans le `where`
       d'**un seul** `index`.
-- [ ] **AC1b** — Même fixture, chemins hors policy : B2 reçoit 403 sur `GET /api/leases/{bail de B1}/payments`,
+- [x] **AC1b** — Même fixture, chemins hors policy : B2 reçoit 403 sur `GET /api/leases/{bail de B1}/payments`,
       `POST /api/leases/{bail de B1}/payments`, `GET /api/bookings/{réservation de B1}/payments`,
       `POST /api/documents/{document de B1}/share`, `GET /api/leases/{bail de B1}/receipts/{p}/pdf`,
       `GET /api/leases/{bail de B1}/contract/pdf`, `GET /api/invoices/{facture de B1}/pdf` ; et
       `GET /api/conversations/context/leases` / `…/properties` ne lui rendent **aucun** identifiant de
       B1 (ensemble attendu = ceux de B2). L'agent reçoit 200 partout. Rougit aujourd'hui (200 / 201) ;
       rouge à nouveau si l'on rétablit la clause dans un seul helper.
-- [ ] **AC1c** — `POST /api/leases` sur le bien de B1 : B2 → 403 (201 aujourd'hui,
+- [x] **AC1c** — `POST /api/leases` sur le bien de B1 : B2 → 403 (201 aujourd'hui,
       `LeaseService.php:25-28`) ; un agent dont le rôle personnalisé n'a pas `leases.create` → 403 ;
       B1 et l'agent du rôle système → 201.
-- [ ] **AC1d** — `POST /api/bookings` (corps : `property_id`, dates, **sans** `customer_id`), même
+- [x] **AC1d** — `POST /api/bookings` (corps : `property_id`, dates, **sans** `customer_id`), même
       fixture : B2 sur un bien `private` de B1 → **403** (201 aujourd'hui, réservation sans client) ;
       B2 sur un bien public de B1 → 201 avec `data.customer_id` = l'identifiant du client de B2 (et
       non `null` comme aujourd'hui) ; B2 avec `customer_id` d'un client ajouté par l'agent → 403 ;
       l'agent de l'agence sur le bien `private` → 201. Rouge à nouveau si l'on rétablit
       `$user->agency_id === $property->agency_id` dans `$isStaff`.
-- [ ] **AC2** — Un bailleur bénéficiaire, profil actif dans l'agence émettrice, reçoit 403 sur
+- [x] **AC2** — Un bailleur bénéficiaire, profil actif dans l'agence émettrice, reçoit 403 sur
       `mark-processed`, `mark-failed` et `cancel` de **son** versement ; un agent sans
       `payouts.create` (rôle personnalisé) reçoit 403 ; un agent du rôle système, 200.
-- [ ] **AC3** — `POST /api/properties` : client sans profil → 403 ; bailleur invité → 201 avec
+- [x] **AC3** — `POST /api/properties` : client sans profil → 403 ; bailleur invité → 201 avec
       `status = draft` et `visibility = private` même si le corps demande `available`/`public` ;
       agent → 201. Rougit sur le code actuel (client → 201 aujourd'hui). Sur ce brouillon, le
       bailleur reçoit ensuite 403 sur `publish`, sur `PUT …/visibility` → `public` et sur
       `PUT …/status` → `available` ; chaque admin actif de l'agence a exactement une notification
       `property_proposed` portant l'identifiant du bien, l'admin suspendu aucune.
-- [ ] **AC4** — Un agent du rôle système reçoit 403 sur `DELETE /api/properties/{id}` d'un bien d'un
+- [x] **AC4** — Un agent du rôle système reçoit 403 sur `DELETE /api/properties/{id}` d'un bien d'un
       collègue (il ne tient pas `properties.delete`) et 403 sur `PATCH` de ce bien (pas
       `update_any`) ; l'admin d'agence reçoit 204 / 200. Un rôle sans `properties.publish` reçoit 403
       sur `publish`, **et** sur `PUT .../visibility` vers `public`, **et** sur `PUT .../status` vers
       `available`.
-- [ ] **AC5** — Un bailleur de l'agence reçoit 403 sur `DELETE /api/customers/{id}` et
+- [x] **AC5** — Un bailleur de l'agence reçoit 403 sur `DELETE /api/customers/{id}` et
       `/api/guarantors/{id}` d'un client de l'agence qu'il n'a pas ajouté (204 aujourd'hui) ; l'auteur
       du document le supprime toujours (204), un autre membre de l'agence non (403). Ablation : sans la
       surcharge de `delete()` (contrainte 6), l'auteur reçoit 403 et le test rougit.
-- [ ] **AC5b** — `PUT /api/properties/{id}/assigned-agent` par B1 sur son bien avec `user_id` = B2
+- [x] **AC5b** — `PUT /api/properties/{id}/assigned-agent` par B1 sur son bien avec `user_id` = B2
       (bailleur de la même agence) → 422 et `properties.user_id` inchangé (200 aujourd'hui) ; vers un
       agent actif de l'agence → 200 ; vers un agent suspendu → 422.
-- [ ] **AC6** — `GET /api/export/customers` : agent du rôle système → 403 ; admin → 200 **et** une
+- [x] **AC6** — `GET /api/export/customers` : agent du rôle système → 403 ; admin → 200 **et** une
       ligne `activity_log` `data_exported` avec `row_count` égal au nombre de lignes rendues. Même
       chose pour `payments` avec `payments.export`. Le bailleur exporte ses biens : uniquement les
       siens (valeur attendue, pas une longueur).
-- [ ] **AC7** — Un admin d'agence reçoit 403 sur `POST /api/users/{id}/block` **et** sur
+- [x] **AC7** — Un admin d'agence reçoit 403 sur `POST /api/users/{id}/block` **et** sur
       `/activate` d'un compte bloqué par le super-admin. `POST /api/agencies/{a}/team/{u}/suspend`
       sur un bailleur présent dans deux agences : son profil de l'agence A passe `blocked`, son
       `users.status` reste `active`, il se connecte et agit dans l'agence B. Sur `primary_admin_id` →
       422. Une ligne d'activité est écrite.
-- [ ] **AC8** — `check-capability-readers.mjs` sort en 0 sur la branche, et en 1 : si l'on ajoute un
+- [x] **AC8** — `check-capability-readers.mjs` sort en 0 sur la branche, et en 1 : si l'on ajoute un
       cas à l'enum sans lecteur ni ligne d'inventaire ; si l'on branche une capacité inventoriée sans
       retirer sa ligne ; si l'on retire une ligne sans baisser le cliquet. Lancée sur `e3ab4a4e`,
       elle classe `properties.delete`, `properties.create`, `leases.create` et `properties.publish`
       **sans lecteur** et `invoices.create`, `payouts.create` **lus**. Elle sort aussi en 1 quand une
       capacité est **à la fois** lue et inventoriée — cas éprouvé sur un extrait figé où
       `maintenance.assign` est lue par `MaintenanceRequestController` et inscrite au nom de TCK-592.
-- [ ] **AC9** — `check-agency-scope-clause.mjs` sort en 1 si l'on réintroduit
+- [x] **AC9** — `check-agency-scope-clause.mjs` sort en 1 si l'on réintroduit
       `$user->agency_id === $model->agency_id` dans `LeasePolicy::view`, sous chacune des cinq formes
       de son auto-épreuve.
-- [ ] **AC10** — `GET /api/capabilities` rend `not_enforced` contenant exactement les lignes de
+- [x] **AC10** — `GET /api/capabilities` rend `not_enforced` contenant exactement les lignes de
       l'inventaire, et l'éditeur de rôles affiche la mention sur `payouts.approve` (test de composant).
-- [ ] **AC11** — Le bailleur ne voit pas les actions d'un versement ; l'admin d'agence les voit
+- [x] **AC11** — Le bailleur ne voit pas les actions d'un versement ; l'admin d'agence les voit
       (test de composant sur les deux cas).
-- [ ] **AC12** — `BranchedCapabilitiesTest`, une ligne par capacité branchée : un membre dont le
+- [x] **AC12** — `BranchedCapabilitiesTest`, une ligne par capacité branchée : un membre dont le
       rôle personnalisé est le rôle système qui la porte **moins elle** reçoit 403 ; le rôle système,
       2xx. Rouge aujourd'hui sur chaque ligne (2xx sans la capacité), rouge à nouveau si l'on retire
       la lecture d'une seule.
@@ -626,18 +626,18 @@ Aucune migration de schéma. Endpoints :
       | `crm.export` / `payments.export` / `reports.export` | `GET /api/export/{customers|payments|leases}` |
       | `team.suspend` | `POST /api/agencies/{a}/team/{u}/suspend` |
       | `properties.create|delete|publish`, `leases.create` | AC3, AC4, AC1c |
-- [ ] **AC13** — `InactiveProfileGrantsNothingTest` : après `PATCH /api/profiles/{agent}/suspend`,
+- [x] **AC13** — `InactiveProfileGrantsNothingTest` : après `PATCH /api/profiles/{agent}/suspend`,
       l'agent (une seule agence) reçoit 403 sur `GET /api/leases/{bail de l'agence}` et ne voit plus
       aucun bail de l'agence dans `GET /api/leases` (200 et la liste entière aujourd'hui) ; un co-admin
       `suspended` reçoit 403 sur `PATCH /api/profiles/{autre agent}/suspend` (200 aujourd'hui,
       `AgentInvitationService.php:222`). Réactivé, chacun retrouve l'accès. Le test rougit si l'on
       retire `->active()` de `roleAllows()`, de `isAgencyAdminAt()` **ou** de l'auto-bascule — chacun
       seul.
-- [ ] **AC14** — Console d'équipe (test de composant) : un admin d'agence ne se voit plus proposer le
+- [x] **AC14** — Console d'équipe (test de composant) : un admin d'agence ne se voit plus proposer le
       blocage du **compte** ; « Suspendre de l'agence » est proposé sur un agent ou un bailleur, jamais
       sur l'administrateur principal. Formulaire d'un bailleur non-personnel : aucun contrôle de
       publication ni de visibilité publique.
-- [ ] **AC15** — `DocumentShareLinkPasswordTransportTest`, sur un lien protégé par `secret1234` :
+- [x] **AC15** — `DocumentShareLinkPasswordTransportTest`, sur un lien protégé par `secret1234` :
       `GET /api/share/{t}?password=secret1234` → **400** (200 aujourd'hui) et
       `GET /api/share/{t}/download?password=secret1234` → **400** (flux aujourd'hui), sans incrément de
       `downloads_count` ; `POST /api/share/{t}` corps `{password: "secret1234"}` → 200 ;
@@ -808,3 +808,52 @@ s'observe pas SEUL — le refus de la query, en tête, masque la différence (le
 que par la query). Mesuré : refus retiré + `input()` → `POST ?password=…` rend **200** ; refus
 retiré + `post()` → **401** ; refus seul retiré → rouge (400 attendu, 401 vu). Les deux couches
 sont donc chacune nécessaires, mais seule la seconde est observable isolément.
+
+### Étape 4 — web (§2, §3, §5, §6, §8)
+
+Chaque test de composant est éprouvé par ablation : rouge sur le code de `dev` (ou sans la
+garde), vert avec, de nouveau vert après restauration.
+
+| Garde | Test | Sans la garde |
+|---|---|---|
+| AC11 — actions d'un versement : `useCan('payouts.create')` ET pas bénéficiaire | `PayoutDetailDialog.capacites.test.tsx` (4) | rouge ×3 (bénéficiaire, bénéficiaire tenant la capacité, membre sans elle) |
+| AC10 — mention « Sans effet pour l'instant » lue dans `not_enforced`, case cochable | `CapabilityMatrix.test.tsx` (+1) | rouge |
+| AC14 — console d'équipe : « Suspendre de l'agence » / « Réactiver dans l'agence », jamais sur l'admin principal ni sur soi, aucun blocage de compte | `TeamConsole.suspension.test.tsx` (6) | table de `dev` → rouge ×4 ; tiroir de `dev` → rouge ; exclusion du principal retirée → rouge |
+| AC14 — formulaire du bailleur : mention de relecture, « Proposer à mon agence », aucun contrôle de visibilité, corps `private` | `PropertyWizard.test.tsx` (+3) | rouge ×2 |
+| §3 — barre latérale : « Proposer un bien à mon agence » pour le bailleur hors personnel | `AppSidebar.proposition.test.ts` (5) | rouge |
+| §3 — menus d'un bien (liste et fiche) : publier / dépublier / disponible ⇐ `properties.publish`, supprimer ⇐ `properties.delete` | `PropertyActions.capacites.test.tsx` (4) | rouge ×2 |
+| §5 (UX) — export offert selon `crm.export` / `payments.export` / `reports.export` | `ExportForm.capacites.test.tsx` (3) | rouge ×2 |
+| AC15 — page de réception : 401 → champ ; `POST` dont l'URL ne porte pas le mot de passe ; téléchargement idem ; 401 / 404 / 410 nommés | `ShareReception.test.tsx` (6) | mot de passe en query → rouge |
+| AC15 — `DocumentShareDialog` copie `${origin}/share/{token}` | `DocumentShareDialog.url.test.tsx` (1) | dialogue de `dev` → rouge |
+
+**Choix faits à l'implémentation :**
+
+- **Statut d'un membre dans l'agence.** La liste `/api/users` charge déjà
+  `agentProfiles,ownerProfiles,agencyAdminProfiles` (mesuré : chaque profil y porte `agency_id` et
+  `status`). La console en déduit le geste : un profil actif ici → « Suspendre » ; aucun actif et un
+  `suspended`/`blocked` → « Réactiver » ; une invitation en attente → rien. L'admin principal vient
+  de l'agence déjà lue par la page (`primary_admin_id`).
+- **`postUserAction` retiré** : plus aucun appelant, et sa route refuse l'admin d'agence depuis
+  l'étape 2. La console super-admin passe par `super-admin-users`, intacte.
+- **Proposition du bailleur.** La barre latérale, l'état vide du tableau de bord bailleur et le titre
+  de `/app/properties/new` jugent « hors personnel » sur les rôles (`owner` sans `agent` ni
+  `agency_admin`) ; le serveur juge sur `properties.create`. Le rôle système du bailleur ne la porte
+  pas, ceux du personnel si : les deux coïncident tant qu'aucun rôle personnalisé ne donne
+  `properties.create` à un bailleur — auquel cas l'écran dit « proposer » et le serveur crée un
+  bien de l'agence. Le parcours de création n'avait déjà **aucun** contrôle de visibilité (corps
+  toujours `private`, `toCreatePayload`) ; le contrôle de publication vivait dans les menus de la
+  liste et de la fiche, désormais gardés par capacité.
+- **Page de réception** : `[locale]/(public)/share/[token]`, `noindex` et `no-referrer` (le jeton
+  EST le droit d'accès). `DocumentShareDialog` distribue `/share/{token}` sans langue : le proxy
+  pose celle du destinataire. Le 410 n'est pas détaillé (expiré / révoqué / épuisé) : l'API rend la
+  même réponse sans code, l'écran nomme les trois causes ensemble.
+- **i18n** : clés ajoutées sans reformatage (`admin.roles.matrix.not_enforced*`,
+  `admin.team.suspension.*`, `shareReception.*`, `nav.sidebar.proposeProperty`,
+  `dashboard.owner.proposal*`, `dashboard.pages.propertyNew.proposalTitle`,
+  `property.wizard.proposal*`, `dashboard.exports.noneAllowed`). `namespaces.json` régénéré pour
+  `shareReception` ; `--update` relevait aussi deux plafonds, remis à leur valeur — la garde passe
+  avec eux.
+
+**Vérifications :** `npx tsc --noEmit` propre, `npm run lint` 0 erreur, les 128 fichiers de test des
+répertoires touchés verts (980 tests), toutes les gardes de `scripts/` et de `takussan-web/scripts/`
+vertes.
