@@ -16,6 +16,7 @@ use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
@@ -222,47 +223,18 @@ class AgencyController extends Controller
         ]);
     }
 
-    public function removeAgent(Request $request, Agency $agency, User $user): JsonResponse
+    /**
+     * TCK-591 §8 — le retrait passe par {@see AgencyMemberRemovalService}, seul chemin (gardes,
+     * journal, portefeuille, flux) ; il s'autorise par `team.remove` dans l'agence de la route.
+     * `leave_unassigned=true` assume de laisser un portefeuille sans repreneur.
+     */
+    public function removeAgent(Request $request, Agency $agency, User $user, AgencyMemberRemovalService $removal): JsonResponse
     {
-        $this->authorizeAdmin($request, $agency);
-        $belongsToAgency = $user->agentProfiles()->where('agency_id', $agency->id)->exists();
-        abort_if(! $belongsToAgency, 422, __('messages.user_not_in_agency'));
-        abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
+        $this->authorize('removeMember', $agency);
 
-        // TCK-278 — Last-admin guard : maintenant que le rôle est porté par
-        // `AgencyAdminProfile`, on compte les profils admin restants (et non
-        // plus les users avec rôle spatie `agency_admin` + agent profile).
-        DB::transaction(function () use ($user, $agency) {
-            $locked = User::where('id', $user->id)->lockForUpdate()->first();
-            if ($locked && $locked->isAgencyAdminAt((int) $agency->id)) {
-                $remainingAdmins = AgencyAdminProfile::query()
-                    ->where('agency_id', $agency->id)
-                    ->whereNull('deleted_at')
-                    ->where('user_id', '!=', $user->id)
-                    // ⚠ `->get(…)->count()` et non `->count()` : PostgreSQL refuse
-                    // `FOR UPDATE` sur un agrégat (« FOR UPDATE is not allowed with
-                    // aggregate functions »), parce que les lignes à verrouiller y sont
-                    // ambiguës. On rapatrie donc les lignes — elles sont verrouillées,
-                    // ce qui est tout l'objet — et on les compte en PHP.
-                    //
-                    // L'invariant est préservé : ce sont EXACTEMENT les mêmes lignes qui
-                    // sont verrouillées, et c'est le `delete()` plus bas qui entre en
-                    // conflit avec le verrou de l'écrivain concurrent. Le compte n'a
-                    // jamais eu besoin d'être calculé côté serveur.
-                    //
-                    // Le volume est borné par le nombre d'administrateurs d'une agence :
-                    // rapatrier ces identifiants ne coûte rien.
-                    ->lockForUpdate()
-                    ->get(['id'])
-                    ->count();
-                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
-            }
+        $removed = $removal->remove($agency, $user, $request->user(), $request->boolean('leave_unassigned'));
 
-            $user->agentProfiles()->where('agency_id', $agency->id)->delete();
-            $user->agencyAdminProfiles()->where('agency_id', $agency->id)->delete();
-        });
-
-        return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
+        return $this->json(['data' => ['user_id' => $user->id, 'removed' => true, 'removed_profiles' => $removed]]);
     }
 
     /**
