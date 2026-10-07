@@ -339,6 +339,11 @@ pas un formulaire administratif.
 **4. Formulaires sans compte**
 - [x] `ContactLeadPublicRequest` : `email` `required_without:phone`, `phone` `required_without:email`
       + forme E.164 + `TelephoneJoignable`, `source`/`medium` (`max:40`, `[a-z0-9_.-]`).
+- [x] `App\Support\TelephoneSaisi` : la saisie est ramenée à E.164 avant `TelephoneJoignable` —
+      séparateurs, `00`, indicatif sans `+`, format national sénégalais (70, 75-78, 33) — sur la
+      piste (bien et agent), la demande de visite publique et la planification par le personnel ;
+      migration `normaliser_les_telephones_saisis` qui rattrape `property_visits.visitor_phone` et
+      `property_contact_leads.phone`. `customers.phone` hors périmètre (TCK-591).
 - [x] `VisitRequestPublicPropertyRequest` : anonyme = nom + téléphone obligatoires, e-mail
       facultatif ; `scheduled_at` sur un créneau de la grille.
 - [x] Front : boîte de visite ouverte au visiteur sans compte ; formulaire « téléphone ou e-mail »,
@@ -385,8 +390,13 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
 - [x] AC2b **(R)** — Un client connecté qui a une fiche client dans l'agence Y (créée avant) et une
       dans l'agence X du bien demande une visite par la route publique : `customer_id` = la fiche
       de X. S'il n'a qu'une fiche dans Y : `customer_id` nul.
-- [x] AC3 — Anonyme : nom + `+221771234567` sans e-mail → 201 ; `77 123 45 67` → 422 ; sans
-      téléphone → 422. Lead : téléphone seul → 201, ni téléphone ni e-mail → 422.
+- [x] AC3 — Anonyme : nom + `+221771234567` sans e-mail → 201 ; `77 123 45 67` → 201, enregistré
+      `+221771234567` ; `77 123 45` → 422 ; sans téléphone → 422. Lead : téléphone seul → 201 (le
+      format national est enregistré en E.164), ni téléphone ni e-mail → 422.
+      *Amendé le 2026-10-07 à la demande de la session, sur un relevé de TCK-588 : l'AC exigeait
+      que `77 123 45 67` rende 422. Le visiteur sénégalais donne son numéro au format national ;
+      le refuser lui renvoyait le défaut, l'enregistrer tel quel le privait de son rappel. Il est
+      normalisé (`App\Support\TelephoneSaisi`) avant d'être jugé.*
 - [x] AC4 **(R)** — L'agent B de l'agence X, ni assigné ni créateur, voit la visite d'un bien de X
       dans `GET /property-visits?filter[unassigned]=1` ; un agent de l'agence Y et un client de X ne
       la voient pas. Toute visite rendue par `index` passe `PropertyVisitPolicy::view`.
@@ -557,3 +567,17 @@ titre (AC17).
 - Reste ouvert, et seulement par TCK-587 : AC6 (403 du bailleur visé sur `confirm`), AC7b (garde
   `check-agency-scope-clause.mjs`), et le retrait des deux exemptions. La suite entière est lancée
   par la session.
+
+**Étape 5 — le téléphone saisi au format national (2026-10-07, relevé de TCK-588).**
+- Re-mesuré : avant ce ticket, `visitor_phone` et le téléphone d'une piste étaient enregistrés tels
+  quels (`string`, aucune règle) — d'où le rappel jamais reçu. Cette branche les faisait juger par
+  `TelephoneJoignable`, qui REFUSAIT `77 123 45 67` (AC3 l'exigeait) : plus de numéro injoignable
+  enregistré, mais un visiteur renvoyé à sa saisie. La saisie est désormais normalisée
+  (`App\Support\TelephoneSaisi`), puis jugée ; rien d'autre n'est deviné (`61 …`, `06 …` → 422).
+- Chaîne éprouvée de bout en bout : `77 123 45 67` saisi sur le site → `+221771234567` en base →
+  la confirmation de l'agence part en SMS vers ce numéro. Même chose pour le prospect que l'agent
+  planifie. La migration rattrape l'existant des deux colonnes ; `down()` vide, motif écrit.
+- Ablations, toutes rouges puis restaurées : branche nationale retirée de `TelephoneSaisi` (AC3
+  visite et piste), normalisation retirée de la demande publique, de la planification, et de la
+  migration. `customers.phone` non touché (TCK-591) : un client planifié par sa fiche reçoit son
+  SMS au numéro de sa fiche, tel qu'enregistré.

@@ -10,6 +10,7 @@ use App\Rules\ClientDeLAgence;
 use App\Rules\CreneauDeVisite;
 use App\Rules\PersonnelDeLAgence;
 use App\Rules\TelephoneJoignable;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 
 /**
@@ -78,7 +79,7 @@ class StorePropertyVisitRequest extends BaseFormRequest
         parent::prepareForValidation();
 
         if ($this->has('visitor_phone')) {
-            $this->merge(['visitor_phone' => ContactLeadPublicRequest::normaliserTelephone($this->input('visitor_phone'))]);
+            $this->merge(['visitor_phone' => TelephoneSaisi::normaliser($this->input('visitor_phone'))]);
         }
     }
 

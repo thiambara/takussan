@@ -8,6 +8,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\ContactLeadReceivedNotification;
 use App\Notifications\NewContactLeadNotification;
@@ -146,9 +147,37 @@ class PropertyContactLeadTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['phone', 'email']);
 
-        $this->postJson($url, ['name' => 'Awa Diop', 'phone' => '77 123 45 67', 'message' => 'Disponible ce samedi ?'])
+        // Relevé de TCK-588 : le format national est ramené à E.164, plus refusé ni gardé tel quel.
+        $this->postJson($url, ['name' => 'Moussa Fall', 'phone' => '78 765 43 21', 'message' => 'Disponible ce samedi ?'])
+            ->assertCreated();
+        $this->assertDatabaseHas('property_contact_leads', ['name' => 'Moussa Fall', 'phone' => '+221787654321']);
+
+        $this->postJson($url, ['name' => 'Awa Diop', 'phone' => '77 123 45', 'message' => 'Disponible ce samedi ?'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['phone']);
+    }
+
+    /**
+     * Les numéros déjà enregistrés au format national — visites et pistes — sont rattrapés en
+     * E.164 ; un numéro qu'aucune forme connue n'explique reste tel quel.
+     */
+    public function test_la_migration_rattrape_les_telephones_au_format_national(): void
+    {
+        $property = $this->bienDe($this->agence());
+        $piste = fn (string $phone) => DB::table('property_contact_leads')->insertGetId([
+            'property_id' => $property->id, 'name' => 'Ancienne', 'phone' => $phone, 'message' => 'Antérieure',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $nationale = $piste('77 123 45 67');
+        $inconnue = $piste('61 234 56 78');
+        $visite = PropertyVisit::factory()->create(['property_id' => $property->id, 'visitor_id' => null]);
+        DB::table('property_visits')->where('id', $visite->id)->update(['visitor_phone' => '00221 78 765 43 21']);
+
+        (require database_path('migrations/2026_10_07_150200_normaliser_les_telephones_saisis.php'))->up();
+
+        $this->assertSame('+221771234567', DB::table('property_contact_leads')->where('id', $nationale)->value('phone'));
+        $this->assertSame('61 234 56 78', DB::table('property_contact_leads')->where('id', $inconnue)->value('phone'));
+        $this->assertSame('+221787654321', DB::table('property_visits')->where('id', $visite->id)->value('visitor_phone'));
     }
 
     /** AC15 (R) — une piste de bien porte l'agence du bien. */

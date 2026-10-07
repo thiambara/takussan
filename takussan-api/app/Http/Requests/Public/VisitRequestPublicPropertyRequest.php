@@ -5,6 +5,7 @@ namespace App\Http\Requests\Public;
 use App\Models\Enums\VisitType;
 use App\Rules\CreneauDeVisite;
 use App\Rules\TelephoneJoignable;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 
 /**
@@ -25,7 +26,7 @@ class VisitRequestPublicPropertyRequest extends PublicPropertySlugRequest
         parent::prepareForValidation();
 
         if ($this->has('visitor_phone')) {
-            $this->merge(['visitor_phone' => ContactLeadPublicRequest::normaliserTelephone($this->input('visitor_phone'))]);
+            $this->merge(['visitor_phone' => TelephoneSaisi::normaliser($this->input('visitor_phone'))]);
         }
     }
 

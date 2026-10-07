@@ -166,6 +166,46 @@ class PropertyVisitNotificationTest extends ApiTestCase
         );
     }
 
+    /**
+     * Relevé de TCK-588 : un numéro saisi au format national n'était jamais joint. Saisi ainsi sur
+     * le site, il est enregistré en E.164, et la confirmation de l'agence part vers ce numéro.
+     */
+    public function test_le_numero_national_saisi_sur_le_site_est_joint_a_la_confirmation(): void
+    {
+        $id = $this->postJson("/api/public/properties/{$this->bien->slug}/visit-request", [
+            'visitor_name' => 'Awa Diop',
+            'visitor_phone' => '77 123 45 67',
+            'scheduled_at' => $this->creneau(),
+        ])->assertCreated()->json('data.id');
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson("/api/property-visits/{$id}/confirm")->assertOk();
+
+        Notification::assertSentOnDemand(
+            VisitConfirmedNotification::class,
+            fn ($n, array $channels, AnonymousNotifiable $notifiable) => in_array('sms', $channels, true)
+                && $notifiable->routes['sms'] === '+221771234567',
+        );
+    }
+
+    /** Le prospect que l'agent planifie, numéro dicté au format national : même normalisation. */
+    public function test_l_agent_planifie_un_prospect_au_numero_national(): void
+    {
+        Sanctum::actingAs($this->agent);
+        $id = $this->postJson('/api/property-visits', [
+            'property_id' => $this->bien->id,
+            'visitor_name' => 'Moussa Fall',
+            'visitor_phone' => '78 765 43 21',
+            'scheduled_at' => $this->creneau(heure: 8),
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('+221787654321', PropertyVisit::query()->findOrFail($id)->visitor_phone);
+        Notification::assertSentOnDemand(
+            VisitConfirmedNotification::class,
+            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $notifiable->routes['sms'] === '+221787654321',
+        );
+    }
+
     /** AC8 — sans fiche, le prospect se donne par nom + téléphone ; l'un sans l'autre → 422. */
     public function test_sans_fiche_nom_et_telephone_sont_exiges(): void
     {

@@ -82,14 +82,21 @@ class VisitRequestRoutingTest extends TestCase
         $this->assertNull(PropertyVisit::query()->findOrFail($id)->customer_id);
     }
 
-    /** AC3 — sans compte : nom + téléphone suffisent ; le téléphone doit être joignable. */
+    /**
+     * AC3 — sans compte : nom + téléphone suffisent ; le téléphone est ramené à E.164 puis doit
+     * être joignable. Le format national sénégalais est NORMALISÉ, plus refusé (relevé de
+     * TCK-588 : enregistré tel quel, il privait le visiteur de son rappel).
+     */
     public function test_anonyme_nom_et_telephone_suffisent(): void
     {
         $bien = $this->bienDe($this->agence());
 
         $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567'])
             ->assertCreated();
-        $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '77 123 45 67', 'scheduled_at' => $this->creneau(heure: 11)])
+        $id = $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '77 123 45 67', 'scheduled_at' => $this->creneau(heure: 11)])
+            ->assertCreated()->json('data.id');
+        $this->assertSame('+221771234567', PropertyVisit::query()->findOrFail($id)->visitor_phone);
+        $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '77 123 45', 'scheduled_at' => $this->creneau(heure: 12)])
             ->assertUnprocessable()->assertJsonValidationErrors(['visitor_phone']);
         $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'scheduled_at' => $this->creneau(heure: 11)])
             ->assertUnprocessable()->assertJsonValidationErrors(['visitor_phone']);

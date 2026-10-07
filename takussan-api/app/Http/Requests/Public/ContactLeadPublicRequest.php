@@ -4,6 +4,7 @@ namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\TelephoneJoignable;
+use App\Support\TelephoneSaisi;
 
 /**
  * TCK-304/305 — extrait de PublicPropertyController::contactLead(), ou les regles etaient inline.
@@ -13,8 +14,8 @@ use App\Rules\TelephoneJoignable;
  *
  * TCK-590 — un visiteur se joint par téléphone OU par e-mail : l'e-mail était exigé et le
  * téléphone libre (`string max:32`), alors qu'au Sénégal on rappelle d'abord. Le téléphone a la
- * forme E.164 et doit être joignable par SMS (`TelephoneJoignable`, la règle du profil) ; ses
- * espaces, points et tirets de saisie sont retirés avant de juger.
+ * forme E.164 et doit être joignable par SMS (`TelephoneJoignable`, la règle du profil) ; la
+ * saisie est d'abord ramenée à E.164 (`TelephoneSaisi` : séparateurs, format national sénégalais).
  */
 class ContactLeadPublicRequest extends BaseFormRequest
 {
@@ -33,18 +34,12 @@ class ContactLeadPublicRequest extends BaseFormRequest
         return true;
     }
 
-    /** `+221 77 123-45.67` → `+221771234567`. Rien d'autre : un numéro sans indicatif reste faux. */
-    public static function normaliserTelephone(mixed $value): mixed
-    {
-        return is_string($value) ? preg_replace('/[\s.\-()]+/u', '', $value) : $value;
-    }
-
     protected function prepareForValidation(): void
     {
         parent::prepareForValidation();
 
         if ($this->has('phone')) {
-            $this->merge(['phone' => self::normaliserTelephone($this->input('phone'))]);
+            $this->merge(['phone' => TelephoneSaisi::normaliser($this->input('phone'))]);
         }
     }
 
