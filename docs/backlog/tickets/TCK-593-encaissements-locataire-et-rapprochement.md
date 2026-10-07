@@ -1064,3 +1064,13 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   Ablations : règle héritée retirée → rouge ; marque retirée du loyer → 2 rouges ; de la facture →
   rouge. Les acomptes (`booking_payments`) ne se règlent pas à la main sur une ligne existante :
   le geste manuel crée une ligne neuve, sans checkout.
+- **N5 — mapping CSV exempté du trim.** `UpdateBankCsvMappingRequest` : `delimiter` et
+  `thousands_separator` sont jugés par une règle IMPLICITE (`$implicit = true`) en comparaison
+  stricte — la validation sautait `in:` sur une chaîne blanche, `""` et `" "` étaient enregistrés.
+  `prepareForValidation` rogne les noms de colonnes et `date_format` (vide après rognage → `null`) ;
+  un séparateur de milliers vide veut dire « aucun ». Tests
+  `BankCsvMappingTest::test_un_delimiteur_blanc_hors_liste_est_refuse` et
+  `…::test_les_noms_de_colonnes_et_le_format_sont_rognes` ; la tabulation et l'espace passent
+  toujours (`test_la_tabulation_et_l_espace_survivent_au_trim`). Ablations : règle non implicite →
+  rouge ; comparaison lâche → rouge (sur `true`, égal à toute chaîne non vide) ; rognage retiré →
+  rouge.

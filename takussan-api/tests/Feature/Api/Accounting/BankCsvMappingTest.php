@@ -93,6 +93,44 @@ class BankCsvMappingTest extends ApiTestCase
             ->assertJsonPath('data.thousands_separator', ' ');
     }
 
+    public function test_un_delimiteur_blanc_hors_liste_est_refuse(): void
+    {
+        // Passe 2, N5 — la validation saute `in:` sur une chaîne blanche : `""` et `" "` étaient
+        // enregistrés, et chaque import de l'agence partait ensuite en `failed`.
+        // `true` : égal à toute chaîne non vide en comparaison lâche — d'où la comparaison stricte.
+        foreach (['', ' ', ';;', "\n", true] as $delimiter) {
+            $this->actingAs($this->admin)->putJson($this->url(), $this->mapping(['delimiter' => $delimiter]))
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('delimiter');
+        }
+        foreach (["\t", ' ;'] as $thousands) {
+            $this->actingAs($this->admin)->putJson($this->url(), $this->mapping(['thousands_separator' => $thousands]))
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('thousands_separator');
+        }
+        $this->assertNull($this->agency->refresh()->bank_csv_mapping);
+    }
+
+    public function test_les_noms_de_colonnes_et_le_format_sont_rognes(): void
+    {
+        $this->actingAs($this->admin)->putJson($this->url(), $this->mapping([
+            'amount_column' => ' Montant ',
+            'date_format' => ' d/m/Y',
+            'label_column' => '   ',
+            'thousands_separator' => '',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.amount_column', 'Montant')
+            ->assertJsonPath('data.date_format', 'd/m/Y')
+            ->assertJsonPath('data.label_column', null)
+            ->assertJsonPath('data.thousands_separator', null);
+
+        // Un nom requis réduit à rien est refusé, pas enregistré vide.
+        $this->actingAs($this->admin)->putJson($this->url(), $this->mapping(['date_column' => '  ']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_column');
+    }
+
     public function test_sans_decimal_separator_le_mapping_est_refuse(): void
     {
         $payload = $this->mapping();
