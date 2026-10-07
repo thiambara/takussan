@@ -2605,6 +2605,7 @@
         "unchanged": "already in that state",
         "already_archived": "already archived",
         "invalid_target": "the target is not active staff of the agency",
+        "invalid_status": "it is neither available nor published: nothing to unpublish",
         "other": "refused"
       }
     },

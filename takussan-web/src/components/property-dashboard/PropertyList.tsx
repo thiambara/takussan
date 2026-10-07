@@ -164,7 +164,7 @@ export function PropertyList({
   };
 
   const titleOf = (id: number) => properties.find((p) => p.id === id)?.title ?? `#${id}`;
-  const KNOWN_REASONS = new Set(['not_found', 'forbidden', 'unchanged', 'invalid_target', 'already_archived']);
+  const KNOWN_REASONS = new Set(['not_found', 'forbidden', 'unchanged', 'invalid_target', 'invalid_status', 'already_archived']);
   const failureLines = bulkFailures.map((f) => ({
     id: f.id,
     text: tBulk('failure', {

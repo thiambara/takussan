@@ -2580,6 +2580,7 @@
         "unchanged": "déjà dans cet état",
         "already_archived": "déjà archivé",
         "invalid_target": "la cible n'est pas du personnel actif de l'agence",
+        "invalid_status": "il n’est ni disponible ni publié : rien à dépublier",
         "other": "refusé"
       }
     },

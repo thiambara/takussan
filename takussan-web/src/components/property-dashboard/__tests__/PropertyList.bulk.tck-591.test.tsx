@@ -103,6 +103,21 @@ describe('PropertyList — actions en masse (AC28)', () => {
     expect(within(barre).getByText('2 biens sélectionnés')).toBeInTheDocument();
   });
 
+  it('motive le refus d’un bien hors vitrine (verif-591 M3, `invalid_status`)', async () => {
+    bulkUnpublish.mockResolvedValueOnce({
+      ok: true,
+      data: { updated: 0, updated_ids: [], failed: [{ id: 3, reason: 'invalid_status' }] },
+    });
+    const user = userEvent.setup();
+    render(withIntl(<PropertyList page={page} />));
+    await user.click(screen.getAllByRole('checkbox', { name: 'Sélectionner Bien 3' })[0]);
+    const barre = screen.getByRole('region', { name: 'Actions groupées' });
+    await user.click(within(barre).getByRole('button', { name: /Dépublier/ }));
+
+    const bilan = await within(barre).findByRole('status');
+    expect(bilan).toHaveTextContent('Bien 3 : il n’est ni disponible ni publié : rien à dépublier');
+  });
+
   it('ne propose pas « Dépublier » sans properties.publish (TCK-587, comme à l’unité)', async () => {
     canPublish.value = false;
     try {

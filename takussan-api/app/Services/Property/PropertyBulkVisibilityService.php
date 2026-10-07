@@ -12,11 +12,16 @@ use Illuminate\Support\Facades\DB;
  *
  *  - chaque ligne passe par la MÊME autorisation que l'endpoint unitaire `PUT …/visibility`
  *    (`publish` de `PropertyPolicy`, TCK-587) ; un refus ne touche pas la base ;
+ *  - et par la MÊME règle et la MÊME écriture que `PropertyController::unpublish`
+ *    ({@see PropertyPublication}, verif-591 M3) : statut `draft`, `private`, `published_at` effacé ;
+ *    hors `available | published`, `invalid_status` ;
  *  - la transaction ne couvre que le sous-ensemble autorisé : une exception au milieu annule tout ;
- *  - les motifs sont des CODES : `not_found | forbidden | unchanged`.
+ *  - les motifs sont des CODES : `not_found | forbidden | invalid_status`.
  */
 class PropertyBulkVisibilityService
 {
+    public function __construct(private readonly PropertyPublication $publication) {}
+
     /**
      * @param  int[]  $propertyIds
      * @return array{updated: int, updated_ids: int[], failed: list<array{id: int, reason: string}>}
@@ -33,7 +38,7 @@ class PropertyBulkVisibilityService
             $reason = match (true) {
                 $property === null => 'not_found',
                 ! $actor->can('publish', $property) => 'forbidden',
-                $property->visibility === $visibility => 'unchanged',
+                ! $this->publication->canUnpublish($property) => 'invalid_status',
                 default => null,
             };
             $reason === null ? $authorized[] = $property : $failed[] = ['id' => $id, 'reason' => $reason];
@@ -44,12 +49,17 @@ class PropertyBulkVisibilityService
             DB::transaction(function () use ($authorized, $visibility, $actor, &$updatedIds): void {
                 foreach ($authorized as $property) {
                     $previous = $property->visibility?->value;
-                    $property->forceFill(['visibility' => $visibility])->save();
+                    $previousStatus = $property->status?->value;
+                    $property->forceFill($this->publication->unpublishedAttributes())->save();
 
                     activity('Property')
                         ->performedOn($property)
                         ->causedBy($actor)
-                        ->withProperties(['previous_visibility' => $previous, 'visibility' => $visibility->value])
+                        ->withProperties([
+                            'previous_visibility' => $previous,
+                            'visibility' => $visibility->value,
+                            'previous_status' => $previousStatus,
+                        ])
                         ->event('property.visibility_bulk')
                         ->log('property.visibility_bulk');
 

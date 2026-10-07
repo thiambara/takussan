@@ -77,6 +77,7 @@ export type BulkFailureReason =
   | 'forbidden'
   | 'unchanged'
   | 'invalid_target'
+  | 'invalid_status'
   | 'already_archived';
 
 export interface BulkFailure {

@@ -24,6 +24,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
+use App\Services\Property\PropertyPublication;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -202,16 +203,10 @@ class PropertyController extends Controller
     public function unpublish(Request $request, Property $property): JsonResponse
     {
         $this->authorize('publish', $property);
-        abort_unless(
-            in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
-            422,
-            __('messages.property_cannot_unpublish')
-        );
-        $property->update([
-            'status' => PropertyStatus::Draft,
-            'visibility' => PropertyVisibility::Private,
-            'published_at' => null,
-        ]);
+        // TCK-591 (verif-591 M3) — la règle et l'écriture partagées avec `bulk-visibility`.
+        $publication = app(PropertyPublication::class);
+        abort_unless($publication->canUnpublish($property), 422, __('messages.property_cannot_unpublish'));
+        $property->update($publication->unpublishedAttributes());
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
@@ -227,9 +222,8 @@ class PropertyController extends Controller
         $updates = ['status' => $status];
 
         if ($status === PropertyStatus::Archived) {
-            $updates['visibility'] = PropertyVisibility::Private;
-            $updates['published_at'] = null;
-            $updates['archived_at'] = now();
+            // TCK-591 (verif-591 M3) — l'écriture partagée avec `bulk-archive`.
+            $updates = app(PropertyPublication::class)->archivedAttributes();
         }
 
         if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
@@ -354,8 +348,8 @@ class PropertyController extends Controller
     }
 
     /**
-     * TCK-591 §7 — dépublier en lot : chaque ligne sous `update`, motifs en codes, transaction sur
-     * le sous-ensemble autorisé.
+     * TCK-591 §7 — dépublier en lot : chaque ligne sous `publish` et la règle de statut de
+     * `unpublish` (`PropertyPublication`), motifs en codes, transaction sur le sous-ensemble autorisé.
      */
     public function bulkVisibility(
         PropertyBulkVisibilityRequest $request,

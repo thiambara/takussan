@@ -3,7 +3,6 @@
 namespace App\Services\Property;
 
 use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -15,8 +14,10 @@ use Illuminate\Support\Facades\DB;
  * Behavior:
  *  - Splits the input ids into `authorized` / `failed` based on the
  *    `update` policy check. `failed` entries never touch the DB.
- *  - Sets `status=archived`, `visibility=private`, `archived_at=now()`
- *    on every authorized id, inside a single transaction. If any
+ *  - Writes exactly what the unitary `PUT …/status=archived` writes
+ *    (`PropertyPublication::archivedAttributes()`, verif-591 M3 —
+ *    `published_at` was left in place) on every authorized id, inside
+ *    a single transaction. If any
  *    update throws mid-flight the whole batch is rolled back and the
  *    failure is reported.
  *  - Emits an `property.archived_bulk` activity entry per archived row
@@ -24,6 +25,14 @@ use Illuminate\Support\Facades\DB;
  */
 class PropertyBulkArchiveService
 {
+    private readonly PropertyPublication $publication;
+
+    /** `new PropertyBulkArchiveService` reste valide (TCK-074) : la publication se résout seule. */
+    public function __construct(?PropertyPublication $publication = null)
+    {
+        $this->publication = $publication ?? new PropertyPublication;
+    }
+
     /**
      * @param  int[]  $propertyIds
      * @return array{archived: int, failed: array<int, array{id: int, reason: string}>, archived_ids: int[]}
@@ -74,11 +83,7 @@ class PropertyBulkArchiveService
                     // and make the audit entry meaningless.
                     $previousStatus = $property->status?->value;
 
-                    $property->forceFill([
-                        'status' => PropertyStatus::Archived,
-                        'visibility' => PropertyVisibility::Private,
-                        'archived_at' => now(),
-                    ])->save();
+                    $property->forceFill($this->publication->archivedAttributes())->save();
 
                     activity('Property')
                         ->performedOn($property)
