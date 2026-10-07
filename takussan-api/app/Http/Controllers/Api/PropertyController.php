@@ -8,6 +8,7 @@ use App\Http\Requests\Api\StorePropertyRequest;
 use App\Http\Requests\Api\UpdateStatusPropertyRequest;
 use App\Http\Requests\Api\UpdateVisibilityPropertyRequest;
 use App\Http\Requests\PropertyBulkArchiveRequest;
+use App\Http\Requests\PropertyBulkVisibilityRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
@@ -18,6 +19,7 @@ use App\Models\User;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
+use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -311,5 +313,20 @@ class PropertyController extends Controller
             'failed' => $result['failed'],
             'archived_ids' => $result['archived_ids'],
         ]);
+    }
+
+    /**
+     * TCK-591 §7 — dépublier en lot : chaque ligne sous `update`, motifs en codes, transaction sur
+     * le sous-ensemble autorisé.
+     */
+    public function bulkVisibility(
+        PropertyBulkVisibilityRequest $request,
+        PropertyBulkVisibilityService $service,
+    ): JsonResponse {
+        return $this->json($service->apply(
+            $request->input('property_ids'),
+            PropertyVisibility::from($request->input('visibility')),
+            $request->user(),
+        ));
     }
 }
