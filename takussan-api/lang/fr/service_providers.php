@@ -12,6 +12,7 @@ return [
         'errors' => [
             'invalid_otp' => 'Le code de vérification est invalide ou expiré.',
             'not_owner' => 'Vous ne pouvez pas modifier ce profil prestataire.',
+            'suspended' => "Ce profil prestataire est suspendu : la fin d'inscription ne le réactive pas.",
         ],
     ],
 ];

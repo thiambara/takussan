@@ -2,17 +2,19 @@
 
 namespace Tests\Feature\Controllers\Api;
 
+use App\Models\Agency;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
 
 class MaintenanceQuoteControllerTest extends TestCase
 {
-    use RefreshDatabase;
+    use MaintenanceActors, RefreshDatabase;
 
     public function test_agent_can_request_quote()
     {
@@ -37,9 +39,11 @@ class MaintenanceQuoteControllerTest extends TestCase
     public function test_provider_can_submit_quote()
     {
         Notification::fake();
-        $provider = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $provider = $this->providerFor($agency);
 
         $mr = MaintenanceRequest::factory()->create([
+            'property_id' => Property::factory()->create(['agency_id' => $agency->id])->id,
             'assigned_to' => $provider->id,
             'status' => MaintenanceStatus::QuoteRequested,
         ]);

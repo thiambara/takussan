@@ -3,17 +3,15 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
-use App\Models\Customer;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
 
 /**
@@ -31,7 +29,7 @@ use Tests\TestCase;
  */
 class MaintenancePrincipalFieldsTest extends TestCase
 {
-    use RefreshDatabase;
+    use MaintenanceActors, RefreshDatabase;
 
     /** AC1 — le prestataire assigné ne peut pas se réassigner sa demande. */
     public function test_assigned_provider_cannot_reassign_himself(): void
@@ -41,7 +39,7 @@ class MaintenancePrincipalFieldsTest extends TestCase
         Sanctum::actingAs($provider);
 
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
-            'assigned_to' => User::factory()->create()->id,
+            'assigned_to' => $this->providerFor($mr->property->agency)->id,
         ])->assertForbidden();
 
         $this->assertSame($provider->id, $mr->refresh()->assigned_to);
@@ -84,7 +82,7 @@ class MaintenancePrincipalFieldsTest extends TestCase
     {
         $agency = Agency::factory()->create();
         [$mr] = $this->scaffold($agency);
-        $newProvider = User::factory()->create();
+        $newProvider = $this->providerFor($agency);
 
         $this->actingAsRole('agent', ['agency' => $agency]);
 
@@ -100,7 +98,7 @@ class MaintenancePrincipalFieldsTest extends TestCase
     public function test_property_owner_can_change_assignment_and_priority(): void
     {
         [$mr, , $owner] = $this->scaffold();
-        $newProvider = User::factory()->create();
+        $newProvider = $this->providerFor($mr->property->agency);
 
         Sanctum::actingAs($owner);
 
@@ -131,6 +129,9 @@ class MaintenancePrincipalFieldsTest extends TestCase
 
         Sanctum::actingAs($provider);
 
+        // TCK-592 — le créneau se fixe après avoir accepté l'intervention.
+        $this->postJson("/api/maintenance-requests/{$mr->id}/accept")->assertOk();
+
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
             'resolution_notes' => 'Joint remplacé, mise en eau vérifiée.',
             'scheduled_at' => now()->addDays(2)->toISOString(),
@@ -158,20 +159,17 @@ class MaintenancePrincipalFieldsTest extends TestCase
      */
     public function test_tenant_cannot_pick_the_provider_at_creation(): void
     {
-        $tenantUser = User::factory()->create();
-        $property = Property::factory()->create();
-        Lease::factory()->create([
-            'property_id' => $property->id,
-            'tenant_id' => Customer::factory()->create(['user_id' => $tenantUser->id])->id,
-            'landlord_id' => $property->user_id,
-            'status' => LeaseStatus::Active,
-        ]);
+        $agency = Agency::factory()->create();
+        $property = Property::factory()->create(['agency_id' => $agency->id]);
+        $tenantUser = $this->tenantOf($property);
 
         Sanctum::actingAs($tenantUser);
 
+        // TCK-592 — un prestataire ASSIGNABLE : un compte quelconque rendrait désormais 422 sur
+        // `assigned_to`, et ce test ne dirait plus rien du retrait silencieux qu'il épingle.
         $this->postJson('/api/maintenance-requests', [
             'property_id' => $property->id,
-            'assigned_to' => User::factory()->create()->id,
+            'assigned_to' => $this->providerFor($agency)->id,
             'title' => 'Fuite robinet cuisine',
             'description' => 'Fuite continue',
             'category' => 'plumbing',
@@ -182,9 +180,10 @@ class MaintenancePrincipalFieldsTest extends TestCase
     /** AC4 (versant `store()`) — le propriétaire du bien, lui, le choisit. */
     public function test_property_owner_picks_the_provider_at_creation(): void
     {
+        $agency = Agency::factory()->create();
         $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $provider = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $agency->id]);
+        $provider = $this->providerFor($agency);
 
         Sanctum::actingAs($owner);
 
@@ -220,14 +219,15 @@ class MaintenancePrincipalFieldsTest extends TestCase
      */
     private function scaffold(?Agency $agency = null): array
     {
+        $agency ??= Agency::factory()->create();
         $owner = User::factory()->create();
-        $provider = User::factory()->create();
+        $provider = $this->providerFor($agency);
         $requester = User::factory()->create();
 
-        $property = Property::factory()->create(array_filter([
+        $property = Property::factory()->create([
             'user_id' => $owner->id,
-            'agency_id' => $agency?->id,
-        ]));
+            'agency_id' => $agency->id,
+        ]);
 
         $mr = MaintenanceRequest::factory()->create([
             'property_id' => $property->id,

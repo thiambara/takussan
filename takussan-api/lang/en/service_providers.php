@@ -12,6 +12,7 @@ return [
         'errors' => [
             'invalid_otp' => 'The verification code is invalid or expired.',
             'not_owner' => 'You cannot edit this service provider profile.',
+            'suspended' => 'This service provider profile is suspended: completing onboarding does not reactivate it.',
         ],
     ],
 ];

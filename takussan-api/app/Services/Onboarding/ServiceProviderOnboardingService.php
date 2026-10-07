@@ -4,10 +4,14 @@ namespace App\Services\Onboarding;
 
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
+use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\ProviderEligibility;
+use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +44,15 @@ class ServiceProviderOnboardingService
      */
     public function complete(ServiceProviderProfile $sp, User $user, array $payload): array
     {
+        // TCK-592 — une suspension posée par la plateforme ne se lève pas par le prestataire : la fin
+        // d'onboarding est REJOUABLE (aucune garde « déjà fait », OTP sauté si le téléphone est
+        // vérifié), et chaque appel repassait le profil à `active`. Refus AVANT toute écriture.
+        abort_if(
+            $sp->status === ServiceProviderProfileStatus::Suspended,
+            403,
+            __('service_providers.onboarding.errors.suspended'),
+        );
+
         // OTP gate. Bypass when the user is already phone-verified — the
         // wizard pre-verifies in step 1 and may re-submit on retries.
         $code = (string) data_get($payload, 'phone_otp.code');
@@ -65,12 +78,18 @@ class ServiceProviderOnboardingService
                 $sp->forceFill(['status' => ServiceProviderProfileStatus::Active->value])->save();
             }
 
+            // TCK-592 — seules les collaborations d'une INVITATION EN ATTENTE s'activent ici :
+            // `paused` sans `metadata.paused_by`. Une pause posée par l'agence porte `paused_by`
+            // et ne se lève que par l'agence (`ServiceProviderCollaborationService`).
             $activated = ServiceProviderAgencyCollaboration::query()
                 ->where('service_provider_profile_id', $sp->id)
                 ->where('status', CollaborationStatus::Paused->value)
+                ->whereNull('metadata->paused_by')
                 ->update(['status' => CollaborationStatus::Active->value]);
 
             $this->markPhoneVerified($user);
+
+            $this->assignDeepLinkedRequest($redirectMaintenanceRequestId, $user);
 
             activity('Onboarding')
                 ->performedOn($sp)
@@ -130,6 +149,28 @@ class ServiceProviderOnboardingService
             ->withProperties(['user_id' => $user->id])
             ->event('sp_phone_verified')
             ->log('sp_phone_verified');
+    }
+
+    /**
+     * TCK-592 (P18) — la demande du lien profond est ASSIGNÉE au nouveau prestataire (acceptation à
+     * venir) : sans cela, le renvoi en fin d'onboarding menait à un 403. Seulement si elle est
+     * encore ouverte et que le prestataire y est désormais assignable (collaboration active avec
+     * l'agence du bien) — l'invitation l'a vérifiée à l'émission, l'état a pu changer depuis.
+     */
+    protected function assignDeepLinkedRequest(?int $maintenanceRequestId, User $user): void
+    {
+        if ($maintenanceRequestId === null) {
+            return;
+        }
+
+        $mr = MaintenanceRequest::query()->with('property')->find($maintenanceRequestId);
+        if ($mr === null
+            || app(MaintenanceStateMachine::class)->isTerminal($mr->status)
+            || ! app(ProviderEligibility::class)->isAssignable($user, $mr->property)) {
+            return;
+        }
+
+        app(MaintenanceRequestService::class)->assign($mr, $user, null);
     }
 
     /**

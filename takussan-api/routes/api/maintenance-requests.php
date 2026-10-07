@@ -17,6 +17,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Completion workflow (sets completed + resolution notes + actual cost + photos)
     Route::put('maintenance-requests/{maintenanceRequest}/complete', [MaintenanceRequestController::class, 'complete'])->name('maintenance-requests.complete');
 
+    // TCK-592 — le prestataire assigné accepte ou refuse
+    Route::post('maintenance-requests/{maintenanceRequest}/accept', [MaintenanceRequestController::class, 'accept'])->name('maintenance-requests.accept');
+    Route::post('maintenance-requests/{maintenanceRequest}/decline', [MaintenanceRequestController::class, 'decline'])->name('maintenance-requests.decline');
+
     // Media upload (photos / completion_photos)
     Route::post('maintenance-requests/{maintenanceRequest}/photos', [MaintenanceRequestController::class, 'uploadPhotos'])->name('maintenance-requests.photos');
 

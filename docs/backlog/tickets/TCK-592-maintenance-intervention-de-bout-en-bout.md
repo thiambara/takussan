@@ -313,48 +313,48 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **A. Machine d'état et autorisation par acteur (P2, P10 back, P14 back)**
 
-- [ ] `App\Services\Maintenance\MaintenanceStateMachine` : table **unique** (générique + devis, y
+- [x] `App\Services\Maintenance\MaintenanceStateMachine` : table **unique** (générique + devis, y
       compris `cancelled` depuis les états de devis pour le donneur d'ordre) et matrice (acteur, cible) ;
       `MaintenanceRequestService` et `MaintenanceQuoteWorkflow` la lisent
-- [ ] `MaintenanceRequestPolicy::transitionTo(User, MaintenanceRequest, MaintenanceStatus)` ;
+- [x] `MaintenanceRequestPolicy::transitionTo(User, MaintenanceRequest, MaintenanceStatus)` ;
       `UpdateStatusMaintenanceRequestRequest::authorize()` l'appelle
-- [ ] `UpdateMaintenanceRequestRequest` : `status`, `started_at`, `completed_at` → `prohibited` ;
+- [x] `UpdateMaintenanceRequestRequest` : `status`, `started_at`, `completed_at` → `prohibited` ;
       `PRINCIPAL_FIELDS` += `estimated_cost`, `actual_cost`, `access_instructions`
-- [ ] `actAsPrincipal` exige `maintenance.assign` pour la branche équipe ; la clôture par le donneur
+- [x] `actAsPrincipal` exige `maintenance.assign` pour la branche équipe ; la clôture par le donneur
       d'ordre exige `maintenance.close`
-- [ ] Réécrire `MaintenancePrincipalFieldsTest::test_assigned_provider_keeps_status_and_report`
-- [ ] Tests : `MaintenanceStatusBypassTest`, `MaintenanceStateMachineTest`
+- [x] Réécrire `MaintenancePrincipalFieldsTest::test_assigned_provider_keeps_status_and_report`
+- [x] Tests : `MaintenanceStatusBypassTest`, `MaintenanceStateMachineTest`
 
 **B. Assignation gardée, collaboration, cloisonnement (P3, P5, P18, B13, B17, O1)**
 
-- [ ] Règle `App\Rules\AssignableProvider` sur `assigned_to` (store et update)
+- [x] Règle `App\Rules\AssignableProvider` sur `assigned_to` (store et update)
 - [ ] `MaintenanceRequestPolicy` : branche prestataire gardée par la collaboration active et le profil
       actif ; branche équipe par le prédicat 587 ; `MaintenanceRequest::scopeVisibleTo(User)` lu par
       `index`
-- [ ] `MaintenanceRequestService::assign()` (appelé par `update` quand `assigned_to` change) :
+- [x] `MaintenanceRequestService::assign()` (appelé par `update` quand `assigned_to` change) :
       remet `accepted_at` à null, émet l'événement
-- [ ] Migration `add_assignment_fields_to_maintenance_requests` (`accepted_at`, `access_instructions`)
-- [ ] `POST …/accept`, `POST …/decline` + `DeclineMaintenanceRequestRequest` ; refus possible tant que
+- [x] Migration `add_assignment_fields_to_maintenance_requests` (`accepted_at`, `access_instructions`)
+- [x] `POST …/accept`, `POST …/decline` + `DeclineMaintenanceRequestRequest` ; refus possible tant que
       non accepté : `assigned_to` → null, retour à `open`, motif tracé (`activity()`) ; démarrer
       (`in_progress`) pose `accepted_at` s'il est nul
-- [ ] `AgencyController::visibleAgencyIds` (`:338-343`), `HasProfiles::isProviderAt`,
+- [x] `AgencyController::visibleAgencyIds` (`:338-343`), `HasProfiles::isProviderAt`,
       `MembershipCapabilityResolver::serviceProviderRoleAllows` : collaboration `active` seulement
-- [ ] Migration `make_sp_agency_collab_unique_partial` : `sp_agency_collab_unique` remplacé par
+- [x] Migration `make_sp_agency_collab_unique_partial` : `sp_agency_collab_unique` remplacé par
       `sp_agency_collab_live_unique` `WHERE deleted_at IS NULL` ; `down()` le restaure
-- [ ] Endpoints de fin / pause de collaboration (agence, prestataire) + `ServiceProviderProfilePolicy::manageCollaboration`
-- [ ] Migration de données : retirer `maintenance.assign` / `maintenance.close` des rôles **système**
+- [x] Endpoints de fin / pause de collaboration (agence, prestataire) + `ServiceProviderProfilePolicy::manageCollaboration`
+- [x] Migration de données : retirer `maintenance.assign` / `maintenance.close` des rôles **système**
       `service_provider` ; `SystemRoleCapabilities::serviceProvider()` rendu vide
-- [ ] Lien profond : `InviteServiceProviderRequest` vérifie que la demande est de l'agence et non
+- [x] Lien profond : `InviteServiceProviderRequest` vérifie que la demande est de l'agence et non
       terminale ; fin d'onboarding : assignation (`accepted_at` null) à la demande de l'invitation
-- [ ] La pause par l'agence (endpoint ci-dessus) écrit `metadata.paused_by` et `metadata.paused_at`
+- [x] La pause par l'agence (endpoint ci-dessus) écrit `metadata.paused_by` et `metadata.paused_at`
       sur la collaboration ; `ServiceProviderOnboardingService::complete()` n'active plus que les
       collaborations `paused` **sans** `metadata.paused_by` (invitation en attente), et sur un profil
       `suspended` lève un 403 (clé `service_providers.onboarding.errors.suspended`, fr/en/wo) sans
       rien écrire — au lieu de le repasser à `active` (`:64-66`)
-- [ ] `ServiceProviderProfileController::scopeForAgency` (`:55-61`) : `filter[collaboration_status]`
+- [x] `ServiceProviderProfileController::scopeForAgency` (`:55-61`) : `filter[collaboration_status]`
       (défaut `active`), `filter[specialty]`, `filter[zone]` — un prestataire `ended` ne figure plus
       dans le carnet par défaut
-- [ ] Tests : `MaintenanceAssignableProviderTest`, `MaintenanceCollaborationAccessTest`,
+- [x] Tests : `MaintenanceAssignableProviderTest`, `MaintenanceCollaborationAccessTest`,
       `MaintenanceOwnerIsolationTest`, `ServiceProviderCollaborationLifecycleTest`,
       `AgencyVisibilityForProviderTest`, `MaintenanceAcceptDeclineTest`, `ServiceProviderInvitationDeepLinkTest`,
       `ServiceProviderOnboardingReplayTest`, `ServiceProviderDirectoryFilterTest`,
@@ -580,3 +580,35 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
   Le front n'envoie jamais `type` (`useSendMessage` : `{content}` seul) — rien à adapter.
 - `php artisan test tests/Feature/Messaging/MessageTypeSpoofingTest.php` → 2 verts. Ablation
   `Rule::enum(MessageType::class)` remis → 1 rouge (le refus), le témoin `text` reste vert.
+
+### B — assignation gardée, collaboration, cloisonnement
+
+- `ProviderEligibility` porte le prédicat unique « assignable au bien » (collaboration `active` + profil
+  `active` avec l'agence du bien, ou personnel de l'agence) ; la règle `AssignableProvider`, la policy
+  (`isAssignedProvider`) et `scopeVisibleTo` le lisent tous. Écart avec le ticket : la case « branche
+  équipe par le prédicat 587 » reste ouverte — `isAgentAt || isAgencyAdminAt` en attendant la fusion.
+- Fin de collaboration : interventions non démarrées **et** `in_progress` désassignées (`open`), une
+  `completed` reste à son prestataire. Pause : posée par l'agence seule (`metadata.paused_by`), le
+  prestataire ne peut que mettre fin (`status` ∈ [ended], 422 sinon). Reprise = la même ligne.
+- Le carnet : `filter[collaboration_status]` accepte une liste à virgules (`active,paused`) — le front
+  peut ainsi montrer les invitations en attente. `viewAny(agency)` ouvert à `maintenance.assign` : qui
+  assigne choisit dans le carnet, sans pouvoir inviter.
+- Rôle système prestataire : l'agence sème un rôle système par type à sa création — le test de la
+  migration de données réinjecte l'ancien catalogue sur ces rôles-là, puis joue `up()`.
+- Exécutions : `tests/Feature/{Maintenance,ServiceProvider,Onboarding,Agency,Invitation}`,
+  `tests/Unit/Services/{Membership,Maintenance}`, `tests/Feature/Api/Maintenance*` → 336 verts ;
+  27 autres fichiers qui nomment maintenance / collaboration / prestataire (`Database`, `Validation`,
+  `Policies`, `Messaging`, `Authorization`, `Media`, `Dashboard`…) → 368 verts.
+- Ablations (chacune rejouée sur sa classe, puis restaurée) : `AssignableProvider` neutralisée → 5
+  rouges ; filtre collaboration `active` d'éligibilité → 1 ; filtre profil `active` → 2 ; policy sans
+  éligibilité → 1 ; `scopeVisibleTo` sans agence assignable → 1 ; `isPrincipalFor` sans prédicat équipe
+  → 1 ; `scopeVisibleTo` sans prédicat équipe → 1 ; `visibleAgencyIds` sans filtre → 2 ; résolveur sans
+  filtre → 2 ; `isProviderAt` sans filtre → 2 ; onboarding sans filtre `paused_by` → 1 ; sans garde
+  `suspended` → 1 ; carnet sans filtre de statut → 1 ; fin sans désassignation → 2 ; onboarding sans
+  assignation du lien profond → 1 ; invitation sans « même agence » → 1, sans « non terminale » → 1 ;
+  `respondToAssignment` élargi à tout prestataire de l'agence → 1 ; refus sans garde `accepted_at` → 1 ;
+  `assign()` sans remise à zéro → 1 ; index unique sans `WHERE deleted_at IS NULL` → 1 ; catalogue
+  prestataire rempli → 1 ; migration de données neutralisée → 1.
+- Écart re-mesuré : la policy seule ne fait rougir qu'**un** test d'accès (le profil suspendu) — une
+  collaboration finie désassigne déjà, l'accès tombe par `assigned_to`. Les deux gardes se recouvrent
+  pour `ended`, pas pour `suspended`.

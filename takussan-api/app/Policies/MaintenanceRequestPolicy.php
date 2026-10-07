@@ -8,6 +8,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\ProviderEligibility;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -18,8 +19,13 @@ use Illuminate\Database\Eloquent\Model;
 class MaintenanceRequestPolicy extends BasePolicy
 {
     /**
-     * Lire une demande : super-admin, DEMANDEUR, prestataire assigné, propriétaire du bien, ou
-     * périmètre d'agence.
+     * Lire une demande : super-admin, DEMANDEUR, prestataire assigné (collaboration et profil
+     * actifs), ou donneur d'ordre (bailleur du bien, personnel de l'agence du bien).
+     *
+     * TCK-592 — le périmètre d'agence lisait `$user->agency_id === $property->agency_id` sans
+     * regarder le type de profil : un bailleur invité porte un `OwnerProfile` de l'agence, et lisait
+     * donc les interventions des AUTRES bailleurs (O1). Et `assigned_to === $user->id` suffisait :
+     * une collaboration finie ne retirait rien.
      */
     public function view(User $user, Model $model): bool
     {
@@ -27,13 +33,10 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        $property = $model->property;
-
         return $user->isSuperAdmin()
             || $model->requester_id === $user->id
-            || $model->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || $this->isAssignedProvider($user, $model)
+            || self::isPrincipalFor($user, $model->property);
     }
 
     /**
@@ -46,12 +49,17 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        $property = $model->property;
-
         return $user->isSuperAdmin()
-            || $model->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || $this->isAssignedProvider($user, $model)
+            || self::isPrincipalFor($user, $model->property);
+    }
+
+    /**
+     * TCK-592 — accepter ou refuser l'intervention : le prestataire assigné, et lui seul.
+     */
+    public function respondToAssignment(User $user, MaintenanceRequest $request): bool
+    {
+        return $this->isAssignedProvider($user, $request);
     }
 
     /**
@@ -172,9 +180,24 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public static function isPrincipalFor(User $user, ?Property $property): bool
     {
-        return $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($property === null) {
+            return false;
+        }
+
+        if ($property->user_id === $user->id) {
+            return true;
+        }
+
+        // TCK-592 — un bailleur n'est donneur d'ordre que de SES biens (ligne ci-dessus) ; l'équipe,
+        // de ceux de son agence. TCK-587 : le prédicat « personnel de l'agence » remplacera
+        // `isAgentAt || isAgencyAdminAt` à la fusion.
+        return $user->agency_id !== null
+            && (int) $property->agency_id === (int) $user->agency_id
+            && ($user->isAgentAt((int) $user->agency_id) || $user->isAgencyAdminAt((int) $user->agency_id));
     }
 
     /**
@@ -186,8 +209,15 @@ class MaintenanceRequestPolicy extends BasePolicy
         return $user->isSuperAdmin() || $this->isAssignedProvider($user, $request);
     }
 
+    /**
+     * TCK-592 — le prestataire ASSIGNÉ, tant qu'il est assignable au bien : profil actif et
+     * collaboration active avec l'agence du bien (ou membre de son équipe). Une collaboration finie
+     * ou un profil suspendu retirent l'accès, historique compris.
+     */
     private function isAssignedProvider(User $user, MaintenanceRequest $request): bool
     {
-        return $request->assigned_to !== null && $request->assigned_to === $user->id;
+        return $request->assigned_to !== null
+            && $request->assigned_to === $user->id
+            && app(ProviderEligibility::class)->isAssignable($user, $request->property);
     }
 }

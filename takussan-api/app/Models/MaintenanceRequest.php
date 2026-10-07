@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Sorts\MaintenancePrioritySort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,6 +45,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'quote_decision_at', 'quote_decision_by_id', 'quote_rejection_reason',
         'scheduled_at', 'started_at', 'completed_at',
         'resolution_notes', 'metadata',
+        'accepted_at', 'access_instructions',
     ];
 
     protected $casts = [
@@ -58,6 +60,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'accepted_at' => 'datetime',
         'metadata' => 'array',
     ];
 
@@ -74,7 +77,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'title', 'category', 'priority', 'status',
         'estimated_cost', 'actual_cost', 'quote_amount', 'quote_currency',
         'quote_submitted_at', 'quote_decision_at', 'quote_decision_by_id',
-        'scheduled_at', 'completed_at',
+        'scheduled_at', 'completed_at', 'accepted_at',
         'created_at', 'updated_at',
     ];
 
@@ -93,6 +96,42 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
             )
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * TCK-592 — LE périmètre de lecture d'une liste, aligné sur `MaintenanceRequestPolicy::view()` :
+     * demandeur, bailleur du bien, personnel de l'agence du bien (agence du profil actif), prestataire
+     * assigné tant qu'il est assignable (collaboration et profil actifs).
+     *
+     * `index` recopiait la clause `agency_id` de l'ancienne policy : un bailleur de l'agence listait
+     * les interventions des autres bailleurs, et un prestataire dont la collaboration avait pris fin
+     * listait encore les siennes. TCK-591 (calendrier) réutilise ce scope.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        $eligibility = app(ProviderEligibility::class);
+        $assignableAgencyIds = $eligibility->agencyIdsWhereAssignable($user);
+        $activeAgencyId = $user->agency_id;
+        // TCK-587 — `staffAgencyId()` à la fusion.
+        $staffAgencyId = $activeAgencyId !== null && $eligibility->isStaffAt($user, (int) $activeAgencyId)
+            ? (int) $activeAgencyId
+            : null;
+
+        return $query->where(function (Builder $q) use ($user, $assignableAgencyIds, $staffAgencyId): void {
+            $q->where('requester_id', $user->id)
+                ->orWhereHas('property', fn (Builder $p) => $p->where('user_id', $user->id))
+                ->orWhere(fn (Builder $assigned) => $assigned
+                    ->where('assigned_to', $user->id)
+                    ->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $assignableAgencyIds)));
+
+            if ($staffAgencyId !== null) {
+                $q->orWhereHas('property', fn (Builder $p) => $p->where('agency_id', $staffAgencyId));
+            }
+        });
     }
 
     public function registerMediaCollections(): void
