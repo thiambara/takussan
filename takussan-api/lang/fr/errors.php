@@ -239,6 +239,7 @@ return [
         'amount_short' => 'Le montant reçu est inférieur au montant attendu.',
         'amount_unresolved' => 'Le montant à payer n\'a pas pu être déterminé.',
         'currency_unsupported' => 'Le prestataire :provider n\'accepte pas la devise :currency.',
+        'xof_requires_local_provider' => 'Lemon Squeezy n\'accepte pas le XOF : utilisez Wave ou Orange Money pour un paiement en XOF.',
         'filter_entity_invalid' => 'Filtre de type d\'objet invalide.',
         'filter_status_invalid' => 'Filtre de statut invalide.',
         'integration_agency_missing' => 'L\'intégration de paiement ne correspond à aucune agence.',

@@ -239,6 +239,7 @@ return [
         'amount_short' => 'Xaalis bi ñu jot moo gën a tuuti xaalis bi ñu xaaroon.',
         'amount_unresolved' => 'Xaalis bi ñuy fay, mënuñu ko xam.',
         'currency_unsupported' => 'Prestataire :provider nanguwul xaalisu :currency.',
+        'xof_requires_local_provider' => 'Lemon Squeezy nanguwul XOF : jëfandikoo Wave walla Orange Money ngir fey ci XOF.',
         'filter_entity_invalid' => 'Filtre xeetu mbir bi baaxul.',
         'filter_status_invalid' => 'Filtre statut bi baaxul.',
         'integration_agency_missing' => 'Intégration fay bi méngoowul ak benn agence.',

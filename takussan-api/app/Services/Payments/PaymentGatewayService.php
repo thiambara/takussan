@@ -73,6 +73,12 @@ class PaymentGatewayService
 
         $currency = $this->paymentCurrency($payment);
         if (! $provider->supportsCurrency($currency)) {
+            // Le seul refus qui appelle un conseil : le XOF se paie par un prestataire local.
+            abort_code_if(
+                $provider === PaymentProvider::LemonSqueezy && strtoupper($currency) === 'XOF',
+                422,
+                'payment.xof_requires_local_provider',
+            );
             abort_code(422, 'payment.currency_unsupported', [
                 'provider' => $provider->value,
                 'currency' => strtoupper($currency),
