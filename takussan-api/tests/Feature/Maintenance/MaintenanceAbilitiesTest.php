@@ -38,7 +38,7 @@ class MaintenanceAbilitiesTest extends TestCase
         ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Rejected, ['accepted_at' => now()]);
 
         $this->assertTrue($this->abilities($provider, $mr->id)['can_submit_quote']);
-        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", ['amount' => 20000])->assertOk();
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(20000))->assertOk();
     }
 
     public function test_principal_manages_quotes_and_may_cancel(): void

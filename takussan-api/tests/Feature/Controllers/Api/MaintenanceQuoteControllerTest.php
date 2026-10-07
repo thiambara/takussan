@@ -49,10 +49,7 @@ class MaintenanceQuoteControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($provider)
-            ->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", [
-                'amount' => 500,
-                'currency' => 'XOF',
-            ]);
+            ->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(500));
 
         $response->assertOk();
         $this->assertEquals(MaintenanceStatus::QuoteSubmitted->value, $response->json('data.status'));
@@ -70,9 +67,7 @@ class MaintenanceQuoteControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($provider)
-            ->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", [
-                'amount' => 500,
-            ]);
+            ->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(500));
 
         $response->assertForbidden();
     }

@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('maintenance-requests/{maintenanceRequest}/quote/submit', [MaintenanceQuoteController::class, 'submitQuote'])->name('maintenance-requests.quote.submit');
     Route::post('maintenance-requests/{maintenanceRequest}/quote/approve', [MaintenanceQuoteController::class, 'approveQuote'])->name('maintenance-requests.quote.approve');
     Route::post('maintenance-requests/{maintenanceRequest}/quote/reject', [MaintenanceQuoteController::class, 'rejectQuote'])->name('maintenance-requests.quote.reject');
+    Route::get('maintenance-requests/{maintenanceRequest}/quote/pdf', [MaintenanceQuoteController::class, 'pdf'])->name('maintenance-requests.quote.pdf');
     Route::post('maintenance-requests/{maintenanceRequest}/start', [MaintenanceQuoteController::class, 'start'])->name('maintenance-requests.start');
 
     // History per property

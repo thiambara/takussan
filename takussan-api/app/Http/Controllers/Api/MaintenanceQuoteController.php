@@ -9,8 +9,10 @@ use App\Http\Resources\MaintenanceRequestResource;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Services\Maintenance\MaintenanceQuoteWorkflow;
+use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class MaintenanceQuoteController extends Controller
 {
@@ -53,7 +55,8 @@ class MaintenanceQuoteController extends Controller
 
     public function approveQuote(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('manageQuotes', $maintenanceRequest);
+        // TCK-592 — ADR-0037 : en `awaiting_owner`, le bailleur du bien seul.
+        $this->authorize('decideQuote', $maintenanceRequest);
 
         $mr = $this->workflow->approveQuote($maintenanceRequest, $request->user()->id, $request->user());
 
@@ -64,13 +67,40 @@ class MaintenanceQuoteController extends Controller
 
     public function rejectQuote(RejectQuoteRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('manageQuotes', $maintenanceRequest);
+        $this->authorize('decideQuote', $maintenanceRequest);
 
         $data = $request->validated();
         $mr = $this->workflow->rejectQuote($maintenanceRequest, $data['reason'], $request->user()->id, $request->user());
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+        ]);
+    }
+
+    /**
+     * TCK-592 (P12) — le devis en PDF, par le service PDF commun (`DocumentPdfService`), dans la
+     * langue de qui le lit.
+     */
+    public function pdf(Request $request, MaintenanceRequest $maintenanceRequest, DocumentPdfService $pdf): SymfonyResponse
+    {
+        $this->authorize('viewQuote', $maintenanceRequest);
+        abort_if($maintenanceRequest->quote_submitted_at === null, 404);
+
+        $maintenanceRequest->loadMissing(['property.agency', 'assignee']);
+        $locale = $request->user()?->preferredLocale() ?? app()->getLocale();
+
+        return $pdf->stream('pdf.maintenance.quote', [
+            'mr' => $maintenanceRequest,
+            'lines' => $maintenanceRequest->quote_lines ?? [],
+            'amount' => (float) $maintenanceRequest->quote_amount,
+            'currency' => $maintenanceRequest->quote_currency ?? 'XOF',
+            'property' => $maintenanceRequest->property,
+            'provider' => $maintenanceRequest->assignee,
+            'agency' => $maintenanceRequest->property?->agency,
+            'locale' => $locale,
+            'title' => __('maintenance.quote_pdf.title', [], $locale),
+            'document_label' => __('maintenance.quote_pdf.title', [], $locale),
+            'filename' => 'devis-intervention-'.$maintenanceRequest->id,
         ]);
     }
 

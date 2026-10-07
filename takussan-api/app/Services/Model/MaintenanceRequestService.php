@@ -18,7 +18,7 @@ class MaintenanceRequestService
      * fin de sa collaboration : rien n'a commencé. `completed` n'y est pas — le travail est rendu, la
      * clôture contradictoire reste au demandeur.
      */
-    public const UNSTARTED = ['open', 'acknowledged', 'assigned', 'quote_requested', 'quote_submitted', 'rejected', 'approved'];
+    public const UNSTARTED = ['open', 'acknowledged', 'assigned', 'quote_requested', 'quote_submitted', 'awaiting_owner', 'rejected', 'approved'];
 
     public function __construct(
         protected PrivateMediaAccess $privateMedia,

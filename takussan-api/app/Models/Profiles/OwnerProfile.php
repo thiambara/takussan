@@ -27,12 +27,15 @@ class OwnerProfile extends AbstractModel
         'id_document_type', 'id_document_number',
         'monthly_income', 'employer',
         'guarantor_user_id', 'metadata',
+        // TCK-592 — ADR-0037 : au-delà, l'approbation d'un devis par l'équipe attend le bailleur.
+        'works_approval_threshold',
     ];
 
     protected $casts = [
         'status' => OwnerProfileStatus::class,
         'id_document_type' => IdType::class,
         'monthly_income' => 'decimal:2',
+        'works_approval_threshold' => 'decimal:2',
         'metadata' => 'array',
     ];
 

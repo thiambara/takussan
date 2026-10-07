@@ -205,7 +205,7 @@ class MaintenanceStatusChangedEventTest extends TestCase
     /** @return array<string, mixed> */
     protected function quotePayload(): array
     {
-        return ['amount' => 25000];
+        return $this->quoteBody();
     }
 
     /** @return array<string, mixed> */

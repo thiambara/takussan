@@ -5,6 +5,7 @@ namespace App\Services\Maintenance;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Http\UploadedFile;
@@ -61,12 +62,17 @@ class MaintenanceQuoteWorkflow
     }
 
     /**
-     * @param  array<string,mixed>  $data
+     * TCK-592 (P12) — le montant est CALCULÉ depuis les lignes, en arithmétique décimale exacte
+     * (`bcmath`), et la devise IMPOSÉE. Les lignes gardent leurs nombres en chaînes décimales.
+     *
+     * @param  array<string,mixed>  $data  `lines[]`, `valid_until`, `estimated_duration_days`
      * @param  array<int,UploadedFile>  $attachments
      */
     public function submitQuote(MaintenanceRequest $mr, array $data, array $attachments = [], ?User $actor = null): MaintenanceRequest
     {
         $from = $this->assertTransition($mr, MaintenanceStatus::QuoteSubmitted);
+
+        [$lines, $amount] = $this->priceLines($data['lines'] ?? []);
 
         $mr->status = MaintenanceStatus::QuoteSubmitted;
         // Chiffrer l'intervention, c'est l'accepter : le prestataire qui a remis un devis ne la
@@ -74,9 +80,16 @@ class MaintenanceQuoteWorkflow
         if ($mr->accepted_at === null && $actor !== null && $mr->assigned_to === $actor->id) {
             $mr->accepted_at = now();
         }
-        $mr->quote_amount = $data['amount'];
-        $mr->quote_currency = $data['currency'] ?? $this->resolveCurrency($mr);
+        $mr->quote_lines = $lines;
+        $mr->quote_amount = $amount;
+        $mr->quote_currency = $this->resolveCurrency($mr);
+        $mr->quote_valid_until = $data['valid_until'] ?? null;
+        $mr->quote_estimated_duration_days = $data['estimated_duration_days'] ?? null;
         $mr->quote_submitted_at = now();
+        // Un devis re-soumis après refus repart sans la décision précédente.
+        $mr->quote_decision_at = null;
+        $mr->quote_decision_by_id = null;
+        $mr->quote_rejection_reason = null;
         $mr->save();
 
         foreach ($attachments as $attachment) {
@@ -94,8 +107,70 @@ class MaintenanceQuoteWorkflow
         return $mr->refresh();
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $input
+     * @return array{0: list<array{label: string, kind: string, quantity: string, unit_price: string, total: string}>, 1: string}
+     */
+    public function priceLines(array $input): array
+    {
+        $lines = [];
+        $total = '0.00';
+
+        foreach ($input as $line) {
+            $quantity = $this->decimal($line['quantity'] ?? 0);
+            $unitPrice = $this->decimal($line['unit_price'] ?? 0);
+            $lineTotal = bcmul($quantity, $unitPrice, 2);
+
+            $lines[] = [
+                'label' => (string) ($line['label'] ?? ''),
+                'kind' => (string) ($line['kind'] ?? 'labour'),
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'total' => $lineTotal,
+            ];
+            $total = bcadd($total, $lineTotal, 2);
+        }
+
+        return [$lines, $total];
+    }
+
+    private function decimal(mixed $value): string
+    {
+        return bcadd(is_string($value) ? trim($value) : (string) $value, '0', 2);
+    }
+
+    /**
+     * TCK-592 — ADR-0037 : au-delà du plafond de travaux du bailleur, l'approbation de l'équipe ne
+     * vaut pas approbation — le devis passe en `awaiting_owner`, et le bailleur du bien tranche.
+     * Le bailleur qui approuve lui-même approuve directement. Un devis dont la validité est
+     * passée ne s'approuve plus (422).
+     */
     public function approveQuote(MaintenanceRequest $mr, int $approvedById, ?User $actor = null): MaintenanceRequest
     {
+        $this->assertNotExpired($mr);
+
+        $current = $mr->status ?? MaintenanceStatus::Open;
+        $needsOwner = $current === MaintenanceStatus::QuoteSubmitted
+            && ! $this->isLandlord($mr, $approvedById)
+            && $this->exceedsOwnerThreshold($mr);
+
+        if ($needsOwner) {
+            $from = $this->assertTransition($mr, MaintenanceStatus::AwaitingOwner);
+
+            $mr->status = MaintenanceStatus::AwaitingOwner;
+            $mr->save();
+
+            activity()
+                ->performedOn($mr)
+                ->event('quote.awaiting_owner')
+                ->withProperties(['amount' => $mr->quote_amount, 'endorsed_by' => $approvedById])
+                ->log('Quote awaiting owner');
+
+            MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::AwaitingOwner, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_AWAITING_OWNER);
+
+            return $mr->refresh();
+        }
+
         $from = $this->assertTransition($mr, MaintenanceStatus::Approved);
 
         $mr->status = MaintenanceStatus::Approved;
@@ -111,6 +186,38 @@ class MaintenanceQuoteWorkflow
         MaintenanceStatusChanged::dispatch($mr, $from, MaintenanceStatus::Approved, $actor, MaintenanceStatusChanged::CAUSE_QUOTE_APPROVED);
 
         return $mr->refresh();
+    }
+
+    private function assertNotExpired(MaintenanceRequest $mr): void
+    {
+        abort_if(
+            $mr->quote_valid_until !== null && $mr->quote_valid_until->endOfDay()->isPast(),
+            422,
+            __('maintenance.errors.quote_expired'),
+        );
+    }
+
+    private function isLandlord(MaintenanceRequest $mr, int $userId): bool
+    {
+        return $mr->property !== null && (int) $mr->property->user_id === $userId;
+    }
+
+    /**
+     * Le plafond du couple (bailleur du bien, agence du bien) — ADR-0037. Nul : pas d'accord requis.
+     */
+    private function exceedsOwnerThreshold(MaintenanceRequest $mr): bool
+    {
+        $property = $mr->property;
+        if ($property === null || $property->agency_id === null || $property->user_id === null || $mr->quote_amount === null) {
+            return false;
+        }
+
+        $threshold = OwnerProfile::query()
+            ->where('user_id', $property->user_id)
+            ->where('agency_id', $property->agency_id)
+            ->value('works_approval_threshold');
+
+        return $threshold !== null && bccomp((string) $mr->quote_amount, (string) $threshold, 2) === 1;
     }
 
     public function rejectQuote(MaintenanceRequest $mr, string $reason, int $rejectedById, ?User $actor = null): MaintenanceRequest

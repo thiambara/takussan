@@ -25,6 +25,7 @@ class MaintenanceRequestResource extends BaseResource
     private const QUOTE_FIELDS = [
         'quote_amount', 'quote_currency', 'quote_submitted_at', 'quote_decision_at',
         'quote_decision_by_id', 'quote_rejection_reason', 'quote_decision_by',
+        'quote_lines', 'quote_valid_until', 'quote_estimated_duration_days',
     ];
 
     public function toArray(Request $request): array
@@ -48,6 +49,9 @@ class MaintenanceRequestResource extends BaseResource
             'quote_decision_at' => $this->iso($this->quote_decision_at),
             'quote_decision_by_id' => $this->quote_decision_by_id,
             'quote_rejection_reason' => $this->quote_rejection_reason,
+            'quote_lines' => $this->quote_lines,
+            'quote_valid_until' => $this->calendarDate($this->quote_valid_until),
+            'quote_estimated_duration_days' => $this->quote_estimated_duration_days,
             'scheduled_at' => $this->iso($this->scheduled_at),
             'started_at' => $this->iso($this->started_at),
             'completed_at' => $this->iso($this->completed_at),

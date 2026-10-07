@@ -91,6 +91,30 @@ class MaintenanceRequestPolicy extends BasePolicy
     }
 
     /**
+     * TCK-592 (P13) — lire le devis (montant, lignes, PDF) : le prestataire assigné et les donneurs
+     * d'ordre. Jamais le demandeur qui n'est que demandeur.
+     */
+    public function viewQuote(User $user, MaintenanceRequest $request): bool
+    {
+        return $this->actAsProvider($user, $request) || self::isPrincipalFor($user, $request->property);
+    }
+
+    /**
+     * TCK-592 — ADR-0037 : approuver ou refuser le devis. Comme `manageQuotes`, sauf en
+     * `awaiting_owner` : le devis dépasse le plafond de travaux du bailleur, et lui SEUL tranche —
+     * ni l'équipe de l'agence, ni un autre bailleur de la même agence.
+     */
+    public function decideQuote(User $user, MaintenanceRequest $request): bool
+    {
+        if ($request->status === MaintenanceStatus::AwaitingOwner) {
+            return $user->isSuperAdmin()
+                || ($request->property !== null && $request->property->user_id === $user->id);
+        }
+
+        return $this->manageQuotes($user, $request);
+    }
+
+    /**
      * TCK-445 — les champs du DONNEUR D'ORDRE : `assigned_to` et `priority`.
      *
      * `update()` accorde à qui fait AVANCER l'intervention, prestataire assigné compris ; cette

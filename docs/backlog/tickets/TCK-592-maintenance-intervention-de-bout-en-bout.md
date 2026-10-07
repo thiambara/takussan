@@ -393,14 +393,14 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **F. Devis (P11 back, P12, O14) — ADR 1 d'abord**
 
-- [ ] ADR 1 écrit et accepté
-- [ ] Migration `add_structured_quote_to_maintenance_requests` (`quote_lines` jsonb,
+- [x] ADR 1 écrit et accepté
+- [x] Migration `add_structured_quote_to_maintenance_requests` (`quote_lines` jsonb,
       `quote_valid_until`, `quote_estimated_duration_days`) ; `SubmitQuoteRequest` réécrit
-- [ ] Approbation refusée (422) sur un devis dont `valid_until` est passé
-- [ ] PDF du devis par le service Pdf existant
-- [ ] Migration `add_works_approval_threshold_to_owner_profiles` ; statut `awaiting_owner` ;
+- [x] Approbation refusée (422) sur un devis dont `valid_until` est passé
+- [x] PDF du devis par le service Pdf existant
+- [x] Migration `add_works_approval_threshold_to_owner_profiles` ; statut `awaiting_owner` ;
       `approveQuote`/`rejectQuote` tranchés par le bailleur du bien en `awaiting_owner`
-- [ ] Tests : `MaintenanceStructuredQuoteTest`, `MaintenanceOwnerApprovalThresholdTest`
+- [x] Tests : `MaintenanceStructuredQuoteTest`, `MaintenanceOwnerApprovalThresholdTest`
 
 **G. Front (P1, P11, P14, P15, P16, P17 liste)**
 
@@ -675,3 +675,27 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - Ablations : `media.quotes` pour tous → 1 rouge ; kit d'accès avant acceptation → 1 ; après clôture
   ou annulation → 2 ; photos « avant » sans acceptation → 1 ; transitions sans la porte `update` → 1 ;
   consignes rendues au demandeur → 1.
+
+### F — devis structuré et plafond du bailleur (ADR-0037, 74dc631f)
+
+- `SubmitQuoteRequest` : `lines[] {label, kind: labour|supply, quantity, unit_price}` (≤ 2 décimales),
+  `valid_until` (requis, ≥ aujourd'hui), `estimated_duration_days` ; `amount` et `currency`
+  `prohibited`. La règle `mimes` de E est gardée à l'identique. `authorize()` délègue à
+  `actAsProvider` (403 avant 422) ; `RejectQuoteRequest` à `decideQuote`.
+- Montant en `bcmath` (exact), lignes en chaînes décimales dans `quote_lines` (jsonb). Re-soumettre
+  après refus efface la décision précédente (`quote_decision_*`, motif).
+- Écart avec le ticket : `valid_until` est **requis** (le contrat de données le liste sans dire
+  optionnel ; un devis sans validité ne s'expire jamais, ce qui vide AC15 de son sens).
+- `awaiting_owner` : `quote_submitted → awaiting_owner`, sortie `approved | rejected | cancelled`, hors
+  `GENERIC_TARGETS` (PUT → 422). Le plafond lu est celui du couple (bailleur du bien, agence du bien) ;
+  strictement au-delà. Le bailleur qui approuve lui-même approuve directement.
+- PDF : `GET …/quote/pdf` (policy `viewQuote` : prestataire ou donneur d'ordre ; 404 sans devis) →
+  `DocumentPdfService::stream('pdf.maintenance.quote', …)`, libellés `maintenance.quote_pdf.*` dans la
+  langue du lecteur. Le gabarit est rendu réellement par Blade dans un test (wo).
+- Exécutions : `MaintenanceStructuredQuoteTest` + `MaintenanceOwnerApprovalThresholdTest` → 16 verts ;
+  `tests/Feature/{Maintenance,ServiceProvider,Media,Validation,Database}`, `tests/Unit/{Services/Maintenance,
+  Http/Resources,Policies}`, `tests/Feature/Api/Maintenance*` et les tests de devis → 615 verts.
+- Ablations : montant = dernière ligne → 1 rouge ; devise acceptée → 1 ; validité non contrôlée → 1 ;
+  plafond ignoré → 1 ; `awaiting_owner` ouvert à l'équipe → 1 ; le bailleur attend aussi → 1 ;
+  `quote_lines` rendues au locataire → 1 (ce dernier était **vert** avant que le test d'AC10 n'assère
+  aussi l'absence de `quote_lines` et `quote_currency` : assertion ajoutée).

@@ -45,7 +45,9 @@ final class MaintenanceStateMachine
         'acknowledged' => ['assigned', 'quote_requested', 'in_progress', 'cancelled'],
         'assigned' => ['quote_requested', 'in_progress', 'cancelled'],
         'quote_requested' => ['quote_submitted', 'cancelled'],
-        'quote_submitted' => ['approved', 'rejected', 'cancelled'],
+        'quote_submitted' => ['approved', 'awaiting_owner', 'rejected', 'cancelled'],
+        // ADR-0037 — on y entre par `quote/approve` au-delà du plafond ; seul le bailleur en sort.
+        'awaiting_owner' => ['approved', 'rejected', 'cancelled'],
         'rejected' => ['quote_submitted', 'cancelled'],
         'approved' => ['in_progress', 'cancelled'],
         'in_progress' => ['completed', 'cancelled'],

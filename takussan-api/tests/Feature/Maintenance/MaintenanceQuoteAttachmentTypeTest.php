@@ -69,6 +69,6 @@ class MaintenanceQuoteAttachmentTypeTest extends TestCase
     /** @param  list<UploadedFile>  $files */
     protected function quote(array $files): array
     {
-        return ['amount' => 25000, 'attachments' => $files];
+        return $this->quoteBody(25000, ['attachments' => $files]);
     }
 }

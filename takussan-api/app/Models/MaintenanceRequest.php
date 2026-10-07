@@ -46,6 +46,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'scheduled_at', 'started_at', 'completed_at',
         'resolution_notes', 'metadata',
         'accepted_at', 'access_instructions',
+        'quote_lines', 'quote_valid_until', 'quote_estimated_duration_days',
     ];
 
     protected $casts = [
@@ -61,6 +62,9 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'accepted_at' => 'datetime',
+        'quote_lines' => 'array',
+        'quote_valid_until' => 'date',
+        'quote_estimated_duration_days' => 'integer',
         'metadata' => 'array',
     ];
 
@@ -77,7 +81,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'title', 'category', 'priority', 'status',
         'estimated_cost', 'actual_cost', 'quote_amount', 'quote_currency',
         'quote_submitted_at', 'quote_decision_at', 'quote_decision_by_id',
-        'scheduled_at', 'completed_at', 'accepted_at',
+        'scheduled_at', 'completed_at', 'accepted_at', 'quote_valid_until',
         'created_at', 'updated_at',
     ];
 

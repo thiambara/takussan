@@ -35,7 +35,7 @@ class MaintenanceStateMachineTest extends TestCase
     /** Les états de devis s'annulent : l'ancienne table générique n'avait aucune clé pour eux. */
     public function test_quote_states_can_be_cancelled(): void
     {
-        foreach (['quote_requested', 'quote_submitted', 'rejected', 'approved'] as $from) {
+        foreach (['quote_requested', 'quote_submitted', 'awaiting_owner', 'rejected', 'approved'] as $from) {
             $this->assertTrue(
                 $this->machine->canTransition(MaintenanceStatus::from($from), MaintenanceStatus::Cancelled),
                 $from,

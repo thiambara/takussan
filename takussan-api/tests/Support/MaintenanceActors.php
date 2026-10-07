@@ -79,6 +79,20 @@ trait MaintenanceActors
     }
 
     /**
+     * TCK-592 (P12) — un corps de devis valide : une ligne de main-d'œuvre au prix donné, valable
+     * une semaine. `amount` et `currency` ne s'envoient plus (422).
+     *
+     * @return array<string, mixed>
+     */
+    protected function quoteBody(int|string $amount = 25000, array $extra = []): array
+    {
+        return array_merge([
+            'lines' => [['label' => 'Main-d\'œuvre', 'kind' => 'labour', 'quantity' => 1, 'unit_price' => $amount]],
+            'valid_until' => now()->addWeek()->toDateString(),
+        ], $extra);
+    }
+
+    /**
      * Un bien d'agence, son bailleur, son locataire demandeur, un prestataire assigné.
      *
      * @return array{agency: Agency, property: Property, landlord: User, tenant: User, provider: User, mr: MaintenanceRequest}

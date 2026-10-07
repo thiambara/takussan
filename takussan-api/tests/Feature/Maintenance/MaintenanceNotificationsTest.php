@@ -80,7 +80,7 @@ class MaintenanceNotificationsTest extends TestCase
         $agent = $this->agentOf($agency);
 
         Sanctum::actingAs($provider);
-        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", ['amount' => 27000])->assertOk();
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(27000))->assertOk();
 
         $this->assertSame(0, AppNotification::query()->where('user_id', $tenant->id)->count());
         foreach ([$agent, $landlord] as $principal) {
@@ -91,7 +91,10 @@ class MaintenanceNotificationsTest extends TestCase
         }
 
         Sanctum::actingAs($tenant);
-        $this->getJson("/api/maintenance-requests/{$mr->id}")->assertOk()->assertJsonMissingPath('data.quote_amount');
+        $this->getJson("/api/maintenance-requests/{$mr->id}")->assertOk()
+            ->assertJsonMissingPath('data.quote_amount')
+            ->assertJsonMissingPath('data.quote_lines')
+            ->assertJsonMissingPath('data.quote_currency');
 
         // Témoin : le bailleur, donneur d'ordre, voit le montant.
         Sanctum::actingAs($landlord);
@@ -106,7 +109,7 @@ class MaintenanceNotificationsTest extends TestCase
         $mr->forceFill(['requester_id' => $agent->id])->save();
 
         Sanctum::actingAs($provider);
-        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", ['amount' => 27000])->assertOk();
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(27000))->assertOk();
 
         $this->assertCount(1, $this->titlesFor($landlord));
         $this->assertCount(1, $this->titlesFor($agent));
