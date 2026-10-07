@@ -195,9 +195,11 @@ class InvoiceTest extends TestCase
     {
         // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
         // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
-        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->withAgentProfile($agency)->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
-        $booking = Booking::factory()->create();
+        // TCK-594 (AC22) — la réservation relève de l'agence de la facture.
+        $booking = Booking::factory()->create(['agency_id' => $agency->id]);
 
         Sanctum::actingAs($agent);
 

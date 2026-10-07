@@ -749,3 +749,32 @@ le ticket nommé (vérifié dans son texte).
 - **§ 7** : `GET /api/me/payouts` exige `agency.update_billing` à l'agence du profil actif
   (`AgencyPolicy::viewPlatformPayouts`). `agency.update_billing` quitte l'inventaire ; `CLIQUET` 15 → 14.
 
+### Partie 3 — facture conforme (§ 5)
+
+- **Numérotation** : `App\Services\Invoice\InvoiceNumberAllocator` — verrou de la ligne agence, puis
+  `MAX(sequence_number)` hors verrou (`withTrashed` : une facture supprimée garde son numéro). Année
+  = celle de l'**émission** (`now()`), pas `issue_date`. Sites : `send`, `markPaid` (brouillon),
+  `cancel` (l'avoir), `EarlyTerminationService` (pénalité émise directement) et
+  `PaymentGatewayService::applyStatusToPayment` (un brouillon soldé par la passerelle).
+  `DepositRefundService` crée un **brouillon** : il n'est numéroté qu'à son émission. Une facture
+  sans agence garde son `INV-…` (aucune séquence hors agence). Idempotent : jamais de renumérotation.
+  `sequence_year` / `sequence_number` sont hors `$fillable`.
+- **Avoir** : `InvoiceService::cancel` sur `sent`/`overdue` crée dans la même transaction un avoir
+  `kind = credit_note`, même montant, `credited_invoice_id`, émetteur = l'acteur de l'annulation.
+  **Statut de l'avoir : `void`** (décision d'implémentation, l'ADR ne le fixe pas) : `sent` l'aurait
+  mis dans les relances (`OverdueReminderService::REMINDABLE_STATUSES`) et dans les encours qui
+  bloquent la suppression de compte (`AccountDeletionService`) ; `paid` l'aurait compté comme encaissé.
+  Un avoir ne s'annule pas (422 par la matrice existante). `GET /api/invoices/{id}` charge
+  `creditNotes` ; la ressource expose `kind`, `credited_invoice_id`, `credit_notes`.
+- **TVA par défaut** : `tax_rate` absent ⇒ `agencies.default_tax_rate`, à défaut 0 ; `0` explicite gagne.
+- **Cible** : `resolveInvoiceableTarget` reçoit l'agence de la facture et rend 422
+  `money_out.invoice.foreign_target` pour un bail ou une réservation d'une autre agence (ou sans
+  agence). `InvoiceTest::test_can_issue_invoice_for_booking` citait une réservation d'une agence
+  quelconque : corrigé pour viser l'agence de l'émetteur.
+- **Mentions légales** : `AgencyUpdateRequest` accepte `legal_name`, `ninea`, `rccm` (`max:30`, sans
+  contrôle de forme, D-68), `legal_address`, `default_tax_rate` sur une `standard`, `prohibited` sur une
+  `individual`. `AgencyResource` les expose avec le seuil. Le PDF imprime au pied les mentions présentes,
+  aucun libellé vide, et « Avoir » + la facture annulée pour un avoir. La reprise depuis
+  `metadata.legal_info` est la méthode `backfill()` de la migration `200500` (rejouée par le test).
+  ⚠ `AgencyResource` expose encore `metadata` tel quel, `legal_info.rib_pro` compris : c'est TCK-601.
+

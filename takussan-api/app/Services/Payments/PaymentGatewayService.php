@@ -12,6 +12,7 @@ use App\Models\Integration;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Payments\Drivers\LemonSqueezyDriver;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use App\Services\Payments\Drivers\WaveDriver;
@@ -291,6 +292,12 @@ class PaymentGatewayService
 
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
+
+        // TCK-594 (ADR-0039 §7) — une facture soldée par la passerelle est émise : un brouillon
+        // payé ainsi reçoit son numéro comme par `InvoiceService::markPaid`.
+        if ($payment instanceof Invoice && $this->currentPaymentStatus($payment) === PaymentStatus::Paid) {
+            app(InvoiceNumberAllocator::class)->allocate($payment);
+        }
     }
 
     /**

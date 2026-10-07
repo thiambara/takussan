@@ -38,6 +38,12 @@ return new class extends Migration
             $table->text('legal_address')->nullable();
         });
 
+        $this->backfill();
+    }
+
+    /** La reprise seule, rejouable par le test (AC14) : elle n'écrit que dans des colonnes vides. */
+    public function backfill(): void
+    {
         foreach (self::LEGAL_COLUMNS as $key => $column) {
             // `->>` rend le texte de la clé ; `NULLIF` écarte la chaîne vide. La longueur est bornée
             // comme la colonne : une valeur plus longue reste dans `metadata`, non tronquée en silence.

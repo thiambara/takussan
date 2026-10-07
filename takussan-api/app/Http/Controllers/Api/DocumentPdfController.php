@@ -49,11 +49,12 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `InvoicePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $invoice);
 
-        $invoice->loadMissing(['customer', 'agency']);
+        $invoice->loadMissing(['customer', 'agency', 'creditedInvoice']);
+        $label = ($invoice->kind?->value ?? 'invoice') === 'credit_note' ? 'Avoir' : 'Facture';
 
         return $this->pdf->stream('pdf.invoices.default', [
-            'title' => 'Facture '.($invoice->reference_number ?? $invoice->id),
-            'document_label' => 'Facture',
+            'title' => $label.' '.($invoice->reference_number ?? $invoice->id),
+            'document_label' => $label,
             'invoice' => $invoice,
             'customer' => $invoice->customer,
             'agency' => $invoice->agency,

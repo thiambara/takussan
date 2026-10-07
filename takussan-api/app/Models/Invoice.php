@@ -22,8 +22,9 @@ class Invoice extends AbstractModel
         'invoiceable_id', 'invoiceable_type',
         'customer_id', 'issued_by_id', 'agency_id',
         'reference_number', 'status',
-        // TCK-594 (ADR-0039 §7) — séquence attribuée à l'émission, avoir.
-        'kind', 'credited_invoice_id', 'sequence_year', 'sequence_number',
+        // TCK-594 (ADR-0039 §7) — l'avoir. La séquence (`sequence_year`, `sequence_number`) n'est
+        // PAS ici : seul `InvoiceNumberAllocator` l'écrit.
+        'kind', 'credited_invoice_id',
         'issue_date', 'due_date',
         'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'currency',
         // TCK-285 / D-51 — `PaymentGatewayService::recordInitiation()` les écrit par `fill()`,

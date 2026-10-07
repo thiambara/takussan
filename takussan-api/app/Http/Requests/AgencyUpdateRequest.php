@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Currency;
 use App\Models\Enums\WatermarkPosition;
 use Illuminate\Validation\Rule;
@@ -40,6 +42,31 @@ class AgencyUpdateRequest extends BaseFormRequest
             'settings.watermark_opacity' => ['sometimes', 'integer', 'between:10,100'],
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
             'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
+            // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).
+            'default_tax_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            ...$this->legalRules(),
         ];
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §7) — les mentions légales d'une personne morale. Une agence `individual`
+     * (l'hôte) n'en a pas : elles y sont `prohibited`. Aucun contrôle de forme du NINEA ni du RCCM
+     * (dette D-68) : seulement une longueur.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function legalRules(): array
+    {
+        $agency = $this->route('agency');
+        $individual = $agency instanceof Agency && $agency->kind === AgencyKind::Individual;
+
+        $rules = [
+            'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'ninea' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'rccm' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'legal_address' => ['sometimes', 'nullable', 'string', 'max:1000'],
+        ];
+
+        return $individual ? array_map(static fn (): array => ['prohibited'], $rules) : $rules;
     }
 }
