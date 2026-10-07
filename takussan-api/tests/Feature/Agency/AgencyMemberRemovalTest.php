@@ -4,6 +4,7 @@ namespace Tests\Feature\Agency;
 
 use App\Models\Agency;
 use App\Models\AgencyRole;
+use App\Models\CalendarFeed;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\VisitStatus;
@@ -85,6 +86,8 @@ class AgencyMemberRemovalTest extends ApiTestCase
         $this->assertTrue($log->properties['leave_unassigned']);
         $this->assertSame(['agent'], $log->properties['removed_profiles']);
 
+        // Révoqué à la source, pas seulement refusé à la lecture (ADR-0034).
+        $this->assertNotNull(CalendarFeed::query()->where('user_id', $agent->id)->sole()->revoked_at);
         $this->app['auth']->forgetGuards();
         $this->get($path)->assertNotFound();
     }
