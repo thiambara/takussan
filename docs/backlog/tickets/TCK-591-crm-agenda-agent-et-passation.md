@@ -393,17 +393,17 @@ téléphone tenu d'une main, entre deux visites**.
 ## Delta à produire
 
 **0. Décisions préalables**
-- [ ] ADR à écrire et accepter **avant le code** : *« Comment un agenda sort-il de la plateforme ? »*
+- [x] ADR à écrire et accepter **avant le code** : *« Comment un agenda sort-il de la plateforme ? »*
       — lien secret par utilisateur (table `calendar_feeds` : `user_id`, `agency_id`, `token_hash`,
       `revoked_at`, `last_accessed_at` ; option retenue par défaut) contre jeton Sanctum à portée
       restreinte ;
       contenu des événements ; durée de vie ; révocation au retrait de l'agent.
-- [ ] ADR à écrire et accepter **avant le code** : *« Comment dit-on qu'un agent est absent, et qui
+- [x] ADR à écrire et accepter **avant le code** : *« Comment dit-on qu'un agent est absent, et qui
       reprend ? »* — option retenue par défaut : étendre `role_delegations` d'une colonne `replaces_user_id`
       (FK `role_delegations_replaces_user_fk`, nullable) et réutiliser activation / expiration /
       évènements ; alternative : table `agent_absences`. Trancher aussi les effets (routage des
       nouvelles assignations, vue des tâches).
-- [ ] ADR à écrire et accepter **avant le code de §7 et des catégories de biens de §8** :
+- [x] ADR à écrire et accepter **avant le code de §7 et des catégories de biens de §8** :
       *« Où vit l'agent responsable d'un bien, distinct de son propriétaire ? »* (consolidation du
       2026-10-06 — `properties.user_id` est le propriétaire, `docs/models-spec.md:380`, et aucune
       colonne ne porte l'agent responsable). Options : **(A, option retenue par défaut)** le
@@ -421,13 +421,13 @@ téléphone tenu d'une main, entre deux visites**.
       propriétaire sans compte (mandat) reste celui de la spec, non tranché ici.
 
 **1. Numéro fiable et geste de contact (A9)**
-- [ ] `App\Services\Crm\CustomerPhoneNormalizer` (s'appuie sur `PhoneNumber`, `+221` par défaut),
+- [x] `App\Services\Crm\CustomerPhoneNormalizer` (s'appuie sur `PhoneNumber`, `+221` par défaut),
       appelé par des mutateurs de `Customer` sur `phone` et `emergency_contact_phone` — tout chemin
       d'écriture normalise (formulaire, `CustomerService::findOrCreateFromUser`, conversion de lead
       de 590) ; `TelephoneJoignable` sur ces deux champs dans `Store/UpdateCustomerRequest`.
-- [ ] `App\Services\Crm\CustomerDuplicateDetector` (même agence, téléphone normalisé ou e-mail replié)
+- [x] `App\Services\Crm\CustomerDuplicateDetector` (même agence, téléphone normalisé ou e-mail replié)
       → 409 `customer_duplicate` ; champ `allow_duplicate` (bool) dans les deux FormRequests.
-- [ ] Commande `crm:normalize-customer-phones {--dry-run}` : compte normalisés / non normalisables.
+- [x] Commande `crm:normalize-customer-phones {--dry-run}` : compte normalisés / non normalisables.
 - [ ] Front : saisie de téléphone du profil (TCK-574) dans le formulaire client ; gestes « Appeler » et
       « WhatsApp » sur la fiche, la carte de pipeline et la tâche ; doublon présenté comme une aide.
 
@@ -437,25 +437,25 @@ téléphone tenu d'une main, entre deux visites**.
       d'onglet et de colonne tirés de `stage_counts`.
 
 **3. Tâches (A11)**
-- [ ] `Task` : filtre `due` (`AllowedFilter::callback`, fuseau `Africa/Dakar`) ; `TaskController::format`
+- [x] `Task` : filtre `due` (`AllowedFilter::callback`, fuseau `Africa/Dakar`) ; `TaskController::format`
       ajoute `taskable {type, id, label}`.
-- [ ] `TaskController::authorizeAssignee` : assigné = soi, ou **personnel** de l'agence du
+- [x] `TaskController::authorizeAssignee` : assigné = soi, ou **personnel** de l'agence du
       `taskable` (`isOwnerAt` retiré) ; erreur 422 par clé `__('errors.tasks.assignee_not_staff')`,
       code `task_assignee_not_staff`. **Rejoué dans `update`** dès que `assigned_to_id` change.
-- [ ] `TaskPolicy::delete` (créateur ou super-admin) ; `TaskController::destroy` →
+- [x] `TaskPolicy::delete` (créateur ou super-admin) ; `TaskController::destroy` →
       `authorize('delete', $task)`. L'assigné garde `update` (cocher, commenter).
-- [ ] `TaskPolicy::attachTo` délègue à la policy du parent : `can('view', $customer)` (règle de
+- [x] `TaskPolicy::attachTo` délègue à la policy du parent : `can('view', $customer)` (règle de
       587) / `can('update', $property)` — plus de lecture de `$user->agency_id`. Le `taskable.label`
       n'est rendu qu'à qui passe ce même contrôle.
 - [ ] Front : page « Mes tâches » (filtres, cocher, créer une tâche sur un client ou un bien) ; lien
       « Tâches du jour » du tableau de bord agent vers elle (`/app/tasks?filter[due]=today`).
 
 **4. Fiche client unique (A12)**
-- [ ] `CustomerController::activity` + route `customers.activity` (journal du client, de ses notes et
+- [x] `CustomerController::activity` + route `customers.activity` (journal du client, de ses notes et
       de ses tâches, mêmes champs exclus que l'`Auditable` de `Customer`) ; relation `Customer::visits()`.
-- [ ] `Auditable` sur `CustomerNote` et `Task` (sans `body`/`description` dans les propriétés
+- [x] `Auditable` sur `CustomerNote` et `Task` (sans `body`/`description` dans les propriétés
       journalisées : le journal dit « note ajoutée », pas son contenu).
-- [ ] Migration `add_kind_to_customer_notes_table` (cf. Contrat) ; `update` et `updatePipelineStage`
+- [x] Migration `add_kind_to_customer_notes_table` (cf. Contrat) ; `update` et `updatePipelineStage`
       écrivent `kind` + le motif seul ; plus de `'Conversion : '` / `'Perte : '` dans le code.
 - [ ] Front : une seule fiche (aperçu, notes, tâches, activité, visites, réservations, baux,
       documents, relations) ; le tiroir en est la vue réduite ; plus d'appel à `/api/audit-log` ;
@@ -463,20 +463,20 @@ téléphone tenu d'une main, entre deux visites**.
       vide ; le préfixe des notes `conversion`/`loss` est traduit à l'affichage.
 
 **5. Critères et rapprochement (A13)**
-- [ ] Migration `add_search_criteria_to_customers_table` (cf. Contrat) ; `$fillable`, casts,
+- [x] Migration `add_search_criteria_to_customers_table` (cf. Contrat) ; `$fillable`, casts,
       `$queryFields`, règles dans les deux FormRequests (`budget_min ≤ budget_max`).
-- [ ] `App\Services\Crm\ProspectMatcher` — SQL sur les biens de l'agence (`addresses` pour ville et
+- [x] `App\Services\Crm\ProspectMatcher` — SQL sur les biens de l'agence (`addresses` pour ville et
       quartier), prospects `active` hors `converted`/`lost` ; `Crm\ProspectMatchController`.
-- [ ] Job `SendProspectMatchDigest` (quotidien, planifié) : biens publiés ou dont le prix a changé
+- [x] Job `SendProspectMatchDigest` (quotidien, planifié) : biens publiés ou dont le prix a changé
       (`PropertyPriceHistory`) depuis 24 h → une notification par référent (sinon `added_by`), par
       clé `__()`, jamais vide.
 - [ ] Front : critères sur la fiche ; « N prospects correspondent » sur la fiche bien ; partage
       WhatsApp de la sélection.
 
 **6. Calendrier (A16, P17)**
-- [ ] `IndexCalendarRequest` : `types.*` `in:booking,visit,task,lease_event,maintenance`, `mine`
+- [x] `IndexCalendarRequest` : `types.*` `in:booking,visit,task,lease_event,maintenance`, `mine`
       (bool), fenêtre ≤ 186 jours.
-- [ ] `CalendarController` : périmètre réécrit sur le prédicat « personnel de l'agence » (bailleur :
+- [x] `CalendarController` : périmètre réécrit sur le prédicat « personnel de l'agence » (bailleur :
       ses biens seulement) ; la branche `agent_id = moi` (l.128) n'est retenue **que** pour un bien
       d'une agence où l'appelant est personnel ; branche collaborateur inchangée (D-66) ; refus
       l.51 par clé `__('errors.calendar.cross_agency_forbidden')` ; `task` (personnelles, `due_at`), `lease_event` (`end_date`,
@@ -562,7 +562,7 @@ téléphone tenu d'une main, entre deux visites**.
       → tout ; personnel de l'agence titulaire de `crm.view_all` → l'agence ; sinon → `added_by_id =
       moi`) ; `CustomerController::index` et `PipelineStatsService::scopedQuery` l'emploient — plus de
       `$user->agency_id` dans ces deux fichiers.
-- [ ] `CustomerPolicy::create` (personnel de l'agence du profil actif, ou super-admin — bloc neuf,
+- [x] `CustomerPolicy::create` (personnel de l'agence du profil actif, ou super-admin — bloc neuf,
       cf. Contraintes 9) ; `StoreCustomerRequest::authorize` → `can('create', Customer::class)` ;
       `store` écrit `agency_id` = l'agence où l'appelant est personnel.
 - [ ] Front : ni « Ajouter un client » ni lien vers le pipeline pour un compte qui n'est pas du
@@ -579,16 +579,16 @@ téléphone tenu d'une main, entre deux visites**.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/customers` avec `phone="77 123 45 67"` enregistre `+221771234567` ;
+- [x] AC1 — `POST /api/customers` avec `phone="77 123 45 67"` enregistre `+221771234567` ;
       `phone="+330612345678"` rend 422 ; un second client de la même agence avec `"+221 77 123 45 67"`
       rend **409** `customer_duplicate` dont `existing[0].id` est le premier ; même appel avec
       `allow_duplicate=true` → 201 ; dans une **autre** agence → 201. Idem pour `AWA@x.sn` contre
       `awa@x.sn`.
-- [ ] AC2 — **sécurité, prouvé par ablation** : un utilisateur dont le seul profil dans l'agence A est
+- [x] AC2 — **sécurité, prouvé par ablation** : un utilisateur dont le seul profil dans l'agence A est
       `OwnerProfile` reçoit, sur `GET /api/calendar`, les événements de **ses** biens et **aucun**
       d'un bien de A dont il n'est pas propriétaire ; le test rougit sur le code actuel et redevient
       rouge si l'on remet `$user->agency_id` dans le périmètre.
-- [ ] AC3 — **sécurité, prouvé par ablation** : `POST customers/{c}/primary-contact` avec l'`user_id`
+- [x] AC3 — **sécurité, prouvé par ablation** : `POST customers/{c}/primary-contact` avec l'`user_id`
       d'un agent d'une autre agence, ou d'un bailleur de la même agence, rend 422 ; sans `crm.assign`,
       403. Rouge sur le code actuel.
 - [ ] AC4 — **sécurité, prouvé par ablation** : `bulk-assign` vers un bailleur de l'agence rend ce bien
@@ -599,22 +599,22 @@ téléphone tenu d'une main, entre deux visites**.
 - [ ] AC5 — sur 5 biens dont 1 d'une autre agence et 1 déjà privé, `bulk-visibility` rend
       `updated = 3`, `failed` = `[{forbidden}, {unchanged}]` + l'identifiant inconnu en `not_found` ;
       une exception levée au 2ᵉ bien autorisé laisse les 3 inchangés (transaction).
-- [ ] AC6 — `GET /api/customers/{c}/activity` rend **200** à un agent de l'agence avec **exactement**
+- [x] AC6 — `GET /api/customers/{c}/activity` rend **200** à un agent de l'agence avec **exactement**
       trois entrées pour le jeu du test (le changement d'étape du client, la note ajoutée, la tâche
       créée — les deux dernières exigent `Auditable` sur `CustomerNote` et `Task` ; on retire le
       trait → 2 entrées, rouge) ; aucune entrée ne contient le `body` de la note ; **403** à un agent
       d'une autre agence.
-- [ ] AC7 — `GET /api/tasks?filter[due]=overdue` sur un jeu fixé (une tâche hier ouverte, une hier
+- [x] AC7 — `GET /api/tasks?filter[due]=overdue` sur un jeu fixé (une tâche hier ouverte, une hier
       terminée, une aujourd'hui, une demain) rend **exactement** la première ; `today` → la
       troisième ; chaque ligne porte `taskable.label`.
-- [ ] AC8 — `GET /api/calendar?types[]=task&types[]=lease_event&types[]=maintenance&mine=1` rend,
+- [x] AC8 — `GET /api/calendar?types[]=task&types[]=lease_event&types[]=maintenance&mine=1` rend,
       pour l'agent, ses tâches, la fin et le renouvellement des baux de l'agence dans la fenêtre, et
       les interventions planifiées des biens de l'agence ; une fenêtre de 200 jours → 422.
-- [ ] AC9 — un prestataire assigné à une intervention planifiée la reçoit en type `maintenance`, et
+- [x] AC9 — un prestataire assigné à une intervention planifiée la reçoit en type `maintenance`, et
       aucune autre intervention de l'agence.
-- [ ] AC10 — le flux `.ics` est un VCALENDAR valide, ne contient ni nom ni téléphone de visiteur ;
+- [x] AC10 — le flux `.ics` est un VCALENDAR valide, ne contient ni nom ni téléphone de visiteur ;
       après révocation, ou après retrait de l'agent, il rend 404 ; le jeton n'est pas stocké en clair.
-- [ ] AC11 — un prospect `{contract_type: rent, budget_max: 300000, cities: [Dakar], min_bedrooms: 2}`
+- [x] AC11 — un prospect `{contract_type: rent, budget_max: 300000, cities: [Dakar], min_bedrooms: 2}`
       correspond à un bien de l'agence à 250 000 / Dakar / 3 chambres, privé compris, et à **aucun**
       bien d'une autre agence ni à 350 000 ; le récapitulatif quotidien notifie son référent une
       fois, et personne quand rien ne correspond.
@@ -643,7 +643,7 @@ téléphone tenu d'une main, entre deux visites**.
       voit 4 ; un second agent de A, d'un rôle personnalisé sans `crm.view_all` et qui n'a rien
       ajouté, en voit **0**. Chaque ligne rendue passe `CustomerPolicy::view`.
       Rouge si l'on remet `$user->agency_id` dans `index` ou dans `PipelineStatsService`.
-- [ ] AC17 — **sécurité** : `POST /api/customers` par un compte sans profil → **403** ; par un
+- [x] AC17 — **sécurité** : `POST /api/customers` par un compte sans profil → **403** ; par un
       bailleur de A → **403** (201 aujourd'hui dans les deux cas) ; par un agent de A → 201 avec
       `agency_id = A`.
 - [ ] AC18 — **sécurité, prouvé par ablation** (tâches) : `POST /api/tasks` avec `assigned_to_id`
@@ -658,7 +658,7 @@ téléphone tenu d'une main, entre deux visites**.
       existante `"Perte : X"` en `kind = loss`, `body = "X"`, et son `down()` la restaure à
       l'identique. Front (vitest) : en `en`, la note s'affiche « Lost: Budget » ; en `fr`,
       « Perte : Budget ». `grep -n "'Perte : '\|'Conversion : '" takussan-api/app` → vide.
-- [ ] AC20 — refus traduits : `GET /api/calendar?agency_id=…` par un non-super-admin rend 403 dont le
+- [x] AC20 — refus traduits : `GET /api/calendar?agency_id=…` par un non-super-admin rend 403 dont le
       `message` vaut `__('errors.calendar.cross_agency_forbidden')` dans la locale demandée — **deux
       chaînes différentes** en `fr` et `en` (aujourd'hui la même chaîne anglaise) ; même vérification
       pour le 422 d'assigné de tâche (AC18).
@@ -780,3 +780,20 @@ téléphone tenu d'une main, entre deux visites**.
   de 422 ; 200 au lieu de 403) ; `StoreCustomerRequest::authorize` → `true` → AC17 rouge (201) ;
   `Auditable` retiré de `CustomerNote` et `Task` → AC6 rouge (1 entrée au lieu de 3).
 
+- **§5 rapprochement** (`02dca62d`) — re-mesuré : aucun service de rapprochement (`grep -ri
+  match app/Services` : seuls les recherches sauvegardées et Meilisearch), `PropertySearchService`
+  public seul : conforme. `ProspectMatcher` est en SQL dans les deux sens, borné à l'agence ; un
+  critère absent ne filtre pas, **un prospect sans aucun critère ne correspond à rien** (il
+  correspondrait sinon à tout le portefeuille) ; villes/quartiers repliés par `CaseInsensitive`
+  (ADR-0025) ; statuts non proposables = la liste de `Property::scopePublic`, visibilité et
+  `published_at` exclus des critères (privé compris). Autorisation par deux abilities de policy
+  (`CustomerPolicy::matchProperties`, `PropertyPolicy::matchProspects`) : personnel de l'agence,
+  jamais le bailleur. **Écart d'interprétation** : le récapitulatif prend les biens *publiés* **ou
+  saisis** depuis 24 h (un bien privé n'a pas toujours de `published_at`) ou repris en prix ; le
+  destinataire (référent `is_primary` actif, sinon `added_by`) doit être encore du personnel de
+  l'agence ; idempotent par jour (`data.kind` + `data.digest_date`) ; planifié à 08:30.
+  `php artisan test tests/Feature/Crm/ProspectMatcherTest.php tests/Feature/Crm/SendProspectMatchDigestTest.php`
+  → 8 verts. **Ablations** (après commit) : borne d'agence de `propertiesFor` retirée → AC11 rouge
+  (le bien de l'autre agence sort) ; `alreadySent` retiré → rouge (`MultipleRecordsFoundException`,
+  deux notifications) ; `matchProspects` → `true` → rouge (le bailleur lit les prospects) ; garde
+  « au moins un critère » retirée → rouge (un client sans critère correspond).
