@@ -167,6 +167,26 @@ class MaintenanceStatusChangedEventTest extends TestCase
         $this->assertOne(MaintenanceStatus::InProgress, MaintenanceStatus::Open, $provider, MaintenanceStatusChanged::CAUSE_UNASSIGNED);
     }
 
+    public function test_confirm_resolution(): void
+    {
+        ['mr' => $mr, 'tenant' => $tenant] = $this->maintenanceScenario(MaintenanceStatus::Completed);
+        Sanctum::actingAs($tenant);
+
+        $this->postJson("/api/maintenance-requests/{$mr->id}/confirm-resolution")->assertOk();
+
+        $this->assertOne(MaintenanceStatus::Completed, MaintenanceStatus::Closed, $tenant, MaintenanceStatusChanged::CAUSE_CONFIRMED);
+    }
+
+    public function test_contest_resolution(): void
+    {
+        ['mr' => $mr, 'tenant' => $tenant] = $this->maintenanceScenario(MaintenanceStatus::Completed);
+        Sanctum::actingAs($tenant);
+
+        $this->postJson("/api/maintenance-requests/{$mr->id}/contest-resolution", ['comment' => 'Toujours une fuite'])->assertOk();
+
+        $this->assertOne(MaintenanceStatus::Completed, MaintenanceStatus::InProgress, $tenant, MaintenanceStatusChanged::CAUSE_CONTESTED);
+    }
+
     /** Le diff ne crée aucun observateur de modèle : TCK-594 en crée un et lit cet événement. */
     public function test_no_maintenance_request_observer(): void
     {

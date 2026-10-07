@@ -248,6 +248,60 @@ class MaintenanceRequestService
     }
 
     /**
+     * TCK-592 (P10) — clôture contradictoire. Le demandeur confirme (`closed`) ; sans réponse,
+     * `maintenance:auto-close` clôt avec un acteur nul et la cause `auto_closed`.
+     */
+    public function confirmResolution(
+        MaintenanceRequest $mr,
+        ?User $actor,
+        string $cause = MaintenanceStatusChanged::CAUSE_CONFIRMED,
+        array $context = [],
+    ): MaintenanceRequest {
+        return $this->transition($mr, MaintenanceStatus::Closed, $actor, $cause, $context);
+    }
+
+    /**
+     * TCK-592 (P10) — le demandeur conteste : la demande repart `in_progress` chez le même
+     * prestataire. `completed_at` est remis à nul : le délai de clôture automatique repart de la
+     * PROCHAINE fin des travaux, pas de celle qui vient d'être contestée.
+     *
+     * @param  array<int,UploadedFile>  $photos
+     */
+    public function contestResolution(MaintenanceRequest $mr, User $actor, string $comment, array $photos = []): MaintenanceRequest
+    {
+        $current = $mr->status ?? MaintenanceStatus::Open;
+        $this->assertTransition($current, MaintenanceStatus::InProgress);
+
+        DB::transaction(function () use ($mr, $photos): void {
+            $mr->status = MaintenanceStatus::InProgress;
+            $mr->completed_at = null;
+            $mr->save();
+
+            foreach ($photos as $photo) {
+                $mr->addMedia($photo)->toMediaCollection('photos');
+            }
+        });
+
+        activity()
+            ->performedOn($mr)
+            ->causedBy($actor)
+            ->event('maintenance.contested')
+            ->withProperties(['comment' => $comment])
+            ->log('maintenance.contested');
+
+        MaintenanceStatusChanged::dispatch(
+            $mr,
+            $current,
+            MaintenanceStatus::InProgress,
+            $actor,
+            MaintenanceStatusChanged::CAUSE_CONTESTED,
+            ['comment' => $comment],
+        );
+
+        return $mr->refresh();
+    }
+
+    /**
      * @param  array<int,UploadedFile>  $photos
      */
     public function addPhotos(MaintenanceRequest $mr, array $photos, string $collection = 'photos'): array

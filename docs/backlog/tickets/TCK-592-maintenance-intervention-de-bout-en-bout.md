@@ -374,10 +374,10 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **D. Clôture contradictoire (P10, C7)**
 
-- [ ] `confirm-resolution` (`completed → closed`) et `contest-resolution` (`completed → in_progress`,
+- [x] `confirm-resolution` (`completed → closed`) et `contest-resolution` (`completed → in_progress`,
       commentaire + photos) + FormRequests
-- [ ] Commande `maintenance:auto-close` (quotidienne) : `completed` depuis 7 jours → `closed`, acteur nul
-- [ ] Tests : `MaintenanceResolutionConfirmationTest`, `MaintenanceAutoCloseCommandTest`
+- [x] Commande `maintenance:auto-close` (quotidienne) : `completed` depuis 7 jours → `closed`, acteur nul
+- [x] Tests : `MaintenanceResolutionConfirmationTest`, `MaintenanceAutoCloseCommandTest`
 
 **E. Lecture des pièces et kit d'accès (P6, P7, P15 back)**
 
@@ -636,3 +636,19 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - Ablations : devis soumis sans événement → 1 rouge ; `start` qui émet deux fois → 1 ; devis notifié au
   demandeur → 1 ; titre rendu sans la langue du destinataire → 3 ; `quote_*` rendus au locataire → 1 ;
   auteur notifié → 1 ; refus sans motif → 1 ; équipe retirée des donneurs d'ordre → 2.
+
+### D — clôture contradictoire
+
+- `POST …/confirm-resolution` et `…/contest-resolution` : le **demandeur ou un donneur d'ordre** (contrat
+  de données ; les contraintes ne nomment que le demandeur, le contrat tranche), **jamais le
+  prestataire** ; policy `respondToResolution` = statut `completed` ET (demandeur ou donneur d'ordre)
+  ET `transitionTo` (l'équipe clôt sous `maintenance.close`). Un autre bailleur de l'agence → 403.
+- La contestation remet `completed_at` à nul (le délai de 7 jours repart de la fin suivante), garde le
+  prestataire, range les photos dans `photos` (privée) et trace le commentaire (`activity()`).
+- `maintenance:auto-close {--days=7}` : planifiée `dailyAt('04:00')` dans `routes/console.php`,
+  clôt par `confirmResolution(…, null, auto_closed)` — un seul chemin d'écriture.
+- Exécutions : `MaintenanceResolutionConfirmationTest` + `MaintenanceAutoCloseCommandTest` → 10 verts ;
+  `MaintenanceStatusChangedEventTest` (confirm et contest ajoutés) → 16 verts.
+- Ablations : confirm/contest ouverts à tout lecteur (`return true`) → 2 rouges (prestataire, autre
+  bailleur) ; seuil à 6 jours → 1 ; contestation
+  sans remise à nul de `completed_at` → 1.

@@ -63,6 +63,24 @@ class MaintenanceRequestPolicy extends BasePolicy
     }
 
     /**
+     * TCK-592 (P10) — confirmer ou contester la réparation, sur une demande `completed` : le
+     * DEMANDEUR ou un donneur d'ordre (contrat de données). Jamais le prestataire — il ne clôt pas
+     * seul, et ne relance pas lui-même ce qu'il a déclaré fini. La matrice (acteur, cible) porte
+     * déjà les trois verdicts ; l'équipe clôt sous `maintenance.close`.
+     */
+    public function respondToResolution(User $user, MaintenanceRequest $request, MaintenanceStatus $target): bool
+    {
+        if ($request->status !== MaintenanceStatus::Completed) {
+            return false;
+        }
+
+        $isRequester = $request->requester_id !== null && $request->requester_id === $user->id;
+
+        return ($isRequester || self::isPrincipalFor($user, $request->property))
+            && $this->transitionTo($user, $request, $target);
+    }
+
+    /**
      * TCK-306 — reprise de `MaintenanceQuoteController::authorizeAgentOrOwner()` : côté
      * DONNEUR D'ORDRE seulement. Ni le demandeur, ni le prestataire assigné — c'est ce côté-là
      * qui accepte ou refuse un devis.

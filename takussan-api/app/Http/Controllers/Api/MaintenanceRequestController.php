@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
+use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
+use App\Http\Requests\Api\ContestMaintenanceResolutionRequest;
 use App\Http\Requests\Api\DeclineMaintenanceRequestRequest;
 use App\Http\Requests\Api\StoreMaintenanceRequestRequest;
 use App\Http\Requests\Api\UpdateMaintenanceRequestRequest;
@@ -247,6 +249,33 @@ class MaintenanceRequestController extends Controller
     public function decline(DeclineMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         $mr = $this->service->decline($maintenanceRequest, $request->user(), $request->validated('reason'));
+
+        return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
+    }
+
+    /**
+     * TCK-592 (P10) — le demandeur confirme : la réparation est reconnue, la demande close.
+     */
+    public function confirmResolution(ConfirmMaintenanceResolutionRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    {
+        $mr = $this->service->confirmResolution($maintenanceRequest, $request->user());
+
+        return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
+    }
+
+    /**
+     * TCK-592 (P10) — le demandeur conteste : retour `in_progress`, prestataire et donneurs d'ordre
+     * prévenus avec le commentaire.
+     */
+    public function contestResolution(ContestMaintenanceResolutionRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    {
+        $photos = $request->file('photos', []) ?? [];
+        $mr = $this->service->contestResolution(
+            $maintenanceRequest,
+            $request->user(),
+            $request->validated('comment'),
+            is_array($photos) ? $photos : [],
+        );
 
         return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
     }
