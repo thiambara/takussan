@@ -111,6 +111,7 @@
       "dashboard": "Dashboard",
       "myProperties": "My properties",
       "publishProperty": "Publish a property",
+      "proposeProperty": "Propose a property to my agency",
       "myFavorites": "My favourites",
       "savedSearches": "Saved searches",
       "myVisits": "My viewings",
@@ -1290,6 +1291,8 @@
       },
       "publish": "Publish listing",
       "resumeLater": "Resume later",
+      "proposalFinish": "Propose to my agency",
+      "proposalNotice": "Your agency will review this property before publishing it: it stays private until then.",
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
       "close": "Close",
       "loadingDraft": "Restoring your draft…",
@@ -1444,6 +1447,8 @@
       "noPayouts": "No payouts scheduled yet.",
       "chartTitle": "Cash flow and occupancy over 12 months",
       "emptyBodyFull": "Add your first property to enable bookings, leases, documents and maintenance requests.",
+      "proposalEmptyBody": "Propose your first property to your agency: it will review it, then publish it. Bookings, leases and documents will follow.",
+      "proposalEmptyCta": "Propose a property to my agency",
       "propertiesHint": "{rented} rented · {available} available",
       "expectedHint": "Expected: {amount}",
       "seeModule": "Open the module",
@@ -1525,6 +1530,7 @@
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
+      "noneAllowed": "Your role in this agency includes no export. An administrator can grant you one.",
       "entities": {
         "payments": "Payments",
         "leases": "Leases",
@@ -1672,7 +1678,8 @@
       },
       "propertyNew": {
         "metaTitle": "Publish a property",
-        "title": "Publish a property"
+        "title": "Publish a property",
+        "proposalTitle": "Propose a property to my agency"
       },
       "privacy": {
         "metaTitle": "Privacy",

@@ -158,8 +158,11 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin',
   ],
+  // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
+  // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
   owner: [
-    '/app', '/app/properties', '/app/favorites', '/app/saved-searches', '/app/bookings',
+    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
+    '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
     '/app/visits', '/app/calendar',

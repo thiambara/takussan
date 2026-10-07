@@ -101,6 +101,7 @@
       "dashboard": "Taablo",
       "myProperties": "Samay kër",
       "publishProperty": "Yebbi kër",
+      "proposeProperty": "Digle sa ajaans benn kër",
       "myFavorites": "Yi ma bëgg",
       "savedSearches": "Seet yi ñu denc",
       "myVisits": "Samay seetlu",
@@ -4517,6 +4518,8 @@
       },
       "publish": "Teg anons bi",
       "resumeLater": "Dellusiwaat ci kanam",
+      "proposalFinish": "Digle ko sa ajaans",
+      "proposalNotice": "Sa ajaans dina seet kër gii balaa koy siiwal : dina nekk ci kumpa ba loolu.",
       "missingId": "Kër gi sos na, waaye jotunu ko benn nimero. Wutal ko ci limu kër yi.",
       "close": "Tëj",
       "loadingDraft": "Ñu ngi dellusi sa brouillon…",
@@ -6795,6 +6798,8 @@
       "noPayouts": "Amul benn peymaan bu ñu tëral ba tey.",
       "chartTitle": "Xaalis ak dalal ci 12 weer",
       "emptyBodyFull": "Yokkal sa njëkk kër ngir ubbi réservasioŋ, kontaraa, dokimaa ak ñaanu wattu.",
+      "proposalEmptyBody": "Digle sa ajaans sa kër bu jëkk : dina ko seet, door koo siiwal. Ay dencukaay, ay kontraa ak ay dokimaa dinañu ci topp.",
+      "proposalEmptyCta": "Digle sa ajaans benn kër",
       "propertiesHint": "{rented} luwaa · {available} jot",
       "expectedHint": "Ñu ngi ko xaar : {amount}",
       "seeModule": "Xool modil bi",
@@ -6876,6 +6881,7 @@
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
+      "noneAllowed": "Sa rol ci ajaans bii amul benn génné. Benn yorkat mën na la ko jox.",
       "entities": {
         "payments": "Fey yi",
         "leases": "Kontaraa yi",
@@ -7023,7 +7029,8 @@
       },
       "propertyNew": {
         "metaTitle": "Génne benn kër",
-        "title": "Génne benn kër"
+        "title": "Génne benn kër",
+        "proposalTitle": "Digle sa ajaans benn kër"
       },
       "privacy": {
         "metaTitle": "Sutura",

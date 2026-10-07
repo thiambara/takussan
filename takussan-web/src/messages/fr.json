@@ -111,6 +111,7 @@
       "dashboard": "Tableau de bord",
       "myProperties": "Mes biens",
       "publishProperty": "Publier un bien",
+      "proposeProperty": "Proposer un bien à mon agence",
       "myFavorites": "Mes favoris",
       "savedSearches": "Recherches sauvegardées",
       "myVisits": "Mes visites",
@@ -1265,6 +1266,8 @@
       },
       "publish": "Publier l’annonce",
       "resumeLater": "Reprendre plus tard",
+      "proposalFinish": "Proposer à mon agence",
+      "proposalNotice": "Votre agence relira ce bien avant de le publier : il reste privé jusque-là.",
       "missingId": "Le bien a été créé, mais son identifiant n’a pas été renvoyé. Retrouvez-le dans la liste de vos biens.",
       "close": "Fermer",
       "loadingDraft": "Reprise de votre brouillon…",
@@ -1419,6 +1422,8 @@
       "noPayouts": "Aucun reversement programmé pour l'instant.",
       "chartTitle": "Cashflow et occupation sur 12 mois",
       "emptyBodyFull": "Ajoutez votre premier bien pour activer les réservations, baux, documents et demandes de maintenance.",
+      "proposalEmptyBody": "Proposez votre premier bien à votre agence : elle le relira, puis le publiera. Les réservations, baux et documents suivront.",
+      "proposalEmptyCta": "Proposer un bien à mon agence",
       "propertiesHint": "{rented} loués · {available} dispo.",
       "expectedHint": "Attendu : {amount}",
       "seeModule": "Voir le module",
@@ -1500,6 +1505,7 @@
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
+      "noneAllowed": "Votre rôle dans cette agence ne comporte aucun export. Un administrateur peut vous l'accorder.",
       "entities": {
         "payments": "Paiements",
         "leases": "Baux",
@@ -1647,7 +1653,8 @@
       },
       "propertyNew": {
         "metaTitle": "Publier un bien",
-        "title": "Publier un bien"
+        "title": "Publier un bien",
+        "proposalTitle": "Proposer un bien à mon agence"
       },
       "privacy": {
         "metaTitle": "Confidentialité",
