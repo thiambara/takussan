@@ -19,12 +19,17 @@ import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useToast } from '@/components/ui/toast';
 import { checkoutEnCours, type CheckoutEnCours } from '@/components/payments/checkout-en-cours';
+import { useAuth } from '@/context/AuthContext';
+import { useMyProfiles } from '@/hooks/useProfiles';
 import { PasserOutreDialog } from './PasserOutreDialog';
+import { peutPasserOutreAuCheckout } from './passer-outre';
 
 interface LeaseScheduleProps {
   readonly leaseId: number;
   /** Agency owning the lease — drives which gateway providers are available. */
   readonly agencyId?: number | null;
+  /** TCK-593 (passe 3, m3) — sur un bail sans agence, c'est son bailleur qui passe outre. */
+  readonly landlordId?: number | null;
   /**
    * TCK-593 — le lecteur gère le bail (agent, admin d'agence, propriétaire) : il peut constater
    * qu'une pénalité a été réglée à l'agence. Le locataire ne le peut pas (403 côté API).
@@ -55,17 +60,27 @@ function displayStatus(p: LeasePayment): 'paid' | 'late' | 'pending' | 'other' {
  * Chaque échéance est une ligne qui se replie en carte sur téléphone et s'aligne en colonnes à
  * partir de `lg` ; le conteneur ne défile plus du tout.
  */
-export function LeaseSchedule({ leaseId, agencyId, canManage = false }: LeaseScheduleProps) {
+export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false }: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.schedule');
   const tScheduleStatus = useTranslations('lease.schedule.status');
   const tCommon = useTranslations('common');
+  const tGateway = useTranslations('payments.gateway');
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const paymentsQuery = useLeasePayments(leaseId);
   const { data, isLoading, isError } = paymentsQuery;
   const { providers } = usePaymentProviders(agencyId ?? null);
   const markLateFeePaid = useMarkLateFeePaid(leaseId);
+  const { user } = useAuth();
+  const { data: mesProfils } = useMyProfiles();
+  // Passe 3 (m3) — l'offre de passer outre suit la règle de l'API : un bailleur d'agence gère le
+  // bail (`canManage`) mais n'y a pas droit, et saisissait un motif pour un 403.
+  const peutPasserOutre = peutPasserOutreAuCheckout(
+    { agencyId: agencyId ?? null, landlordId: landlordId ?? null },
+    user?.id,
+    mesProfils?.data ?? [],
+  );
   // Passe 2 (M5) — l'échéance dont un checkout en ligne bloque l'enregistrement de la pénalité.
   const [bloquee, setBloquee] = useState<{
     paymentId: number;
@@ -106,13 +121,22 @@ export function LeaseSchedule({ leaseId, agencyId, canManage = false }: LeaseSch
       setBloquee(null);
       toast.add({ title: t('lateFee.markedPaid'), type: 'success' });
     } catch (err) {
-      // Un checkout en ligne vit : on propose de passer outre au lieu d'un refus nu.
+      // Un checkout en ligne vit : à qui le peut, on propose de passer outre au lieu d'un refus
+      // nu ; aux autres, on dit lequel et jusqu'à quand (passe 3, m3).
       const enCours = motifPassageOutre === undefined ? checkoutEnCours(err) : null;
-      if (enCours) {
+      if (enCours && peutPasserOutre) {
         setBloquee({ paymentId, checkout: enCours });
         return;
       }
-      toast.add({ title: messageErreur(err, t('lateFee.markFailed')), type: 'error' });
+      toast.add({
+        title: enCours
+          ? tGateway('error.checkoutInProgress', {
+              amount: formatCurrency(enCours.montant, locale, { currency: enCours.devise }),
+              time: formatDate(enCours.reessayerApres, locale, { dateStyle: undefined, timeStyle: 'short' }),
+            })
+          : messageErreur(err, t('lateFee.markFailed')),
+        type: 'error',
+      });
     }
   }
 

@@ -296,6 +296,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
         <LeaseSchedule
           leaseId={leaseId}
           agencyId={lease.agency_id ?? null}
+          landlordId={lease.landlord_id}
           canManage={isAgentSurface}
         />
       </section>

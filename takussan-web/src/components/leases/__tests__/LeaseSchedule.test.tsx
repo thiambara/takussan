@@ -52,13 +52,23 @@ vi.mock('@/hooks/useInitiatePayment', async (importOriginal) => ({
   useInitiatePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+const toastAdd = vi.fn();
 vi.mock('@/components/ui/toast', () => ({
-  useToast: () => ({ add: vi.fn() }),
+  useToast: () => ({ add: toastAdd }),
 }));
 
+/** Le lecteur : l'utilisateur 50, et ses profils (passe 3, m3 — qui peut passer outre). */
+let profils: { type: string; agency_id: number | null; status: string | null }[] = [];
+
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ token: 'jeton' }),
+  useAuth: () => ({ token: 'jeton', user: { id: 50 } }),
 }));
+
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: { data: profils } }),
+}));
+
+const AGENT_DE_L_AGENCE = { type: 'agent', agency_id: 1, status: 'active' };
 
 /** Espaces fines et insécables d'`Intl` ramenées à l'espace simple. */
 const texte = (s: string | null | undefined) => (s ?? '').replace(/[  ]/g, ' ');
@@ -124,8 +134,20 @@ function avecEcheances(echeances: LeasePayment[]) {
   });
 }
 
-function rendre(canManage = false) {
-  return render(withIntl(<LeaseSchedule leaseId={1} agencyId={1} canManage={canManage} />));
+function rendre(canManage = false, bail: { agencyId?: number | null; landlordId?: number } = {}) {
+  const { agencyId = 1, landlordId = 7 } = bail;
+  return render(
+    withIntl(<LeaseSchedule leaseId={1} agencyId={agencyId} landlordId={landlordId} canManage={canManage} />),
+  );
+}
+
+/** Le 409 que l'API rend tant qu'un checkout incluant la pénalité vit. */
+function refusCheckoutEnCours() {
+  return new ApiError(409, {
+    message: 'Un paiement en ligne est en cours sur cette échéance.',
+    code: 'checkout_in_progress',
+    checkout: { amount: 157500, currency: 'XOF', retry_after: '2026-10-07T10:30:00+00:00' },
+  });
 }
 
 function ligne(reference: RegExp) {
@@ -134,6 +156,7 @@ function ligne(reference: RegExp) {
 
 beforeEach(() => {
   refusSansPassageOutre = null;
+  profils = [AGENT_DE_L_AGENCE];
   vi.clearAllMocks();
   providers.mockReturnValue([]);
   avecEcheances([PAYEE]);
@@ -254,6 +277,52 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
       }),
     );
     refusSansPassageOutre = null;
+  });
+
+  it('qui ne peut pas passer outre lit le 409, sans offre de passer outre (passe 3, m3)', async () => {
+    const lecteurs: [string, typeof profils][] = [
+      ['le bailleur du bail d’agence', [{ type: 'owner', agency_id: 1, status: 'active' }]],
+      ['l’agent d’une autre agence', [{ type: 'agent', agency_id: 2, status: 'active' }]],
+      ['l’agent suspendu', [{ type: 'agent', agency_id: 1, status: 'suspended' }]],
+    ];
+    for (const [qui, ses] of lecteurs) {
+      profils = ses;
+      toastAdd.mockClear();
+      avecEcheances([enRetard()]);
+      refusSansPassageOutre = refusCheckoutEnCours();
+      // Le bailleur du bail (50) — c'est un bail D'AGENCE : il n'y passe pas outre.
+      const { unmount } = rendre(true, { landlordId: 50 });
+
+      fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+      await waitFor(() => expect(toastAdd, qui).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('dialog'), qui).toBeNull();
+      const { title, type } = toastAdd.mock.calls[0][0] as { title: string; type: string };
+      expect(type).toBe('error');
+      expect(texte(title), qui).toMatch(/^Un paiement en ligne de 157 500 F CFA est déjà en cours/);
+      unmount();
+    }
+  });
+
+  it('sur un bail sans agence, son bailleur se voit offrir de passer outre (passe 3, m2)', async () => {
+    profils = [];
+    avecEcheances([enRetard()]);
+    refusSansPassageOutre = refusCheckoutEnCours();
+    rendre(true, { agencyId: null, landlordId: 50 });
+
+    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(toastAdd).not.toHaveBeenCalled();
+  });
+
+  it('sur un bail sans agence, un autre que son bailleur lit le 409 (passe 3, m3)', async () => {
+    profils = [AGENT_DE_L_AGENCE];
+    avecEcheances([enRetard()]);
+    refusSansPassageOutre = refusCheckoutEnCours();
+    rendre(true, { agencyId: null, landlordId: 7 });
+
+    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('pas de « Pénalité réglée » pour le locataire', () => {
