@@ -11,6 +11,7 @@ use App\Models\Enums\TaskStatus;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Agency\AgentAvailability;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
@@ -24,9 +25,16 @@ class TaskController extends Controller
         $base = Task::query()->with(['assignee', 'creator', 'taskable']);
 
         if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
+            $covered = app(AgentAvailability::class)->coveredBy($user);
+            $base->where(function ($q) use ($user, $covered) {
                 $q->where('assigned_to_id', $user->id)
                     ->orWhere('created_by_id', $user->id);
+                // TCK-591 (ADR-0035) — pendant une absence, le remplaçant voit les tâches de
+                // l'absent rattachées à l'agence de l'absence.
+                foreach ($covered as $absence) {
+                    $q->orWhere(fn ($c) => $c->where('assigned_to_id', $absence['absent_id'])
+                        ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($t) => $t->where('agency_id', $absence['agency_id'])));
+                }
             });
         }
 
@@ -53,6 +61,7 @@ class TaskController extends Controller
         // task can't be pushed into another tenant's task list.
         if (! empty($data['assigned_to_id'])) {
             $this->authorizeAssignee($user, (int) $data['assigned_to_id'], $parent);
+            $data['assigned_to_id'] = $this->routeToSubstitute($user, (int) $data['assigned_to_id'], $parent);
         }
 
         $task = Task::create(array_merge($data, [
@@ -94,6 +103,24 @@ class TaskController extends Controller
         }
     }
 
+    /**
+     * TCK-591 (ADR-0035) — une tâche confiée à un agent absent part chez son remplaçant, le temps
+     * de l'absence. Se l'assigner à soi-même n'est pas routé : qui agit est présent.
+     */
+    private function routeToSubstitute(User $user, int $assigneeId, ?Model $parent): int
+    {
+        $agencyId = $parent?->getAttribute('agency_id');
+        if ($assigneeId === $user->id || $agencyId === null) {
+            return $assigneeId;
+        }
+
+        $assignee = User::find($assigneeId);
+
+        return $assignee === null
+            ? $assigneeId
+            : app(AgentAvailability::class)->substituteFor($assignee, (int) $agencyId)->id;
+    }
+
     public function show(Request $request, Task $task): JsonResponse
     {
         $this->authorize('view', $task);
@@ -111,6 +138,7 @@ class TaskController extends Controller
             && $data['assigned_to_id'] !== null
             && (int) $data['assigned_to_id'] !== $task->assigned_to_id) {
             $this->authorizeAssignee($request->user(), (int) $data['assigned_to_id'], $task->taskable);
+            $data['assigned_to_id'] = $this->routeToSubstitute($request->user(), (int) $data['assigned_to_id'], $task->taskable);
         }
 
         if (isset($data['status']) && TaskStatus::from($data['status']) === TaskStatus::Done && $task->completed_at === null) {

@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Agency\AgentAvailability;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -30,7 +31,22 @@ class TaskPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || $model->created_by_id === $user->id
-            || $model->assigned_to_id === $user->id;
+            || $model->assigned_to_id === $user->id
+            || $this->coversAssignee($user, $model);
+    }
+
+    /**
+     * TCK-591 (ADR-0035) — pendant une absence active, le remplaçant lit et met à jour (coche) les
+     * tâches assignées à l'absent dans l'agence de l'absence. Jamais la suppression : `delete` ne
+     * passe pas par ici.
+     */
+    private function coversAssignee(User $user, Task $task): bool
+    {
+        $agencyId = $task->taskable?->getAttribute('agency_id');
+
+        return $task->assigned_to_id !== null
+            && $agencyId !== null
+            && app(AgentAvailability::class)->covers($user, (int) $task->assigned_to_id, (int) $agencyId);
     }
 
     /** `TaskController` employait la même règle pour lire et pour écrire. */

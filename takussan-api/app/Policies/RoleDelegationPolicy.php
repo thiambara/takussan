@@ -93,4 +93,40 @@ class RoleDelegationPolicy
     {
         return $this->viewAny($user, $delegation->agency);
     }
+
+    /**
+     * TCK-591 (ADR-0035) — voir les absences de l'agence : tout son personnel (savoir qui couvre
+     * qui est une information de travail, pas d'administration).
+     *
+     * TCK-587 — prédicat « personnel de l'agence » ; `isStaffAt()` à sa fusion.
+     */
+    public function viewAbsences(User $user, Agency $agency): bool
+    {
+        return $user->isAgentAt((int) $agency->id) || $user->isAgencyAdminAt((int) $agency->id);
+    }
+
+    /**
+     * TCK-591 (ADR-0035) — déclarer une absence : le titulaire de `team.delegate_role` (ou
+     * l'administrateur principal) pour n'importe quel membre, ou l'agent lui-même pour la sienne.
+     */
+    public function declareAbsence(User $user, Agency $agency, int $absentId): bool
+    {
+        if (! $this->viewAbsences($user, $agency)) {
+            return false;
+        }
+
+        return $absentId === $user->id || $this->viewAny($user, $agency);
+    }
+
+    /** TCK-591 (ADR-0035) — révoquer une absence : les mêmes, plus celui qui l'a déclarée. */
+    public function revokeAbsence(User $user, RoleDelegation $absence): bool
+    {
+        if (! $absence->isAbsence() || ! $this->viewAbsences($user, $absence->agency)) {
+            return false;
+        }
+
+        return $absence->replaces_user_id === $user->id
+            || $absence->delegator_id === $user->id
+            || $this->viewAny($user, $absence->agency);
+    }
 }
