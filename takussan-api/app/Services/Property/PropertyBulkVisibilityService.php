@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * TCK-591 §7 — dépublier un lot de biens, sur le modèle de {@see PropertyBulkArchiveService}.
  *
- *  - chaque ligne passe par la MÊME autorisation que l'endpoint unitaire (`update` de
- *    `PropertyPolicy`) ; un refus ne touche pas la base ;
+ *  - chaque ligne passe par la MÊME autorisation que l'endpoint unitaire `PUT …/visibility`
+ *    (`publish` de `PropertyPolicy`, TCK-587) ; un refus ne touche pas la base ;
  *  - la transaction ne couvre que le sous-ensemble autorisé : une exception au milieu annule tout ;
  *  - les motifs sont des CODES : `not_found | forbidden | unchanged`.
  */
@@ -32,7 +32,7 @@ class PropertyBulkVisibilityService
             $property = $properties->get($id);
             $reason = match (true) {
                 $property === null => 'not_found',
-                ! $actor->can('update', $property) => 'forbidden',
+                ! $actor->can('publish', $property) => 'forbidden',
                 $property->visibility === $visibility => 'unchanged',
                 default => null,
             };

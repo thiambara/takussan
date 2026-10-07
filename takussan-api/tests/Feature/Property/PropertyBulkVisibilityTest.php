@@ -65,6 +65,31 @@ class PropertyBulkVisibilityTest extends ApiTestCase
         $this->assertSame('public', Property::query()->find($this->foreignId)->visibility->value);
     }
 
+    /**
+     * TCK-587 — changer la visibilité est un geste `publish` : un bailleur l'est refusé sur son
+     * propre bien par `PUT …/visibility`, il l'est donc aussi en lot.
+     */
+    public function test_a_landlord_cannot_unpublish_his_own_property_in_bulk(): void
+    {
+        $agency = Property::query()->find($this->publicIds[0])->agency_id;
+        $landlord = User::factory()->create();
+        $this->materializeRoleProfile($landlord, 'owner', Agency::query()->find($agency));
+        $own = Property::factory()->create([
+            'agency_id' => $agency,
+            'user_id' => $landlord->id,
+            'visibility' => PropertyVisibility::Public,
+        ]);
+
+        $this->actingAsApi($landlord)->apiPut("/api/properties/{$own->id}/visibility", ['visibility' => 'private'])
+            ->assertForbidden();
+        $this->actingAsApi($landlord)->apiPost('/api/properties/bulk-visibility', [
+            'property_ids' => [$own->id],
+            'visibility' => 'private',
+        ])->assertOk()->assertJsonPath('updated', 0)->assertJsonPath('failed.0.reason', 'forbidden');
+
+        $this->assertSame('public', $own->fresh()->visibility->value);
+    }
+
     public function test_publishing_in_bulk_is_refused(): void
     {
         $this->actingAsApi($this->agent)->apiPost('/api/properties/bulk-visibility', [
