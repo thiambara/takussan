@@ -621,4 +621,26 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         }
         $reponse->assertJsonPath('sms_sent', false)->assertJsonPath('sms_code', VisitNotifier::CODE_SMS_RETENU);
     }
+
+    /**
+     * Passe 3 (R2) — le contrat que lit la fiche bien du tableau de bord (`agenceDuBien`) :
+     * demander la colonne `agency_id` ne la fait pas paraître (la ressource n'a pas cette clé),
+     * mais la route de détail rend le bloc `agency`, avec son id. C'est lui que lit le front.
+     */
+    public function test_r2_la_fiche_bien_rend_l_agence_par_son_bloc_agency(): void
+    {
+        $bien = $this->bienDe($this->x);
+        Sanctum::actingAs($this->personnel($this->x));
+
+        $reponse = $this->getJson("/api/properties/{$bien->id}?fields[properties]=id,title,agency_id,description")
+            ->assertOk()
+            ->assertJsonPath('data.agency.id', $this->x->id);
+        $this->assertArrayNotHasKey('agency_id', $reponse->json('data'));
+
+        $particulier = $this->client();
+        $sansAgence = $this->bienDe(null, $particulier);
+        Sanctum::actingAs($particulier);
+        $this->getJson("/api/properties/{$sansAgence->id}?fields[properties]=id,title,agency_id")
+            ->assertOk()->assertJsonPath('data.agency', null);
+    }
 }
