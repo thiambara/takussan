@@ -556,6 +556,26 @@ tests et ablations dans les Notes, section « Corrections après vérification a
 - [x] **Vue client** — pénalité rappelée sur les loyers payés de l'historique, `partially_paid`
       parmi les dus (7a8782ba).
 
+### Partie 7 — Corrections après la passe 2 de vérification adverse (ajoutée le 2026-10-07)
+
+Cases ajoutées après la passe 2 (refus : 1 majeur, 5 mineurs). Détail, tests et ablations dans les
+Notes, section « Corrections après la passe 2 ».
+
+- [x] **N1** — seul l'échec du checkout courant le ferme ; celui d'un checkout de l'historique est
+      tracé sur son entrée (4a43b551).
+- [x] **N2** — un checkout ouvert n'est rendu que si son montant figé égale `amountDue()` ; sinon
+      409 `checkout_in_progress` avec le checkout en cours, affiché par le sélecteur (a3da4e41).
+- [x] **N4** — un règlement antérieur à `settled_by` n'est pas son propre doublon ; les règlements
+      manuels posent `settled_by = manual` (354cd64f).
+- [x] **N5** — mapping CSV : séparateurs jugés blanc compris, en comparaison stricte ; noms de
+      colonnes et format de date rognés (fbc3bbfc).
+- [x] **N7** — garde de statut éprouvée sur un loyer remboursé à pénalité due ; note AC8 corrigée
+      (f4f39fef).
+- [x] **M5** — le personnel passe outre à un checkout ouvert, motif obligatoire, geste journalisé ;
+      dialogue au front (9f9970ea).
+- [x] **Observation retenue** — une pénalité réglée à l'agence puis encaissée en ligne est marquée
+      en double et signalée (333505da).
+
 ## Critères d'acceptation
 
 - [x] **AC1** — Connecté comme locataire du bail, « Télécharger le contrat » produit un fichier PDF non
@@ -695,6 +715,29 @@ tests et ablations dans les Notes, section « Corrections après vérification a
       `PaymentGatewayInitiateTest::test_initiation_refusee_sur_une_echeance_deja_payee`,
       `BankCsvMappingTest::test_une_agence_sans_mapping_fige_le_defaut_effectif`,
       `rapprochement.test.tsx`, `CustomerPayments.test.tsx`.*
+
+- [x] **AC27 (ajouté après la passe 2, N1/N2)** — l'échec d'un ancien checkout ne ferme pas le
+      checkout courant (2 appels au pilote, pas 3) ; un checkout ouvert à un autre montant que
+      `amount_due` n'est pas rendu, le 409 porte son montant et l'heure de reprise, et l'écran les
+      affiche.
+      *Vérifié : `PaymentCheckoutReuseTest::test_l_echec_d_un_ancien_checkout_ne_ferme_pas_le_checkout_courant`,
+      `…::test_un_checkout_a_un_autre_montant_n_est_pas_rendu`, `PaymentProviderPicker.test.tsx` ;
+      rouges sous ablation.*
+- [x] **AC28 (ajouté après la passe 2, N4 et observation)** — le webhook d'un règlement antérieur à
+      `settled_by` n'est pas un doublon, celui d'un checkout réglé à la main l'est ; une pénalité
+      réglée à l'agence puis encaissée en ligne est marquée en double (`kind: late_fee`) et signalée.
+      *Vérifié : `PaymentCheckoutReuseTest` (2 tests), `InvoiceTest::test_une_facture_reglee_a_la_main_garde_le_checkout_paye_pour_doublon` ;
+      rouges sous ablation.*
+- [x] **AC29 (ajouté après la passe 2, N5/N7)** — un délimiteur vide, espace ou hors liste est
+      refusé, les noms de colonnes sont rognés ; une échéance de loyer remboursée à pénalité due
+      n'ouvre aucun checkout.
+      *Vérifié : `BankCsvMappingTest` (2 tests), `PaymentGatewayInitiateTest::test_initiation_refusee_sur_une_echeance_deja_payee` ;
+      rouges sous ablation.*
+- [x] **AC30 (ajouté après la passe 2, M5)** — le personnel de l'agence enregistre un règlement
+      malgré un checkout ouvert, motif obligatoire et geste journalisé ; le checkout payé ensuite est
+      un doublon signalé ; ni le locataire ni le bailleur ne passent outre ; l'échéancier le propose
+      au 409 avec confirmation et motif.
+      *Vérifié : `PaymentCheckoutOverrideTest` (3), `LeaseSchedule.test.tsx` ; rouges sous ablation.*
 
 ## Hors périmètre
 
@@ -1108,3 +1151,7 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   `PaymentCheckoutReuseTest::test_une_penalite_reglee_entre_temps_a_l_agence_est_marquee_en_double`
   (avec le témoin : pénalité non réglée, soldée sans doublon). Ablations : retour au `??=` → rouge ;
   part de pénalité non figée → rouge ; corps de notification générique → rouge.
+- **Repro du vérificateur rejouée** (`Pass2AdversarialTest`, copiée puis retirée) : 10 verts, 1
+  rouge attendu — N2 supposait le checkout rendu (`assertOk`) ; il est désormais refusé en 409,
+  c'est le correctif. Mesures : `[N1] driver_calls=2 third_txn=spy_txn_2`, `[N4] dup=null`,
+  `[N5] delimiter_vide=422 delimiter_espace=422`, `[N7] http=409 cents=[]`.
