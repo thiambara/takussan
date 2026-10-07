@@ -186,7 +186,10 @@ class TaskController extends Controller
      * rattachement (`TaskPolicy::attachTo`) : l'assigné d'une tâche ne lit pas, par elle, le nom
      * d'un client qu'il ne verrait pas autrement.
      *
-     * @return array{type: string, id: int, label: ?string}|null
+     * Le téléphone d'un client suit la même règle que son nom : la page « Mes tâches » en tire
+     * « Appeler » et « WhatsApp ».
+     *
+     * @return array{type: string, id: int, label: ?string, phone: ?string}|null
      */
     private function taskable(Task $task, User $viewer): ?array
     {
@@ -201,13 +204,15 @@ class TaskController extends Controller
 
         $parent = $task->taskable;
         $label = null;
+        $phone = null;
         if ($parent !== null && $viewer->can('attachTo', [Task::class, $parent])) {
             $label = $parent instanceof Customer
                 ? $parent->getFullNameAttribute()
                 : (string) $parent->getAttribute('title');
+            $phone = $parent instanceof Customer ? $parent->phone : null;
         }
 
-        return ['type' => $type, 'id' => (int) $task->taskable_id, 'label' => $label];
+        return ['type' => $type, 'id' => (int) $task->taskable_id, 'label' => $label, 'phone' => $phone];
     }
 
     private function whenLoaded(Task $task, string $relation, callable $fn): mixed

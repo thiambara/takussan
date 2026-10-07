@@ -2,6 +2,9 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
   AgencyStaffMember,
+  AgentTask,
+  TaskDue,
+  TaskableOption,
   AgentAbsence,
   BulkResult,
   CalendarFeedState,
@@ -25,6 +28,7 @@ export const AGENT_CRM_QUERY_KEY = {
   matchingProperties: (customerId: number) => ['agent-crm', 'customer', customerId, 'matching-properties'] as const,
   matchingCustomers: (propertyId: number) => ['agent-crm', 'property', propertyId, 'matching-customers'] as const,
   tasks: (due: string) => ['agent-crm', 'tasks', due] as const,
+  taskables: (type: string, search: string) => ['agent-crm', 'taskables', type, search] as const,
   calendarFeed: () => ['agent-crm', 'calendar-feed'] as const,
   portfolio: (agencyId: number, userId: number) => ['agent-crm', 'agency', agencyId, 'portfolio', userId] as const,
   absences: (agencyId: number) => ['agent-crm', 'agency', agencyId, 'absences'] as const,
@@ -237,4 +241,79 @@ export async function declareAbsence(
 
 export async function revokeAbsence(token: string, agencyId: number, absenceId: number): Promise<void> {
   await apiRequest<unknown>(`/api/agencies/${agencyId}/absences/${absenceId}`, { method: 'DELETE', token });
+}
+
+/**
+ * Les filtres d'échéance de « Mes tâches ». Ici et non dans le composant client : la page serveur
+ * les lit aussi, et une valeur importée d'un module `'use client'` n'y est qu'une référence.
+ */
+export const TASK_DUE_FILTERS: readonly TaskDue[] = ['overdue', 'today', 'upcoming', 'none'];
+
+/**
+ * TCK-591 §3 — « Mes tâches » : les tâches que je porte ou que j'ai créées (plus celles d'un
+ * collègue que je remplace), filtrées par échéance CÔTÉ SERVEUR (`filter[due]`, fuseau de Dakar).
+ */
+export async function fetchMyTasks(
+  token: string,
+  due: TaskDue | null,
+  page = 1,
+): Promise<PaginatedResponse<AgentTask>> {
+  const qs = buildQueryString({
+    ...(due ? { filter: { due } } : {}),
+    sort: due === 'overdue' || due === 'today' || due === 'upcoming' ? 'due_at' : '-created_at',
+    page,
+    per_page: 30,
+  });
+  return apiRequest<PaginatedResponse<AgentTask>>(`/api/tasks?${qs}`, { token });
+}
+
+/** Le modèle Laravel attendu par `StoreTaskRequest::TASKABLE_TYPES`. */
+const TASKABLE_CLASS = { customer: 'App\\Models\\Customer', property: 'App\\Models\\Property' } as const;
+
+export async function createTask(
+  token: string,
+  payload: { title: string; due_at?: string; taskable: { type: 'customer' | 'property'; id: number } },
+): Promise<AgentTask> {
+  const res = await apiRequest<ApiResponse<AgentTask>>('/api/tasks', {
+    method: 'POST',
+    body: {
+      title: payload.title,
+      ...(payload.due_at ? { due_at: payload.due_at } : {}),
+      taskable_type: TASKABLE_CLASS[payload.taskable.type],
+      taskable_id: payload.taskable.id,
+    },
+    token,
+  });
+  return res.data;
+}
+
+export async function setTaskDone(token: string, taskId: number, done: boolean): Promise<void> {
+  await apiRequest<unknown>(`/api/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: { status: done ? 'done' : 'open' },
+    token,
+  });
+}
+
+/** Recherche d'un client ou d'un bien à qui rattacher une tâche (huit résultats, colonnes minimales). */
+export async function searchTaskables(
+  token: string,
+  type: 'customer' | 'property',
+  search: string,
+): Promise<TaskableOption[]> {
+  if (type === 'customer') {
+    const qs = buildQueryString({
+      filter: { search },
+      fields: { customers: ['id', 'first_name', 'last_name'] },
+      per_page: 8,
+    });
+    const res = await apiRequest<PaginatedResponse<{ id: number; first_name: string; last_name: string }>>(
+      `/api/customers?${qs}`,
+      { token },
+    );
+    return res.data.map((c) => ({ id: c.id, label: `${c.first_name} ${c.last_name}` }));
+  }
+  const qs = buildQueryString({ filter: { search }, fields: { properties: ['id', 'title'] }, per_page: 8 });
+  const res = await apiRequest<PaginatedResponse<{ id: number; title: string }>>(`/api/properties?${qs}`, { token });
+  return res.data.map((p) => ({ id: p.id, label: p.title }));
 }

@@ -2470,6 +2470,52 @@
         "endNone": "{name} reposé à sa place.",
         "cancel": "Déplacement de {name} annulé."
       }
+    },
+    "myTasks": {
+      "metaTitle": "Mes tâches",
+      "title": "Mes tâches",
+      "description": "Ce que vous avez à faire, client par client et bien par bien.",
+      "filterLabel": "Échéance",
+      "filter": {
+        "all": "Toutes",
+        "overdue": "En retard",
+        "today": "Aujourd'hui",
+        "upcoming": "À venir",
+        "none": "Sans échéance"
+      },
+      "empty": {
+        "all": "Aucune tâche.",
+        "overdue": "Aucune tâche en retard.",
+        "today": "Rien de prévu aujourd'hui.",
+        "upcoming": "Aucune tâche à venir.",
+        "none": "Aucune tâche sans échéance."
+      },
+      "loadFailed": "Vos tâches n'ont pas pu être chargées.",
+      "retry": "Réessayer",
+      "loadMore": "Voir plus",
+      "toggle": "Marquer « {title} » comme faite",
+      "toggleFailed": "La tâche n'a pas pu être mise à jour.",
+      "noDue": "Sans échéance",
+      "hidden": {
+        "customer": "Un client",
+        "property": "Un bien"
+      },
+      "create": {
+        "title": "Nouvelle tâche",
+        "taskTitle": "Que faut-il faire ?",
+        "attachTo": "Rattacher à",
+        "type": {
+          "customer": "Un client",
+          "property": "Un bien"
+        },
+        "search": {
+          "customer": "Chercher un client par son nom",
+          "property": "Chercher un bien par son titre"
+        },
+        "change": "Changer",
+        "submit": "Créer la tâche",
+        "failed": "La tâche n'a pas pu être créée."
+      }
     }
   },
   "account": {

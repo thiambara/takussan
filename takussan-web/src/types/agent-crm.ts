@@ -101,6 +101,25 @@ export interface CustomerLinkedRecord {
   property: { id: number; title: string } | null;
 }
 
+/** TCK-591 §3 — une tâche de « Mes tâches », avec ce à quoi elle se rattache, en clair. */
+export interface AgentTask {
+  id: number;
+  title: string;
+  status: 'open' | 'in_progress' | 'done' | 'cancelled';
+  priority: 'low' | 'medium' | 'high';
+  due_at: string | null;
+  /** `label` et `phone` sont `null` pour qui ne passe pas le contrôle de rattachement. */
+  taskable: { type: 'customer' | 'property'; id: number; label: string | null; phone: string | null } | null;
+  assignee: { id: number; name: string } | null;
+}
+
+export type TaskDue = 'overdue' | 'today' | 'upcoming' | 'none';
+
+export interface TaskableOption {
+  id: number;
+  label: string;
+}
+
 export interface AgencyStaffMember {
   id: number;
   name: string;

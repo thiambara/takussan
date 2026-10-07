@@ -1121,6 +1121,52 @@
         "endNone": "{name} delloo nañu ko ci béreb bi.",
         "cancel": "Randalug {name} bàyyi nañu ko."
       }
+    },
+    "myTasks": {
+      "metaTitle": "Samay liggéey",
+      "title": "Samay liggéey",
+      "description": "Li nga war a def, kiliyaan ak kiliyaan, kër ak kër.",
+      "filterLabel": "Àpp",
+      "filter": {
+        "all": "Yépp",
+        "overdue": "Yi yéex",
+        "today": "Tey",
+        "upcoming": "Yi di ñëw",
+        "none": "Yi amul àpp"
+      },
+      "empty": {
+        "all": "Amul benn liggéey.",
+        "overdue": "Amul liggéey bu yéex.",
+        "today": "Amul dara tey.",
+        "upcoming": "Amul liggéey bu di ñëw.",
+        "none": "Amul liggéey bu amul àpp."
+      },
+      "loadFailed": "Sa liggéey yi yebuwuñu.",
+      "retry": "Jéemaat",
+      "loadMore": "Gis yeneen",
+      "toggle": "Bind ne « {title} » jeex na",
+      "toggleFailed": "Liggéey bi soppiwul.",
+      "noDue": "Amul àpp",
+      "hidden": {
+        "customer": "Ab kiliyaan",
+        "property": "Ab kër"
+      },
+      "create": {
+        "title": "Liggéey bu bees",
+        "taskTitle": "Lan mooy war a def ?",
+        "attachTo": "Takk ko ak",
+        "type": {
+          "customer": "Ab kiliyaan",
+          "property": "Ab kër"
+        },
+        "search": {
+          "customer": "Seet ab kiliyaan ci turam",
+          "property": "Seet ab kër ci turam"
+        },
+        "change": "Soppi",
+        "submit": "Sos liggéey bi",
+        "failed": "Liggéey bi sosuwul."
+      }
     }
   },
   "account": {

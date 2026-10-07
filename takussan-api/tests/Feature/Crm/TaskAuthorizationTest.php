@@ -162,8 +162,14 @@ class TaskAuthorizationTest extends ApiTestCase
         $rows = collect($this->actingAsApi($this->agent)->apiGet('/api/tasks')->assertOk()->json('data'))
             ->keyBy(fn ($row) => $row['taskable']['type']);
 
-        $this->assertSame(['type' => 'customer', 'id' => $customer->id, 'label' => 'Awa Diop'], $rows['customer']['taskable']);
-        $this->assertSame(['type' => 'property', 'id' => $property->id, 'label' => 'Villa des Almadies'], $rows['property']['taskable']);
+        $this->assertSame(
+            ['type' => 'customer', 'id' => $customer->id, 'label' => 'Awa Diop', 'phone' => $customer->phone],
+            $rows['customer']['taskable'],
+        );
+        $this->assertSame(
+            ['type' => 'property', 'id' => $property->id, 'label' => 'Villa des Almadies', 'phone' => null],
+            $rows['property']['taskable'],
+        );
     }
 
     public function test_an_assignee_outside_the_parent_scope_does_not_read_the_label(): void
@@ -179,7 +185,8 @@ class TaskAuthorizationTest extends ApiTestCase
         $this->actingAsApi($landlord)->apiGet("/api/tasks/{$task->id}")
             ->assertOk()
             ->assertJsonPath('data.taskable.type', 'customer')
-            ->assertJsonPath('data.taskable.label', null);
+            ->assertJsonPath('data.taskable.label', null)
+            ->assertJsonPath('data.taskable.phone', null);
     }
 
     public function test_the_assignee_refusal_is_translated(): void
