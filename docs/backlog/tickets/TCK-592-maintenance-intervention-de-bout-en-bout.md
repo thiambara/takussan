@@ -1014,3 +1014,10 @@ corrigent rien.
   - sans retrait : 1 rouge ;
   - jamais après acceptation : 1 rouge.
 - Le front type déjà `email?` comme facultatif.
+
+**Mineur 9d — front, le bloc d'assignation.**
+
+- `MaintenanceDetail.test.tsx` gagne « prestataire : aucun bloc d'assignation, aucun
+  « Enregistrer » ».
+- Ablation F1 (`can_assign` → `true`) : 2 rouges, dont ce test. Avant, seul un test de libellés
+  rougissait, par effet de bord.

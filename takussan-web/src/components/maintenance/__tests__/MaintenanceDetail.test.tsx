@@ -224,6 +224,24 @@ describe('<MaintenanceDetail>', () => {
       expect(new Date(payload.scheduled_at).toISOString()).toBe('2026-05-08T09:00:00.000Z');
     });
 
+    // verif-592, mineur 9 (F1) — sans `can_assign`, pas de bloc d'assignation : seul un test de
+    // libellés rougissait par effet de bord quand on le forçait.
+    it("prestataire : aucun bloc d'assignation, aucun « Enregistrer »", () => {
+      maintenanceQuery.data = {
+        data: makeRequest({
+          status: 'in_progress',
+          accepted_at: '2026-05-07T09:00:00Z',
+          abilities: { ...NO_ABILITIES, can_complete: true, transitions: ['completed'] },
+        }),
+      };
+
+      render(wrap(<MaintenanceDetail id={7} />));
+
+      expect(screen.queryByRole('heading', { name: 'Prestataire et créneau' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Enregistrer' })).not.toBeInTheDocument();
+      expect(updateMutation.mutateAsync).not.toHaveBeenCalled();
+    });
+
     it('prestataire : aucun lien vers la fiche du bien', () => {
       maintenanceQuery.data = {
         data: makeRequest({ status: 'in_progress', abilities: { ...NO_ABILITIES, can_complete: true } }),
