@@ -1097,3 +1097,14 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   Ablations : contrôle du personnel retiré (loyer, pénalité) → rouges ; motif facultatif → rouge ;
   journal retiré → rouge ; `superseded_at` ignoré par `openCheckout` → rouge ; front : dialogue
   non ouvert, case ou motif non exigés → rouges.
+- **Observation retenue — pénalité payée deux fois (session du fournisseur > 30 min).** Chaque
+  entrée de `transactions[]` garde la part de pénalité de son montant (`late_fee_amount`). Quand un
+  SUCCESS solde un checkout `late_fee_included` alors que `late_fee_paid_at` est DÉJÀ posé (réglée
+  entre-temps à l'agence, après la fenêtre ou par passage outre), le loyer est soldé, la date de
+  pénalité reste celle de l'agence, et `gateway_duplicate_payment[]` reçoit
+  `{transaction_id, amount: part pénalité, at, kind: late_fee}` ; les admins sont prévenus par
+  `payments.duplicate_payment.late_fee_body` (fr/en/wo). Repli pour une entrée antérieure :
+  montant figé − reste dû du loyer. Test
+  `PaymentCheckoutReuseTest::test_une_penalite_reglee_entre_temps_a_l_agence_est_marquee_en_double`
+  (avec le témoin : pénalité non réglée, soldée sans doublon). Ablations : retour au `??=` → rouge ;
+  part de pénalité non figée → rouge ; corps de notification générique → rouge.

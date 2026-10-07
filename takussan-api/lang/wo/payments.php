@@ -9,5 +9,6 @@ return [
     'duplicate_payment' => [
         'title' => 'Fey bi ñu ko jot ñaari yoon',
         'body' => 'Fey ci internet bu :amount agsi na ngir :reference, te fey nañu ko ba noppi. Delloo ko ki fey walla jox ko beneen.',
+        'late_fee_body' => 'Pénalité bu :amount ngir :reference, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen.',
     ],
 ];

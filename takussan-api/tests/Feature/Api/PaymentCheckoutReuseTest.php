@@ -307,6 +307,49 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->postJson("/api/lease-payments/{$other['payment']->id}/late-fee/mark-paid", [])->assertOk();
     }
 
+    public function test_une_penalite_reglee_entre_temps_a_l_agence_est_marquee_en_double(): void
+    {
+        // Passe 2 (observation retenue) — un checkout de 157 500 (loyer + pénalité) ; la session
+        // du fournisseur dure plus de 30 min, la pénalité est réglée à l'agence entre-temps, puis
+        // le checkout aboutit. `late_fee_paid_at ??=` gardait le premier règlement sans rien dire.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
+        $ctx['agency']->update(['primary_admin_id' => $admin->id]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+
+        $this->travel(config('payments.checkout_reuse_minutes') + 5)->minutes();
+        Sanctum::actingAs($ctx['agent']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", [])->assertOk();
+        $feePaidAt = $ctx['payment']->refresh()->late_fee_paid_at;
+
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status, 'Le loyer est bien réglé par ce checkout.');
+        $this->assertTrue($payment->late_fee_paid_at->equalTo($feePaidAt), 'Le règlement à l\'agence reste la date de la pénalité.');
+        $duplicate = $payment->metadata['gateway_duplicate_payment'] ?? [];
+        $this->assertCount(1, $duplicate);
+        $this->assertSame('spy_txn_1', $duplicate[0]['transaction_id']);
+        $this->assertEquals(7_500, $duplicate[0]['amount']);
+        $this->assertSame('late_fee', $duplicate[0]['kind']);
+        $notification = AppNotification::query()->where('user_id', $admin->id)
+            ->where('title', __('payments.duplicate_payment.title'))->sole();
+        $this->assertSame(__('payments.duplicate_payment.late_fee_body', [
+            'reference' => $payment->reference_number ?? '#'.$payment->id,
+            'amount' => '7 500',
+        ]), $notification->body);
+
+        // Le témoin : pénalité NON réglée entre-temps, le même checkout la solde, sans doublon.
+        $other = $this->leaseDue(['late_fee_online_collection' => true]);
+        Sanctum::actingAs($other['tenant']);
+        $this->initiate($other['payment']->id)->assertOk();
+        $this->waveWebhook('spy_txn_2', 157_500)->assertOk();
+        $this->assertNotNull($other['payment']->refresh()->late_fee_paid_at);
+        $this->assertArrayNotHasKey('gateway_duplicate_payment', $other['payment']->metadata);
+    }
+
     public function test_un_webhook_sans_echeance_laisse_une_trace_sans_donnee_personnelle(): void
     {
         $logged = [];

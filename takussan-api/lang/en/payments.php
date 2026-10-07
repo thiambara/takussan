@@ -9,5 +9,6 @@ return [
     'duplicate_payment' => [
         'title' => 'Payment collected twice',
         'body' => 'An online payment of :amount was received for :reference, which was already settled. Refund the payer or allocate the amount.',
+        'late_fee_body' => 'The late fee of :amount for :reference, already settled at the agency, was also collected online. Refund the payer or allocate the amount.',
     ],
 ];

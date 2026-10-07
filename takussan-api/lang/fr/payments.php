@@ -9,5 +9,6 @@ return [
     'duplicate_payment' => [
         'title' => 'Paiement encaissé deux fois',
         'body' => 'Un paiement en ligne de :amount a été reçu pour :reference, déjà réglée. Remboursez le payeur ou affectez la somme.',
+        'late_fee_body' => 'La pénalité de retard de :amount pour :reference, déjà réglée à l\'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme.',
     ],
 ];

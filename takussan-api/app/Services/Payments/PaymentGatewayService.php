@@ -349,7 +349,26 @@ class PaymentGatewayService
                 // MÊME sauvegarde que le loyer. `late_fee_included` a été figé à l'initiation DE CE
                 // CHECKOUT ; un réglage d'agence changé depuis ne décide rien ici.
                 if ($payment instanceof LeasePayment && $initiation['late_fee_included'] === true) {
-                    $payment->late_fee_paid_at ??= now();
+                    if ($payment->late_fee_paid_at === null) {
+                        $payment->late_fee_paid_at = now();
+                    } else {
+                        // Passe 2 (observation retenue) — la pénalité de ce checkout a été réglée
+                        // ENTRE-TEMPS à l'agence (session du fournisseur plus longue que la fenêtre de
+                        // réutilisation, ou passage outre du personnel) : sa part est encaissée deux
+                        // fois. Marquée et signalée comme en V3, au montant de la pénalité.
+                        $feePart = $initiation['late_fee_amount']
+                            ?? max(0.0, ($initiation['amount'] ?? 0.0) - (float) $payment->remaining_amount);
+                        $existingMeta['gateway_duplicate_payment'] = array_merge(
+                            is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
+                            [[
+                                'transaction_id' => $transactionId,
+                                'amount' => $feePart,
+                                'at' => now()->toIso8601String(),
+                                'kind' => 'late_fee',
+                            ]],
+                        );
+                        $this->notifyDuplicatePayment($payment, ['amount' => $feePart], 'late_fee');
+                    }
                 }
                 if ($transactionId !== null) {
                     $existingMeta['gateway'] = array_merge(
@@ -471,6 +490,9 @@ class PaymentGatewayService
             'provider' => $provider->value,
             'amount' => $amount,
             'late_fee_included' => $lateFeeIncluded,
+            // La part de pénalité de CE montant : un webhook tardif sur une pénalité réglée entre-temps
+            // à l'agence la marque en double, à ce montant.
+            'late_fee_amount' => $lateFeeIncluded ? $this->roundToCurrencyUnit($payment->lateFeeOutstanding(), $payment) : 0.0,
             'initiated_at' => now()->toIso8601String(),
         ];
 
@@ -705,7 +727,7 @@ class PaymentGatewayService
      * sur la dernière initiation.
      *
      * @param  array<string,mixed>  $meta
-     * @return array{amount: ?float, late_fee_included: bool}
+     * @return array{amount: ?float, late_fee_included: bool, late_fee_amount: ?float}
      */
     protected function initiationFor(array $meta, ?string $transactionId): array
     {
@@ -715,6 +737,7 @@ class PaymentGatewayService
                 return [
                     'amount' => is_numeric($entry['amount'] ?? null) ? (float) $entry['amount'] : null,
                     'late_fee_included' => ($entry['late_fee_included'] ?? false) === true,
+                    'late_fee_amount' => is_numeric($entry['late_fee_amount'] ?? null) ? (float) $entry['late_fee_amount'] : null,
                 ];
             }
         }
@@ -722,6 +745,7 @@ class PaymentGatewayService
         return [
             'amount' => is_numeric($meta['gateway_expected_amount'] ?? null) ? (float) $meta['gateway_expected_amount'] : null,
             'late_fee_included' => ($meta['late_fee_included'] ?? false) === true,
+            'late_fee_amount' => null,
         ];
     }
 
@@ -765,7 +789,7 @@ class PaymentGatewayService
      *
      * @param  array<string,mixed>  $metadata
      */
-    protected function notifyDuplicatePayment(Model $payment, array $metadata): void
+    protected function notifyDuplicatePayment(Model $payment, array $metadata, string $kind = 'payment'): void
     {
         $agencyId = $this->paymentAgencyId($payment);
         if ($agencyId === null) {
@@ -783,11 +807,11 @@ class PaymentGatewayService
             User::query()->whereIn('id', $userIds)->get(),
             NotificationType::Payment,
             __('payments.duplicate_payment.title'),
-            __('payments.duplicate_payment.body', [
+            __($kind === 'late_fee' ? 'payments.duplicate_payment.late_fee_body' : 'payments.duplicate_payment.body', [
                 'reference' => $reference,
                 'amount' => is_numeric($metadata['amount'] ?? null) ? number_format((float) $metadata['amount'], 0, ',', ' ') : '—',
             ]),
-            ['payment_type' => $payment::class, 'payment_id' => $payment->getKey(), 'reason' => 'duplicate_payment'],
+            ['payment_type' => $payment::class, 'payment_id' => $payment->getKey(), 'reason' => 'duplicate_payment', 'kind' => $kind],
         );
     }
 
