@@ -726,3 +726,26 @@ le ticket nommé (vérifié dans son texte).
 - **Non tenu (noté)** : « une agence `individual` n'émet pas de `Payout` à un tiers » n'est pas
   appliqué par le code.
 
+### Partie 2 — chaîne plateforme (§ 3b) et lecture des reversements plateforme (§ 7)
+
+- **Trois mains** : `closeForAgency` écrit `closed_by_id` ; `approve` refuse le clôtureur, `markPaid`
+  l'approbateur (`SegregationOfDuties`). Les deux refusent aussi un **membre de l'agence payée**
+  (`primary_admin_id`, ou personnel par `MembershipCapabilityResolver::isStaffAt`) : un super-admin
+  qui est aussi admin de l'agence ne s'approuve pas son propre reversement. Les deux gestes relisent le
+  reversement **sous verrou** (une approbation ne se rejoue pas : 422 par la matrice de transitions).
+- **Référence** : `payment_reference` requise par `MarkPlatformPayoutPaidRequest` et par le service
+  (une chaîne d'espaces rend 422). Stockée en colonne, renvoyée par la ressource avec `closed_by_id`,
+  `approved_at`, `paid_by_id`.
+- **Gel** : `approve` et `markPaid` relisent `agencies.status` (422 `money_out.platform.agency_frozen`).
+  `approve` refuse une agence `standard` non vérifiée (422 `agency_unverified`) ; une `individual`
+  non vérifiée passe (option retenue par défaut : l'état est seulement affiché).
+- **Clôture globale** : sans `agency_id`, la réponse porte `excluded: [{agency_id, reason}]` avec
+  `agency_not_active` ou `already_closed`, et la boucle continue. La course perdue sur l'index unique
+  partiel n'est plus attrapée dans la transaction (l'ancien `catch (QueryException)` y vivait) : elle
+  remonte, et `closePeriod` la range dans les exclues **après** le rollback. Avec `agency_id`, 409 (déjà
+  clôturée) et 422 (agence non active).
+- **Messages** : les 409/422 de la chaîne plateforme passent par `money_out.platform.*` (la matrice de
+  transitions écrivait une phrase anglaise).
+- **§ 7** : `GET /api/me/payouts` exige `agency.update_billing` à l'agence du profil actif
+  (`AgencyPolicy::viewPlatformPayouts`). `agency.update_billing` quitte l'inventaire ; `CLIQUET` 15 → 14.
+

@@ -67,4 +67,14 @@ class AgencyPolicy
         return $this->update($user, $agency)
             && $user->canActAt(Capability::PayoutsApprove, $agency);
     }
+
+    /**
+     * TCK-594 (ADR-0039 §7) — ce que la plateforme reverse à l'agence se lit avec
+     * `agency.update_billing` À CETTE AGENCE : le relevé de facturation n'est ni au bailleur ni à
+     * l'agent. L'admin d'une agence `individual` (l'hôte) la détient comme celui d'une `standard`.
+     */
+    public function viewPlatformPayouts(User $user, Agency $agency): bool
+    {
+        return $user->canActAt(Capability::AgencyUpdateBilling, $agency);
+    }
 }

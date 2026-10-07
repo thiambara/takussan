@@ -39,7 +39,7 @@ class AgencyUpdateRequest extends BaseFormRequest
             'settings.watermark_position' => ['sometimes', Rule::enum(WatermarkPosition::class)],
             'settings.watermark_opacity' => ['sometimes', 'integer', 'between:10,100'],
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
-            'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:1', 'max:999999999999'],
+            'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
         ];
     }
 }
