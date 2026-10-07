@@ -76,6 +76,15 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/**
+ * TCK-587 — l'URL absolue d'un endpoint PUBLIC, pour l'appelant qui doit lire autre chose que du
+ * JSON (un flux de fichier) et ne peut donc pas passer par {@link apiFetch}. Le préfixe `/api` est
+ * ajouté, comme dans `apiFetch`.
+ */
+export function urlApiPublique(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 export type RequestOptions = {
   method?: string;
   body?: unknown;

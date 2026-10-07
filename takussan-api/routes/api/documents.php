@@ -27,3 +27,6 @@ Route::middleware('auth:sanctum')->group(function () {
 // Public share link routes (no auth required)
 Route::get('share/{token}', [DocumentShareLinkController::class, 'show'])->name('share.show');
 Route::get('share/{token}/download', [DocumentShareLinkController::class, 'download'])->name('share.download');
+// TCK-587 §8 — le mot de passe d'un lien protégé voyage dans le CORPS d'un POST, jamais dans l'URL.
+Route::post('share/{token}', [DocumentShareLinkController::class, 'show'])->name('share.show.post');
+Route::post('share/{token}/download', [DocumentShareLinkController::class, 'download'])->name('share.download.post');

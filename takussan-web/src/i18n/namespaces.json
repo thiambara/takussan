@@ -158,6 +158,7 @@
       "recentlyViewed",
       "search",
       "serverActions",
+      "shareReception",
       "ui",
       "validation"
     ],
@@ -182,14 +183,14 @@
     ]
   },
   "plafondsPourcent": {
-    ".": 15,
+    ".": 14,
     "(auth)": 17,
     "publish": 19,
-    "onboarding": 40,
+    "onboarding": 39,
     "(dashboard)": 16,
-    "(dashboard)/app": 71,
+    "(dashboard)/app": 70,
     "(dashboard)/admin": 59,
-    "[locale]/(public)": 38,
+    "[locale]/(public)": 39,
     "(super-admin)/super-admin": 42
   }
 }

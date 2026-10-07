@@ -14,9 +14,12 @@ use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkVisibilityService;
@@ -26,6 +29,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 
 class PropertyController extends Controller
@@ -39,8 +43,10 @@ class PropertyController extends Controller
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
-                if ($user->agency_id) {
-                    $q->orWhere('agency_id', $user->agency_id);
+                // TCK-587 — « Mes biens » d'un bailleur sont les siens (`user_id`) ; le parc de
+                // l'agence est celui de son PERSONNEL (ADR-0031).
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhere('agency_id', $staffAgencyId);
                 }
             });
         }
@@ -74,6 +80,15 @@ class PropertyController extends Controller
             app(QuotaResolver::class)->assertCanCreateActiveListing((int) $data['agency_id']);
         }
 
+        // TCK-587 (ADR-0031 §2) — un bailleur sans `properties.create` PROPOSE un bien à son
+        // agence : brouillon privé imposé, quel que soit le corps ; la publication reste au
+        // personnel tenant `properties.publish`.
+        $isProposal = $request->user()->can('createsProposal', Property::class);
+        if ($isProposal) {
+            $data['status'] = PropertyStatus::Draft->value;
+            $data['visibility'] = PropertyVisibility::Private->value;
+        }
+
         try {
             $property = DB::transaction(function () use ($data, $request) {
                 $property = Property::create(array_merge($data, [
@@ -88,6 +103,10 @@ class PropertyController extends Controller
 
                 return $property;
             });
+
+            if ($isProposal && $property->agency_id !== null) {
+                $this->notifyAgencyAdminsOfProposal($property);
+            }
 
             return $this->json(
                 ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
@@ -155,7 +174,7 @@ class PropertyController extends Controller
 
     public function destroy(Request $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
+        $this->authorize('delete', $property);
         $property->delete();
 
         return $this->json(['message' => 'deleted'], 204);
@@ -163,7 +182,7 @@ class PropertyController extends Controller
 
     public function publish(Request $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
+        $this->authorize('publish', $property);
         abort_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
@@ -182,7 +201,7 @@ class PropertyController extends Controller
 
     public function unpublish(Request $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
+        $this->authorize('publish', $property);
         abort_unless(
             in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
@@ -246,8 +265,11 @@ class PropertyController extends Controller
         $actor = $request->user();
         $agencyId = $property->agency_id ?? $actor->agency_id;
         if ($agencyId !== null) {
+            // TCK-587 — la cible doit être du PERSONNEL actif de l'agence du bien. Le test
+            // `$target->agency_id === $agencyId` laissait passer un bailleur, qui devenait
+            // `properties.user_id` du bien d'un autre bailleur.
             abort_unless(
-                $target->agency_id === $agencyId || $target->isAgentAt($agencyId),
+                app(MembershipCapabilityResolver::class)->isStaffAt($target, (int) $agencyId),
                 422,
                 __('messages.target_user_not_in_active_agency')
             );
@@ -258,6 +280,22 @@ class PropertyController extends Controller
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load(['address', 'owner', 'collaborators.user']))->toArray($request),
         ]);
+    }
+
+    /**
+     * TCK-587 — chaque admin ACTIF de l'agence reçoit la proposition ; un admin suspendu n'a plus
+     * rien à y relire.
+     */
+    private function notifyAgencyAdminsOfProposal(Property $property): void
+    {
+        $admins = User::query()
+            ->whereIn('id', AgencyAdminProfile::query()
+                ->where('agency_id', $property->agency_id)
+                ->active()
+                ->select('user_id'))
+            ->get();
+
+        Notification::send($admins, new PropertyProposedNotification($property));
     }
 
     public function recordView(Request $request, Property $property): JsonResponse

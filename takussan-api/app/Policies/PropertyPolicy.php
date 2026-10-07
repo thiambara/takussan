@@ -4,6 +4,9 @@ namespace App\Policies;
 
 use App\Models\Enums\Capability;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -49,7 +52,7 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
+        if ($this->isStaffOf($user, $model->agency_id)) {
             return true;
         }
 
@@ -62,6 +65,11 @@ class PropertyPolicy extends BasePolicy
      *
      * La distinction n'est pas cosmétique : c'est la seule règle du lot où la visibilité du
      * modèle, et non l'identité de l'appelant, décide.
+     *
+     * TCK-587 (vérification adverse, M1) — qui lit le bien en lit les médias. Exiger `update`
+     * revenait, depuis ADR-0031, à exiger `properties.update_any` sur le bien d'un autre : l'agent
+     * qui relit et publie la proposition d'un bailleur n'en voyait plus les photos. `update`
+     * reste une voie d'accès pour qui modifie le bien sans le lire par `view`.
      */
     public function viewMedia(User $user, Property $property): bool
     {
@@ -69,54 +77,124 @@ class PropertyPolicy extends BasePolicy
             return true;
         }
 
-        return $this->update($user, $property);
+        return $this->view($user, $property) || $this->update($user, $property);
     }
 
     /**
-     * TCK-297 — `properties.create` et `properties.delete` existent dans
-     * `Capability` et fonctionnaient ; ils sont désormais DÉSIGNÉS au lieu
-     * d'être reconstruits par concaténation.
+     * TCK-587 (ADR-0031) — créer un bien.
      *
-     * Il n'y a délibérément ni capacité de lecture (`properties.view`
-     * n'existe pas — la lecture passe par le périmètre d'agence) ni capacité
-     * de mise à jour générique : l'enum sépare `update_any` et `update_own`,
-     * et c'est `update()` ci-dessous qui porte cette distinction en dur
-     * (propriétaire, puis agence).
+     * `properties.create` dans l'agence du profil actif, OU **bailleur actif** de cette agence : il
+     * ne crée pas un bien du catalogue, il le PROPOSE — `PropertyController::store` impose alors
+     * `draft` + `private`, et le personnel tenant `properties.publish` le publie.
+     *
+     * Avant ce ticket, aucune autorisation n'atteignait cette méthode : `store` n'appelait rien et
+     * `StorePropertyRequest::authorize()` rendait `true`. Tout compte authentifié, client compris,
+     * créait un bien.
      */
-    protected function createCapability(): ?Capability
+    public function create(User $user): bool
     {
-        return Capability::PropertiesCreate;
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $agencyId = $user->agency_id;
+        if ($agencyId === null) {
+            return false;
+        }
+
+        return $user->can(Capability::PropertiesCreate->value)
+            || $user->isOwnerAt((int) $agencyId);
     }
 
-    protected function deleteCapability(): ?Capability
+    /**
+     * TCK-587 — l'appelant crée-t-il une PROPOSITION (bailleur de l'agence, sans
+     * `properties.create`) plutôt qu'un bien de l'agence ? Lu par `PropertyController::store`.
+     */
+    public function createsProposal(User $user): bool
     {
-        return Capability::PropertiesDelete;
+        return ! $user->isSuperAdmin()
+            && ! $user->can(Capability::PropertiesCreate->value);
     }
 
+    /**
+     * TCK-587 — modifier un bien. L'enum sépare `update_own` et `update_any` (« mes ressources vs
+     * toutes les ressources », `docs/features.md` §2.2) ; ce docblock l'annonçait et la méthode ne
+     * le faisait pas : auteur OU même agence, sans capacité.
+     *
+     *  - son propre bien (`user_id`) : `properties.update_own` dans l'agence du bien, pour qui en
+     *    est membre ; un auteur sans aucun profil dans l'agence du bien (ou un bien sans agence)
+     *    garde son bien, il n'a pas de rôle qui pourrait porter la capacité ;
+     *  - le bien d'un autre : personnel de l'agence du bien tenant `properties.update_any`.
+     */
     public function update(User $user, Model $model): bool
     {
         if (! $model instanceof Property) {
             return false;
         }
 
-        if ($user->id === $model->user_id) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // `$user->agency_id` is the active-profile-aware accessor (TCK-146):
-        // returns the active profile's agency in HTTP, auto-bascules for
-        // single-profile users in jobs / console, and is null for
-        // multi-profile users without an explicit context. The strict
-        // equality below is therefore safe across all contexts.
-        if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
-            return true;
+        if ($user->id === $model->user_id) {
+            return ! $this->isMemberOf($user, $model->agency_id)
+                || $user->can(Capability::PropertiesUpdateOwn->value, $model);
+        }
+
+        return $this->isStaffOf($user, $model->agency_id)
+            && $user->can(Capability::PropertiesUpdateAny->value, $model);
+    }
+
+    /**
+     * TCK-587 — supprimer un bien : `properties.delete` dans l'agence du bien. `destroy`
+     * réutilisait `update` : un agent supprimait le bien d'un collègue, et un bailleur celui d'un
+     * autre bailleur de l'agence. Un bien sans agence reste à son auteur.
+     */
+    public function delete(User $user, Model $model): bool
+    {
+        return $this->agencyGesture($user, $model, Capability::PropertiesDelete);
+    }
+
+    /**
+     * TCK-587 — publier, dépublier, rendre public, passer en `available` / `published` :
+     * `properties.publish` dans l'agence du bien. `publish`/`unpublish` réutilisaient `update`, et
+     * `PUT …/status` comme `PUT …/visibility` en étaient deux contournements.
+     */
+    public function publish(User $user, Property $property): bool
+    {
+        return $this->agencyGesture($user, $property, Capability::PropertiesPublish);
+    }
+
+    private function agencyGesture(User $user, Model $model, Capability $capability): bool
+    {
+        if (! $model instanceof Property) {
+            return false;
         }
 
         if ($user->isSuperAdmin()) {
             return true;
         }
 
-        return false;
+        if ($model->agency_id === null) {
+            return $user->id === $model->user_id;
+        }
+
+        return $this->isMemberOf($user, $model->agency_id)
+            && $user->can($capability->value, $model);
+    }
+
+    /** Un profil (de tout statut) dans l'agence : c'est ce qui fait qu'un rôle juge l'auteur. */
+    private function isMemberOf(User $user, mixed $agencyId): bool
+    {
+        if ($agencyId === null) {
+            return false;
+        }
+
+        $agencyId = (int) $agencyId;
+
+        return $user->hasProfileAt($agencyId, OwnerProfile::class)
+            || $user->hasProfileAt($agencyId, AgentProfile::class)
+            || $user->hasProfileAt($agencyId, AgencyAdminProfile::class);
     }
 
     /**

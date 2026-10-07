@@ -64,15 +64,17 @@ class MediaPolicy extends BasePolicy
             return false;
         }
 
-        // `$user->agency_id` is the TCK-146 active-profile-aware accessor.
-        if (isset($target->agency_id) && $user->agency_id !== null
-            && (int) $target->agency_id === (int) $user->agency_id) {
+        // TCK-587 — l'agence de l'appelant n'est retenue que s'il en est PERSONNEL (ADR-0031) ; les
+        // deux branches ci-dessous exigent de toute façon un administrateur.
+        $staffAgencyId = $user->staffAgencyId();
+        if (isset($target->agency_id) && $staffAgencyId !== null
+            && (int) $target->agency_id === $staffAgencyId) {
             $agency = $target->agency ?? null;
             if ($agency !== null && $agency->primary_admin_id === $user->id) {
                 return true;
             }
 
-            if ($user->isAgencyAdminAt((int) $user->agency_id)
+            if ($user->isAgencyAdminAt($staffAgencyId)
                 && $user->canActAt(Capability::PropertiesUpdateAny, $agency)) {
                 return true;
             }

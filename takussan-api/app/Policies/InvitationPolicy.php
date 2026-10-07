@@ -35,8 +35,9 @@ class InvitationPolicy
     public function view(User $user, Invitation $invitation): bool
     {
         if ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)) {
+            // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
             return $invitation->agency_id === null
-                || $invitation->agency_id === $user->agency_id;
+                || $invitation->agency_id === $user->staffAgencyId();
         }
 
         // Non-admin actors can only see invitations they emitted (so the

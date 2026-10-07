@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+import { useAuth } from '@/context/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   usePayout,
@@ -56,6 +58,14 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
 
   const payout = data?.data;
   const status = (payout?.status ?? 'pending') as PayoutStatus;
+
+  // TCK-587 (ADR-0031 §2) — les transitions sont un geste du personnel tenant `payouts.create`,
+  // et jamais du bénéficiaire : le serveur refuse les deux (`PayoutPolicy::update`). Cacher les
+  // boutons n'est pas la garde, c'est ne pas proposer un 403.
+  const { user } = useAuth();
+  const { can: canManage } = useCan('payouts.create');
+  const isBeneficiary = user != null && payout?.landlord_id === user.id;
+  const actionable = status === 'pending' || status === 'scheduled' || status === 'processing';
 
   return (
     <Dialog open={payoutId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -157,7 +167,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
               ) : null}
             </dl>
 
-            {(status === 'pending' || status === 'scheduled' || status === 'processing') ? (
+            {actionable && canManage && !isBeneficiary ? (
               <div className="space-y-3 rounded-xl border border-border bg-card p-3">
                 <div>
                   <Label htmlFor="transaction-id" className="mb-1.5 block text-xs font-medium">

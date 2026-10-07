@@ -1,6 +1,5 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import {
@@ -16,13 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { UserRolesEditor } from './UserRolesEditor';
 import { MemberAgencyRoleSelect } from '@/components/admin/roles/MemberAgencyRoleSelect';
-import { postUserAction } from '@/lib/queries/admin-users';
 import { formatDate as formatDateIntl } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
+import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
-import { ApiError } from '@/lib/api';
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { isAgencyStaffRow } from './isAgencyStaffRow';
 
 interface UserDetailDrawerProps {
@@ -46,6 +43,13 @@ interface UserDetailDrawerProps {
    * décide, ceci évite seulement d'offrir un geste qui rendra 403.
    */
   canAssignRole?: boolean;
+  /**
+   * TCK-587 — le geste de suspension DANS l'agence proposé pour ce membre, ou `null`. Il
+   * remplace « Bloquer le compte » / « Réactiver le compte » : ce blocage est réservé au
+   * super-admin, et il coupait le membre de toutes ses agences à la fois.
+   */
+  suspension?: TeamSuspensionAction | null;
+  onSuspension?: (user: AdminAgencyUserRow, action: TeamSuspensionAction) => void;
 }
 
 /** TCK-292 — libellés résolus sous `admin.users.status.*` ; une valeur inconnue
@@ -85,33 +89,15 @@ export function UserDetailDrawer({
   agencyId,
   assignments = [],
   canAssignRole = false,
+  suspension = null,
+  onSuspension,
 }: UserDetailDrawerProps) {
-  const queryClient = useQueryClient();
   const t = useTranslations('admin.users');
+  const tSuspension = useTranslations('admin.team.suspension');
   const locale = useLocale() as Locale;
   const agencyRoleHeading = useTranslations('admin.roles')('assign.heading');
-  const messageErreur = useMessageErreurApi();
 
-  const blockMutation = useMutation({
-    mutationFn: () => postUserAction(user!.id, 'block'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] });
-      onOpenChange(false);
-    },
-  });
-
-  const activateMutation = useMutation({
-    mutationFn: () => postUserAction(user!.id, 'activate'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] });
-      onOpenChange(false);
-    },
-  });
-
-  const isPending = blockMutation.isPending || activateMutation.isPending;
-  const lastError = (blockMutation.error ?? activateMutation.error) as ApiError | null;
   const isSelf = user?.id === currentUserId;
-  const isBlocked = user?.status === 'banned';
 
   return (
     <Sheet open={user !== null} onOpenChange={onOpenChange}>
@@ -181,33 +167,19 @@ export function UserDetailDrawer({
             </div>
 
             <div className="border-t border-muted p-6">
-              {lastError ? (
-                <p className="mb-3 text-xs text-destructive" role="alert">
-                  {messageErreur(lastError)}
-                </p>
-              ) : null}
               <div className="flex flex-col gap-2">
-                {isBlocked ? (
+                {suspension && onSuspension ? (
                   <Button
                     className="w-full"
-                    disabled={isPending || isSelf}
-                    onClick={() => activateMutation.mutate()}
+                    variant={suspension === 'suspend' ? 'destructive' : 'default'}
+                    onClick={() => onSuspension(user, suspension)}
+                    data-testid="team-suspension-button"
                   >
-                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                    {t('drawer.reactivateAccount')}
+                    {suspension === 'suspend'
+                      ? tSuspension('suspend')
+                      : tSuspension('reactivate')}
                   </Button>
-                ) : (
-                  <Button
-                    className="w-full"
-                    variant="destructive"
-                    disabled={isPending || isSelf}
-                    onClick={() => blockMutation.mutate()}
-                    data-testid="block-user-button"
-                  >
-                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                    {t('drawer.blockAccount')}
-                  </Button>
-                )}
+                ) : null}
                 {onRemove && isAgencyStaffRow(user, assignments) ? (
                   <Button
                     className="w-full"

@@ -5,6 +5,8 @@ import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { PropertyWizard } from '@/components/property-form';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { getMeAction } from '@/app/actions/auth';
+import { isAdmin, isAgent } from '@/lib/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.propertyNew');
@@ -63,12 +65,15 @@ export default async function Page() {
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
+  // TCK-587 — même vocabulaire que la barre latérale : le bailleur hors personnel propose.
+  const { roles } = await getMeAction();
+  const proposition = !isAgent(roles) && !isAdmin(roles);
 
   return (
     <div className="absolute inset-0 flex flex-col gap-4 overflow-hidden px-4 py-6 md:px-6 md:py-8">
-      <PageHeader title={t('title')} className="shrink-0" />
+      <PageHeader title={proposition ? t('proposalTitle') : t('title')} className="shrink-0" />
       <div className="min-h-0 flex-1">
-        <PropertyWizard tags={tags} />
+        <PropertyWizard tags={tags} proposition={proposition} />
       </div>
     </div>
   );

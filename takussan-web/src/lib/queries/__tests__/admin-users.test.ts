@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ADMIN_USERS_FIELDS,
   fetchAdminUsers,
-  postUserAction,
   putUserRole,
 } from '../admin-users';
 
@@ -71,19 +70,6 @@ describe('TCK-133 — admin (agency-scoped) user queries', () => {
     expect(url).toContain('sort=-created_at');
     expect(url).toContain('per_page=20');
     expect(url).toContain('page=1');
-  });
-
-  it('postUserAction posts to /block or /activate on the proxy', async () => {
-    const spy = mockFetch({ data: { id: 7, status: 'banned' } });
-    await postUserAction(7, 'block');
-    const [url, init] = spy.mock.calls[0];
-    expect(String(url)).toBe('/api/admin-users/7/block');
-    expect(init?.method).toBe('POST');
-
-    await postUserAction(7, 'activate');
-    const [url2, init2] = spy.mock.calls[1];
-    expect(String(url2)).toBe('/api/admin-users/7/activate');
-    expect(init2?.method).toBe('POST');
   });
 
   it('putUserRole PUTs the body { role } to the proxy', async () => {

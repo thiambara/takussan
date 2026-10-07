@@ -46,7 +46,6 @@ async function actions(row: AdminAgencyUserRow, assignments?: AgencyRoleAssignme
       currentUserId={99}
       assignmentsByUser={assignments ? new Map([[row.id, assignments]]) : undefined}
       onSelect={vi.fn()}
-      onQuickAction={vi.fn()}
       onRemove={onRemove}
     />,
   ));

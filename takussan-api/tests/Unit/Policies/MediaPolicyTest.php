@@ -25,7 +25,9 @@ class MediaPolicyTest extends TestCase
     {
         $admin = User::factory()->create();
         $agency = Agency::factory()->create(['primary_admin_id' => $admin->id]);
-        $admin->update(['agency_id' => $agency->id]);
+        // TCK-587 — un profil ADMIN : `agency_id` seul fabrique un bailleur, qui n'est pas du
+        // personnel de l'agence (ADR-0031) même désigné `primary_admin_id`.
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         $property = Property::factory()->create([
             'agency_id' => $agency->id,

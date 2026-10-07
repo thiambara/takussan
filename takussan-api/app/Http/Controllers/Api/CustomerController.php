@@ -10,6 +10,7 @@ use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
@@ -29,10 +30,14 @@ class CustomerController extends Controller
         $base = Customer::query();
 
         if (! $user->isSuperAdmin()) {
-            if ($user->agency_id) {
-                $base->where(function ($query) use ($user) {
+            // TCK-587 — même règle que `CustomerPolicy::view` : le CRM de l'agence pour le
+            // personnel tenant `crm.view_all`, ses propres clients pour tous les autres. Un
+            // bailleur de l'agence listait tout le CRM, téléphones et pièces d'identité compris.
+            $staffAgencyId = $user->staffAgencyId();
+            if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
+                $base->where(function ($query) use ($user, $staffAgencyId) {
                     $query
-                        ->where('agency_id', $user->agency_id)
+                        ->where('agency_id', $staffAgencyId)
                         ->orWhere('added_by_id', $user->id);
                 });
             } else {
@@ -157,7 +162,7 @@ class CustomerController extends Controller
 
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorize('view', $customer);
+        $this->authorize('delete', $customer);
 
         $customer->delete();
 

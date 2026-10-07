@@ -175,8 +175,9 @@ class ExportDataService
 
         $agencyId = $actor->agency_id;
 
-        if ($agencyId
-            && ($actor->isAgencyAdminAt((int) $agencyId) || $actor->isAgentAt((int) $agencyId))) {
+        // TCK-587 (ADR-0031 §1) — le périmètre de l'agence est celui de son PERSONNEL actif.
+        if (($staffAgencyId = $actor->staffAgencyId()) !== null) {
+            $agencyId = $staffAgencyId;
             match ($entity) {
                 'property', 'customer' => $query->where('agency_id', $agencyId),
                 'lease' => $query->where('agency_id', $agencyId),

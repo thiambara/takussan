@@ -354,14 +354,16 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les QUATORZE pages publiques déclarent leur métadonnée sur place', () => {
+  it('les QUINZE pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
     // 9 → 11 à la fusion du lot : TCK-436 ajoute `/agencies` et `/agents`, toutes deux
     // `conditionnel` (indexables nues, `noindex` sous une facette inventée).
     // 11 → 14 : TCK-531 ajoute `/legal/{terms,privacy,notice}`, toutes trois `jamais`.
-    expect(ROUTES.length).toBe(14);
+    // 14 → 15 : TCK-587 ajoute `/share/[token]`, `jamais` — la réception d'un lien de partage, dont
+    // l'URL porte le jeton d'accès (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
+    expect(ROUTES.length).toBe(15);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -453,11 +455,12 @@ describe('TCK-431 · AC4 — /playground n’est plus servi indexable', () => {
 describe('TCK-431 — le point d’extension des routes dynamiques (TCK-436)', () => {
   const dynamiques = ROUTES.filter((r) => r.dynamique);
 
-  it('trouve les trois routes dynamiques publiques', () => {
+  it('trouve les quatre routes dynamiques publiques', () => {
     expect(dynamiques.map((r) => r.chemin).sort()).toEqual([
       '/agencies/[slug]',
       '/agents/[slug]',
       '/properties/[slug]',
+      '/share/[token]',
     ]);
   });
 
@@ -468,11 +471,23 @@ describe('TCK-431 — le point d’extension des routes dynamiques (TCK-436)', (
     expect(nonTranchees.map((r) => r.chemin), 'route dynamique publique non tranchée').toEqual([]);
   });
 
-  it('celles qui ne sont pas alimentées nomment le ticket qui le fera', () => {
+  it('celles qui ne sont pas alimentées nomment le ticket qui le fera — ou la raison de leur exclusion', () => {
     for (const [chemin, decision] of Object.entries(ROUTES_DYNAMIQUES_PUBLIQUES)) {
-      if (decision.source === null) {
+      if (decision.source === null && decision.exclue === undefined) {
         expect(decision.ticket, `« ${chemin} » sans source ET sans ticket`).toMatch(/^TCK-\d+$/);
       }
+    }
+  });
+
+  it('une route EXCLUE nomme le ticket qui l’a tranchée, n’a pas de source, et sa page déclare `noindex`', () => {
+    // TCK-587 — `/share/[token]` : exclue n'est pas « pas encore alimentée ». Une exclusion sans
+    // `noindex` laisserait un moteur indexer ce que le sitemap tait.
+    for (const [chemin, decision] of Object.entries(ROUTES_DYNAMIQUES_PUBLIQUES)) {
+      if (decision.exclue === undefined) continue;
+      expect(decision.exclue, `« ${chemin} » exclue sans le ticket qui l'a tranché`).toMatch(/^TCK-\d+$/);
+      expect(decision.source, `« ${chemin} » exclue ET alimentée`).toBeNull();
+      const route = ROUTES.find((r) => r.chemin === chemin);
+      expect(route?.indexable, `« ${chemin} » exclue mais indexable`).toBe(false);
     }
   });
 
