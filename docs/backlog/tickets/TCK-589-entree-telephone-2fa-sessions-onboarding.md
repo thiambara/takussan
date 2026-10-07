@@ -959,3 +959,20 @@ piloté par CDP sur `:9344`. Un bien `rent`/`daily` publié.
   touchés par l'un ou l'autre + `src/components/admin` + `src/components/onboarding` → 95
   fichiers, **742 verts** ; `tsc --noEmit` et `eslint` propres ; Pint propre ; gardes racine
   vertes.
+- **Après la fusion, deuxième passe** : 587 a déplacé le geste d'équipe de
+  `UserAdminController::block` (protégé ici) vers `TeamMemberSuspensionController`
+  (`agencies.php`), contrôleur que la famille `agencies.php` ne listait pas — la garde de
+  couverture ne pouvait donc pas le voir. Ajoutés : ce contrôleur à la famille, `suspend` /
+  `reactivate` à `AGENCY_TWO_FACTOR` ; et `profiles.php` (suspendre / retirer un agent, TCK-258),
+  famille oubliée dès `b045b935`. Les admins de `Tests\Concerns\CreatesAgencyMembers` (587)
+  s'incarnent désormais avec leur 2FA, comme ceux d'`actingAsRole` : sans cela, 16 tests de 587
+  rendaient `two_factor_required`.
+- **Test intermittent trouvé et corrigé** : `AgencyStaffTwoFactorTest` créait une intégration par
+  appel, fournisseur tiré au hasard parmi trois ; au second appel d'un même test, l'unicité
+  `(provider, agency_id)` rougissait une fois sur trois (`UniqueConstraintViolationException`,
+  vu dans la passe de 66 fichiers). Une intégration `wave` par agence ; 5 exécutions de suite
+  vertes.
+- **Exécutions** : les 66 fichiers (587 + branche + utilisateurs de `CreatesAgencyMembers` et des
+  routes `profiles`) → 677 verts, 1 rouge, l'intermittent ci-dessus (332 s, charge 7,2 / 14,2 /
+  14,8) ; après correctif, `tests/Feature/Auth/TwoFactor` + les cinq fichiers d'équipe et
+  d'autorisation de 587 → 109 verts ; `AgencyStaffTwoFactorTest` ×5 → vert.

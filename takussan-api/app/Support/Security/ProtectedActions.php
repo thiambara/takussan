@@ -14,8 +14,10 @@ use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RoleController;
 use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
+use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
@@ -56,6 +58,8 @@ final class ProtectedActions
         'agency-roles.php' => null,
         'invitations.php' => null,
         'users.php' => null,
+        // Suspendre ou retirer un agent de l'équipe (TCK-258).
+        'profiles.php' => null,
         'agencies.php' => [
             AgencyController::class,
             AgencyMemberRoleController::class,
@@ -64,6 +68,8 @@ final class ProtectedActions
             AgentInvitationController::class,
             ServiceProviderInvitationController::class,
             TeamController::class,
+            // TCK-587 — la suspension DANS l'agence remplace le blocage du compte.
+            TeamMemberSuspensionController::class,
         ],
     ];
 
@@ -103,6 +109,10 @@ final class ProtectedActions
         UserAdminController::class.'@block',
         UserAdminController::class.'@activate',
         UserAdminController::class.'@destroy',
+        TeamMemberSuspensionController::class.'@suspend',
+        TeamMemberSuspensionController::class.'@reactivate',
+        AgentProfileController::class.'@suspend',
+        AgentProfileController::class.'@destroy',
 
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',

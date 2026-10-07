@@ -132,7 +132,12 @@ class AgencyStaffTwoFactorTest extends TestCase
         return match ($route) {
             'payout' => $this->postJson('/api/payouts', []),
             'integration' => $this->patchJson(
-                '/api/integrations/'.Integration::factory()->create(['agency_id' => $this->agency->id])->id,
+                // Une seule par agence : la fabrique tire le fournisseur au hasard parmi trois, et
+                // l'unicité `(provider, agency_id)` rougissait un appel sur trois au second tour.
+                '/api/integrations/'.Integration::query()->firstOrCreate(
+                    ['agency_id' => $this->agency->id, 'provider' => 'wave'],
+                    Integration::factory()->raw(['agency_id' => $this->agency->id, 'provider' => 'wave']),
+                )->id,
                 ['is_active' => false],
             ),
             'capabilities' => $this->putJson(
