@@ -1,7 +1,7 @@
 ---
 id: TCK-592
 title: "Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -328,7 +328,7 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 **B. Assignation gardée, collaboration, cloisonnement (P3, P5, P18, B13, B17, O1)**
 
 - [x] Règle `App\Rules\AssignableProvider` sur `assigned_to` (store et update)
-- [ ] `MaintenanceRequestPolicy` : branche prestataire gardée par la collaboration active et le profil
+- [x] `MaintenanceRequestPolicy` : branche prestataire gardée par la collaboration active et le profil
       actif ; branche équipe par le prédicat 587 ; `MaintenanceRequest::scopeVisibleTo(User)` lu par
       `index`
 - [x] `MaintenanceRequestService::assign()` (appelé par `update` quand `assigned_to` change) :
@@ -775,6 +775,56 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - AC23 : `git diff dev -U0 -- app` → aucun `abort*(`/`notify(` ajouté à libellé littéral ; les 17 clés
   littérales ajoutées existent en fr/en/wo (`Lang::hasForLocale`), et `lang/{fr,en,wo}/{maintenance,
   messaging,service_providers}.php` ont les mêmes clés feuilles (0 manquante, 0 en trop).
-- Reste ouverte, côté Delta : « branche équipe par le prédicat 587 » (attend la fusion de TCK-587).
-  La suite entière n'a pas été lancée ici : elle l'est par la session.
+- La case Delta « branche équipe par le prédicat 587 » est fermée après la fusion de TCK-587 :
+  voir la section suivante. La suite entière n'a pas été lancée ici : elle l'est par la session.
+
+### Après 587 — le prédicat du personnel branché (merge de `origin/dev` à fd4bd805)
+
+Fusion de `origin/dev` (TCK-587). Deux conflits, tous deux documentaires : `docs/adr/README.md`
+(lignes 0031, 0037, 0038 conservées) et `INDEX.md` (régénéré). Le prédicat provisoire de 592
+(`isAgentAt || isAgencyAdminAt`) lisait le profil sans son état : un agent **suspendu** restait
+équipe, et une **délégation** active du rôle agent ne comptait pas. Les cinq sites lisent
+désormais le prédicat de 587 :
+
+- `MaintenanceRequestPolicy::isPrincipalFor` et `openRequests` → `$user->staffAgencyId()` ;
+- `MaintenanceRequest::scopeVisibleTo` → `$user->staffAgencyId()` ;
+- `ProviderEligibility::isStaffAt` → `MembershipCapabilityResolver::isStaffAt()` ;
+  `staffAgencyIds` filtre ses candidats (profils agent et admin, délégations) par ce même prédicat ;
+- `MaintenanceParticipants::principals` : les candidats incluent les délégations, et le prédicat du
+  personnel tranche avant `maintenance.assign`, comme `isPrincipalFor` dans la policy.
+
+Gardes : les quatre exemptions `TCK-592` de `check-agency-scope-clause.mjs` sont retirées, et
+`CLIQUET` passe de 10 à 6. Trois de ces exemptions étaient déjà mortes à la fusion : la garde
+était rouge sur le merge nu. `maintenance.assign` et `maintenance.close` sortent de
+`CapabilityEnforcementInventory::AWAITING`, et le `CLIQUET` de `check-capability-readers.mjs`
+passe de 16 à 14. Les deux gardes sont vertes.
+
+`MaintenanceStaffPredicateTest` (7 tests) : agent suspendu non assignable, privé de l'intervention
+qui lui est assignée, ni donneur d'ordre ni notifié ; bailleur délégué agent qui voit, liste, crée,
+approuve et reçoit une assignation ; délégué assigné dans une autre agence que celle de son profil
+actif ; agent suspendu dont un rôle de bailleur personnalisé porte `maintenance.assign`. Chaque
+ablation ci-dessous rend 1 test rouge :
+
+| Ablation | Résultat |
+|---|---|
+| A1 `ProviderEligibility::isStaffAt` revient à `isAgentAt \|\| isAgencyAdminAt` | 1 rouge |
+| A2 `staffAgencyIds` sans le filtre `isStaffAt` | 1 rouge |
+| A2b `staffAgencyIds` sans les délégations | 1 rouge |
+| A3 `scopeVisibleTo` sur `isAgentAt(agency_id)` | 1 rouge |
+| A4 `isPrincipalFor` sur `isAgentAt(agency_id)` | 1 rouge |
+| A5 `openRequests` sur `isAgentAt(agency_id)` | 1 rouge |
+| A6 `principals` sans les délégations | 1 rouge |
+| A7 `principals` sans `isStaffAt` | 1 rouge |
+
+A2b et A7 sont d'abord restées vertes. Les deux tests qui les font rougir, délégué d'une autre
+agence et rôle de bailleur personnalisé, ont été écrits pour elles.
+
+Exécuté au premier plan :
+
+- `tests/Feature/Maintenance` : 113 verts ;
+- 29 chemins touchant maintenance, prédicat, inventaire, messagerie, notifications, autorisation et
+  `Unit/Services/Membership` : 796 verts ;
+- front `npm run lint` propre, `tsc --noEmit` propre, vitest `maintenance`, `messages`, `profile`,
+  `admin/roles` : 231 verts ;
+- toutes les gardes racine sont vertes, `gen-index --check` et `check-backlog` aussi.
 
