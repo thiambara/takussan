@@ -1,13 +1,13 @@
 ---
 id: TCK-586
 title: "Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030)"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: M
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: []
 spec_refs:
