@@ -876,7 +876,21 @@ téléphone tenu d'une main, entre deux visites**.
   sans repreneur sans l'aveu → rouge ; entrées CRM du bailleur (`staff = true`) → rouge ; prospect
   masqué rendu en lien → rouge ; compte pris sur la page reçue au lieu de `meta.total` → rouge ;
   étape terminale sans motif depuis la fiche → rouge. Toutes rouges, toutes restaurées.
-  **Non vérifié** : AC15 au navigateur (360 px, clavier et doigt) — la base de la copie de travail
-  devrait porter les migrations de 591, et la base de dev partagée ne doit pas être migrée depuis
-  une branche ; les gestes sont éprouvés en vitest (select d'étape, capteur clavier, case de tâche,
-  lien `wa.me` prérempli), pas au doigt.
+  **AC15 au navigateur** (`e20c2785`) — base jetable `takussan_tck591` (`migrate:fresh --seed`,
+  supprimée après), API 8106, front 3106, Chrome sans tête 9346 piloté par CDP, émulation 360 × 740
+  `mobile` + tactile, compte `agent@agency1…` (locale `en`). **Premier passage : la fiche client
+  tombait en « Something went wrong »** (`MISSING_MESSAGE agentCrm.contact`) : le provider de chaque
+  frontière ne sert que les espaces de `i18n/namespaces.json`, que `check:i18n-namespaces` garde —
+  et je ne l'avais pas lancée ; vitest, qui passe le dictionnaire entier, ne pouvait pas le voir.
+  Table régénérée, statuts des dossiers liés en espaces littéraux. Puis, mesuré : `innerWidth` =
+  `scrollWidth` = 360 sur `/app/tasks`, `/app/customers/1`, `/app/crm/pipeline`, `/app/calendar` ;
+  étape changée **au clavier** depuis la fiche (focus + saisie « n » → `PATCH …/customers/1/pipeline-stage`,
+  `negotiating` en base) et depuis la carte du pipeline (« p » → `PATCH …/553/pipeline-stage`,
+  `prospect` en base) ; tâche cochée **au doigt** (`touchStart/End` → `PATCH /api/tasks/75`) et **au
+  clavier** (Espace → `PATCH /api/tasks/61`), `done` en base ; WhatsApp **au doigt** (lien 114 × 44)
+  → onglet `api.whatsapp.com/send/?phone=221768746179&text=Hello+Oumy%2C+this+is+your+Takussan+agent.` ;
+  **0** requête `/api/audit-log` sur la fiche, 2 sur `/activity`. **Non mesuré** : l'étape changée
+  **au doigt** — le doigt atteint bien le `<select>` (274 × 44, *hit-test*), mais le choix se fait dans
+  le sélecteur natif, que CDP ne pilote pas ; AC15 reste donc ouvert sur ce seul point. Relevé en
+  passant, hors 591 : la modale d'accueil de l'agent recouvre la page au premier passage ; les onglets
+  de la fiche font 25 px de haut (primitive `Tabs`).
