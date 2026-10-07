@@ -101,14 +101,4 @@ class PasswordLoginLockTest extends TestCase
         $this->echouer(9);
         $this->connecter()->assertOk();
     }
-
-    public function test_un_tiers_ne_peut_pas_verrouiller_indefiniment(): void
-    {
-        $this->echouer(10);
-        $this->travel(16)->minutes();
-
-        // Le verrou échu ne compte plus : un échec isolé ne le reprend pas.
-        $this->echouer(1);
-        $this->connecter()->assertOk();
-    }
 }

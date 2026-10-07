@@ -121,6 +121,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** Vérification adverse M1 (c) — codes SMS vérifiables par numéro et par 15 min. */
+    public const PHONE_VERIFY_PER_WINDOW = 4;
+
     public function register(): void
     {
         $this->registerCurrencyFormatter();
@@ -343,7 +346,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perDay(5)->by('phone-day:'.$this->phoneRateLimitKey($request)),
             Limit::perHour(20)->by('ip:'.$request->ip()),
         ]);
-        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, 10)
+        // Vérification adverse M1 (c) — sous la MOITIÉ du seuil du verrou
+        // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
+        // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,
+        // un tiers verrouillait le numéro à chaque échéance.
+        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, self::PHONE_VERIFY_PER_WINDOW)
             ->by('phone:'.$this->phoneRateLimitKey($request)));
 
         // TCK-272 — émission du code e-mail de step-up pour la suppression

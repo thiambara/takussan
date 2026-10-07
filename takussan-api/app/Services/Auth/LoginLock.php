@@ -7,21 +7,25 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Carbon;
 
 /**
- * TCK-589 — verrou par compte après des échecs de connexion répétés (ADR-0033 §6).
+ * TCK-589 — verrou après des échecs de connexion répétés (ADR-0033 §6). UN VERROU PAR
+ * CANAL (vérification adverse M1) :
  *
- * Partagé par le mot de passe ET le code SMS : 10 échecs consécutifs posent
- * `metadata.locked_at` ; le verrou court 15 min, calculées depuis `locked_at`,
- * pour qu'un tiers qui se trompe exprès ne puisse pas bloquer un compte
- * indéfiniment ; un succès remet `failed_login_attempts` à zéro.
- * `UserSupportService::unlock` (inchangé) efface les deux clés : le geste
- * « Déverrouiller » de la console, qui rendait toujours 409, agit enfin.
+ *  - **mot de passe** (et le second facteur saisi derrière lui, ou derrière un rappel
+ *    OAuth) : sur le compte. 10 échecs consécutifs posent `metadata.locked_at` ; le
+ *    verrou court 15 min depuis `locked_at` ; un succès remet le compteur à zéro.
+ *    `UserSupportService::unlock` efface les deux clés.
+ *  - **téléphone** : sur le NUMÉRO, en cache, qu'un compte l'ait vérifié ou non — le 423
+ *    tombe au même seuil dans les deux cas, et ne dit donc rien de l'existence d'un compte.
+ *    Les échecs se comptent dans une fenêtre FIXE de 15 min ouverte par le premier.
  *
- * Le verrou se lit AVANT la vérification du secret : le bon mot de passe n'y
- * échappe pas.
+ * Avant M1, les deux canaux partageaient le verrou du compte : un tiers qui connaissait le
+ * numéro vérifié fermait la porte du mot de passe, à chaque échéance, depuis une IP et sans
+ * dépenser un SMS. Le canal téléphone est désormais hors de portée d'un tiers : un code faux
+ * ne compte que si un code est en cours (`PhoneLoginService`), et le limiteur
+ * `auth-phone-verify` est sous la MOITIÉ du seuil par fenêtre — deux fenêtres de limiteur
+ * contiguës peuvent tomber dans une même fenêtre de verrou, leur somme reste sous le seuil.
  *
- * Pour un numéro qu'aucun compte n'a vérifié, le même compteur vit en cache sous
- * la clé du numéro : le 423 tombe au même seuil, avec ou sans compte, et ne dit
- * donc rien de l'existence d'un compte.
+ * Le verrou se lit AVANT la vérification du secret : le bon mot de passe n'y échappe pas.
  */
 class LoginLock
 {
@@ -83,8 +87,9 @@ class LoginLock
     public function recordNumberFailure(string $phone): void
     {
         $key = $this->numberFailuresKey($phone);
-        $failures = (int) $this->cache->get($key, 0) + 1;
-        $this->cache->put($key, $failures, now()->addMinutes(self::LOCK_MINUTES));
+        // Fenêtre fixe : `add` n'écrit que si la clé manque, `increment` garde son échéance.
+        $this->cache->add($key, 0, now()->addMinutes(self::LOCK_MINUTES));
+        $failures = (int) $this->cache->increment($key);
 
         if ($failures >= self::MAX_FAILURES) {
             $this->cache->put($this->numberLockKey($phone), now()->getTimestamp(), now()->addMinutes(self::LOCK_MINUTES));

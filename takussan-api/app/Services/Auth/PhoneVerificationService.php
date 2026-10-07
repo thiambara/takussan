@@ -100,6 +100,17 @@ class PhoneVerificationService
     }
 
     /** Secondes avant qu'un nouvel envoi soit possible vers ce sujet. */
+    /**
+     * Vérification adverse M1 — un code est-il EN COURS pour ce numéro, sous cette portée ? Sans
+     * code, une saisie ne prouve ni ne réfute rien : elle ne compte contre personne.
+     */
+    public function hasCodeFor(string $scope, string $phone): bool
+    {
+        $entry = $this->cache->get($this->codeKey($this->numberSubject($scope, $phone)));
+
+        return is_array($entry) && ($entry['phone'] ?? null) === $phone;
+    }
+
     public function retryAfter(): int
     {
         return self::RESEND_COOLDOWN_SECONDS;

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth\Phone;
 
 use App\Models\User;
+use App\Providers\AppServiceProvider;
 use App\Services\Auth\LoginLock;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,7 +16,7 @@ use Tests\TestCase;
 
 /**
  * TCK-589 AC3 — les bornes de l'entrée par téléphone (ADR-0033 §6) : 5 échecs
- * invalident le code, 10 échecs consécutifs verrouillent le numéro (423, même avec
+ * invalident le code, 10 échecs consécutifs SUR DES CODES EN COURS verrouillent le numéro (423, même avec
  * le bon code) — avec ou sans compte —, et les limiteurs par numéro tiennent quand
  * l'IP change.
  */
@@ -62,14 +63,21 @@ class PhoneLoginRateLimitTest extends TestCase
             User::factory()->create(['phone' => $numero, 'phone_verified_at' => now()]);
         }
 
+        // Vérification adverse M1 (a) — un code faux ne compte que si un code est en cours :
+        // un code demandé toutes les cinq saisies (cinq échecs l'invalident).
         for ($i = 0; $i < LoginLock::MAX_FAILURES; $i++) {
+            if ($i % PhoneVerificationService::MAX_ATTEMPTS_PER_CODE === 0) {
+                $this->travel(61)->seconds();
+                $this->postJson('/api/auth/phone/request-code', ['phone' => $numero])->assertStatus(202);
+            }
             $this->verifier($numero, '000000')->assertStatus(422);
         }
+        $envoyesAvantVerrou = count($this->sms->sentTo($numero));
 
         $this->travel(61)->seconds();
         $this->postJson('/api/auth/phone/request-code', ['phone' => $numero])->assertStatus(202);
         // Verrouillé : aucun code n'est même émis…
-        $this->assertSame([], $this->sms->sentTo($numero));
+        $this->assertCount($envoyesAvantVerrou, $this->sms->sentTo($numero));
 
         // … et un code valide émis par ailleurs n'y échappe pas.
         app(PhoneVerificationService::class)->sendCodeTo('login', $numero);
@@ -87,7 +95,8 @@ class PhoneLoginRateLimitTest extends TestCase
     {
         $numero = '+221770000403';
 
-        for ($i = 0; $i < 10; $i++) {
+        // Vérification adverse M1 (c) — sous la moitié du seuil du verrou.
+        for ($i = 0; $i < AppServiceProvider::PHONE_VERIFY_PER_WINDOW; $i++) {
             $this->depuis("10.0.0.{$i}")->postJson('/api/auth/phone/verify-code', ['phone' => $numero, 'code' => '000000'])
                 ->assertStatus(422);
         }

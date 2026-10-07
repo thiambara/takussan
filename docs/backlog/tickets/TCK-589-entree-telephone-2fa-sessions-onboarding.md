@@ -1150,3 +1150,70 @@ On leur donne la 2FA (`withTwoFactor()`) : c'est le comportement voulu par B1.
 - 44 autres fichiers qui touchent un super-admin : 388 verts et 8 rouges, en 238 s. Les 8 rouges
   sont le rattrapage B1 ci-dessus.
 - Après correction : les fichiers concernés plus `tests/Feature/Auth`, 332 verts, puis 24 verts.
+
+#### M1 — verrou perpétuel posé par un tiers
+
+**Le défaut, rejoué par la sonde `LockProbeTest`.** Limiteurs actifs, une seule IP :
+- Avant : 10 × `verify-code` sans code demandé → 422 ×10, puis le **bon** mot de passe → 423, aux
+  trois cycles.
+- Après : 422 ×4 puis 429 ×6, puis le bon mot de passe → **200**.
+
+La même sonde montre que le croisement e-mail ↔ numéro (m3) est fermé. Après le verrou du
+mot de passe de `cible@`, son numéro rend le même 422 que les autres.
+
+**Correctif, un volet par point :**
+- **(a)** `PhoneVerificationService::hasCodeFor()`. Sans code en cours pour ce numéro,
+  `PhoneLoginService::verify` rend 422 `phone_code_invalid` **sans écriture**.
+- **(b)** Un verrou par canal. `PhoneLoginService` ne lit et n'écrit plus que le verrou du
+  **numéro**, avec ou sans compte. Le code faux et le TOTP faux par téléphone comptent du côté du
+  numéro. Un succès par téléphone ne lève plus le verrou du mot de passe.
+  `UserSupportService::unlock` lève les deux.
+- **(c)** Le limiteur `auth-phone-verify` passe de 10 à **4** par 15 min et par numéro
+  (`AppServiceProvider::PHONE_VERIFY_PER_WINDOW`). Les échecs du numéro se comptent dans une
+  fenêtre **fixe** de 15 min (`add` puis `increment`, au lieu d'un `put` qui repoussait l'échéance).
+- **Pourquoi la moitié, et non « strictement inférieur » :** deux fenêtres de limiteur contiguës
+  (5 + 5 = 10 avec la valeur d'exemple) tiennent dans une même fenêtre de verrou. À 4, leur somme
+  (8) reste sous le seuil.
+- **(d)** `PasswordLoginLockTest::test_un_tiers_ne_peut_pas_verrouiller_indefiniment` est retiré :
+  il restait vert avec le défaut. Il est **réécrit** dans `ThirdPartyLockTest` sur la séquence du
+  vérificateur, limiteurs actifs, avec une seule IP d'attaque et sans SMS : le titulaire entre aux
+  trois cycles.
+- ADR-0033 §6 est réécrit. Il écrit aussi ce qui reste : le canal mot de passe peut encore être
+  fermé par qui connaît l'e-mail (dix essais en vingt minutes depuis une IP). Le titulaire garde
+  alors le téléphone, OAuth et le support.
+
+**Les tests, dans `ThirdPartyLockTest` (8) :**
+- la séquence du vérificateur, sur trois cycles ;
+- un code faux sans code en cours n'écrit rien (12 essais) ;
+- le verrou du numéro ne ferme pas le mot de passe ;
+- le verrou du mot de passe ne ferme pas le téléphone, et le téléphone ne le solde pas ;
+- le limiteur est sous la moitié du seuil ;
+- avec des codes réellement demandés, sur trois cycles, le numéro ne se verrouille pas ;
+- fenêtre fixe : 5 échecs, puis 4 à +14 min, puis 5 à +16 min, et pas de verrou ;
+- le support lève le verrou du numéro.
+
+**Tests adaptés dans `PhoneLoginRateLimitTest` :**
+- le verrou à 10 se pose sur des codes en cours, un code demandé toutes les cinq saisies ;
+- le limiteur est lu par sa constante.
+
+**Rouge avant correctif.** Cinq fichiers ont été remis à `HEAD`, avec la constante injectée à 10
+(sa valeur d'avant), puis restaurés par `cp` (md5 identiques) : **8/8 rouges**.
+
+**Ablations, chacune restaurée par `cp` :**
+
+| Ablation | Résultat |
+|---|---|
+| (a) retiré | « sans code en cours » rouge |
+| (b) le code faux compte contre le compte | 2 rouges |
+| (b) le téléphone lit le verrou du compte | 2 rouges |
+| (c) limiteur remis à 10 | « moitié du seuil » rouge |
+| (c) fenêtre glissante | « fenêtre fixe » rouge |
+| `unlock` sans le numéro | rouge |
+| (a), (b) et (c) ensemble | la séquence du vérificateur, rouge : 423 |
+
+Pris seul, aucun volet ne rougit la séquence du vérificateur : ils se recouvrent.
+
+**Exécutions :**
+- `tests/Feature/Auth` et `UserSupportTest` : 307 verts et 3 rouges. Ce sont les deux tests de
+  `PhoneLoginRateLimitTest` qui supposaient l'ancien comportement, ci-dessus.
+- Après adaptation : `tests/Feature/Auth/Phone` 30 verts, `ThirdPartyLockTest` 8 verts.

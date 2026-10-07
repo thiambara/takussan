@@ -20,9 +20,11 @@ use Illuminate\Support\Str;
  *    premier code valide crée un compte neuf — `phone_verified_at` posé par
  *    `markVerified`, mot de passe aléatoire, `password_set_at` nul, e-mail nul —
  *    même si un compte non vérifié porte ce numéro : aucune fusion.
- *  - Verrou : celui du compte (`LoginLock`, partagé avec le mot de passe) ; pour un
- *    numéro sans compte, le même compteur en cache. Lu AVANT le code : le bon code
- *    n'y échappe pas.
+ *  - Verrou : celui du NUMÉRO (`LoginLock`, canal téléphone), avec ou sans compte —
+ *    jamais celui du mot de passe (vérification adverse M1 : un tiers qui connaît le
+ *    numéro fermait la porte du mot de passe). Lu AVANT le code : le bon code n'y
+ *    échappe pas. Un code saisi alors qu'AUCUN n'est en cours rend 422 sans rien
+ *    écrire : il ne prouve rien, il ne compte contre personne.
  *  - 2FA : le code SMS est d'abord vérifié SANS être consommé, la réponse
  *    `requires_2fa` invite à reposer le même code avec le TOTP.
  *
@@ -46,8 +48,7 @@ class PhoneLoginService
      */
     public function requestCode(string $phone, ?string $locale): void
     {
-        $user = $this->verifiedAccount($phone);
-        if ($user !== null ? $this->lock->isLocked($user) : $this->lock->isNumberLocked($phone)) {
+        if ($this->lock->isNumberLocked($phone)) {
             return;
         }
 
@@ -61,15 +62,20 @@ class PhoneLoginService
     {
         $user = $this->verifiedAccount($phone);
 
-        if ($user !== null ? $this->lock->isLocked($user) : $this->lock->isNumberLocked($phone)) {
+        if ($this->lock->isNumberLocked($phone)) {
             return AuthRefusal::response(423, 'account_locked', 'auth.account.locked');
+        }
+
+        // M1 (a) — sans code en cours, la saisie n'a rien à réfuter : 422, aucune écriture.
+        if (! $this->codes->hasCodeFor(self::SCOPE, $phone)) {
+            return AuthRefusal::response(422, 'phone_code_invalid', 'auth.phone.code_invalid');
         }
 
         $twoFactorPending = $user !== null && $user->two_factor_enabled
             && empty($proof['two_factor_code']) && empty($proof['recovery_code']);
 
         if (! $this->codes->verifyCodeFor(self::SCOPE, $phone, $code, consume: ! $twoFactorPending)) {
-            $user !== null ? $this->lock->recordFailure($user) : $this->lock->recordNumberFailure($phone);
+            $this->lock->recordNumberFailure($phone);
 
             return AuthRefusal::response(422, 'phone_code_invalid', 'auth.phone.code_invalid');
         }
@@ -83,7 +89,7 @@ class PhoneLoginService
         }
 
         if ($user !== null && $user->two_factor_enabled && ! $this->secondFactorHolds($user, $proof)) {
-            $this->lock->recordFailure($user);
+            $this->lock->recordNumberFailure($phone);
 
             return new JsonResponse(['requires_2fa' => true, 'message' => __('auth.two_factor_invalid')], 401);
         }
@@ -91,7 +97,7 @@ class PhoneLoginService
         $isNewAccount = $user === null;
         $user ??= $this->createAccount($phone, $locale);
 
-        $this->lock->clear($user);
+        // Le verrou du mot de passe n'est PAS levé : un canal ne solde pas l'autre (M1 b).
         $this->lock->clearNumber($phone);
         $user->forceFill(['last_login_at' => now()])->save();
 

@@ -112,23 +112,40 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
 | Délai entre deux envois au même numéro | 60 s | service (cache) |
 | `auth-phone-send` — par numéro | 3 / 15 min **et** 5 / 24 h | limiteur nommé |
 | `auth-phone-send` — par IP | 20 / h | limiteur nommé |
-| `auth-phone-verify` — par numéro | 10 / 15 min | limiteur nommé |
+| `auth-phone-verify` — par numéro | **4** / 15 min (sous la moitié du seuil, M1) | limiteur nommé |
 | Échecs sur un même code | 5 → code invalidé | service |
-| Échecs consécutifs (mot de passe **ou** code) avant verrou | **10** | `metadata.failed_login_attempts` |
+| Échecs avant verrou, **par canal** | **10** | mot de passe : `metadata.failed_login_attempts` ; téléphone : cache, par numéro, fenêtre fixe de 15 min |
 | Durée du verrou | **15 min**, calculée depuis `metadata.locked_at` | lu avant toute vérification |
 
 - **Le plafond Orange de 3 SMS / jour / MSISDN** (`SmsRouterDriver.php:127-138`) est compté : la borne
   journalière par numéro (5) le dépasse de deux envois, que le routeur fait passer par le fournisseur
   suivant de la chaîne. Une borne à 3 aurait laissé un utilisateur bloqué un jour entier après trois
   codes non reçus.
-- **Le verrou est par compte**, partagé entre le mot de passe et le code : `locked_at` posé au 10ᵉ
-  échec consécutif, `423 account_locked` tant qu'il court, **lu avant** la vérification du secret (le
-  bon secret n'y échappe pas), compteur remis à zéro au succès. Il **expire seul** au bout de 15 min,
-  pour qu'un tiers ne puisse pas bloquer un compte indéfiniment en se trompant exprès. Le geste
-  « Déverrouiller » de la console (`UserSupportService::unlock`, inchangé) efface les deux clés.
-- Pour un numéro **qu'aucun compte n'a vérifié**, le même compteur et le même verrou vivent en cache,
-  sous la clé du numéro : le 423 tombe au même seuil, avec ou sans compte, et ne dit donc rien de
-  l'existence d'un compte.
+- **Un verrou par canal** (révisé après vérification adverse M1, 2026-10-07).
+  - Le **mot de passe** verrouille le compte. Un second facteur faux saisi derrière lui, ou
+    derrière un rappel OAuth, compte du même côté.
+  - Le **téléphone** verrouille le **numéro**, en cache, qu'un compte l'ait vérifié ou non. Le 423
+    tombe donc au même seuil dans les deux cas, et ne dit rien de l'existence d'un compte.
+  - Chaque verrou pose `423 account_locked` tant qu'il court et est **lu avant** la vérification du
+    secret : le bon secret n'y échappe pas.
+  - Le verrou **expire seul** au bout de 15 min. Un succès sur un canal ne solde pas l'autre.
+  - Le geste « Déverrouiller » de la console (`UserSupportService::unlock`) lève les deux.
+- **Ce que M1 a corrigé.** Les deux canaux partageaient le verrou du compte. Un tiers qui
+  connaissait le numéro vérifié saisissait dix codes faux sans qu'aucun code ait été demandé (le
+  limiteur valait 10 / 15 min, exactement le seuil). Il fermait ainsi la porte du **mot de passe**
+  à chaque échéance, depuis une IP et sans dépenser un SMS. Trois volets ferment ce passage :
+  - **(a)** un code faux ne compte que si un code est **en cours** pour ce numéro. Sinon, la
+    réponse est 422, sans aucune écriture.
+  - **(b)** un canal ne ferme pas l'autre.
+  - **(c)** le limiteur de vérification vaut **4** par 15 min et par numéro, strictement sous la
+    **moitié** du seuil. Les échecs du numéro se comptent dans une fenêtre **fixe** de 15 min.
+    Deux fenêtres de limiteur contiguës peuvent tomber dans une même fenêtre de verrou, et leur
+    somme (8) reste sous le seuil. Un tiers ne peut donc plus poser le verrou du numéro.
+- **Ce qui reste, écrit pour ne pas être découvert.** Le canal mot de passe peut encore être
+  verrouillé par qui connaît l'e-mail : `throttle:5,10` par IP, un compteur sans fenêtre, et donc
+  dix essais en vingt minutes depuis une IP. Le titulaire garde alors le téléphone et OAuth, et le
+  support peut lever le verrou. C'est ce que « un verrou par canal » achète, à défaut d'un verrou
+  qu'aucun tiers ne pourrait poser.
 - **Aucune réponse ne laisse deviner si le numéro a un compte** : `request-code` rend 202
   `{retry_after}` identique dans les deux cas.
 
