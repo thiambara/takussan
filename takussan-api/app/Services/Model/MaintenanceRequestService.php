@@ -96,6 +96,10 @@ class MaintenanceRequestService
      */
     public function assign(MaintenanceRequest $mr, ?User $assignee, ?User $actor): MaintenanceRequest
     {
+        // TCK-592 (verif-592, M2) — assigner une demande annulée ouvrait au nouveau prestataire la
+        // fiche, le fil et ses notifications.
+        abort_if($this->machine->isTerminal($mr->status), 422, __('maintenance.errors.terminal_request'));
+
         $previous = $mr->assigned_to;
         if ($previous === $assignee?->id) {
             return $mr;

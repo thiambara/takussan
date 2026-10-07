@@ -176,6 +176,9 @@ class MaintenanceRequestController extends Controller
 
     public function update(UpdateMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
+        // TCK-592 (verif-592, M2) — une demande close ou annulée ne se modifie plus : le prestataire
+        // réécrivait ses notes après la confirmation du locataire, le donneur d'ordre le coût.
+        abort_if($this->machine->isTerminal($maintenanceRequest->status), 422, __('maintenance.errors.terminal_request'));
 
         $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
 

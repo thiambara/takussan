@@ -26,7 +26,7 @@ return [
         'not_assignable' => 'This account cannot receive the request: it must be an active service provider with an active collaboration with the property\'s agency, or a member of its team.',
         'decline_after_accept' => 'The request has already been accepted or started: it can no longer be declined.',
         'already_accepted' => 'The request is already accepted.',
-        'terminal_request' => 'A closed or cancelled request no longer accepts files.',
+        'terminal_request' => 'A closed or cancelled request can no longer be changed.',
         'cost_ambiguous' => 'Provide either "cost" or "actual_cost", not both.',
         'actual_cost_needs_owner' => 'This cost exceeds the landlord\'s works threshold and what they approved: only the landlord can record it.',
         'before_photos_requires_acceptance' => '"Before" photos are reserved to the service provider who accepted the request.',

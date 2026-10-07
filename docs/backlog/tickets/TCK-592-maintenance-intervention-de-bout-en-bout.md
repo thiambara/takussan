@@ -907,3 +907,18 @@ Méthode, à chaque étape :
   | égalité au plafond (`>= 0`) | 1 rouge |
   | front, champ de coût pour tous | 1 rouge |
   | front, coût envoyé | 1 rouge |
+
+**M2 — intervention close ou annulée modifiable par `PATCH`.**
+
+- `MaintenanceRequestController::update()` et `MaintenanceRequestService::assign()`, seul point
+  d'assignation, refusent l'état terminal par un 422 `maintenance.errors.terminal_request`. Le
+  libellé, partagé avec le kit et les photos, est généralisé en fr, en et wo : « ne se modifie
+  plus ».
+- En `completed`, les notes restent au prestataire et le coût au donneur d'ordre (403 pour le
+  prestataire).
+- `MaintenanceTerminalRequestTest` (4 tests) couvre v01, v02 et v03 (par le `PATCH` et par le
+  service), plus le cas `completed`.
+- Sur `05dce4fc` : 3 rouges.
+- Ablations :
+  - `update` sans garde : 2 rouges ;
+  - `assign` sans garde : 1 rouge.

@@ -26,7 +26,7 @@ return [
         'not_assignable' => 'Ce compte ne peut pas recevoir l\'intervention : il faut un prestataire actif en collaboration active avec l\'agence du bien, ou un membre de son équipe.',
         'decline_after_accept' => 'L\'intervention a déjà été acceptée ou démarrée : elle ne se refuse plus.',
         'already_accepted' => 'L\'intervention est déjà acceptée.',
-        'terminal_request' => 'Une demande clôturée ou annulée ne reçoit plus de pièces.',
+        'terminal_request' => 'Une demande clôturée ou annulée ne se modifie plus.',
         'cost_ambiguous' => 'Indiquez soit « cost », soit « actual_cost », pas les deux.',
         'actual_cost_needs_owner' => 'Ce coût dépasse le plafond de travaux du bailleur et ce qu\'il a approuvé : seul le bailleur peut l\'inscrire.',
         'before_photos_requires_acceptance' => 'Les photos « avant » sont réservées au prestataire qui a accepté l\'intervention.',

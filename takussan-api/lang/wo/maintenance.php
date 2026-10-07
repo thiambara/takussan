@@ -26,7 +26,7 @@ return [
         'not_assignable' => 'Compte bii mënul jot liggéey bii : war na doon prestataire bu dox te am collaboration bu dox ak agence bi moom kër gi, walla ku bokk ci équipe bi.',
         'decline_after_accept' => 'Liggéey bi nangu nañu ko walla tàmbali nañu ko ba noppi : mënatul a bañ.',
         'already_accepted' => 'Liggéey bi nangu nañu ko ba noppi.',
-        'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal jotatul benn fichier.',
+        'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal, kenn mënatu koo soppi.',
         'cost_ambiguous' => 'Joxeel « cost » walla « actual_cost », bul jox ñoom ñaar.',
         'actual_cost_needs_owner' => 'Njëg jii weesu na digu liggéey bu boroom kër gi ak li mu nangu : boroom kër gi rekk mën koo bind.',
         'before_photos_requires_acceptance' => 'Nataal yu « laata » yi, prestataire bi nangu liggéey bi rekk moo leen mën a yónnee.',
