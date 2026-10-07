@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\KycController;
@@ -41,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
+
+    // TCK-589 §7 — mise en service : sept étapes lues sur l'état réel.
+    Route::get('agencies/{agency}/setup-status', AgencySetupStatusController::class)->name('agencies.setup-status');
 
     // Agency KYC dossier.
     Route::get('agencies/{agency}/kyc', [KycController::class, 'show'])->name('agencies.kyc.show');
