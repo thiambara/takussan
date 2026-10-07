@@ -36,7 +36,6 @@ function renderTable(
         currentUserId={99}
         assignmentsByUser={assignmentsByUser}
         onSelect={vi.fn()}
-        onQuickAction={vi.fn()}
       />,
     ),
   );

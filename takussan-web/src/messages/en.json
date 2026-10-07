@@ -4656,6 +4656,8 @@
         "clear": "Uncheck all",
         "platform_reserved": "Platform-reserved",
         "platform_reserved_hint": "This capability belongs to the Takussan team and cannot be granted to an agency role.",
+        "not_enforced": "No effect yet",
+        "not_enforced_hint": "No action in the app checks this capability yet. Ticking it prepares the role; it takes effect once the action is wired.",
         "toggle_domain": "Show or hide the {domain} domain",
         "domain_selected": "{count}/{total}"
       },
@@ -4908,6 +4910,18 @@
       }
     },
     "team": {
+      "suspension": {
+        "suspend": "Suspend from agency",
+        "reactivate": "Reactivate in agency",
+        "suspendedBadge": "Suspended in agency",
+        "suspendTitle": "Suspend {name} from the agency?",
+        "suspendDescription": "{name} will no longer be able to act in this agency, and their sessions open here will be closed. Their account is not affected: it stays active, and their other agencies do not change.",
+        "reactivateTitle": "Reactivate {name} in the agency?",
+        "reactivateDescription": "{name} will regain the rights of their role in this agency.",
+        "cancel": "Cancel",
+        "confirmSuspend": "Suspend",
+        "confirmReactivate": "Reactivate"
+      },
       "removeDialog": {
         "title": "Remove this member?",
         "cancel": "Cancel",

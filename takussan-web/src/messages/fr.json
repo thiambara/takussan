@@ -4656,6 +4656,8 @@
         "clear": "Tout décocher",
         "platform_reserved": "Réservé à la plateforme",
         "platform_reserved_hint": "Cette capacité appartient à l'équipe Takussan et ne peut pas être accordée à un rôle d'agence.",
+        "not_enforced": "Sans effet pour l'instant",
+        "not_enforced_hint": "Aucun geste de l'application ne vérifie encore cette capacité. La cocher prépare le rôle ; elle prendra effet quand le geste sera branché.",
         "toggle_domain": "Afficher ou masquer le domaine {domain}",
         "domain_selected": "{count}/{total}"
       },
@@ -4908,6 +4910,18 @@
       }
     },
     "team": {
+      "suspension": {
+        "suspend": "Suspendre de l'agence",
+        "reactivate": "Réactiver dans l'agence",
+        "suspendedBadge": "Suspendu dans l'agence",
+        "suspendTitle": "Suspendre {name} de l'agence ?",
+        "suspendDescription": "{name} ne pourra plus agir dans cette agence et ses sessions ouvertes ici seront fermées. Son compte n'est pas touché : il reste actif, et ses autres agences ne changent pas.",
+        "reactivateTitle": "Réactiver {name} dans l'agence ?",
+        "reactivateDescription": "{name} retrouvera les droits de son rôle dans cette agence.",
+        "cancel": "Annuler",
+        "confirmSuspend": "Suspendre",
+        "confirmReactivate": "Réactiver"
+      },
       "removeDialog": {
         "title": "Retirer ce membre ?",
         "cancel": "Annuler",

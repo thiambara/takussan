@@ -3282,6 +3282,8 @@
         "clear": "Neenal lépp",
         "platform_reserved": "Plaatfoom bi rekk",
         "platform_reserved_hint": "Sañ-sañ bii ekibu Takussan moo ko moom, mënuñu koo jox wàllu ajaans.",
+        "not_enforced": "Amul njeexital léegi",
+        "not_enforced_hint": "Benn jëf ci aplikaasioŋ bi saytuwul sañ-sañ bii ba léegi. Tànn ko, rol bi lay waajal ; dina dox bu jëf ji jàppee.",
         "toggle_domain": "Wone walla nëbb wàllu {domain}",
         "domain_selected": "{count}/{total}"
       },
@@ -3534,6 +3536,18 @@
       }
     },
     "team": {
+      "suspension": {
+        "suspend": "Taxawal ci ajaas bi",
+        "reactivate": "Doxalaat ci ajaas bi",
+        "suspendedBadge": "Taxawal nañu ko ci ajaas bi",
+        "suspendTitle": "Taxawal {name} ci ajaas bi ?",
+        "suspendDescription": "{name} dootul mën a def dara ci ajaas bii, te ay jokkoom yu ubbiku fii dañuy tëju. Kontam soppikuwul : mu ngi dox rekk, te ay ajaasam yu ci des soppikuwuñu.",
+        "reactivateTitle": "Doxalaat {name} ci ajaas bi ?",
+        "reactivateDescription": "{name} dina délluwaat ci sañ-sañi rolam ci ajaas bii.",
+        "cancel": "Neenal",
+        "confirmSuspend": "Taxawal",
+        "confirmReactivate": "Doxalaat"
+      },
       "removeDialog": {
         "title": "Dindi way-bokk bii ?",
         "cancel": "Neenal",
