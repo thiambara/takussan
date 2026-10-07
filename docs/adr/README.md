@@ -57,6 +57,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) | Les médias vivent dans R2, deux seaux par environnement ; les images publiques sont servies par Cloudflare Transformations | Accepté — amendé le 2026-10-04 : les photos de biens sont servies en WebP depuis leurs conversions, sans Transformations (TCK-585) |
 | [0030](0030-le-courtier-quitte-le-code-et-la-base.md) | Le courtier quitte le code et la base | Accepté |
 | [0037](0037-plafond-de-travaux-du-bailleur.md) | Le plafond de travaux du bailleur vit sur son profil d'agence ; au-delà, le bailleur tranche (`awaiting_owner`) | Accepté |
+| [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
