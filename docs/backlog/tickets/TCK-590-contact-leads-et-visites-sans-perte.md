@@ -370,6 +370,35 @@ pas un formulaire administratif.
       `utm_source=<canal>&utm_medium=share`) ; la source d'arrivée est retenue pour la session et
       envoyée avec le lead, le clic de contact et la demande de visite.
 
+**8. Ajoutés après vérification adverse (VERIF-590, 2026-10-07)**
+- [x] `StorePropertyVisitRequest::managesProperty()` = super-admin ou personnel actif de l'agence du
+      bien — le créateur du bien n'y est plus (B1, B2). *Preuve : `PropertyVisitVerificationAdverseTest`
+      b1 ×2, b2 ; ablation X01 (créateur réintroduit) → 3 rouges.*
+- [x] Limiteur `visit-planning` sur `POST /property-visits` : 30/h par émetteur, 5/h par destinataire
+      (numéro en E.164, ou fiche). *Preuve : b2 limiteur ×2 ; ablation X02 (middleware retiré) → rouge.*
+- [x] `PersonnelDeLAgence::estPersonnel` : profil `active` et compte joignable — la seule définition,
+      relue par `PrimaryPropertyContact` (M4, m1). *Preuve : m4 visites et demandes, agent suspendu
+      non contact principal ; ablation X07 (statut retiré) → 3 rouges.*
+- [x] Destinataire d'une demande : lecture, traitement, conversion et liste seulement s'il est encore
+      personnel de l'agence de la demande, ou propriétaire du bien (M1). *Preuve : m1 ; ablations
+      X03 (policy), X04 (clause d'`index`) → rouges.*
+- [x] Repli des notifications quand l'agent assigné est injoignable ou retiré (M2). *Preuve : m2 ;
+      ablations X05, X05b → rouges.*
+- [x] Annulation et déplacement : seuls super-admin, agent de la visite, personnel actif ou
+      propriétaire du bien préviennent le visiteur (M3). *Preuve : m3 ; ablations X06, X06b → rouges.*
+      Le refus du geste (403) dépend de `PropertyVisitPolicy` (TCK-587) : test écrit, `incomplete`
+      jusqu'à `isStaffAt`.
+- [x] Conversion d'une demande sans agence : 422 `lead_without_agency` (m2). *Preuve : m2 ; X09.*
+- [x] Sans destinataire (agence sans admin actif ni contact joignable) : 409 `contact_unavailable` sur
+      la demande ET la visite publiques, message front `publicLeadErrors.contactUnavailable` fr/en/wo
+      (m3, décision de la session). *Preuve : `test_une_agence_sans_personne_pour_lire_refuse_la_demande`,
+      `property.contact-indisponible.test.ts` ; X10, X10b, FX1 → rouges.*
+- [x] Drapeau SMS du dépôt figé (m4, X11), durée plafonnée à 240 (m5, X12), `bienDe()` à
+      `contract_type` fixe.
+- [x] Téléphone : fiche normalisée à la planification (M6, X13), `+77 …`/`00 77 …` refusés (m6, X14),
+      fixe 33 accepté sans SMS (m7, X15).
+- [x] Front : « Planifier une visite » montré au seul personnel. *Preuve : FX2.*
+
 **Tests** — `tests/Feature/Api/ContactLeadInboxTest`, `ContactLeadConvertTest`,
 `PropertyVisitAssignmentTest`, `PropertyVisitStaffCreateTest`, `PropertyVisitRescheduleTest`,
 `PropertyVisitIsolationTest` (customer_id, agent_id, bailleur de l'agence, avis « agent »),
@@ -479,6 +508,29 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
 - [x] AC22 — Toutes les clés ajoutées existent en `fr`, `en` et `wo` (y compris les
       `notifications.visit_*` absentes aujourd'hui de `lang/wo`).
 
+**Ajoutés après vérification adverse (VERIF-590)** — chacun vérifié par
+`PropertyVisitVerificationAdverseTest` et les classes nommées, ablation rejouée.
+
+- [x] AC23 **(R)** — Un bailleur propriétaire, ou un agent retiré créateur du bien, qui envoie le
+      `customer_id` d'une fiche de l'agence : 403 sur un bien privé ; sur un bien public, visite
+      pour lui-même, `customer_id` nul — aucune coordonnée de la fiche rendue, écrite ni prévenue.
+- [x] AC24 **(R)** — Un bailleur ne crée aucune visite confirmée vers un numéro libre, et aucun SMS
+      ne part ; la planification est bornée à 5/h par destinataire et 30/h par émetteur (429).
+- [x] AC25 **(R)** — Un agent retiré de l'agence ne liste, ne lit, ne traite ni ne convertit plus la
+      demande qui lui était adressée.
+- [x] AC26 **(R)** — Agent assigné bloqué ou retiré : l'annulation et le nouveau créneau du visiteur
+      partent vers le repli.
+- [x] AC27 **(R)** — Agent suspendu : non attribuable (visite, demande), ne prend pas en charge, n'est
+      pas contact principal. Un bailleur de X ne voit pas les visites non attribuées de X.
+- [x] AC28 **(R)** — Un bailleur qui annule ou déplace la visite du bien d'un autre ne prévient pas le
+      visiteur.
+- [ ] AC28b **(R)** — … et reçoit 403.
+      *Dépend de `PropertyVisitPolicy` (TCK-587) : test écrit, `incomplete` jusqu'à `isStaffAt`.*
+- [x] AC29 — Sans destinataire possible : 409 `contact_unavailable` (demande et visite), rien
+      d'écrit, message front honnête en fr/en/wo. Demande sans agence : conversion 422 codée.
+- [x] AC30 — `VisitRequestedNotification` ne prend jamais le canal SMS ; durée ≤ 240 ; téléphone
+      d'une fiche normalisé à la planification ; `+77 …` refusé ; un fixe ne reçoit pas de SMS.
+
 ## Hors périmètre
 
 - Rappels de visite planifiés et relances de loyer multicanal, canal WhatsApp : TCK-588.
@@ -579,5 +631,23 @@ titre (AC17).
   planifie. La migration rattrape l'existant des deux colonnes ; `down()` vide, motif écrit.
 - Ablations, toutes rouges puis restaurées : branche nationale retirée de `TelephoneSaisi` (AC3
   visite et piste), normalisation retirée de la demande publique, de la planification, et de la
-  migration. `customers.phone` non touché (TCK-591) : un client planifié par sa fiche reçoit son
-  SMS au numéro de sa fiche, tel qu'enregistré.
+  migration. `customers.phone` non touché (TCK-591).
+- ⚠ **Corrigé après la vérification adverse (M6)** : cette note affirmait qu'« un client planifié
+  par sa fiche reçoit son SMS au numéro de sa fiche, tel qu'enregistré ». C'était le défaut, pas
+  une garantie : `SmsChannel` jette sans bruit un numéro non E.164. La planification recopie
+  désormais `TelephoneSaisi::normaliser(customers.phone)` dans `visitor_phone` ; la fiche, elle,
+  reste telle quelle (TCK-591).
+
+**Étape 6 — corrections après vérification adverse (2026-10-07).** VERIF-590 refusait le ticket :
+deux bloquants d'une même cause (`managesProperty()` comptait le créateur du bien), cinq majeurs,
+cinq mineurs, puis une passe 1b sur `5701ad42`. Tous traités, chacun prouvé par un test qui
+échoue sur le code d'avant et par une ablation rejouée (X01-X15, FX1, FX2 : toutes rouges, toutes
+restaurées — liste dans la section 8 du Delta).
+- Les sondes S1, S2 et S9 de la vérification sont devenues des tests (AC23, AC24) : sur le code
+  d'avant — ablation X01, le créateur réintroduit — elles rougissent ; avec le correctif, 403 sur un
+  bien privé, et sur un bien public une visite en attente au nom et au numéro de l'appelant.
+- Une seule définition du personnel (`estPersonnel` : profil actif, compte joignable). Les
+  `isAgentAt`/`isAgencyAdminAt` du dépôt ne lisent aucun statut ; ils restent tels quels hors du
+  ticket — c'est le sujet de `isStaffAt` (TCK-587).
+- Restent liés à la fusion de TCK-587 : AC6, AC7b, AC28b (403 du bailleur tiers).
+
