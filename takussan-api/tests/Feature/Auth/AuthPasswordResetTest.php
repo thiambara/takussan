@@ -48,7 +48,7 @@ class AuthPasswordResetTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('message', 'If an account with that email exists, a password reset link has been sent.');
+            ->assertJsonPath('message', __('messages.password_reset_link_sent'));
     }
 
     public function test_user_can_reset_password_with_valid_token(): void

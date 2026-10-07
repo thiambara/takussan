@@ -62,7 +62,7 @@ class MessagingContactController extends Controller
 
     public function forConversation(Request $request, Conversation $conversation, MessagingReach $reach): JsonResponse
     {
-        abort_unless($request->user()->can('addParticipant', $conversation), 403, __('messaging.errors.admin_only'));
+        abort_code_unless($request->user()->can('addParticipant', $conversation), 403, 'messaging.admin_only');
 
         $base = $reach->query($request->user(), $conversation)
             ->whereDoesntHave('conversations', fn (Builder $c) => $c

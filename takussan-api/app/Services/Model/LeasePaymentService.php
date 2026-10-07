@@ -34,10 +34,10 @@ class LeasePaymentService
      */
     public function markPaid(LeasePayment $payment, array $data = []): LeasePayment
     {
-        abort_unless(
+        abort_code_unless(
             in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
             422,
-            'Only pending or late payments can be marked paid.'
+            'lease_payment.cannot_mark_paid'
         );
 
         $payment->update([

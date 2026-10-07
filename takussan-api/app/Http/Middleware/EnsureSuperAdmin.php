@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -27,11 +26,11 @@ class EnsureSuperAdmin
     {
         $user = $request->user();
         if (! $user) {
-            return new JsonResponse(['message' => 'Unauthenticated.'], 401);
+            abort_code(401, 'auth.unauthenticated');
         }
 
         if (! $user->isSuperAdmin()) {
-            return new JsonResponse(['message' => 'Super-admin access required.'], 403);
+            abort_code(403, 'auth.super_admin_required');
         }
 
         return $next($request);

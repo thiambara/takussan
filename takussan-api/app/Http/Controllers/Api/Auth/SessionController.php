@@ -34,10 +34,10 @@ class SessionController extends Controller
     public function destroy(Request $request, int $tokenId): JsonResponse
     {
         $currentId = $request->user()->currentAccessToken()?->id;
-        abort_if($tokenId === $currentId, 422, 'Cannot revoke the current session — use logout instead.');
+        abort_code_if($tokenId === $currentId, 422, 'session.cannot_revoke_current');
 
         $deleted = $request->user()->tokens()->where('id', $tokenId)->delete();
-        abort_unless($deleted > 0, 404, 'Session not found.');
+        abort_code_unless($deleted > 0, 404, 'session.not_found');
 
         return $this->json(null, 204);
     }

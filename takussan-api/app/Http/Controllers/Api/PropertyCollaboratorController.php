@@ -29,7 +29,7 @@ class PropertyCollaboratorController extends Controller
         $data = $request->validated();
 
         $exists = $property->collaborators()->where('user_id', $data['user_id'])->exists();
-        abort_if($exists, 422, __('messages.collaborator_already_exists'));
+        abort_code_if($exists, 422, 'property.collaborator_exists');
 
         $collaborator = DB::transaction(function () use ($property, $data) {
             $this->assertCommissionWithinCapLocked(

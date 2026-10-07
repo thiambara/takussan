@@ -90,4 +90,15 @@ return [
     'lease_activated_body' => 'Your lease for :property is now active.',
     'new_message_title' => 'New message',
     'new_message_body' => ':sender sent you a message.',
+
+    // TCK-588 — accusés de réception des réponses de succès (plus aucune prose dans le code).
+    'activity_log_export_queued' => 'Export being prepared, download coming shortly…',
+    'booking_expired_manually' => 'The booking has been expired manually.',
+    'report_export_queued' => 'Export in progress, you will receive an email when it is ready.',
+    'impersonation_stopped' => 'Impersonation stopped.',
+    'agency_role_deleted' => 'Role deleted.',
+    'email_already_verified' => 'Email address already verified.',
+    'email_verified' => 'Email address verified.',
+    'verification_email_resent' => 'Verification email resent.',
+    'password_reset_link_sent' => 'If an account exists with that address, a reset link has been sent.',
 ];

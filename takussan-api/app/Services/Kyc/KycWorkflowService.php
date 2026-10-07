@@ -11,7 +11,6 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Model\NotificationService;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -22,15 +21,11 @@ class KycWorkflowService
     /**
      * Les codes stables que les refus de ce service émettent, en plus de leur `message`.
      *
-     * TCK-362 — le `message` de ces aborts est en ANGLAIS et codé en dur. Tant qu'il était la
-     * SEULE chose que la réponse portait, le front n'avait rien d'autre à afficher : la file KYC
-     * du super-admin montrait « Only submitted KYC dossiers can be reviewed. » mot pour mot à un
-     * opérateur francophone, parce que `messageErreurApi` préfère délibérément la prose serveur
-     * (elle est censée être déjà localisée par `Accept-Language` — ce que ces aborts ne sont pas).
-     *
-     * Le code est la DONNÉE dont le front a besoin pour posséder son texte (principe non
-     * négociable n°5). Le `message` reste inchangé — il n'est pas retiré, il cesse d'être le seul
-     * moyen de savoir DE QUOI il s'agit.
+     * TCK-362 — le code est la DONNÉE dont le front a besoin pour posséder son texte (principe non
+     * négociable n°5). TCK-588 (ADR-0032) — ils passent par `abort_code()` : le `message` est
+     * désormais localisé dans la langue de la requête (`lang/{fr,en,wo}/errors.php`, clés `kyc.*`), et la
+     * réponse construite à la main (`HttpResponseException`, qui contournait le rendu de
+     * `bootstrap/app.php`) a disparu. Les codes sont inchangés.
      */
     public const CODE_LOCKED = 'kyc.locked';
 
@@ -66,7 +61,7 @@ class KycWorkflowService
     {
         $this->assertNotVerified($dossier);
         if (! in_array($documentType, self::AGENCY_REQUIRED_DOCUMENTS, true)) {
-            $this->refuse(self::CODE_UNKNOWN_DOCUMENT_TYPE, 'Unknown KYC document type.');
+            abort_code(422, self::CODE_UNKNOWN_DOCUMENT_TYPE);
         }
 
         return $dossier
@@ -155,31 +150,15 @@ class KycWorkflowService
     private function assertNotVerified(KycDossier $dossier): void
     {
         if ($dossier->status === KycDossierStatus::Verified) {
-            $this->refuse(self::CODE_LOCKED, 'Verified KYC dossiers are locked.');
+            abort_code(422, self::CODE_LOCKED);
         }
     }
 
     private function assertTransitionable(KycDossier $dossier): void
     {
         if ($dossier->status !== KycDossierStatus::Submitted) {
-            $this->refuse(self::CODE_NOT_TRANSITIONABLE, 'Only submitted KYC dossiers can be reviewed.');
+            abort_code(422, self::CODE_NOT_TRANSITIONABLE);
         }
-    }
-
-    /**
-     * Un refus 422 qui porte un CODE en plus de son message.
-     *
-     * `HttpException` ne sait transporter qu'un `message` : le rendu de Laravel en fait
-     * `{"message": …}` et rien d'autre. Une réponse construite ici ajoute la seule clé qui
-     * manquait — la forme du corps est inchangée par ailleurs, et un appelant qui ne lit que
-     * `message` ne voit aucune différence.
-     */
-    private function refuse(string $code, string $message): never
-    {
-        throw new HttpResponseException(response()->json([
-            'message' => $message,
-            'code' => $code,
-        ], 422));
     }
 
     private function assertRequiredDocuments(KycDossier $dossier): void
@@ -193,7 +172,7 @@ class KycWorkflowService
 
         $missing = array_values(array_diff(self::AGENCY_REQUIRED_DOCUMENTS, $present));
         if ($missing !== []) {
-            $this->refuse(self::CODE_DOCUMENTS_MISSING, 'Missing required KYC documents: '.implode(', ', $missing));
+            abort_code(422, self::CODE_DOCUMENTS_MISSING, ['missing' => $missing]);
         }
     }
 

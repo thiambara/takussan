@@ -113,7 +113,7 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->apiPost("/api/users/{$target->id}/block")
             ->assertStatus(422)
-            ->assertJsonPath('message', __('messages.target_user_not_in_active_agency'));
+            ->assertJsonPath('code', 'user.not_in_active_agency');
     }
 
     public function test_agency_admin_cannot_block_self(): void
@@ -123,7 +123,7 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->apiPost("/api/users/{$admin->id}/block")
             ->assertStatus(422)
-            ->assertJsonPath('message', __('messages.cannot_block_self'));
+            ->assertJsonPath('code', 'user.cannot_block_self');
     }
 
     public function test_agency_admin_can_activate_user_in_active_agency(): void
@@ -159,7 +159,7 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertForbidden()
-            ->assertJsonPath('message', __('messages.target_user_not_in_active_agency'));
+            ->assertJsonPath('code', 'user.not_in_active_agency');
     }
 
     public function test_outsider_without_admin_role_cannot_list(): void

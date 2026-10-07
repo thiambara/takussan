@@ -66,13 +66,13 @@ class AgencyRoleService
 
             if ($source->base_profile_type !== $type) {
                 throw ValidationException::withMessages([
-                    'clone_from' => 'Le rôle source ne cible pas le même type de profil.',
+                    'clone_from' => __('errors.agency_role.clone_type_mismatch'),
                 ]);
             }
 
             if (! $source->is_clonable) {
                 throw ValidationException::withMessages([
-                    'clone_from' => 'Ce rôle n\'est pas clonable.',
+                    'clone_from' => __('errors.agency_role.not_clonable'),
                 ]);
             }
         }
@@ -115,8 +115,9 @@ class AgencyRoleService
 
         if ($reserved->isNotEmpty()) {
             throw ValidationException::withMessages([
-                'capabilities' => 'Capacité réservée à la plateforme : '.$reserved->implode(', ')
-                    .'. Aucun rôle d\'agence ne peut la porter.',
+                'capabilities' => __('errors.agency_role.platform_capability', [
+                    'capabilities' => $reserved->implode(', '),
+                ]),
             ]);
         }
 
@@ -186,14 +187,14 @@ class AgencyRoleService
     {
         if ((int) $profile->agency_id !== (int) $role->agency_id) {
             throw ValidationException::withMessages([
-                'agency_role_id' => 'Ce rôle appartient à une autre agence.',
+                'agency_role_id' => __('errors.agency_role.other_agency'),
             ]);
         }
 
         $expected = $profile::agencyRoleBaseType();
         if ($role->base_profile_type !== $expected) {
             throw ValidationException::withMessages([
-                'agency_role_id' => 'Ce rôle ne cible pas le même type de profil.',
+                'agency_role_id' => __('errors.agency_role.profile_type_mismatch'),
             ]);
         }
 
@@ -256,8 +257,7 @@ class AgencyRoleService
 
         if ($survivors === 0) {
             throw ValidationException::withMessages([
-                'agency_role_id' => 'Dernier administrateur de l\'agence : ce rôle lui retirerait '
-                    .'la gestion des rôles, et personne ne pourrait l\'y rendre.',
+                'agency_role_id' => __('errors.agency_role.last_administrator'),
             ]);
         }
     }

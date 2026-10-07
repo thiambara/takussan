@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Invitation\AcceptInvitationRequest;
 use App\Http\Resources\InvitationResource;
 use App\Services\Invitation\InvitationService;
 use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * TCK-249 — public accept endpoint.
@@ -40,18 +40,18 @@ class InvitationAcceptController extends Controller
                 payload: $request->validated(),
                 authenticated: $user,
             );
-        } catch (HttpException $e) {
+        } catch (ApiError $e) {
             // Translate the service's "requires_login" 401 into a JSON
             // body the frontend can dispatch on without parsing headers.
+            // TCK-588 (ADR-0032) — relaie le CODE et le message localisé de l'`ApiError`,
+            // jamais `getMessage()` d'une exception.
             if ($e->getStatusCode() === 401) {
                 $headers = $e->getHeaders();
-                $email = $headers['X-Invitation-Email'] ?? null;
 
-                return $this->json([
-                    'message' => $e->getMessage(),
+                throw $e->with([
                     'requires_login' => true,
-                    'email' => $email,
-                ], 401, $headers);
+                    'email' => $headers['X-Invitation-Email'] ?? null,
+                ]);
             }
 
             throw $e;

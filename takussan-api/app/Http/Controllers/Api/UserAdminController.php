@@ -66,7 +66,7 @@ class UserAdminController extends Controller
                 || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
             403,
         );
-        abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
+        abort_code_if($user->id === $actor->id, 422, 'user.cannot_block_self');
 
         $this->ensureTargetInActorScope($request, $user);
 
@@ -113,14 +113,14 @@ class UserAdminController extends Controller
                 && ! $target->isOwnerAt($agencyId)
                 && ! $target->isAgencyAdminAt($agencyId))
         ) {
-            abort(422, __('messages.target_user_not_in_active_agency'));
+            abort_code(422, 'user.not_in_active_agency');
         }
     }
 
     public function destroy(Request $request, User $user): JsonResponse
     {
         abort_unless($request->user()->isSuperAdmin(), 403);
-        abort_if($user->id === $request->user()->id, 422, __('messages.cannot_delete_self'));
+        abort_code_if($user->id === $request->user()->id, 422, 'user.cannot_delete_self');
 
         $this->anonymize($user);
 

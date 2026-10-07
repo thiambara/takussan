@@ -38,10 +38,10 @@ class IntegrationController extends Controller
 
         $agencyId = $data['agency_id'] ?? $user->agency_id;
 
-        abort_unless(
+        abort_code_unless(
             $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->isAgencyAdminAt((int) $agencyId)),
             403,
-            'You can only manage your own agency integrations.'
+            'integration.other_agency_forbidden'
         );
 
         // TCK-078: the Integration model casts `credentials` as

@@ -13,24 +13,24 @@ class PayoutService
      */
     public function create(User $user, User $landlord, array $data): Payout
     {
-        abort_unless(
+        abort_code_unless(
             $user->isSuperAdmin() || $user->agency_id,
             403,
-            'Only agency members or admins can issue payouts.'
+            'payout.issuer_forbidden'
         );
 
         // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur. La règle comparait
         // `$landlord->agency_id`, qui vaut `null` pour un bailleur sans agence comme pour un bailleur
         // présent dans plusieurs agences : les deux passaient, vers n'importe quelle agence.
         $agencyId = $user->agency_id;
-        abort_if(
+        abort_code_if(
             $agencyId && ! (
                 $landlord->isOwnerAt($agencyId)
                 || $landlord->isAgentAt($agencyId)
                 || $landlord->isAgencyAdminAt($agencyId)
             ),
             403,
-            'Landlord does not belong to your agency.'
+            'payout.landlord_not_in_agency'
         );
 
         $gross = (float) $data['gross_amount'];
@@ -38,7 +38,7 @@ class PayoutService
         $fees = isset($data['fees_amount']) ? (float) $data['fees_amount'] : 0;
         $net = round($gross - $commission - $fees, 2);
 
-        abort_if($net < 0, 422, 'Net amount cannot be negative.');
+        abort_code_if($net < 0, 422, 'payout.net_negative');
 
         return Payout::create([
             'landlord_id' => $landlord->id,
@@ -66,10 +66,10 @@ class PayoutService
      */
     public function markProcessed(Payout $payout, array $data = []): Payout
     {
-        abort_unless(
+        abort_code_unless(
             in_array($payout->status, [PayoutStatus::Pending, PayoutStatus::Scheduled, PayoutStatus::Processing], true),
             422,
-            'Payout cannot be marked processed in its current state.'
+            'payout.cannot_process'
         );
 
         $payout->update([
@@ -87,14 +87,14 @@ class PayoutService
      */
     public function markFailed(Payout $payout, array $data): Payout
     {
-        abort_if(
+        abort_code_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
             422,
-            'Payout cannot be marked failed in its current state.'
+            'payout.cannot_fail'
         );
 
         $reason = isset($data['failed_reason']) ? trim((string) $data['failed_reason']) : '';
-        abort_if($reason === '', 422, 'A failure reason is required when marking a payout as failed.');
+        abort_code_if($reason === '', 422, 'payout.failure_reason_required');
 
         $payout->update([
             'status' => PayoutStatus::Failed,
@@ -106,10 +106,10 @@ class PayoutService
 
     public function cancel(Payout $payout): Payout
     {
-        abort_if(
+        abort_code_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
             422,
-            'Payout cannot be cancelled in its current state.'
+            'payout.cannot_cancel'
         );
 
         $payout->update(['status' => PayoutStatus::Cancelled]);

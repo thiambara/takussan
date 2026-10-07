@@ -70,7 +70,7 @@ class DocumentVersionController extends Controller
         $media = $document->getMedia(DocumentVersionService::COLLECTION)
             ->firstWhere('id', $versionId);
 
-        abort_if($media === null, 404, 'Version not found.');
+        abort_code_if($media === null, 404, 'document.version_not_found');
 
         return $access->redirect($media, 'attachment');
     }

@@ -255,4 +255,10 @@ return [
         'action' => 'Ouvrir « Mes données »',
         'expires' => '{1} Elle reste téléchargeable depuis cette page pendant :count jour.|[2,*] Elle reste téléchargeable depuis cette page pendant :count jours.',
     ],
+
+    // TCK-588 — alertes administrateur (canaux Slack, Discord, e-mail de l'exploitant).
+    'admin_alert' => [
+        'test_message' => '[TEST] :event déclenché par test synthétique.',
+        'activity_message' => ':event — acteur :actor, objet :subject',
+    ],
 ];

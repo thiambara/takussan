@@ -44,7 +44,7 @@ class PropertyMediaController extends Controller
                 $media?->delete();
 
                 throw ValidationException::withMessages([
-                    'photos' => ['Cette image ne peut pas être traitée. Vérifiez le fichier puis réessayez.'],
+                    'photos' => [__('errors.media.photo_unprocessable')],
                 ]);
             }
 

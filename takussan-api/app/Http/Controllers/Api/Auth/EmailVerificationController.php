@@ -13,24 +13,24 @@ class EmailVerificationController extends Controller
     public function verify(EmailVerificationRequest $request): JsonResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
-            return $this->json(['message' => 'Email already verified.']);
+            return $this->json(['message' => __('messages.email_already_verified')]);
         }
 
         if ($request->user()->markEmailAsVerified()) {
             event(new Verified($request->user()));
         }
 
-        return $this->json(['message' => 'Email verified successfully.']);
+        return $this->json(['message' => __('messages.email_verified')]);
     }
 
     public function resend(Request $request): JsonResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
-            return $this->json(['message' => 'Email already verified.'], 422);
+            abort_code(422, 'email.already_verified');
         }
 
         $request->user()->sendEmailVerificationNotification();
 
-        return $this->json(['message' => 'Verification email resent.']);
+        return $this->json(['message' => __('messages.verification_email_resent')]);
     }
 }

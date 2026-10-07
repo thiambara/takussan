@@ -49,17 +49,17 @@ class BookingService
      */
     public function create(Property $property, User $user, array $data): Booking
     {
-        abort_if(
+        abort_code_if(
             in_array($property->status, self::UNBOOKABLE_STATUSES, true),
             422,
-            'This property is not available for booking.'
+            'booking.property_unavailable'
         );
 
         // Owners cannot book their own property (admins can still act on their behalf).
-        abort_if(
+        abort_code_if(
             $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
-            'You cannot book your own property.'
+            'booking.own_property'
         );
 
         $isStaff = $user->isSuperAdmin()
@@ -67,10 +67,10 @@ class BookingService
             || $property->user_id === $user->id;
 
         if (! $isStaff) {
-            abort_unless(
+            abort_code_unless(
                 Property::query()->where('id', $property->id)->public()->exists(),
                 403,
-                'This property is not available for booking.'
+                'booking.property_unavailable'
             );
         }
 
@@ -162,10 +162,10 @@ class BookingService
 
     public function confirm(Booking $booking): Booking
     {
-        abort_unless(
+        abort_code_unless(
             $booking->status === BookingStatus::Pending,
             422,
-            'Only pending bookings can be confirmed.'
+            'booking.not_pending_confirm'
         );
 
         // Serialize confirmations on the same property: without a lock two
@@ -177,10 +177,10 @@ class BookingService
             Property::query()->whereKey($booking->property_id)->lockForUpdate()->first();
 
             $booking->refresh();
-            abort_unless(
+            abort_code_unless(
                 $booking->status === BookingStatus::Pending,
                 422,
-                'Only pending bookings can be confirmed.'
+                'booking.not_pending_confirm'
             );
 
             $this->assertNoOverlap($booking);
@@ -209,10 +209,10 @@ class BookingService
 
     public function reject(Booking $booking, ?string $reason = null): Booking
     {
-        abort_unless(
+        abort_code_unless(
             $booking->status === BookingStatus::Pending,
             422,
-            'Only pending bookings can be rejected.'
+            'booking.not_pending_reject'
         );
 
         $booking->update([
@@ -260,19 +260,19 @@ class BookingService
             })
             ->exists();
 
-        abort_if(
+        abort_code_if(
             $overlap,
             422,
-            'Another confirmed booking already overlaps these dates on this property.'
+            'booking.dates_overlap'
         );
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
     {
-        abort_if(
+        abort_code_if(
             in_array($booking->status, self::TERMINAL_CANCEL_STATUSES, true),
             422,
-            'Booking cannot be cancelled in its current state.'
+            'booking.cannot_cancel'
         );
 
         $property = $booking->property;

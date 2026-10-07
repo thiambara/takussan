@@ -84,7 +84,7 @@ class MeProfilesController extends Controller
 
         $profile = $this->resolver->resolve($composite, $user);
         if ($profile === null) {
-            return $this->json(['message' => 'Profile not accessible.'], 403);
+            abort_code(403, 'profile.not_accessible');
         }
 
         $cookie = Cookie::create(

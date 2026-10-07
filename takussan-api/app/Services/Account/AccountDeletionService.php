@@ -138,11 +138,11 @@ class AccountDeletionService
         }
 
         if ($request->executed_at !== null) {
-            abort(410, __('account.deletion.errors.already_executed'));
+            abort_code(410, 'account_deletion.already_executed');
         }
 
         if ($request->scheduled_for !== null && $request->scheduled_for->isPast()) {
-            abort(410, __('account.deletion.errors.grace_expired'));
+            abort_code(410, 'account_deletion.grace_expired');
         }
 
         DB::transaction(function () use ($user, $request) {

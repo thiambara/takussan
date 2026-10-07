@@ -224,4 +224,10 @@ return [
         'action' => 'Ubbi « Samay xibaar »',
         'expires' => '{1} Mën nga ko wàcce ci xët woowu diirub :count fan.|[2,*] Mën nga ko wàcce ci xët woowu diirub :count fan.',
     ],
+
+    // TCK-588 — alertes administrateur (canaux Slack, Discord, e-mail de l'exploitant).
+    'admin_alert' => [
+        'test_message' => '[TEST] :event tàmbali na ndax test synthétique.',
+        'activity_message' => ':event — jëfekat :actor, mbir :subject',
+    ],
 ];

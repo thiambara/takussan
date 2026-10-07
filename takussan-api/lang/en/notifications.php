@@ -250,4 +250,10 @@ return [
         'action' => 'Open “My data”',
         'expires' => '{1} You can download it from that page for :count day.|[2,*] You can download it from that page for :count days.',
     ],
+
+    // TCK-588 — alertes administrateur (canaux Slack, Discord, e-mail de l'exploitant).
+    'admin_alert' => [
+        'test_message' => '[TEST] :event triggered by a synthetic test.',
+        'activity_message' => ':event — actor :actor, subject :subject',
+    ],
 ];

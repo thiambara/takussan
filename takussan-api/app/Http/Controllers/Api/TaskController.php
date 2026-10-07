@@ -86,7 +86,7 @@ class TaskController extends Controller
             || $assignee->isOwnerAt($agencyId)
         );
 
-        abort_unless($ok, 422, 'The assignee must belong to your agency.');
+        abort_code_unless($ok, 422, 'task.assignee_other_agency');
     }
 
     public function show(Request $request, Task $task): JsonResponse

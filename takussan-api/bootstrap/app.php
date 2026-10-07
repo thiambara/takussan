@@ -1,5 +1,7 @@
 <?php
 
+use App\Exceptions\ApiError;
+use App\Exceptions\HttpErrorCode;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\MaintenanceMode;
@@ -72,14 +74,35 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
+        // TCK-588 (ADR-0032) — une erreur est un CODE et un message localisé dans la langue
+        // négociée, jamais le message de l'exception : il exposait la classe d'un modèle
+        // introuvable (« No query results for model [App\Models\Lease] 12 »), l'anglais du
+        // framework (« This action is unauthorized. ») ou rien (« Error »). Une `ApiError`
+        // (`abort_code()`) porte son code ; toute autre `HttpException` — policy, modèle
+        // introuvable, `abort(403)` nu — devient `http.<statut>`. Une `QueryException` n'est pas
+        // une `HttpException` : elle n'est pas interceptée ici.
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            if ($e instanceof HttpExceptionInterface) {
+            if ($e instanceof ApiError) {
                 return new JsonResponse(
-                    ['message' => $e->getMessage() !== '' ? $e->getMessage() : 'Error'],
+                    array_filter([
+                        'code' => $e->errorCode,
+                        'message' => $e->localizedMessage(),
+                        'params' => $e->params,
+                    ], fn ($value) => $value !== []) + $e->extra,
+                    $e->getStatusCode(),
+                    $e->getHeaders(),
+                );
+            }
+
+            if ($e instanceof HttpExceptionInterface) {
+                $code = HttpErrorCode::for($e->getStatusCode());
+
+                return new JsonResponse(
+                    ['code' => $code, 'message' => __('errors.'.$code)],
                     $e->getStatusCode(),
                     $e->getHeaders(),
                 );

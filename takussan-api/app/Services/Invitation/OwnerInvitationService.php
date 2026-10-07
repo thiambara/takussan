@@ -128,7 +128,7 @@ class OwnerInvitationService
         // TCK-449 (AC5) — même règle que l'invitation d'agents et que le
         // rattachement direct, lue au même endroit. Seul le LIBELLÉ diffère :
         // ici on parle de portefeuille de propriétaires, pas d'équipe.
-        AgencyKindGuard::ensureCanFormTeam($agency, 'owners.invite.errors.individual_agency');
+        AgencyKindGuard::ensureCanFormTeam($agency, owners: true);
     }
 
     /**

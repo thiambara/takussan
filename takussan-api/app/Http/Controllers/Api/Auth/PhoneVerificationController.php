@@ -16,13 +16,13 @@ class PhoneVerificationController extends Controller
     {
 
         $user = $request->user();
-        abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
-        abort_unless($user->phone !== null, 422, 'No phone number on file.');
+        abort_code_if($user->phone_verified_at !== null, 422, 'phone.already_verified');
+        abort_code_unless($user->phone !== null, 422, 'phone.missing');
 
-        abort_unless(
+        abort_code_unless(
             $this->service->verifyOtp($user, $request->input('code')),
             422,
-            'Invalid or expired verification code.',
+            'phone.code_invalid',
         );
 
         $user->forceFill(['phone_verified_at' => now()])->save();
@@ -52,12 +52,12 @@ class PhoneVerificationController extends Controller
             }
         }
 
-        abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
-        abort_unless($user->phone !== null, 422, 'No phone number on file.');
-        abort_unless(
+        abort_code_if($user->phone_verified_at !== null, 422, 'phone.already_verified');
+        abort_code_unless($user->phone !== null, 422, 'phone.missing');
+        abort_code_unless(
             $this->service->canResend($user),
             429,
-            'Please wait before requesting another code.',
+            'phone.resend_too_soon',
         );
 
         $debugCode = $this->service->sendOtp($user);

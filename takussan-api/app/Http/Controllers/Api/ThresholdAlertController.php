@@ -38,7 +38,7 @@ class ThresholdAlertController extends Controller
         $validated = $request->validated();
 
         $agencyId = $validated['agency_id'] ?? $user->agency_id;
-        abort_unless($agencyId, 422, 'agency_id is required.');
+        abort_code_unless($agencyId, 422, 'agency.id_required');
         if (! $user->isSuperAdmin()) {
             abort_unless((int) $agencyId === (int) $user->agency_id, 403);
         }

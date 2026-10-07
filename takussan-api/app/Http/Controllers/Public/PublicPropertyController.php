@@ -696,10 +696,10 @@ class PublicPropertyController extends Controller
         // Vérification adverse de TCK-535 — même règle que `BookingService::create()` : le
         // propriétaire ne réserve pas (et ne fait pas d'offre sur) son propre bien. Avant tout
         // calcul et toute écriture, pour ne pas lui créer de fiche client.
-        abort_if(
+        abort_code_if(
             $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
-            'You cannot book your own property.'
+            'booking.own_property'
         );
 
         // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
@@ -832,8 +832,8 @@ class PublicPropertyController extends Controller
 
         $primaryAgent = $resolver->recipientFor($property);
 
-        abort_if($primaryAgent === null, 422, 'No recipient available.');
-        abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
+        abort_code_if($primaryAgent === null, 422, 'message.no_recipient');
+        abort_code_if($primaryAgent->id === $user->id, 422, 'message.self');
 
         $conversation = $resolver->firstOrCreate($property, $user, $primaryAgent);
 

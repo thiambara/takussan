@@ -71,4 +71,15 @@ return [
     'lease_rent_review_no_back_dating' => 'Bisu njëlbeen bi du wàcc ci ginnaaw tey.',
     'lease_rent_review_effective_date_invalid' => 'Bisu njëlbeen bi baaxul.',
     'lease_rent_use_dedicated_endpoint' => 'Layeer war na soppi ci PATCH /api/leases/{id}/rent ngir traçabilité.',
+
+    // TCK-588 — accusés de réception des réponses de succès (plus aucune prose dans le code).
+    'activity_log_export_queued' => 'Export bi ngi waajal, téléchargement bi dina ñëw léegi…',
+    'booking_expired_manually' => 'Wootu bi jeexal nañu ko ak loxo.',
+    'report_export_queued' => 'Export bi ngi dox, dinga jot e-mail su paree.',
+    'impersonation_stopped' => 'Jël kenn ni yow jeex na.',
+    'agency_role_deleted' => 'Rôle bi far nañu ko.',
+    'email_already_verified' => 'Adrees e-mail bi dëggal nañu ko ba noppi.',
+    'email_verified' => 'Adrees e-mail bi dëggal nañu ko.',
+    'verification_email_resent' => 'E-mail dëggal bi yónniwaat nañu ko.',
+    'password_reset_link_sent' => 'Su am compte bu am adrees bii, yónni nañu lënk ngir soppi baatu jàll bi.',
 ];

@@ -56,7 +56,7 @@ class PaymentGatewayService
             PaymentProvider::Wave->value => new WaveDriver($integration),
             PaymentProvider::OrangeMoney->value => new OrangeMoneyDriver($integration),
             PaymentProvider::LemonSqueezy->value => new LemonSqueezyDriver($integration),
-            default => abort(422, 'Unsupported payment provider: '.$integration->provider),
+            default => abort_code(422, 'payment.provider_unsupported', ['provider' => (string) $integration->provider]),
         };
     }
 
@@ -69,27 +69,24 @@ class PaymentGatewayService
     {
         $agencyId = $this->paymentAgencyId($payment);
         $integration = $this->resolveIntegration($provider, $agencyId);
-        abort_unless($integration, 404, 'No active integration for provider '.$provider->value.' on this agency.');
+        abort_code_unless($integration, 404, 'payment.integration_missing', ['provider' => $provider->value]);
 
         $currency = $this->paymentCurrency($payment);
         if (! $provider->supportsCurrency($currency)) {
-            $msg = $provider === PaymentProvider::LemonSqueezy && strtoupper($currency) === 'XOF'
-                ? 'Lemon Squeezy ne supporte pas XOF — utilisez Wave ou Orange Money pour un paiement en XOF.'
-                : sprintf('%s does not support currency %s.', $provider->value, $currency);
-            abort(422, $msg);
+            abort_code(422, 'payment.currency_unsupported', [
+                'provider' => $provider->value,
+                'currency' => strtoupper($currency),
+            ]);
         }
 
         $amount = $this->paymentAmount($payment);
-        abort_if(
-            $amount === null,
-            422,
-            'Cannot initiate a checkout: no amount could be resolved on '.$payment::class.'.',
-        );
+        // TCK-588 — le message nommait la classe du paiement (`App\Models\LeasePayment`).
+        abort_code_if($amount === null, 422, 'payment.amount_unresolved');
 
         // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
         // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
         $amountCents = (int) round($amount * 100);
-        abort_if($amountCents <= 0, 422, 'Cannot initiate a checkout for a non-positive amount.');
+        abort_code_if($amountCents <= 0, 422, 'payment.amount_not_positive');
 
         $driver = $this->driverFor($integration);
         $session = $driver->initiate($payment, $amountCents, $currency, $meta);
@@ -144,7 +141,7 @@ class PaymentGatewayService
             ->where('is_active', true)
             ->orderByRaw('agency_id IS NULL')
             ->first();
-        abort_unless($integration, 404, 'No active integration for provider '.$provider->value);
+        abort_code_unless($integration, 404, 'payment.integration_missing', ['provider' => $provider->value]);
 
         $driver = $this->driverFor($integration);
         $event = $driver->handleWebhook($request);
@@ -331,10 +328,10 @@ class PaymentGatewayService
 
         // 0.01 tolerance absorbs float/rounding noise; anything materially below
         // the issued amount is an under-payment and must not settle.
-        abort_if(
+        abort_code_if(
             $paid + 0.01 < $expected,
             422,
-            'Webhook reported amount is less than the expected payment amount.',
+            'payment.amount_short',
         );
     }
 
