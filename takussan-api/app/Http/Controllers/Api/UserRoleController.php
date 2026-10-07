@@ -54,9 +54,10 @@ class UserRoleController extends Controller
         // hold a profile in that same agency.
         if (! $actor->isSuperAdmin()) {
             if ($actorAgencyId === null
-                || (! $user->isAgentAt($actorAgencyId)
-                    && ! $user->isOwnerAt($actorAgencyId)
-                    && ! $user->isAgencyAdminAt($actorAgencyId))
+                // TCK-587 — APPARTENANCE de la cible, sans filtre de statut.
+                || (! $user->hasProfileAt((int) $actorAgencyId, AgentProfile::class)
+                    && ! $user->hasProfileAt((int) $actorAgencyId, OwnerProfile::class)
+                    && ! $user->hasProfileAt((int) $actorAgencyId, AgencyAdminProfile::class))
             ) {
                 abort(403, __('messages.target_user_not_in_active_agency'));
             }

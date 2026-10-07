@@ -15,9 +15,12 @@ import { AdminUsersTable } from '@/components/admin/users/AdminUsersTable';
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
+import { ConfirmSuspendDialog } from '@/components/admin/ConfirmSuspendDialog';
+import { suspensionOffer } from '@/components/admin/users/team-suspension';
 import { PendingInvitationsSection } from '@/components/admin/PendingInvitationsSection';
-import { fetchAdminUsers, postUserAction } from '@/lib/queries/admin-users';
+import { fetchAdminUsers } from '@/lib/queries/admin-users';
 import { removeAgencyMember } from '@/lib/queries/agency-members';
+import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
@@ -58,6 +61,11 @@ interface TeamConsoleProps {
    * plutôt que d'annoncer « aucune invitation » sans avoir su demander.
    */
   readonly agencyKind?: string | null;
+  /**
+   * TCK-587 — l'administrateur principal de l'agence : la console ne lui propose jamais
+   * « Suspendre de l'agence » (l'API le refuse en 422). `null` quand l'agence n'a pas pu être lue.
+   */
+  readonly primaryAdminId?: number | null;
 }
 
 /**
@@ -71,7 +79,12 @@ interface TeamConsoleProps {
  * intentionally hidden from `AdminUsersFilters` to avoid two controls
  * targeting the same query param.
  */
-export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: TeamConsoleProps) {
+export function TeamConsole({
+  agencyId,
+  currentUserId,
+  agencyKind = null,
+  primaryAdminId = null,
+}: TeamConsoleProps) {
   const t = useTranslations('team.page');
   const tConsole = useTranslations('admin.team.console');
   const tCommon = useTranslations('common');
@@ -87,6 +100,9 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
   const [drawerUser, setDrawerUser] = useState<AdminAgencyUserRow | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removing, setRemoving] = useState<AdminAgencyUserRow | null>(null);
+  const [suspending, setSuspending] = useState<
+    { member: AdminAgencyUserRow; action: TeamSuspensionAction } | null
+  >(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const params = useMemo(
@@ -170,6 +186,16 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
   // celui qui n'invente aucune autorisation.
   const { can: canManageInvitations } = useCan('team.invite', agencyId);
 
+  // TCK-587 (ADR-0031 §2) — la console ne bloque plus le COMPTE d'un membre : ce blocage le
+  // coupait de toutes ses agences, et il est réservé au super-admin. Elle le suspend DANS
+  // l'agence, geste jugé côté serveur par `team.suspend` (`SuspendTeamMemberRequest`).
+  const { can: canSuspend } = useCan('team.suspend', agencyId);
+  const suspensionFor = useCallback(
+    (row: AdminAgencyUserRow) =>
+      canSuspend ? suspensionOffer(row, agencyId, currentUserId, primaryAdminId) : null,
+    [canSuspend, agencyId, currentUserId, primaryAdminId],
+  );
+
   // TCK-368 — l'invalidation porte des DEUX côtés. Une invitation acceptée fait
   // apparaître un membre et disparaître une invitation ; ne rafraîchir qu'une des
   // deux listes laisse l'écran se contredire lui-même jusqu'au prochain
@@ -182,14 +208,19 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
     [queryClient],
   );
 
-  const quickActionMutation = useMutation({
-    mutationFn: ({ id, action }: { id: number; action: 'block' | 'activate' }) =>
-      postUserAction(id, action),
+  const suspensionMutation = useMutation({
+    mutationFn: ({ member, action }: { member: AdminAgencyUserRow; action: TeamSuspensionAction }) =>
+      postTeamSuspension(agencyId, member.id, action, token ?? ''),
     onSuccess: () => {
       setActionError(null);
+      setSuspending(null);
+      setDrawerUser(null);
       invalidateList();
     },
-    onError: (err: ApiError) => setActionError(messageErreur(err)),
+    onError: (err) => {
+      setSuspending(null);
+      setActionError(messageErreur(err, tConsole('genericError')));
+    },
   });
 
   const removeMutation = useMutation({
@@ -283,7 +314,8 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
               currentUserId={currentUserId}
               assignmentsByUser={assignmentsByUser}
               onSelect={(u) => setDrawerUser(u)}
-              onQuickAction={(u, action) => quickActionMutation.mutate({ id: u.id, action })}
+              suspensionFor={suspensionFor}
+              onSuspension={(member, action) => setSuspending({ member, action })}
               onRemove={(u) => setRemoving(u)}
             />
             <Pagination
@@ -301,6 +333,8 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
         agencyId={agencyId}
         assignments={drawerUser ? (assignmentsByUser.get(drawerUser.id) ?? []) : []}
         canAssignRole={canAssignRole}
+        suspension={drawerUser ? suspensionFor(drawerUser) : null}
+        onSuspension={(member, action) => setSuspending({ member, action })}
         onOpenChange={(open) => !open && setDrawerUser(null)}
         onRemove={(u) => setRemoving(u)}
         isRemoving={removeMutation.isPending}
@@ -311,6 +345,13 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         onSuccess={invalidateList}
+      />
+
+      <ConfirmSuspendDialog
+        target={suspending}
+        onCancel={() => setSuspending(null)}
+        onConfirm={(member, action) => suspensionMutation.mutate({ member, action })}
+        isPending={suspensionMutation.isPending}
       />
 
       <ConfirmRemoveDialog

@@ -5,6 +5,7 @@ namespace App\Rules;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -19,7 +20,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
  *
  * | rôle               | éligible, dans l'agence du bien                    |
  * |--------------------|----------------------------------------------------|
- * | `agent`, `manager` | personnel de l'agence : agent OU admin d'agence    |
+ * | `agent`, `manager` | personnel de l'agence (ADR-0031) : profil agent ou  |
+ * |                    | admin ACTIF, ou délégation active de ces rôles     |
  * | `co_owner`         | bailleur                                           |
  * | `viewer`           | l'un des trois                                     |
  *
@@ -60,9 +62,9 @@ class CollaboratorEligibleForProperty implements ValidationRule
             return false;
         }
 
-        // TCK-587 nomme ce prédicat (« personnel de l'agence ») dans
-        // `MembershipCapabilityResolver` : à y brancher quand il existe.
-        $personnel = fn (): bool => $user->isAgentAt($agencyId) || $user->isAgencyAdminAt($agencyId);
+        // TCK-587 — le prédicat « personnel de l'agence » d'ADR-0031, le même que juge
+        // `PropertyController::assignAgent` pour la cible d'une affectation.
+        $personnel = fn (): bool => app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId);
 
         return match ($role) {
             CollaboratorRole::Agent, CollaboratorRole::Manager => $personnel(),

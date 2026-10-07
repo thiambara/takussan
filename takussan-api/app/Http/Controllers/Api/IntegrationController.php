@@ -20,7 +20,8 @@ class IntegrationController extends Controller
 
         if (! $user->isSuperAdmin()) {
             abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
-            $base->where('agency_id', $user->agency_id);
+            // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
+            $base->where('agency_id', $user->staffAgencyId());
         }
 
         $paginator = Integration::buildQuery($base, $request)

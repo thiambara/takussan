@@ -111,6 +111,7 @@
       "dashboard": "Tableau de bord",
       "myProperties": "Mes biens",
       "publishProperty": "Publier un bien",
+      "proposeProperty": "Proposer un bien à mon agence",
       "myFavorites": "Mes favoris",
       "savedSearches": "Recherches sauvegardées",
       "myVisits": "Mes visites",
@@ -1265,6 +1266,8 @@
       },
       "publish": "Publier l’annonce",
       "resumeLater": "Reprendre plus tard",
+      "proposalFinish": "Proposer à mon agence",
+      "proposalNotice": "Votre agence relira ce bien avant de le publier : il reste privé jusque-là.",
       "missingId": "Le bien a été créé, mais son identifiant n’a pas été renvoyé. Retrouvez-le dans la liste de vos biens.",
       "close": "Fermer",
       "loadingDraft": "Reprise de votre brouillon…",
@@ -1419,6 +1422,8 @@
       "noPayouts": "Aucun reversement programmé pour l'instant.",
       "chartTitle": "Cashflow et occupation sur 12 mois",
       "emptyBodyFull": "Ajoutez votre premier bien pour activer les réservations, baux, documents et demandes de maintenance.",
+      "proposalEmptyBody": "Proposez votre premier bien à votre agence : elle le relira, puis le publiera. Les réservations, baux et documents suivront.",
+      "proposalEmptyCta": "Proposer un bien à mon agence",
       "propertiesHint": "{rented} loués · {available} dispo.",
       "expectedHint": "Attendu : {amount}",
       "seeModule": "Voir le module",
@@ -1500,6 +1505,7 @@
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
+      "noneAllowed": "Votre rôle dans cette agence ne comporte aucun export. Un administrateur peut vous l'accorder.",
       "entities": {
         "payments": "Paiements",
         "leases": "Baux",
@@ -1647,7 +1653,8 @@
       },
       "propertyNew": {
         "metaTitle": "Publier un bien",
-        "title": "Publier un bien"
+        "title": "Publier un bien",
+        "proposalTitle": "Proposer un bien à mon agence"
       },
       "privacy": {
         "metaTitle": "Confidentialité",
@@ -4661,6 +4668,8 @@
         "clear": "Tout décocher",
         "platform_reserved": "Réservé à la plateforme",
         "platform_reserved_hint": "Cette capacité appartient à l'équipe Takussan et ne peut pas être accordée à un rôle d'agence.",
+        "not_enforced": "Sans effet pour l'instant",
+        "not_enforced_hint": "Aucun geste de l'application ne vérifie encore cette capacité. La cocher prépare le rôle ; elle prendra effet quand le geste sera branché.",
         "toggle_domain": "Afficher ou masquer le domaine {domain}",
         "domain_selected": "{count}/{total}"
       },
@@ -4913,6 +4922,18 @@
       }
     },
     "team": {
+      "suspension": {
+        "suspend": "Suspendre de l'agence",
+        "reactivate": "Réactiver dans l'agence",
+        "suspendedBadge": "Suspendu dans l'agence",
+        "suspendTitle": "Suspendre {name} de l'agence ?",
+        "suspendDescription": "{name} ne pourra plus agir dans cette agence et ses sessions ouvertes ici seront fermées. Son compte n'est pas touché : il reste actif, et ses autres agences ne changent pas.",
+        "reactivateTitle": "Réactiver {name} dans l'agence ?",
+        "reactivateDescription": "{name} retrouvera les droits de son rôle dans cette agence.",
+        "cancel": "Annuler",
+        "confirmSuspend": "Suspendre",
+        "confirmReactivate": "Réactiver"
+      },
       "removeDialog": {
         "title": "Retirer ce membre ?",
         "cancel": "Annuler",
@@ -7996,5 +8017,28 @@
       "frenchOnly": "Ce document n'est disponible qu'en français pour le moment."
     },
     "otherDocuments": "Autres documents"
+  },
+  "shareReception": {
+    "metaTitle": "Document partagé",
+    "title": "Document partagé avec vous",
+    "loading": "Ouverture du lien…",
+    "name": "Document",
+    "size": "Taille",
+    "expiresAt": "Disponible jusqu'au {date}",
+    "downloadsLeft": "{count, plural, one {# téléchargement restant} other {# téléchargements restants}}",
+    "download": "Télécharger",
+    "downloading": "Téléchargement…",
+    "downloadError": "Le téléchargement n'a pas abouti. Réessayez dans un instant.",
+    "passwordTitle": "Ce document est protégé",
+    "passwordHint": "Saisissez le mot de passe que l'expéditeur vous a communiqué.",
+    "passwordLabel": "Mot de passe",
+    "submit": "Ouvrir le document",
+    "wrongPassword": "Mot de passe incorrect.",
+    "goneTitle": "Ce lien n'est plus valide",
+    "goneDescription": "Il a expiré, a été révoqué, ou a atteint son nombre maximal de téléchargements. Demandez un nouveau lien à l'expéditeur.",
+    "notFoundTitle": "Lien introuvable",
+    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à l'expéditeur.",
+    "error": "Le document n'a pas pu être chargé. Réessayez dans un instant.",
+    "retry": "Réessayer"
   }
 }
