@@ -20,6 +20,7 @@ return [
         'statement_closed' => 'Bii relevé dañu ko tëj, doo men soppi.',
         'direction_mismatch' => 'Crédit dañu koy rapprocher ak encaissement, débit ak reversement.',
         'csv_column' => 'Colonne dañu koy wone ak turu en-tête bi walla ak bérébam.',
+        'payout_not_completed' => 'Reversement bu ñu yónnee rekk lañu mën rapprocher ak débit.',
     ],
 
     'status' => [

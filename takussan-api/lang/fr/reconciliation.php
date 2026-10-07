@@ -20,6 +20,7 @@ return [
         'statement_closed' => 'Ce relevé est clôturé, modification impossible.',
         'direction_mismatch' => 'Un crédit se rapproche d\'un encaissement, un débit d\'un reversement.',
         'csv_column' => 'Une colonne se désigne par son nom d\'en-tête ou par sa position.',
+        'payout_not_completed' => 'Seul un reversement émis peut être rapproché d\'un débit.',
     ],
 
     'status' => [

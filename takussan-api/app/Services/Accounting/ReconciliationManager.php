@@ -10,6 +10,7 @@ use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
@@ -56,6 +57,15 @@ class ReconciliationManager
         if ($isPayout !== ($line->direction === BankStatementLineDirection::Debit)) {
             throw ValidationException::withMessages([
                 'payment_type' => [__('reconciliation.validation.direction_mismatch')],
+            ]);
+        }
+
+        // TCK-593 (vérification adverse, R9) — un débit ne se rapproche que d'un reversement
+        // ÉMIS : un reversement en attente, échoué ou annulé recevait `bank_reconciled_at`, et un
+        // débit inexpliqué passait pour un reversement.
+        if ($isPayout && $payment->status !== PayoutStatus::Completed) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.payout_not_completed')],
             ]);
         }
 

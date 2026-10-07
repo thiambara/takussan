@@ -10,6 +10,7 @@ use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PayoutStatus;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\User;
@@ -268,6 +269,42 @@ class BankReconciliationTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('errors.payment_type.0', __('reconciliation.validation.direction_mismatch'));
         $this->assertNull($payment->refresh()->bank_statement_line_id);
+    }
+
+    public function test_un_reversement_non_emis_n_est_ni_suggere_ni_confirmable(): void
+    {
+        // Vérification adverse R9 — `pending`, `failed`, `cancelled` : ni suggérés, ni confirmés.
+        $line = $this->statementLine(BankStatementLineDirection::Debit, 285_000, '2026-04-11');
+
+        foreach ([PayoutStatus::Pending, PayoutStatus::Failed, PayoutStatus::Cancelled] as $status) {
+            $payout = Payout::factory()->create([
+                'agency_id' => $this->agency->id,
+                'status' => $status,
+                'net_amount' => 285_000,
+                'currency' => 'XOF',
+                'processed_at' => '2026-04-10 15:00:00',
+            ]);
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+            $this->assertNull($line->refresh()->matched_payment_id, "Un reversement {$status->value} a été suggéré.");
+
+            $this->actingAs($this->admin)
+                ->postJson("/api/bank-statement-lines/{$line->id}/match", ['payment_type' => 'payout', 'payment_id' => $payout->id])
+                ->assertStatus(422)
+                ->assertJsonPath('errors.payment_id.0', __('reconciliation.validation.payout_not_completed'));
+            $this->assertNull($payout->refresh()->bank_reconciled_at);
+        }
+    }
+
+    public function test_un_reversement_hors_fenetre_n_est_pas_suggere(): void
+    {
+        // R9 — 8 jours avant le débit : hors de la fenêtre de ±7 jours sur `processed_at`.
+        $this->completedPayout($this->agency, 285_000, '2026-04-03 15:00:00');
+        $line = $this->statementLine(BankStatementLineDirection::Debit, 285_000, '2026-04-11');
+
+        (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+
+        $this->assertSame(BankStatementLineMatchStatus::Unmatched, $line->refresh()->match_status);
     }
 
     public function test_la_recherche_manuelle_suit_le_sens_de_la_ligne(): void

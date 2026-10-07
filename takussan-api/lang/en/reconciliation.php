@@ -20,6 +20,7 @@ return [
         'statement_closed' => 'This statement is finalized, no modification allowed.',
         'direction_mismatch' => 'A credit is reconciled with a collection, a debit with a payout.',
         'csv_column' => 'A column is designated by its header name or by its position.',
+        'payout_not_completed' => 'Only a completed payout can be reconciled with a debit.',
     ],
 
     'status' => [

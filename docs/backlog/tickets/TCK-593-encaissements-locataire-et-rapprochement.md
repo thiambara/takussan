@@ -847,3 +847,9 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   `d`/`dr` retirés → rouge ; défaut « crédit » rétabli → rouge ; `abs()` retiré de cette branche →
   rouge (la première forme visait par erreur la branche `amount_signed` et restait verte : rejouée
   sur la bonne). `tests/Feature/Api/Accounting` + `tests/Unit/Services/Accounting` → 67 verts.
+- **R9 (majeur) — reversement non émis.** `confirmMatch` refuse un `Payout` autre que `completed`
+  (422, `reconciliation.validation.payout_not_completed`, fr/en/wo). Tests
+  `BankReconciliationTest::test_un_reversement_non_emis_n_est_ni_suggere_ni_confirmable`
+  (`pending`, `failed`, `cancelled`) et `test_un_reversement_hors_fenetre_n_est_pas_suggere`.
+  Ablations AC14a (statut non filtré au matcher) → rouge, AC14b (fenêtre retirée) → rouge, garde de
+  `confirmMatch` retirée → rouge. `tests/Feature/Api/Accounting` → 58 verts.
