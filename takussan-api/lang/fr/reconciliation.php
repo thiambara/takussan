@@ -18,6 +18,8 @@ return [
         'cross_agency' => 'Le paiement ciblé n\'appartient pas à cette agence.',
         'already_reconciled' => 'Ce paiement est déjà rapproché à une autre ligne.',
         'statement_closed' => 'Ce relevé est clôturé, modification impossible.',
+        'direction_mismatch' => 'Un crédit se rapproche d\'un encaissement, un débit d\'un reversement.',
+        'csv_column' => 'Une colonne se désigne par son nom d\'en-tête ou par sa position.',
     ],
 
     'status' => [
@@ -26,6 +28,7 @@ return [
         'partially_reconciled' => 'Partiellement rapproché',
         'reconciled' => 'Rapproché',
         'archived' => 'Archivé',
+        'failed' => 'Échec de l\'analyse',
     ],
 
     'line_status' => [

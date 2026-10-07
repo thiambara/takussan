@@ -2,21 +2,29 @@
 
 namespace Tests\Feature\Api\Accounting;
 
+use App\Jobs\Accounting\MatchBankStatementJob;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
+use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Models\User;
+use App\Services\Accounting\ReconciliationMatcher;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Laravel\Sanctum\Sanctum;
+use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
 class BankReconciliationTest extends TestCase
 {
-    use RefreshDatabase;
+    use LeaseDueFixture, RefreshDatabase;
 
     protected Agency $agency;
 
@@ -174,6 +182,146 @@ class BankReconciliationTest extends TestCase
         $response->assertJsonPath('data.match_status', 'ignored');
     }
 
+    // ─── TCK-593 — les reversements, et le montant figé ─────────
+
+    public function test_un_debit_est_suggere_sur_le_reversement_emis(): void
+    {
+        // AC14 — un débit de 285 000 à J+1 d'un reversement `completed` de net 285 000.
+        $payout = $this->completedPayout($this->agency, 285_000, '2026-04-10 15:00:00');
+        $line = $this->statementLine(BankStatementLineDirection::Debit, 285_000, '2026-04-11');
+
+        (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+
+        $line->refresh();
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $line->match_status);
+        $this->assertSame(Payout::class, $line->matched_payment_type);
+        $this->assertSame($payout->id, $line->matched_payment_id);
+        $this->assertGreaterThanOrEqual(70, $line->match_confidence);
+
+        $this->actingAs($this->admin)
+            ->getJson("/api/bank-statements/{$line->bank_statement_id}/lines")
+            ->assertOk()
+            ->assertJsonPath('data.0.matched_payment_type', 'payout');
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$line->id}/match", [
+                'payment_type' => 'payout',
+                'payment_id' => $payout->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.match_status', 'confirmed');
+
+        $payout->refresh();
+        $this->assertSame('2026-04-11', $payout->bank_reconciled_at->toDateString());
+        $this->assertSame($line->id, $payout->bank_statement_line_id);
+    }
+
+    public function test_un_reversement_n_est_rapproche_qu_une_fois(): void
+    {
+        $payout = $this->completedPayout($this->agency, 285_000, '2026-04-10 15:00:00');
+        $first = $this->statementLine(BankStatementLineDirection::Debit, 285_000, '2026-04-11');
+        $second = $this->statementLine(BankStatementLineDirection::Debit, 285_000, '2026-04-12', $first->bank_statement_id);
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$first->id}/match", ['payment_type' => 'payout', 'payment_id' => $payout->id])
+            ->assertOk();
+
+        // Déjà rapproché : ni suggéré à la seconde ligne, ni confirmable sur elle.
+        (new MatchBankStatementJob($second->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+        $this->assertNull($second->refresh()->matched_payment_id);
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$second->id}/match", ['payment_type' => 'payout', 'payment_id' => $payout->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment');
+
+        // Et l'index unique partiel le garantit sous la garde applicative.
+        $this->expectException(UniqueConstraintViolationException::class);
+        Payout::factory()->completed()->create([
+            'agency_id' => $this->agency->id,
+            'bank_statement_line_id' => $first->id,
+        ]);
+    }
+
+    public function test_un_credit_ne_s_apparie_pas_a_un_reversement(): void
+    {
+        // AC15 — un crédit du même montant, le même jour : ce n'est pas un reversement.
+        $payout = $this->completedPayout($this->agency, 285_000, '2026-04-10 15:00:00');
+        $credit = $this->statementLine(BankStatementLineDirection::Credit, 285_000, '2026-04-11');
+
+        (new MatchBankStatementJob($credit->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+        $this->assertSame(BankStatementLineMatchStatus::Unmatched, $credit->refresh()->match_status);
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$credit->id}/match", ['payment_type' => 'payout', 'payment_id' => $payout->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.payment_type.0', __('reconciliation.validation.direction_mismatch'));
+        $this->assertNull($payout->refresh()->bank_statement_line_id);
+
+        // Et un débit ne se confirme pas sur un encaissement.
+        $debit = $this->statementLine(BankStatementLineDirection::Debit, 15_000, '2026-04-11', $credit->bank_statement_id);
+        $payment = LeasePayment::factory()->create(['amount' => 15_000, 'currency' => 'XOF']);
+        $payment->lease->update(['agency_id' => $this->agency->id]);
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/bank-statement-lines/{$debit->id}/match", ['payment_type' => 'lease_payment', 'payment_id' => $payment->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.payment_type.0', __('reconciliation.validation.direction_mismatch'));
+        $this->assertNull($payment->refresh()->bank_statement_line_id);
+    }
+
+    public function test_la_recherche_manuelle_suit_le_sens_de_la_ligne(): void
+    {
+        $payout = $this->completedPayout($this->agency, 285_000, '2026-04-10 15:00:00');
+        $payment = LeasePayment::factory()->create(['amount' => 285_000, 'currency' => 'XOF']);
+        $payment->lease->update(['agency_id' => $this->agency->id]);
+
+        $search = fn (string $direction) => $this->actingAs($this->admin)
+            ->getJson("/api/agencies/{$this->agency->id}/bank-statements/payment-search?amount=285000&direction={$direction}")
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame([['payout', $payout->id]], array_map(fn ($c) => [$c['type'], $c['id']], $search('debit')));
+        $this->assertSame([['lease_payment', $payment->id]], array_map(fn ($c) => [$c['type'], $c['id']], $search('credit')));
+    }
+
+    public function test_un_credit_penalite_incluse_est_suggere_sur_l_echeance(): void
+    {
+        // AC14 — l'échéance de l'AC6 : réglage activé, payée en ligne 157 500 (150 000 + 7 500).
+        // Le crédit arrive pour 157 500 ; le matcher comparait `amount` (150 000) et ne la
+        // retrouvait plus.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertEquals(150_000, $payment->amount);
+
+        $statement = BankStatement::factory()->create([
+            'agency_id' => $ctx['agency']->id,
+            'status' => BankStatementStatus::ReadyForReview,
+        ]);
+        $line = BankStatementLine::factory()->create([
+            'bank_statement_id' => $statement->id,
+            'direction' => BankStatementLineDirection::Credit,
+            'amount' => 157_500,
+            'currency' => 'XOF',
+            'posted_at' => now()->addDay()->toDateString(),
+            'reference' => null,
+            'counterparty' => null,
+        ]);
+
+        (new MatchBankStatementJob($statement->id))->handle(app(ReconciliationMatcher::class));
+
+        $line->refresh();
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $line->match_status);
+        $this->assertSame(LeasePayment::class, $line->matched_payment_type);
+        $this->assertSame($payment->id, $line->matched_payment_id);
+    }
+
     // ─── Finalize ────────────────────────────────────────────────
 
     public function test_finalize_statement(): void
@@ -219,5 +367,36 @@ class BankReconciliationTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('data.status', 'partially_reconciled');
+    }
+
+    private function completedPayout(Agency $agency, int $net, string $processedAt): Payout
+    {
+        return Payout::factory()->completed()->create([
+            'agency_id' => $agency->id,
+            'gross_amount' => $net,
+            'commission_amount' => 0,
+            'net_amount' => $net,
+            'currency' => 'XOF',
+            'processed_at' => $processedAt,
+        ]);
+    }
+
+    private function statementLine(BankStatementLineDirection $direction, int $amount, string $postedAt, ?int $statementId = null): BankStatementLine
+    {
+        $statementId ??= BankStatement::factory()->create([
+            'agency_id' => $this->agency->id,
+            'uploaded_by' => $this->admin->id,
+            'status' => BankStatementStatus::ReadyForReview,
+        ])->id;
+
+        return BankStatementLine::factory()->create([
+            'bank_statement_id' => $statementId,
+            'direction' => $direction,
+            'amount' => $amount,
+            'currency' => 'XOF',
+            'posted_at' => $postedAt,
+            'reference' => null,
+            'counterparty' => null,
+        ]);
     }
 }

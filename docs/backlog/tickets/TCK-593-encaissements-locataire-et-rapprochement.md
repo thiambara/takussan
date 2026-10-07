@@ -696,3 +696,71 @@ correction du 2026-10-06 en a ajouté trois (§ 3, échéance `failed` ; § 5, r
   `test_l_historique_porte_la_penalite_et_le_montant_du`). Voisins `PaymentRegistrationTest`,
   `PaymentReceiptPdfTest` verts.
 
+
+### Partie 4 — rapprochement (back), 2026-10-07
+
+- Re-mesuré : `ReconciliationMatcher::suggestFor` rendait `null` sur tout débit ; `CsvDriver`
+  journalisait `record` et `getMessage()`, devinait le séparateur décimal, n'ôtait que l'espace
+  ASCII et acceptait `31/13/2026` ; le `catch` du job journalisait message et trace et laissait le
+  relevé `processing`. Conforme au ticket.
+- **SafeExceptionContext (TCK-601) n'existe pas encore sur la branche** (`grep -rn SafeExceptionContext
+  takussan-api/app` → 0). Les deux `catch` portent un contexte sûr EN LIGNE — classe de l'exception,
+  plus `sqlstate` (et le point de levée) côté job — sans `getMessage()` ni trace, avec le commentaire
+  « Raccord TCK-601 » à l'endroit exact où `SafeExceptionContext::of($e)` le remplacera. La case
+  « Journaux » reste donc ouverte : elle nomme une API qui n'existe pas.
+- Le message de la date refusée est `Invalid date`, sans la valeur, et l'exception Carbon d'un texte
+  non numérique est ramenée à ce même message (`createFromFormat` dans un `try`).
+- **Deux ajouts hors de la lettre du ticket, chacun sur un défaut mesuré en cours de route :**
+  - *le ré-import d'un relevé `failed`* : l'index unique `(agency_id, file_hash)` rendait 422 au
+    même fichier une fois le mapping corrigé — `failed` était une impasse. Un relevé `failed` n'a
+    jamais de ligne (l'insertion est transactionnelle, et le job ne passe `failed` qu'un relevé
+    encore `processing`) : `store` le supprime et ré-importe. Un relevé lu bloque toujours le
+    doublon (`test_un_releve_failed_se_reimporte_une_fois_le_mapping_corrige`) ;
+  - *le trim global* : `TrimStrings` + `ConvertEmptyStringsToNull` réduisaient le délimiteur `"\t"`
+    et le séparateur `' '` à `null` — un export tabulé était impossible à déclarer, alors que l'écran
+    le propose. `PUT csv-mapping` en est exempté dans `bootstrap/app.php`, sur le patron du
+    brouillon de TCK-574 (`UpdateBankCsvMappingRequest::estEcritureDeMapping`), et `delimiter` est
+    `present` et non `required` (qui tient une chaîne blanche pour vide).
+- `BankStatementLineFactory` : `direction` vaut `credit` au lieu d'un tirage au sort. Avec la garde
+  de sens, `BankReconciliationTest::test_confirm_match_on_line` et `confirmedPair()` d'Unmatch
+  auraient rendu 422 une fois sur deux.
+- `PaymentSearchService::search` prend `direction` (`?direction=debit|credit`, celle qu'envoie
+  l'écran) : débit → reversements seuls, crédit → encaissements seuls, absent → les deux.
+- Tests (exécutions nommées) :
+  - `php artisan test tests/Feature/Api/Accounting tests/Unit/Services/Accounting` → **65 verts**
+    (277 assertions) : `BankReconciliationTest` 13 (dont `test_un_debit_est_suggere_sur_le_reversement_emis`,
+    `test_un_reversement_n_est_rapproche_qu_une_fois`, `test_un_credit_ne_s_apparie_pas_a_un_reversement`,
+    `test_la_recherche_manuelle_suit_le_sens_de_la_ligne`, `test_un_credit_penalite_incluse_est_suggere_sur_l_echeance`),
+    `BankReconciliationCrossAgencyTest` 9 (dont `test_a_payout_of_another_agency_is_never_suggested_nor_matched`),
+    `BankReconciliationUnmatchTest`, `BankStatementPipelineTest` 16 (dont
+    `test_dix_lignes_dont_deux_illisibles_…`, `test_aucune_ligne_lue_passe_le_releve_en_failed`,
+    `test_echec_d_analyse_passe_le_releve_en_failed`, `test_le_journal_ne_porte_aucune_valeur_du_releve`),
+    `BankCsvMappingTest` 7, `PaymentSearchTest`, `StatementParserTest` 9 ;
+  - `tests/Feature/Database/BankReconciliationSchemaMigrationsTest.php` → 2 verts : `down()` puis
+    `up()` des deux migrations (colonnes, index partiel `payouts_bank_line_unique`, `jsonb`) ;
+  - voisins : les 24 classes qui touchent `Payout`, `payouts`, `WizardDraft` ou le trim → 257 verts.
+- Ablations (chacune appliquée par `perl`, jouée, rendue — `scratchpad/t593/ablate.sh`) :
+  - débit ignoré de nouveau → `test_un_debit_est_suggere_…` rouge (AC14) ;
+  - montant comparé sur `amount` seul → `test_un_credit_penalite_incluse_…` rouge (AC14) ;
+  - filtre d'agence retiré des reversements → `test_a_payout_of_another_agency_…` rouge (AC14) ;
+  - `whereNull('bank_reconciled_at')` retiré → `test_un_reversement_n_est_rapproche_qu_une_fois` rouge ;
+  - garde de sens neutralisée → `test_un_credit_ne_s_apparie_pas_a_un_reversement` rouge (AC15) ;
+  - recherche sans filtre de sens → `test_la_recherche_manuelle_…` rouge ;
+  - U+00A0 non retiré → `test_un_espace_insecable_…` rouge ; séparateur de milliers déclaré ignoré →
+    `test_150_000_…` rouge ; `tally->skip()` retiré → 2 rouges ; bloc « aucune ligne lue » retiré →
+    `test_aucune_ligne_lue_…` rouge ; `failed` du `catch` retiré → `test_echec_d_analyse_…` rouge ;
+    comparaison `format() !== $rawDate` retirée → `test_une_date_debordante_…` ET
+    `test_dix_lignes_…` rouges (AC16) ;
+  - `csv_mapping` non figé à l'import → `test_le_mapping_fige_…` rouge ; job lisant le mapping de
+    l'agence au lieu de l'instantané → même test rouge (après ajout de l'analyse jouée APRÈS le
+    changement : sans elle, cette ablation restait verte) ; `decimal_separator` `nullable` →
+    `test_sans_decimal_separator_…` rouge ; `authorize` retiré de `update` → 2 rouges ; exemption du
+    trim retirée → `test_la_tabulation_…` rouge (AC17) ;
+  - AC19 : `getMessage()` remis dans le `catch` du job → rouge ; `record` remis dans `CsvDriver` →
+    rouge ; `getMessage()` ET la valeur dans le message de la date → rouge.
+    **Deux ablations restent vertes, et c'est attendu** : `getMessage()` seul dans `CsvDriver` (les
+    messages n'y portent plus aucune valeur), et la valeur seule dans le message de la date (le
+    message n'est plus journalisé). Chacune des deux défenses suffit seule ; le test rougit dès que
+    les deux tombent. La trace remise dans le job reste verte aussi : PHP y rend les tableaux de
+    liaison en `Array` et tronque les chaînes à 15 caractères — ce n'est pas une garde que ce test
+    porte.

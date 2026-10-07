@@ -4,6 +4,7 @@ namespace App\Http\Requests\Accounting;
 
 use App\Models\BankStatement;
 use App\Models\Enums\BankStatementSourceFormat;
+use App\Models\Enums\BankStatementStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
@@ -43,7 +44,10 @@ class StoreBankStatementRequest extends FormRequest
                 $this->merge(['file_hash' => $hash]);
 
                 $agency = $this->route('agency');
-                if ($agency && BankStatement::where('agency_id', $agency->id)->where('file_hash', $hash)->exists()) {
+                // TCK-593 — un relevé `failed` ne bloque pas le ré-import du même fichier, une fois le
+                // mapping corrigé : le contrôleur le remplace.
+                if ($agency && BankStatement::where('agency_id', $agency->id)->where('file_hash', $hash)
+                    ->where('status', '!=', BankStatementStatus::Failed)->exists()) {
                     $validator->errors()->add('file', __('reconciliation.validation.duplicate_file'));
                 }
             }

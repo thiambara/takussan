@@ -7,10 +7,12 @@ use App\Events\Accounting\BankStatementLineMatched;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
+use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Models\User;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +25,8 @@ class ReconciliationManager
         BookingPayment::class,
         LeasePayment::class,
         Invoice::class,
+        // TCK-593 — un reversement émis, rapproché d'un débit.
+        Payout::class,
     ];
 
     public function __construct(private readonly Dispatcher $events) {}
@@ -44,6 +48,15 @@ class ReconciliationManager
         // Guard: same agency
         if ($this->resolvePaymentAgencyId($payment) !== $statement->agency_id) {
             abort(403, __('reconciliation.validation.cross_agency'));
+        }
+
+        // TCK-593 — garde de sens : un crédit est un encaissement, un débit un reversement. Sans
+        // elle, un débit de 150 000 se confirmait sur l'échéance de 150 000 qu'il ne paie pas.
+        $isPayout = $payment instanceof Payout;
+        if ($isPayout !== ($line->direction === BankStatementLineDirection::Debit)) {
+            throw ValidationException::withMessages([
+                'payment_type' => [__('reconciliation.validation.direction_mismatch')],
+            ]);
         }
 
         // Guard: currency match
@@ -261,6 +274,10 @@ class ReconciliationManager
 
         if ($payment instanceof BookingPayment) {
             return $payment->booking?->property?->agency_id;
+        }
+
+        if ($payment instanceof Payout) {
+            return $payment->agency_id;
         }
 
         return null;

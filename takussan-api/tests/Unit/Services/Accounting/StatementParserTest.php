@@ -8,6 +8,7 @@ use App\Models\Enums\BankStatementSourceFormat;
 use App\Models\Enums\Currency;
 use App\Services\Accounting\StatementParser\CsvDriver;
 use App\Services\Accounting\StatementParser\OfxDriver;
+use App\Services\Accounting\StatementParser\ParsedLine;
 use App\Services\Accounting\StatementParser\ParserContext;
 use App\Services\Accounting\StatementParser\StatementParserFactory;
 use Tests\Support\TestProcessToken;
@@ -74,16 +75,97 @@ class StatementParserTest extends TestCase
 
     public function test_csv_amount_parsing_handles_thousands_and_decimal_separators(): void
     {
-        $driver = new CsvDriver;
-
         // "1,234.56" (US thousands), "1.234,56" (EU thousands), "7500,50"
         // (comma decimal). The old str_replace turned every comma into a
         // decimal point, corrupting the first two by 1000×.
-        $csv = "date,amount,label,reference,counterparty\n"
-            ."01/04/2026,\"1,234.56\",A,R1,C1\n"
-            ."02/04/2026,\"1.234,56\",B,R2,C2\n"
-            ."03/04/2026,\"7500,50\",C,R3,C3\n";
+        // TCK-593 — les séparateurs sont DÉCLARÉS par le mapping, un fichier à la fois : un même
+        // fichier ne mélange pas deux conventions, et deviner a produit l'erreur ×1000 de `150,000`.
+        $us = $this->parseCsv("date,amount,label\n01/04/2026,\"1,234.56\",A\n", ['decimal_separator' => '.', 'thousands_separator' => ',']);
+        $eu = $this->parseCsv("date,amount,label\n02/04/2026,\"1.234,56\",B\n", ['decimal_separator' => ',', 'thousands_separator' => '.']);
+        $comma = $this->parseCsv("date,amount,label\n03/04/2026,\"7500,50\",C\n", []);
 
+        $this->assertEqualsWithDelta(1234.56, $us['lines'][0]->amount, 0.001);
+        $this->assertEqualsWithDelta(1234.56, $eu['lines'][0]->amount, 0.001);
+        $this->assertEqualsWithDelta(7500.50, $comma['lines'][0]->amount, 0.001);
+    }
+
+    // ─── TCK-593 — séparateurs déclarés, lignes sautées comptées ─
+
+    public function test_un_espace_insecable_de_milliers_donne_150000_et_non_150(): void
+    {
+        // AC16 — l'export français : « 150 000 » avec U+00A0, et « 150 000 » avec U+202F.
+        $result = $this->parseCsv(
+            "date,amount,label\n01/04/2026,150\u{00A0}000,A\n02/04/2026,150\u{202F}000,B\n03/04/2026,150 000,C\n",
+            [],
+        );
+
+        $this->assertCount(3, $result['lines']);
+        foreach ($result['lines'] as $line) {
+            $this->assertEqualsWithDelta(150000.0, $line->amount, 0.001);
+        }
+        $this->assertSame(0, $result['context']->tally->skipped);
+    }
+
+    public function test_150_000_au_format_anglo_saxon_est_lu_150000_quand_il_est_declare(): void
+    {
+        // AC16 — `decimal_separator='.'`, `thousands_separator=','` : cent cinquante mille.
+        $declared = $this->parseCsv("date,amount,label\n01/04/2026,\"150,000\",A\n", ['decimal_separator' => '.', 'thousands_separator' => ',']);
+        $this->assertEqualsWithDelta(150000.0, $declared['lines'][0]->amount, 0.001);
+
+        // Le même fichier lu au défaut (virgule décimale) : 150,000 vaut 150 — c'est ce que la
+        // déclaration tranche, au lieu d'une devinette.
+        $default = $this->parseCsv("date,amount,label\n01/04/2026,\"150,000\",A\n", []);
+        $this->assertEqualsWithDelta(150.0, $default['lines'][0]->amount, 0.001);
+    }
+
+    public function test_les_lignes_illisibles_sont_sautees_et_comptees(): void
+    {
+        // AC16 — 10 lignes dont 2 illisibles (un montant non numérique, une date vide) : 8 lues,
+        // 2 comptées.
+        $rows = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $rows[] = sprintf('%02d/04/2026,%d,L%d', $i, 1000 * $i, $i);
+        }
+        $rows[] = '09/04/2026,abc,ILLISIBLE';
+        $rows[] = ',5000,SANS-DATE';
+
+        $result = $this->parseCsv("date,amount,label\n".implode("\n", $rows)."\n", []);
+
+        $this->assertCount(8, $result['lines']);
+        $this->assertSame(2, $result['context']->tally->skipped);
+    }
+
+    public function test_des_colonnes_introuvables_font_sauter_et_compter_chaque_ligne(): void
+    {
+        // AC16 — un export dont les colonnes s'appellent `Date` et `Montant` : le code d'avant
+        // rendait zéro ligne SANS RIEN COMPTER (`return null`).
+        $csv = "Date,Montant,Libelle\n";
+        for ($i = 1; $i <= 5; $i++) {
+            $csv .= sprintf("%02d/04/2026,%d,L%d\n", $i, 1000 * $i, $i);
+        }
+
+        $result = $this->parseCsv($csv, []);
+
+        $this->assertCount(0, $result['lines']);
+        $this->assertSame(5, $result['context']->tally->skipped);
+    }
+
+    public function test_une_date_debordante_est_sautee_et_non_decalee(): void
+    {
+        // AC16 — `31/13/2026` en `d/m/Y` : `createFromFormat` rendait le 2027-01-31 sans erreur.
+        $result = $this->parseCsv("date,amount,label\n31/13/2026,1000,DEBORD\n32/01/2026,1000,DEBORD2\n15/04/2026,2000,OK\n", []);
+
+        $this->assertCount(1, $result['lines']);
+        $this->assertSame('2026-04-15', $result['lines'][0]->postedAt->toDateString());
+        $this->assertSame(2, $result['context']->tally->skipped);
+    }
+
+    /**
+     * @param  array<string, mixed>  $mapping  recouvre le mapping effectif par défaut
+     * @return array{lines: list<ParsedLine>, context: ParserContext}
+     */
+    private function parseCsv(string $csv, array $mapping): array
+    {
         // `tempnam()` réserve un chemin de façon atomique — mais le `.csv` concaténé APRÈS n'est
         // pas le chemin réservé : la garantie d'unicité est perdue au moment précis où on croit
         // l'avoir, et le fichier réellement réservé fuit à chaque exécution. Même famille que la
@@ -95,26 +177,16 @@ class StatementParserTest extends TestCase
         $context = new ParserContext(
             agency: $this->agencyStub(),
             format: BankStatementSourceFormat::Csv,
-            csvMapping: [
-                'delimiter' => ',',
-                'has_header' => true,
-                'date_column' => 'date',
-                'date_format' => 'd/m/Y',
-                'amount_column' => 'amount',
-                'label_column' => 'label',
-                'reference_column' => 'reference',
-                'counterparty_column' => 'counterparty',
-                'sign_convention' => 'amount_signed',
-            ],
+            csvMapping: $mapping,
         );
 
-        $lines = iterator_to_array($driver->parse($path, $context));
-        @unlink($path);
+        try {
+            $lines = iterator_to_array((new CsvDriver)->parse($path, $context), false);
+        } finally {
+            @unlink($path);
+        }
 
-        $this->assertCount(3, $lines);
-        $this->assertEqualsWithDelta(1234.56, $lines[0]->amount, 0.001);
-        $this->assertEqualsWithDelta(1234.56, $lines[1]->amount, 0.001);
-        $this->assertEqualsWithDelta(7500.50, $lines[2]->amount, 0.001);
+        return ['lines' => $lines, 'context' => $context];
     }
 
     // ─── OFX Tests ───────────────────────────────────────────────

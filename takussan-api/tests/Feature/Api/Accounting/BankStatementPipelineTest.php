@@ -18,6 +18,10 @@ use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\ApiTestCase;
 use Tests\Support\RemoteDiskFake;
 
@@ -275,6 +279,149 @@ class BankStatementPipelineTest extends ApiTestCase
         $this->assertNull($line->matched_payment_id);
     }
 
+    // ─── TCK-593 — aucune perte silencieuse, aucun relevé dans le journal ─
+
+    public function test_dix_lignes_dont_deux_illisibles_finit_a_huit_lues_et_deux_comptees(): void
+    {
+        // AC16.
+        $rows = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $rows[] = sprintf('%02d/04/2026,%d,Ligne %d,,', $i, 1000 * $i, $i);
+        }
+        $rows[] = '09/04/2026,abc,Illisible,,';
+        $rows[] = '31/13/2026,1000,Debordante,,';
+
+        $statement = $this->upload("date,amount,label,reference,counterparty\n".implode("\n", $rows)."\n");
+
+        $this->assertSame(BankStatementStatus::ReadyForReview, $statement->status);
+        $this->assertSame(8, $statement->lines_count);
+        $this->assertSame(2, $statement->skipped_lines_count);
+        $this->assertSame(8, $statement->lines()->count());
+        // La ligne `31/13/2026` n'est pas entrée au 2027-01-31 : la période reste en avril.
+        $this->assertSame('2026-04-08', $statement->period_end->toDateString());
+
+        $this->actingAs($this->admin)->getJson("/api/bank-statements/{$statement->id}")
+            ->assertOk()
+            ->assertJsonPath('data.skipped_lines_count', 2);
+    }
+
+    public function test_aucune_ligne_lue_passe_le_releve_en_failed(): void
+    {
+        // AC16 — les colonnes ne portent pas les noms du mapping : le code d'avant rendait
+        // `ready_for_review` à ZÉRO ligne, sans un mot.
+        $csv = "Date,Montant,Libelle\n";
+        for ($i = 1; $i <= 5; $i++) {
+            $csv .= sprintf("%02d/04/2026,%d,L%d\n", $i, 1000 * $i, $i);
+        }
+
+        $statement = $this->upload($csv);
+
+        $this->assertSame(BankStatementStatus::Failed, $statement->status);
+        $this->assertSame(5, $statement->skipped_lines_count);
+        $this->assertSame(0, $statement->lines()->count());
+
+        $this->actingAs($this->admin)->getJson("/api/bank-statements/{$statement->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'failed')
+            ->assertJsonPath('data.skipped_lines_count', 5);
+    }
+
+    public function test_echec_d_analyse_passe_le_releve_en_failed(): void
+    {
+        // AC16 — un en-tête aux noms dupliqués fait lever le lecteur CSV lui-même, hors de la
+        // boucle des lignes. Avant : le relevé restait `processing` à vie.
+        $statement = $this->uploadQueued("date,date,amount\n01/04/2026,01/04/2026,1000\n");
+
+        $this->runParseJobExpectingFailure($statement);
+
+        $statement->refresh();
+        $this->assertSame(BankStatementStatus::Failed, $statement->status);
+        $this->assertSame(0, $statement->lines()->count());
+    }
+
+    public function test_un_releve_failed_se_reimporte_une_fois_le_mapping_corrige(): void
+    {
+        // L'index unique `(agency_id, file_hash)` faisait d'un mapping erroné une impasse : le
+        // même fichier ne pouvait plus être déposé. Un `failed` n'a aucune ligne ; il est remplacé.
+        $csv = "Date,Montant,Libelle\n01/04/2026,1000,A\n02/04/2026,2000,B\n";
+        $failed = $this->upload($csv);
+        $this->assertSame(BankStatementStatus::Failed, $failed->status);
+
+        $this->actingAs($this->admin)
+            ->putJson("/api/agencies/{$this->agency->id}/bank-statements/csv-mapping", [
+                'delimiter' => ',',
+                'has_header' => true,
+                'date_column' => 'Date',
+                'date_format' => 'd/m/Y',
+                'amount_column' => 'Montant',
+                'label_column' => 'Libelle',
+                'sign_convention' => 'amount_signed',
+                'decimal_separator' => ',',
+            ])->assertOk();
+
+        $again = $this->upload($csv);
+
+        $this->assertSame(BankStatementStatus::ReadyForReview, $again->status);
+        $this->assertSame(2, $again->lines_count);
+        $this->assertNull(BankStatement::find($failed->id));
+
+        // Un relevé LU, lui, bloque toujours le doublon.
+        $this->actingAs($this->admin)
+            ->postJson("/api/agencies/{$this->agency->id}/bank-statements", [
+                'file' => UploadedFile::fake()->createWithContent('statement.csv', $csv),
+                'source_format' => 'csv',
+            ])->assertStatus(422);
+    }
+
+    public function test_le_journal_ne_porte_aucune_valeur_du_releve(): void
+    {
+        // AC19 — tout ce que l'analyse journalise, message ET contexte, sérialisé.
+        $logged = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$logged): void {
+            $logged[] = ['level' => $e->level, 'message' => $e->message, 'context' => $e->context];
+        });
+
+        // 1. Deux lignes sautées : une date non numérique au libellé témoin, une date débordante.
+        $statement = $this->upload("date,amount,label,reference,counterparty\n"
+            ."01/04/2026,1000,Lisible A,,\n"
+            ."JJ/01/2026,2000,LIBELLE-TEMOIN-4417,,\n"
+            ."31/13/2026,3000,Debordante,,\n"
+            ."02/04/2026,4000,Lisible B,,\n");
+
+        $this->assertSame(2, $statement->skipped_lines_count);
+        $skipped = array_values(array_filter($logged, fn ($l) => $l['message'] === 'bank_statement_line_skipped'));
+        $this->assertCount(2, $skipped);
+        foreach ($skipped as $entry) {
+            $this->assertArrayHasKey('line', $entry['context']);
+            $this->assertArrayHasKey('columns', $entry['context']);
+        }
+        $this->assertSame([2, 3], array_column(array_column($skipped, 'context'), 'line'));
+
+        $journal = json_encode($logged, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        foreach (['LIBELLE-TEMOIN-4417', 'JJ/01/2026', '31/13/2026'] as $witness) {
+            $this->assertStringNotContainsString($witness, $journal, "Le journal recopie « {$witness} ».");
+        }
+
+        // 2. L'insertion lève SQLSTATE[22001] : une contrepartie de 300 caractères.
+        $logged = [];
+        $counterparty = str_pad('CONTREPARTIE-TEMOIN-', 300, 'X');
+        $second = $this->uploadQueued("date,amount,label,reference,counterparty\n"
+            ."03/04/2026,5000,LIBELLE-TEMOIN-8823,,{$counterparty}\n");
+
+        $this->runParseJobExpectingFailure($second);
+
+        $this->assertSame(BankStatementStatus::Failed, $second->refresh()->status);
+        $failures = array_values(array_filter($logged, fn ($l) => $l['message'] === 'bank_statement_parse_failed'));
+        $this->assertCount(1, $failures);
+        $this->assertSame('22001', $failures[0]['context']['sqlstate']);
+        $this->assertSame($second->id, $failures[0]['context']['statement_id']);
+
+        $journal = json_encode($logged, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        foreach (['LIBELLE-TEMOIN-8823', 'CONTREPARTIE-TEMOIN-'] as $witness) {
+            $this->assertStringNotContainsString($witness, $journal, "Le journal recopie « {$witness} ».");
+        }
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
 
     private function fixture(): string
@@ -299,6 +446,29 @@ class BankStatementPipelineTest extends ApiTestCase
         $response->assertStatus(202);
 
         return BankStatement::findOrFail($response->json('data.id'));
+    }
+
+    /**
+     * Dépose un relevé SANS exécuter l'analyse : une levée du job, sous `QUEUE_CONNECTION=sync`,
+     * remonterait dans la requête HTTP. Le job est ensuite joué à la main.
+     */
+    private function uploadQueued(string $content): BankStatement
+    {
+        Queue::fake();
+
+        $statement = $this->upload($content);
+
+        return $statement;
+    }
+
+    private function runParseJobExpectingFailure(BankStatement $statement): void
+    {
+        try {
+            app()->call([new ParseBankStatementJob($statement->id), 'handle']);
+            $this->fail('L\'analyse devait lever.');
+        } catch (\Throwable $e) {
+            $this->assertNotInstanceOf(AssertionFailedError::class, $e);
+        }
     }
 
     /** @param array<string,mixed> $attributes */

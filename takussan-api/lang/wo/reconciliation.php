@@ -18,6 +18,8 @@ return [
         'cross_agency' => 'Bii paiement du ci bii agence.',
         'already_reconciled' => 'Bii paiement dañu ko rapprocher ak yeneen ligne.',
         'statement_closed' => 'Bii relevé dañu ko tëj, doo men soppi.',
+        'direction_mismatch' => 'Crédit dañu koy rapprocher ak encaissement, débit ak reversement.',
+        'csv_column' => 'Colonne dañu koy wone ak turu en-tête bi walla ak bérébam.',
     ],
 
     'status' => [
@@ -26,6 +28,7 @@ return [
         'partially_reconciled' => 'Yiite yu bari rapproché nañu',
         'reconciled' => 'Rapproché na',
         'archived' => 'Archivé',
+        'failed' => 'Analyse bi antuwul',
     ],
 
     'line_status' => [

@@ -10,6 +10,7 @@ use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Services\Accounting\ReconciliationManager;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,7 @@ class BankStatementLineController extends Controller
         'booking_payment' => BookingPayment::class,
         'lease_payment' => LeasePayment::class,
         'invoice' => Invoice::class,
+        'payout' => Payout::class,
     ];
 
     public function index(BankStatement $statement, Request $request)

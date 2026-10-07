@@ -29,6 +29,8 @@ class PayoutResource extends BaseResource
             'transaction_id' => $this->transaction_id,
             'scheduled_at' => $this->iso($this->scheduled_at),
             'processed_at' => $this->iso($this->processed_at),
+            // TCK-593 — rapproché sur un débit du relevé bancaire.
+            'bank_reconciled_at' => $this->iso($this->bank_reconciled_at),
             'failed_reason' => $this->failed_reason,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
