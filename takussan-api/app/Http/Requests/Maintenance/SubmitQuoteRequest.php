@@ -26,7 +26,11 @@ class SubmitQuoteRequest extends FormRequest
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:3'],
             'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => ['file', 'max:5120'], // 5MB max
+            // TCK-592 — PDF ou image SEULEMENT. Sans `mimes`, tout fichier partait dans `quotes`, et la
+            // sortie privée sert un média avec son type, en `inline` : un `.html` ou un `.svg` déposé
+            // par un prestataire se serait ouvert dans le navigateur de l'agence le jour où la fiche
+            // expose `media.quotes`.
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'], // 5MB max
         ];
     }
 }
