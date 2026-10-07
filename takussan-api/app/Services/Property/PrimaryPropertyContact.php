@@ -73,7 +73,28 @@ class PrimaryPropertyContact
     {
         $owner = $property->owner;
 
-        return self::agentPrincipal($property)?->user ?? (self::joignable($owner) ? $owner : null);
+        return self::agentPrincipal($property)?->user
+            ?? (self::estProprietaire($owner, $property) || self::eligible($owner, $property) ? $owner : null);
+    }
+
+    /**
+     * Vérification adverse (M7) — `property.user_id` est le CRÉATEUR du bien : son propriétaire
+     * pour un particulier, mais, sur un bien d'agence, aussi bien l'agent qui l'a saisi —
+     * `PropertyController::store` y pose l'appelant, `assignAgent` y met un agent. Lu tel quel
+     * comme « propriétaire », il gardait à l'agent parti le repli du contact principal (son
+     * numéro affiché au public, les demandes reçues), la boîte des demandes et le droit de
+     * prévenir le visiteur.
+     *
+     * Il ne vaut donc propriétaire que joignable, et si le bien n'a pas d'agence, ou s'il détient
+     * un profil propriétaire ACTIF dans l'agence du bien. Le personnel actif, lui, est jugé à
+     * part, par {@see PersonnelDeLAgence::estPersonnel()}.
+     */
+    public static function estProprietaire(?User $user, Property $property): bool
+    {
+        return $user !== null
+            && (int) $property->user_id === (int) $user->id
+            && self::joignable($user)
+            && ($property->agency_id === null || PersonnelDeLAgence::estBailleur($user, $property->agency_id));
     }
 
     /**
@@ -85,14 +106,16 @@ class PrimaryPropertyContact
      * une requête de plus par appel.
      *
      * TCK-590 — `agentProfiles` et `agencyAdminProfiles` : l'éligibilité juge le personnel de
-     * l'agence sur eux, en mémoire.
+     * l'agence sur eux, en mémoire ; et ceux du propriétaire, avec `ownerProfiles` (M7).
      *
      * @return list<string>
      */
     public static function eagerLoads(): array
     {
         return [
-            'owner',
+            'owner.ownerProfiles',
+            'owner.agentProfiles',
+            'owner.agencyAdminProfiles',
             'collaborators.user.media',
             'collaborators.user.agentProfiles',
             'collaborators.user.agencyAdminProfiles',

@@ -107,7 +107,7 @@ class VisitNotifier
 
         if ($property !== null && $withPrimaryAndOwner) {
             $recipients->push(PrimaryPropertyContact::for($property));
-            if (PrimaryPropertyContact::joignable($property->owner)) {
+            if (PrimaryPropertyContact::estProprietaire($property->owner, $property)) {
                 $recipients->push($property->owner);
             }
         }

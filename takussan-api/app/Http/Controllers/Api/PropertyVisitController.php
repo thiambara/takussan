@@ -19,6 +19,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\TelephoneSaisi;
@@ -46,11 +47,15 @@ class PropertyVisitController extends Controller
 
         if (! $user->isSuperAdmin()) {
             $staffAgencyId = $this->staffAgencyId($user);
+            // Vérification adverse (M7) — le créateur d'un bien d'agence n'en est le propriétaire
+            // que s'il y est bailleur actif (`PrimaryPropertyContact::estProprietaire`).
+            $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
 
-            $base->where(function ($q) use ($user, $staffAgencyId) {
+            $base->where(function ($q) use ($user, $staffAgencyId, $bailleurDe) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere('agent_id', $user->id)
-                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
+                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id)
+                        ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $bailleurDe)))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
 
                 if ($staffAgencyId !== null) {
@@ -384,7 +389,7 @@ class PropertyVisitController extends Controller
         // bailleur de l'agence déposait l'avis « agent » sur les visites des biens d'un autre.
         $isAgent = $user->isSuperAdmin()
             || $visit->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
+            || ($property && PrimaryPropertyContact::estProprietaire($user, $property))
             || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
 
         if ($role === 'customer') {
@@ -447,7 +452,7 @@ class PropertyVisitController extends Controller
 
         return $user->isSuperAdmin()
             || $visit->agent_id === $user->id
-            || ($property !== null && $property->user_id === $user->id)
+            || ($property !== null && PrimaryPropertyContact::estProprietaire($user, $property))
             || ($property !== null && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
     }
 

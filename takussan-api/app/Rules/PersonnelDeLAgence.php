@@ -4,6 +4,7 @@ namespace App\Rules;
 
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\User;
 use App\Services\Property\PrimaryPropertyContact;
 use BackedEnum;
@@ -66,6 +67,39 @@ class PersonnelDeLAgence implements ValidationRule
 
         return $user->agentProfiles()->where('status', AgentProfileStatus::Active->value)->pluck('agency_id')
             ->merge($user->agencyAdminProfiles()->where('status', AgencyAdminProfileStatus::Active->value)->pluck('agency_id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Vérification adverse (M7) — l'utilisateur est-il BAILLEUR actif de cette agence : joignable,
+     * et titulaire d'un profil propriétaire de cette agence au statut `active` ? C'est ce qui fait
+     * d'un `property.user_id` le propriétaire d'un bien d'agence (cf.
+     * {@see PrimaryPropertyContact::estProprietaire()}).
+     */
+    public static function estBailleur(?User $user, mixed $agencyId): bool
+    {
+        if ($user === null || $agencyId === null || ! PrimaryPropertyContact::joignable($user)) {
+            return false;
+        }
+
+        return self::profilActif($user, 'ownerProfiles', (int) $agencyId, OwnerProfileStatus::Active);
+    }
+
+    /**
+     * Les agences où l'utilisateur est bailleur actif — en liste, pour une clause d'`index`.
+     *
+     * @return list<int>
+     */
+    public static function agencesOuBailleur(User $user): array
+    {
+        if (! PrimaryPropertyContact::joignable($user)) {
+            return [];
+        }
+
+        return $user->ownerProfiles()->where('status', OwnerProfileStatus::Active->value)->pluck('agency_id')
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->values()
