@@ -1,7 +1,7 @@
 ---
 id: TCK-590
 title: "Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre"
-status: doing
+status: done
 phase: P0
 family: full
 estimate: XL
@@ -303,12 +303,10 @@ pas un formulaire administratif.
 - [x] `StorePropertyVisitRequest` : `customer_id` validé par une règle `App\Rules\ClientDeLAgence`
       (la fiche appartient à l'agence du bien) ; `store` retire `customer_id` et `visitor_*` à un
       non-personnel (ils sont dérivés de lui, contrainte 3).
-- [ ] `store` (l.67-69) et `feedback` (l.231-234) : `$user->agency_id` remplacé par le prédicat
+- [x] `store` (l.67-69) et `feedback` (l.231-234) : `$user->agency_id` remplacé par le prédicat
       « personnel de l'agence du bien » (contrainte 2) ; retrait des deux exemptions de la garde de
       587 qui les nomment.
-      *Prédicat remplacé (`PersonnelDeLAgence::estPersonnel`, ablation A8 rouge) ; le retrait des
-      deux exemptions attend TCK-587 — la garde `check-agency-scope-clause.mjs` n'existe pas encore
-      sur cette branche.*
+      *Prédicat remplacé (`PersonnelDeLAgence::estPersonnel`, branché sur `isStaffAt` de 587 ; ablation A8 rouge). Les deux exemptions sont retirées de `check-agency-scope-clause.mjs` après la fusion de 587, CLIQUET 10 → 8 ; réintroduire `$user->agency_id` dans `feedback` (ablation Q05) rend la garde rouge.*
 - [x] `update` : un changement de `scheduled_at` envoie `VisitRescheduledNotification` au visiteur
       (compte, ou route anonyme selon la contrainte 4).
 
@@ -464,12 +462,12 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       la voient pas. Toute visite rendue par `index` passe `PropertyVisitPolicy::view`.
 - [x] AC5 — B prend en charge : `agent_id` = B ; C (sans `crm.assign`) la reprend → 409 ; un agent
       de Y → 403.
-- [ ] AC6 **(R)** — `PATCH agent_id` vers un utilisateur d'une autre agence → 422 ; même chose pour
+- [x] AC6 **(R)** — `PATCH agent_id` vers un utilisateur d'une autre agence → 422 ; même chose pour
       `POST /property-visits` par un agent de X ; vers un **bailleur** de X → 422. Dans les deux cas
       l'utilisateur visé obtient 403 sur `POST …/confirm`.
-      *Les trois 422 sont éprouvés (`PropertyVisitAssignmentTest`, ablation A5 rouge). « L'utilisateur
-      visé obtient 403 sur `confirm` » dépend de `PropertyVisitPolicy::update` (TCK-587) : le test est
-      écrit et reste `incomplete` jusqu'à `isStaffAt`.*
+      *Les trois 422 sont éprouvés (`PropertyVisitAssignmentTest`, ablation A5 rouge). Le 403 du bailleur visé sur `confirm` est vert depuis la fusion de 587
+      (`test_le_bailleur_vise_ne_confirme_pas`, plus `incomplete`) ; ablation Q03 (clause
+      `$user->agency_id` remise dans `PropertyVisitPolicy::update`) → rouge.*
 - [x] AC6b **(R)** — `PATCH scheduled_at` à hier → 422. L'agence déplace une visite confirmée d'un
       visiteur avec compte : `VisitRescheduledNotification` lui est envoyée (une fois) ; d'un
       visiteur sans compte : à `visitor_email` / `visitor_phone`.
@@ -477,14 +475,14 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       d'un autre client de X — crée une visite sans ce `customer_id` ; l'utilisateur de cette fiche
       ne la voit pas dans `index`, et `GET /property-visits/{id}` et `POST …/cancel` lui rendent 403.
       Un agent de X qui envoie `customer_id` d'une fiche de Y → 422.
-- [ ] AC7b **(R)** — Un utilisateur dont le seul profil est bailleur dans l'agence X, non créateur
+- [x] AC7b **(R)** — Un utilisateur dont le seul profil est bailleur dans l'agence X, non créateur
       du bien : `POST /property-visits` sur un bien **non public** d'un autre bailleur de X → 403 ;
       sur un bien public, l'`agent_id` envoyé est ignoré ; `POST …/feedback` `role=agent` sur une
       visite terminée d'un bien d'un autre bailleur → 403. `scripts/check-agency-scope-clause.mjs`
       (587) ne liste plus `PropertyVisitController` dans ses exemptions.
       *Les trois cas (403, `agent_id` ignoré, 403 sur l'avis) sont éprouvés
-      (`PropertyVisitIsolationTest`, ablation A8 rouge). La garde `check-agency-scope-clause.mjs` est
-      livrée par TCK-587, qui n'est pas mergé.*
+      (`PropertyVisitIsolationTest`, ablation A8 rouge). La garde `check-agency-scope-clause.mjs`
+      (587) ne liste plus `PropertyVisitController` ; ablation Q05 → garde rouge.*
 - [x] AC8 **(R)** — L'agent planifie pour un client sans compte : `visitor_id` nul, `customer_id` et
       `visitor_phone` du client, `agent_id` = l'agent, statut `confirmed`, un SMS à la demande
       part vers le téléphone du client.
@@ -728,4 +726,30 @@ toutes rouges, toutes restaurées — section 9 du Delta).
 - n3 : `MembershipCapabilityResolver` ne lit pas le statut du profil ; `agencyReaders()` filtre donc
   lui-même les profils agent ACTIFS avant de demander `crm.view_all`.
 - Restent liés à la fusion de TCK-587 : AC6, AC7b.
+
+**Étape 8 — après la fusion de TCK-587 (2026-10-07).** `origin/dev` fusionné (`fd4bd805`) ;
+conflits en fin de fichier seulement (`lang/*/notifications.php`, `messages/*.json` : les deux blocs
+gardés), `INDEX.md` regénéré.
+- **Une seule définition du personnel** : `estPersonnel` = compte joignable + `isStaffAt()` (profil
+  agent/admin ACTIF ou délégation active). `estBailleur` lit `isOwnerAt()`, filtré sur le statut par
+  587. La liste des visites et la boîte lue en entier passent par `staffAgencyId()`. Le
+  `MembershipCapabilityResolver` filtre désormais le statut (587) : la réserve « un agent suspendu
+  garde ses capacités » de l'étape 7 est levée.
+- **Coût** : juger le personnel devient une requête. `PrimaryPropertyContact` trie d'abord et
+  s'arrête au premier éligible ; le test de coût affirme un nombre de requêtes indépendant du nombre
+  de collaborateurs (≤ 3), ablation Q01 (filtrer avant de trier) → rouge.
+- **AC6** vert (Q03), **AC7b** et la case du Delta cochés (exemptions retirées, CLIQUET 10 → 8,
+  Q05), **AC28b / M3** : la policy de 587 refuse désormais le bailleur tiers, ET le contrôleur
+  (écart b) ; les deux gardes se recouvrent — ablation de la policy seule : vert ; des deux
+  (Q04) : 2 rouges.
+- `crm.assign` quitte `CapabilityEnforcementInventory::AWAITING` (lu par `canAssign` et la policy
+  des demandes), CLIQUET de `check-capability-readers.mjs` 16 → 15.
+- `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_modifie_plus_une_visite` (587) attendait
+  qu'un bailleur ACTIF de B déplace la visite de son bien de B : 403 désormais, par la décision (b).
+  Assertion adaptée et commentée.
+- Sonde S1 de la vérification (`Verif590S1Test`) rejouée puis retirée : bien privé → 403 ×2,
+  lecture de la visite du bien d'un autre bailleur → 403, aucune fuite ; bien public → 201 pour
+  lui-même, `customer_id` nul (écart a accepté).
+- Exécutions : 27 classes TCK-590 et voisines + `tests/Feature/Authorization` : 400 verts, 0
+  `incomplete` ; front : 35 fichiers, 265 verts ; `tsc`, lint, gardes i18n et racine vertes.
 
