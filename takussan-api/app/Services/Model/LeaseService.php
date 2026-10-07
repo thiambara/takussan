@@ -4,11 +4,13 @@ namespace App\Services\Model;
 
 use App\Events\Lease\LeaseActivated;
 use App\Jobs\GenerateLeasePaymentSchedule;
+use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
@@ -33,6 +35,17 @@ class LeaseService
                 && $staffAgencyId === (int) $property->agency_id
                 && $user->can(Capability::LeasesCreate->value, $property));
         abort_unless($canCreate, 403);
+
+        // TCK-587 (vérification adverse, B2) — le locataire et le garant doivent être dans le
+        // périmètre de l'émetteur (`view`), comme le client d'une réservation (`BookingService`).
+        // `exists:` seul laissait rattacher le contact de n'importe qui, puis lire sa fiche par
+        // le bail.
+        $tenant = Customer::query()->find($data['tenant_id'] ?? null);
+        abort_unless($tenant !== null && $user->can('view', $tenant), 403);
+        if (! empty($data['guarantor_id'])) {
+            $guarantor = Guarantor::query()->find($data['guarantor_id']);
+            abort_unless($guarantor !== null && $user->can('view', $guarantor), 403);
+        }
 
         return Lease::create(array_merge($data, [
             'reference_number' => ReferenceNumberGenerator::lease(),

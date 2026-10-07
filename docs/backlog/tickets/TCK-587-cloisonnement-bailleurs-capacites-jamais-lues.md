@@ -389,6 +389,11 @@ Aucune migration de schéma. Endpoints :
       `ConversationContextController:102-104,145-147` → prédicat. (`FavoriteController:36` : TCK-599.)
 - [x] `LeaseService::create` : `property.user_id === user` OU (personnel de l'agence du bien ET
       `leases.create`).
+- [x] *Ajouté après vérification adverse (verif-587, B2).* `LeaseService::create` : le locataire
+      (`tenant_id`) et le garant (`guarantor_id`) doivent passer `view` pour l'émetteur, sinon 403 ;
+      `LeaseController::attachGuarantor` : `authorize('view', $garant)`. La modification d'un bail ne
+      change pas `tenant_id` (`UpdateLeaseRequest` ne l'accepte pas, `RenewLeaseRequest` l'interdit) :
+      rien à garder là.
 - [x] `BookingService::create` (l.65-67, *consolidation*) : `$isStaff = $user->isSuperAdmin() ||
       ($property->agency_id !== null && $user->staffAgencyId() === $property->agency_id)`. Le disjoint
       mort `$property->user_id === $user->id` disparaît. Un bailleur de l'agence suit dès lors le
@@ -566,6 +571,13 @@ Aucune migration de schéma. Endpoints :
       non `null` comme aujourd'hui) ; B2 avec `customer_id` d'un client ajouté par l'agent → 403 ;
       l'agent de l'agence sur le bien `private` → 201. Rouge à nouveau si l'on rétablit
       `$user->agency_id === $property->agency_id` dans `$isStaff`.
+- [x] **AC1e** — *Ajouté après vérification adverse (verif-587, B2).* `POST /api/leases` par B1 sur
+      son bien : `tenant_id` = client de B2 → 403 ; client d'une autre agence → 403 ; `guarantor_id`
+      = garant de B2 → 403 ; garant d'une autre agence → 403 (aucun bail créé).
+      `POST /api/leases/{bail de B1}/guarantors` avec le garant de B2 ou d'une autre agence → 403
+      (rien rattaché). B1 avec son client et son garant → 201 ; l'agent → 201 ; l'agent rattache le
+      garant de B2 au bail de B1 → 201. Rouge sur le code d'avant (201), rouge à nouveau si l'on
+      retire un seul des trois contrôles.
 - [x] **AC2** — Un bailleur bénéficiaire, profil actif dans l'agence émettrice, reçoit 403 sur
       `mark-processed`, `mark-failed` et `cancel` de **son** versement ; un agent sans
       `payouts.create` (rôle personnalisé) reçoit 403 ; un agent du rôle système, 200.
@@ -934,3 +946,23 @@ d'avant entier, elle rougit. Les ablations web de l'étape 4 n'ont pas été rej
 de la session) a vu ce répertoire vidé pendant l'exécution, puis recréé avec une copie de
 `app/...` et un `.phpunit.result.cache`. Un test résout donc un chemin relatif à la config, et non
 à `base_path()`. Il n'a pas été identifié. Le worktree, lui, n'a pas bougé.
+
+### Étape 6 — corrections après vérification adverse (verif-587 : refusé, 3 bloquants)
+
+**B1 — AC1d instable.** Le correctif de `18bb9b38` (`RESERVABLE` = location à la nuitée sur le bien
+privé de la fixture et sur les deux biens publics réservés) couvre les deux tests positifs.
+Re-mesuré : `php vendor/bin/phpunit tests/Feature/Authorization/OwnerIsolationWithinAgencyTest.php
+--filter=reserve`, lancé **10 fois** : `OK (4 tests, 6 assertions)` ×10. Même motif cherché
+dans les autres tests neufs : seule `BookingService::create` passe par `BookingQuote`, et le seul
+autre fichier neuf qui touche aux réservations (`BranchedCapabilitiesTest`) n'en crée pas : il
+confirme, refuse et annule des réservations de fabrique, sans devis.
+
+**B2 — rattacher le client ou le garant d'un autre** (décision de la session : corrigé ici).
+`LeaseService::create` exige `view` sur le locataire et sur le garant ; `attachGuarantor`
+autorise `view` sur un garant existant. Quatre tests neufs dans `OwnerIsolationWithinAgencyTest`
+(AC1e) : les trois de refus **rouges sur le code d'avant** (201 au lieu de 403), le positif vert.
+Ablations, chacune seule : contrôle du locataire retiré → rouge (201) ; du garant à la création →
+rouge (201) ; du garant au rattachement → rouge (201). `LeaseTest::test_landlord_can_create_lease`
+rattachait un client de fabrique (ajouté par un inconnu) : c'était le défaut lui-même. Le client est
+désormais ajouté par le bailleur. Après correctif : `OwnerIsolationWithinAgencyTest` 80 passés ;
+les fichiers qui créent un bail ou rattachent un garant, 103 passés.

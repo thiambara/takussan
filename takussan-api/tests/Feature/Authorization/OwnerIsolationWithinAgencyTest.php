@@ -391,9 +391,78 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             ->assertCreated();
     }
 
+    // ─── AC1e — rattacher le client ou le garant d'un autre à son bail ─────────────
+
+    /**
+     * Ajouté après vérification adverse (verif-587, B2). `StoreLeaseRequest` ne valide `tenant_id`
+     * et `guarantor_id` que par `exists:` : B1 rattachait à SON bail le client ou le garant de
+     * n'importe qui — de B2, ou d'une autre agence — puis lisait sa fiche par
+     * `GET /api/leases/{id}?include=tenant` et `GET /api/leases/{id}/guarantors`. Même classe de
+     * défaut qu'AC1d (`BookingService`, `customer_id` d'un tiers).
+     *
+     * @return array{customer: Customer, guarantor: Guarantor}
+     */
+    private function foreignAgencyContacts(): array
+    {
+        $other = Agency::factory()->create();
+        $foreignAgent = User::factory()->withAgentProfile($other)->create();
+
+        return [
+            'customer' => Customer::factory()->create(['agency_id' => $other->id, 'added_by_id' => $foreignAgent->id]),
+            'guarantor' => Guarantor::factory()->create(['added_by_id' => $foreignAgent->id]),
+        ];
+    }
+
+    public function test_un_bailleur_ne_cree_pas_de_bail_au_nom_du_client_d_un_autre(): void
+    {
+        $before = Lease::query()->count();
+
+        $this->actingAsApi($this->b1)
+            ->postJson('/api/leases', $this->leasePayload($this->r2['customer']))
+            ->assertForbidden();
+        $this->actingAsApi($this->b1)
+            ->postJson('/api/leases', $this->leasePayload($this->foreignAgencyContacts()['customer']))
+            ->assertForbidden();
+
+        $this->assertSame($before, Lease::query()->count());
+    }
+
+    public function test_un_bailleur_ne_cree_pas_de_bail_avec_le_garant_d_un_autre(): void
+    {
+        $this->actingAsApi($this->b1)
+            ->postJson('/api/leases', $this->leasePayload($this->r['customer']) + ['guarantor_id' => $this->r2['guarantor']->id])
+            ->assertForbidden();
+        $this->actingAsApi($this->b1)
+            ->postJson('/api/leases', $this->leasePayload($this->r['customer']) + ['guarantor_id' => $this->foreignAgencyContacts()['guarantor']->id])
+            ->assertForbidden();
+    }
+
+    public function test_un_bailleur_n_attache_pas_le_garant_d_un_autre_a_son_bail(): void
+    {
+        $uri = "/api/leases/{$this->r['lease']->id}/guarantors";
+
+        $this->actingAsApi($this->b1)->postJson($uri, ['guarantor_id' => $this->r2['guarantor']->id])->assertForbidden();
+        $this->actingAsApi($this->b1)->postJson($uri, ['guarantor_id' => $this->foreignAgencyContacts()['guarantor']->id])->assertForbidden();
+
+        $this->assertSame(0, $this->r['lease']->guarantors()->count());
+    }
+
+    public function test_le_bailleur_et_le_personnel_rattachent_les_contacts_qu_ils_lisent(): void
+    {
+        $this->actingAsApi($this->b1)
+            ->postJson('/api/leases', $this->leasePayload($this->r['customer']) + ['guarantor_id' => $this->r['guarantor']->id])
+            ->assertCreated();
+        $this->actingAsApi($this->agent)
+            ->postJson('/api/leases', $this->leasePayload($this->r['customer']) + ['guarantor_id' => $this->r['guarantor']->id])
+            ->assertCreated();
+
+        $uri = "/api/leases/{$this->r['lease']->id}/guarantors";
+        $this->actingAsApi($this->b1)->postJson($uri, ['guarantor_id' => $this->r['guarantor']->id])->assertCreated();
+        $this->actingAsApi($this->agent)->postJson($uri, ['guarantor_id' => $this->r2['guarantor']->id])->assertCreated();
+    }
+
     // ─── AC1d — réserver le bien d'un autre bailleur ─────────────
 
-    /** @return array<string, mixed> */
     /**
      * Un bien RÉSERVABLE : la fabrique tire `rent_period` au hasard, et un bien loué au mois ou à
      * l'année est refusé en 422 (`rent_period_not_bookable`) avant toute question d'autorisation —
@@ -401,6 +470,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
      */
     private const RESERVABLE = ['contract_type' => ContractType::Rent, 'rent_period' => RentPeriod::Daily];
 
+    /** @return array<string, mixed> */
     private function bookingPayload(Property $property, array $extra = []): array
     {
         return array_merge([
