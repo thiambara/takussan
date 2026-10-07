@@ -28,6 +28,7 @@ return [
         'individual_no_owner_invites' => 'Les agences individuelles ne peuvent pas inviter de propriétaires.',
         'individual_no_team' => 'Les agences individuelles n\'ont pas d\'équipe à gérer.',
         'kyc_not_verified' => 'Le KYC de l\'agence doit être vérifié avant de vérifier l\'agence.',
+        'staff_only' => 'Cette donnée est réservée au personnel de l\'agence.',
         'standard_only' => 'Cette fonctionnalité est réservée aux agences standard.',
     ],
     'agency_member' => [
@@ -113,9 +114,8 @@ return [
         'already_verified' => 'Cette adresse e-mail est déjà vérifiée.',
     ],
     'export' => [
-        'crm_staff_only' => 'L\'export du CRM est réservé au personnel de l\'agence.',
+        'forbidden' => 'Vous n\'avez pas le droit d\'exporter ces données.',
         'entity_unknown' => 'Export inconnu.',
-        'properties_staff_or_owner' => 'L\'export des biens est réservé au personnel et aux propriétaires.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Trop de tâches en échec pour les relancer en une fois.',
@@ -323,6 +323,7 @@ return [
     'share_link' => [
         'download_limit' => 'Ce lien de partage a atteint sa limite de téléchargements.',
         'expired' => 'Ce lien de partage a expiré.',
+        'password_in_query' => 'Le mot de passe d\'un lien de partage s\'envoie dans le corps de la requête, jamais dans l\'URL.',
         'password_invalid' => 'Mot de passe invalide.',
         'revoked' => 'Ce lien de partage a été révoqué.',
     ],
@@ -341,6 +342,13 @@ return [
     'task' => [
         'assignee_other_agency' => 'La personne assignée doit appartenir à votre agence.',
     ],
+    'team' => [
+        'admin_suspension_reserved' => 'Seul un administrateur actif de l\'agence peut suspendre ou réactiver un administrateur.',
+        'nothing_to_reactivate' => 'Ce membre n\'a aucun profil suspendu à réactiver dans cette agence. Une invitation en attente s\'accepte, elle ne se réactive pas.',
+        'nothing_to_suspend' => 'Ce membre n\'a aucun profil actif à suspendre dans cette agence.',
+        'suspension_primary_admin' => 'L\'administrateur principal de l\'agence ne peut pas être suspendu.',
+        'suspension_self' => 'Vous ne pouvez pas vous suspendre vous-même.',
+    ],
     'two_factor' => [
         'already_enabled' => 'La double authentification est déjà activée.',
         'code_invalid' => 'Code invalide.',
@@ -350,6 +358,7 @@ return [
         'password_or_code_invalid' => 'Mot de passe ou code invalide.',
     ],
     'user' => [
+        'account_block_reserved' => 'Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d\'agence suspend un membre dans son agence.',
         'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
         'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
         'no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',
@@ -379,14 +388,4 @@ return [
     'wizard_draft' => [
         'not_found' => 'Aucun brouillon.',
     ],
-
-    // TCK-587 — clés plates, converties en codes par domaine après la fusion (TCK-588).
-    'export_unknown_entity' => "Cet export n'existe pas.",
-    'export_forbidden' => "Vous n'avez pas le droit d'exporter ces données.",
-    'share_password_in_query' => "Le mot de passe d'un lien de partage s'envoie dans le corps de la requête, jamais dans l'URL.",
-    'account_block_reserved' => "Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d'agence suspend un membre dans son agence.",
-    'staff_only' => "Cette donnée est réservée au personnel de l'agence.",
-    'team_admin_suspension_reserved' => "Seul un administrateur actif de l'agence peut suspendre ou réactiver un administrateur.",
-    'team_nothing_to_suspend' => "Ce membre n'a aucun profil actif à suspendre dans cette agence.",
-    'team_nothing_to_reactivate' => "Ce membre n'a aucun profil suspendu à réactiver dans cette agence. Une invitation en attente s'accepte, elle ne se réactive pas.",
 ];

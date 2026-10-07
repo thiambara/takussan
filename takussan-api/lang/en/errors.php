@@ -28,6 +28,7 @@ return [
         'individual_no_owner_invites' => 'Individual agencies cannot invite owners.',
         'individual_no_team' => 'Individual agencies don\'t have a team to manage.',
         'kyc_not_verified' => 'The agency KYC must be verified before the agency can be verified.',
+        'staff_only' => 'This data is reserved for the agency\'s staff.',
         'standard_only' => 'This feature is reserved for standard agencies.',
     ],
     'agency_member' => [
@@ -113,9 +114,8 @@ return [
         'already_verified' => 'This email address is already verified.',
     ],
     'export' => [
-        'crm_staff_only' => 'The CRM export is reserved for agency staff.',
+        'forbidden' => 'You are not allowed to export this data.',
         'entity_unknown' => 'Unknown export.',
-        'properties_staff_or_owner' => 'The property export is reserved for staff and owners.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Too many failed jobs to retry at once.',
@@ -323,6 +323,7 @@ return [
     'share_link' => [
         'download_limit' => 'This share link has reached its download limit.',
         'expired' => 'This share link has expired.',
+        'password_in_query' => 'A share link password is sent in the request body, never in the URL.',
         'password_invalid' => 'Invalid password.',
         'revoked' => 'This share link has been revoked.',
     ],
@@ -341,6 +342,13 @@ return [
     'task' => [
         'assignee_other_agency' => 'The assignee must belong to your agency.',
     ],
+    'team' => [
+        'admin_suspension_reserved' => 'Only an active administrator of the agency can suspend or reactivate an administrator.',
+        'nothing_to_reactivate' => 'This member has no suspended profile to reactivate in this agency. A pending invitation is accepted, not reactivated.',
+        'nothing_to_suspend' => 'This member has no active profile to suspend in this agency.',
+        'suspension_primary_admin' => 'The agency\'s primary administrator cannot be suspended.',
+        'suspension_self' => 'You cannot suspend yourself.',
+    ],
     'two_factor' => [
         'already_enabled' => 'Two-factor authentication is already enabled.',
         'code_invalid' => 'Invalid code.',
@@ -350,6 +358,7 @@ return [
         'password_or_code_invalid' => 'Invalid password or code.',
     ],
     'user' => [
+        'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',
         'cannot_block_self' => 'You cannot block your own account.',
         'cannot_delete_self' => 'You cannot delete your own account via this route.',
         'no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',
@@ -379,14 +388,4 @@ return [
     'wizard_draft' => [
         'not_found' => 'No draft.',
     ],
-
-    // TCK-587 — clés plates, converties en codes par domaine après la fusion (TCK-588).
-    'export_unknown_entity' => 'This export does not exist.',
-    'export_forbidden' => 'You are not allowed to export this data.',
-    'share_password_in_query' => 'A share link password is sent in the request body, never in the URL.',
-    'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',
-    'staff_only' => "This data is reserved for the agency's staff.",
-    'team_admin_suspension_reserved' => 'Only an active administrator of the agency can suspend or reactivate an administrator.',
-    'team_nothing_to_suspend' => 'This member has no active profile to suspend in this agency.',
-    'team_nothing_to_reactivate' => 'This member has no suspended profile to reactivate in this agency. A pending invitation is accepted, not reactivated.',
 ];

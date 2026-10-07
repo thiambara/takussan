@@ -123,12 +123,10 @@ class UserAdminAgencyScopeTest extends ApiTestCase
     {
         $admin = $this->apiActingAsRole('super_admin');
 
-        // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
-        // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
-        // À la fusion de 587, l'abort passe à abort_code() et ce test affirme son code.
         $this->apiPost("/api/users/{$admin->id}/block")
             ->assertStatus(422)
-            ->assertJsonPath('code', 'http.unprocessable');
+            ->assertJsonPath('code', 'user.cannot_block_self')
+            ->assertJsonPath('message', __('errors.user.cannot_block_self'));
     }
 
     public function test_agency_admin_cannot_reactivate_an_account_blocked_by_the_super_admin(): void
@@ -162,12 +160,10 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $target = User::factory()->create(['agency_id' => $agencyB->id]);
 
-        // TCK-588 — en attente de TCK-587 (ATTENTE_587 de ProseLitteraleInterditeTest) : l'abort
-        // garde son `__('messages.…')`, que le rendu d'ADR-0032 remplace par `http.<nom du statut>`.
-        // À la fusion de 587, l'abort passe à abort_code() et ce test affirme son code.
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertForbidden()
-            ->assertJsonPath('code', 'http.forbidden');
+            ->assertJsonPath('code', 'user.not_in_active_agency')
+            ->assertJsonPath('message', __('errors.user.not_in_active_agency'));
     }
 
     public function test_outsider_without_admin_role_cannot_list(): void

@@ -28,6 +28,7 @@ return [
         'individual_no_owner_invites' => 'Ajance ind doxoo mën inviter borom kër.',
         'individual_no_team' => 'Ajance ind amul kuréel mu mën a toppatoo.',
         'kyc_not_verified' => 'KYC agence bi war nañu ko dëggal balaa ñuy dëggal agence bi.',
+        'staff_only' => 'Xibaar yii, liggéeykati ajaans bi rekk ñoo ko moom.',
         'standard_only' => 'Fonctionnalité bii, agence standard yi rekk ñoo ko am.',
     ],
     'agency_member' => [
@@ -113,9 +114,8 @@ return [
         'already_verified' => 'Adrees e-mail bii dëggal nañu ko ba noppi.',
     ],
     'export' => [
-        'crm_staff_only' => 'Export CRM bi, liggéeykati agence bi rekk ñoo ko am.',
+        'forbidden' => 'Amuloo sañ-sañ génne donne yii.',
         'entity_unknown' => 'Export bii xamuñu ko.',
-        'properties_staff_or_owner' => 'Export kër yi, liggéeykat yi ak boroom kër yi rekk ñoo ko am.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Liggéey yu daanu dafa bari lool ngir tàmbaliwaat leen benn yoon.',
@@ -323,6 +323,7 @@ return [
     'share_link' => [
         'download_limit' => 'Lënku séddoo bii yegg na ci limite téléchargement bi.',
         'expired' => 'Lënku séddoo bii jeex na.',
+        'password_in_query' => 'Baatu jàll bu lien bi, ci biir laaj bi lañu koy yónnee, du ci URL bi.',
         'password_invalid' => 'Baatu jàll bi baaxul.',
         'revoked' => 'Lënku séddoo bii dindi nañu ko.',
     ],
@@ -341,6 +342,13 @@ return [
     'task' => [
         'assignee_other_agency' => 'Ki ñu dénk liggéey bi war na bokk ci sa agence.',
     ],
+    'team' => [
+        'admin_suspension_reserved' => 'Administraateur bu dox ci ajaas bi rekk mën a taxawal walla delloo administraateur.',
+        'nothing_to_reactivate' => 'Bokk bii amul benn profil bu ñu taxawal buñu mën a delloo ci ajaas bii. Woote buñu xaar dañuy nangu, duñu ko delloo.',
+        'nothing_to_suspend' => 'Bokk bii amul benn profil buy dox buñu mën a taxawal ci ajaas bii.',
+        'suspension_primary_admin' => 'Mënuñu taxawal njiitu ajaans bi.',
+        'suspension_self' => 'Mënoo taxawal sa bopp.',
+    ],
     'two_factor' => [
         'already_enabled' => 'Double authentification bi doxal nañu ko ba noppi.',
         'code_invalid' => 'Code bi baaxul.',
@@ -350,6 +358,7 @@ return [
         'password_or_code_invalid' => 'Baatu jàll bi walla code bi baaxul.',
     ],
     'user' => [
+        'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
         'cannot_block_self' => 'Mën nga téqale sa bopp.',
         'cannot_delete_self' => 'Mën nga far sa bopp ci yoon wii.',
         'no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
@@ -379,14 +388,4 @@ return [
     'wizard_draft' => [
         'not_found' => 'Amul benn brouillon.',
     ],
-
-    // TCK-587 — clés plates, converties en codes par domaine après la fusion (TCK-588).
-    'export_unknown_entity' => 'Export bii amul.',
-    'export_forbidden' => 'Amuloo sañ-sañ génne donne yii.',
-    'share_password_in_query' => 'Baatu jàll bu lien bi, ci biir laaj bi lañu koy yónnee, du ci URL bi.',
-    'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
-    'staff_only' => 'Xibaar yii, liggéeykati ajaans bi rekk ñoo ko moom.',
-    'team_admin_suspension_reserved' => 'Administraateur bu dox ci ajaas bi rekk mën a taxawal walla delloo administraateur.',
-    'team_nothing_to_suspend' => 'Bokk bii amul benn profil buy dox buñu mën a taxawal ci ajaas bii.',
-    'team_nothing_to_reactivate' => 'Bokk bii amul benn profil bu ñu taxawal buñu mën a delloo ci ajaas bii. Woote buñu xaar dañuy nangu, duñu ko delloo.',
 ];

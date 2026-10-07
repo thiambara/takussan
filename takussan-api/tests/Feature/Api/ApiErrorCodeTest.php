@@ -34,13 +34,27 @@ class ApiErrorCodeTest extends ApiTestCase
         return ['fr' => ['fr'], 'en' => ['en'], 'wo' => ['wo']];
     }
 
-    /**
-     * L'AC7 citait le reversement à un bailleur d'une autre agence (`payout.landlord_not_in_agency`).
-     * `PayoutService` est modifié par TCK-587, qui fusionne avant : ses aborts attendent (complément
-     * au brief, §6). Comme l'AC le prévoit, le test porte sur un autre `abort_code` converti ici.
-     */
+    /** AC7 — le reversement pour le bailleur d'une autre agence (`PayoutService`, converti après la fusion de 587). */
     #[DataProvider('langues')]
     public function test_un_abort_code_rend_son_code_et_un_message_localise(string $locale): void
+    {
+        $agency = Agency::factory()->create();
+        $autreBailleur = User::factory()->withOwnerProfile(Agency::factory()->create())->create();
+        Sanctum::actingAs(User::factory()->withAgentProfile($agency)->create());
+
+        $response = $this->postJson('/api/payouts', [
+            'landlord_id' => $autreBailleur->id,
+            'gross_amount' => 100000,
+        ], ['Accept-Language' => $locale]);
+
+        $response->assertForbidden()
+            ->assertJsonPath('code', 'payout.landlord_not_in_agency')
+            ->assertJsonPath('message', __('errors.payout.landlord_not_in_agency', [], $locale));
+        $this->assertNotSame('errors.payout.landlord_not_in_agency', $response->json('message'));
+    }
+
+    #[DataProvider('langues')]
+    public function test_le_middleware_super_admin_rend_son_code_localise(string $locale): void
     {
         Sanctum::actingAs(User::factory()->withAgentProfile(Agency::factory()->create())->create());
 
@@ -55,7 +69,7 @@ class ApiErrorCodeTest extends ApiTestCase
     public function test_les_trois_langues_rendent_trois_messages_distincts(): void
     {
         $messages = array_map(
-            fn (string $locale) => __('errors.auth.super_admin_required', [], $locale),
+            fn (string $locale) => __('errors.payout.landlord_not_in_agency', [], $locale),
             ['fr', 'en', 'wo'],
         );
 
