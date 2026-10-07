@@ -2550,7 +2550,8 @@
         "verifying": "Vérification du paiement…"
       },
       "error": {
-        "generic": "Une erreur est survenue, réessayez."
+        "generic": "Une erreur est survenue, réessayez.",
+        "checkoutInProgress": "Un paiement en ligne de {amount} est déjà en cours sur cette échéance. Terminez-le, ou réessayez après {time}."
       },
       "breakdown": {
         "rent": "Loyer",

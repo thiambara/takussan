@@ -26,6 +26,7 @@ use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -99,7 +100,13 @@ class PaymentGatewayService
         // refusé : deux checkouts ouverts, c'est deux encaissements possibles.
         $open = $this->openCheckout($payment);
         if ($open !== null) {
-            abort_unless(($open['provider'] ?? null) === $provider->value, 409, __('payments.checkout_in_progress'));
+            // Passe 2, N2 — rendu seulement s'il demande ce que l'écran annonce : un réglage
+            // d'agence changé, ou une pénalité tombée pendant que le checkout vit, changent
+            // `amountDue()` sans changer le montant figé du checkout.
+            $sameAmount = abs(($this->openCheckoutAmount($payment, $open) ?? -1.0) - ($this->amountDue($payment) ?? -2.0)) < 0.005;
+            if (($open['provider'] ?? null) !== $provider->value || ! $sameAmount) {
+                $this->refuseOpenCheckout($payment, $open);
+            }
 
             return new CheckoutSession((string) $open['checkout_url'], (string) $open['transaction_id'], $provider->value);
         }
@@ -570,7 +577,49 @@ class PaymentGatewayService
      */
     public function assertNoOpenCheckout(Model $payment): void
     {
-        abort_if($this->openCheckout($payment) !== null, 409, __('payments.checkout_in_progress'));
+        $open = $this->openCheckout($payment);
+        if ($open !== null) {
+            $this->refuseOpenCheckout($payment, $open);
+        }
+    }
+
+    /**
+     * Passe 2, N2 — le 409 `checkout_in_progress` porte, en plus de son message, le checkout en
+     * cours : son montant figé, sa devise, son ancienneté, et l'heure à partir de laquelle il ne
+     * sera plus réutilisé. Le front l'affiche (« un paiement de X est en cours… ») au lieu d'un
+     * refus nu. La forme du corps reste celle d'une erreur : `message` d'abord.
+     *
+     * @param  array<string,mixed>  $open
+     */
+    public function refuseOpenCheckout(Model $payment, array $open): never
+    {
+        $initiatedAt = Carbon::parse($open['initiated_at']);
+
+        throw new HttpResponseException(response()->json([
+            'message' => __('payments.checkout_in_progress'),
+            'code' => 'checkout_in_progress',
+            'checkout' => [
+                'amount' => $this->openCheckoutAmount($payment, $open),
+                'currency' => $this->paymentCurrency($payment),
+                'provider' => $open['provider'] ?? null,
+                'initiated_at' => $initiatedAt->toIso8601String(),
+                'age_minutes' => max(0, (int) $initiatedAt->diffInMinutes(now())),
+                'retry_after' => $initiatedAt->copy()->addMinutes((int) config('payments.checkout_reuse_minutes', 30))->toIso8601String(),
+            ],
+        ], 409));
+    }
+
+    /**
+     * Le montant figé du checkout ouvert : son entrée de l'historique, à défaut le dernier montant
+     * figé de la ligne.
+     *
+     * @param  array<string,mixed>  $open
+     */
+    protected function openCheckoutAmount(Model $payment, array $open): ?float
+    {
+        $meta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+
+        return $this->initiationFor($meta, isset($open['transaction_id']) ? (string) $open['transaction_id'] : null)['amount'];
     }
 
     /**

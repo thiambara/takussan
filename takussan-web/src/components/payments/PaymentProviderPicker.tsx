@@ -19,8 +19,9 @@ import {
 } from '@/hooks/useInitiatePayment';
 
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
+import { checkoutEnCours } from './checkout-en-cours';
 import type { DetailMontantDu } from './montant-du';
 
 interface ProviderOption {
@@ -117,7 +118,16 @@ export function PaymentProviderPicker({
         window.location.href = url;
       }
     } catch (e) {
-      setError(messageErreur(e, t('error.generic')));
+      // Passe 2, N2 — un checkout vit déjà, à un autre montant : on dit lequel, et jusqu'à quand.
+      const enCours = checkoutEnCours(e);
+      setError(
+        enCours
+          ? t('error.checkoutInProgress', {
+              amount: formatCurrency(enCours.montant, locale, { currency: enCours.devise }),
+              time: formatDate(enCours.reessayerApres, locale, { dateStyle: undefined, timeStyle: 'short' }),
+            })
+          : messageErreur(e, t('error.generic')),
+      );
     }
   }
 
@@ -193,7 +203,11 @@ export function PaymentProviderPicker({
           })}
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={initiate.isPending}>

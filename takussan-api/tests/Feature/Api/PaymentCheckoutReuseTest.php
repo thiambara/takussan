@@ -10,6 +10,7 @@ use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\PaymentGatewayService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -62,6 +63,36 @@ class PaymentCheckoutReuseTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('message', __('payments.checkout_in_progress'));
 
+        $this->assertCount(1, $spy->calls);
+    }
+
+    public function test_un_checkout_a_un_autre_montant_n_est_pas_rendu(): void
+    {
+        // Passe 2, N2 — un checkout ouvert à 150 000, puis l'agence active l'encaissement en ligne
+        // de la pénalité : l'écran dit 157 500. Le second clic rendait le checkout à 150 000.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => false]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+
+        $ctx['agency']->update(['settings' => ['late_fee_online_collection' => true]]);
+        $this->getJson("/api/leases/{$ctx['lease']->id}/payments")->assertJsonPath('data.0.amount_due', 157500);
+
+        $this->travel(5)->minutes();
+        $initiatedAt = Carbon::parse($ctx['payment']->refresh()->metadata['gateway']['initiated_at']);
+        $this->initiate($ctx['payment']->id)
+            ->assertStatus(409)
+            ->assertJsonPath('message', __('payments.checkout_in_progress'))
+            ->assertJsonPath('code', 'checkout_in_progress')
+            ->assertJsonPath('checkout.amount', 150000)
+            ->assertJsonPath('checkout.currency', 'XOF')
+            ->assertJsonPath('checkout.age_minutes', 5)
+            ->assertJsonPath('checkout.retry_after', $initiatedAt->addMinutes(config('payments.checkout_reuse_minutes'))->toIso8601String());
+        $this->assertCount(1, $spy->calls);
+
+        // Au même montant, le checkout est rendu tel quel.
+        $ctx['agency']->update(['settings' => ['late_fee_online_collection' => false]]);
+        $this->initiate($ctx['payment']->id)->assertOk()->assertJsonPath('data.transaction_id', 'spy_txn_1');
         $this->assertCount(1, $spy->calls);
     }
 

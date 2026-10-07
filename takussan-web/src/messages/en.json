@@ -2575,7 +2575,8 @@
         "verifying": "Verifying the payment…"
       },
       "error": {
-        "generic": "Something went wrong, please try again."
+        "generic": "Something went wrong, please try again.",
+        "checkoutInProgress": "An online payment of {amount} is already in progress for this instalment. Complete it, or try again after {time}."
       },
       "breakdown": {
         "rent": "Rent",

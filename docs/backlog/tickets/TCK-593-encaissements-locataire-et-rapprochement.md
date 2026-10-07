@@ -1041,3 +1041,15 @@ Chaque point : un commit, un test rouge sans le correctif (l'ablation le retire 
   `PaymentCheckoutReuseTest::test_l_echec_d_un_ancien_checkout_ne_ferme_pas_le_checkout_courant` :
   la séquence N1 rend `spy_txn_2` (2 appels au pilote, pas 3), l'espèce reste refusée, puis
   l'échec du checkout courant le ferme bien. Ablation (condition forcée à vrai) → rouge.
+- **N2 — checkout réutilisé à un autre montant.** `initiateLocked` ne rend le checkout ouvert que
+  si son montant figé (entrée de `transactions[]`) égale `amountDue()` ; sinon, comme pour un
+  autre fournisseur, `refuseOpenCheckout()` rend 409 `checkout_in_progress` avec `code` et
+  `checkout {amount, currency, provider, initiated_at, age_minutes, retry_after}`. Le même corps
+  sert à `assertNoOpenCheckout` (mark-paid) et à `LateFeeSettlement`. Front : `checkoutEnCours()`
+  lit ce corps, et le sélecteur de fournisseur affiche « Un paiement en ligne de X est déjà en
+  cours… réessayez après HH:MM » (`payments.gateway.error.checkoutInProgress`, fr/en/wo). Tests
+  `PaymentCheckoutReuseTest::test_un_checkout_a_un_autre_montant_n_est_pas_rendu` (au même montant,
+  rendu tel quel) et `PaymentProviderPicker.test.tsx`. Ablations : comparaison de montant retirée
+  → rouge ; lecture du corps retirée côté front → rouge. Piège noté : un `vi.fn()` qui rejette
+  laisse une rejection signalée non gérée par Vitest 4 même quand l'appelant l'attrape ; le test
+  mocke donc par une fonction simple.

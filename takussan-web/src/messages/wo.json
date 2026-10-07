@@ -1194,7 +1194,8 @@
         "verifying": "Ñu ngi seet paiement bi…"
       },
       "error": {
-        "generic": "Lu ñu xamul am na, jeemal ndax."
+        "generic": "Lu ñu xamul am na, jeemal ndax.",
+        "checkoutInProgress": "Fey bu {amount} ci internet mu ngi dox ba tey ci bii fey. Mottaliléen ko, walla jéemaatal ginnaaw {time}."
       },
       "breakdown": {
         "rent": "Luwaasu kër",
