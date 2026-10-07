@@ -45,7 +45,7 @@ describe('PaymentProviderPicker — checkout déjà en cours (N2)', () => {
     refuser(
       new ApiError(409, {
         message: 'Un paiement en ligne est en cours sur cette échéance : réessayez dans quelques minutes.',
-        code: 'checkout_in_progress',
+        code: 'payment.checkout_in_progress',
         checkout: { amount: 150000, currency: 'XOF', provider: 'wave', retry_after: '2026-10-07T10:30:00+00:00' },
       }),
     );

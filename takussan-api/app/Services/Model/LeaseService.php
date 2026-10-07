@@ -60,10 +60,10 @@ class LeaseService
 
     public function activate(Lease $lease): Lease
     {
-        abort_unless(
+        abort_code_unless(
             $lease->status === LeaseStatus::Draft,
             422,
-            'Only draft leases can be activated.'
+            'lease.not_draft_activate'
         );
 
         $lease->update([
@@ -86,10 +86,10 @@ class LeaseService
 
     public function generateSchedule(Lease $lease): int
     {
-        abort_unless($lease->status === LeaseStatus::Active, 422, 'Only active leases can generate a payment schedule.');
+        abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
 
         $existing = $lease->payments()->count();
-        abort_if($existing > 0, 422, 'Payment schedule already generated.');
+        abort_code_if($existing > 0, 422, 'lease.schedule_exists');
 
         $start = Carbon::parse($lease->start_date);
         $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;
@@ -147,10 +147,10 @@ class LeaseService
 
     public function terminate(Lease $lease, User $user, ?string $reason = null): Lease
     {
-        abort_unless(
+        abort_code_unless(
             in_array($lease->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
             422,
-            __('messages.lease_cannot_terminate')
+            'lease.cannot_terminate'
         );
 
         $penaltyAmount = null;

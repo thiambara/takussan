@@ -2,7 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Enums\NotificationType;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Message;
 use App\Services\Model\NotificationService;
 use Illuminate\Bus\Queueable;
@@ -47,19 +48,17 @@ class NotifyNewMessageJob implements ShouldQueue
             return;
         }
 
+        // TCK-588 — un expéditeur sans nom rend « — » dans la langue du destinataire, plutôt
+        // qu'un « Un contact » français écrit ici.
         $senderName = $sender
-            ? trim(($sender->first_name ?? '').' '.($sender->last_name ?? '')) ?: ($sender->email ?? 'Un contact')
-            : 'Un contact';
+            ? trim(($sender->first_name ?? '').' '.($sender->last_name ?? '')) ?: $sender->email
+            : null;
 
-        $notifications->notifyMany(
-            $recipients,
-            NotificationType::Message,
-            'Nouveau message',
-            $senderName.': '.mb_strimwidth((string) $message->content, 0, 80, '…'),
-            [
-                'conversation_id' => $message->conversation_id,
-                'message_id' => $message->id,
-            ],
-        );
+        foreach ($recipients as $recipient) {
+            $notifications->send($recipient, NotificationCode::MessageReceived, [
+                'sender' => $senderName,
+                'excerpt' => mb_strimwidth((string) $message->content, 0, 80, '…'),
+            ], NotificationTarget::of('conversation', $message->conversation_id));
+        }
     }
 }

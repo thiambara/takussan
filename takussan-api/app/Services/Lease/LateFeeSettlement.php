@@ -25,7 +25,7 @@ class LateFeeSettlement
             // Sérialisé sur la ligne : deux enregistrements simultanés ne posent pas deux règlements.
             $locked = LeasePayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
-            abort_unless($locked->lateFeeOutstanding() > 0, 409, __('payments.late_fee_not_due'));
+            abort_code_unless($locked->lateFeeOutstanding() > 0, 409, 'lease_payment.late_fee_not_due');
 
             // TCK-593 (vérification adverse, V4) — un checkout ouvert qui INCLUT la pénalité
             // l'encaissera : l'enregistrer réglée à l'agence en même temps la ferait payer deux fois.

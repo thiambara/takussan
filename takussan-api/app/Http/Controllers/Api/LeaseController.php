@@ -154,16 +154,16 @@ class LeaseController extends Controller
         DB::transaction(function () use ($lease, $guarantor, $data) {
             $pivotRows = $lease->guarantors()->lockForUpdate()->get(['guarantors.id']);
 
-            abort_if(
+            abort_code_if(
                 $pivotRows->contains('id', $guarantor->id),
                 422,
-                'Guarantor already attached to this lease.'
+                'lease.guarantor_already_attached'
             );
 
-            abort_if(
+            abort_code_if(
                 $pivotRows->count() >= 3,
                 422,
-                __('validation.max_guarantors_reached')
+                'lease.max_guarantors'
             );
 
             $lease->guarantors()->attach($guarantor->id, [

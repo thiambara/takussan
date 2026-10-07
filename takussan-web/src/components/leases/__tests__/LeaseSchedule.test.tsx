@@ -145,7 +145,7 @@ function rendre(canManage = false, bail: { agencyId?: number | null; landlordId?
 function refusCheckoutEnCours() {
   return new ApiError(409, {
     message: 'Un paiement en ligne est en cours sur cette échéance.',
-    code: 'checkout_in_progress',
+    code: 'payment.checkout_in_progress',
     checkout: { amount: 157500, currency: 'XOF', retry_after: '2026-10-07T10:30:00+00:00' },
   });
 }
@@ -245,7 +245,7 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     markLateFeePaid.mockResolvedValue({});
     refusSansPassageOutre = new ApiError(409, {
       message: 'Un paiement en ligne est en cours sur cette échéance.',
-      code: 'checkout_in_progress',
+      code: 'payment.checkout_in_progress',
       checkout: { amount: 157500, currency: 'XOF', retry_after: '2026-10-07T10:30:00+00:00' },
     });
     rendre(true);

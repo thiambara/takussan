@@ -67,7 +67,7 @@ class WhatsappStatusController extends Controller
         if ($secret === '') {
             if (app()->isProduction()) {
                 Log::error('[whatsapp.webhook] app secret not configured in production — rejecting unsigned status webhook');
-                abort(403, 'Webhook signature verification not configured');
+                abort_code(403, 'webhook.signature_not_configured');
             }
 
             return;
@@ -75,7 +75,7 @@ class WhatsappStatusController extends Controller
         $header = (string) $request->header('X-Hub-Signature-256', '');
         $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $secret);
         if ($header === '' || ! hash_equals($expected, $header)) {
-            abort(403, 'Invalid signature');
+            abort_code(403, 'webhook.signature_invalid');
         }
     }
 

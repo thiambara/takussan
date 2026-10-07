@@ -87,7 +87,10 @@ class InvitationAcceptTest extends TestCase
 
         $response->assertStatus(401)
             ->assertJsonPath('requires_login', true)
-            ->assertJsonPath('email', 'existing@example.com');
+            ->assertJsonPath('email', 'existing@example.com')
+            // TCK-588 — le relais porte le code et le message localisé de l'ApiError.
+            ->assertJsonPath('code', 'invitation.requires_login')
+            ->assertJsonPath('message', __('errors.invitation.requires_login'));
     }
 
     public function test_existing_user_can_accept_when_authenticated(): void

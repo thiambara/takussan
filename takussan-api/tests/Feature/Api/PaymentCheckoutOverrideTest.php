@@ -38,7 +38,7 @@ class PaymentCheckoutOverrideTest extends TestCase
         Sanctum::actingAs($ctx['agent']);
 
         // Sans passage outre : 409, comme avant.
-        $this->postJson($url, [])->assertStatus(409)->assertJsonPath('code', 'checkout_in_progress');
+        $this->postJson($url, [])->assertStatus(409)->assertJsonPath('code', 'payment.checkout_in_progress');
         // Le motif est obligatoire.
         $this->postJson($url, ['override_open_checkout' => true])
             ->assertStatus(422)
@@ -66,7 +66,7 @@ class PaymentCheckoutOverrideTest extends TestCase
         $this->assertSame(PaymentStatus::Paid, $payment->status);
         $this->assertSame('spy_txn_1', $payment->metadata['gateway_duplicate_payment'][0]['transaction_id']);
         $this->assertSame(1, AppNotification::query()->where('user_id', $admin->id)
-            ->where('title', __('payments.duplicate_payment.title'))->count());
+            ->where('code', 'payment.duplicate')->count());
     }
 
     public function test_la_penalite_incluse_se_regle_a_l_agence_en_passant_outre(): void
@@ -144,7 +144,7 @@ class PaymentCheckoutOverrideTest extends TestCase
         }
 
         Sanctum::actingAs($bailleur);
-        $this->postJson($url, [])->assertStatus(409)->assertJsonPath('code', 'checkout_in_progress');
+        $this->postJson($url, [])->assertStatus(409)->assertJsonPath('code', 'payment.checkout_in_progress');
         $this->postJson($url, ['override_open_checkout' => true])
             ->assertStatus(422)
             ->assertJsonValidationErrors('override_reason');

@@ -48,7 +48,7 @@ class ReconciliationManager
 
         // Guard: same agency
         if ($this->resolvePaymentAgencyId($payment) !== $statement->agency_id) {
-            abort(403, __('reconciliation.validation.cross_agency'));
+            abort_code(403, 'reconciliation.cross_agency');
         }
 
         // TCK-593 — garde de sens : un crédit est un encaissement, un débit un reversement. Sans
@@ -89,7 +89,7 @@ class ReconciliationManager
 
         // Guard: valid payment type
         if (! in_array(get_class($payment), self::ALLOWED_PAYMENT_TYPES, true)) {
-            abort(422, 'Unsupported payment type.');
+            abort_code(422, 'payment.type_unknown');
         }
 
         $line = DB::transaction(function () use ($line, $payment, $caller) {

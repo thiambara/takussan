@@ -31,7 +31,7 @@ class PaymentWebhookController extends Controller
     public function __invoke(Request $request, string $provider): JsonResponse
     {
         $providerEnum = PaymentProvider::tryFrom($provider);
-        abort_unless($providerEnum, 404, 'Unknown provider.');
+        abort_code_unless($providerEnum, 404, 'payment.provider_unknown');
 
         $event = $this->gateway->handleWebhook($providerEnum, $request);
         $this->integrations->recordWebhook($providerEnum->value, $request->all(), 'processed', $event->type);

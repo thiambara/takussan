@@ -160,7 +160,7 @@ class ReceiptPdfTest extends TestCase
 
         $this->getJson($url)
             ->assertStatus(422)
-            ->assertJsonPath('message', __('payments.receipt_unpaid'));
+            ->assertJsonPath('code', 'lease_payment.receipt_unpaid');
 
         foreach ([PaymentStatus::Late, PaymentStatus::Failed, PaymentStatus::PartiallyPaid] as $open) {
             $ctx['payment']->forceFill(['status' => $open])->save();

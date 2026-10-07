@@ -32,7 +32,7 @@ class DocumentPdfController extends Controller
         $this->authorizeReceipt($request, $lease);
         // TCK-593 — une quittance atteste un paiement : en délivrer une pour un impayé créerait une
         // preuve contre le bailleur. Même règle que le reçu de réservation.
-        abort_unless($payment->status === PaymentStatus::Paid, 422, __('payments.receipt_unpaid'));
+        abort_code_unless($payment->status === PaymentStatus::Paid, 422, 'lease_payment.receipt_unpaid');
 
         $lease->loadMissing(['property.address', 'tenant', 'agency']);
 

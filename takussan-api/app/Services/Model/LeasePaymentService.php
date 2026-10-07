@@ -2,11 +2,13 @@
 
 namespace App\Services\Model;
 
-use App\Models\Enums\NotificationType;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payments\PaymentGatewayService;
 
 class LeasePaymentService
@@ -35,10 +37,10 @@ class LeasePaymentService
      */
     public function markPaid(LeasePayment $payment, array $data = [], ?User $by = null): LeasePayment
     {
-        abort_unless(
+        abort_code_unless(
             in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
             422,
-            'Only pending or late payments can be marked paid.'
+            'lease_payment.cannot_mark_paid'
         );
 
         // TCK-593 (vérification adverse, V3) — un règlement manuel pendant qu'un checkout est
@@ -68,29 +70,27 @@ class LeasePaymentService
             $gateway->logCheckoutOverride($payment, $by, $overridden, 'mark_paid');
         }
 
-        // Notify tenant and landlord
+        // Notify tenant and landlord — TCK-588 : le reçu du bailleur nomme le bien et le locataire.
         $lease = $payment->lease;
         if ($lease) {
+            $lease->loadMissing(['property', 'tenant.user', 'landlord']);
             $tenantUser = $lease->tenant?->user;
             $landlord = $lease->landlord;
+            $amount = NotificationRenderer::money($payment->amount, $payment->currency);
+            $target = NotificationTarget::of('lease', $lease->id);
 
             if ($tenantUser) {
-                $this->notifications->notify(
-                    $tenantUser,
-                    NotificationType::Payment,
-                    'Paiement enregistré',
-                    'Votre paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
-                    ['lease_payment_id' => $payment->id],
-                );
+                $this->notifications->send($tenantUser, NotificationCode::LeasePaymentRecorded, [
+                    'amount' => $amount,
+                    'property' => $lease->property?->title,
+                ], $target);
             }
             if ($landlord) {
-                $this->notifications->notify(
-                    $landlord,
-                    NotificationType::Payment,
-                    'Paiement reçu',
-                    'Un paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
-                    ['lease_payment_id' => $payment->id],
-                );
+                $this->notifications->send($landlord, NotificationCode::LeasePaymentReceivedLandlord, [
+                    'amount' => $amount,
+                    'property' => $lease->property?->title,
+                    'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
+                ], $target);
             }
         }
 

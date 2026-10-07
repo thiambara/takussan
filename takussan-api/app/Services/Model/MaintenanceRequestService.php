@@ -47,10 +47,11 @@ class MaintenanceRequestService
             return $mr;
         }
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, $to),
             422,
-            "Transition from {$current->value} to {$to->value} is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => $to->value]
         );
 
         $mr->status = $to;
@@ -76,10 +77,11 @@ class MaintenanceRequestService
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, MaintenanceStatus::Completed),
             422,
-            "Transition from {$current->value} to completed is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => 'completed']
         );
 
         $mr->status = MaintenanceStatus::Completed;

@@ -13,7 +13,6 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PlatformPayoutService
 {
@@ -145,7 +144,7 @@ class PlatformPayoutService
             ->first();
 
         if ($existing !== null) {
-            throw new HttpException(409, "A payout already exists for agency #{$agencyId} for period {$periodEnd->toDateString()}.");
+            abort_code(409, 'platform_payout.already_exists', ['period_end' => $periodEnd->toDateString()]);
         }
 
         $bookingPayments = BookingPayment::query()
@@ -206,7 +205,7 @@ class PlatformPayoutService
             ]);
         } catch (QueryException $e) {
             // Race condition with the partial unique index — re-check.
-            throw new HttpException(409, "A payout already exists for agency #{$agencyId} for period {$periodEnd->toDateString()}.", $e);
+            abort_code(409, 'platform_payout.already_exists', ['period_end' => $periodEnd->toDateString()]);
         }
 
         BookingPayment::query()
@@ -264,11 +263,10 @@ class PlatformPayoutService
         $allowed = self::TRANSITIONS[$current?->value ?? ''] ?? [];
 
         if (! in_array($next, $allowed, true)) {
-            throw new HttpException(422, sprintf(
-                'Invalid platform payout status transition: %s → %s.',
-                $current?->value ?? 'unknown',
-                $next->value,
-            ));
+            abort_code(422, 'platform_payout.status_transition_invalid', [
+                'from' => $current?->value,
+                'to' => $next->value,
+            ]);
         }
     }
 

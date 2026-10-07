@@ -34,7 +34,7 @@ class BankStatementController extends Controller
         // Double-check for duplicate (also validated in form request)
         $previous = BankStatement::where('agency_id', $agency->id)->where('file_hash', $hash)->get();
         if ($previous->contains(fn (BankStatement $s) => $s->status !== BankStatementStatus::Failed)) {
-            abort(422, __('reconciliation.validation.duplicate_file'));
+            abort_code(422, 'reconciliation.duplicate_file');
         }
 
         // TCK-593 — un relevé `failed` n'a aucune ligne (l'insertion est transactionnelle) : le

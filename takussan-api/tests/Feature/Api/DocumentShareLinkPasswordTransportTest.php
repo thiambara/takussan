@@ -42,7 +42,7 @@ class DocumentShareLinkPasswordTransportTest extends ApiTestCase
     {
         $this->getJson("/api/share/{$this->link->token}?password=secret1234")
             ->assertStatus(400)
-            ->assertJsonPath('message', __('errors.share_password_in_query'));
+            ->assertJsonPath('code', 'share_link.password_in_query')->assertJsonPath('message', __('errors.share_link.password_in_query'));
     }
 
     public function test_un_mot_de_passe_dans_l_url_est_refuse_au_telechargement_sans_compter(): void

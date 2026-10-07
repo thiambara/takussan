@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Agency;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Agency\StoreAgencyRoleRequest;
 use App\Http\Requests\Agency\SyncCapabilitiesRequest;
@@ -151,15 +152,12 @@ class RoleController extends Controller
 
         $blocking = $this->service->blockingProfiles($role);
         if ($blocking !== []) {
-            return $this->json([
-                'message' => 'Ce rôle est encore attribué : réaffectez les profils avant de le supprimer.',
-                'profiles' => $blocking,
-            ], 409);
+            throw (new ApiError(409, 'agency_role.in_use'))->with(['profiles' => $blocking]);
         }
 
         $role->delete();
 
-        return $this->json(['message' => 'Rôle supprimé.']);
+        return $this->json(['message' => __('messages.agency_role_deleted')]);
     }
 
     /**

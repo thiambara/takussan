@@ -1,7 +1,8 @@
 import { ApiError } from '@/lib/api';
 
 /**
- * TCK-593 (passe 2, N2) — le checkout en cours que porte un 409 `checkout_in_progress`.
+ * TCK-593 (passe 2, N2) — le checkout en cours que porte un 409 `payment.checkout_in_progress`
+ * (code stable de TCK-588 ; le checkout est une donnée à côté du code).
  *
  * L'API refuse un nouveau paiement en ligne tant qu'un checkout vit à un autre montant (ou chez un
  * autre fournisseur), et un règlement manuel tant qu'un checkout vit tout court. Elle rend alors le
@@ -18,7 +19,7 @@ export interface CheckoutEnCours {
 export function checkoutEnCours(erreur: unknown): CheckoutEnCours | null {
   if (!(erreur instanceof ApiError) || erreur.status !== 409) return null;
   const corps = erreur.data as { code?: unknown; checkout?: Record<string, unknown> } | null;
-  if (!corps || typeof corps !== 'object' || corps.code !== 'checkout_in_progress') return null;
+  if (!corps || typeof corps !== 'object' || corps.code !== 'payment.checkout_in_progress') return null;
   const checkout = corps.checkout;
   if (!checkout || typeof checkout.amount !== 'number') return null;
   return {

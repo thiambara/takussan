@@ -125,7 +125,8 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->apiPost("/api/users/{$admin->id}/block")
             ->assertStatus(422)
-            ->assertJsonPath('message', __('messages.cannot_block_self'));
+            ->assertJsonPath('code', 'user.cannot_block_self')
+            ->assertJsonPath('message', __('errors.user.cannot_block_self'));
     }
 
     public function test_agency_admin_cannot_reactivate_an_account_blocked_by_the_super_admin(): void
@@ -161,7 +162,8 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertForbidden()
-            ->assertJsonPath('message', __('messages.target_user_not_in_active_agency'));
+            ->assertJsonPath('code', 'user.not_in_active_agency')
+            ->assertJsonPath('message', __('errors.user.not_in_active_agency'));
     }
 
     public function test_outsider_without_admin_role_cannot_list(): void

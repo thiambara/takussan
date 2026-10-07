@@ -61,7 +61,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->initiate($ctx['payment']->id)->assertOk();
         $this->initiate($ctx['payment']->id, 'orange_money')
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.checkout_in_progress'));
+            ->assertJsonPath('code', 'payment.checkout_in_progress');
 
         $this->assertCount(1, $spy->calls);
     }
@@ -82,8 +82,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $initiatedAt = Carbon::parse($ctx['payment']->refresh()->metadata['gateway']['initiated_at']);
         $this->initiate($ctx['payment']->id)
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.checkout_in_progress'))
-            ->assertJsonPath('code', 'checkout_in_progress')
+            ->assertJsonPath('code', 'payment.checkout_in_progress')
             ->assertJsonPath('checkout.amount', 150000)
             ->assertJsonPath('checkout.currency', 'XOF')
             ->assertJsonPath('checkout.age_minutes', 5)
@@ -186,7 +185,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertEquals(150_000, $payment->metadata['gateway_duplicate_payment'][0]['amount']);
 
         $this->assertSame(1, AppNotification::query()->where('user_id', $admin->id)
-            ->where('title', __('payments.duplicate_payment.title'))->count());
+            ->where('code', 'payment.duplicate')->count());
 
         // Le rejeu du MÊME webhook n'ajoute rien.
         $this->waveWebhook('spy_txn_2', 150_000)->assertOk();
@@ -271,7 +270,7 @@ class PaymentCheckoutReuseTest extends TestCase
         Sanctum::actingAs($ctx['agent']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/mark-paid", [])
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.checkout_in_progress'));
+            ->assertJsonPath('code', 'payment.checkout_in_progress');
         $this->assertSame(PaymentStatus::Late, $ctx['payment']->refresh()->status);
 
         // Le checkout expiré, l'espèce s'enregistre ; si le checkout est malgré tout payé, le
@@ -296,7 +295,7 @@ class PaymentCheckoutReuseTest extends TestCase
         Sanctum::actingAs($ctx['agent']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", [])
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.checkout_in_progress'));
+            ->assertJsonPath('code', 'payment.checkout_in_progress');
         $this->assertNull($ctx['payment']->refresh()->late_fee_paid_at);
 
         // Le témoin : réglage désactivé, le checkout n'inclut pas la pénalité — elle se règle.
@@ -335,11 +334,10 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertEquals(7_500, $duplicate[0]['amount']);
         $this->assertSame('late_fee', $duplicate[0]['kind']);
         $notification = AppNotification::query()->where('user_id', $admin->id)
-            ->where('title', __('payments.duplicate_payment.title'))->sole();
-        $this->assertSame(__('payments.duplicate_payment.late_fee_body', [
-            'reference' => $payment->reference_number ?? '#'.$payment->id,
-            'amount' => '7 500',
-        ]), $notification->body);
+            ->where('code', 'payment.duplicate_late_fee')->sole();
+        $this->assertSame(['amount' => '7500.00', 'currency' => 'XOF'], $notification->params['amount']);
+        $this->assertSame($payment->reference_number ?? '#'.$payment->id, $notification->params['reference']);
+        $this->assertStringContainsString('7 500', $this->espaces($notification->body));
 
         // Le témoin : pénalité NON réglée entre-temps, le même checkout la solde, sans doublon.
         $other = $this->leaseDue(['late_fee_online_collection' => true]);
@@ -376,9 +374,16 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertSame('late_fee', $duplicate[0]['kind']);
         $this->assertEquals(7_500, $duplicate[0]['amount']);
         $notification = AppNotification::query()->where('user_id', $admin->id)
-            ->where('title', __('payments.duplicate_payment.title'))->sole();
-        $this->assertStringContainsString('7 500', $notification->body);
-        $this->assertStringNotContainsString('157 500', $notification->body);
+            ->where('code', 'payment.duplicate_late_fee')->sole();
+        $this->assertSame('7500.00', $notification->params['amount']['amount']);
+        $this->assertStringContainsString('7 500', $this->espaces($notification->body));
+        $this->assertStringNotContainsString('157 500', $this->espaces($notification->body));
+    }
+
+    /** Les espaces fines et insécables d'`Intl` ramenées à l'espace simple. */
+    private function espaces(string $texte): string
+    {
+        return preg_replace('/[\x{00A0}\x{202F}]/u', ' ', $texte);
     }
 
     public function test_un_webhook_sans_echeance_laisse_une_trace_sans_donnee_personnelle(): void

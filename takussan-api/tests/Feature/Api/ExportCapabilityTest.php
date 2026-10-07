@@ -130,7 +130,7 @@ class ExportCapabilityTest extends ApiTestCase
         $this->actingAsApi(User::factory()->withOwnerProfile($this->agency)->create())
             ->getJson('/api/export/customers?format=csv')
             ->assertForbidden()
-            ->assertJsonPath('message', __('errors.export_forbidden'));
+            ->assertJsonPath('code', 'export.forbidden')->assertJsonPath('message', __('errors.export.forbidden'));
     }
 
     /** @return list<list<string>> */

@@ -214,7 +214,8 @@
       "loading": "Yëngu…",
       "empty": "Amul benn yégle.",
       "markRead": "Tegal ni jàngees na ko",
-      "markUnread": "Tegal ni jàngeesu ko"
+      "markUnread": "Tegal ni jàngeesu ko",
+      "viewAll": "Xool lépp lu jàll"
     },
     "proUpgrade": {
       "title": "Jóg ci pro",
@@ -6848,7 +6849,8 @@
         "review_received": "Xalaat bu bees",
         "saved_search_match": "Ceet bu ñu denc",
         "visit_reminder": "Fàttali gis-gis",
-        "threshold_alert": "Yégle ci dig KPI"
+        "threshold_alert": "Yégle ci dig KPI",
+        "lease_payment_received": "Loyer — fey bi agsi na"
       },
       "channels": {
         "inapp": "Ci appli bi",
@@ -6867,7 +6869,8 @@
       },
       "reasons": {
         "inappAlwaysOn": "Mu ngi dox saa su nekk ngir nga bañ a réer dara.",
-        "phoneNotVerified": "Telefon bi ñu ko wóoralul."
+        "phoneNotVerified": "Telefon bi ñu ko wóoralul.",
+        "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii."
       }
     }
   },
@@ -7330,6 +7333,11 @@
       },
       "visitDetail": {
         "metaTitle": "Gis-gisu wisit"
+      },
+      "notifications": {
+        "metaTitle": "Yégle yi",
+        "title": "Yégle yi",
+        "subtitle": "Lépp lu ñu la yégle, nga jàng ko walla déet."
       }
     },
     "welcome": "Salaam, {name}",
@@ -8227,6 +8235,180 @@
       "frenchOnly": "Téere bii ci farañse rekk la am léegi."
     },
     "otherDocuments": "Yeneen téere"
+  },
+  "notifications": {
+    "codes": {
+      "lease_payment": {
+        "due_soon": {
+          "title": "Pey kër bi ngir {due_date}",
+          "body": "Sa pey kër bu {amount} ngir {property}, war nga koo fey ci {due_date}."
+        },
+        "overdue": {
+          "title": "Pey kër bi yàgg na",
+          "body": "Sa pey kër bu {amount} ngir {property}, bu waroon a fey ci {due_date}, yàgg na {days} fan."
+        },
+        "overdue_landlord": {
+          "title": "Pey kër bu ñu feyul : {property}",
+          "body": "Pey kër bu {amount} bu {tenant} ngir {property} yàgg na {days} fan."
+        },
+        "overdue_digest": {
+          "title": "{count} pey kër yu yàgg",
+          "body": "{count} pey kër ci say bail yàgg nañu, mépp lépp {total}."
+        },
+        "recorded": {
+          "title": "Fey bi bind nañu ko",
+          "body": "Sa fey bu {amount} ngir {property} bind nañu ko."
+        },
+        "received_landlord": {
+          "title": "Pey kër bi agsi na : {property}",
+          "body": "{tenant} fey na {amount} ngir {property}."
+        }
+      },
+      "payment": {
+        "duplicate": {
+          "title": "Fey bi ñu ko jot ñaari yoon",
+          "body": "Fey ci internet bu {amount} agsi na ngir {reference}, te fey nañu ko ba noppi. Delloo ko ki fey walla jox ko beneen."
+        },
+        "duplicate_late_fee": {
+          "title": "Pénalité bi ñu ko jot ñaari yoon",
+          "body": "Pénalité bu {amount} ngir {reference}, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen."
+        }
+      },
+      "booking": {
+        "created": {
+          "title": "Réservation bu bees",
+          "body": "Ñu laaj na réservation {reference} ngir {property}, li dale {start_date} ba {end_date}."
+        },
+        "confirmed": {
+          "title": "Réservation bi dëggal nañu ko",
+          "body": "Sa réservation {reference} ngir {property}, li dale {start_date} ba {end_date}, dëggal nañu ko."
+        },
+        "rejected": {
+          "title": "Réservation bi gàntu nañu ko",
+          "body": "Sa réservation {reference} ngir {property}, gàntu nañu ko."
+        },
+        "cancelled": {
+          "title": "Réservation bi neenal nañu ko",
+          "body": "Sa réservation {reference} ngir {property}, neenal nañu ko."
+        }
+      },
+      "visit": {
+        "reminder": {
+          "title": "Fàttali seetlu : {property}",
+          "body": "Fàttali : seetlu {property} mu ngi ci {scheduled_at}."
+        }
+      },
+      "message": {
+        "received": {
+          "title": "Bataaxal bu bees bu {sender}",
+          "body": "{sender} : {excerpt}"
+        }
+      },
+      "lead": {
+        "received": {
+          "title": "Jokkookat bu bees bu amul compte",
+          "body": "{name} ({email}) : {excerpt}"
+        }
+      },
+      "kyc": {
+        "submitted": {
+          "title": "KYC agence bu ñu war a seet",
+          "body": "Dossier KYC bu {agency} yónne nañu ko."
+        },
+        "verified": {
+          "title": "KYC agence bi baax na",
+          "body": "Sa dossier KYC seet nañu ko, baax na."
+        },
+        "rejected": {
+          "title": "KYC agence bi gàntu nañu ko",
+          "body": "Sa dossier KYC gàntu nañu ko : {reason}"
+        }
+      },
+      "role_delegation": {
+        "activated": {
+          "title": "Ndawal dencukaay — {role}",
+          "body": "Jot nga ndawal {role} ba {ends_at}."
+        },
+        "activated_delegator": {
+          "title": "Ndawal dencukaay — {role}",
+          "body": "Ndawal {role} bi nga jox {beneficiary} tàmbali na."
+        },
+        "expired": {
+          "title": "Ndawal bi jeex na — {role}",
+          "body": "Sa ndawal ngir {role} jeex na."
+        },
+        "expired_delegator": {
+          "title": "Ndawal bi jeex na — {role}",
+          "body": "Ndawal {role} bi nga jox {beneficiary} jeex na."
+        },
+        "revoked": {
+          "title": "Ndawal bi dindi nañu ko — {role}",
+          "body": "Sa ndawal ngir {role} dindi nañu ko."
+        },
+        "revoked_delegator": {
+          "title": "Ndawal bi dindi nañu ko — {role}",
+          "body": "Dindi nga ndawal {role} bi nga joxoon {beneficiary}."
+        }
+      },
+      "bank_statement": {
+        "imported": {
+          "title": "Relevé bi dugg na",
+          "body": "Sa relevé {bank} ({lines} rëdd) pare na ngir rapprochement."
+        },
+        "finalized": {
+          "title": "Relevé bi tëj nañu ko",
+          "body": "Relevé bi dale {period_start} ba {period_end} tëj nañu ko ({confirmed}/{total} rëdd yu ñu rapprocher)."
+        }
+      },
+      "maintenance": {
+        "created": {
+          "title": "Laaj bu bees ngir defar",
+          "body": "Ñu yónne na laaj ngir defar ({reference}) ci {property}."
+        }
+      },
+      "maintenance_quote": {
+        "requested": {
+          "title": "Laaj devis : {request}",
+          "body": "Ñu ngi lay laaj devis ngir liggéey bi « {request} »."
+        },
+        "submitted": {
+          "title": "Devis bi yónne nañu ko : {request}",
+          "body": "Devis bu {amount} yónne nañu ko ngir liggéey bi « {request} »."
+        },
+        "approved": {
+          "title": "Devis bi nangu nañu ko : {request}",
+          "body": "Sa devis ngir liggéey bi « {request} » nangu nañu ko."
+        },
+        "rejected": {
+          "title": "Devis bi gàntu nañu ko : {request}",
+          "body": "Sa devis ngir liggéey bi « {request} » gàntu nañu ko."
+        }
+      },
+      "property": {
+        "approved": {
+          "title": "Yégle bi nangu nañu ko : {property}",
+          "body": "Sa yégle « {property} » nangu nañu ko, ñépp mën nañu koo gis léegi."
+        },
+        "rejected": {
+          "title": "Yégle bi gàntu nañu ko : {property}",
+          "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
+        }
+      }
+    },
+    "history": {
+      "filterLabel": "Tànn yégle yi",
+      "filterAll": "Yépp",
+      "filterUnread": "{count, plural, =0 {Yi nga jàngul} other {Yi nga jàngul (#)}}",
+      "markAllRead": "Jàng yépp",
+      "retry": "Jéemaatal",
+      "loading": "Mu ngi yéeg…",
+      "empty": "Amul benn yégle ba leegi.",
+      "emptyUnread": "Jàng nga yépp.",
+      "pagination": "Xët yi",
+      "previous": "Ginaaw",
+      "next": "Ca kanam",
+      "pageOf": "Xët {page} ci {last}"
+    }
   },
   "shareReception": {
     "metaTitle": "Dokimaa ñu séddoo",

@@ -2,11 +2,12 @@
 
 namespace App\Services\Model;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -49,17 +50,17 @@ class BookingService
      */
     public function create(Property $property, User $user, array $data): Booking
     {
-        abort_if(
+        abort_code_if(
             in_array($property->status, self::UNBOOKABLE_STATUSES, true),
             422,
-            'This property is not available for booking.'
+            'booking.property_unavailable'
         );
 
         // Owners cannot book their own property (admins can still act on their behalf).
-        abort_if(
+        abort_code_if(
             $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
-            'You cannot book your own property.'
+            'booking.own_property'
         );
 
         // TCK-587 (ADR-0031) — le PERSONNEL de l'agence du bien. La clause « même agence » valait
@@ -70,10 +71,10 @@ class BookingService
             || ($property->agency_id !== null && $user->staffAgencyId() === (int) $property->agency_id);
 
         if (! $isStaff) {
-            abort_unless(
+            abort_code_unless(
                 Property::query()->where('id', $property->id)->public()->exists(),
                 403,
-                'This property is not available for booking.'
+                'booking.property_unavailable'
             );
         }
 
@@ -108,21 +109,10 @@ class BookingService
         ]));
 
         // Notify the landlord (property owner)
-        $recipients = collect();
         $owner = $property->owner;
         if ($owner) {
-            $recipients->push($owner);
+            $this->notifyBooking($owner, NotificationCode::BookingCreated, $booking);
         }
-
-        $this->notifications->notifyMany(
-            $recipients,
-            NotificationType::Booking,
-            'Nouvelle réservation',
-            'Une réservation a été créée pour '.$property->title.'.',
-            ['booking_id' => $booking->id],
-            referenceableType: 'booking',
-            referenceableId: $booking->id,
-        );
 
         return $booking;
     }
@@ -165,10 +155,10 @@ class BookingService
 
     public function confirm(Booking $booking): Booking
     {
-        abort_unless(
+        abort_code_unless(
             $booking->status === BookingStatus::Pending,
             422,
-            'Only pending bookings can be confirmed.'
+            'booking.not_pending_confirm'
         );
 
         // Serialize confirmations on the same property: without a lock two
@@ -180,10 +170,10 @@ class BookingService
             Property::query()->whereKey($booking->property_id)->lockForUpdate()->first();
 
             $booking->refresh();
-            abort_unless(
+            abort_code_unless(
                 $booking->status === BookingStatus::Pending,
                 422,
-                'Only pending bookings can be confirmed.'
+                'booking.not_pending_confirm'
             );
 
             $this->assertNoOverlap($booking);
@@ -198,13 +188,7 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation confirmée',
-                'Votre réservation '.$booking->reference_number.' a été confirmée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingConfirmed, $booking);
         }
 
         return $booking;
@@ -212,10 +196,10 @@ class BookingService
 
     public function reject(Booking $booking, ?string $reason = null): Booking
     {
-        abort_unless(
+        abort_code_unless(
             $booking->status === BookingStatus::Pending,
             422,
-            'Only pending bookings can be rejected.'
+            'booking.not_pending_reject'
         );
 
         $booking->update([
@@ -228,13 +212,7 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation refusée',
-                'Votre réservation '.$booking->reference_number.' a été refusée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingRejected, $booking);
         }
 
         return $booking;
@@ -263,19 +241,19 @@ class BookingService
             })
             ->exists();
 
-        abort_if(
+        abort_code_if(
             $overlap,
             422,
-            'Another confirmed booking already overlaps these dates on this property.'
+            'booking.dates_overlap'
         );
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
     {
-        abort_if(
+        abort_code_if(
             in_array($booking->status, self::TERMINAL_CANCEL_STATUSES, true),
             422,
-            'Booking cannot be cancelled in its current state.'
+            'booking.cannot_cancel'
         );
 
         $property = $booking->property;
@@ -298,15 +276,22 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation annulée',
-                'Votre réservation '.$booking->reference_number.' a été annulée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingCancelled, $booking);
         }
 
         return $booking;
+    }
+
+    /** TCK-588 (ADR-0032) — une notification de réservation, rendue dans la langue de son destinataire. */
+    private function notifyBooking(User $to, NotificationCode $code, Booking $booking): void
+    {
+        $booking->loadMissing('property');
+
+        $this->notifications->send($to, $code, [
+            'reference' => $booking->reference_number ?? (string) $booking->id,
+            'property' => $booking->property?->title,
+            'start_date' => $booking->start_date?->toDateString(),
+            'end_date' => $booking->end_date?->toDateString(),
+        ], NotificationTarget::of('booking', $booking->id));
     }
 }

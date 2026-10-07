@@ -151,7 +151,7 @@ class PaymentGatewayInitiateTest extends TestCase
             'provider' => 'lemon_squeezy',
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(422)->assertJsonPath('code', 'payment.xof_requires_local_provider');
         $this->assertStringContainsString('Lemon Squeezy', (string) $response->json('message'));
     }
 
@@ -268,7 +268,7 @@ class PaymentGatewayInitiateTest extends TestCase
 
         $this->postJson("/api/lease-payments/{$paid['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.payment_not_payable'));
+            ->assertJsonPath('code', 'payment.not_payable');
 
         $refunded = $this->leaseDue(null, ['status' => PaymentStatus::Refunded, 'paid_at' => now()]);
         Sanctum::actingAs($refunded['tenant']);
@@ -287,7 +287,7 @@ class PaymentGatewayInitiateTest extends TestCase
         Sanctum::actingAs($refundedWithFee['tenant']);
         $this->postJson("/api/lease-payments/{$refundedWithFee['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.payment_not_payable'));
+            ->assertJsonPath('code', 'payment.not_payable');
 
         // Vérification adverse (AC8a) — l'échéance `refunded` ci-dessus est refusée par la garde
         // du montant nul : `lease_payments` n'a pas de `refund_amount`, son reste dû est donc
@@ -303,7 +303,7 @@ class PaymentGatewayInitiateTest extends TestCase
         Sanctum::actingAs($refundedBooking['owner']);
         $this->postJson("/api/booking-payments/{$refundedBooking['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.payment_not_payable'));
+            ->assertJsonPath('code', 'payment.not_payable');
 
         $this->assertSame([], $spy->calls, 'Le pilote ne doit jamais être appelé sur un paiement réglé.');
     }

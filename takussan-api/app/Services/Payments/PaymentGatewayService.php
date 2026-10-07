@@ -3,11 +3,13 @@
 namespace App\Services\Payments;
 
 use App\Contracts\Payments\PaymentDriverContract;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
@@ -18,6 +20,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
 use App\Services\Model\NotificationService;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payments\Drivers\LemonSqueezyDriver;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use App\Services\Payments\Drivers\WaveDriver;
@@ -26,7 +29,6 @@ use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -68,7 +70,7 @@ class PaymentGatewayService
             PaymentProvider::Wave->value => new WaveDriver($integration),
             PaymentProvider::OrangeMoney->value => new OrangeMoneyDriver($integration),
             PaymentProvider::LemonSqueezy->value => new LemonSqueezyDriver($integration),
-            default => abort(422, 'Unsupported payment provider: '.$integration->provider),
+            default => abort_code(422, 'payment.provider_unsupported', ['provider' => (string) $integration->provider]),
         };
     }
 
@@ -97,7 +99,7 @@ class PaymentGatewayService
     {
         // TCK-593 — on ne paie pas deux fois. La garde vit ici, AVANT la résolution de
         // l'intégration et tout appel au pilote : le bouton masqué du front n'empêchait rien.
-        abort_unless($this->isPayable($payment), 409, __('payments.payment_not_payable'));
+        abort_code_unless($this->isPayable($payment), 409, 'payment.not_payable');
 
         // V2 — un checkout encore ouvert est RENDU, pas doublé. Chez un autre fournisseur, il est
         // refusé : deux checkouts ouverts, c'est deux encaissements possibles.
@@ -116,28 +118,31 @@ class PaymentGatewayService
 
         $agencyId = $this->paymentAgencyId($payment);
         $integration = $this->resolveIntegration($provider, $agencyId);
-        abort_unless($integration, 404, 'No active integration for provider '.$provider->value.' on this agency.');
+        abort_code_unless($integration, 404, 'payment.integration_missing', ['provider' => $provider->value]);
 
         $currency = $this->paymentCurrency($payment);
         if (! $provider->supportsCurrency($currency)) {
-            $msg = $provider === PaymentProvider::LemonSqueezy && strtoupper($currency) === 'XOF'
-                ? 'Lemon Squeezy ne supporte pas XOF — utilisez Wave ou Orange Money pour un paiement en XOF.'
-                : sprintf('%s does not support currency %s.', $provider->value, $currency);
-            abort(422, $msg);
+            // Le seul refus qui appelle un conseil : le XOF se paie par un prestataire local.
+            abort_code_if(
+                $provider === PaymentProvider::LemonSqueezy && strtoupper($currency) === 'XOF',
+                422,
+                'payment.xof_requires_local_provider',
+            );
+            abort_code(422, 'payment.currency_unsupported', [
+                'provider' => $provider->value,
+                'currency' => strtoupper($currency),
+            ]);
         }
 
         $amount = $this->amountDue($payment);
-        abort_if(
-            $amount === null,
-            422,
-            'Cannot initiate a checkout: no amount could be resolved on '.$payment::class.'.',
-        );
+        // TCK-588 — le message nommait la classe du paiement (`App\Models\LeasePayment`).
+        abort_code_if($amount === null, 422, 'payment.amount_unresolved');
 
         // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
         // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
         $amountCents = (int) round($amount * 100);
         // TCK-593 — un montant dû nul n'est pas une donnée invalide, c'est une échéance soldée.
-        abort_if($amountCents <= 0, 409, __('payments.payment_not_payable'));
+        abort_code_if($amountCents <= 0, 409, 'payment.not_payable');
 
         $driver = $this->driverFor($integration);
         $session = $driver->initiate($payment, $amountCents, $currency, $meta);
@@ -192,7 +197,7 @@ class PaymentGatewayService
             ->where('is_active', true)
             ->orderByRaw('agency_id IS NULL')
             ->first();
-        abort_unless($integration, 404, 'No active integration for provider '.$provider->value);
+        abort_code_unless($integration, 404, 'payment.integration_missing', ['provider' => $provider->value]);
 
         $driver = $this->driverFor($integration);
         $event = $driver->handleWebhook($request);
@@ -471,10 +476,10 @@ class PaymentGatewayService
 
         // 0.01 tolerance absorbs float/rounding noise; anything materially below
         // the issued amount is an under-payment and must not settle.
-        abort_if(
+        abort_code_if(
             $paid + 0.01 < $expected,
             422,
-            'Webhook reported amount is less than the expected payment amount.',
+            'payment.amount_short',
         );
     }
 
@@ -689,7 +694,8 @@ class PaymentGatewayService
      * Passe 2, N2 — le 409 `checkout_in_progress` porte, en plus de son message, le checkout en
      * cours : son montant figé, sa devise, son ancienneté, et l'heure à partir de laquelle il ne
      * sera plus réutilisé. Le front l'affiche (« un paiement de X est en cours… ») au lieu d'un
-     * refus nu. La forme du corps reste celle d'une erreur : `message` d'abord.
+     * refus nu. TCK-588 — une erreur codée (`payment.checkout_in_progress`), son message rendu
+     * dans la langue de la requête ; le checkout est une donnée à côté du code.
      *
      * @param  array<string,mixed>  $open
      */
@@ -697,9 +703,7 @@ class PaymentGatewayService
     {
         $initiatedAt = Carbon::parse($open['initiated_at']);
 
-        throw new HttpResponseException(response()->json([
-            'message' => __('payments.checkout_in_progress'),
-            'code' => 'checkout_in_progress',
+        throw (new ApiError(409, 'payment.checkout_in_progress'))->with([
             'checkout' => [
                 'amount' => $this->openCheckoutAmount($payment, $open),
                 'currency' => $this->paymentCurrency($payment),
@@ -708,7 +712,7 @@ class PaymentGatewayService
                 'age_minutes' => max(0, (int) $initiatedAt->diffInMinutes(now())),
                 'retry_after' => $initiatedAt->copy()->addMinutes((int) config('payments.checkout_reuse_minutes', 30))->toIso8601String(),
             ],
-        ], 409));
+        ]);
     }
 
     /**
@@ -787,7 +791,8 @@ class PaymentGatewayService
 
     /**
      * Prévient les admins actifs de l'agence (admin principal + profils d'admin actifs) d'un
-     * double encaissement à rembourser. Texte par clé de domaine.
+     * double encaissement à rembourser. TCK-588 — un code et des paramètres bruts, rendus dans la
+     * langue de chaque destinataire.
      *
      * @param  array<string,mixed>  $metadata
      */
@@ -803,18 +808,19 @@ class PaymentGatewayService
             ->filter()
             ->unique();
 
-        $reference = $payment->getAttribute('reference_number') ?? '#'.$payment->getKey();
+        $code = $kind === 'late_fee' ? NotificationCode::PaymentDuplicateLateFee : NotificationCode::PaymentDuplicate;
+        $params = [
+            'amount' => NotificationRenderer::money((float) ($metadata['amount'] ?? 0), $this->paymentCurrency($payment)),
+            'reference' => (string) ($payment->getAttribute('reference_number') ?? '#'.$payment->getKey()),
+        ];
+        $target = $payment instanceof LeasePayment && $payment->lease_id !== null
+            ? NotificationTarget::of('lease', (int) $payment->lease_id)
+            : NotificationTarget::of('payments');
 
-        app(NotificationService::class)->notifyMany(
-            User::query()->whereIn('id', $userIds)->get(),
-            NotificationType::Payment,
-            __('payments.duplicate_payment.title'),
-            __($kind === 'late_fee' ? 'payments.duplicate_payment.late_fee_body' : 'payments.duplicate_payment.body', [
-                'reference' => $reference,
-                'amount' => is_numeric($metadata['amount'] ?? null) ? number_format((float) $metadata['amount'], 0, ',', ' ') : '—',
-            ]),
-            ['payment_type' => $payment::class, 'payment_id' => $payment->getKey(), 'reason' => 'duplicate_payment', 'kind' => $kind],
-        );
+        $notifications = app(NotificationService::class);
+        foreach (User::query()->whereIn('id', $userIds)->get() as $admin) {
+            $notifications->send($admin, $code, $params, $target);
+        }
     }
 
     protected function isAlreadyProcessed(Model $payment, PaymentEvent $event): bool

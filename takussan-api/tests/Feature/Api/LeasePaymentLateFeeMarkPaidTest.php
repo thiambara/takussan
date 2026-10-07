@@ -55,7 +55,7 @@ class LeasePaymentLateFeeMarkPaidTest extends TestCase
         $this->postJson($url)->assertOk();
         $this->postJson($url)
             ->assertStatus(409)
-            ->assertJsonPath('message', __('payments.late_fee_not_due'));
+            ->assertJsonPath('code', 'lease_payment.late_fee_not_due');
     }
 
     public function test_une_echeance_sans_penalite_rend_409(): void

@@ -24,6 +24,10 @@ use Illuminate\Support\Facades\RateLimiter;
  *      Notification is `isCriticalSms()=true`.
  *   4. Rate limit: 5 SMS / hour / user (configurable). Counted before
  *      any provider is touched (AC13).
+ *
+ * TCK-588 — un destinataire ROUTÉ (`Notification::route('sms', …)`, un contact sans compte)
+ * n'a pas de clé : sa limite se compte par numéro, `sms-channel:phone:{e164}`. Sans elle, il
+ * n'en avait aucune.
  */
 class SmsChannel
 {
@@ -63,7 +67,7 @@ class SmsChannel
         if (! $isCritical && ! $this->isOptedIn($notifiable, $notification)) {
             return null;
         }
-        if (! $this->withinRateLimit($notifiable, $isCritical)) {
+        if (! $this->withinRateLimit($notifiable, $isCritical, $phone)) {
             return null;
         }
 
@@ -132,13 +136,12 @@ class SmsChannel
         return $this->preferences->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_SMS);
     }
 
-    private function withinRateLimit(object $notifiable, bool $isCritical): bool
+    private function withinRateLimit(object $notifiable, bool $isCritical, string $phone): bool
     {
         $userId = method_exists($notifiable, 'getKey') ? $notifiable->getKey() : null;
-        if (! $userId) {
-            return true;
-        }
-        $key = "sms-channel:user:{$userId}";
+        $key = $userId
+            ? "sms-channel:user:{$userId}"
+            : 'sms-channel:phone:'.PhoneNumber::normalize($phone);
         $maxAttempts = (int) $this->config->get('sms.rate_limit.per_user_per_hour', 5);
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             Log::info('[sms-channel] rate limit hit — skipping', [

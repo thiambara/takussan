@@ -20,8 +20,8 @@ import type { CheckoutEnCours } from '@/components/payments/checkout-en-cours';
 
 /**
  * TCK-593 (passe 2, M5) — un checkout en ligne vit sur l'échéance (l'API a rendu 409
- * `checkout_in_progress`), et le gestionnaire a pourtant reçu le règlement au guichet. Il peut
- * passer outre, en le confirmant et en donnant un motif : le paiement en ligne en cours, s'il
+ * `payment.checkout_in_progress`), et le gestionnaire a pourtant reçu le règlement au guichet.
+ * Il peut passer outre, en le confirmant et en donnant un motif : le paiement en ligne en cours, s'il
  * aboutit quand même, sera signalé comme double encaissement.
  */
 export function PasserOutreDialog({
