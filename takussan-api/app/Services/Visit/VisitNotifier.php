@@ -113,11 +113,12 @@ class VisitNotifier
         }
 
         // Le repli : visite non attribuée, ou agent qui ne peut plus rien recevoir (M2) — les
-        // admins actifs de l'agence, sinon le contact principal. Passe 2 (n2) : l'agent
+        // admins actifs de l'agence (à défaut, son personnel `crm.view_all` : n3), sinon le
+        // contact principal. Passe 2 (n2) : l'agent
         // injoignable suit la règle de la visite non attribuée ; il partait vers le contact
         // principal, c'est-à-dire souvent vers le bailleur, et l'admin ne recevait rien.
         if (! $agentUtilisable && $property !== null) {
-            $recipients = $recipients->merge($this->leads->agencyAdmins($property->agency_id));
+            $recipients = $recipients->merge($this->leads->agencyReaders($property->agency_id));
             if ($recipients->filter()->isEmpty()) {
                 $recipients->push(PrimaryPropertyContact::for($property));
             }

@@ -2,11 +2,15 @@
 
 namespace App\Services\Lead;
 
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\User;
@@ -32,7 +36,7 @@ use Illuminate\Support\Facades\Notification;
  * ## Le destinataire (contrainte 1)
  *
  * {@see PrimaryPropertyContact::for()} reste la seule règle. À défaut, les **admins de l'agence du
- * bien** ; à défaut — pas d'agence, ou une agence sans admin actif ni contact joignable —, la
+ * bien**, puis son personnel qui lit toute la boîte (`crm.view_all`, passe 2 n3) ; à défaut — pas d'agence, ou une agence sans admin actif ni contact joignable —, la
  * demande est refusée — **409 `contact_unavailable`, avant toute écriture** : une piste que
  * personne ne lira n'est pas une piste, c'est une promesse non tenue au visiteur (décision de la
  * session après la vérification adverse, m3 : jamais de 201 pour une demande que personne ne lira). La même règle sert la demande de visite (`VisitNotifier`).
@@ -42,8 +46,8 @@ class ContactLeadService
     public function __construct(private readonly CustomerService $customers) {}
 
     /**
-     * Qui reçoit une demande portant sur ce bien : le contact principal, sinon les admins de
-     * l'agence. Vide si le bien n'a ni l'un ni l'autre.
+     * Qui reçoit une demande portant sur ce bien : le contact principal, sinon les lecteurs de
+     * l'agence ({@see self::agencyReaders()}). Vide si personne ne la lirait.
      *
      * ⚠️ Suppose {@see PrimaryPropertyContact::eagerLoads()} chargés.
      *
@@ -56,7 +60,38 @@ class ContactLeadService
             return collect([$primary]);
         }
 
-        return $this->agencyAdmins($property->agency_id);
+        return $this->agencyReaders($property->agency_id);
+    }
+
+    /**
+     * Qui lit la boîte d'une agence quand le bien n'a pas de contact : ses admins actifs ; à
+     * défaut, son personnel actif titulaire de `crm.view_all`, qui lit toute la boîte
+     * (`PropertyContactLeadPolicy`).
+     *
+     * Vérification adverse, passe 2 (n3) — le 409 de m3 ne comptait que les admins : une agence
+     * sans admin actif, mais dont les agents lisent toute la boîte, refusait toute demande sur un
+     * bien sans contact éligible, quand ces agents l'auraient lue. Le 409 ne vaut que si PERSONNE
+     * dans l'agence ne peut la lire.
+     *
+     * @return Collection<int,User>
+     */
+    public function agencyReaders(?int $agencyId): Collection
+    {
+        $admins = $this->agencyAdmins($agencyId);
+        $agency = $agencyId !== null ? Agency::query()->find($agencyId) : null;
+        if ($admins->isNotEmpty() || $agency === null) {
+            return $admins;
+        }
+
+        return AgentProfile::query()
+            ->where('agency_id', $agencyId)
+            ->where('status', AgentProfileStatus::Active->value)
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter(fn (?User $u) => PrimaryPropertyContact::joignable($u) && $u->canActAt(Capability::CrmViewAll, $agency))
+            ->unique('id')
+            ->values();
     }
 
     /**

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Public;
 
+use App\Models\AgencyRole;
 use App\Models\AppNotification;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
@@ -12,6 +14,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\ContactLeadReceivedNotification;
 use App\Notifications\NewContactLeadNotification;
+use App\Notifications\VisitRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\DB;
@@ -341,6 +344,9 @@ class PropertyContactLeadTest extends TestCase
     {
         $agency = $this->agence();
         AgencyAdminProfile::query()->where('agency_id', $agency->id)->delete();
+        // Passe 2 (n3) — un agent qui ne lit QUE ses demandes (sans `crm.view_all`) n'est pas un lecteur.
+        $this->personnel($agency, agencyRole: AgencyRole::factory()->for($agency)
+            ->withCapabilities([Capability::PropertiesCreate])->create());
         $owner = User::factory()->create(['status' => 'blocked']);
         $property = $this->bienDe($agency, $owner);
 
@@ -355,5 +361,34 @@ class PropertyContactLeadTest extends TestCase
 
         $this->assertDatabaseCount('property_contact_leads', 0);
         $this->assertDatabaseCount('property_visits', 0);
+    }
+
+    /**
+     * Passe 2 (n3) — une agence sans admin actif, mais dont un agent actif détient `crm.view_all` :
+     * il lit toute la boîte, la demande lui arrive (201), et la visite demandée aussi.
+     */
+    public function test_sans_admin_le_personnel_qui_lit_toute_la_boite_recoit_la_demande(): void
+    {
+        Notification::fake();
+        $agency = $this->agence();
+        AgencyAdminProfile::query()->where('agency_id', $agency->id)->delete();
+        $lecteur = $this->personnel($agency);
+        $this->assertTrue($lecteur->canActAt(Capability::CrmViewAll, $agency));
+        $property = $this->bienDe($agency, User::factory()->create(['status' => 'blocked']));
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
+        ])->assertCreated();
+        $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
+            'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567', 'scheduled_at' => $this->creneau(),
+        ])->assertCreated();
+
+        $lead = PropertyContactLead::query()->latest('id')->firstOrFail();
+        Notification::assertSentTo($lecteur, NewContactLeadNotification::class);
+        Notification::assertSentTo($lecteur, VisitRequestedNotification::class);
+
+        Sanctum::actingAs($lecteur);
+        $this->getJson("/api/contact-leads/{$lead->id}")->assertOk();
+        $this->assertContains($lead->id, collect($this->getJson('/api/contact-leads')->json('data'))->pluck('id')->all());
     }
 }
