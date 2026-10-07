@@ -2491,6 +2491,39 @@
       "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",
       "newThreadHint": "Votre premier message à {name} au sujet de ce bien.",
       "newThreadHintNoName": "Votre premier message au sujet de ce bien."
+    },
+    "voiceNote": {
+      "record": "Enregistrer une note vocale",
+      "stop": "Arrêter l'enregistrement",
+      "elapsed": "{seconds} s / {max} s",
+      "preview": "Écouter la note avant l'envoi",
+      "send": "Envoyer la note vocale",
+      "discard": "Supprimer la note",
+      "microphoneDenied": "Le micro n'est pas accessible. Autorisez-le dans votre navigateur.",
+      "sendFailed": "La note vocale n'a pas été envoyée. Réessayez.",
+      "label": "Note vocale",
+      "duration": "{seconds} s"
+    },
+    "maintenanceEvents": {
+      "assigned": "Intervention confiée à {provider}.",
+      "unassigned": "L'intervention n'est plus confiée à {provider}.",
+      "accepted": "{provider} a accepté l'intervention.",
+      "declined": "{provider} a refusé l'intervention.",
+      "status": "Statut : {status}.",
+      "statuses": {
+        "open": "Ouverte",
+        "acknowledged": "Prise en compte",
+        "quote_requested": "Devis demandé",
+        "quote_submitted": "Devis soumis",
+        "awaiting_owner": "En attente du bailleur",
+        "approved": "Devis approuvé",
+        "rejected": "Devis rejeté",
+        "assigned": "Assignée",
+        "in_progress": "En cours",
+        "completed": "Terminée",
+        "closed": "Clôturée",
+        "cancelled": "Annulée"
+      }
     }
   },
   "payments": {
@@ -3057,6 +3090,7 @@
       "acknowledged": "Prise en compte",
       "quote_requested": "Devis demandé",
       "quote_submitted": "Devis soumis",
+      "awaiting_owner": "En attente du bailleur",
       "approved": "Devis approuvé",
       "rejected": "Devis rejeté",
       "assigned": "Assignée",
@@ -3158,6 +3192,105 @@
         "reason_placeholder": "Veuillez expliquer pourquoi ce devis est refusé...",
         "reason_min": "Le motif doit contenir au moins 5 caractères",
         "confirm": "Confirmer le rejet"
+      }
+    },
+    "intervention": {
+      "response": {
+        "title": "Cette intervention vous est confiée",
+        "body": "Acceptez-la pour voir l'adresse et le contact du locataire, ou refusez-la : elle reviendra à l'agence.",
+        "accept": "J'accepte",
+        "decline": "Je refuse",
+        "reason_label": "Pourquoi refusez-vous ?",
+        "reason_placeholder": "Indisponible ce jour-là, hors de ma zone…",
+        "confirm_decline": "Confirmer le refus",
+        "back": "Retour",
+        "failed": "La réponse n'a pas été enregistrée. Réessayez."
+      },
+      "access": {
+        "title": "Accès au logement",
+        "address_missing": "Adresse non renseignée",
+        "instructions": "Consignes d'accès",
+        "directions": "Itinéraire",
+        "call_requester": "Appeler le locataire",
+        "discuss": "Discuter"
+      },
+      "assignment": {
+        "title": "Prestataire et créneau",
+        "invite": "Inviter un nouveau prestataire",
+        "provider_label": "Prestataire",
+        "nobody": "Aucun prestataire",
+        "directory_unavailable": "Le carnet de l'agence n'est pas disponible pour votre compte.",
+        "slot_label": "Créneau",
+        "unavailable_that_day": "Ce prestataire ne déclare pas travailler ce jour-là.",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "saved": "Enregistré.",
+        "failed": "L'assignation n'a pas été enregistrée."
+      },
+      "gallery": {
+        "title": "Photos et pièces",
+        "reported": "Signalement",
+        "before": "Avant",
+        "after": "Après",
+        "quotes": "Devis",
+        "before_label": "Photos avant intervention",
+        "send": "{count, plural, =0 {Envoyer} =1 {Envoyer # photo} other {Envoyer # photos}}",
+        "sending": "Envoi…",
+        "failed": "Les photos n'ont pas été envoyées. Elles restent sélectionnées : réessayez."
+      },
+      "resolution": {
+        "title": "L'intervention est terminée",
+        "body": "Le problème est-il réglé ? Sans réponse de votre part, la demande sera close dans 7 jours.",
+        "confirm": "C'est réparé",
+        "contest": "Le problème persiste",
+        "comment_label": "Qu'est-ce qui ne va pas ?",
+        "comment_placeholder": "Décrivez ce qui persiste",
+        "photos_label": "Photos (facultatif)",
+        "send_contest": "Envoyer",
+        "back": "Retour",
+        "failed": "Votre réponse n'a pas été enregistrée. Réessayez."
+      },
+      "quote": {
+        "request": "Demander un devis",
+        "approve": "Approuver le devis",
+        "reject": "Refuser le devis",
+        "failed": "L'action sur le devis a échoué.",
+        "awaiting_owner_you": "Ce devis dépasse votre plafond de travaux : il attend votre accord.",
+        "awaiting_owner_other": "Ce devis dépasse le plafond de travaux du bailleur : il attend son accord.",
+        "pdf": "Télécharger le devis (PDF)",
+        "pdf_downloading": "Téléchargement…",
+        "pdf_failed": "Le PDF du devis n'a pas pu être téléchargé.",
+        "line_label": "Désignation",
+        "line_kind": "Nature",
+        "line_quantity": "Quantité",
+        "line_unit_price": "Prix unitaire",
+        "line_total": "Total",
+        "kinds": {
+          "labour": "Main-d'œuvre",
+          "supply": "Fourniture"
+        },
+        "valid_until": "Valable jusqu'au {date}",
+        "duration": "{days, plural, =1 {Durée estimée : # jour} other {Durée estimée : # jours}}"
+      },
+      "quote_form": {
+        "title": "Soumettre un devis",
+        "title_again": "Soumettre un nouveau devis",
+        "intro": "Détaillez la main-d'œuvre et les fournitures : le montant est calculé à partir des lignes.",
+        "remove_line": "Retirer la ligne",
+        "add_line": "Ajouter une ligne",
+        "total_preview": "Total estimé : {amount}",
+        "valid_until_label": "Valable jusqu'au",
+        "duration_label": "Durée estimée (jours)",
+        "attachments_label": "Pièces jointes (PDF ou images)",
+        "remove_file": "Retirer",
+        "file_type_refused": "Type de fichier refusé (PDF, JPG, PNG ou WEBP seulement) : {files}",
+        "incomplete": "Chaque ligne doit avoir une désignation, une quantité et un prix, et le devis une date de validité.",
+        "failed": "Le devis n'a pas été envoyé.",
+        "submitting": "Envoi…",
+        "submit": "Envoyer le devis"
+      },
+      "list": {
+        "agency": "Agence {name}"
       }
     }
   },
@@ -7243,6 +7376,21 @@
         "inappAlwaysOn": "Toujours actif pour ne rien manquer.",
         "phoneNotVerified": "Téléphone non vérifié."
       }
+    },
+    "serviceProvider": {
+      "title": "Mon activité de prestataire",
+      "subtitle": "Ce que voient les agences avec lesquelles vous travaillez. Chaque réglage s'enregistre séparément.",
+      "trades": "Métiers",
+      "zones": "Zones d'intervention",
+      "zonesPlaceholder": "Dakar, Mbour, Thiès",
+      "rates": "Tarifs",
+      "hourlyRate": "Tarif horaire (FCFA)",
+      "visitFee": "Frais de déplacement (FCFA)",
+      "availability": "Disponibilités",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saved": "Enregistré.",
+      "failed": "Ce réglage n'a pas été enregistré."
     }
   },
   "contact": {

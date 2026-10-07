@@ -356,6 +356,52 @@ export function useSendMessage(conversationId: number) {
   );
 }
 
+/**
+ * TCK-592 (ADR-0038) — une note vocale : `type=audio`, le fichier `audio` et sa durée DÉCLARÉE.
+ * Le contenu est posé par l'API (aperçu neutre pour la liste des conversations).
+ */
+export type SendVoiceNotePayload = {
+  audio: Blob;
+  duration: number;
+};
+
+export function useSendVoiceNote(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useApiMutation<ApiResponse<Message>, SendVoiceNotePayload>(
+    {
+      path: `/api/conversations/${conversationId}/messages`,
+      method: 'POST',
+      formData: true,
+      body: ({ audio, duration }) => {
+        const fd = new FormData();
+        fd.append('type', 'audio');
+        fd.append('audio', audio, `note-vocale.${extensionAudio(audio.type)}`);
+        fd.append('duration', String(duration));
+        return fd;
+      },
+    },
+    {
+      invalidate: [
+        ['conversations', 'list'],
+        ['conversations', 'detail', conversationId],
+      ],
+      onSuccess: (response) => {
+        queryClient.setQueryData<InfiniteData<MessagesPage>>(
+          messagesInfiniteQueryKey(conversationId),
+          (cache) => mergeNewMessages(cache, [response.data]),
+        );
+      },
+    },
+  );
+}
+
+function extensionAudio(mime: string): string {
+  if (mime.includes('ogg')) return 'ogg';
+  if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'm4a';
+  if (mime.includes('mpeg')) return 'mp3';
+  return 'webm';
+}
+
 // TCK-576 — `useCreateConversation` est retiré : il n'avait aucun appelant, et son corps typé
 // (`recipient_id`, `initial_message`) ne correspondait à rien de ce que `POST /api/conversations`
 // valide (`participants`, et une seule autre personne joignable depuis TCK-565). Un premier

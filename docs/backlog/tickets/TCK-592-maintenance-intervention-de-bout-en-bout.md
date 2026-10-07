@@ -404,17 +404,17 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 **G. Front (P1, P11, P14, P15, P16, P17 liste)**
 
-- [ ] Assignation et planification depuis la fiche, invitation d'un nouveau prestataire avec lien profond
-- [ ] Actions, formulaire de devis (y compris après refus) et bouton de création rendus depuis `abilities`
-- [ ] Accepter / refuser ; kit d'accès ; galerie Avant / Après / Devis ; confirmation du locataire
-- [ ] Le prestataire ne se voit plus proposer le lien vers la fiche du bien, qui le mène à un refus
+- [x] Assignation et planification depuis la fiche, invitation d'un nouveau prestataire avec lien profond
+- [x] Actions, formulaire de devis (y compris après refus) et bouton de création rendus depuis `abilities`
+- [x] Accepter / refuser ; kit d'accès ; galerie Avant / Après / Devis ; confirmation du locataire
+- [x] Le prestataire ne se voit plus proposer le lien vers la fiche du bien, qui le mène à un refus
       (`MaintenanceDetail.tsx:169-177`) : le kit d'accès en tient lieu
-- [ ] Le choix des pièces du devis n'offre que les PDF et images acceptés par l'API ; un refus de type
+- [x] Le choix des pièces du devis n'offre que les PDF et images acceptés par l'API ; un refus de type
       est affiché, les autres pièces restent sélectionnées
-- [ ] Photos de fin envoyées **dans** `PUT …/complete` ; photos « avant » au démarrage ; prise de vue directe
-- [ ] « Mes interventions » triée par créneau, avec quartier et agence
-- [ ] Section prestataire du profil ; `updateTrades` n'écrit que les clés présentes (test back)
-- [ ] Types front alignés (`awaiting_owner`, `abilities`, `media`, `access`)
+- [x] Photos de fin envoyées **dans** `PUT …/complete` ; photos « avant » au démarrage ; prise de vue directe
+- [x] « Mes interventions » triée par créneau, avec quartier et agence
+- [x] Section prestataire du profil ; `updateTrades` n'écrit que les clés présentes (test back)
+- [x] Types front alignés (`awaiting_owner`, `abilities`, `media`, `access`)
 
 **H. Fil de discussion et note vocale (P19) — ADR 2 d'abord, sauf la première case**
 
@@ -428,7 +428,7 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
       réassignation = échange du participant prestataire ; message système (code d'événement) à
       chaque `MaintenanceStatusChanged`
 - [x] `MessageType::Audio` ; envoi d'un fichier audio dans `SendMessageConversationRequest`
-- [ ] Front : « Discuter » sur la fiche ; enregistrer, écouter une note vocale
+- [x] Front : « Discuter » sur la fiche ; enregistrer, écouter une note vocale
 - [x] Tests : `MessageTypeSpoofingTest`, `MaintenanceConversationTest`, `AudioMessageTest`
 
 ## Critères d'acceptation
@@ -728,4 +728,37 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
   les 19 autres fichiers qui appellent `maintenance-requests` → 136 verts.
 - Ablations : clé métiers absente lue comme vide → 2 rouges ; création ouverte à tous → 1 ; liste sans
   adresse ni agence → 1 ; décision proposée à l'équipe en `awaiting_owner` → 1.
+
+### G — front : la fiche, la liste, le profil, le fil
+
+- Fiche : chaque action naît de `abilities` (`MAINTENANCE_TRANSITIONS` supprimé). Blocs neufs :
+  `MaintenanceProviderResponse` (accepter / refuser + motif), `MaintenanceAccessKit` (adresse,
+  itinéraire, appel, consignes, « Discuter » → `/app/messages?conversation=`), `MaintenanceAssignmentBlock`
+  (carnet `filter[collaboration_status]=active` du métier, indisponibilité du jour signalée, `PATCH
+  {assigned_to, scheduled_at}`, invitation à lien profond par `InviteServiceProviderSheet`),
+  `MaintenanceGallery` (Signalement / Avant / Après / Devis, photos « avant » à l'appareil),
+  `MaintenanceResolutionResponse`, `QuoteActions` (demander, trancher, PDF en blob). Le lien vers le
+  bien n'est rendu qu'au donneur d'ordre (`can_manage_quotes`).
+- Devis en lignes (`QuoteSubmitForm`), `accept` limité aux types de l'API, refus de type nommé à la
+  sélection. Photos de fin DANS `PUT …/complete` (multipart `POST` + `_method=PUT` : PHP ne lit pas
+  un corps multipart sur `PUT`) ; un échec s'affiche et garde les fichiers.
+- Liste : `include=property` + `agency_id`, quartier et agence par ligne, `sort=scheduled_at` pour le
+  prestataire (rôle principal), « Nouvelle demande » derrière `meta.abilities.can_create`.
+- Profil : `ProfileServiceProviderSection`, quatre réglages enregistrés un par un (lecture :
+  `GET /api/me/profiles/{sp}`, ajouté avec son test). Fil : `VoiceNoteRecorder` (`MediaRecorder`,
+  60 s, rien rendu sans support), lecteur `audio` dans la bulle, avis `maintenance` rendus par code.
+- Dictionnaires : `maintenance.status.awaiting_owner` (une ligne), puis blocs propres
+  `maintenance.intervention`, `messaging.voiceNote`, `messaging.maintenanceEvents`,
+  `profile.serviceProvider` (fr/en/wo), insérés sans reformater le fichier (diff : ajouts seuls).
+- Exécutions : `MaintenanceDetail` (8), `MaintenanceCompleteForm` (2), `MaintenanceList` (3),
+  `QuoteSubmitForm` (3), `SystemMessageBubble` → verts ; `src/components/{maintenance,messages,profile,
+  service-providers,onboarding}`, `src/types`, `src/lib/{queries,__tests__}` et les pages maintenance /
+  profil → 97 fichiers, 1100 verts. `npm run lint` et `tsc --noEmit` propres, `check-i18n`,
+  `check-i18n-namespaces`, `check-classes-emises` verts. API : `ServiceProviderTradesPartialUpdateTest` (3).
+- Ablations : « Approuver » offert à tous → 1 rouge ; formulaire de devis pour tous → 1 ; lien du bien
+  pour tous → 1 ; table de transitions recopiée → 3 ; `PATCH` sans créneau → 1 ; photos hors de la
+  complétion → 1 ; fichiers perdus à l'échec → 1 ; liste non triée par créneau → 1 ; « Nouvelle
+  demande » pour tous → 1 ; liste sans le bien → 1.
+- **Non vérifié au navigateur** : aucun parcours n'a été joué dans Chrome (enregistrement réel d'une
+  note vocale, rendu mobile). Les critères front sont prouvés en vitest, pas à l'écran.
 

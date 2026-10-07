@@ -81,6 +81,9 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         ->whereNumber('sp_profile')
         ->middleware('throttle:10,1')
         ->name('me.profiles.sp.kyc.upload');
+    Route::get('profiles/{sp_profile}', [MeServiceProviderProfileController::class, 'show'])
+        ->whereNumber('sp_profile')
+        ->name('me.profiles.sp.show');
     Route::patch('profiles/{sp_profile}/trades', [MeServiceProviderProfileController::class, 'updateTrades'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.trades');

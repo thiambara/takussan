@@ -1142,6 +1142,39 @@
       "message": "Salaam, bëgg naa xam lu ëpp ci « {title} » (réf. {reference}). Ndax mu ngi am ba tey ?",
       "newThreadHint": "Sa bataaxal bu njëkk ci {name} ci mbirum kër bi.",
       "newThreadHintNoName": "Sa bataaxal bu njëkk ci mbirum kër bi."
+    },
+    "voiceNote": {
+      "record": "Bind kàddu",
+      "stop": "Taxawal bind bi",
+      "elapsed": "{seconds} s / {max} s",
+      "preview": "Déglu kàddu gi balaa ngay yónne",
+      "send": "Yónne kàddu gi",
+      "discard": "Far kàddu gi",
+      "microphoneDenied": "Mikoro bi manuñu ko jot. Maye ko ci sa navigatëer.",
+      "sendFailed": "Kàddu gi yónneesu ko. Jéemaatal.",
+      "label": "Kàddu",
+      "duration": "{seconds} s"
+    },
+    "maintenanceEvents": {
+      "assigned": "Liggéey bi ñu ngi ko dénk {provider}.",
+      "unassigned": "Liggéey bi ñu dénkatu ko {provider}.",
+      "accepted": "{provider} nangu na liggéey bi.",
+      "declined": "{provider} bañ na liggéey bi.",
+      "status": "Fi mu tollu : {status}.",
+      "statuses": {
+        "open": "Ubbi na",
+        "acknowledged": "Gis nañu ko",
+        "quote_requested": "Laaj nañu devi",
+        "quote_submitted": "Yónne nañu devi",
+        "awaiting_owner": "Mungi xaar boroom kër gi",
+        "approved": "Nangu nañu devi bi",
+        "rejected": "Bañ nañu devi bi",
+        "assigned": "Dénk nañu ko",
+        "in_progress": "Mungiy dox",
+        "completed": "Jeex na",
+        "closed": "Tëj nañu ko",
+        "cancelled": "Neenal nañu ko"
+      }
     }
   },
   "payments": {
@@ -1708,6 +1741,7 @@
       "acknowledged": "Jot nañu ko",
       "quote_requested": "Ñaan nañu dewi",
       "quote_submitted": "Yónnee nañu dewi",
+      "awaiting_owner": "Mungi xaar boroom kër gi",
       "approved": "Nangu nañu dewi",
       "rejected": "Bañ nañu dewi",
       "assigned": "Jox nañu ko",
@@ -1809,6 +1843,105 @@
         "reason_placeholder": "Leeralal lu tax nga bañ dewi bii...",
         "reason_min": "Lu tax bi war na am ci 5 araf ba kaw",
         "confirm": "Dëgglu bañ bi"
+      }
+    },
+    "intervention": {
+      "response": {
+        "title": "Liggéey bii ñu ngi la ko dénk",
+        "body": "Nangu ko ngir gis adrees bi ak nimero kiy dëkk ci kër gi, walla bañ ko : dina dellu ci ajaas bi.",
+        "accept": "Nangu naa",
+        "decline": "Bañ naa",
+        "reason_label": "Lu tax nga bañ ?",
+        "reason_placeholder": "Duma am jamono bés boobu, sorewul sama gox…",
+        "confirm_decline": "Dëggal bañ bi",
+        "back": "Dellu",
+        "failed": "Sa tontu deñu ko denc. Jéemaatal."
+      },
+      "access": {
+        "title": "Naka lañuy duggee ci kër gi",
+        "address_missing": "Adrees bi bindeesu ko",
+        "instructions": "Ndigal yu duggu",
+        "directions": "Yoon wi",
+        "call_requester": "Woo kiy dëkk ci kër gi",
+        "discuss": "Waxtaan"
+      },
+      "assignment": {
+        "title": "Liggéeykat bi ak waxtu wi",
+        "invite": "Woo benn liggéeykat bu bees",
+        "provider_label": "Liggéeykat",
+        "nobody": "Kenn",
+        "directory_unavailable": "Sa kont manul gis karne liggéeykati ajaas bi.",
+        "slot_label": "Waxtu",
+        "unavailable_that_day": "Liggéeykat bii waxul ne dina liggéey bés boobu.",
+        "save": "Denc",
+        "saving": "Mungiy denc…",
+        "saved": "Denc nañu ko.",
+        "failed": "Dénk bi deñu ko denc."
+      },
+      "gallery": {
+        "title": "Nataal ak kayit",
+        "reported": "Yégle bi",
+        "before": "Balaa",
+        "after": "Ginnaaw",
+        "quotes": "Devi",
+        "before_label": "Nataal yu balaa liggéey bi",
+        "send": "{count, plural, =0 {Yónne} =1 {Yónne # nataal} other {Yónne # nataal}}",
+        "sending": "Mungiy yónne…",
+        "failed": "Nataal yi yónneesu leen. Ñu ngi tànnoo ba tey : jéemaatal."
+      },
+      "resolution": {
+        "title": "Liggéey bi jeex na",
+        "body": "Jafe-jafe bi dakk na ? Boo tontuwul, laaj bi dina tëju ci 7 fan.",
+        "confirm": "Defar nañu ko",
+        "contest": "Jafe-jafe bi des na",
+        "comment_label": "Lan moo baaxul ?",
+        "comment_placeholder": "Wax li des",
+        "photos_label": "Nataal (bu la neexee)",
+        "send_contest": "Yónne",
+        "back": "Dellu",
+        "failed": "Sa tontu deñu ko denc. Jéemaatal."
+      },
+      "quote": {
+        "request": "Laaj devi",
+        "approve": "Nangu devi bi",
+        "reject": "Bañ devi bi",
+        "failed": "Jëf ji ci devi bi antuwul.",
+        "awaiting_owner_you": "Devi bii ëpp na sa kemu liggéey : mungi xaar sa ndigal.",
+        "awaiting_owner_other": "Devi bii ëpp na kemu liggéeyu boroom kër gi : mungi xaar ndigalam.",
+        "pdf": "Yebbi devi bi (PDF)",
+        "pdf_downloading": "Mungiy yebbi…",
+        "pdf_failed": "PDF devi bi manuñu ko yebbi.",
+        "line_label": "Tur",
+        "line_kind": "Xeet",
+        "line_quantity": "Lim",
+        "line_unit_price": "Njëg benn",
+        "line_total": "Lépp",
+        "kinds": {
+          "labour": "Liggéey",
+          "supply": "Jumtukaay"
+        },
+        "valid_until": "Baax na ba {date}",
+        "duration": "{days, plural, =1 {Diir bi : # fan} other {Diir bi : # fan}}"
+      },
+      "quote_form": {
+        "title": "Yónne devi",
+        "title_again": "Yónne devi bu bees",
+        "intro": "Leeral liggéey bi ak jumtukaay yi : xaalis bi ñu ngi koy waññe ci rëdd yi.",
+        "remove_line": "Far rëdd bi",
+        "add_line": "Yokk benn rëdd",
+        "total_preview": "Lépp : {amount}",
+        "valid_until_label": "Baax na ba",
+        "duration_label": "Diir bi (fan)",
+        "attachments_label": "Kayit yu ñu takk (PDF walla nataal)",
+        "remove_file": "Far",
+        "file_type_refused": "Xeetu kayit bii nanguñu ko (PDF, JPG, PNG walla WEBP rekk) : {files}",
+        "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
+        "failed": "Devi bi yónneesu ko.",
+        "submitting": "Mungiy yónne…",
+        "submit": "Yónne devi bi"
+      },
+      "list": {
+        "agency": "Ajaas {name}"
       }
     }
   },
@@ -6643,6 +6776,21 @@
         "inappAlwaysOn": "Mu ngi dox saa su nekk ngir nga bañ a réer dara.",
         "phoneNotVerified": "Telefon bi ñu ko wóoralul."
       }
+    },
+    "serviceProvider": {
+      "title": "Sama liggéeyu liggéeykat",
+      "subtitle": "Li ajaas yi ngay ànd ak ñoom di gis. Bépp ndigal dañu koy denc moom rekk.",
+      "trades": "Métier yi",
+      "zones": "Gox yi ngay liggéey",
+      "zonesPlaceholder": "Dakar, Mbour, Thiès",
+      "rates": "Njëg yi",
+      "hourlyRate": "Njëgu waxtu (FCFA)",
+      "visitFee": "Njëgu tukki (FCFA)",
+      "availability": "Jamono yi nga am",
+      "save": "Denc",
+      "saving": "Mungiy denc…",
+      "saved": "Denc nañu ko.",
+      "failed": "Ndigal bii deñu ko denc."
     }
   },
   "contact": {

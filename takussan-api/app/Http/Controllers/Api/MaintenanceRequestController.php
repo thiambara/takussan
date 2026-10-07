@@ -158,7 +158,8 @@ class MaintenanceRequestController extends Controller
             ->values();
 
         if ($includes->contains('property')) {
-            $maintenanceRequest->loadMissing('property.address');
+            // TCK-592 — l'agence du bien : le bloc d'assignation lit son carnet.
+            $maintenanceRequest->loadMissing(['property.address', 'property.agency:id,name']);
         }
 
         $maintenanceRequest->loadMissing(

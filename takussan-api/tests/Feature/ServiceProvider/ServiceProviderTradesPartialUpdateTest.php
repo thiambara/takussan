@@ -53,4 +53,26 @@ class ServiceProviderTradesPartialUpdateTest extends TestCase
         $this->assertNull($sp->refresh()->service_areas);
         $this->assertSame(['painting'], $sp->specialties);
     }
+
+    public function test_owner_reads_back_settings_and_nobody_else_does(): void
+    {
+        $user = User::factory()->create();
+        $sp = ServiceProviderProfile::factory()->create([
+            'user_id' => $user->id,
+            'specialties' => ['plumbing'],
+            'service_areas' => ['Dakar'],
+            'metadata' => ['visit_fee' => 2500, 'availability' => [['day' => 'monday', 'from' => '08:00', 'to' => '12:00']]],
+        ]);
+
+        Sanctum::actingAs(User::factory()->create());
+        $this->getJson("/api/me/profiles/{$sp->id}")->assertForbidden();
+
+        Sanctum::actingAs($user);
+        $this->getJson("/api/me/profiles/{$sp->id}")
+            ->assertOk()
+            ->assertJsonPath('data.trades', ['plumbing'])
+            ->assertJsonPath('data.intervention_zones', ['Dakar'])
+            ->assertJsonPath('data.visit_fee', 2500)
+            ->assertJsonPath('data.available_slots.0.day', 'monday');
+    }
 }

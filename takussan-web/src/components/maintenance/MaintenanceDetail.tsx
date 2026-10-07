@@ -13,26 +13,28 @@ import {
   useTransitionMaintenanceStatus,
 } from '@/lib/queries/maintenance';
 import type { MaintenanceRequest, MaintenanceStatus } from '@/types/maintenance';
-import { MAINTENANCE_TRANSITIONS } from '@/types/maintenance';
 
 import {
   MaintenancePriorityBadge,
   MaintenanceStatusBadge,
 } from './MaintenanceStatusBadge';
+import { MaintenanceAccessKit } from './MaintenanceAccessKit';
+import { MaintenanceAssignmentBlock } from './MaintenanceAssignmentBlock';
 import { MaintenanceCompleteForm } from './MaintenanceCompleteForm';
+import { MaintenanceGallery } from './MaintenanceGallery';
+import { MaintenanceProviderResponse } from './MaintenanceProviderResponse';
+import { MaintenanceResolutionResponse } from './MaintenanceResolutionResponse';
 import { MaintenanceStepper } from './MaintenanceStepper';
+import { QuoteActions } from './QuoteActions';
 import { QuoteCard } from './QuoteCard';
 import { QuoteSubmitForm } from './QuoteSubmitForm';
-import { QuoteRejectionModal } from './QuoteRejectionModal';
-import {
-  useApproveMaintenanceQuote,
-  useRequestMaintenanceQuote,
-  useStartMaintenance,
-} from '@/lib/queries/maintenance';
 
 /**
- * Detail screen — renders the request payload plus the action bar
- * (status transitions, completion workflow).
+ * Fiche d'une intervention.
+ *
+ * TCK-592 — « le serveur dit ce qui est permis » : chaque action naît de `request.abilities`,
+ * calculé par l'API pour l'utilisateur qui lit. La table de transitions recopiée ici proposait au
+ * prestataire d'approuver son propre devis et, après un refus, un bouton voué au 422.
  */
 export function MaintenanceDetail({ id }: { readonly id: number }) {
   const query = useMaintenanceRequest(id);
@@ -44,12 +46,14 @@ export function MaintenanceDetail({ id }: { readonly id: number }) {
   );
 }
 
+const TERMINAL: readonly MaintenanceStatus[] = ['closed', 'cancelled'];
+
 function MaintenanceDetailBody({ request }: { readonly request: MaintenanceRequest }) {
   const locale = useLocale() as Locale;
   const t = useTranslations('maintenance.detail');
   const tCategory = useTranslations('maintenance.category');
   const [completeOpen, setCompleteOpen] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
+  const abilities = request.abilities;
 
   return (
     <div className="space-y-6">
@@ -110,28 +114,26 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
         </dl>
       </header>
 
+      {/* Le prestataire : « J'accepte / Je refuse » d'abord, puis son kit de terrain. */}
+      <MaintenanceProviderResponse request={request} />
+      <MaintenanceAccessKit request={request} />
+
+      {abilities?.can_assign ? <MaintenanceAssignmentBlock request={request} /> : null}
+
       <MaintenanceStepper request={request} />
       <QuoteCard request={request} />
-      <QuoteSubmitForm request={request} />
+      <QuoteActions request={request} />
+      {abilities?.can_submit_quote ? <QuoteSubmitForm request={request} /> : null}
 
-      <StatusActions
-        request={request}
-        onComplete={() => setCompleteOpen(true)}
-        onReject={() => setRejectOpen(true)}
-      />
+      <MaintenanceResolutionResponse request={request} />
 
-      <QuoteRejectionModal
-        id={request.id}
-        open={rejectOpen}
-        onClose={() => setRejectOpen(false)}
-      />
+      <StatusActions request={request} onComplete={() => setCompleteOpen(true)} />
 
-      {completeOpen ? (
-        <MaintenanceCompleteForm
-          id={request.id}
-          onClose={() => setCompleteOpen(false)}
-        />
+      {completeOpen && abilities?.can_complete ? (
+        <MaintenanceCompleteForm id={request.id} onClose={() => setCompleteOpen(false)} />
       ) : null}
+
+      <MaintenanceGallery request={request} />
 
       {request.resolution_notes ? (
         <section className="rounded-xl bg-card p-4 sm:p-5">
@@ -150,6 +152,10 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
   );
 }
 
+/**
+ * TCK-592 — la fiche du bien n'est proposée qu'au donneur d'ordre : elle menait le prestataire
+ * (et le locataire) à un refus. Le kit d'accès tient lieu d'adresse pour le prestataire.
+ */
 function PropertyValue({ request }: { readonly request: MaintenanceRequest }) {
   const t = useTranslations('maintenance.detail');
   const property = request.property;
@@ -166,7 +172,7 @@ function PropertyValue({ request }: { readonly request: MaintenanceRequest }) {
     </>
   );
 
-  if (property.slug) {
+  if (property.slug && request.abilities?.can_manage_quotes) {
     return (
       <Link
         href={`/app/properties/${property.id}`}
@@ -185,25 +191,22 @@ function personLabel(person: MaintenanceRequest['assignee']): string | null {
   return person.name || person.email || person.username || null;
 }
 
+/**
+ * Les cibles de `PUT …/status` que l'API accorde à CET utilisateur — et « Marquer terminé », qui a
+ * son formulaire (`PUT …/complete`, photos comprises).
+ */
 function StatusActions({
   request,
   onComplete,
-  onReject,
 }: {
   readonly request: MaintenanceRequest;
   readonly onComplete: () => void;
-  readonly onReject: () => void;
 }) {
   const t = useTranslations('maintenance.detail');
   const tStatus = useTranslations('maintenance.status');
   const transition = useTransitionMaintenanceStatus(request.id);
-  const requestQuoteMutation = useRequestMaintenanceQuote(request.id);
-  const approveQuoteMutation = useApproveMaintenanceQuote(request.id);
-  const startWorkMutation = useStartMaintenance(request.id);
 
-  const allowed = MAINTENANCE_TRANSITIONS[request.status];
-
-  if (allowed.length === 0) {
+  if (TERMINAL.includes(request.status)) {
     return (
       <div className="rounded-xl bg-card p-4 text-sm text-muted-foreground sm:p-5">
         {t('terminal', { status: tStatus(request.status) })}
@@ -211,65 +214,36 @@ function StatusActions({
     );
   }
 
-  const trigger = (next: MaintenanceStatus) => {
-    if (next === 'completed') {
-      onComplete();
-      return;
-    }
+  const targets = (request.abilities?.transitions ?? []).filter((next) => next !== 'completed');
+  const canComplete = request.abilities?.can_complete === true;
 
-    // Quote flow handles special transitions via their own endpoints
-    if (next === 'quote_requested') {
-      requestQuoteMutation.mutate();
-      return;
-    }
-    if (next === 'approved') {
-      approveQuoteMutation.mutate();
-      return;
-    }
-    if (next === 'rejected') {
-      onReject();
-      return;
-    }
-    if (next === 'in_progress' && request.status === 'approved') {
-      startWorkMutation.mutate();
-      return;
-    }
-
-    // Default transition (open -> acknowledged, assigned -> in_progress, etc.)
-    transition.mutate({ status: next });
-  };
-
-  const isPending =
-    transition.isPending ||
-    requestQuoteMutation.isPending ||
-    approveQuoteMutation.isPending ||
-    startWorkMutation.isPending;
-  // Seule la transition générique affichait son échec : une demande de devis, une approbation ou
-  // un démarrage refusés ne laissaient aucune trace à l'écran.
-  const hasError =
-    transition.isError ||
-    requestQuoteMutation.isError ||
-    approveQuoteMutation.isError ||
-    startWorkMutation.isError;
+  if (targets.length === 0 && !canComplete) {
+    return null;
+  }
 
   return (
     <div className="rounded-xl bg-card p-4 sm:p-5">
       <h2 className="font-display text-base font-semibold text-foreground">{t('change_status')}</h2>
       <div className="mt-3 flex flex-wrap gap-2">
-        {allowed.map((next) => (
+        {canComplete ? (
+          <Button type="button" onClick={onComplete} className="h-11 sm:h-9">
+            {tStatus('completed')}
+          </Button>
+        ) : null}
+        {targets.map((next) => (
           <Button
             key={next}
             type="button"
-            variant={next === 'cancelled' || next === 'rejected' ? 'outline' : 'default'}
-            disabled={isPending}
-            onClick={() => trigger(next)}
-            className={next === 'rejected' ? 'border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive' : ''}
+            variant={next === 'cancelled' ? 'outline' : 'default'}
+            disabled={transition.isPending}
+            onClick={() => transition.mutate({ status: next })}
+            className="h-11 sm:h-9"
           >
             {tStatus(next)}
           </Button>
         ))}
       </div>
-      {hasError ? (
+      {transition.isError ? (
         <p role="alert" className="mt-2 text-xs text-destructive">
           {t('transition_error')}
         </p>

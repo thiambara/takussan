@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\ShowServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateAvailabilityServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
@@ -107,6 +108,28 @@ class ServiceProviderProfileController extends Controller
                 'uploaded_at' => $document->created_at?->toIso8601String(),
             ],
         ], 201);
+    }
+
+    /**
+     * GET /api/me/profiles/{sp_profile}
+     *
+     * TCK-592 (P16) — ce que la section prestataire du profil édite : métiers, zones, tarifs,
+     * disponibilités. `metadata.availability` n'avait aucun lecteur.
+     */
+    public function show(ShowServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
+    {
+        $metadata = $sp_profile->metadata ?? [];
+
+        return $this->json([
+            'data' => [
+                'id' => $sp_profile->id,
+                'trades' => $sp_profile->specialties ?? [],
+                'intervention_zones' => $sp_profile->service_areas ?? [],
+                'hourly_rate' => $sp_profile->hourly_rate_min,
+                'visit_fee' => $metadata['visit_fee'] ?? null,
+                'available_slots' => $metadata['availability'] ?? [],
+            ],
+        ]);
     }
 
     /**
