@@ -10,10 +10,10 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
-use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\ReadsPhoneCodes;
 use Tests\TestCase;
 
 /**
@@ -27,7 +27,7 @@ use Tests\TestCase;
  */
 class HostIndividualOnboardingTest extends TestCase
 {
-    use RefreshDatabase;
+    use ReadsPhoneCodes, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -72,7 +72,7 @@ class HostIndividualOnboardingTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $payload = $this->defaultPayload();
         $payload['phone_otp']['code'] = $code;
         unset($payload['payment_setting']);
@@ -103,7 +103,7 @@ class HostIndividualOnboardingTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $payload = $this->defaultPayload();
         $payload['phone_otp']['code'] = $code;
         $payload['payment_setting']['preferred_provider'] = 'orange_money';
@@ -146,7 +146,7 @@ class HostIndividualOnboardingTest extends TestCase
 
         // Stash a real OTP via the service so the verify path matches the
         // production hash check, not the dev bypass.
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $this->assertNotNull($code);
 
         $payload = $this->defaultPayload();
@@ -262,7 +262,7 @@ class HostIndividualOnboardingTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $payload = $this->defaultPayload();
         $payload['phone_otp']['code'] = $code;
 
@@ -294,7 +294,7 @@ class HostIndividualOnboardingTest extends TestCase
         Sanctum::actingAs($user);
 
         // First onboarding — happy path.
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $payload = $this->defaultPayload();
         $payload['phone_otp']['code'] = $code;
         $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
@@ -304,7 +304,7 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertSame(1, AgencyAdminProfile::query()->count());
 
         // Second attempt with a fresh OTP — must be refused without touching the DB.
-        $code2 = app(PhoneVerificationService::class)->sendOtp($user);
+        $code2 = $this->issuePhoneCode($user);
         $payload2 = $this->defaultPayload();
         $payload2['phone_otp']['code'] = $code2;
         $this->postJson('/api/host/individual/onboard', $payload2)

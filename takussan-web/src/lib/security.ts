@@ -66,8 +66,8 @@ export async function twoFactorRegenerateRecoveryCodes(
 export async function phoneSendOtp(
   token: string,
   phone?: string,
-): Promise<{ sent: boolean; debug_code?: string }> {
-  const res = await apiRequest<{ data: { sent: boolean; debug_code?: string } }>(
+): Promise<{ sent: boolean }> {
+  const res = await apiRequest<{ data: { sent: boolean } }>(
     '/api/auth/phone/send-otp',
     {
       method: 'POST',

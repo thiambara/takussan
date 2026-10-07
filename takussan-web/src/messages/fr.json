@@ -3585,11 +3585,9 @@
           "sending": "Envoi…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code est valable 5 minutes.",
-            "bodyDebug": "Code envoyé (debug : {code})."
+            "body": "Le code est valable 5 minutes."
           },
           "verified": {
             "title": "Téléphone vérifié",
@@ -3710,11 +3708,9 @@
           "sending": "Envoi…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code est valable 5 minutes.",
-            "bodyDebug": "Code envoyé (debug : {code})."
+            "body": "Le code est valable 5 minutes."
           },
           "verified": {
             "title": "Téléphone vérifié",
@@ -4074,11 +4070,9 @@
           "sending": "Envoi…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code est valable 5 minutes.",
-            "bodyDebug": "Code envoyé (debug : {code})."
+            "body": "Le code est valable 5 minutes."
           },
           "verified": {
             "title": "Téléphone vérifié",
@@ -4248,10 +4242,8 @@
             "verifying": "Vérification…",
             "sentTitle": "Code envoyé",
             "sentBody": "Le code est valable 5 minutes.",
-            "sentDebug": "Code envoyé (debug : {code}).",
             "verifiedTitle": "Téléphone vérifié",
             "verifiedBody": "Vous pouvez maintenant publier votre bien.",
-            "devHint": "Code de développement : {code}",
             "errors": {
               "sendFailed": "Envoi du code impossible",
               "verifyFailed": "Code invalide"
@@ -7024,7 +7016,6 @@
       "saveError": "Échec de la mise à jour du profil.",
       "saved": "Modifications enregistrées.",
       "otpSent": "Code envoyé par SMS. Il est valable 5 minutes.",
-      "otpSentDebug": "Code envoyé. (Debug : {code})",
       "phoneVerifiedOk": "Téléphone vérifié avec succès."
     },
     "searchPreferences": {

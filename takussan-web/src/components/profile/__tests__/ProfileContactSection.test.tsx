@@ -124,7 +124,7 @@ describe('<ProfileContactSection>', () => {
 
   it('opens the OTP flow on "Vérifier" and confirms via phoneVerifyOtpAction', async () => {
     const user = userEvent.setup();
-    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
+    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true } });
     verifyOtpMock.mockResolvedValue({ ok: true, data: null });
 
     render(withIntl(
@@ -164,7 +164,7 @@ describe('<ProfileContactSection>', () => {
 
   it('syncs the auth context after a successful OTP verification', async () => {
     const user = userEvent.setup();
-    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
+    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true } });
     verifyOtpMock.mockResolvedValue({ ok: true, data: null });
 
     render(withIntl(

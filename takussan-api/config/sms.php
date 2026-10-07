@@ -34,12 +34,23 @@ return [
      * until one returns `sent`. `failed` and `deferred_to_fallback`
      * both trigger the next driver in the chain in the same execution.
      */
-    'fallback_chains' => [
-        'orange' => ['orange', 'lafricamobile', 'mtarget'],
-        'free' => ['lafricamobile', 'mtarget'],
-        'expresso' => ['lafricamobile', 'mtarget'],
-        'default' => ['lafricamobile', 'mtarget'],
-    ],
+    'fallback_chains' => array_map(
+        // TCK-589 — `SMS_LOG_FALLBACK=true` (développement seulement, `.env.docker`)
+        // termine chaque chaîne par le pilote `log` : sans fournisseur configuré, le
+        // SMS — et le code de vérification qu'il porte — s'écrit dans le journal au
+        // lieu de se perdre. L'API ne rend plus jamais ce code (ADR-0033 §5) : c'est
+        // la seule façon, en local, de franchir l'étape « code SMS ». Faux par défaut,
+        // et forcé à faux dans `phpunit.xml`.
+        fn (array $chain): array => filter_var(env('SMS_LOG_FALLBACK', false), FILTER_VALIDATE_BOOL)
+            ? [...$chain, 'log']
+            : $chain,
+        [
+            'orange' => ['orange', 'lafricamobile', 'mtarget'],
+            'free' => ['lafricamobile', 'mtarget'],
+            'expresso' => ['lafricamobile', 'mtarget'],
+            'default' => ['lafricamobile', 'mtarget'],
+        ],
+    ),
 
     /**
      * Mapping driver-id → Integration.provider value used to look up

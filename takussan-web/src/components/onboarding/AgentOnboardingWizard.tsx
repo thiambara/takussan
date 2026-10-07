@@ -224,7 +224,6 @@ function PhoneStep({ data, setData }: StepProps) {
   const [sendPending, startSend] = useTransition();
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
-  const [debugCode, setDebugCode] = useState<string | null>(null);
 
   const handleSend = () => {
     if (!numeroComposable(data.phone.number)) return;
@@ -243,12 +242,10 @@ function PhoneStep({ data, setData }: StepProps) {
         return;
       }
       setOtpSent(true);
-      setDebugCode(res.data.debug_code ?? null);
       toast.add({
         title: t('sent.title'),
-        description: res.data.debug_code
-          ? t('sent.bodyDebug', { code: res.data.debug_code })
-          : t('sent.body'),
+        // TCK-589 — le code part par SMS ; l'API ne le rend plus, dans aucun environnement.
+        description: t('sent.body'),
         type: 'success',
       });
     });
@@ -328,11 +325,6 @@ function PhoneStep({ data, setData }: StepProps) {
                 })
               }
             />
-            {debugCode ? (
-              <span className="text-xs text-muted-foreground">
-                {t('devHint', { code: debugCode })}
-              </span>
-            ) : null}
           </div>
           <div className="flex items-end">
             <Button

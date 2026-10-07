@@ -93,9 +93,8 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
       setOtpSent(true);
       setOtpFeedback({
         ok: true,
-        message: result.data.debug_code
-          ? t('otpSentDebug', { code: result.data.debug_code })
-          : t('otpSent'),
+        // TCK-589 — le code part par SMS ; l'API ne le rend plus.
+        message: t('otpSent'),
       });
     });
   }

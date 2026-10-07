@@ -2211,11 +2211,9 @@
           "sending": "Yónnee na…",
           "verifyCta": "Verifie",
           "verifying": "Verifie na…",
-          "devHint": "Kod dev: {code}",
           "sent": {
             "title": "Kod yónni nañu ko",
-            "body": "Kod bi dina dox 5 simili.",
-            "bodyDebug": "Kod yónni nañu ko (debug: {code})."
+            "body": "Kod bi dina dox 5 simili."
           },
           "verified": {
             "title": "Téléphone verifie nañu ko",
@@ -2336,11 +2334,9 @@
           "sending": "Yónn naa…",
           "verifyCta": "Vérifie",
           "verifying": "Vérifie naa…",
-          "devHint": "Code dev: {code}",
           "sent": {
             "title": "Code yónn na",
-            "body": "Kod bi dina dox 5 simili.",
-            "bodyDebug": "Code yónn na (debug: {code})."
+            "body": "Kod bi dina dox 5 simili."
           },
           "verified": {
             "title": "Téléphone vérifie na",
@@ -2700,11 +2696,9 @@
           "sending": "Yónnee…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code dev : {code}",
           "sent": {
             "title": "Code yónnee nañu",
-            "body": "Kod bi dina dox 5 simili.",
-            "bodyDebug": "Code yónnee (debug : {code})."
+            "body": "Kod bi dina dox 5 simili."
           },
           "verified": {
             "title": "Telefoŋ vérifier nañu",
@@ -2874,10 +2868,8 @@
             "verifying": "Véerifikoŋ…",
             "sentTitle": "Kódu yónni",
             "sentBody": "Kod bi dina dox 5 simili.",
-            "sentDebug": "Kódu yónni (debug : {code}).",
             "verifiedTitle": "Telefoŋ véerifié",
             "verifiedBody": "Mën nga publi sa biir.",
-            "devHint": "Kódu développement : {code}",
             "errors": {
               "sendFailed": "Kódu bi mënul yónni",
               "verifyFailed": "Kódu baaxul"
@@ -6424,7 +6416,6 @@
       "saveError": "Coppite yi ci profil bi antuwul.",
       "saved": "Coppite yi ñu leen denc.",
       "otpSent": "Kod bi ñu ko yónnee ci SMS. Dina dox 5 simili.",
-      "otpSentDebug": "Kod bi ñu ko yónnee. (Debug : {code})",
       "phoneVerifiedOk": "Telefon bi ñu ko wóoral bu baax."
     },
     "searchPreferences": {

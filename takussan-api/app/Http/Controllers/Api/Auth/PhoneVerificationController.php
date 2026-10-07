@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ResendPhoneVerificationRequest;
 use App\Http\Requests\Auth\VerifyPhoneVerificationRequest;
+use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
 
@@ -16,16 +17,18 @@ class PhoneVerificationController extends Controller
     {
 
         $user = $request->user();
-        abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
-        abort_unless($user->phone !== null, 422, 'No phone number on file.');
+        abort_if($user->phone_verified_at !== null, 422, __('auth.phone.already_verified'));
+        abort_unless($user->phone !== null, 422, __('auth.phone.missing'));
 
         abort_unless(
             $this->service->verifyOtp($user, $request->input('code')),
             422,
-            'Invalid or expired verification code.',
+            __('auth.phone.code_invalid'),
         );
 
-        $user->forceFill(['phone_verified_at' => now()])->save();
+        // TCK-589 — le seul écrivain de `phone_verified_at` : 409 `phone_taken`
+        // si un autre compte a déjà vérifié ce numéro.
+        $this->service->markVerified($user, (string) $user->phone);
 
         return $this->json(['data' => ['verified' => true]]);
     }
@@ -52,22 +55,25 @@ class PhoneVerificationController extends Controller
             }
         }
 
-        abort_if($user->phone_verified_at !== null, 422, 'Phone already verified.');
-        abort_unless($user->phone !== null, 422, 'No phone number on file.');
+        abort_if($user->phone_verified_at !== null, 422, __('auth.phone.already_verified'));
+        abort_unless($user->phone !== null, 422, __('auth.phone.missing'));
+
+        // TCK-589 — refuser AVANT de dépenser un SMS un numéro qu'un autre
+        // compte a déjà vérifié : le code reçu ne pourrait rien vérifier.
+        if ($this->service->isVerifiedElsewhere((string) $user->phone, $user)) {
+            return AuthRefusal::response(409, 'phone_taken', 'auth.phone.taken');
+        }
+
         abort_unless(
             $this->service->canResend($user),
             429,
-            'Please wait before requesting another code.',
+            __('auth.phone.resend_wait'),
         );
 
-        $debugCode = $this->service->sendOtp($user);
+        // TCK-589 — le code n'est rendu dans AUCUN environnement (`debug_code`
+        // retiré) : il part par SMS, et les tests le lisent par le faux routeur.
+        $this->service->sendOtp($user);
 
-        $payload = ['sent' => true];
-        if ($debugCode !== null) {
-            // Only leaked outside production — useful for Feature tests & dev.
-            $payload['debug_code'] = $debugCode;
-        }
-
-        return $this->json(['data' => $payload]);
+        return $this->json(['data' => ['sent' => true]]);
     }
 }

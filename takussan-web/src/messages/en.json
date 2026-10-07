@@ -3585,11 +3585,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -3710,11 +3708,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4074,11 +4070,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4248,10 +4242,8 @@
             "verifying": "Verifying…",
             "sentTitle": "Code sent",
             "sentBody": "The code is valid for 5 minutes.",
-            "sentDebug": "Code sent (debug: {code}).",
             "verifiedTitle": "Phone verified",
             "verifiedBody": "You can now publish your property.",
-            "devHint": "Development code: {code}",
             "errors": {
               "sendFailed": "Could not send the code",
               "verifyFailed": "Invalid code"
@@ -7024,7 +7016,6 @@
       "saveError": "Profile update failed.",
       "saved": "Changes saved.",
       "otpSent": "Code sent by SMS. It is valid for 5 minutes.",
-      "otpSentDebug": "Code sent. (Debug: {code})",
       "phoneVerifiedOk": "Phone verified successfully."
     },
     "searchPreferences": {

@@ -467,7 +467,6 @@ function PhoneOtpField({ data, setData }: StepProps) {
   const [sendPending, startSend] = useTransition();
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
-  const [debugCode, setDebugCode] = useState<string | null>(null);
   const { location } = useUserLocation();
   const indicatif = normaliserIndicatif(location?.country_calling_code);
   const numeroPret = numeroComposable(data.phone_otp.phone);
@@ -492,12 +491,10 @@ function PhoneOtpField({ data, setData }: StepProps) {
       // into the auth context so the rest of the app stays in sync.
       await refreshUser();
       setOtpSent(true);
-      setDebugCode(res.data.debug_code ?? null);
       toast.add({
         title: t('otp.sentTitle'),
-        description: res.data.debug_code
-          ? t('otp.sentDebug', { code: res.data.debug_code })
-          : t('otp.sentBody'),
+        // TCK-589 — le code part par SMS ; l'API ne le rend plus, dans aucun environnement.
+        description: t('otp.sentBody'),
         type: 'success',
       });
     });
@@ -601,11 +598,6 @@ function PhoneOtpField({ data, setData }: StepProps) {
                 })
               }
             />
-            {debugCode ? (
-              <span className="text-xs text-muted-foreground">
-                {t('otp.devHint', { code: debugCode })}
-              </span>
-            ) : null}
           </div>
           <div className="flex items-end">
             <Button

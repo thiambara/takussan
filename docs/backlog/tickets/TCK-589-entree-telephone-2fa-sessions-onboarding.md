@@ -635,4 +635,39 @@ nommé (ablation). AC2, AC3, AC6 (sauf le numéro injoignable) et AC17 posent
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Branche `feat/tck-589-entree-telephone-2fa`, partie de `origin/dev` à `5f872f1f` (2026-10-07).
+
+### §0 — ADR-0033 (commit `b0682528`)
+
+Écrit et accepté avant le code. Valeurs tranchées : limiteurs `auth-phone-send` (numéro 3/15 min et
+5/24 h, IP 20/h), `auth-phone-verify` (numéro 10/15 min), 5 échecs par code, verrou à 10 échecs
+consécutifs (mot de passe **ou** code) pendant 15 min ; pour un numéro sans compte, même compteur
+en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
+
+### §1 — le code part vraiment
+
+- **Re-mesuré** : 1.1 à 1.6 exacts sur `5f872f1f`. Écart : **six** composants affichaient le code,
+  pas cinq — `OwnerOnboardingWizard.tsx:215-219, 300-304` manquait à la liste de 1.6 ; et chaque
+  assistant affichait le code deux fois (toast `bodyDebug` **et** ligne `devHint` sous le champ) :
+  9 clés retirées par langue, pas 3. `SmsDriverInterface` n'a aucun consommateur dans `app/`
+  (`SMS_DEFAULT_DRIVER=log` ne change donc rien au routeur) : en développement, sans `debug_code`
+  ni `123456`, l'étape « code SMS » serait devenue infranchissable. D'où `SMS_LOG_FALLBACK`
+  (`config/sms.php`) : vrai dans `.env.docker` seulement, il termine chaque chaîne par le pilote
+  `log` ; vide dans `.env.example`, forcé à faux dans `phpunit.xml`.
+- `PhoneVerificationService` : code haché (`hash_hmac` sur `APP_KEY`), lié au numéro auquel il a
+  été envoyé, compteur d'échecs par code ; `sendOtp()` rend un booléen ; envoi direct par
+  `SmsRouterDriver` (`is_critical`, `bypass_quiet_hours`, `event_type = phone_otp`), texte
+  `auth.phone.sms_code`. Le même mécanisme sert un code adressé à un numéro sans compte
+  (`sendCodeTo` / `verifyCodeFor`, par portée) : c'est la porte de TCK-596 / TCK-599.
+- `Tests\Support\FakeSmsRouter` (sous-classe sans dépendance du vrai routeur, liée par
+  `app()->instance`) et le trait `Tests\Support\ReadsPhoneCodes` : les quatre tests d'onboarding
+  et `PhoneVerificationTest` lisent désormais le code dans le SMS reçu.
+- **Exécutions** : `php artisan test tests/Feature/Auth/Phone tests/Feature/Auth/PhoneVerificationTest.php
+  tests/Feature/Onboarding` → vert ; `npx vitest run src/components/profile src/components/onboarding`
+  → 17 fichiers, 117 tests verts ; `npx tsc --noEmit` et `eslint` propres.
+- **Ablations** (script `ablate.py` du scratchpad : remplace, lance, restaure) :
+  - AC1 — remettre un `log-stub` dans `deliver()` → `PhoneOtpDeliveryTest` 3 rouges ; envoyer par
+    `SmsChannel` (notification critique ad hoc) → rouge, 0 SMS reçu (abandon 1.4).
+  - AC1c — retirer le seuil de `check()` → `cinq_codes_faux_invalident_le_code` rouge, l'autre vert.
+  - AC1b — remettre le `123456` dans `OwnerOnboardingService` seul → `test_bailleur` rouge, les
+    trois autres verts.

@@ -47,11 +47,8 @@ export function PhoneVerificationSection({
         return;
       }
       setSent(true);
-      setFeedback(
-        result.data.debug_code
-          ? tOtp('otpSentDebug', { code: result.data.debug_code })
-          : tOtp('otpSent'),
-      );
+      // TCK-589 — le code part par SMS ; l'API ne le rend plus.
+      setFeedback(tOtp('otpSent'));
     });
   }
 

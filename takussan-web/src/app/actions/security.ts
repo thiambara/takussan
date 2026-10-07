@@ -122,7 +122,7 @@ export async function twoFactorRegenerateAction(): Promise<
 
 export async function phoneSendOtpAction(
   phone?: string,
-): Promise<ActionResult<{ sent: boolean; debug_code?: string }>> {
+): Promise<ActionResult<{ sent: boolean }>> {
   try {
     const token = await getToken();
     requireToken(token, await jetonManquant());
