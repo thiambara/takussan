@@ -460,7 +460,8 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
 
 1. **Le rôle est un profil polymorphe, pas une permission.** `spatie/laravel-permission` a été
    **désinstallé** (TCK-278) et remplacé par des profils (`OwnerProfile`, `AgentProfile`,
-   `AgencyAdminProfile`, `BrokerProfile`, `ServiceProviderProfile`, `PlatformProfile`), une enum
+   `AgencyAdminProfile`, `ServiceProviderProfile`, `PlatformProfile` — le courtier a quitté le code,
+   [ADR-0030](docs/adr/0030-le-courtier-quitte-le-code-et-la-base.md)), une enum
    `Capability` de 44 cas `<domaine>.<verbe>`, et `MembershipCapabilityResolver` — table de vérité
    définie en code, additive (OR entre profils). Une garde CI casse sur tout import
    `Spatie\Permission\`. *Des docblocks décrivent encore le mécanisme supprimé : ne pas les croire
