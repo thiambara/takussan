@@ -37,6 +37,9 @@ class InventoryPolicy extends BasePolicy
     /**
      * Administrer un état des lieux : les mêmes, **sans le locataire**. Un locataire consulte et
      * conteste son état des lieux ; il ne le modifie pas.
+     *
+     * TCK-587 (ADR-0031 §2, passe 2 N2) — un bailleur suspendu dans l'agence du bien le lit encore,
+     * il ne le modifie plus.
      */
     public function update(User $user, Model $model): bool
     {
@@ -47,8 +50,8 @@ class InventoryPolicy extends BasePolicy
         $property = $model->property;
 
         return $user->isSuperAdmin()
-            || $model->conducted_by === $user->id
-            || ($property && $property->user_id === $user->id)
+            || $this->landlordWrites($user, $model->conducted_by, $property?->agency_id)
+            || ($property && $this->landlordWrites($user, $property->user_id, $property->agency_id))
             || ($property && $this->isStaffOf($user, $property->agency_id));
     }
 }

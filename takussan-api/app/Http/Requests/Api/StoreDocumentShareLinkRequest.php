@@ -21,25 +21,15 @@ class StoreDocumentShareLinkRequest extends BaseFormRequest
      * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
      * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
      *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * TCK-587 (passe 2 N2) — la règle vit désormais dans `DocumentPolicy::share()`, son domicile
+     * annoncé ici depuis TCK-306 : un bailleur suspendu dans l'agence du porteur y perd le partage,
+     * ce qu'une expression recopiée n'aurait pas suivi.
      */
     public function authorize(): bool
     {
         $document = $this->route('document');
-        $porteur = $document?->documentable;
-        $user = $this->user();
 
-        return $user !== null && (
-            $user->isSuperAdmin()
-            || $document->uploaded_by === $user->id
-            || ($porteur && isset($porteur->user_id) && $porteur->user_id === $user->id)
-            // TCK-587 — le personnel de l'agence du porteur, plus tout membre (ADR-0031) : un bailleur
-            // de l'agence partageait publiquement le document d'un autre.
-            || ($porteur && isset($porteur->agency_id) && $user->staffAgencyId() === (int) $porteur->agency_id)
-        );
+        return $document !== null && $this->user()?->can('share', $document) === true;
     }
 
     /** @return array<string, mixed> */

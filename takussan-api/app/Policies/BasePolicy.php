@@ -121,14 +121,22 @@ abstract class BasePolicy
      * (`landlord_id`), sauf s'il est suspendu (`blocked`) dans l'agence de la ressource : il en garde
      * la lecture (il reste partie au contrat), il en perd les gestes — encaisser, modifier, renouveler,
      * résilier, réviser.
+     *
+     * Vérification adverse passe 2 (N2) — la règle vaut pour tout ce que le bailleur écrit en son
+     * nom propre dans l'agence, pas pour le seul bail : état des lieux, visite, document (modifier,
+     * supprimer, partager). `$authorId` est la colonne qui le désigne (`landlord_id`, `user_id` du
+     * bien, `conducted_by`, `uploaded_by`). Un profil de PERSONNEL actif dans la même agence écrit
+     * toujours : c'est en tant que personnel qu'il agit, pas en tant que bailleur.
      */
-    protected function landlordWrites(User $user, mixed $landlordId, mixed $agencyId): bool
+    protected function landlordWrites(User $user, mixed $authorId, mixed $agencyId): bool
     {
-        if ($landlordId === null || (int) $landlordId !== $user->id) {
+        if ($authorId === null || (int) $authorId !== $user->id) {
             return false;
         }
 
-        return $agencyId === null || ! $user->isBlockedOwnerAt((int) $agencyId);
+        return $agencyId === null
+            || ! $user->isBlockedOwnerAt((int) $agencyId)
+            || $this->isStaffOf($user, $agencyId);
     }
 
     /**

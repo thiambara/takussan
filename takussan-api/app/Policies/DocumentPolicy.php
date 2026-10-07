@@ -54,6 +54,9 @@ class DocumentPolicy extends BasePolicy
      * contrôleurs ne s'accordaient donc pas sur ce que « gérer un document » veut dire ; la
      * migration conserve chaque appel sur l'ability qu'il exerçait réellement, elle ne les
      * réconcilie pas en douce.
+     *
+     * TCK-587 (ADR-0031 §2, passe 2 N2) — un téléverseur suspendu comme bailleur dans l'agence du
+     * porteur le lit encore, il ne le modifie ni ne le supprime plus.
      */
     public function update(User $user, Model $model): bool
     {
@@ -61,7 +64,44 @@ class DocumentPolicy extends BasePolicy
             return false;
         }
 
-        return $user->isSuperAdmin() || $model->uploaded_by === $user->id;
+        return $user->isSuperAdmin()
+            || $this->landlordWrites($user, $model->uploaded_by, $this->agencyOf($model));
+    }
+
+    /**
+     * Partager un document par lien public : super-admin, le téléverseur, le propriétaire du
+     * porteur (`user_id`), ou le personnel de l'agence du porteur — la règle de
+     * `StoreDocumentShareLinkRequest`, qui la reprenait d'un contrôleur (TCK-305) et y délègue
+     * désormais.
+     *
+     * TCK-587 (ADR-0031 §2, passe 2 N2) — publier un lien est une écriture : un bailleur suspendu
+     * dans l'agence du porteur ne publie plus de lien vers un document de cette agence.
+     */
+    public function share(User $user, Model $model): bool
+    {
+        if (! $model instanceof Document) {
+            return false;
+        }
+
+        $porteur = $model->documentable;
+        $agencyId = $this->agencyOf($model);
+
+        return $user->isSuperAdmin()
+            || $this->landlordWrites($user, $model->uploaded_by, $agencyId)
+            || ($porteur && isset($porteur->user_id) && $this->landlordWrites($user, $porteur->user_id, $agencyId))
+            || ($porteur && isset($porteur->agency_id) && $this->isStaffOf($user, $porteur->agency_id));
+    }
+
+    /** L'agence du porteur : sa colonne `agency_id`, ou l'agence elle-même. Nulle pour un `User`. */
+    private function agencyOf(Document $document): ?int
+    {
+        $porteur = $document->documentable;
+
+        if ($porteur instanceof Agency) {
+            return (int) $porteur->id;
+        }
+
+        return isset($porteur?->agency_id) ? (int) $porteur->agency_id : null;
     }
 
     /**

@@ -4,15 +4,18 @@ namespace Tests\Feature\Api\Agency;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -272,5 +275,105 @@ class TeamMemberSuspensionTest extends ApiTestCase
 
         // Dans B, où il est actif, rien ne change.
         $this->patchJson("/api/leases/{$bailB->id}", ['late_fee_grace_days' => 3])->assertOk();
+    }
+
+    /**
+     * Vérification adverse passe 2 (N2, décision de la session) — la règle d'ADR-0031 §2 ne vaut
+     * pas pour le seul bail : un bailleur bloqué dans une agence y perd TOUTE écriture faite en son
+     * nom (état des lieux, visite, document), et en garde la lecture. Rend le bailleur, suspendu
+     * dans A et actif dans B, et ses deux biens.
+     *
+     * @return array{0: User, 1: Property, 2: Property}
+     */
+    private function bailleurBloqueDansA(): array
+    {
+        $bailleur = User::factory()->withOwnerProfile($this->agencyA)->withOwnerProfile($this->agencyB)->create();
+        $bienA = Property::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $this->agencyA->id]);
+        $bienB = Property::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $this->agencyB->id]);
+
+        $this->actingAsApi($this->adminA);
+        $this->suspend($bailleur)->assertOk();
+        $this->actingAsApi($bailleur->fresh());
+
+        return [$bailleur, $bienA, $bienB];
+    }
+
+    /** N2 — l'état des lieux, qu'il le désigne comme propriétaire du bien ou comme celui qui l'a conduit. */
+    public function test_un_bailleur_bloque_ne_modifie_plus_un_etat_des_lieux(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $parLAgent = Inventory::factory()->create(['property_id' => $bienA->id, 'conducted_by' => $this->adminA->id]);
+        $parLui = Inventory::factory()->create(['property_id' => $bienA->id, 'conducted_by' => $bailleur->id]);
+        $dansB = Inventory::factory()->create(['property_id' => $bienB->id, 'conducted_by' => $bailleur->id]);
+
+        foreach ([$parLAgent, $parLui] as $edl) {
+            $this->getJson("/api/inventories/{$edl->id}")->assertOk();
+            $this->patchJson("/api/inventories/{$edl->id}", ['notes' => 'réécrit'])->assertForbidden();
+            $this->assertNotSame('réécrit', $edl->fresh()->notes);
+        }
+        $this->patchJson("/api/inventories/{$dansB->id}", ['notes' => 'réécrit'])->assertOk();
+    }
+
+    /** N2 — la visite de son bien : il la lit, il ne la déplace plus. */
+    public function test_un_bailleur_bloque_ne_modifie_plus_une_visite(): void
+    {
+        [, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $visiteA = PropertyVisit::factory()->create(['property_id' => $bienA->id]);
+        $visiteB = PropertyVisit::factory()->create(['property_id' => $bienB->id]);
+        $nouvelle = now()->addDays(5)->setTime(10, 0)->toIso8601String();
+
+        $this->getJson("/api/property-visits/{$visiteA->id}")->assertOk();
+        $this->patchJson("/api/property-visits/{$visiteA->id}", ['scheduled_at' => $nouvelle])->assertForbidden();
+        $this->assertTrue($visiteA->fresh()->scheduled_at->equalTo($visiteA->scheduled_at));
+        $this->patchJson("/api/property-visits/{$visiteB->id}", ['scheduled_at' => $nouvelle])->assertOk();
+    }
+
+    /**
+     * N2 — le partage public, le geste le plus sensible : un lien publié survit à tout ce que
+     * l'agence fait ensuite. Les deux titres qui l'ouvraient sont fermés : téléverseur (document de
+     * son bail) et propriétaire du porteur (document de son bien téléversé par l'agence).
+     */
+    public function test_un_bailleur_bloque_ne_partage_plus_un_document(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $bailA = Lease::factory()->create(['property_id' => $bienA->id, 'landlord_id' => $bailleur->id, 'agency_id' => $this->agencyA->id]);
+        $televerseParLui = Document::factory()->create(['documentable_type' => Lease::class, 'documentable_id' => $bailA->id, 'uploaded_by' => $bailleur->id]);
+        $surSonBien = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bienA->id, 'uploaded_by' => $this->adminA->id]);
+        $dansB = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bienB->id, 'uploaded_by' => $bailleur->id]);
+
+        foreach ([$televerseParLui, $surSonBien] as $document) {
+            $this->getJson("/api/documents/{$document->id}")->assertOk();
+            $this->postJson("/api/documents/{$document->id}/share", [])->assertForbidden();
+            $this->assertSame(0, $document->shareLinks()->count());
+        }
+        $this->postJson("/api/documents/{$dansB->id}/share", [])->assertCreated();
+    }
+
+    /** N2 — la suppression : il la perdait par la seule règle du téléverseur. */
+    public function test_un_bailleur_bloque_ne_supprime_plus_un_document(): void
+    {
+        [$bailleur, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $documentA = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bienA->id, 'uploaded_by' => $bailleur->id]);
+        $documentB = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bienB->id, 'uploaded_by' => $bailleur->id]);
+
+        $this->getJson("/api/documents/{$documentA->id}")->assertOk();
+        $this->deleteJson("/api/documents/{$documentA->id}")->assertForbidden();
+        $this->assertNotNull($documentA->fresh());
+        $this->deleteJson("/api/documents/{$documentB->id}")->assertNoContent();
+    }
+
+    /**
+     * N2 — la règle borne le BAILLEUR, pas le personnel : un agent actif de A qui y garde un profil
+     * de bailleur bloqué agit en tant qu'agent, et supprime encore ce qu'il a téléversé.
+     */
+    public function test_un_agent_actif_au_profil_de_bailleur_bloque_ecrit_en_agent(): void
+    {
+        $agent = User::factory()->withAgentProfile($this->agencyA)->withOwnerProfile($this->agencyA)->create();
+        OwnerProfile::query()->where('user_id', $agent->id)->update(['status' => 'blocked']);
+        $bien = Property::factory()->create(['agency_id' => $this->agencyA->id]);
+        $document = Document::factory()->create(['documentable_type' => Property::class, 'documentable_id' => $bien->id, 'uploaded_by' => $agent->id]);
+
+        $this->actingAsApi($agent->fresh());
+        $this->deleteJson("/api/documents/{$document->id}")->assertNoContent();
     }
 }
