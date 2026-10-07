@@ -114,8 +114,9 @@ class PaymentController extends Controller
                     $bq->where(function ($inner) use ($user): void {
                         $inner->where('created_by_id', $user->id)
                             ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
-                        if ($user->agency_id) {
-                            $inner->orWhere('agency_id', $user->agency_id);
+                        // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
+                        if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                            $inner->orWhere('agency_id', $staffAgencyId);
                         }
                         $inner->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
                     });
@@ -128,8 +129,8 @@ class PaymentController extends Controller
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
                         $inner->where('landlord_id', $user->id);
-                        if ($user->agency_id) {
-                            $inner->orWhere('agency_id', $user->agency_id);
+                        if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                            $inner->orWhere('agency_id', $staffAgencyId);
                         }
                         $inner->orWhereHas('tenant', fn ($c) => $c->where('user_id', $user->id));
                     });
@@ -349,7 +350,8 @@ class PaymentController extends Controller
         $customer = $booking->customer;
         $ok = $user->isSuperAdmin()
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
+            // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
+            || ($booking->agency_id !== null && $user->staffAgencyId() === (int) $booking->agency_id)
             // TCK-172 — the customer themselves can create their own pending payment
             // (deposit / balance) so the gateway checkout flow can be initiated.
             || ($customer && $customer->user_id === $user->id);
@@ -362,7 +364,7 @@ class PaymentController extends Controller
         $tenant = $lease->tenant;
         $ok = $user->isSuperAdmin()
             || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id)
+            || ($lease->agency_id !== null && $user->staffAgencyId() === (int) $lease->agency_id)
             // TCK-172 — tenant can create their own pending lease payment.
             || ($tenant && $tenant->user_id === $user->id);
 

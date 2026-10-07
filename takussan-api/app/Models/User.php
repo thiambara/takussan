@@ -12,6 +12,8 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Profiles\ActiveProfileResolver;
 use App\Support\CaseInsensitive;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -240,7 +242,11 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         // TCK-278 — Tolérer plusieurs profils dans la **même** agence
         // (ex. AgentProfile + OwnerProfile materialisés ensemble par les
         // fixtures de coexistence). Multi-agences reste null par sécurité.
-        $profiles = $this->profiles();
+        //
+        // TCK-587 (ADR-0031 §3) — profils ACTIFS seulement, même règle que l'auto-bascule du
+        // middleware : un profil suspendu ne donne plus d'agence, donc plus de périmètre.
+        $profiles = $this->profiles()
+            ->filter(fn ($p) => ActiveProfileResolver::isActiveProfile($p));
         $agencyIds = $profiles
             ->map(fn ($p) => isset($p->agency_id) ? (int) $p->agency_id : null)
             ->filter()
@@ -248,6 +254,18 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ->values();
 
         return $agencyIds->count() === 1 ? (int) $agencyIds->first() : null;
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §1) — l'agence du profil actif si l'utilisateur y est PERSONNEL (agent ou
+     * admin actif, ou délégation active de ces rôles), sinon `null`. Relais de
+     * {@see MembershipCapabilityResolver::staffAgencyId()} : c'est ce prédicat, et non
+     * `$this->agency_id`, que lit toute clause qui ouvre le périmètre d'une agence — `agency_id`
+     * est aussi celui d'un bailleur.
+     */
+    public function staffAgencyId(): ?int
+    {
+        return app(MembershipCapabilityResolver::class)->staffAgencyId($this);
     }
 
     /**

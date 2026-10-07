@@ -146,11 +146,19 @@ trait HasProfiles
         };
     }
 
+    /**
+     * TCK-587 (ADR-0031 §3) — `isOwnerAt`, `isAgentAt` et `isAgencyAdminAt` jugent un DROIT : ils ne
+     * comptent que les profils ACTIFS. Ils ne filtraient que `deleted_at` (redondant : les trois
+     * modèles sont `SoftDeletes`), si bien qu'un co-admin suspendu suspendait encore les autres
+     * (`AgentInvitationService::suspend`). Un site qui teste une APPARTENANCE — doublon
+     * d'invitation, réactivation, liste d'équipe — emploie {@see self::hasProfileAt()}, sans filtre
+     * de statut.
+     */
     public function isOwnerAt(int $agencyId): bool
     {
         return $this->ownerProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 
@@ -158,7 +166,7 @@ trait HasProfiles
     {
         return $this->agentProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 
@@ -166,7 +174,7 @@ trait HasProfiles
     {
         return $this->agencyAdminProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 

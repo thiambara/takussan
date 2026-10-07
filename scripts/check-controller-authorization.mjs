@@ -126,20 +126,20 @@ const EXEMPTIONS_JUSTIFIEES = new Map([
   // l'autorisation portée dans `authorize()`, et ont été supprimés. C'est la garde qui l'a
   // dit, en refusant deux exemptions devenues mortes.
   //
+  // **12 depuis TCK-587** : `BookingPaymentController::authorizeBookingAccess`,
+  // `LeasePaymentController::authorizeLeaseAccess`, `DocumentPdfController::authorizeInvoice`,
+  // `::authorizeLease` et `CustomerNoteController::authorizeCustomerAccess` recopiaient la règle
+  // `view` de leur policy, et lui délèguent.
+  //
   // Chaque entrée retirée est un helper migré.
   // ───────────────────────────────────────────────────────────────────────────
   ...[
     'Api/Agency/KycController.php::authorizeAgencyAdmin',
     'Api/AgencyController.php::authorizeAdmin',
-    'Api/BookingPaymentController.php::authorizeBookingAccess',
-    'Api/CustomerNoteController.php::authorizeCustomerAccess',
     'Api/DocumentPdfController.php::authorizeReceipt',
-    'Api/DocumentPdfController.php::authorizeInvoice',
-    'Api/DocumentPdfController.php::authorizeLease',
     'Api/DocumentShareLinkController.php::authorizeDocument',
     'Api/KpiConfigController.php::authorizeAgency',
     'Api/KycDocumentController.php::authorizeDocument',
-    'Api/LeasePaymentController.php::authorizeLeaseAccess',
     'Api/Me/TenantOnboardingChecklistController.php::authorizeTenant',
     'Api/MediaController.php::authorizeAttach',
     'Api/PaymentController.php::authorizeBookingManage',

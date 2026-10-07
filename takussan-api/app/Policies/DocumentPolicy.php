@@ -65,12 +65,28 @@ class DocumentPolicy extends BasePolicy
     }
 
     /**
+     * TCK-587 — supprimer un document : la règle d'`update()`, inchangée (le téléverseur seul).
+     *
+     * `DocumentController::destroy` autorisait par `update` ; il autorise désormais par `delete`,
+     * et cette surcharge est ce qui l'empêche d'être fermé à tous : `BasePolicy::delete()` sans
+     * capacité déclarée n'accorde qu'au super-admin.
+     */
+    public function delete(User $user, Model $model): bool
+    {
+        return $this->update($user, $model);
+    }
+
+    /**
      * TCK-306 — reprise de `authorizeUpload()` : a-t-on accès au modèle porteur ?
      *
      * Sept branches, une par type de `documentable`. Elles ne se déduisent pas les unes des
      * autres : `Property` regarde `user_id`, `Lease` ajoute le locataire, `Customer` regarde DEUX
      * colonnes de propriété, `User` n'autorise que soi-même, et `Agency` compare l'agence à
      * l'identifiant du modèle et non à une colonne `agency_id`.
+     *
+     * TCK-587 (ADR-0031) — chaque « périmètre d'agence » est le PERSONNEL de l'agence : un bailleur
+     * de l'agence lisait les documents des biens, baux, réservations, clients et de l'agence d'un
+     * autre bailleur.
      */
     public function attachTo(User $user, Model $documentable): bool
     {
@@ -80,12 +96,12 @@ class DocumentPolicy extends BasePolicy
 
         if ($documentable instanceof Property) {
             return $documentable->user_id === $user->id
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id);
+                || $this->isStaffOf($user, $documentable->agency_id);
         }
 
         if ($documentable instanceof Lease) {
             return $documentable->landlord_id === $user->id
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id)
+                || $this->isStaffOf($user, $documentable->agency_id)
                 || ($documentable->tenant && $documentable->tenant->user_id === $user->id);
         }
 
@@ -94,13 +110,13 @@ class DocumentPolicy extends BasePolicy
 
             return $documentable->created_by_id === $user->id
                 || ($property && $property->user_id === $user->id)
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id);
+                || $this->isStaffOf($user, $documentable->agency_id);
         }
 
         if ($documentable instanceof Customer) {
             return $documentable->added_by_id === $user->id
                 || $documentable->user_id === $user->id
-                || ($user->agency_id && $documentable->agency_id === $user->agency_id);
+                || $this->isStaffOf($user, $documentable->agency_id);
         }
 
         if ($documentable instanceof User) {
@@ -108,13 +124,14 @@ class DocumentPolicy extends BasePolicy
         }
 
         if ($documentable instanceof Agency) {
-            return $user->agency_id === $documentable->id;
+            // TCK-587 — les documents de l'AGENCE elle-même (KYC, statuts) : son personnel seul.
+            return $this->isStaffOf($user, $documentable->id);
         }
 
         if ($documentable instanceof Inventory) {
             return $documentable->conducted_by === $user->id
                 || ($documentable->property && $documentable->property->user_id === $user->id)
-                || ($user->agency_id && $documentable->property && $documentable->property->agency_id === $user->agency_id);
+                || ($documentable->property && $this->isStaffOf($user, $documentable->property->agency_id));
         }
 
         return false;

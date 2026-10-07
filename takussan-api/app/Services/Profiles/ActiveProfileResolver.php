@@ -109,4 +109,20 @@ class ActiveProfileResolver
             default => $profile,
         };
     }
+
+    /**
+     * TCK-587 (ADR-0031 §3) — un profil commutable est-il ACTIF ?
+     *
+     * La même règle que la fin de {@see self::resolve()} — qui refuse un profil non actif nommé par
+     * en-tête ou cookie —, pour les deux chemins qui choisissent un profil SANS qu'on le nomme :
+     * l'auto-bascule de `ResolveActiveProfile` et le repli de `User::getAgencyIdAttribute()`. Ils
+     * retenaient un profil quel que soit son statut : un agent suspendu de sa seule agence en gardait
+     * le périmètre. Les quatre énumérations de statut nomment leur cas actif `'active'`.
+     */
+    public static function isActiveProfile(Model $profile): bool
+    {
+        $status = $profile->getAttribute('status');
+
+        return ($status instanceof \BackedEnum ? $status->value : $status) === 'active';
+    }
 }

@@ -15,6 +15,7 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
 use App\Support\AgencyKindGuard;
@@ -234,7 +235,7 @@ class AgencyController extends Controller
         // plus les users avec rôle spatie `agency_admin` + agent profile).
         DB::transaction(function () use ($user, $agency) {
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
-            if ($locked && $locked->isAgencyAdminAt((int) $agency->id)) {
+            if ($locked && $locked->hasProfileAt((int) $agency->id, AgencyAdminProfile::class)) {
                 $remainingAdmins = AgencyAdminProfile::query()
                     ->where('agency_id', $agency->id)
                     ->whereNull('deleted_at')
@@ -319,15 +320,13 @@ class AgencyController extends Controller
             // *Une liste de profils qui omet le plus privilégié ne se voit pas tant que l'autre
             // chemin fonctionne.*
             //
-            // ⚠ PAS de filtre sur `status`, et c'est une décision, pas un oubli. La colonne
-            // existe (`active`/`suspended`/`archived`), mais `HasProfiles::isAgencyAdminAt()` —
-            // qui accorde les DROITS d'admin — ne la filtre pas non plus. Filtrer ici seulement
-            // produirait l'état le plus déroutant qui soit : un administrateur suspendu qui peut
-            // agir sur l'agence sans pouvoir la lire. Les deux se décideront ensemble, dans
-            // TCK-278 (RBAC), pas à moitié dans un correctif de visibilité.
-            //
-            // *Resserrer une moitié d'une paire incohérente ne la rend pas cohérente ; cela
-            // déplace l'incohérence là où personne ne l'attend.*
+            // ⚠ PAS de filtre sur `status`, et c'est une décision, pas un oubli. La VISIBILITÉ
+            // reste une question d'appartenance : un membre suspendu voit l'agence. Ce qu'il y
+            // perd, ce sont les DROITS — et ceux-là sont filtrés depuis TCK-587 (ADR-0031 §3) :
+            // `HasProfiles::isAgencyAdminAt()`, le résolveur de capacités et le prédicat de
+            // personnel ne comptent plus que les profils actifs. Ce commentaire renvoyait la
+            // décision à TCK-278, clos sans l'avoir prise ; un administrateur suspendu agissait
+            // donc sur l'agence. La paire est désormais cohérente : lire sans agir.
             ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
             ->merge(DB::table('broker_profiles')
                 ->join('broker_agency_collaborations', 'broker_agency_collaborations.broker_profile_id', '=', 'broker_profiles.id')

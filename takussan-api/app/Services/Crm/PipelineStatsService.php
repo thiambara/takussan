@@ -3,6 +3,7 @@
 namespace App\Services\Crm;
 
 use App\Models\Customer;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\User;
@@ -67,10 +68,13 @@ class PipelineStatsService
             return $query;
         }
 
-        if ($user->agency_id) {
-            return $query->where(function (Builder $inner) use ($user) {
+        // TCK-587 — même périmètre que `CustomerController::index` et `CustomerPolicy::view` : le
+        // CRM de l'agence pour le personnel tenant `crm.view_all`, ses propres clients sinon.
+        $staffAgencyId = $user->staffAgencyId();
+        if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
+            return $query->where(function (Builder $inner) use ($user, $staffAgencyId) {
                 $inner
-                    ->where('agency_id', $user->agency_id)
+                    ->where('agency_id', $staffAgencyId)
                     ->orWhere('added_by_id', $user->id);
             });
         }

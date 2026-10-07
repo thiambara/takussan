@@ -662,4 +662,85 @@ Aucune migration de schéma. Endpoints :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Mesures prises sur la branche `feat/tck-587-cloisonnement-bailleurs`, base `dev` = `32dd0b39`,
+le 2026-10-07.
+
+### Étape 1 — §1 à §4 et §7 (back)
+
+**Prédicat.** `MembershipCapabilityResolver::staffAgencyId()` / `isStaffAt()` (profil agent ou
+admin `->active()`, ou délégation active `agent`/`agency_admin`), relais `User::staffAgencyId()`,
+et `BasePolicy::isStaffOf()` pour les policies. `StaffAgencyIdTest` : 9 cas.
+
+**Inventaire des 112 appels `isOwnerAt|isAgentAt|isAgencyAdminAt`** (re-mesuré, même compte que
+l'analyse). Passés sur `hasProfileAt()` parce qu'ils testent une **appartenance** :
+`UserAdminController` (appartenance de la cible), `AgencyMemberRoleController`,
+`UserRoleController`, `AgencyController::removeAgent` (dernier admin), `RoleDelegationService`
+(profils natifs), `PayoutService` (bailleur de l'agence), `Me/MeCapabilityController` (membre).
+Tous les autres sont des **droits** et lisent désormais `->active()`.
+`AgencyController.php` : le commentaire visé est aux lignes 322-333 (décalé de trois lignes).
+
+**Sites qui fuyaient au-delà de la liste du ticket**, fermés par le même prédicat :
+`MediaPolicy::viewRaw`, `BookingPaymentPolicy`, `PropertyModerationPolicy::resubmit`,
+`PaymentController` (historique, deux endroits, et ses deux helpers d'autorisation),
+`CustomerNoteController` (helper → `authorize('view', $customer)`), `InvoiceService`,
+`InventorySignatureService`, `PipelineStatsService` (personnel + `crm.view_all`),
+`KpiConfigController::index` / `ThresholdAlertController::index` (un bailleur reçoit 403),
+`IntegrationController` / `InvitationController` (périmètre visible),
+`StoreDocumentShareLinkRequest`, `AuthorizesTransitionally::canManageBooking`. La garde
+`check-agency-scope-clause.mjs` couvre donc aussi `app/Http/Requests` (le ticket ne nommait que
+policies, contrôleurs et services : une clause dans un `authorize()` de requête y échappait).
+
+**Garde `scripts/check-agency-scope-clause.mjs`** (Repo CI) : 574 fichiers, 0 violation ; 18 cas
+d'auto-épreuve. Exemptions nommées, cliquet bilatéral à **10** : `MaintenanceRequestPolicy::view|update|isPrincipalFor`,
+`MaintenanceRequestController::index` (TCK-592), `PropertyVisitController::store|feedback`
+(TCK-590), `ReviewController::reply|deleteReply` et `ReplyReviewRequest::authorize` (TCK-597),
+`FavoriteController::store` (TCK-599). `check-controller-authorization.mjs` : 5 exemptions
+retirées (les helpers remplacés par la policy), 12 restantes.
+
+**Écarts de règle assumés** (lus dans le Delta, précisés à l'implémentation) :
+- un client (`CustomerPolicy::delete`) ou une facture (`InvoicePolicy::send|markPaid|cancel`)
+  **sans agence** reste à son auteur / émetteur — aucun rôle ne peut y porter de capacité (même
+  règle que le bien sans agence). Une facture sans agence ne s'obtient pas par un bailleur :
+  créer exige `invoices.create` ;
+- l'auteur bailleur d'un client d'agence le **lit** mais ne le **supprime** pas (« auteur
+  personnel ») ;
+- l'agent du rôle système ne supprime plus **son propre** bien (`properties.delete` n'est pas dans
+  son rôle) — conséquence de « `delete` : `properties.delete` dans l'agence du bien » ;
+- `PropertyProposedNotification` passe par `AppDatabaseChannel` : la classe est ajoutée à
+  `AppDatabaseChannel::TYPES` (`System`), sans quoi le canal lève.
+- `PropertyVisitController::index` n'a jamais porté de périmètre d'agence : le personnel n'y voit
+  que ce qui le désigne. Ce n'est pas une fuite ; non modifié (le test du personnel l'exclut).
+
+**Fixtures corrigées** (bailleur nommé agent, ou compte sans profil qui créait un bien) — jamais en
+rendant un accès : `PayoutTest` (4), `PaymentGatewayVerifyTest`, `PropertyCrudTest` (4),
+`PropertyResourceRawFlagTest` (2), `CustomerPipelineTest` (2), `MediaPolicyTest`,
+`MigratedAuthorizationRulesTest` (émetteur d'un versement), `MessagingContactsTest` (un profil non
+actif ne donne plus d'agence : l'assertion de fixture s'inverse). Aide `Tests\Concerns\CreatesAgencyMembers`
+(`agencyAgent`, `agencyAdmin`, `agentWithout(...)` = rôle système moins des capacités).
+
+**Ablations** (chacune : vert avec le correctif, rouge sans, fichier restauré et vérifié) :
+
+| Retrait | Test | Résultat |
+|---|---|---|
+| `LeasePolicy::view` → `$user->agency_id === $model->agency_id` | `OwnerIsolationWithinAgencyTest` (refus) | rouge, 200 au lieu de 403 |
+| `LeaseController::index` → `$user->agency_id` | idem (listes) | rouge, le bail de B1 dans la liste de B2 |
+| `LeasePaymentController::index` → ancien helper | idem (hors policy) | rouge |
+| `LeaseService::create` → `$user->agency_id` | bailleur dont le rôle porte `leases.create` | rouge, 201 |
+| `LeaseService::create` sans `leases.create` | agent sans `leases.create` | rouge, 201 |
+| `BookingService::create` `$isStaff` → `$user->agency_id` | réservations (AC1d) | rouge, 201 et `customer_id` nul |
+| `PayoutPolicy::update` sans le refus du bénéficiaire | hôte admin et bailleur | rouge, 200 |
+| `StorePropertyRequest::authorize()` → `true` | compte sans profil | rouge, 201 |
+| proposition sans `draft` imposé | bailleur | rouge |
+| `destroy` → `update` | agent sur son propre bien | rouge, 204 |
+| `UpdateStatusPropertyRequest` sans `publish` | rôle sans `properties.publish` | rouge, 200 |
+| `assignAgent` → ancienne clause | B1 → B2 | rouge, 200 |
+| `CustomerController::destroy` → `view` | auteur bailleur | rouge, 204 |
+| `DocumentPolicy::delete` retiré | auteur du document | rouge, 403 |
+| `->active()` de `roleAllows()` | co-admin suspendu | rouge, 200 |
+| `->active()` de `isAgencyAdminAt()` | co-admin suspendu | rouge, 200 |
+| filtre de l'auto-bascule | agent suspendu, `meta.active_profile_id` | rouge, `'agent:1'` |
+| AC9 : cinq formes réintroduites dans `LeasePolicy::view` | `check-agency-scope-clause.mjs` | sortie 1 ×5 |
+
+Une ablation reste **verte** : `UpdateVisibilityPropertyRequest` revenu à `update`. Le contrôleur
+délègue à `publish()`, qui autorise `publish` : la requête est une seconde barrière (elle donne le
+403 avant la validation), pas la seule.

@@ -42,6 +42,11 @@ class LeasePolicy extends BasePolicy
     /**
      * TCK-306 — lire un bail : bailleur, périmètre d'agence, **locataire**, ou super-admin.
      *
+     * TCK-587 (ADR-0031) — le « périmètre d'agence » est le PERSONNEL de l'agence du bail
+     * ({@see BasePolicy::isStaffOf()}). Les sept clauses de cette policy comparaient
+     * `$user->agency_id` à celle du bail, vraie pour un autre bailleur de l'agence : il lisait et
+     * modifiait le bail.
+     *
      * Reprise EXACTE des trois `authorizeAccess()` qui portaient cette règle —
      * `LeaseController`, `LeaseChainController`, `LeaseDepositRefundController`. Les trois étaient
      * identiques au `?->` près : `LeaseChainController` seul se protégeait d'un `$user` nul. La
@@ -61,7 +66,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
+        if ($this->isStaffOf($user, $model->agency_id)) {
             return true;
         }
 
@@ -90,8 +95,29 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $model->agency_id) {
+        if ($this->isStaffOf($user, $model->agency_id)) {
             return true;
+        }
+
+        return $user->isSuperAdmin();
+    }
+
+    /**
+     * TCK-587 — encaisser un loyer : saisir un versement de loyer (`POST /api/leases/{id}/payments`)
+     * ou le marquer payé (`POST /api/lease-payments/{id}/mark-paid`).
+     *
+     * Le bailleur du bail, toujours ; sinon le personnel de l'agence du bail qui tient
+     * `payments.record`. Les deux requêtes jugeaient par `update`, qui n'exigeait aucune capacité :
+     * `payments.record` n'avait aucun lecteur.
+     */
+    public function recordPayment(User $user, Lease $lease): bool
+    {
+        if ($user->id === $lease->landlord_id) {
+            return true;
+        }
+
+        if ($this->isStaffOf($user, $lease->agency_id)) {
+            return $user->can(Capability::PaymentsRecord->value, $lease);
         }
 
         return $user->isSuperAdmin();
@@ -111,7 +137,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+        if ($this->isStaffOf($user, $lease->agency_id)) {
             return $user->can('leases.refund_deposit');
         }
 
@@ -134,7 +160,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+        if ($this->isStaffOf($user, $lease->agency_id)) {
             return $user->can('leases.renew');
         }
 
@@ -166,7 +192,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+        if ($this->isStaffOf($user, $lease->agency_id)) {
             return $user->can('leases.terminate');
         }
 
@@ -197,7 +223,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+        if ($this->isStaffOf($user, $lease->agency_id)) {
             return $user->can('leases.terminate');
         }
 
@@ -218,7 +244,7 @@ class LeasePolicy extends BasePolicy
             return true;
         }
 
-        if ($user->agency_id !== null && $user->agency_id === $lease->agency_id) {
+        if ($this->isStaffOf($user, $lease->agency_id)) {
             return $user->can('leases.rent_review');
         }
 

@@ -17,11 +17,13 @@ class ThresholdAlertController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->agency_id || $user->isSuperAdmin(), 403);
+        // TCK-587 — configuration de l'agence : son PERSONNEL (ADR-0031), plus tout membre.
+        $staffAgencyId = $user->staffAgencyId();
+        abort_unless($staffAgencyId !== null || $user->isSuperAdmin(), 403);
 
         $base = ThresholdAlert::query();
         if (! $user->isSuperAdmin()) {
-            $base->where('agency_id', $user->agency_id);
+            $base->where('agency_id', $staffAgencyId);
         }
 
         $paginator = ThresholdAlert::buildQuery($base, $request)

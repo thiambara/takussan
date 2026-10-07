@@ -4,6 +4,9 @@ namespace App\Services\Model;
 
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 
 class PayoutService
@@ -25,9 +28,10 @@ class PayoutService
         $agencyId = $user->agency_id;
         abort_if(
             $agencyId && ! (
-                $landlord->isOwnerAt($agencyId)
-                || $landlord->isAgentAt($agencyId)
-                || $landlord->isAgencyAdminAt($agencyId)
+                // TCK-587 — APPARTENANCE du bénéficiaire, sans filtre de statut.
+                $landlord->hasProfileAt((int) $agencyId, OwnerProfile::class)
+                || $landlord->hasProfileAt((int) $agencyId, AgentProfile::class)
+                || $landlord->hasProfileAt((int) $agencyId, AgencyAdminProfile::class)
             ),
             403,
             'Landlord does not belong to your agency.'

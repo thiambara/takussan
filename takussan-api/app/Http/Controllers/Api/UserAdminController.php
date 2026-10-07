@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\UserStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
@@ -109,9 +112,10 @@ class UserAdminController extends Controller
         $agencyId = $request->activeProfile()?->agency_id;
         AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
         if ($agencyId === null
-            || (! $target->isAgentAt($agencyId)
-                && ! $target->isOwnerAt($agencyId)
-                && ! $target->isAgencyAdminAt($agencyId))
+            // TCK-587 — APPARTENANCE de la cible, pas un droit : sans filtre de statut.
+            || (! $target->hasProfileAt($agencyId, AgentProfile::class)
+                && ! $target->hasProfileAt($agencyId, OwnerProfile::class)
+                && ! $target->hasProfileAt($agencyId, AgencyAdminProfile::class))
         ) {
             abort(422, __('messages.target_user_not_in_active_agency'));
         }

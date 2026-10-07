@@ -36,7 +36,9 @@ class StoreDocumentShareLinkRequest extends BaseFormRequest
             $user->isSuperAdmin()
             || $document->uploaded_by === $user->id
             || ($porteur && isset($porteur->user_id) && $porteur->user_id === $user->id)
-            || ($user->agency_id && $porteur && isset($porteur->agency_id) && $porteur->agency_id === $user->agency_id)
+            // TCK-587 — le personnel de l'agence du porteur, plus tout membre (ADR-0031) : un bailleur
+            // de l'agence partageait publiquement le document d'un autre.
+            || ($porteur && isset($porteur->agency_id) && $user->staffAgencyId() === (int) $porteur->agency_id)
         );
     }
 

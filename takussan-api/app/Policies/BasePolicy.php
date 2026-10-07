@@ -98,6 +98,25 @@ abstract class BasePolicy
     }
 
     /**
+     * TCK-587 (ADR-0031 §1) — l'appelant est-il PERSONNEL de cette agence (agent ou admin actif, ou
+     * délégation active de ces rôles, dans l'agence de son profil actif) ?
+     *
+     * C'est la seule forme du « périmètre d'agence » qu'une policy écrit. Elle remplace
+     * `$user->agency_id === $model->agency_id`, qui était vraie pour un BAILLEUR de l'agence :
+     * chacun lisait et modifiait les baux, loyers et versements de tous les autres.
+     */
+    protected function isStaffOf(User $user, mixed $agencyId): bool
+    {
+        if ($agencyId === null) {
+            return false;
+        }
+
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
+    }
+
+    /**
      * Le modèle est passé en contexte pour que la Gate dérivée de l'enum
      * (`AppServiceProvider`) en tire l'agence — sans quoi elle retomberait sur
      * le profil actif, ce qui est juste en HTTP mais faux en job et en console.

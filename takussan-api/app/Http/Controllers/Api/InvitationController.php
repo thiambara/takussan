@@ -150,7 +150,8 @@ class InvitationController extends Controller
         }
 
         if ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)) {
-            return Invitation::query()->where('agency_id', $user->agency_id);
+            // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
+            return Invitation::query()->where('agency_id', $user->staffAgencyId());
         }
 
         return Invitation::query()->where('invited_by', $user->id);

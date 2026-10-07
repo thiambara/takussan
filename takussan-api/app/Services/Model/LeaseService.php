@@ -4,6 +4,7 @@ namespace App\Services\Model;
 
 use App\Events\Lease\LeaseActivated;
 use App\Jobs\GenerateLeasePaymentSchedule;
+use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentFrequency;
@@ -22,9 +23,15 @@ class LeaseService
      */
     public function create(Property $property, User $user, array $data): Lease
     {
+        // TCK-587 (ADR-0031) — le bailleur du bien, ou le PERSONNEL de l'agence du bien tenant
+        // `leases.create`. La clause « même agence » laissait un autre bailleur de l'agence ouvrir un
+        // bail sur le bien d'un autre, et `leases.create` n'avait aucun lecteur.
+        $staffAgencyId = $user->staffAgencyId();
         $canCreate = $user->isSuperAdmin()
             || $property->user_id === $user->id
-            || ($user->agency_id && $property->agency_id === $user->agency_id);
+            || ($property->agency_id !== null
+                && $staffAgencyId === (int) $property->agency_id
+                && $user->can(Capability::LeasesCreate->value, $property));
         abort_unless($canCreate, 403);
 
         return Lease::create(array_merge($data, [

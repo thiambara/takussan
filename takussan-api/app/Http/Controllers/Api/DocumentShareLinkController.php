@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
+use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Http\JsonResponse;
@@ -116,9 +117,18 @@ class DocumentShareLinkController extends Controller
         $ok = $user->isSuperAdmin()
             || $document->uploaded_by === $user->id
             || ($documentable && isset($documentable->user_id) && $documentable->user_id === $user->id)
-            || ($user->agency_id && $documentable && isset($documentable->agency_id) && $documentable->agency_id === $user->agency_id);
+            // TCK-587 — le PERSONNEL de l'agence du porteur, plus tout membre (ADR-0031) : un
+            // bailleur de l'agence partageait publiquement le document d'un autre.
+            || ($documentable && isset($documentable->agency_id) && $this->isStaffOfAgency($user, $documentable->agency_id));
 
         abort_unless($ok, 403);
+    }
+
+    private function isStaffOfAgency(User $user, mixed $agencyId): bool
+    {
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
     }
 
     private function format(DocumentShareLink $link): array
