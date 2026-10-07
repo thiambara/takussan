@@ -433,93 +433,93 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (P2)** — Prestataire assigné, demande en `quote_submitted` : `PATCH {status: approved}`
+- [x] **AC1 (P2)** — Prestataire assigné, demande en `quote_submitted` : `PATCH {status: approved}`
       → **422 qui nomme `status`**, statut en base inchangé ; idem `{status: closed}` depuis `open`.
       `{completed_at: …}` et `{started_at: …}` → 422 qui nomme le champ, colonne inchangée ;
       `{actual_cost: 15000}` → **403**, `actual_cost` inchangé. Tous rougissent sur `e3ab4a4e` (200
       aujourd'hui) et en retirant `prohibited` / l'ajout à `PRINCIPAL_FIELDS`.
-- [ ] **AC2 (P10, P14)** — Prestataire : `PUT …/status` vers `cancelled` (depuis `in_progress`) et
+- [x] **AC2 (P10, P14)** — Prestataire : `PUT …/status` vers `cancelled` (depuis `in_progress`) et
       vers `closed` (depuis `completed`) → **403**. Donneur d'ordre : `cancelled` depuis
       `quote_requested` → 200 (422 aujourd'hui).
-- [ ] **AC3 (P3)** — `assigned_to` = un compte sans collaboration `active` avec l'agence du bien →
+- [x] **AC3 (P3)** — `assigned_to` = un compte sans collaboration `active` avec l'agence du bien →
       **422 sur `assigned_to`** (store et update) ; collaboration `ended` → 422 ; `active` + profil
       `active` → 200. Rouge aujourd'hui (200).
-- [ ] **AC4 (P3)** — Collaboration passée à `ended` (ou profil `suspended`) : `GET show` → 403, la
+- [x] **AC4 (P3)** — Collaboration passée à `ended` (ou profil `suspended`) : `GET show` → 403, la
       demande absente de `GET index`, `PATCH` → 403 ; ses demandes non terminales de cette agence
       reviennent à `assigned_to = null`, `status = open`.
-- [ ] **AC5 (O1)** — Deux bailleurs de la même agence, B1 et B2 : B2 sur une intervention du bien de
+- [x] **AC5 (O1)** — Deux bailleurs de la même agence, B1 et B2 : B2 sur une intervention du bien de
       B1 → `show` 403, absente de `index`, `PATCH {priority}` 403, `quote/approve` 403, `store` sur
       le bien de B1 403. Un
       agent de l'agence → 200 (témoin). Rouge aujourd'hui pour B2.
-- [ ] **AC6 (B13)** — Prestataire à collaboration `ended` : `GET /api/agencies/{id}` → 404 ; `active` → 200.
+- [x] **AC6 (B13)** — Prestataire à collaboration `ended` : `GET /api/agencies/{id}` → 404 ; `active` → 200.
       Même prestataire, collaboration `ended` portant un `agency_role_id` dont le rôle accorde une
       capacité : `MembershipCapabilityResolver` la **refuse** (accordée aujourd'hui) et
       `isProviderAt($agencyId)` rend `false` (`true` aujourd'hui) ; `active` → accordée / `true`.
-- [ ] **AC7 (B17)** — Fin puis reprise de la collaboration du même couple : une seule ligne vivante,
+- [x] **AC7 (B17)** — Fin puis reprise de la collaboration du même couple : une seule ligne vivante,
       statut `active`, aucune erreur 23505 ; une ligne supprimée en douceur n'empêche pas une création.
-- [ ] **AC8** — Chaque chemin de changement émet **exactement un** `MaintenanceStatusChanged` portant
+- [x] **AC8** — Chaque chemin de changement émet **exactement un** `MaintenanceStatusChanged` portant
       `from`, `to` et l'acteur (`Event::fake`, un test par chemin) ; le diff ne crée aucun
       `MaintenanceRequestObserver`.
-- [ ] **AC9 (C7, P4)** — Assignation : le prestataire reçoit une notification dont le titre est la
+- [x] **AC9 (C7, P4)** — Assignation : le prestataire reçoit une notification dont le titre est la
       chaîne de **sa** langue (compte en `wo` → texte wolof du fichier `lang/wo/maintenance.php`). Le
       locataire demandeur reçoit une notification à `assigned`, `in_progress` et `completed`.
-- [ ] **AC10 (P13, O14)** — Devis soumis sur une demande ouverte par le locataire : aucune
+- [x] **AC10 (P13, O14)** — Devis soumis sur une demande ouverte par le locataire : aucune
       notification au locataire, une à l'équipe de l'agence **et** au bailleur du bien ; même chose
       quand un agent a ouvert la demande. `GET show` par le locataire : `data.quote_amount` **absent**.
-- [ ] **AC11 (P5)** — `accept` par le prestataire assigné pose `accepted_at` ; par un autre → 403.
+- [x] **AC11 (P5)** — `accept` par le prestataire assigné pose `accepted_at` ; par un autre → 403.
       `decline {reason}` avant acceptation : `assigned_to = null`, `status = open`, donneur d'ordre
       notifié avec le motif ; après acceptation ou démarrage → 422.
-- [ ] **AC12 (P10)** — `completed` → `confirm-resolution` par le demandeur → `closed` ;
+- [x] **AC12 (P10)** — `completed` → `confirm-resolution` par le demandeur → `closed` ;
       `contest-resolution` → `in_progress`, prestataire et donneur d'ordre notifiés. `maintenance:auto-close`
       clôt une demande `completed` il y a 7 jours et **pas** une à 6 jours.
-- [ ] **AC13 (P6)** — Prestataire accepté, demande `in_progress` : `access.street`,
+- [x] **AC13 (P6)** — Prestataire accepté, demande `in_progress` : `access.street`,
       `access.requester_phone`, `access.latitude` présents. Avant acceptation, après `closed`, ou pour
       le demandeur : clé `access` **absente**.
-- [ ] **AC14 (P7)** — `GET show` rend `media.photos`, `media.completion_photos`, `media.before_photos`
+- [x] **AC14 (P7)** — `GET show` rend `media.photos`, `media.completion_photos`, `media.before_photos`
       en URL signées qui se téléchargent pour un lecteur autorisé ; `media.quotes` absent pour le
       demandeur locataire.
-- [ ] **AC15 (P12)** — Devis `lines` = 2 × 7 500 (main-d'œuvre) + 1 × 12 000 (fourniture) →
+- [x] **AC15 (P12)** — Devis `lines` = 2 × 7 500 (main-d'œuvre) + 1 × 12 000 (fourniture) →
       `quote_amount` = **27000.00** ; `currency` envoyée → 422 ; approbation après `valid_until` → 422.
-- [ ] **AC16 (O14)** — Seuil du bailleur 50 000 : l'agent approuve un devis de 75 000 →
+- [x] **AC16 (O14)** — Seuil du bailleur 50 000 : l'agent approuve un devis de 75 000 →
       `awaiting_owner`, bailleur notifié ; le bailleur approuve → `approved` ; un autre bailleur de
       l'agence → 403. Devis de 40 000 → `approved` directement. Seuil nul → comportement actuel.
-- [ ] **AC17 (capacités)** — Un agent dont le rôle personnalisé n'a pas `maintenance.assign` :
+- [x] **AC17 (capacités)** — Un agent dont le rôle personnalisé n'a pas `maintenance.assign` :
       `PATCH {assigned_to}` → 403 ; avec → 200. Un agent dont le rôle n'a pas `maintenance.close` :
       `PUT …/status {closed}` depuis `completed` → 403 (200 aujourd'hui) ; avec → 200. Après la
       migration de données, aucun rôle système `service_provider` ne porte `maintenance.*`.
-- [ ] **AC18 (P18)** — Invitation portant la demande d'une **autre** agence → 422. Demande de
+- [x] **AC18 (P18)** — Invitation portant la demande d'une **autre** agence → 422. Demande de
       l'agence non terminale : en fin d'onboarding, elle est assignée au nouveau prestataire et son
       `GET show` rend 200.
-- [ ] **AC18b (fin d'onboarding rejouée)** — Prestataire actif, téléphone vérifié, une collaboration
+- [x] **AC18b (fin d'onboarding rejouée)** — Prestataire actif, téléphone vérifié, une collaboration
       `paused` avec `metadata.paused_by` (pause de l'agence) et une `paused` sans (invitation en
       attente) : `POST /api/service-provider/onboard/complete` → la première **reste `paused`**, la
       seconde passe `active` (aujourd'hui les deux passent `active` : rouge). Profil `suspended` : même
       appel → 403, profil toujours `suspended`, aucune collaboration modifiée (aujourd'hui 200 et
       profil `active` : rouge). Ablation : retirer le filtre `paused_by` ou la garde `suspended` → rouge.
-- [ ] **AC18c (carnet)** — `GET /api/agencies/{id}/service-providers` sans filtre : un prestataire à
+- [x] **AC18c (carnet)** — `GET /api/agencies/{id}/service-providers` sans filtre : un prestataire à
       collaboration `ended` **absent**, un `active` présent ; `filter[collaboration_status]=ended` le
       rend. Rouge aujourd'hui (le `ended` est listé).
-- [ ] **AC19 (P1, P11, P14 — front, vitest)** — Fiche vue par le prestataire en `quote_submitted` :
+- [x] **AC19 (P1, P11, P14 — front, vitest)** — Fiche vue par le prestataire en `quote_submitted` :
       ni « Approuver » ni « Annuler » ; en `rejected` : le formulaire de devis est présent et aucun
       bouton n'appelle `PUT …/status`. Vue par l'agence : pas de formulaire de devis, un bloc
       d'assignation qui appelle `PATCH` avec `assigned_to` et `scheduled_at`. Vue par le prestataire :
       aucun lien vers `/app/properties/{id}`.
-- [ ] **AC20 (P15 — front)** — Un échec de `PUT …/complete` avec photos affiche une erreur et garde
+- [x] **AC20 (P15 — front)** — Un échec de `PUT …/complete` avec photos affiche une erreur et garde
       les fichiers sélectionnés ; aucune requête d'upload séparée n'est émise après la complétion.
-- [ ] **AC21 (P16, P17)** — `PATCH …/trades` portant seulement `intervention_zones` laisse
+- [x] **AC21 (P16, P17)** — `PATCH …/trades` portant seulement `intervention_zones` laisse
       `specialties` inchangé ; la liste du prestataire part avec `sort=scheduled_at` et inclut le bien
       (quartier) et l'agence ; « Nouvelle demande » ne lui est pas proposée.
-- [ ] **AC22 (P19)** — Première assignation : une conversation `maintenance_request_id` avec le
+- [x] **AC22 (P19)** — Première assignation : une conversation `maintenance_request_id` avec le
       prestataire et le locataire ; une seconde assignation n'en crée pas une deuxième ; une note
       `audio` de ≤ 60 s est acceptée (201, fichier privé), un `type=audio` sans fichier ou un fichier
       texte → 422.
-- [ ] **AC22b (avis système usurpé)** — Participant actif d'une conversation :
+- [x] **AC22b (avis système usurpé)** — Participant actif d'une conversation :
       `POST /api/conversations/{id}/messages {content: "…", type: "system"}` → **422 qui nomme
       `type`**, aucun message créé (201 aujourd'hui, message `system` créé : rouge) ; idem `image` et
       `document` ; sans `type` ou `type=text` → 201. Ablation : remettre `Rule::enum(MessageType::class)` → rouge.
-- [ ] **AC23** — Aucun `notify(`/`abort(` ajouté ou réécrit par ce ticket ne porte de littéral ;
+- [x] **AC23** — Aucun `notify(`/`abort(` ajouté ou réécrit par ce ticket ne porte de littéral ;
       chaque clé ajoutée existe en `fr`, `en` et `wo`.
-- [ ] **AC24 (pièces du devis)** — Prestataire assigné, demande en `quote_requested` :
+- [x] **AC24 (pièces du devis)** — Prestataire assigné, demande en `quote_requested` :
       `POST …/quote/submit` avec `attachments[0]` = `UploadedFile::fake()->create('devis.html', 10, 'text/html')`
       → **422 qui nomme `attachments.0`**, statut toujours `quote_requested`, collection `quotes`
       vide ; idem un `.svg` (`image/svg+xml`). Avec `devis.pdf` (`application/pdf`) → 200 et
@@ -761,4 +761,20 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
   demande » pour tous → 1 ; liste sans le bien → 1.
 - **Non vérifié au navigateur** : aucun parcours n'a été joué dans Chrome (enregistrement réel d'une
   note vocale, rendu mobile). Les critères front sont prouvés en vitest, pas à l'écran.
+
+### Critères d'acceptation — l'exécution qui coche chacun
+
+- AC1, AC2, AC17 : A (`MaintenanceStatusBypassTest`, `MaintenanceStateMachineTest`, `MaintenancePrincipalFieldsTest`)
+  et B (migration de données) ; « rouge sur `e3ab4a4e` » prouvé par ablation (`prohibited` et
+  `PRINCIPAL_FIELDS` retirés, lecteurs `maintenance.assign` / `.close` retirés).
+- AC3-AC7, AC11, AC18, AC18b, AC18c : B (336 + 368 verts, ablations listées). AC8-AC10 : C (`event:list`
+  le liste ; `git diff dev --name-only | grep -i observer` → rien). AC12 : D. AC13, AC14, AC24 : E.
+  AC15, AC16 : F (bailleur notifié : `AppNotification` dans sa langue). AC19-AC21 : G (vitest, et
+  `ServiceProviderTradesPartialUpdateTest`). AC22, AC22b : H (`MaintenanceConversationTest`,
+  `AudioMessageTest`, `MessageTypeSpoofingTest`).
+- AC23 : `git diff dev -U0 -- app` → aucun `abort*(`/`notify(` ajouté à libellé littéral ; les 17 clés
+  littérales ajoutées existent en fr/en/wo (`Lang::hasForLocale`), et `lang/{fr,en,wo}/{maintenance,
+  messaging,service_providers}.php` ont les mêmes clés feuilles (0 manquante, 0 en trop).
+- Reste ouverte, côté Delta : « branche équipe par le prédicat 587 » (attend la fusion de TCK-587).
+  La suite entière n'a pas été lancée ici : elle l'est par la session.
 
