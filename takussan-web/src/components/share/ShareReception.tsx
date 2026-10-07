@@ -117,9 +117,12 @@ export function ShareReception({ token }: ShareReceptionProps) {
     [token, motDePasseValide],
   );
 
+  // L'encre atténuée porte son fond (celui de la page, ou du panneau `bg-card` qui l'entoure) :
+  // sans lui, la garde de contraste de la surface publique la compte comme encre inverse non
+  // mesurée (`surface-publique.contraste.test.ts`).
   if (etat.kind === 'loading') {
     return (
-      <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground" role="status">
+      <p className="flex items-center justify-center gap-2 py-16 text-sm bg-background text-muted-foreground" role="status">
         <Loader2 className="size-4 animate-spin" aria-hidden="true" />
         {t('loading')}
       </p>
@@ -174,7 +177,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
           </div>
           <h2 className="font-display text-base font-semibold text-foreground">{t('passwordTitle')}</h2>
         </div>
-        <p className="text-sm text-muted-foreground">{t('passwordHint')}</p>
+        <p className="bg-card text-sm text-muted-foreground">{t('passwordHint')}</p>
         <div className="space-y-2">
           <Label htmlFor="share-password">{t('passwordLabel')}</Label>
           <Input
@@ -215,7 +218,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
           <FileText className="size-5" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('name')}</p>
+          <p className="bg-card text-xs uppercase tracking-wide text-muted-foreground">{t('name')}</p>
           <h2 className="font-display text-base font-semibold break-words text-foreground">
             {doc.document.name}
           </h2>
@@ -224,7 +227,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
       <dl className="grid grid-cols-1 gap-2 text-sm">
         {doc.document.size !== null ? (
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">{t('size')}</dt>
+            <dt className="bg-card text-muted-foreground">{t('size')}</dt>
             <dd className="tabular-nums text-foreground">
               {format.number(doc.document.size / 1024 / 1024, {
                 style: 'unit',
@@ -235,14 +238,14 @@ export function ShareReception({ token }: ShareReceptionProps) {
           </div>
         ) : null}
         {doc.expires_at ? (
-          <p className="text-muted-foreground">
+          <p className="bg-card text-muted-foreground">
             {t('expiresAt', {
               date: format.dateTime(new Date(doc.expires_at), { dateStyle: 'medium', timeStyle: 'short' }),
             })}
           </p>
         ) : null}
         {restants !== null ? (
-          <p className="text-muted-foreground">{t('downloadsLeft', { count: restants })}</p>
+          <p className="bg-card text-muted-foreground">{t('downloadsLeft', { count: restants })}</p>
         ) : null}
       </dl>
       {erreurTelechargement ? (

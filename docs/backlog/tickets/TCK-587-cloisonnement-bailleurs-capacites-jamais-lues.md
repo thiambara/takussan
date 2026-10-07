@@ -1095,3 +1095,25 @@ session. Les 296 fichiers candidats ont été joués en quatre lots, en avant-pl
 Soit 2 525 tests, verts. La machine était chargée (moyennes de 20 à 27) : les durées ne sont pas
 des mesures. Toutes les gardes de `scripts/` sont vertes, et Pint passe. Le front n'a pas bougé
 dans cette étape. **La suite backend entière reste à la session.**
+
+**Suite front entière, rouge à la session (4 échecs), tous causés par `/share/[token]`.** Mon
+« 157 fichiers, 1 300 tests » des étapes 4 et 5 ne couvrait que les répertoires touchés, pas la
+suite. Corrigé :
+- **Sitemap.** `/share/[token]` est tranchée dans `ROUTES_DYNAMIQUES_PUBLIQUES` : `source: null`,
+  `exclue: 'TCK-587'`, avec la raison en commentaire (l'URL porte le jeton d'accès). C'est un
+  champ neuf : une route `exclue` n'est jamais au sitemap, sa page déclare `noindex`, et
+  `alternates.test.ts` l'écarte (elle n'émet pas d'alternates). Côté
+  `sitemap-couverture.test.ts` : le compte passe de 14 à 15, avec sa justification ; il y a
+  quatre routes dynamiques ; un test vérifie qu'une route exclue nomme son ticket, n'a pas de
+  source et que sa page est `noindex`. Le champ est un code de ticket, pas une phrase :
+  `check-i18n.mjs` lisait la phrase comme un libellé en dur.
+- **Contraste.** Les 6 `text-muted-foreground` de `ShareReception` déclarent leur fond :
+  `bg-card` pour les cinq posés sur le panneau `bg-card`, `bg-background` pour l'état de
+  chargement. Le cliquet `ENCRES_INVERSES` reste à 248.
+- **Ablations**, chacune rouge : entrée de sitemap retirée (3 échecs), page de partage indexable
+  (1), un fond retiré (1).
+- **Exécutions :**
+  - `npx vitest run` en entier, en avant-plan : 499 fichiers, 4 402 tests, verts (182 s) ;
+  - `npm run lint` : 0 erreur ;
+  - `npx tsc --noEmit` : propre ;
+  - gardes racine et web : vertes.
