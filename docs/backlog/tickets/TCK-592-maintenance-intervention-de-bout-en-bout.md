@@ -1,13 +1,13 @@
 ---
 id: TCK-592
 title: "Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: []
 spec_refs:
@@ -540,4 +540,16 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### 2026-10-07 — re-mesure sur 5f872f1f (worktree `takussan-tck-592`)
+
+- Constats §1-§2 re-lus et confirmés aux mêmes lignes : `UpdateMaintenanceRequestRequest.php:39,88,90,93`,
+  `MaintenanceRequestPolicy.php:31,33,49,51,103,112`, `SystemRoleCapabilities.php:84-85,103-104`,
+  `SubmitQuoteRequest.php:28-29`, `SendMessageConversationRequest.php:44`.
+  `grep -rn "ServiceProviderProfileStatus::Suspended\|CollaborationStatus::Ended" app` → 0.
+- `properties.agency_id` est **nullable** (factory : `null`). Décision : un bien **sans agence** n'a aucun
+  prestataire assignable (aucune collaboration ne peut le viser) ; son donneur d'ordre reste son
+  bailleur (`property.user_id`). Les tests existants qui assignaient un compte quelconque sur un bien
+  sans agence sont réécrits sur un bien d'agence avec une collaboration `active`.
+- Les quatre classes `Quote*` (`QuoteSubmitted`, `QuoteApproved`, `QuoteRejected`,
+  `MaintenanceQuoteRequested`) n'ont **aucun** `new` dans `app/` (seule la table d'`AppDatabaseChannel`
+  les nomme) : supprimées par ce ticket (coordination 588, contrainte 8).
