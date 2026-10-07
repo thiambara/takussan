@@ -26,6 +26,8 @@ return [
         'resend_wait' => 'Xaaral ba noppi laaj beneen kod.',
         'code_sent' => 'Su nimero bii mënee jot SMS, yónnee nanu ko benn kod.',
         'deletion_code' => 'Takussan : kodu dëggal ngir far sa kont mooy :code. Dina jeex ci :minutes simili.',
+        'country_not_allowed' => 'Duñu yónne kood ci SMS ci indicatif bii.',
+        'capacity_reached' => 'Sistemu yónnee kood yi fees na leegi. Jéemaatal ci kanam.',
     ],
     'oauth' => [
         'challenge_invalid' => 'Défi bii jeexna walla jëfandikoo nañu ko ba noppi. Duggaatal.',

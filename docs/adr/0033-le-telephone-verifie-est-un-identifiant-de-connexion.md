@@ -112,6 +112,9 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
 | Délai entre deux envois au même numéro | 60 s | service (cache) |
 | `auth-phone-send` — par numéro | 3 / 15 min **et** 5 / 24 h | limiteur nommé |
 | `auth-phone-send` — par IP | 20 / h | limiteur nommé |
+| `auth-phone-send` posé aussi sur `phone/send-otp` et `phone/resend` (M3) | mêmes bornes, numéro destinataire = corps, sinon numéro du compte | limiteur nommé |
+| Indicatifs servis pour un code (M3) | liste blanche, défaut `221` (`sms.otp_allowed_country_codes`) ; hors liste 422 `phone_country_not_allowed`, rien n'est écrit ni envoyé | appelants + `issue()` |
+| Plafond global des codes (M3) | 2000 / jour UTC (`sms.otp_daily_cap`) ; atteint : 503 `sms_capacity_reached` (202 muet à `request-code`), alerte au journal une fois | service (cache) |
 | `auth-phone-verify` — par numéro | **4** / 15 min (sous la moitié du seuil, M1) | limiteur nommé |
 | Échecs sur un même code | 5 → code invalidé | service |
 | Échecs avant verrou, **par canal** | **10** | mot de passe : `metadata.failed_login_attempts` ; téléphone : cache, par numéro, fenêtre fixe de 15 min |
@@ -146,6 +149,12 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
   dix essais en vingt minutes depuis une IP. Le titulaire garde alors le téléphone et OAuth, et le
   support peut lever le verrou. C'est ce que « un verrou par canal » achète, à défaut d'un verrou
   qu'aucun tiers ne pourrait poser.
+- **Un code part par un VRAI SMS** (§5) : sans borne par destinataire ni liste d'indicatifs, un
+  formulaire public devient un relais de « SMS pumping » vers des numéros surtaxés. C'est la
+  vérification adverse M3, qui l'a reproduit : six comptes, une IP, six numéros étrangers, six SMS
+  remis, drapeau éteint. D'où les trois lignes M3 du tableau.
+  - La diaspora s'ajoute par configuration, indicatif par indicatif.
+  - Le plafond global borne la perte d'un jour à un montant connu.
 - **Aucune réponse ne laisse deviner si le numéro a un compte** : `request-code` rend 202
   `{retry_after}` identique dans les deux cas.
 

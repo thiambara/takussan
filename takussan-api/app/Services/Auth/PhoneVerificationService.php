@@ -150,9 +150,28 @@ class PhoneVerificationService
 
     // -----------------------------------------------------------------
 
+    /**
+     * Vérification adverse M3 — l'indicatif de ce numéro E.164 est-il servi pour un code
+     * (`sms.otp_allowed_country_codes`) ? Jugé par chaque appelant AVANT toute écriture, et
+     * répété par `issue()` : aucun chemin n'envoie hors de la liste.
+     */
+    public static function countryAllowed(string $phone): bool
+    {
+        foreach ((array) config('sms.otp_allowed_country_codes', []) as $indicatif) {
+            if ($indicatif !== '' && str_starts_with($phone, '+'.$indicatif)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function issue(string $subject, string $phone, ?string $locale): bool
     {
-        if ($this->cache->has($this->cooldownKey($subject))) {
+        if (! self::countryAllowed($phone) || $this->cache->has($this->cooldownKey($subject))) {
+            return false;
+        }
+        if (! $this->reserveDailyCapacity()) {
             return false;
         }
 
@@ -196,6 +215,31 @@ class PhoneVerificationService
             $this->cache->forget($this->codeKey($subject));
         } else {
             $this->cache->put($this->codeKey($subject), ['attempts' => $attempts] + $entry, $remaining);
+        }
+
+        return false;
+    }
+
+    /**
+     * Vérification adverse M3 — plafond global journalier des codes (`sms.otp_daily_cap`).
+     * Compté AVANT l'envoi : un envoi refusé au plafond ne dépense rien. L'alerte ne part
+     * qu'une fois par jour, au premier refus.
+     */
+    private function reserveDailyCapacity(): bool
+    {
+        $key = 'sms-otp-day:'.now('UTC')->toDateString();
+        $this->cache->add($key, 0, now('UTC')->endOfDay()->addHour());
+        $sent = (int) $this->cache->increment($key);
+        $cap = (int) config('sms.otp_daily_cap');
+        if ($sent <= $cap) {
+            return true;
+        }
+
+        if ($sent === $cap + 1) {
+            Log::alert('Plafond journalier des codes SMS atteint : plus aucun code ne part avant demain.', [
+                'cap' => $cap,
+                'day' => now('UTC')->toDateString(),
+            ]);
         }
 
         return false;

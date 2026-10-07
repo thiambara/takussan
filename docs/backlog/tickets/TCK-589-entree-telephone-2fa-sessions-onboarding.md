@@ -1271,3 +1271,61 @@ d'origine.
 
 **Exécutions** : `(auth)`, `components/auth`, `onboarding`, `src/lib`, `proxy` et
 `components/home` donnent **121 fichiers, 1353 tests verts**. `eslint` et `tsc` sont propres.
+
+#### M3 — `send-otp` comme relais de SMS
+
+**Le défaut, rejoué par la sonde `SendOtpRelayProbeTest`** (drapeau éteint, limiteurs actifs) :
+six comptes, une IP, six numéros étrangers. Avant : 200 ×6 et 7 SMS remis. Après : **422 ×6**, et
+un seul SMS remis, celui du numéro sénégalais de l'oracle. L'oracle `409 phone_taken` est m4.
+
+**Correctif :**
+- **Liste blanche** `sms.otp_allowed_country_codes`, `SMS_OTP_ALLOWED_COUNTRY_CODES`, défaut `221`.
+  - `PhoneVerificationService::countryAllowed()` est jugé par `send-otp` / `resend` **avant
+    d'écrire** le numéro, et par `request-code`. Hors liste, la réponse est 422
+    `phone_country_not_allowed`. Le refus est ouvert à `request-code` : l'indicatif ne dit rien
+    d'un compte.
+  - Il est **répété** dans `issue()`, si bien qu'aucun chemin d'envoi de code ne sort de la liste.
+- **Limiteur** `auth-phone-send` (3 / 15 min et 5 / 24 h par numéro destinataire, 20 / h par IP)
+  posé aussi sur `phone/send-otp` et `phone/resend`, à côté de `throttle:3,1`. Les assistants
+  d'onboarding passent par ces deux routes.
+  - La clé du numéro prend le numéro **du compte** quand le corps n'en porte pas. Une clé vide
+    aurait mis tous ces envois dans un même seau.
+- **Plafond global journalier** `sms.otp_daily_cap` (`SMS_OTP_DAILY_CAP`, défaut 2000, soit environ
+  100 € par jour au tarif « default » le plus cher de la grille). Il est compté avant l'envoi,
+  dans une fenêtre UTC.
+  - Plafond atteint : `send-otp` rend 503 `sms_capacity_reached`, et `request-code` reste muet
+    (202, pour l'énumération).
+  - `Log::alert` est émis une seule fois par jour.
+- Clés `auth.phone.country_not_allowed` et `auth.phone.capacity_reached` (fr/en/wo), en ajout.
+- Le front affiche la prose localisée de Laravel (`messageErreurApi`) : aucune clé neuve.
+- ADR-0033 §6 : trois lignes au tableau et le motif.
+
+**Décision du porteur appliquée** : la diaspora n'est plus servie par défaut. Elle s'ajoute par
+configuration. Les trois tests de forme de `PhoneVerificationTest` (`+33…`, `+39…`) posent donc la
+liste qu'ils éprouvent.
+
+**Les tests, dans `SmsOtpRelayTest` (7) :**
+- la séquence du vérificateur : 422 ×6, 0 SMS, rien d'écrit ;
+- une IP relaie au plus 20 codes, 25 comptes donnant 20 × 200 puis 5 × 429 ;
+- un numéro reçoit au plus 3 codes, même depuis quatre IP ;
+- sans corps, la clé est le numéro du compte : un second compte n'est pas bloqué ;
+- le plafond à 2 rend 503 ×2, remet 2 SMS, alerte une fois, et le compteur repart le lendemain ;
+- `request-code` hors liste rend 422 et n'envoie rien ;
+- un indicatif ajouté par configuration est servi.
+
+**Rouge avant correctif.** Six fichiers ont été remis à `HEAD`, puis restaurés par `cp` (md5
+identiques) : **6/7 rouges**. Le test d'un indicatif ajouté par configuration est vert
+(tout passait).
+
+**Ablations, chacune restaurée par `cp` :**
+
+| Ablation | Résultat |
+|---|---|
+| Liste blanche ouverte | 2 rouges |
+| `send-otp` sans le limiteur nommé | 3 rouges |
+| Clé sans repli sur le compte | « sans corps » rouge |
+| Plafond retiré | « plafond » rouge |
+| Le contrôleur écrit avant de juger | la séquence est rouge : le numéro est écrit |
+
+**Exécutions** : 16 fichiers qui envoient un code : 118 verts et 3 rouges, les trois tests de forme
+ci-dessus. Après correction, `PhoneVerificationTest` donne 22 verts et `SmsOtpRelayTest` 7.

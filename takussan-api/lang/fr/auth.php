@@ -31,6 +31,8 @@ return [
         'resend_wait' => 'Patientez avant de demander un nouveau code.',
         'code_sent' => 'Si ce numéro peut recevoir un SMS, un code vient d\'y être envoyé.',
         'deletion_code' => 'Takussan : code de confirmation de suppression de compte :code. Il expire dans :minutes min.',
+        'country_not_allowed' => 'Les codes par SMS ne sont pas envoyés vers cet indicatif.',
+        'capacity_reached' => 'Le service d\'envoi de codes est momentanément saturé. Réessayez plus tard.',
     ],
     'oauth' => [
         'challenge_invalid' => 'Ce défi de connexion a expiré ou a déjà servi. Reconnectez-vous.',

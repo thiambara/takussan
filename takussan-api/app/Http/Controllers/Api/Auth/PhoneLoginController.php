@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\RequestPhoneLoginCodeRequest;
 use App\Http\Requests\Auth\VerifyPhoneLoginCodeRequest;
+use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,14 @@ class PhoneLoginController extends Controller
      */
     public function requestCode(RequestPhoneLoginCodeRequest $request): JsonResponse
     {
-        $this->login->requestCode((string) $request->validated('phone'), app()->getLocale());
+        $phone = (string) $request->validated('phone');
+        // Vérification adverse M3 — l'indicatif ne dit rien d'un compte : le refuser
+        // ouvertement n'énumère rien, et rien ne part.
+        if (! PhoneVerificationService::countryAllowed($phone)) {
+            return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
+        }
+
+        $this->login->requestCode($phone, app()->getLocale());
 
         return $this->json([
             'message' => __('auth.phone.code_sent'),

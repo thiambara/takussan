@@ -172,6 +172,10 @@ class PhoneVerificationTest extends TestCase
     public function test_send_otp_enregistre_un_numero_e164_et_envoie_le_code(): void
     {
         Cache::flush();
+        // TCK-589 (vérification adverse M3) — les indicatifs servis sont une liste blanche
+        // (`sms.otp_allowed_country_codes`, défaut : `221`) : la diaspora s'y ajoute par
+        // configuration. Ce test éprouve la FORME du numéro, pas la liste.
+        config(['sms.otp_allowed_country_codes' => ['221', '33', '39']]);
         $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
@@ -197,6 +201,10 @@ class PhoneVerificationTest extends TestCase
     public function test_send_otp_refuse_un_zero_de_prefixe_national_apres_l_indicatif(): void
     {
         Cache::flush();
+        // TCK-589 (vérification adverse M3) — les indicatifs servis sont une liste blanche
+        // (`sms.otp_allowed_country_codes`, défaut : `221`) : la diaspora s'y ajoute par
+        // configuration. Ce test éprouve la FORME du numéro, pas la liste.
+        config(['sms.otp_allowed_country_codes' => ['221', '33', '39']]);
         $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
@@ -282,6 +290,10 @@ class PhoneVerificationTest extends TestCase
     public function test_send_otp_avec_un_numero_valide_remplace_un_enregistre_injoignable(): void
     {
         Cache::flush();
+        // TCK-589 (vérification adverse M3) — les indicatifs servis sont une liste blanche
+        // (`sms.otp_allowed_country_codes`, défaut : `221`) : la diaspora s'y ajoute par
+        // configuration. Ce test éprouve la FORME du numéro, pas la liste.
+        config(['sms.otp_allowed_country_codes' => ['221', '33', '39']]);
         $user = User::factory()->create(['phone' => '+330612345678', 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 

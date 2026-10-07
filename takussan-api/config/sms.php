@@ -84,6 +84,22 @@ return [
     ],
 
     /**
+     * TCK-589, vérification adverse M3 — les codes de vérification (`phone_otp`) partent par un
+     * VRAI SMS : sans borne, un formulaire public est un relais de « SMS pumping » vers des
+     * numéros surtaxés.
+     *  - `otp_allowed_country_codes` : indicatifs servis pour un code (sans `+`). Hors liste,
+     *    422 `phone_country_not_allowed`, et rien ne part. Défaut : le Sénégal seul.
+     *  - `otp_daily_cap` : plafond GLOBAL de codes par jour (UTC). Atteint, plus rien ne part
+     *    jusqu'au lendemain, et une alerte est journalisée une fois. 2000 ≈ 100 € / jour au
+     *    tarif « default » le plus cher de la grille ci-dessous.
+     */
+    'otp_allowed_country_codes' => array_values(array_filter(array_map(
+        fn (string $code): string => ltrim(trim($code), '+'),
+        explode(',', (string) env('SMS_OTP_ALLOWED_COUNTRY_CODES', '221')),
+    ))),
+    'otp_daily_cap' => (int) env('SMS_OTP_DAILY_CAP', 2000),
+
+    /**
      * Application-level rate limit applied before any driver is called.
      * Protects against abuse of 2FA / password reset endpoints.
      */

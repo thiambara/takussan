@@ -47,6 +47,10 @@ class PhoneVerificationController extends Controller
             $incoming = $request->input('phone');
             $incoming = is_string($incoming) ? trim($incoming) : null;
             $incoming = $incoming === '' ? null : $incoming;
+            // Vérification adverse M3 — hors des indicatifs servis, rien n'est écrit ni envoyé.
+            if ($incoming !== null && ! PhoneVerificationService::countryAllowed($incoming)) {
+                return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
+            }
             if ($incoming !== null && $incoming !== $user->phone) {
                 $user->forceFill([
                     'phone' => $incoming,
@@ -70,9 +74,17 @@ class PhoneVerificationController extends Controller
             __('auth.phone.resend_wait'),
         );
 
+        if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {
+            return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
+        }
+
         // TCK-589 — le code n'est rendu dans AUCUN environnement (`debug_code`
         // retiré) : il part par SMS, et les tests le lisent par le faux routeur.
-        $this->service->sendOtp($user);
+        // Le délai de renvoi est jugé plus haut : un `false` ici, c'est le plafond
+        // journalier global (M3).
+        if (! $this->service->sendOtp($user)) {
+            return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
+        }
 
         return $this->json(['data' => ['sent' => true]]);
     }

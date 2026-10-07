@@ -370,9 +370,19 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
+    /**
+     * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
+     * sans corps vise le numéro déjà enregistré, et une clé vide aurait mis tous ces envois
+     * dans un même seau.
+     */
     private function phoneRateLimitKey(Request $request): string
     {
-        return preg_replace('/\s+/', '', (string) $request->input('phone')) ?? '';
+        $phone = (string) $request->input('phone');
+        if ($phone === '') {
+            $phone = (string) ($request->user()?->phone ?? '');
+        }
+
+        return preg_replace('/\s+/', '', $phone) ?? '';
     }
 
     private function visitorRateLimitKey(Request $request): string

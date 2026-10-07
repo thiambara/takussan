@@ -67,8 +67,11 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // OTP).
     Route::post('/verify-phone', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
     Route::post('/phone/verify-otp', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
-    Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
-    Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
+    // Vérification adverse M3 — le limiteur de `request-code` aussi, par numéro DESTINATAIRE
+    // (celui du corps, sinon celui du compte) et par IP : `throttle:3,1` par compte ne bornait
+    // rien, chaque compte neuf visant un numéro neuf. Les assistants d'onboarding passent ici.
+    Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
+    Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
 
     // Two-factor authentication
     // /confirm and /disable both gate on a 6-digit TOTP (or password on

@@ -26,6 +26,8 @@ return [
         'resend_wait' => 'Please wait before requesting another code.',
         'code_sent' => 'If this number can receive a text message, a code has just been sent to it.',
         'deletion_code' => 'Takussan: your account deletion confirmation code is :code. It expires in :minutes min.',
+        'country_not_allowed' => 'Codes are not sent by SMS to this country code.',
+        'capacity_reached' => 'The code delivery service is temporarily saturated. Please try again later.',
     ],
     'oauth' => [
         'challenge_invalid' => 'This sign-in challenge has expired or was already used. Please sign in again.',
