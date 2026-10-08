@@ -82,6 +82,10 @@ class LeaseController extends Controller
         $this->authorize('update', $lease);
 
         $data = $request->validated();
+        // TCK-595 (verif-595 B1) — la base de commission et le négociateur : le personnel de l'agence
+        // du bail sous `leases.create`, jamais le bailleur (403) ; et seulement en brouillon (422 plus
+        // bas) : un bail activé a déjà ventilé sa commission dans le grand livre (ADR-0049 §3).
+        $this->leases->assertMaySetCommissionTerms($request->user(), $lease->agency_id !== null ? (int) $lease->agency_id : null, $data, nullIsWrite: true);
         // VERIF-596 passe 3 (m-a) — le statut se juge sur la ligne VERROUILLÉE, et l'écriture
         // s'applique à cette ligne : sur l'instance liée par la route, une seconde signature validée
         // entre le contrôle et l'écriture laissait écrire les termes d'un bail devenu actif, et la
@@ -97,6 +101,12 @@ class LeaseController extends Controller
                     && array_intersect(array_keys($data), Lease::CONTRACT_PRINTED_TERMS) !== [],
                 422,
                 'lease.terms_locked'
+            );
+            abort_code_if(
+                $locked->status !== LeaseStatus::Draft
+                    && array_intersect(array_keys($data), LeaseService::COMMISSION_TERMS) !== [],
+                422,
+                'lease.commission_locked'
             );
             if ($data !== []) {
                 $locked->fill($data)->save();

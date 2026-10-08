@@ -13,6 +13,7 @@ use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\RefreshNewBuildSearchLabel;
+use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
 use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
@@ -155,6 +156,11 @@ Schedule::command('payouts:remind-due')->dailyAt('07:30')->timezone('Africa/Daka
 
 // TCK-594 (ADR-0039 §3) — le 1er du mois, avis du relevé de gérance du mois précédent.
 Schedule::command('payouts:send-owner-statements')->monthlyOn(1, '08:00')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-595 (ADR-0057 §3) — l'instantané quotidien des métriques plateforme, pour la veille : ses flux
+// et les stocks mesurés à l'exécution. Rejoué, il réécrit la même ligne (`upsert` sur `date`). La
+// tendance à 30 jours de la console se lit dans ces lignes, et nulle part ailleurs.
+Schedule::job(new SnapshotPlatformMetricsJob)->dailyAt('00:30')->withoutOverlapping();
 
 // TCK-602 (ADR-0051 §6) — rétention du journal des webhooks par canal (`config/webhooks.php`).
 // Idempotente : une suppression par date, qu'une seconde exécution trouve vide. La lecture de la

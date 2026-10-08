@@ -22,6 +22,7 @@ vi.mock('@/lib/queries/dashboard', () => ({
     },
     timeseries: {},
   })),
+  fetchMyCapabilities: vi.fn(async () => []),
 }));
 
 import AgentDashboardPage from '../agent/page';

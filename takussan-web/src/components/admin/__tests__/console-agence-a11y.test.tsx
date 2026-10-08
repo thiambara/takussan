@@ -74,8 +74,41 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ token: 'test-token' }),
+  // TCK-595 — `agency_id` : l'onglet Impayés lit la balance âgée de l'agence de l'acteur.
+  useAuth: () => ({ token: 'test-token', user: { id: 1, agency_id: 3 } }),
 }));
+
+/**
+ * TCK-595 — la réponse de `GET /api/agencies/{agency}/finance/aging` : l'onglet Impayés est devenu
+ * la balance âgée. Une ligne, sinon le tableau ne rend que son état vide.
+ */
+const BALANCE_AGEE = {
+  data: {
+    as_of: '2026-08-15',
+    group_by: 'tenant',
+    buckets: {
+      '1_30': { count: 1, amount: 120000 },
+      '31_60': { count: 0, amount: 0 },
+      '61_90': { count: 0, amount: 0 },
+      '90_plus': { count: 0, amount: 0 },
+    },
+    total: { count: 1, amount: 120000 },
+    rows: [
+      {
+        id: 3,
+        name: 'Locataire 3',
+        buckets: {
+          '1_30': { count: 1, amount: 120000 },
+          '31_60': { count: 0, amount: 0 },
+          '61_90': { count: 0, amount: 0 },
+          '90_plus': { count: 0, amount: 0 },
+        },
+        total: { count: 1, amount: 120000 },
+      },
+    ],
+    deposits_held: { total: 0, by_landlord: [] },
+  },
+};
 
 vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ add: vi.fn() }),
@@ -201,25 +234,7 @@ describe('AC3 — tableau des impayés : même invariant', () => {
     vi.stubGlobal('fetch', async () => ({
       ok: true,
       status: 200,
-      json: async () => ({
-        data: [
-          {
-            id: 7,
-            source: 'lease',
-            reference_number: 'PAY-7',
-            amount: 120000,
-            remaining_amount: 120000,
-            currency: 'XOF',
-            date: '2026-08-01',
-            due_date: '2026-08-01',
-            period_start: null,
-            status: 'late',
-            lease_id: 3,
-            booking_id: null,
-          },
-        ],
-        meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
-      }),
+      json: async () => BALANCE_AGEE,
       text: async () => '',
     }));
 
@@ -447,14 +462,7 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     vi.stubGlobal('fetch', async () => ({
       ok: true,
       status: 200,
-      json: async () => ({
-        data: [{
-          id: 7, source: 'lease', reference_number: 'PAY-7', amount: 120000,
-          remaining_amount: 120000, currency: 'XOF', date: '2026-08-01', due_date: '2026-08-01',
-          period_start: null, status: 'late', lease_id: 3, booking_id: null,
-        }],
-        meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
-      }),
+      json: async () => BALANCE_AGEE,
       text: async () => '',
     }));
 

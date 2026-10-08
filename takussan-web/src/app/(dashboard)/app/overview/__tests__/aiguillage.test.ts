@@ -34,8 +34,10 @@ vi.mock('@/app/actions/auth', () => ({
   getMeAction: async () => me.user,
 }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton-de-test' }));
+const agence = vi.hoisted(() => ({ kind: 'standard' as 'standard' | 'individual' }));
+
 vi.mock('@/lib/access/server-guards', () => ({
-  resolveAgencyOrNull: async () => ({ id: 1, kind: 'standard' }),
+  resolveAgencyOrNull: async () => ({ id: 1, kind: agence.kind }),
 }));
 
 function utilisateur(roles: UserRole[], agencyId: number | null = null): User {
@@ -57,6 +59,7 @@ async function cibleDe(roles: UserRole[], agencyId: number | null = null): Promi
 describe('/app/overview — aiguillage par rôle', () => {
   beforeEach(() => {
     vi.resetModules();
+    agence.kind = 'standard';
   });
 
   it('n’envoie plus un prestataire vers la vue locataire', async () => {
@@ -80,5 +83,14 @@ describe('/app/overview — aiguillage par rôle', () => {
   it('un prestataire qui est AUSSI locataire garde sa vue locataire', async () => {
     // C'est son autre rôle qui la lui donne : la garde ne doit pas retirer un accès légitime.
     expect(await cibleDe(['service_provider', 'tenant'])).toBe('/app/overview/tenant');
+  });
+
+  it('TCK-595 (AC7) — l’hôte d’une agence `individual` atterrit sur la vue bailleur', async () => {
+    agence.kind = 'individual';
+    expect(await cibleDe(['agency_admin'], 1)).toBe('/app/overview/owner');
+  });
+
+  it('TCK-595 (AC7) — l’admin d’une agence `standard` garde la vue agence', async () => {
+    expect(await cibleDe(['agency_admin'], 1)).toBe('/app/overview/agency');
   });
 });

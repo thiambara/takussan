@@ -1,176 +1,166 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { CircleCheckBig } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
-import { DataTable, StatusBadge, type DataTableColumn } from '@/components/console';
+import { DataTable, StatCard, type DataTableColumn } from '@/components/console';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { useAuth } from '@/context/AuthContext';
+import { formatCurrency } from '@/lib/format';
 import {
-  usePaymentsHistory,
-  type UsePaymentsHistoryParams,
-} from '@/lib/queries/payments';
+  AGING_BUCKETS,
+  useAgingBalance,
+  type AgingBalance,
+  type AgingGroupBy,
+} from '@/lib/queries/agency-reporting';
 import type { Locale } from '@/i18n/config';
-import type { PaymentHistoryRow } from '@/types/invoice';
+
+type Ligne = AgingBalance['rows'][number];
 
 /**
- * TCK-134 — "Impayés" tab on `/admin/finances`. Re-uses the consolidated
- * `/api/payments/history` endpoint with `filter[status]=late` hard-pinned
- * (the user can't override it from this tab — that surface lives on the
- * "Encaissements" tab via `PaymentsHistoryFilters`). The table is
- * intentionally read-only here; the per-payment "Marquer payé" action
- * is exposed from the entity detail pages (`/app/leases/{id}` etc.) and
- * is **out of scope** for this admin overview (cf. the ticket "Hors
- * périmètre").
+ * TCK-595 (AD17) — l'onglet « Impayés » de `/admin/finances` : la BALANCE ÂGÉE.
+ *
+ * Il listait `/api/payments/history` avec `filter[status]=late` épinglé. Or un loyer échu reste
+ * `pending` tant que le job de retard ne l'a pas basculé — et ne le bascule jamais sur un bail sans
+ * `late_fee_percent` : l'onglet rendait 0 ligne quand la tuile « Impayés » du tableau de bord en
+ * comptait 4 (consigné par `AgingBalanceTest`). Il lit désormais
+ * `GET /api/agencies/{agency}/finance/aging`, qui applique la règle *Impayé* du tableau de bord :
+ * quatre tranches de retard, puis le détail par locataire ou par bailleur, et les cautions détenues.
+ *
+ * Le nom du composant est conservé : c'est l'onglet qu'il rend, et ses consommateurs ne changent pas.
  */
 export function OverduePaymentsTable() {
   const locale = useLocale() as Locale;
-  const t = useTranslations('admin.finances.overdue');
-  const tTable = useTranslations('admin.finances.overdue.table');
-  const tStatus = useTranslations('payments.status');
-  const searchParams = useSearchParams();
+  const t = useTranslations('admin.finances.aging');
+  const { user } = useAuth();
+  const agencyId = user?.agency_id ?? undefined;
+  const [groupBy, setGroupBy] = useState<AgingGroupBy>('tenant');
 
-  const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
-  const params: UsePaymentsHistoryParams = useMemo(
-    () => ({
-      page,
-      per_page: 20,
-      status: 'late',
-      sort: '-date',
-    }),
-    [page],
-  );
+  const query = useAgingBalance(agencyId, groupBy);
 
-  const query = usePaymentsHistory(params);
+  const montant = (valeur: number) => formatCurrency(valeur, locale);
 
-  const columns: readonly DataTableColumn<PaymentHistoryRow>[] = [
+  const columns: readonly DataTableColumn<Ligne>[] = [
     {
-      id: 'reference',
-      header: tTable('reference'),
-      // `nowrap` : « LPY-QOWGDC » se cassait au tiret à 768, une référence par deux lignes.
-      className: 'whitespace-nowrap',
-      // La typographie de la CELLULE se pose dans la cellule : `className` va aussi sur le `<th>`,
-      // et un en-tête en chasse fixe n'est pas ce qu'on demandait.
-      cell: (row) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {row.reference_number ?? `#${row.id}`}
-        </span>
-      ),
-    },
-    {
-      id: 'source',
-      header: tTable('source'),
-      className: 'text-xs',
-      cell: (row) => tTable(`sources.${row.source}`),
-    },
-    {
-      id: 'dueDate',
-      header: tTable('dueDate'),
-      className: 'whitespace-nowrap text-xs tabular-nums',
+      id: 'name',
+      header: groupBy === 'tenant' ? t('columns.tenant') : t('columns.landlord'),
+      className: 'text-sm',
       cell: (row) => {
-        const dueDate = row.due_date ?? row.period_start ?? row.date ?? null;
-        return dueDate ? formatDate(dueDate, locale) : '—';
-      },
-    },
-    {
-      id: 'amount',
-      header: tTable('amount'),
-      className: 'whitespace-nowrap font-semibold tabular-nums',
-      cell: (row) => formatCurrency(row.amount, locale, { currency: row.currency || 'XOF' }),
-    },
-    {
-      id: 'remaining',
-      header: tTable('remaining'),
-      className: 'whitespace-nowrap tabular-nums',
-      cell: (row) => (
-        <span className="font-semibold text-destructive">
-          {formatCurrency(row.remaining_amount, locale, { currency: row.currency || 'XOF' })}
-        </span>
-      ),
-    },
-    {
-      id: 'status',
-      header: tTable('status'),
-      // L'onglet épingle `filter[status]=late` : toute ligne qui arrive ici est en retard.
-      cell: () => <StatusBadge tone="danger" label={tStatus('late')} />,
-    },
-    {
-      id: 'entity',
-      header: tTable('entity'),
-      className: 'whitespace-nowrap text-xs',
-      cell: (row) => {
-        const entityLabel = row.lease_id
-          ? tTable('leaseEntity', { id: String(row.lease_id) })
-          : row.booking_id
-            ? tTable('bookingEntity', { id: String(row.booking_id) })
-            : '—';
-        const entityHref = row.lease_id
-          ? `/app/leases/${row.lease_id}`
-          : row.booking_id
-            ? `/app/bookings/${row.booking_id}`
-            : null;
-        return entityHref ? (
+        const nom = row.name || t('unknown');
+        // Un locataire mène à sa fiche client, d'où se lisent ses échéances. Un bailleur n'a pas de
+        // fiche dans la console d'agence.
+        return groupBy === 'tenant' && row.id !== null ? (
           <Link
-            href={entityHref}
+            href={`/app/customers/${row.id}`}
             className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            {entityLabel}
+            {nom}
           </Link>
         ) : (
-          <span>{entityLabel}</span>
+          <span>{nom}</span>
         );
       },
+    },
+    ...AGING_BUCKETS.map((bucket): DataTableColumn<Ligne> => ({
+      id: bucket,
+      header: t(`buckets.${bucket}`),
+      align: 'end',
+      className: 'whitespace-nowrap tabular-nums',
+      cell: (row) => (row.buckets[bucket].count > 0 ? montant(row.buckets[bucket].amount) : '—'),
+    })),
+    {
+      id: 'total',
+      header: t('columns.total'),
+      align: 'end',
+      className: 'whitespace-nowrap font-semibold tabular-nums',
+      cell: (row) => montant(row.total.amount),
     },
   ];
 
   return (
-    <QueryBoundary
-      query={query}
-      loadingFallback={
-        <div className="space-y-3" data-testid="overdue-payments-loading">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
-          ))}
-        </div>
-      }
-    >
-      {(data) => {
-        const rows = data.data ?? [];
-        if (rows.length === 0) {
-          return (
-            <EmptyState
-              data-testid="overdue-payments-empty"
-              icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
-              title={t('empty_title')}
-              description={t('empty_description')}
-            />
-          );
-        }
+    <div className="space-y-4">
+      <div role="group" aria-label={t('groupByLabel')} className="flex flex-wrap gap-2">
+        {(['tenant', 'landlord'] as const).map((g) => (
+          <Button
+            key={g}
+            type="button"
+            size="sm"
+            variant={groupBy === g ? 'default' : 'outline'}
+            aria-pressed={groupBy === g}
+            onClick={() => setGroupBy(g)}
+          >
+            {t(`groupBy.${g}`)}
+          </Button>
+        ))}
+      </div>
 
-        return (
-          <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
-            <DataTable
-              caption={t('tableCaption')}
-              columns={columns}
-              rows={rows}
-              rowKey={(row) => `${row.source}-${row.id}`}
-              density="compact"
-              data-testid="overdue-payments-table"
-              className="rounded-none ring-0"
-            />
-            {data.meta.total ? (
-              <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
-                {t('count', { count: data.meta.total })}
-              </p>
-            ) : null}
+      <QueryBoundary
+        query={query}
+        loadingFallback={
+          <div className="space-y-3" data-testid="overdue-payments-loading">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-12 rounded-lg" />
+            ))}
           </div>
-        );
-      }}
-    </QueryBoundary>
+        }
+      >
+        {(reponse) => {
+          const data = reponse.data;
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
+                {AGING_BUCKETS.map((bucket) => (
+                  <StatCard
+                    key={bucket}
+                    label={t(`buckets.${bucket}`)}
+                    value={montant(data.buckets[bucket].amount)}
+                    hint={t('count', { count: data.buckets[bucket].count })}
+                    tone={bucket === '90_plus' && data.buckets[bucket].count > 0 ? 'danger' : 'default'}
+                  />
+                ))}
+              </div>
+              <div className="grid grid-cols-1 gap-3 tabular-nums sm:grid-cols-2">
+                <StatCard
+                  label={t('total')}
+                  value={montant(data.total.amount)}
+                  hint={t('count', { count: data.total.count })}
+                />
+                <StatCard
+                  label={t('depositsHeld')}
+                  value={montant(data.deposits_held.total)}
+                  hint={t('depositsHeldHint', { count: data.deposits_held.by_landlord.length })}
+                />
+              </div>
+
+              {data.rows.length === 0 ? (
+                <EmptyState
+                  data-testid="overdue-payments-empty"
+                  icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
+                  title={t('emptyTitle')}
+                  description={t('emptyDescription')}
+                />
+              ) : (
+                <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
+                  <DataTable
+                    caption={groupBy === 'tenant' ? t('captionTenant') : t('captionLandlord')}
+                    columns={columns}
+                    rows={data.rows}
+                    rowKey={(row) => row.id ?? 0}
+                    density="compact"
+                    data-testid="overdue-payments-table"
+                    className="rounded-none ring-0"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        }}
+      </QueryBoundary>
+    </div>
   );
 }

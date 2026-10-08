@@ -103,6 +103,9 @@ return [
         'sync_throttled' => 'Ce calendrier vient d\'être synchronisé. Réessayez dans une minute.',
         'unsafe_url' => 'Ce lien de calendrier ne peut pas être importé : il doit être en HTTPS et pointer vers un service public.',
     ],
+    'commission' => [
+        'not_due' => 'Seule une commission due peut être marquée versée ou annulée.',
+    ],
     'conversation' => [
         'participant_not_found' => 'Ce participant ne fait pas partie de la conversation.',
         'participant_required' => 'Il faut au moins un autre participant.',
@@ -112,7 +115,7 @@ return [
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],
     'dashboard' => [
-        'profile_unresolved' => 'Aucun tableau de bord ne correspond à votre profil.',
+        'invalid_scope' => 'Le périmètre demandé doit être « mine » ou « agency ».',
     ],
     'data_export' => [
         'expired' => 'Cet export de données a expiré.',
@@ -234,6 +237,8 @@ return [
     ],
     'lease' => [
         'cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',
+        'commission_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la commission et le négociateur.',
+        'commission_locked' => 'La commission et le négociateur se fixent sur un bail en brouillon : une fois activé, sa commission est déjà répartie.',
         'guarantor_already_attached' => 'Ce garant est déjà rattaché au bail.',
         'max_guarantors' => 'Un bail ne peut pas avoir plus de 3 garants.',
         'not_activatable' => 'Seul un bail en brouillon ou en attente de signature peut être activé.',
@@ -422,6 +427,7 @@ return [
         'duplicate_file' => 'Ce relevé a déjà été importé pour cette agence.',
     ],
     'reporting' => [
+        'invalid_group_by' => 'Le regroupement demandé doit être « tenant » ou « landlord ».',
         'range_too_wide' => 'La plage demandée dépasse le plafond de :max intervalles « :granularity ». Réduisez la plage ou élargissez la granularité.',
         'report_unknown' => 'Rapport inconnu.',
     ],

@@ -155,7 +155,8 @@
         "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
         "pendingVisits": "{count, plural, one {# ñaan gis-gis bu di xaar} other {# ñaan gis-gis yu di xaar}}"
       },
-      "receivedReviews": "Avis yi ñu la bind"
+      "receivedReviews": "Avis yi ñu la bind",
+      "commissions": "Komisioŋ yi"
     },
     "admin": {
       "dashboard": "Taablo",
@@ -3310,6 +3311,25 @@
         "already_member": "Nit kii am na ci sa kuréel.",
         "forbidden": "Amul nga sañ-sañu toppatoo kuréel gi."
       }
+    },
+    "performance": {
+      "title": "Njariñu mbooloo mi",
+      "period": "Weer",
+      "caption": "Màndarga yu ajaŋ bu nekk ci weer wi ñu tànn",
+      "sortBy": "Toftal ci {column}",
+      "unknown": "Ajaŋ bu amul tur",
+      "columns": {
+        "name": "Ajaŋ",
+        "leases_signed": "Kontaraa yu ñu xaatim",
+        "sales_signed": "Jaay yu ñu xaatim",
+        "visits_completed": "Seetlu yu ñu def",
+        "customers_added": "Kiliyaan yu ñu yokk",
+        "commissions_earned": "Komisioŋ yu ñu jot",
+        "properties_managed": "Kër yu ñuy topptoo",
+        "tasks_overdue": "Liggéey yu yeex"
+      },
+      "emptyTitle": "Amul ajaŋ buy liggéey",
+      "emptyDescription": "Woowal benn ajaŋ ngir topp ay màndargaam fii."
     }
   },
   "serviceProviders": {
@@ -3969,6 +3989,33 @@
         "pendingPayouts": "Peymaan yuy xaar",
         "invoicesToIssue": "Fakteer yu ñu war a génne",
         "overdueHint": "{count, plural, one {# luwé bu ci aju} other {# luwé yu ci aju}}"
+      },
+      "aging": {
+        "groupByLabel": "Mboolewaayu yu ñu feyul",
+        "groupBy": {
+          "tenant": "Ci luwaakat bu nekk",
+          "landlord": "Ci boroom kër bu nekk"
+        },
+        "buckets": {
+          "1_30": "1 ba 30 fan",
+          "31_60": "31 ba 60 fan",
+          "61_90": "61 ba 90 fan",
+          "90_plus": "Ëpp 90 fan"
+        },
+        "count": "{count, plural, =0 {Amul bes} other {# bes}}",
+        "total": "Yu ñu feyul yépp",
+        "depositsHeld": "Garaasi yi ñu denc",
+        "depositsHeldHint": "{count, plural, =0 {Amul boroom kër} other {# boroom kër}}",
+        "columns": {
+          "tenant": "Luwaakat",
+          "landlord": "Boroom kër",
+          "total": "Lépp"
+        },
+        "unknown": "Xamuñu ko",
+        "captionTenant": "Yu ñu feyul ci luwaakat ak ci yeex",
+        "captionLandlord": "Yu ñu feyul ci boroom kër ak ci yeex",
+        "emptyTitle": "Amul lu ñu feyul",
+        "emptyDescription": "Amul benn bes luwaas bu jot bu ñuy xaar fey."
       }
     },
     "audit": {
@@ -4212,6 +4259,7 @@
         },
         "reports": {
           "view_global": "Gis rapooru plaatfoom bi",
+          "view_agency": "Gis limu ajans bi yépp",
           "export": "Génne rapoor yi"
         },
         "roles": {
@@ -4386,7 +4434,8 @@
           "all": "Ñépp",
           "agents": "Agent yi",
           "admins": "Administrateur yi",
-          "owners": "Boroom kër yi"
+          "owners": "Boroom kër yi",
+          "performance": "Njariñ"
         },
         "invite": "Woo",
         "inviteAgent": "Woo",
@@ -6647,7 +6696,17 @@
       "cumulativeRents": "Loyeer yi ñu jot ñoo boole",
       "usersTotal": "Jëfandikukat yi",
       "activeOutOf": "{active} yu dox",
-      "delta": "{value} % ci {days} fan"
+      "delta": "{value} % ci {days} fan",
+      "collectedTotal": "Xaalis bu dugg",
+      "collectedTotalHint": "Luwaas ak réservasioŋ yu ñu fey, garaas yi bokkuñu ci",
+      "gmv": "Yaatuwaayu njaay (30 fan)",
+      "gmvHint": "Luwaas ak réservasioŋ yu ñu fey ci 30 fan",
+      "takeRate": "Take rate (30 fan)",
+      "takeRateHint": "{fees} ci peyu plaatfoom bi",
+      "mrr": "MRR abonmaa yi",
+      "mrrHint": "{count, plural, =0 {Amul abonmaa buñuy fey} other {# abonmaa yuñuy fey}}",
+      "trialing": "MRR ci jéem",
+      "trialingHint": "Abonmaa yu ci jéem, bokkuñu ci MRR"
     },
     "confirmDialog": {
       "typePrompt": "Ngir dëgglu, bindal",
@@ -8334,7 +8393,18 @@
       "upcoming30d": "Bes yi ci 30 fan yu ñëw",
       "noUpcoming": "Amul bes bu ñu tëral.",
       "recentDocs": "Dokimaa yu yees",
-      "noDocs": "Amul dokimaa."
+      "noDocs": "Amul dokimaa.",
+      "noProfileInvite": "Amagul benn dosye kiliyaan ci sa tur. Tàmbalil ci seet benn kër.",
+      "whatAwaits": "Li ma xaar",
+      "nextVisit": "Seetlu bi ci topp",
+      "nextVisitAt": "{date} · {property}",
+      "noVisit": "Amul seetlu bu ñu tëral",
+      "propertyFallback": "Kër",
+      "openMaintenance": "Ñaanu wattu yu ubbeeku",
+      "inviteRentIn": "Kër yu ñuy luwe ci {city}",
+      "inviteBuyIn": "Kër yu ñuy jaay ci {city}",
+      "inviteSearch": "Seet benn kër",
+      "inviteCta": "Xool yéenekaay yi"
     },
     "agency": {
       "title": "Wonewu ajaas",
@@ -8406,7 +8476,16 @@
       "chartCommissions": "Komisioŋ yi",
       "chartSignedLeases": "Kontaraa yu ñu xaatim",
       "timeUnknown": "Waxtu wu ñu koy leeral",
-      "dateUnknown": "Bes bu ñu koy leeral"
+      "dateUnknown": "Bes bu ñu koy leeral",
+      "scopeLabel": "Yaatuwaayu limu yi",
+      "scopeMine": "Sama lim yi",
+      "scopeAgency": "Ajaans bi",
+      "managedMine": "Sama kër yi",
+      "managedAgency": "Këri ajaans bi",
+      "commissionsMonthMine": "Sama komisioŋu weer wi",
+      "commissionsMonthAgency": "Komisioŋu ajaans bi ci weer wi",
+      "commissionsAgency": "Komisioŋu ajaans bi",
+      "commissionsDetail": "Leeral ci kontaraa ku nekk"
     },
     "owner": {
       "title": "Wonewu boroom kër",
@@ -8440,7 +8519,10 @@
       "payoutFallback": "Peymaan #{id}",
       "payoutScheduled": " · ñu ko tëral ci {date}",
       "chartCashflow": "Xaalis",
-      "chartOccupancy": "Dalal (%)"
+      "chartOccupancy": "Dalal (%)",
+      "quotesPending": "Deewi yu ñu war a nangu",
+      "visitsToConfirm": "Seetlu yu ñu war a dëggal",
+      "reviewsUnanswered": "Xalaat yu ñu tontuwul"
     },
     "alerts": {
       "invalidThreshold": "Dig bu baaxul.",
@@ -8520,7 +8602,12 @@
         "payments": "Fey yi",
         "leases": "Kontaraa yi",
         "customers": "Kiliyaan yi",
-        "properties": "Kër yi"
+        "properties": "Kër yi",
+        "payouts": "Delloo xaalis yi",
+        "invoices": "Faktiir yi",
+        "commissions": "Komisioŋ yi",
+        "aging": "Bor yi ci seen yàgg",
+        "deposits": "Garaas yi ñu denc"
       },
       "formats": {
         "csv": "CSV",
@@ -10335,6 +10422,45 @@
     "reessayer": "Jéemaatal",
     "favorisTitre": "Sa bëgg-bëgg yi nga xoolewoon ci bii aparey",
     "favorisVide": "Amul benn ci sa bëgg-bëgg yi mën a feeñ te amul internet ci bii aparey."
+  },
+  "commissions": {
+    "metaTitle": "Komisioŋ yi",
+    "title": "Limu komisioŋ yi",
+    "subtitle": "Komisioŋ yi juge ci kontaraa yu ñu ubbi, benn rëdd ci ku ko jot.",
+    "filterLabel": "Tànn ci nekkin",
+    "filterAll": "Yépp",
+    "status": {
+      "due": "Ñu ko war",
+      "paid": "Fey nañu ko",
+      "cancelled": "Neenal nañu ko"
+    },
+    "totals": {
+      "due": "Li des",
+      "paid": "Li ñu fey",
+      "cancelled": "Li ñu neenal"
+    },
+    "columns": {
+      "earnedAt": "Jot nañu ko ci",
+      "lease": "Kontaraa",
+      "beneficiary": "Ku ko jot",
+      "share": "Wàll",
+      "amount": "Xaalis bi",
+      "status": "Nekkin",
+      "actions": "Jëf yi"
+    },
+    "origins": {
+      "negotiator": "Waxtaankat",
+      "collaborator": "Ndimbal"
+    },
+    "shareOf": "{percent} ci {base}",
+    "leaseFallback": "Kontaraa #{id}",
+    "beneficiaryFallback": "Jëfandikukat #{id}",
+    "markPaid": "Tegg ne fey nañu ko",
+    "cancel": "Neenal",
+    "actionFailed": "Jëf ji antuwul.",
+    "emptyTitle": "Amul komisioŋ",
+    "emptyDescription": "Komisioŋ dafay juddu bu ñu ubbee kontaraa bu am xaalisu komisioŋ.",
+    "tableCaption": "Rëddi téereb komisioŋ yi"
   },
   "payLink": {
     "metaTitle": "Fey sama luwaasu kër",

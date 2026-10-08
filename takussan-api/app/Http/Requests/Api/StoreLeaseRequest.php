@@ -6,6 +6,8 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
+use App\Models\Property;
+use App\Rules\PersonnelDeLAgence;
 use Illuminate\Validation\Rule;
 
 /**
@@ -43,10 +45,26 @@ class StoreLeaseRequest extends BaseFormRequest
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // TCK-595 (ADR-0049 §2) — la base du grand livre. Absente des règles, elle était écartée par
+            // `validated()` : un bail créé par l'API naissait sans commission, et la tuile restait à 0.
+            'commission_amount' => ['nullable', 'numeric', 'min:0'],
+            // TCK-595 (ADR-0049 §1) — le négociateur : personnel actif de l'agence DU BIEN, jamais un
+            // bailleur, un client ni le compte d'une autre agence. Un bien sans agence n'en a aucun.
+            'agent_id' => ['nullable', 'integer', new PersonnelDeLAgence($this->propertyAgencyId())],
             'payment_frequency' => ['nullable', Rule::enum(PaymentFrequency::class)],
             'payment_day' => ['nullable', 'integer', 'between:1,28'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'terms' => ['nullable', 'string'],
         ];
+    }
+
+    private function propertyAgencyId(): ?int
+    {
+        $propertyId = $this->input('property_id');
+        $agencyId = is_numeric($propertyId)
+            ? Property::query()->whereKey((int) $propertyId)->value('agency_id')
+            : null;
+
+        return $agencyId !== null ? (int) $agencyId : null;
     }
 }

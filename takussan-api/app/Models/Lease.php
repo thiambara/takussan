@@ -30,6 +30,8 @@ class Lease extends AbstractModel implements HasMedia
     protected $fillable = [
         'property_id', 'landlord_id', 'tenant_id', 'agency_id',
         'booking_id', 'renewed_from_lease_id', 'guarantor_id',
+        // TCK-595 (ADR-0049 §1) — le négociateur, personnel de l'agence du bien.
+        'agent_id',
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
         'monthly_rent', 'sale_price', 'currency',
@@ -82,18 +84,18 @@ class Lease extends AbstractModel implements HasMedia
         'signature_requested_at' => 'datetime',
     ];
 
-    protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'type', 'status', 'currency', 'payment_frequency', 'renewed_from_lease_id'];
+    protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'agent_id', 'type', 'status', 'currency', 'payment_frequency', 'renewed_from_lease_id'];
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'monthly_rent'];
 
-    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'guarantor', 'renewedFrom', 'renewals', 'onboardingChecklist'];
+    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'agent', 'guarantor', 'renewedFrom', 'renewals', 'onboardingChecklist'];
 
     protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents', 'renewals'];
 
     protected static array $requestRangeFilters = ['monthly_rent'];
 
     protected static array $queryFields = [
-        'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id',
+        'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id', 'agent_id',
         'booking_id', 'guarantor_id', 'renewed_from_lease_id',
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
@@ -133,6 +135,18 @@ class Lease extends AbstractModel implements HasMedia
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /** TCK-595 (ADR-0049 §1) — le négociateur du bail. */
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    /** TCK-595 (ADR-0049 §3) — les lignes du grand livre nées à l'activation. */
+    public function commissionEntries(): HasMany
+    {
+        return $this->hasMany(CommissionEntry::class);
     }
 
     public function booking(): BelongsTo
@@ -309,6 +323,7 @@ class Lease extends AbstractModel implements HasMedia
         'landlord_id' => 'imprimé par les parties',
         'tenant_id' => 'imprimé par les parties',
         'agency_id' => 'imprimé par les parties',
+        'agent_id' => 'négociateur interne à l\'agence (ADR-0049 §1), pas une partie au contrat',
         'guarantor_id' => 'ancienne colonne ; les garants imprimés sont ceux du pivot',
         'booking_id' => 'origine du bail, pas un terme',
         'renewed_from_lease_id' => 'filiation, pas un terme',

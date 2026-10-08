@@ -165,7 +165,8 @@
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
       },
-      "receivedReviews": "Reviews received"
+      "receivedReviews": "Reviews received",
+      "commissions": "Commissions"
     },
     "admin": {
       "dashboard": "Dashboard",
@@ -1539,7 +1540,18 @@
       "upcoming30d": "Instalments in the next 30 days",
       "noUpcoming": "No instalment scheduled.",
       "recentDocs": "Recent documents",
-      "noDocs": "No document."
+      "noDocs": "No document.",
+      "noProfileInvite": "No customer file is open in your name yet. Start by looking for a home.",
+      "whatAwaits": "What's next for me",
+      "nextVisit": "Next visit",
+      "nextVisitAt": "{date} · {property}",
+      "noVisit": "No visit scheduled",
+      "propertyFallback": "Property",
+      "openMaintenance": "Open maintenance requests",
+      "inviteRentIn": "Homes to rent in {city}",
+      "inviteBuyIn": "Properties to buy in {city}",
+      "inviteSearch": "Find a home",
+      "inviteCta": "Browse listings"
     },
     "agency": {
       "title": "Agency overview",
@@ -1611,7 +1623,16 @@
       "chartCommissions": "Commissions",
       "chartSignedLeases": "Signed leases",
       "timeUnknown": "Time to be confirmed",
-      "dateUnknown": "Date to be confirmed"
+      "dateUnknown": "Date to be confirmed",
+      "scopeLabel": "Figures scope",
+      "scopeMine": "My figures",
+      "scopeAgency": "Agency",
+      "managedMine": "My properties",
+      "managedAgency": "Agency properties",
+      "commissionsMonthMine": "My commissions this month",
+      "commissionsMonthAgency": "Agency commissions this month",
+      "commissionsAgency": "Agency commissions",
+      "commissionsDetail": "Breakdown by lease"
     },
     "owner": {
       "title": "Landlord overview",
@@ -1645,7 +1666,10 @@
       "payoutFallback": "Payout #{id}",
       "payoutScheduled": " · scheduled for {date}",
       "chartCashflow": "Cash flow",
-      "chartOccupancy": "Occupancy (%)"
+      "chartOccupancy": "Occupancy (%)",
+      "quotesPending": "Quotes to approve",
+      "visitsToConfirm": "Visits to confirm",
+      "reviewsUnanswered": "Unanswered reviews"
     },
     "alerts": {
       "invalidThreshold": "Invalid threshold.",
@@ -1725,7 +1749,12 @@
         "payments": "Payments",
         "leases": "Leases",
         "customers": "Customers",
-        "properties": "Properties"
+        "properties": "Properties",
+        "payouts": "Payouts",
+        "invoices": "Invoices",
+        "commissions": "Commissions",
+        "aging": "Overdue by age",
+        "deposits": "Deposits held"
       },
       "formats": {
         "csv": "CSV",
@@ -4828,6 +4857,25 @@
         "already_member": "This person is already in your team.",
         "forbidden": "You do not have permission to manage the team."
       }
+    },
+    "performance": {
+      "title": "Team performance",
+      "period": "Month",
+      "caption": "Indicators per agent for the selected month",
+      "sortBy": "Sort by {column}",
+      "unknown": "Unnamed agent",
+      "columns": {
+        "name": "Agent",
+        "leases_signed": "Leases signed",
+        "sales_signed": "Sales signed",
+        "visits_completed": "Visits completed",
+        "customers_added": "Customers added",
+        "commissions_earned": "Commissions earned",
+        "properties_managed": "Properties managed",
+        "tasks_overdue": "Overdue tasks"
+      },
+      "emptyTitle": "No active agent",
+      "emptyDescription": "Invite an agent to follow their indicators here."
     }
   },
   "serviceProviders": {
@@ -5487,6 +5535,33 @@
         "pendingPayouts": "Pending payouts",
         "invoicesToIssue": "Invoices to issue",
         "overdueHint": "{count, plural, one {# lease affected} other {# leases affected}}"
+      },
+      "aging": {
+        "groupByLabel": "Group overdue amounts",
+        "groupBy": {
+          "tenant": "By tenant",
+          "landlord": "By landlord"
+        },
+        "buckets": {
+          "1_30": "1–30 days",
+          "31_60": "31–60 days",
+          "61_90": "61–90 days",
+          "90_plus": "Over 90 days"
+        },
+        "count": "{count, plural, =0 {No instalment} one {# instalment} other {# instalments}}",
+        "total": "Total overdue",
+        "depositsHeld": "Deposits held",
+        "depositsHeldHint": "{count, plural, =0 {No landlord} one {# landlord} other {# landlords}}",
+        "columns": {
+          "tenant": "Tenant",
+          "landlord": "Landlord",
+          "total": "Total"
+        },
+        "unknown": "Not specified",
+        "captionTenant": "Overdue amounts by tenant and age bracket",
+        "captionLandlord": "Overdue amounts by landlord and age bracket",
+        "emptyTitle": "Nothing overdue",
+        "emptyDescription": "No past-due rent instalment is awaiting payment."
       }
     },
     "audit": {
@@ -5730,6 +5805,7 @@
         },
         "reports": {
           "view_global": "View platform reports",
+          "view_agency": "View the agency’s consolidated figures",
           "export": "Export reports"
         },
         "roles": {
@@ -5904,7 +5980,8 @@
           "all": "All",
           "agents": "Agents",
           "admins": "Administrators",
-          "owners": "Owners"
+          "owners": "Owners",
+          "performance": "Performance"
         },
         "invite": "Invite",
         "inviteAgent": "Invite",
@@ -7258,7 +7335,17 @@
       "cumulativeRents": "Cumulative rent collected",
       "usersTotal": "Users",
       "activeOutOf": "{active} active",
-      "delta": "{value}% over {days} days"
+      "delta": "{value}% over {days} days",
+      "collectedTotal": "Collected flow",
+      "collectedTotalHint": "Rents and bookings paid, deposits excluded",
+      "gmv": "Gross volume (30 d)",
+      "gmvHint": "Rents and bookings paid over 30 days",
+      "takeRate": "Take rate (30 d)",
+      "takeRateHint": "{fees} in platform fees",
+      "mrr": "Subscription MRR",
+      "mrrHint": "{count, plural, =0 {No paying subscription} one {# paying subscription} other {# paying subscriptions}}",
+      "trialing": "Trial MRR",
+      "trialingHint": "Trial subscriptions, excluded from MRR"
     },
     "confirmDialog": {
       "typePrompt": "To confirm, type",
@@ -10335,6 +10422,45 @@
     "reessayer": "Try again",
     "favorisTitre": "Your favorites already viewed on this device",
     "favorisVide": "None of your favorites is available offline on this device."
+  },
+  "commissions": {
+    "metaTitle": "Commissions",
+    "title": "Commission statement",
+    "subtitle": "Commissions earned on activated leases, one line per beneficiary.",
+    "filterLabel": "Filter by status",
+    "filterAll": "All",
+    "status": {
+      "due": "Due",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "totals": {
+      "due": "Outstanding",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "columns": {
+      "earnedAt": "Earned on",
+      "lease": "Lease",
+      "beneficiary": "Beneficiary",
+      "share": "Share",
+      "amount": "Amount",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "origins": {
+      "negotiator": "Negotiator",
+      "collaborator": "Collaborator"
+    },
+    "shareOf": "{percent} of {base}",
+    "leaseFallback": "Lease #{id}",
+    "beneficiaryFallback": "User #{id}",
+    "markPaid": "Mark as paid",
+    "cancel": "Cancel",
+    "actionFailed": "The action could not be completed.",
+    "emptyTitle": "No commission",
+    "emptyDescription": "A commission is created when a lease carrying a commission amount is activated.",
+    "tableCaption": "Commission ledger lines"
   },
   "payLink": {
     "metaTitle": "Pay my rent",

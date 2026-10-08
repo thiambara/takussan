@@ -26,13 +26,15 @@ class LeaseResource extends BaseResource
 
     public function toArray(Request $request): array
     {
-        return [
+        $data = [
             'id' => $this->id,
             'reference_number' => $this->reference_number,
             'property_id' => $this->property_id,
             'landlord_id' => $this->landlord_id,
             'tenant_id' => $this->tenant_id,
             'agency_id' => $this->agency_id,
+            // TCK-595 (ADR-0049 §1) — le négociateur.
+            'agent_id' => $this->agent_id,
             'booking_id' => $this->booking_id,
             'renewed_from_lease_id' => $this->renewed_from_lease_id,
             'type' => $this->type?->value,
@@ -48,6 +50,12 @@ class LeaseResource extends BaseResource
             'deposit_refunded_at' => $this->iso($this->deposit_refunded_at),
             'deposit_refund_reason' => $this->deposit_refund_reason,
             'commission_rate' => $this->commission_rate !== null ? (float) $this->commission_rate : null,
+            // TCK-595 (ADR-0049 §2) — la base du grand livre. Elle était en base et jamais rendue : le
+            // formulaire ne pouvait ni la montrer ni vérifier ce qu'il avait envoyé. verif-595 m6 — un
+            // terme du mandat de l'agence, rendu à son seul personnel : ni au locataire, ni au bailleur.
+            // ⚠ Pas de `when()` : les contrôleurs appellent `toArray()` directement, et la valeur
+            // manquante sortirait sérialisée (`[]`) au lieu d'être retirée. La clé est ôtée plus bas.
+            'commission_amount' => $this->commission_amount !== null ? (float) $this->commission_amount : null,
             'payment_frequency' => $this->payment_frequency?->value,
             'payment_day' => $this->payment_day,
             'signed_at' => $this->iso($this->signed_at),
@@ -96,5 +104,34 @@ class LeaseResource extends BaseResource
                 && LandlordSignatory::allows($this->viewer, $this->resource)),
             'created_at' => $this->iso($this->created_at),
         ];
+
+        if (! $this->viewerIsAgencyStaff($request)) {
+            unset($data['commission_amount']);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Le lecteur est-il du personnel de l'agence du bail (ou super-admin) ? Son agence de personnel se
+     * lit une fois par requête, pas une fois par ligne d'une liste.
+     */
+    private function viewerIsAgencyStaff(Request $request): bool
+    {
+        $viewer = $this->viewer ?? $request->user();
+        if (! $viewer instanceof User) {
+            return false;
+        }
+        if ($viewer->isSuperAdmin()) {
+            return true;
+        }
+
+        $key = 'lease_resource.staff_agency_id.'.$viewer->id;
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, $viewer->staffAgencyId());
+        }
+        $staffAgencyId = $request->attributes->get($key);
+
+        return $staffAgencyId !== null && $this->agency_id !== null && (int) $this->agency_id === $staffAgencyId;
     }
 }

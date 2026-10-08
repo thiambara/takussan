@@ -8,17 +8,16 @@ use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Property;
-use App\Models\User;
+use App\Services\Dashboard\DashboardAgencyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Lightweight read-only stats for an agency dashboard.
  *
- * Intentionally uses simple aggregate queries — no cache for MVP. Caller
- * authenticates via Sanctum; access is scoped to super_admin, the agency's
- * primary admin, or a member with an admin/agency_admin role inside the
- * agency team.
+ * Intentionally uses simple aggregate queries — no cache for MVP. Access:
+ * `reports.view_agency` at the agency (`AgencyPolicy::viewReports`, TCK-595),
+ * or super_admin.
  *
  * Route: GET /api/agencies/{agency}/stats
  */
@@ -26,44 +25,22 @@ class AgencyStatsController extends Controller
 {
     public function show(Request $request, Agency $agency): JsonResponse
     {
-        $actor = $request->user();
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || $agency->primary_admin_id === $actor->id
-                || (
-                    $request->activeProfile()?->agency_id === $agency->id
-                    && $actor->isAgencyAdminAt((int) $agency->id)
-                ),
-            403,
-        );
+        // TCK-595 (ADR-0049 §4) — la même garde que `GET /api/dashboard/agency`.
+        $this->authorize('viewReports', $agency);
 
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
 
         $propertiesCount = Property::where('agency_id', $agency->id)->count();
-        $membersCount = User::query()->where(function ($q) use ($agency) {
-            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
-        })->count();
+        $membersCount = DashboardAgencyService::membersCount((int) $agency->id);
         $customersCount = Customer::where('agency_id', $agency->id)->count();
 
         $activeLeasesCount = Lease::where('agency_id', $agency->id)
             ->where('status', LeaseStatus::Active->value)
             ->count();
 
-        // Sum of commissions on leases actually signed during the current month.
-        // Commission is earned at signature — unsigned (draft/pending_signature)
-        // leases must not contribute, and a lease signed then terminated in the
-        // same window is treated as cancelled.
-        $commissionMonth = (float) Lease::where('agency_id', $agency->id)
-            ->whereNotNull('signed_at')
-            ->whereBetween('signed_at', [$monthStart, $monthEnd])
-            ->whereNotIn('status', [
-                LeaseStatus::Draft->value,
-                LeaseStatus::PendingSignature->value,
-                LeaseStatus::Terminated->value,
-            ])
-            ->sum('commission_amount');
+        // TCK-595 (ADR-0049 §5) — la même règle que la tuile du tableau de bord d'agence.
+        $commissionMonth = DashboardAgencyService::commissionMonth((int) $agency->id);
 
         return $this->json([
             'data' => [

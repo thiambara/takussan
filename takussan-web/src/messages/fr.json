@@ -165,7 +165,8 @@
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
         "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
       },
-      "receivedReviews": "Avis reçus"
+      "receivedReviews": "Avis reçus",
+      "commissions": "Commissions"
     },
     "admin": {
       "dashboard": "Tableau de bord",
@@ -1514,7 +1515,18 @@
       "upcoming30d": "Échéances des 30 prochains jours",
       "noUpcoming": "Aucune échéance prévue.",
       "recentDocs": "Documents récents",
-      "noDocs": "Aucun document."
+      "noDocs": "Aucun document.",
+      "noProfileInvite": "Aucun dossier client n'est encore ouvert à votre nom. Commencez par chercher un logement.",
+      "whatAwaits": "Ce qui m'attend",
+      "nextVisit": "Prochaine visite",
+      "nextVisitAt": "{date} · {property}",
+      "noVisit": "Aucune visite prévue",
+      "propertyFallback": "Bien",
+      "openMaintenance": "Demandes d'intervention en cours",
+      "inviteRentIn": "Biens à {city} pour louer",
+      "inviteBuyIn": "Biens à {city} pour acheter",
+      "inviteSearch": "Trouver un logement",
+      "inviteCta": "Voir les annonces"
     },
     "agency": {
       "title": "Vue agence",
@@ -1586,7 +1598,16 @@
       "chartCommissions": "Commissions",
       "chartSignedLeases": "Baux signés",
       "timeUnknown": "Heure à préciser",
-      "dateUnknown": "Date à préciser"
+      "dateUnknown": "Date à préciser",
+      "scopeLabel": "Portée des chiffres",
+      "scopeMine": "Mes chiffres",
+      "scopeAgency": "Agence",
+      "managedMine": "Mes biens",
+      "managedAgency": "Biens de l'agence",
+      "commissionsMonthMine": "Mes commissions du mois",
+      "commissionsMonthAgency": "Commissions de l'agence du mois",
+      "commissionsAgency": "Commissions de l'agence",
+      "commissionsDetail": "Détail par bail"
     },
     "owner": {
       "title": "Vue bailleur",
@@ -1620,7 +1641,10 @@
       "payoutFallback": "Reversement #{id}",
       "payoutScheduled": " · prévu le {date}",
       "chartCashflow": "Cashflow",
-      "chartOccupancy": "Occupation (%)"
+      "chartOccupancy": "Occupation (%)",
+      "quotesPending": "Devis à valider",
+      "visitsToConfirm": "Visites à confirmer",
+      "reviewsUnanswered": "Avis sans réponse"
     },
     "alerts": {
       "invalidThreshold": "Seuil invalide.",
@@ -1700,7 +1724,12 @@
         "payments": "Paiements",
         "leases": "Baux",
         "customers": "Clients",
-        "properties": "Biens"
+        "properties": "Biens",
+        "payouts": "Reversements",
+        "invoices": "Factures",
+        "commissions": "Commissions",
+        "aging": "Impayés par ancienneté",
+        "deposits": "Cautions détenues"
       },
       "formats": {
         "csv": "CSV",
@@ -4828,6 +4857,25 @@
         "already_member": "Cette personne fait déjà partie de votre équipe.",
         "forbidden": "Vous n'avez pas la permission de gérer l'équipe."
       }
+    },
+    "performance": {
+      "title": "Performance de l'équipe",
+      "period": "Mois",
+      "caption": "Indicateurs par agent sur le mois choisi",
+      "sortBy": "Trier par {column}",
+      "unknown": "Agent sans nom",
+      "columns": {
+        "name": "Agent",
+        "leases_signed": "Baux signés",
+        "sales_signed": "Ventes signées",
+        "visits_completed": "Visites effectuées",
+        "customers_added": "Clients ajoutés",
+        "commissions_earned": "Commissions acquises",
+        "properties_managed": "Biens gérés",
+        "tasks_overdue": "Tâches en retard"
+      },
+      "emptyTitle": "Aucun agent actif",
+      "emptyDescription": "Invitez un agent pour suivre ses indicateurs ici."
     }
   },
   "serviceProviders": {
@@ -5487,6 +5535,33 @@
         "pendingPayouts": "Reversements en attente",
         "invoicesToIssue": "Factures à émettre",
         "overdueHint": "{count, plural, one {# bail concerné} other {# bails concernés}}"
+      },
+      "aging": {
+        "groupByLabel": "Regrouper les impayés",
+        "groupBy": {
+          "tenant": "Par locataire",
+          "landlord": "Par bailleur"
+        },
+        "buckets": {
+          "1_30": "1 à 30 jours",
+          "31_60": "31 à 60 jours",
+          "61_90": "61 à 90 jours",
+          "90_plus": "Plus de 90 jours"
+        },
+        "count": "{count, plural, =0 {Aucune échéance} one {# échéance} other {# échéances}}",
+        "total": "Total des impayés",
+        "depositsHeld": "Cautions détenues",
+        "depositsHeldHint": "{count, plural, =0 {Aucun bailleur} one {# bailleur} other {# bailleurs}}",
+        "columns": {
+          "tenant": "Locataire",
+          "landlord": "Bailleur",
+          "total": "Total"
+        },
+        "unknown": "Non renseigné",
+        "captionTenant": "Impayés par locataire et par tranche de retard",
+        "captionLandlord": "Impayés par bailleur et par tranche de retard",
+        "emptyTitle": "Aucun impayé",
+        "emptyDescription": "Aucune échéance de loyer échue n'attend de paiement."
       }
     },
     "audit": {
@@ -5730,6 +5805,7 @@
         },
         "reports": {
           "view_global": "Consulter les rapports plateforme",
+          "view_agency": "Consulter les chiffres consolidés de l’agence",
           "export": "Exporter les rapports"
         },
         "roles": {
@@ -5904,7 +5980,8 @@
           "all": "Tous",
           "agents": "Agents",
           "admins": "Administrateurs",
-          "owners": "Propriétaires"
+          "owners": "Propriétaires",
+          "performance": "Performance"
         },
         "invite": "Inviter",
         "inviteAgent": "Inviter",
@@ -7258,7 +7335,17 @@
       "cumulativeRents": "Loyers encaissés cumulés",
       "usersTotal": "Utilisateurs",
       "activeOutOf": "{active} actifs",
-      "delta": "{value} % sur {days} jours"
+      "delta": "{value} % sur {days} jours",
+      "collectedTotal": "Flux encaissé",
+      "collectedTotalHint": "Loyers et réservations payés, hors cautions",
+      "gmv": "Volume d'affaires (30 j)",
+      "gmvHint": "Loyers et réservations payés sur 30 jours",
+      "takeRate": "Take rate (30 j)",
+      "takeRateHint": "{fees} de frais plateforme",
+      "mrr": "MRR des abonnements",
+      "mrrHint": "{count, plural, =0 {Aucun abonnement payant} one {# abonnement payant} other {# abonnements payants}}",
+      "trialing": "MRR en essai",
+      "trialingHint": "Abonnements en essai, hors MRR"
     },
     "confirmDialog": {
       "typePrompt": "Pour confirmer, tapez",
@@ -10335,6 +10422,45 @@
     "reessayer": "Réessayer",
     "favorisTitre": "Vos favoris déjà consultés sur cet appareil",
     "favorisVide": "Aucun de vos favoris n'est disponible hors ligne sur cet appareil."
+  },
+  "commissions": {
+    "metaTitle": "Commissions",
+    "title": "Relevé des commissions",
+    "subtitle": "Les commissions nées des baux activés, ligne par bénéficiaire.",
+    "filterLabel": "Filtrer par statut",
+    "filterAll": "Toutes",
+    "status": {
+      "due": "Due",
+      "paid": "Payée",
+      "cancelled": "Annulée"
+    },
+    "totals": {
+      "due": "Reste dû",
+      "paid": "Payé",
+      "cancelled": "Annulé"
+    },
+    "columns": {
+      "earnedAt": "Acquise le",
+      "lease": "Bail",
+      "beneficiary": "Bénéficiaire",
+      "share": "Part",
+      "amount": "Montant",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "origins": {
+      "negotiator": "Négociateur",
+      "collaborator": "Collaborateur"
+    },
+    "shareOf": "{percent} de {base}",
+    "leaseFallback": "Bail #{id}",
+    "beneficiaryFallback": "Utilisateur #{id}",
+    "markPaid": "Marquer payée",
+    "cancel": "Annuler",
+    "actionFailed": "L'action n'a pas abouti.",
+    "emptyTitle": "Aucune commission",
+    "emptyDescription": "Une commission naît à l'activation d'un bail qui porte un montant de commission.",
+    "tableCaption": "Lignes du grand livre des commissions"
   },
   "payLink": {
     "metaTitle": "Payer mon loyer",

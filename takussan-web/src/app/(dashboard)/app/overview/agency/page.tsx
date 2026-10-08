@@ -9,6 +9,7 @@ import { LineChart } from '@/components/charts/LineChart';
 import { PageHeader } from '@/components/console';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
+import { localeDeLaRequete } from '@/i18n/locale-serveur';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.overviewAgency');
@@ -33,7 +34,7 @@ export default async function AgencyDashboardPage() {
     return <NoAgencyState title={t('title')} />;
   }
 
-  const payload = await fetchAgencyDashboard();
+  const [payload, locale] = await Promise.all([fetchAgencyDashboard(), localeDeLaRequete()]);
   if (!payload) {
     return (
       <div className="space-y-2">
@@ -50,37 +51,37 @@ export default async function AgencyDashboardPage() {
         title={t('title')}
         description={t('period', {
           // Dates lisibles (« 1 sept. 2026 »), comme la vue agent — plus l'ISO brut.
-          start: formatDate(data.period.start, 'fr'),
-          end: formatDate(data.period.end, 'fr'),
+          start: formatDate(data.period.start, locale),
+          end: formatDate(data.period.end, locale),
         })}
       />
 
       <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('activeProperties')}
-          value={formatNumber(data.properties?.total ?? 0, 'fr')}
+          value={formatNumber(data.properties?.total ?? 0, locale)}
           hint={t('publishedHint', { count: data.properties?.published ?? 0 })}
         />
         <StatCard
           label={t('activeLeases')}
-          value={formatNumber(data.leases?.active ?? 0, 'fr')}
+          value={formatNumber(data.leases?.active ?? 0, locale)}
           hint={t('rentedHint', { count: data.properties?.rented ?? 0 })}
         />
         <StatCard
           label={t('revenueMonth')}
-          value={formatCurrency(data.finance?.revenue_month ?? 0, 'fr')}
+          value={formatCurrency(data.finance?.revenue_month ?? 0, locale)}
           hint={t('commissionHint', {
-            amount: formatCurrency(data.finance?.commission_month ?? 0, 'fr'),
+            amount: formatCurrency(data.finance?.commission_month ?? 0, locale),
           })}
           accent="success"
         />
         <StatCard
           label={t('overdue')}
-          value={formatNumber(data.finance?.overdue_count ?? 0, 'fr')}
+          value={formatNumber(data.finance?.overdue_count ?? 0, locale)}
           hint={t('overdueHint', {
-            amount: formatCurrency(data.finance?.overdue_amount ?? 0, 'fr'),
+            amount: formatCurrency(data.finance?.overdue_amount ?? 0, locale),
             // « 61,12 » et non « 61.12 » : le séparateur décimal de la locale.
-            rate: formatNumber(data.finance?.unpaid_rate_percent ?? 0, 'fr', {
+            rate: formatNumber(data.finance?.unpaid_rate_percent ?? 0, locale, {
               maximumFractionDigits: 2,
             }),
           })}
@@ -91,20 +92,20 @@ export default async function AgencyDashboardPage() {
       <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('customers')}
-          value={formatNumber(data.customers_count ?? 0, 'fr')}
+          value={formatNumber(data.customers_count ?? 0, locale)}
         />
         <StatCard
           label={t('team')}
-          value={formatNumber(data.members_count ?? 0, 'fr')}
+          value={formatNumber(data.members_count ?? 0, locale)}
         />
         <StatCard
           label={t('pendingRequests')}
-          value={formatNumber(data.bookings?.pending ?? 0, 'fr')}
+          value={formatNumber(data.bookings?.pending ?? 0, locale)}
           hint={t('bookingsHint')}
         />
         <StatCard
           label={t('openMaintenance')}
-          value={formatNumber(data.maintenance?.open ?? 0, 'fr')}
+          value={formatNumber(data.maintenance?.open ?? 0, locale)}
           accent={(data.maintenance?.open ?? 0) > 5 ? 'warning' : 'default'}
         />
       </div>

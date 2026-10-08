@@ -28,6 +28,7 @@ class TenantMeMetrics implements DashboardMetrics
             'overdue_count' => $s['payments']['overdue_count'] ?? 0,
             'overdue_amount' => $s['payments']['overdue_amount'] ?? 0.0,
             'maintenance_open' => $s['maintenance']['open'] ?? 0,
+            'visits_upcoming' => $s['visits']['upcoming'] ?? [],
             'recent_documents' => $s['documents']['recent'] ?? [],
         ];
     }
