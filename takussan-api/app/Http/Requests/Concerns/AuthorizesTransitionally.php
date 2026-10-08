@@ -4,6 +4,7 @@ namespace App\Http\Requests\Concerns;
 
 use App\Models\Booking;
 use App\Models\Conversation;
+use App\Services\Messaging\ConversationAccess;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -50,14 +51,9 @@ trait AuthorizesTransitionally
             return false;
         }
 
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        return $conversation->participants()
-            ->where('user_id', $user->id)
-            ->wherePivotNull('left_at')
-            ->exists();
+        // TCK-592 (verif-592, B2) — la participation ET, pour un fil d'intervention, la policy de
+        // la demande : une seule garde, `ConversationAccess`.
+        return app(ConversationAccess::class)->allows($user, $conversation);
     }
 
     /**

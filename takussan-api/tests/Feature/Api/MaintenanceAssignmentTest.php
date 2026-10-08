@@ -3,25 +3,25 @@
 namespace Tests\Feature\Api;
 
 use App\Models\MaintenanceRequest;
-use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
 
+/**
+ * TCK-592 — le prestataire est un prestataire : profil actif, collaboration active avec l'agence du
+ * bien. Ces tests assignaient un `User::factory()` nu sur un bien sans agence, état que l'API refuse
+ * désormais (`MaintenanceAssignableProviderTest`).
+ */
 class MaintenanceAssignmentTest extends TestCase
 {
-    use RefreshDatabase;
+    use MaintenanceActors, RefreshDatabase;
 
     public function test_owner_can_assign_provider(): void
     {
-        $owner = User::factory()->create();
-        $provider = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $mr = MaintenanceRequest::factory()->create([
-            'property_id' => $property->id,
-            'requester_id' => User::factory()->create()->id,
-        ]);
+        ['mr' => $mr, 'landlord' => $owner, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $provider = $this->providerFor($agency);
 
         Sanctum::actingAs($owner);
 
@@ -33,31 +33,22 @@ class MaintenanceAssignmentTest extends TestCase
 
     public function test_unrelated_user_cannot_assign_provider(): void
     {
-        $owner = User::factory()->create();
-        $provider = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $mr = MaintenanceRequest::factory()->create([
-            'property_id' => $property->id,
-            'requester_id' => User::factory()->create()->id,
-        ]);
+        ['mr' => $mr, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $provider = $this->providerFor($agency);
 
         Sanctum::actingAs(User::factory()->create());
 
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
             'assigned_to' => $provider->id,
         ])->assertForbidden();
+
+        $this->assertNull(MaintenanceRequest::query()->find($mr->id)->assigned_to);
     }
 
+    /** Le prestataire qui a ACCEPTÉ planifie son passage. */
     public function test_assigned_provider_can_update_request_after_assignment(): void
     {
-        $owner = User::factory()->create();
-        $provider = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $mr = MaintenanceRequest::factory()->create([
-            'property_id' => $property->id,
-            'requester_id' => User::factory()->create()->id,
-            'assigned_to' => $provider->id,
-        ]);
+        ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(attributes: ['accepted_at' => now()]);
 
         Sanctum::actingAs($provider);
 

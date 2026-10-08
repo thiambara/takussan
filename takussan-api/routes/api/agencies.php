@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\Api\ServiceProviderProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -102,6 +103,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
         ->middleware('throttle:invitations-send')
         ->name('agencies.serviceProviders.invite');
+    // TCK-592 — pause, reprise, fin de la collaboration (jamais `delete()`).
+    Route::patch('agencies/{agency}/service-providers/{sp_profile}/collaboration', [ServiceProviderCollaborationController::class, 'updateForAgency'])
+        ->whereNumber('sp_profile')
+        ->name('agencies.serviceProviders.collaboration.update');
 
     // TCK-267 — agency-side upgrade request flow (`individual → standard`).
     // Submission is multipart (statuts_doc upload). Revoke is reachable

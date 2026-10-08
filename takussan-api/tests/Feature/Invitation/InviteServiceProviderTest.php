@@ -10,8 +10,10 @@ use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\Property;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -180,17 +182,22 @@ class InviteServiceProviderTest extends TestCase
     {
         Mail::fake();
         [$agency] = $this->standardAgencyWithAdmin();
+        // TCK-592 (P18) — une demande RÉELLE de l'agence : un entier quelconque rend désormais 422
+        // (`ServiceProviderInvitationDeepLinkTest`).
+        $mr = MaintenanceRequest::factory()->create([
+            'property_id' => Property::factory()->create(['agency_id' => $agency->id])->id,
+        ]);
 
         $this->postJson("/api/agencies/{$agency->id}/service-providers/invite", [
             'email' => 'urgent@example.com',
             'first_name' => 'A',
             'last_name' => 'B',
             'trades' => ['electrical'],
-            'metadata' => ['from_maintenance_request_id' => 4242],
+            'metadata' => ['from_maintenance_request_id' => $mr->id],
         ])->assertStatus(201);
 
         $invitation = Invitation::query()->where('email', 'urgent@example.com')->firstOrFail();
-        $this->assertSame(4242, data_get($invitation->metadata, 'from_maintenance_request_id'));
+        $this->assertSame($mr->id, data_get($invitation->metadata, 'from_maintenance_request_id'));
     }
 
     public function test_agent_without_permission_gets_403(): void

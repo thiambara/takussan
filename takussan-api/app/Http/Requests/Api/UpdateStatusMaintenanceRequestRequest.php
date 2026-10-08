@@ -19,16 +19,25 @@ class UpdateStatusMaintenanceRequestRequest extends BaseFormRequest
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
-     * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
-     * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
-     * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
-     *
-     * **Simple DÉLÉGATION** : la règle vit dans sa policy, cette méthode ne fait que l'invoquer —
-     * aucune règle d'autorisation n'a migré ici (AC4).
+     * TCK-592 — `update` seul laissait le prestataire annuler toute la demande et clore la sienne.
+     * Le droit se juge désormais par (acteur, cible) : `MaintenanceRequestPolicy::transitionTo()`.
+     * Une cible illisible n'est pas jugée ici : la validation rendra son 422 à qui a `update`.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('maintenanceRequest')) === true;
+        $user = $this->user();
+        $maintenanceRequest = $this->route('maintenanceRequest');
+
+        if ($user?->can('update', $maintenanceRequest) !== true) {
+            return false;
+        }
+
+        $target = MaintenanceStatus::tryFrom((string) $this->input('status'));
+        if ($target === null) {
+            return true;
+        }
+
+        return $user->can('transitionTo', [$maintenanceRequest, $target]) === true;
     }
 
     /** @return array<string, mixed> */

@@ -67,12 +67,16 @@ class MaintenanceRequestTest extends TestCase
 
         Sanctum::actingAs($owner);
 
+        // TCK-592 — le statut ne passe plus par `PATCH` : la machine d'état seule l'écrit.
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
-            'status' => 'in_progress',
             'estimated_cost' => 50000,
         ])->assertOk()
-            ->assertJsonPath('data.status', 'in_progress')
             ->assertJsonPath('data.estimated_cost', 50000);
+
+        $this->putJson("/api/maintenance-requests/{$mr->id}/status", [
+            'status' => 'in_progress',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'in_progress');
     }
 
     public function test_owner_can_show_maintenance_request(): void
@@ -136,8 +140,7 @@ class MaintenanceRequestTest extends TestCase
 
         Sanctum::actingAs($owner);
 
-        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
-            'status' => 'completed',
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", [
             'resolution_notes' => 'Fuite réparée avec succès.',
             'actual_cost' => 45000,
         ])->assertOk()
@@ -155,7 +158,7 @@ class MaintenanceRequestTest extends TestCase
 
         Sanctum::actingAs($owner);
 
-        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
+        $this->putJson("/api/maintenance-requests/{$mr->id}/status", [
             'status' => 'cancelled',
         ])->assertOk()
             ->assertJsonPath('data.status', 'cancelled');

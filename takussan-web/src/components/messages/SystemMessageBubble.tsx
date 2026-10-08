@@ -13,6 +13,8 @@ interface SystemMessageBubbleProps {
  */
 export function SystemMessageBubble({ message }: SystemMessageBubbleProps) {
   const t = useTranslations('messaging.system');
+  const tMaintenance = useTranslations('messaging.maintenanceEvents');
+  const tStatus = useTranslations('messaging.maintenanceEvents.statuses');
   const meta = message.metadata ?? {};
   const event = meta.event;
 
@@ -38,6 +40,8 @@ export function SystemMessageBubble({ message }: SystemMessageBubbleProps) {
       actor: meta.actor_name ?? '—',
       subject: meta.new_subject ?? '—',
     });
+  } else if (event === 'maintenance') {
+    text = maintenanceText(meta, tMaintenance, tStatus) ?? message.content;
   }
 
   return (
@@ -47,4 +51,29 @@ export function SystemMessageBubble({ message }: SystemMessageBubbleProps) {
       </span>
     </li>
   );
+}
+
+/**
+ * TCK-592 — l'avis d'étape du fil d'une intervention. L'API envoie des CODES (`cause`, `status`) ;
+ * le texte se rend ici, dans la langue du lecteur. `content` (langue par défaut du serveur) reste
+ * le repli d'une cause que ce front ne connaîtrait pas encore.
+ */
+const PROVIDER_CAUSES = new Set(['assigned', 'unassigned', 'accepted', 'declined']);
+const STATUS_KEYS = new Set([
+  'open', 'acknowledged', 'quote_requested', 'quote_submitted', 'awaiting_owner', 'approved',
+  'rejected', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled',
+]);
+
+function maintenanceText(
+  meta: NonNullable<Message['metadata']>,
+  t: (key: string, values?: Record<string, string>) => string,
+  tStatus: (key: string) => string,
+): string | null {
+  if (meta.cause && PROVIDER_CAUSES.has(meta.cause)) {
+    return t(meta.cause, { provider: meta.provider_name ?? '—' });
+  }
+  if (meta.status && STATUS_KEYS.has(meta.status)) {
+    return t('status', { status: tStatus(meta.status) });
+  }
+  return null;
 }

@@ -55,7 +55,9 @@ class MediaDiskCollectionsTest extends TestCase
         Inventory::class => ['photos' => 'private', 'room_photos' => 'private'],
         KycDossier::class => ['documents' => 'private'],
         Lease::class => ['lease_deposit_refund' => 'private'],
-        MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private'],
+        // TCK-592 — `before_photos` : l'intérieur du logement constaté avant intervention, privé comme
+        // les trois autres.
+        MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private', 'before_photos' => 'private'],
         Message::class => ['attachments' => 'private'],
         // TCK-539 (D2) — l'original d'une photo est privé, ses conversions (filigranées) publiques.
         Property::class => ['photos' => 'private, conversions public', 'videos' => 'public', 'plans' => 'public'],

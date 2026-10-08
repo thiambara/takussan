@@ -11,6 +11,7 @@ import { ProfileCustomerSection } from '@/components/profile/ProfileCustomerSect
 import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
 import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
 import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
+import { ProfileServiceProviderSection } from '@/components/profile/ProfileServiceProviderSection';
 import { ProfileSecuritySection } from '@/components/profile/ProfileSecuritySection';
 import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
 import { PayoutMethodsSection } from '@/components/profile/PayoutMethodsSection';
@@ -42,6 +43,8 @@ export default async function ProfilePage() {
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       {/* TCK-594 (ADR-0039 §6) — qui est payé déclare où : le bailleur et le prestataire. */}
       {(isOwner(user.roles) || isServiceProvider(user.roles)) && <PayoutMethodsSection />}
+      {/* TCK-592 (P16) — métiers, zones, tarifs, disponibilités : éditables hors de l'assistant. */}
+      {isServiceProvider(user.roles) && <ProfileServiceProviderSection />}
       <ProfileSecuritySection />
 
       {/*

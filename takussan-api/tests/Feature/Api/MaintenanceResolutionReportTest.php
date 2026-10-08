@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
 
 /**
@@ -27,7 +29,7 @@ use Tests\TestCase;
  */
 class MaintenanceResolutionReportTest extends TestCase
 {
-    use RefreshDatabase;
+    use MaintenanceActors, RefreshDatabase;
 
     /**
      * AC1 — la réponse est déterministe et NOMME le champ. Jamais 500.
@@ -128,10 +130,12 @@ class MaintenanceResolutionReportTest extends TestCase
     /** @return array{0: MaintenanceRequest, 1: User} */
     private function scaffold(): array
     {
+        // TCK-592 — un prestataire réel : profil actif, collaboration active avec l'agence du bien.
+        $agency = Agency::factory()->create();
         $owner = User::factory()->create();
-        $provider = User::factory()->create();
+        $provider = $this->providerFor($agency);
 
-        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $property = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $agency->id]);
 
         $mr = MaintenanceRequest::factory()->create([
             'property_id' => $property->id,

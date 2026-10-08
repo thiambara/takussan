@@ -48,7 +48,7 @@ class UploadPhotosMaintenanceRequestRequest extends BaseFormRequest
         return [
             'photos' => ['required', 'array', 'min:1'],
             'photos.*' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
-            'collection' => ['nullable', 'string', Rule::in(['photos', 'completion_photos'])],
+            'collection' => ['nullable', 'string', Rule::in(['photos', 'completion_photos', 'before_photos'])],
         ];
     }
 }
