@@ -344,21 +344,30 @@ class LeaseRenewalOverlapTest extends TestCase
      * VERIF-596 passe 7 (m-l) — la correction de M-G tient tout entière au verrou de la relecture :
      * sans lui, la course réelle rouvre M-G 11 fois sur 11, et le test précédent reste vert (il
      * annule AVANT la relecture). La garde relève le `FOR UPDATE` sur `lease_payments`.
+     *
+     * VERIF-596 passe 8 (m-m) — et la transaction qui le TIENT : sous `RefreshDatabase`, le test
+     * tourne déjà dans une transaction, et un `markPaid` sans `DB::transaction` gardait son verrou
+     * ici quand la production, en autocommit, le relâche à la fin de l'instruction (R1 : 3/8). Le
+     * niveau de transaction au moment du verrou doit dépasser celui du test.
      */
     public function test_mark_paid_rereads_the_due_under_lock(): void
     {
         $parent = $this->parent();
         $due = LeasePayment::query()->where('lease_id', $parent->id)->orderBy('due_date')->firstOrFail();
+        $base = DB::transactionLevel();
         $locks = [];
         DB::listen(function (QueryExecuted $query) use (&$locks): void {
             if (preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
-                $locks[] = $query->sql;
+                $locks[] = DB::transactionLevel();
             }
         });
 
         $this->postJson("/api/lease-payments/{$due->id}/mark-paid", ['payment_method' => 'cash'])->assertOk();
 
         $this->assertNotEmpty($locks, 'mark-paid : l\'échéance n\'est pas relue FOR UPDATE');
+        foreach ($locks as $level) {
+            $this->assertGreaterThan($base, $level, 'mark-paid : le FOR UPDATE n\'est tenu par aucune transaction du code');
+        }
         $this->assertSame(PaymentStatus::Paid, $due->fresh()->status);
     }
 
@@ -424,10 +433,12 @@ class LeaseRenewalOverlapTest extends TestCase
             }
         };
         $this->partialMock(PaymentGatewayService::class, fn ($mock) => $mock->shouldReceive('driverFor')->andReturn($driver));
+        // Passe 8 (m-m) — le verrou est relevé avec le niveau de transaction qui le tient.
+        $base = DB::transactionLevel();
         $locksAfterCall = [];
         DB::listen(function (QueryExecuted $query) use ($driver, &$locksAfterCall): void {
             if ($driver->called && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
-                $locksAfterCall[] = $query->sql;
+                $locksAfterCall[] = DB::transactionLevel();
             }
         });
 
@@ -436,6 +447,9 @@ class LeaseRenewalOverlapTest extends TestCase
 
         $this->assertTrue($driver->called);
         $this->assertNotEmpty($locksAfterCall, 'verify : l\'échéance n\'est pas relue FOR UPDATE après l\'appel au fournisseur');
+        foreach ($locksAfterCall as $level) {
+            $this->assertGreaterThan($base, $level, 'verify : le FOR UPDATE n\'est tenu par aucune transaction du code');
+        }
         $this->assertSame(LeaseStatus::Renewed, $parent->fresh()->status);
         $due = $due->fresh();
         $this->assertSame(PaymentStatus::Cancelled, $due->status);
