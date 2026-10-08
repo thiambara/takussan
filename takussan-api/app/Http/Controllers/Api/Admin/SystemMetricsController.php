@@ -68,7 +68,9 @@ class SystemMetricsController extends Controller
 
         $activeLeases = Lease::query()->where('status', LeaseStatus::Active)->count();
 
+        // TCK-594 (P4-5) — une caution rendue est une sortie, pas un encaissement.
         $platformRevenue = (float) LeasePayment::query()
+            ->exceptDepositRefunds()
             ->where('status', PaymentStatus::Paid)
             ->sum('amount');
 
@@ -140,6 +142,7 @@ class SystemMetricsController extends Controller
             ->exists();
 
         $paidBefore = LeasePayment::query()
+            ->exceptDepositRefunds()
             ->where('status', PaymentStatus::Paid)
             ->where('paid_at', '<', $cutoff);
 

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Http\Request;
@@ -38,7 +39,8 @@ class LeasePaymentResource extends BaseResource
             'late_fee_outstanding' => $this->resource->lateFeeOutstanding(),
             'late_fee_payable_online' => $gateway->lateFeeIncluded($this->resource),
             'amount_due' => (float) ($gateway->amountDue($this->resource) ?? 0),
-            'receipt_available' => $this->status === PaymentStatus::Paid,
+            // TCK-594 (P5-3) — une caution rendue n'a pas de quittance de loyer.
+            'receipt_available' => $this->status === PaymentStatus::Paid && $this->payment_type !== LeasePaymentType::DepositRefund,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
         ];

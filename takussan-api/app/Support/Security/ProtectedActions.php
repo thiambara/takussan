@@ -27,10 +27,13 @@ use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\PayoutController;
+use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\Profile\AgencyRoleController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
@@ -111,6 +114,10 @@ final class ProtectedActions
      */
     public const AGENCY_TWO_FACTOR = [
         PayoutController::class.'@store',
+        // TCK-594 (ADR-0039 §4, §6) — le second geste des quatre yeux, et la vérification d'une
+        // destination : qui la vérifie décide où l'argent part.
+        PayoutController::class.'@approve',
+        PayoutMethodController::class.'@verify',
         PayoutController::class.'@markProcessed',
         PayoutController::class.'@markFailed',
         PayoutController::class.'@cancel',
@@ -133,6 +140,8 @@ final class ProtectedActions
         // `PATCH agencies/{agency}` (sans nom) porte l'interrupteur
         // `settings.require_team_two_factor` lui-même.
         AgencyController::class.'@update',
+        // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
+        AgencyController::class.'@confirmPayoutThreshold',
         AgencyController::class.'@destroy',
         AgencyController::class.'@addAgent',
         AgencyController::class.'@removeAgent',
@@ -204,6 +213,20 @@ final class ProtectedActions
         UserSupportController::class.'@reset2fa',
         UserSupportController::class.'@revokeSessions',
         UserSupportController::class.'@destroySession',
+
+        // TCK-594 (ADR-0039 §4, §6, §8) — ce qui décide qu'un argent sort, et vers où : le second
+        // geste des quatre yeux, le marquage payé, le paiement d'une facture d'intervention, et les
+        // destinations du titulaire. Un jeton volé ne les tient plus sans le TOTP. Les gestes
+        // plateforme (`PlatformPayoutController`) sont plus haut.
+        PayoutController::class.'@approve',
+        PayoutController::class.'@markProcessed',
+        ServiceProviderBillController::class.'@pay',
+        MePayoutMethodController::class.'@store',
+        MePayoutMethodController::class.'@update',
+        MePayoutMethodController::class.'@destroy',
+        // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
+        // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
+        PayoutMethodController::class.'@verify',
 
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',

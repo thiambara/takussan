@@ -36,6 +36,13 @@ describe('agencyFormSchema', () => {
     require_team_two_factor: false,
     // TCK-593 — le réglage d'encaissement des pénalités en ligne.
     late_fee_online_collection: false,
+    // TCK-594 — TVA par défaut, seuil des quatre yeux, mentions légales.
+    default_tax_rate: '',
+    payout_approval_threshold: '',
+    legal_name: '',
+    ninea: '',
+    rccm: '',
+    legal_address: '',
   };
 
   it('accepts minimal valid input', () => {
@@ -103,6 +110,68 @@ describe('agencyFormSchema', () => {
       expect(payload.settings).toMatchObject({ require_team_two_factor: exige });
     },
   );
+});
+
+/**
+ * TCK-594 (ADR-0039 §4, §7) — ce que le formulaire d'agence envoie de ses réglages d'argent.
+ *
+ * Le seuil a sa propre capacité et sa règle des deux approbateurs : renvoyé inchangé, il ferait
+ * refuser tout l'enregistrement à un admin sans `payouts.approve`. Les mentions légales sont
+ * `prohibited` pour une agence `individual` : envoyées, même vides, chaque enregistrement rendrait 422.
+ */
+describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', () => {
+  const base = {
+    name: 'Agence Sen Immo',
+    license_number: '',
+    description: '',
+    email: '',
+    phone: '',
+    website: '',
+    commission_rate: '',
+    currency: '',
+    timezone: '',
+    moderation_required: false,
+    require_team_two_factor: false,
+    late_fee_online_collection: false,
+    default_tax_rate: '18',
+    payout_approval_threshold: '500000',
+    legal_name: ' Sen Immo SARL ',
+    ninea: '',
+    rccm: 'SN-DKR-2024-B-1',
+    legal_address: '',
+  };
+
+  it('ne renvoie pas un seuil inchangé', () => {
+    const payload = normaliseAgencyForm(base, { individual: false, initialThreshold: '500000' });
+
+    expect(payload).not.toHaveProperty('payout_approval_threshold');
+    expect(payload.default_tax_rate).toBe(18);
+  });
+
+  it('envoie un seuil modifié, et vide le désactive', () => {
+    expect(
+      normaliseAgencyForm({ ...base, payout_approval_threshold: '750000' }, { individual: false, initialThreshold: '500000' })
+        .payout_approval_threshold,
+    ).toBe(750000);
+    const desactive = normaliseAgencyForm({ ...base, payout_approval_threshold: '' }, { individual: false, initialThreshold: '500000' });
+    expect(desactive).toHaveProperty('payout_approval_threshold', null);
+  });
+
+  it('envoie les mentions légales d’une agence standard, jamais celles d’une agence individual', () => {
+    const standard = normaliseAgencyForm(base, { individual: false, initialThreshold: '500000' });
+    expect(standard).toMatchObject({ legal_name: 'Sen Immo SARL', ninea: null, rccm: 'SN-DKR-2024-B-1', legal_address: null });
+
+    const hote = normaliseAgencyForm(base, { individual: true, initialThreshold: '500000' });
+    for (const champ of ['legal_name', 'ninea', 'rccm', 'legal_address']) {
+      expect(hote).not.toHaveProperty(champ);
+    }
+  });
+
+  it('refuse un seuil à décimales et une TVA hors bornes', () => {
+    expect(agencyFormSchema.safeParse({ ...base, payout_approval_threshold: '1000.5' }).success).toBe(false);
+    expect(agencyFormSchema.safeParse({ ...base, default_tax_rate: '101' }).success).toBe(false);
+    expect(agencyFormSchema.safeParse(base).success).toBe(true);
+  });
 });
 
 describe('validateAgencyLogoFile', () => {

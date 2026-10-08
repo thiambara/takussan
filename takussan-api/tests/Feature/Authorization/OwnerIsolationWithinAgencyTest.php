@@ -200,7 +200,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'bail — modifier' => ['PATCH', '/api/leases/{lease}', ['late_fee_grace_days' => 3], 'agent'],
             'loyer — marquer payé' => ['POST', '/api/lease-payments/{payment}/mark-paid', [], 'agent'],
             'versement — lire' => ['GET', '/api/payouts/{payout}', [], 'agent'],
-            'versement — traiter' => ['POST', '/api/payouts/{payout}/mark-processed', [], 'agent'],
+            'versement — traiter' => ['POST', '/api/payouts/{payout}/mark-processed', ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'], 'agent'],
             'facture — lire' => ['GET', '/api/invoices/{invoice}', [], 'agent'],
             'facture — envoyer' => ['POST', '/api/invoices/{invoice}/send', [], 'agent'],
             'réservation — lire' => ['GET', '/api/bookings/{booking}', [], 'agent'],
@@ -227,8 +227,10 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
     #[DataProvider('gestes')]
     public function test_un_autre_bailleur_de_l_agence_est_refuse(string $method, string $template, array $body, string $staff): void
     {
-        $this->actingAsApi($this->b2)
-            ->json($method, $this->uri($template), $body)
+        // Le step-up de TCK-589 (marquer payé, TCK-594) est fourni : le refus est celui de la
+        // policy, jamais celui du second facteur.
+        $this->actingWithStepUp($this->b2);
+        $this->json($method, $this->uri($template), $body)
             ->assertForbidden();
     }
 
@@ -247,8 +249,8 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
     #[DataProvider('gestes')]
     public function test_le_personnel_de_l_agence_est_admis(string $method, string $template, array $body, string $staff): void
     {
-        $this->actingAsApi($staff === 'admin' ? $this->admin : $this->agent)
-            ->json($method, $this->uri($template), $body)
+        $this->actingWithStepUp($staff === 'admin' ? $this->admin : $this->agent);
+        $this->json($method, $this->uri($template), $body)
             ->assertSuccessful();
     }
 

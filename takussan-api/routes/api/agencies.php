@@ -26,6 +26,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     Route::delete('agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
+    // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
+    // TCK-589 — 2FA exigée (`ProtectedActions::AGENCY_TWO_FACTOR`), pas de step-up : l'écran
+    // confirme par une server action, qui ne sait pas rejouer après la saisie d'un TOTP.
+    Route::post('agencies/{agency}/payout-threshold/confirm', [AgencyController::class, 'confirmPayoutThreshold'])
+        ->name('agencies.payout-threshold.confirm');
 
     // Agent management (legacy aliases kept — /members is the TCK-015 canonical path).
     Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');

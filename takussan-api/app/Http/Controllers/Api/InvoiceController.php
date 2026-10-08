@@ -57,7 +57,8 @@ class InvoiceController extends Controller
         $this->authorize('view', $invoice);
 
         return $this->json([
-            'data' => InvoiceResource::make($invoice->load('customer'))->toArray($request),
+            // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
+            'data' => InvoiceResource::make($invoice->load(['customer', 'creditNotes']))->toArray($request),
         ]);
     }
 
@@ -87,7 +88,7 @@ class InvoiceController extends Controller
     {
         // TCK-587 — une ability par geste, chacune adossée à sa capacité (`InvoicePolicy`).
         $this->authorize('cancel', $invoice);
-        $invoice = $this->invoices->cancel($invoice);
+        $invoice = $this->invoices->cancel($invoice, $request->user());
 
         return $this->json([
             'data' => InvoiceResource::make($invoice)->toArray($request),

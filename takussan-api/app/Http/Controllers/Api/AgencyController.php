@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\AddAgentAgencyRequest;
+use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
 use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
@@ -20,6 +21,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -86,6 +88,17 @@ class AgencyController extends Controller
 
         $data = $request->validated();
 
+        // TCK-594 (ADR-0039 §4) — le seuil ne passe jamais par `fill()` : il a sa propre capacité,
+        // sa règle des deux approbateurs et sa trace. Jugé AVANT l'écriture du reste : un 422 sur le
+        // seuil n'enregistre rien.
+        // VERIF-594 M-2 — un relâchement attend un second détenteur : 202, le reste enregistré.
+        $thresholdOutcome = null;
+        if (array_key_exists('payout_approval_threshold', $data)) {
+            abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
+            $thresholdOutcome = app(PayoutApprovalThreshold::class)->change($agency, $request->user(), $data['payout_approval_threshold']);
+            unset($data['payout_approval_threshold']);
+        }
+
         // TCK-593 — `settings` se FUSIONNE avec l'existant : le tableau validé remplaçait la
         // colonne, et l'écran de configuration, qui n'en envoie que trois clés, effaçait toutes les
         // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
@@ -99,6 +112,21 @@ class AgencyController extends Controller
         }
 
         $agency->fill($data)->save();
+
+        return $this->json(
+            ['data' => AgencyResource::make($agency->refresh())->toArray($request)],
+            $thresholdOutcome === PayoutApprovalThreshold::PENDING ? 202 : 200,
+        );
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4, VERIF-594 M-2) — un second détenteur de `payouts.approve` confirme le
+     * relâchement du seuil qu'un autre a demandé.
+     */
+    public function confirmPayoutThreshold(ConfirmPayoutThresholdRequest $request, Agency $agency): JsonResponse
+    {
+        // VERIF-594 passe 2, N-5 — la valeur lue et confirmée (`ConfirmPayoutThresholdRequest`).
+        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user(), $request->validated('expected_threshold'));
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
     }

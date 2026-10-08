@@ -1684,7 +1684,8 @@
       "processing": "Mi ngi dox",
       "completed": "Def nañu ko",
       "failed": "Antuwul",
-      "cancelled": "Ñu ko neenal"
+      "cancelled": "Ñu ko neenal",
+      "awaiting_approval": "Ngir nangu"
     },
     "methods": {
       "cash": "Xaalis ci loxo",
@@ -1700,7 +1701,9 @@
     "tabs": {
       "history": "Taariix",
       "invoices": "Fakteer yi",
-      "payouts": "Delloo xaalis"
+      "payouts": "Delloo xaalis",
+      "approvals": "Ngir nangu",
+      "bills": "Liggéey yi"
     },
     "actions": {
       "createInvoice": "Génne fakteer",
@@ -1751,33 +1754,56 @@
       "working": "…",
       "markPaid": "Wone ne fey nañu ko",
       "cancelInvoice": "Neenal fakteer bi",
-      "close": "Tëj"
+      "close": "Tëj",
+      "creditNoteTitle": "Avoir {reference}",
+      "credits": "Dafay neenal factuur bi n° {id}",
+      "creditNotes": "Avoir yi ñu génne ci factuur bii",
+      "actionFailed": "Jëf ji ci factuur bi antuwul."
     },
     "payoutDialog": {
-      "title": "Sos peymaan",
-      "description": "Dafay xayma boppam lëmboo bi ñu war a jox boroom kër bi ginnaaw komisiyon bi.",
-      "landlordId": "ID boroom kër",
-      "currency": "Xaalis",
-      "leaseId": "ID luwé (bu ñu soxlawul)",
-      "bookingId": "ID réservasioŋ (bu ñu soxlawul)",
-      "periodStart": "Tàmbalig jamono",
-      "periodEnd": "Mujjug jamono",
-      "grossAmount": "Lëmboo brut",
-      "commissionRate": "Taawu komisiyon (%)",
-      "commission": "Komisiyon",
-      "fees": "Peyoor",
-      "method": "Anam",
-      "scheduledAt": "Ñu ko tëral ci",
-      "notes": "Njàng-mar",
+      "title": "Waajal reversement",
+      "description": "Tànnal bailleur bi ak période bi : xayma bi dañu koy jàng, duñu ko bind.",
+      "periodStart": "Tàmbalig période",
+      "periodEnd": "Mujjug période",
+      "commission": "Commission",
+      "fees": "Frais",
+      "method": "Anam fey",
+      "scheduledAt": "Ñu ngi koy def ci",
+      "notes": "Notes",
       "gross": "Brut",
       "net": "Net",
       "cancel": "Neenal",
-      "creating": "Sos…",
-      "submit": "Sosal peymaan bi"
+      "creating": "Mi ngi koy sos…",
+      "submit": "Sos reversement bi",
+      "landlord": "Bailleur",
+      "landlordPlaceholder": "Tànnal bailleur",
+      "chooseFirst": "Tànnal bailleur ak période ngir jàng xayma bi.",
+      "preparationFailed": "Xayma bi mënul woon a waaj.",
+      "calculation": "Xaymag reversement bi",
+      "nothingToPay": "Amul fey bu ñuy delloo ci période bii.",
+      "colItem": "Pièce",
+      "colDate": "Fey nañu ko ci",
+      "colAmount": "Xaalis",
+      "colCommission": "Commission",
+      "leaseLine": "Loyer — bail {reference}",
+      "bookingLine": "Réservation {reference}",
+      "billLine": "Intervention {reference}",
+      "rateFromLease": "({rate} % bu bail bi)",
+      "rateFromAgency": "({rate} % bu agence bi)",
+      "requiresApproval": "Net bii, boole ko ak reversement yi ñu nanguwul ci bailleur bii ci {days} fan yi weesu, jot na seuil d'approbation bu agence bi ({threshold}) : keneen ci mbootaay bi war na ko nangu bala ñuy fey.",
+      "destination": "Destination",
+      "destinationNone": "Amul destination bu ñu bind",
+      "destinationOption": "{kind} {masked} — {state}",
+      "verified": "seetlu nañu ko",
+      "unverified": "mi ngi xaar ñu seetlu ko",
+      "createFailed": "Reversement bi mënul woon a sosu.",
+      "unverifiedHint": "Agence bi saytuagul fii ñuy fey.",
+      "verifyDestination": "Saytu fii ñuy fey",
+      "verifyFailed": "Saytu bi antuwul."
     },
     "payoutDetail": {
       "title": "Peymaan {reference}",
-      "description": "Soppi yu statut ci payout bi.",
+      "description": "Waajal, nangu ak fey reversement bi.",
       "notFound": "Gisuñu peymaan bi.",
       "createdOn": "Sos ci {date}",
       "landlord": "Boroom kër",
@@ -1789,14 +1815,34 @@
       "method": "Anam",
       "processedOn": "Def nañu ko ci",
       "failedReason": "Mboor antuwul bi",
-      "transactionId": "Référence transaction (bu ñu soxlawul)",
+      "transactionId": "Référence bu transaction bi",
       "transactionIdPlaceholder": "Misaal: TX-2025-0001",
       "working": "…",
       "markProcessed": "Wone ne def nañu ko",
       "failedReasonPlaceholder": "Misaal: Kontu bànk bi baaxul",
       "markFailed": "Wone ne antuwul",
       "cancel": "Neenal",
-      "close": "Tëj"
+      "close": "Tëj",
+      "preparedBy": "Ki ko waajal",
+      "approvedOn": "Nangu nañu ko ci",
+      "destination": "Destination",
+      "reference": "Référence bu transaction bi",
+      "approve": "Nangu",
+      "approveSelfRefused": "Yaa waajal reversement bii : keneen ci mbootaay bi war na ko nangu.",
+      "paySelfRefused": "Yaa nangu reversement bii : keneen ci mbootaay bi war na wone ne fey nañu ko.",
+      "transactionIdOptional": "Référence bu transaction bi (du war ci espèces)",
+      "cashNote": "Firnde fey bu espèces",
+      "actionFailed": "Jëf ji antul.",
+      "payDestination": "Fi ñuy yónne fey bi",
+      "noVerifiedDestination": "Kii amul benn fu ñu saytu ngir anam bii : saytul ko balaa ngay fey.",
+      "plannedDestination": "Fi ñu waajal",
+      "approvedDestination": "Fi ñu nangu",
+      "approveWithoutDestination": "Amul fenn fu ñu waajal : bu ñu ko nanguwee, reversement bii dina fayu rekk ci xaalis loxo walla ci chèque.",
+      "approvedDestinationOnly": "Reversement bii dem rekk fa ñu ko nangoo, te seetluwuñu ko ngir pexe mii. Fayal ci xaalis loxo walla ci chèque, walla nañu ko waajal ci kanam.",
+      "approveDestination": "Fan lañuy fey",
+      "approveKeepDestination": "Denc fan lañu waajal ({masked})",
+      "approveNoDestination": "Amul fan (xaalis loxo walla chèque)",
+      "approveDestinationOption": "{kind} · {masked} (seetlu nañu ko)"
     },
     "customer": {
       "nextTitle": "Fey bi ci topp",
@@ -1816,6 +1862,56 @@
       "previous": "Ginnaaw",
       "next": "Topp",
       "pageOf": "Xët {page} ci {total}"
+    },
+    "payoutMethodKinds": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "bank_transfer": "Virement bancaire"
+    },
+    "ownerStatement": {
+      "title": "Relevé gérance",
+      "description": "Li ñu la dugal, li agence bi téye, ak li ñu la fey ba noppi.",
+      "month": "Weer",
+      "annual": "Atum bi yépp (attestation bu at mi)",
+      "gross": "Li dugg",
+      "commission": "Komisioŋ",
+      "fees": "Liggéey yi",
+      "net": "Net",
+      "paidOut": "Li ñu fey ba noppi",
+      "downloadPdf": "Yebbi PDF bi",
+      "downloadCsv": "Yebbi CSV bi",
+      "downloadFailed": "Yebbi relevé bi antuwul.",
+      "unavailable": "Relevé bi amul fii."
+    },
+    "serviceProviderBills": {
+      "providerTitle": "Samay factuur liggéey",
+      "agencyTitle": "Factuur yu prestataire yi",
+      "emptyTitle": "Amul benn factuur liggéey",
+      "emptyProvider": "Say factuur dinañu feeñ fii bu say liggéey jeexee.",
+      "emptyAgency": "Factuur yu prestataire yi ñuy war a nangu dinañu feeñ fii.",
+      "reference": "Référence",
+      "intervention": "Liggéey",
+      "amount": "Xaalis bi",
+      "statusLabel": "Fan la tollu",
+      "actions": "Jëf yi",
+      "exceedsQuote": "Ëpp na devis bi ñu nangu",
+      "rechargeable": "Yobbu ko ci boroom kër gi",
+      "rechargedToLandlord": "Dañu ko wàññi ci reversement boroom kër gi",
+      "validate": "Nangu",
+      "reject": "Bañ",
+      "confirmReject": "Dëggal bañ bi",
+      "cancel": "Neenal",
+      "rejectionReason": "Lu tax ñu bañ",
+      "pay": "Fey prestataire bi",
+      "actionFailed": "Jëf ji ci factuur bi antuwul.",
+      "status": {
+        "pending_validation": "Ngir nangu",
+        "validated": "Nangu nañu ko",
+        "rejected": "Bañ nañu ko",
+        "paid": "Fey nañu ko",
+        "cancelled": "Neenal nañu ko"
+      }
     }
   },
   "lease": {
@@ -3709,7 +3805,8 @@
         "payouts": "Peymaan yi",
         "overdue": "Yu ñu feyul",
         "newInvoice": "Génne benn fakteer",
-        "newPayout": "Sos benn peymaan"
+        "newPayout": "Sos benn peymaan",
+        "toApprove": "Ngir nangu"
       },
       "kpis": {
         "collections30d": "Pey yi (30 fan)",
@@ -4239,6 +4336,24 @@
       "lateFeeOnline": {
         "label": "Jot alaamu yeex yi ak fey ci internet",
         "hint": "Bu ñu ko taal : luwaasu kër bi ak alaamu yeex bi, ñoo ànd ci fey ci internet. Bu ñu ko fey : luwaasu kër bi rekk lañuy fey ci internet, alaamu yeex bi ñu fey ko ca ajaas ba."
+      },
+      "moneyOut": {
+        "title": "Xibaar yu yoon ak fey yi",
+        "description": "Dañu leen di bind ci say factuur ; seuil bi moo wax kañ la reversement di xaar keneen.",
+        "taxRate": "TVA bu jëkk ci factuur yi (%)",
+        "threshold": "Seuil bu ñuy nangu reversement yi (F CFA)",
+        "thresholdHint": "Bu net bi ëppee lii, reversement bi war na am nangu ci keneen ku dul ki ko waajal. Bàyyil ko neen ngir fey ko. Fàww ñu am ñaari nit yu am sañ-sañ nangu.",
+        "legalName": "Raison sociale",
+        "ninea": "NINEA",
+        "rccm": "RCCM",
+        "legalAddress": "Adrees bu siège bi",
+        "thresholdPendingOff": "Laaj ngir fey seuil bi dafay xaar benn approbateur bu ñaareel dëggal ko. Fii ak loolu, seuil bi am leegi moo ngi dox.",
+        "thresholdPendingRaise": "Laaj ngir yokk seuil bi ba {threshold} dafay xaar benn approbateur bu ñaareel dëggal ko. Fii ak loolu, seuil bi am leegi moo ngi dox.",
+        "thresholdPendingSelf": "Yaa def laaj bii : keneen ci approbateur yu agence bi war na ko dëggal.",
+        "thresholdConfirm": "Dëggal",
+        "thresholdConfirming": "Dëggal gi…",
+        "thresholdConfirmed": "Seuil bu bees bi moo ngi dox.",
+        "thresholdPendingSaved": "Denc nañu ko. Woyofal seuil bi dafa laaj benn approbateur bu ñaareel dëggal ko : xamal nañu ko."
       }
     },
     "inviteMember": {
@@ -7553,6 +7668,24 @@
         "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii."
       }
     },
+    "payoutMethods": {
+      "title": "Fan ngay bëgg a jot sa fey",
+      "subtitle": "Sa nimero du feeñ ci lu leer bu ñu ko denc. Agence biy fey moo koy saytu balaa fey bu jëkk bi.",
+      "empty": "Amul benn fu ñu denc.",
+      "verified": "Saytu nañu ko",
+      "pending": "Mungi xaar saytu",
+      "default": "Bu jëkk",
+      "makeDefault": "Def ko bu jëkk",
+      "remove": "Far ko",
+      "removeAria": "Far {masked}",
+      "kind": "Anam",
+      "phone": "Nimero telefon",
+      "iban": "IBAN walla nimero kont",
+      "holder": "Boroom kont bi (du war)",
+      "add": "Yokk",
+      "saveFailed": "Mënuñu denc fi ñuy fey.",
+      "removeFailed": "Mënuñu far fi ñuy fey."
+    },
     "serviceProvider": {
       "title": "Sama liggéeyu liggéeykat",
       "subtitle": "Li ajaas yi ngay ànd ak ñoom di gis. Bépp ndigal dañu koy denc moom rekk.",
@@ -8292,7 +8425,13 @@
         "submit": "Tëj",
         "toastNone": "Amul pey bu jekk",
         "toastCreated": "{total} {count, plural, one {peymaan ñu sos} other {peymaan ñu sos}}",
-        "toastFailed": "Mënunu ko tëj"
+        "toastFailed": "Mënunu ko tëj",
+        "excludedTitle": "{count, plural, one {# agence lañu bàyyi} other {# agence lañu bàyyi}} ci tëj bi",
+        "excludedRow": "Agence #{agency} — {reason}",
+        "excludedReason": {
+          "agency_not_active": "agence bi dañu ko taxawal walla doxul",
+          "already_closed": "diir bi tëju na ba noppi"
+        }
       },
       "detail": {
         "notFound": "Gisuñu peymaan bi.",
@@ -8309,7 +8448,6 @@
         "breakdownLine": "<count>{count}</count> pey · <gross>{gross}</gross> brut · <fees>-{fees}</fees> kom.",
         "approve": "Nangu",
         "processedAtAria": "Bisu liggéey",
-        "bankRefPlaceholder": "Référence bànk (bu ñu soxlawul)",
         "markPaid": "Wone ne fey nañu ko",
         "cancelReasonPlaceholder": "Mboor neenal bi",
         "cancel": "Neenal",
@@ -8321,7 +8459,13 @@
           "cancelled": "Peymaan bi neenal nañu ko",
           "cancelFailed": "Mënunu ko neenal"
         },
-        "breakdownRow": "<qty>{count}</qty> pey · <amount>{gross}</amount> brut · <fee>-{fees}</fee> kom."
+        "breakdownRow": "<qty>{count}</qty> pey · <amount>{gross}</amount> brut · <fee>-{fees}</fee> kom.",
+        "approvedAt": "Nangu nañu ko ci",
+        "paymentReference": "Référence virement bi",
+        "paymentReferenceLabel": "Référence virement bi",
+        "paymentReferencePlaceholder": "Référence virement bi (war na)",
+        "approveSelfRefused": "Yaa tëj diir bii : keneen moo war a nangu reversement bi.",
+        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko."
       }
     }
   },
@@ -8447,7 +8591,12 @@
       "currencyInvalid": "Kodu xaalis bu baaxul (misaal : XOF, EUR).",
       "timezoneTooLong": "Goxu waxtu bi dafa gudd lool.",
       "logoTooLarge": "Logo bi rëy lool (2 Mo max).",
-      "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP."
+      "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP.",
+      "taxRateRange": "TVA bi war na nekk diggante 0 ak 100.",
+      "thresholdInvalid": "Seuil bi dafa war a nekk xaalis bu mat, amul décimales.",
+      "legalNameTooLong": "Raison sociale bi warul ëpp 255 araf.",
+      "legalIdTooLong": "Nimero bii warul ëpp 30 araf.",
+      "legalAddressTooLong": "Adrees bi warul ëpp 1000 araf."
     },
     "booking": {
       "guestsRequired": "Limu nit ñi fàww la.",
@@ -8523,15 +8672,7 @@
       "taxMin": "TVA bi war na nekk ≥ 0.",
       "taxMax": "TVA bi war na nekk ≤ 100.",
       "invoiceableBoth": "Joxal xeet wi ak nomboro bi ñoom ñaar, walla bu ñu ci am.",
-      "dueDateAfterIssue": "Bésu fay bi war na topp walla yem ak bésu génne bi.",
-      "landlordRequired": "Boroom kër gi fàww la.",
-      "grossRequired": "Waññi wu mat wi fàww la.",
-      "grossPositive": "Waññi wu mat wi war na ëpp 0.",
-      "commissionMin": "Komisioŋ bi war na nekk ≥ 0.",
-      "commissionMax": "Komisioŋ bi war na nekk ≤ 100.",
-      "feesMin": "Frais yi war nañu nekk ≥ 0.",
-      "periodEndAfterStart": "Jeexu diir bi war na topp tàmbali bi.",
-      "netPositive": "Waññi wi des war na ëpp 0."
+      "dueDateAfterIssue": "Bésu fay bi war na topp walla yem ak bésu génne bi."
     },
     "property": {
       "titleRequired": "Bopp bi fàww la.",
@@ -9382,6 +9523,50 @@
         "rejected": {
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
+        }
+      },
+      "payout": {
+        "awaiting_approval": {
+          "title": "Reversement {reference} ngir nangu",
+          "body": "Reversement {reference} bu {amount} mi ngi xaar nga nangu ko."
+        },
+        "due": {
+          "title": "Reversement {reference} war na",
+          "body": "Reversement {reference} bu {amount} jot na : def ko, te bind référence bi."
+        },
+        "processed": {
+          "title": "Reversement {reference} dem na",
+          "body": "Reversement bu {amount} dañu la ko yónnee. Référence bu transaction bi : {transaction}. Destination : {destination}."
+        },
+        "failed": {
+          "title": "Reversement {reference} lajj na",
+          "body": "Reversement {reference} bu {amount} demul. Lu ko waral : {reason}."
+        }
+      },
+      "payout_method": {
+        "added": {
+          "title": "Destination de paiement yokk nañu ko",
+          "body": "Destination de paiement {destination} dañu ko yokk ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi."
+        },
+        "updated": {
+          "title": "Destination de paiement soppi nañu ko",
+          "body": "Destination de paiement {destination} dañu ko soppi ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi."
+        },
+        "removed": {
+          "title": "Destination de paiement far nañu ko",
+          "body": "Destination de paiement {destination} dañu ko far ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi."
+        }
+      },
+      "owner_statement": {
+        "available": {
+          "title": "Sa relevé de gérance {period} am na",
+          "body": "Sa relevé de gérance bu {period} mi ngi ci sa espace."
+        }
+      },
+      "payout_threshold": {
+        "relax_requested": {
+          "title": "Woyofal seuil bu reversement yi, war nañu ko dëggal",
+          "body": "Benn ci mbootaayu {agency} laaj na ñu woyofal seuil d'approbation bu reversement yi. Dara du soppiku fii ak benn approbateur bu ñaareel dëggal ko ci réglages bu agence bi."
         }
       },
       "review": {

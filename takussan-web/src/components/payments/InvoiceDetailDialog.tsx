@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { StatusBadge } from '@/components/console';
@@ -43,18 +43,19 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
   const markPaid = useInvoiceMarkPaid(invoiceId ?? 0);
   const cancel = useInvoiceCancel(invoiceId ?? 0);
 
-  const handleAction = useCallback(
-    async (fn: () => Promise<unknown>) => {
-      try {
-        await fn();
-      } catch {
-        // errors surfaced via mutation.isError
-      }
-    },
-    [],
-  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const handleAction = async (fn: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setActionError(messageErreur(e, t('actionFailed')));
+    }
+  };
 
   const invoice = data?.data;
+  // TCK-594 (ADR-0039 §5) — un avoir se lit comme tel, et l'avoir se lit sur la facture qu'il annule.
+  const isCreditNote = invoice?.kind === 'credit_note';
   const status = (invoice?.status ?? 'draft') as InvoiceStatus;
   const { providers } = usePaymentProviders(invoice?.agency_id ?? null);
 
@@ -63,7 +64,9 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {t('title', { reference: invoice?.reference_number ?? `#${invoiceId}` })}
+            {t(isCreditNote ? 'creditNoteTitle' : 'title', {
+              reference: invoice?.reference_number ?? `#${invoiceId}`,
+            })}
           </DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
@@ -129,9 +132,39 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
               ) : null}
             </dl>
 
+            {invoice.credited_invoice_id ? (
+              <p className="text-sm text-muted-foreground">
+                {t('credits', { id: invoice.credited_invoice_id })}
+              </p>
+            ) : null}
+
+            {invoice.credit_notes && invoice.credit_notes.length > 0 ? (
+              <section aria-labelledby="invoice-credit-notes" className="rounded-xl border border-border bg-card p-3">
+                <h3 id="invoice-credit-notes" className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t('creditNotes')}
+                </h3>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {invoice.credit_notes.map((note) => (
+                    <li key={note.id} className="flex justify-between gap-3">
+                      <span>{note.reference_number ?? `#${note.id}`}</span>
+                      <span className="tabular-nums">
+                        {formatCurrency(note.total_amount, locale, { currency: note.currency || 'XOF' })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
             {invoice.notes ? (
               <p className="whitespace-pre-line rounded-lg bg-card p-3 text-sm text-foreground">
                 {invoice.notes}
+              </p>
+            ) : null}
+
+            {actionError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {actionError}
               </p>
             ) : null}
 
