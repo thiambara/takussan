@@ -9344,6 +9344,10 @@
         "received_landlord": {
           "title": "Rent received: {property}",
           "body": "{tenant} paid {amount} for {property}."
+        },
+        "settled_online": {
+          "title": "Payment received: {property}",
+          "body": "Your payment of {amount} for {property} has been received. Your receipt: {receipt_url}"
         }
       },
       "payment": {

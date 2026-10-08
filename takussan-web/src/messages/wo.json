@@ -9344,6 +9344,10 @@
         "received_landlord": {
           "title": "Pey kër bi agsi na : {property}",
           "body": "{tenant} fey na {amount} ngir {property}."
+        },
+        "settled_online": {
+          "title": "Fey bi agsi na : {property}",
+          "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas : {receipt_url}"
         }
       },
       "payment": {

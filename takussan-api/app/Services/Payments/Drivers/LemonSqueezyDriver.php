@@ -28,6 +28,15 @@ use Illuminate\Http\Request;
  */
 class LemonSqueezyDriver implements PaymentDriverContract
 {
+    /**
+     * TCK-602 (ADR-0051 §3) — les identifiants que ce pilote LIT. Chacun est un champ `required`
+     * du schéma de son fournisseur (`PaymentDriverCredentialsTest`), et une intégration à qui il en
+     * manque un n'est pas proposée au payeur (`PaymentGatewayService::availableProviders`).
+     *
+     * @var list<string>
+     */
+    public const CREDENTIAL_KEYS = ['api_key', 'store_id', 'variant_id', 'signing_secret'];
+
     public const PROVIDER = 'lemon_squeezy';
 
     public function __construct(protected Integration $integration) {}

@@ -299,6 +299,9 @@ return [
         'status_transition_invalid' => 'Ce changement de statut du paiement n\'est pas autorisé.',
         'type_unknown' => 'Type de paiement inconnu.',
         'webhook_endpoint_missing' => 'L\'intégration de paiement n\'a pas d\'adresse de notification : régénérez-la.',
+        'provider_not_available' => 'Le paiement par :provider n\'est pas disponible pour ce règlement.',
+        'provider_unavailable' => 'Le prestataire de paiement ne répond pas. Réessayez dans quelques minutes.',
+        'integration_misconfigured' => 'Le paiement en ligne est mal configuré pour ce prestataire. Contactez votre agence.',
     ],
     'payout' => [
         'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',
@@ -479,5 +482,10 @@ return [
     'webhook_log' => [
         'not_replayable' => 'Cette ligne du journal ne se rejoue pas : seul un webhook authentifié, en échec ou non apparié, au corps conservé, peut l\'être.',
         'integration_unavailable' => 'L\'intégration qui avait validé ce webhook n\'est plus active : il ne peut pas être rejoué.',
+    ],
+    'pay_link' => [
+        'not_found' => 'Ce lien de paiement n\'existe pas.',
+        'gone' => 'Ce lien de paiement n\'est plus valide. Demandez-en un nouveau à :agency.',
+        'receipt_unavailable' => 'La quittance n\'est disponible qu\'une fois le paiement reçu.',
     ],
 ];

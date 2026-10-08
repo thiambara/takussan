@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payments\LeasePaymentLinkService;
+use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -161,6 +163,13 @@ class SendLeasePaymentReminders implements ShouldQueue
         $lease = $payment->lease;
         $tenant = $lease?->tenant;
         $target = $lease ? NotificationTarget::of('lease', $lease->id) : null;
+
+        // TCK-602 (ADR-0051 §1) — 588 a prévu la place du lien, 602 le génère : le MÊME lien à
+        // chaque relance, seulement si l'échéance se paie en ligne (un fournisseur au moins).
+        $gateway = app(PaymentGatewayService::class);
+        if ($gateway->isPayable($payment) && $gateway->availableProviders($payment) !== []) {
+            $params['payment_url'] = app(LeasePaymentLinkService::class)->urlFor($payment);
+        }
 
         if ($tenant?->user) {
             $notifications->send($tenant->user, $code, $params, $target);

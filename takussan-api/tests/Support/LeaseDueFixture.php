@@ -84,19 +84,23 @@ trait LeaseDueFixture
     {
         $spy = new class implements PaymentDriverContract
         {
-            /** @var list<array{payment_id: int, amount_cents: int, currency: string}> */
+            /** @var list<array{payment_id: int, amount_cents: int, currency: string, meta: array<string, mixed>}> */
             public array $calls = [];
+
+            /** TCK-602 — ce que `verify()` répond : `pending` par défaut. */
+            public string $verifyStatus = DriverStatus::PENDING;
 
             public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
             {
-                $this->calls[] = ['payment_id' => (int) $payment->getKey(), 'amount_cents' => $amountCents, 'currency' => $currency];
+                // TCK-602 — `meta` aussi : les URLs de retour que le service transmet au pilote.
+                $this->calls[] = ['payment_id' => (int) $payment->getKey(), 'amount_cents' => $amountCents, 'currency' => $currency, 'meta' => $meta];
 
                 return new CheckoutSession('https://pay.example/c/'.count($this->calls), 'spy_txn_'.count($this->calls), 'wave');
             }
 
             public function verify(string $externalId): DriverStatus
             {
-                return new DriverStatus(DriverStatus::PENDING, $externalId, []);
+                return new DriverStatus($this->verifyStatus, $externalId, []);
             }
 
             /** Le webhook, lui, passe par le vrai pilote Wave : signature comprise. */

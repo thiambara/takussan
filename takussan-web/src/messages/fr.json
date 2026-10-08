@@ -9344,6 +9344,10 @@
         "received_landlord": {
           "title": "Loyer reçu : {property}",
           "body": "{tenant} a payé {amount} pour {property}."
+        },
+        "settled_online": {
+          "title": "Paiement reçu : {property}",
+          "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance : {receipt_url}"
         }
       },
       "payment": {

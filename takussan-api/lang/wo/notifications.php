@@ -279,6 +279,11 @@ return [
                 'body' => ':tenant fey na :amount ngir :property.',
                 'sms' => 'Takussan : :tenant fey na :amount (:property).',
             ],
+            'settled_online' => [
+                'title' => 'Fey bi agsi na : :property',
+                'body' => 'Sa fey bu :amount ngir :property agsi na. Sa kitaas : :receipt_url',
+                'sms' => 'Takussan : fey bu :amount agsi na (:property). Kitaas : :receipt_url',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [

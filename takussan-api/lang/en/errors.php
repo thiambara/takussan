@@ -299,6 +299,9 @@ return [
         'status_transition_invalid' => 'This payment status change is not allowed.',
         'type_unknown' => 'Unknown payment type.',
         'webhook_endpoint_missing' => 'The payment integration has no notification address: regenerate it.',
+        'provider_not_available' => 'Payment with :provider is not available for this payment.',
+        'provider_unavailable' => 'The payment provider is not responding. Please try again in a few minutes.',
+        'integration_misconfigured' => 'Online payment is misconfigured for this provider. Please contact your agency.',
     ],
     'payout' => [
         'agency_required' => 'A payout is issued on behalf of an agency.',
@@ -479,5 +482,10 @@ return [
     'webhook_log' => [
         'not_replayable' => 'This journal entry cannot be replayed: only an authenticated webhook that failed or matched nothing, with its body kept, can be.',
         'integration_unavailable' => 'The integration that validated this webhook is no longer active: it cannot be replayed.',
+    ],
+    'pay_link' => [
+        'not_found' => 'This payment link does not exist.',
+        'gone' => 'This payment link is no longer valid. Ask :agency for a new one.',
+        'receipt_unavailable' => 'The receipt is only available once the payment has been received.',
     ],
 ];

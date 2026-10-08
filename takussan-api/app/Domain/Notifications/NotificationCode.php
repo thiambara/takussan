@@ -36,6 +36,8 @@ enum NotificationCode: string
     case LeasePaymentOverdueDigest = 'lease_payment.overdue_digest';
     case LeasePaymentRecorded = 'lease_payment.recorded';
     case LeasePaymentReceivedLandlord = 'lease_payment.received_landlord';
+    // TCK-602 (ADR-0051 §2) — la quittance d'un paiement en ligne, au locataire même sans compte.
+    case LeasePaymentSettledOnline = 'lease_payment.settled_online';
 
     // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
     case PaymentDuplicate = 'payment.duplicate';
@@ -168,7 +170,7 @@ enum NotificationCode: string
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
-            self::LeasePaymentReceivedLandlord, self::PaymentDuplicate,
+            self::LeasePaymentReceivedLandlord, self::LeasePaymentSettledOnline, self::PaymentDuplicate,
             self::PaymentDuplicateLateFee => NotificationType::Payment,
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
@@ -209,7 +211,8 @@ enum NotificationCode: string
             self::LeasePaymentDueSoon => 'lease_payment_due',
             self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest => 'lease_payment_overdue',
-            self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord => 'lease_payment_received',
+            self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord,
+            self::LeasePaymentSettledOnline => 'lease_payment_received',
             self::BookingCreated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
@@ -261,6 +264,8 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest => ['count' => self::PARAM_COUNT, 'total' => self::PARAM_MONEY],
             self::LeasePaymentRecorded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
+            // Le lien `/pay/{jeton}` sert la quittance : jamais tronqué.
+            self::LeasePaymentSettledOnline => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'receipt_url' => self::PARAM_URL],
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
@@ -353,6 +358,7 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
+            self::LeasePaymentSettledOnline,
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
@@ -376,6 +382,8 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
+            // TCK-602 — la quittance d'une échéance payée en ligne : transactionnel.
+            self::LeasePaymentSettledOnline,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,

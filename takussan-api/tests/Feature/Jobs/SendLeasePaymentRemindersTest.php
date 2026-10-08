@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Integration;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\AgentProfile;
@@ -18,6 +19,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -282,5 +284,38 @@ class SendLeasePaymentRemindersTest extends TestCase
         $this->run_();
 
         $this->assertCount(1, $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentDueSoon));
+    }
+
+    // ─── TCK-602 — le lien de paiement dans la relance ─────────────────────────────────
+
+    /**
+     * TCK-602 AC14 (ADR-0051 §1) — un fournisseur actif chez l'agence : la relance porte le lien
+     * `/pay/{jeton}`, le MÊME d'une relance à l'autre ; sans fournisseur, pas de lien.
+     */
+    public function test_tck602_la_relance_porte_le_lien_de_paiement_quand_un_fournisseur_sert_l_agence(): void
+    {
+        config()->set('app.frontend_url', 'https://front.test');
+        Carbon::setTestNow('2026-09-30 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29']);
+        $tenant = $payment->lease->tenant->user;
+
+        $this->run_();
+        $this->assertArrayNotHasKey('payment_url', $this->rows($tenant, NotificationCode::LeasePaymentOverdue)->sole()->params);
+
+        Integration::factory()->create([
+            'agency_id' => $payment->lease->agency_id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'k', 'webhook_secret' => 's'],
+        ]);
+        Carbon::setTestNow('2026-10-06 08:00:00');
+        $this->run_();
+
+        $row = $this->rows($tenant, NotificationCode::LeasePaymentOverdue)->sortBy('id')->last();
+        $url = $row->params['payment_url'] ?? null;
+        $this->assertMatchesRegularExpression('#^https://front\.test/pay/[A-Za-z0-9_-]{43}$#', (string) $url);
+        $this->assertStringContainsString($url, $row->body);
+        // Le même lien d'une relance à l'autre : celui qu'un nouvel appel relit.
+        $this->assertSame($url, app(LeasePaymentLinkService::class)->urlFor($payment));
     }
 }

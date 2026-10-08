@@ -125,7 +125,12 @@ class PaymentGatewayInitiateTest extends TestCase
             ->assertJsonPath('data.transaction_id', 'om_token_abc');
     }
 
-    public function test_initiate_returns_404_when_integration_missing(): void
+    /**
+     * TCK-602 (ADR-0051 §3) — un fournisseur sans intégration couvrant l'agence n'est pas proposé :
+     * 422 `payment.provider_not_available`, comme tout fournisseur hors `availableProviders`
+     * (c'était un 404 `payment.integration_missing`).
+     */
+    public function test_initiate_returns_422_when_integration_missing(): void
     {
         $agency = Agency::factory()->create();
         $owner = User::factory()->create(['agency_id' => $agency->id]);
@@ -139,7 +144,8 @@ class PaymentGatewayInitiateTest extends TestCase
         Sanctum::actingAs($owner);
 
         $this->postJson("/api/booking-payments/{$payment->id}/initiate", ['provider' => 'wave'])
-            ->assertNotFound();
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'payment.provider_not_available');
     }
 
     public function test_initiate_rejects_xof_for_lemon_squeezy(): void

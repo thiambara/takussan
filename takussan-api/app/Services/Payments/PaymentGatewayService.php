@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Contracts\Payments\PaymentDriverContract;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Payments\LeasePaymentSettledOnline;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\BookingPayment;
@@ -77,14 +78,67 @@ class PaymentGatewayService
         })->orderByRaw('agency_id IS NULL')->first();
     }
 
+    /**
+     * Le pilote qui sert chaque fournisseur. TCK-602 (ADR-0051 §3) — lue aussi par
+     * {@see availableProviders()}, qui y trouve les identifiants que le pilote lit
+     * (`CREDENTIAL_KEYS`).
+     *
+     * @var array<string, class-string<PaymentDriverContract>>
+     */
+    public const DRIVERS = [
+        'wave' => WaveDriver::class,
+        'orange_money' => OrangeMoneyDriver::class,
+        'lemon_squeezy' => LemonSqueezyDriver::class,
+    ];
+
     public function driverFor(Integration $integration): PaymentDriverContract
     {
-        return match ($integration->provider) {
-            PaymentProvider::Wave->value => new WaveDriver($integration),
-            PaymentProvider::OrangeMoney->value => new OrangeMoneyDriver($integration),
-            PaymentProvider::LemonSqueezy->value => new LemonSqueezyDriver($integration),
-            default => abort_code(422, 'payment.provider_unsupported', ['provider' => (string) $integration->provider]),
-        };
+        $driver = self::DRIVERS[(string) $integration->provider] ?? null;
+        abort_code_if($driver === null, 422, 'payment.provider_unsupported', ['provider' => (string) $integration->provider]);
+
+        return new $driver($integration);
+    }
+
+    /**
+     * TCK-602 (ADR-0051 §3) — les fournisseurs que `initiate()` ACCEPTERA pour ce payable, et
+     * la seule règle : une intégration active couvre l'agence du payable (repli global compris),
+     * un pilote la sert et ses identifiants sont remplis, et le fournisseur accepte la devise.
+     * L'écran authentifié, la page publique du lien et `initiate()` la lisent.
+     *
+     * @return list<PaymentProvider>
+     */
+    public function availableProviders(Model $payment): array
+    {
+        $agencyId = $this->paymentAgencyId($payment);
+        $currency = $this->paymentCurrency($payment);
+        $available = [];
+
+        foreach (PaymentProvider::cases() as $provider) {
+            $driver = self::DRIVERS[$provider->value] ?? null;
+            if ($driver === null || ! $provider->supportsCurrency($currency)) {
+                continue;
+            }
+            $integration = $this->resolveIntegration($provider, $agencyId);
+            if ($integration === null || ! $this->hasCredentials($integration, $driver::CREDENTIAL_KEYS)) {
+                continue;
+            }
+            $available[] = $provider;
+        }
+
+        return $available;
+    }
+
+    /** @param  list<string>  $keys */
+    private function hasCredentials(Integration $integration, array $keys): bool
+    {
+        $credentials = is_array($integration->credentials) ? $integration->credentials : [];
+        foreach ($keys as $key) {
+            if (! is_scalar($credentials[$key] ?? null) || trim((string) $credentials[$key]) === '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -136,9 +190,6 @@ class PaymentGatewayService
         }
 
         $agencyId = $this->paymentAgencyId($payment);
-        $integration = $this->resolveIntegration($provider, $agencyId);
-        abort_code_unless($integration, 404, 'payment.integration_missing', ['provider' => $provider->value]);
-
         $currency = $this->paymentCurrency($payment);
         if (! $provider->supportsCurrency($currency)) {
             // Le seul refus qui appelle un conseil : le XOF se paie par un prestataire local.
@@ -152,6 +203,12 @@ class PaymentGatewayService
                 'currency' => strtoupper($currency),
             ]);
         }
+
+        // TCK-602 (ADR-0051 §3) — la règle que l'écran a lue : un fournisseur qu'il n'a pas
+        // proposé rend 422 AVANT tout appel au fournisseur (intégration absente, inactive, ou aux
+        // identifiants incomplets — elle cassait au clic).
+        abort_code_unless(in_array($provider, $this->availableProviders($payment), true), 422, 'payment.provider_not_available', ['provider' => $provider->value]);
+        $integration = $this->resolveIntegration($provider, $agencyId);
 
         // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
         // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
@@ -501,6 +558,13 @@ class PaymentGatewayService
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
 
+        // TCK-602 (ADR-0051 §2) — UNE quittance par échéance : l'événement part à la seule
+        // transition vers `paid` (webhook, rejeu ou `verify()`), jamais sur un événement rejoué
+        // d'une échéance déjà soldée. Distribué après la validation de la transaction.
+        if ($payment instanceof LeasePayment && $current !== PaymentStatus::Paid && $this->currentPaymentStatus($payment) === PaymentStatus::Paid) {
+            event(new LeasePaymentSettledOnline((int) $payment->getKey()));
+        }
+
         // TCK-594 (ADR-0039 §7) — une facture soldée par la passerelle est émise : un brouillon
         // payé ainsi reçoit son numéro comme par `InvoiceService::markPaid`.
         if ($payment instanceof Invoice && $this->currentPaymentStatus($payment) === PaymentStatus::Paid) {
@@ -662,7 +726,12 @@ class PaymentGatewayService
                     ->whereKey($paymentId)
                     ->lockForUpdate()
                     ->first();
-                if ($row !== null) {
+                // TCK-602 (ADR-0051, conséquence M-1) — un payable dont le checkout COURANT a été
+                // ouvert chez un autre fournisseur (une échéance initiée par son lien, en Wave ou
+                // en Orange Money) n'est pas soldé par ce chemin : seul un payable jamais initié,
+                // ou initié chez ce fournisseur, l'est encore (limite M-1, inchangée).
+                $current = $row !== null && is_array($row->metadata['gateway'] ?? null) ? ($row->metadata['gateway']['provider'] ?? null) : null;
+                if ($row !== null && ($current === null || $current === $event->provider)) {
                     $matches[] = $row;
                 }
             }
