@@ -39,6 +39,8 @@ class ModerationItemResource extends BaseResource
             'agency' => $this->resource['agency'],
             'reason' => $this->resource['reason'],
             'reported_count' => $this->resource['reported_count'],
+            'suspicious' => (bool) ($this->resource['suspicious'] ?? false),
+            'duplicate' => $this->resource['duplicate'] ?? null,
             'claim' => $this->claim(),
             'reported_at' => $this->iso($this->instant('reported_at')),
             'created_at' => $this->iso($this->instant('created_at')),

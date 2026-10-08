@@ -4,6 +4,7 @@ namespace App\Services\Property;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Models\DuplicateSuspicion;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
@@ -168,17 +169,7 @@ class PropertyModerationService
             $property = Property::withTrashed()->whereKey($report->property_id)->lockForUpdate()->firstOrFail();
 
             if (in_array($decision, ['hide', 'remove'], true)) {
-                $property->forceFill([
-                    'status' => PropertyStatus::Rejected,
-                    'visibility' => PropertyVisibility::Private,
-                    'published_at' => null,
-                    'rejected_at' => now(),
-                    'rejected_by_user_id' => $admin->id,
-                    'rejection_reason' => $motif,
-                    'platform_hold_at' => now(),
-                    'platform_hold_by_id' => $admin->id,
-                    'platform_hold_reason' => $reasonCode ?? $motif,
-                ])->save();
+                $this->hold($property, $admin, $motif, $reasonCode);
 
                 if ($decision === 'remove') {
                     $property->delete();
@@ -221,6 +212,55 @@ class PropertyModerationService
         $this->notifyOutcome($property, $closed, $decision, $motif);
 
         return $report->refresh();
+    }
+
+    /**
+     * TCK-597 (ADR-0054 §5) — trancher une suspicion de doublon : `hide` masque le bien soupçonné
+     * sous verrou plateforme (comme un signalement), `reject` la classe. Le bien recopié n'est
+     * jamais touché.
+     */
+    public function resolveDuplicate(DuplicateSuspicion $suspicion, User $admin, string $decision, ?string $reason, ?string $reasonCode = null): Property
+    {
+        $motif = $reason !== null && $reason !== '' ? $reason : $reasonCode;
+
+        $property = DB::transaction(function () use ($suspicion, $admin, $decision, $reasonCode, $motif) {
+            $property = Property::withTrashed()->whereKey($suspicion->property_id)->lockForUpdate()->firstOrFail();
+
+            if ($decision === 'hide') {
+                $this->hold($property, $admin, $motif, $reasonCode);
+            }
+
+            $suspicion->update([
+                'decision' => $decision,
+                'resolved_by_id' => $admin->id,
+                'reason_code' => $reasonCode,
+                'resolved_at' => now(),
+            ]);
+
+            return $property;
+        });
+
+        if ($decision === 'hide') {
+            $this->notifyOutcome($property, collect(), 'hide', $motif);
+        }
+
+        return $property;
+    }
+
+    /** Masquer sous verrou plateforme : rejeté, privé, dépublié, verrouillé (ADR-0043 §4). */
+    private function hold(Property $property, User $admin, ?string $motif, ?string $reasonCode): void
+    {
+        $property->forceFill([
+            'status' => PropertyStatus::Rejected,
+            'visibility' => PropertyVisibility::Private,
+            'published_at' => null,
+            'rejected_at' => now(),
+            'rejected_by_user_id' => $admin->id,
+            'rejection_reason' => $motif,
+            'platform_hold_at' => now(),
+            'platform_hold_by_id' => $admin->id,
+            'platform_hold_reason' => $reasonCode ?? $motif,
+        ])->save();
     }
 
     /**

@@ -707,3 +707,27 @@ Sans recopier la spec, voici ce qui change.
   agent → 1 rouge ; agent sans contrôle de doublon → 1 rouge ; prestataire sans contrôle du statut
   → 1 rouge ; moyenne du carnet sur tous les avis → 1 rouge ; prestataire sans contrôle de doublon
   → 1 rouge (l'index rend 500 au lieu de 422).
+
+### §6 — doublons et avis suspects (ADR-0054, commit `1099bfa5` avant le code)
+
+- `media_fingerprints` (dHash 64 bits + 4 bandes de 16 bits indexées), `duplicate_suspicions`
+  (une ligne par paire : index unique `LEAST`/`GREATEST`, écriture par `insertOrIgnore`).
+- `FingerprintAddedPhotoListener` (découvert, `MediaHasBeenAddedEvent`) → `ComputePhotoFingerprintJob`
+  (file `media`, original lu par son disque) → `DuplicateListingDetector` : photo (distance ≤ 3,
+  candidats par bande, ≤ 200) et adresse (ville/quartier repliés ICU, position au millième, même
+  contrat, surface et prix ±5 %), entre publieurs différents seulement.
+- File : `suspected_duplicate` (`hide` = verrou plateforme sur le bien soupçonné via
+  `PropertyModerationService::resolveDuplicate`, `reject`), ressource `duplicate` (signal, annonce
+  recopiée) ; drapeau `suspicious` des avis calculé en SQL (rafale, compte < 7 j, empreinte
+  partagée), tri en tête, aucune action.
+- **Écart :** le signal d'adresse est déclenché par le job de la photo (ADR-0054 §4) — une annonce
+  sans photo n'est pas examinée par l'adresse.
+- `models-spec` : entrées minimales 73 `MediaFingerprint`, 74 `DuplicateSuspicion`.
+- Preuves : `DuplicateListingDetectorTest` 7, `SuspiciousReviewFlagTest` 2 ; lot Media + Events +
+  Admin + Moderation + duplication : 421 verts (559 s sous charge 38 — **la commande a dépassé la
+  limite de l'outil et a fini en tâche de fond** ; résultat lu à la fin, pas relancé).
+- Ablations (restaurées par `cp`) : sans exclusion du même publieur → 1 rouge ; empreinte lue par
+  `getPath()` (conversion/chemin local) → 3 rouges ; seuil ignoré → 1 rouge (après ajout du test du
+  seuil : la première version passait verte, aucun candidat ne partageait de bande) ; seuil à 4 →
+  1 rouge ; adresse sans repli de casse → 1 rouge ; sans drapeau « compte récent » → 1 rouge ; sans
+  tri par suspicion → 1 rouge (après correction du test, d'abord vert par l'ordre des identifiants).

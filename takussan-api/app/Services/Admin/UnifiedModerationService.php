@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\DuplicateSuspicion;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\ReviewStatus;
 use App\Models\ModerationClaim;
@@ -25,6 +26,24 @@ class UnifiedModerationService
         private readonly PropertyModerationService $propertyModeration,
         private readonly ReviewModerationService $reviewModeration,
     ) {}
+
+    /**
+     * TCK-597 (ADR-0054 §6) — un avis est SUSPECT quand l'un de ces faits se mesure à la lecture :
+     * une rafale (≥ 3 avis sur le même sujet à ± 24 h), un compte récent (inscrit moins de 7 jours
+     * avant le dépôt), une empreinte d'adresse partagée avec un autre auteur sur le même sujet. Le
+     * drapeau sert au TRI de la file ; il ne déclenche rien.
+     */
+    public const SUSPICIOUS_REVIEW_SQL = <<<'SQL'
+        (SELECT COUNT(*) FROM reviews rb
+            WHERE rb.reviewable_type = r.reviewable_type AND rb.reviewable_id = r.reviewable_id
+              AND rb.deleted_at IS NULL
+              AND rb.created_at BETWEEN r.created_at - INTERVAL '24 hours' AND r.created_at + INTERVAL '24 hours') >= 3
+        OR EXISTS (SELECT 1 FROM users ua WHERE ua.id = r.author_id AND ua.created_at > r.created_at - INTERVAL '7 days')
+        OR EXISTS (SELECT 1 FROM reviews ri
+            WHERE ri.reviewable_type = r.reviewable_type AND ri.reviewable_id = r.reviewable_id
+              AND ri.author_id <> r.author_id AND ri.deleted_at IS NULL
+              AND r.metadata->>'ip_hash' IS NOT NULL AND ri.metadata->>'ip_hash' = r.metadata->>'ip_hash')
+        SQL;
 
     /**
      * @param  array<string,mixed>  $filters
@@ -53,6 +72,7 @@ class UnifiedModerationService
         }
 
         $paginator = $query
+            ->orderByDesc('suspicious')
             ->orderBy($column, $direction)
             ->orderBy('source_id', 'desc')
             ->paginate(max(1, min($perPage, 100)));
@@ -71,6 +91,7 @@ class UnifiedModerationService
         'property' => ['approve', 'reject'],
         'property_report' => ['hide', 'remove', 'reject'],
         'review' => ['approve', 'hide', 'remove'],
+        'suspected_duplicate' => ['hide', 'reject'],
     ];
 
     /**
@@ -99,6 +120,7 @@ class UnifiedModerationService
                 'property' => $this->decideProperty(Property::findOrFail($sourceId), $actor, $decision, $reason ?? $reasonCode),
                 'property_report' => $this->decidePropertyReport(PropertyReport::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
                 'review' => $this->decideReview(Review::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
+                'suspected_duplicate' => $this->propertyModeration->resolveDuplicate(DuplicateSuspicion::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
             };
 
             ModerationClaim::query()->where('item_key', $queueId)->delete();
@@ -220,6 +242,7 @@ class UnifiedModerationService
                 return ! $property->trashed() && $property->status === PropertyStatus::PendingReview;
             })(),
             'property_report' => PropertyReport::query()->whereKey($sourceId)->lockForUpdate()->firstOrFail()->resolved_at === null,
+            'suspected_duplicate' => DuplicateSuspicion::query()->whereKey($sourceId)->lockForUpdate()->firstOrFail()->resolved_at === null,
             'review' => (function () use ($sourceId): bool {
                 $review = Review::withTrashed()->whereKey($sourceId)->lockForUpdate()->firstOrFail();
 
@@ -253,6 +276,7 @@ class UnifiedModerationService
             ->selectRaw("COALESCE(p.rejection_reason, 'Bien en attente de validation') as reason")
             ->selectRaw('COALESCE(p.submitted_at, p.created_at) as reported_at')
             ->selectRaw('p.created_at as created_at')
+            ->selectRaw('false as suspicious')
             ->where('p.status', PropertyStatus::PendingReview->value)
             ->whereNull('p.deleted_at');
 
@@ -269,7 +293,26 @@ class UnifiedModerationService
             ->selectRaw('COALESCE(pr.details, pr.reason) as reason')
             ->selectRaw('pr.created_at as reported_at')
             ->selectRaw('pr.created_at as created_at')
+            ->selectRaw('false as suspicious')
             ->whereNull('pr.resolved_at')
+            ->whereNull('p.deleted_at');
+
+        // TCK-597 (ADR-0054 §5) — une suspicion de doublon : le bien soupçonné est le sujet.
+        $duplicates = DB::table('duplicate_suspicions as ds')
+            ->join('properties as p', 'p.id', '=', 'ds.property_id')
+            ->selectRaw("'suspected_duplicate' as source_type")
+            ->selectRaw('ds.id as source_id')
+            ->selectRaw("'property' as type")
+            ->selectRaw("'flagged' as status")
+            ->selectRaw("'property' as subject_type")
+            ->selectRaw('p.id as subject_id')
+            ->selectRaw('p.agency_id as agency_id')
+            ->selectRaw('NULL::bigint as reporter_id')
+            ->selectRaw('ds.signal as reason')
+            ->selectRaw('ds.created_at as reported_at')
+            ->selectRaw('ds.created_at as created_at')
+            ->selectRaw('false as suspicious')
+            ->whereNull('ds.resolved_at')
             ->whereNull('p.deleted_at');
 
         $reviews = DB::table('reviews as r')
@@ -292,10 +335,11 @@ class UnifiedModerationService
             ->selectRaw("COALESCE(r.title, 'Avis en attente de validation') as reason")
             ->selectRaw('COALESCE(r.updated_at, r.created_at) as reported_at')
             ->selectRaw('r.created_at as created_at')
+            ->selectRaw('('.self::SUSPICIOUS_REVIEW_SQL.') as suspicious')
             ->whereIn('r.status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
             ->whereNull('r.deleted_at');
 
-        return $properties->unionAll($propertyReports)->unionAll($reviews);
+        return $properties->unionAll($propertyReports)->unionAll($duplicates)->unionAll($reviews);
     }
 
     /**
@@ -339,8 +383,13 @@ class UnifiedModerationService
             ->where('expires_at', '>', now())
             ->get()
             ->keyBy('item_key');
+        $duplicates = DuplicateSuspicion::query()
+            ->with('matchedProperty.agency')
+            ->whereIn('id', $rows->where('source_type', 'suspected_duplicate')->pluck('source_id'))
+            ->get()
+            ->keyBy('id');
 
-        return $rows->map(function (object $row) use ($properties, $reviews, $users, $agencies, $claims): array {
+        return $rows->map(function (object $row) use ($properties, $reviews, $users, $agencies, $claims, $duplicates): array {
             $sourceType = (string) $row->source_type;
             $sourceId = (int) $row->source_id;
             $subjectId = (int) $row->subject_id;
@@ -370,6 +419,7 @@ class UnifiedModerationService
             $reporter = $users->get((int) ($row->reporter_id ?? 0));
             $agency = $agencies->get((int) ($row->agency_id ?? 0));
             $claim = $claims->get("{$sourceType}:{$sourceId}");
+            $duplicate = $sourceType === 'suspected_duplicate' ? $duplicates->get($sourceId) : null;
 
             return [
                 'id' => "{$sourceType}:{$sourceId}",
@@ -392,6 +442,19 @@ class UnifiedModerationService
                 ] : null,
                 'reason' => $this->reasonFor($sourceType, $sourceId, (string) ($row->reason ?? ''), $reviews),
                 'reported_count' => $reportedCount,
+                // TCK-597 (ADR-0054 §6) — drapeau de tri, jamais une décision.
+                'suspicious' => (bool) $row->suspicious,
+                // TCK-597 (ADR-0054 §5) — le signal, et l'annonce que le sujet recopierait.
+                'duplicate' => $duplicate ? [
+                    'signal' => $duplicate->signal,
+                    'distance' => $duplicate->distance,
+                    'matched' => $duplicate->matchedProperty ? [
+                        'id' => $duplicate->matchedProperty->id,
+                        'title' => $duplicate->matchedProperty->title,
+                        'subtitle' => $duplicate->matchedProperty->reference_number,
+                        'agency' => $duplicate->matchedProperty->agency?->name,
+                    ] : null,
+                ] : null,
                 // TCK-597 (ADR-0043 §7) — qui tient l'élément, et jusqu'à quand.
                 'claim' => $claim ? [
                     'by' => [
@@ -433,7 +496,7 @@ class UnifiedModerationService
         }
 
         [$sourceType, $rawId] = explode(':', $queueId, 2);
-        if (! in_array($sourceType, ['property', 'property_report', 'review'], true) || ! ctype_digit($rawId)) {
+        if (! array_key_exists($sourceType, self::DECISIONS) || ! ctype_digit($rawId)) {
             throw ValidationException::withMessages(['id' => __('errors.moderation.item_id_invalid')]);
         }
 
