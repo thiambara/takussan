@@ -104,6 +104,38 @@ class ReviewNotificationTest extends ApiTestCase
         );
     }
 
+    /**
+     * verif-597 m4 — « Nouvel avis » part à la première publication, pas à chaque réapprobation.
+     * Avant : signalement puis réapprobation, trois fois, et le publieur recevait quatre
+     * notifications pour un seul avis.
+     */
+    public function test_reapproving_after_a_report_does_not_notify_the_subject_again(): void
+    {
+        $review = Review::factory()->create([
+            'reviewable_type' => Property::class, 'reviewable_id' => $this->property->id,
+            'rating' => 4, 'status' => ReviewStatus::Pending, 'is_approved' => false,
+        ]);
+        $super = User::factory()->create();
+        $this->materializeRoleProfile($super, 'super_admin');
+
+        $this->actingAsApi($this->admin);
+        $this->postJson("/api/reviews/{$review->id}/approve")->assertOk();
+        foreach (range(1, 3) as $round) {
+            $this->app['auth']->forgetGuards();
+            $this->actingAsApi(User::factory()->create());
+            $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
+            $this->assertSame(ReviewStatus::Reported, $review->refresh()->status);
+
+            $this->app['auth']->forgetGuards();
+            $this->actingAsApi($super);
+            $this->postJson("/api/reviews/{$review->id}/approve")->assertOk();
+        }
+
+        $received = Notification::sent($this->publisher, CodedNotification::class)
+            ->filter(fn (CodedNotification $n) => $n->code === NotificationCode::ReviewReceived);
+        $this->assertCount(1, $received);
+    }
+
     public function test_an_agency_review_notifies_no_admin_at_creation_and_its_admins_at_approval(): void
     {
         $review = Review::factory()->create([

@@ -28,7 +28,11 @@ class ReviewObserver
             $this->syncCounts($review);
         }
 
-        if ($review->wasChanged('status') && $review->status === ReviewStatus::Approved) {
+        // verif-597 m4 — « Nouvel avis » à la PREMIÈRE publication seulement. Réapprouver après un
+        // signalement (`reported → approved`) renvoyait la notification : n'importe quel visiteur la
+        // relançait en signalant.
+        if ($review->wasChanged('status') && $review->status === ReviewStatus::Approved
+            && $review->getOriginal('approved_at') === null) {
             $this->notifier->received($review);
         }
     }
