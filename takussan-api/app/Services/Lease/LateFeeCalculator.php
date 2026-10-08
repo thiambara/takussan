@@ -8,6 +8,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -175,7 +176,7 @@ class LateFeeCalculator
      */
     protected function applyCap(LeasePayment $payment, float $fee): float
     {
-        $cap = $this->capPercent();
+        $cap = $this->capPercent($payment->lease?->agency_id);
         if ($cap === null) {
             return $fee;
         }
@@ -185,11 +186,10 @@ class LateFeeCalculator
         return min($fee, $ceiling);
     }
 
-    protected function capPercent(): ?float
+    protected function capPercent(?int $agencyId = null): ?float
     {
-        $row = Setting::query()
-            ->where('key', 'late_fees.cap_percent')
-            ->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row('late_fees.cap_percent', $agencyId);
 
         if ($row === null) {
             return null;

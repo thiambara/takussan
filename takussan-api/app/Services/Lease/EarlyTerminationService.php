@@ -12,6 +12,7 @@ use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Model\ReferenceNumberGenerator;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -256,7 +257,7 @@ class EarlyTerminationService
         $diffDays = max(1, (int) $effectiveDate->copy()->startOfDay()->diffInDays($end->copy()->startOfDay(), false));
         $monthsRemaining = (int) ceil($diffDays / 30);
 
-        $configuredMonths = $this->resolvePenaltyMonths();
+        $configuredMonths = $this->resolvePenaltyMonths($lease->agency_id);
         $billable = min($configuredMonths, $monthsRemaining);
 
         return round($monthlyRent * $billable, 2);
@@ -272,9 +273,10 @@ class EarlyTerminationService
         return self::DEFAULT_NOTICE_DAYS;
     }
 
-    public function resolvePenaltyMonths(): int
+    public function resolvePenaltyMonths(?int $agencyId = null): int
     {
-        $row = Setting::query()->where('key', self::SETTING_KEY)->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
         if ($row === null) {
             return self::SETTING_DEFAULT_MONTHS;
         }

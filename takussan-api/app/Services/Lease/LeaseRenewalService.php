@@ -5,9 +5,9 @@ namespace App\Services\Lease;
 use App\Events\Lease\LeaseRenewed;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\Model\ReferenceNumberGenerator;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -95,7 +95,7 @@ class LeaseRenewalService
                 $parent->forceFill(['end_date' => $adjusted])->save();
             }
 
-            $requireSignature = $this->requireSignatureFlag();
+            $requireSignature = $this->requireSignatureFlag($parent->agency_id);
             $childStatus = $requireSignature ? LeaseStatus::PendingSignature : LeaseStatus::Active;
 
             $child = Lease::create([
@@ -262,9 +262,9 @@ class LeaseRenewalService
         }
     }
 
-    protected function requireSignatureFlag(): bool
+    protected function requireSignatureFlag(?int $agencyId = null): bool
     {
-        $row = Setting::query()->where('key', 'lease.require_signature')->first();
+        $row = ScopedSetting::row('lease.require_signature', $agencyId); // TCK-600 (verif-600 H1)
         if ($row === null) {
             return false;
         }

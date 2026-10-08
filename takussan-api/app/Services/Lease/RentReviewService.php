@@ -7,6 +7,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\ScopedSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -79,7 +80,7 @@ class RentReviewService
             }
 
             $variationPct = abs($newRent - $oldRent) / $oldRent * 100;
-            $maxPct = $this->resolveMaxPct();
+            $maxPct = $this->resolveMaxPct($lease->agency_id);
             if ($variationPct > $maxPct + 0.0001) {
                 if (! $force) {
                     throw ValidationException::withMessages([
@@ -131,9 +132,10 @@ class RentReviewService
      * Resolve the lease.rent_review_max_pct setting (numeric, percentage).
      * Falls back to {@see self::DEFAULT_MAX_PCT} when missing or invalid.
      */
-    public function resolveMaxPct(): float
+    public function resolveMaxPct(?int $agencyId = null): float
     {
-        $row = Setting::query()->where('key', self::SETTING_KEY)->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
         if ($row === null) {
             return (float) self::DEFAULT_MAX_PCT;
         }
