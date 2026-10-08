@@ -612,6 +612,47 @@ du Delta et un critère qui rougit sur le code actuel.
         figée dans le test ;
       - test de composant qui monte **deux pièces** (voir AC 13).
 
+### 6. Ajoutés après vérification adverse (verif-596, REFUSÉ : 1 bloquant, 3 majeurs, 4 mineurs)
+
+Chaque case a son commit, un test **rouge sur 06b97854**, et une ablation restaurée par `cp`, md5
+contrôlé.
+
+- [x] **B1** — personne ne supprime un `signed_contract` par `DELETE /api/media`, super-admin compris
+      (refus dans `MediaController::destroy`, avant `Gate::before`) ; même règle pour `room_photos`
+      hors brouillon. `leaseContract` ferme à l'échec (409 `lease_signature.contract_missing`) quand
+      le média figé manque ou que ses octets ne rendent plus `contract_sha256` ; `assertAwaiting`
+      l'exige aussi. ADR-0042 §1. — `30136cc3`, ablations C-B1.1 à C-B1.4 rouges.
+- [x] **M1** — la voie papier exige `LandlordSignatory` (requête **et** service) ; le super-admin n'en
+      a pas ; `can_activate_on_paper` guide le front. ADR-0042 §6. — `308695a5`, C-M1.1 et F-M1.1
+      rouges.
+- [x] **M2** — le contrat imprime pénalité de retard (taux, délai de grâce), `special_conditions`,
+      préavis, indemnité de départ anticipé, renouvellement, prix de vente, type ;
+      `Lease::CONTRACT_PRINTED_TERMS` / `CONTRACT_UNPRINTED_COLUMNS` partagent `$fillable` ; la vraie
+      vue est rendue par les tests ; `PATCH` d'un terme imprimé hors `draft`/`pending_signature` →
+      422 `lease.terms_locked`. ADR-0042 §1. — `76e879d9`, C-M2.1 (6 rouges) et C-M2.2 rouges.
+- [x] **M3** — `InventorySignatureService::sign` sous verrou de ligne, contrôles sur la ligne relue.
+      — `af4997dc`, C-M3.1 rouge.
+- [x] **m1** — un renvoi ne remet plus le compteur d'essais à zéro (TTL `LOCK_SECONDS`) ; le faux qui
+      verrouille rend 423. ADR-0042 §2. — `d570cd16`, C-m1.1 et C-m1.2 rouges.
+- [x] **m2** — `BookingService::cancel` (et `reject`, même défaut) sous verrou de ligne. —
+      `a818805e`, C-m2.1 rouge (2).
+- [x] **m3** — `SafeOutboundUrl` refuse `::/8` (dont `::ffff:0:0/96` et l'IPv4 traduite) et
+      `fe80::/9` (dont `fec0::/10`) ; la première synchronisation part en file
+      (`SyncPropertyCalendarFeedJob`), `store` rend 201 avec le flux `pending`, affiché
+      « première synchronisation en cours ». ADR-0041 §5, §7. — `52d7acd5`, C-m3.1 (7) et F-m3.1
+      rouges.
+- [x] **m4** — limiteur `calendar-feed-create`, 10/h par utilisateur. ADR-0041 §5. — `15d3e3de`,
+      C-m4.1 et C-m4.2 rouges.
+- [x] **Hors diff, bailleur bloqué** — `BookingPolicy::validate` et `cancel` appliquent
+      `landlordWrites`. — `01f6805c`, C-BP.1 rouge.
+- [x] **Hors diff, échéancier doublé** — « aucune échéance » se juge sous le verrou de `leases`, dans
+      la transaction qui écrit ; la tâche passe par `generateScheduleIfMissing`. — `3b5fc9ac`,
+      C-SCH.1 rouge (2) ; course réelle à deux processus C-SCH.2 : 40/40 baux doublés sur
+      06b97854, 0 après.
+- [x] Deux tests de médias que §4B et §5 avaient rougis sans qu'un balayage les voie
+      (`MediaDiskCollectionsTest`, `MediaDiskPrivatePhotosTest`, déjà rouges sur 06b97854). —
+      `c8b94585`.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -701,6 +742,34 @@ du Delta et un critère qui rougit sur le code actuel.
       - le même agent avec `leases.sign` → 200 et `owner_signed_on_behalf_of_user_id` = `landlord_id`
         du bail ;
       - le bailleur du bail → 200 et `on_behalf_of` nul.
+
+**Ajoutés après vérification adverse (verif-596)** — chacun rouge sur 06b97854 :
+
+- [x] AC24 — `DELETE /api/media/{signed_contract}` → 403 par l'admin d'agence **et** le
+      super-admin ; un contrat figé absent → 409 au téléchargement et à la signature ; des octets
+      altérés ne sont pas servis (`LeaseSignatureTest`, 3 tests ; `InventoryRoomPhotosTest`, 1).
+- [x] AC25 — `agentWithout(LeasesSign)` → 403 sur `activate` et `can_activate_on_paper = false` ;
+      le super-admin → 403 (`LeaseSignatureTest`) ; le panneau ne montre pas la voie papier
+      (`LeaseSignaturePanel.test.tsx`).
+- [x] AC26 — Chaque terme de `CONTRACT_PRINTED_TERMS` change le rendu de la **vraie** vue ; un
+      `PATCH` de `late_fee_percent` ou `late_fee_grace_days` sur un bail actif → 422
+      `lease.terms_locked`, la valeur ne bouge pas (`LeaseContractTermsTest`, 5 tests).
+- [x] AC27 — Deux signatures d'état des lieux par deux instances périmées → `signed`, empreinte de
+      64 caractères (`InventorySignatureTest`).
+- [x] AC28 — Quatre codes faux, un renvoi, un code faux → 423 (`LeaseSignatureTest`).
+- [x] AC29 — Une annulation (et un refus) lue avant une expiration → 422, statut `expired`, un seul
+      `BookingClosed` (`BookingCancellationNotificationTest`, 2 tests).
+- [x] AC30 — `fec0::1`, `feff::1`, `::ffff:0:7f00:1`, `::ffff:0:a9fe:a9fe`, `::7f00:1` ne sont pas
+      publiques (`IcalTest`) ; la création d'un flux rend 201 `pending` sans requête sortante et met
+      `SyncPropertyCalendarFeedJob` en file (`SyncPropertyCalendarFeedsTest`).
+- [x] AC31 — La 11ᵉ création de flux de l'heure par le même utilisateur → 429, sur un autre de ses
+      biens ; un autre bailleur crée encore (`SyncPropertyCalendarFeedsTest`).
+- [x] AC32 — Un bailleur bloqué → 403 sur `confirm`, `reject` et `cancel`, la réservation reste
+      `pending` ; non bloqué, il garde les trois (`BookingPaymentRefundAuthorizationTest`).
+- [x] AC33 — Tâche et route verrouillent la ligne `leases` **avant** de compter les échéances, dans la
+      transaction qui les écrit ; deux générations périmées laissent un seul échéancier
+      (`GenerateLeasePaymentScheduleTest`, 3 tests) ; course réelle à deux processus : 0 doublé
+      (40/40 sur 06b97854).
 
 ## Hors périmètre
 
@@ -902,3 +971,14 @@ B4.18 → 1, B4.19 → 1, B4.20 → 1, B4.21 → 1, B4.22 → 1, B4.23 → 1, B4
 F4.3 → 3, F4.4 → 1, F4.5 → 1, F4.6 → 1, F4.7 → 1, F4.8 → 2, F4.9 → 1, F4.10 → 1. **Non éprouvé** :
 deux secondes signatures concurrentes (le verrou de ligne est en place, aucun test ne les fait
 courir) ; un vrai envoi SMS ; le rendu au navigateur réel.
+
+**Corrections après vérification adverse (2026-10-08).** Voir §6 et AC24-AC33. Lectures assumées :
+(1) M2 « figé » : un `PATCH` d'un terme imprimé reste permis en `draft` et `pending_signature`, où il
+défige le contrat comme avant ; il est refusé en `active` et au-delà. (2) **Non verrouillé, noté** :
+rattacher ou détacher un garant sur un bail actif — le garant est imprimé au contrat. (3) La
+résolution DNS de l'enregistrement d'un flux reste dans la requête (c'est elle qui rend le refus
+immédiat, 422) ; l'appel sortant, lui, est parti en file (ADR-0041 §7). (4) `reject` avait le même
+défaut que `cancel` : fermé dans le même commit. (5) Pour la course d'échéancier, un test sur une
+connexion ne peut pas faire courir deux transactions : le test lit l'ordre et la profondeur de
+transaction des requêtes ; la preuve de comportement est une course réelle à deux processus, hors
+suite (base jetable, supprimée).
