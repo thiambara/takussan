@@ -3843,7 +3843,14 @@
         "legalName": "Raison sociale",
         "ninea": "NINEA",
         "rccm": "RCCM",
-        "legalAddress": "Adrees bu siège bi"
+        "legalAddress": "Adrees bu siège bi",
+        "thresholdPendingOff": "Laaj ngir fey seuil bi dafay xaar benn approbateur bu ñaareel dëggal ko. Fii ak loolu, seuil bi am leegi moo ngi dox.",
+        "thresholdPendingRaise": "Laaj ngir yokk seuil bi ba {threshold} dafay xaar benn approbateur bu ñaareel dëggal ko. Fii ak loolu, seuil bi am leegi moo ngi dox.",
+        "thresholdPendingSelf": "Yaa def laaj bii : keneen ci approbateur yu agence bi war na ko dëggal.",
+        "thresholdConfirm": "Dëggal",
+        "thresholdConfirming": "Dëggal gi…",
+        "thresholdConfirmed": "Seuil bu bees bi moo ngi dox.",
+        "thresholdPendingSaved": "Denc nañu ko. Woyofal seuil bi dafa laaj benn approbateur bu ñaareel dëggal ko : xamal nañu ko."
       }
     },
     "inviteMember": {
@@ -8560,6 +8567,12 @@
         "available": {
           "title": "Sa relevé de gérance {period} am na",
           "body": "Sa relevé de gérance bu {period} mi ngi ci sa espace."
+        }
+      },
+      "payout_threshold": {
+        "relax_requested": {
+          "title": "Woyofal seuil bu reversement yi, war nañu ko dëggal",
+          "body": "Benn ci mbootaayu {agency} laaj na ñu woyofal seuil d'approbation bu reversement yi. Dara du soppiku fii ak benn approbateur bu ñaareel dëggal ko ci réglages bu agence bi."
         }
       }
     },

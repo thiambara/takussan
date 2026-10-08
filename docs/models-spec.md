@@ -2937,6 +2937,12 @@ traite `key` comme un identifiant court opaque.
 
 ---
 
+> **TCK-594 (VERIF-594 M-2) — trois colonnes d'`agencies`** : `pending_payout_threshold`
+> (decimal(14,2), nullable), `pending_payout_threshold_requested_by_id` (FK users, `nullOnDelete`),
+> `pending_payout_threshold_requested_at` (timestamp, le marqueur d'une demande : une demande de
+> coupure laisse la valeur à `null`). Un relâchement du seuil des quatre yeux y attend la
+> confirmation d'un second détenteur de `payouts.approve`. Description complète par `/sync-specs`.
+
 ### 72. PayoutMethod 🆕
 
 > **Entrée minimale posée par TCK-594** pour que `check-models-spec` voie le modèle ; la

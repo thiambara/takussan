@@ -24,6 +24,12 @@ class AgencyResource extends BaseResource
             // TCK-594 (ADR-0039 §4, §5) — le seuil des quatre yeux (`null` = désactivé), la TVA par
             // défaut des factures et les mentions légales que le PDF imprime.
             'payout_approval_threshold' => $this->payout_approval_threshold !== null ? (float) $this->payout_approval_threshold : null,
+            // VERIF-594 M-2 — un relâchement en attente d'un second détenteur de `payouts.approve`.
+            'pending_payout_threshold_change' => $this->pending_payout_threshold_requested_at !== null ? [
+                'threshold' => $this->pending_payout_threshold !== null ? (float) $this->pending_payout_threshold : null,
+                'requested_by_id' => $this->pending_payout_threshold_requested_by_id,
+                'requested_at' => $this->iso($this->pending_payout_threshold_requested_at),
+            ] : null,
             'default_tax_rate' => $this->default_tax_rate !== null ? (float) $this->default_tax_rate : null,
             'legal_name' => $this->legal_name,
             'ninea' => $this->ninea,

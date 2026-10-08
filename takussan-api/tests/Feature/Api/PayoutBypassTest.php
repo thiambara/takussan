@@ -359,4 +359,62 @@ class PayoutBypassTest extends TestCase
             'payment_method' => 'wave',
         ]))->assertCreated()->assertJsonPath('data.status', 'awaiting_approval')->json('data.id');
     }
+
+    /**
+     * M-2 — celui qui allait payer coupait le seuil seul, payait seul, puis le remettait. Relâcher
+     * le contrôle (le couper, ou le relever) attend désormais un SECOND détenteur de
+     * `payouts.approve` ; le resserrer reste immédiat.
+     */
+    public function test_m2_relaxing_the_threshold_waits_for_a_second_approver(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $a = $this->agencyAdmin($agency);
+        $b = $this->agencyAdmin($agency);
+        Sanctum::actingAs($a);
+
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 100_000])->assertOk();
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])
+            ->assertStatus(202)
+            ->assertJsonPath('data.payout_approval_threshold', 100000)
+            ->assertJsonPath('data.pending_payout_threshold_change.threshold', null)
+            ->assertJsonPath('data.pending_payout_threshold_change.requested_by_id', $a->id);
+        Notification::assertSentTo($b, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutThresholdRelaxRequested);
+        Notification::assertNotSentTo($a, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutThresholdRelaxRequested);
+
+        // Tant que personne n'a confirmé, le seuil tient.
+        $this->createFor($agency, $landlord, 5_000_000)->assertJsonPath('data.status', 'awaiting_approval');
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm")
+            ->assertForbidden()->assertJsonPath('code', 'segregation.approve');
+
+        // Un resserrement est immédiat, et remplace la demande.
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 50_000])
+            ->assertOk()->assertJsonPath('data.pending_payout_threshold_change', null);
+        $this->assertEquals(50000, (float) $agency->fresh()->payout_approval_threshold);
+
+        // Relevé (une hausse relâche aussi), puis confirmé par le second : il prend effet.
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 400_000])->assertStatus(202);
+        $this->assertEquals(50000, (float) $agency->fresh()->payout_approval_threshold);
+        Sanctum::actingAs($b);
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm")
+            ->assertOk()
+            ->assertJsonPath('data.payout_approval_threshold', 400000)
+            ->assertJsonPath('data.pending_payout_threshold_change', null);
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm")
+            ->assertStatus(422)->assertJsonPath('code', 'payout.no_pending_threshold_change');
+    }
+
+    /** M-2 — une agence qui n'a qu'un détenteur ne relâche pas son seuil : personne ne confirmerait. */
+    public function test_m2_a_single_approver_cannot_relax_the_threshold(): void
+    {
+        $agency = $this->moneyAgency();
+        $admin = $this->agencyAdmin($agency);
+        $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])
+            ->assertForbidden()->assertJsonPath('code', 'payout.threshold_needs_second_approver');
+        $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
+    }
 }

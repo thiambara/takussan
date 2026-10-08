@@ -79,6 +79,15 @@ export interface Agency {
   moderation_required?: boolean;
   /** TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé. */
   payout_approval_threshold?: number | null;
+  /**
+   * VERIF-594 M-2 — un relâchement du seuil (coupé, ou relevé) en attente d'un SECOND détenteur de
+   * `payouts.approve`. `threshold` à `null` : la demande est de couper le contrôle.
+   */
+  pending_payout_threshold_change?: {
+    threshold: number | null;
+    requested_by_id: number | null;
+    requested_at: string | null;
+  } | null;
   /** TCK-594 (ADR-0039 §7) — TVA appliquée par défaut aux factures (un taux explicite gagne). */
   default_tax_rate?: number | null;
   /** TCK-594 (ADR-0039 §7) — mentions légales imprimées sur les factures ; jamais pour une agence `individual`. */

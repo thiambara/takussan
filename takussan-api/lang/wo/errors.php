@@ -265,6 +265,8 @@ return [
         'amount_changed_since_approval' => 'Montant bi soppiku na ginnaaw ba ñu ko nangoo : nangu ko ci kanam.',
         'destination_changed_since_approval' => 'Fi ñuy yónne xaalis bi du fi ñu nangoo woon : nanguloo reversement bii ci kanam.',
         'verifier_cannot_pay_yet' => 'Yaa seetlu fi ñuy yónne xaalis bi, 24 waxtu jotul : keneen ci mbootaay bi war na fey.',
+        'threshold_needs_second_approver' => 'Seuil bi du woyofu fii ak approbateur bu ñaareel : agence bi benn rekk la am.',
+        'no_pending_threshold_change' => 'Amul benn coppite ci seuil bi buy xaar ñu dëggal ko.',
         'awaiting_approval' => 'Bii reversement mi ngi xaar ñu nangu ko.',
         'cannot_cancel' => 'Reversement bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',

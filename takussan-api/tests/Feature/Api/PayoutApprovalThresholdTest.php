@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Enums\Capability;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
@@ -40,15 +41,20 @@ class PayoutApprovalThresholdTest extends TestCase
     {
         $agency = $this->moneyAgency();
         $admin = $this->agencyAdmin($agency);
-        $this->agencyAdmin($agency);
+        $second = $this->agencyAdmin($agency);
         Sanctum::actingAs($admin);
 
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 100_000])
             ->assertOk()
             ->assertJsonPath('data.payout_approval_threshold', 100000);
-        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 250_000])->assertOk();
-        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertOk();
+        // VERIF-594 M-2 — relever ou couper le seuil attend un second détenteur.
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 250_000])->assertStatus(202);
+        $this->confirmedBy($second, $agency->id);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
+        $this->confirmedBy($second, $agency->id);
         // Inchangé : pas de trace.
+        Sanctum::actingAs($admin);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertOk();
 
         $this->assertNull($agency->fresh()->payout_approval_threshold);
@@ -57,13 +63,19 @@ class PayoutApprovalThresholdTest extends TestCase
             ->where('subject_id', $agency->id)
             ->orderBy('id')
             ->get()
-            ->map(fn (Activity $a): array => [$a->properties['old'], $a->properties['new'], $a->causer_id]);
+            ->map(fn (Activity $a): array => [$a->properties['old'], $a->properties['new'], $a->causer_id, $a->properties['requested_by'] ?? null]);
 
         $this->assertEquals([
-            [null, 100000.0, $admin->id],
-            [100000.0, 250000.0, $admin->id],
-            [250000.0, null, $admin->id],
+            [null, 100000.0, $admin->id, null],
+            [100000.0, 250000.0, $second->id, $admin->id],
+            [250000.0, null, $second->id, $admin->id],
         ], $trace->all());
+    }
+
+    private function confirmedBy(User $approver, int $agencyId): void
+    {
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/agencies/{$agencyId}/payout-threshold/confirm")->assertOk();
     }
 
     public function test_ac8_a_member_without_payouts_approve_neither_sets_nor_clears_it(): void

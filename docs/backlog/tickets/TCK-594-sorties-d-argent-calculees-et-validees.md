@@ -531,6 +531,11 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **B-1** — la vérification d'office disparaît : toute destination attend un membre de l'agence.
 - [x] **M-1** — le seuil se juge sur le cumul des nets non approuvés vers le même bénéficiaire,
   dans l'agence, sur 30 jours glissants (`PayoutApprovalRule`), sous le verrou de la ligne agence.
+- [x] **M-2** — relâcher le seuil (le couper, le relever) attend un second détenteur de
+  `payouts.approve` : 202 et `pending_payout_threshold_change`, les autres détenteurs avisés,
+  confirmation par `POST /api/agencies/{id}/payout-threshold/confirm` ; 403
+  `payout.threshold_needs_second_approver` s'il n'y en a qu'un ; un resserrement reste immédiat.
+  Écran : la demande en attente se lit et se confirme dans les réglages.
 - [x] **M-3** — la caution rendue naît par `PayoutService::initialStatus()` et avise les approbateurs
   (`notifyApprovers()`, rendus publics) ; seule l'exemption de destination du locataire reste.
 - [x] **M-6** — la vérification d'une destination vaut par agence : table
@@ -714,6 +719,15 @@ rend **403** avec une clé i18n, jamais une phrase.
   (60 000 → `pending`). Une fois le second approuvé, 30 000 de plus naissent `pending` ; un
   reversement non approuvé vieux de 31 jours ne compte plus.
   **Preuve** : `PayoutBypassTest::test_m1_splitting_under_the_threshold_still_requires_an_approval` (rouge sur 9923b16c). Ablations V-M1 (cumul), V-M1b (approuvés comptés), V-M1c (sans fenêtre) : rouges.
+- [x] **AC-M2 — on ne relâche pas le seuil seul.** Deux approbateurs A et B. A règle 100 000 (200),
+  puis le coupe : **202**, le seuil reste 100 000, `pending_payout_threshold_change.threshold = null`,
+  B est avisé (`payout_threshold.relax_requested`), A ne l'est pas. Un reversement de 5 000 000
+  naît `awaiting_approval` ; A ne confirme pas sa propre demande (403 `segregation.approve`). Un
+  resserrement à 50 000 s'applique aussitôt et retire la demande ; un relèvement à 400 000 rend 202,
+  et ne s'applique qu'à la confirmation de B (200) ; une seconde confirmation rend 422
+  `payout.no_pending_threshold_change`. Une agence à un seul détenteur qui coupe son seuil reçoit
+  403 `payout.threshold_needs_second_approver`.
+  **Preuve** : `PayoutBypassTest::test_m2_relaxing_the_threshold_waits_for_a_second_approver`, `test_m2_a_single_approver_cannot_relax_the_threshold` (rouges sur 9923b16c) ; `PayoutApprovalThresholdTest::test_ac8_two_approvers_enable_it_and_each_change_is_traced` (trace du confirmateur et du demandeur) ; front `AgencyConfigForm.test.tsx` (trois tests VERIF-594 M-2). Ablations V-M2a à V-M2d, W-M2a à W-M2c : rouges.
 - [x] **AC-M3 — la caution passe par les quatre yeux.** Seuil 0 : `POST /api/leases/{id}/deposit-refund`
   de 1 500 000 crée un `Payout` `awaiting_approval`, avise le second détenteur de `payouts.approve`,
   et `mark-processed` y rend 422 `payout.awaiting_approval` ; approuvé par une autre personne, il se
@@ -1055,3 +1069,16 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
     mal écrite (virgule emportée, 500 de syntaxe) : rejouée, elle rougit.
   - `PayoutMethodTest::test_ac16_paying_by_wave_to_an_unverified_destination_is_refused` faisait
     vérifier puis payer par le même agent : il fait désormais vérifier par un second membre.
+- **M-2 — le seuil relâché par une seule personne.** `PayoutApprovalThreshold::change` rend
+  `applied`, `pending` ou `unchanged` ; `confirm` applique la demande. Trois colonnes d'`agencies`
+  (migration `2026_10_08_100100`), `pending_payout_threshold_requested_at` servant de marqueur.
+  Nouveau code d'avis `payout_threshold.relax_requested` (sans interrupteur, cible
+  `agency_settings` → `/admin/agency`, ajoutée à `NotificationTarget::PATHS`). La trace d'un
+  relâchement confirmé porte le confirmateur comme auteur et `requested_by` ; la demande elle-même
+  écrit `agency_payout_threshold_relax_requested`. Renvoyer la valeur en vigueur retire la demande.
+  - Le `PATCH` qui demande un relâchement enregistre le reste du formulaire et rend **202** — le
+    serveur action du front le traite comme un succès, et le formulaire le dit (« il a été
+    prévenu ») plutôt qu'« enregistré ».
+  - La route de confirmation porte le commentaire de raccord TCK-589 (step-up 2FA).
+  - `PayoutApprovalThresholdTest::test_ac8_two_approvers_enable_it_and_each_change_is_traced`
+    relevait puis coupait le seuil d'une seule main : il passe par la confirmation du second.

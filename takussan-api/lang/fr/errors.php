@@ -265,6 +265,8 @@ return [
         'amount_changed_since_approval' => 'Le montant a changé depuis l\'approbation : faites-le approuver à nouveau.',
         'destination_changed_since_approval' => 'La destination n\'est plus celle qui a été approuvée : faites approuver à nouveau ce reversement.',
         'verifier_cannot_pay_yet' => 'Vous avez vérifié cette destination il y a moins de 24 heures : un autre membre doit effectuer ce paiement.',
+        'threshold_needs_second_approver' => 'Le seuil ne s\'assouplit qu\'avec un second approbateur : votre agence n\'en a qu\'un.',
+        'no_pending_threshold_change' => 'Aucune modification du seuil n\'attend de confirmation.',
         'awaiting_approval' => 'Ce reversement attend son approbation.',
         'cannot_cancel' => 'Ce reversement ne peut pas être annulé dans son état actuel.',
         'cannot_fail' => 'Ce reversement ne peut pas être marqué en échec dans son état actuel.',

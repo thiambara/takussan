@@ -24,6 +24,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     Route::delete('agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
+    // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
+    // TCK-589 — point de branchement du step-up 2FA (geste qui décide qui sort de l'argent seul).
+    Route::post('agencies/{agency}/payout-threshold/confirm', [AgencyController::class, 'confirmPayoutThreshold'])
+        ->name('agencies.payout-threshold.confirm');
 
     // Agent management (legacy aliases kept — /members is the TCK-015 canonical path).
     Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');

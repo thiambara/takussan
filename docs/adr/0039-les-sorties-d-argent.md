@@ -114,7 +114,12 @@ deux agences ne font pas deux personnes.
   c'est une sortie d'argent, seule sa destination reste hors contrôle, le locataire n'ayant pas
   toujours de compte). L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
-  (`agency_payout_threshold_changed`). L'approbation est un état (`awaiting_approval`) que
+  (`agency_payout_threshold_changed`). **Le relâcher exige deux personnes** (VERIF-594 M-2 : celui
+  qui allait payer le coupait seul, payait seul, puis le remettait) : un passage à `null` ou une
+  hausse reste en attente (`agencies.pending_payout_threshold*`, réponse 202) jusqu'à la
+  confirmation d'un **second** détenteur, avisé aussitôt ; le demandeur ne confirme pas sa propre
+  demande, et une agence qui n'a qu'un détenteur ne relâche pas son seuil (403). Un resserrement
+  (activation, baisse) reste immédiat et retire la demande en attente. L'approbation est un état (`awaiting_approval`) que
   `mark-processed` et `mark-failed` refusent ; elle ne se rejoue pas (elle n'est permise que depuis
   cet état) ; le net approuvé est figé dans `metadata.approved_net_amount` et un paiement dont le net
   a changé depuis est refusé. **L'approbation couvre aussi la destination** (VERIF-594 M-4) : elle

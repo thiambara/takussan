@@ -5229,7 +5229,14 @@
         "legalName": "Registered company name",
         "ninea": "NINEA",
         "rccm": "RCCM",
-        "legalAddress": "Registered office address"
+        "legalAddress": "Registered office address",
+        "thresholdPendingOff": "A request to turn off the threshold is awaiting a second approver's confirmation. Until then, the current threshold applies.",
+        "thresholdPendingRaise": "A request to raise the threshold to {threshold} is awaiting a second approver's confirmation. Until then, the current threshold applies.",
+        "thresholdPendingSelf": "You made this request: another approver of the agency must confirm it.",
+        "thresholdConfirm": "Confirm",
+        "thresholdConfirming": "Confirming…",
+        "thresholdConfirmed": "The new threshold now applies.",
+        "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
       }
     },
     "inviteMember": {
@@ -8560,6 +8567,12 @@
         "available": {
           "title": "Your {period} management statement is available",
           "body": "Your management statement for {period} is available in your space."
+        }
+      },
+      "payout_threshold": {
+        "relax_requested": {
+          "title": "Payout threshold relaxation to confirm",
+          "body": "A member of {agency} asks to relax the payout approval threshold. Nothing changes until a second approver confirms it from the agency settings."
         }
       }
     },

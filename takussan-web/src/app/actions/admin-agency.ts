@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import {
+  confirmAgencyPayoutThreshold,
   fetchAgency,
   regenerateAgencyWatermarks,
   updateAgency,
@@ -82,6 +83,18 @@ export async function updateAgencyAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await updateAgency(auth.token, agencyId, payload, await getActiveProfileId());
+    revalidatePath('/admin/agency');
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+export async function confirmPayoutThresholdAction(agencyId: number): Promise<ActionResult<Agency>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await confirmAgencyPayoutThreshold(auth.token, agencyId, await getActiveProfileId());
     revalidatePath('/admin/agency');
     return { ok: true, data };
   } catch (e) {

@@ -54,6 +54,9 @@ class Agency extends AbstractModel implements HasMedia
         'bank_csv_mapping' => 'array',
         'payout_approval_threshold' => 'decimal:2',
         'default_tax_rate' => 'decimal:2',
+        // VERIF-594 M-2 — un relâchement du seuil en attente d'un second détenteur.
+        'pending_payout_threshold' => 'decimal:2',
+        'pending_payout_threshold_requested_at' => 'datetime',
     ];
 
     protected $attributes = [

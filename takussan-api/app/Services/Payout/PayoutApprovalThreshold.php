@@ -2,8 +2,12 @@
 
 namespace App\Services\Payout;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\User;
+use App\Services\Model\NotificationService;
+use App\Support\SegregationOfDuties;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -11,46 +15,136 @@ use Illuminate\Support\Facades\DB;
  *
  * Un seuil n'a de sens qu'avec deux personnes pour le tenir : l'activer dans une agence qui n'a
  * qu'un détenteur de `payouts.approve` bloquerait tout reversement au-dessus (l'émetteur ne
- * s'approuve pas). La règle se juge à l'activation ; la remise à `null` est toujours permise.
+ * s'approuve pas).
  *
- * Chaque changement accepté écrit `agency_payout_threshold_changed` avec l'ancienne et la nouvelle
- * valeur — c'est un réglage qui décide de qui peut sortir de l'argent seul.
+ * **Le relâcher demande deux personnes aussi** (VERIF-594 M-2). Celui qui allait payer coupait le
+ * seuil seul, payait seul, puis le remettait. Un changement qui RELÂCHE le contrôle — passage à
+ * `null`, ou hausse — reste en attente jusqu'à la confirmation d'un second détenteur, qui est avisé
+ * aussitôt ; une agence qui n'a qu'un détenteur ne le relâche pas (403). Un RESSERREMENT — activation,
+ * baisse — reste immédiat, et remplace une demande en attente. Renvoyer la valeur en vigueur retire
+ * la demande.
+ *
+ * Chaque changement appliqué écrit `agency_payout_threshold_changed` avec l'ancienne et la nouvelle
+ * valeur ; une demande écrit `agency_payout_threshold_relax_requested`.
  */
 final class PayoutApprovalThreshold
 {
+    public const APPLIED = 'applied';
+
+    public const PENDING = 'pending';
+
+    public const UNCHANGED = 'unchanged';
+
     public function __construct(private readonly PayoutApprovers $approvers) {}
 
-    public function change(Agency $agency, User $actor, mixed $value): void
+    /** @return self::APPLIED|self::PENDING|self::UNCHANGED */
+    public function change(Agency $agency, User $actor, mixed $value): string
     {
         $new = $value === null || $value === '' ? null : round((float) $value, 2);
 
+        $holders = $this->approvers->holders($agency);
         if ($new !== null) {
-            abort_code_if(
-                $this->approvers->holders($agency)->count() < 2,
-                422,
-                'payout.threshold_needs_two_approvers',
-            );
+            abort_code_if($holders->count() < 2, 422, 'payout.threshold_needs_two_approvers');
         }
 
-        DB::transaction(function () use ($agency, $actor, $new): void {
+        $outcome = DB::transaction(function () use ($agency, $actor, $new, $holders): string {
             /** @var Agency $locked */
             $locked = Agency::query()->whereKey($agency->id)->lockForUpdate()->firstOrFail();
             $old = $locked->payout_approval_threshold === null ? null : (float) $locked->payout_approval_threshold;
 
             if ($old === $new) {
-                return;
+                $locked->forceFill($this->noPending())->save();
+
+                return self::UNCHANGED;
             }
 
-            $locked->forceFill(['payout_approval_threshold' => $new])->save();
+            $relaxes = $old !== null && ($new === null || $new > $old);
+            if (! $relaxes) {
+                $locked->forceFill(['payout_approval_threshold' => $new] + $this->noPending())->save();
+                $this->trace($locked, $actor, $old, $new);
+
+                return self::APPLIED;
+            }
+
+            abort_code_if($holders->count() < 2, 403, 'payout.threshold_needs_second_approver');
+
+            $locked->forceFill([
+                'pending_payout_threshold' => $new,
+                'pending_payout_threshold_requested_by_id' => $actor->id,
+                'pending_payout_threshold_requested_at' => now(),
+            ])->save();
 
             activity()
                 ->causedBy($actor)
                 ->performedOn($locked)
-                ->event('agency_payout_threshold_changed')
+                ->event('agency_payout_threshold_relax_requested')
                 ->withProperties(['old' => $old, 'new' => $new])
-                ->log('agency_payout_threshold_changed');
+                ->log('agency_payout_threshold_relax_requested');
+
+            return self::PENDING;
+        });
+
+        if ($outcome === self::PENDING) {
+            foreach ($holders->reject(fn (User $holder): bool => (int) $holder->id === (int) $actor->id) as $holder) {
+                app(NotificationService::class)->send(
+                    $holder,
+                    NotificationCode::PayoutThresholdRelaxRequested,
+                    ['agency' => $agency->name],
+                    NotificationTarget::of('agency_settings'),
+                );
+            }
+        }
+
+        $agency->refresh();
+
+        return $outcome;
+    }
+
+    /**
+     * Le second geste : un AUTRE détenteur de `payouts.approve` confirme le relâchement demandé.
+     * Le demandeur ne confirme pas sa propre demande.
+     */
+    public function confirm(Agency $agency, User $actor): void
+    {
+        DB::transaction(function () use ($agency, $actor): void {
+            /** @var Agency $locked */
+            $locked = Agency::query()->whereKey($agency->id)->lockForUpdate()->firstOrFail();
+
+            abort_code_if($locked->pending_payout_threshold_requested_at === null, 422, 'payout.no_pending_threshold_change');
+            SegregationOfDuties::assertDistinct(
+                $actor,
+                [$locked->pending_payout_threshold_requested_by_id],
+                SegregationOfDuties::STEP_APPROVE,
+            );
+
+            $old = $locked->payout_approval_threshold === null ? null : (float) $locked->payout_approval_threshold;
+            $new = $locked->pending_payout_threshold === null ? null : (float) $locked->pending_payout_threshold;
+            $requestedBy = $locked->pending_payout_threshold_requested_by_id;
+
+            $locked->forceFill(['payout_approval_threshold' => $new] + $this->noPending())->save();
+            $this->trace($locked, $actor, $old, $new, $requestedBy);
         });
 
         $agency->refresh();
+    }
+
+    /** @return array<string, null> */
+    private function noPending(): array
+    {
+        return [
+            'pending_payout_threshold' => null,
+            'pending_payout_threshold_requested_by_id' => null,
+            'pending_payout_threshold_requested_at' => null,
+        ];
+    }
+
+    private function trace(Agency $agency, User $actor, ?float $old, ?float $new, ?int $requestedBy = null): void
+    {
+        activity()
+            ->causedBy($actor)
+            ->performedOn($agency)
+            ->event('agency_payout_threshold_changed')
+            ->withProperties(array_filter(['old' => $old, 'new' => $new, 'requested_by' => $requestedBy], fn ($v, $k) => $k !== 'requested_by' || $v !== null, ARRAY_FILTER_USE_BOTH))
+            ->log('agency_payout_threshold_changed');
     }
 }

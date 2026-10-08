@@ -100,6 +100,20 @@ export async function updateAgency(
   return res.data;
 }
 
+/** VERIF-594 M-2 — un second détenteur de `payouts.approve` confirme le relâchement du seuil. */
+export async function confirmAgencyPayoutThreshold(
+  token: string,
+  agencyId: number,
+  activeProfileId?: string,
+): Promise<Agency> {
+  const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}/payout-threshold/confirm`, {
+    method: 'POST',
+    token,
+    activeProfileId,
+  });
+  return res.data;
+}
+
 export async function uploadAgencyLogo(
   token: string,
   agencyId: number,

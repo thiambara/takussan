@@ -88,9 +88,11 @@ class AgencyController extends Controller
         // TCK-594 (ADR-0039 §4) — le seuil ne passe jamais par `fill()` : il a sa propre capacité,
         // sa règle des deux approbateurs et sa trace. Jugé AVANT l'écriture du reste : un 422 sur le
         // seuil n'enregistre rien.
+        // VERIF-594 M-2 — un relâchement attend un second détenteur : 202, le reste enregistré.
+        $thresholdOutcome = null;
         if (array_key_exists('payout_approval_threshold', $data)) {
             abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
-            app(PayoutApprovalThreshold::class)->change($agency, $request->user(), $data['payout_approval_threshold']);
+            $thresholdOutcome = app(PayoutApprovalThreshold::class)->change($agency, $request->user(), $data['payout_approval_threshold']);
             unset($data['payout_approval_threshold']);
         }
 
@@ -106,6 +108,21 @@ class AgencyController extends Controller
         }
 
         $agency->fill($data)->save();
+
+        return $this->json(
+            ['data' => AgencyResource::make($agency->refresh())->toArray($request)],
+            $thresholdOutcome === PayoutApprovalThreshold::PENDING ? 202 : 200,
+        );
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4, VERIF-594 M-2) — un second détenteur de `payouts.approve` confirme le
+     * relâchement du seuil qu'un autre a demandé.
+     */
+    public function confirmPayoutThreshold(Request $request, Agency $agency): JsonResponse
+    {
+        abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
+        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user());
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
     }

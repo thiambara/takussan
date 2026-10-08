@@ -41,6 +41,7 @@ final class NotificationTarget
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/admin/finances',
         'team' => '/admin/team',
+        'agency_settings' => '/admin/agency',
     ];
 
     private function __construct(

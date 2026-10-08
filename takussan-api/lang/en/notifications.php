@@ -493,6 +493,13 @@ return [
                 'sms' => 'Takussan: destination :destination removed from your account.',
             ],
         ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Payout threshold relaxation to confirm',
+                'body' => 'A member of :agency asks to relax the payout approval threshold. Nothing changes until a second approver confirms it from the agency settings.',
+                'sms' => 'Takussan: payout threshold relaxation at :agency to confirm.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Your :period management statement is available',

@@ -498,6 +498,13 @@ return [
                 'sms' => 'Takussan : destination :destination supprimée de votre compte.',
             ],
         ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Assouplissement du seuil des reversements à confirmer',
+                'body' => 'Un membre de l\'agence :agency demande d\'assouplir le seuil d\'approbation des reversements. Rien ne change tant qu\'un second approbateur ne l\'a pas confirmé depuis les réglages de l\'agence.',
+                'sms' => 'Takussan : assouplissement du seuil des reversements de :agency à confirmer.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Relevé de gérance :period disponible',

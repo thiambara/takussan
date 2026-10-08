@@ -88,6 +88,7 @@ enum NotificationCode: string
     case PayoutMethodAdded = 'payout_method.added';
     case PayoutMethodUpdated = 'payout_method.updated';
     case PayoutMethodRemoved = 'payout_method.removed';
+    case PayoutThresholdRelaxRequested = 'payout_threshold.relax_requested';
     case OwnerStatementAvailable = 'owner_statement.available';
 
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
@@ -126,7 +127,7 @@ enum NotificationCode: string
             self::PropertyApproved, self::PropertyRejected => NotificationType::System,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
-            self::OwnerStatementAvailable => NotificationType::Payment,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
         };
     }
 
@@ -161,7 +162,7 @@ enum NotificationCode: string
             // d'un détournement (ADR-0039 §6).
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
-            self::OwnerStatementAvailable => null,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => null,
         };
     }
 
@@ -206,6 +207,7 @@ enum NotificationCode: string
             self::PayoutProcessed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'transaction' => self::PARAM_TEXT, 'destination' => self::PARAM_TEXT],
             self::PayoutFailed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'reason' => self::PARAM_TEXT],
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
+            self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
             self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
         };
     }

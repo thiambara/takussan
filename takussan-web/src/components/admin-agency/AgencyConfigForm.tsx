@@ -29,12 +29,14 @@ import {
 import { traduireMessageValidation } from '@/lib/schemas/messages';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
+  confirmPayoutThresholdAction,
   updateAgencyAction,
   uploadAgencyLogoAction,
 } from '@/app/actions/admin-agency';
 import type { Agency } from '@/types/agency';
 import { reduirePhoto } from '@/lib/reduire-photo';
 import { useCan } from '@/hooks/useCan';
+import { useAuth } from '@/context/AuthContext';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -112,6 +114,23 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   // proposer un champ qui rendrait 403.
   const { can: canSetThreshold } = useCan('payouts.approve');
   const individual = agency.kind === 'individual';
+  const { user } = useAuth();
+  const pendingThreshold = agency.pending_payout_threshold_change ?? null;
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isConfirming, startConfirmTransition] = useTransition();
+
+  function confirmThreshold() {
+    setConfirmError(null);
+    startConfirmTransition(async () => {
+      const result = await confirmPayoutThresholdAction(agency.id);
+      if (!result.ok) {
+        setConfirmError(result.message);
+        return;
+      }
+      setSuccessMessage(tMoney('thresholdConfirmed'));
+      router.refresh();
+    });
+  }
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<AgencyFormValues, Agency>({
@@ -131,8 +150,12 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         }
         return result.data as Agency;
       },
-      onSuccess: () => {
-        setSuccessMessage(t('successSaved'));
+      onSuccess: (saved) => {
+        // VERIF-594 M-2 — un relâchement du seuil n'est pas appliqué : il attend un second
+        // approbateur (202). Le dire, plutôt qu'un « enregistré » qui laisserait croire le contraire.
+        const pending = saved?.pending_payout_threshold_change != null
+          && agency.pending_payout_threshold_change?.requested_at !== saved.pending_payout_threshold_change.requested_at;
+        setSuccessMessage(pending ? tMoney('thresholdPendingSaved') : t('successSaved'));
         router.refresh();
       },
     });
@@ -438,6 +461,25 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
                 inputMode="numeric"
               />
               <p className="mt-1.5 text-pretty text-xs text-muted-foreground">{tMoney('thresholdHint')}</p>
+              {pendingThreshold ? (
+                <div className="mt-3 space-y-2 rounded-xl border border-border bg-muted/40 p-3" role="status">
+                  <p className="text-pretty text-sm text-foreground">
+                    {pendingThreshold.threshold == null
+                      ? tMoney('thresholdPendingOff')
+                      : tMoney('thresholdPendingRaise', {
+                          threshold: formatCurrency(pendingThreshold.threshold, originalCurrency),
+                        })}
+                  </p>
+                  {user != null && pendingThreshold.requested_by_id === user.id ? (
+                    <p className="text-pretty text-xs text-muted-foreground">{tMoney('thresholdPendingSelf')}</p>
+                  ) : (
+                    <Button type="button" size="sm" disabled={isConfirming} onClick={confirmThreshold}>
+                      {isConfirming ? tMoney('thresholdConfirming') : tMoney('thresholdConfirm')}
+                    </Button>
+                  )}
+                  {confirmError ? <p className="text-sm text-destructive">{confirmError}</p> : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

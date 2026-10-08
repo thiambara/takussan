@@ -478,6 +478,13 @@ return [
                 'sms' => 'Takussan : destination :destination dañu ko far ci sa compte.',
             ],
         ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Woyofal seuil bu reversement yi, war nañu ko dëggal',
+                'body' => 'Benn ci mbootaayu :agency laaj na ñu woyofal seuil d\'approbation bu reversement yi. Dara du soppiku fii ak benn approbateur bu ñaareel dëggal ko ci réglages bu agence bi.',
+                'sms' => 'Takussan : woyofal seuil bu reversement yu :agency, war nañu ko dëggal.',
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Sa relevé de gérance :period am na',

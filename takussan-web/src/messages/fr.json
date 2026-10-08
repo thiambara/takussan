@@ -5229,7 +5229,14 @@
         "legalName": "Raison sociale",
         "ninea": "NINEA",
         "rccm": "RCCM",
-        "legalAddress": "Adresse du siège"
+        "legalAddress": "Adresse du siège",
+        "thresholdPendingOff": "Une demande de désactivation du seuil attend la confirmation d'un second approbateur. D'ici là, le seuil actuel s'applique.",
+        "thresholdPendingRaise": "Une demande de relèvement du seuil à {threshold} attend la confirmation d'un second approbateur. D'ici là, le seuil actuel s'applique.",
+        "thresholdPendingSelf": "Vous avez fait cette demande : un autre approbateur de l'agence doit la confirmer.",
+        "thresholdConfirm": "Confirmer",
+        "thresholdConfirming": "Confirmation…",
+        "thresholdConfirmed": "Le nouveau seuil s'applique.",
+        "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu."
       }
     },
     "inviteMember": {
@@ -8560,6 +8567,12 @@
         "available": {
           "title": "Relevé de gérance {period} disponible",
           "body": "Votre relevé de gérance pour {period} est disponible dans votre espace."
+        }
+      },
+      "payout_threshold": {
+        "relax_requested": {
+          "title": "Assouplissement du seuil des reversements à confirmer",
+          "body": "Un membre de l'agence {agency} demande d'assouplir le seuil d'approbation des reversements. Rien ne change tant qu'un second approbateur ne l'a pas confirmé depuis les réglages de l'agence."
         }
       }
     },
