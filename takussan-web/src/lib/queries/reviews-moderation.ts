@@ -1,4 +1,5 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
+import type { ModerationReasonCode } from '@/lib/moderation-reasons';
 import type {
   PaginatedResponse,
   ApiResponse,
@@ -85,7 +86,8 @@ function buildQueueParams({
   return {
     fields: { reviews: MODERATION_REVIEW_FIELDS },
     filter,
-    sort: sort ?? '-reported_count,-created_at',
+    // TCK-597 — les avis à trancher d'abord (en attente, puis signalés), trié par le serveur.
+    sort: sort ?? 'pending_first,-reported_count,-created_at',
     page: page ?? 1,
     per_page: perPage ?? 20,
   };
@@ -106,6 +108,8 @@ export type ModerationDecision = 'approve' | 'hide' | 'delete' | 'ignore';
 
 export interface ModeratePayload {
   readonly decision: ModerationDecision;
+  /** Requis pour tout autre geste qu'approuver (TCK-597, ADR-0043 §7). */
+  readonly reason_code?: ModerationReasonCode;
   readonly reason?: string;
 }
 

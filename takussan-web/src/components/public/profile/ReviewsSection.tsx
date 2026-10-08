@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { ReviewReportButton } from '@/components/reports/ReviewReportButton';
 
 export interface PublicReview {
   readonly id: number;
@@ -94,6 +95,9 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
               {r.author ? anonymize(r.author.name, t('anonymous')) : t('anonymous')}
               {r.created_at && ` · ${relativeDate(r.created_at)}`}
             </p>
+            <div className="mt-2">
+              <ReviewReportButton reviewId={r.id} />
+            </div>
           </li>
         ))}
       </ul>

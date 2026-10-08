@@ -33,6 +33,17 @@
     "languageSwitcher": {
       "label": "Langue",
       "current": "Langue actuelle : {locale}"
+    },
+    "moderationReasons": {
+      "fraud": "Fraude ou arnaque",
+      "spam": "Spam",
+      "misleading": "Contenu trompeur",
+      "offensive": "Propos injurieux",
+      "personal_data": "Données personnelles",
+      "duplicate": "Doublon",
+      "conflict_of_interest": "Conflit d'intérêts",
+      "off_topic": "Hors sujet",
+      "other": "Autre motif"
     }
   },
   "console": {
@@ -152,7 +163,8 @@
       "counters": {
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
         "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
-      }
+      },
+      "receivedReviews": "Avis reçus"
     },
     "admin": {
       "dashboard": "Tableau de bord",
@@ -766,19 +778,19 @@
         "other": "Autre"
       },
       "trigger": "Signaler cette annonce",
-      "loginTitle": "Connexion requise",
-      "loginBody": "Connectez-vous pour signaler cette annonce.",
       "cancel": "Annuler",
-      "signIn": "Se connecter",
       "dialogTitle": "Signaler cette annonce",
       "dialogBody": "Aidez-nous à maintenir la qualité de la plateforme.",
-      "sent": "Signalement envoyé. Merci !",
       "reasonLabel": "Motif",
       "detailsLabel": "Détails (optionnel)",
       "detailsPlaceholder": "Précisez les éléments problématiques…",
       "dialogBodyFull": "Aidez-nous à maintenir la qualité de la plateforme. Notre équipe examinera votre signalement.",
       "sending": "Envoi…",
-      "submit": "Signaler"
+      "submit": "Signaler",
+      "thanks": "Merci, nous allons examiner ce signalement.",
+      "thanksNotified": "Vous serez prévenu de l'issue.",
+      "close": "Fermer",
+      "honeypotLabel": "Société"
     },
     "visitDialog": {
       "types": {
@@ -1297,6 +1309,21 @@
       "urgent_sale": "Vente urgente",
       "seasonal": "Saisonnier",
       "correction": "Correction"
+    },
+    "reviewReport": {
+      "trigger": "Signaler",
+      "triggerAria": "Signaler cet avis",
+      "dialogTitle": "Signaler cet avis",
+      "dialogBody": "Notre équipe examinera cet avis. Il reste affiché tant qu'il n'a pas été examiné.",
+      "reasons": {
+        "fraud": "Faux avis",
+        "offensive": "Propos injurieux",
+        "personal_data": "Données personnelles",
+        "conflict_of_interest": "Conflit d'intérêts",
+        "spam": "Spam",
+        "off_topic": "Hors sujet",
+        "other": "Autre"
+      }
     }
   },
   "dashboard": {
@@ -4564,7 +4591,8 @@
         "reportedOnly": "Signalés uniquement",
         "queued": "{count} en file d'attente",
         "loading": "Chargement de la file de modération…",
-        "loadError": "Impossible de charger la file."
+        "loadError": "Impossible de charger la file.",
+        "agencyScope": "Vous modérez les avis portés sur les biens et les agents de votre agence. Un avis sur l'agence elle-même est modéré par la plateforme."
       },
       "detail": {
         "genericError": "Une erreur est survenue.",
@@ -4584,7 +4612,12 @@
         "confirmHide": "Masquer cet avis ?",
         "confirmIgnore": "Ignorer les signalements ?",
         "reasonLabel": "Raison (consignée dans le journal d'audit)",
-        "reasonPlaceholder": "Motif visible dans le journal d'audit"
+        "reasonPlaceholder": "Motif visible dans le journal d'audit",
+        "platformOnly": "Avis sur votre agence : il est modéré par la plateforme, pas par l'agence.",
+        "reasonCodeLabel": "Motif",
+        "reasonCodePlaceholder": "Choisir un motif",
+        "reasonCodeRequired": "Choisissez un motif.",
+        "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)"
       }
     },
     "finances": {
@@ -7212,23 +7245,15 @@
       "opportunitiesError": "Impossible de charger vos opportunités de dépôt d’avis.",
       "receivedTitle": "Avis reçus",
       "loadingAria": "Chargement",
-      "stayCompleted": "Séjour terminé",
-      "leaseActive": "Bail en cours",
-      "leaseEnded": "Bail terminé",
-      "details": "Détails",
       "filterByProperty": "Filtrer par bien",
       "allProperties": "Tous les biens",
       "filterByReply": "Filtrer par réponse",
-      "replyFilterPlaceholder": "Réponse",
       "allReviews": "Tous les avis",
       "unreplied": "Sans réponse",
       "replied": "Répondus",
       "replyPrompt": "Votre réponse publique",
       "replyToastTitle": "Réponse publiée",
       "replyToastDescription": "Votre réponse est visible sous l’avis.",
-      "reportPrompt": "Motif du signalement",
-      "reportToastTitle": "Avis signalé",
-      "reportToastDescription": "La modération peut maintenant examiner cet avis.",
       "yourReply": "Votre réponse",
       "editReply": "Modifier la réponse",
       "reply": "Répondre",
@@ -7238,7 +7263,41 @@
         "approved": "Approuvé",
         "reported": "Signalé",
         "rejected": "Rejeté"
-      }
+      },
+      "filterByStatus": "Filtrer par statut",
+      "allStatuses": "Tous les statuts",
+      "filterBySubject": "Filtrer par cible",
+      "allSubjects": "Toutes les cibles",
+      "subjects": {
+        "property": "Biens",
+        "agent": "Moi (agent)",
+        "agency": "L'agence",
+        "service_provider": "Moi (prestataire)"
+      },
+      "pendingNotice": "En attente de validation : cet avis n'est pas encore publié.",
+      "replyRequired": "Écrivez une réponse avant de publier.",
+      "replyError": "La réponse n'a pas pu être publiée.",
+      "replySubmit": "Publier la réponse",
+      "replyCancel": "Annuler",
+      "contexts": {
+        "visit": "Après votre visite",
+        "lease": "Votre bail",
+        "booking": "Votre séjour",
+        "maintenance_request": "Votre intervention"
+      },
+      "targets": {
+        "property": "Le bien",
+        "agent": "L'agent",
+        "agency": "L'agence",
+        "service_provider": "Le prestataire"
+      },
+      "starsLabel": "{count, plural, one {# étoile} other {# étoiles}}",
+      "opportunityCommentLabel": "Votre commentaire (facultatif)",
+      "opportunityRatingRequired": "Donnez au moins une note.",
+      "opportunitySubmit": "Publier mes avis",
+      "opportunitySentTitle": "Avis envoyé",
+      "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
+      "opportunityError": "Votre avis n'a pas pu être envoyé."
     },
     "contact": {
       "title": "Coordonnées",

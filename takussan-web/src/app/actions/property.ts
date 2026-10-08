@@ -42,14 +42,39 @@ async function authRequise(): Promise<ActionResult<never>> {
   return { ok: false, status: 401, message: t('authRequired') };
 }
 
+/**
+ * TCK-597 (V12) — signaler ne demande pas de compte. Le jeton part QUAND il existe : il
+ * rattache le signalement au compte, qui sera prévenu de l'issue. Sans lui, l'API retient une
+ * empreinte de l'adresse, jamais l'adresse. `company` est le pot de miel (cf. `submitContactLead`).
+ */
 export async function submitPropertyReport(
   slug: string,
   payload: ReportPayload,
 ): Promise<ActionResult> {
+  const token = await getToken();
   try {
     await apiRequest(`/api/public/properties/${slug}/report`, {
       method: 'POST',
       body: payload,
+      token,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...(await errorFromApi(e)) };
+  }
+}
+
+/** TCK-597 (V12) — la jumelle pour un avis public : même régime, sans compte, jeton si connecté. */
+export async function submitReviewReport(
+  reviewId: number,
+  payload: ReportPayload,
+): Promise<ActionResult> {
+  const token = await getToken();
+  try {
+    await apiRequest(`/api/public/reviews/${reviewId}/report`, {
+      method: 'POST',
+      body: payload,
+      token,
     });
     return { ok: true };
   } catch (e) {
@@ -217,24 +242,6 @@ export async function submitReview(
     await apiRequest(`/api/properties/${propertyId}/reviews`, {
       method: 'POST',
       body: payload,
-      token,
-    });
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await errorFromApi(e)) };
-  }
-}
-
-export async function reportReview(
-  reviewId: number,
-  reason: string,
-): Promise<ActionResult> {
-  const token = await getToken();
-  if (!token) return authRequise();
-  try {
-    await apiRequest(`/api/reviews/${reviewId}/report`, {
-      method: 'POST',
-      body: { reason },
       token,
     });
     return { ok: true };

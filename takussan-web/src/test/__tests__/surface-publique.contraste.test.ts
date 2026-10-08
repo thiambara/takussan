@@ -114,7 +114,6 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur hover:bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem, état survolé'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-muted-foreground sur group-hover:bg-foreground/10 sur un sous-jacent inconnu (pire pixel 111)', 1.00, 'voile de survol à 10 % sur un fond que le fichier ne pose pas'],
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyReportButton.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'l’alpha du survol mange la marge du bouton primaire'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
   ['app/[locale]/(public)/properties/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur un sous-jacent inconnu (pire pixel 255)', 4.18, 'idem, alpha 90 %'],
@@ -310,8 +309,14 @@ const FICHIERS_HORS_JETONS = 5;
  * 14,87 et 17,53 pour l'encre pleine — tous au-dessus de 4,5. Relevé en isolant les fichiers
  * touchés, `HEAD` contre la branche : aucune autre entrée n'a bougé (`PropertyPhoto` a failli en
  * ajouter une, par un fond en `color-mix` que ce relevé ne lit pas ; il passe par un jeton).
+ *
+ * **248 → 249 le 2026-10-08 (TCK-597).** `reports/ReviewReportButton.tsx`, fichier neuf entré dans
+ * la surface par les avis publics (fiche bien, `ReviewsSection`), apporte 1 entrée : le lien
+ * « Signaler » porte `text-muted-foreground` sans fond — celui de la carte d'avis (`bg-card`) ou
+ * de la page (`--background`), le même que le « Signaler cette annonce » voisin, déjà compté.
+ * Relevé en vidant la liste des encres inverses : c'est la seule entrée neuve.
  */
-const ENCRES_INVERSES = 248;
+const ENCRES_INVERSES = 249;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

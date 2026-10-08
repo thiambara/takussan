@@ -13,6 +13,18 @@ import {
   type ModerationDecision,
 } from '@/lib/queries/reviews-moderation';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  MODERATION_REASON_CODES,
+  reasonTextRequired,
+  type ModerationReasonCode,
+} from '@/lib/moderation-reasons';
 
 import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -21,17 +33,23 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 interface ModerationDetailProps {
   readonly review: ModerationReview;
   readonly onModerated: () => void;
+  /** Super-admin : tranche aussi les avis SUR une agence (TCK-597, ADR-0043 §1). */
+  readonly platform?: boolean;
 }
 
-type PendingDecision = { decision: ModerationDecision; requiresReason: boolean } | null;
+type PendingDecision = { decision: ModerationDecision } | null;
 
-export function ModerationDetail({ review, onModerated }: ModerationDetailProps) {
+const AGENCY_SUBJECT = 'App\\Models\\Agency';
+
+export function ModerationDetail({ review, onModerated, platform = false }: ModerationDetailProps) {
   const t = useTranslations('admin.moderation.detail');
+  const tReasons = useTranslations('common.moderationReasons');
   const locale = useLocale() as Locale;
   const tCommon = useTranslations('common.actions');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const [pending, setPending] = useState<PendingDecision>(null);
+  const [reasonCode, setReasonCode] = useState<ModerationReasonCode | ''>('');
   const [reason, setReason] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -42,12 +60,10 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
   });
 
   const mutation = useMutation({
-    mutationFn: ({ decision, reason: r }: { decision: ModerationDecision; reason?: string }) =>
-      moderateReview(review.id, { decision, reason: r }, token ?? ''),
+    mutationFn: (payload: { decision: ModerationDecision; reason_code?: ModerationReasonCode; reason?: string }) =>
+      moderateReview(review.id, payload, token ?? ''),
     onSuccess: () => {
-      setPending(null);
-      setReason('');
-      setErrorMessage(null);
+      cancelPending();
       onModerated();
     },
     onError: (err) => {
@@ -61,23 +77,38 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
       mutation.mutate({ decision });
       return;
     }
-    setPending({ decision, requiresReason: true });
+    setPending({ decision });
   };
 
+  // TCK-597 (ADR-0043 §7) — un motif CODÉ, choisi dans une liste traduite ; le complément libre
+  // est facultatif, sauf pour « autre ».
   const confirmPending = () => {
     if (!pending) return;
-    if (pending.requiresReason && reason.trim().length === 0) {
+    if (reasonCode === '') {
+      setErrorMessage(t('reasonCodeRequired'));
+      return;
+    }
+    if (reasonTextRequired(reasonCode) && reason.trim().length === 0) {
       setErrorMessage(t('reasonRequired'));
       return;
     }
-    mutation.mutate({ decision: pending.decision, reason: reason.trim() });
+    mutation.mutate({
+      decision: pending.decision,
+      reason_code: reasonCode,
+      reason: reason.trim() || undefined,
+    });
   };
 
-  const cancelPending = () => {
+  function cancelPending() {
     setPending(null);
+    setReasonCode('');
     setReason('');
     setErrorMessage(null);
-  };
+  }
+
+  // Un avis SUR l'agence elle-même : l'admin d'agence le voit, la plateforme le tranche.
+  const platformOnly = !platform && review.reviewable_type === AGENCY_SUBJECT;
+  const reasonOptions = MODERATION_REASON_CODES.map((code) => ({ value: code, label: tReasons(code) }));
 
   const reports = reportsData?.data ?? [];
 
@@ -101,6 +132,11 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
             })}
           </p>
         </div>
+        {platformOnly ? (
+          <p className="max-w-xs rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground" data-testid="moderation-platform-only">
+            {t('platformOnly')}
+          </p>
+        ) : (
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -137,6 +173,7 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
             </Button>
           ) : null}
         </div>
+        )}
       </header>
 
       <div className="mt-5 whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm text-foreground">
@@ -184,14 +221,32 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
                 ? t('confirmHide')
                 : t('confirmIgnore')}
           </p>
-          <label htmlFor="moderation-reason" className="text-xs text-muted-foreground">
-            {t('reasonLabel')}
+          <label className="block text-xs text-muted-foreground">
+            <span className="mb-1 block">{t('reasonCodeLabel')}</span>
+            <Select
+              value={reasonCode}
+              onValueChange={(v) => setReasonCode((v as ModerationReasonCode | null) ?? '')}
+              items={reasonOptions}
+            >
+              <SelectTrigger className="w-full bg-background" aria-label={t('reasonCodeLabel')}>
+                <SelectValue placeholder={t('reasonCodePlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                {reasonOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <label htmlFor="moderation-reason" className="mt-3 block text-xs text-muted-foreground">
+            {reasonTextRequired(reasonCode) ? t('reasonLabelRequired') : t('reasonLabel')}
           </label>
           <textarea
             id="moderation-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
+            maxLength={1000}
             className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             placeholder={t('reasonPlaceholder')}
           />

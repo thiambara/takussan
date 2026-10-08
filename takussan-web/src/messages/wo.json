@@ -33,6 +33,17 @@
     "languageSwitcher": {
       "label": "Làkk",
       "current": "Làkk bi ngay jëfandikoo : {locale}"
+    },
+    "moderationReasons": {
+      "fraud": "Njuuj walla naxe",
+      "spam": "Spam",
+      "misleading": "Lu dul dëgg",
+      "offensive": "Wax yu ñaaw",
+      "personal_data": "Xibaar yu bopp",
+      "duplicate": "Ñaari yoon",
+      "conflict_of_interest": "Njariñ boo xam ne dafa am",
+      "off_topic": "Bokkul ci",
+      "other": "Leneen"
     }
   },
   "console": {
@@ -142,7 +153,8 @@
       "counters": {
         "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
         "pendingVisits": "{count, plural, one {# ñaan gis-gis bu di xaar} other {# ñaan gis-gis yu di xaar}}"
-      }
+      },
+      "receivedReviews": "Avis yi ñu la bind"
     },
     "admin": {
       "dashboard": "Taablo",
@@ -3178,7 +3190,8 @@
         "reportedOnly": "Yi ñu xamle rekk",
         "queued": "{count} ci file bi",
         "loading": "Mu ngi yebal file moderation bi…",
-        "loadError": "Mënunu yebal file bi."
+        "loadError": "Mënunu yebal file bi.",
+        "agencyScope": "Yaw ngay xool avis yi ñu bind ci kër yi ak agent yi sa agence. Avis bu jëm ci agence bi ci boppam, platforme bi moo koy xool."
       },
       "detail": {
         "genericError": "Am na jafe-jafe.",
@@ -3198,7 +3211,12 @@
         "confirmHide": "Nëbb avis bii ?",
         "confirmIgnore": "Bàyyi xamle yi ?",
         "reasonLabel": "Sabab (dañu koy bind ci journal audit bi)",
-        "reasonPlaceholder": "Sabab bu ñuy gis ci journal audit bi"
+        "reasonPlaceholder": "Sabab bu ñuy gis ci journal audit bi",
+        "platformOnly": "Avis ci sa agence : platforme bi moo koy xool, du agence bi.",
+        "reasonCodeLabel": "Lu tax",
+        "reasonCodePlaceholder": "Tànnal lu tax",
+        "reasonCodeRequired": "Tànnal lu tax.",
+        "reasonLabelRequired": "Leeralal lu tax (war na ci « Leneen »)"
       }
     },
     "finances": {
@@ -4197,19 +4215,19 @@
         "other": "Beneen"
       },
       "trigger": "Xamle yégle bii",
-      "loginTitle": "Fàww nga dugg",
-      "loginBody": "Duggal ngir xamle yégle bii.",
       "cancel": "Neenal",
-      "signIn": "Dugg",
       "dialogTitle": "Xamle yégle bii",
       "dialogBody": "Dimbali nu ngir platform bi wéy ci baax.",
-      "sent": "Yónnee nañu xamle bi. Jërëjëf !",
       "reasonLabel": "Sabab",
       "detailsLabel": "Leeral (soo ko bëggee)",
       "detailsPlaceholder": "Leeralal li am jafe-jafe…",
       "dialogBodyFull": "Dimbali nu ngir platform bi wéy ci baax. Sunu ekib dina seet sa xamle.",
       "sending": "Mu ngi yónnee…",
-      "submit": "Xamle"
+      "submit": "Xamle",
+      "thanks": "Jërëjëf, dinanu xool signalement bi.",
+      "thanksNotified": "Dinanu la yégal li ci génn.",
+      "close": "Tëj",
+      "honeypotLabel": "Entreprise"
     },
     "visitDialog": {
       "types": {
@@ -4755,6 +4773,21 @@
       "urgent_sale": "Jaay bu gaaw",
       "seasonal": "Ci jamono ji",
       "correction": "Jubbanti"
+    },
+    "reviewReport": {
+      "trigger": "Signaler",
+      "triggerAria": "Signaler avis bii",
+      "dialogTitle": "Signaler avis bii",
+      "dialogBody": "Sunu ekip dina xool avis bi. Dina des ci kaw ba ñu xool ko.",
+      "reasons": {
+        "fraud": "Avis bu dul dëgg",
+        "offensive": "Wax yu ñaaw",
+        "personal_data": "Xibaar yu bopp",
+        "conflict_of_interest": "Njariñ boo xam ne dafa am",
+        "spam": "Spam",
+        "off_topic": "Bokkul ci",
+        "other": "Leneen"
+      }
     }
   },
   "documents": {
@@ -6602,23 +6635,15 @@
       "opportunitiesError": "Mëneesula yebbi xalaat yi nga mën a bind.",
       "receivedTitle": "Xalaat yi nga jot",
       "loadingAria": "Mu ngi yeb",
-      "stayCompleted": "Séjour bi jeex na",
-      "leaseActive": "Bail bi ngi dox",
-      "leaseEnded": "Bail bi jeex na",
-      "details": "Lëf yi",
       "filterByProperty": "Tànn ci këru bi",
       "allProperties": "Kër yépp",
       "filterByReply": "Tànn ci tontu bi",
-      "replyFilterPlaceholder": "Tontu",
       "allReviews": "Xalaat yépp",
       "unreplied": "Amul tontu",
       "replied": "Ñu ko tontu",
       "replyPrompt": "Sa tontu bu ñépp gis",
       "replyToastTitle": "Tontu bi génn na",
       "replyToastDescription": "Sa tontu bi ñu ngi ko gis ci suufu xalaat bi.",
-      "reportPrompt": "Lu tax nga jottali",
-      "reportToastTitle": "Xalaat bi ñu ko jottali",
-      "reportToastDescription": "Modération bi mën na leegi seetlu xalaat bii.",
       "yourReply": "Sa tontu",
       "editReply": "Soppi tontu bi",
       "reply": "Tontu",
@@ -6628,7 +6653,41 @@
         "approved": "Ñu nangu ko",
         "reported": "Ñu ko jottali",
         "rejected": "Ñu ko bañ"
-      }
+      },
+      "filterByStatus": "Seddale ci statut",
+      "allStatuses": "Statut yépp",
+      "filterBySubject": "Seddale ci ku ñu bind",
+      "allSubjects": "Ñépp",
+      "subjects": {
+        "property": "Kër yi",
+        "agent": "Man (agent)",
+        "agency": "Agence bi",
+        "service_provider": "Man (prestataire)"
+      },
+      "pendingNotice": "Mungiy xaar ñu nangu ko : avis bii feeñagul.",
+      "replyRequired": "Binddal tontu bala ngay ko yónnee.",
+      "replyError": "Tontu bi mënul a feeñ.",
+      "replySubmit": "Yónnee tontu bi",
+      "replyCancel": "Bàyyi",
+      "contexts": {
+        "visit": "Ginnaaw sa wisit",
+        "lease": "Sa bail",
+        "booking": "Sa dëkkuwaay",
+        "maintenance_request": "Sa liggéey"
+      },
+      "targets": {
+        "property": "Kër gi",
+        "agent": "Agent bi",
+        "agency": "Agence bi",
+        "service_provider": "Prestataire bi"
+      },
+      "starsLabel": "{count, plural, one {# biddiiw} other {# biddiiw}}",
+      "opportunityCommentLabel": "Sa kàddu (soo bëggee)",
+      "opportunityRatingRequired": "Joxal benn not lu mu néew néew.",
+      "opportunitySubmit": "Yónnee samay avis",
+      "opportunitySentTitle": "Avis bi dem na",
+      "opportunitySentBody": "Jërëjëf ! Sa avis dina feeñ su ñu ko nanguwee.",
+      "opportunityError": "Sa avis mënul a dem."
     },
     "contact": {
       "title": "Jokkoo yi",

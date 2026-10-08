@@ -33,6 +33,17 @@
     "languageSwitcher": {
       "label": "Language",
       "current": "Current language: {locale}"
+    },
+    "moderationReasons": {
+      "fraud": "Fraud or scam",
+      "spam": "Spam",
+      "misleading": "Misleading content",
+      "offensive": "Abusive language",
+      "personal_data": "Personal data",
+      "duplicate": "Duplicate",
+      "conflict_of_interest": "Conflict of interest",
+      "off_topic": "Off topic",
+      "other": "Other reason"
     }
   },
   "console": {
@@ -152,7 +163,8 @@
       "counters": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
-      }
+      },
+      "receivedReviews": "Reviews received"
     },
     "admin": {
       "dashboard": "Dashboard",
@@ -791,19 +803,19 @@
         "other": "Other"
       },
       "trigger": "Report this listing",
-      "loginTitle": "Sign-in required",
-      "loginBody": "Sign in to report this listing.",
       "cancel": "Cancel",
-      "signIn": "Sign in",
       "dialogTitle": "Report this listing",
       "dialogBody": "Help us keep the platform's quality up.",
-      "sent": "Report sent. Thank you!",
       "reasonLabel": "Reason",
       "detailsLabel": "Details (optional)",
       "detailsPlaceholder": "Specify what is problematic…",
       "dialogBodyFull": "Help us keep the platform's quality up. Our team will review your report.",
       "sending": "Sending…",
-      "submit": "Report"
+      "submit": "Report",
+      "thanks": "Thank you, we will review this report.",
+      "thanksNotified": "You will be notified of the outcome.",
+      "close": "Close",
+      "honeypotLabel": "Company"
     },
     "visitDialog": {
       "types": {
@@ -1322,6 +1334,21 @@
       "urgent_sale": "Urgent sale",
       "seasonal": "Seasonal",
       "correction": "Correction"
+    },
+    "reviewReport": {
+      "trigger": "Report",
+      "triggerAria": "Report this review",
+      "dialogTitle": "Report this review",
+      "dialogBody": "Our team will review it. It stays visible until it has been reviewed.",
+      "reasons": {
+        "fraud": "Fake review",
+        "offensive": "Abusive language",
+        "personal_data": "Personal data",
+        "conflict_of_interest": "Conflict of interest",
+        "spam": "Spam",
+        "off_topic": "Off topic",
+        "other": "Other"
+      }
     }
   },
   "dashboard": {
@@ -4564,7 +4591,8 @@
         "reportedOnly": "Reported only",
         "queued": "{count} in the queue",
         "loading": "Loading the moderation queue…",
-        "loadError": "The queue could not be loaded."
+        "loadError": "The queue could not be loaded.",
+        "agencyScope": "You moderate reviews of your agency's listings and agents. A review of the agency itself is moderated by the platform."
       },
       "detail": {
         "genericError": "Something went wrong.",
@@ -4584,7 +4612,12 @@
         "confirmHide": "Hide this review?",
         "confirmIgnore": "Dismiss the reports?",
         "reasonLabel": "Reason (recorded in the audit log)",
-        "reasonPlaceholder": "Reason shown in the audit log"
+        "reasonPlaceholder": "Reason shown in the audit log",
+        "platformOnly": "Review of your agency: it is moderated by the platform, not by the agency.",
+        "reasonCodeLabel": "Reason",
+        "reasonCodePlaceholder": "Choose a reason",
+        "reasonCodeRequired": "Choose a reason.",
+        "reasonLabelRequired": "Describe the reason (required for “Other reason”)"
       }
     },
     "finances": {
@@ -7212,23 +7245,15 @@
       "opportunitiesError": "Could not load your review opportunities.",
       "receivedTitle": "Received reviews",
       "loadingAria": "Loading",
-      "stayCompleted": "Stay completed",
-      "leaseActive": "Lease in progress",
-      "leaseEnded": "Lease ended",
-      "details": "Details",
       "filterByProperty": "Filter by property",
       "allProperties": "All properties",
       "filterByReply": "Filter by reply",
-      "replyFilterPlaceholder": "Reply",
       "allReviews": "All reviews",
       "unreplied": "Without a reply",
       "replied": "Replied to",
       "replyPrompt": "Your public reply",
       "replyToastTitle": "Reply published",
       "replyToastDescription": "Your reply is visible under the review.",
-      "reportPrompt": "Reason for reporting",
-      "reportToastTitle": "Review reported",
-      "reportToastDescription": "Moderation can now look into this review.",
       "yourReply": "Your reply",
       "editReply": "Edit the reply",
       "reply": "Reply",
@@ -7238,7 +7263,41 @@
         "approved": "Approved",
         "reported": "Reported",
         "rejected": "Rejected"
-      }
+      },
+      "filterByStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "filterBySubject": "Filter by subject",
+      "allSubjects": "All subjects",
+      "subjects": {
+        "property": "Listings",
+        "agent": "Me (agent)",
+        "agency": "The agency",
+        "service_provider": "Me (service provider)"
+      },
+      "pendingNotice": "Awaiting approval: this review is not published yet.",
+      "replyRequired": "Write a reply before publishing.",
+      "replyError": "The reply could not be published.",
+      "replySubmit": "Publish reply",
+      "replyCancel": "Cancel",
+      "contexts": {
+        "visit": "After your visit",
+        "lease": "Your lease",
+        "booking": "Your stay",
+        "maintenance_request": "Your service request"
+      },
+      "targets": {
+        "property": "The listing",
+        "agent": "The agent",
+        "agency": "The agency",
+        "service_provider": "The service provider"
+      },
+      "starsLabel": "{count, plural, one {# star} other {# stars}}",
+      "opportunityCommentLabel": "Your comment (optional)",
+      "opportunityRatingRequired": "Give at least one rating.",
+      "opportunitySubmit": "Publish my reviews",
+      "opportunitySentTitle": "Review sent",
+      "opportunitySentBody": "Thank you! Your review will be published once approved.",
+      "opportunityError": "Your review could not be sent."
     },
     "contact": {
       "title": "Contact details",

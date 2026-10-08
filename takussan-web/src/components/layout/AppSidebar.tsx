@@ -25,6 +25,7 @@ import {
   BookmarkCheck,
   ClipboardList,
   ClipboardCheck,
+  MessageSquareQuote,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -216,6 +217,13 @@ export function buildNavItems(user: User): NavItem[] {
 
   if (isAgent(roles) || isAdmin(roles) || isServiceProvider(roles)) {
     items.push({ href: '/app/maintenance', labelKey: isServiceProvider(roles) ? 'interventions' : 'maintenance', icon: Wrench, section: 'requests' });
+  }
+
+  // TCK-597 (A15) — la boîte des avis reçus : bailleur, agent, admin d'agence. Elle vit sur la
+  // page des avis du profil. Le prestataire y a aussi sa boîte, sans entrée de menu : ses quatre
+  // entrées tiennent sans césure, et une cinquième en imposerait une.
+  if (!isCustomerOnly(roles) && (isOwner(roles) || isAgent(roles) || isAdmin(roles))) {
+    items.push({ href: '/app/profile/reviews', labelKey: 'receivedReviews', icon: MessageSquareQuote, section: 'engagements' });
   }
 
   // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global

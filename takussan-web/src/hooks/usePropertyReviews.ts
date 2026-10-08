@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api';
-import { reportReview, submitReview, submitReviewReply } from '@/app/actions/property';
+import { submitReview, submitReviewReply } from '@/app/actions/property';
 import type { PropertyReviewsResponse } from '@/types/review';
 
 type State = {
@@ -43,11 +43,6 @@ export function usePropertyReviews(slug: string, propertyId: number) {
     [propertyId, refetch],
   );
 
-  const report = useCallback(async (reviewId: number, reason: string) => {
-    const res = await reportReview(reviewId, reason);
-    if (!res.ok) throw new Error(res.message);
-  }, []);
-
   const reply = useCallback(
     async (reviewId: number, replyContent: string) => {
       const res = await submitReviewReply(reviewId, replyContent);
@@ -57,5 +52,5 @@ export function usePropertyReviews(slug: string, propertyId: number) {
     [refetch],
   );
 
-  return { ...state, submit, report, reply, refetch };
+  return { ...state, submit, reply, refetch };
 }

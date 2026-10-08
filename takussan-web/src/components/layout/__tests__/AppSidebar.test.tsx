@@ -149,6 +149,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
     '/app/inventories', '/app/visits', '/app/calendar', '/app/leases/onboarding-pending',
+    '/app/profile/reviews',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
@@ -156,7 +157,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin',
+    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews',
   ],
   // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
   // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
@@ -165,7 +166,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/calendar',
+    '/app/visits', '/app/calendar', '/app/profile/reviews',
   ],
   // TCK-379 — ce relevé figeait le comportement d'AVANT : le prestataire recevait
   // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
@@ -183,7 +184,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin',
+    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews',
   ],
 };
 
@@ -320,13 +321,13 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
     },
   );
 
-  it('les 23 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  it('les 24 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(23);
+    expect(items).toHaveLength(24);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(23);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(24);
   });
 
   it('un rôle sans catalogue ne voit aucune césure vide', () => {
