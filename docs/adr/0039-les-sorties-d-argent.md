@@ -151,7 +151,9 @@ deux agences ne font pas deux personnes.
   restituable après coup. **La ligne `deposit_refund` se retrouve par ce lien, jamais par son montant**
   (VERIF-594 passe 3, P3-2) : elle passe `failed` au refus ou à l'échec, `paid` (avec `paid_at`) au
   paiement ; payée, elle reste une sortie, et la clôture plateforme (`PlatformPayoutService`) ne la
-  compte pas parmi les encaissements reversés à l'agence. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
+  compte pas parmi les encaissements reversés à l'agence — ni le revenu de l'agence, ni le flux du
+  bailleur, ni le revenu de la plateforme, ni le rapprochement d'un crédit du relevé (VERIF-594
+  passe 4, P4-5 : `LeasePayment::exceptDepositRefunds`). L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
   (`agency_payout_threshold_changed`). **Le relâcher exige deux personnes** (VERIF-594 M-2 : celui
   qui allait payer le coupait seul, payait seul, puis le remettait) : un passage à `null` ou une

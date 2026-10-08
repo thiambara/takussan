@@ -5,7 +5,11 @@ namespace Tests\Feature\Api;
 use App\Domain\Notifications\NotificationCode;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\BankStatement;
+use App\Models\BankStatementLine;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
@@ -20,6 +24,7 @@ use App\Models\PayoutMethod;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
+use App\Services\Accounting\ReconciliationMatcher;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Model\PayoutService;
 use App\Services\Payout\PayoutApprovalRule;
@@ -1014,6 +1019,51 @@ class PayoutBypassTest extends TestCase
         $this->assertSame(InvoiceStatus::Paid, Invoice::query()->findOrFail($invoiceId)->status);
         $this->assertSame(0, Invoice::query()->where('kind', InvoiceKind::CreditNote->value)->count());
         $this->assertEquals(300000, $lease->fresh()->deposit_remaining);
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-5 — une caution rendue n'est pas un encaissement. Payée, sa ligne
+     * `deposit_refund` passe `paid` (P3-2) : ni le revenu de l'agence, ni le flux du bailleur, ni le
+     * revenu de la plateforme ne la comptent, et un crédit du relevé ne lui est pas apparié.
+     */
+    public function test_p4_5_a_refunded_deposit_is_not_revenue(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-10-08 10:00:00');
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $payer = $this->agencyAdmin($lease->agency);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $this->actingWithStepUp($payer);
+        $this->postJson("/api/payouts/{$refund->json('data.payout_id')}/mark-processed", ['payment_method' => 'cash', 'notes' => 'remis en main propre'])
+            ->assertOk()->assertJsonPath('data.status', 'completed');
+        $this->assertSame(PaymentStatus::Paid, LeasePayment::query()->findOrFail($refund->json('data.payment_id'))->status);
+
+        $this->actingWithStepUp($admin);
+        $agency = $this->getJson('/api/dashboard/agency?include=timeseries&months=1')->assertOk();
+        $this->assertEquals(0, $agency->json('data.finance.revenue_month'));
+        $this->assertEquals([0], $agency->json('timeseries.revenue'));
+
+        $this->actingAs(User::query()->findOrFail($lease->landlord_id));
+        $owner = $this->getJson('/api/dashboard/owner?include=timeseries&months=1')->assertOk();
+        $this->assertEquals(0, $owner->json('data.finance.cashflow_month'));
+        $this->assertEquals([0], $owner->json('timeseries.cashflow'));
+
+        $this->actingAsRole('super_admin');
+        $this->assertEquals(0, $this->getJson('/api/admin/system/metrics')->assertOk()->json('data.revenue.platform_total_paid'));
+
+        $statement = BankStatement::factory()->create([
+            'agency_id' => $lease->agency_id, 'uploaded_by' => $admin->id, 'status' => BankStatementStatus::ReadyForReview,
+        ]);
+        $credit = BankStatementLine::factory()->create([
+            'bank_statement_id' => $statement->id, 'direction' => BankStatementLineDirection::Credit,
+            'amount' => 300_000, 'currency' => 'XOF', 'posted_at' => '2026-10-08', 'reference' => null, 'counterparty' => null,
+        ]);
+        $this->assertNull(app(ReconciliationMatcher::class)->suggestFor($credit), 'un crédit ne s\'apparie pas à une caution rendue');
+
+        // Ni dans le point de comparaison à J-30 : sans autre encaissement, il n'y en a pas.
+        $this->travel(31)->days();
+        $this->getJson('/api/admin/system/metrics')->assertOk()->assertJsonMissingPath('data.trend.previous.revenue_platform_total_paid');
     }
 
     /**
