@@ -2797,7 +2797,10 @@
       "cancel": "Annuler",
       "creating": "Création…",
       "submit": "Créer le reversement",
-      "createFailed": "Le reversement n'a pas pu être créé."
+      "createFailed": "Le reversement n'a pas pu être créé.",
+      "unverifiedHint": "Cette destination n'a pas encore été vérifiée par l'agence.",
+      "verifyDestination": "Vérifier cette destination",
+      "verifyFailed": "La vérification a échoué."
     },
     "ownerStatement": {
       "title": "Relevé de gérance",
@@ -7337,6 +7340,24 @@
         "phoneNotVerified": "Téléphone non vérifié.",
         "channelUnavailable": "Aucun message de ce type ne part sur ce canal."
       }
+    },
+    "payoutMethods": {
+      "title": "Où recevoir vos versements",
+      "subtitle": "Votre numéro n'est plus affiché en clair une fois enregistré. L'agence qui vous paie le vérifie avant le premier versement.",
+      "empty": "Aucune destination enregistrée.",
+      "verified": "Vérifiée",
+      "pending": "En attente de vérification",
+      "default": "Par défaut",
+      "makeDefault": "Utiliser par défaut",
+      "remove": "Retirer",
+      "removeAria": "Retirer la destination {masked}",
+      "kind": "Moyen",
+      "phone": "Numéro de téléphone",
+      "iban": "IBAN ou numéro de compte",
+      "holder": "Titulaire (facultatif)",
+      "add": "Ajouter",
+      "saveFailed": "La destination n'a pas pu être enregistrée.",
+      "removeFailed": "La destination n'a pas pu être retirée."
     }
   },
   "contact": {

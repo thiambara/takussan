@@ -19,7 +19,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { OWNER_PROFILE_FIELDS, type OwnerProfileSummary } from '@/lib/queries/owners';
-import { useCreatePayout, usePayoutPreparation } from '@/lib/queries/payments';
+import { useCreatePayout, usePayoutPreparation, useVerifyPayoutMethod } from '@/lib/queries/payments';
 import type { PaginatedResponse } from '@/types/api';
 import type { Locale } from '@/i18n/config';
 
@@ -84,6 +84,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
     period_end: periodEnd || undefined,
   });
   const createPayout = useCreatePayout();
+  const verifyMethod = useVerifyPayoutMethod();
 
   const prep = preparation.data?.data;
   const currency = prep?.currency ?? 'XOF';
@@ -91,6 +92,17 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const lineCount = prep
     ? prep.lines.lease_payments.length + prep.lines.booking_payments.length + prep.lines.service_provider_bills.length
     : 0;
+  // TCK-594 (ADR-0039 §6) — l'agence vérifie la destination qu'elle va payer : le titulaire la
+  // déclare, quelqu'un d'autre la confirme (le serveur refuse au titulaire de se vérifier lui-même).
+  const selectedMethod = prep?.payout_methods.find((m) => String(m.id) === payoutMethodId);
+  const verifyDestination = async (id: number) => {
+    setError(null);
+    try {
+      await verifyMethod.mutateAsync({ id });
+    } catch (e) {
+      setError(messageErreur(e, t('verifyFailed')));
+    }
+  };
   const canSubmit = prep !== undefined && lineCount > 0 && prep.totals.net >= 0 && !createPayout.isPending;
 
   const reset = () => {
@@ -294,6 +306,20 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                       </option>
                     ))}
                   </select>
+                  {selectedMethod && !selectedMethod.verified ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">{t('unverifiedHint')}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={verifyMethod.isPending}
+                        onClick={() => void verifyDestination(selectedMethod.id)}
+                      >
+                        {t('verifyDestination')}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payout-method">{t('method')}</Label>

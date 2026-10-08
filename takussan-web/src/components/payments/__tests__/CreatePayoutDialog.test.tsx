@@ -26,8 +26,10 @@ const PREPARATION = vi.hoisted(() => ({
 }));
 const PREPARATION_ARGS = vi.hoisted(() => [] as unknown[]);
 
+const VERIFY = vi.hoisted(() => ({ mutateAsync: vi.fn(async (_payload: unknown) => ({ data: {} })), isPending: false }));
 vi.mock('@/lib/queries/payments', () => ({
   useCreatePayout: () => MUTATION,
+  useVerifyPayoutMethod: () => VERIFY,
   usePayoutPreparation: (params: unknown) => {
     PREPARATION_ARGS.push(params);
     return PREPARATION.current;
@@ -66,7 +68,10 @@ const CALCUL = {
     totals: { gross: 220000, commission: 22000, fees: 15000, net: 183000 },
     requires_approval: true,
     approval_threshold: 100000,
-    payout_methods: [{ id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true }],
+    payout_methods: [
+      { id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true },
+      { id: 9, kind: 'orange_money', masked_identifier: '•••• 8899', is_default: false, verified: false },
+    ],
   },
 };
 
@@ -128,5 +133,19 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     for (const montant of ['gross_amount', 'commission_amount', 'fees_amount', 'net_amount']) {
       expect(payload).not.toHaveProperty(montant);
     }
+  });
+
+  it("propose à l'agence de vérifier une destination en attente, et seulement celle-là", async () => {
+    PREPARATION.current = { data: CALCUL, isError: false, isFetching: false, error: null };
+    const user = userEvent.setup();
+    monter();
+
+    await user.selectOptions(screen.getByLabelText('Destination'), '8');
+    expect(screen.queryByRole('button', { name: 'Vérifier cette destination' })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Destination'), '9');
+    await user.click(screen.getByRole('button', { name: 'Vérifier cette destination' }));
+
+    expect(VERIFY.mutateAsync).toHaveBeenCalledWith({ id: 9 });
   });
 });

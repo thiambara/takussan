@@ -2822,7 +2822,10 @@
       "cancel": "Cancel",
       "creating": "Creating…",
       "submit": "Create the payout",
-      "createFailed": "The payout could not be created."
+      "createFailed": "The payout could not be created.",
+      "unverifiedHint": "This destination has not been verified by the agency yet.",
+      "verifyDestination": "Verify this destination",
+      "verifyFailed": "Verification failed."
     },
     "ownerStatement": {
       "title": "Owner statement",
@@ -7337,6 +7340,24 @@
         "phoneNotVerified": "Phone not verified.",
         "channelUnavailable": "No message of this kind is sent on this channel."
       }
+    },
+    "payoutMethods": {
+      "title": "Where to receive your payouts",
+      "subtitle": "Your number is no longer shown in full once saved. The agency paying you verifies it before the first payout.",
+      "empty": "No destination saved.",
+      "verified": "Verified",
+      "pending": "Awaiting verification",
+      "default": "Default",
+      "makeDefault": "Use as default",
+      "remove": "Remove",
+      "removeAria": "Remove destination {masked}",
+      "kind": "Method",
+      "phone": "Phone number",
+      "iban": "IBAN or account number",
+      "holder": "Account holder (optional)",
+      "add": "Add",
+      "saveFailed": "The destination could not be saved.",
+      "removeFailed": "The destination could not be removed."
     }
   },
   "contact": {

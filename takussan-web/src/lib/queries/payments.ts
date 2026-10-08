@@ -15,6 +15,7 @@ import type {
   PaymentHistoryTotals,
   Payout,
   PayoutMethod,
+  PayoutMethodKind,
   PayoutPreparation,
   PayoutStatus,
 } from '@/types/invoice';
@@ -73,8 +74,7 @@ export const paymentsQueryKeys = {
     ['payouts', 'detail', id] as const,
   payoutPreparation: (params: UsePayoutPreparationParams) =>
     ['payouts', 'preparation', params] as const,
-  payoutMethods: (userId: number | null | undefined) =>
-    ['payout-methods', 'beneficiary', userId] as const,
+  myPayoutMethods: ['payout-methods', 'me'] as const,
   ownerStatement: (period: string) => ['owner-statements', period] as const,
 };
 
@@ -329,14 +329,6 @@ export function usePayoutApprove(payoutId: number) {
 }
 
 /** Les destinations d'un bénéficiaire, vues de l'agence : masquées, avec leur état de vérification. */
-export function useBeneficiaryPayoutMethods(userId: number | null | undefined) {
-  return useApiQuery<ApiResponse<PayoutMethod[]>>(
-    paymentsQueryKeys.payoutMethods(userId),
-    '/api/payout-methods',
-    { params: { filter: { user_id: userId ?? undefined } }, enabled: Boolean(userId) },
-  );
-}
-
 export function useVerifyPayoutMethod() {
   return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
     { path: ({ id }) => `/api/payout-methods/${id}/verify`, method: 'POST', body: () => undefined },
@@ -394,5 +386,43 @@ export function useOwnerStatement(period: string) {
     paymentsQueryKeys.ownerStatement(period),
     '/api/owner-statements',
     { params: { extra: { period } }, enabled: /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(period) },
+  );
+}
+
+/**
+ * TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire connecté (bailleur,
+ * prestataire). L'API ne rend jamais que le numéro MASQUÉ à l'agence ; l'écran ne montre que lui.
+ */
+export function useMyPayoutMethods(enabled = true) {
+  return useApiQuery<ApiResponse<PayoutMethod[]>>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
+    enabled,
+  });
+}
+
+export type PayoutMethodPayload = {
+  kind: PayoutMethodKind;
+  account_identifier: string;
+  account_holder_name?: string | null;
+  is_default?: boolean;
+};
+
+export function useCreateMyPayoutMethod() {
+  return useApiMutation<ApiResponse<PayoutMethod>, PayoutMethodPayload>(
+    { path: '/api/me/payout-methods', method: 'POST' },
+    { invalidate: [['payout-methods']] },
+  );
+}
+
+export function useSetDefaultPayoutMethod() {
+  return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
+    { path: ({ id }) => `/api/me/payout-methods/${id}`, method: 'PATCH', body: () => ({ is_default: true }) },
+    { invalidate: [['payout-methods']] },
+  );
+}
+
+export function useDeleteMyPayoutMethod() {
+  return useApiMutation<null, { id: number }>(
+    { path: ({ id }) => `/api/me/payout-methods/${id}`, method: 'DELETE', body: () => undefined },
+    { invalidate: [['payout-methods']] },
   );
 }

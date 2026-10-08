@@ -1437,7 +1437,10 @@
       "cancel": "Neenal",
       "creating": "Mi ngi koy sos…",
       "submit": "Sos reversement bi",
-      "createFailed": "Reversement bi mënul woon a sosu."
+      "createFailed": "Reversement bi mënul woon a sosu.",
+      "unverifiedHint": "Agence bi saytuagul fii ñuy fey.",
+      "verifyDestination": "Saytu fii ñuy fey",
+      "verifyFailed": "Saytu bi antuwul."
     },
     "ownerStatement": {
       "title": "Relevé gérance",
@@ -6728,6 +6731,24 @@
         "phoneNotVerified": "Telefon bi ñu ko wóoralul.",
         "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii."
       }
+    },
+    "payoutMethods": {
+      "title": "Fan ngay bëgg a jot sa fey",
+      "subtitle": "Sa nimero du feeñ ci lu leer bu ñu ko denc. Agence biy fey moo koy saytu balaa fey bu jëkk bi.",
+      "empty": "Amul benn fu ñu denc.",
+      "verified": "Saytu nañu ko",
+      "pending": "Mungi xaar saytu",
+      "default": "Bu jëkk",
+      "makeDefault": "Def ko bu jëkk",
+      "remove": "Far ko",
+      "removeAria": "Far {masked}",
+      "kind": "Anam",
+      "phone": "Nimero telefon",
+      "iban": "IBAN walla nimero kont",
+      "holder": "Boroom kont bi (du war)",
+      "add": "Yokk",
+      "saveFailed": "Mënuñu denc fi ñuy fey.",
+      "removeFailed": "Mënuñu far fi ñuy fey."
     }
   },
   "contact": {
