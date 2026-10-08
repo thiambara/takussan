@@ -22,6 +22,7 @@ import {
   customerStatusValues,
   idTypeValues,
   normaliseCustomerForm,
+  sansCriteres,
   pipelineStageValues,
   seekingContractTypeValues,
   seekingPropertyTypeValues,
@@ -110,6 +111,11 @@ export function CustomerForm({
   const [duplicates, setDuplicates] = useState<CustomerDuplicateMatch[] | null>(null);
   const allowDuplicate = useRef(false);
 
+  // TCK-591 (verif-591 passe 2, N4) — l'API ne rend les critères qu'au personnel de l'agence de la
+  // fiche. Une fiche lue sans eux (le bailleur qui l'a ajoutée) n'en montre pas la section et ne
+  // les renvoie pas : vides, ils auraient effacé ceux de l'agent.
+  const showsCriteria = mode === 'create' || (customer !== undefined && 'budget_max' in customer);
+
   // La donnée porte la CLÉ, le rendu la résout (patron TCK-286). Les tables
   // françaises de `./options` restent en place tant que `app/(dashboard)/app/
   // customers/[id]/page.tsx` — hors de ce lot — les importe.
@@ -122,8 +128,9 @@ export function CustomerForm({
       schema: customerFormSchema,
       defaultValues: toDefaults(customer),
       onSubmit: async (values) => {
+        const normalise = normaliseCustomerForm(values);
         const payload = {
-          ...normaliseCustomerForm(values),
+          ...(showsCriteria ? normalise : sansCriteres(normalise)),
           ...(allowDuplicate.current ? { allow_duplicate: true } : {}),
         };
         allowDuplicate.current = false;
@@ -270,76 +277,78 @@ export function CustomerForm({
       </div>
 
       {/* TCK-591 §5 — ce que le prospect cherche ; le rapprochement et le résumé du matin en partent. */}
-      <fieldset className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
-        <legend className="font-display text-base font-semibold tracking-tight text-foreground">
-          {tCrm('criteria.title')}
-        </legend>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <FormSelect
+      {showsCriteria ? (
+        <fieldset className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
+          <legend className="font-display text-base font-semibold tracking-tight text-foreground">
+            {tCrm('criteria.title')}
+          </legend>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FormSelect
+              control={control}
+              name="seeking_contract_type"
+              label={tCrm('criteria.contractType')}
+              options={contractOptions}
+              placeholder={tCrm('criteria.any')}
+            />
+            <FormInput
+              control={control}
+              name="min_bedrooms"
+              label={tCrm('criteria.minBedrooms')}
+              inputMode="numeric"
+            />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FormInput control={control} name="budget_min" label={tCrm('criteria.budgetMin')} inputMode="decimal" />
+            <FormInput control={control} name="budget_max" label={tCrm('criteria.budgetMax')} inputMode="decimal" />
+          </div>
+          <Controller
             control={control}
-            name="seeking_contract_type"
-            label={tCrm('criteria.contractType')}
-            options={contractOptions}
-            placeholder={tCrm('criteria.any')}
-          />
-          <FormInput
-            control={control}
-            name="min_bedrooms"
-            label={tCrm('criteria.minBedrooms')}
-            inputMode="numeric"
-          />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <FormInput control={control} name="budget_min" label={tCrm('criteria.budgetMin')} inputMode="decimal" />
-          <FormInput control={control} name="budget_max" label={tCrm('criteria.budgetMax')} inputMode="decimal" />
-        </div>
-        <Controller
-          control={control}
-          name="seeking_property_types"
-          render={({ field }) => {
-            const selected = field.value ?? [];
-            return (
-              <div>
-                <p id="criteria-types" className="mb-1.5 text-sm font-medium">{tCrm('criteria.propertyTypes')}</p>
-                <div role="group" aria-labelledby="criteria-types" className="flex flex-wrap gap-2">
-                  {seekingPropertyTypeValues.map((type) => {
-                    const on = selected.includes(type);
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => field.onChange(on ? selected.filter((v) => v !== type) : [...selected, type])}
-                        className={
-                          'min-h-11 rounded-full border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring '
-                          + (on ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:bg-muted')
-                        }
-                      >
-                        {tPropertyType(type)}
-                      </button>
-                    );
-                  })}
+            name="seeking_property_types"
+            render={({ field }) => {
+              const selected = field.value ?? [];
+              return (
+                <div>
+                  <p id="criteria-types" className="mb-1.5 text-sm font-medium">{tCrm('criteria.propertyTypes')}</p>
+                  <div role="group" aria-labelledby="criteria-types" className="flex flex-wrap gap-2">
+                    {seekingPropertyTypeValues.map((type) => {
+                      const on = selected.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => field.onChange(on ? selected.filter((v) => v !== type) : [...selected, type])}
+                          className={
+                            'min-h-11 rounded-full border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring '
+                            + (on ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:bg-muted')
+                          }
+                        >
+                          {tPropertyType(type)}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          }}
-        />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <FormInput
-            control={control}
-            name="seeking_cities"
-            label={tCrm('criteria.cities')}
-            placeholder={tCrm('criteria.citiesPlaceholder')}
+              );
+            }}
           />
-          <FormInput
-            control={control}
-            name="seeking_neighborhoods"
-            label={tCrm('criteria.neighborhoods')}
-            placeholder={tCrm('criteria.neighborhoodsPlaceholder')}
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">{tCrm('criteria.help')}</p>
-      </fieldset>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FormInput
+              control={control}
+              name="seeking_cities"
+              label={tCrm('criteria.cities')}
+              placeholder={tCrm('criteria.citiesPlaceholder')}
+            />
+            <FormInput
+              control={control}
+              name="seeking_neighborhoods"
+              label={tCrm('criteria.neighborhoods')}
+              placeholder={tCrm('criteria.neighborhoodsPlaceholder')}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">{tCrm('criteria.help')}</p>
+        </fieldset>
+      ) : null}
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
         {!compact ? (

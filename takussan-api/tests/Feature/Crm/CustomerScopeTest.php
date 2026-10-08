@@ -162,6 +162,40 @@ class CustomerScopeTest extends ApiTestCase
             ->assertJsonPath('data.seeking_cities', ['Dakar']);
     }
 
+    /**
+     * verif-591 passe 2 (N4) — les critères appartiennent au personnel en écriture aussi. Le bailleur
+     * auteur d'une fiche d'agence ne les voit pas ; son formulaire les renvoyait vides, et
+     * l'enregistrement effaçait ceux de l'agent. Ses clés de critères sont ignorées, le reste passe.
+     */
+    public function test_a_landlord_saving_his_customer_does_not_wipe_the_agent_criteria(): void
+    {
+        $agent = $this->member('agent');
+        $landlord = $this->member('owner');
+        $customer = Customer::factory()->create(['agency_id' => $this->agency->id, 'added_by_id' => $landlord->id]);
+        $this->actingAsApi($agent)->apiPut("/api/customers/{$customer->id}", [
+            'budget_max' => 300000, 'seeking_cities' => ['Dakar'], 'min_bedrooms' => 2,
+        ])->assertOk();
+        $this->app['auth']->forgetGuards();
+
+        // Le corps que construit le formulaire dont les critères sont vides.
+        $this->actingAsApi($landlord)->apiPut("/api/customers/{$customer->id}", [
+            'first_name' => 'Awa', 'last_name' => 'Diop', 'seeking_contract_type' => null, 'budget_min' => null,
+            'budget_max' => null, 'seeking_property_types' => null, 'seeking_cities' => null,
+            'seeking_neighborhoods' => null, 'min_bedrooms' => 9,
+        ])->assertOk()->assertJsonMissingPath('data.budget_max');
+
+        $fresh = $customer->fresh();
+        $this->assertSame('Awa', $fresh->first_name);
+        $this->assertSame('300000.00', (string) $fresh->budget_max);
+        $this->assertSame(['Dakar'], $fresh->seeking_cities);
+        $this->assertSame(2, (int) $fresh->min_bedrooms);
+        $this->app['auth']->forgetGuards();
+
+        // Le personnel, lui, les écrit toujours.
+        $this->actingAsApi($agent)->apiPut("/api/customers/{$customer->id}", ['budget_max' => null])->assertOk();
+        $this->assertNull($customer->fresh()->budget_max);
+    }
+
     /** @return list<int> */
     private function listed(User $as): array
     {

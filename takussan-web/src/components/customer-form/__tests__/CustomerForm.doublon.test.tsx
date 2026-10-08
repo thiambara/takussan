@@ -8,14 +8,16 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
+import type { CustomerDetail } from '@/types/customer';
 import { CustomerForm } from '../CustomerForm';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), back: vi.fn() }) }));
 
 const createCustomerAction = vi.fn();
+const updateCustomerAction = vi.fn();
 vi.mock('@/app/actions/dashboard-customers', () => ({
   createCustomerAction: (...args: unknown[]) => createCustomerAction(...args),
-  updateCustomerAction: vi.fn(),
+  updateCustomerAction: (...args: unknown[]) => updateCustomerAction(...args),
 }));
 
 async function remplir() {
@@ -89,5 +91,33 @@ describe('CustomerForm — doublon et critères', () => {
 
     expect(await screen.findByText('Le budget maximum doit être supérieur ou égal au minimum.')).toBeInTheDocument();
     expect(createCustomerAction).not.toHaveBeenCalled();
+  });
+
+  /**
+   * TCK-591 (verif-591 passe 2, N4) — l'API ne rend les critères qu'au personnel de l'agence. Une
+   * fiche lue sans eux (le bailleur qui l'a ajoutée) n'en montre pas la section et ne les renvoie
+   * pas : vides, ils effaçaient ceux de l'agent.
+   */
+  it("n'affiche ni ne renvoie les critères d'une fiche lue sans eux", async () => {
+    updateCustomerAction.mockResolvedValue({ ok: true, data: { id: 4 } });
+    const base = { id: 4, first_name: 'Awa', last_name: 'Diop', email: 'awa@example.sn', pipeline_stage: 'lead', status: 'active' };
+    const user = userEvent.setup();
+
+    const { unmount } = render(withIntl(<CustomerForm mode="edit" customer={base as unknown as CustomerDetail} onSuccess={vi.fn()} />));
+    expect(screen.queryByLabelText('Budget maximum (FCFA)')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateCustomerAction).toHaveBeenCalledTimes(1));
+    expect(updateCustomerAction.mock.calls[0][1]).toMatchObject({ first_name: 'Awa' });
+    expect(updateCustomerAction.mock.calls[0][1]).not.toHaveProperty('budget_max');
+    expect(updateCustomerAction.mock.calls[0][1]).not.toHaveProperty('seeking_cities');
+    unmount();
+
+    // Le personnel, qui les lit, les voit et les renvoie.
+    const lue = { ...base, budget_max: '300000.00', seeking_cities: ['Dakar'] };
+    render(withIntl(<CustomerForm mode="edit" customer={lue as unknown as CustomerDetail} onSuccess={vi.fn()} />));
+    expect(screen.getByLabelText('Budget maximum (FCFA)')).toHaveValue('300000');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateCustomerAction).toHaveBeenCalledTimes(2));
+    expect(updateCustomerAction.mock.calls[1][1]).toMatchObject({ budget_max: 300000, seeking_cities: ['Dakar'] });
   });
 });

@@ -143,6 +143,27 @@ export interface CustomerFormPayload {
   min_bedrooms?: number | null;
 }
 
+/**
+ * TCK-591 (verif-591 passe 2, N4) — les critères de recherche appartiennent au personnel de l'agence :
+ * l'API ne les rend qu'à lui et ignore ceux qu'un autre appelant envoie.
+ */
+export const CRITERIA_KEYS = [
+  'seeking_contract_type',
+  'budget_min',
+  'budget_max',
+  'seeking_property_types',
+  'seeking_cities',
+  'seeking_neighborhoods',
+  'min_bedrooms',
+] as const;
+
+/** Le corps sans les critères : pour qui ne les a pas lus, les envoyer vides les effacerait. */
+export function sansCriteres(payload: CustomerFormPayload): CustomerFormPayload {
+  const copie: Partial<Record<keyof CustomerFormPayload, unknown>> = { ...payload };
+  for (const cle of CRITERIA_KEYS) delete copie[cle];
+  return copie as CustomerFormPayload;
+}
+
 /** « Dakar, Thiès » → `['Dakar', 'Thiès']` ; vide → `null` (le critère est effacé). */
 function liste(v: string | undefined): string[] | null {
   const items = (v ?? '').split(',').map((s) => s.trim()).filter((s) => s.length > 0);

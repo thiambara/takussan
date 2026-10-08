@@ -77,8 +77,8 @@ class CustomerResource extends BaseResource
     }
 
     /**
-     * Super-admin, personnel de l'agence de la fiche, ou — fiche hors agence — son auteur. Les
-     * agences du personnel sont lues une fois par requête, pas une fois par ligne.
+     * {@see Customer::criteriaBelongTo()}, la règle partagée avec l'écriture. Les agences du personnel
+     * sont lues une fois par requête, pas une fois par ligne.
      */
     private function readsCriteria(Request $request): bool
     {
@@ -86,18 +86,12 @@ class CustomerResource extends BaseResource
         if ($user === null) {
             return false;
         }
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-        if ($this->agency_id === null) {
-            return $this->added_by_id === $user->id;
-        }
 
         $key = 'tck591.staff_agency_ids';
         if (! $request->attributes->has($key)) {
             $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
         }
 
-        return in_array((int) $this->agency_id, $request->attributes->get($key), true);
+        return $this->resource->criteriaBelongTo($user, $request->attributes->get($key));
     }
 }

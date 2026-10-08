@@ -25,6 +25,12 @@ class Customer extends AbstractModel
 {
     use Auditable, HasFactory, Searchable, SoftDeletes;
 
+    /** TCK-591 — les critères de recherche du prospect : ils appartiennent au personnel de l'agence. */
+    public const CRITERIA_FIELDS = [
+        'seeking_contract_type', 'budget_min', 'budget_max', 'seeking_property_types',
+        'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
+    ];
+
     /**
      * Override the default Auditable whitelist to exclude the `id_number`
      * field (government ID), which is sensitive and should not be surfaced
@@ -146,6 +152,29 @@ class Customer extends AbstractModel
      * @param  Builder<Customer>  $query
      * @return Builder<Customer>
      */
+    /**
+     * TCK-591 (verif-591 m2, passe 2 N4) — qui lit et écrit les critères : super-admin, personnel de
+     * l'agence de la fiche, ou — fiche hors agence — son auteur. Le bailleur auteur d'une fiche
+     * d'agence garde la fiche (§9), pas les critères qu'y pose l'agent.
+     *
+     * @param  list<int>|null  $staffAgencyIds  les agences du personnel, si l'appelant les a déjà lues
+     */
+    public function criteriaBelongTo(User $user, ?array $staffAgencyIds = null): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        if ($this->agency_id === null) {
+            return $this->added_by_id === $user->id;
+        }
+
+        return in_array(
+            (int) $this->agency_id,
+            $staffAgencyIds ?? app(MembershipCapabilityResolver::class)->staffAgencyIds($user),
+            true,
+        );
+    }
+
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         if ($user->isSuperAdmin()) {
