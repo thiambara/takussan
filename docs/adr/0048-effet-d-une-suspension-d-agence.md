@@ -65,7 +65,11 @@ l'export des données — continue.**
      - terminer déclencherait la confirmation du demandeur et ce que TCK-594 en lit.
 
      Ils attendent la levée, qui ne perd rien : la suspension est réversible et les données restent
-     en place.
+     en place. Les fermer est une **décision de session** (validée en revue de TCK-600), et elle
+     est elle-même réversible. `EnsureAgencyWritable::interventionVisee()` verrouille toute
+     écriture qui porte `{maintenanceRequest}`. Rouvrir l'un des deux revient donc à y exempter
+     sa route par son nom. Le test du geste dans `AgencySuspensionProviderLockTest` doit alors
+     devenir un témoin ouvert.
    - Comme pour les membres, le verrou ne vaut que pour `suspended` : une agence `inactive` reçoit
      encore.
 4. **Second chemin.** `MembershipCapabilityResolver` refuse toute capacité d'**écriture** dans une
