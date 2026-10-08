@@ -79,4 +79,19 @@ describe('signalements — sans compte, jeton si connecté', () => {
 
     expect(appels()[0]!.enTetes).toMatchObject({ Authorization: 'Bearer jeton-de-test' });
   });
+
+  /**
+   * Raccord TCK-598 (verif-598 m5) — l'identifiant d'avis est un ARGUMENT DU CLIENT, comme le slug :
+   * une action serveur reçoit ce que le client envoie, pas ce que TypeScript annonce. Interpolé
+   * brut, il faisait poster le serveur Next sur un autre chemin de l'hôte de l'API.
+   */
+  it.each([['../../admin/moderation/review:1/decide'], ['42?x=1'], [0], [-3], [1.5]])(
+    'un identifiant d’avis hors forme (%s) ne fait partir aucune requête',
+    async (identifiant) => {
+      const res = await submitReviewReport(identifiant as unknown as number, { reason: 'spam' });
+
+      expect(res).toMatchObject({ ok: false, status: 404 });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    },
+  );
 });

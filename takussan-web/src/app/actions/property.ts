@@ -83,11 +83,16 @@ export async function submitPropertyReport(
   }
 }
 
-/** TCK-597 (V12) — la jumelle pour un avis public : même régime, sans compte, jeton si connecté. */
+/**
+ * TCK-597 (V12) — la jumelle pour un avis public : même régime, sans compte, jeton si connecté.
+ * Raccord TCK-598 (m5) : l'identifiant vient du client comme le slug ; hors d'un entier positif,
+ * rien ne part, et l'appelant reçoit le 404 d'un élément inconnu.
+ */
 export async function submitReviewReport(
   reviewId: number,
   payload: ReportPayload,
 ): Promise<ActionResult> {
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0) return bienIntrouvable();
   const token = await getToken();
   try {
     await apiRequest(`/api/public/reviews/${reviewId}/report`, {
