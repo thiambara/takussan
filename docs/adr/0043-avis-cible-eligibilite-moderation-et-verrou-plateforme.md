@@ -113,7 +113,8 @@ L'éligibilité se juge dans le `authorize()` du FormRequest, donc **avant** la 
   son demandeur (`requester_id`) ou par le personnel de l'agence du bien.
 
 **Unicité** : une fois par auteur et par sujet pour un bien, un agent ou une agence (vérifiée par le
-contrôleur, 422) ; une fois par auteur et par **intervention** pour un prestataire. La base la
+contrôleur, 422, **sous le verrou de la ligne parent** — le bien, l'agent, l'agence — autour du
+contrôle et de l'écriture : verif-597 M4 a posé quatre avis par quatre envois simultanés sur un bien) ; une fois par auteur et par **intervention** pour un prestataire. La base la
 garde par l'index unique partiel `reviews_author_context_uniq (author_id, reviewable_type,
 context_type, context_id) WHERE context_id IS NOT NULL`. `reviewable_type` y figure — le ticket
 nommait l'index sans lui — parce qu'un même bail rend éligible à noter le bien, l'agent **et**

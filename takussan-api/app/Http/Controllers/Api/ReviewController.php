@@ -259,18 +259,25 @@ class ReviewController extends Controller
         // StoreForPropertyReviewRequest::authorize(), donc AVANT la validation : un appel non
         // éligible ET mal formé doit rendre 403, pas 422. Le 422 ci-dessous reste ici — « déjà
         // noté » n'est pas un refus d'accès mais un état métier.
-        // verif-597 M2 — un avis RETIRÉ par la plateforme compte : il interdit d'en redéposer un.
-        $alreadyReviewed = $property->reviews()->withTrashed()->where('author_id', $user->id)->exists();
-        abort_code_if($alreadyReviewed, 422, 'review.property_already_reviewed');
-
         $data = $request->validated();
 
-        $review = $property->reviews()->create(array_merge($data, [
-            'author_id' => $user->id,
-            'is_approved' => false,
-            'status' => ReviewStatus::Pending,
-            'metadata' => $this->creationMetadata($request),
-        ]));
+        // verif-597 M4 — le contrôle et l'écriture sous le verrou de la ligne PARENT : l'index
+        // `reviews_author_context_uniq` ne couvre pas cette voie (pas de `context_id`), et quatre
+        // envois simultanés posaient quatre avis.
+        $review = DB::transaction(function () use ($property, $user, $data, $request) {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+
+            // verif-597 M2 — un avis RETIRÉ par la plateforme compte : il interdit d'en redéposer un.
+            $alreadyReviewed = $property->reviews()->withTrashed()->where('author_id', $user->id)->exists();
+            abort_code_if($alreadyReviewed, 422, 'review.property_already_reviewed');
+
+            return $property->reviews()->create(array_merge($data, [
+                'author_id' => $user->id,
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
         $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
@@ -359,17 +366,22 @@ class ReviewController extends Controller
         $user = $request->user();
 
         // TCK-305 — même raison que dans storeForProperty() ci-dessus.
-        $alreadyReviewed = $agency->reviews()->withTrashed()->where('author_id', $user->id)->exists();
-        abort_code_if($alreadyReviewed, 422, 'review.agency_already_reviewed');
-
         $data = $request->validated();
 
-        $review = $agency->reviews()->create(array_merge($data, [
-            'author_id' => $user->id,
-            'is_approved' => false,
-            'status' => ReviewStatus::Pending,
-            'metadata' => $this->creationMetadata($request),
-        ]));
+        // verif-597 M4 — même verrou parent que storeForProperty().
+        $review = DB::transaction(function () use ($agency, $user, $data, $request) {
+            Agency::query()->whereKey($agency->getKey())->lockForUpdate()->first();
+
+            $alreadyReviewed = $agency->reviews()->withTrashed()->where('author_id', $user->id)->exists();
+            abort_code_if($alreadyReviewed, 422, 'review.agency_already_reviewed');
+
+            return $agency->reviews()->create(array_merge($data, [
+                'author_id' => $user->id,
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
         $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
