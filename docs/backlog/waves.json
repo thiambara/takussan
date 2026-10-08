@@ -67,6 +67,7 @@
     "70": "Système de design synchronisé vers claude.ai/design : le calendrier rendu à la charte, et les listes de l'import gardées (2026-09-26)",
     "71": "Identité : le logo « lever de toit » posé sur la chrome publique et en icône du site (2026-09-28)",
     "72": "Accueil : barre de recherche de la maquette (Acheter | Louer segmenté) et revue de design de la page (2026-09-29)",
-    "73": "Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)"
+    "73": "Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)",
+    "74": "Suites de la vague 73 — défauts relevés par les contre-vérifications adverses, hors périmètre de leur ticket, re-mesurés sur dev le 2026-10-08 (TCK-605 → TCK-619)"
   }
 }

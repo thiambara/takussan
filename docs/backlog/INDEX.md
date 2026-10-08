@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**548 tickets** — 28 ouverts, 518 livrés.
+**563 tickets** — 43 ouverts, 518 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
+| 📋 Todo | 41 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
@@ -59,6 +59,21 @@
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
 - [TCK-604](tickets/TCK-604-free-money-quand-la-documentation-marchande-est-versee.md) — Free Money, payé en ligne comme Wave et Orange Money — dès que la documentation marchande est versée au dépôt (suite de TCK-602 §6) `M · P1 · full`
+- [TCK-605](tickets/TCK-605-saisie-en-texte-dans-tous-les-e-mails.md) — Une saisie reste du texte dans TOUS les e-mails : fermer le relais d'hameçonnage anonyme de `lead.received`, puis chaque notification qui rend une saisie en Markdown (suite de TCK-599, B1) `M · P0 · bug`
+- [TCK-606](tickets/TCK-606-webhooks-et-passerelle-bornes-par-l-initiation.md) — Passerelle de paiement : `custom_data` de Lemon Squeezy ne solde que ce qui a été initié et au bon montant, limiteurs par jeton, journal des webhooks alertable et purgé plus tôt (suites de TCK-293 M-1/m-1/O-2/O-5 et TCK-602 m4) `M · P1 · back`
+- [TCK-607](tickets/TCK-607-bail-renouvele-ou-resilie-ne-paie-ni-ne-rend-deux-fois.md) — Un bail renouvelé ou résilié ne rend pas deux fois la caution et ne facture plus : caution héritée, échéancier d'un bail résilié, loyer créé après la fin, garants d'un bail en vigueur (suites de TCK-594 H-1 et TCK-596 E11, m-n, n3) `L · P1 · back`
+- [TCK-608](tickets/TCK-608-part-versee-et-doublon-a-rembourser.md) — Une échéance dit ce qui a été versé et ce qui reste à rembourser : la part versée s'enregistre et se solde, `refund_pending` voit tous les doublons et retombe une fois remboursé (suites de TCK-595 passe 3 et TCK-596 m-p) `M · P2 · full`
+- [TCK-609](tickets/TCK-609-pouvoirs-plateforme-hors-console-sous-second-facteur.md) — Un pouvoir de la plateforme exige le second facteur où qu'il s'exerce : `featured`, réponses d'avis, gestes du bail et tout ce que `Gate::before` ouvre hors de `/api/admin` (suites de TCK-597 passes 3-4 et TCK-596 passe 4) `M · P1 · back`
+- [TCK-610](tickets/TCK-610-pages-d-entree-que-les-liens-promettent.md) — Les pages d'entrée que les liens promettent : accepter une invitation, renouveler l'appareil de second facteur, et l'entrée des opérateurs `viewer` / `support` dans la console (suites de TCK-589 §3 et TCK-600) `M · P1 · full`
+- [TCK-611](tickets/TCK-611-une-annonce-reecrite-repasse-par-la-file.md) — Une annonce réécrite, ou rendue publique après un passage en privé, repasse par la file de modération de son agence (suite de TCK-597, verif-597 passes 2 et 3 — décision du porteur) `S · P2 · back`
+- [TCK-612](tickets/TCK-612-le-corps-seul-et-l-ip-du-visiteur.md) — Ce qui transite par le BFF garde sa forme : une écriture lit le corps seul (`BaseFormRequest`), et chaque route handler transmet l'IP du visiteur par l'adresse interne (suites de TCK-600 passe 2 et du rapport de TCK-600) `M · P2 · full`
+- [TCK-613](tickets/TCK-613-journal-sans-donnee-personnelle-et-export-nominatif.md) — ADR-0044 tenu au-delà du SQL : aucune exception ni pilote de journal n'écrit une donnée personnelle, et l'export du journal d'audit n'est plus un droit au porteur (suites de TCK-601 m2 et m4, TCK-602 passe 2) `M · P2 · back`
+- [TCK-614](tickets/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md) — `APP_KEY` se tourne sans rien perdre : clé d'empreinte distincte pour les recherches HMAC, commande de ré-chiffrement, sauvegarde et procédure écrites (ADR-0044, suites de TCK-599 et TCK-601) `M · P1 · technique`
+- [TCK-615](tickets/TCK-615-alertes-un-envoi-parti-ne-repart-pas.md) — Alertes de recherche : un e-mail parti ne repart pas, le premier envoi ne vend pas l'historique comme nouveau, le job tient sous plusieurs workers, et un tiers n'épuise pas l'abonnement d'un contact (suites de TCK-599) `M · P2 · back`
+- [TCK-616](tickets/TCK-616-agent-responsable-revue-lisible-et-selecteur-du-personnel.md) — Agent responsable, après TCK-603 : une revue de réparation qui se lit sans `activity_log`, un sélecteur alimenté par le personnel actif, et le bail d'un agent parti (suites de verif-603 passes 1 et 2) `S · P2 · full`
+- [TCK-617](tickets/TCK-617-tableau-de-bord-et-agenda-de-l-agent-cloisonnes.md) — Tableau de bord et agenda de l'agent : les visites d'une autre agence n'y passent plus, le lien d'agenda meurt avec la session volée, le pipeline compte enfin ses changements d'étape (suites de TCK-590, TCK-591 et TCK-595) `M · P1 · full`
+- [TCK-618](tickets/TCK-618-site-public-slug-quartiers-vues-et-cache.md) — Site public, après TCK-598 : un titre sans lettre latine garde un slug lisible, un quartier n'est compté qu'une fois, une vue se compte par visiteur et sur un bien visible, un marquage en masse invalide le cache (suites de verif-598) `S · P2 · back`
+- [TCK-619](tickets/TCK-619-gardes-de-test-qu-une-mutation-traverse.md) — Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, les branches globale et locataire de `/dashboard/stats`, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596) `S · P2 · technique`
 
 ## 🚧 Doing
 

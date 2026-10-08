@@ -19,6 +19,7 @@
 | 008 | 2026-04-14 | [`pass-008-2026-04-14-2102`](./pass-008-2026-04-14-2102/00-summary.md) | Stabilité post-convergence — 3e passe consécutive sans changement |
 | 009 | 2026-05-04 | [`pass-009-2026-05-04-0153`](./pass-009-2026-05-04-0153/00-summary.md) | Convergence rompue — profils polymorphes + BankStatement/BankStatementLine absents de la spec |
 | 010 | 2026-05-04 | [`pass-010-2026-05-04-0918`](./pass-010-2026-05-04-0918/00-summary.md) | Stabilité post-009 — sources inchangées, R1–R7 toujours non appliquées *(vrai le 2026-05-04, périmé depuis — cf. la re-mesure du 2026-08-16 plus bas)* |
+| 011 | 2026-10-08 | [`pass-011-2026-10-08-2221`](./pass-011-2026-10-08-2221/00-summary.md) | **Convergence rompue, mesurée sur les migrations** — courtier décrit vivant après suppression de ses tables, deux modèles sans section, rôles personnalisés dits non livrés, sorties d'argent en entrées minimales |
 
 ## Tableau d'évolution
 
@@ -34,6 +35,12 @@
 | 008 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 | 009 | 2026-05-04 | **~208** | **39** | **232** | **15** | **2** | **+41** | **+3** | **+2** |
 | 010 | 2026-05-04 | ~208 | 39 | 232 | 15 | 2 | 0 | 0 | 0 |
+| 011 | 2026-10-08 | **368** | **89** | **328** | **125** | **4** | n.c. | n.c. | n.c. |
+
+> **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
+> catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
+> plus 2 modèles sans section). Ses compteurs ne se soustraient pas à ceux de la passe 010 — voir
+> « Méthode » dans son `00-summary.md`.
 
 ## Statut de convergence
 
@@ -47,10 +54,21 @@
 > passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
 > présent qui a coûté.
 
+### Passe 011 (2026-10-08) — l'état courant
+
+**Convergence rompue : 4 ❌ côté modèles, 0 ❌ côté features.** Les quatre : `models-spec.md` §36 et §38
+décrivent des tables supprimées le 2026-10-07 (TCK-586, ADR-0030) ; `AgencyAdminProfile` et
+`NotificationPreference` existent en code sans section. 13 recommandations à `features.md`, 41 à
+`models-spec.md` ; chaque constat de schéma y est adossé à une migration nommée. Détail :
+[`pass-011-2026-10-08-2221/00-summary.md`](./pass-011-2026-10-08-2221/00-summary.md).
+
+> *Cet état est daté du 2026-10-08.* Le relire au présent après une fusion qui touche
+> `models-spec.md` reproduirait exactement le défaut que le bloc ci-dessus raconte : le re-mesurer.
+
 ### Re-mesure du 2026-08-16 (TCK-310)
 
 **Portée, dite explicitement : ce n'est PAS une passe 011.** Aucune nouvelle matrice de corrélation
-n'a été produite ; les compteurs ✅/⚠️/❌ du tableau ci-dessus s'arrêtent donc à la passe 010, et il
+n'a été produite ; les compteurs ✅/⚠️/❌ du tableau ci-dessus s'arrêtaient donc à la passe 010 (jusqu'à la passe 011), et il
 serait faux d'en publier de nouveaux sans avoir refait l'analyse croisée. Ce qui a été re-mesuré,
 c'est **le sort des sept recommandations R1–R7**, une par une, contre le code et contre
 `models-spec.md`.

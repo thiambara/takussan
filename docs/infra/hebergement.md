@@ -70,7 +70,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 
 | Élément | Valeur | Relevé le | Commande |
 |---|---|---|---|
-| Version de Dokploy | `dokploy/dokploy:v0.30.6` — posée par `DOKPLOY_VERSION` à l'installation (runbook, étape 6), relevée dans `versions.json` (TCK-526) | 2026-09-14 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
+| Version de Dokploy | `dokploy/dokploy:v0.30.8` — v0.30.6 posée par `DOKPLOY_VERSION` à l'installation (runbook, étape 6, TCK-526), montée en v0.30.8 par Settings → Update le 2026-10-08 ; Traefik non redémarré, `traefik.yml` intact (accessLog et courriel ACME relus) ; relevée dans `versions.json` | 2026-10-08 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
 | Version de Docker | `29.8.0` (paquets `5:29.8.0-1~ubuntu.24.04~noble`, containerd.io `2.3.5-1`, compose `5.5.1-1`, buildx `0.37.1-1`), **tenus par `apt-mark hold`** et épinglés dans `bootstrap.sh` § 0 (TCK-526). Rejoué le 2026-09-14 : `DOCKER_VERSION=99.0.0 bash bootstrap.sh` refuse avant tout geste ; `bash bootstrap.sh` sort en 0, `docker --version` inchangé | 2026-09-14 | `docker version --format '{{.Server.Version}}'` ; `apt-mark showhold` ; `dpkg-query -W docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin` |
 | Courriel ACME (Let's Encrypt) | l'adresse du compte administrateur de Dokploy, posée le 2026-09-14, 23:14 Z dans `certificatesResolvers.letsencrypt.acme.email` de `/etc/dokploy/traefik/traefik.yml` (TCK-527 ; était `test@localhost.com`, écart A3 étape 5) ; Traefik redémarré, `acme.json` **intact** (même `sha256`, même date). ⚠ Le compte Let's Encrypt déjà enregistré garde son contact d'origine : Traefik ne le met pas à jour sans ré-enregistrer, ce qui demanderait d'effacer `acme.json` et de ré-émettre les cinq certificats — non fait, `certificats.yml` porte l'alerte d'échéance | 2026-09-14 | `grep -n email: /etc/dokploy/traefik/traefik.yml` (ne rend plus `localhost`) ; `sha256sum /etc/dokploy/traefik/dynamic/acme.json` avant et après |
 | Compte et 2FA | un seul compte (le porteur, créé le 2026-09-14), **`two_factor_enabled = t`** ; l'interface est derrière Cloudflare et le port 3000 est fermé (ci-dessous) | 2026-09-14 | `docker exec $(docker ps -q -f name=dokploy-postgres) psql -U dokploy -d dokploy -tAc 'select two_factor_enabled, created_at::date from "user"'` |
@@ -287,9 +287,9 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
    session SSH. Le 2026-09-14, une coupure réseau du poste a tué l'installation avec la session.
 
    ```bash
-   ssh root@178.18.247.62 'nohup sh -c "export DOKPLOY_VERSION=v0.30.6 && curl -sSL https://dokploy.com/install.sh | sh" > /root/dokploy-install.log 2>&1 < /dev/null &'
+   ssh root@178.18.247.62 'nohup sh -c "export DOKPLOY_VERSION=v0.30.8 && curl -sSL https://dokploy.com/install.sh | sh" > /root/dokploy-install.log 2>&1 < /dev/null &'
    ssh root@178.18.247.62 'tail -3 /root/dokploy-install.log'   # jusqu'à « Dokploy is installed! »
-   ssh root@178.18.247.62 "docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'"   # → dokploy/dokploy:v0.30.6@sha256:…
+   ssh root@178.18.247.62 "docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'"   # → dokploy/dokploy:v0.30.8@sha256:…
    ```
 
    ⚠ **La version se pose, elle ne se déduit pas** (TCK-526) : `install.sh` lit `DOKPLOY_VERSION`
