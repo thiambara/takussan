@@ -169,6 +169,57 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
         $this->assertSame(['price_max' => 1], SavedSearch::find($search)->criteria);
     }
 
+    /**
+     * verif-599 m4 — le vocabulaire est fermé sur les VALEURS : chaque forme ci-dessous rend 422,
+     * sur le compte comme pour le visiteur, et rien n'est stocké.
+     *
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function valeursRefusees(): array
+    {
+        return [
+            'type imbriqué' => [['type' => [['villa']]]],
+            'type objet' => [['type' => ['a' => 'villa']]],
+            'tags objet' => [['tags' => ['a' => ['b' => 'c']]]],
+            'condition imbriquée' => [['condition' => ['x' => ['y' => 1]]]],
+            'condition inconnue' => [['condition' => ['new', 'neuf']]],
+            'condition inconnue en chaîne' => [['condition' => 'new,neuf']],
+            'rayon sans point' => [['radius_km' => 2]],
+            'latitude seule' => [['lat' => 14.7]],
+            'point sans latitude' => [['radius_km' => 2, 'lng' => -17.45]],
+            'point sans longitude' => [['radius_km' => 2, 'lat' => 14.7]],
+            'rayon nul' => [['radius_km' => 0, 'lat' => 14.7, 'lng' => -17.45]],
+            'contrat hors énumération' => [['contract_type' => 'louer']],
+            'titre hors énumération' => [['title_type' => 'acte']],
+        ];
+    }
+
+    #[DataProvider('valeursRefusees')]
+    public function test_une_valeur_hors_vocabulaire_rend_422(array $criteres): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $this->postJson('/api/saved-searches', ['name' => 'Piège', 'criteria' => $criteres])
+            ->assertUnprocessable();
+
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/public/search-alerts', [
+            'criteria' => $criteres, 'frequency' => 'daily', 'channel' => 'email',
+            'email' => 'awa@exemple.sn', 'locale' => 'fr', 'consent' => true,
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('saved_searches', 0);
+    }
+
+    /** Les deux formes d'une clé multi-valuée — liste du front, chaîne de l'URL — restent acceptées. */
+    public function test_les_deux_formes_d_une_liste_sont_acceptees(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        foreach ([['type' => 'house,villa', 'condition' => 'new,renovated'], ['type' => ['house', 'villa'], 'condition' => ['new']]] as $i => $criteres) {
+            $this->postJson('/api/saved-searches', ['name' => "Forme {$i}", 'criteria' => $criteres])->assertCreated();
+        }
+    }
+
     /** La forme du front passe telle quelle (tableaux de `type`/`condition`, booléens, `cities`). */
     public function test_la_forme_exacte_du_front_est_acceptee(): void
     {

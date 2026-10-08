@@ -2,6 +2,12 @@
 
 namespace App\Support;
 
+use App\Http\Requests\Public\SearchPublicPropertyRequest;
+use App\Models\Enums\PropertyCondition;
+use App\Models\Enums\TitleType;
+use Closure;
+use Illuminate\Validation\Rule;
+
 /**
  * TCK-599 (ADR-0050 §2) — le vocabulaire FERMÉ de `saved_searches.criteria`, écrit une seule fois.
  *
@@ -14,6 +20,11 @@ namespace App\Support;
  *
  * `SavedSearchCriteriaVocabularyTest` prouve, clé par clé, que chacune filtre réellement : une clé
  * ajoutée ici sans être lue par `PropertySearchService::buildFilter()` le fait rougir.
+ *
+ * Fermé sur les VALEURS aussi (verif-599 m4) : les règles de valeur de `/properties`
+ * (`SearchPublicPropertyRequest`) s'appliquent ici. Une liste imbriquée dans `type` faisait
+ * échouer l'alerte chaque jour (« Array to string conversion ») ; un rayon sans point n'était
+ * jamais appliqué ; `contract_type=louer` était stocké quand `/properties` le refuse.
  */
 final class SavedSearchCriteria
 {
@@ -43,10 +54,15 @@ final class SavedSearchCriteria
             $attribute.'.city' => ['sometimes', 'nullable', 'string', 'max:120'],
             $attribute.'.cities' => ['sometimes', 'array', 'max:20'],
             $attribute.'.cities.*' => ['string', 'max:120'],
-            $attribute.'.radius_km' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            $attribute.'.lat' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
-            $attribute.'.lng' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
-            $attribute.'.contract_type' => ['sometimes', 'nullable', 'string', 'max:40'],
+            // Le contrat « point + rayon » de `/properties` (ADR-0023) : le rayon exige le point.
+            $attribute.'.radius_km' => ['sometimes', 'nullable', 'numeric', 'gt:0', 'max:'.SearchPublicPropertyRequest::RADIUS_KM_MAX],
+            // Sans `sometimes` : `required_with` doit pouvoir réclamer une coordonnée ABSENTE.
+            $attribute.'.lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:'.$attribute.'.lng,'.$attribute.'.radius_km'],
+            $attribute.'.lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:'.$attribute.'.lat,'.$attribute.'.radius_km'],
+            $attribute.'.contract_type' => ['sometimes', 'nullable', 'in:sale,rent'],
+            $attribute.'.type' => ['sometimes', 'nullable', self::listeDeChaines(500)],
+            $attribute.'.tags' => ['sometimes', 'nullable', self::listeDeChaines(500)],
+            $attribute.'.condition' => ['sometimes', 'nullable', self::listeDeChaines(100, fn (string $v) => PropertyCondition::tryFrom($v) !== null)],
             $attribute.'.rent_period' => ['sometimes', 'nullable', 'string', 'max:40'],
             $attribute.'.price_min' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             $attribute.'.price_max' => ['sometimes', 'nullable', 'numeric', 'min:0'],
@@ -58,8 +74,39 @@ final class SavedSearchCriteria
             $attribute.'.featured' => ['sometimes', 'nullable', 'boolean'],
             $attribute.'.floor_number' => ['sometimes', 'nullable', 'integer'],
             $attribute.'.available_from' => ['sometimes', 'nullable', 'date'],
-            $attribute.'.title_type' => ['sometimes', 'nullable', 'string', 'max:40'],
+            $attribute.'.title_type' => ['sometimes', 'nullable', Rule::enum(TitleType::class)],
         ];
+    }
+
+    /**
+     * Une clé multi-valuée : une chaîne (`a,b`, la forme de l'URL) ou une liste PLATE de chaînes
+     * (la forme du front), chaque valeur acceptée par `$valide`. Une liste imbriquée, un objet ou
+     * un nombre rendent 422.
+     *
+     * @param  (Closure(string): bool)|null  $valide
+     */
+    private static function listeDeChaines(int $max, ?Closure $valide = null): Closure
+    {
+        return function (string $attribut, mixed $valeur, Closure $echec) use ($max, $valide): void {
+            $valeurs = is_string($valeur) ? explode(',', $valeur) : $valeur;
+            if (! is_array($valeurs) || ! array_is_list($valeurs)
+                || mb_strlen(is_string($valeur) ? $valeur : implode(',', array_filter($valeurs, 'is_string'))) > $max) {
+                $echec(__('validation.array', ['attribute' => $attribut]));
+
+                return;
+            }
+            foreach ($valeurs as $v) {
+                // Un champ laissé vide : `BaseFormRequest` l'a ramené à null, ce n'est pas une forme.
+                if ($v === null) {
+                    continue;
+                }
+                if (! is_string($v) || ($valide !== null && ! $valide(trim($v)))) {
+                    $echec(__('validation.in', ['attribute' => $attribut]));
+
+                    return;
+                }
+            }
+        };
     }
 
     /**
