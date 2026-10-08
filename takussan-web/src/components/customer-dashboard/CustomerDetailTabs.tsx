@@ -5,6 +5,10 @@ import { Users } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CustomerForm } from '@/components/customer-form';
+import { CustomerActivityFeed } from '@/components/crm/CustomerActivityFeed';
+import { CustomerLinkedRecords } from '@/components/crm/CustomerLinkedRecords';
+import { CustomerMatches } from '@/components/crm/CustomerMatches';
+import { CustomerTasksPanel } from '@/components/crm/CustomerTasksPanel';
 import type {
   CustomerDetail,
   CustomerDocument,
@@ -20,6 +24,11 @@ import { CustomerDocumentsPanel } from './CustomerDocumentsPanel';
 
 /**
  * Tabs shell for the customer detail page — TCK-042.
+ *
+ * TCK-591 §4 — LA fiche : aperçu, notes, tâches, activité, visites, réservations, baux,
+ * correspondances, documents, relations. Le tiroir du pipeline en est la vue réduite et partage
+ * ses composants (tâches, activité). Un onglet inactif n'est pas monté : ses requêtes ne partent
+ * qu'à l'ouverture.
  */
 
 /**
@@ -45,6 +54,7 @@ export function CustomerDetailTabs({
   const locale = useLocale() as Locale;
   const t = useTranslations('crm.customerDetail.relationships');
   const tTabs = useTranslations('crm.customerDetail.tabs');
+  const tCrmTabs = useTranslations('agentCrm.tabs');
 
   return (
     <Tabs defaultValue="overview" className="space-y-4">
@@ -56,6 +66,12 @@ export function CustomerDetailTabs({
         <TabsList className="w-max">
           <TabsTrigger value="overview">{tTabs('overview')}</TabsTrigger>
           <TabsTrigger value="notes">{tTabs('notes', { count: notes.length })}</TabsTrigger>
+          <TabsTrigger value="tasks">{tCrmTabs('tasks')}</TabsTrigger>
+          <TabsTrigger value="activity">{tCrmTabs('activity')}</TabsTrigger>
+          <TabsTrigger value="visits">{tCrmTabs('visits')}</TabsTrigger>
+          <TabsTrigger value="bookings">{tCrmTabs('bookings')}</TabsTrigger>
+          <TabsTrigger value="leases">{tCrmTabs('leases')}</TabsTrigger>
+          <TabsTrigger value="matches">{tCrmTabs('matches')}</TabsTrigger>
           <TabsTrigger value="documents">{tTabs('documents', { count: documents.length })}</TabsTrigger>
           <TabsTrigger value="relationships">{tTabs('relationships', { count: relationships.length })}</TabsTrigger>
         </TabsList>
@@ -67,6 +83,24 @@ export function CustomerDetailTabs({
 
       <TabsContent value="notes">
         <CustomerNotesTimeline customerId={customer.id} notes={notes} />
+      </TabsContent>
+
+      <TabsContent value="tasks">
+        <CustomerTasksPanel customerId={customer.id} />
+      </TabsContent>
+
+      <TabsContent value="activity">
+        <CustomerActivityFeed customerId={customer.id} />
+      </TabsContent>
+
+      {(['visits', 'bookings', 'leases'] as const).map((kind) => (
+        <TabsContent key={kind} value={kind}>
+          <CustomerLinkedRecords customerId={customer.id} kind={kind} />
+        </TabsContent>
+      ))}
+
+      <TabsContent value="matches">
+        <CustomerMatches customerId={customer.id} firstName={customer.first_name} phone={customer.phone} />
       </TabsContent>
 
       <TabsContent value="documents">

@@ -128,11 +128,8 @@ const CLIQUET_REFUS = 3;
  * le motif disparaît, la ligne est morte et la garde échoue : le ticket retire sa ligne et baisse
  * `CLIQUET_HORS_DETECTION`. Sans cette liste, rien ne forcerait leur fermeture (verif-587, M5).
  */
-const HORS_DETECTION = [
-  { site: 'app/Http/Controllers/Api/CalendarController.php::index', motif: '$agencyId = $user->agency_id;', ticket: 'TCK-591' },
-  { site: 'app/Policies/TaskPolicy.php::attachTo', motif: '$agencyId = $user->agency_id;', ticket: 'TCK-591' },
-];
-const CLIQUET_HORS_DETECTION = 2;
+const HORS_DETECTION = [];
+const CLIQUET_HORS_DETECTION = 0;
 
 /**
  * L'agence de l'acteur : `$user`, `$actor`, `$request->user()`, `$this->user()`, `auth()->user()`,

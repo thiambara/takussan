@@ -2,6 +2,7 @@
 
 use App\Jobs\Billing\ProcessTrialExpirations;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
+use App\Jobs\Crm\SendProspectMatchDigest;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
@@ -35,6 +36,9 @@ Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
+// TCK-591 — rapprochement prospects ↔ biens arrivés ou repris en prix depuis 24 h : une
+// notification par référent, jamais vide. Idempotent par jour (`data.digest_date`).
+Schedule::job(new SendProspectMatchDigest)->dailyAt('08:30')->withoutOverlapping();
 // TCK-092 — Per-offset overdue invoice reminders (default J+3, J+7, J+15).
 // Replaces the legacy `SendOverdueInvoiceReminders` (single-shot mark-and-
 // notify). Idempotent on `reminders_sent_count`; agency-scoped queries.

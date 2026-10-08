@@ -104,13 +104,14 @@ describe('<CalendarPage>', () => {
     useCalendarMock.mockImplementation(() => calendarResult);
   });
 
-  it('renders a permanent legend for bookings, visits and leases', () => {
+  it('renders a permanent legend for every type the page asks for', () => {
     render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
 
+    // TCK-591 — tâches, échéances de bail et interventions s'ajoutent aux réservations et visites.
     const legend = screen.getByTestId('calendar-legend');
-    expect(within(legend).getByText('Réservations')).toBeInTheDocument();
-    expect(within(legend).getByText('Visites')).toBeInTheDocument();
-    expect(within(legend).getByText('Baux')).toBeInTheDocument();
+    for (const label of ['Réservations', 'Visites', 'Tâches', 'Échéances de bail', 'Interventions']) {
+      expect(within(legend).getByText(label)).toBeInTheDocument();
+    }
     expect(within(legend).getByText(/signature encore en attente/i)).toBeInTheDocument();
   });
 
@@ -200,7 +201,7 @@ describe('<CalendarPage>', () => {
     expect(within(panel).getByTestId('calendar-selected-day-row-booking-24')).toBeInTheDocument();
   });
 
-  it('disables one type via the segmented control without emptying both', async () => {
+  it('disables one type via the segmented control without emptying them all', async () => {
     const user = userEvent.setup();
     render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
 
@@ -214,6 +215,11 @@ describe('<CalendarPage>', () => {
       'aria-pressed',
       'true',
     );
+
+    // TCK-591 — trois types de plus : on les éteint pour que la visite reste seule.
+    for (const type of ['task', 'lease_event', 'maintenance']) {
+      await user.click(screen.getByTestId(`calendar-type-toggle-${type}`));
+    }
 
     // Click the remaining active one — it should NOT deactivate (last one locked)
     await user.click(screen.getByTestId('calendar-type-toggle-visit'));

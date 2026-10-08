@@ -76,6 +76,10 @@ enum NotificationCode: string
     case MaintenanceQuoteApproved = 'maintenance_quote.approved';
     case MaintenanceQuoteRejected = 'maintenance_quote.rejected';
 
+    // ─── CRM ───────────────────────────────────────────────────────────────────────────
+    /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
+    case ProspectMatchDigest = 'prospect_match.digest';
+
     // ─── Modération des biens (envoyés par leurs classes Notification) ──────────────────
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
@@ -113,7 +117,8 @@ enum NotificationCode: string
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
-            self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PropertyApproved, self::PropertyRejected,
+            self::ProspectMatchDigest => NotificationType::System,
         };
     }
 
@@ -140,7 +145,7 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
         };
@@ -182,6 +187,7 @@ enum NotificationCode: string
             self::MaintenanceQuoteSubmitted => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
 

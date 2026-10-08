@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ValidatesCustomerContactAndCriteria;
+use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\IdType;
 use Illuminate\Validation\Rule;
@@ -17,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreCustomerRequest extends BaseFormRequest
 {
+    use ValidatesCustomerContactAndCriteria;
+
     /**
      * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
      * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
@@ -24,7 +28,9 @@ class StoreCustomerRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        // TCK-591 — créer une fiche dans le CRM de l'agence est un geste du PERSONNEL : tout compte,
+        // bailleur compris, en créait une dans l'agence de son profil actif.
+        return $this->user()?->can('create', Customer::class) === true;
     }
 
     /** @return array<string, mixed> */
@@ -34,12 +40,12 @@ class StoreCustomerRequest extends BaseFormRequest
             'first_name' => ['required', 'string'],
             'last_name' => ['required', 'string'],
             'email' => ['nullable', 'email'],
-            'phone' => ['nullable', 'string'],
             'id_type' => ['nullable', Rule::enum(IdType::class)],
             'id_number' => ['nullable', 'string'],
             'occupation' => ['nullable', 'string'],
             'pipeline_stage' => ['nullable', Rule::enum(CustomerPipelineStage::class)],
             'notes' => ['nullable', 'string'],
+            ...$this->contactAndCriteriaRules(''),
         ];
     }
 }

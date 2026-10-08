@@ -48,7 +48,7 @@ class AgentProfileController extends Controller
             throw new AuthorizationException(__('team.errors.forbidden'));
         }
 
-        $this->service->remove($agentProfile, $user);
+        $this->service->remove($agentProfile, $user, $request->boolean('leave_unassigned'));
 
         return $this->json(null, 204);
     }
