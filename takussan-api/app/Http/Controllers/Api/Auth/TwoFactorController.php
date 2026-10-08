@@ -21,6 +21,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class TwoFactorController extends Controller
 {
+    /** Vérification adverse m2 — échecs de step-up tolérés par jeton avant sa révocation. */
+    public const STEP_UP_MAX_FAILURES = 10;
+
     /** TCK-589 — durée de vie du secret en attente d'un renouvellement d'appareil. */
     private const RENEWAL_TTL_SECONDS = 600;
 
@@ -174,11 +177,27 @@ class TwoFactorController extends Controller
         }
 
         $token = $user->currentAccessToken();
-        if (! $token instanceof PersonalAccessToken
-            || ! $this->service->verifyCodeForUser($user, (string) $user->two_factor_secret, (string) $request->input('code'))) {
+        if (! $token instanceof PersonalAccessToken) {
             return AuthRefusal::response(422, 'two_factor_step_up_invalid', 'auth.two_factor.step_up_invalid');
         }
 
+        // Vérification adverse m2 — les échecs se comptent PAR JETON. Au dernier, le jeton
+        // est révoqué, le compte jamais verrouillé : un verrou serait une arme de plus pour
+        // le voleur du jeton, contre le titulaire.
+        $failures = 'step-up-failures:'.$token->getKey();
+        if (! $this->service->verifyCodeForUser($user, (string) $user->two_factor_secret, (string) $request->input('code'))) {
+            $this->cache->add($failures, 0, now()->addDay());
+            if ((int) $this->cache->increment($failures) >= self::STEP_UP_MAX_FAILURES) {
+                $this->cache->forget($failures);
+                $token->delete();
+
+                return AuthRefusal::response(401, 'two_factor_step_up_revoked', 'auth.two_factor.step_up_revoked');
+            }
+
+            return AuthRefusal::response(422, 'two_factor_step_up_invalid', 'auth.two_factor.step_up_invalid');
+        }
+
+        $this->cache->forget($failures);
         $validUntil = SessionTokenIssuer::markStepUp($token);
 
         return $this->json(['data' => ['valid_until' => $validUntil->toIso8601String()]]);

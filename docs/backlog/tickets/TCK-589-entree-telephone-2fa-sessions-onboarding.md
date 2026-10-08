@@ -1467,3 +1467,29 @@ passe) ; le SMS de relance envoyé hors transaction (niveau de transaction relev
 
 **Exécutions** : `tests/Feature/Invitation` donne 102 verts. Les tests de super-admin, de
 drapeau, d'équipe, de délégation et d'onboarding donnent 80 verts.
+
+#### m2 — force brute du step-up : le jeton est révoqué au 10ᵉ échec
+
+- `TwoFactorController::stepUp` compte les échecs **par jeton**, en cache
+  (`step-up-failures:<id>`, 24 h). Au 10ᵉ échec (`STEP_UP_MAX_FAILURES`), le jeton est supprimé
+  et la réponse est 401 `two_factor_step_up_revoked` (clé `auth.two_factor.step_up_revoked`,
+  fr/en/wo).
+- **Le compte n'est pas verrouillé**, et `LoginLock` n'est pas touché : la session du titulaire
+  continue de passer son step-up. Un step-up réussi remet le compteur à zéro.
+- **Front** : `GardeDoubleFacteur` reconnaît ce 401. Il affiche « cette session est fermée » (clé
+  `auth.twoFactorGate.sessionClosed`) et appelle `logout()`, au lieu de laisser l'écran rejouer
+  un jeton refusé.
+
+**Tests** :
+- `StepUpBruteForceTest` (2) : le 10ᵉ échec révoque le jeton (`findToken` est nul, `/auth/me`
+  rend 401, le bon code rend 401), `locked_at` reste nul, et l'autre jeton passe son step-up. Un
+  succès remet le compteur à zéro.
+- `GardeDoubleFacteur.test.tsx` gagne un cas : le 401 ferme la session sans rejouer l'action.
+
+**Rouge sur `fc5c5584`** : le premier test (seuil écrit en littéral) donne 422 au lieu de 401. Le
+second est vert : il garde contre une révocation trop large, et son ablation le prouve.
+
+**Ablations, restaurées par `cp`** (md5 vérifiés) :
+- sans `$token->delete()` → 1 rouge ;
+- compteur jamais remis à zéro → 1 rouge ;
+- front sans la branche 401 → 1 rouge.

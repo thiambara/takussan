@@ -45,6 +45,7 @@ return [
         'required' => 'Activez la double authentification pour continuer : vous touchez à une opération sensible.',
         'step_up_required' => 'Confirmez avec votre code de double authentification pour continuer.',
         'step_up_invalid' => 'Code de double authentification invalide.',
+        'step_up_revoked' => 'Trop de codes invalides : cette session est fermée. Reconnectez-vous.',
         'mandatory' => 'La double authentification est obligatoire pour votre compte : elle se renouvelle, elle ne se désactive pas.',
         'not_enabled' => 'La double authentification n\'est pas activée.',
         'renewal_missing' => 'Commencez par générer un nouveau secret (renouvellement de l\'appareil).',

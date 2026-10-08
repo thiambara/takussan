@@ -446,6 +446,7 @@
       "cancel": "Annuler",
       "invalidCode": "Ce code n’est pas valide. Vérifiez l’heure de votre téléphone, puis réessayez.",
       "failed": "La vérification n’a pas abouti. Réessayez dans un instant.",
+      "sessionClosed": "Trop de codes invalides : cette session est fermée. Reconnectez-vous.",
       "reconfigureTitle": "Reconfigurez votre double authentification",
       "reconfigureBody": "Votre second facteur a été réinitialisé par le support. Configurez-en un nouveau pour retrouver votre espace.",
       "superAdminTitle": "La double authentification est obligatoire",

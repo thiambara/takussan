@@ -40,6 +40,7 @@ return [
         'required' => 'Turn on two-factor authentication to continue: this is a sensitive operation.',
         'step_up_required' => 'Confirm with your two-factor code to continue.',
         'step_up_invalid' => 'Invalid two-factor code.',
+        'step_up_revoked' => 'Too many invalid codes: this session has been closed. Please sign in again.',
         'mandatory' => 'Two-factor authentication is mandatory for your account: it can be renewed, not turned off.',
         'not_enabled' => 'Two-factor authentication is not enabled.',
         'renewal_missing' => 'Start by generating a new secret (device renewal).',

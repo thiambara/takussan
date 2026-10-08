@@ -98,7 +98,7 @@ interface PreuveRecenteProps {
 
 function PreuveRecente({ onValide, onAnnuler }: PreuveRecenteProps) {
   const t = useTranslations('auth.twoFactorGate');
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [code, setCode] = useState('');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -115,6 +115,13 @@ function PreuveRecente({ onValide, onAnnuler }: PreuveRecenteProps) {
       });
       onValide();
     } catch (err) {
+      // Trop d'échecs : l'API a révoqué CE jeton (vérification adverse m2). La session est
+      // morte, on la ferme ici plutôt que de laisser l'écran rejouer un jeton refusé.
+      if (err instanceof ApiError && err.status === 401) {
+        setErreur(t('sessionClosed'));
+        void logout();
+        return;
+      }
       setErreur(err instanceof ApiError && err.status === 422 ? t('invalidCode') : t('failed'));
     } finally {
       setEnvoi(false);

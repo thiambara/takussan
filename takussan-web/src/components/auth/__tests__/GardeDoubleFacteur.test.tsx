@@ -17,8 +17,9 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: (...args: unknown[]) => apiRequestMock(...args),
 }));
+const logoutMock = vi.fn();
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ token: 'jeton', refreshUser: vi.fn() }),
+  useAuth: () => ({ token: 'jeton', refreshUser: vi.fn(), logout: logoutMock }),
 }));
 vi.mock('@/app/actions/security', () => ({
   twoFactorEnableAction: vi.fn(),
@@ -51,9 +52,27 @@ function Bouton() {
 beforeEach(() => {
   action.mockReset();
   apiRequestMock.mockReset();
+  logoutMock.mockReset();
 });
 
 describe('GardeDoubleFacteur', () => {
+  it('step-up : un jeton révoqué après trop d’échecs ferme la session sans rejouer', async () => {
+    const user = userEvent.setup();
+    action.mockRejectedValueOnce(new ApiError(403, { code: 'two_factor_step_up_required' }));
+    apiRequestMock.mockRejectedValue(new ApiError(401, { code: 'two_factor_step_up_revoked' }));
+    render(withIntl(<GardeDoubleFacteur><Bouton /></GardeDoubleFacteur>));
+
+    await user.click(screen.getByRole('button', { name: 'Publier' }));
+    await user.type(await screen.findByLabelText('Code à 6 chiffres'), '000000');
+    await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+
+    expect(
+      await screen.findByText('Trop de codes invalides : cette session est fermée. Reconnectez-vous.'),
+    ).toBeInTheDocument();
+    expect(logoutMock).toHaveBeenCalledTimes(1);
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
   it('step-up : demande le code, le vérifie, puis rejoue l’action', async () => {
     const user = userEvent.setup();
     action

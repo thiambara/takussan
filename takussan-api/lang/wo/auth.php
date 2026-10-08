@@ -40,6 +40,7 @@ return [
         'required' => 'Doxal dëggal ñaareel bi ngir wéy : lii dafa am solo.',
         'step_up_required' => 'Dëggalal ak sa kod 2FA ngir wéy.',
         'step_up_invalid' => 'Kod 2FA bi baaxul.',
+        'step_up_revoked' => 'Code yu baaxul yi bare nañu : session bii tëj nañu ko. Duggaatal.',
         'mandatory' => 'Dëggal ñaareel bi war na ci sa kont : mën nga ko yeesal, mënuloo ko fey.',
         'not_enabled' => 'Dëggal ñaareel bi doxul.',
         'renewal_missing' => 'Tàmbalil ci sos benn sekere bu bees (yeesal sa jumtukaay).',

@@ -398,6 +398,7 @@
       "cancel": "Neenal",
       "invalidCode": "Koddu bii baaxul. Seetal waxtu sa telefon, te jéem ko ci kanam.",
       "failed": "Seetlu bi antuwul. Jéemaatal ci kanam tuuti.",
+      "sessionClosed": "Code yu baaxul yi bare nañu : session bii tëj nañu ko. Duggaatal.",
       "reconfigureTitle": "Defaraatal ñaari yoon ngir seetlu",
       "reconfigureBody": "Ndimbal gi dafa fey sa ñaareelu sumb. Defaral bu bees ngir dellu ci sa bérab.",
       "superAdminTitle": "Ñaari yoon ngir seetlu war na",

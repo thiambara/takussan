@@ -471,6 +471,7 @@
       "cancel": "Cancel",
       "invalidCode": "This code isn’t valid. Check your phone’s clock, then try again.",
       "failed": "Verification didn’t go through. Please try again in a moment.",
+      "sessionClosed": "Too many invalid codes: this session has been closed. Please sign in again.",
       "reconfigureTitle": "Set up two-factor authentication again",
       "reconfigureBody": "Support has reset your second factor. Set up a new one to get back to your workspace.",
       "superAdminTitle": "Two-factor authentication is required",
