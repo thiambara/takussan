@@ -1369,3 +1369,59 @@ ci-dessus. Après correction, `PhoneVerificationTest` donne 22 verts et `SmsOtpR
 
 **Exécutions** : 19 fichiers qui touchent un remboursement, un profil ou une suspension donnent
 173 verts. `tests/Feature/Auth/TwoFactor` et 3 fichiers donnent 81 verts.
+
+#### Fusion d'`origin/dev` après TCK-588 (merge `442050b3`)
+
+**Conflits, résolus vers les formes de 588 :**
+- Les refus levés passent à `abort_code()`. Clés concernées : `support.account_not_locked`,
+  `invitation.phone_mismatch` (ajoutée à `errors.php`, fr/en/wo), `invitation.email_mismatch`,
+  `phone.*` et `two_factor.*`.
+- Ma branche de renouvellement de `TwoFactorController` et le 409 `isVerifiedElsewhere` de
+  `resend` sont conservés, écrits dans la forme de 588.
+
+**`AuthRefusal::abort()` disparaît.** La garde de prose le refusait (forme f,
+`new HttpResponseException` nu). Ses deux appelants changent :
+- `markVerified()` lève `abort_code(409, 'phone.taken')`. Aucun fichier du front ne lisait
+  `phone_taken` (mesuré par `grep`). `PhoneNumberUniquenessTest` asserte désormais `phone.taken`
+  sur la vérification et l'onboarding.
+- `SessionTokenIssuer` lève `auth.account_blocked` en dernier recours. Chaque chemin d'entrée
+  refuse avant lui, avec le code plat `account_blocked` que lit `ConnexionParTelephone`. Le défi
+  OAuth (`OAuthSessionOpener::complete`) gagne ce contrôle préalable : un compte bloqué entre le
+  rappel et le défi garde la même réponse que partout ailleurs.
+
+Les codes plats de `AuthRefusal::response()` restent le contrat du front. Leur passage à
+`<domaine>.<code>` se fera d'un bloc, front compris : c'est noté dans son docblock.
+
+**Exécutions** : la garde de prose, `tests/Feature/Auth` (321 verts), les invitations,
+l'onboarding, le support et `tests/Unit/Lang` (188 verts). Les 40 fichiers de test apportés par
+la fusion donnent 286 verts. Toutes les gardes racine passent, ainsi que lint, `tsc` et vitest
+sur `src/lib` et `src/components/auth` (1159 verts).
+
+#### Raccord TCK-588 et m1 (texte) — le SMS d'invitation passe par `ContactSansCompte`
+
+- Le SMS d'invitation part par `NotificationService::send(ContactSansCompte::fromInvitation(…))`,
+  avec deux codes neufs, `invitation.received` et `invitation.reminder` (`reachesContacts`,
+  non `mobile`). Il hérite ainsi de la limite **par numéro** de `SmsChannel`, et n'écrit
+  aucune ligne de cloche.
+- **Décision : le SMS part au numéro, même si un compte l'a vérifié.** L'invitation est adressée
+  au numéro. Elle prend la langue de ce compte, comme `ContactSansCompte::fromCustomer` le fait
+  pour un client lié. Écrire au `User` ne la remettrait pas : `CodedNotification` n'ouvre un
+  canal mobile qu'à un code `mobile()` qui a un interrupteur.
+- **m1 (texte)** : le SMS ne porte plus le nom de l'invitant, que celui-ci édite. Il porte le nom
+  de l'agence, filtré par `InvitationService::smsAgencyName()` : lettres, chiffres, espaces et
+  `' - & , ( )`. Ni `:`, ni `/`, ni `.`, pour qu'aucun lien ne puisse s'y former. Le nom est
+  tronqué au rendu (`SMS_TEXT_MAX` = 32). Les clés `invitations.sms.*`, posées par ce ticket,
+  sont retirées.
+- **Différence de comportement à connaître** : `CodedNotification` n'est pas critique, si bien
+  qu'un SMS d'invitation émis entre 22 h et 6 h (Dakar) part à 6 h. Il partait avant
+  immédiatement, avec `is_critical`. Le lien reste valable 7 jours.
+
+**Test `InvitationSmsContentTest` (4)** : la sonde du vérificateur (invitant « Votre compte Wave
+est suspendu, rappelez le +221… », agence dont le nom porte `<b>`, `http://evil.example/x`)
+donne un SMS sans l'un ni l'autre, avec un nom de 32 caractères au plus. Les autres cas : le
+code `invitation.received` sans ligne de cloche, le rappel sous `invitation.reminder`, et la
+limite par numéro du canal.
+**Rouge sur `442050b3`** : 4 rouges.
+**Ablations, restaurées par `cp`** (empreinte md5 vérifiée) :
+- filtre du nom retiré → 1 rouge (`…filtre et tronque`) ;
+- rappel envoyé sous `invitation.received` → 1 rouge (`…son propre code`).

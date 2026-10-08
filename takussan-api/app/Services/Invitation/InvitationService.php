@@ -2,6 +2,7 @@
 
 namespace App\Services\Invitation;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
@@ -15,8 +16,9 @@ use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\PhoneNumber;
-use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -867,11 +869,14 @@ class InvitationService
 
     /**
      * TCK-589 — le seul point d'envoi d'une invitation (envoi, relance, rappel) :
-     * le courriel quand il y a un e-mail, sinon un SMS adressé AU NUMÉRO, directement
-     * par le routeur — jamais au `User` qui le porterait (son `phone_verified_at`
-     * peut être nul, et `SmsChannel` l'abandonnerait). Raccord TCK-588 : quand
-     * `ContactSansCompte` aura fusionné, ce SMS passera par
-     * `NotificationService::send(ContactSansCompte::…)`.
+     * le courriel quand il y a un e-mail, sinon un SMS adressé AU NUMÉRO, comme à un
+     * contact sans compte (`ContactSansCompte`, TCK-588) — jamais au `User` qui le
+     * porterait (son `phone_verified_at` peut être nul, et `SmsChannel` l'abandonnerait).
+     * Le canal des contacts compte la limite PAR NUMÉRO, et n'écrit aucune ligne de cloche.
+     *
+     * Le SMS ne porte aucun texte de l'invitant — son nom, qu'il édite, faisait de
+     * l'expéditeur Takussan un relais d'hameçonnage (vérification adverse m1) : le nom
+     * de l'agence seul, filtré ({@see self::smsAgencyName()}) et tronqué au rendu.
      *
      * Hors transaction, comme l'était le courriel : un échec d'envoi ne défait pas
      * l'invitation, l'invitant peut relancer.
@@ -888,22 +893,30 @@ class InvitationService
         }
 
         $base = config('app.frontend_url') ?: config('app.url');
-        $inviter = User::query()->find($invitation->invited_by);
 
-        app(SmsRouterDriver::class)->send((string) $invitation->phone, __(
-            $isReminder ? 'invitations.sms.reminder' : 'invitations.sms.invite',
+        app(NotificationService::class)->send(
+            ContactSansCompte::fromInvitation($invitation, $locale),
+            $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
             [
-                'inviter' => trim(($inviter?->first_name ?? '').' '.($inviter?->last_name ?? '')) ?: 'Takussan',
-                'agency' => $invitation->agency?->name ?? 'Takussan',
-                'role' => __('invitations.roles.'.$invitation->role, [], $locale),
+                'agency' => self::smsAgencyName($invitation->agency?->name),
                 // Même lien que le courriel (`InvitationMailable`).
                 'url' => rtrim((string) $base, '/').'/invitations/accept?token='.$invitation->token,
             ],
-            $locale,
-        ), [
-            'event_type' => 'invitation',
-            'is_critical' => true,
-        ]);
+        );
+    }
+
+    /**
+     * Le nom d'agence tel qu'un SMS peut le porter : lettres, chiffres, espaces et
+     * ponctuation simple (`'` `-` `&` `,` `(` `)`). Ni `:`, ni `/`, ni `.` : un nom
+     * ne doit pas pouvoir former un lien ni une adresse dans le message. La troncature
+     * est celle de tout texte de SMS (`NotificationRenderer::SMS_TEXT_MAX`).
+     */
+    public static function smsAgencyName(?string $name): string
+    {
+        $filtered = preg_replace('/[^\p{L}\p{N} \'&,()-]+/u', ' ', strip_tags((string) $name)) ?? '';
+        $filtered = trim((string) preg_replace('/\s+/u', ' ', $filtered));
+
+        return $filtered !== '' ? $filtered : 'Takussan';
     }
 
     /**

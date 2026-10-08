@@ -319,6 +319,19 @@ return [
                 'sms' => 'Takussan : réservation :reference annulée (:property).',
             ],
         ],
+        // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
+        'invitation' => [
+            'received' => [
+                'title' => 'Invitation de :agency',
+                'body' => ':agency vous invite à rejoindre son équipe.',
+                'sms' => 'Takussan : :agency vous invite à rejoindre son équipe. Acceptez ici : :url',
+            ],
+            'reminder' => [
+                'title' => 'Rappel : invitation de :agency',
+                'body' => 'Votre invitation à rejoindre :agency vous attend.',
+                'sms' => 'Takussan : rappel — votre invitation à rejoindre :agency vous attend : :url',
+            ],
+        ],
         'visit' => [
             'reminder' => [
                 'title' => 'Rappel de visite : :property',

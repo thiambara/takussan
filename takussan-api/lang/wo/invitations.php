@@ -39,9 +39,4 @@ return [
         'invalid_role' => 'Wàll bi laaj nga, du baax ngir invitation.',
         'cross_agency' => 'Mënul nga woo nit ci agence wenn.',
     ],
-    // TCK-589 — invitation adressée à un numéro (lien par SMS, sans e-mail).
-    'sms' => [
-        'invite' => 'Takussan : :inviter dafa la woo nga bokk ci :agency ni :role. Nangul fii : :url',
-        'reminder' => 'Takussan : fàttali — sa woote ngir bokk ci :agency ngi lay xaar : :url',
-    ],
 ];

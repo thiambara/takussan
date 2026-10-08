@@ -76,6 +76,10 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    // ─── Invitations par SMS (TCK-589 : le destinataire n'a souvent pas de compte) ───────
+    case InvitationReceived = 'invitation.received';
+    case InvitationReminder = 'invitation.reminder';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -108,7 +112,8 @@ enum NotificationCode: string
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
-            self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PropertyApproved, self::PropertyRejected,
+            self::InvitationReceived, self::InvitationReminder => NotificationType::System,
         };
     }
 
@@ -135,7 +140,8 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected => null,
+            self::PropertyApproved, self::PropertyRejected,
+            self::InvitationReceived, self::InvitationReminder => null,
         };
     }
 
@@ -174,6 +180,8 @@ enum NotificationCode: string
             self::MaintenanceQuoteSubmitted => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            // Le nom de l'agence seul, jamais un texte de l'invitant (vérification adverse m1).
+            self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
         };
     }
 
@@ -217,12 +225,14 @@ enum NotificationCode: string
 
     /**
      * Le code peut viser un contact sans compte : transactionnel seulement (exécution du bail,
-     * demande de visite). Jamais un message non transactionnel (ADR-0032 §3).
+     * demande de visite, lien d'une invitation adressée à un numéro — TCK-589). Jamais un
+     * message non transactionnel (ADR-0032 §3).
      */
     public function reachesContacts(): bool
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder => true,
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
+            self::InvitationReceived, self::InvitationReminder => true,
             default => false,
         };
     }

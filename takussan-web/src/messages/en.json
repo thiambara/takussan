@@ -8118,6 +8118,16 @@
           "body": "Your booking {reference} for {property} was cancelled."
         }
       },
+      "invitation": {
+        "received": {
+          "title": "Invitation from {agency}",
+          "body": "{agency} invites you to join its team."
+        },
+        "reminder": {
+          "title": "Reminder: invitation from {agency}",
+          "body": "Your invitation to join {agency} is waiting."
+        }
+      },
       "visit": {
         "reminder": {
           "title": "Visit reminder: {property}",

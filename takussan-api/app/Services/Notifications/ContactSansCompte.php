@@ -3,6 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Models\Customer;
+use App\Models\Invitation;
 use App\Models\PropertyVisit;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -53,6 +54,15 @@ final class ContactSansCompte
             $customer?->user?->preferredLocale() ?? self::DEFAULT_LOCALE,
             $customer?->getKey(),
         );
+    }
+
+    /**
+     * TCK-589 — le destinataire d'une invitation adressée à un NUMÉRO : ce numéro, dans la
+     * langue que l'invitation a résolue (celle du compte qui l'a vérifié s'il existe).
+     */
+    public static function fromInvitation(Invitation $invitation, string $locale): self
+    {
+        return new self(self::normalize($invitation->phone), null, $locale, null);
     }
 
     public function hasPhone(): bool

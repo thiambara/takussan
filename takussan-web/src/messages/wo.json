@@ -8118,6 +8118,16 @@
           "body": "Sa réservation {reference} ngir {property}, neenal nañu ko."
         }
       },
+      "invitation": {
+        "received": {
+          "title": "Woote bu {agency}",
+          "body": "{agency} dafa la woo nga bokk ci ekibam."
+        },
+        "reminder": {
+          "title": "Fàttali : woote bu {agency}",
+          "body": "Sa woote ngir bokk ci {agency} ngi lay xaar."
+        }
+      },
       "visit": {
         "reminder": {
           "title": "Fàttali seetlu : {property}",

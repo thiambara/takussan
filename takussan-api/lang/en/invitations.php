@@ -32,9 +32,4 @@ return [
         'invalid_role' => 'The requested role is not allowed for invitations.',
         'cross_agency' => 'You cannot invite someone into a different agency.',
     ],
-    // TCK-589 — invitation adressée à un numéro (lien par SMS, sans e-mail).
-    'sms' => [
-        'invite' => 'Takussan: :inviter invites you to join :agency as :role. Accept here: :url',
-        'reminder' => 'Takussan: reminder — your invitation to join :agency is waiting: :url',
-    ],
 ];
