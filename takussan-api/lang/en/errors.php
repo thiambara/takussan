@@ -238,6 +238,7 @@ return [
         'not_requestable' => 'Only a draft lease or one awaiting signature can be sent for signature.',
         'not_requested' => 'No contract is awaiting signature: the request must be sent first.',
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
+        'terms_changed' => 'The lease changed while the contract was being prepared: nothing was frozen. Request the signature again.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [

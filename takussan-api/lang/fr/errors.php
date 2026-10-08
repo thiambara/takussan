@@ -238,6 +238,7 @@ return [
         'not_requestable' => 'Seul un bail en brouillon ou en attente de signature peut être soumis à signature.',
         'not_requested' => 'Aucun contrat n\'attend de signature : la demande doit d\'abord être lancée.',
         'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
+        'terms_changed' => 'Le bail a été modifié pendant la préparation du contrat : rien n\'a été figé. Relancez la demande de signature.',
         'tenant_without_account' => 'Le locataire de ce bail n\'a pas de compte : signez sur papier et joignez le contrat numérisé.',
     ],
     'lease_payment' => [

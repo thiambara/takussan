@@ -40,6 +40,9 @@ class LeaseSignatureService
 
     public function request(Lease $lease, User $by): Lease
     {
+        // VERIF-596 passe 4 (M-R) — le rendu part d'une lecture de la base, pas du modèle de
+        // l'appelant : c'est elle que la ligne verrouillée doit encore valoir au moment de figer.
+        $lease = Lease::query()->findOrFail($lease->getKey());
         abort_code_unless(
             in_array($lease->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
             422,
@@ -76,6 +79,11 @@ class LeaseSignatureService
                 422,
                 'lease_signature.not_requestable'
             );
+            // VERIF-596 passe 4 (M-R, ADR-0042 §1) — le PDF est rendu HORS verrou (en production, un
+            // aller-retour réseau) : une écriture validée pendant le rendu (`PATCH` d'un terme, garant)
+            // ferait figer un contrat qui n'imprime plus ce que le bail exécute. Sous le verrou, la
+            // ligne doit encore être celle qui a été rendue ; sinon rien n'est figé, le client relance.
+            abort_code_unless($this->rendersAs($lease, $locked), 409, 'lease_signature.terms_changed');
 
             $locked->addMediaFromString($bytes)
                 ->usingFileName(sprintf('bail-%s.pdf', $locked->reference_number ?? $locked->id))
@@ -256,6 +264,25 @@ class LeaseSignatureService
             'early_termination_penalty_months' => app(EarlyTerminationService::class)->penaltyMonthsFor($lease),
             'rent_review_max_pct' => app(RentReviewService::class)->maxPctFor($lease),
         ];
+    }
+
+    /**
+     * VERIF-596 passe 4 (M-R) — la ligne verrouillée imprime-t-elle encore le contrat rendu ? Les
+     * termes imprimés (dont les deux termes d'exécution : `$terms` en dérive, une valeur changée
+     * pendant le rendu n'est donc jamais écrasée en silence), les parties et les garants. Valeurs
+     * BRUTES lues en base des deux côtés : l'égalité ne dépend d'aucun cast.
+     */
+    private function rendersAs(Lease $rendered, Lease $locked): bool
+    {
+        $columns = [...Lease::CONTRACT_PRINTED_TERMS, 'property_id', 'landlord_id', 'tenant_id', 'agency_id'];
+        foreach ($columns as $column) {
+            if ($rendered->getRawOriginal($column) !== $locked->getRawOriginal($column)) {
+                return false;
+            }
+        }
+
+        return $rendered->guarantors->pluck('id')->sort()->values()->all()
+            === $locked->guarantors()->pluck('guarantors.id')->sort()->values()->all();
     }
 
     private function assertAwaiting(Lease $lease, string $role): void

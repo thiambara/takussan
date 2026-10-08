@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\SettingScope;
+use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
@@ -500,5 +501,91 @@ class LeaseContractTermsTest extends TestCase
 
         $this->assertSame(LeaseStatus::Terminated, $lease->fresh()->status);
         $this->assertSame(200_000.0, $this->terminationPenalty($lease));
+    }
+
+    // ── VERIF-596 passe 4 (M-R) — la demande ne fige pas un rendu que le bail ne porte plus ──────
+
+    /** Le rendu exécute `$during` une fois, comme une écriture concurrente validée pendant le rendu. */
+    private function renderingWhile(callable $during): void
+    {
+        $done = false;
+        $this->mock(DocumentPdfService::class, function ($mock) use ($during, &$done): void {
+            $mock->shouldReceive('render')->andReturnUsing(function (string $template, array $data) use ($during, &$done) {
+                $html = (string) preg_replace('/Document généré le [^<]*/u', '', view($template, $data)->render());
+                if (! $done) {
+                    $done = true;
+                    $during();
+                }
+
+                return $html;
+            });
+        });
+    }
+
+    private function assertNothingFrozen(Lease $lease): void
+    {
+        $fresh = $lease->fresh();
+        $this->assertSame(LeaseStatus::Draft, $fresh->status);
+        $this->assertNull($fresh->contract_sha256);
+        $this->assertCount(0, $fresh->getMedia('signed_contract'));
+    }
+
+    /**
+     * Émulation Q2c : un `PATCH` (5 % → 40 %) valide pendant le rendu, hors verrou. Avant : le bail
+     * était figé sur un PDF qui imprime « 5 % » quand le bail exécute 40 %.
+     */
+    public function test_a_term_patched_during_the_render_is_never_frozen(): void
+    {
+        $lease = $this->signableLease(['late_fee_percent' => 5, 'late_fee_grace_days' => 3]);
+        $this->renderingWhile(fn () => Lease::query()->whereKey($lease->id)->update(['late_fee_percent' => 40, 'late_fee_grace_days' => 0]));
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/signature-request")
+            ->assertStatus(409)->assertJsonPath('code', 'lease_signature.terms_changed');
+
+        $this->assertNothingFrozen($lease);
+        $this->assertEquals(40, (float) $lease->fresh()->late_fee_percent);
+    }
+
+    /** Un terme d'exécution changé pendant le rendu n'est pas écrasé en silence par la valeur rendue. */
+    public function test_an_execution_term_changed_during_the_render_is_not_overwritten(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 2);
+        $lease = $this->signableLease(['early_termination_penalty_months' => 1]);
+        $this->renderingWhile(fn () => Lease::query()->whereKey($lease->id)->update(['early_termination_penalty_months' => 6]));
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/signature-request")
+            ->assertStatus(409)->assertJsonPath('code', 'lease_signature.terms_changed');
+
+        $this->assertNothingFrozen($lease);
+        $this->assertSame(6, $lease->fresh()->early_termination_penalty_months);
+    }
+
+    /** Un garant rattaché pendant le rendu : le contrat rendu ne l'imprime pas, rien n'est figé. */
+    public function test_a_guarantor_attached_during_the_render_is_never_frozen(): void
+    {
+        $lease = $this->signableLease();
+        $guarantor = Guarantor::factory()->create(['added_by_id' => $lease->landlord_id]);
+        $this->renderingWhile(fn () => $lease->guarantors()->attach($guarantor->id));
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/signature-request")
+            ->assertStatus(409)->assertJsonPath('code', 'lease_signature.terms_changed');
+
+        $this->assertNothingFrozen($lease);
+    }
+
+    /** Sans écriture concurrente, la demande fige comme avant. */
+    public function test_a_quiet_render_is_frozen(): void
+    {
+        $lease = $this->signableLease();
+        $this->renderingWhile(fn () => null);
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/signature-request")->assertOk();
+
+        $this->assertNotNull($lease->fresh()->contract_sha256);
+        $this->assertCount(1, $lease->fresh()->getMedia('signed_contract'));
     }
 }

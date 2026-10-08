@@ -70,6 +70,11 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    seulement pour un bail antérieur. Un bail figé à 0 ne produit aucune ligne de pénalité. La
    résiliation immédiate facturait auparavant `min(mois restants, 3)` loyers en dur, quel que soit le
    contrat signé. Elle juge statut et indemnité sur la ligne verrouillée.
+   **Le PDF figé est celui de la ligne verrouillée** (amendé après VERIF-596 passe 4, M-R) : le rendu
+   reste hors verrou (en production, un aller-retour réseau), puis, sous le verrou et avant de figer,
+   la ligne est comparée au rendu — termes imprimés (dont les deux termes d'exécution), parties,
+   garants. Un écart rend 409 `lease_signature.terms_changed` ; rien n'est figé, aucun média n'est
+   créé, et le client relance.
    `late_fees.cap_percent` n'est **pas** figé, délibérément : ce plafond ne peut que **baisser** la
    pénalité de retard imprimée, il ne joue jamais contre le locataire. **La dérogation
    `leases.rent_review_force` ne dépasse pas un plafond figé** (tranché après VERIF-596 passe 3, m-b,
