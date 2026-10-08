@@ -6978,7 +6978,14 @@
         "confirmCancelBody": "Le lien envoyé à {email} cessera immédiatement de fonctionner. Vous pourrez toujours réinviter cette personne plus tard.",
         "confirmCancelKeep": "Conserver",
         "confirmCancelConfirm": "Annuler l'invitation",
-        "invitationActions": "Actions sur l'invitation de {email}"
+        "invitationActions": "Actions sur l'invitation de {email}",
+        "revokeOperator": {
+          "label": "Retirer",
+          "title": "Retirer {email} des opérateurs",
+          "description": "Son accès à la console est révoqué, ses sessions sont fermées (impersonation comprise) et les autres super-admins sont alertés. Son compte utilisateur reste intact.",
+          "reasonLabel": "Motif (journalisé, transmis aux pairs)",
+          "success": "{email} n’est plus opérateur."
+        }
       },
       "upgradeRequests": {
         "title": "Demandes d'upgrade",
@@ -7416,6 +7423,21 @@
       "emptyDescription": "Les actions cross-agences apparaîtront ici dès leur journalisation.",
       "unknownEvent": "Événement sans libellé",
       "systemCauser": "Système"
+    },
+    "operatorLevels": {
+      "legend": "Niveau",
+      "viewer": {
+        "label": "Lecture",
+        "hint": "Consulte la console, les rapports, la santé et les agences. Ne touche à rien."
+      },
+      "support": {
+        "label": "Support",
+        "hint": "En plus : fiches des utilisateurs, gestes de support, blocage, file de modération, recherche globale."
+      },
+      "super_admin": {
+        "label": "Super-admin",
+        "hint": "Tous les gestes, dont la suspension d’agence, l’effacement de compte, l’impersonation et les opérateurs."
+      }
     }
   },
   "adminSettings": {

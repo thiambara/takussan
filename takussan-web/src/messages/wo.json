@@ -6368,7 +6368,14 @@
         "confirmCancelBody": "Lien bi ñu yónnee {email} du doxati léegi. Man nga koo wooteati ci kanam.",
         "confirmCancelKeep": "Bàyyi ko",
         "confirmCancelConfirm": "Neenal woote bi",
-        "invitationActions": "Jëf yi ci woote bu {email}"
+        "invitationActions": "Jëf yi ci woote bu {email}",
+        "revokeOperator": {
+          "label": "Dindi",
+          "title": "Dindi {email} ci operatëer yi",
+          "description": "Dañu koy dindil console bi, ay jokkoom dañuy tëju (impersonation it) te super-admin yi ci des dañu leen di yégal. Kontam jëfandikukat du laal.",
+          "reasonLabel": "Lay (dañu koy bind, yónne ko moroom yi)",
+          "success": "{email} nekkatul operatëer."
+        }
       },
       "upgradeRequests": {
         "title": "Ñaan yu yeesal",
@@ -6806,6 +6813,21 @@
       "emptyDescription": "Jëf yu ajaans yépp dinañu feeñ fii su ñu leen bindee.",
       "unknownEvent": "Jëf bu amul tur",
       "systemCauser": "Sistem"
+    },
+    "operatorLevels": {
+      "legend": "Tolluwaay",
+      "viewer": {
+        "label": "Jàng rekk",
+        "hint": "Day xool console bi, rapoor yi, wér-gi-yaram bi ak ajaans yi. Du laal dara."
+      },
+      "support": {
+        "label": "Support",
+        "hint": "Ak it : fiise jëfandikukat yi, jëfi support, tëj, file moderaasioŋ, seet bu mag."
+      },
+      "super_admin": {
+        "label": "Super-admin",
+        "hint": "Jëf yépp, ak taxawal ajaans, far kont, impersonation ak operatëer yi."
+      }
     }
   },
   "adminSettings": {

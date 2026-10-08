@@ -6978,7 +6978,14 @@
         "confirmCancelBody": "The link sent to {email} will stop working immediately. You can always invite this person again later.",
         "confirmCancelKeep": "Keep it",
         "confirmCancelConfirm": "Cancel invitation",
-        "invitationActions": "Actions on the invitation for {email}"
+        "invitationActions": "Actions on the invitation for {email}",
+        "revokeOperator": {
+          "label": "Remove",
+          "title": "Remove {email} from operators",
+          "description": "Their console access is revoked, their sessions are closed (impersonation included) and the other super admins are alerted. Their user account stays intact.",
+          "reasonLabel": "Reason (logged, sent to peers)",
+          "success": "{email} is no longer an operator."
+        }
       },
       "upgradeRequests": {
         "title": "Upgrade requests",
@@ -7416,6 +7423,21 @@
       "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
       "unknownEvent": "Unlabelled event",
       "systemCauser": "System"
+    },
+    "operatorLevels": {
+      "legend": "Level",
+      "viewer": {
+        "label": "Read-only",
+        "hint": "Views the console, reports, health and agencies. Changes nothing."
+      },
+      "support": {
+        "label": "Support",
+        "hint": "Plus: user records, support actions, blocking, moderation queue, global search."
+      },
+      "super_admin": {
+        "label": "Super admin",
+        "hint": "Every action, including agency suspension, account erasure, impersonation and operators."
+      }
     }
   },
   "adminSettings": {

@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/api';
+import type { PlatformLevel } from '@/lib/platform-abilities';
 import type {
   AdminAgenciesResponse,
   AdminAgencyDetailResponse,
@@ -1128,6 +1129,8 @@ function triggerDownload(blob: Blob, filename: string): void {
 
 export interface SuperAdminEntry {
   id: number;
+  /** TCK-600 (ADR-0047) — le niveau de l'opérateur. */
+  level: PlatformLevel | null;
   first_name: string | null;
   last_name: string | null;
   email: string;
@@ -1172,6 +1175,8 @@ export async function inviteSuperAdmin(payload: {
   email: string;
   first_name: string;
   last_name: string;
+  /** TCK-600 — le niveau du coopté (l'API retient `super_admin` sans lui). */
+  level?: PlatformLevel;
 }): Promise<SuperAdminPendingInvitation> {
   const res = await fetch('/api/super-admin/super-admins/invite', {
     method: 'POST',
@@ -1199,6 +1204,20 @@ export async function resendSuperAdminInvitation(
   });
   const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
   return json.data;
+}
+
+/**
+ * TCK-600 (ADR-0047) — retirer un opérateur : profil révoqué, jetons supprimés, sessions
+ * d'impersonation fermées, pairs alertés. Motif requis.
+ */
+export async function revokePlatformOperator(userId: number, reason: string): Promise<unknown> {
+  const res = await fetch(`/api/super-admin/super-admins/${userId}/revoke`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return jsonOrThrow<unknown>(res);
 }
 
 /** TCK-367 — annulation d'une invitation de cooptation. */
