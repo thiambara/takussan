@@ -93,6 +93,8 @@ foreach (RecordQueueHeartbeat::QUEUES as $file) {
     Schedule::job(new RecordQueueHeartbeat($file), $file)->everyMinute();
 }
 Schedule::command('health:probe')->everyMinute()->withoutOverlapping();
+// TCK-600 (S16) — alertes d'exploitation, écrites à leur transition seulement.
+Schedule::command('alerts:evaluate')->everyFiveMinutes()->withoutOverlapping();
 
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();
