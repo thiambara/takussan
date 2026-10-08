@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\Admin\DispatchAlerts;
+use App\Models\Activity as AuditActivity;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
@@ -445,7 +446,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-227 — bump the reporting cache version on agency creation so
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
-        Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-601 — le modèle du journal est `App\Models\Activity` : un écouteur posé sur la classe
+        // spatie ne verrait plus aucune création (l'événement se nomme par classe).
+        AuditActivity::created(fn (AuditActivity $activity) => app(DispatchAlerts::class)->handle($activity));
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //

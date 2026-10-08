@@ -24,12 +24,14 @@ class ExportActivityLogJob implements ShouldQueue
     public function __construct(
         public readonly User $user,
         public readonly array $filters,
+        // TCK-601 — l'agence du profil actif AU MOMENT de la demande : le worker n'a pas de requête.
+        public readonly ?int $agencyId = null,
     ) {}
 
     public function handle(ActivityLogExporter $exporter): void
     {
         $format = $this->filters['format'] ?? 'csv';
-        $payload = $exporter->buildPayload($this->user, $this->filters);
+        $payload = $exporter->buildPayload($this->user, $this->filters, $this->agencyId);
         $rowCount = count($payload['rows']);
 
         $filename = $payload['filename'].'.'.$format;

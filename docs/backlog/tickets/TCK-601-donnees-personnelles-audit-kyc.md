@@ -650,3 +650,23 @@ Et autour :
   `->stop()` retiré → 3 rouges ; `getMessage()` remis au `catch` → rouge ; branche `message` remise
   hors SQL → 5 rouges ; décorateur retiré → rouge.
 
+
+### D — audit d'agence (back)
+
+- `App\Models\Activity` (déclaré dans `config/activitylog.php`) résout `agency_id` à la création par
+  `AuditAgencyResolver` ; `HasAuditAgency` posé sur `LeasePayment`, `BookingPayment`,
+  `BankStatementLine`, `KycDossier`, et aussi `MaintenanceRequest` (→ bien) et `CustomerNote` (→ fiche
+  client), deux enfants sans colonne `agency_id` relevés à la re-mesure. L'écouteur `DispatchAlerts`
+  passe sur la nouvelle classe (un événement de modèle se nomme par classe).
+- `AuditScope` est le seul périmètre de lecture (liste, historique d'un objet, export synchrone et job).
+  `indexByEntity` : classe exacte (`App\Models\<Studly>`, slug `[a-z0-9_-]`, classe non abstraite),
+  sinon 404. L'export reçoit l'agence du profil actif à la répartition.
+- `PropertyRedactor` : secrets par sous-chaîne (liste de TCK-144), identifiants par **segment**
+  (`rib`, `rib_pro`, mais ni `attributes` ni `distribution`).
+- Tests : `AgencyAuditScopeTest` 9/9, `ActivityLogAgencyBackfillTest` 2/2 ; classes d'audit existantes
+  (`ActivityLogEndpoint`, `ActivityLogExporter`, `AuditLog`, `ExportActivityLogPolicy`, `CrossTenantAudit`,
+  `AgencyModeration`, `SuperAdminInvitationLifecycle`) : 70/70 au total. Ablations : filtre remis sur
+  l'acteur → 7 rouges ; `LIKE` remis → rouge ; filtre d'agence retiré d'`indexByEntity` → rouge ;
+  `request()` relu dans le job → rouge ; agence non transmise au job → rouge ; expurgation retirée de
+  la liste → rouge, de l'export → rouge ; segments d'identifiants vidés → rouge ; enfant retiré du
+  rattrapage → rouge.

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\ExactIdentifierFilter;
+use App\Models\Activity;
+use App\Support\Audit\PropertyRedactor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Spatie\Activitylog\Models\Activity;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -21,27 +21,11 @@ use Spatie\QueryBuilder\QueryBuilder;
  * the codebase. Most writers are well-behaved, but defense-in-depth here
  * matters: a careless future writer could land a token / secret into the
  * payload, and this endpoint surfaces every log line to super-admin. We
- * redact any key whose name *looks* sensitive before serializing.
+ * redact any key whose name *looks* sensitive before serializing — {@see PropertyRedactor},
+ * shared since TCK-601 with the agency audit and both exports.
  */
 class CrossTenantAuditController extends Controller
 {
-    /** @var list<string> case-insensitive substrings that mark a key as sensitive */
-    private const REDACTED_KEY_PATTERNS = [
-        'password',
-        'token',
-        'secret',
-        'api_key',
-        'apikey',
-        'private_key',
-        'recovery',
-        'two_factor',
-        '2fa',
-        'credit_card',
-        'card_number',
-        'cvv',
-        'authorization',
-    ];
-
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) ($request->query('per_page') ?? 50);
@@ -74,43 +58,10 @@ class CrossTenantAuditController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => $this->redactProperties($log->properties),
+                'properties' => PropertyRedactor::redact($log->properties),
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);
-    }
-
-    /**
-     * Walk the properties payload and replace the value of any key whose
-     * name matches a sensitive pattern. Spatie stores `properties` as a
-     * Collection-cast JSON column; normalize to array first so the recursion
-     * works uniformly.
-     */
-    private function redactProperties(mixed $properties): mixed
-    {
-        if ($properties === null) {
-            return null;
-        }
-
-        $array = $properties instanceof Collection
-            ? $properties->toArray()
-            : (array) $properties;
-
-        array_walk_recursive($array, function (mixed &$value, mixed $key): void {
-            if (! is_string($key)) {
-                return;
-            }
-            $lower = strtolower($key);
-            foreach (self::REDACTED_KEY_PATTERNS as $pattern) {
-                if (str_contains($lower, $pattern)) {
-                    $value = '[REDACTED]';
-
-                    return;
-                }
-            }
-        });
-
-        return $array;
     }
 }

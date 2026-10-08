@@ -848,6 +848,17 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 | `ip_address` | à stocker dans `properties` via `tapActivity()` |
 | `user_agent` | à stocker dans `properties` via `tapActivity()` |
 
+**`App\Models\Activity` (TCK-601, ADR-0044 §3)** — étend le modèle spatie, déclaré dans
+`config/activitylog.php` (`activity_model`). Colonne ajoutée à `activity_log` :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---|---|---|---|---|
+| agency_id | FK agencies (`activity_log_agency_fk`, `nullOnDelete`) | oui | null | Agence du **sujet**, résolue à la création par `AuditAgencyResolver` (explicite → `HasAuditAgency::auditAgencyId()` → colonne `agency_id` réelle du sujet → sujet `Agency` → sans sujet : profil actif). Jamais l'acteur. `null` = visible du seul super-admin |
+
+Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log_created_idx (created_at)`.
+Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
+(`AuditScope`) ; `properties` passe par `PropertyRedactor` à la lecture.
+
 ---
 
 ## Nouveaux modèles
