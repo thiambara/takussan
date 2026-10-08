@@ -824,5 +824,7 @@ Un point, un commit, un test nommé, des ablations rouges. Décisions dans ADR-0
   `lng` se couvraient l'une l'autre : la première ablation est restée verte jusqu'à l'ajout des
   cas « point sans latitude » et « point sans longitude ».
 - **m6** : fait par la fusion de TCK-603 (`47f86b59`).
-- **m9** (Analytics) : attend TCK-602. Le ticket fusionné en second ajoute à `urlSansSecret` les
-  cas `/fr/search-alerts/confirm?token=…` et `/fr/search-alerts/unsubscribe?search=12&…`.
+- **m9** (Analytics) : 602 fusionnée d'abord. Son `urlSansSecret()` couvrait déjà les deux pages ;
+  trois cas nommés sont ajoutés à son test : confirmation (`?token=`), désinscription de compte
+  (`?search=12&expires=…&signature=…` → `?search=12`), désinscription sans compte (`?token=`).
+  Ablations : `token`, `signature` ou `expires` gardés — 3 rouges.
