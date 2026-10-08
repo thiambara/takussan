@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import type { ImpersonationDemarree } from '@/lib/impersonation';
-import { API_URL, poserLaSession } from '@/lib/impersonation-serveur';
+import { poserLaSession } from '@/lib/impersonation-serveur';
 
 /**
  * TCK-600 (ADR-0055 §6) — démarrer une session d'impersonation.
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const enTetes: Record<string, string> = {
+    ...(await enTetesServeurAmont()),
     Accept: 'application/json',
     'Content-Type': 'application/json',
     Authorization: `Bearer ${operateur}`,
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const langue = request.headers.get('accept-language');
   if (langue) enTetes['Accept-Language'] = langue;
 
-  const amont = await fetch(`${API_URL}/api/admin/users/${cible}/impersonate`, {
+  const amont = await fetch(urlApiServeur(`/admin/users/${cible}/impersonate`), {
     method: 'POST',
     headers: enTetes,
     body: JSON.stringify({ reason: corps?.reason }),

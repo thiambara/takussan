@@ -1,7 +1,8 @@
+import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { logout } from '@/lib/auth';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
-import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
+import { effacerLaSession } from '@/lib/impersonation-serveur';
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -13,9 +14,9 @@ export async function POST(): Promise<NextResponse> {
   if (token) {
     // TCK-600 (ADR-0055 §6) — la déconnexion de l'opérateur ferme aussi sa session d'impersonation.
     if (cookieStore.get(IMPERSONATION_COOKIE)?.value) {
-      await fetch(`${API_URL}/api/admin/impersonate/stop`, {
+      await fetch(urlApiServeur('/admin/impersonate/stop'), {
         method: 'POST',
-        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        headers: { ...(await enTetesServeurAmont()), Accept: 'application/json', Authorization: `Bearer ${token}` },
       }).catch(() => null);
     }
     try {

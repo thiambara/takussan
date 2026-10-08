@@ -146,6 +146,28 @@ export function urlApiPublique(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+/**
+ * TCK-600 (verif-600 B1) — pour un route handler qui joint l'API par `fetch` brut, parce qu'il doit
+ * lire ce qu'`apiRequest` ne rend pas (le jeton de `start`, un statut, un corps binaire) : l'URL du
+ * chemin SERVEUR ({@link baseServeur}), préfixe `/api` ajouté comme dans `apiFetch`.
+ */
+export function urlApiServeur(path: string): string {
+  return `${apiUrl()}/api${path}`;
+}
+
+/**
+ * Les en-têtes qu'`apiFetch` et `apiRequest` ajoutent d'eux-mêmes côté serveur, pour le même
+ * appelant : ceux du chemin interne et l'IP du visiteur par la chaîne de confiance de TCK-598.
+ * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
+ * journal d'impersonation, pour tous les opérateurs.
+ */
+export async function enTetesServeurAmont(): Promise<Record<string, string>> {
+  const enTetes: Record<string, string> = { ...enTetesDuCheminInterne() };
+  const visiteur = await resolveVisitorIp();
+  if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
+  return enTetes;
+}
+
 export type RequestOptions = {
   method?: string;
   body?: unknown;

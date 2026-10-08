@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
-import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
+import { effacerLaSession } from '@/lib/impersonation-serveur';
 
 /**
  * TCK-600 (ADR-0055 §6) — terminer la session : `stop` avec le jeton de l'OPÉRATEUR (l'API ferme
@@ -16,9 +17,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return reponse;
   }
 
-  const amont = await fetch(`${API_URL}/api/admin/impersonate/stop`, {
+  const amont = await fetch(urlApiServeur('/admin/impersonate/stop'), {
     method: 'POST',
-    headers: { Accept: 'application/json', Authorization: `Bearer ${operateur}` },
+    headers: { ...(await enTetesServeurAmont()), Accept: 'application/json', Authorization: `Bearer ${operateur}` },
   }).catch(() => null);
   const corps = amont ? await amont.json().catch(() => null) : null;
 

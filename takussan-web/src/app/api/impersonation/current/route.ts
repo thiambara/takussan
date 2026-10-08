@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
-import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
+import { effacerLaSession } from '@/lib/impersonation-serveur';
 
 const AUCUNE_SESSION = { code: 'impersonation.no_session' };
 
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const jeton = request.cookies.get(IMPERSONATION_COOKIE)?.value;
   if (!jeton) return NextResponse.json(AUCUNE_SESSION, { status: 404 });
 
-  const amont = await fetch(`${API_URL}/api/impersonation/current`, {
-    headers: { Accept: 'application/json', Authorization: `Bearer ${jeton}` },
+  const amont = await fetch(urlApiServeur('/impersonation/current'), {
+    headers: { ...(await enTetesServeurAmont()), Accept: 'application/json', Authorization: `Bearer ${jeton}` },
     cache: 'no-store',
   }).catch(() => null);
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
-import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
+import { effacerLaSession } from '@/lib/impersonation-serveur';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 
 /**
@@ -24,6 +25,7 @@ async function relayer(request: NextRequest, segments: string[]): Promise<NextRe
   }
 
   const enTetes: Record<string, string> = {
+    ...(await enTetesServeurAmont()),
     Accept: request.headers.get('accept') ?? 'application/json',
     Authorization: `Bearer ${jeton}`,
   };
@@ -37,7 +39,7 @@ async function relayer(request: NextRequest, segments: string[]): Promise<NextRe
     init.body = await request.arrayBuffer();
   }
 
-  const amont = await fetch(`${API_URL}/api/${chemin}${request.nextUrl.search}`, init);
+  const amont = await fetch(urlApiServeur(`/${chemin}${request.nextUrl.search}`), init);
   const enTetesReponse: Record<string, string> = {};
   for (const nom of ['content-type', 'content-disposition', 'cache-control']) {
     const valeur = amont.headers.get(nom);

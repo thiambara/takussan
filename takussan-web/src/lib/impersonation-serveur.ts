@@ -11,10 +11,6 @@ import { IMPERSONATION_COOKIE, IMPERSONATION_MARKER_COOKIE } from '@/lib/imperso
  * Le jeton : httpOnly, `SameSite=Strict`, `Secure` en production, durée dérivée d'`expires_at`
  * (15 minutes au plus). Le témoin : mêmes bornes, lisible par la page — il ne porte que `1`.
  */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
-
 export function poserLaSession(reponse: NextResponse, jeton: string, expiresAt: string): void {
   const commun = {
     secure: process.env.NODE_ENV === 'production',
