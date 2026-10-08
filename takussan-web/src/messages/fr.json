@@ -7309,7 +7309,13 @@
       "saveError": "Échec de la mise à jour du profil.",
       "saved": "Modifications enregistrées.",
       "otpSent": "Code envoyé par SMS. Il est valable 5 minutes.",
-      "phoneVerifiedOk": "Téléphone vérifié avec succès."
+      "phoneVerifiedOk": "Téléphone vérifié avec succès.",
+      "changeProofPrompt": "Ce numéro est vérifié : pour le remplacer, confirmez que vous le détenez.",
+      "changeProofPasswordLabel": "Mot de passe actuel",
+      "changeProofOr": "ou",
+      "changeProofSendCode": "Recevoir un code sur {phone}",
+      "changeProofCodeSent": "Code envoyé sur votre numéro actuel. Il est valable 5 minutes.",
+      "changeProofCodeAria": "Code reçu sur votre numéro actuel"
     },
     "searchPreferences": {
       "defaultName": "Mes préférences",

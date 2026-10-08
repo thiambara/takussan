@@ -7309,7 +7309,13 @@
       "saveError": "Profile update failed.",
       "saved": "Changes saved.",
       "otpSent": "Code sent by SMS. It is valid for 5 minutes.",
-      "phoneVerifiedOk": "Phone verified successfully."
+      "phoneVerifiedOk": "Phone verified successfully.",
+      "changeProofPrompt": "This number is verified: to replace it, confirm that you hold it.",
+      "changeProofPasswordLabel": "Current password",
+      "changeProofOr": "or",
+      "changeProofSendCode": "Get a code on {phone}",
+      "changeProofCodeSent": "Code sent to your current number. It is valid for 5 minutes.",
+      "changeProofCodeAria": "Code received on your current number"
     },
     "searchPreferences": {
       "defaultName": "My preferences",

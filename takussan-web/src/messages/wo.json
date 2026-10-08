@@ -6699,7 +6699,13 @@
       "saveError": "Coppite yi ci profil bi antuwul.",
       "saved": "Coppite yi ñu leen denc.",
       "otpSent": "Kod bi ñu ko yónnee ci SMS. Dina dox 5 simili.",
-      "phoneVerifiedOk": "Telefon bi ñu ko wóoral bu baax."
+      "phoneVerifiedOk": "Telefon bi ñu ko wóoral bu baax.",
+      "changeProofPrompt": "Nimero bii dëggal nañu ko : ngir soppi ko, wonal ne yaa ko yor.",
+      "changeProofPasswordLabel": "Sa baatu jàll bi fi nekk",
+      "changeProofOr": "walla",
+      "changeProofSendCode": "Jot benn code ci {phone}",
+      "changeProofCodeSent": "Yónne nañu code bi ci sa nimero bi fi nekk. Dafay dox 5 simili.",
+      "changeProofCodeAria": "Code bi nga jot ci sa nimero bi fi nekk"
     },
     "searchPreferences": {
       "defaultName": "Samay tànneef",

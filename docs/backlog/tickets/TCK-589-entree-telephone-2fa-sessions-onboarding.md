@@ -2026,3 +2026,57 @@ apprenait la perte de son entrée par téléphone en essayant de s'en servir.
 - Front : `NotificationRow` donne 12 verts. `check-i18n` est à parité (6131 clés) et
   `check-i18n-namespaces` est propre.
 - Toutes les gardes racine passent, dont `check-notification-codes`.
+
+#### p3-1c — l'écran demande la preuve
+
+**Le défaut.** `ProfileContactSection` envoyait le nouveau numéro seul. Après p3-1a, l'API le
+refuse pour tout numéro vérifié : l'écran devait donc demander la preuve.
+
+**Le correctif.**
+- **Le bloc de preuve** (`data-testid="phone-change-proof"`) n'apparaît que si le numéro
+  enregistré est **vérifié** et que la saisie le change. Un premier numéro, ou un numéro non
+  vérifié, se change librement. Le bloc propose :
+  - le **mot de passe actuel**, si `has_usable_password` est vrai ;
+  - **ou** « Recevoir un code sur {numéro actuel} » (`phoneChangeCodeAction` →
+    `POST /auth/phone/change-code`), puis la saisie du code à 6 chiffres.
+- L'enregistrement reste désactivé tant qu'aucune preuve n'est saisie. La preuve part avec le
+  numéro (`current_password`, sinon `phone_change_code`) et est effacée après succès. Un refus
+  de l'API affiche son message localisé, par le chemin existant.
+- La chaîne serveur relaie la preuve :
+  - `updateProfileAction` relaie les deux champs ;
+  - `UpdateProfilePayload` et `updateProfile` les placent dans le corps ;
+  - `phoneChangeCode` (dans `lib/security`) et `phoneChangeCodeAction` sont ajoutés.
+- 6 clés `profile.contact.changeProof*` dans les trois dictionnaires, en insertion seule.
+- La seule ligne existante touchée est la virgule après `phoneVerifiedOk`.
+
+**Les tests :**
+- `ProfileContactSection.preuve.test.tsx` (4) :
+  - preuve demandée, enregistrement bloqué sans elle ;
+  - mot de passe transmis ;
+  - code envoyé à l'ancien numéro, puis transmis, sans champ mot de passe pour un compte qui
+    n'en a pas ;
+  - témoin : rien n'est demandé pour un numéro non vérifié.
+- `actions/__tests__/auth.preuve-numero.test.ts` (3) suit le chemin réel jusqu'à `apiRequest` :
+  le mot de passe et le code sont relayés dans le corps de `PUT /api/auth/profile`, et rien
+  n'est ajouté sans preuve.
+- `ProfileContactSection.test.tsx`, « flips the badge… », remplaçait un numéro vérifié sans
+  preuve. Il saisit désormais le mot de passe et garde son objet.
+
+**Preuves :**
+- Rouge sur `bd0dabb3` : 3 rouges sur 4 (le témoin est vert).
+
+**Ablations, chacune restaurée par `cp`, md5 identique :**
+
+| Ablation | Rouges |
+|---|---|
+| F1 : bloc jamais affiché | 3/4 |
+| F2 : preuve non transmise par l'écran | 2/4 |
+| F3 : l'action ne relaie pas | 2/3 |
+| F4 : le code n'entre pas dans le corps | 1/3 |
+
+**Exécutions :**
+- vitest sur `src/components/profile`, `src/app/actions` et `src/lib/__tests__` : 868 verts,
+  puis 124 sur `actions` et `profile` après l'ajout du test de relais.
+- eslint et `tsc` sont propres.
+- `check-i18n` est à parité (6137 clés), et `check-i18n-namespaces` est propre.
+- Toutes les gardes racine passent.

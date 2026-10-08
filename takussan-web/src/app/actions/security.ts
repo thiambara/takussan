@@ -5,6 +5,7 @@ import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import {
   listActiveSessions,
+  phoneChangeCode,
   phoneSendOtp,
   phoneVerifyOtp,
   revokeSession,
@@ -127,6 +128,18 @@ export async function phoneSendOtpAction(
     const token = await getToken();
     requireToken(token, await jetonManquant());
     const data = await phoneSendOtp(token, phone);
+    return { ok: true, data };
+  } catch (err) {
+    return failure(err, 'sendOtpFailed');
+  }
+}
+
+/** TCK-589 p3-1 — le code de preuve, envoyé à l'ancien numéro vérifié. */
+export async function phoneChangeCodeAction(): Promise<ActionResult<{ sent: boolean }>> {
+  try {
+    const token = await getToken();
+    requireToken(token, await jetonManquant());
+    const data = await phoneChangeCode(token);
     return { ok: true, data };
   } catch (err) {
     return failure(err, 'sendOtpFailed');

@@ -80,6 +80,19 @@ export async function phoneSendOtp(
   return res.data;
 }
 
+/**
+ * TCK-589 p3-1 — un code à l'ANCIEN numéro vérifié : la preuve qu'exige son remplacement quand le
+ * compte n'a pas de mot de passe (ou qu'on préfère le code). Pas de corps : l'API vise le numéro
+ * vérifié du compte, jamais un numéro fourni.
+ */
+export async function phoneChangeCode(token: string): Promise<{ sent: boolean }> {
+  const res = await apiRequest<{ data: { sent: boolean } }>('/api/auth/phone/change-code', {
+    method: 'POST',
+    token,
+  });
+  return res.data;
+}
+
 export async function phoneVerifyOtp(token: string, code: string): Promise<void> {
   await apiRequest('/api/auth/phone/verify-otp', {
     method: 'POST',
