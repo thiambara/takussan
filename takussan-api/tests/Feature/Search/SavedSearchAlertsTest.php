@@ -16,7 +16,10 @@ use App\Services\Model\SearchService;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\Sanctum;
@@ -129,6 +132,78 @@ class SavedSearchAlertsTest extends TestCase
 
         $this->assertCount(1, $this->notificationsDe($user), 'le second passage ne doit rien ajouter');
         $this->assertTrue($recherche->refresh()->last_notified_at->isBefore(now()));
+    }
+
+    /**
+     * verif-599 M1 — un second passage qui a lu la même borne que le premier n'envoie rien de
+     * plus : l'alerte est réservée avant l'envoi, sur la borne lue. Recouvrement rejoué de façon
+     * déterministe.
+     */
+    public function test_deux_passages_qui_se_recouvrent_n_envoient_qu_une_fois(): void
+    {
+        $users = User::factory()->count(3)->create();
+        $this->bienPublieLe(now()->subDay());
+        foreach ($users as $user) {
+            $this->recherche($user);
+        }
+        $this->indexProperties();
+        // Le second passage tourne en entier APRÈS que le premier a lu l'état et AVANT qu'il ne
+        // le réserve : le premier repart avec un état périmé, que sa réservation doit refuser.
+        $imbrique = false;
+        SavedSearch::retrieved(function () use (&$imbrique): void {
+            if (! $imbrique) {
+                $imbrique = true;
+                $this->lancerLeJob();
+            }
+        });
+
+        $this->lancerLeJob();
+
+        $this->assertTrue($imbrique);
+        foreach ($users as $user) {
+            $this->assertCount(1, $this->notificationsDe($user));
+        }
+    }
+
+    /** Un envoi qui échoue rend sa réservation : la borne reste, le passage suivant envoie. */
+    public function test_un_envoi_qui_echoue_rend_sa_reservation(): void
+    {
+        $user = User::factory()->create();
+        $this->bienPublieLe(now()->subDay());
+        $recherche = $this->recherche($user);
+        $this->indexProperties();
+        $echec = true;
+        Event::listen(NotificationSending::class, function () use (&$echec): void {
+            if ($echec) {
+                throw new RuntimeException('transport indisponible');
+            }
+        });
+
+        $this->lancerLeJob();
+        $this->assertCount(0, $this->notificationsDe($user));
+        $this->assertNull($recherche->refresh()->last_notified_at);
+
+        $echec = false;
+        $this->lancerLeJob();
+        $this->assertCount(1, $this->notificationsDe($user));
+    }
+
+    /** Le verrou de job : un passage mis en file pendant qu'un autre tient le verrou est abandonné. */
+    public function test_un_passage_pendant_un_autre_est_abandonne(): void
+    {
+        $user = User::factory()->create();
+        $this->bienPublieLe(now()->subDay());
+        $this->recherche($user);
+        $this->indexProperties();
+        $verrou = Cache::lock('laravel-queue-overlap:'.SendSavedSearchAlerts::class.':saved-search-alerts', 600);
+        $this->assertTrue($verrou->get());
+
+        SendSavedSearchAlerts::dispatch();
+        $this->assertCount(0, $this->notificationsDe($user));
+
+        $verrou->release();
+        SendSavedSearchAlerts::dispatch();
+        $this->assertCount(1, $this->notificationsDe($user));
     }
 
     /**

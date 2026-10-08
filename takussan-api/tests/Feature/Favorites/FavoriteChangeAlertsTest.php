@@ -16,6 +16,9 @@ use App\Models\User;
 use App\Services\Formatting\CurrencyFormatter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Symfony\Component\Mailer\SentMessage;
@@ -202,6 +205,73 @@ class FavoriteChangeAlertsTest extends TestCase
 
         $this->assertSame([$bien->id], $this->notificationsDe($client)->sole()->data['property_ids']);
         $this->assertSame('450000.00', Favorite::sole()->getRawOriginal('alert_baseline_price'));
+    }
+
+    /**
+     * verif-599 M1 — un second passage qui a lu le même état que le premier n'annonce rien
+     * de plus : l'annonce est réservée avant l'envoi, sur l'état lu. Le recouvrement est rejoué de
+     * façon déterministe.
+     */
+    public function test_deux_passages_qui_se_recouvrent_n_annoncent_qu_une_fois(): void
+    {
+        $clients = User::factory()->count(3)->create();
+        foreach ($clients as $client) {
+            $this->favori($client)->update(['price' => 450_000]);
+            $this->favori($client)->update(['status' => PropertyStatus::Rented]);
+        }
+        // Le second passage tourne en entier APRÈS que le premier a lu l'état et AVANT qu'il ne
+        // le réserve : le premier repart avec un état périmé, que sa réservation doit refuser.
+        $imbrique = false;
+        Favorite::retrieved(function () use (&$imbrique): void {
+            if (! $imbrique) {
+                $imbrique = true;
+                $this->lancerLeJob();
+            }
+        });
+
+        $this->lancerLeJob();
+
+        $this->assertTrue($imbrique);
+        foreach ($clients as $client) {
+            $this->assertCount(2, $this->notificationsDe($client), 'une baisse et une sortie, chacune une fois');
+        }
+    }
+
+    /** Un envoi qui échoue rend sa réservation : le passage suivant annonce. */
+    public function test_un_envoi_qui_echoue_rend_sa_reservation(): void
+    {
+        $client = User::factory()->create();
+        $this->favori($client)->update(['price' => 450_000]);
+        $echec = true;
+        Event::listen(NotificationSending::class, function () use (&$echec): void {
+            if ($echec) {
+                throw new \RuntimeException('transport indisponible');
+            }
+        });
+
+        $this->lancerLeJob();
+        $this->assertCount(0, $this->notificationsDe($client));
+        $this->assertSame('500000.00', Favorite::sole()->getRawOriginal('alert_baseline_price'));
+
+        $echec = false;
+        $this->lancerLeJob();
+        $this->assertCount(1, $this->notificationsDe($client));
+    }
+
+    /** Le verrou de job : un passage mis en file pendant qu'un autre tient le verrou est abandonné. */
+    public function test_un_passage_pendant_un_autre_est_abandonne(): void
+    {
+        $client = User::factory()->create();
+        $this->favori($client)->update(['price' => 450_000]);
+        $verrou = Cache::lock('laravel-queue-overlap:'.SendFavoriteChangeAlerts::class.':favorite-change-alerts', 600);
+        $this->assertTrue($verrou->get());
+
+        SendFavoriteChangeAlerts::dispatch();
+        $this->assertCount(0, $this->notificationsDe($client));
+
+        $verrou->release();
+        SendFavoriteChangeAlerts::dispatch();
+        $this->assertCount(1, $this->notificationsDe($client));
     }
 
     /** Groupée : deux baisses, une notification. */
