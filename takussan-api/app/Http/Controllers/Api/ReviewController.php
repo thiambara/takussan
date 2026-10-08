@@ -14,19 +14,30 @@ use App\Models\Enums\ReviewStatus;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ReviewController extends Controller
 {
-    public function __construct(private readonly ReviewModerationService $moderationService) {}
+    public function __construct(
+        private readonly ReviewModerationService $moderationService,
+        private readonly ReviewModerationScope $scope,
+    ) {}
+
+    /** TCK-597 — plafond de `per_page` de la file : un client ne tire pas toute la table. */
+    public const MAX_PER_PAGE = 100;
 
     /**
-     * Global reviews listing — used by the admin moderation queue.
-     * Supports `filter[moderation_status]=pending|flagged|approved|rejected`,
-     * `filter[reported]=1`, sort by `-reported_count`, `-created_at`.
-     * Only super_admin and admin roles can access.
+     * La file de modération des avis, et la liste « mes avis » de l'auteur.
+     *
+     * Supports `filter[moderation_status]=pending|flagged|approved|rejected`, `filter[reported]=1`,
+     * `filter[subject_type]=…`, `filter[author_id]=me`, sort by `-reported_count`, `-created_at`.
+     *
+     * TCK-597 (ADR-0043 §1) — la file est CLOISONNÉE : le super-admin voit tout, l'admin d'agence
+     * les seuls avis dont `reviews.agency_id` est l'agence de son profil actif, et `pending_count`
+     * compte le même périmètre. `filter[author_id]=me` reste ouvert à tout auteur, sur ses seuls avis.
      */
     public function index(Request $request): JsonResponse
     {
@@ -34,21 +45,20 @@ class ReviewController extends Controller
         $authorFilter = $request->query('filter.author_id')
             ?? data_get($request->query('filter', []), 'author_id');
 
-        // `filter[author_id]=me` (or `auth`) is the non-admin escape hatch:
-        // lets an author list their own reviews from the profile page
-        // without exposing the full moderation queue. Any other value keeps
-        // the admin-only lock.
         $isSelfFilter = in_array($authorFilter, ['me', 'auth', (string) $user->id], true);
-        abort_unless(
-            $isSelfFilter || $user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
-            403,
-        );
+        if (! $isSelfFilter) {
+            $this->authorize('viewModerationQueue', Review::class);
+        }
 
         $query = Review::query()->with(['author', 'reviewable']);
 
-        if ($authorFilter !== null && $authorFilter !== '') {
-            $authorId = $isSelfFilter ? $user->id : (int) $authorFilter;
-            $query->where('author_id', $authorId);
+        if ($isSelfFilter) {
+            $query->where('author_id', $user->id);
+        } else {
+            $this->scope->restrict($query, $user);
+            if ($authorFilter !== null && $authorFilter !== '') {
+                $query->where('author_id', (int) $authorFilter);
+            }
         }
 
         $status = $request->query('filter.moderation_status')
@@ -96,13 +106,15 @@ class ReviewController extends Controller
             }
         }
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = max(1, min((int) $request->input('per_page', 20), self::MAX_PER_PAGE));
         $paginator = $query->paginate($perPage);
 
-        // Meta — include pending queue count for badge in the admin sidebar.
-        $pendingCount = Review::query()
-            ->whereIn('status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
-            ->count();
+        // Meta — le compteur de la file, dans le MÊME périmètre que la liste.
+        $pendingCount = $isSelfFilter
+            ? Review::query()->where('author_id', $user->id)
+                ->whereIn('status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
+                ->count()
+            : $this->scope->pendingCount($user);
 
         return $this->json([
             'data' => ReviewResource::collection($paginator)->toArray($request),
@@ -116,18 +128,15 @@ class ReviewController extends Controller
      */
     public function moderate(ModerateReviewRequest $request, Review $review): JsonResponse
     {
-
         $data = $request->validated();
 
-        $decision = $data['decision'];
-        $reason = $data['reason'] ?? null;
-
-        // Reason required for anything other than approve.
-        if ($decision !== 'approve' && empty($reason)) {
-            abort_code(422, 'review.reason_required');
-        }
-
-        $result = $this->moderationService->moderate($review, $request->user(), $decision, $reason);
+        $result = $this->moderationService->moderate(
+            $review,
+            $request->user(),
+            $data['decision'],
+            $data['reason'] ?? null,
+            $data['reason_code'] ?? null,
+        );
 
         if ($result['deleted']) {
             return $this->json([
@@ -143,10 +152,12 @@ class ReviewController extends Controller
     /**
      * List the reports filed against a review — used by the admin detail
      * panel. Joins reporter user data when possible.
+     *
+     * TCK-597 — l'empreinte d'un signalant anonyme n'est jamais rendue : il est « anonyme ».
      */
     public function reports(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
+        $this->authorize('viewReports', $review);
 
         $reports = collect($review->metadata['reports'] ?? [])
             ->map(function (array $r): array {
@@ -155,6 +166,7 @@ class ReviewController extends Controller
 
                 return [
                     'user_id' => $userId,
+                    'anonymous' => $userId === null,
                     'user' => $user ? [
                         'id' => $user->id,
                         'name' => $user->full_name ?: $user->email,
@@ -216,14 +228,9 @@ class ReviewController extends Controller
      */
     public function deleteReply(Request $request, Review $review): JsonResponse
     {
-        $user = $request->user();
-        $reviewable = $review->reviewable;
-
-        $ok = $user->isSuperAdmin()
-            || ($review->replied_by_id && $review->replied_by_id === $user->id)
-            || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
-            || ($user->agency_id && $reviewable && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
-        abort_unless($ok, 403);
+        // TCK-597 — `ReviewPolicy::deleteReply` : la clause `agency_id === $user->agency_id`
+        // ouvrait le geste au bailleur de l'agence.
+        $this->authorize('deleteReply', $review);
 
         abort_code_if($review->reply_content === null, 404, 'review.no_reply');
 
@@ -239,10 +246,6 @@ class ReviewController extends Controller
     public function reply(ReplyReviewRequest $request, Review $review): JsonResponse
     {
         $user = $request->user();
-        $reviewable = $review->reviewable;
-        $ok = $user->isSuperAdmin()
-            || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
-            || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
 
         // Rejected is a terminal state: no public-facing view, no reply.
         // Reply is not a ReviewStatus transition so assertTransition() does
@@ -266,7 +269,7 @@ class ReviewController extends Controller
 
     public function approve(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
+        $this->authorize('moderate', $review);
 
         $review = $this->moderationService->approve($review, $request->user());
 
@@ -275,7 +278,7 @@ class ReviewController extends Controller
 
     public function reject(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
+        $this->authorize('moderate', $review);
 
         $review = $this->moderationService->reject($review, $request->user());
 

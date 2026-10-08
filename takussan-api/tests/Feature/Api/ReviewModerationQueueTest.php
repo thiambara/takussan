@@ -112,10 +112,15 @@ class ReviewModerationQueueTest extends TestCase
             'decision' => 'hide',
         ])->assertStatus(422);
 
-        // With reason
+        // TCK-597 (ADR-0043 §7) — le motif est un code ; le texte libre n'est exigé que pour `other`.
         $this->patchJson("/api/reviews/{$review->id}/moderate", [
             'decision' => 'hide',
-            'reason' => 'Contenu offensant',
+            'reason_code' => 'other',
+        ])->assertStatus(422)->assertJsonValidationErrors(['reason']);
+
+        $this->patchJson("/api/reviews/{$review->id}/moderate", [
+            'decision' => 'hide',
+            'reason_code' => 'offensive',
         ])->assertOk()
             ->assertJsonPath('data.status', ReviewStatus::Rejected->value);
     }
@@ -128,7 +133,7 @@ class ReviewModerationQueueTest extends TestCase
 
         $this->patchJson("/api/reviews/{$review->id}/moderate", [
             'decision' => 'delete',
-            'reason' => 'spam',
+            'reason_code' => 'spam',
         ])->assertOk()
             ->assertJsonPath('data.deleted', true);
 

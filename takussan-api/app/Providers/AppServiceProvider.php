@@ -72,6 +72,7 @@ use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
+use App\Policies\ReviewPolicy;
 use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
@@ -509,6 +510,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Payout::class, PayoutPolicy::class);
         Gate::policy(PropertyVisit::class, PropertyVisitPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+
+        // TCK-597 (ADR-0043 §1) — modérer, lire les signalements, répondre : la règle était
+        // recopiée dans six méthodes, et aucune copie ne comparait l'agence de l'avis.
+        Gate::policy(Review::class, ReviewPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.
