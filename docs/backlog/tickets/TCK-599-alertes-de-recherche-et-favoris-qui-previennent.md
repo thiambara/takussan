@@ -727,6 +727,22 @@ Restauration vérifiée par md5 après chaque ablation.
 `AnonymousNotifiable` n'a pas de `getKey()` : aucun notifiable existant ne change de clé. Quatre
 tests `test_tck599_*` dans `WhatsappChannelTest` (17/17).
 
+**Fusion d'`origin/dev` (`bcade3bc`, TCK-596 et TCK-600), commit `52fc29bd`** :
+- `FavoriteController::index` garde le masquage de TCK-600 (agence suspendue ; le personnel de
+  l'agence garde son favori). Il passe sous la projection de 599, en `withTrashed()`.
+- L'ajout d'un favori sur un bien d'agence suspendue rend 404, la même réponse qu'un bien absent
+  (contrainte 11). Le test de 600 qui attendait 403 a été aligné.
+- `SendFavoriteChangeAlerts` gèle le favori d'une agence suspendue : il ne l'annonce pas et ne le
+  rebase pas (ADR-0050, décision 11).
+- Les chemins d'API du front passent par `cheminApi`, la garde de TCK-600 : `cheminFavori`,
+  `cheminRecherche`, la pagination des cœurs et la désinscription signée.
+
+| Ablation de la fusion | Test | Résultat |
+|---|---|---|
+| Gel retiré du job | `FavoriteChangeAlertsTest` | 1 échec |
+| Masquage de TCK-600 retiré de la liste | `AgencySuspensionAuthenticatedReadsTest` | 1 échec |
+| `withTrashed()` retiré de la liste | `FavoriteVisibilityTest` | 1 échec |
+
 **Gardes doubles, assumées** : l'usage unique du jeton tient par l'empreinte effacée ET par
 `whereNull('confirmed_at')` — chacune seule survit à l'ablation de l'autre, les deux ensemble
 rougissent. Le `isConfirmed()` de `via()` double le filtre du job : non éprouvé seul.
