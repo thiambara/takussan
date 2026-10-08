@@ -84,6 +84,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Global reviews (admin moderation queue)
     Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    // TCK-597 — la boîte des avis reçus (agent, bailleur, prestataire, admin d'agence).
+    Route::get('reviews/received', [ReviewController::class, 'received'])->name('reviews.received');
     Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
     Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
 });

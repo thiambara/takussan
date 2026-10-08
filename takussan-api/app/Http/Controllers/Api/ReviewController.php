@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IndexReceivedReviewsRequest;
 use App\Http\Requests\Api\ModerateReviewRequest;
 use App\Http\Requests\Api\ReplyReviewRequest;
 use App\Http\Requests\Api\ReportReviewRequest;
@@ -14,8 +15,10 @@ use App\Models\Enums\ReviewStatus;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Review\ReceivedReviews;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
+use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
 use App\Support\VisitorFingerprint;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +29,7 @@ class ReviewController extends Controller
     public function __construct(
         private readonly ReviewModerationService $moderationService,
         private readonly ReviewModerationScope $scope,
+        private readonly ReviewNotifier $notifier,
     ) {}
 
     /** TCK-597 — plafond de `per_page` de la file : un client ne tire pas toute la table. */
@@ -200,6 +204,42 @@ class ReviewController extends Controller
         ]);
     }
 
+    /**
+     * TCK-597 (AC7) — `GET /api/reviews/received` : la boîte des avis reçus de l'acteur (agent,
+     * bailleur publieur, prestataire, admin d'agence), filtrée côté serveur, une seule requête.
+     */
+    public function received(IndexReceivedReviewsRequest $request, ReceivedReviews $received): JsonResponse
+    {
+        $filters = $request->validated('filter', []);
+
+        $query = $received->for($request->user())
+            ->with(['author.media', 'reviewable'])
+            ->latest('reviews.created_at')
+            ->latest('reviews.id');
+
+        if (isset($filters['property_id'])) {
+            $query->where('reviews.reviewable_type', Property::class)
+                ->where('reviews.reviewable_id', (int) $filters['property_id']);
+        }
+        if (isset($filters['replied'])) {
+            $replied = filter_var($filters['replied'], FILTER_VALIDATE_BOOLEAN);
+            $replied ? $query->whereNotNull('reviews.reply_content') : $query->whereNull('reviews.reply_content');
+        }
+        if (isset($filters['status'])) {
+            $query->where('reviews.status', $filters['status']);
+        }
+        if (isset($filters['subject_type'])) {
+            $query->where('reviews.reviewable_type', IndexReceivedReviewsRequest::SUBJECT_TYPES[$filters['subject_type']]);
+        }
+
+        $paginator = $query->paginate((int) $request->validated('per_page', 20));
+
+        return $this->json([
+            'data' => ReviewResource::collection($paginator->getCollection())->toArray($request),
+            'meta' => $this->paginationMeta($paginator),
+        ]);
+    }
+
     public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse
     {
         $user = $request->user();
@@ -217,7 +257,9 @@ class ReviewController extends Controller
             'author_id' => $user->id,
             'is_approved' => false,
             'status' => ReviewStatus::Pending,
+            'metadata' => $this->creationMetadata($request),
         ]));
+        $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
@@ -314,7 +356,9 @@ class ReviewController extends Controller
             'author_id' => $user->id,
             'is_approved' => false,
             'status' => ReviewStatus::Pending,
+            'metadata' => $this->creationMetadata($request),
         ]));
+        $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
@@ -326,5 +370,16 @@ class ReviewController extends Controller
         $reports->report($review, $request->user(), VisitorFingerprint::of($request), $request->validated('reason'));
 
         return $this->json(['message' => __('messages.review_reported')]);
+    }
+
+    /**
+     * TCK-597 (ADR-0043 §6) — l'empreinte de l'adresse d'où l'avis est déposé, jamais l'IP en
+     * clair : elle sert à repérer des avis d'auteurs différents venus de la même adresse.
+     *
+     * @return array<string, mixed>
+     */
+    private function creationMetadata(Request $request): array
+    {
+        return ['ip_hash' => VisitorFingerprint::of($request)];
     }
 }

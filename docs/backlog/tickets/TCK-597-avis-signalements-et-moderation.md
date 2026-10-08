@@ -663,3 +663,28 @@ Sans recopier la spec, voici ce qui change.
 - Ablations (restaurées par `cp`) : sans dédoublonnage par empreinte → 1 rouge ; sans piège → 1
   rouge ; un signalement qui masque (`is_approved = false`) → 3 rouges (liste publique, moyenne) ;
   sans le filtre « avis publié » → 1 rouge.
+
+### §4 — boîte des avis reçus, notifications, agrégats
+
+- `GET /api/reviews/received` (`ReceivedReviews`) : avis **publiés** des biens publiés par
+  l'acteur ou dont il est collaborateur, avis publiés qui le visent (agent, prestataire) ; l'admin
+  actif d'une agence voit en plus tous les avis de l'agence, en attente compris. Jamais un avis
+  rejeté (`filter[status]=rejected` → 422). Filtres serveur `property_id`, `replied`, `status`,
+  `subject_type` ; `per_page` ≤ 50 (51 → 422).
+- `ReviewObserver::updated` recompte quand `is_approved` ou `status` change ; `syncCounts` ne compte
+  plus que `is_approved = true`. Migration : `agencies.reviews_count` (absent, constaté à la
+  re-mesure) + recompte de reprise SQL des agences et des biens ; `AgencyResource` rend
+  `reviews_count`.
+- Notifications par `ReviewNotifier` : « reçu » au passage `approved` (observateur) au publieur du
+  bien, à l'agent, aux admins actifs de l'agence notée, au prestataire, jamais à l'auteur ;
+  « à modérer » aux admins actifs de `reviews.agency_id` (agence `standard`, cible bien ou agent).
+  **Écart :** « à modérer » part des endpoints de création, pas de l'observateur — `ReviewSeeder`
+  crée des centaines d'avis en attente par `Review::create`, et un observateur aurait écrit à tous
+  les admins à chaque `migrate:fresh --seed`. Les endpoints sont les seuls chemins de création.
+- `metadata.ip_hash` (empreinte HMAC) posé à la création par l'API (sert au drapeau « suspect »).
+- Preuves : `ReceivedReviewsTest` 3, `ReviewNotificationTest` 3 (libellé fr en base, en par le
+  rendu), `ReviewAggregateTest` 1 ; lot `*Review*` + `Agency*` : 301 verts ; profils publics 39
+  verts.
+- Ablations (restaurées par `cp`) : sans `updated` → 1 rouge (AC12) ; `syncCounts` sans filtre
+  `is_approved` → 1 rouge ; sans notification « reçu » → 2 rouges ; sans « à modérer » → 1 rouge ;
+  biens de toute l'agence au lieu des siens → 1 rouge ; avis non publiés dans la boîte → 1 rouge.
