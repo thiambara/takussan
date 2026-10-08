@@ -60,7 +60,7 @@ class IntegrationWebhookLog extends AbstractModel
         'processed_at',
     ];
 
-    protected $hidden = ['body', 'headers'];
+    protected $hidden = ['body', 'headers', 'body_sha256'];
 
     protected $casts = [
         'payload' => 'array',
@@ -79,10 +79,10 @@ class IntegrationWebhookLog extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'status', 'provider', 'channel', 'http_status'];
 
-    /** Jamais `body` ni `headers` (ADR-0051 §4). */
+    /** Jamais `body` ni `headers` (ADR-0051 §4), ni `body_sha256` (VERIF-602 m2). */
     protected static array $queryFields = [
         'id', 'integration_id', 'agency_id', 'channel', 'route_name', 'provider', 'direction', 'status', 'event_type',
-        'payload', 'body_sha256', 'body_truncated', 'http_method', 'authenticated_at', 'http_status',
+        'payload', 'body_truncated', 'http_method', 'authenticated_at', 'http_status',
         'error_code', 'error_message', 'external_id', 'matched_count', 'attempts', 'replayed_at',
         'replayed_by_id', 'processed_at', 'created_at', 'updated_at',
     ];

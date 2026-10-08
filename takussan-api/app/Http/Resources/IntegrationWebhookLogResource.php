@@ -27,7 +27,6 @@ class IntegrationWebhookLogResource extends BaseResource
             'status' => $this->whenHas('status'),
             'event_type' => $this->whenHas('event_type'),
             'payload' => $this->whenHas('payload', fn () => $this->payload ?? []),
-            'body_sha256' => $this->whenHas('body_sha256'),
             'body_truncated' => $this->whenHas('body_truncated'),
             'http_method' => $this->whenHas('http_method'),
             'authenticated_at' => $this->whenHas('authenticated_at', fn () => $this->iso($this->authenticated_at)),

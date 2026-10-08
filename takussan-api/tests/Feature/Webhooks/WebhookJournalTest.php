@@ -9,6 +9,7 @@ use App\Models\IntegrationWebhookLog;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -49,6 +50,59 @@ class WebhookJournalTest extends TestCase
         $this->assertSame('payment', $log->channel);
         $this->assertSame('wave', $log->provider);
         $this->assertNull($log->integration_id, 'Un appel non authentifié ne se rattache à rien.');
+    }
+
+    /**
+     * VERIF-602 M4 — une requête NON authentifiée ne laisse pas son corps : 250 Ko postés sur un
+     * jeton inconnu, et sur une intégration réelle à la signature fausse, laissent chacun une ligne
+     * de moins de 2 Ko — ni corps, ni en-têtes, ni vue ; la taille reçue seule.
+     */
+    public function test_an_unauthenticated_request_leaves_a_small_row_without_its_body(): void
+    {
+        $integration = $this->journalWaveIntegration(Agency::factory()->create());
+        $huge = json_encode(['type' => 'checkout.session.completed', 'data' => ['id' => 'txn_x', 'pad' => str_repeat('z', 250_000)]]);
+
+        $this->call('POST', '/api/webhooks/payments/wave/'.str_repeat('z', 43), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_WAVE_SIGNATURE' => 't=1,v1='.str_repeat('0', 64),
+        ], $huge)->assertNotFound();
+        $this->postWave($integration, $huge, 'mauvais')->assertStatus(401);
+
+        $rows = DB::table('integration_webhook_logs')->orderBy('id')->get();
+        $this->assertCount(2, $rows);
+        foreach ($rows as $row) {
+            $this->assertSame('rejected', $row->status);
+            $this->assertNull($row->body);
+            $this->assertNull(IntegrationWebhookLog::query()->find($row->id)->body);
+            $this->assertSame([], IntegrationWebhookLog::query()->find($row->id)->headers);
+            $this->assertSame(['body_bytes' => strlen($huge)], json_decode((string) $row->payload, true));
+            $size = (int) DB::selectOne('SELECT pg_column_size(t.*) AS n FROM integration_webhook_logs t WHERE id = ?', [$row->id])->n;
+            $this->assertLessThan(2048, $size, "ligne {$row->id} : {$size} octets");
+        }
+    }
+
+    /**
+     * VERIF-602 m2 — l'empreinte du corps n'est pas un oracle : c'est un HMAC sous la clé de
+     * l'application (pas un SHA-256 nu, qu'une force brute renverse), et l'API ne la rend pas.
+     */
+    public function test_the_body_digest_is_keyed_and_never_returned(): void
+    {
+        $integration = $this->journalWaveIntegration(Agency::factory()->create());
+        $body = $this->waveBody('txn_digest');
+        $this->postWave($integration, $body)->assertOk();
+
+        $log = IntegrationWebhookLog::query()->sole();
+        $this->assertNotSame(hash('sha256', $body), $log->body_sha256);
+        $this->assertSame(hash_hmac('sha256', $body, (string) config('app.key')), $log->body_sha256);
+
+        $this->actingAsRole('super_admin');
+        $shown = $this->getJson("/api/admin/webhook-logs/{$log->id}")->assertOk()->getContent();
+        $listed = $this->getJson('/api/admin/webhook-logs')->assertOk()->getContent();
+        $this->getJson('/api/admin/webhook-logs?fields[integration_webhook_logs]=id,body_sha256')->assertStatus(400);
+        foreach ([$shown, $listed] as $view) {
+            $this->assertStringNotContainsString('body_sha256', $view);
+            $this->assertStringNotContainsString($log->body_sha256, $view);
+        }
     }
 
     /** AC2 — authentifié, sans payable : `processed`, `matched_count = 0`, et `filter[unmatched]=1` le rend. */
@@ -116,7 +170,7 @@ class WebhookJournalTest extends TestCase
 
         $log = IntegrationWebhookLog::query()->sole();
         $this->assertSame($body, $log->body);
-        $this->assertSame(hash('sha256', $body), $log->body_sha256);
+        $this->assertSame(WebhookJournal::bodyDigest($body), $log->body_sha256);
         $this->assertFalse($log->body_truncated);
         $this->assertStringNotContainsString('aaaaaaaaaa', (string) DB::table('integration_webhook_logs')->value('body'), 'Le corps est chiffré en base.');
 
@@ -126,7 +180,7 @@ class WebhookJournalTest extends TestCase
         $truncated = IntegrationWebhookLog::query()->latest('id')->firstOrFail();
         $this->assertNull($truncated->body);
         $this->assertTrue($truncated->body_truncated);
-        $this->assertSame(hash('sha256', $big), $truncated->body_sha256);
+        $this->assertSame(WebhookJournal::bodyDigest($big), $truncated->body_sha256);
         $this->assertFalse($truncated->isReplayable());
     }
 

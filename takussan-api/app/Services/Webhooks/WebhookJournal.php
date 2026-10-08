@@ -23,6 +23,14 @@ use Throwable;
  * Ce qui n'est JAMAIS écrit : l'URL (ses segments secrets — le `{token}` SMS/WhatsApp, le jeton
  * d'intégration des paiements, ADR-0046), un en-tête hors de la liste blanche du canal, le message
  * d'une exception (il peut porter une valeur de la requête).
+ *
+ * VERIF-602 M4 — ni le corps, ni les en-têtes, ni la vue expurgée d'une requête NON authentifiée :
+ * `open()` n'écrit que sa taille, et ils ne rejoignent la ligne qu'à `authenticated()`. Une ligne
+ * `rejected` (jeton inconnu, signature fausse, IP refusée) reste de quelques centaines d'octets,
+ * quel que soit le corps reçu — elle n'est de toute façon jamais rejouable.
+ *
+ * VERIF-602 m2 — `body_sha256` est un HMAC sous la clé de l'application, et l'API ne le rend pas :
+ * un condensat nu du corps permettait de retrouver par force brute le numéro que la vue masque.
  */
 class WebhookJournal
 {
@@ -48,6 +56,13 @@ class WebhookJournal
 
     private bool $unmatchedResponse = false;
 
+    /**
+     * Ce qui attend l'authentification pour rejoindre la ligne : corps, en-têtes, vue expurgée.
+     *
+     * @var array{body: ?string, headers: array<string, string>, payload: array<array-key, mixed>}|null
+     */
+    private ?array $pending = null;
+
     public function __construct(private readonly WebhookPayloadRedactor $redactor) {}
 
     public function open(Request $request, string $channel, string $provider): IntegrationWebhookLog
@@ -62,13 +77,18 @@ class WebhookJournal
             'direction' => 'incoming',
             'status' => IntegrationWebhookLog::STATUS_RECEIVED,
             'http_method' => $request->getMethod(),
-            'body' => $truncated ? null : $raw,
-            'body_sha256' => hash('sha256', $raw),
+            'body' => null,
+            'body_sha256' => self::bodyDigest($raw),
             'body_truncated' => $truncated,
-            'headers' => $this->headers($request, $channel),
-            'payload' => $truncated ? ['body_truncated' => true] : $this->redactor->redact($channel, $provider, $this->decode($request, $raw)),
+            'headers' => [],
+            'payload' => ['body_bytes' => strlen($raw)],
             'attempts' => 0,
         ]);
+        $this->pending = [
+            'body' => $truncated ? null : $raw,
+            'headers' => $this->headers($request, $channel),
+            'payload' => ['body_bytes' => strlen($raw)] + ($truncated ? ['body_truncated' => true] : $this->redactor->redact($channel, $provider, $this->decode($request, $raw))),
+        ];
         $this->unmatchedResponse = false;
 
         return $this->log;
@@ -78,7 +98,14 @@ class WebhookJournal
     public function resume(IntegrationWebhookLog $log): void
     {
         $this->log = $log;
+        $this->pending = null;
         $this->unmatchedResponse = false;
+    }
+
+    /** HMAC-SHA256 du corps sous la clé de l'application : il identifie, il ne se renverse pas. */
+    public static function bodyDigest(string $raw): string
+    {
+        return hash_hmac('sha256', $raw, (string) config('app.key'));
     }
 
     public function current(): ?IntegrationWebhookLog
@@ -100,7 +127,12 @@ class WebhookJournal
             'authenticated_at' => $this->log->authenticated_at ?? now(),
             'integration_id' => $integration?->id,
             'agency_id' => $integration?->agency_id,
-        ], fn ($value) => $value !== null))->save();
+        ], fn ($value) => $value !== null));
+        if ($this->pending !== null) {
+            $this->log->forceFill($this->pending);
+            $this->pending = null;
+        }
+        $this->log->save();
     }
 
     /**
@@ -158,6 +190,7 @@ class WebhookJournal
             'error_message' => $status >= 400 && $error !== null ? class_basename($error) : null,
             'processed_at' => now(),
         ])->save();
+        $this->pending = null;
 
         if ($outcome === IntegrationWebhookLog::STATUS_FAILED) {
             WebhookProcessingFailed::dispatch(

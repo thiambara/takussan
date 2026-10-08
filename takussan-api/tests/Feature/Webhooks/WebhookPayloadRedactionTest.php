@@ -38,7 +38,10 @@ class WebhookPayloadRedactionTest extends TestCase
 
     public function test_whatsapp_and_sms_payloads_leave_no_number_email_or_name_in_clear(): void
     {
-        $this->postJson('/api/webhooks/whatsapp/status/wa-url-token-602', [
+        // VERIF-602 M4 — seule une requête AUTHENTIFIÉE garde corps et vue : l'accusé WhatsApp est
+        // signé par le secret de l'application.
+        config()->set('whatsapp.webhook_app_secret', 'wa-app-secret-602');
+        $waBody = json_encode([
             'entry' => [[
                 'changes' => [[
                     'field' => 'messages',
@@ -54,7 +57,11 @@ class WebhookPayloadRedactionTest extends TestCase
                     ],
                 ]],
             ]],
-        ])->assertOk();
+        ]);
+        $this->call('POST', '/api/webhooks/whatsapp/status/wa-url-token-602', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $waBody, 'wa-app-secret-602'),
+        ], $waBody)->assertOk();
 
         $this->postJson('/api/webhooks/sms/orange/status/sms-url-token-602', [
             'deliveryInfoNotification' => [
