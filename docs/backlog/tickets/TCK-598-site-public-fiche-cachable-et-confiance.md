@@ -1,7 +1,7 @@
 ---
 id: TCK-598
 title: "Site public : la fiche publique divulgue la part de commission des collaborateurs et ne peut pas être mise en cache ; le coût d'entrée, la confiance, le bien loué, les quartiers et l'installation manquent"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -397,7 +397,7 @@ Direction « Ancrage Local Contemporain » (`docs/design-guidelines.md`). Mobile
 
 ### 0. Décision
 
-- [ ] **ADR à écrire et accepter avant le code** : « Cache public de la fiche et du visiteur ».
+- [x] **ADR à écrire et accepter avant le code** : « Cache public de la fiche et du visiteur ».
       Il tranche quatre questions :
       - comment l'API invalide les données en cache du front (appel signé de l'API vers un
         handler de revalidation du front, plus une revalidation temporelle de plancher) ;
@@ -414,228 +414,228 @@ Direction « Ancrage Local Contemporain » (`docs/design-guidelines.md`). Mobile
       serveur par l'adresse interne de l'API (contrainte 16). L'ISR du HTML reste hors
       périmètre : c'est une limite d'architecture (la mise en page racine lit le cookie), pas un
       défaut.
-- [ ] **Mesure avant le code, consignée dans l'ADR** : sur `preview`, une page publique rendue
+- [ ] **→ au porteur** (environnement déployé : `preview`). Commande exacte : ADR-0052 §6, à lancer AVANT de poser `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS`. **Mesure avant le code, consignée dans l'ADR** : sur `preview`, une page publique rendue
       côté serveur avec `apiRequest` (qui transmet déjà l'IP) — l'IP qui atteint Laravel est-elle
       celle du visiteur ou celle du serveur front ? (§ 11, dernier point : inféré, non mesuré).
 
 ### 1. Fuite des collaborateurs (B1)
 
-- [ ] `PropertyResource` : émettre `collaborators` seulement si la route n'est pas `public.*`.
+- [x] `PropertyResource` : émettre `collaborators` seulement si la route n'est pas `public.*`.
       Garder l'eager-load de `show`/`compare` (requis par `PrimaryPropertyContact`).
-- [ ] Test `tests/Feature/Public/PropertyCollaboratorsNotExposedTest.php` : `show` et `compare`,
+- [x] Test `tests/Feature/Public/PropertyCollaboratorsNotExposedTest.php` : `show` et `compare`,
       en anonyme puis avec le jeton d'un utilisateur quelconque, sur un bien qui a un
       collaborateur agent avec `commission_share = 30`.
 
 ### 2. Fiche cachable et compteur juste (V17)
 
-- [ ] `PublicPropertyController::show()` : retirer l'incrément.
-- [ ] `App\Services\Property\PropertyViewCounter::record(Property, string $ip): void` :
+- [x] `PublicPropertyController::show()` : retirer l'incrément.
+- [x] `App\Services\Property\PropertyViewCounter::record(Property, string $ip): void` :
       déduplication par (bien, IP) sur une heure (clé unique `property-view:{id}:{ip}`, 3 par
       heure comme aujourd'hui), puis
       `Property::query()->whereKey($id)->increment('views_count')` — constructeur de requêtes,
       **pas** `$property->increment()` : ni `updated_at`, ni `updating`/`updated`.
-- [ ] `PublicPropertyController::view()` + route `public.properties.view` + limiteur
+- [x] `PublicPropertyController::view()` + route `public.properties.view` + limiteur
       `public-view` (`AppServiceProvider`) : appelle le service.
-- [ ] `PropertyController::recordView()` (`Api/PropertyController.php:261-270`) : appelle le
+- [x] `PropertyController::recordView()` (`Api/PropertyController.php:261-270`) : appelle le
       même service au lieu de `$property->increment()` ; sa réponse (`data.views_count`) est
       inchangée. Mettre à jour `UserAdminTest::test_record_view_on_property` seulement si la
       forme change (elle ne doit pas).
-- [ ] `PropertyResource` : sur les routes `public.*`, rendre le corps indépendant de
+- [x] `PropertyResource` : sur les routes `public.*`, rendre le corps indépendant de
       l'appelant (contrainte 2).
-- [ ] `App\Observers\PropertyPublicCacheObserver` (enregistré dans `AppServiceProvider`) + job
+- [x] `App\Observers\PropertyPublicCacheObserver` (enregistré dans `AppServiceProvider`) + job
       `App\Jobs\RevalidatePublicPropertyPage` (appel signé, nouvel essai si échec, sans effet
       quand la configuration est absente). Champs déclencheurs : contrainte 6.
-- [ ] Front : la fiche lit ses données par un appel mis en cache, étiqueté par slug et
+- [x] Front : la fiche lit ses données par un appel mis en cache, étiqueté par slug et
       invalidable. Un handler protégé par secret reçoit l'invalidation. La vue est comptée par un
       appel séparé, sans bloquer la page et sans le refaire au rafraîchissement d'un composant.
-- [ ] Front `/bookings` : encoder le slug lu dans `?property=` comme **un seul segment** de
+- [x] Front `/bookings` : encoder le slug lu dans `?property=` comme **un seul segment** de
       chemin, et ne plus compter de vue (automatique une fois l'incrément retiré de `show`).
       Test du front (AC20).
-- [ ] Réécrire les assertions qui affirment l'incrément dans `show` : `CataloguePublicCacheTest`
+- [x] Réécrire les assertions qui affirment l'incrément dans `show` : `CataloguePublicCacheTest`
       (l.133-145), et `PropertyResourceSparseFieldsTest` si son l.221 en dépend. Garder leur
       partie « variante authentifiée ».
-- [ ] Commentaire de route `routes/api/public.php:86-105` : le mettre à jour, puisque ses trois
+- [x] Commentaire de route `routes/api/public.php:86-105` : le mettre à jour, puisque ses trois
       refus ne tiennent plus.
 
 ### 3. Coût d'entrée (V9)
 
-- [ ] La migration ci-dessus. `Property::$fillable` et `$casts`.
-- [ ] Règles dans `StorePropertyRequest` et `UpdatePropertyRequest` (contrainte 8), et copie dans
+- [x] La migration ci-dessus. `Property::$fillable` et `$casts`.
+- [x] Règles dans `StorePropertyRequest` et `UpdatePropertyRequest` (contrainte 8), et copie dans
       la duplication.
-- [ ] `PropertyResource::entry_cost` (forme détail).
-- [ ] Front : saisie dans l'assistant de publication et dans le formulaire de modification ;
+- [x] `PropertyResource::entry_cost` (forme détail).
+- [x] Front : saisie dans l'assistant de publication et dans le formulaire de modification ;
       affichage sur la fiche et dans le comparateur.
-- [ ] Factory et seeders : quelques biens en location mensuelle avec un coût d'entrée réaliste
+- [x] Factory et seeders : quelques biens en location mensuelle avec un coût d'entrée réaliste
       pour Dakar.
 
 ### 4. Confiance (V8)
 
-- [ ] `buildUserLite()` : `phone_verified` (booléen).
-- [ ] Front : le badge, l'encadré de prudence et les clés i18n fr/en/wo (bloc propre au ticket).
+- [x] `buildUserLite()` : `phone_verified` (booléen).
+- [x] Front : le badge, l'encadré de prudence et les clés i18n fr/en/wo (bloc propre au ticket).
 
 ### 5. Bien retiré (V10)
 
-- [ ] `PublicPropertyController::status()` + route `public.properties.status` + prédicat
+- [x] `PublicPropertyController::status()` + route `public.properties.status` + prédicat
       d'éligibilité composé (contrainte 10). `similar` par `SimilarPropertiesService::findSimilar`,
       6 au plus.
-- [ ] Front : la fiche, sur un 404 amont, interroge `status` et rend l'état « retiré » ou le
+- [x] Front : la fiche, sur un 404 amont, interroge `status` et rend l'état « retiré » ou le
       vrai 404 (contrainte 11).
 
 ### 6. Quartiers (V14)
 
-- [ ] `PublicPropertyController::neighborhoods()` + `NeighborhoodsPublicPropertyRequest`
+- [x] `PublicPropertyController::neighborhoods()` + `NeighborhoodsPublicPropertyRequest`
       (`city` requis) + route.
-- [ ] Front : `location` devient la quatrième clé canonique, sous les conditions de la
+- [x] Front : `location` devient la quatrième clé canonique, sous les conditions de la
       contrainte 12. Titre traduit. Une source « quartiers et villes » au sitemap, isolée comme
       les autres sources (`sitemap.ts:69`).
 
 ### 7. Portefeuilles (V15)
 
-- [ ] Remplacer les six prédicats par `->publicPortfolio()`, ou par la sous-requête
+- [x] Remplacer les six prédicats par `->publicPortfolio()`, ou par la sous-requête
       d'identifiants de `PublicProfileFacts::biensEligibles()` partout où la requête fait une
       jointure (piège n°7 : `status` ambigu).
-- [ ] Test `tests/Feature/Public/PublicPortfolioPredicateTest.php`.
+- [x] Test `tests/Feature/Public/PublicPortfolioPredicateTest.php`.
 
 ### 8. Bornes (V16)
 
-- [ ] `index()` : borne 1..48 ; `reviews()` : borne 1..50, par repli (*clamp*) comme `sitemap()`.
+- [x] `index()` : borne 1..48 ; `reviews()` : borne 1..50, par repli (*clamp*) comme `sitemap()`.
       Supprimer la phrase devenue fausse du docblock de `sitemap()` (l.135-139).
 
 ### 9. Installation (V18)
 
-- [ ] Front : manifeste (nom, icônes 192/512 dont une *maskable*, couleurs de la charte, `start_url`
+- [x] Front : manifeste (nom, icônes 192/512 dont une *maskable*, couleurs de la charte, `start_url`
       servie dans la bonne langue), service worker minimal (contrainte 14), page hors ligne.
-- [ ] Corriger `src/i18n/routing.ts:98-99` pour qu'il dise ce qui est vrai **après** le ticket,
+- [x] Corriger `src/i18n/routing.ts:98-99` pour qu'il dise ce qui est vrai **après** le ticket,
       ce qui a été mesuré.
-- [ ] Supprimer `public/{file,globe,next,vercel,window}.svg`.
+- [x] Supprimer `public/{file,globe,next,vercel,window}.svg`.
 
 ### 10. Visite virtuelle (V19)
 
-- [ ] Colonne `virtual_tour_url` (migration ci-dessus). Règle `url:https` + liste d'autorisation
+- [x] Colonne `virtual_tour_url` (migration ci-dessus). Règle `url:https` + liste d'autorisation
       d'hôtes en configuration (`config/catalogue.php` ou équivalent). Émission au premier niveau
       et dans `media_extra`.
-- [ ] Front : saisie dans l'assistant et le formulaire de modification ; vignette sur la fiche
+- [x] Front : saisie dans l'assistant et le formulaire de modification ; vignette sur la fiche
       (contrainte 13).
 
 ### 11. IP du visiteur dans les appels serveur (§ 11)
 
-- [ ] Infrastructure, selon l'ADR (Delta 0) : chemin serveur Next → API qui fait honorer
+- [ ] **→ au porteur** pour la partie environnement : poser dans Dokploy `API_INTERNAL_URL=http://api:8080`, `VISITOR_IP_TRUSTED_HOPS=2`, `PUBLIC_CACHE_REVALIDATE_SECRET` (front) et `PUBLIC_CACHE_REVALIDATE_URL`/`PUBLIC_CACHE_REVALIDATE_SECRET` (API) — liste dans `docs/infra/hebergement.md`. Fait côté dépôt (`dd30ccc6`) : les clés documentées dans `takussan-web/.env.example` et `hebergement.md`, `TRUSTED_PROXIES` inchangé (l'ADR ne le demande pas ; `check-env-parity` vert). Infrastructure, selon l'ADR (Delta 0) : chemin serveur Next → API qui fait honorer
       l'en-tête par `TrustProxies`, et que nul client extérieur ne peut emprunter. Clé(s)
       d'environnement nouvelles du front documentées dans `takussan-web/.env.example` et dans
       `docs/infra/hebergement.md` (clés de chaque environnement) ; `TRUSTED_PROXIES` de
       `.env.example` / `.env.docker` inchangé sauf si l'ADR le demande (parité :
       `check-env-parity.mjs`).
-- [ ] Front, `lib/api.ts` : l'IP du visiteur est établie **une seule fois**, selon la contrainte 16
+- [x] Front, `lib/api.ts` : l'IP du visiteur est établie **une seule fois**, selon la contrainte 16
       (chaîne de confiance configurée, jamais l'entrée la plus à gauche), et sert à `apiFetch`
       comme à `apiRequest`. `apiFetch` côté serveur la transmet par défaut ; l'appelant déclare
       explicitement un appel **partagé**, qui ne lit pas les en-têtes entrants et n'en transmet
       aucun.
-- [ ] Front : déclarer partagés le domaine des villes (`facettes.ts`), le sitemap du catalogue,
+- [x] Front : déclarer partagés le domaine des villes (`facettes.ts`), le sitemap du catalogue,
       la pagination des profils **quand elle sert le sitemap** (`listerSlugsDeProfils`), et la
       lecture mise en cache de la fiche (Delta 2). Les autres appels serveur du § 11 restent
       rendus pour le visiteur.
-- [ ] Tests du front : AC17, AC18, AC19 (avec `next/headers` simulé).
-- [ ] API : `tests/Feature/Public/PublicReadLimiterPerVisitorTest.php` (AC21, contrat sur lequel
+- [x] Tests du front : AC17, AC18, AC19 (avec `next/headers` simulé).
+- [x] API : `tests/Feature/Public/PublicReadLimiterPerVisitorTest.php` (AC21, contrat sur lequel
       le front s'appuie).
-- [ ] Commentaires à rendre vrais : le docblock de `resolveVisitorIp()` (`lib/api.ts:434-444`, qui
+- [x] Commentaires à rendre vrais : le docblock de `resolveVisitorIp()` (`lib/api.ts:434-444`, qui
       affirme que la transmission suffit), celui de `bootstrap/app.php:26-32` si l'ADR change le
       chemin, et la ligne « IP du client jusqu'à Laravel » de `hebergement.md` (ajouter le cas
       serveur front → API, avec la mesure de l'AC22).
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (B1)** — En anonyme **et** avec le jeton d'un utilisateur sans lien avec le bien,
+- [x] **AC1 (B1)** — En anonyme **et** avec le jeton d'un utilisateur sans lien avec le bien,
       `GET /api/public/properties/{slug}` et `GET /api/public/properties/compare?ids={id}` ne
       contiennent pas la clé `collaborators`, ni nulle part la valeur `30` de `commission_share`.
       Le test **rougit sur `e3ab4a4e`** et redevient rouge si l'on retire la condition de route
       (ablation consignée). `primary_contact` désigne toujours le collaborateur agent.
-- [ ] **AC2** — `GET /api/properties/{id}` (authentifié, membre de l'agence) rend toujours
+- [x] **AC2** — `GET /api/properties/{id}` (authentifié, membre de l'agence) rend toujours
       `collaborators[].commission_share` : le correctif ne vide pas le tableau de bord.
-- [ ] **AC3 (V17)** — Le corps JSON de `GET /api/public/properties/{slug}` avec le jeton du
+- [x] **AC3 (V17)** — Le corps JSON de `GET /api/public/properties/{slug}` avec le jeton du
       **propriétaire** du bien est identique au corps anonyme. Ce test rougit sur `e3ab4a4e`.
-- [ ] **AC4** — Sur un bien dont `updated_at` est posé au `2026-01-01 00:00:00`, deux `GET`
+- [x] **AC4** — Sur un bien dont `updated_at` est posé au `2026-01-01 00:00:00`, deux `GET`
       successifs de la fiche laissent `views_count` **et** `updated_at` inchangés en base,
       `SimilarPropertiesService::invalidateForProperty` n'est pas appelé (espion), et
       `GET /api/public/properties/sitemap` rend toujours `updated_at = 2026-01-01T00:00:00…` pour ce
       bien. **Rougit sur `e3ab4a4e`** (`views_count` +1, `updated_at` rajeuni, espion appelé).
-- [ ] **AC5** — `POST …/view` depuis l'IP A, deux fois, puis depuis l'IP B, une fois, donne
+- [x] **AC5** — `POST …/view` depuis l'IP A, deux fois, puis depuis l'IP B, une fois, donne
       `views_count` = valeur initiale + 2. `updated_at` (posé au `2026-01-01`) est inchangé, et
       `invalidateForProperty` n'est pas appelé (espion). Un slug inconnu rend `204` sans écriture.
       **Ablation consignée** : remplacer l'incrément du service par `$property->increment()` rougit
       (date et espion) ; l'envelopper dans `Property::withoutEvents()` rougit encore (date).
-- [ ] **AC6** — Modifier `price` d'un bien public met en file **un**
+- [x] **AC6** — Modifier `price` d'un bien public met en file **un**
       `RevalidatePublicPropertyPage` pour son slug. Changer `title` (et donc le slug) le met en
       file pour l'ancien **et** le nouveau slug. Un `POST …/view` n'en met aucun.
-- [ ] **AC7** — Une deuxième visite de la même fiche, dans la fenêtre de revalidation, ne produit
+- [x] **AC7** — Une deuxième visite de la même fiche, dans la fenêtre de revalidation, ne produit
       aucun appel à `GET /api/public/properties/{slug}` (mesuré côté API ou par test du front),
       et la vue est quand même comptée.
-- [ ] **AC8 (V9)** — Pour un bien en location mensuelle à 300 000 XOF, avec `advance_months=2`,
+- [x] **AC8 (V9)** — Pour un bien en location mensuelle à 300 000 XOF, avec `advance_months=2`,
       `deposit_months=2`, `agency_fee_months=1` et `monthly_charges=10 000`, `entry_cost.total`
       vaut **1 520 000**. Pour un bien en vente, `entry_cost` vaut `null`, et envoyer
       `deposit_months` rend 422.
-- [ ] **AC9 (V8)** — `primary_contact.phone_verified` vaut `true` si et seulement si
+- [x] **AC9 (V8)** — `primary_contact.phone_verified` vaut `true` si et seulement si
       `phone_verified_at` est renseigné. Aucune clé `phone`, `phone_verified_at` ni `kyc*` n'est
       émise.
-- [ ] **AC10 (V10)** — `GET …/status` rend `state=rented` pour un bien publié puis loué, avec
+- [x] **AC10 (V10)** — `GET …/status` rend `state=rented` pour un bien publié puis loué, avec
       `location.city`. Il rend **404** pour un brouillon, un bien `pending_review`, `rejected`,
       privé, `is_test`, jamais publié ou supprimé (six cas). Sur le front, la fiche d'un bien
       loué porte `noindex`, aucun JSON-LD `RealEstateListing`, et au moins un lien vers la
       recherche du quartier.
-- [ ] **AC11 (V14)** — `GET …/neighborhoods?city=Dakar` fusionne « Mermoz » et « MERMOZ » en une
+- [x] **AC11 (V14)** — `GET …/neighborhoods?city=Dakar` fusionne « Mermoz » et « MERMOZ » en une
       seule entrée de compte 2. Une ville inconnue rend `data: []`. Le sitemap contient la page
       d'un quartier au-dessus du seuil, et non celle d'un quartier en dessous.
       `?city=Dakar&location=Inventé` a pour canonique `?city=Dakar`.
-- [ ] **AC12 (V15)** — Un bien `available` + `public` avec `is_test=true`, et un autre avec
+- [x] **AC12 (V15)** — Un bien `available` + `public` avec `is_test=true`, et un autre avec
       `published_at=null`, n'apparaissent ni dans `agents/{slug}`, ni dans
       `agents/{slug}/properties`, ni dans `agencies/{slug}`, ni dans `agencies/{slug}/properties`,
       ni dans les comptes (`portfolio_count`, `stats`). Le test rougit sur `e3ab4a4e`.
-- [ ] **AC13 (V16)** — `GET /api/public/properties?per_page=1000` rend `meta.per_page = 48`.
+- [x] **AC13 (V16)** — `GET /api/public/properties?per_page=1000` rend `meta.per_page = 48`.
       `GET …/{slug}/reviews?per_page=1000` rend `meta.per_page = 50`. `per_page=0` rend `1` sur
       les deux.
-- [ ] **AC14 (V18)** — `/manifest.webmanifest` répond 200 avec des icônes qui répondent 200. Le
+- [x] **AC14 (V18)** — `/manifest.webmanifest` répond 200 avec des icônes qui répondent 200. Le
       site est reconnu installable par l'audit du navigateur. Hors ligne, une fiche déjà mise en
       favori se relit depuis la page hors ligne. Après une connexion puis une déconnexion, aucune
       réponse authentifiée ni navigation HTML n'est présente dans les caches du service worker
       (relevé consigné). `public/` ne contient plus les cinq SVG.
-- [ ] **AC15 (V19)** — `virtual_tour_url` accepte une URL `https` d'un hôte autorisé. Il refuse
+- [x] **AC15 (V19)** — `virtual_tour_url` accepte une URL `https` d'un hôte autorisé. Il refuse
       (422) `http://`, un hôte hors liste et `javascript:`. La fiche montre la vignette quand
       l'URL est renseignée, et rien sinon.
-- [ ] **AC16 (V17, route authentifiée)** — `POST /api/properties/{id}/view` (authentifié) rend
+- [x] **AC16 (V17, route authentifiée)** — `POST /api/properties/{id}/view` (authentifié) rend
       toujours `data.views_count` = initial + 1, laisse `updated_at` (posé au `2026-01-01`)
       inchangé et n'appelle pas l'espion ; un `POST /api/public/properties/{slug}/view` depuis la
       **même IP** dans l'heure n'ajoute rien (déduplication commune). Rougit sur `e3ab4a4e`.
-- [ ] **AC17 (§ 11, deux visiteurs → deux seaux)** — Test du front, pour chacun des appels
+- [x] **AC17 (§ 11, deux visiteurs → deux seaux)** — Test du front, pour chacun des appels
       serveur rendus pour le visiteur (accueil, liste, `/bookings`, page agent, page agence,
       index des profils) : rendus dans deux requêtes dont la chaîne de confiance désigne
       `203.0.113.1` puis `203.0.113.2`, les requêtes sortantes vers l'API portent
       `X-Forwarded-For: 203.0.113.1` puis `203.0.113.2`. **Rougit sur `e3ab4a4e`** : aucune ne porte
       d'en-tête. Ablation : retirer la transmission de `apiFetch` rougit.
-- [ ] **AC18 (§ 11, appels partagés)** — Test du front : le domaine des villes, le sitemap du
+- [x] **AC18 (§ 11, appels partagés)** — Test du front : le domaine des villes, le sitemap du
       catalogue, la pagination des profils pour le sitemap et la lecture en cache de la fiche
       n'émettent **aucun** `X-Forwarded-For` et ne lisent pas les en-têtes entrants (le
       `next/headers` simulé lève s'il est appelé), même dans une requête qui en porte. Relevé
       consigné : `next build` liste toujours `/sitemap.xml` avec une revalidation d'une heure.
       Ablation : transmettre l'IP par défaut sans exception rougit.
-- [ ] **AC19 (§ 11, IP non falsifiable)** — Test du front : avec la configuration d'un saut de
+- [x] **AC19 (§ 11, IP non falsifiable)** — Test du front : avec la configuration d'un saut de
       confiance, une requête entrante `X-Forwarded-For: 198.51.100.9, 203.0.113.5` fait transmettre
       `203.0.113.5`, jamais `198.51.100.9`, par `apiFetch` **et** `apiRequest`. Rougit sur
       `e3ab4a4e` (`apiRequest` transmet `198.51.100.9`, `lib/api.ts:454`).
-- [ ] **AC20 (`/bookings`)** — Test du front : `/bookings?property=..%2Fproperties%3Fper_page%3D100000`
+- [x] **AC20 (`/bookings`)** — Test du front : `/bookings?property=..%2Fproperties%3Fper_page%3D100000`
       ne fait qu'une requête à l'API, sur le chemin `/api/public/properties/..%2Fproperties%3Fper_page%3D100000`
       (un seul segment), et la page rend l'état « introuvable ». Rougit sur `e3ab4a4e` (requête
       sur `/api/public/properties?per_page=100000`).
-- [ ] **AC21 (API, contrat)** — `PublicReadLimiterPerVisitorTest` : depuis `REMOTE_ADDR` de
+- [x] **AC21 (API, contrat)** — `PublicReadLimiterPerVisitorTest` : depuis `REMOTE_ADDR` de
       confiance, 90 `GET /api/public/properties` avec `X-Forwarded-For: 203.0.113.1`, puis le 91ᵉ
       rend `429` ; au même instant, `X-Forwarded-For: 203.0.113.2` rend `200`. Depuis un
       `REMOTE_ADDR` **non** listé, l'en-tête est ignoré (le 91ᵉ, toutes valeurs confondues, rend
       `429`). Vert dès aujourd'hui : il fige le contrat dont dépend l'AC22.
-- [ ] **AC22 (§ 11, mesure de bout en bout)** — Sur `preview`, après le déploiement : deux
+- [ ] **→ au porteur** — commande exacte : ADR-0052 §6 (`docker exec … php artisan tinker --execute="… RateLimiter::attempts(md5(\"public-read\".\"ip:\".\$ip)) …"` sur `takussan-api-preview-4iza80-api-1`), avant puis après la pose des clés. **AC22 (§ 11, mesure de bout en bout)** — Sur `preview`, après le déploiement : deux
       visiteurs de deux réseaux distincts chargent `/fr/properties`. Relevé consigné dans les notes
       d'implémentation : `RateLimiter::attempts(md5('public-read'.'ip:<IP du visiteur>'))` est
       positif pour **chacune** des deux IP, et le compteur de l'IP du serveur front n'a pas
       bougé pour ces rendus. La même mesure faite **avant** le correctif (Delta 0) est consignée
       à côté. Un en-tête `X-Forwarded-For` forgé par l'un des visiteurs ne change pas sa clé.
-- [ ] **AC23** — Pint, `tsc --noEmit`, ESLint et les gardes `scripts/check-*.mjs` passent. Les
+- [x] **AC23** — Pint, `tsc --noEmit`, ESLint et les gardes `scripts/check-*.mjs` passent. Les
       tests touchés passent.
 
 ## Hors périmètre
@@ -728,3 +728,55 @@ tiennent tous, relus un par un.
 - **Bornes (Delta 8)** : `parPage()` ramène dans `1..48` / `1..50` ; D6 (sans plafond) → 2 rouges.
 - **AC21** : `PublicReadLimiterPerVisitorTest`, trois tests. G1 (`trustProxies('*')`) → 2 rouges ;
   G2 (seau unique) → 1 rouge.
+
+- **Front, fiche (Delta 2, `cd3ffb19`)** : `getProperty` lit en cache de données (`revalidate: 300`,
+  étiquette `property:{slug}`, appel partagé : seuls `Accept` et `Accept-Language` dans la clé).
+  `POST /api/revalidation/fiche` vérifie `t=…,v1=…` (HMAC-SHA256 de `<t>.<corps brut>`,
+  `timingSafeEqual`, fenêtre ±300 s, 50 slugs au plus) et expire par `revalidateTag(tag, { expire: 0 })`
+  — `'max'` servirait encore une fois la version périmée (H8 rougit). Secret vide → 401 toujours
+  (H7). `CompteurDeVue` : un `POST` direct vers l'API, `credentials: 'omit'`, gardé par un `useRef`
+  (H9 : sans garde, deux vues en mode strict). Le compteur affiché a jusqu'à 300 s de retard
+  (conséquence écrite dans l'ADR).
+- **Bien retiré, front** : Next 16.3.1 n'admet comme statut d'interruption que 404/403/401
+  (`http-access-fallback.js`) ; la page d'un bien loué/vendu/retiré est donc un **200 `noindex,
+  follow`**, sans `alternates` ni JSON-LD, avec ses similaires et un lien vers la recherche du
+  quartier. `/status` en 404 → le vrai `notFound()`. H10 (indexable) et H11 (devient 404) rougissent.
+- **IP du visiteur (Delta 11, front)** : `ipDuVisiteur(xff, h)` retient l'entrée `max(0, n − h)` ;
+  plus de repli sur `x-real-ip` (il n'est pas dans la chaîne de confiance). `apiFetch` la transmet par
+  défaut côté serveur, `partage: true` ne lit pas `next/headers` (le double lève). Chemin interne :
+  `API_INTERNAL_URL` + `X-Forwarded-Host/Proto/Port` dérivés de l'URL publique. Ablations H0–H3.
+  Les deux tests hérités de `api.test.ts` qui affirmaient l'entrée de gauche et le repli
+  `x-real-ip` sont réécrits : ils affirmaient le défaut.
+- **Quartiers, front (`f2efb0ef`)** : `SEUIL_QUARTIER_INDEXABLE = 3` (option par défaut, non tranchée
+  par le porteur), jugé dans `quartiersDeLaVille` et nulle part ailleurs. `location` n'est retenu
+  qu'avec une ville RETENUE. Le sitemap annonce les chemins que produit `cheminCanoniqueDeLaListe`
+  elle-même. **Next n'échappe pas le XML du sitemap** (`resolve-route-data.js`) : le `&` des pages
+  de quartier est échappé dans `construireSitemap` ; le test parse le XML que Next en tire.
+  Ablations Q1–Q7, toutes rouges.
+- **Relevés locaux, 2026-10-08** (build de production du front sur :3114 contre une API :8114 lancée
+  sur une COPIE migrée de la base de dev, `SCOUT_DRIVER=collection`, copie supprimée ensuite) :
+  - AC7 : trois `GET /fr/properties/<slug>` → **un seul** `GET /api/public/properties/<slug>` dans le
+    journal de l'API (0,47 s puis 0,036 s et 0,027 s) ;
+  - AC18 : `next build` liste `/sitemap.xml` en `○`, revalidation **1h**, expiration 1y ;
+  - AC11 : `/sitemap.xml` bien formé (987 `<loc>`), 10 villes et 20 quartiers de Dakar par langue,
+    `location=Mermoz` présent ; aucun quartier du jeu de démonstration n'est sous le seuil (le cas
+    « en dessous » est éprouvé par les tests). `?city=dakar&location=MERMOZ` → canonique
+    `?city=Dakar&amp;location=Mermoz`, titre « Biens immobiliers à Mermoz, Dakar » ;
+    `?city=Dakar&location=Inventé` → canonique `?city=Dakar` ; `?location=Mermoz` → page nue ;
+  - AC14 : `/manifest.webmanifest` 200, trois icônes 200 (`image/png`, une `maskable`), `/sw.js` 200,
+    les cinq SVG 404. Chrome sans tête piloté par CDP : `Page.getInstallabilityErrors` → `[]`,
+    `Page.getAppManifest` → aucune erreur ; un favori local → `by-ids?ids=407` en cache ; connexion
+    (cookie `httpOnly` posé par `set-token`, `/app` servie), appels authentifiés, déconnexion : les
+    caches ne portent **aucune** navigation HTML ni aucune requête avec `Authorization` (35 statiques
+    `/_next/static/*`, et les seules réponses by-ids anonymes). Front arrêté : la navigation rend la
+    page hors ligne construite (`noindex`), qui liste le favori depuis le cache.
+    ⚠ Après la déconnexion, deux réponses by-ids **anonymes** de plus (`ids=72,77`, `ids=77`) : le
+    magasin local a gardé des favoris venus du compte. Données publiques, sans identifiants — mais
+    le maintien des favoris du compte dans `localStorage` après déconnexion relève de
+    `lib/queries/favorites.ts` (TCK-599), hors de ce ticket.
+  - Non mesuré : Lighthouse lui-même (l'installabilité est relevée par l'API du navigateur), et
+    rien sur `preview` (au porteur).
+- **Recherche par quartier et casse (Meilisearch)** : non mesurée — la clé Meilisearch du `.env` local
+  ne correspond pas au conteneur (dette D-48). Reste une question pour la session.
+- **AC21** : la route éprouvée est désormais `/api/public/properties`, celle que l'AC nomme ; G1 → 2
+  rouges, G2 → 1 rouge, rejouées sur cette route.
