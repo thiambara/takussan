@@ -250,6 +250,34 @@ class WebhookJournalTest extends TestCase
         }
     }
 
+    /**
+     * VERIF-602 m3 (S1) — ni `Authorization` ni cookie n'entrent au journal, sur aucun canal : la
+     * liste blanche ne les nomme pas, et une requête AUTHENTIFIÉE qui les porte n'en garde rien.
+     */
+    public function test_authorization_and_cookies_are_never_journaled(): void
+    {
+        $forbidden = ['authorization', 'proxy-authorization', 'cookie', 'set-cookie'];
+        foreach (WebhookJournal::HEADER_WHITELIST as $channel => $names) {
+            $this->assertSame([], array_values(array_intersect($forbidden, array_map('strtolower', $names))), $channel);
+        }
+
+        $integration = $this->journalWaveIntegration(Agency::factory()->create());
+        $body = $this->waveBody('txn_s1');
+        $ts = time();
+        $this->call('POST', '/api/webhooks/payments/wave/'.$integration->webhook_token, [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_WAVE_SIGNATURE' => "t={$ts},v1=".hash_hmac('sha256', $ts.'.'.$body, $this->journalWaveSecret),
+            'HTTP_AUTHORIZATION' => 'Bearer bearer-602-secret',
+            'HTTP_COOKIE' => 'session=cookie-602-secret',
+        ], $body)->assertOk();
+
+        $log = IntegrationWebhookLog::query()->sole();
+        $this->assertNotNull($log->authenticated_at, 'Authentifiée : ses en-têtes sont écrits.');
+        $this->assertSame(['content-type', 'wave-signature'], array_keys($log->headers));
+        $this->assertStringNotContainsString('602-secret', (string) json_encode($log->headers));
+    }
+
     private function orangeDlr(string $messageId): array
     {
         return [

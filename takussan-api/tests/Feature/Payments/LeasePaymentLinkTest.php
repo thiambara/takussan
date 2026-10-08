@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePaymentLink;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -105,5 +106,30 @@ class LeasePaymentLinkTest extends TestCase
         $this->getJson("/api/pay/{$token}")->assertStatus(410)->assertJsonPath('code', 'pay_link.gone');
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertStatus(410);
         Http::assertNothingSent();
+    }
+
+    /**
+     * VERIF-602 m3 (S9) — deux émissions simultanées sur une échéance se sérialisent sur la ligne
+     * parent : `lease_payments` est relue `FOR UPDATE` dans la transaction qui émet, avant l'écriture
+     * du lien.
+     */
+    public function test_issuing_a_link_locks_the_instalment_row_first(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->actingAs($ctx['agent'], 'sanctum');
+        $base = DB::transactionLevel();
+        $seen = [];
+        DB::listen(function (QueryExecuted $query) use (&$seen): void {
+            if (preg_match('/from "lease_payments".*for update/is', $query->sql)) {
+                $seen[] = ['lock', DB::transactionLevel()];
+            } elseif (str_contains($query->sql, 'insert into "lease_payment_links"')) {
+                $seen[] = ['insert', DB::transactionLevel()];
+            }
+        });
+        $this->postJson('/api/lease-payments/'.$ctx['payment']->id.'/payment-link')->assertOk();
+
+        $this->assertSame(['lock', 'insert'], array_column($seen, 0));
+        $this->assertGreaterThan($base, $seen[0][1]);
+        $this->assertSame($seen[0][1], $seen[1][1], 'Même transaction.');
     }
 }

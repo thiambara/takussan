@@ -82,6 +82,34 @@ class LemonSqueezyWebhookJournalTest extends TestCase
         $this->assertFalse($log->isReplayable());
     }
 
+    /**
+     * VERIF-602 m3 (S5) — le rejeu de la route du paquet revérifie `X-Signature` sur le corps
+     * gardé, avec le secret de la configuration : un octet altéré, et la ligne rejouée est rejetée
+     * en 401 ; l'original, lui, se rejoue.
+     */
+    public function test_replay_re_verifies_the_x_signature_on_the_stored_body(): void
+    {
+        Integration::factory()->create(['agency_id' => null, 'provider' => 'lemon_squeezy', 'is_active' => true]);
+        $body = $this->body();
+        $this->postLemonSqueezy($body, hash_hmac('sha256', $body, self::SECRET))->assertOk();
+        $log = IntegrationWebhookLog::query()->sole();
+        // Une panne après la signature : la ligne authentifiée passe `failed`, donc rejouable.
+        $log->forceFill(['status' => IntegrationWebhookLog::STATUS_FAILED])->save();
+        $this->assertTrue($log->isReplayable());
+
+        $tampered = $log->replicate();
+        $tampered->forceFill(['body' => str_replace('ls_602', 'ls_603', $body)])->save();
+
+        $this->actingAsRole('super_admin');
+        $this->postJson("/api/admin/webhook-logs/{$tampered->id}/replay")
+            ->assertOk()
+            ->assertJsonPath('data.status', IntegrationWebhookLog::STATUS_REJECTED)
+            ->assertJsonPath('data.http_status', 401);
+        $this->postJson("/api/admin/webhook-logs/{$log->id}/replay")
+            ->assertOk()
+            ->assertJsonPath('data.status', IntegrationWebhookLog::STATUS_PROCESSED);
+    }
+
     private function body(): string
     {
         return json_encode(['meta' => ['event_name' => 'tck_602_unhandled'], 'data' => ['id' => 'ls_602', 'type' => 'orders']]);

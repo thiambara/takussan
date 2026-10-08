@@ -34,6 +34,26 @@ class PublicPaymentLinkTest extends TestCase
         config()->set('app.frontend_url', 'https://front.test');
     }
 
+    /**
+     * VERIF-602 m3 (S3, S4) — l'initiation (10/min) et la vérification (6/min) d'un lien ont chacune
+     * leur limiteur par IP, sous leur propre compteur : épuiser l'un ne touche ni l'autre ni la
+     * lecture.
+     */
+    public function test_initiate_and_verify_are_throttled_per_ip_under_their_own_counters(): void
+    {
+        $unknown = str_repeat('A', 43);
+        for ($i = 0; $i < 10; $i++) {
+            $this->postJson("/api/pay/{$unknown}/initiate", ['provider' => 'wave'])->assertNotFound();
+        }
+        $this->postJson("/api/pay/{$unknown}/initiate", ['provider' => 'wave'])->assertStatus(429);
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->postJson("/api/pay/{$unknown}/verify")->assertNotFound();
+        }
+        $this->postJson("/api/pay/{$unknown}/verify")->assertStatus(429);
+        $this->getJson("/api/pay/{$unknown}")->assertNotFound();
+    }
+
     /** @return array{0: array<string, mixed>, 1: string} */
     private function linkFor(?array $settings = null, array $payment = []): array
     {

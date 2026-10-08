@@ -15,7 +15,9 @@ use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
 use App\Models\Property;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -254,6 +256,33 @@ class WebhookReplayTest extends TestCase
 
         $this->assertSame(0, $log->refresh()->attempts);
         $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
+    }
+
+    /**
+     * VERIF-602 m3 (S6) — deux rejeux simultanés de la même ligne se sérialisent sur elle : la ligne
+     * est relue `FOR UPDATE` DANS la transaction du rejeu, avant que le gestionnaire ne tourne.
+     */
+    public function test_replay_locks_its_row_inside_its_transaction(): void
+    {
+        [, $integration] = $this->arrange(['transaction_id' => null, 'metadata' => []]);
+        $this->postWave($integration, $this->waveBody('cs_602_lock'))->assertOk();
+        $log = IntegrationWebhookLog::query()->sole();
+
+        $this->actingAsRole('super_admin');
+        $base = DB::transactionLevel();
+        $seen = [];
+        DB::listen(function (QueryExecuted $query) use (&$seen): void {
+            if (preg_match('/from "integration_webhook_logs".*for update/is', $query->sql)) {
+                $seen[] = ['lock', DB::transactionLevel()];
+            } elseif (str_contains($query->sql, 'from "bookings"') || str_contains($query->sql, 'from "booking_payments"')) {
+                $seen[] = ['handler', DB::transactionLevel()];
+            }
+        });
+        $this->postJson("/api/admin/webhook-logs/{$log->id}/replay")->assertOk();
+
+        $this->assertNotEmpty($seen);
+        $this->assertSame('lock', $seen[0][0], 'Le verrou précède le gestionnaire.');
+        $this->assertGreaterThan($base, $seen[0][1]);
     }
 
     /**
