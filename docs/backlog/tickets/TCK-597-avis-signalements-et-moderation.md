@@ -553,6 +553,18 @@ Rapport du vérificateur : REFUSÉ, 0 bloquant, 1 majeur (M5), 2 mineurs (n3, n1
   (`::FFFF:a.b.c.d`) et développée d'une IPv4-mappée.
 - [x] **Fusion d'`origin/dev`** (`92f72217`, carte d'impact du bot seule).
 
+### 12. Ajoutés après la passe 4 de vérification adverse (verif-597 passe 4, 2026-10-08)
+
+Rapport du vérificateur : ACCEPTÉ, 0 bloquant, 0 majeur, 2 mineurs (n4, n5), corrigés avant la PR.
+
+- [x] **n4** — `indexForProperty` et `indexForAgency` passent par `subjectReviews` : profil
+  plateforme de l'acteur chargé une fois, `author.media` préchargé, le sujet posé comme `reviewable`
+  sur chaque avis (sans requête), `per_page` plafonné à `MAX_PER_PAGE`. La réponse gagne `target`,
+  qu'`index` et `received` émettent déjà.
+- [x] **n5** — option (a) : le motif d'exemption de `reply` et `deleteReply` nomme le chemin
+  super-admin (`Gate::before`) qu'il laisse ouvert et le renvoie au ticket de suite ; « Hors
+  périmètre » les nomme. ADR-0033 §8.
+
 ## Critères d'acceptation
 
 - [x] **AC1 (cloisonnement, rouge sur le code actuel).** Prenons deux agences A et B, et un admin
@@ -865,6 +877,29 @@ Ablations dans un seul script, restaurées par `cp` avec contrôle md5 (`scratch
   **Preuve :** `PublicReportTest::test_ipv4_mapped_addresses_are_ipv4_visitors`. Correctif de test
   seul : vert sur b7be45ca, mais la mutation « déballage textuel seul » du vérificateur, qui y
   survivait, le rougit maintenant (1 rouge) ; déballage retiré → 1 rouge.
+
+### Ajoutés après la passe 4 de vérification adverse (verif-597 passe 4, 2026-10-08)
+
+« Rouge sur a759e722 » : le test écrit d'abord, joué sur les sources de a759e722, avant le correctif.
+Ablations dans un seul script, restaurées par `cp` avec contrôle md5 (`scratchpad/t597/ablate-p4.py`).
+
+- [x] **AC33 (n4).** `GET /api/properties/{id}/reviews` et `GET /api/agencies/{id}/reviews` coûtent le
+  même nombre de requêtes pour 5 et pour 25 avis, à 3 près (client, admin d'agence, super-admin) ;
+  `per_page` y est plafonné à `MAX_PER_PAGE` et ramené à 1 au moins.
+
+  **Preuve :** `ReviewFlagsQueryCountTest::test_the_subject_listings_cost_the_same_for_5_and_for_25_reviews`
+  (5 cas) et `test_the_subject_listings_cap_per_page`. Rouge sur a759e722 : 6 tests (44 → 144,
+  40 → 140, 25 → 105, 44 → 144, 40 → 140 requêtes ; après : 21 → 19, 17 → 15, 8 → 6, 21 → 19,
+  17 → 15). Ablations : acteur non préchargé → 5 rouges ; avatar non préchargé → 5 ; cible non posée
+  → 4 (le super-admin passe par `Gate::before` sans lire la cible) ; plafond retiré → 1.
+
+- [x] **AC34 (n5).** Un super-admin sans 2FA efface encore la réponse d'une agence (pouvoir
+  antérieur, renvoyé au ticket de suite), et le motif d'exemption de `reply` comme de `deleteReply`
+  nomme ce chemin (`Gate::before`) et le ticket de suite.
+
+  **Preuve :** `PlatformModerationTwoFactorTest::test_the_reply_exemption_names_the_platform_path_it_leaves_open`.
+  Rouge sur a759e722 : 1 test. Ablations : motif de `reply` rendu à sa forme fausse → 1 rouge ;
+  `deleteReply` passé sous `PLATFORM_TWO_FACTOR` sans réécrire le motif → 1 rouge.
 
 ## Hors périmètre
 
