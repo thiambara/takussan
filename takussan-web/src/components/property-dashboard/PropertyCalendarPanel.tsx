@@ -62,7 +62,8 @@ export function PropertyCalendarPanel({ propertyId }: PropertyCalendarPanelProps
   const manual = rows.filter((u) => u.source === 'manual');
   const imported = rows.filter((u) => u.source === 'ical');
 
-  const longDate = (day: string) => format(parseISO(day), 'd MMM yyyy', { locale: dfLocale });
+  // `PP` : la date moyenne DE LA LOCALE (« 8 oct. 2026 », « Oct 8, 2026 ») — pas un motif écrit en dur.
+  const longDate = (day: string) => format(parseISO(day), 'PP', { locale: dfLocale });
   const errorOf = (e: unknown) => messageErreur(e, t('genericError'));
 
   return (
