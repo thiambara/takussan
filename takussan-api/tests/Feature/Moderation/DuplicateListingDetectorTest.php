@@ -14,7 +14,9 @@ use App\Services\Moderation\DuplicateListingDetector;
 use App\Services\Property\PropertyDuplicationService;
 use App\Support\PhotoFingerprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Tests\ApiTestCase;
 use Tests\Support\RemoteDiskFake;
 
@@ -139,6 +141,98 @@ class DuplicateListingDetectorTest extends ApiTestCase
         $detector = app(DuplicateListingDetector::class);
         $this->assertSame(0, $detector->detectForPhoto($farFp), '4 bits : pas la même photo');
         $this->assertSame(1, $detector->detectForPhoto($nearFp), '3 bits : la même photo');
+    }
+
+    /** Un aplat de couleur unie. */
+    private function flat(int $red, int $green, int $blue): string
+    {
+        $image = imagecreatetruecolor(360, 320);
+        imagefilledrectangle($image, 0, 0, 359, 319, imagecolorallocate($image, $red, $green, $blue));
+        ob_start();
+        imagepng($image);
+        imagedestroy($image);
+
+        return (string) ob_get_clean();
+    }
+
+    /**
+     * verif-597 m2 — deux aplats de couleurs différentes ont la même empreinte dégénérée (`0`) :
+     * ils ne font pas une suspicion. Avant, toute photo de mur, de ciel ou de gabarit en créait.
+     */
+    public function test_two_flat_photos_of_different_colours_create_no_suspicion(): void
+    {
+        $red = $this->listing(Agency::factory()->create());
+        $blue = $this->listing(Agency::factory()->create());
+
+        $this->addPhoto($red, $this->flat(220, 30, 30));
+        $this->addPhoto($blue, $this->flat(30, 30, 220));
+
+        $this->assertSame(2, MediaFingerprint::query()->count(), 'les empreintes sont calculées');
+        $this->assertTrue(PhotoFingerprint::isDegenerate((int) MediaFingerprint::query()->value('hash')));
+        $this->assertSame(0, DuplicateSuspicion::query()->count());
+    }
+
+    /** Un candidat dégénéré ne se compare pas non plus, même à un bit d'une empreinte valide. */
+    public function test_a_degenerate_candidate_is_never_a_match(): void
+    {
+        $original = $this->listing(Agency::factory()->create());
+        $other = $this->listing(Agency::factory()->create());
+        $this->addPhoto($original, $this->png(61));
+        $this->addPhoto($other, $this->png(62));
+        DuplicateSuspicion::query()->delete();
+
+        $rewrite = function (Property $property, int $hash): MediaFingerprint {
+            [$b0, $b1, $b2, $b3] = PhotoFingerprint::bands($hash);
+            $fingerprint = MediaFingerprint::query()->where('property_id', $property->id)->firstOrFail();
+            $fingerprint->update(['hash' => $hash, 'band_0' => $b0, 'band_1' => $b1, 'band_2' => $b2, 'band_3' => $b3]);
+
+            return $fingerprint;
+        };
+        $valid = $rewrite($original, 0xFF);   // poids 8 : valide
+        $rewrite($other, 0x7F);               // poids 7 : dégénéré, à 1 bit
+
+        $this->assertSame(0, app(DuplicateListingDetector::class)->detectForPhoto($valid));
+    }
+
+    /**
+     * verif-597 m2 — sous la borne de candidats, les PLUS PROCHES passent d'abord. Avant, les plus
+     * anciens remplissaient la borne et le vrai doublon, plus récent, n'était jamais comparé.
+     */
+    public function test_the_candidate_cap_keeps_the_closest_not_the_oldest(): void
+    {
+        $original = $this->listing(Agency::factory()->create());
+        $older = $this->listing(Agency::factory()->create());
+        $copy = $this->listing(Agency::factory()->create());
+        $this->addPhoto($original, $this->png(51));
+        $this->addPhoto($older, $this->png(52));
+        DuplicateSuspicion::query()->delete();
+        $base = (int) MediaFingerprint::query()->where('property_id', $original->id)->value('hash');
+
+        // MAX_CANDIDATES empreintes ANCIENNES qui partagent trois bandes, à 8 bits : la borne pleine.
+        $template = (array) DB::table('media')->where('model_id', $older->id)->first();
+        unset($template['id']);
+        $far = $base ^ (0xFF << 8);
+        [$b0, $b1, $b2, $b3] = PhotoFingerprint::bands($far);
+        $rows = [];
+        for ($i = 0; $i < DuplicateListingDetector::MAX_CANDIDATES; $i++) {
+            $mediaId = DB::table('media')->insertGetId(['uuid' => (string) Str::uuid()] + $template);
+            $rows[] = ['media_id' => $mediaId, 'property_id' => $older->id, 'agency_id' => $older->agency_id,
+                'hash' => $far, 'band_0' => $b0, 'band_1' => $b1, 'band_2' => $b2, 'band_3' => $b3,
+                'created_at' => now(), 'updated_at' => now()];
+        }
+        MediaFingerprint::query()->insert($rows);
+
+        // La copie, PLUS RÉCENTE que toutes, à 1 bit de l'original.
+        $this->addPhoto($copy, $this->png(54));
+        $near = $base ^ 0b1;
+        [$b0, $b1, $b2, $b3] = PhotoFingerprint::bands($near);
+        MediaFingerprint::query()->where('property_id', $copy->id)
+            ->update(['hash' => $near, 'band_0' => $b0, 'band_1' => $b1, 'band_2' => $b2, 'band_3' => $b3]);
+        DuplicateSuspicion::query()->delete();
+
+        $fingerprint = MediaFingerprint::query()->where('property_id', $original->id)->firstOrFail();
+        $this->assertSame(1, app(DuplicateListingDetector::class)->detectForPhoto($fingerprint));
+        $this->assertSame($copy->id, DuplicateSuspicion::query()->value('matched_property_id'));
     }
 
     public function test_an_unreadable_file_gets_no_fingerprint_and_fails_nothing(): void

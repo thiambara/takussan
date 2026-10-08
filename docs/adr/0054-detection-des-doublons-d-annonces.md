@@ -52,9 +52,20 @@ distance ≤ 3 ont au moins une bande sur quatre **identique** : la recherche de
 une égalité indexée sur l'une des bandes, et elle est **exacte** sous le seuil — aucun faux négatif
 introduit par l'index. La distance se vérifie ensuite sur les candidats.
 
-**Borne de passage à l'échelle** : au plus 200 candidats par photo (ceux qui partagent une bande),
-des autres publieurs et de biens non supprimés. Au-delà, une bande partagée par plus de 200 photos
-est une image banale (ciel uni, plan blanc) et ne prouve rien.
+**Borne de passage à l'échelle** : au plus 200 candidats par photo, parmi ceux qui partagent une
+bande, provenant des autres publieurs et de biens non supprimés. Ce sont les **plus proches** qui
+passent : tri par `bit_count((hash # ?)::bit(64))`, puis par identifiant.
+
+**Empreinte dégénérée** : une empreinte dont le poids de Hamming est inférieur à 8 ou supérieur à 56
+ne se compare pas (`PhotoFingerprint::isDegenerate`), ni comme source, ni comme candidat. Elle est
+pourtant stockée.
+
+> **Corrigé après verif-597 (m2).** La première version tenait la borne pour une protection (« une
+> bande partagée par plus de 200 photos est une image banale »). Elle triait les candidats par
+> ancienneté, et la mesure l'a contredite. Un aplat rouge, un aplat bleu et un mur blanc légèrement
+> bruité ont tous l'empreinte `0`. Deux agences qui publiaient une photo de mur créaient donc une
+> suspicion, et chaque nouvelle photo dégénérée en créait jusqu'à 200. Sous la borne, un vrai
+> doublon récent d'une empreinte courante n'était jamais comparé.
 
 ### 3. Entre publieurs différents seulement
 
@@ -111,8 +122,9 @@ auteurs sur le même sujet). Il sert au tri de la file. Aucune action automatiqu
 - **pHash / bibliothèque d'imagerie** : une dépendance et une DCT pour un cas que le dHash couvre.
 - **Comparaison à toutes les empreintes** : linéaire en nombre de photos ; les bandes la rendent
   indexée et exacte sous le seuil.
-- **Distance calculée en SQL (`bit_count`)** : possible sur PostgreSQL 17, mais sur les seuls
-  candidats déjà retenus par les bandes le calcul en PHP est équivalent et plus lisible.
+- **Distance calculée en SQL (`bit_count`) pour le seuil** : sur les seuls candidats déjà retenus
+  par les bandes, le calcul en PHP est équivalent et plus lisible. `bit_count` sert en revanche à
+  **trier** les candidats sous la borne (verif-597 m2).
 - **Auto-masquage après une suspicion, ou après N signalements** : contournable et retournable
   contre un concurrent.
 - **Comparer aussi dans la même agence** : chaque duplication volontaire deviendrait une suspicion.

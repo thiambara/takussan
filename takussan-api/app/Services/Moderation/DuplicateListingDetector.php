@@ -32,7 +32,9 @@ class DuplicateListingDetector
     public function detectForPhoto(MediaFingerprint $fingerprint): int
     {
         $property = Property::query()->find($fingerprint->property_id);
-        if ($property === null) {
+        // verif-597 m2 — une empreinte dégénérée (aplat, mur, ciel) ressemble à toutes les autres :
+        // elle remplissait la file de bruit, jusqu'à MAX_CANDIDATES suspicions par photo.
+        if ($property === null || PhotoFingerprint::isDegenerate((int) $fingerprint->hash)) {
             return 0;
         }
 
@@ -44,11 +46,15 @@ class DuplicateListingDetector
                 ->orWhere('band_1', $bands[1])
                 ->orWhere('band_2', $bands[2])
                 ->orWhere('band_3', $bands[3]))
+            // verif-597 m2 — les PLUS PROCHES d'abord, pas les plus anciens : sous la borne, un vrai
+            // doublon récent d'une empreinte courante n'était jamais comparé.
+            ->orderByRaw('bit_count((hash # ?::bigint)::bit(64))', [$fingerprint->hash])
             ->orderBy('id')
             ->limit(self::MAX_CANDIDATES)
             ->get(['property_id', 'hash']);
 
         $close = $candidates
+            ->reject(fn (MediaFingerprint $c) => PhotoFingerprint::isDegenerate((int) $c->hash))
             ->map(fn (MediaFingerprint $c) => ['property_id' => $c->property_id, 'distance' => PhotoFingerprint::distance($fingerprint->hash, $c->hash)])
             ->filter(fn (array $c) => $c['distance'] <= PhotoFingerprint::THRESHOLD)
             ->sortBy('distance')

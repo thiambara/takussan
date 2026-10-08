@@ -14,6 +14,14 @@ final class PhotoFingerprint
     /** Distance de Hamming au-delà de laquelle deux photos ne sont pas « la même ». */
     public const THRESHOLD = 3;
 
+    /**
+     * verif-597 m2 — poids de Hamming hors duquel une empreinte est DÉGÉNÉRÉE : un aplat, un mur,
+     * un ciel donnent `0`, un dégradé `0xffff…`. Deux telles photos se ressemblent toujours.
+     */
+    public const MIN_WEIGHT = 8;
+
+    public const MAX_WEIGHT = 56;
+
     /** L'empreinte, ou `null` si les octets ne se décodent pas en image. */
     public static function fromBinary(string $binary): ?int
     {
@@ -51,6 +59,14 @@ final class PhotoFingerprint
     public static function distance(int $a, int $b): int
     {
         return substr_count(decbin($a ^ $b), '1');
+    }
+
+    /** Trop peu ou trop de bits à 1 : l'empreinte ne distingue rien, elle ne se compare pas. */
+    public static function isDegenerate(int $hash): bool
+    {
+        $weight = substr_count(decbin($hash), '1');
+
+        return $weight < self::MIN_WEIGHT || $weight > self::MAX_WEIGHT;
     }
 
     private static function luminance(\GdImage $image, int $x, int $y): float
