@@ -367,6 +367,7 @@ return [
         'duplicate_file' => 'Ce relevé a déjà été importé pour cette agence.',
     ],
     'reporting' => [
+        'invalid_group_by' => 'Le regroupement demandé doit être « tenant » ou « landlord ».',
         'range_too_wide' => 'La plage demandée dépasse le plafond de :max intervalles « :granularity ». Réduisez la plage ou élargissez la granularité.',
         'report_unknown' => 'Rapport inconnu.',
     ],

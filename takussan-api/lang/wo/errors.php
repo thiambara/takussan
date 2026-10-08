@@ -367,6 +367,7 @@ return [
         'duplicate_file' => 'Bii relevé dañu ko wone nanu bii agence.',
     ],
     'reporting' => [
+        'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',
         'range_too_wide' => 'Diggante bi nga laaj ëpp na :max intervalle « :granularity ». Wàññil diggante bi walla yokk granularité bi.',
         'report_unknown' => 'Rapport bii xamuñu ko.',
     ],

@@ -848,3 +848,12 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   requête de note d'agence, soit une clé nouvelle et un N+1 de plus (contraire à TCK-539).
 - `owner.agentProfiles` est préchargé avec le filtre `active()`. Le statut est relu en mémoire, et un
   profil suspendu ne fait pas d'un propriétaire un agent (test dédié).
+
+### Lot 5 — performance d'équipe et balance âgée (§6, §7 sans les exports)
+
+- Les deux contrôleurs vivent sous `Api\Agency\`, à côté de `TeamController`. La balance âgée reste
+  ouverte à une agence `individual` : suivre ses impayés n'est pas du reporting cross-équipe.
+- `AgingBalanceService` calcule les jours de retard avec la date de PHP (`?::date - due_date`), pas avec
+  `current_date`, pour que `setTestNow` et le fuseau de l'application décident ensemble.
+- **Exports (AC19) en attente de TCK-601**, non fusionné sur `origin/dev` au 2026-10-08 (dernier
+  relevé `0e3c9027`). Ils viendront en dernier, sans test rouge laissé sur la branche d'ici là.

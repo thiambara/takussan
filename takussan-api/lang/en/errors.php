@@ -367,6 +367,7 @@ return [
         'duplicate_file' => 'This statement has already been imported for this agency.',
     ],
     'reporting' => [
+        'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
     ],
