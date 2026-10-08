@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
+  useBeneficiaryPayoutMethods,
   usePayout,
   usePayoutApprove,
   usePayoutCancel,
@@ -28,7 +29,7 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
-import { PAYMENT_METHOD_VALUES, PAYOUT_STATUS_TONE } from './constants';
+import { DESTINATION_KINDS_BY_METHOD, PAYMENT_METHOD_VALUES, PAYOUT_STATUS_TONE } from './constants';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PayoutDetailDialogProps {
@@ -44,6 +45,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const t = useTranslations('payments.payoutDetail');
   const tStatus = useTranslations('payments.payoutStatus');
   const tMethod = useTranslations('payments.methods');
+  const tKind = useTranslations('payments.payoutMethodKinds');
   const messageErreur = useMessageErreurApi();
   const { data, isLoading, isError, error } = usePayout(payoutId);
   const approve = usePayoutApprove(payoutId ?? 0);
@@ -54,6 +56,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const [paymentMethod, setPaymentMethod] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [cashNote, setCashNote] = useState('');
+  const [destinationId, setDestinationId] = useState('');
   const [failedReason, setFailedReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -87,8 +90,24 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
 
   const method = paymentMethod || payout?.payment_method || '';
   const isCash = method === 'cash';
+
+  // TCK-594 (ADR-0039 §6) — un paiement mobile money ou par virement part vers une destination
+  // VÉRIFIÉE du bénéficiaire (sauf la caution rendue au locataire). Sans ce choix, un reversement
+  // préparé sans destination — celui d'une facture d'intervention, toujours — ne se payait pas.
+  const allowedKinds = DESTINATION_KINDS_BY_METHOD[method as keyof typeof DESTINATION_KINDS_BY_METHOD];
+  const needsDestination = allowedKinds !== undefined && payout?.payee_role !== 'tenant';
+  const mayPay = actionable && canManage && !isBeneficiary;
+  const beneficiaryMethods = useBeneficiaryPayoutMethods(payout?.landlord_id, mayPay && needsDestination);
+  const destinations = (beneficiaryMethods.data?.data ?? []).filter(
+    (m) => m.verified && allowedKinds?.includes(m.kind),
+  );
+  const preselected =
+    destinations.find((m) => m.id === payout?.payout_method_id) ?? destinations.find((m) => m.is_default) ?? destinations[0];
+  const destination = destinations.find((m) => String(m.id) === destinationId) ?? preselected;
   const canMarkProcessed =
-    method !== '' && (isCash ? transactionId.trim() !== '' || cashNote.trim() !== '' : transactionId.trim() !== '');
+    method !== '' &&
+    (isCash ? transactionId.trim() !== '' || cashNote.trim() !== '' : transactionId.trim() !== '') &&
+    (!needsDestination || destination !== undefined);
 
   return (
     <Dialog open={payoutId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -238,6 +257,29 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                     ))}
                   </select>
                 </div>
+                {needsDestination ? (
+                  <div>
+                    <Label htmlFor="payout-pay-destination" className="mb-1.5 block text-xs font-medium">
+                      {t('payDestination')}
+                    </Label>
+                    {destinations.length > 0 ? (
+                      <select
+                        id="payout-pay-destination"
+                        className={SELECT_CLASS}
+                        value={destination ? String(destination.id) : ''}
+                        onChange={(e) => setDestinationId(e.target.value)}
+                      >
+                        {destinations.map((m) => (
+                          <option key={m.id} value={String(m.id)}>
+                            {tKind(m.kind)} · {m.masked_identifier ?? ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : beneficiaryMethods.isLoading ? null : (
+                      <p className="text-sm text-muted-foreground">{t('noVerifiedDestination')}</p>
+                    )}
+                  </div>
+                ) : null}
                 <div>
                   <Label htmlFor="transaction-id" className="mb-1.5 block text-xs font-medium">
                     {isCash ? t('transactionIdOptional') : t('transactionId')}
@@ -268,6 +310,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                           payment_method: method,
                           transaction_id: transactionId.trim() || undefined,
                           notes: cashNote.trim() || undefined,
+                          payout_method_id: needsDestination ? destination?.id : undefined,
                         }),
                       )
                     }

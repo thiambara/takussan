@@ -2779,7 +2779,9 @@
       "transactionId": "Transaction reference",
       "transactionIdOptional": "Transaction reference (optional for cash)",
       "cashNote": "Proof of the cash payment",
-      "actionFailed": "The action did not go through."
+      "actionFailed": "The action did not go through.",
+      "payDestination": "Payment destination",
+      "noVerifiedDestination": "This beneficiary has no verified destination for this method: verify one before paying."
     },
     "payoutMethodKinds": {
       "wave": "Wave",

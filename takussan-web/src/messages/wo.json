@@ -1394,7 +1394,9 @@
       "transactionId": "Référence bu transaction bi",
       "transactionIdOptional": "Référence bu transaction bi (du war ci espèces)",
       "cashNote": "Firnde fey bu espèces",
-      "actionFailed": "Jëf ji antul."
+      "actionFailed": "Jëf ji antul.",
+      "payDestination": "Fi ñuy yónne fey bi",
+      "noVerifiedDestination": "Kii amul benn fu ñu saytu ngir anam bii : saytul ko balaa ngay fey."
     },
     "payoutMethodKinds": {
       "wave": "Wave",

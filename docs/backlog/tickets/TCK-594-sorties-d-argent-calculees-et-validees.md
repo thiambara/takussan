@@ -899,7 +899,10 @@ le ticket nommé (vérifié dans son texte).
   destination en attente se **vérifie** depuis ce dialogue (`/api/payout-methods/{id}/verify`).
 - **Quatre yeux** (`PayoutDetailDialog`) : « Approuver » visible pour `payouts.approve` et refusé
   **visiblement** au préparateur ; paiement refusé visiblement à l'approbateur ; référence exigée
-  hors espèces. File « À approuver » dans les finances de l'agence (`PaymentsTabs`,
+  hors espèces ; en mobile money ou par virement, le paiement part vers une destination **vérifiée**
+  du bénéficiaire choisie au marquage (sans ce choix, le reversement d'une facture d'intervention,
+  préparé sans destination, ne se payait pas depuis l'écran — relevé en relisant le rendu). File « À
+  approuver » dans les finances de l'agence (`PaymentsTabs`,
   `AdminFinancesTabs`). Le pré-remplissage de commission de TCK-370 est retiré (le calcul est
   serveur), avec ses deux tests.
 - **Avoir** (`InvoiceDetailDialog`) : titre « Avoir », facture annulée nommée, avoirs listés sur

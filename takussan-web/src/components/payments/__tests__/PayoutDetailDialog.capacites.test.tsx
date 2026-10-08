@@ -6,7 +6,7 @@
  * « Marquer effectué » sur son propre versement, et l'API le laissait faire. Ces tests gardent
  * l'accord entre l'écran et le serveur, pas une sécurité.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuth } from '@/context/AuthContext';
@@ -33,7 +33,21 @@ const PAYOUT = vi.hoisted(() => ({
     net_amount: 90000,
     currency: 'XOF',
     payment_method: null as string | null,
+    payee_role: 'landlord' as string,
+    payout_method_id: null as number | null,
     created_at: '2026-10-01T00:00:00Z',
+  },
+}));
+const DESTINATIONS = vi.hoisted(() => ({
+  current: {
+    isLoading: false,
+    data: {
+      data: [
+        { id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true },
+        { id: 9, kind: 'wave', masked_identifier: '•••• 0000', is_default: false, verified: false },
+        { id: 10, kind: 'orange_money', masked_identifier: '•••• 8899', is_default: false, verified: true },
+      ] as unknown[],
+    },
   },
 }));
 const REPONSE = vi.hoisted(() => ({ isLoading: false, isError: false, error: null, data: { data: {} } }));
@@ -43,6 +57,7 @@ vi.mock('@/lib/queries/payments', () => ({
     return REPONSE;
   },
   usePayoutApprove: () => mutation,
+  useBeneficiaryPayoutMethods: () => DESTINATIONS.current,
   usePayoutMarkProcessed: () => mutation,
   usePayoutMarkFailed: () => mutation,
   usePayoutCancel: () => mutation,
@@ -145,3 +160,45 @@ describe('PayoutDetailDialog — les quatre yeux se disent (TCK-594, ADR-0039 §
     expect(bouton).toBeEnabled();
   });
 });
+
+describe('PayoutDetailDialog — le paiement part vers une destination vérifiée (TCK-594, ADR-0039 §6)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    PAYOUT.current = { ...PAYOUT.current, status: 'pending', approved_by_id: null, payment_method: 'wave', payee_role: 'landlord', payout_method_id: null };
+    DESTINATIONS.current = { ...DESTINATIONS.current };
+  });
+
+  it('ne propose que les destinations vérifiées du moyen choisi, et envoie celle retenue', async () => {
+    en(9, ['payouts.create']);
+    rendre();
+
+    const choix = screen.getByLabelText(fr.payments.payoutDetail.payDestination);
+    expect(Array.from((choix as HTMLSelectElement).options).map((o) => o.value)).toEqual(['8']);
+    fireEvent.change(screen.getByLabelText(fr.payments.payoutDetail.transactionId), { target: { value: 'WAVE-778' } });
+    fireEvent.click(screen.getByRole('button', { name: MARQUER }));
+
+    await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(mutation.mutateAsync.mock.calls[0][0]).toMatchObject({ payment_method: 'wave', payout_method_id: 8 });
+  });
+
+  it('refuse le paiement sans destination vérifiée, et dit pourquoi', () => {
+    DESTINATIONS.current = { isLoading: false, data: { data: [] } };
+    en(9, ['payouts.create']);
+    rendre();
+
+    fireEvent.change(screen.getByLabelText(fr.payments.payoutDetail.transactionId), { target: { value: 'WAVE-778' } });
+    expect(screen.getByRole('button', { name: MARQUER })).toBeDisabled();
+    expect(screen.getByText(fr.payments.payoutDetail.noVerifiedDestination)).toBeInTheDocument();
+  });
+
+  it('la caution rendue au locataire ne demande aucune destination', () => {
+    DESTINATIONS.current = { isLoading: false, data: { data: [] } };
+    PAYOUT.current = { ...PAYOUT.current, payee_role: 'tenant' };
+    en(9, ['payouts.create']);
+    rendre();
+
+    fireEvent.change(screen.getByLabelText(fr.payments.payoutDetail.transactionId), { target: { value: 'WAVE-778' } });
+    expect(screen.getByRole('button', { name: MARQUER })).toBeEnabled();
+  });
+});
+

@@ -76,6 +76,8 @@ export const paymentsQueryKeys = {
   payoutPreparation: (params: UsePayoutPreparationParams) =>
     ['payouts', 'preparation', params] as const,
   myPayoutMethods: ['payout-methods', 'me'] as const,
+  beneficiaryPayoutMethods: (userId: number | null | undefined) =>
+    ['payout-methods', 'beneficiary', userId] as const,
   ownerStatement: (period: string) => ['owner-statements', period] as const,
   serviceProviderBills: (params: UseServiceProviderBillsParams) => ['service-provider-bills', params] as const,
 };
@@ -331,6 +333,19 @@ export function usePayoutApprove(payoutId: number) {
 }
 
 /** Les destinations d'un bénéficiaire, vues de l'agence : masquées, avec leur état de vérification. */
+/**
+ * TCK-594 (ADR-0039 §6) — les destinations d'un bénéficiaire, lues par l'agence qui le paie (forme
+ * masquée seule). Au marquage payé, un reversement Wave, Orange Money, Free Money ou par virement
+ * part vers une destination VÉRIFIÉE de son bénéficiaire, sinon 422 `payout.unverified_destination`.
+ */
+export function useBeneficiaryPayoutMethods(userId: number | null | undefined, enabled = true) {
+  return useApiQuery<ApiResponse<PayoutMethod[]>>(
+    paymentsQueryKeys.beneficiaryPayoutMethods(userId),
+    '/api/payout-methods',
+    { params: { filter: { user_id: userId ?? undefined } }, enabled: enabled && Boolean(userId) },
+  );
+}
+
 export function useVerifyPayoutMethod() {
   return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
     { path: ({ id }) => `/api/payout-methods/${id}/verify`, method: 'POST', body: () => undefined },

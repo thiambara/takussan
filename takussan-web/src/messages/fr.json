@@ -2754,7 +2754,9 @@
       "transactionId": "Référence de la transaction",
       "transactionIdOptional": "Référence de la transaction (facultative en espèces)",
       "cashNote": "Justificatif du paiement en espèces",
-      "actionFailed": "L'action n'a pas abouti."
+      "actionFailed": "L'action n'a pas abouti.",
+      "payDestination": "Destination du paiement",
+      "noVerifiedDestination": "Ce bénéficiaire n'a aucune destination vérifiée pour ce moyen : vérifiez-la avant de payer."
     },
     "payoutMethodKinds": {
       "wave": "Wave",

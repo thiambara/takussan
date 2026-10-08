@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/console';
-import type { InvoiceStatus, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
+import type { InvoiceStatus, PayoutMethodKind, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
 
 /**
  * Variantes de badge et helpers purs des vues « paiements » (TCK-063). À garder
@@ -125,3 +125,17 @@ export type PaymentMethod = (typeof PAYMENT_METHOD_VALUES)[number];
  * taux du bail ou de l'agence. Un calcul de commission côté client était précisément la saisie que
  * l'ADR retire.
  */
+
+/**
+ * TCK-594 (ADR-0039 §6) — les moyens de paiement qui partent vers une destination déclarée, et les
+ * natures de destination que chacun accepte. Recopie de `PayoutService::DESTINATION_KINDS` : le
+ * serveur juge, l'écran ne propose que ce qu'il accepterait.
+ */
+export const DESTINATION_KINDS_BY_METHOD: Partial<Record<(typeof PAYMENT_METHOD_VALUES)[number], readonly PayoutMethodKind[]>> = {
+  wave: ['wave'],
+  orange_money: ['orange_money'],
+  free_money: ['free_money'],
+  mobile_money: ['wave', 'orange_money', 'free_money'],
+  bank_transfer: ['bank_transfer'],
+};
+
