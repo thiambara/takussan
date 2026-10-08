@@ -99,27 +99,53 @@ class LeaseService
 
     public function generateSchedule(Lease $lease): int
     {
-        abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
+        return $this->scheduleUnderLock($lease, failIfExists: true);
+    }
 
-        $existing = $lease->payments()->count();
-        abort_code_if($existing > 0, 422, 'lease.schedule_exists');
+    /**
+     * La même génération, muette quand l'échéancier existe déjà : pour la tâche de file
+     * (`GenerateLeasePaymentSchedule`), qu'une génération manuelle concurrente a pu devancer.
+     */
+    public function generateScheduleIfMissing(Lease $lease): int
+    {
+        return $this->scheduleUnderLock($lease, failIfExists: false);
+    }
 
-        $start = Carbon::parse($lease->start_date);
-        $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;
-        $frequency = $lease->payment_frequency ?? PaymentFrequency::Monthly;
-        $amount = (float) ($lease->monthly_rent ?? 0);
-        $paymentDay = $lease->payment_day ?? 1;
+    /**
+     * VERIF-596 (hors diff, fermé ici) — le contrôle « aucune échéance » se fait sous le verrou de
+     * la ligne `leases`, sur le bail relu. Il se faisait avant la transaction : un clic sur
+     * `generate-schedule` concurrent de la tâche de renouvellement (ou de l'activation) lisait
+     * tous deux zéro échéance, et l'échéancier était créé deux fois.
+     *
+     * The whole schedule is one transaction: a mid-loop failure must not leave a partial schedule,
+     * which the `$existing > 0` guard would then make permanently unrecoverable on retry.
+     */
+    private function scheduleUnderLock(Lease $lease, bool $failIfExists): int
+    {
+        return DB::transaction(function () use ($lease, $failIfExists): int {
+            /** @var Lease $lease */
+            $lease = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            $existing = $lease->payments()->count();
+            // L'ordre des contrôles de chaque appelant est conservé : la tâche se tait d'abord sur un
+            // échéancier existant, la route refuse d'abord un bail inactif.
+            if ($existing > 0 && ! $failIfExists) {
+                return 0;
+            }
+            abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
+            abort_code_if($existing > 0, 422, 'lease.schedule_exists');
 
-        $current = $start->copy()->day(min($paymentDay, $start->daysInMonth));
+            $start = Carbon::parse($lease->start_date);
+            $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;
+            $frequency = $lease->payment_frequency ?? PaymentFrequency::Monthly;
+            $amount = (float) ($lease->monthly_rent ?? 0);
+            $paymentDay = $lease->payment_day ?? 1;
 
-        if ($current->lt($start)) {
-            $current = $this->advancePeriod($current, $frequency);
-        }
+            $current = $start->copy()->day(min($paymentDay, $start->daysInMonth));
 
-        // Wrap the whole schedule in a transaction: a mid-loop failure must not
-        // leave a partial schedule, which the `$existing > 0` guard above would
-        // then make permanently unrecoverable on retry.
-        return DB::transaction(function () use ($lease, $current, $end, $frequency, $amount): int {
+            if ($current->lt($start)) {
+                $current = $this->advancePeriod($current, $frequency);
+            }
+
             $count = 0;
 
             while ($end === null || $current->lte($end)) {
