@@ -7358,6 +7358,26 @@
         "reasonLabel": "Support reason",
         "reasonPlaceholder": "Describe the audited reason",
         "pending": "Executing…"
+      },
+      "lifecycle": {
+        "block": {
+          "label": "Block",
+          "title": "Block this account",
+          "description": "Their sessions are closed and they can no longer sign in, by any path, until reactivated. They are notified, with your reason."
+        },
+        "reactivate": {
+          "label": "Reactivate",
+          "title": "Reactivate this account",
+          "description": "They can sign in again. They are notified."
+        },
+        "erase": {
+          "label": "Erase the account",
+          "title": "Erase this account",
+          "description": "Erasure is scheduled at the end of the grace period, unless contested; their sessions are closed right away. It is refused while an obligation remains open (active lease, booking, payment)."
+        },
+        "reasonLabel": "Reason (logged)",
+        "toastDone": "Action completed.",
+        "toastErasureScheduled": "Erasure scheduled for {date}."
       }
     },
     "queues": {

@@ -14,6 +14,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { ApiError } from '@/lib/api';
+
+type Obligation = { type: string; id: number; label: string };
+
+/** Les obligations ouvertes qu'un 422 `account_deletion.has_obligations` porte dans son corps. */
+function obligationsDe(error: unknown): Obligation[] {
+  if (!(error instanceof ApiError) || !error.data || typeof error.data !== 'object') return [];
+  const liste = (error.data as { obligations?: unknown }).obligations;
+  return Array.isArray(liste)
+    ? liste.filter((o): o is Obligation => typeof o === 'object' && o !== null && typeof o.label === 'string')
+    : [];
+}
 
 interface ConfirmActionDialogProps {
   open: boolean;
@@ -111,9 +123,17 @@ export function ConfirmActionDialog({
           />
         </div>
         {error ? (
-          <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-            {messageErreur(error)}
-          </p>
+          <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            <p>{messageErreur(error)}</p>
+            {/* TCK-600 — un effacement refusé LISTE les obligations ouvertes (libellés de l'API). */}
+            {obligationsDe(error).length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 ps-5">
+                {obligationsDe(error).map((o) => (
+                  <li key={`${o.type}-${o.id}`}>{o.label}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         ) : null}
         <DialogFooter>
           <Button

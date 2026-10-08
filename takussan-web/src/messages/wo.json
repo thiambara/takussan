@@ -6748,6 +6748,26 @@
         "reasonLabel": "Lu tax ndimbal bi",
         "reasonPlaceholder": "Leeralal lu tax, dinañu ko bind",
         "pending": "Mu ngi def…"
+      },
+      "lifecycle": {
+        "block": {
+          "label": "Tëj",
+          "title": "Tëj kont bii",
+          "description": "Ay jokkoom dañuy tëju te du mën a dugg, ci benn yoon, ba ñu ko ubbi. Dañu ko koy yégal, ak sa lay."
+        },
+        "reactivate": {
+          "label": "Ubbi",
+          "title": "Ubbi kont bii",
+          "description": "Mën na dellu dugg. Dañu ko koy yégal."
+        },
+        "erase": {
+          "label": "Far kont bi",
+          "title": "Far kont bii",
+          "description": "Far gi dañu koy def bu jamonoy yërmande ji jeexee, su kenn weddiwul ; ay jokkoom dañuy tëju léegi. Duñu ko def su benn warugar ubbeeg (bayi bu dox, booking, fey)."
+        },
+        "reasonLabel": "Lay (dañu koy bind)",
+        "toastDone": "Def nañu ko.",
+        "toastErasureScheduled": "Far gi dina am {date}."
       }
     },
     "queues": {

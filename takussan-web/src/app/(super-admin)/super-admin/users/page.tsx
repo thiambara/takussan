@@ -30,6 +30,7 @@ import {
 import { ImpersonationStartDialog } from '@/components/admin/super/ImpersonationStartDialog';
 import { Pagination } from '@/components/console';
 import { useDemarrerImpersonation } from '@/hooks/useImpersonation';
+import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -217,6 +218,7 @@ export default function SuperAdminUsersPage() {
   const page = Number.parseInt(searchParams?.get('page') ?? '1', 10) || 1;
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useDemarrerImpersonation();
+  const { can } = usePlatformAbilities();
   const roleOptions = ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
   const statusOptions = STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
   const emailOptions = EMAIL_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
@@ -368,9 +370,12 @@ export default function SuperAdminUsersPage() {
           >
             {tPage('open')}
           </Link>
-          <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
-            {tPage('impersonate')}
-          </Button>
+          {/* TCK-600 (ADR-0047) — l'impersonation est un geste du seul `super_admin`. */}
+          {can('platform.users.impersonate') ? (
+            <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
+              {tPage('impersonate')}
+            </Button>
+          ) : null}
         </div>
       ),
     },

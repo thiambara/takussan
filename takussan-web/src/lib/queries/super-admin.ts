@@ -389,6 +389,26 @@ export async function postUserSupportAction(
   return jsonOrThrow<{ success: true; action_id: number }>(res);
 }
 
+export type UserLifecycleAction = 'block' | 'reactivate' | 'erase';
+
+/**
+ * TCK-600 — bloquer / réactiver (`support`), effacer (`super_admin`, 202 : effacement PLANIFIÉ au
+ * délai de grâce). Le motif est requis par l'API.
+ */
+export async function postUserLifecycleAction(
+  userId: number,
+  action: UserLifecycleAction,
+  reason: string,
+): Promise<{ data: unknown }> {
+  const res = await fetch(`/api/super-admin/users/${userId}/${action}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return jsonOrThrow<{ data: unknown }>(res);
+}
+
 export async function deleteAdminUserSession(
   userId: number,
   tokenId: number,

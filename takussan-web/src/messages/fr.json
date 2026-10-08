@@ -7358,6 +7358,26 @@
         "reasonLabel": "Raison support",
         "reasonPlaceholder": "Décrivez la raison auditée",
         "pending": "Exécution…"
+      },
+      "lifecycle": {
+        "block": {
+          "label": "Bloquer",
+          "title": "Bloquer ce compte",
+          "description": "Ses sessions sont fermées et il ne peut plus se connecter, par aucun chemin, jusqu’à sa réactivation. Il en est informé, avec votre motif."
+        },
+        "reactivate": {
+          "label": "Réactiver",
+          "title": "Réactiver ce compte",
+          "description": "Il peut de nouveau se connecter. Il en est informé."
+        },
+        "erase": {
+          "label": "Effacer le compte",
+          "title": "Effacer ce compte",
+          "description": "L’effacement est planifié au terme du délai de grâce, sauf contestation ; ses sessions sont fermées tout de suite. Il est refusé tant qu’une obligation reste ouverte (bail actif, réservation, paiement)."
+        },
+        "reasonLabel": "Motif (journalisé)",
+        "toastDone": "Action effectuée.",
+        "toastErasureScheduled": "Effacement planifié le {date}."
       }
     },
     "queues": {
