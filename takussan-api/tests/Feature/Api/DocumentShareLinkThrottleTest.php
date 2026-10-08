@@ -8,8 +8,12 @@ use App\Models\Enums\DocumentType;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Model\DocumentShareLinkService;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\RateLimiter as CacheRateLimiter;
+use Illuminate\Cache\Repository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -129,5 +133,62 @@ class DocumentShareLinkThrottleTest extends TestCase
         $this->assertSame(5, $state->evaluated, 'essais évalués');
         $this->assertSame(6, $state->refused, 'essais refusés sans évaluation');
         $this->postJson("/api/share/{$token}", ['password' => 'BonMotDePasse'])->assertStatus(429);
+    }
+
+    /**
+     * VERIF-602 passe 2 (m1) — la fenêtre ÉTROITE, entre la lecture du compteur et son incrément.
+     * Le magasin du limiteur est décoré : la PREMIÈRE lecture de la clé du lien, une fois armé, fait
+     * passer une requête concurrente entière avant de rendre la valeur lue. Quatre essais faux déjà
+     * comptés, la cinquième requête arrive dans cette fenêtre : elle est la dernière à être évaluée,
+     * et celle qui la précédait dans le temps prend 429. Une forme « lire, puis incrémenter » en
+     * évaluerait six.
+     */
+    public function test_a_request_slipped_between_read_and_increment_is_not_evaluated(): void
+    {
+        $token = $this->link(['password' => 'bon']);
+        $service = app(DocumentShareLinkService::class);
+        $key = 'share-password:'.DocumentShareLink::query()->sole()->getKey();
+        $statuses = [];
+        $attempt = function (string $label) use ($service, $token, &$statuses): void {
+            try {
+                $service->validate($token, 'faux');
+                $statuses[$label] = 200;
+            } catch (HttpException $e) {
+                $statuses[$label] = $e->getStatusCode();
+            }
+        };
+
+        $store = new class(new ArrayStore) extends Repository
+        {
+            public ?string $watched = null;
+
+            public ?\Closure $onRead = null;
+
+            public function get($key, $default = null): mixed
+            {
+                $value = parent::get($key, $default);
+                if ($this->onRead !== null && $key === $this->watched) {
+                    $hook = $this->onRead;
+                    $this->onRead = null;
+                    $hook(); // une autre requête passe ENTRE la lecture et ce qui la suit
+                }
+
+                return $value;
+            }
+        };
+        RateLimiter::swap(new CacheRateLimiter($store));
+
+        for ($i = 1; $i <= 4; $i++) {
+            $attempt("avant-{$i}");
+        }
+        $this->assertSame([401, 401, 401, 401], array_values($statuses));
+
+        $store->watched = RateLimiter::cleanRateLimiterKey($key);
+        $store->onRead = fn () => $attempt('glissee');
+        $attempt('lue');
+
+        $this->assertSame(401, $statuses['glissee'], 'La requête glissée est la cinquième : évaluée.');
+        $this->assertSame(429, $statuses['lue'], 'Celle dont la lecture précédait : refusée, sans évaluation.');
+        $this->assertSame(5, count(array_filter($statuses, fn (int $s): bool => $s === 401)));
     }
 }
