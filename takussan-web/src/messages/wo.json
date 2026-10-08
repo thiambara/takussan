@@ -6405,7 +6405,17 @@
       "cumulativeRents": "Loyeer yi ñu jot ñoo boole",
       "usersTotal": "Jëfandikukat yi",
       "activeOutOf": "{active} yu dox",
-      "delta": "{value} % ci {days} fan"
+      "delta": "{value} % ci {days} fan",
+      "collectedTotal": "Xaalis bu dugg",
+      "collectedTotalHint": "Luwaas ak réservasioŋ yu ñu fey, garaas yi bokkuñu ci",
+      "gmv": "Yaatuwaayu njaay (30 fan)",
+      "gmvHint": "Luwaas ak réservasioŋ yu ñu fey ci 30 fan",
+      "takeRate": "Take rate (30 fan)",
+      "takeRateHint": "{fees} ci peyu plaatfoom bi",
+      "mrr": "MRR abonmaa yi",
+      "mrrHint": "{count, plural, =0 {Amul abonmaa buñuy fey} other {# abonmaa yuñuy fey}}",
+      "trialing": "MRR ci jéem",
+      "trialingHint": "Abonmaa yu ci jéem, bokkuñu ci MRR"
     },
     "impersonation": {
       "banner": "Yaa ngi jëf ni {target} — sesioŋ ba {expires}.",

@@ -7039,7 +7039,17 @@
       "cumulativeRents": "Loyers encaissés cumulés",
       "usersTotal": "Utilisateurs",
       "activeOutOf": "{active} actifs",
-      "delta": "{value} % sur {days} jours"
+      "delta": "{value} % sur {days} jours",
+      "collectedTotal": "Flux encaissé",
+      "collectedTotalHint": "Loyers et réservations payés, hors cautions",
+      "gmv": "Volume d'affaires (30 j)",
+      "gmvHint": "Loyers et réservations payés sur 30 jours",
+      "takeRate": "Take rate (30 j)",
+      "takeRateHint": "{fees} de frais plateforme",
+      "mrr": "MRR des abonnements",
+      "mrrHint": "{count, plural, =0 {Aucun abonnement payant} one {# abonnement payant} other {# abonnements payants}}",
+      "trialing": "MRR en essai",
+      "trialingHint": "Abonnements en essai, hors MRR"
     },
     "impersonation": {
       "banner": "Vous agissez en tant que {target} — session jusqu'à {expires}.",

@@ -33,9 +33,17 @@ const PANELS: Record<Tab, () => React.JSX.Element> = {
   funnel: FunnelChart,
 };
 
-export function ReportingShell() {
+function isTab(value: string | undefined): value is Tab {
+  return TABS.some((entry) => entry.id === value);
+}
+
+/**
+ * TCK-595 — `initialTab` vient de `?tab=` (lu par la page serveur) : la tuile MRR de l'accueil
+ * super-admin mène à l'onglet des revenus, pas à la croissance. Une valeur inconnue est ignorée.
+ */
+export function ReportingShell({ initialTab }: { readonly initialTab?: string } = {}) {
   const t = useTranslations('reporting.tabs');
-  const [tab, setTab] = useState<Tab>('growth');
+  const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : 'growth');
 
   return (
     <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="gap-4">

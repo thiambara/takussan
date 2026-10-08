@@ -7039,7 +7039,17 @@
       "cumulativeRents": "Cumulative rent collected",
       "usersTotal": "Users",
       "activeOutOf": "{active} active",
-      "delta": "{value}% over {days} days"
+      "delta": "{value}% over {days} days",
+      "collectedTotal": "Collected flow",
+      "collectedTotalHint": "Rents and bookings paid, deposits excluded",
+      "gmv": "Gross volume (30 d)",
+      "gmvHint": "Rents and bookings paid over 30 days",
+      "takeRate": "Take rate (30 d)",
+      "takeRateHint": "{fees} in platform fees",
+      "mrr": "Subscription MRR",
+      "mrrHint": "{count, plural, =0 {No paying subscription} one {# paying subscription} other {# paying subscriptions}}",
+      "trialing": "Trial MRR",
+      "trialingHint": "Trial subscriptions, excluded from MRR"
     },
     "impersonation": {
       "banner": "You are acting as {target} — session until {expires}.",

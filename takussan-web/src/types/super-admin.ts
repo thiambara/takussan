@@ -279,7 +279,23 @@ export type SystemMetrics = {
     active: number;
   };
   revenue: {
+    /**
+     * TCK-595 (ADR-0057) — le FLUX ENCAISSÉ : loyers et réservations payés, jamais une caution ni sa
+     * restitution. Optionnel : une API antérieure ne le rend pas, et la tuile retombe alors sur
+     * `platform_total_paid` (même valeur pendant la transition).
+     */
+    collected_total?: number;
+    /** @deprecated TCK-595 — remplacé par `collected_total`, gardé le temps de la transition. */
     platform_total_paid: number;
+    /** Volume d'affaires des 30 derniers jours (loyers et réservations payés). */
+    gmv_30d?: number;
+    platform_fees_30d?: number;
+    /** Frais plateforme ÷ volume d'affaires, en fraction (`0.0833`), `null` sans volume. */
+    take_rate?: number | null;
+    /** Abonnements payants seulement : les essais en sont sortis (ADR-0057 §3). */
+    mrr?: number;
+    mrr_trialing?: number;
+    active_subscriptions?: number;
     currency: string;
   };
   /**
@@ -295,10 +311,15 @@ export type SystemMetrics = {
   trend?: {
     period_days: number;
     since: string;
+    /**
+     * TCK-595 (ADR-0057 §4) — lu dans l'instantané quotidien de J-30. `revenue_collected_total` et
+     * `revenue_mrr` remplacent `revenue_platform_total_paid`, qui n'est plus émis.
+     */
     previous: {
       agencies_total?: number;
       users_total?: number;
-      revenue_platform_total_paid?: number;
+      revenue_collected_total?: number;
+      revenue_mrr?: number;
     };
   };
   generated_at: string;

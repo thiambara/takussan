@@ -905,3 +905,13 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   `standard` avec `reports.view_agency`. Le tri se fait sur la réponse entière : l'API rend une ligne
   par agent, sans pagination.
 - **Écart** : l'accès front aux nouveaux exports (§7) attend AC19, lui-même en attente de TCK-601.
+
+### Lot 10 — front : tuiles plateforme (§8)
+
+- « Revenu plateforme » devient « Flux encaissé » (`revenue.collected_total`, repli sur
+  `platform_total_paid` pour une API antérieure), sa tendance lit `revenue_collected_total`. Quatre
+  tuiles suivent : volume d'affaires 30 j, take rate, MRR (tendance `revenue_mrr`), MRR en essai.
+  Chacune n'est rendue que si l'API rend sa clé.
+- Chaque tuile garde une destination unique (garde de TCK-461) : le MRR mène à
+  `/super-admin/reports?tab=revenue`, d'où `ReportingShell` prend désormais un `initialTab`. Le take
+  rate mène aux réglages (les frais plateforme), le volume aux reversements, les essais aux plans.
