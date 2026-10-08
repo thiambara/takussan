@@ -588,4 +588,41 @@ class LeaseContractTermsTest extends TestCase
         $this->assertNotNull($lease->fresh()->contract_sha256);
         $this->assertCount(1, $lease->fresh()->getMedia('signed_contract'));
     }
+
+    // ── VERIF-596 passe 4 (m-c) — un garant ajouté ou retiré se juge sur la ligne verrouillée ────
+
+    /**
+     * Activation glissée à la liaison de route. Avant : `unfreezeContract()` jugeait l'instance liée
+     * (`pending_signature`) et remettait à NULL l'empreinte d'un bail devenu actif.
+     */
+    public function test_attaching_a_guarantor_racing_an_activation_keeps_the_frozen_contract(): void
+    {
+        $lease = $this->signableLease();
+        app(LeaseSignatureService::class)->request($lease, $lease->landlord);
+        $sha = $lease->fresh()->contract_sha256;
+        $this->slipActivationAtBinding($lease->id);
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/guarantors", ['first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '+221770000000'])
+            ->assertCreated();
+
+        $this->assertSame(LeaseStatus::Active, $lease->fresh()->status);
+        $this->assertSame($sha, $lease->fresh()->contract_sha256);
+    }
+
+    public function test_detaching_a_guarantor_racing_an_activation_keeps_the_frozen_contract(): void
+    {
+        $lease = $this->signableLease();
+        $guarantor = Guarantor::factory()->create(['added_by_id' => $lease->landlord_id]);
+        $lease->guarantors()->attach($guarantor->id);
+        app(LeaseSignatureService::class)->request($lease->fresh(), $lease->landlord);
+        $sha = $lease->fresh()->contract_sha256;
+        $this->slipActivationAtBinding($lease->id);
+        Sanctum::actingAs($lease->landlord);
+
+        $this->deleteJson("/api/leases/{$lease->id}/guarantors/{$guarantor->id}")->assertOk();
+
+        $this->assertSame(LeaseStatus::Active, $lease->fresh()->status);
+        $this->assertSame($sha, $lease->fresh()->contract_sha256);
+    }
 }

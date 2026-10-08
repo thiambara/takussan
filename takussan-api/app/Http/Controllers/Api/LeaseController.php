@@ -179,8 +179,15 @@ class LeaseController extends Controller
         // yielding 4 rows. The unique (lease_id, guarantor_id) index only
         // prevents duplicates, not the cap. lockForUpdate serializes racers
         // on the pivot rows for this lease so only one wins the cap check.
+        //
+        // VERIF-596 passe 4 (m-c) — la ligne `leases` d'abord, puis le pivot : l'ordre de verrous de
+        // toutes les voies du bail (signature, PATCH, résiliation). Le défigement se juge sur la ligne
+        // verrouillée : sur l'instance liée, une activation validée entre-temps voyait son empreinte
+        // remise à NULL.
         DB::transaction(function () use ($lease, $guarantor, $data) {
-            $pivotRows = $lease->guarantors()->lockForUpdate()->get(['guarantors.id']);
+            /** @var Lease $locked */
+            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            $pivotRows = $locked->guarantors()->lockForUpdate()->get(['guarantors.id']);
 
             abort_code_if(
                 $pivotRows->contains('id', $guarantor->id),
@@ -194,11 +201,11 @@ class LeaseController extends Controller
                 'lease.max_guarantors'
             );
 
-            $lease->guarantors()->attach($guarantor->id, [
+            $locked->guarantors()->attach($guarantor->id, [
                 'role' => $data['role'] ?? null,
             ]);
             // TCK-596 §4B (ADR-0042 §1) — le garant est dans le contrat : un contrat figé est défigé.
-            $lease->unfreezeContract();
+            $locked->unfreezeContract();
         });
 
         return $this->json([
@@ -214,9 +221,14 @@ class LeaseController extends Controller
     {
         $this->authorize('update', $lease);
 
-        $lease->guarantors()->detach($guarantor->id);
-        // TCK-596 §4B (ADR-0042 §1) — idem au retrait d'un garant.
-        $lease->unfreezeContract();
+        // VERIF-596 passe 4 (m-c) — même patron qu'`attachGuarantor` : `leases` verrouillée d'abord.
+        DB::transaction(function () use ($lease, $guarantor): void {
+            /** @var Lease $locked */
+            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            $locked->guarantors()->detach($guarantor->id);
+            // TCK-596 §4B (ADR-0042 §1) — idem au retrait d'un garant.
+            $locked->unfreezeContract();
+        });
 
         return $this->json([
             'data' => [
