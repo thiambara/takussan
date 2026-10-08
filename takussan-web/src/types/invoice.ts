@@ -29,9 +29,16 @@ export type Invoice = {
   currency: string | null;
   notes: string | null;
   created_at: string | null;
+  /** TCK-594 (ADR-0039 §5) — une facture ou un avoir ; l'avoir porte la facture qu'il annule. */
+  kind?: InvoiceKind;
+  credited_invoice_id?: number | null;
+  credit_notes?: Array<Pick<Invoice, 'id' | 'reference_number' | 'total_amount' | 'currency' | 'issue_date'>>;
 };
 
+export type InvoiceKind = 'invoice' | 'credit_note';
+
 export type PayoutStatus =
+  | 'awaiting_approval'
   | 'pending'
   | 'scheduled'
   | 'processing'
@@ -48,6 +55,16 @@ export type Payout = {
   landlord_id: number;
   issued_by_id: number;
   status: PayoutStatus;
+  /** TCK-594 (ADR-0039 §2) — le bénéficiaire explicite ; une caution rendue est `tenant`. */
+  payee_role?: PayeeRole | null;
+  service_provider_bill_id?: number | null;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  processed_by_id?: number | null;
+  issuer?: { id: number; name: string } | null;
+  payout_method_id?: number | null;
+  /** La destination n'est jamais rendue en clair (ADR-0039 §6). */
+  destination_masked?: string | null;
   period_start: string | null;
   period_end: string | null;
   gross_amount: number;
@@ -96,4 +113,64 @@ export type PaymentHistoryTotals = {
   amount: number;
   paid_amount: number;
   remaining_amount: number;
+};
+
+export type PayeeRole = 'landlord' | 'tenant' | 'service_provider';
+
+export type PayoutMethodKind = 'wave' | 'orange_money' | 'free_money' | 'bank_transfer';
+
+/**
+ * TCK-594 (ADR-0039 §6) — une destination de paiement. Le titulaire lit son numéro en clair
+ * (`account_identifier`) ; l'agence n'en voit que la forme masquée.
+ */
+export type PayoutMethod = {
+  id: number;
+  user_id?: number;
+  kind: PayoutMethodKind;
+  masked_identifier: string | null;
+  account_identifier?: string | null;
+  account_holder_name?: string | null;
+  is_default: boolean;
+  verified: boolean;
+  verified_at?: string | null;
+};
+
+type PreparationLine = {
+  id: number;
+  reference_number: string | null;
+  property_id: number | null;
+  amount: number;
+};
+
+/** `GET /api/payouts/preparation` — la lecture qui précède un reversement : rien ne s'y saisit. */
+export type PayoutPreparation = {
+  agency_id: number;
+  landlord_id: number;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  lines: {
+    lease_payments: Array<PreparationLine & {
+      payment_type: string | null;
+      lease_id: number;
+      lease_reference: string | null;
+      paid_at: string | null;
+      commission_rate: number;
+      commission_rate_source: 'lease' | 'agency';
+      commission: number;
+    }>;
+    booking_payments: Array<PreparationLine & {
+      payment_type: string | null;
+      booking_id: number;
+      booking_reference: string | null;
+      paid_at: string | null;
+      commission_rate: number;
+      commission: number;
+    }>;
+    service_provider_bills: Array<PreparationLine & { maintenance_request_id: number | null }>;
+  };
+  totals: { gross: number; commission: number; fees: number; net: number };
+  requires_approval: boolean;
+  approval_threshold: number | null;
+  payout_methods: Array<Pick<PayoutMethod, 'id' | 'kind' | 'masked_identifier' | 'is_default' | 'verified'>>;
 };

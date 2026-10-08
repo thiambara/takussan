@@ -62,7 +62,8 @@ class PayoutController extends Controller
         $this->authorize('view', $payout);
 
         return $this->json([
-            'data' => PayoutResource::make($payout->load('landlord'))->toArray($request),
+            // TCK-594 — l'approbateur lit qui a préparé avant d'engager l'argent.
+            'data' => PayoutResource::make($payout->load(['landlord', 'issuer']))->toArray($request),
         ]);
     }
 

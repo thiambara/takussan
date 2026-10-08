@@ -2672,7 +2672,8 @@
       "processing": "In progress",
       "completed": "Completed",
       "failed": "Failed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaiting_approval": "To approve"
     },
     "methods": {
       "cash": "Cash",
@@ -2688,7 +2689,8 @@
     "tabs": {
       "history": "History",
       "invoices": "Invoices",
-      "payouts": "Payouts"
+      "payouts": "Payouts",
+      "approvals": "To approve"
     },
     "actions": {
       "createInvoice": "Generate an invoice",
@@ -2741,31 +2743,8 @@
       "cancelInvoice": "Cancel the invoice",
       "close": "Close"
     },
-    "payoutDialog": {
-      "title": "Create a payout",
-      "description": "Automatically computes the net amount owed to the landlord after commission.",
-      "landlordId": "Landlord ID",
-      "currency": "Currency",
-      "leaseId": "Lease ID (optional)",
-      "bookingId": "Booking ID (optional)",
-      "periodStart": "Period start",
-      "periodEnd": "Period end",
-      "grossAmount": "Gross amount",
-      "commissionRate": "Commission rate (%)",
-      "commission": "Commission",
-      "fees": "Fees",
-      "method": "Method",
-      "scheduledAt": "Scheduled for",
-      "notes": "Notes",
-      "gross": "Gross",
-      "net": "Net",
-      "cancel": "Cancel",
-      "creating": "Creating…",
-      "submit": "Create the payout"
-    },
     "payoutDetail": {
       "title": "Payout {reference}",
-      "description": "Payout status transitions.",
       "notFound": "Payout not found.",
       "createdOn": "Created on {date}",
       "landlord": "Landlord",
@@ -2777,14 +2756,69 @@
       "method": "Method",
       "processedOn": "Processed on",
       "failedReason": "Failure reason",
-      "transactionId": "Transaction reference (optional)",
       "transactionIdPlaceholder": "Eg: TX-2025-0001",
       "working": "…",
       "markProcessed": "Mark as processed",
       "failedReasonPlaceholder": "Eg: Invalid bank account",
       "markFailed": "Mark as failed",
       "cancel": "Cancel",
-      "close": "Close"
+      "close": "Close",
+      "description": "Preparation, approval and payment of the payout.",
+      "preparedBy": "Prepared by",
+      "approvedOn": "Approved on",
+      "destination": "Destination",
+      "reference": "Transaction reference",
+      "approve": "Approve",
+      "approveSelfRefused": "You prepared this payout: another member must approve it.",
+      "paySelfRefused": "You approved this payout: another member must mark it paid.",
+      "transactionId": "Transaction reference",
+      "transactionIdOptional": "Transaction reference (optional for cash)",
+      "cashNote": "Proof of the cash payment",
+      "actionFailed": "The action did not go through."
+    },
+    "payoutMethodKinds": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "bank_transfer": "Bank transfer"
+    },
+    "payoutDialog": {
+      "title": "Prepare a payout",
+      "description": "Choose the landlord and the period: the calculation is read, not typed.",
+      "landlord": "Landlord",
+      "landlordPlaceholder": "Choose a landlord",
+      "periodStart": "Period start",
+      "periodEnd": "Period end",
+      "chooseFirst": "Choose a landlord and a period to read the calculation.",
+      "preparationFailed": "The calculation could not be prepared.",
+      "calculation": "Payout calculation",
+      "nothingToPay": "No collected payment to pay out over this period.",
+      "colItem": "Item",
+      "colDate": "Collected on",
+      "colAmount": "Amount",
+      "colCommission": "Commission",
+      "leaseLine": "Rent — lease {reference}",
+      "bookingLine": "Booking {reference}",
+      "billLine": "Job {reference}",
+      "rateFromLease": "({rate}% from the lease)",
+      "rateFromAgency": "({rate}% from the agency)",
+      "gross": "Gross",
+      "commission": "Commission",
+      "fees": "Fees",
+      "net": "Net",
+      "requiresApproval": "This net reaches the agency's approval threshold ({threshold}): another member must approve it before payment.",
+      "destination": "Destination",
+      "destinationNone": "No destination on file",
+      "destinationOption": "{kind} {masked} — {state}",
+      "verified": "verified",
+      "unverified": "awaiting verification",
+      "method": "Payment method",
+      "scheduledAt": "Scheduled on",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "creating": "Creating…",
+      "submit": "Create the payout",
+      "createFailed": "The payout could not be created."
     }
   },
   "lease": {
@@ -4571,7 +4605,8 @@
         "payouts": "Payouts",
         "overdue": "Overdue",
         "newInvoice": "Generate an invoice",
-        "newPayout": "Create a payout"
+        "newPayout": "Create a payout",
+        "toApprove": "To approve"
       },
       "kpis": {
         "collections30d": "Collections (30 d)",
@@ -7611,15 +7646,7 @@
       "taxMin": "VAT must be ≥ 0.",
       "taxMax": "VAT must be ≤ 100.",
       "invoiceableBoth": "Provide both the entity type and its identifier, or neither.",
-      "dueDateAfterIssue": "The due date must be on or after the issue date.",
-      "landlordRequired": "A landlord is required.",
-      "grossRequired": "The gross amount is required.",
-      "grossPositive": "The gross amount must be greater than 0.",
-      "commissionMin": "The commission must be ≥ 0.",
-      "commissionMax": "The commission must be ≤ 100.",
-      "feesMin": "The fees must be ≥ 0.",
-      "periodEndAfterStart": "The end of the period must be later than its start.",
-      "netPositive": "The net amount must be greater than 0."
+      "dueDateAfterIssue": "The due date must be on or after the issue date."
     },
     "property": {
       "titleRequired": "The title is required.",

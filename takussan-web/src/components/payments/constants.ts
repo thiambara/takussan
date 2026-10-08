@@ -74,6 +74,8 @@ export const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
 };
 
 export const PAYOUT_STATUS_TONE: Record<PayoutStatus, StatusTone> = {
+  // TCK-594 — le reversement au-dessus du seuil de l'agence attend un second membre.
+  awaiting_approval: 'attention',
   pending: 'attention',
   scheduled: 'info',
   processing: 'info',
@@ -108,30 +110,9 @@ export const PAYMENT_METHOD_VALUES = [
 
 export type PaymentMethod = (typeof PAYMENT_METHOD_VALUES)[number];
 
-/**
- * Compute the net amount of a payout given gross, commission and fees.
- * Exposed (and pure) so it can be unit-tested separately.
+/*
+ * TCK-594 (ADR-0039 §1) — `computePayoutNet` et `commissionFromRate` ont été SUPPRIMÉS : le brut, la
+ * commission et le net d'un reversement se calculent côté serveur, depuis les pièces citées et le
+ * taux du bail ou de l'agence. Un calcul de commission côté client était précisément la saisie que
+ * l'ADR retire.
  */
-export function computePayoutNet({
-  gross,
-  commission = 0,
-  fees = 0,
-}: {
-  readonly gross: number;
-  readonly commission?: number;
-  readonly fees?: number;
-}): number {
-  const net = Number(gross) - Number(commission) - Number(fees);
-  return Number.isFinite(net) ? net : 0;
-}
-
-/**
- * Helper — derive the commission amount from a percentage applied on the
- * gross amount. Matches the convention used by `Agency.commission_rate`
- * (stored as a 2-decimal number between 0 and 100).
- */
-export function commissionFromRate(gross: number, ratePercent: number): number {
-  if (!Number.isFinite(gross) || !Number.isFinite(ratePercent)) return 0;
-  const rate = Math.max(0, Math.min(100, ratePercent));
-  return Math.round(gross * rate) / 100;
-}

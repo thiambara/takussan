@@ -41,7 +41,7 @@ function accorder(accordees: readonly string[], isLoading = false) {
 }
 
 function rendre() {
-  render(withIntl(<PaymentsTabs />));
+  return render(withIntl(<PaymentsTabs />));
 }
 
 describe('PaymentsTabs — boutons de création gardés par capacité (TCK-528)', () => {
@@ -49,12 +49,23 @@ describe('PaymentsTabs — boutons de création gardés par capacité (TCK-528)'
     vi.clearAllMocks();
   });
 
-  it('lit exactement invoices.create et payouts.create', () => {
+  it('lit exactement invoices.create, payouts.create et payouts.approve (TCK-594)', () => {
     accorder([]);
     rendre();
 
     const lues = vi.mocked(useCan).mock.calls.map(([capability]) => capability);
-    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create']));
+    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create', 'payouts.approve']));
+  });
+
+  it('ne montre la file « À approuver » qu’à qui tient payouts.approve (TCK-594)', () => {
+    accorder(['payouts.create']);
+    const { unmount } = rendre();
+    expect(screen.queryByRole('tab', { name: fr.payments.tabs.approvals })).not.toBeInTheDocument();
+    unmount();
+
+    accorder(['payouts.approve']);
+    rendre();
+    expect(screen.getByRole('tab', { name: fr.payments.tabs.approvals })).toBeInTheDocument();
   });
 
   it('propose les deux gestes à qui porte les deux capacités (agent, admin d’agence)', () => {

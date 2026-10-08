@@ -2647,7 +2647,8 @@
       "processing": "En cours",
       "completed": "Effectué",
       "failed": "Échoué",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé",
+      "awaiting_approval": "À approuver"
     },
     "methods": {
       "cash": "Espèces",
@@ -2663,7 +2664,8 @@
     "tabs": {
       "history": "Historique",
       "invoices": "Factures",
-      "payouts": "Reversements"
+      "payouts": "Reversements",
+      "approvals": "À approuver"
     },
     "actions": {
       "createInvoice": "Générer une facture",
@@ -2716,31 +2718,8 @@
       "cancelInvoice": "Annuler la facture",
       "close": "Fermer"
     },
-    "payoutDialog": {
-      "title": "Créer un reversement",
-      "description": "Calcule automatiquement le montant net à verser au bailleur après commission.",
-      "landlordId": "ID bailleur",
-      "currency": "Devise",
-      "leaseId": "ID bail (optionnel)",
-      "bookingId": "ID réservation (optionnel)",
-      "periodStart": "Début de période",
-      "periodEnd": "Fin de période",
-      "grossAmount": "Montant brut",
-      "commissionRate": "Taux commission (%)",
-      "commission": "Commission",
-      "fees": "Frais",
-      "method": "Méthode",
-      "scheduledAt": "Prévu le",
-      "notes": "Notes",
-      "gross": "Brut",
-      "net": "Net",
-      "cancel": "Annuler",
-      "creating": "Création…",
-      "submit": "Créer le reversement"
-    },
     "payoutDetail": {
       "title": "Reversement {reference}",
-      "description": "Transitions de statut du payout.",
       "notFound": "Reversement introuvable.",
       "createdOn": "Créé le {date}",
       "landlord": "Bailleur",
@@ -2752,14 +2731,69 @@
       "method": "Méthode",
       "processedOn": "Effectué le",
       "failedReason": "Raison de l'échec",
-      "transactionId": "Référence de transaction (optionnelle)",
       "transactionIdPlaceholder": "Ex: TX-2025-0001",
       "working": "…",
       "markProcessed": "Marquer effectué",
       "failedReasonPlaceholder": "Ex: Compte bancaire invalide",
       "markFailed": "Marquer échoué",
       "cancel": "Annuler",
-      "close": "Fermer"
+      "close": "Fermer",
+      "description": "Préparation, approbation et paiement du reversement.",
+      "preparedBy": "Préparé par",
+      "approvedOn": "Approuvé le",
+      "destination": "Destination",
+      "reference": "Référence de la transaction",
+      "approve": "Approuver",
+      "approveSelfRefused": "Vous avez préparé ce reversement : un autre membre doit l'approuver.",
+      "paySelfRefused": "Vous avez approuvé ce reversement : un autre membre doit le marquer payé.",
+      "transactionId": "Référence de la transaction",
+      "transactionIdOptional": "Référence de la transaction (facultative en espèces)",
+      "cashNote": "Justificatif du paiement en espèces",
+      "actionFailed": "L'action n'a pas abouti."
+    },
+    "payoutMethodKinds": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "bank_transfer": "Virement bancaire"
+    },
+    "payoutDialog": {
+      "title": "Préparer un reversement",
+      "description": "Choisissez le bailleur et la période : le calcul se lit, il ne se saisit pas.",
+      "landlord": "Bailleur",
+      "landlordPlaceholder": "Choisir un bailleur",
+      "periodStart": "Début de période",
+      "periodEnd": "Fin de période",
+      "chooseFirst": "Choisissez un bailleur et une période pour lire le calcul.",
+      "preparationFailed": "Le calcul n'a pas pu être préparé.",
+      "calculation": "Calcul du reversement",
+      "nothingToPay": "Aucun encaissement à reverser sur cette période.",
+      "colItem": "Pièce",
+      "colDate": "Encaissé le",
+      "colAmount": "Montant",
+      "colCommission": "Commission",
+      "leaseLine": "Loyer — bail {reference}",
+      "bookingLine": "Réservation {reference}",
+      "billLine": "Intervention {reference}",
+      "rateFromLease": "({rate} % du bail)",
+      "rateFromAgency": "({rate} % de l'agence)",
+      "gross": "Brut",
+      "commission": "Commission",
+      "fees": "Frais",
+      "net": "Net",
+      "requiresApproval": "Ce net atteint le seuil d'approbation de l'agence ({threshold}) : un autre membre devra l'approuver avant le paiement.",
+      "destination": "Destination",
+      "destinationNone": "Aucune destination enregistrée",
+      "destinationOption": "{kind} {masked} — {state}",
+      "verified": "vérifiée",
+      "unverified": "en attente de vérification",
+      "method": "Moyen de paiement",
+      "scheduledAt": "Prévu le",
+      "notes": "Notes",
+      "cancel": "Annuler",
+      "creating": "Création…",
+      "submit": "Créer le reversement",
+      "createFailed": "Le reversement n'a pas pu être créé."
     }
   },
   "lease": {
@@ -4571,7 +4605,8 @@
         "payouts": "Reversements",
         "overdue": "Impayés",
         "newInvoice": "Générer une facture",
-        "newPayout": "Créer un reversement"
+        "newPayout": "Créer un reversement",
+        "toApprove": "À approuver"
       },
       "kpis": {
         "collections30d": "Encaissements (30 j)",
@@ -7611,15 +7646,7 @@
       "taxMin": "La TVA doit être ≥ 0.",
       "taxMax": "La TVA doit être ≤ 100.",
       "invoiceableBoth": "Fournir à la fois le type et l'identifiant de l'entité, ou aucun.",
-      "dueDateAfterIssue": "L'échéance doit être postérieure ou égale à la date d'émission.",
-      "landlordRequired": "Bailleur requis.",
-      "grossRequired": "Montant brut requis.",
-      "grossPositive": "Le montant brut doit être supérieur à 0.",
-      "commissionMin": "La commission doit être ≥ 0.",
-      "commissionMax": "La commission doit être ≤ 100.",
-      "feesMin": "Les frais doivent être ≥ 0.",
-      "periodEndAfterStart": "La fin de période doit être postérieure au début.",
-      "netPositive": "Le montant net doit être supérieur à 0."
+      "dueDateAfterIssue": "L'échéance doit être postérieure ou égale à la date d'émission."
     },
     "property": {
       "titleRequired": "Le titre est requis.",

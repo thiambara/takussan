@@ -13,6 +13,8 @@ import type {
   PaymentHistoryRow,
   PaymentHistoryTotals,
   Payout,
+  PayoutMethod,
+  PayoutPreparation,
   PayoutStatus,
 } from '@/types/invoice';
 
@@ -68,6 +70,10 @@ export const paymentsQueryKeys = {
     ['payouts', 'list', params] as const,
   payoutDetail: (id: number | null | undefined) =>
     ['payouts', 'detail', id] as const,
+  payoutPreparation: (params: UsePayoutPreparationParams) =>
+    ['payouts', 'preparation', params] as const,
+  payoutMethods: (userId: number | null | undefined) =>
+    ['payout-methods', 'beneficiary', userId] as const,
 };
 
 export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
@@ -143,8 +149,11 @@ export function useInvoices(params: UseInvoicesParams = {}) {
 }
 
 export function useInvoice(id: number | null | undefined) {
+  // TCK-594 — `show` charge les avoirs (`credit_notes`) : l'avoir se lit sur la facture d'origine.
   const query: SpatieQueryParams = {
-    fields: { invoices: [...INVOICE_LIST_FIELDS, 'notes', 'invoiceable_type', 'invoiceable_id'] },
+    fields: {
+      invoices: [...INVOICE_LIST_FIELDS, 'notes', 'invoiceable_type', 'invoiceable_id', 'kind', 'credited_invoice_id'],
+    },
   };
   return useApiQuery<ApiResponse<Invoice>>(
     paymentsQueryKeys.invoiceDetail(id),
@@ -212,7 +221,9 @@ export const PAYOUT_LIST_FIELDS = [
   'booking_id',
   'agency_id',
   'landlord_id',
+  'payee_role',
   'issued_by_id',
+  'approved_by_id',
   'status',
   'period_start',
   'period_end',
@@ -265,20 +276,71 @@ export function usePayout(id: number | null | undefined) {
   );
 }
 
+/**
+ * TCK-594 (ADR-0039 §1) — un reversement se crée depuis les PIÈCES citées : le brut, la commission
+ * et les frais se calculent côté serveur, aucun montant ne se saisit.
+ */
 export type CreatePayoutPayload = {
   landlord_id: number;
-  lease_id?: number;
-  booking_id?: number;
+  lease_payment_ids?: number[];
+  booking_payment_ids?: number[];
+  service_provider_bill_ids?: number[];
   period_start?: string;
   period_end?: string;
-  gross_amount: number;
-  commission_amount?: number;
-  fees_amount?: number;
-  currency?: 'XOF' | 'XAF' | 'EUR' | 'USD';
+  payout_method_id?: number;
   payment_method?: string;
   scheduled_at?: string;
   notes?: string;
 };
+
+export type UsePayoutPreparationParams = {
+  readonly landlord_id?: number;
+  readonly period_start?: string;
+  readonly period_end?: string;
+};
+
+/** La lecture qui précède un reversement : lignes éligibles, commission, frais, net. */
+export function usePayoutPreparation(params: UsePayoutPreparationParams) {
+  const enabled = Boolean(params.landlord_id && params.period_start && params.period_end);
+  return useApiQuery<ApiResponse<PayoutPreparation>>(
+    paymentsQueryKeys.payoutPreparation(params),
+    '/api/payouts/preparation',
+    {
+      params: {
+        extra: {
+          landlord_id: params.landlord_id,
+          period_start: params.period_start,
+          period_end: params.period_end,
+        },
+      },
+      enabled,
+    },
+  );
+}
+
+/** Le second geste d'un reversement au-dessus du seuil de l'agence (ADR-0039 §4). */
+export function usePayoutApprove(payoutId: number) {
+  return useApiMutation<ApiResponse<Payout>, void>(
+    { path: `/api/payouts/${payoutId}/approve`, method: 'POST', body: () => undefined },
+    { invalidate: [['payouts']] },
+  );
+}
+
+/** Les destinations d'un bénéficiaire, vues de l'agence : masquées, avec leur état de vérification. */
+export function useBeneficiaryPayoutMethods(userId: number | null | undefined) {
+  return useApiQuery<ApiResponse<PayoutMethod[]>>(
+    paymentsQueryKeys.payoutMethods(userId),
+    '/api/payout-methods',
+    { params: { filter: { user_id: userId ?? undefined } }, enabled: Boolean(userId) },
+  );
+}
+
+export function useVerifyPayoutMethod() {
+  return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
+    { path: ({ id }) => `/api/payout-methods/${id}/verify`, method: 'POST', body: () => undefined },
+    { invalidate: [['payout-methods'], ['payouts', 'preparation']] },
+  );
+}
 
 export function useCreatePayout() {
   return useApiMutation<ApiResponse<Payout>, CreatePayoutPayload>(
@@ -290,7 +352,7 @@ export function useCreatePayout() {
 export function usePayoutMarkProcessed(payoutId: number) {
   return useApiMutation<
     ApiResponse<Payout>,
-    { transaction_id?: string; payment_method?: string }
+    { transaction_id?: string; payment_method?: string; payout_method_id?: number; notes?: string }
   >(
     {
       path: `/api/payouts/${payoutId}/mark-processed`,

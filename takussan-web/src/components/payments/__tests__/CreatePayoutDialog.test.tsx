@@ -1,120 +1,132 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
 
 /**
+ * TCK-594 (ADR-0039 §1) — préparer un reversement, c'est choisir un bailleur et une période, puis
+ * LIRE le calcul. Le dialogue n'a plus aucun champ de montant, et ce qu'il envoie à la création est
+ * la liste des PIÈCES lues, jamais un brut.
+ *
  * Des mocks à IDENTITÉ STABLE, comme les vrais hooks : un objet neuf à chaque appel casserait le
  * cache du React Compiler et rendrait un FAUX VERT sous compilation (mesuré, TCK-564 E-repair-1).
  */
-const MUTATION = vi.hoisted(() => ({ mutateAsync: vi.fn(async () => ({ data: { id: 1 } })) }));
+const MUTATION = vi.hoisted(() => ({
+  mutateAsync: vi.fn(async (_payload: unknown) => ({ data: { id: 31 } })),
+  isPending: false,
+}));
+const PREPARATION = vi.hoisted(() => ({
+  current: {
+    data: undefined as unknown,
+    isError: false,
+    isFetching: false,
+    error: null,
+  },
+}));
+const PREPARATION_ARGS = vi.hoisted(() => [] as unknown[]);
+
 vi.mock('@/lib/queries/payments', () => ({
   useCreatePayout: () => MUTATION,
+  usePayoutPreparation: (params: unknown) => {
+    PREPARATION_ARGS.push(params);
+    return PREPARATION.current;
+  },
 }));
+const OWNERS = vi.hoisted(() => ({
+  data: {
+    data: [
+      { id: 5, user_id: 42, agency_id: 3, status: 'active', metadata: null, created_at: null, user: { id: 42, first_name: 'Awa', last_name: 'Diop', email: 'awa@example.test' } },
+    ],
+  },
+  isLoading: false,
+}));
+vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => OWNERS }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 9, agency_id: 3 } }) }));
 
 import { CreatePayoutDialog } from '../CreatePayoutDialog';
 
-/**
- * TCK-571 — le récapitulatif du reversement SUIT la saisie.
- *
- * Le dialogue lisait `form.watch('gross_amount')` (et quatre autres) PENDANT LE RENDU — le motif
- * que le React Compiler (`next.config.ts`, `reactCompiler: true`) fige ailleurs. Ici, le défaut
- * N'A PAS ÉTÉ REPRODUIT : le compilateur REFUSE de compiler ce composant (« React Compiler has
- * skipped optimizing this component because one or more React ESLint rules were disabled » — le
- * `eslint-disable react-hooks/exhaustive-deps` de son effet de commission), et le récapitulatif
- * suivait la saisie avant comme après le passage à `useWatch` (sur la pile de dev comme sous
- * vitest). Et la suppression n'était pas le seul rempart — mesuré sous vitest compilé le
- * 2026-09-24, avec `watch()` remis en place : sans l'`eslint-disable`, le composant COMPILE et les
- * 4 tests restent verts, parce que le `form.reset` d'`onSuccess` capture `form` et que le
- * compilateur ne met plus en cache ce qui en dépend ; c'est seulement sans l'`eslint-disable` ET
- * sans ce `form.reset` que `form.watch("gross_amount")` sort gardé par `$[…] !== form` et que les
- * 4 tests rougissent. `useWatch` est une précaution contre ce double hasard.
- *
- * ⚠ Ce fichier est donc vert AVEC OU SANS le correctif, tant que l'un des deux tient : il décrit le
- * comportement attendu, il ne garde pas le motif. La garde du motif est
- * `src/test/__tests__/watch-pendant-le-rendu.test.ts`.
- */
+const sansEspaces = (s: string) => s.replace(/[\s  ]/g, '');
 
-/** La valeur affichée sous un intitulé du récapitulatif (`<dt>` → `<dd>`). */
-function recap(intitule: string): string {
-  const dt = screen.getAllByText(intitule).find((el) => el.tagName === 'DT');
-  if (!dt) throw new Error(`intitulé de récapitulatif introuvable : ${intitule}`);
-  return dt.nextElementSibling?.textContent ?? '';
+const CALCUL = {
+  data: {
+    agency_id: 3,
+    landlord_id: 42,
+    period_start: '2026-09-01',
+    period_end: '2026-09-30',
+    currency: 'XOF',
+    lines: {
+      lease_payments: [
+        { id: 101, reference_number: 'LP-1', payment_type: 'rent', lease_id: 7, lease_reference: 'BAIL-7', property_id: 1, paid_at: '2026-09-05T10:00:00Z', amount: 200000, commission_rate: 10, commission_rate_source: 'lease', commission: 20000 },
+        { id: 102, reference_number: 'LP-2', payment_type: 'charges', lease_id: 7, lease_reference: 'BAIL-7', property_id: 1, paid_at: '2026-09-05T10:00:00Z', amount: 20000, commission_rate: 10, commission_rate_source: 'lease', commission: 2000 },
+      ],
+      booking_payments: [],
+      service_provider_bills: [{ id: 501, reference_number: 'SPB-1', maintenance_request_id: 9, property_id: 1, amount: 15000 }],
+    },
+    totals: { gross: 220000, commission: 22000, fees: 15000, net: 183000 },
+    requires_approval: true,
+    approval_threshold: 100000,
+    payout_methods: [{ id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true }],
+  },
+};
+
+function monter() {
+  render(withIntl(<CreatePayoutDialog open onOpenChange={() => {}} />));
 }
 
-const sansEspaces = (s: string) => s.replace(/[\s  ]/g, '');
+describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    PREPARATION_ARGS.length = 0;
+    PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
+  });
 
-function monter(defaultCommissionRate?: number) {
-  render(
-    withIntl(
-      <CreatePayoutDialog open onOpenChange={() => {}} defaultCommissionRate={defaultCommissionRate} />,
-    ),
-  );
-}
-
-describe('CreatePayoutDialog — le récapitulatif suit la saisie (TCK-571)', () => {
-  it('le brut et le net suivent le montant brut, et le bouton s’active', async () => {
-    const user = userEvent.setup();
+  it("n'offre aucun champ de montant, et rien à créer avant le calcul", () => {
     monter();
 
+    expect(screen.queryByLabelText(/Montant brut/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Commission/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Créer le reversement' })).toBeDisabled();
-
-    await user.type(screen.getByLabelText(/Montant brut/), '50000');
-
-    expect(sansEspaces(recap('Brut'))).toBe('50000FCFA');
-    expect(sansEspaces(recap('Net'))).toBe('50000FCFA');
-    expect(screen.getByRole('button', { name: 'Créer le reversement' })).toBeEnabled();
   });
 
-  it('la commission et les frais saisis se retranchent du net', async () => {
+  it('demande le calcul pour le bailleur et la période choisis', async () => {
     const user = userEvent.setup();
     monter();
 
-    await user.type(screen.getByLabelText(/Montant brut/), '50000');
-    const commission = screen.getByLabelText('Commission');
-    await user.clear(commission);
-    await user.type(commission, '5000');
-    const frais = screen.getByLabelText('Frais');
-    await user.clear(frais);
-    await user.type(frais, '1000');
+    await user.selectOptions(screen.getByLabelText('Bailleur'), '42');
+    await user.type(screen.getByLabelText('Début de période'), '2026-09-01');
+    await user.type(screen.getByLabelText('Fin de période'), '2026-09-30');
 
-    expect(sansEspaces(recap('Commission'))).toBe('5000FCFA');
-    expect(sansEspaces(recap('Frais'))).toBe('1000FCFA');
-    expect(sansEspaces(recap('Net'))).toBe('44000FCFA');
+    expect(PREPARATION_ARGS.at(-1)).toEqual({ landlord_id: 42, period_start: '2026-09-01', period_end: '2026-09-30' });
   });
 
-  it('la devise choisie s’applique au récapitulatif', async () => {
+  it('montre chaque pièce, les totaux et le seuil, puis crée depuis les identifiants', async () => {
+    PREPARATION.current = { data: CALCUL, isError: false, isFetching: false, error: null };
     const user = userEvent.setup();
     monter();
 
-    await user.type(screen.getByLabelText(/Montant brut/), '1500');
-    await user.click(screen.getByRole('combobox', { name: 'Devise' }));
-    await user.click(await screen.findByRole('option', { name: 'EUR (€)' }));
+    expect(screen.getAllByText('Loyer — bail BAIL-7')).toHaveLength(2);
+    expect(screen.getByText('Intervention SPB-1')).toBeInTheDocument();
+    const net = screen.getAllByText('Net').find((el) => el.tagName === 'DT');
+    expect(sansEspaces(net?.nextElementSibling?.textContent ?? '')).toBe('183000FCFA');
+    expect(screen.getByText(/seuil d'approbation/)).toBeInTheDocument();
 
-    expect(sansEspaces(recap('Brut'))).toBe('1500,00€');
-    expect(sansEspaces(recap('Net'))).toBe('1500,00€');
-  });
-
-  // Vérification adverse de TCK-571 : `FormInput type="number"` remettait une CHAÎNE au formulaire.
-  // La commission automatique ne se calculait jamais (`Number.isFinite("50000")` est faux), et
-  // l'envoi échouait sur « Montant brut requis. », montant pourtant saisi.
-  it('le taux de l’agence calcule la commission, et le reversement part avec des nombres', async () => {
-    MUTATION.mutateAsync.mockClear();
-    const user = userEvent.setup();
-    monter(10);
-
-    await user.type(screen.getByLabelText(/ID bailleur/), '7');
-    await user.type(screen.getByLabelText(/Montant brut/), '50000');
-
-    expect(sansEspaces(recap('Commission'))).toBe('5000FCFA');
-    expect(sansEspaces(recap('Net'))).toBe('45000FCFA');
-
+    await user.selectOptions(screen.getByLabelText('Destination'), '8');
     await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));
-    await waitFor(() => expect(MUTATION.mutateAsync).toHaveBeenCalledTimes(1));
-    expect(MUTATION.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ landlord_id: 7, gross_amount: 50000, commission_amount: 5000 }),
-    );
-    expect(screen.queryByText('Montant brut requis.')).toBeNull();
+
+    expect(MUTATION.mutateAsync).toHaveBeenCalledTimes(1);
+    const payload = MUTATION.mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      landlord_id: 42,
+      lease_payment_ids: [101, 102],
+      booking_payment_ids: [],
+      service_provider_bill_ids: [501],
+      period_start: '2026-09-01',
+      period_end: '2026-09-30',
+      payout_method_id: 8,
+    });
+    for (const montant of ['gross_amount', 'commission_amount', 'fees_amount', 'net_amount']) {
+      expect(payload).not.toHaveProperty(montant);
+    }
   });
 });

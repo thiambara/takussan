@@ -19,18 +19,14 @@ import { PayoutsTable } from './PayoutsTable';
 import { PaymentsHistoryFilters } from './PaymentsHistoryFilters';
 import { PaymentsHistoryTable } from './PaymentsHistoryTable';
 
-const TAB_VALUES = ['history', 'invoices', 'payouts'] as const;
+const TAB_VALUES = ['history', 'invoices', 'payouts', 'approvals'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 function isTabValue(value: string | null): value is TabValue {
   return !!value && (TAB_VALUES as readonly string[]).includes(value);
 }
 
-interface PaymentsTabsProps {
-  readonly defaultCommissionRate?: number;
-}
-
-export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
+export function PaymentsTabs() {
   const t = useTranslations('payments');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,6 +41,8 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
   // Les deux appels partagent la même requête (`['me','capabilities','active']`).
   const { can: peutFacturer, isLoading: facturationEnCours } = useCan('invoices.create');
   const { can: peutReverser, isLoading: reversementEnCours } = useCan('payouts.create');
+  // TCK-594 (ADR-0039 §4) — la file « À approuver » n'existe que pour qui peut approuver.
+  const { can: peutApprouver } = useCan('payouts.approve');
   // Tant que le catalogue n'est pas arrivé, on réserve la place sans rien proposer : un bouton
   // rendu puis retiré (le locataire) ou absent puis apparu (l'agent) se verrait.
   const capacitesEnCours = facturationEnCours || reversementEnCours;
@@ -77,6 +75,7 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
             <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
             <TabsTrigger value="invoices">{t('tabs.invoices')}</TabsTrigger>
             <TabsTrigger value="payouts">{t('tabs.payouts')}</TabsTrigger>
+            {peutApprouver ? <TabsTrigger value="approvals">{t('tabs.approvals')}</TabsTrigger> : null}
           </TabsList>
           {capacitesEnCours ? (
             <Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" data-testid="payments-actions-loading" />
@@ -110,6 +109,12 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
         <TabsContent value="payouts" className="space-y-4">
           <PayoutsTable onSelect={setPayoutId} />
         </TabsContent>
+
+        {peutApprouver ? (
+          <TabsContent value="approvals" className="space-y-4">
+            <PayoutsTable onSelect={setPayoutId} status="awaiting_approval" />
+          </TabsContent>
+        ) : null}
       </Tabs>
 
       <CreateInvoiceDialog
@@ -121,7 +126,6 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
         open={payoutOpen}
         onOpenChange={setPayoutOpen}
         onCreated={(id) => setPayoutId(id)}
-        defaultCommissionRate={defaultCommissionRate}
       />
       <InvoiceDetailDialog invoiceId={invoiceId} onClose={() => setInvoiceId(null)} />
       <PayoutDetailDialog payoutId={payoutId} onClose={() => setPayoutId(null)} />
