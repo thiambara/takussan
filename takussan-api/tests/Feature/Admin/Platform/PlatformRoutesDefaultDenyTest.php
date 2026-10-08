@@ -57,6 +57,9 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.users.reset-2fa',
         'admin.users.revoke-sessions',
         'admin.users.sessions.destroy',
+        // Sous-partie 3 — bloquer et réactiver un compte (`platform.users.block`).
+        'admin.users.block',
+        'admin.users.reactivate',
         'admin.moderation.index',
     ];
 

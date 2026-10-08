@@ -3,104 +3,80 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Admin\StartImpersonationRequest;
+use App\Models\Enums\ImpersonationEndReason;
+use App\Models\ImpersonationSession;
 use App\Models\User;
+use App\Services\Admin\ImpersonationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * TCK-144 — Super-admin user impersonation. The impersonator (a super_admin)
- * receives a fresh Sanctum token tied to the target user, scoped to the name
- * `impersonation` and expiring within an hour.
+ * TCK-600 (ADR-0055) — l'impersonation : une session de LECTURE de 15 minutes.
  *
- * The frontend is expected to hold **both** tokens during a session: the
- * super_admin's own token (used to call privileged endpoints like the stop)
- * and the impersonation token (used to act as the target). Stop revokes the
- * impersonation tokens for the named target without touching the original
- * super_admin session.
- *
- * Both transitions emit `super_admin_impersonation_started` /
- * `super_admin_impersonation_stopped` activity log entries linking the actor
- * (super_admin) to the subject (target user).
+ * `start` garde son nom d'action : la liste step-up de TCK-589 l'apparie par action. Sa réponse
+ * porte le jeton et n'est destinée qu'au route handler du BFF, qui le range dans un cookie httpOnly ;
+ * le navigateur ne le reçoit jamais. `stop` ferme la session ouverte DE L'APPELANT — plus de
+ * `user_id` libre. `current` sert la bannière, appelé avec le jeton d'impersonation.
  */
 class UserImpersonationController extends Controller
 {
-    private const IMPERSONATION_TOKEN_NAME = 'impersonation';
+    public function __construct(
+        private readonly ImpersonationService $impersonation,
+    ) {}
 
-    private const IMPERSONATION_TTL_MINUTES = 60;
-
-    public function start(Request $request, User $user): JsonResponse
+    public function start(StartImpersonationRequest $request, User $user): JsonResponse
     {
-        $actor = $request->user();
+        ['session' => $session, 'token' => $token] = $this->impersonation->start(
+            $request->user(),
+            $user,
+            (string) $request->validated('reason'),
+        );
 
-        if ($actor->id === $user->id) {
-            abort_code(422, 'impersonation.self');
-        }
-
-        // Revoke any prior impersonation tokens for this target so repeated
-        // start() calls don't pile up long-lived tokens — every fresh start
-        // supersedes the previous session for that user.
-        PersonalAccessToken::query()
-            ->where('tokenable_type', $user->getMorphClass())
-            ->where('tokenable_id', $user->id)
-            ->where('name', self::IMPERSONATION_TOKEN_NAME)
-            ->delete();
-
-        $expiresAt = now()->addMinutes(self::IMPERSONATION_TTL_MINUTES);
-        $token = $user->createToken(self::IMPERSONATION_TOKEN_NAME, ['*'], $expiresAt);
-
-        activity('User')
-            ->performedOn($user)
-            ->causedBy($actor)
-            ->withProperties([
-                'actor_id' => $actor->id,
-                'target_user_id' => $user->id,
-                'expires_at' => $expiresAt->toIso8601String(),
-            ])
-            ->event('super_admin_impersonation_started')
-            ->log('Super-admin impersonation started');
-
-        return $this->json([
-            'token' => $token->plainTextToken,
-            'expires_at' => $expiresAt->toIso8601String(),
-            'actor_id' => $actor->id,
-            'target_user_id' => $user->id,
-        ]);
+        return $this->json(['data' => [
+            'session_id' => $session->id,
+            'token' => $token,
+            'expires_at' => $session->expires_at->toIso8601String(),
+            'target' => ['id' => $user->id, 'name' => $user->full_name],
+        ]], 201);
     }
 
     public function stop(Request $request): JsonResponse
     {
-        $actor = $request->user();
-        $userId = $request->integer('user_id');
-        if ($userId <= 0) {
-            abort_code(422, 'impersonation.user_required');
-        }
+        $session = ImpersonationSession::query()
+            ->where('impersonator_id', $request->user()->id)
+            ->whereNull('ended_at')
+            ->latest('started_at')
+            ->first();
+        abort_code_if($session === null, 404, 'impersonation.no_session');
 
-        $target = User::find($userId);
-        if (! $target) {
-            abort_code(404, 'impersonation.target_not_found');
-        }
+        $this->impersonation->stop($session, ImpersonationEndReason::Stopped);
+        $session->refresh();
 
-        $revoked = PersonalAccessToken::query()
-            ->where('tokenable_type', $target->getMorphClass())
-            ->where('tokenable_id', $target->id)
-            ->where('name', self::IMPERSONATION_TOKEN_NAME)
-            ->delete();
+        return $this->json(['data' => [
+            'session_id' => $session->id,
+            'ended_at' => $session->ended_at?->toIso8601String(),
+        ]]);
+    }
 
-        activity('User')
-            ->performedOn($target)
-            ->causedBy($actor)
-            ->withProperties([
-                'actor_id' => $actor->id,
-                'target_user_id' => $target->id,
-                'revoked_count' => $revoked,
-            ])
-            ->event('super_admin_impersonation_stopped')
-            ->log('Super-admin impersonation stopped');
+    public function current(Request $request): JsonResponse
+    {
+        $token = $request->user()?->currentAccessToken();
+        $session = $token instanceof PersonalAccessToken && ImpersonationService::isImpersonationToken($token)
+            ? $this->impersonation->openSessionForToken($token)
+            : null;
+        abort_code_if($session === null, 404, 'impersonation.no_session');
 
-        return $this->json([
-            'message' => __('messages.impersonation_stopped'),
-            'revoked_count' => $revoked,
-        ]);
+        $operateur = $session->impersonator;
+        $cible = $session->target;
+
+        return $this->json(['data' => [
+            'session_id' => $session->id,
+            'impersonator' => ['id' => $operateur?->id, 'name' => $operateur?->full_name],
+            'target' => ['id' => $cible?->id, 'name' => $cible?->full_name],
+            'expires_at' => $session->expires_at->toIso8601String(),
+            'read_only' => true,
+        ]]);
     }
 }

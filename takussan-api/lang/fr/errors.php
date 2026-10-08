@@ -164,9 +164,11 @@ return [
         'unsupported_media_type' => 'Ce type de fichier n\'est pas pris en charge.',
     ],
     'impersonation' => [
-        'self' => 'Vous ne pouvez pas vous emprunter vous-même.',
-        'target_not_found' => 'Utilisateur introuvable.',
-        'user_required' => 'Indiquez l\'utilisateur à emprunter.',
+        'no_session' => 'Aucune session d\'impersonation n\'est ouverte.',
+        'read_only' => 'Lecture seule pendant l\'impersonation : aucune modification n\'est possible.',
+        'target_inactive' => 'Ce compte n\'est pas actif : il ne peut pas être consulté en impersonation.',
+        'target_operator' => 'Un opérateur de la plateforme ne peut pas être consulté en impersonation.',
+        'target_self' => 'Vous ne pouvez pas vous emprunter vous-même.',
     ],
     'integration' => [
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les intégrations de votre agence.',

@@ -12,6 +12,7 @@ use App\Models\CalendarFeed;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
+use App\Services\Admin\ImpersonationService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,8 @@ class UserLifecycleController extends Controller
             $this->journaliser($request->user(), $user, 'super_admin_user_blocked', $reason);
         });
         $this->notifications->send($user, NotificationCode::AccountBlocked, ['reason' => $reason]);
+        // ADR-0055 §4 — les sessions d'impersonation qui visent ce compte se ferment.
+        app(ImpersonationService::class)->closeForTarget($user);
 
         return $this->json(['data' => ['id' => $user->id, 'status' => $user->status->value]]);
     }

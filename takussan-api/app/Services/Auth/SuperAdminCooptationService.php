@@ -3,12 +3,14 @@
 namespace App\Services\Auth;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Models\Enums\ImpersonationEndReason;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Invitation;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use App\Notifications\SuperAdminInvitedBroadcast;
+use App\Services\Admin\ImpersonationService;
 use App\Services\Invitation\InvitationService;
 use App\Services\Model\NotificationService;
 use App\Support\CaseInsensitive;
@@ -289,6 +291,10 @@ class SuperAdminCooptationService
 
             return $profile;
         });
+
+        // ADR-0055 §4 — ses sessions d'impersonation se ferment, et leurs cibles en sont prévenues.
+        // Le jeton était déjà refusé par `AccessTokenGate` dès la ligne `revoked_at`.
+        app(ImpersonationService::class)->closeForOperator($target, ImpersonationEndReason::OperatorRevoked);
 
         $operateur = trim($target->first_name.' '.$target->last_name) ?: (string) $target->email;
         foreach ($this->otherSuperAdmins($actor) as $pair) {

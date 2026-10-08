@@ -106,6 +106,7 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
+use App\Support\ImpersonationContext;
 use App\Support\TelephoneSaisi;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -145,6 +146,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-600 (ADR-0055 §5) — la session d'impersonation de la requête courante.
+        $this->app->scoped(ImpersonationContext::class);
     }
 
     public function boot(Dispatcher $events): void
@@ -527,6 +531,14 @@ class AppServiceProvider extends ServiceProvider
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
         Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-600 (ADR-0055 §5) — toute activité écrite pendant une session d'impersonation
+        // porte l'opérateur, en plus de son `causer` (la cible).
+        Activity::creating(function (Activity $activity): void {
+            $context = app(ImpersonationContext::class);
+            if ($context->active()) {
+                $activity->setAttribute('impersonator_id', $context->impersonatorId());
+            }
+        });
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //

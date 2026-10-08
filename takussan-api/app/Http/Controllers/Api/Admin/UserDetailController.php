@@ -149,6 +149,13 @@ class UserDetailController extends Controller
 
         $activity = $query->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
 
+        // TCK-600 (ADR-0055 §5) — « via impersonation par X » : l'opérateur qui lisait en tant que
+        // la cible quand l'activité s'est écrite. Une requête pour la page, pas une par entrée.
+        $operateurs = User::withTrashed()
+            ->whereIn('id', $activity->getCollection()->pluck('impersonator_id')->filter()->unique()->values())
+            ->get(['id', 'first_name', 'last_name'])
+            ->keyBy('id');
+
         return $this->json([
             'data' => $activity->getCollection()->map(fn (Activity $log) => [
                 'id' => $log->id,
@@ -160,6 +167,10 @@ class UserDetailController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => $log->properties?->toArray(),
+                'impersonator' => $log->impersonator_id === null ? null : [
+                    'id' => (int) $log->impersonator_id,
+                    'name' => $operateurs->get($log->impersonator_id)?->full_name,
+                ],
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->values()->all(),
             'meta' => $this->paginationMeta($activity),

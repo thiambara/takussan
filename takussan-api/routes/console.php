@@ -83,6 +83,8 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlappi
 // TCK-589 (vérification adverse m7) — et les jetons morts d'INACTIVITÉ, que la purge de
 // Sanctum ne voit pas : même règle que `AccessTokenGate`, même grâce de 24 h.
 Schedule::command('sessions:prune-idle --hours=24')->daily()->withoutOverlapping();
+// TCK-600 (ADR-0055) — une session d'impersonation échue se ferme, et sa cible en est prévenue.
+Schedule::command('impersonation:close-expired')->everyMinute()->withoutOverlapping();
 
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();

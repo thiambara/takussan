@@ -164,9 +164,11 @@ return [
         'unsupported_media_type' => 'This file type is not supported.',
     ],
     'impersonation' => [
-        'self' => 'You cannot impersonate yourself.',
-        'target_not_found' => 'User not found.',
-        'user_required' => 'Specify the user to impersonate.',
+        'no_session' => 'No impersonation session is open.',
+        'read_only' => 'Read-only during impersonation: no change is possible.',
+        'target_inactive' => 'This account is not active: it cannot be viewed through impersonation.',
+        'target_operator' => 'A platform operator cannot be viewed through impersonation.',
+        'target_self' => 'You cannot impersonate yourself.',
     ],
     'integration' => [
         'other_agency_forbidden' => 'You can only manage your own agency\'s integrations.',

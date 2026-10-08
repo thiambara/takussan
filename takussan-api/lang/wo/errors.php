@@ -164,9 +164,11 @@ return [
         'unsupported_media_type' => 'Xeetu fichier bii nangouñu ko.',
     ],
     'impersonation' => [
-        'self' => 'Mënuloo jël sa bopp ni beneen.',
-        'target_not_found' => 'Jëfandikukat bi gisuñu ko.',
-        'user_required' => 'Waxal jëfandikukat bi ngay jël.',
+        'no_session' => 'Amul jël-bopp bu ubbeeku.',
+        'read_only' => 'Jàng rekk ci jël-bopp bi : mënuloo soppi dara.',
+        'target_inactive' => 'Kont bii doxul : mënuloo ko jël ni sa bopp.',
+        'target_operator' => 'Mënuloo jël ni sa bopp ab liggéeykatu platform bi.',
+        'target_self' => 'Mënuloo jël sa bopp ni beneen.',
     ],
     'integration' => [
         'other_agency_forbidden' => 'Intégration yu sa agence rekk nga mën a toppatoo.',
