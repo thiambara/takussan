@@ -117,7 +117,12 @@ deux agences ne font pas deux personnes.
   (`agency_payout_threshold_changed`). L'approbation est un état (`awaiting_approval`) que
   `mark-processed` et `mark-failed` refusent ; elle ne se rejoue pas (elle n'est permise que depuis
   cet état) ; le net approuvé est figé dans `metadata.approved_net_amount` et un paiement dont le net
-  a changé depuis est refusé. Les gestes qui suivent la préparation (`approve`,
+  a changé depuis est refusé. **L'approbation couvre aussi la destination** (VERIF-594 M-4) : elle
+  fige `approved_payout_method_id`, la forme masquée que l'approbateur a lue et une empreinte du
+  numéro (HMAC sous la clé de l'application, jamais un hachage nu : un numéro se retrouve par force
+  brute). Le paiement refuse (422) une autre destination, la même dont le numéro a changé, et toute
+  destination pour un reversement approuvé sans (espèces et chèque restent permis). L'API rend la
+  destination prévue, masquée, avant l'approbation. Les gestes qui suivent la préparation (`approve`,
   `mark-processed`, `mark-failed` et `cancel`) jugent le statut sur la ligne **verrouillée**
   (VERIF-594 M-5), et **on ne sort jamais de `completed`** : le modèle refuse toute transition depuis
   cet état, `failed` et `cancelled` compris, puisqu'elles détacheraient les pièces d'un argent parti.
@@ -155,7 +160,9 @@ une destination modifiée perd toutes ses vérifications. **Rien n'est vérifié
 VERIF-594 B-1) : ce téléphone se change et se revérifie en libre-service, sans date ni avis, si bien
 qu'après une prise de compte la vérification d'office appartenait à l'attaquant et retirait la seule
 défense de cette section. Un reversement mobile money ou virement ne se marque payé que vers une
-destination **du bénéficiaire**, vérifiée **par l'agence du reversement**. Le `rib` du profil bailleur reste une pièce KYC.
+destination **du bénéficiaire**, vérifiée **par l'agence du reversement** — et pas par la main
+qui paie : le membre qui a vérifié une destination ne la paie pas dans les **24 h** qui suivent,
+approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse. Le `rib` du profil bailleur reste une pièce KYC.
 
 ### 7. Factures : numéro à l'émission, unicité par agence, avoir
 

@@ -246,4 +246,117 @@ class PayoutBypassTest extends TestCase
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk();
         $this->assertSame(2, $method->verifications()->count());
     }
+
+    /**
+     * M-4 — l'approbation ne couvrait que le net. Le numéro de la destination approuvée changeait
+     * (même `id`), était revérifié, et l'argent partait ailleurs que ce que l'approbateur avait vu.
+     */
+    public function test_m4_the_destination_changed_after_approval_is_refused(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create([
+            'user_id' => $landlord->id, 'account_identifier' => '+221771111111', 'masked_identifier' => PayoutMethod::mask('+221771111111'),
+        ]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
+
+        // L'approbateur voit la destination qu'il approuve, masquée.
+        Sanctum::actingAs($approver);
+        $this->getJson("/api/payouts/{$id}")->assertOk()->assertJsonPath('data.payout_method_masked', '•••• 1111');
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk()->assertJsonPath('data.approved_destination_masked', '•••• 1111');
+
+        // Le compte du bailleur change le numéro de la MÊME destination ; un tiers la revérifie.
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/me/payout-methods/{$m1->id}", ['account_identifier' => '+221779999999'])->assertOk();
+        Sanctum::actingAs($agent);
+        $this->postJson("/api/payout-methods/{$m1->id}/verify")->assertOk();
+
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-1'])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
+        $this->assertSame(PayoutStatus::Pending, Payout::query()->findOrFail($id)->status);
+    }
+
+    /** M-4 — le payeur ne choisit pas une AUTRE destination que celle approuvée, même vérifiée. */
+    public function test_m4_another_destination_than_the_approved_one_is_refused(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
+        $m2 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id, 'is_default' => false]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-2', 'payout_method_id' => $m2->id])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-2', 'payout_method_id' => $m1->id])
+            ->assertOk()->assertJsonPath('data.payout_method_id', $m1->id);
+    }
+
+    /** M-4 — un reversement approuvé SANS destination ne part pas vers une destination choisie au paiement. */
+    public function test_m4_a_payout_approved_without_destination_is_not_paid_to_one(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-3', 'payout_method_id' => $m1->id])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
+        // Un chèque ne part vers aucune destination : il reste permis.
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-3'])->assertOk();
+    }
+
+    /**
+     * M-4 — celui qui a vérifié une destination ne la paie pas dans les 24 h qui suivent, approbation
+     * ou non : sinon il vérifie le numéro qu'il veut et paie aussitôt, seul.
+     */
+    public function test_m4_the_verifier_does_not_pay_the_destination_within_24_hours(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $payer = $this->agencyAdmin($agency);
+        $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
+        Sanctum::actingAs($payer);
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 50_000);
+        $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id], 'payout_method_id' => $method->id])
+            ->assertCreated()->assertJsonPath('data.status', 'pending')->json('data.id');
+
+        $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk();
+        $body = ['payment_method' => 'wave', 'transaction_id' => 'W-4'];
+        $this->travel(1)->hours();
+        $this->postJson("/api/payouts/{$id}/mark-processed", $body)
+            ->assertForbidden()->assertJsonPath('code', 'payout.verifier_cannot_pay_yet');
+
+        $this->travel(24)->hours();
+        $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk();
+    }
+
+    /** @return array{0: Agency, 1: User, 2: User, 3: User, 4: User} */
+    private function fourEyesAgency(): array
+    {
+        $agency = $this->moneyAgency();
+        $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
+
+        return [$agency, $this->landlordOf($agency), $this->agencyAdmin($agency), $this->agencyAdmin($agency), $this->agencyAgent($agency)];
+    }
+
+    private function awaitingPayoutTo(Agency $agency, User $landlord, User $issuer, ?PayoutMethod $method): int
+    {
+        Sanctum::actingAs($issuer);
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 150_000);
+
+        return $this->postJson('/api/payouts', array_filter([
+            'landlord_id' => $landlord->id,
+            'lease_payment_ids' => [$rent->id],
+            'payout_method_id' => $method?->id,
+            'payment_method' => 'wave',
+        ]))->assertCreated()->assertJsonPath('data.status', 'awaiting_approval')->json('data.id');
+    }
 }

@@ -263,6 +263,8 @@ return [
         'agency_required' => 'A payout is issued on behalf of an agency.',
         'already_paid_out' => 'One of the cited items has already been paid out.',
         'amount_changed_since_approval' => 'The amount changed since it was approved: have it approved again.',
+        'destination_changed_since_approval' => 'The destination is no longer the one that was approved: have this payout approved again.',
+        'verifier_cannot_pay_yet' => 'You verified this destination less than 24 hours ago: another member must make this payment.',
         'awaiting_approval' => 'This payout is awaiting approval.',
         'cannot_cancel' => 'This payout cannot be cancelled in its current state.',
         'cannot_fail' => 'This payout cannot be marked failed in its current state.',

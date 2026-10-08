@@ -98,9 +98,13 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const needsDestination = allowedKinds !== undefined && payout?.payee_role !== 'tenant';
   const mayPay = actionable && canManage && !isBeneficiary;
   const beneficiaryMethods = useBeneficiaryPayoutMethods(payout?.landlord_id, mayPay && needsDestination);
+  // VERIF-594 M-4 — l'approbation couvre la destination : approuvé, le reversement ne part que vers
+  // la destination approuvée (aucune, s'il a été approuvé sans). Le serveur refuse tout le reste.
+  const approved = payout?.approved_by_id != null;
   const destinations = (beneficiaryMethods.data?.data ?? []).filter(
-    (m) => m.verified && allowedKinds?.includes(m.kind),
+    (m) => m.verified && allowedKinds?.includes(m.kind) && (!approved || m.id === payout?.payout_method_id),
   );
+  const plannedDestination = payout?.approved_destination_masked ?? payout?.payout_method_masked ?? null;
   const preselected =
     destinations.find((m) => m.id === payout?.payout_method_id) ?? destinations.find((m) => m.is_default) ?? destinations[0];
   const destination = destinations.find((m) => String(m.id) === destinationId) ?? preselected;
@@ -196,6 +200,13 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('destination')}</dt>
                   <dd className="mt-0.5 text-foreground">{payout.destination_masked}</dd>
                 </div>
+              ) : plannedDestination ? (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {approved ? t('approvedDestination') : t('plannedDestination')}
+                  </dt>
+                  <dd className="mt-0.5 text-foreground">{plannedDestination}</dd>
+                </div>
               ) : null}
               {payout.transaction_id ? (
                 <div>
@@ -224,6 +235,9 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                 {isIssuer ? (
                   <p className="text-sm text-muted-foreground">{t('approveSelfRefused')}</p>
                 ) : null}
+                {payout.payout_method_masked ? null : (
+                  <p className="text-sm text-muted-foreground">{t('approveWithoutDestination')}</p>
+                )}
                 <Button
                   type="button"
                   disabled={isIssuer || approve.isPending}
@@ -276,7 +290,9 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                         ))}
                       </select>
                     ) : beneficiaryMethods.isLoading ? null : (
-                      <p className="text-sm text-muted-foreground">{t('noVerifiedDestination')}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {approved ? t('approvedDestinationOnly') : t('noVerifiedDestination')}
+                      </p>
                     )}
                   </div>
                 ) : null}

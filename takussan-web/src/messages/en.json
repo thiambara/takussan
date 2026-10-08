@@ -2831,7 +2831,11 @@
       "cashNote": "Proof of the cash payment",
       "actionFailed": "The action did not go through.",
       "payDestination": "Payment destination",
-      "noVerifiedDestination": "This beneficiary has no verified destination for this method: verify one before paying."
+      "noVerifiedDestination": "This beneficiary has no verified destination for this method: verify one before paying.",
+      "plannedDestination": "Planned destination",
+      "approvedDestination": "Approved destination",
+      "approveWithoutDestination": "No destination is planned: once approved, this payout can only be paid in cash or by check.",
+      "approvedDestinationOnly": "This payout can only go to the approved destination, and it is not verified for this method. Pay in cash or by check, or have it prepared again."
     },
     "customer": {
       "nextTitle": "Next payment",

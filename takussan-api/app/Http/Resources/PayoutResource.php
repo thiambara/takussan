@@ -37,8 +37,12 @@ class PayoutResource extends BaseResource
             'currency' => $this->currency?->value,
             'payment_method' => $this->payment_method?->value,
             'payout_method_id' => $this->payout_method_id,
-            // La destination n'est rendue que MASQUÉE (ADR-0039 §6).
+            // La destination n'est rendue que MASQUÉE (ADR-0039 §6) : celle du paiement, celle que
+            // l'approbateur a approuvée, et — avant l'approbation — celle qu'il approuverait
+            // (VERIF-594 M-4 : l'approbateur la voit).
             'destination_masked' => $this->metadata['destination_masked'] ?? null,
+            'approved_destination_masked' => $this->metadata['approved_destination_masked'] ?? null,
+            'payout_method_masked' => $this->relationLoaded('payoutMethod') ? $this->payoutMethod?->masked_identifier : null,
             'transaction_id' => $this->transaction_id,
             'scheduled_at' => $this->iso($this->scheduled_at),
             'processed_at' => $this->iso($this->processed_at),

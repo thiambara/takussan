@@ -1445,7 +1445,11 @@
       "cashNote": "Firnde fey bu espèces",
       "actionFailed": "Jëf ji antul.",
       "payDestination": "Fi ñuy yónne fey bi",
-      "noVerifiedDestination": "Kii amul benn fu ñu saytu ngir anam bii : saytul ko balaa ngay fey."
+      "noVerifiedDestination": "Kii amul benn fu ñu saytu ngir anam bii : saytul ko balaa ngay fey.",
+      "plannedDestination": "Fi ñu waajal",
+      "approvedDestination": "Fi ñu nangu",
+      "approveWithoutDestination": "Amul fenn fu ñu waajal : bu ñu ko nanguwee, reversement bii dina fayu rekk ci xaalis loxo walla ci chèque.",
+      "approvedDestinationOnly": "Reversement bii dem rekk fa ñu ko nangoo, te seetluwuñu ko ngir pexe mii. Fayal ci xaalis loxo walla ci chèque, walla nañu ko waajal ci kanam."
     },
     "customer": {
       "nextTitle": "Fey bi ci topp",

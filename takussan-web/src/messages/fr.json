@@ -2806,7 +2806,11 @@
       "cashNote": "Justificatif du paiement en espèces",
       "actionFailed": "L'action n'a pas abouti.",
       "payDestination": "Destination du paiement",
-      "noVerifiedDestination": "Ce bénéficiaire n'a aucune destination vérifiée pour ce moyen : vérifiez-la avant de payer."
+      "noVerifiedDestination": "Ce bénéficiaire n'a aucune destination vérifiée pour ce moyen : vérifiez-la avant de payer.",
+      "plannedDestination": "Destination prévue",
+      "approvedDestination": "Destination approuvée",
+      "approveWithoutDestination": "Aucune destination n'est prévue : une fois approuvé, ce reversement ne se paiera qu'en espèces ou par chèque.",
+      "approvedDestinationOnly": "Ce reversement ne part que vers la destination approuvée, et elle n'est pas vérifiée pour ce moyen. Payez en espèces ou par chèque, ou faites-le préparer à nouveau."
     },
     "customer": {
       "nextTitle": "Prochain paiement",

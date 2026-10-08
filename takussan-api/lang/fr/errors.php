@@ -263,6 +263,8 @@ return [
         'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',
         'already_paid_out' => 'Une des pièces citées est déjà reversée.',
         'amount_changed_since_approval' => 'Le montant a changé depuis l\'approbation : faites-le approuver à nouveau.',
+        'destination_changed_since_approval' => 'La destination n\'est plus celle qui a été approuvée : faites approuver à nouveau ce reversement.',
+        'verifier_cannot_pay_yet' => 'Vous avez vérifié cette destination il y a moins de 24 heures : un autre membre doit effectuer ce paiement.',
         'awaiting_approval' => 'Ce reversement attend son approbation.',
         'cannot_cancel' => 'Ce reversement ne peut pas être annulé dans son état actuel.',
         'cannot_fail' => 'Ce reversement ne peut pas être marqué en échec dans son état actuel.',

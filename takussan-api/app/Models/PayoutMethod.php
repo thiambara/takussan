@@ -61,6 +61,16 @@ class PayoutMethod extends AbstractModel
         return '•••• '.$tail;
     }
 
+    /**
+     * VERIF-594 M-4 — l'empreinte de CE que l'approbateur a approuvé : la nature et le numéro
+     * normalisé. HMAC sous la clé de l'application, jamais un hachage nu : un numéro de téléphone se
+     * retrouve par force brute depuis son SHA-256, et l'empreinte vit dans `payouts.metadata`.
+     */
+    public function fingerprint(): string
+    {
+        return hash_hmac('sha256', $this->kind?->value.'|'.self::normalize((string) $this->account_identifier), (string) config('app.key'));
+    }
+
     /** Le numéro sans espaces ni ponctuation, pour comparer deux saisies d'un même numéro. */
     public static function normalize(string $identifier): string
     {

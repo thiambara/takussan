@@ -60,6 +60,9 @@ class PayoutService
         'bank_transfer' => [PayoutMethodKind::BankTransfer],
     ];
 
+    /** VERIF-594 M-4 — le délai pendant lequel le vérificateur d'une destination ne la paie pas. */
+    public const VERIFIER_PAY_DELAY_HOURS = 24;
+
     public function __construct(
         private readonly PayoutCalculator $calculator,
         private readonly PayoutApprovers $approvers,
@@ -177,6 +180,8 @@ class PayoutService
     /**
      * TCK-594 (ADR-0039 §4) — le second geste. Il n'est permis que depuis `awaiting_approval` : il
      * ne se rejoue pas. Le net approuvé est figé ; un paiement dont le net aurait changé est refusé.
+     * La destination l'est aussi (VERIF-594 M-4) : son identifiant, sa forme masquée — celle que
+     * l'approbateur a lue — et l'empreinte de son numéro.
      */
     public function approve(Payout $payout, User $actor): Payout
     {
@@ -192,12 +197,19 @@ class PayoutService
                 SegregationOfDuties::STEP_APPROVE,
             );
 
+            $destination = $locked->payout_method_id !== null
+                ? PayoutMethod::withTrashed()->find($locked->payout_method_id)
+                : null;
+
             $locked->update([
                 'status' => $locked->scheduled_at !== null ? PayoutStatus::Scheduled : PayoutStatus::Pending,
                 'approved_by_id' => $actor->id,
                 'approved_at' => now(),
                 'metadata' => array_merge($locked->metadata ?? [], [
                     'approved_net_amount' => (string) $locked->net_amount,
+                    'approved_payout_method_id' => $destination?->id,
+                    'approved_destination_masked' => $destination?->masked_identifier,
+                    'approved_destination_fingerprint' => $destination?->fingerprint(),
                 ]),
             ]);
         });
@@ -245,6 +257,8 @@ class PayoutService
             abort_code_if($method !== PaymentMethod::Cash && $reference === '', 422, 'payout.reference_required');
 
             $destination = $this->verifiedDestination($locked, $method, $data['payout_method_id'] ?? null);
+            $this->assertApprovedDestination($locked, $destination);
+            $this->assertNotFreshlyVerifiedBy($locked, $destination, $actor);
 
             $locked->update([
                 'status' => PayoutStatus::Completed,
@@ -550,6 +564,51 @@ class PayoutService
         );
 
         return $destination;
+    }
+
+    /**
+     * VERIF-594 M-4 — l'approbation couvre la destination. Un reversement approuvé ne part que vers
+     * la destination approuvée, dont le numéro n'a pas changé depuis (même `id`, même empreinte) ;
+     * approuvé sans destination, il ne part vers aucune (espèces, chèque). Un reversement que
+     * personne n'a approuvé n'a rien à comparer.
+     */
+    private function assertApprovedDestination(Payout $payout, ?PayoutMethod $destination): void
+    {
+        if ($payout->approved_by_id === null || $destination === null) {
+            return;
+        }
+
+        $metadata = $payout->metadata ?? [];
+        $approvedId = $metadata['approved_payout_method_id'] ?? null;
+        $approvedFingerprint = $metadata['approved_destination_fingerprint'] ?? null;
+
+        abort_code_if(
+            $approvedId === null
+                || (int) $approvedId !== (int) $destination->id
+                || ! is_string($approvedFingerprint)
+                || ! hash_equals($approvedFingerprint, $destination->fingerprint()),
+            422,
+            'payout.destination_changed_since_approval',
+        );
+    }
+
+    /**
+     * VERIF-594 M-4 — celui qui a vérifié une destination pour l'agence ne la paie pas dans les 24 h
+     * qui suivent, approbation ou non : sinon un seul membre vérifie le numéro qu'il veut et paie
+     * aussitôt. Passé ce délai, l'avis au titulaire (ADR-0039 §6) a eu le temps d'agir.
+     */
+    private function assertNotFreshlyVerifiedBy(Payout $payout, ?PayoutMethod $destination, User $actor): void
+    {
+        $verification = $destination?->verificationFor((int) $payout->agency_id);
+
+        abort_code_if(
+            $verification !== null
+                && (int) $verification->verified_by_id === (int) $actor->id
+                && $verification->verified_at !== null
+                && $verification->verified_at->gt(now()->subHours(self::VERIFIER_PAY_DELAY_HOURS)),
+            403,
+            'payout.verifier_cannot_pay_yet',
+        );
     }
 
     /**

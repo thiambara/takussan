@@ -65,6 +65,10 @@ export type Payout = {
   payout_method_id?: number | null;
   /** La destination n'est jamais rendue en clair (ADR-0039 §6). */
   destination_masked?: string | null;
+  /** VERIF-594 M-4 — la destination prévue, que l'approbateur voit avant d'approuver. */
+  payout_method_masked?: string | null;
+  /** VERIF-594 M-4 — la destination approuvée, figée : le paiement ne part que vers elle. */
+  approved_destination_masked?: string | null;
   period_start: string | null;
   period_end: string | null;
   gross_amount: number;

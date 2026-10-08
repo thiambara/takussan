@@ -35,6 +35,8 @@ const PAYOUT = vi.hoisted(() => ({
     payment_method: null as string | null,
     payee_role: 'landlord' as string,
     payout_method_id: null as number | null,
+    payout_method_masked: null as string | null,
+    approved_destination_masked: null as string | null,
     created_at: '2026-10-01T00:00:00Z',
   },
 }));
@@ -150,7 +152,7 @@ describe('PayoutDetailDialog — les quatre yeux se disent (TCK-594, ADR-0039 §
   });
 
   it('le payeur ne marque payé qu’avec la référence de la transaction', async () => {
-    PAYOUT.current = { ...PAYOUT.current, status: 'pending', approved_by_id: 11, payment_method: 'wave' };
+    PAYOUT.current = { ...PAYOUT.current, status: 'pending', approved_by_id: 11, payment_method: 'wave', payout_method_id: 8 };
     en(9, ['payouts.create']);
     rendre();
 
@@ -202,3 +204,58 @@ describe('PayoutDetailDialog — le paiement part vers une destination vérifié
   });
 });
 
+describe("PayoutDetailDialog — l'approbation couvre la destination (VERIF-594 M-4)", () => {
+  const TOUTES = DESTINATIONS.current;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    PAYOUT.current = { ...PAYOUT.current, payee_role: 'landlord' };
+    DESTINATIONS.current = {
+      isLoading: false,
+      data: {
+        data: [
+          ...TOUTES.data.data,
+          { id: 12, kind: 'wave', masked_identifier: '•••• 2222', is_default: false, verified: true },
+        ],
+      },
+    };
+  });
+
+  it("montre à l'approbateur la destination qu'il approuve", () => {
+    PAYOUT.current = {
+      ...PAYOUT.current, status: 'awaiting_approval', approved_by_id: null, payment_method: 'wave',
+      payout_method_id: 8, payout_method_masked: '•••• 4567',
+    };
+    en(11, ['payouts.approve']);
+    rendre();
+
+    expect(screen.getByText(fr.payments.payoutDetail.plannedDestination)).toBeInTheDocument();
+    expect(screen.getByText('•••• 4567')).toBeInTheDocument();
+    expect(screen.queryByText(fr.payments.payoutDetail.approveWithoutDestination)).not.toBeInTheDocument();
+  });
+
+  it('approuvé, le paiement ne propose que la destination approuvée', () => {
+    PAYOUT.current = {
+      ...PAYOUT.current, status: 'pending', approved_by_id: 11, payment_method: 'wave',
+      payout_method_id: 8, approved_destination_masked: '•••• 4567',
+    };
+    en(9, ['payouts.create']);
+    rendre();
+
+    const choix = screen.getByLabelText(fr.payments.payoutDetail.payDestination);
+    expect(Array.from((choix as HTMLSelectElement).options).map((o) => o.value)).toEqual(['8']);
+    expect(screen.getByText(fr.payments.payoutDetail.approvedDestination)).toBeInTheDocument();
+  });
+
+  it('approuvé sans destination, il ne se paie vers aucune, et le dit', () => {
+    PAYOUT.current = {
+      ...PAYOUT.current, status: 'pending', approved_by_id: 11, payment_method: 'wave',
+      payout_method_id: null, payout_method_masked: null, approved_destination_masked: null,
+    };
+    en(9, ['payouts.create']);
+    rendre();
+
+    fireEvent.change(screen.getByLabelText(fr.payments.payoutDetail.transactionId), { target: { value: 'WAVE-778' } });
+    expect(screen.getByRole('button', { name: MARQUER })).toBeDisabled();
+    expect(screen.getByText(fr.payments.payoutDetail.approvedDestinationOnly)).toBeInTheDocument();
+  });
+});

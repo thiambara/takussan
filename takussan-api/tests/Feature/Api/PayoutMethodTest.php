@@ -100,7 +100,10 @@ class PayoutMethodTest extends TestCase
             ->assertJsonPath('code', 'payout.unverified_destination');
 
         // Vérifiée par l'agence, elle sert ; la destination masquée est recopiée sur le reversement.
+        // Vérifiée par un AUTRE membre : son vérificateur ne la paie pas dans les 24 h (VERIF-594 M-4).
+        Sanctum::actingAs($this->agencyAgent($agency));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk()->assertJsonPath('data.verified', true);
+        Sanctum::actingAs($agent);
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk()
             ->assertJsonPath('data.destination_masked', $method->masked_identifier);
     }

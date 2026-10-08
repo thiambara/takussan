@@ -536,6 +536,11 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **M-6** — la vérification d'une destination vaut par agence : table
   `payout_method_verifications`, `verifiedDestination` exige celle de l'agence du reversement, une
   destination modifiée les perd toutes ; colonnes `verified_at` / `verified_by_id` retirées.
+- [x] **M-4** — l'approbation fige la destination (`approved_payout_method_id`, forme masquée,
+  empreinte HMAC du numéro) ; `mark-processed` refuse une autre destination ou la même au numéro
+  changé (422 `payout.destination_changed_since_approval`) ; l'approbateur voit la destination
+  masquée (API et écran) ; le vérificateur d'une destination ne la paie pas dans les 24 h (403
+  `payout.verifier_cannot_pay_yet`).
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -720,6 +725,16 @@ rend **403** avec une clé i18n, jamais une phrase.
   par un membre de B, le paiement passe. Une destination modifiée perd la vérification de chaque
   agence.
   **Preuve** : `PayoutBypassTest::test_m6_a_destination_verified_by_one_agency_does_not_pay_from_another` (rouge sur 9923b16c) ; `PayoutMethodTest::test_ac16_modifying_a_destination_unverifies_it_and_notifies_the_holder` (deux agences). Ablations V-M6, V-M6b : rouges.
+- [x] **AC-M4 — l'approbation couvre la destination.** Seuil 100 000, destination M1 (•••• 1111) :
+  l'approbateur lit `payout_method_masked = •••• 1111` avant d'approuver, et l'approbation rend
+  `approved_destination_masked`. Le titulaire change le numéro de M1, un tiers la revérifie :
+  `mark-processed` rend 422 `payout.destination_changed_since_approval` et le reversement reste
+  `pending`. Une autre destination M2, vérifiée, rend la même 422 ; M1 inchangée passe. Approuvé
+  sans destination, un paiement Wave vers M1 rend 422 et un chèque passe. Sans seuil, le membre qui
+  vient de vérifier la destination rend 403 `payout.verifier_cannot_pay_yet` une heure après, et
+  paie 25 h après. Écran : la destination prévue, puis approuvée, est affichée ; approuvé, le choix
+  de destination n'offre que l'approuvée, et approuvé sans destination il le dit.
+  **Preuve** : `PayoutBypassTest::test_m4_the_destination_changed_after_approval_is_refused`, `…_another_destination_than_the_approved_one_is_refused`, `…_a_payout_approved_without_destination_is_not_paid_to_one`, `…_the_verifier_does_not_pay_the_destination_within_24_hours` (rouges sur 9923b16c) ; front `PayoutDetailDialog.capacites.test.tsx` (trois tests VERIF-594 M-4). Ablations V-M4a, V-M4d, V-M4e, W-M4a, W-M4b : rouges ; V-M4b, V-M4c : vertes (l'empreinte couvre seule ces cas, voir les notes).
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -1020,3 +1035,23 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
     Le `down()` redonne à chaque destination sa vérification la plus récente ; `down()` puis `up()`
     joués dans un test jetable (retiré), verts.
   - La fabrique perd `verified()` au profit de `verifiedFor($agency, $by, $at)`.
+- **M-4 — l'approbation couvre la destination.** `approve` fige dans `metadata`
+  `approved_payout_method_id`, `approved_destination_masked` et `approved_destination_fingerprint`
+  (`PayoutMethod::fingerprint()`, HMAC-SHA256 de la nature et du numéro normalisé sous `app.key`).
+  `markProcessed` appelle `assertApprovedDestination` puis `assertNotFreshlyVerifiedBy` après
+  `verifiedDestination`. `PayoutResource` rend `payout_method_masked` (relation chargée par la liste
+  et le détail) et `approved_destination_masked`.
+  - **Décision prise ici** : un reversement approuvé **sans** destination ne part vers aucune —
+    espèces ou chèque seulement. L'autre lecture (« approuvé sans destination ⇒ toute destination
+    vérifiée ») rouvrait exactement le contournement. Conséquence : une facture d'intervention
+    au-dessus du seuil, préparée sans destination, se paie par Wave seulement si on la prépare avec
+    sa destination (l'écran de la facture ne la propose pas encore — limite écrite au rapport).
+  - **Le délai de 24 h** compte depuis la vérification de **l'agence du reversement** par le payeur
+    lui-même ; une revérification le relance.
+  - **Deux gardes redondantes, nommées** : la comparaison d'identifiant (V-M4b) et le refus d'une
+    approbation sans destination (V-M4c) restent vertes seules, parce que l'empreinte, avec son
+    contrôle `is_string`, refuse déjà une autre destination et une approbation sans empreinte.
+    V-M4e, qui retire identifiant et empreinte, rougit les deux premiers tests. V-M4a a d'abord été
+    mal écrite (virgule emportée, 500 de syntaxe) : rejouée, elle rougit.
+  - `PayoutMethodTest::test_ac16_paying_by_wave_to_an_unverified_destination_is_refused` faisait
+    vérifier puis payer par le même agent : il fait désormais vérifier par un second membre.
