@@ -869,3 +869,15 @@ l'ADR-0050 amendées.
   sixième demande.
 - **Au porteur** : `$timeout` 1800 contre `retry_after` 90 de la file `database` (ADR-0050,
   décision 15). Sans effet avec un seul worker.
+
+### Passe 3 de verif-599 (sur `b8b302ca`) — acceptée
+
+- **m12, mineur neuf, révélé par m11.** Le `name` d'une recherche de compte n'avait pas de borne, alors
+  que le front le coupe à 100. Avec 255 caractères, le titre de la cloche dépassait
+  `app_notifications.title` (255) : la cloche échouait à chaque passage et, partie en dernier,
+  l'e-mail repartait chaque matin (verif : mails = 3, cloches = 0 sur trois passages). Correctif :
+  `max:100` dans `StoreSavedSearchRequest` et `UpdateSavedSearchRequest`. Test :
+  `test_un_nom_de_plus_de_100_caracteres_rend_422` (création et modification, 101 → 422, 100 →
+  201 / 200). Ablations : création sans borne, modification sans borne, borne à 99 — 3 rouges.
+- Commentaire de `routes/console.php` remis à jour : la borne est réservée avant l'envoi.
+- **En suite** : garder la réservation une fois l'e-mail parti, même si la cloche échoue.

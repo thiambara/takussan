@@ -29,6 +29,29 @@ class SavedSearchTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
+    /**
+     * verif-599 m12 — le nom est borné à 100, comme au front. Sans borne, un nom de 255 portait le
+     * titre de la cloche au-delà de `app_notifications.title` : la cloche échouait à chaque
+     * passage et, partie en dernier (m11), l'e-mail repartait chaque matin.
+     */
+    public function test_un_nom_de_plus_de_100_caracteres_rend_422(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $nom = fn (int $n) => str_repeat('é', $n);
+
+        $this->postJson('/api/saved-searches', ['name' => $nom(101), 'criteria' => ['city' => 'Dakar']])
+            ->assertStatus(422)->assertJsonValidationErrors('name');
+        $this->postJson('/api/saved-searches', ['name' => $nom(100), 'criteria' => ['city' => 'Dakar']])
+            ->assertCreated();
+
+        $recherche = SavedSearch::where('user_id', $user->id)->sole();
+        $this->patchJson("/api/saved-searches/{$recherche->id}", ['name' => $nom(101)])
+            ->assertStatus(422)->assertJsonValidationErrors('name');
+        $this->patchJson("/api/saved-searches/{$recherche->id}", ['name' => 'a'.$nom(99)])
+            ->assertOk();
+    }
+
     public function test_user_cannot_update_other_users_search(): void
     {
         $u1 = User::factory()->create();

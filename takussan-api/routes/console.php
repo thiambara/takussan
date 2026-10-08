@@ -42,7 +42,8 @@ Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
-// `/properties`. Idempotent par la borne `last_notified_at`, avancée seulement après un envoi.
+// `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue
+// s'il échoue (verif-599 M1).
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00')->withoutOverlapping();
 // TCK-599 — une alerte sans compte non confirmée à 48 h est effacée. Idempotent.
 Schedule::command('search-alerts:purge-unconfirmed')->hourly()->withoutOverlapping();
