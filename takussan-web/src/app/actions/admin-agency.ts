@@ -90,11 +90,14 @@ export async function updateAgencyAction(
   }
 }
 
-export async function confirmPayoutThresholdAction(agencyId: number): Promise<ActionResult<Agency>> {
+export async function confirmPayoutThresholdAction(
+  agencyId: number,
+  expectedThreshold: number | null,
+): Promise<ActionResult<Agency>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await confirmAgencyPayoutThreshold(auth.token, agencyId, await getActiveProfileId());
+    const data = await confirmAgencyPayoutThreshold(auth.token, agencyId, expectedThreshold, await getActiveProfileId());
     revalidatePath('/admin/agency');
     return { ok: true, data };
   } catch (e) {

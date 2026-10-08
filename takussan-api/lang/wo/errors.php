@@ -278,6 +278,7 @@ return [
         'threshold_needs_second_approver' => 'Seuil bi du woyofu fii ak approbateur bu ñaareel : agence bi benn rekk la am.',
         'no_pending_threshold_change' => 'Amul benn coppite ci seuil bi buy xaar ñu dëggal ko.',
         'threshold_request_expired' => 'Laaj bi ngir yolomal seuil bi jeex na : war nañu ko defaat.',
+        'threshold_request_changed' => 'Laaj bi soppiku na ginaaw bi nga ko jàngee : jàngaatal ko bala nga koy dëggal.',
         'awaiting_approval' => 'Bii reversement mi ngi xaar ñu nangu ko.',
         'cannot_cancel' => 'Reversement bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',

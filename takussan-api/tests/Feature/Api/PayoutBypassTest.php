@@ -392,7 +392,7 @@ class PayoutBypassTest extends TestCase
 
         // Tant que personne n'a confirmé, le seuil tient.
         $this->createFor($agency, $landlord, 5_000_000)->assertJsonPath('data.status', 'awaiting_approval');
-        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm")
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])
             ->assertForbidden()->assertJsonPath('code', 'segregation.approve');
 
         // Un resserrement est immédiat, et remplace la demande.
@@ -404,11 +404,11 @@ class PayoutBypassTest extends TestCase
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 400_000])->assertStatus(202);
         $this->assertEquals(50000, (float) $agency->fresh()->payout_approval_threshold);
         Sanctum::actingAs($b);
-        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm")
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => 400_000])
             ->assertOk()
             ->assertJsonPath('data.payout_approval_threshold', 400000)
             ->assertJsonPath('data.pending_payout_threshold_change', null);
-        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm")
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => 400_000])
             ->assertStatus(422)->assertJsonPath('code', 'payout.no_pending_threshold_change');
     }
 
@@ -667,5 +667,37 @@ class PayoutBypassTest extends TestCase
             ->assertJsonPath('data.pending_payout_threshold_change.expires_at', $agency->fresh()->pending_payout_threshold_requested_at->addDays(7)->toIso8601String());
         $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])->assertOk();
         $this->assertNull($agency->fresh()->payout_approval_threshold);
+    }
+
+    /**
+     * VERIF-594 passe 2, N-5 — A demande 150 000, B lit 150 000, A REMPLACE sa demande par une
+     * coupure, B confirme en croyant confirmer 150 000 : le seuil était coupé. La confirmation porte
+     * la valeur lue ; différente de la demande en cours, 409 et rien n'est appliqué. Sans elle, 422.
+     */
+    public function test_n5_a_confirmation_confirms_the_value_it_read(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        [$a, $b] = [$this->agencyAdmin($agency), $this->agencyAdmin($agency)];
+        $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
+        $confirm = "/api/agencies/{$agency->id}/payout-threshold/confirm";
+
+        Sanctum::actingAs($a);
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 150_000])->assertStatus(202);
+        Sanctum::actingAs($b);
+        $read = $this->getJson("/api/agencies/{$agency->id}")->json('data.pending_payout_threshold_change.threshold');
+        $this->assertEquals(150000, $read);
+        Sanctum::actingAs($a);
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
+
+        Sanctum::actingAs($b);
+        $this->postJson($confirm, ['expected_threshold' => $read])
+            ->assertStatus(409)->assertJsonPath('code', 'payout.threshold_request_changed');
+        $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
+        $this->assertNotNull($agency->fresh()->pending_payout_threshold_requested_at, 'la demande reste à confirmer');
+
+        $this->postJson($confirm)->assertStatus(422);
+        $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
+        $this->postJson($confirm, ['expected_threshold' => null])->assertOk()->assertJsonPath('data.payout_approval_threshold', null);
     }
 }

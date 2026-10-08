@@ -110,10 +110,16 @@ final class PayoutApprovalThreshold
     /**
      * Le second geste : un AUTRE détenteur de `payouts.approve` confirme le relâchement demandé.
      * Le demandeur ne confirme pas sa propre demande.
+     *
+     * VERIF-594 passe 2, N-5 — il confirme la valeur qu'il a LUE (`$expected`, `null` pour une
+     * coupure) : le demandeur qui remplace sa demande entre la lecture et la confirmation (150 000,
+     * puis `null`) ne fait plus confirmer autre chose que ce que le second a vu (409).
      */
-    public function confirm(Agency $agency, User $actor): void
+    public function confirm(Agency $agency, User $actor, mixed $expected): void
     {
-        $expired = DB::transaction(function () use ($agency, $actor): bool {
+        $expected = $expected === null || $expected === '' ? null : round((float) $expected, 2);
+
+        $expired = DB::transaction(function () use ($agency, $actor, $expected): bool {
             /** @var Agency $locked */
             $locked = Agency::query()->whereKey($agency->id)->lockForUpdate()->firstOrFail();
 
@@ -145,6 +151,7 @@ final class PayoutApprovalThreshold
             $old = $locked->payout_approval_threshold === null ? null : (float) $locked->payout_approval_threshold;
             $new = $locked->pending_payout_threshold === null ? null : (float) $locked->pending_payout_threshold;
             $requestedBy = $locked->pending_payout_threshold_requested_by_id;
+            abort_code_if($new !== $expected, 409, 'payout.threshold_request_changed');
 
             $locked->forceFill(['payout_approval_threshold' => $new] + $this->noPending())->save();
             $this->trace($locked, $actor, $old, $new, $requestedBy);

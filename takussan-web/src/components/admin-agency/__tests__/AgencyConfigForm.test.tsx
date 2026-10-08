@@ -152,7 +152,28 @@ describe('AgencyConfigForm — relâcher le seuil attend un second approbateur (
 
     expect(screen.getByText(M.thresholdPendingOff)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: M.thresholdConfirm }));
-    expect(confirmPayoutThresholdAction).toHaveBeenCalledWith(7);
+    // VERIF-594 passe 2, N-5 — la confirmation porte la valeur affichée (`null` : couper).
+    expect(confirmPayoutThresholdAction).toHaveBeenCalledWith(7, null);
+  });
+
+  it('confirme la valeur relevée affichée, pas la demande en cours côté serveur (VERIF-594 passe 2, N-5)', async () => {
+    CAN.current = { can: true, isLoading: false };
+    MOI.current = { user: { id: 11 } };
+    vi.mocked(confirmPayoutThresholdAction).mockResolvedValue({ ok: true, data: AGENCE });
+    const user = userEvent.setup();
+    render(
+      withIntl(
+        <AgencyConfigForm
+          agency={{
+            ...EN_ATTENTE,
+            pending_payout_threshold_change: { threshold: 150000, requested_by_id: 9, requested_at: '2026-10-08T09:00:00Z' },
+          }}
+        />,
+      ),
+    );
+
+    await user.click(screen.getByRole('button', { name: M.thresholdConfirm }));
+    expect(confirmPayoutThresholdAction).toHaveBeenCalledWith(7, 150000);
   });
 
   it('au demandeur, dit qu’un autre doit confirmer, sans bouton', () => {

@@ -123,7 +123,13 @@ class AgencyController extends Controller
     public function confirmPayoutThreshold(Request $request, Agency $agency): JsonResponse
     {
         abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
-        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user());
+        // VERIF-594 passe 2, N-5 — la confirmation porte la valeur que le confirmateur a lue (`null` :
+        // couper le seuil). Présente, même nulle : une confirmation sans elle ne dit pas ce qu'elle
+        // confirme.
+        $validated = $request->validate([
+            'expected_threshold' => ['present', 'nullable', 'numeric', 'min:0'],
+        ]);
+        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user(), $validated['expected_threshold']);
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
     }

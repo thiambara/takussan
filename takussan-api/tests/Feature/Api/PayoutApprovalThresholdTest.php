@@ -49,10 +49,10 @@ class PayoutApprovalThresholdTest extends TestCase
             ->assertJsonPath('data.payout_approval_threshold', 100000);
         // VERIF-594 M-2 — relever ou couper le seuil attend un second détenteur.
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 250_000])->assertStatus(202);
-        $this->confirmedBy($second, $agency->id);
+        $this->confirmedBy($second, $agency->id, 250_000);
         Sanctum::actingAs($admin);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
-        $this->confirmedBy($second, $agency->id);
+        $this->confirmedBy($second, $agency->id, null);
         // Inchangé : pas de trace.
         Sanctum::actingAs($admin);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertOk();
@@ -72,10 +72,11 @@ class PayoutApprovalThresholdTest extends TestCase
         ], $trace->all());
     }
 
-    private function confirmedBy(User $approver, int $agencyId): void
+    /** VERIF-594 passe 2, N-5 — la confirmation porte la valeur confirmée. */
+    private function confirmedBy(User $approver, int $agencyId, ?int $expected): void
     {
         Sanctum::actingAs($approver);
-        $this->postJson("/api/agencies/{$agencyId}/payout-threshold/confirm")->assertOk();
+        $this->postJson("/api/agencies/{$agencyId}/payout-threshold/confirm", ['expected_threshold' => $expected])->assertOk();
     }
 
     public function test_ac8_a_member_without_payouts_approve_neither_sets_nor_clears_it(): void

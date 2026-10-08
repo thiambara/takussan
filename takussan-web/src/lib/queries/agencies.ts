@@ -101,13 +101,16 @@ export async function updateAgency(
 }
 
 /** VERIF-594 M-2 — un second détenteur de `payouts.approve` confirme le relâchement du seuil. */
+/** VERIF-594 passe 2, N-5 — `expectedThreshold` : la valeur lue et confirmée (`null` : couper). */
 export async function confirmAgencyPayoutThreshold(
   token: string,
   agencyId: number,
+  expectedThreshold: number | null,
   activeProfileId?: string,
 ): Promise<Agency> {
   const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}/payout-threshold/confirm`, {
     method: 'POST',
+    body: { expected_threshold: expectedThreshold },
     token,
     activeProfileId,
   });

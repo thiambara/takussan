@@ -138,7 +138,10 @@ deux agences ne font pas deux personnes.
   demande, et une agence qui n'a qu'un détenteur ne relâche pas son seuil (403). **La demande expire au
   bout de 7 jours** (VERIF-594 passe 2, N-4) : confirmée après, 422 `payout.threshold_request_expired`,
   et elle est effacée (`agency_payout_threshold_relax_expired`) ; l'API ne rend plus une demande
-  expirée, et rend `expires_at` pour les autres. Un resserrement
+  expirée, et rend `expires_at` pour les autres. **La confirmation porte la valeur confirmée**
+  (VERIF-594 passe 2, N-5) : `expected_threshold`, présent même nul ; si la demande en cours diffère
+  — le demandeur l'a remplacée entre la lecture et la confirmation —, 409
+  `payout.threshold_request_changed` et rien n'est appliqué. Un resserrement
   (activation, baisse) reste immédiat et retire la demande en attente. **Le seuil ne se lit que par
   qui prépare ou approuve** les reversements de l'agence (`payouts.create`, `payouts.approve`) :
   `AgencyResource` ne le rend à personne d'autre, puisque le connaître aide à fractionner sous lui

@@ -278,6 +278,7 @@ return [
         'threshold_needs_second_approver' => 'Le seuil ne s\'assouplit qu\'avec un second approbateur : votre agence n\'en a qu\'un.',
         'no_pending_threshold_change' => 'Aucune modification du seuil n\'attend de confirmation.',
         'threshold_request_expired' => 'La demande de relâchement du seuil a expiré : elle doit être refaite.',
+        'threshold_request_changed' => 'La demande de relâchement a changé depuis votre lecture : relisez-la avant de confirmer.',
         'awaiting_approval' => 'Ce reversement attend son approbation.',
         'cannot_cancel' => 'Ce reversement ne peut pas être annulé dans son état actuel.',
         'cannot_fail' => 'Ce reversement ne peut pas être marqué en échec dans son état actuel.',

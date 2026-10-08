@@ -582,6 +582,9 @@ rend **403** avec une clé i18n, jamais une phrase.
   (`PayoutApprovalThreshold::REQUEST_TTL_DAYS`) : confirmée après, 422
   `payout.threshold_request_expired`, demande effacée et tracée ; `AgencyResource` ne la rend plus, et
   rend `expires_at` pour une demande en cours.
+- [x] **N-5** — `POST /api/agencies/{id}/payout-threshold/confirm` exige `expected_threshold`
+  (présent, nullable) ; une demande en cours différente rend 409 `payout.threshold_request_changed`.
+  L'écran envoie la valeur affichée.
 
 ### Front (intentionnel)
 
@@ -841,6 +844,12 @@ rend **403** avec une clé i18n, jamais une phrase.
   `payout.no_pending_threshold_change`). Une nouvelle demande, confirmée six jours après : 200, et
   `expires_at` = demande + 7 jours.
   **Preuve** : `PayoutBypassTest::test_n4_a_relax_request_expires_after_seven_days` (rouge sur 38495c16). Ablations V-N4a (jamais expirée), V-N4b (refus levé dans la transaction, qui annule l'effacement), V-N4c (expirée encore montrée) : rouges.
+- [x] **AC-N5 — on confirme ce qu'on a lu.** A demande 150 000 (202) ; B lit 150 000 ; A remplace sa
+  demande par une coupure (202) ; B confirme 150 000 : 409 `payout.threshold_request_changed`, le
+  seuil reste 100 000 et la demande reste à confirmer. Sans `expected_threshold` : 422. B confirme
+  `null` : 200, seuil coupé. L'écran envoie la valeur affichée (`null` pour une coupure, 150 000 pour
+  une hausse).
+  **Preuve** : `PayoutBypassTest::test_n5_a_confirmation_confirms_the_value_it_read` (rouge sur 38495c16) ; front `AgencyConfigForm.test.tsx` (deux). Ablations V-N5a (pas de comparaison), V-N5b (champ facultatif), W-N5 (l'écran envoie `null`) : rouges.
 
 ## Hors périmètre
 
@@ -1243,3 +1252,8 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   l'ablation V-N4b). L'expiration se juge à la lecture (`isExpired`), sans tâche planifiée : une
   demande expirée et jamais confirmée reste en base jusqu'au prochain changement ou à la prochaine
   confirmation, mais l'API ne la montre plus. Le front ne fait que typer `expires_at`.
+- **N-5 — la confirmation qui confirmait autre chose.** La valeur attendue plutôt que la date de la
+  demande : c'est ce que l'écran montre et ce que le confirmateur a lu. Le 409 se juge sous le verrou
+  de la ligne agence, après l'expiration (N-4) et la séparation des tâches. Les appels existants
+  (`PayoutApprovalThresholdTest::confirmedBy`, les tests M-2) envoient désormais la valeur. V-N5b
+  rougit par un 500 (la clé absente est lue) : le champ facultatif ne passe pas en silence.

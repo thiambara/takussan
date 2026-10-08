@@ -122,7 +122,8 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   function confirmThreshold() {
     setConfirmError(null);
     startConfirmTransition(async () => {
-      const result = await confirmPayoutThresholdAction(agency.id);
+      // VERIF-594 passe 2, N-5 — on confirme la valeur AFFICHÉE ; remplacée entre-temps, le serveur rend 409.
+      const result = await confirmPayoutThresholdAction(agency.id, pendingThreshold?.threshold ?? null);
       if (!result.ok) {
         setConfirmError(result.message);
         return;

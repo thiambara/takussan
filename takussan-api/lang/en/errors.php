@@ -278,6 +278,7 @@ return [
         'threshold_needs_second_approver' => 'The threshold can only be relaxed with a second approver: your agency has only one.',
         'no_pending_threshold_change' => 'No threshold change is awaiting confirmation.',
         'threshold_request_expired' => 'The request to relax the threshold has expired: it must be made again.',
+        'threshold_request_changed' => 'The relax request changed since you read it: read it again before confirming.',
         'awaiting_approval' => 'This payout is awaiting approval.',
         'cannot_cancel' => 'This payout cannot be cancelled in its current state.',
         'cannot_fail' => 'This payout cannot be marked failed in its current state.',
