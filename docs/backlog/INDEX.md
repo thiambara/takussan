@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**547 tickets** — 35 ouverts, 510 livrés.
+**547 tickets** — 34 ouverts, 511 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 33 |
+| 📋 Todo | 32 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 510 |
+| ✅ Done | 511 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -34,7 +34,6 @@
 ## 📋 Todo
 
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
 - [TCK-342](tickets/TCK-342-libelles-wolof-divergents-back-front.md) — Le même bien porte deux mots wolof différents selon l'écran `M · P3 · applicatif`
@@ -81,11 +80,12 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 510
+## ✅ Done — 511
 
 <details>
-<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 12 tickets</summary>
+<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 13 tickets</summary>
 
+- [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
 - [TCK-587](tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md) — Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste `XL · P0 · full`
 - [TCK-588](tickets/TCK-588-api-sans-prose-notifications-multicanal.md) — L'API n'écrit plus de prose : une notification est un code rendu dans la langue du destinataire, part sur WhatsApp ou SMS y compris vers un contact sans compte, et une erreur métier porte un code `XL · P1 · full`

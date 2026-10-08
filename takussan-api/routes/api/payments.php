@@ -28,8 +28,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // TCK-079 — public webhook receiver. Throttled to 60 requests / minute / IP
 // to mitigate replay floods. Signature verification is performed inside
-// each driver's `handleWebhook()` (Wave / OM via HMAC-SHA256, LS via the
-// vendor package on its dedicated route).
-Route::post('webhooks/payments/{provider}', PaymentWebhookController::class)
+// each driver's `handleWebhook()` (Wave / OM / LS via HMAC-SHA256).
+//
+// TCK-293 (ADR-0046) — une URL par intégration : `{token}` désigne l'intégration dont le secret
+// vérifie la signature, et dont l'agence borne le rapprochement. Aucune contrainte de forme sur
+// `{token}` : un jeton mal formé doit rendre le même 404 qu'un jeton inconnu, pas le 404 du routeur.
+Route::post('webhooks/payments/{provider}/{token}', PaymentWebhookController::class)
     ->middleware('throttle:60,1')
     ->name('payments.webhook');
+
+// TCK-293 (ADR-0046 §8) — l'ancienne URL sans jeton rend 410, sans rien lire ni muter.
+Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'gone'])
+    ->middleware('throttle:60,1')
+    ->name('payments.webhook.gone');

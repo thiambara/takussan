@@ -7860,7 +7860,25 @@
         "hostLam": "Host LAMPUSH (optionnel — override par défaut)",
         "webhookPlaceholder": "https://exemple.sn/webhook"
       },
-      "confirmDelete": "Supprimer l'intégration « {provider} » ? Cette action est irréversible."
+      "confirmDelete": "Supprimer l'intégration « {provider} » ? Cette action est irréversible.",
+      "webhookEndpoint": {
+        "title": "Adresse de notification",
+        "label": "Adresse de notification {provider}",
+        "hintWave": "Collez cette adresse dans votre portail Wave Business, à la configuration des webhooks : c'est là que Wave confirme les paiements de cette intégration.",
+        "hintOrangeMoney": "Rien à coller : Takussan transmet cette adresse à Orange Money à chaque paiement.",
+        "show": "Afficher l'adresse",
+        "copy": "Copier",
+        "copied": "Copiée",
+        "copyFailed": "Copie impossible depuis ce navigateur : l'adresse est sélectionnée, copiez-la à la main.",
+        "rotate": "Régénérer",
+        "confirmRotate": "Générer une nouvelle adresse pour {provider} ? L'adresse actuelle cessera de fonctionner tout de suite : collez la nouvelle chez le fournisseur. Les paiements Orange Money déjà ouverts ne seront plus notifiés, leur statut se confirmera à la vérification.",
+        "rotated": "Nouvelle adresse générée. L'ancienne ne fonctionne plus.",
+        "providers": {
+          "wave": "Wave",
+          "orange_money": "Orange Money"
+        },
+        "unsupported": "La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."
+      }
     },
     "settings": {
       "empty_title": "Aucun paramètre pour ce filtre",

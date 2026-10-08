@@ -9,6 +9,7 @@ use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Payments\Dto\PaymentEvent;
+use App\Services\Payments\Dto\WebhookAuthority;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -128,8 +129,10 @@ class InvoiceTest extends TestCase
         $this->postJson("/api/invoices/{$invoice->id}/mark-paid")->assertOk();
         $this->assertSame(PaymentGatewayService::SETTLED_MANUALLY, $invoice->refresh()->metadata['gateway']['settled_by']);
 
+        // TCK-293 (ADR-0046 §5) — un événement dit qui l'a authentifié ; ici, la plateforme.
         app(PaymentGatewayService::class)->applyEventToMatchingPayment(
-            new PaymentEvent('wave', PaymentEvent::TYPE_PAID, 'inv_txn', ['amount' => (float) $invoice->total_amount]),
+            (new PaymentEvent('wave', PaymentEvent::TYPE_PAID, 'inv_txn', ['amount' => (float) $invoice->total_amount]))
+                ->authenticatedBy(WebhookAuthority::platform()),
         );
 
         $this->assertSame('inv_txn', $invoice->refresh()->metadata['gateway_duplicate_payment'][0]['transaction_id'] ?? null);

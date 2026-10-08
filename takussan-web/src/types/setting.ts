@@ -37,6 +37,16 @@ export interface Integration {
   updated_at: string | null;
 }
 
+/**
+ * TCK-293 (ADR-0046) — l'adresse de notification d'une intégration de paiement : celle que le
+ * fournisseur appelle. Le jeton qu'elle porte désigne l'intégration ; il ne sort que par ici.
+ */
+export interface IntegrationWebhookEndpoint {
+  integration_id: number;
+  provider: string;
+  url: string;
+}
+
 export interface IntegrationTestResult {
   ok: boolean;
   message: string;

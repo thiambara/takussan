@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Contracts\Payments\PaymentDriverContract;
 use App\Models\AppNotification;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Integration;
 use App\Models\User;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
@@ -425,13 +426,16 @@ class PaymentCheckoutReuseTest extends TestCase
             $logged[] = ['message' => $e->message, 'context' => $e->context];
         });
 
-        $this->leaseDue();
+        $ctx = $this->leaseDue();
         $this->waveWebhook('txn_inconnu_42', 150_000)->assertOk();
 
+        // TCK-293 — la trace nomme aussi l'intégration qui a authentifié, et son agence :
+        // identifiants seulement.
+        $integration = Integration::query()->where('agency_id', $ctx['agency']->id)->firstOrFail();
         $orphans = array_values(array_filter($logged, fn ($l) => $l['message'] === 'payment_webhook_unmatched'));
         $this->assertCount(1, $orphans);
         $this->assertSame(
-            ['provider' => 'wave', 'transaction_id' => 'txn_inconnu_42', 'type' => 'paid'],
+            ['provider' => 'wave', 'transaction_id' => 'txn_inconnu_42', 'type' => 'paid', 'integration_id' => $integration->id, 'agency_id' => $ctx['agency']->id],
             $orphans[0]['context'],
         );
     }

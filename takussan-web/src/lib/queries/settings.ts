@@ -3,6 +3,7 @@ import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/
 import type {
   Integration,
   IntegrationTestResult,
+  IntegrationWebhookEndpoint,
   Setting,
   SettingScope,
   SettingValue,
@@ -217,6 +218,35 @@ export async function testIntegration(
 ): Promise<IntegrationTestResult> {
   const res = await apiRequest<ApiResponse<IntegrationTestResult>>(
     `/api/integrations/${integrationId}/test`,
+    { method: 'POST', token, activeProfileId },
+  );
+  return res.data;
+}
+
+/**
+ * TCK-293 (ADR-0046) — l'adresse de notification d'une intégration de paiement, à déclarer chez
+ * le fournisseur. Lue à part, jamais dans la liste : le jeton ne voyage pas avec les champs.
+ */
+export async function fetchIntegrationWebhookEndpoint(
+  token: string,
+  integrationId: number,
+  activeProfileId?: string,
+): Promise<IntegrationWebhookEndpoint> {
+  const res = await apiRequest<ApiResponse<IntegrationWebhookEndpoint>>(
+    `/api/integrations/${integrationId}/webhook-endpoint`,
+    { token, activeProfileId },
+  );
+  return res.data;
+}
+
+/** TCK-293 — tire une adresse neuve ; l'ancienne cesse de répondre dans la même écriture. */
+export async function rotateIntegrationWebhookEndpoint(
+  token: string,
+  integrationId: number,
+  activeProfileId?: string,
+): Promise<IntegrationWebhookEndpoint> {
+  const res = await apiRequest<ApiResponse<IntegrationWebhookEndpoint>>(
+    `/api/integrations/${integrationId}/webhook-endpoint`,
     { method: 'POST', token, activeProfileId },
   );
   return res.data;
