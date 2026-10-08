@@ -5966,13 +5966,6 @@
       "activeOutOf": "{active} yu dox",
       "delta": "{value} % ci {days} fan"
     },
-    "impersonation": {
-      "banner": "Yaa ngi jëf ni {target} — sesioŋ ba {expires}.",
-      "fallbackUser": "jëfandikukat #{id}",
-      "unknownExpiry": "xamuñu ko",
-      "stopping": "Taxawal…",
-      "stop": "Taxawal jëf ci turu keneen"
-    },
     "confirmDialog": {
       "typePrompt": "Ngir dëgglu, bindal",
       "pending": "Mu ngi dox…"
@@ -6236,8 +6229,8 @@
         "open": "Ubbi",
         "impersonate": "Jëf ci turam",
         "impersonateTitle": "Jëf ci turu {name}",
-        "impersonateDescription": "Dinga jot ab token bu gàtt (≤ 1h) ngir jëf ni jëfandikukat bii. Jëf yépp ñu ngi leen di jàpp ci teraanga bi.",
-        "impersonateConfirmLabel": "Tàmbali jëf ci turu keneen",
+        "impersonateDescription": "Dinga gis Takussan ni nit kii di ko gise, ci jàng rekk, 15 simili lu ëpp. Mënuloo soppi dara ; session bi, li ko waral ak diiram dañu leen bind, te nit ki dinañu ko ko yégal bu jeexee.",
+        "impersonateConfirmLabel": "Ubbi session jàng bi",
         "roles": {
           "all": "Wàll yépp",
           "super_admin": "Super-admin",
@@ -6274,7 +6267,11 @@
           "security": "Kaaraange",
           "lastLogin": "Dugg bu mujj",
           "actions": "Jëf"
-        }
+        },
+        "impersonateReasonLabel": "Li ko waral",
+        "impersonateReasonPlaceholder": "Ml. : ticket support 4821, jëfandikukat bi gisul bail bi.",
+        "impersonateReasonHint": "Lu mu néew {min} araf. Li ko waral dañu koy denc te yégal ko nit ki.",
+        "impersonateConfirmPhrase": "XOOL"
       },
       "agencies": {
         "title": "Ajaans yi",
@@ -6666,7 +6663,8 @@
         "title": "Jëf yi",
         "viewInAudit": "Xool ko ci téereb teraanga bi",
         "empty": "Amul jëf bu yees.",
-        "fallbackLabel": "Jëf"
+        "fallbackLabel": "Jëf",
+        "viaImpersonation": "Ci jël-bopp bu {name}"
       },
       "supportDialog": {
         "reasonLabel": "Lu tax ndimbal bi",
@@ -9013,6 +9011,15 @@
       "previous": "Ginaaw",
       "next": "Ca kanam",
       "pageOf": "Xët {page} ci {last}"
+    }
+  },
+  "impersonation": {
+    "banner": {
+      "message": "Jàng rekk — yaa ngi gis Takussan ni {target}, ba {ends}.",
+      "fallbackUser": "jëfandikukat {id}",
+      "unknownEnd": "jeexitalu session bi",
+      "leave": "Génn",
+      "leaving": "Mu ngi génn…"
     }
   }
 }

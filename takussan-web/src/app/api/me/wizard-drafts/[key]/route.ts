@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { ApiError, apiRequest } from '@/lib/api';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
 
 /**
  * TCK-250 — Per-key wizard-draft proxy.
@@ -18,7 +18,7 @@ type Params = Promise<{ key: string }>;
 
 async function readToken(): Promise<string | null> {
   const cookieStore = await cookies();
-  return cookieStore.get(AUTH_COOKIE_NAME)?.value ?? null;
+  return jetonEspaceApplicatif(cookieStore) ?? null;
 }
 
 function buildPath(key: string): string {

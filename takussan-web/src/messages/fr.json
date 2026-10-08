@@ -6576,13 +6576,6 @@
       "activeOutOf": "{active} actifs",
       "delta": "{value} % sur {days} jours"
     },
-    "impersonation": {
-      "banner": "Vous agissez en tant que {target} — session jusqu'à {expires}.",
-      "fallbackUser": "utilisateur #{id}",
-      "unknownExpiry": "inconnu",
-      "stopping": "Arrêt…",
-      "stop": "Arrêter l’impersonation"
-    },
     "confirmDialog": {
       "typePrompt": "Pour confirmer, tapez",
       "pending": "En cours…"
@@ -6846,8 +6839,8 @@
         "open": "Ouvrir",
         "impersonate": "Impersonifier",
         "impersonateTitle": "Impersonifier {name}",
-        "impersonateDescription": "Vous obtiendrez un token éphémère (≤ 1h) pour agir en tant que cet utilisateur. Toutes les actions sont auditées.",
-        "impersonateConfirmLabel": "Lancer l’impersonation",
+        "impersonateDescription": "Vous verrez Takussan exactement comme cette personne, en lecture seule, pendant 15 minutes au plus. Aucune modification n'est possible ; la session, son motif et sa durée sont journalisés, et la personne en sera informée à la fin.",
+        "impersonateConfirmLabel": "Ouvrir la session de lecture",
         "roles": {
           "all": "Tous rôles",
           "super_admin": "Super-admin",
@@ -6884,7 +6877,11 @@
           "security": "Sécurité",
           "lastLogin": "Dernière connexion",
           "actions": "Actions"
-        }
+        },
+        "impersonateReasonLabel": "Motif",
+        "impersonateReasonPlaceholder": "Ex. : ticket de support n° 4821, l'utilisateur ne voit pas son bail.",
+        "impersonateReasonHint": "Au moins {min} caractères. Le motif est conservé et communiqué à la personne.",
+        "impersonateConfirmPhrase": "CONSULTER"
       },
       "agencies": {
         "title": "Agences",
@@ -7276,7 +7273,8 @@
         "title": "Activité",
         "viewInAudit": "Voir dans l’audit",
         "empty": "Aucune activité récente.",
-        "fallbackLabel": "Activité"
+        "fallbackLabel": "Activité",
+        "viaImpersonation": "Via impersonation par {name}"
       },
       "supportDialog": {
         "reasonLabel": "Raison support",
@@ -9013,6 +9011,15 @@
       "previous": "Précédente",
       "next": "Suivante",
       "pageOf": "Page {page} sur {last}"
+    }
+  },
+  "impersonation": {
+    "banner": {
+      "message": "Lecture seule — vous voyez Takussan en tant que {target}, jusqu'à {ends}.",
+      "fallbackUser": "utilisateur n° {id}",
+      "unknownEnd": "l'échéance",
+      "leave": "Quitter",
+      "leaving": "Sortie…"
     }
   }
 }

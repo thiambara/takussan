@@ -14,8 +14,9 @@ const redirect = vi.fn((url: string) => {
 const getMeAction = vi.fn();
 
 vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
-vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMeAction() }));
-vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
+// TCK-600 — la console lit avec le jeton de l'OPÉRATEUR, même pendant une impersonation.
+vi.mock('@/app/actions/auth', () => ({ getMeOperateurAction: () => getMeAction() }));
+vi.mock('@/lib/session', () => ({ getOperatorToken: async () => 'jeton' }));
 vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 vi.mock('@/i18n/IntlProvider', () => ({ IntlProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/layout/SuperAdminShell', () => ({ SuperAdminShell: () => null }));

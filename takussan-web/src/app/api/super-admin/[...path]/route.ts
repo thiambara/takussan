@@ -1,4 +1,5 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
+import { cheminReserveAuxRouteHandlers } from '@/lib/impersonation';
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -13,6 +14,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
  * its routes; the backend itself exposes the canonical `/api/admin/*` paths.
  */
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
+  // TCK-600 (ADR-0055 §6) — démarrer et terminer une impersonation passent par les SEULS route
+  // handlers de `/api/impersonation/` : relayée ici, la réponse de `start` porterait le jeton
+  // jusqu'à la page. 404 sans appeler l'API.
+  if (cheminReserveAuxRouteHandlers(segments.join('/'))) {
+    return NextResponse.json({ code: 'not_found' }, { status: 404 });
+  }
+
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 

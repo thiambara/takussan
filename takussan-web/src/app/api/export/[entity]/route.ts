@@ -1,6 +1,6 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
@@ -19,7 +19,7 @@ export async function GET(
   }
 
   const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(cookieStore);
   if (!token) {
     return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }

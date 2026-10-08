@@ -6576,13 +6576,6 @@
       "activeOutOf": "{active} active",
       "delta": "{value}% over {days} days"
     },
-    "impersonation": {
-      "banner": "You are acting as {target} — session until {expires}.",
-      "fallbackUser": "user #{id}",
-      "unknownExpiry": "unknown",
-      "stopping": "Stopping…",
-      "stop": "Stop impersonation"
-    },
     "confirmDialog": {
       "typePrompt": "To confirm, type",
       "pending": "In progress…"
@@ -6846,8 +6839,8 @@
         "open": "Open",
         "impersonate": "Impersonate",
         "impersonateTitle": "Impersonate {name}",
-        "impersonateDescription": "You will get a short-lived token (≤ 1h) to act as this user. Every action is audited.",
-        "impersonateConfirmLabel": "Start impersonation",
+        "impersonateDescription": "You will see Takussan exactly as this person does, read-only, for 15 minutes at most. No change is possible; the session, its reason and its duration are logged, and the person will be informed when it ends.",
+        "impersonateConfirmLabel": "Open the read-only session",
         "roles": {
           "all": "All roles",
           "super_admin": "Super-admin",
@@ -6884,7 +6877,11 @@
           "security": "Security",
           "lastLogin": "Last sign-in",
           "actions": "Actions"
-        }
+        },
+        "impersonateReasonLabel": "Reason",
+        "impersonateReasonPlaceholder": "E.g. support ticket #4821, the user cannot see their lease.",
+        "impersonateReasonHint": "At least {min} characters. The reason is kept and shared with the person.",
+        "impersonateConfirmPhrase": "VIEW"
       },
       "agencies": {
         "title": "Agencies",
@@ -7276,7 +7273,8 @@
         "title": "Activity",
         "viewInAudit": "View in the audit log",
         "empty": "No recent activity.",
-        "fallbackLabel": "Activity"
+        "fallbackLabel": "Activity",
+        "viaImpersonation": "Via impersonation by {name}"
       },
       "supportDialog": {
         "reasonLabel": "Support reason",
@@ -9013,6 +9011,15 @@
       "previous": "Previous",
       "next": "Next",
       "pageOf": "Page {page} of {last}"
+    }
+  },
+  "impersonation": {
+    "banner": {
+      "message": "Read-only — you are viewing Takussan as {target}, until {ends}.",
+      "fallbackUser": "user #{id}",
+      "unknownEnd": "the end of the session",
+      "leave": "Leave",
+      "leaving": "Leaving…"
     }
   }
 }

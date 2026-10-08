@@ -1,5 +1,5 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
@@ -14,7 +14,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
  * strict admin namespace.
  */
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const suffix = segments.length > 0 ? `/${segments.join('/')}` : '';

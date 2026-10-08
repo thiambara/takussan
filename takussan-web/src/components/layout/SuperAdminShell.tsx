@@ -5,7 +5,6 @@ import type { User } from '@/types/user';
 import { useTranslations } from 'next-intl';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
-import { ImpersonationBanner } from '@/components/admin/super/ImpersonationBanner';
 import { SuperAdminTopbar } from './SuperAdminTopbar';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
 
@@ -21,10 +20,11 @@ interface SuperAdminShellProps {
 export const SUPER_ADMIN_MAIN_ID = 'super-admin-main';
 
 /**
- * Layout shell for the super-admin area (TCK-145). Mounts a global
- * `ImpersonationBanner` so any active impersonation session is signalled
- * regardless of the page being viewed. No agency components are imported
+ * Layout shell for the super-admin area (TCK-145). No agency components are imported
  * here — the cross-tenant context must be visually unambiguous.
+ *
+ * TCK-600 (ADR-0055) — la bannière d'impersonation n'est plus montée ici : la console lit avec le
+ * jeton de l'opérateur, c'est l'ESPACE APPLICATIF qui lit en tant que la cible (`AppShell`).
  *
  * ────────────────────────────────────────────────────────────────────────────
  * TCK-358 — le signal cross-tenant est un LISERÉ, plus un gris
@@ -84,7 +84,6 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
       >
         {t('skipToContent')}
       </a>
-      <ImpersonationBanner />
       <SuperAdminTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden md:block md:h-full">

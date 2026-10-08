@@ -1,4 +1,5 @@
 import type { SpatieQueryParams } from '@/types/api';
+import { cheminParLeRelais, relaisImpersonationActif } from '@/lib/impersonation';
 
 // Base URL without /api suffix — used by apiRequest (which includes /api in its paths)
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -129,6 +130,8 @@ export const CODES_ERREUR_BFF = [
   'profile_id_required',
   'unknown_entity',
   'server_error',
+  // TCK-600 — le proxy de la console refuse les chemins d'impersonation sans appeler l'API.
+  'not_found',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -141,6 +144,7 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   profile_id_required: 'errors.api.profileIdRequired',
   unknown_entity: 'errors.api.unknownEntity',
   server_error: 'errors.api.serverError',
+  not_found: 'errors.notFound',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */
@@ -529,7 +533,16 @@ export async function apiRequest<T>(
     }
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  // TCK-600 (ADR-0055 §6) — pendant une session d'impersonation, le navigateur n'a AUCUN jeton :
+  // l'appel part au relais same-origin, qui ajoute le jeton d'impersonation côté serveur. Le profil
+  // actif de l'opérateur ne l'accompagne jamais (invariant 11).
+  const relais = !token && relaisImpersonationActif() ? cheminParLeRelais(path) : null;
+  if (relais) {
+    delete requestHeaders['X-Active-Profile-Hint'];
+    delete requestHeaders['X-Profile-Id'];
+  }
+
+  const response = await fetch(relais ?? `${API_URL}${path}`, {
     method,
     headers: requestHeaders,
     body: body !== undefined

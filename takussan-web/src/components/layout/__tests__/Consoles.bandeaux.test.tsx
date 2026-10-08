@@ -37,8 +37,8 @@ vi.mock('@/lib/queries/property-moderation', () => ({
   })),
 }));
 vi.mock('@/hooks/useImpersonation', () => ({
-  useImpersonationSession: () => null,
-  useStopImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
+  useImpersonationCourante: () => ({ data: null }),
+  useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 // Les modales de bienvenue d'`AppShell` montent chacune leur propre requête : hors sujet ici.

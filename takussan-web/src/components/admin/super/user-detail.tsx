@@ -464,6 +464,11 @@ export function UserActivityTimeline({
               {entry.description && entry.description !== entry.event ? (
                 <p className="text-sm text-pretty text-muted-foreground">{entry.description}</p>
               ) : null}
+              {entry.impersonator ? (
+                <p className="text-xs font-medium text-foreground" data-testid="activity-impersonator">
+                  {t('viaImpersonation', { name: entry.impersonator.name || `#${entry.impersonator.id}` })}
+                </p>
+              ) : null}
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="size-3" aria-hidden="true" />
                 {fmt.dateTime(entry.created_at)}

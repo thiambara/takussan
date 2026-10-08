@@ -1,5 +1,7 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { logout } from '@/lib/auth';
+import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
+import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -9,6 +11,13 @@ export async function POST(): Promise<NextResponse> {
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
 
   if (token) {
+    // TCK-600 (ADR-0055 §6) — la déconnexion de l'opérateur ferme aussi sa session d'impersonation.
+    if (cookieStore.get(IMPERSONATION_COOKIE)?.value) {
+      await fetch(`${API_URL}/api/admin/impersonate/stop`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      }).catch(() => null);
+    }
     try {
       await logout(token);
     } catch {
@@ -21,5 +30,6 @@ export async function POST(): Promise<NextResponse> {
   // TCK-509 (AC6) — le profil actif est lié à la session qui se ferme. Seul `set-token` l'effaçait,
   // à la connexion SUIVANTE : entre les deux, le résolveur recevait un profil sans propriétaire.
   response.cookies.delete(ACTIVE_PROFILE_COOKIE);
+  effacerLaSession(response);
   return response;
 }

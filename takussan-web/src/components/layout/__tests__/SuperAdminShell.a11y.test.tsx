@@ -26,8 +26,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/hooks/useImpersonation', () => ({
-  useImpersonationSession: () => null,
-  useStopImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
+  useImpersonationCourante: () => ({ data: null }),
+  useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const user: User = {

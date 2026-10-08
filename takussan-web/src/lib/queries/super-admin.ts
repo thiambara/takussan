@@ -39,8 +39,6 @@ import type {
   AdminUserDetailResponse,
   AdminUserSessionsResponse,
   AuditLogResponse,
-  ImpersonationStartResponse,
-  ImpersonationStopResponse,
   SystemMetricsResponse,
   AnnouncementsResponse,
   AnnouncementPayload,
@@ -330,14 +328,6 @@ export async function fetchSystemMetrics(): Promise<SystemMetricsResponse> {
   return jsonOrThrow<SystemMetricsResponse>(res);
 }
 
-export async function postImpersonate(targetUserId: number): Promise<ImpersonationStartResponse> {
-  const res = await fetch(`/api/super-admin/users/${targetUserId}/impersonate`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<ImpersonationStartResponse>(res);
-}
-
 export async function fetchAdminUserDetail(userId: number): Promise<AdminUserDetailResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[users]', 'id,username,first_name,last_name,email,phone,status,preferred_language,timezone,last_login_at,created_at');
@@ -402,16 +392,6 @@ export async function deleteAdminUserSession(
     body: JSON.stringify({ reason }),
   });
   return jsonOrThrow<{ success: true; action_id: number }>(res);
-}
-
-export async function postStopImpersonation(targetUserId: number): Promise<ImpersonationStopResponse> {
-  const res = await fetch('/api/super-admin/impersonate/stop', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: targetUserId }),
-  });
-  return jsonOrThrow<ImpersonationStopResponse>(res);
 }
 
 /**

@@ -304,18 +304,6 @@ export type SystemMetrics = {
 
 export type SystemMetricsResponse = { data: SystemMetrics };
 
-export type ImpersonationStartResponse = {
-  token: string;
-  expires_at: string;
-  actor_id: number;
-  target_user_id: number;
-};
-
-export type ImpersonationStopResponse = {
-  message: string;
-  revoked_count: number;
-};
-
 export type AuditLogEntry = {
   id: number;
   log_name: string | null;
@@ -326,6 +314,8 @@ export type AuditLogEntry = {
   subject_type: string | null;
   subject_id: number | null;
   properties: Record<string, unknown> | null;
+  /** TCK-600 (ADR-0055) — l'opérateur, quand l'entrée s'est écrite pendant une impersonation. */
+  impersonator?: { id: number; name: string | null } | null;
   created_at: string | null;
 };
 

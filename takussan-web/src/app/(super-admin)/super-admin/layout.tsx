@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getMeAction } from '@/app/actions/auth';
-import { getToken } from '@/lib/session';
+import { getMeOperateurAction } from '@/app/actions/auth';
+import { getOperatorToken } from '@/lib/session';
 import { isSuperAdmin } from '@/lib/roles';
 import { SuperAdminShell } from '@/components/layout/SuperAdminShell';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
@@ -35,12 +35,14 @@ export default async function SuperAdminLayout({
   // visitor lands on /super-admin so they bounce back here after sign-in.
   // `getMeAction` would also redirect when the token is missing, but it
   // strips the path; intercept here while we still have the context.
-  const token = await getToken();
+  // TCK-600 (ADR-0055 §6) — la console lit TOUJOURS avec le jeton de l'opérateur, même pendant une
+  // session d'impersonation : l'espace applicatif, lui, lit en tant que la cible.
+  const token = await getOperatorToken();
   if (!token) {
     redirect('/auth/login?redirect=%2Fsuper-admin');
   }
 
-  const user = await getMeAction();
+  const user = await getMeOperateurAction();
 
   // TCK-264 — A coopted super-admin who hasn't yet finished mandatory
   // 2FA enrollment must NOT see the console: their spatie role is

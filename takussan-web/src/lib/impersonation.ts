@@ -1,75 +1,74 @@
 /**
- * Client-side impersonation session state (TCK-145). Persisted in
- * localStorage so a refresh of `/app` keeps the banner visible until the
- * super-admin explicitly stops impersonating or the token expires.
+ * TCK-600 (ADR-0055) — la session d'impersonation, côté front.
+ *
+ * Le JETON ne quitte jamais le serveur du front : le route handler `POST /api/impersonation/start`
+ * le range dans le cookie httpOnly {@link IMPERSONATION_COOKIE}, et le navigateur n'en reçoit
+ * aucune copie — ni corps JSON, ni `localStorage`, ni `sessionStorage` (l'ancienne session vivait
+ * en clair dans `localStorage`, lisible par tout script de la page).
+ *
+ * Le navigateur sait seulement QU'UNE session est ouverte, par le témoin
+ * {@link IMPERSONATION_MARKER_COOKIE} (`1`, sans secret) : c'est ce qui fait passer `apiRequest`
+ * par le relais same-origin {@link IMPERSONATION_RELAY}, qui ajoute le jeton côté serveur.
  */
 
-const KEY = 'takussan.impersonation';
+export const IMPERSONATION_COOKIE = 'impersonation_token';
+export const IMPERSONATION_MARKER_COOKIE = 'impersonation_active';
+export const IMPERSONATION_RELAY = '/api/impersonation/proxy';
 
-export type ImpersonationSession = {
-  token: string;
-  expires_at: string; // ISO 8601
-  actor_id: number;
-  target_user_id: number;
-  target_label?: string;
+/** Ce que le navigateur reçoit au démarrage — sans jeton. */
+export type ImpersonationDemarree = {
+  session_id: number;
+  expires_at: string;
+  target: { id: number; name: string | null };
 };
 
-// Snapshot cache so `useSyncExternalStore` gets a stable referential identity
-// between renders when the underlying localStorage value hasn't changed.
-let cachedRaw: string | null = null;
-let cachedSession: ImpersonationSession | null = null;
+/** `GET /api/impersonation/current` : ce que la bannière affiche. */
+export type ImpersonationCourante = {
+  session_id: number;
+  impersonator: { id: number | null; name: string | null };
+  target: { id: number | null; name: string | null };
+  expires_at: string;
+  read_only: true;
+};
 
-export function readImpersonationSession(): ImpersonationSession | null {
-  if (typeof window === 'undefined') return null;
-  let raw: string | null;
-  try {
-    raw = window.localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-
-  if (raw === cachedRaw) return cachedSession;
-  cachedRaw = raw;
-
-  if (!raw) {
-    cachedSession = null;
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as ImpersonationSession;
-    if (!parsed.token || !parsed.expires_at) {
-      cachedSession = null;
-      return null;
-    }
-    if (new Date(parsed.expires_at).getTime() <= Date.now()) {
-      try {
-        window.localStorage.removeItem(KEY);
-      } catch {
-        // ignore — best effort cleanup
-      }
-      cachedRaw = null;
-      cachedSession = null;
-      return null;
-    }
-    cachedSession = parsed;
-    return parsed;
-  } catch {
-    cachedSession = null;
-    return null;
-  }
+/** Le témoin est-il posé ? Toujours `false` hors navigateur. */
+export function relaisImpersonationActif(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.cookie
+    .split(';')
+    .some((morceau) => morceau.trim().startsWith(`${IMPERSONATION_MARKER_COOKIE}=`));
 }
 
-export function writeImpersonationSession(session: ImpersonationSession): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(KEY, JSON.stringify(session));
-  window.dispatchEvent(new Event('takussan:impersonation-change'));
+/** Le chemin du relais pour un chemin d'API (`/api/…`), ou `null` s'il n'en est pas un. */
+export function cheminParLeRelais(path: string): string | null {
+  if (!path.startsWith('/api/')) return null;
+  return `${IMPERSONATION_RELAY}/${path.slice('/api/'.length)}`;
 }
 
-export function clearImpersonationSession(): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(KEY);
-  window.dispatchEvent(new Event('takussan:impersonation-change'));
+/**
+ * Les deux chemins de la console que le proxy générique ne relaie JAMAIS (ADR-0055 §6) : le jeton
+ * de démarrage n'atteindrait la page que par lui. Seuls les route handlers dédiés démarrent et
+ * terminent.
+ */
+export function cheminReserveAuxRouteHandlers(path: string): boolean {
+  const propre = path.replace(/^\/+|\/+$/g, '');
+  return /^users\/[^/]+\/impersonate$/.test(propre) || propre === 'impersonate/stop';
 }
 
-export const IMPERSONATION_EVENT = 'takussan:impersonation-change';
+type MagasinDeCookies = { get(name: string): { value: string } | undefined };
+
+/**
+ * TCK-600 (ADR-0055 §6) — le jeton d'un route handler de l'ESPACE APPLICATIF : celui de la
+ * session d'impersonation s'il y en a une, sinon celui de l'utilisateur. Sans cela, un relais de
+ * l'espace applicatif lirait — et ÉCRIRAIT — avec le jeton de l'opérateur pendant que la bannière
+ * annonce la lecture seule. Les relais de la console lisent `auth_token`, eux, directement.
+ */
+export function jetonEspaceApplicatif(magasin: MagasinDeCookies): string | undefined {
+  return magasin.get(IMPERSONATION_COOKIE)?.value ?? magasin.get('auth_token')?.value;
+}
+
+/** Invariant 11 : pendant une session, le profil actif de l'opérateur n'est jamais transmis. */
+export function profilActifEspaceApplicatif(magasin: MagasinDeCookies): string | undefined {
+  if (magasin.get(IMPERSONATION_COOKIE)?.value) return undefined;
+  return magasin.get('active_profile_id')?.value;
+}
