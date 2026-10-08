@@ -702,6 +702,26 @@ Le détail se trouve dans « Corrections après vérification adverse » des Not
       comptent plus, pour `connu@` et pour `inconnu@`, à l'identique. Preuve :
       `LoginFailureWindowTest` (2 ; rouge sur `104589df` pour le compte) (`f3bafcbe`).
 
+### AC ajoutés après la passe 3 (verif-589 sur `bb27af99`, 2026-10-08)
+
+- [x] **AC-p3-1a** — Remplacer (ou retirer) un numéro **déjà vérifié** exige une preuve sur le
+      facteur en place : un code reçu sur l'ancien numéro, le mot de passe (5 échecs / 15 min),
+      ou un step-up TOTP de moins de 10 min. Sans preuve : 403 `phone.change_requires_proof`
+      sur les trois écrivains (`PUT /auth/profile`, `PATCH /me`, `send-otp`). La séquence de la
+      sonde est refusée, P reste vérifié et le code de suppression part vers P. Preuve :
+      `PhoneChangeProofTest` (6 rouges sur 8 sur `bb27af99`) (`a2e2cd7d`). Le code de preuve
+      compte dans la borne de l'**ancien** numéro (`b4260462`).
+- [x] **AC-p3-1b** — Avec preuve, l'ancien numéro reçoit l'avis `account.phone_changed` (SMS,
+      contact sans compte), et le compte aussi (cloche, plus e-mail). Rien ne part vers le
+      nouveau numéro. Preuve : `PhoneChangeNoticeTest` (2 rouges sur 3 sur `a2e2cd7d`)
+      (`bd0dabb3`).
+- [x] **AC-p3-1c** — L'écran de profil demande la preuve (mot de passe actuel, ou code reçu sur
+      l'ancien numéro) et la transmet jusqu'au corps de la requête. Preuve :
+      `ProfileContactSection.preuve.test.tsx` (3 rouges sur 4 sur `bd0dabb3`) et
+      `auth.preuve-numero.test.ts` (3) (`1f4e4f91`).
+- [x] **AC-p3-1d** — ADR-0033 écrit la règle (§2) et le prix accepté de la borne par
+      destinataire (§6) (`6516c3e9`).
+
 ## Hors périmètre
 
 - Code par WhatsApp (option retenue par défaut : SMS seul — exclu par `features.md` §2.3, modèle
