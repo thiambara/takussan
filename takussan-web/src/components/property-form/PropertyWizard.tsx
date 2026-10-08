@@ -91,9 +91,9 @@ const CLES_PAR_ETAPE: readonly (readonly (keyof PropertyFormValues)[])[] = [
   ['type', 'contract_type'],
   ['city', 'quarter', 'region', 'street', 'postal_code', 'country'],
   [],
-  ['price', 'currency', 'rent_period', 'available_from'],
+  ['price', 'currency', 'rent_period', 'available_from', 'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges'],
   [],
-  ['title', 'description'],
+  ['title', 'description', 'virtual_tour_url'],
 ];
 
 /** L'index de l'étape des caractéristiques — la seule dont les clés varient d'un passage à l'autre. */
@@ -177,6 +177,11 @@ function valeursInitiales(): PropertyFormValues {
     available_from: undefined,
     description: '',
     tag_ids: [],
+    deposit_months: undefined,
+    advance_months: undefined,
+    agency_fee_months: undefined,
+    monthly_charges: undefined,
+    virtual_tour_url: '',
   };
 }
 

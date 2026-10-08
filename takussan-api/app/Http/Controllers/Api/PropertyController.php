@@ -25,13 +25,13 @@ use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyPublication;
+use App\Services\Property\PropertyViewCounter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\RateLimiter;
 
 class PropertyController extends Controller
 {
@@ -292,13 +292,13 @@ class PropertyController extends Controller
         Notification::send($admins, new PropertyProposedNotification($property));
     }
 
-    public function recordView(Request $request, Property $property): JsonResponse
+    /**
+     * TCK-598 (contrainte 3) — même service, même clé de déduplication que
+     * `POST /public/properties/{slug}/view` : un visiteur compte une fois, quelle que soit la route.
+     */
+    public function recordView(Request $request, Property $property, PropertyViewCounter $compteur): JsonResponse
     {
-        $key = 'property-view:'.$property->id.':'.$request->ip();
-        if (! RateLimiter::tooManyAttempts($key, 3)) {
-            RateLimiter::hit($key, 3600);
-            $property->increment('views_count');
-        }
+        $compteur->record($property, (string) $request->ip());
 
         return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);
     }

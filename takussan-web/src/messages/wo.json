@@ -802,7 +802,8 @@
       "parking": "Parking",
       "amenities": "Jumtukaay",
       "tags": "Yeneen",
-      "titleDeed": "Kayitu suuf"
+      "titleDeed": "Kayitu suuf",
+      "entryCost": "Li ngay fey ngir dugg"
     },
     "table": {
       "ariaLabel": "Tàbloo méengal kër yi",
@@ -4744,7 +4745,28 @@
       "unavailableBody": "Mënunu jot katalog bi ci saa si. Këru bi mën na am ba tey — jéemaatal ci ay saa.",
       "favoriteAddShort": "Yokk",
       "favoriteSavedShort": "Cofeel",
-      "descriptionLanguageNotice": "{langue, select, fr {Boroom yégle bi moo bind leeral bii ci farañse} en {Boroom yégle bi moo bind leeral bii ci àngale} wo {Boroom yégle bi moo bind leeral bii ci wolof} other {Boroom yégle bi moo bind leeral bii ci làkkam}}"
+      "descriptionLanguageNotice": "{langue, select, fr {Boroom yégle bi moo bind leeral bii ci farañse} en {Boroom yégle bi moo bind leeral bii ci àngale} wo {Boroom yégle bi moo bind leeral bii ci wolof} other {Boroom yégle bi moo bind leeral bii ci làkkam}}",
+      "entryCost": {
+        "title": "Li ngay fey ngir dugg",
+        "advance": "Loyer bu ñu jiital",
+        "deposit": "Kosioŋ",
+        "agencyFee": "Peyu ajaas bi",
+        "monthlyCharges": "Sarsu weer wu nekk",
+        "months": "{count, plural, other {# weer}}",
+        "total": "Lépp ngir dugg"
+      },
+      "trust": {
+        "phoneVerified": "Telefon bi dëggu na",
+        "safetyTitle": "Moytu",
+        "safetyBody": "Bul fey benn xaalis balaa nga seetsi kër gi te gis ki koy jaay walla di ko luye."
+      },
+      "virtualTour": {
+        "video": "Xool widewoo kër gi",
+        "tour": "Seetlu kër gi ci internet",
+        "loadHint": "Dafay yeeg rekk bu nga ko ubbee",
+        "frameTitle": "Seetlu kër gi ci internet — {title}",
+        "opensNewTab": "(dina ubbiku ci beneen palanteer)"
+      }
     },
     "reviews": {
       "title": "Xalaat yi",
@@ -5330,7 +5352,20 @@
       "draftResumed": "Dellusi nanu sa brouillon fu nga ko bàyyee woon.",
       "draftSaveFailed": "Brouillon bi mënul a denc. Dara du ñàkk su nga desee ci xët bii.",
       "draftSaveRetry": "Jéemaat",
-      "draftAutosaveFailed": "Denc bu boppam dafa taxaw: li nga soppi mujj mësul a wóor."
+      "draftAutosaveFailed": "Denc bu boppam dafa taxaw: li nga soppi mujj mësul a wóor.",
+      "entryCost": {
+        "legend": "Li ngay fey ngir dugg",
+        "hint": "Li luyekat bi wara fey ngir dugg. Bàyyil lu jëmul ci yow.",
+        "advance": "Weer yu ñu jiital",
+        "deposit": "Weeru kosioŋ",
+        "agencyFee": "Peyu ajaas (ci weeru loyer)",
+        "monthlyCharges": "Sarsu weer wu nekk"
+      },
+      "virtualTour": {
+        "label": "Seetlu ci internet walla widewoo (lëkkalekaay)",
+        "placeholder": "https://www.youtube.com/watch?v=…",
+        "hint": "Lëkkalekaay YouTube, Vimeo, Matterport walla Kuula. Amul fichier widewoo boo wara yónnee."
+      }
     },
     "titleTypes": {
       "bail": "Contrat",
@@ -5352,6 +5387,19 @@
       "urgent_sale": "Jaay bu gaaw",
       "seasonal": "Ci jamono ji",
       "correction": "Jubbanti"
+    },
+    "retired": {
+      "title": {
+        "rented": "Kër gii, ñu luwe ko ba noppi",
+        "sold": "Kër gii, ñu jaay ko ba noppi",
+        "withdrawn": "Kër gii, ñu génne ko ci jaaykat yi"
+      },
+      "body": "Yéené bi ngay seet amatul. Kër yii ci wetam man nañu la neex.",
+      "similarTitle": "Kër yu ni mel",
+      "searchQuarter": "Xool kër yi nekk {quarter}, {city}",
+      "searchCity": "Xool kër yi nekk {city}",
+      "searchAll": "Xool kër yépp",
+      "metaDescription": "Yéenéb Takussan bii amatul. Gisal kër yu ni mel."
     }
   },
   "documents": {
@@ -8106,7 +8154,8 @@
       "titleContract": "{contract, select, rent {{subject} yu ñuy luwaa} sale {{subject} yu ñuy jaay} other {{subject}}}",
       "titleCity": "{subject} ci {city}",
       "subjectAny": "Kër yi",
-      "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi."
+      "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi.",
+      "titleQuarter": "{subject} ci {quarter}, {city}"
     },
     "compare": {
       "title": "Méengal kër yi",
@@ -8506,7 +8555,8 @@
       "yearInvalid": "At mu baaxul.",
       "dateInvalid": "Melokaanu bés bu baaxul (AAAA-MM-JJ).",
       "descriptionTooLong": "Leeral gi dafa gudd lool.",
-      "statusInvalid": "Nekkin wu baaxul."
+      "statusInvalid": "Nekkin wu baaxul.",
+      "virtualTourInvalid": "Bindal lëkkalekaay bu tàmbalee ak https://."
     },
     "search": {
       "savedSearchNameRequired": "Joxal seet bii benn tur."
@@ -9389,5 +9439,17 @@
       "next": "Ca kanam",
       "pageOf": "Xët {page} ci {last}"
     }
+  },
+  "horsLigne": {
+    "application": {
+      "nom": "Takussan — Kër ak suuf ci Senegaal",
+      "nomCourt": "Takussan",
+      "description": "Luwe, jënd ak jaay kër ci Senegaal."
+    },
+    "titre": "Internet bi dagg na",
+    "message": "Takussan mënul jokkoo ak internet. Xët wi dina feeñ bu internet bi délsee.",
+    "reessayer": "Jéemaatal",
+    "favorisTitre": "Sa bëgg-bëgg yi nga xoolewoon ci bii aparey",
+    "favorisVide": "Amul benn ci sa bëgg-bëgg yi mën a feeñ te amul internet ci bii aparey."
   }
 }

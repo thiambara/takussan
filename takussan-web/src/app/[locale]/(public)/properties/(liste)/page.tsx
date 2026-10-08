@@ -8,10 +8,9 @@ import { alternatesPubliques } from '@/lib/alternates';
 import {
   type DomainesDeFacette,
   cheminCanoniqueDeLaListe,
-  domainesStatiques,
   versParametres,
 } from '@/lib/canonique';
-import { villesDuCatalogue } from '@/lib/queries/facettes';
+import { domainesDeLaListe } from '@/lib/queries/facettes';
 import { rechercherBiensPublics } from '@/lib/queries/public-search';
 import {
   clefDeRecherche,
@@ -37,11 +36,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const params = versParametres(await searchParams);
   // ⚠️ Le domaine des facettes est calculé ICI et passé plus bas : sans lui, `filtresCanoniques`
   // retiendrait n'importe quelle valeur d'URL et l'espace indexable ne serait borné par rien
-  // (TCK-433). `villes` vient du catalogue, les deux autres des enums.
-  const domaines: DomainesDeFacette = {
-    ...domainesStatiques(),
-    villes: await villesDuCatalogue(),
-  };
+  // (TCK-433). `villes` vient du catalogue, `quartiers` du domaine de la ville de l'URL (TCK-598),
+  // les deux autres des enums.
+  const domaines: DomainesDeFacette = await domainesDeLaListe(params);
   const { title, description } = await titreEtDescription(params, domaines);
 
   const locale = await getLocale();
@@ -136,11 +133,9 @@ export default async function Page({ searchParams }: Props) {
   const clef = clefDeRecherche(requete);
   const resultat = await rechercherBiensPublics(clef, locale);
 
-  const domainesDuTitre: DomainesDeFacette = {
-    ...domainesStatiques(),
-    villes: await villesDuCatalogue(),
-  };
-  const { title } = await titreEtDescription(versParametres(params), domainesDuTitre);
+  const parametres = versParametres(params);
+  const domainesDuTitre: DomainesDeFacette = await domainesDeLaListe(parametres);
+  const { title } = await titreEtDescription(parametres, domainesDuTitre);
 
   return (
     // `fallback` n'était PAS passé (TCK-335, étape 6) : un `<Suspense>` sans repli ne montre

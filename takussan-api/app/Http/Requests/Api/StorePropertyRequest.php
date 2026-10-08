@@ -12,6 +12,8 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
+use App\Rules\HoteDeVisiteVirtuelle;
+use App\Services\Property\CoutDEntree;
 use Illuminate\Validation\Rule;
 
 /**
@@ -77,6 +79,13 @@ class StorePropertyRequest extends BaseFormRequest
             'address.postal_code' => ['nullable', 'string', 'max:20'],
             'address.latitude' => ['nullable', 'numeric'],
             'address.longitude' => ['nullable', 'numeric'],
+            // TCK-598 — la visite virtuelle : un LIEN https vers un hôte autorisé, jamais un fichier.
+            'virtual_tour_url' => ['nullable', 'string', 'max:2048', 'url:https', new HoteDeVisiteVirtuelle],
+            // TCK-598 — le coût d'entrée, d'une location MENSUELLE seulement (422 sinon).
+            ...CoutDEntree::regles(
+                CoutDEntree::sApplique($this->input('contract_type'), $this->input('rent_period')),
+                partiel: false,
+            ),
         ];
     }
 }

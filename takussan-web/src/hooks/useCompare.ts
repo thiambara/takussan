@@ -60,6 +60,11 @@ const COMPARE_FIELDS = [
   'type',
   'contract_type',
   'rent_period',
+  // TCK-598 — les quatre colonnes dont l'API calcule `entry_cost` : sans elles, le total sort nul.
+  'deposit_months',
+  'advance_months',
+  'agency_fee_months',
+  'monthly_charges',
   'title_type',
   'bedrooms',
   'bathrooms',

@@ -24,6 +24,8 @@ return [
         'currency' => 'The currency must be one of: :allowed.',
         'date_range' => 'The date must be on or after :start.',
         'strong_password' => 'The password must contain at least 8 characters, including one uppercase letter, one lowercase letter, one digit and one special character.',
+        // TCK-598 — l'hôte d'une visite virtuelle hors de la liste d'autorisation (`config/catalogue.php`).
+        'virtual_tour_host' => 'This virtual tour link is not accepted: only YouTube, Vimeo, Matterport and Kuula links are, over https.',
     ],
     'max_guarantors_reached' => 'A lease cannot have more than 3 guarantors.',
     'bounds_format' => 'The :attribute must be four comma-separated numbers: sw_lat,sw_lng,ne_lat,ne_lng.',

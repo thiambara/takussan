@@ -171,6 +171,13 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'available_from',
   'year_built',
   'parking_spaces',
+  // TCK-598 — la page d'édition relit le coût d'entrée (`entry_cost`, calculé depuis ces quatre
+  // colonnes : non demandées, le bloc sort nul) et la visite virtuelle.
+  'deposit_months',
+  'advance_months',
+  'agency_fee_months',
+  'monthly_charges',
+  'virtual_tour_url',
 ] as const;
 
 export async function fetchDashboardProperty(

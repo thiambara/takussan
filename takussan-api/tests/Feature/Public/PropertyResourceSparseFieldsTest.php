@@ -218,8 +218,9 @@ class PropertyResourceSparseFieldsTest extends ApiTestCase
      * restent dans la FORME LISTE.
      *
      * La proposition était de les passer derrière `$isDetail`, au motif que
-     * `show()` incrémente `views_count` avant de sérialiser et change donc le
-     * corps de toute page de résultats. **Mesuré le 2026-08-21, elle casserait
+     * `show()` incrémentait `views_count` avant de sérialiser et changeait donc le
+     * corps de toute page de résultats (ce n'est plus le cas depuis TCK-598 : la
+     * vue se compte par `POST …/view`, et le corps de la fiche ne bouge plus). **Mesuré le 2026-08-21, elle casserait
      * une vue** : `DASHBOARD_PROPERTY_FIELDS`
      * (`takussan-web/src/lib/queries/properties-server.ts:41-42`) les demande
      * explicitement, et `PropertyList.tsx` les rend dans chaque ligne du

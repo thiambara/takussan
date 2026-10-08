@@ -136,11 +136,25 @@ class PropertySeeder extends Seeder
                     default => $this->ctx->faker()->numberBetween(1990, 2024),
                 };
 
+                // TCK-598 — le coût d'entrée d'une location mensuelle (la période n'est pas posée :
+                // une location sans période EST mensuelle). Les usages de Dakar : deux mois de
+                // caution, un à trois mois d'avance, un mois de frais d'agence (parfois un
+                // demi), des charges modestes quand il y en a. Un bien sur trois n'en déclare
+                // aucun : la fiche doit savoir ne rien afficher.
+                $coutDEntree = $contract === ContractType::Rent && $this->ctx->faker()->boolean(65)
+                    ? [
+                        'deposit_months' => $this->ctx->faker()->randomElement([1, 2, 2, 2, 3]),
+                        'advance_months' => $this->ctx->faker()->randomElement([1, 2, 2, 3]),
+                        'agency_fee_months' => $this->ctx->faker()->randomElement([0.5, 1, 1, 1]),
+                        'monthly_charges' => $this->ctx->faker()->optional(0.4)->randomElement([5_000, 10_000, 15_000, 25_000]),
+                    ]
+                    : [];
+
                 $property = Property::withoutEvents(function () use (
                     $agency, $ownerId, $title, $description, $type, $contract, $status, $price, $area,
-                    $bedrooms, $createdAt, $condition, $yearBuilt
+                    $bedrooms, $createdAt, $condition, $yearBuilt, $coutDEntree
                 ) {
-                    return Property::create([
+                    return Property::create($coutDEntree + [
                         'user_id' => $ownerId,
                         'agency_id' => $agency->id,
                         'reference_number' => 'PR-'.strtoupper(Str::random(8)),
