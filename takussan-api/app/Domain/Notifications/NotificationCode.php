@@ -117,6 +117,13 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    // ─── Invitations par SMS (TCK-589 : le destinataire n'a souvent pas de compte) ───────
+    case InvitationReceived = 'invitation.received';
+    case InvitationReminder = 'invitation.reminder';
+
+    // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
+    case AccountPhoneChanged = 'account.phone_changed';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -154,6 +161,8 @@ enum NotificationCode: string
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
         };
     }
@@ -190,6 +199,9 @@ enum NotificationCode: string
             self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
+            self::InvitationReceived, self::InvitationReminder => null,
+            // Un avis de sécurité : on ne s'en désabonne pas.
+            self::AccountPhoneChanged => null,
         };
     }
 
@@ -250,6 +262,10 @@ enum NotificationCode: string
             self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            // Le nom de l'agence seul, jamais un texte de l'invitant (vérification adverse m1).
+            self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
+            self::AccountPhoneChanged => [],
             self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
@@ -290,6 +306,11 @@ enum NotificationCode: string
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            // TCK-589 — le lien d'une invitation adressée à un NUMÉRO (geste humain de l'agence,
+            // borné par numéro au point d'envoi) et l'avis à l'ancien numéro remplacé : leur
+            // destinataire est un contact sans compte qu'on ne joint que par là. Sans préférence
+            // (`preferenceEvent()` null), ils n'ouvrent aucun canal mobile vers un compte.
+            self::InvitationReceived, self::InvitationReminder, self::AccountPhoneChanged,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
             default => false,
         };
@@ -297,12 +318,15 @@ enum NotificationCode: string
 
     /**
      * Le code peut viser un contact sans compte : transactionnel seulement (exécution du bail,
-     * demande de visite). Jamais un message non transactionnel (ADR-0032 §3).
+     * demande de visite, lien d'une invitation adressée à un numéro — TCK-589). Jamais un
+     * message non transactionnel (ADR-0032 §3).
      */
     public function reachesContacts(): bool
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
             self::LeadAcknowledged => true,
             default => false,

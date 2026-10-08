@@ -19,7 +19,10 @@ import { PropertyAmenities } from './components/PropertyAmenities';
 import { PropertyBookingCard } from './components/PropertyBookingCard';
 import { PropertyAgentCard } from './components/PropertyAgentCard';
 import { PropertyVisitDialog } from './components/PropertyVisitDialog';
-import { PropertyReservationDialog } from './components/PropertyReservationDialog';
+import {
+  PropertyReservationDialog,
+  useIntentionDeReservation,
+} from './components/PropertyReservationDialog';
 import { PropertyShareDialog } from './components/PropertyShareDialog';
 import { PropertyContactMessageDialog } from './components/PropertyContactMessageDialog';
 import { useAuth } from '@/context/AuthContext';
@@ -72,7 +75,9 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
    * n'est demandée que pour un utilisateur connecté — la route est `auth:sanctum`, et cette page
    * est massivement vue par des anonymes.
    */
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  // TCK-589 — retour de connexion/inscription avec `?action=reserver` : la boîte se rouvre.
+  const intentionReservation = useIntentionDeReservation(!isLoading, () => setReservationOpen(true));
   const chatDraft = useChatDraft();
   const { data: resolutionResponse } = usePropertyConversation(user ? property.slug : null);
   const resolution = resolutionResponse?.data ?? null;
@@ -236,6 +241,7 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
         property={property}
         open={reservationOpen}
         onOpenChange={setReservationOpen}
+        intention={intentionReservation}
       />
       <PropertyShareDialog
         open={shareOpen}

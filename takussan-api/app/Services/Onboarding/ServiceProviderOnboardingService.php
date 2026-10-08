@@ -118,9 +118,9 @@ class ServiceProviderOnboardingService
 
     /**
      * Wrap PhoneVerificationService so tests can stub via the container.
-     * Mirror HostIndividualOnboardingService — keep dev/test bypass
-     * (`123456`) so the wizard is exercisable end-to-end without an SMS
-     * provider.
+     * TCK-589 — aucun code fixe, dans aucun environnement : le code fixe
+     * d'autrefois valait hors `production`, donc pour toute préproduction.
+     * Les tests lisent le vrai code par `Tests\Support\FakeSmsRouter`.
      */
     protected function verifyOtp(User $user, string $code): bool
     {
@@ -128,15 +128,7 @@ class ServiceProviderOnboardingService
             return false;
         }
 
-        if ($this->phoneVerification->verifyOtp($user, $code)) {
-            return true;
-        }
-
-        if (! app()->environment('production') && hash_equals('123456', trim($code))) {
-            return true;
-        }
-
-        return false;
+        return $this->phoneVerification->verifyOtp($user, $code);
     }
 
     protected function markPhoneVerified(User $user): void
@@ -147,7 +139,9 @@ class ServiceProviderOnboardingService
             return;
         }
 
-        $user->forceFill(['phone_verified_at' => now()])->save();
+        // TCK-589 — le seul écrivain de `phone_verified_at` : 409 `phone_taken`
+        // si un autre compte a déjà vérifié ce numéro (la transaction se défait).
+        $this->phoneVerification->markVerified($user, (string) $user->phone);
 
         activity('Onboarding')
             ->causedBy($user)

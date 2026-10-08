@@ -461,6 +461,48 @@
         "fileFooter": "Each code can only be used once."
       }
     },
+    "twoFactorGate": {
+      "requiredTitle": "Turn on two-factor authentication",
+      "requiredBody": "This action touches sensitive data, so it requires a second factor on your account. Set it up now — the action will resume right after.",
+      "stepUpTitle": "Confirm it’s really you",
+      "stepUpBody": "For your security, this action needs a recent code from your authenticator app. Enter it and the action will resume.",
+      "codeLabel": "6-digit code",
+      "confirm": "Confirm",
+      "confirming": "Verifying…",
+      "cancel": "Cancel",
+      "invalidCode": "This code isn’t valid. Check your phone’s clock, then try again.",
+      "failed": "Verification didn’t go through. Please try again in a moment.",
+      "sessionClosed": "Too many invalid codes: this session has been closed. Please sign in again.",
+      "reconfigureTitle": "Set up two-factor authentication again",
+      "reconfigureBody": "Support has reset your second factor. Set up a new one to get back to your workspace.",
+      "superAdminTitle": "Two-factor authentication is required",
+      "superAdminBody": "The platform console is only available with a second factor. Set it up to continue."
+    },
+    "phoneLogin": {
+      "loginTitle": "Sign in with your phone number",
+      "loginSubtitle": "We’ll text you a code — no password to remember.",
+      "registerTitle": "Create your account with your phone number",
+      "registerSubtitle": "A code received by text is all it takes: your account is ready as soon as it’s confirmed.",
+      "phoneLabel": "Phone number",
+      "sendCode": "Get a code",
+      "sending": "Sending…",
+      "codeSentTo": "If this number can receive text messages, a 6-digit code has just been sent to {phone}. It is valid for 5 minutes.",
+      "codeLabel": "Code received by text",
+      "verify": "Confirm",
+      "verifying": "Verifying…",
+      "resendIn": "Resend the code in {seconds} s",
+      "resend": "Resend the code",
+      "changeNumber": "Change number",
+      "useEmail": "Use an email and password instead",
+      "usePhone": "Use my phone number instead",
+      "invalidPhone": "This number isn’t valid. Check the country code and the digits.",
+      "codeInvalid": "Incorrect or expired code. Check it, or request a new one.",
+      "locked": "Too many attempts: access is paused for a few minutes. Please try again a little later.",
+      "blocked": "This account is suspended. Contact support to find out more.",
+      "tooMany": "Too many requests in a short time. Please wait a moment before trying again.",
+      "failed": "Something went wrong. Please try again in a moment.",
+      "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>."
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Sign in — Takussan"
@@ -864,6 +906,7 @@
       },
       "cancel": "Cancel",
       "signIn": "Sign in",
+      "createAccount": "Create an account",
       "sending": "Sending…",
       "booking": {
         "description": "Give your dates and the number of guests. The owner will confirm your request.",
@@ -4080,11 +4123,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4205,11 +4246,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4264,22 +4303,9 @@
         "welcome": {
           "title": "Welcome to the team",
           "subtitle": "Your scope and your first leads are ready.",
-          "roleLabel": "Assigned role",
-          "roles": {
-            "agent": "Agent",
-            "agent_senior": "Senior agent",
-            "agent_manager": "Agent manager"
-          },
-          "permissions": {
-            "list_properties": "View properties",
-            "list_customers": "View customers",
-            "create_visits": "Schedule visits",
-            "message_customers": "Message customers",
-            "edit_properties": "Edit properties",
-            "invite_owner": "Invite an owner",
-            "invite_agent": "Invite an agent",
-            "reassign_leads": "Reassign leads"
-          },
+          "capabilitiesLabel": "What you’ll be able to do in the agency",
+          "capabilitiesEmpty": "No permissions have been granted to you in this agency yet. Its administrator can grant them from team management.",
+          "capabilitiesError": "Your permissions couldn’t be loaded. You can still review them from your workspace.",
           "firstLeadLabel": "Your first lead",
           "noLead": "No pre-assigned lead yet.",
           "stageLabel": "Stage: {stage}",
@@ -4569,11 +4595,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4743,10 +4767,8 @@
             "verifying": "Verifying…",
             "sentTitle": "Code sent",
             "sentBody": "The code is valid for 5 minutes.",
-            "sentDebug": "Code sent (debug: {code}).",
             "verifiedTitle": "Phone verified",
             "verifiedBody": "You can now publish your property.",
-            "devHint": "Development code: {code}",
             "errors": {
               "sendFailed": "Could not send the code",
               "verifyFailed": "Invalid code"
@@ -5353,6 +5375,22 @@
         "title": "Agency dashboard",
         "subtitle": "Agency overview"
       },
+      "setupStatus": {
+        "title": "Agency setup",
+        "description": "What’s left for the agency to be fully up and running.",
+        "progress": "{done} of {total} steps completed",
+        "done": "Done",
+        "todo": "To do",
+        "steps": {
+          "kyc_verified": "KYC file verified",
+          "logo": "Agency logo added",
+          "commission_rate": "Commission rate set",
+          "payment_integration": "Payment method connected",
+          "first_member": "First team member invited",
+          "first_published_property": "First property published",
+          "admin_two_factor": "Administrator two-factor authentication turned on"
+        }
+      },
       "team": {
         "shortTitle": "Team",
         "shortSubtitle": "Manage the agency's members",
@@ -5554,6 +5592,12 @@
         "label": "Moderation required before publishing",
         "hint": "When this option is enabled, every new property submitted by an agent is set to “Pending validation” until an administrator approves it, before it becomes publicly visible."
       },
+      "security": {
+        "title": "Team security",
+        "description": "Rules that apply to every member of the agency.",
+        "teamTwoFactorLabel": "Require two-factor authentication for the whole team",
+        "teamTwoFactorHint": "Every member will have to set up a second factor (authenticator app) before acting in the agency’s workspace. The team’s “Two-factor” column shows who already has."
+      },
       "submit": {
         "saving": "Saving…"
       },
@@ -5606,6 +5650,10 @@
         "role": "Role",
         "status": "Status",
         "lastLogin": "Last sign-in",
+        "twoFactor": "Two-factor",
+        "twoFactorOn": "On",
+        "twoFactorOff": "Off",
+        "twoFactorUnknown": "Not reported",
         "createdAt": "Created on",
         "actions": "Actions",
         "you": "You",
@@ -7695,8 +7743,13 @@
       "saveError": "Profile update failed.",
       "saved": "Changes saved.",
       "otpSent": "Code sent by SMS. It is valid for 5 minutes.",
-      "otpSentDebug": "Code sent. (Debug: {code})",
-      "phoneVerifiedOk": "Phone verified successfully."
+      "phoneVerifiedOk": "Phone verified successfully.",
+      "changeProofPrompt": "This number is verified: to replace it, confirm that you hold it.",
+      "changeProofPasswordLabel": "Current password",
+      "changeProofOr": "or",
+      "changeProofSendCode": "Get a code on {phone}",
+      "changeProofCodeSent": "Code sent to your current number. It is valid for 5 minutes.",
+      "changeProofCodeAria": "Code received on your current number"
     },
     "searchPreferences": {
       "defaultName": "My preferences",
@@ -8906,6 +8959,22 @@
         "cancelled": {
           "title": "Booking cancelled",
           "body": "Your booking {reference} for {property} was cancelled."
+        }
+      },
+      "account": {
+        "phone_changed": {
+          "title": "Phone number replaced",
+          "body": "The verified phone number on your account was replaced. If this was not you, contact support."
+        }
+      },
+      "invitation": {
+        "received": {
+          "title": "Invitation from {agency}",
+          "body": "{agency} invites you to join its team."
+        },
+        "reminder": {
+          "title": "Reminder: invitation from {agency}",
+          "body": "Your invitation to join {agency} is waiting."
         }
       },
       "visit": {

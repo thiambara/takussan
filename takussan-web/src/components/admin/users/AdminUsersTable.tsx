@@ -233,6 +233,21 @@ export function AdminUsersTable({
       ),
     },
     {
+      // TCK-589 — l'administrateur voit qui, dans son équipe, n'a pas de second facteur.
+      id: 'twoFactor',
+      header: t('table.twoFactor'),
+      className: 'align-middle whitespace-nowrap',
+      cell: (row) =>
+        row.two_factor_enabled === undefined ? (
+          <span className="text-xs text-muted-foreground">{t('table.twoFactorUnknown')}</span>
+        ) : (
+          <StatusBadge
+            tone={row.two_factor_enabled ? 'success' : 'attention'}
+            label={row.two_factor_enabled ? t('table.twoFactorOn') : t('table.twoFactorOff')}
+          />
+        ),
+    },
+    {
       id: 'lastLogin',
       header: t('table.lastLogin'),
       sortKey: 'last_login_at',

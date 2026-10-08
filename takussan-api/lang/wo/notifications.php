@@ -315,6 +315,27 @@ return [
                 'sms' => 'Takussan : réservation :reference neenal nañu ko (:property).',
             ],
         ],
+        // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
+        'invitation' => [
+            'received' => [
+                'title' => 'Woote bu :agency',
+                'body' => ':agency dafa la woo nga bokk ci ekibam.',
+                'sms' => 'Takussan : :agency dafa la woo nga bokk ci ekibam. Nangul fii : :url',
+            ],
+            'reminder' => [
+                'title' => 'Fàttali : woote bu :agency',
+                'body' => 'Sa woote ngir bokk ci :agency ngi lay xaar.',
+                'sms' => 'Takussan : fàttali — sa woote ngir bokk ci :agency ngi lay xaar : :url',
+            ],
+        ],
+        // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
+        'account' => [
+            'phone_changed' => [
+                'title' => 'Nimero telefon bi soppi nañu ko',
+                'body' => 'Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi.',
+                'sms' => 'Takussan : nimero bii du nimero sa kont kenn. Su dul yow moo ko soppi, jokkoo ak support bi.',
+            ],
+        ],
         'visit' => [
             'reminder' => [
                 'title' => 'Fàttali seetlu : :property',

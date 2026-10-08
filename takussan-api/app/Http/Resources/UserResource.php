@@ -48,6 +48,10 @@ class UserResource extends BaseResource
             // pending super-admin onboarding state and redirect to
             // /onboarding/super-admin before serving any super-admin route.
             'force_2fa_at_first_login' => (bool) $this->force_2fa_at_first_login,
+            // TCK-589 — la 2FA a été réinitialisée par le support : toute route hors
+            // `auth/*` rend 403 `two_factor_required` jusqu'au ré-enrôlement, et le
+            // front y conduit (`/onboarding/securite`).
+            'force_2fa_reconfigure' => ($this->metadata['force_2fa_reconfigure'] ?? false) === true,
             'agency_id' => $this->agency_id,
             'roles' => $this->profileTypes()->all(),
             'status' => $this->status?->value,

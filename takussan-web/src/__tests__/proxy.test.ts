@@ -346,3 +346,17 @@ describe('la garde d’authentification est intacte', () => {
     expect(r.headers.get('location')).toBeNull();
   });
 });
+
+describe('TCK-589 — la vérification d’e-mail reste ouverte à la session que l’inscription vient d’ouvrir', () => {
+  it('/auth/verify-email avec un jeton n’est pas renvoyée vers /app, et garde son redirect', () => {
+    const reponse = proxy(requete('/auth/verify-email?redirect=%2Fproperties%2Fx', { cookies: { [AUTH_COOKIE_NAME]: 'jeton' } }));
+    expect(reponse.headers.get('location')).toBeNull();
+  });
+
+  it('les autres pages d’entrée renvoient toujours une session ouverte vers /app', () => {
+    for (const chemin of ['/auth/login', '/auth/register', '/auth/verify-email-x']) {
+      const reponse = proxy(requete(chemin, { cookies: { [AUTH_COOKIE_NAME]: 'jeton' } }));
+      expect(cheminDe(reponse.headers.get('location') ?? ''), chemin).toBe('/app');
+    }
+  });
+});

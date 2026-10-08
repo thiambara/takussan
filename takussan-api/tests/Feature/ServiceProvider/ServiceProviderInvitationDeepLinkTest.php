@@ -236,7 +236,11 @@ class ServiceProviderInvitationDeepLinkTest extends TestCase
     private function agencyWithAdmin(): array
     {
         $agency = Agency::factory()->create(['kind' => AgencyKind::Standard]);
-        $admin = User::factory()->create();
+        // TCK-589 — l'admin d'agence agit sous 2FA (`RequireTwoFactor`), comme `actingAsRole`.
+        $admin = User::factory()->create([
+            'two_factor_enabled' => true,
+            'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET,
+        ]);
         AgencyAdminProfile::query()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
 
         return [$agency, $admin];

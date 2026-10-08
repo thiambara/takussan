@@ -24,12 +24,33 @@ class AuthRegistrationTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
+        // TCK-589 (4.2, AC5) — inversé : l'inscription rend un jeton et sa fin de
+        // validité. `a4c01808` l'avait retiré (« user must verify email first »),
+        // mais aucune route n'exige `email_verified_at` : le même compte se
+        // connectait aussitôt par `/auth/login`, et le front ouvrait la session
+        // avec un jeton `undefined` qui effaçait le cookie.
         $response->assertStatus(201)
-            ->assertJsonStructure(['message', 'user'])
-            ->assertJsonMissingPath('token');
+            ->assertJsonStructure(['message', 'token', 'expires_at', 'user']);
 
         $this->assertDatabaseHas('users', ['email' => 'amine@example.com']);
         Event::assertDispatched(Registered::class);
+    }
+
+    public function test_le_jeton_rendu_par_l_inscription_ouvre_la_session(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'first_name' => 'Awa',
+            'last_name' => 'Ndiaye',
+            'email' => 'awa@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated();
+
+        $this->assertTrue(now()->addDays(29)->lt($response->json('expires_at')));
+        $this->withToken($response->json('token'))
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonFragment(['email' => 'awa@example.com']);
     }
 
     public function test_registration_fails_with_duplicate_email(): void

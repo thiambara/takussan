@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**547 tickets** — 40 ouverts, 505 livrés.
+**547 tickets** — 39 ouverts, 506 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 38 |
+| 📋 Todo | 37 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 505 |
+| ✅ Done | 506 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -60,7 +60,6 @@
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
-- [TCK-589](tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md) — Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai `XL · P1 · full`
 - [TCK-594](tickets/TCK-594-sorties-d-argent-calculees-et-validees.md) — Les sorties d'argent ne sont ni calculées, ni contrôlées, ni tracées : le brut d'un reversement se saisit à la main, une seule personne crée, approuve et paie, et la facture porte un numéro aléatoire `XL · P1 · full`
 - [TCK-595](tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md) — Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté `XL · P1 · full`
 - [TCK-596](tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) — Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce `XL · P1 · full`
@@ -86,14 +85,15 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 505
+## ✅ Done — 506
 
 <details>
-<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 7 tickets</summary>
+<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 8 tickets</summary>
 
 - [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
 - [TCK-587](tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md) — Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste `XL · P0 · full`
 - [TCK-588](tickets/TCK-588-api-sans-prose-notifications-multicanal.md) — L'API n'écrit plus de prose : une notification est un code rendu dans la langue du destinataire, part sur WhatsApp ou SMS y compris vers un contact sans compte, et une erreur métier porte un code `XL · P1 · full`
+- [TCK-589](tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md) — Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai `XL · P1 · full`
 - [TCK-590](tickets/TCK-590-contact-leads-et-visites-sans-perte.md) — Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre `XL · P0 · full`
 - [TCK-591](tickets/TCK-591-crm-agenda-agent-et-passation.md) — Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent `XL · P1 · full`
 - [TCK-592](tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md) — Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul `XL · P1 · full`

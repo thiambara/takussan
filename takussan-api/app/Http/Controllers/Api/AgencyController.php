@@ -89,7 +89,8 @@ class AgencyController extends Controller
         // TCK-593 — `settings` se FUSIONNE avec l'existant : le tableau validé remplaçait la
         // colonne, et l'écran de configuration, qui n'en envoie que trois clés, effaçait toutes les
         // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
-        // retirée, donc rendue au défaut écrit dans le code.
+        // retirée, donc rendue au défaut écrit dans le code. TCK-589 en dépend aussi : poser
+        // `require_team_two_factor` seul n'efface pas les autres réglages.
         if (array_key_exists('settings', $data)) {
             $data['settings'] = array_filter(
                 array_replace($agency->settings ?? [], $data['settings']),

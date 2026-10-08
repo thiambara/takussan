@@ -148,9 +148,11 @@ class CalendarFeedTest extends ApiTestCase
         $path = $this->issue();
         $this->get($path)->assertOk();
 
-        $root = User::factory()->create();
+        // TCK-589 (fusion) — bloquer depuis la console plateforme exige la 2FA ET un step-up.
+        $root = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
         $this->materializeRoleProfile($root, 'super_admin');
-        $this->actingAsApi($root)->apiPost("/api/users/{$this->agent->id}/block")->assertOk();
+        $this->actingAsWithStepUp($root);
+        $this->apiPost("/api/users/{$this->agent->id}/block")->assertOk();
         $this->app['auth']->forgetGuards();
 
         $this->assertNotNull(CalendarFeed::query()->where('user_id', $this->agent->id)->sole()->revoked_at);
