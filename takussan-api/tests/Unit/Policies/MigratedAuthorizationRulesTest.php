@@ -189,14 +189,22 @@ class MigratedAuthorizationRulesTest extends TestCase
 
     public function test_customer_view_admits_the_creator_and_the_agency(): void
     {
+        // TCK-591 (verif-591 M1, décision de la session) — l'auteur garde sa fiche tant qu'il est
+        // MEMBRE actif de l'agence de la fiche (ici un bailleur) ; hors de l'agence, il la perd.
         $createur = $this->quidam();
+        $this->materializeRoleProfile($createur, 'owner', $this->agency);
         $customer = Customer::factory()->create([
             'added_by_id' => $createur->id,
             'agency_id' => $this->agency->id,
         ]);
         $policy = new CustomerPolicy;
 
-        $this->assertTrue($policy->view($createur, $customer), 'celui qui l’a ajouté');
+        $this->assertTrue($policy->view($createur, $customer), 'celui qui l’a ajouté, membre de l’agence');
+        $parti = $this->quidam();
+        $this->assertFalse(
+            $policy->view($parti, Customer::factory()->create(['added_by_id' => $parti->id, 'agency_id' => $this->agency->id])),
+            'l’auteur qui n’est plus de l’agence',
+        );
         $this->assertTrue($policy->view($this->membre, $customer), "périmètre d'agence");
         $this->assertTrue($policy->view($this->superAdmin, $customer), 'super-admin');
         $this->assertFalse($policy->view($this->etranger, $customer), 'agence tierce');
@@ -422,7 +430,9 @@ class MigratedAuthorizationRulesTest extends TestCase
         $this->assertTrue($policy->attachTo($proprietaire, $property), 'Property → user_id');
 
         // Customer porte la propriété par `added_by_id`
+        // TCK-591 (verif-591 M1) — l'auteur doit être membre de l'agence de la fiche.
         $ajouteur = $this->quidam();
+        $this->materializeRoleProfile($ajouteur, 'owner', $this->autreAgence);
         $customer = Customer::factory()->create([
             'added_by_id' => $ajouteur->id,
             'agency_id' => $this->autreAgence->id,

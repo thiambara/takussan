@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
@@ -15,7 +16,9 @@ class CustomerTest extends TestCase
 
     public function test_agent_creates_customer_and_lists_own_customers(): void
     {
+        // TCK-591 — créer une fiche est un geste du personnel d'une agence : le jeu en pose une.
         $user = User::factory()->create();
+        $this->materializeRoleProfile($user, 'agent', Agency::factory()->create());
         Sanctum::actingAs($user);
 
         $this->postJson('/api/customers', [

@@ -36,6 +36,8 @@ return [
         'cannot_remove_last_admin' => 'Du ñu mën digal mujj admin bi ci agence bi.',
         'cannot_remove_primary_admin' => 'Mën nañu digal admin bu njëkk bi.',
         'not_in_agency' => 'Jàngalekat bi nekkul ci agence bi.',
+        'not_staff' => 'Ajaŋ walla njiitu ajaans bi rekk lañu mën a génne ci ekip bi ; boroom kër bokkul ci.',
+        'portfolio_not_empty' => 'Ki nga bëgg a génne am na liggéey yu mu yor : jox ko keneen, walla nangu génne ko te kenn du ko jël.',
         'user_not_found_by_email' => 'Ngemb bu email bi, jàngalekat amul.',
     ],
     'agency_role' => [
@@ -46,6 +48,12 @@ return [
         'other_agency' => 'Rôle bii ci beneen agence la bokk.',
         'platform_capability' => 'Capacité bu plateforme bi rekk: :capabilities. Benn rôle agence mënu ko yor.',
         'profile_type_mismatch' => 'Rôle bii jubluwul ci benn xeetu profil.',
+    ],
+    'agent_absence' => [
+        'overlaps' => 'Ñàkk bu jëm ci moom dafa am ba noppi walla mu ngi dox ci diir boobu.',
+    ],
+    'agent_handover' => [
+        'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
     ],
     'auth' => [
         'insufficient_privileges' => 'Sañ-sañ yi doyuñu.',
@@ -77,6 +85,7 @@ return [
         'value_not_found' => 'Valeur bi gisuñu ko.',
     ],
     'calendar' => [
+        'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
     ],
     'conversation' => [
@@ -84,6 +93,7 @@ return [
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
     ],
     'customer' => [
+        'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
     'dashboard' => [
@@ -356,6 +366,7 @@ return [
         'two_factor_already_disabled' => 'Double authentification bi fey nañu ko ba noppi.',
     ],
     'task' => [
+        'assignee_not_staff' => 'Ki nga jox liggéey bi war na doon yaw walla kenn ci liggéeykat yu ajaans bi.',
         'assignee_other_agency' => 'Ki ñu dénk liggéey bi war na bokk ci sa agence.',
     ],
     'team' => [

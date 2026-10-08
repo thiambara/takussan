@@ -9,15 +9,13 @@ import { useAuth } from '@/context/AuthContext';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Textarea } from '@/components/ui/textarea';
-import { ApiError, apiRequest, buildQueryString } from '@/lib/api';
-import {
-  createCustomerTask,
-  fetchCustomerTasks,
-  updateTask,
-} from '@/lib/queries/pipeline';
+import { ApiError } from '@/lib/api';
+import { ContactGestures } from '@/components/crm/ContactGestures';
+import { CustomerActivityFeed } from '@/components/crm/CustomerActivityFeed';
+import { CustomerTasksPanel } from '@/components/crm/CustomerTasksPanel';
+import { noteBody } from '@/components/crm/noteBody';
+import { fetchCustomerTasks } from '@/lib/queries/pipeline';
 import {
   createCustomerNote,
   fetchCustomerNotes,
@@ -25,40 +23,11 @@ import {
 } from '@/lib/queries/customers';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import type { Locale } from '@/i18n/config';
-import { formatDate, formatDateTime } from '@/lib/format';
-import type { Task } from '@/types/pipeline';
+import { formatDateTime } from '@/lib/format';
 
 interface CustomerDetailSheetProps {
   customerId: number;
   onOpenChange: (open: boolean) => void;
-}
-
-interface ActivityRow {
-  id: number;
-  description: string;
-  log_name?: string;
-  created_at: string;
-  causer?: { id: number; name?: string } | null;
-  changes?: { attributes?: Record<string, unknown>; old?: Record<string, unknown> } | null;
-}
-
-async function fetchCustomerActivity(token: string, customerId: number): Promise<ActivityRow[]> {
-  // Audit log endpoint already exposed in TCK-079 era — query scoped to
-  // subject. This intentionally degrades to [] on 404 so the tab still
-  // renders for environments where the audit endpoint isn't enabled.
-  const qs = buildQueryString({
-    filter: { subject_type: 'App\\Models\\Customer', subject_id: customerId },
-    sort: '-created_at',
-    per_page: 30,
-  });
-  try {
-    const res = await apiRequest<{ data: ActivityRow[] }>(`/api/audit-log${qs ? `?${qs}` : ''}`, {
-      token,
-    });
-    return res.data ?? [];
-  } catch {
-    return [];
-  }
 }
 
 export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetailSheetProps) {
@@ -85,12 +54,6 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     enabled: !!token && (tab === 'tasks' || tab === 'overview'),
   });
 
-  const activityQuery = useQuery({
-    queryKey: ['customer', customerId, 'activity'],
-    queryFn: () => (token ? fetchCustomerActivity(token, customerId) : Promise.resolve([])),
-    enabled: !!token && tab === 'activity',
-  });
-
   const noteMutation = useMutation<unknown, ApiError, string>({
     mutationFn: async (body) => {
       if (!token) throw new ApiError(401, { message: 'unauth' });
@@ -98,34 +61,6 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerNotes(customerId) });
-    },
-  });
-
-  const taskMutation = useMutation<Task, ApiError, { title: string; due_at?: string }>({
-    mutationFn: async (payload) => {
-      if (!token) throw new ApiError(401, { message: 'unauth' });
-      return createCustomerTask(token, customerId, payload);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId),
-      });
-    },
-  });
-
-  const taskStatusMutation = useMutation<
-    Task,
-    ApiError,
-    { id: number; status: 'open' | 'in_progress' | 'done' | 'cancelled' }
-  >({
-    mutationFn: async ({ id, status }) => {
-      if (!token) throw new ApiError(401, { message: 'unauth' });
-      return updateTask(token, id, { status });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: PIPELINE_QUERY_KEY.customerTasks(customerId),
-      });
     },
   });
 
@@ -172,6 +107,11 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
                 <Loading />
               ) : customer ? (
                 <dl className="space-y-3 text-sm">
+                  <ContactGestures
+                    phone={customer.phone}
+                    firstName={customer.first_name}
+                    fullName={`${customer.first_name} ${customer.last_name}`}
+                  />
                   <Field label={t('fields.phone')} value={customer.phone} />
                   <Field label={t('fields.email')} value={customer.email} />
                   <Field label={t('fields.occupation')} value={customer.occupation} />
@@ -196,22 +136,12 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
             </TabsContent>
 
             <TabsContent value="tasks">
-              <TasksTab
-                tasks={tasksQuery.data ?? []}
-                isLoading={tasksQuery.isLoading}
-                onAdd={(payload) => taskMutation.mutate(payload)}
-                isAdding={taskMutation.isPending}
-                onToggleStatus={(task) =>
-                  taskStatusMutation.mutate({
-                    id: task.id,
-                    status: task.status === 'done' ? 'open' : 'done',
-                  })
-                }
-              />
+              <CustomerTasksPanel customerId={customerId} />
             </TabsContent>
 
             <TabsContent value="activity">
-              <ActivityTab rows={activityQuery.data ?? []} isLoading={activityQuery.isLoading} />
+              {/* TCK-591 — le journal de la fiche, plus `/api/audit-log` (403 avalé en liste vide). */}
+              {tab === 'activity' ? <CustomerActivityFeed customerId={customerId} /> : null}
             </TabsContent>
           </div>
         </Tabs>
@@ -243,7 +173,7 @@ function Empty() {
 }
 
 interface NotesTabProps {
-  notes: Array<{ id: number; body: string; pinned: boolean; created_at: string }>;
+  notes: Array<{ id: number; body: string; pinned: boolean; created_at: string; kind?: string | null }>;
   isLoading: boolean;
   onAdd: (body: string) => void;
   isAdding: boolean;
@@ -251,6 +181,7 @@ interface NotesTabProps {
 
 function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
   const t = useTranslations('crm.pipeline');
+  const tNotes = useTranslations('agentCrm.notes');
   const locale = useLocale() as Locale;
   const [body, setBody] = useState('');
 
@@ -292,7 +223,7 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
                   {t('notes.pinned')}
                 </span>
               ) : null}
-              <p className="whitespace-pre-wrap text-foreground">{n.body}</p>
+              <p className="whitespace-pre-wrap text-foreground">{noteBody(n, tNotes)}</p>
               <time className="mt-1 block text-xs tabular-nums text-muted-foreground">
                 {formatDateTime(n.created_at, locale)}
               </time>
@@ -301,111 +232,5 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
         </ul>
       )}
     </div>
-  );
-}
-
-interface TasksTabProps {
-  tasks: Task[];
-  isLoading: boolean;
-  onAdd: (payload: { title: string; due_at?: string }) => void;
-  isAdding: boolean;
-  onToggleStatus: (task: Task) => void;
-}
-
-function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTabProps) {
-  const t = useTranslations('crm.pipeline');
-  const locale = useLocale() as Locale;
-  const [title, setTitle] = useState('');
-  const [due, setDue] = useState('');
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t('tasks.titlePlaceholder')}
-        />
-        <DateTimePicker
-          value={due}
-          onValueChange={setDue}
-        />
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            disabled={title.trim().length === 0 || isAdding}
-            onClick={() => {
-              onAdd({
-                title: title.trim(),
-                due_at: due ? new Date(due).toISOString() : undefined,
-              });
-              setTitle('');
-              setDue('');
-            }}
-          >
-            {t('tasks.add')}
-          </Button>
-        </div>
-      </div>
-      {isLoading ? (
-        <Loading />
-      ) : tasks.length === 0 ? (
-        <Empty />
-      ) : (
-        <ul className="space-y-2">
-          {tasks.map((task) => (
-            <li
-              key={task.id}
-              className="flex items-start gap-3 rounded-lg border border-muted bg-card p-3 text-sm"
-            >
-              <input
-                type="checkbox"
-                className="mt-0.5 size-5 shrink-0 cursor-pointer accent-primary"
-                checked={task.status === 'done'}
-                onChange={() => onToggleStatus(task)}
-                aria-label={t('tasks.toggle')}
-              />
-              <div className="min-w-0 flex-1">
-                <p
-                  className={
-                    task.status === 'done'
-                      ? 'text-muted-foreground line-through'
-                      : 'text-foreground'
-                  }
-                >
-                  {task.title}
-                </p>
-                {task.due_at ? (
-                  <time className="block text-xs tabular-nums text-muted-foreground">
-                    {formatDate(task.due_at, locale, { dateStyle: 'long' })}
-                  </time>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function ActivityTab({ rows, isLoading }: { rows: ActivityRow[]; isLoading: boolean }) {
-  const locale = useLocale() as Locale;
-  if (isLoading) return <Loading />;
-  if (rows.length === 0) return <Empty />;
-  return (
-    <ul className="space-y-2">
-      {rows.map((r) => (
-        <li
-          key={r.id}
-          className="rounded-lg border border-muted bg-card p-3 text-sm"
-        >
-          <p className="text-foreground">{r.description}</p>
-          <time className="block text-xs tabular-nums text-muted-foreground">
-            {formatDateTime(r.created_at, locale)}
-          </time>
-        </li>
-      ))}
-    </ul>
   );
 }

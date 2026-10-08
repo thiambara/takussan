@@ -541,6 +541,13 @@ return [
                 'sms' => 'Takussan : Votre accord est requis : :request',
             ],
         ],
+        'prospect_match' => [
+            'digest' => [
+                'title' => 'Des biens correspondent à vos prospects',
+                'body' => ':properties bien(s) récent(s) ou dont le prix a changé correspondent à :prospects de vos prospects.',
+                'sms' => 'Takussan : :properties bien(s) correspondent à :prospects de vos prospects.',
+            ],
+        ],
         'property' => [
             'approved' => [
                 'title' => 'Bien approuvé : :property',

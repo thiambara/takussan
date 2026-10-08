@@ -521,6 +521,13 @@ return [
                 'sms' => 'Takussan : Sa ndigal la ñuy xaar : :request',
             ],
         ],
+        'prospect_match' => [
+            'digest' => [
+                'title' => 'Ay kër dëppoo nañu ak say kiliyaan',
+                'body' => ':properties kër yu bees walla yu seen njëg soppiku dëppoo nañu ak :prospects ci say kiliyaan.',
+                'sms' => 'Takussan : :properties kër dëppoo nañu ak :prospects ci say kiliyaan.',
+            ],
+        ],
         'property' => [
             'approved' => [
                 'title' => 'Yégle bi nangu nañu ko : :property',

@@ -2367,6 +2367,306 @@
       "filterAria": "See customers tagged {tag}"
     }
   },
+  "agentCrm": {
+    "contact": {
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "callAria": "Call {name}",
+      "whatsappAria": "Message {name} on WhatsApp",
+      "whatsappMessage": "Hello {firstName}, this is your Takussan agent.",
+      "noPhone": "No phone number on file.",
+      "unreachable": "Number not reachable as saved: {phone}"
+    },
+    "notes": {
+      "kind": {
+        "loss": "Lost: {reason}",
+        "conversion": "Converted: {reason}"
+      }
+    },
+    "activity": {
+      "loadFailed": "This customer's activity could not be loaded.",
+      "retry": "Retry",
+      "empty": "No activity yet.",
+      "loadMore": "Show more",
+      "someone": "Someone",
+      "customer": {
+        "created": "{actor} created the record",
+        "deleted": "{actor} deleted the record",
+        "restored": "{actor} restored the record",
+        "stage": "{actor} moved the customer from “{from}” to “{to}”",
+        "fields": "{actor} changed: {fields}",
+        "updated": "{actor} updated the record"
+      },
+      "note": {
+        "created": "{actor} added a note",
+        "deleted": "{actor} deleted a note",
+        "pinned": "{actor} pinned a note",
+        "updated": "{actor} edited a note"
+      },
+      "task": {
+        "created": "{actor} created the task “{title}”",
+        "done": "{actor} completed the task “{title}”",
+        "deleted": "{actor} deleted the task “{title}”",
+        "updated": "{actor} updated the task “{title}”"
+      },
+      "generic": "{actor} updated the record",
+      "fields": {
+        "first_name": "first name",
+        "last_name": "last name",
+        "email": "email",
+        "phone": "phone",
+        "occupation": "occupation",
+        "emergency_contact_name": "emergency contact",
+        "emergency_contact_phone": "emergency phone",
+        "status": "status",
+        "pipeline_stage": "stage"
+      }
+    },
+    "form": {
+      "duplicate": {
+        "title": "This customer seems to exist already in the agency.",
+        "hidden": "A record you cannot open",
+        "matchedOn": {
+          "phone": "same phone",
+          "email": "same email"
+        },
+        "open": "Open their record",
+        "createAnyway": "Create anyway",
+        "saveAnyway": "Save anyway"
+      },
+      "criteria": {
+        "title": "What the prospect is looking for",
+        "contractType": "Buy or rent",
+        "any": "Either",
+        "minBedrooms": "Bedrooms (minimum)",
+        "budgetMin": "Minimum budget (FCFA)",
+        "budgetMax": "Maximum budget (FCFA)",
+        "propertyTypes": "Property types",
+        "cities": "Cities",
+        "citiesPlaceholder": "Dakar, Thiès",
+        "neighborhoods": "Neighbourhoods",
+        "neighborhoodsPlaceholder": "Almadies, Mermoz",
+        "help": "Separate cities and neighbourhoods with commas. An empty field clears the criterion."
+      }
+    },
+    "tabs": {
+      "tasks": "Tasks",
+      "activity": "Activity",
+      "visits": "Viewings",
+      "bookings": "Bookings",
+      "leases": "Leases",
+      "matches": "Matching properties"
+    },
+    "tasks": {
+      "loadFailed": "This customer's tasks could not be loaded.",
+      "retry": "Retry",
+      "empty": "No tasks for this customer.",
+      "toggle": "Mark “{title}” as done",
+      "saveFailed": "The task could not be saved."
+    },
+    "linked": {
+      "loadFailed": "This list could not be loaded.",
+      "retry": "Retry",
+      "empty": {
+        "visits": "No viewings for this customer.",
+        "bookings": "No bookings for this customer.",
+        "leases": "No leases for this customer."
+      },
+      "untitled": "Untitled",
+      "unknownStatus": "Other status"
+    },
+    "matches": {
+      "loadFailed": "Matching properties could not be loaded.",
+      "retry": "Retry",
+      "empty": "No agency property matches yet.",
+      "emptyHint": "Fill in what the prospect is looking for in the overview: budget, property type, city.",
+      "count": "{count, plural, one {# property matches} other {# properties match}} the criteria.",
+      "select": "Pick “{title}” to send",
+      "notShareable": "“{title}” is not public: it cannot be sent",
+      "private": "not public",
+      "shareIntro": "Hello {firstName}, here are properties that match your search:",
+      "share": "{count, plural, =0 {Pick properties to send} one {Send # property on WhatsApp} other {Send # properties on WhatsApp}}",
+      "noWhatsapp": "Without a reachable number, the selection cannot be sent on WhatsApp."
+    },
+    "referent": {
+      "title": "Account owner",
+      "someone": "An agency member",
+      "none": "No account owner yet.",
+      "me": "Assign to me",
+      "pick": "Pick an agent",
+      "designate": "Assign",
+      "failed": "The account owner could not be assigned."
+    },
+    "pipeline": {
+      "stageSelect": "Stage of {name}",
+      "loadMore": "Load more ({shown} of {total})",
+      "dnd": {
+        "instructions": "To move a card, press Space, change column with the arrow keys, then press Space to drop it or Escape to cancel. Enter opens the record.",
+        "start": "Picked up {name}.",
+        "over": "{name} is over the {stage} stage.",
+        "overNone": "{name} is not over any stage.",
+        "end": "{name} dropped in the {stage} stage.",
+        "endNone": "{name} put back in place.",
+        "cancel": "Moving {name} was cancelled."
+      },
+      "stageFailed": "The stage could not be changed."
+    },
+    "myTasks": {
+      "metaTitle": "My tasks",
+      "title": "My tasks",
+      "description": "What you have to do, customer by customer and property by property.",
+      "filterLabel": "Due date",
+      "filter": {
+        "all": "All",
+        "overdue": "Overdue",
+        "today": "Today",
+        "upcoming": "Upcoming",
+        "none": "No due date"
+      },
+      "empty": {
+        "all": "No tasks.",
+        "overdue": "No overdue tasks.",
+        "today": "Nothing planned today.",
+        "upcoming": "No upcoming tasks.",
+        "none": "No tasks without a due date."
+      },
+      "loadFailed": "Your tasks could not be loaded.",
+      "retry": "Retry",
+      "loadMore": "Show more",
+      "toggle": "Mark “{title}” as done",
+      "toggleFailed": "The task could not be updated.",
+      "noDue": "No due date",
+      "hidden": {
+        "customer": "A customer",
+        "property": "A property"
+      },
+      "create": {
+        "title": "New task",
+        "taskTitle": "What needs doing?",
+        "attachTo": "Attach to",
+        "type": {
+          "customer": "A customer",
+          "property": "A property"
+        },
+        "search": {
+          "customer": "Search a customer by name",
+          "property": "Search a property by title"
+        },
+        "change": "Change",
+        "submit": "Create task",
+        "failed": "The task could not be created."
+      }
+    },
+    "calendar": {
+      "mine": "My appointments",
+      "types": {
+        "task": "Tasks",
+        "lease_event": "Lease dates",
+        "maintenance": "Maintenance"
+      },
+      "eventType": {
+        "task": "Task",
+        "lease_event": "Lease date",
+        "maintenance": "Maintenance job"
+      },
+      "helper": {
+        "task": "Your tasks, on their due date",
+        "lease_event": "Lease ends and renewals",
+        "maintenance": "Scheduled maintenance jobs"
+      },
+      "leaseKind": {
+        "end": "Lease end",
+        "renewal": "Renewal"
+      },
+      "open": {
+        "task": "See my tasks",
+        "maintenance": "Open the job"
+      },
+      "feed": {
+        "title": "Subscribe from another calendar",
+        "intro": "Your appointments in Google Calendar or your phone's calendar, kept up to date. The link is personal: do not share it.",
+        "onceOnly": "Copy this link now: it will not be shown again.",
+        "linkLabel": "Subscription link",
+        "copy": "Copy",
+        "copied": "Copied",
+        "google": "Add to Google Calendar",
+        "apple": "Add to phone calendar",
+        "activeSince": "A link has been active since {date}.",
+        "lastAccess": "Last read: {date}.",
+        "create": "Create a subscription link",
+        "rotate": "Generate a new link",
+        "rotateHint": "Generating a new link turns the old one off.",
+        "revoke": "Turn the link off",
+        "failed": "That did not work."
+      }
+    },
+    "bulk": {
+      "summary": {
+        "archive": "{updated, plural, =0 {No property archived} one {# property archived} other {# properties archived}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}",
+        "unpublish": "{updated, plural, =0 {No property unpublished} one {# property unpublished} other {# properties unpublished}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}"
+      },
+      "failure": "{title}: {reason}",
+      "reason": {
+        "not_found": "not found",
+        "forbidden": "you are not allowed to change it",
+        "unchanged": "already in that state",
+        "already_archived": "already archived",
+        "invalid_target": "the target is not active staff of the agency",
+        "invalid_status": "it is neither available nor published: nothing to unpublish",
+        "other": "refused"
+      }
+    },
+    "handover": {
+      "title": "Remove {name} from the agency",
+      "intro": "What {name} still holds must be taken over by someone, or knowingly left unassigned.",
+      "emptyPortfolio": "Their portfolio is empty: removing them leaves nothing pending.",
+      "loadFailed": "Could not load their portfolio.",
+      "category": {
+        "tasks": "Open tasks",
+        "visits": "Upcoming visits",
+        "maintenance": "Ongoing maintenance",
+        "collaborations": "Property collaborations",
+        "customers": "Customers they are the lead contact for",
+        "held_properties": "Held properties"
+      },
+      "notTransferable": "not transferable yet",
+      "successor": "Successor",
+      "noSuccessor": "None — remove without handover",
+      "leaveAll": "I remove this member and leave their portfolio unassigned.",
+      "leavePending": "{count, plural, one {# item cannot be transferred yet and will stay unassigned.} other {# items cannot be transferred yet and will stay unassigned.}}",
+      "next": "Review",
+      "back": "Back",
+      "cancel": "Cancel",
+      "reviewIntro": "{successor} will take over what {name} holds, then {name} will be removed from the agency:",
+      "reviewLine": "{count} × {category}",
+      "reviewPending": "{count, plural, one {# item will stay unassigned.} other {# items will stay unassigned.}}",
+      "confirm": "Transfer and remove",
+      "removeOnly": "Remove from agency",
+      "failed": "The removal did not go through."
+    },
+    "absences": {
+      "title": "Absences and cover",
+      "declare": "Declare an absence",
+      "none": "No current absence.",
+      "loadFailed": "Could not load absences.",
+      "row": "{absent} is covered by {substitute} until {until}",
+      "revoke": "End",
+      "absent": "Who is away",
+      "me": "Me",
+      "substitute": "Covered by",
+      "chooseSubstitute": "Choose a colleague",
+      "until": "Until",
+      "reason": "Reason (optional)",
+      "submit": "Declare",
+      "cancel": "Cancel",
+      "declareFailed": "The absence could not be declared."
+    },
+    "propertyMatches": {
+      "count": "{count, plural, one {# prospect matches} other {# prospects match}}",
+      "hidden": "A prospect followed by a colleague",
+      "more": "{count, plural, one {and # more} other {and # more}}"
+    }
+  },
   "account": {
     "deletion": {
       "section": {
@@ -7858,6 +8158,12 @@
     }
   },
   "validation": {
+    "agentCrm": {
+      "criteriaInvalid": "Unrecognised value.",
+      "budgetInvalid": "Enter an amount in figures.",
+      "budgetRange": "The maximum budget must be greater than or equal to the minimum.",
+      "bedroomsInvalid": "Enter a number between 0 and 50."
+    },
     "common": {
       "required": "This field is required.",
       "emailRequired": "The email address is required.",
@@ -8606,6 +8912,12 @@
         "awaiting_owner": {
           "title": "Your approval is required: {request}",
           "body": "A quote of {amount} for \"{request}\" exceeds the works ceiling agreed with your agency. Approve or reject it."
+        }
+      },
+      "prospect_match": {
+        "digest": {
+          "title": "Properties match your prospects",
+          "body": "{properties} new or repriced property(ies) match {prospects} of your prospects."
         }
       },
       "property": {

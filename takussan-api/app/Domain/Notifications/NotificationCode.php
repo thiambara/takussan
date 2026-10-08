@@ -97,6 +97,10 @@ enum NotificationCode: string
     case MaintenanceStepInProgressScheduled = 'maintenance.step_in_progress_scheduled';
     case MaintenanceQuoteAwaitingOwner = 'maintenance_quote.awaiting_owner';
 
+    // ─── CRM ───────────────────────────────────────────────────────────────────────────
+    /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
+    case ProspectMatchDigest = 'prospect_match.digest';
+
     // ─── Modération des biens (envoyés par leurs classes Notification) ──────────────────
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
@@ -135,7 +139,8 @@ enum NotificationCode: string
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
-            self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PropertyApproved, self::PropertyRejected,
+            self::ProspectMatchDigest => NotificationType::System,
         };
     }
 
@@ -163,7 +168,7 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
         };
@@ -216,6 +221,7 @@ enum NotificationCode: string
             self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
 

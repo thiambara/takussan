@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { KanbanSquare, UserPlus } from 'lucide-react';
 
+import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
+import { isAdmin, isAgent } from '@/lib/roles';
 import {
   fetchCrmTags,
   fetchDashboardCustomers,
@@ -60,6 +62,12 @@ export default async function Page({
     tags: asString(params.tags),
   };
 
+  // TCK-591 §9 — créer un client et travailler le pipeline sont des gestes du PERSONNEL : l'API
+  // refuse `POST /customers` à un bailleur (`CustomerPolicy::create`), l'écran ne le propose plus.
+  // Ses fiches existantes restent lisibles. `getMeAction` est mémoïsé : le layout l'a déjà appelé.
+  const { roles } = await getMeAction();
+  const staff = isAgent(roles) || isAdmin(roles);
+
   const [response, crmTags] = await Promise.all([
     fetchDashboardCustomers(token, { page, perPage: 20, filters }),
     fetchCrmTags(token).catch(() => []),
@@ -70,7 +78,7 @@ export default async function Page({
       <PageHeader
         title={t('title')}
         description={t('subtitle')}
-        actions={(
+        actions={staff ? (
           <>
             {/*
               TCK-379 — `/app/crm/pipeline` n'avait AUCUN lien entrant : le kanban existait, avec
@@ -99,12 +107,12 @@ export default async function Page({
               {t('add')}
             </Link>
           </>
-        )}
+        ) : undefined}
       />
 
       <CustomerListFilters crmTags={crmTags} />
 
-      <CustomerList page={response} />
+      <CustomerList page={response} canAdd={staff} />
 
       <PropertyPagination meta={response.meta} />
     </div>

@@ -1,5 +1,5 @@
 import { getMeAction } from '@/app/actions/auth';
-import { assertCanReachAgentArea } from '@/lib/auth/guards';
+import { assertCanReachCalendar } from '@/lib/auth/guards';
 
 /**
  * TCK-426 — LA GARDE VIT DANS LE LAYOUT, ET C'EST LA SEULE PLACE OÙ ELLE GARDE VRAIMENT.
@@ -35,7 +35,7 @@ import { assertCanReachAgentArea } from '@/lib/auth/guards';
  * (`cache()` de React), donc la page qui les rappelle partage la promesse du layout.
  */
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  // L'agenda est une surface partagée agence + bailleur.
-  assertCanReachAgentArea((await getMeAction()).roles);
+  // L'agenda est une surface partagée agence + bailleur + prestataire (TCK-591).
+  assertCanReachCalendar((await getMeAction()).roles);
   return <>{children}</>;
 }

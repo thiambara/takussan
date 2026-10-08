@@ -8,6 +8,7 @@ use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\RoleDelegation;
 use App\Models\User;
@@ -467,6 +468,54 @@ class MembershipCapabilityResolver
             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
             ->active()
             ->exists();
+    }
+
+    /**
+     * TCK-591 (verif-591 B1) — toutes les agences où l'utilisateur est PERSONNEL, au sens de
+     * {@see self::isStaffAt()} : la forme SQL du même prédicat, pour borner une liste (tâches,
+     * agenda) là où `isStaffAt()` juge une ligne.
+     *
+     * @return list<int>
+     */
+    public function staffAgencyIds(User $user): array
+    {
+        $ids = collect();
+        foreach ([AgencyRoleBaseType::Agent, AgencyRoleBaseType::AgencyAdmin] as $type) {
+            $class = $type->profileClass();
+            if ($class !== null) {
+                $ids = $ids->merge($class::query()->where('user_id', $user->id)->active()->pluck('agency_id'));
+            }
+        }
+        $ids = $ids->merge(RoleDelegation::query()
+            ->where('user_id', $user->id)
+            ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+            ->active()
+            ->pluck('agency_id'));
+
+        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * TCK-591 (verif-591 M1) — l'utilisateur est-il MEMBRE actif de cette agence : personnel
+     * ({@see self::isStaffAt()}) ou bailleur à profil actif. C'est la condition de la clause
+     * « auteur » : on garde ce qu'on a ajouté tant qu'on est de l'agence, pas au-delà.
+     */
+    public function isMemberAt(User $user, int $agencyId): bool
+    {
+        return $this->isStaffAt($user, $agencyId)
+            || OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agencyId)->active()->exists();
+    }
+
+    /**
+     * Forme SQL de {@see self::isMemberAt()}.
+     *
+     * @return list<int>
+     */
+    public function memberAgencyIds(User $user): array
+    {
+        return collect($this->staffAgencyIds($user))
+            ->merge(OwnerProfile::query()->where('user_id', $user->id)->active()->pluck('agency_id'))
+            ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
     /**

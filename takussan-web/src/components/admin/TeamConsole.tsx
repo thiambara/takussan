@@ -14,12 +14,12 @@ import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
 import { AdminUsersTable } from '@/components/admin/users/AdminUsersTable';
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
-import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
+import { HandoverWizard } from '@/components/crm/HandoverWizard';
+import { AgentAbsencesSection } from '@/components/crm/AgentAbsencesSection';
 import { ConfirmSuspendDialog } from '@/components/admin/ConfirmSuspendDialog';
 import { suspensionOffer } from '@/components/admin/users/team-suspension';
 import { PendingInvitationsSection } from '@/components/admin/PendingInvitationsSection';
 import { fetchAdminUsers } from '@/lib/queries/admin-users';
-import { removeAgencyMember } from '@/lib/queries/agency-members';
 import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
@@ -223,18 +223,6 @@ export function TeamConsole({
     },
   });
 
-  const removeMutation = useMutation({
-    mutationFn: (userId: number) => removeAgencyMember(agencyId, userId, token ?? ''),
-    onSuccess: () => {
-      setActionError(null);
-      setRemoving(null);
-      setDrawerUser(null);
-      invalidateList();
-    },
-    onError: (err) =>
-      setActionError(messageErreur(err, tConsole('genericError'))),
-  });
-
   const setTab = useCallback(
     (next: string) => {
       const value = (TAB_VALUES as readonly string[]).includes(next)
@@ -269,6 +257,8 @@ export function TeamConsole({
           </TabsList>
         </div>
       </Tabs>
+
+      <AgentAbsencesSection agencyId={agencyId} currentUserId={currentUserId} />
 
       <AdminUsersFilters hideRoleFilter />
 
@@ -337,7 +327,7 @@ export function TeamConsole({
         onSuspension={(member, action) => setSuspending({ member, action })}
         onOpenChange={(open) => !open && setDrawerUser(null)}
         onRemove={(u) => setRemoving(u)}
-        isRemoving={removeMutation.isPending}
+        isRemoving={removing !== null}
       />
 
       <InviteMemberDialog
@@ -354,11 +344,17 @@ export function TeamConsole({
         isPending={suspensionMutation.isPending}
       />
 
-      <ConfirmRemoveDialog
+      {/* TCK-591 §8 — « Retirer » ouvre la passation du portefeuille, puis retire. */}
+      <HandoverWizard
+        agencyId={agencyId}
         member={removing}
-        onCancel={() => setRemoving(null)}
-        onConfirm={(member) => removeMutation.mutate(member.id)}
-        isPending={removeMutation.isPending}
+        onClose={() => setRemoving(null)}
+        onDone={() => {
+          setActionError(null);
+          setRemoving(null);
+          setDrawerUser(null);
+          invalidateList();
+        }}
       />
     </div>
   );

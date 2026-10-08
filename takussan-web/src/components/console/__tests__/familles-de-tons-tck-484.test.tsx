@@ -205,7 +205,7 @@ function couleursDuBadge(tone: StatusTone): { aplat: string; encre: string } {
 describe('TCK-484 — les tons des familles hors DS, sur leurs propres surfaces', () => {
   it('mesure les trois familles CONSERVÉES et les deux ABSORBÉES, dans les deux thèmes', () => {
     // ── 1. Calendrier — une couleur par TYPE, plus l'état « en attente » qui écrase le type.
-    for (const type of ['booking', 'visit', 'lease'] as CalendarEventType[]) {
+    for (const type of ['booking', 'visit', 'lease', 'task', 'lease_event', 'maintenance'] as CalendarEventType[]) {
       mesurer('calendar/event-colors.ts', type, paletteForType(type).pill, SURFACES_CALENDRIER);
     }
     mesurer('calendar/event-colors.ts', 'en attente', paletteEnAttente().pill, SURFACES_CALENDRIER);

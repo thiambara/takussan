@@ -25,6 +25,7 @@ import type { Locale } from '@/i18n/config';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
+import { isAgencyStaffRow } from './isAgencyStaffRow';
 
 /**
  * TCK-292 — la donnée ne porte plus que ce qu'elle sait : le TON du badge.
@@ -288,7 +289,7 @@ export function AdminUsersTable({
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {onRemove ? (
+              {onRemove && isAgencyStaffRow(row, assignmentsByUser?.get(row.id)) ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
