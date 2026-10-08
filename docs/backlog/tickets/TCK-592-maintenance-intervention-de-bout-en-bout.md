@@ -461,6 +461,12 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - [x] N9 — la remise à zéro archive et vide `actual_cost` ; la fin des travaux rejuge le coût inscrit
 - [x] N10 — montants bornés à la colonne `decimal(14,2)` ; total de devis au-delà → 422 codé
 
+### Ajouté après la passe 4 (verif-592 passe 4, 2026-10-08)
+
+- [x] N11 — l'accord du bailleur sur le coût s'efface au changement de prestataire et au retrait du coût
+- [x] N12 — la borne de la colonne se juge après l'arrondi à l'unité → 422 `maintenance.amount_too_large`
+- [x] Fusion de 591 — l'agenda ne sert une intervention assignée que là où la policy la laisse
+
 
 ## Critères d'acceptation
 
@@ -654,6 +660,24 @@ Chaque AC est rouge sur `9dd28f16` (fichiers de production remis à cette versio
       (`actual_cost`, `cost`) : 422 de validation ; la borne 999 999 999 999 s'écrit ; un devis de
       100 000 × 1 000 000 000 : 422 `maintenance.quote_amount_too_large`, rien d'écrit
       (q04b à q04d). Ablations N10a à N10e : 1 rouge chacune.
+
+### Ajoutés après la passe 4 (verif-592 passe 4)
+
+AC42 et AC43 sont rouges sur `d078a634`, AC44 sur la fusion `0dd73fed` (fichiers de production
+remis à cette version, restaurés par `cp`), et chacun à ses ablations (md5 contrôlé). Détail dans
+les Notes, section « Passe 4 ».
+
+- [x] **AC42 (N11)** — Le bailleur inscrit 200 000, l'agent vide le coût, puis la demande change de
+      prestataire (réassignation, fin de collaboration) : la trace `owner_agreed_actual_cost` a
+      disparu, et l'agent qui inscrit 200 000 pour B reçoit 422 (r01). Un coût retiré au `PATCH`
+      (`actual_cost: null`) efface aussi la trace. Ablations N11a et N11b : 1 rouge chacune.
+- [x] **AC43 (N12)** — `999999999999.99` au `PATCH` et au `PUT`, `999999999999.5` à `complete` (par
+      `actual_cost` comme par `cost`) : 422 `maintenance.amount_too_large`, rien d'écrit (r02a à
+      r02c). Témoin : `999999999999.49` s'écrit `999999999999.00`. Ablation N12a : 1 rouge.
+- [x] **AC44 (fusion de 591)** — Prestataire dont la collaboration avec l'agence du bien est en
+      pause : l'intervention qui lui reste assignée n'est servie ni par `GET /api/calendar` ni par
+      son lien iCalendar ; reprise de la collaboration → elle revient. Ablation (prestataire non
+      borné) : 1 rouge.
 
 ## Hors périmètre
 
@@ -1281,3 +1305,44 @@ Un commit par point, rouge sur `9dd28f16` et à ses ablations (`abl-n8.sh`, `abl
   ont été retirées.
 - **v06 et p12** restent rouges par construction (arrondi de N5), comme l'a noté la session.
 
+### Passe 4 — corrections (verif-592 passe 4 : REFUSÉ, 0 bloquant, 1 majeur, 1 mineur)
+
+Un commit par point, rouge sur `d078a634` et à ses ablations (`abl-n11.sh`, `abl-n12.sh`,
+restauration par `cp`, md5 identique avant et après).
+
+- **N11 (2ffab960).**
+  - `OwnerApprovalThreshold::forgetOwnerCost()` efface la trace `owner_agreed_actual_cost`.
+  - `resetQuoteOfPreviousProvider()` l'appelle AVANT son retour anticipé : une demande dont le
+    coût a été vidé n'a plus de devis à archiver, et la trace survivait au changement de
+    prestataire.
+  - Le `PATCH` qui retire le coût (`actual_cost: null`) l'appelle aussi.
+- **N12 (0e191739).**
+  - `CurrencyUnit::cost()` juge la borne `MAX_COLUMN` sur le montant ARRONDI. Le `max` de la
+    FormRequest admettait `999999999999.99`, que l'arrondi XOF porte à `1000000000000` : la
+    colonne débordait (500).
+  - Nouvelle clé `maintenance.amount_too_large` (fr/en/wo).
+  - `estimated_cost` n'est pas arrondi par l'application : tout ce que son `max` admet tient dans
+    la colonne une fois arrondi par PostgreSQL. Une règle `decimal:0,2` essayée là ne rougissait à
+    aucune ablation ; elle a été retirée.
+- **Sondes r01 à r04 rejouées** sur 0e191739 : 7 vertes. r01 : trace effacée, 422 pour B ; r02a à
+  r02c → 422 `maintenance.amount_too_large`, `.49` → 200 ; r02d → 422
+  `maintenance.quote_amount_too_large`, le bord (1 000 × 999 999 999,99) → 200. Les sondes ont été
+  retirées.
+- **Reste noté, non demandé** : `estimated_cost` accepte encore la notation scientifique (`1e11` →
+  200, `100000000000.00`). La valeur n'est lue par aucun calcul bcmath, donc pas de 500. Le refus
+  serait un `decimal:0,2` sur ce champ.
+
+### Fusion de `origin/dev` après 591 (0dd73fed, adc7ebb4)
+
+- Conflits : index des ADR et `NotificationCode`. Les deux côtés sont gardés.
+- Conflit sémantique : 591 et 592 baissaient chacun `CLIQUET` de 16 à 14. Le texte identique ne
+  conflictait pas, mais l'inventaire fusionné compte 12 lignes. `CLIQUET` passe à 12 dans la fusion.
+- `CalendarEventCollector::maintenance()`, branche `assigned_to`, vérifiée contre les règles de
+  592 :
+  - le prestataire n'y était borné nulle part ;
+  - une collaboration en pause laisse `assigned_to` en place, et la policy (`ProviderEligibility`)
+    refuse alors la demande, mais l'agenda servait encore le bien et la date ;
+  - la branche lit désormais `agencyIdsWhereAssignable()` (adc7ebb4). Une collaboration terminée
+    était déjà couverte, `unassignProviderFromAgency` vidant `assigned_to`.
+- Deux tests de 591 assignaient une intervention à un prestataire sans collaboration, une
+  affectation que 592 refuse. Ils reçoivent la collaboration active qui la rend légitime.
