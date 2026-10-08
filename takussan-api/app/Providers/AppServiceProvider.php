@@ -322,6 +322,17 @@ class AppServiceProvider extends ServiceProvider
         // not collapsed once authenticated.
         RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
 
+        // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
+        // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
+        RateLimiter::for('lease-signature-code', function (Request $request) {
+            $key = 'user:'.($request->user()?->id ?? $request->ip());
+
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
+        });
+        // La saisie du code : le verrou à 5 essais faux est dans le service ; ceci borne les requêtes.
+        RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
         // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
         // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
         RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
@@ -345,7 +356,8 @@ class AppServiceProvider extends ServiceProvider
                 ? 'user:'.$request->user()->id
                 : 'ip:'.$request->ip();
 
-            return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
         });
     }
 

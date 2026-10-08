@@ -1668,6 +1668,35 @@
         "passport": "Paspoor",
         "driving_license": "Permi"
       }
+    },
+    "signature": {
+      "title": "Xaatim bayle bi",
+      "notFrozenDescription": "Kontraa bi taxawagul. Laajal xaatim bi : kontraa bi dina taxaw, te ku nekk ci wàll yi dina ko xaatim ak kood bu mu jot ci SMS walla ci e-mail.",
+      "frozenDescription": "Kontraa bi taxaw na. Ku nekk ci wàll yi dina ko jàng, te xaatim ko ak kood am. Xaatim bu ñaareel bi mooy taal bayle bi. Bu ñu soppee bayle bi, xaatim yi ñuy xaar dañuy neen.",
+      "readContract": "Jàngal kontraa bi ñuy xaatim",
+      "roles": {
+        "tenant": "Luwatekat",
+        "landlord": "Boroom kër"
+      },
+      "signed": "Xaatimu na",
+      "awaiting": "Ñu ngi koy xaar",
+      "signedBy": "{signer} moo ko xaatim ci {date}",
+      "signedOnBehalf": "{signer} moo ko xaatim ci turu {landlord} ci {date}",
+      "sendCode": "Jot sama kood",
+      "resendCode": "Yónneeti kood bi",
+      "codeSentSms": "Kood bi yónne nañu ko ci SMS ci {destination}. Fukki simili la am.",
+      "codeSentMail": "Kood bi yónne nañu ko ci e-mail ci {destination}. Fukki simili la am.",
+      "codeLabel": "Kood bu am 6 siifar",
+      "sign": "Xaatim",
+      "consent": "Su ma bindee kood bii, maa ngi xaatim kontraa bi ñu wone ci kaw.",
+      "request": "Laaj xaatim bi",
+      "requestAgain": "Taxawalaat kontraa bi",
+      "requestedToast": "Xaatim bi laaj nañu ko : wàll yi xibaaru nañu leen.",
+      "signedToast": "Sa xaatim denc nañu ko.",
+      "activatedToast": "Bayle bi xaatimu na te dox na.",
+      "paperLabel": "Kontraa bu ñu xaatim ci kayit (PDF, JPG walla PNG, 10 Mo)",
+      "paperSubmit": "Taal ci kontraa kayit",
+      "genericError": "Jëf ji antuwul. Jéemaatal."
     }
   },
   "maintenance": {
@@ -8248,6 +8277,20 @@
         "calendar_feed_failing": {
           "title": "Calendrier bi ñu jële du dox : {property}",
           "body": "Calendrier « {feed} » bu {property} mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi."
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Bayle bu ñuy xaatimal : {reference}",
+          "body": "Bayle {reference} bu {property} pare na. Jàngal kontraa bi, te xaatimal ko ak kood bi ngay jot."
+        },
+        "signed_by_party": {
+          "title": "{signer} xaatim na bayle {reference}",
+          "body": "{signer} xaatim na bayle {reference} bu {property}. Sa xaatim lañuy xaar."
+        },
+        "signature_completed": {
+          "title": "Bayle {reference} xaatimu na",
+          "body": "Ñaari wàll yi xaatim nañu bayle {reference} bu {property}. Leegi mu ngi dox."
         }
       }
     },

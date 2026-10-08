@@ -118,6 +118,15 @@ return [
     // TCK-272 — step-up code for accounts without a usable password
     // (OAuth, invitation, provisioning). No clickable link on purpose: this
     // confirms a destructive act, it does not invite one.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Your signing code for lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'Here is the code to enter to sign lease :reference:',
+        'expires' => 'This code is valid for :minutes minutes and can only be used once.',
+        'ignore' => 'If you did not ask for anything, ignore this message: without this code, nothing is signed.',
+        'sms' => 'Takussan: your signing code for lease :reference is :code (valid :minutes min). Do not share it.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Your account deletion confirmation code',
         'greeting' => 'Hello,',
@@ -428,6 +437,24 @@ return [
                 'title' => 'Quote rejected: :request',
                 'body' => 'Your quote for the job ":request" was rejected.',
                 'sms' => 'Takussan: quote rejected for ":request".',
+            ],
+        ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Lease to sign: :reference',
+                'body' => 'Lease :reference for :property is ready. Read the contract, then sign it with the code you will receive.',
+                'sms' => 'Takussan: lease :reference is ready to sign.',
+            ],
+            'signed_by_party' => [
+                'title' => 'Lease :reference signed by :signer',
+                'body' => ':signer signed lease :reference for :property. It is awaiting your signature.',
+                'sms' => 'Takussan: :signer signed lease :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Lease :reference signed',
+                'body' => 'Both parties signed lease :reference for :property. It is now active.',
+                'sms' => 'Takussan: lease :reference is signed and active.',
             ],
         ],
         'property' => [

@@ -9,6 +9,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -70,6 +71,8 @@ class Lease extends AbstractModel implements HasMedia
         'early_termination_penalty_amount' => 'decimal:2',
         'notice_period_days' => 'integer',
         'metadata' => 'array',
+        // TCK-596 §4B (ADR-0042).
+        'signature_requested_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['property_id', 'landlord_id', 'tenant_id', 'agency_id', 'type', 'status', 'currency', 'payment_frequency', 'renewed_from_lease_id'];
@@ -213,6 +216,63 @@ class Lease extends AbstractModel implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('lease_deposit_refund');
+        // TCK-596 §4B (ADR-0042 §1) — le contrat FIGÉ que les parties signent (PDF rendu à la
+        // demande de signature, ou scan de la voie papier). Privé, un seul fichier.
+        $this->addMediaCollection('signed_contract')->singleFile()->useDisk(config('media-library.disk_name'));
+    }
+
+    /**
+     * TCK-596 §4B (ADR-0042 §3) — les preuves de consentement. Seules comptent celles dont
+     * l'empreinte est celle du contrat figé ({@see self::currentSignatures()}).
+     */
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(LeaseSignature::class);
+    }
+
+    /** @return Collection<int, LeaseSignature> */
+    public function currentSignatures()
+    {
+        if ($this->contract_sha256 === null) {
+            return new Collection;
+        }
+
+        return $this->signatures()->where('document_sha256', $this->contract_sha256)->get();
+    }
+
+    /**
+     * TCK-596 §4B (ADR-0042 §1) — défige le contrat d'un bail en attente de signature : les
+     * signatures posées sur l'ancienne empreinte cessent de compter. Appelé par toute écriture qui
+     * change ce que le PDF figé dit (colonnes ci-dessous, garants).
+     */
+    public function unfreezeContract(): void
+    {
+        if ($this->status === LeaseStatus::PendingSignature && $this->contract_sha256 !== null) {
+            $this->forceFill(['contract_sha256' => null, 'signature_requested_at' => null])->saveQuietly();
+        }
+    }
+
+    /** Les colonnes dont la modification ne change pas le contrat signé. */
+    public const CONTRACT_NEUTRAL_COLUMNS = [
+        'status', 'signed_at', 'contract_sha256', 'signature_requested_at', 'updated_at',
+        'metadata', 'tenant_welcomed_at',
+    ];
+
+    protected static function booted(): void
+    {
+        // TCK-596 §4B (ADR-0042 §1) — second chemin : quel que soit l'appelant (PATCH du bail,
+        // révision de loyer, script), une colonne du contrat qui bouge pendant l'attente défige le
+        // contrat. La garde vit sur le modèle pour qu'aucune route ne la contourne.
+        static::updating(function (Lease $lease): void {
+            if ($lease->getOriginal('status') !== LeaseStatus::PendingSignature || $lease->getOriginal('contract_sha256') === null) {
+                return;
+            }
+            $changed = array_diff(array_keys($lease->getDirty()), self::CONTRACT_NEUTRAL_COLUMNS);
+            if ($changed !== [] && ! $lease->isDirty('contract_sha256')) {
+                $lease->contract_sha256 = null;
+                $lease->signature_requested_at = null;
+            }
+        });
     }
 
     /**

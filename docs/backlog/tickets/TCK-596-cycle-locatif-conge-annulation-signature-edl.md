@@ -499,10 +499,10 @@ du Delta et un critère qui rougit sur le code actuel.
       vrai → 0 échéance ; le bail parent garde les siennes.
 
 ### 4B. Signature du bail par code (après l'ADR d'O17)
-- [ ] Migrations `create_lease_signatures_table` (unicité `(lease_id, role, document_sha256)` nommée)
+- [x] Migrations `create_lease_signatures_table` (unicité `(lease_id, role, document_sha256)` nommée)
       et `add_contract_signature_columns_to_leases`. Collection privée `signed_contract` dans
       `Lease::registerMediaCollections`.
-- [ ] `App\Services\Lease\LeaseSignatureService` :
+- [x] `App\Services\Lease\LeaseSignatureService` :
       - `request(Lease, User)` : `draft|pending_signature` → `pending_signature`, PDF figé et haché ;
       - `sendCode(Lease, User)` ;
       - `sign(Lease, User, code, Request)` : vérifie le code, enregistre la preuve et, à la seconde
@@ -510,7 +510,7 @@ du Delta et un critère qui rougit sur le code actuel.
         fois.
       `App\Services\Lease\LeaseSignatureOtpService` suit le patron `DeletionStepUpService`, avec un
       compteur d'essais en plus.
-- [ ] `LeaseSignatureController` (`request`, `sendCode`, `sign`), avec `RequestLeaseSignatureRequest`
+- [x] `LeaseSignatureController` (`request`, `sendCode`, `sign`), avec `RequestLeaseSignatureRequest`
       et `SignLeaseRequest`. `LeasePolicy::sign(User, Lease, string $role)` :
       - `tenant` = locataire du bail ;
       - `landlord` = `LandlordSignatory::allows` (§5) : bailleur, ou personnel de l'agence du bail
@@ -521,16 +521,16 @@ du Delta et un critère qui rougit sur le code actuel.
       (`AppServiceProvider.php:433`), donc `LeasePolicy::sign` le laisserait signer pour l'une ou
       l'autre partie. `LeaseSignatureService::sign` revérifie le signataire (locataire du bail, ou
       `LandlordSignatory::allows`) et rend 403 sinon, super-admin compris.
-- [ ] `LeaseController::activate` suit la décision de l'ADR (**option retenue par défaut** : réservée à
+- [x] `LeaseController::activate` suit la décision de l'ADR (**option retenue par défaut** : réservée à
       la « signature hors plateforme », contrat numérisé obligatoire, preuve `method = paper`). Elle
       accepte `pending_signature` : fin de l'impasse du renouvellement. Elle émet toujours
       `GenerateLeasePaymentSchedule` et `LeaseActivated`.
-- [ ] `DocumentPdfController::leaseContract` sert le PDF figé dès qu'il existe.
-- [ ] Notifications par clés : « bail à signer » à chaque partie, « bail signé par X » à l'autre,
+- [x] `DocumentPdfController::leaseContract` sert le PDF figé dès qu'il existe.
+- [x] Notifications par clés : « bail à signer » à chaque partie, « bail signé par X » à l'autre,
       « bail actif » à toutes.
-- [ ] Front : sur le détail du bail, chaque partie voit l'état des signatures, lit le contrat figé,
+- [x] Front : sur le détail du bail, chaque partie voit l'état des signatures, lit le contrat figé,
       reçoit puis saisit son code ; le gestionnaire lance la demande et suit l'attente.
-- [ ] Tests `LeaseSignatureTest` :
+- [x] Tests `LeaseSignatureTest` :
       - parcours à deux signatures → `active` + échéancier généré une fois ;
       - code faux ×5 → verrou ;
       - code rejoué → 422 ;
@@ -856,3 +856,49 @@ F3.10 → 1, F3.11 → 1. **Non mesuré au navigateur réel** ; la garde SSRF n'
 vrai serveur (tests par `Http::fake` et résolveur DNS substitué). Au passage, `NoLegacyUserTypeTest`
 rougissait sur deux commentaires de §2/§5 (commit `fix(api)` séparé) — mes balayages précédents ne
 l'incluaient pas.
+
+**§4B — signature du bail par code** (ADR-0042, commité avant le code). Re-mesuré : `activate`
+posait `active` sur la seule autorité d'`update`, sans preuve ; un renouvellement `pending_signature`
+n'avait aucun chemin vers `active` ; le PDF du contrat était rendu à chaque téléchargement, pied de
+page daté, donc **sans empreinte stable**. Livré : `signature-request` rend le PDF une fois, le range
+dans la collection privée `signed_contract`, pose `contract_sha256` ; `GET leases/{id}/contract/pdf`
+sert ce fichier octet pour octet dès qu'il existe. Code 6 chiffres, 10 min, lié au bail, au
+signataire, au rôle **et** à l'empreinte ; renvoi à 60 s ; 5 faux → code détruit, verrou 15 min ;
+consommé au succès. Limiteur de route `lease-signature-code` 3/min + 10/h (**deux clés distinctes** :
+deux `Limit` de même clé partagent un compteur — patron repris d'`account-deletion-step-up`).
+Défigement : une garde **sur le modèle** (`Lease::booted`, `updating`) remet `contract_sha256` à `null`
+dès qu'une colonne hors `CONTRACT_NEUTRAL_COLUMNS` bouge pendant l'attente, quel que soit l'appelant ;
+garant attaché ou détaché → `unfreezeContract()`. L'activation à la seconde signature se fait dans la
+transaction, sous le verrou de la ligne relue (`LeaseService::completeActivation`, échéancier
+`afterCommit`). `activate` = voie papier : scan obligatoire (pdf/jpg/png, 10 Mo), `authorize`
+**avant** la validation (un tiers reçoit 403, pas la liste des champs), preuve `paper` par rôle avec
+`recorded_by_id`, accepte `draft` et `pending_signature`.
+Écarts au texte du ticket, assumés : (1) la mention « pour le compte de » est sur la **preuve** et à
+l'écran, **pas** dans le PDF — l'écrire changerait l'empreinte que les deux parties ont signée
+(ADR-0042 §4) ; (2) pas de `RequestLeaseSignatureRequest` : la demande n'a pas de corps,
+l'autorisation `requestSignature` est dans le contrôleur ; (3) `code_locked` rend **423**, pas 429 —
+mesuré dans `src/lib/api.ts` (`codeErreur`) : tout 429 est affiché par le front comme le générique
+« trop de tentatives », la durée du verrou que dit l'API serait perdue ; `resend_too_soon` reste 429 ;
+(4) le bailleur est notifié quand le personnel signe **pour son compte** (il apprend qu'on l'a
+engagé) ; (5) `MobileClassEventsTest` (TCK-588) exigeait une case de préférences pour toute classe
+SMS : le code de signature est **hors préférences** (critique, demandé par son destinataire) — liste
+fermée `HORS_PREFERENCES` dans le test, plus un test qui exige sa criticité. Le canal SMS réel le borne
+toujours à 5/h (testé sans le faux `Notification`). `promesses-de-delai.test.ts` (TCK-575) : les deux
+libellés « valable 10 minutes » sont inscrits au registre avec `LeaseSignatureOtpService.php:24`.
+Front : panneau « Signature du bail » sur le détail (draft/pending seulement) — état par rôle (seules
+les preuves `current` comptent), lien vers le contrat figé, « Recevoir mon code » pour les seuls rôles
+de `can_sign_as`, saisie 6 chiffres, refus de l'API affiché (`role="alert"`) ; le gestionnaire
+(`can_request_signature`) demande / refige et active sur contrat papier (`useActivateLease` en
+multipart). L'ancien bouton « Activer le bail » est retiré.
+Preuve : `LeaseSignatureTest` 37 verts (+ `LeaseTest` 8, `MobileClassEventsTest` 2) ; balayage de 27
+classes voisines (Lease*, Tenant*, Inventory*, Renewal*, DocumentPdf*, RoleAccess,
+OwnerIsolationWithinAgency, PrivateMediaAccess, NoLegacyUserType, ProseLitteraleInterdite…) → 313
+verts ; 24 classes de notifications/lang → 151 verts. Front : `LeaseSignaturePanel` 7,
+`LeaseDetail.preavis` 7 ; 15 fichiers voisins → 91 verts ; 80 fichiers lisant les dictionnaires →
+813 verts ; `tsc`, ESLint propres ; toutes les gardes racine vertes. Ablations (restaurées par `cp`) :
+B4.1 → 1 rouge, B4.2 → 1, B4.3 → 1, B4.4 → 1, B4.5 → 2, B4.6 → 1, B4.6b → 1, B4.7 → 1, B4.8 → 1,
+B4.9 → 1, B4.10 → 1, B4.11 → 1, B4.12 → 1, B4.13 → 1, B4.14 → 1, B4.15 → 1, B4.16 → 1, B4.17 → 1,
+B4.18 → 1, B4.19 → 1, B4.20 → 1, B4.21 → 1, B4.22 → 1, B4.23 → 1, B4.24 → 1 ; F4.1 → 1, F4.2 → 1,
+F4.3 → 3, F4.4 → 1, F4.5 → 1, F4.6 → 1, F4.7 → 1, F4.8 → 2, F4.9 → 1, F4.10 → 1. **Non éprouvé** :
+deux secondes signatures concurrentes (le verrou de ligne est en place, aucun test ne les fait
+courir) ; un vrai envoi SMS ; le rendu au navigateur réel.

@@ -66,6 +66,17 @@ class LeaseService
             'lease.not_draft_activate'
         );
 
+        return $this->completeActivation($lease);
+    }
+
+    /**
+     * TCK-596 §4B (ADR-0042 §6, §8) — ce que fait toute activation, quelle qu'en soit la voie
+     * (service interne, seconde signature par code, signature papier) : `active`, `signed_at`,
+     * échéancier, `LeaseActivated`. L'appelant a jugé l'état de départ ; sous transaction, il tient
+     * le verrou de la ligne du bail.
+     */
+    public function completeActivation(Lease $lease): Lease
+    {
         $lease->update([
             'status' => LeaseStatus::Active,
             'signed_at' => now(),
@@ -73,7 +84,9 @@ class LeaseService
 
         $fresh = $lease->refresh();
 
-        GenerateLeasePaymentSchedule::dispatch($fresh);
+        // `afterCommit` : une activation dans la transaction d'une signature n'émet l'échéancier
+        // qu'une fois la ligne validée (sans transaction, l'émission est immédiate).
+        GenerateLeasePaymentSchedule::dispatch($fresh)->afterCommit();
 
         // TCK-265 — fan out the welcome notification to the tenant.
         // The event is `ShouldDispatchAfterCommit`, so even if the caller

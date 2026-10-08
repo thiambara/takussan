@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
-  useActivateLease,
   useGenerateSchedule,
   useLease,
   useLeasePayments,
@@ -26,6 +25,7 @@ import { LeaseRenewalDialog } from './LeaseRenewalDialog';
 import { LeaseChainTimeline } from './LeaseChainTimeline';
 import { EarlyTerminationDialog } from './EarlyTerminationDialog';
 import { EarlyTerminationBanner } from './EarlyTerminationBanner';
+import { LeaseSignaturePanel } from './LeaseSignaturePanel';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
@@ -62,7 +62,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const { data, isLoading, isError } = leaseQuery;
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
-  const activateLease = useActivateLease(leaseId);
   const reviewRent = useReviewLeaseRent(leaseId);
   const toast = useToast();
 
@@ -125,15 +124,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const canRequestTermination = canRefundDeposit || isLeaseTenant;
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
 
-  async function handleActivate() {
-    await activateLease.mutateAsync();
-    toast.add({
-      title: t('activatedToastTitle'),
-      description: t('activatedToastBody'),
-      type: 'success',
-    });
-  }
-
   async function handleRentReview() {
     const rawRent = window.prompt(t('rentPromptAmount'), String(lease.monthly_rent ?? ''))?.trim();
     if (!rawRent) return;
@@ -192,15 +182,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               >
                 {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
               </Button>
-              {lease.status === 'draft' && (
-                <Button
-                  type="button"
-                  onClick={handleActivate}
-                  disabled={activateLease.isPending}
-                >
-                  {activateLease.isPending ? t('activating') : t('activate')}
-                </Button>
-              )}
               {lease.status === 'active' && lease.type !== 'sale' && (
                 <Button
                   type="button"
@@ -248,6 +229,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       </div>
 
       <LeaseChainTimeline leaseId={leaseId} currentId={leaseId} />
+
+      {/* TCK-596 §4B (ADR-0042) — la signature par code remplace l'« Activer » sans preuve. */}
+      <LeaseSignaturePanel lease={lease} />
 
       <EarlyTerminationBanner lease={lease} canCancel={canRequestTermination} />
 

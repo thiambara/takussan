@@ -216,6 +216,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 72. [PropertyUnavailability](#72-propertyunavailability-) 🆕
 73. [PropertyCalendarFeed](#73-propertycalendarfeed-) 🆕
 
+#### Signature du bail 🆕 (TCK-596, ADR-0042)
+74. [LeaseSignature](#74-leasesignature-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -2988,6 +2991,41 @@ derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). 
 
 > Le jeton d'export du bien vit sur `properties.ical_export_token_hash` (SHA-256, unique, caché) :
 > le jeton en clair n'est rendu qu'une fois, à la régénération.
+
+---
+
+### 74. LeaseSignature 🆕
+
+**Table :** `lease_signatures`
+**Description :** La preuve de consentement d'une partie à un bail (TCK-596, ADR-0042). Une signature
+lie l'empreinte du contrat FIGÉ (`leases.contract_sha256`, PDF rangé dans la collection média privée
+`signed_contract`) ; seules comptent celles dont l'empreinte est l'empreinte courante. La seconde
+signature active le bail.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_id | FK leases | | | Bail (`cascadeOnDelete`) |
+| role | string(20) | | | `tenant` \| `landlord` |
+| method | string(20) | | | `otp` (code à usage unique) \| `paper` (contrat numérisé, voie `activate`) |
+| user_id | FK users | ✓ | | Signataire (`otp`) — `nullOnDelete` |
+| on_behalf_of_user_id | FK users | ✓ | | Bailleur pour le compte duquel le personnel de l'agence a signé |
+| recorded_by_id | FK users | ✓ | | Auteur de l'enregistrement (`paper`) |
+| document_sha256 | string(64) | | | Empreinte du contrat signé |
+| signed_at | timestamp | | | |
+| ip_address | string(45) | ✓ | | **Caché**, jamais rendu par l'API |
+| user_agent | string(512) | ✓ | | **Caché**, jamais rendu par l'API |
+| otp_channel | string(10) | ✓ | | `sms` \| `mail` |
+| otp_destination | string(120) | ✓ | | Destination **masquée** du code |
+| created_at / updated_at | timestamp | | | |
+
+**Unicité :** `(lease_id, role, document_sha256)`.
+**Relations :** `lease()` → belongsTo ; `signer()` → belongsTo User (`user_id`) ; `onBehalfOf()` →
+belongsTo User.
+
+> Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
+> timestamp nullable. Une colonne du contrat modifiée pendant `pending_signature` (hors
+> `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
 
 ---
 

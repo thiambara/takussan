@@ -66,6 +66,20 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `LeasePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $lease);
 
+        // TCK-596 §4B (ADR-0042 §1) — dès qu'un contrat est figé (signature demandée, ou scan de
+        // la voie papier), c'est LUI qui est servi, octet pour octet : c'est son empreinte que les
+        // parties signent. Le rendu à la volée ne reste que pour le brouillon.
+        $frozen = $lease->getFirstMedia('signed_contract');
+        if ($frozen !== null) {
+            $stream = $frozen->stream();
+
+            return new Response(is_resource($stream) ? (string) stream_get_contents($stream) : '', 200, [
+                'Content-Type' => $frozen->mime_type ?: 'application/pdf',
+                'Content-Disposition' => sprintf('inline; filename="%s"', $frozen->file_name),
+                'Cache-Control' => 'private, max-age=0, no-cache',
+            ]);
+        }
+
         $lease->loadMissing(['property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
         return $this->pdf->stream('pdf.leases.contract', [

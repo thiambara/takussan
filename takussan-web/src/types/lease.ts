@@ -71,8 +71,34 @@ export type Lease = {
   early_termination_reason?: string | null;
   early_termination_invoice_id?: number | null;
   notice_period_days?: number | null;
+  // TCK-596 §4B (ADR-0042) — le contrat figé et les preuves de consentement. Rendus par le détail.
+  contract_sha256?: string | null;
+  signature_requested_at?: string | null;
+  signatures?: readonly LeaseSignature[];
+  /** Les rôles pour lesquels l'utilisateur courant peut signer — jugés par l'API. */
+  can_sign_as?: readonly LeaseSignatureRole[];
+  /** L'utilisateur courant peut figer le contrat et lancer la signature (gestionnaire du bail). */
+  can_request_signature?: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type LeaseSignatureRole = 'tenant' | 'landlord';
+
+/**
+ * TCK-596 §4B (ADR-0042 §3) — une preuve de consentement. Jamais l'IP ni l'agent utilisateur :
+ * l'API ne les rend pas. `current` : la preuve porte sur le contrat figé en vigueur.
+ */
+export type LeaseSignature = {
+  id: number;
+  role: LeaseSignatureRole;
+  method: 'otp' | 'paper';
+  signed_at: string | null;
+  document_sha256: string;
+  current: boolean;
+  signer_name: string | null;
+  on_behalf_of_name: string | null;
+  otp_channel: 'sms' | 'mail' | null;
 };
 
 export type LeasePayment = {

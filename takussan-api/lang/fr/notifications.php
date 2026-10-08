@@ -119,6 +119,15 @@ return [
     // TCK-272 — code de step-up pour les comptes sans mot de passe
     // utilisable (OAuth, invitation, provisioning). Pas de lien cliquable :
     // c'est la confirmation d'un acte destructif, pas une invitation à agir.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Votre code de signature du bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Voici le code à saisir pour signer le bail :reference :',
+        'expires' => 'Ce code est valable :minutes minutes et ne peut servir qu\'une seule fois.',
+        'ignore' => 'Si vous n\'avez rien demandé, ignorez ce message : sans ce code, rien n\'est signé.',
+        'sms' => 'Takussan : votre code de signature du bail :reference est :code (valable :minutes min). Ne le communiquez à personne.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Votre code de confirmation de suppression de compte',
         'greeting' => 'Bonjour,',
@@ -433,6 +442,24 @@ return [
                 'title' => 'Devis rejeté : :request',
                 'body' => 'Votre devis pour l\'intervention « :request » a été rejeté.',
                 'sms' => 'Takussan : devis rejeté pour « :request ».',
+            ],
+        ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Bail à signer : :reference',
+                'body' => 'Le bail :reference pour :property est prêt. Lisez le contrat, puis signez-le avec le code que vous recevrez.',
+                'sms' => 'Takussan : le bail :reference est prêt à signer.',
+            ],
+            'signed_by_party' => [
+                'title' => 'Bail :reference signé par :signer',
+                'body' => ':signer a signé le bail :reference pour :property. Il attend votre signature.',
+                'sms' => 'Takussan : :signer a signé le bail :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Bail :reference signé',
+                'body' => 'Les deux parties ont signé le bail :reference pour :property. Il est désormais actif.',
+                'sms' => 'Takussan : le bail :reference est signé et actif.',
             ],
         ],
         'property' => [

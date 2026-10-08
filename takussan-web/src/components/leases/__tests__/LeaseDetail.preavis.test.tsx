@@ -30,6 +30,10 @@ vi.mock('@/lib/queries/leases', () => ({
   useActivateLease: mutation,
   useReviewLeaseRent: mutation,
   useCancelEarlyTermination: mutation,
+  // TCK-596 §4B — le panneau de signature.
+  useRequestLeaseSignature: mutation,
+  useSendLeaseSignatureCode: mutation,
+  useSignLease: mutation,
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -156,5 +160,26 @@ describe('LeaseDetail — préavis du locataire (TCK-596 §1)', () => {
 
     expect(screen.getByRole('button', { name: 'Résilier le bail' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Donner mon préavis' })).not.toBeInTheDocument();
+  });
+});
+
+describe('LeaseDetail — signature du bail (TCK-596 §4B)', () => {
+  beforeEach(() => {
+    etat.user = { id: 77, roles: ['agent'] };
+  });
+
+  it("le brouillon n'offre plus l'« Activer » sans preuve : le gestionnaire demande la signature", () => {
+    etat.lease = bail({ status: 'draft', signed_at: null, can_request_signature: true, can_sign_as: [] });
+    rendre();
+
+    expect(screen.queryByRole('button', { name: 'Activer le bail' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Demander la signature' })).toBeInTheDocument();
+  });
+
+  it("un bail actif n'affiche pas le panneau de signature", () => {
+    etat.lease = bail({ status: 'active' });
+    rendre();
+
+    expect(screen.queryByTestId('lease-signature-panel')).not.toBeInTheDocument();
   });
 });

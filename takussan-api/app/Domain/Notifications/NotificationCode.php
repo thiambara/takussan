@@ -85,6 +85,15 @@ enum NotificationCode: string
     /** TCK-596 (ADR-0041 §5) — un flux iCal importé échoue pour la troisième fois d'affilée. */
     case PropertyCalendarFeedFailing = 'property.calendar_feed_failing';
 
+    /** TCK-596 (ADR-0042 §9) — le contrat est figé : chaque partie a son bail à signer. */
+    case LeaseSignatureRequested = 'lease.signature_requested';
+
+    /** TCK-596 (ADR-0042 §9) — une partie a signé ; l'autre en est prévenue. */
+    case LeaseSignedByParty = 'lease.signed_by_party';
+
+    /** TCK-596 (ADR-0042 §9) — la seconde signature a activé le bail. */
+    case LeaseSignatureCompleted = 'lease.signature_completed';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -119,6 +128,8 @@ enum NotificationCode: string
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty,
+            self::LeaseSignatureCompleted => NotificationType::Lease,
         };
     }
 
@@ -146,7 +157,8 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected,
-            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => null,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted => null,
         };
     }
 
@@ -188,6 +200,8 @@ enum NotificationCode: string
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
+            self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
         };
     }
 

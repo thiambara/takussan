@@ -3068,6 +3068,35 @@
         "passport": "Passeport",
         "driving_license": "Permis de conduire"
       }
+    },
+    "signature": {
+      "title": "Signature du bail",
+      "notFrozenDescription": "Le contrat n’est pas encore figé. Demandez la signature : le contrat est alors arrêté, et chaque partie le signe avec un code reçu par SMS ou par e-mail.",
+      "frozenDescription": "Le contrat est figé. Chaque partie le lit, puis le signe avec son code. La seconde signature active le bail. Toute modification du bail annule les signatures en attente.",
+      "readContract": "Lire le contrat à signer",
+      "roles": {
+        "tenant": "Locataire",
+        "landlord": "Bailleur"
+      },
+      "signed": "Signé",
+      "awaiting": "En attente",
+      "signedBy": "Signé par {signer} le {date}",
+      "signedOnBehalf": "Signé par {signer} pour le compte de {landlord} le {date}",
+      "sendCode": "Recevoir mon code",
+      "resendCode": "Renvoyer le code",
+      "codeSentSms": "Code envoyé par SMS au {destination}. Il est valable 10 minutes.",
+      "codeSentMail": "Code envoyé par e-mail à {destination}. Il est valable 10 minutes.",
+      "codeLabel": "Code à 6 chiffres",
+      "sign": "Signer",
+      "consent": "En saisissant ce code, je signe le contrat affiché ci-dessus.",
+      "request": "Demander la signature",
+      "requestAgain": "Figer à nouveau le contrat",
+      "requestedToast": "Signature demandée : les parties sont prévenues.",
+      "signedToast": "Votre signature est enregistrée.",
+      "activatedToast": "Bail signé et activé.",
+      "paperLabel": "Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)",
+      "paperSubmit": "Activer sur contrat papier",
+      "genericError": "L’opération a échoué. Réessayez."
     }
   },
   "maintenance": {
@@ -8248,6 +8277,20 @@
         "calendar_feed_failing": {
           "title": "Calendrier importé en échec : {property}",
           "body": "Le calendrier « {feed} » de {property} ne se synchronise plus depuis trois tentatives. Vérifiez son lien."
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Bail à signer : {reference}",
+          "body": "Le bail {reference} pour {property} est prêt. Lisez le contrat, puis signez-le avec le code que vous recevrez."
+        },
+        "signed_by_party": {
+          "title": "Bail {reference} signé par {signer}",
+          "body": "{signer} a signé le bail {reference} pour {property}. Il attend votre signature."
+        },
+        "signature_completed": {
+          "title": "Bail {reference} signé",
+          "body": "Les deux parties ont signé le bail {reference} pour {property}. Il est désormais actif."
         }
       }
     },

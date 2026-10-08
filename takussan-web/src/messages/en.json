@@ -3093,6 +3093,35 @@
         "passport": "Passport",
         "driving_license": "Driving licence"
       }
+    },
+    "signature": {
+      "title": "Lease signature",
+      "notFrozenDescription": "The contract is not frozen yet. Request the signature: the contract is then locked, and each party signs it with a code received by SMS or e-mail.",
+      "frozenDescription": "The contract is frozen. Each party reads it, then signs it with their code. The second signature activates the lease. Any change to the lease cancels pending signatures.",
+      "readContract": "Read the contract to sign",
+      "roles": {
+        "tenant": "Tenant",
+        "landlord": "Landlord"
+      },
+      "signed": "Signed",
+      "awaiting": "Awaiting",
+      "signedBy": "Signed by {signer} on {date}",
+      "signedOnBehalf": "Signed by {signer} on behalf of {landlord} on {date}",
+      "sendCode": "Get my code",
+      "resendCode": "Resend the code",
+      "codeSentSms": "Code sent by SMS to {destination}. It is valid for 10 minutes.",
+      "codeSentMail": "Code sent by e-mail to {destination}. It is valid for 10 minutes.",
+      "codeLabel": "6-digit code",
+      "sign": "Sign",
+      "consent": "By entering this code, I sign the contract shown above.",
+      "request": "Request signature",
+      "requestAgain": "Freeze the contract again",
+      "requestedToast": "Signature requested: the parties have been notified.",
+      "signedToast": "Your signature is recorded.",
+      "activatedToast": "Lease signed and activated.",
+      "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
+      "paperSubmit": "Activate on paper contract",
+      "genericError": "The operation failed. Try again."
     }
   },
   "maintenance": {
@@ -8248,6 +8277,20 @@
         "calendar_feed_failing": {
           "title": "Imported calendar failing: {property}",
           "body": "Calendar \"{feed}\" for {property} has failed to sync three times in a row. Check its link."
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Lease to sign: {reference}",
+          "body": "Lease {reference} for {property} is ready. Read the contract, then sign it with the code you will receive."
+        },
+        "signed_by_party": {
+          "title": "Lease {reference} signed by {signer}",
+          "body": "{signer} signed lease {reference} for {property}. It is awaiting your signature."
+        },
+        "signature_completed": {
+          "title": "Lease {reference} signed",
+          "body": "Both parties signed lease {reference} for {property}. It is now active."
         }
       }
     },

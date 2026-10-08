@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\ActivateLeaseRequest;
 use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
 use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Http\Requests\Api\TerminateLeaseRequest;
@@ -11,6 +12,7 @@ use App\Http\Resources\LeaseResource;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,7 +65,9 @@ class LeaseController extends Controller
         $this->authorize('view', $lease);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments']))->toArray($request),
+            'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments', 'signatures.signer', 'signatures.onBehalfOf']))
+                ->forViewer($request->user())
+                ->toArray($request),
         ]);
     }
 
@@ -86,10 +90,14 @@ class LeaseController extends Controller
         ]);
     }
 
-    public function activate(Request $request, Lease $lease): JsonResponse
+    /**
+     * TCK-596 §4B (ADR-0042 §6) — la voie PAPIER : le contrat signé hors plateforme, numérisé, est
+     * obligatoire et fait foi. La signature en ligne passe par `LeaseSignatureController`.
+     */
+    public function activate(ActivateLeaseRequest $request, Lease $lease, LeaseSignatureService $signatures): JsonResponse
     {
         $this->authorize('update', $lease);
-        $lease = $this->leases->activate($lease);
+        $lease = $signatures->signOnPaper($lease, $request->file('contract'), $request->user());
 
         return $this->json([
             'data' => LeaseResource::make($lease)->toArray($request),
@@ -169,6 +177,8 @@ class LeaseController extends Controller
             $lease->guarantors()->attach($guarantor->id, [
                 'role' => $data['role'] ?? null,
             ]);
+            // TCK-596 §4B (ADR-0042 §1) — le garant est dans le contrat : un contrat figé est défigé.
+            $lease->unfreezeContract();
         });
 
         return $this->json([
@@ -185,6 +195,8 @@ class LeaseController extends Controller
         $this->authorize('update', $lease);
 
         $lease->guarantors()->detach($guarantor->id);
+        // TCK-596 §4B (ADR-0042 §1) — idem au retrait d'un garant.
+        $lease->unfreezeContract();
 
         return $this->json([
             'data' => [

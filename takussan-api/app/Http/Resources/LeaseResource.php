@@ -3,10 +3,26 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\LeaseSignature;
+use App\Models\User;
+use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Http\Request;
 
 class LeaseResource extends BaseResource
 {
+    private ?User $viewer = null;
+
+    /**
+     * TCK-596 §4B — ce que l'utilisateur courant peut faire de la signature : les rôles pour
+     * lesquels il signe, et s'il peut lancer la demande. Seulement sur le détail.
+     */
+    public function forViewer(?User $viewer): static
+    {
+        $this->viewer = $viewer;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -53,6 +69,27 @@ class LeaseResource extends BaseResource
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
             'renewals' => $this->whenLoaded('renewals', fn () => self::collection($this->renewals)),
             'renewals_count' => $this->whenCounted('renewals'),
+            // TCK-596 §4B (ADR-0042) — le contrat figé et les preuves de consentement. Jamais l'IP ni
+            // l'agent utilisateur : ce sont des pièces de preuve, pas des données d'écran.
+            'contract_sha256' => $this->contract_sha256,
+            'signature_requested_at' => $this->iso($this->signature_requested_at),
+            'signatures' => $this->whenLoaded('signatures', fn () => $this->signatures
+                ->sortBy('signed_at')
+                ->values()
+                ->map(fn (LeaseSignature $s): array => [
+                    'id' => $s->id,
+                    'role' => $s->role,
+                    'method' => $s->method,
+                    'signed_at' => $this->iso($s->signed_at),
+                    'document_sha256' => $s->document_sha256,
+                    'current' => $this->contract_sha256 !== null && $s->document_sha256 === $this->contract_sha256,
+                    'signer_name' => $s->relationLoaded('signer') ? $s->signer?->getFullNameAttribute() : null,
+                    'on_behalf_of_name' => $s->relationLoaded('onBehalfOf') ? $s->onBehalfOf?->getFullNameAttribute() : null,
+                    'otp_channel' => $s->otp_channel,
+                ])
+                ->all()),
+            'can_sign_as' => $this->when($this->viewer !== null, fn (): array => LeaseSignatureService::rolesFor($this->viewer, $this->resource)),
+            'can_request_signature' => $this->when($this->viewer !== null, fn (): bool => $this->viewer->can('requestSignature', $this->resource)),
             'created_at' => $this->iso($this->created_at),
         ];
     }

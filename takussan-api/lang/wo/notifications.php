@@ -103,6 +103,15 @@ return [
     ],
 
     // TCK-272 — kod bu step-up ngir kont yu amul baatu jubaale bu baax.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Sa koodu xaatim bu bayle :reference',
+        'greeting' => 'Asalaa maalekum,',
+        'intro' => 'Kood bii nga wara bind ngir xaatim bayle :reference :',
+        'expires' => 'Kood bii :minutes simili lay dox, benn yoon rekk lañu koy jëfandikoo.',
+        'ignore' => 'Soo laajul dara, bul ko faale : bu amul kood bii, dara du xaatimu.',
+        'sms' => 'Takussan : sa koodu xaatim bu bayle :reference mooy :code (:minutes simili). Bul ko wax kenn.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Sa kod bu dëggal suufeelu kont bi',
         'greeting' => 'Salaam,',
@@ -413,6 +422,24 @@ return [
                 'title' => 'Devis bi gàntu nañu ko : :request',
                 'body' => 'Sa devis ngir liggéey bi « :request » gàntu nañu ko.',
                 'sms' => 'Takussan : devis ngir « :request » gàntu nañu ko.',
+            ],
+        ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Bayle bu ñuy xaatimal : :reference',
+                'body' => 'Bayle :reference bu :property pare na. Jàngal kontraa bi, te xaatimal ko ak kood bi ngay jot.',
+                'sms' => 'Takussan : bayle :reference pare na ngir xaatim.',
+            ],
+            'signed_by_party' => [
+                'title' => ':signer xaatim na bayle :reference',
+                'body' => ':signer xaatim na bayle :reference bu :property. Sa xaatim lañuy xaar.',
+                'sms' => 'Takussan : :signer xaatim na bayle :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Bayle :reference xaatimu na',
+                'body' => 'Ñaari wàll yi xaatim nañu bayle :reference bu :property. Leegi mu ngi dox.',
+                'sms' => 'Takussan : bayle :reference xaatimu na te mu ngi dox.',
             ],
         ],
         'property' => [
