@@ -333,9 +333,19 @@ class PaymentGatewayService
                 // réglé (espèces enregistrées pendant qu'un checkout était ouvert, second checkout)
                 // ne solde rien : il est marqué comme double encaissement, et l'agence prévenue
                 // pour rembourser. Un rejeu du MÊME règlement (vérification forcée) n'est pas un
-                // doublon.
-                if ($current === PaymentStatus::Paid) {
-                    if (! $this->isSettledBy($existingMeta, $transactionId)) {
+                // doublon. VERIF-596 passe 5 (M-E) — de même sur une échéance ANNULÉE par un
+                // renouvellement (checkout ouvert avant, confirmé après) : elle n'est plus due,
+                // l'encaissement est à rembourser, et la matrice refuserait `cancelled → paid`.
+                if ($current === PaymentStatus::Paid || $current === PaymentStatus::Cancelled) {
+                    // Rien n'a soldé une échéance annulée : seul un doublon déjà marqué pour CE
+                    // règlement (rejeu) n'est pas recompté.
+                    $counted = $current === PaymentStatus::Paid
+                        ? $this->isSettledBy($existingMeta, $transactionId)
+                        : in_array($transactionId, array_column(
+                            is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
+                            'transaction_id',
+                        ), true);
+                    if (! $counted) {
                         $existingMeta['gateway_duplicate_payment'] = array_merge(
                             is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
                             [[
@@ -1052,7 +1062,8 @@ class PaymentGatewayService
 
         $status = $this->currentPaymentStatus($payment);
 
-        return ! in_array($status, [PaymentStatus::Paid, PaymentStatus::Refunded], true);
+        // VERIF-596 passe 5 (M-E) — une échéance annulée par un renouvellement n'est plus due.
+        return ! in_array($status, [PaymentStatus::Paid, PaymentStatus::Refunded, PaymentStatus::Cancelled], true);
     }
 
     protected function paymentCurrency(Model $payment): string

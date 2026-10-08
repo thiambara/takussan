@@ -230,6 +230,7 @@ return [
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
     ],
+        'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it or start the renewal after it.',
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',
         'code_locked' => 'Too many wrong codes: signing is blocked for 15 minutes.',

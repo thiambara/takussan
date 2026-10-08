@@ -22,7 +22,7 @@ import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
 
 /**
  * Must stay aligned with `App\Models\Enums\PaymentStatus` (pending, paid,
- * late, partially_paid, failed, refunded). The backend rejects any other
+ * late, partially_paid, failed, refunded, cancelled). The backend rejects any other
  * value with HTTP 422 on `GET /api/payments/history?filter[status]=...`.
  */
 export type PaymentStatus =
@@ -31,7 +31,8 @@ export type PaymentStatus =
   | 'late'
   | 'partially_paid'
   | 'failed'
-  | 'refunded';
+  | 'refunded'
+  | 'cancelled';
 
 /** Ordre d'affichage du filtre de statut — l'ordre EST la donnée, pas un détail. */
 export const PAYMENT_STATUS_VALUES: readonly PaymentStatus[] = [
@@ -41,6 +42,7 @@ export const PAYMENT_STATUS_VALUES: readonly PaymentStatus[] = [
   'partially_paid',
   'failed',
   'refunded',
+  'cancelled',
 ];
 
 /*
@@ -62,6 +64,7 @@ export const PAYMENT_STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   partially_paid: 'info',
   failed: 'danger',
   refunded: 'neutral',
+  cancelled: 'neutral',
 };
 
 export const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {

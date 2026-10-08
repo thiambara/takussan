@@ -230,6 +230,7 @@ return [
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
     ],
+        'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko walla nga tàmbali yeesal bi ginnaaw ko.',
     'lease_signature' => [
         'already_signed' => 'Xaatim nga kontraa bii ba noppi.',
         'code_locked' => 'Kood yu baaxul bari nañu : xaatim bi tëju na diirub 15 simili.',

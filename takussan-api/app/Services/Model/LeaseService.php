@@ -16,6 +16,7 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\LeaseRenewalService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -78,12 +79,19 @@ class LeaseService
      */
     public function completeActivation(Lease $lease): Lease
     {
-        $lease->update([
-            'status' => LeaseStatus::Active,
-            'signed_at' => now(),
-        ]);
+        // VERIF-596 passe 5 (M-E) — un renouvellement né `pending_signature` relève son parent ICI
+        // et non à sa création : coupure de la fin, annulation des échéances du chevauchement,
+        // `renewed`. Une échéance réglée entre-temps refuse l'activation (409), transaction annulée.
+        $fresh = DB::transaction(function () use ($lease) {
+            app(LeaseRenewalService::class)->completeHandOver($lease);
 
-        $fresh = $lease->refresh();
+            $lease->update([
+                'status' => LeaseStatus::Active,
+                'signed_at' => now(),
+            ]);
+
+            return $lease->refresh();
+        });
 
         // `afterCommit` : une activation dans la transaction d'une signature n'émet l'échéancier
         // qu'une fois la ligne validée (sans transaction, l'émission est immédiate).

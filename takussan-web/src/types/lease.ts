@@ -27,15 +27,17 @@ export type LeasePaymentType =
   | 'regularization'
   | 'penalty';
 
-// TCK-593 — les valeurs de `PaymentStatus` côté API, à l'identique (`partial`/`cancelled` n'y
-// ont jamais existé ; `partially_paid` et `failed`, si).
+// TCK-593 — les valeurs de `PaymentStatus` côté API, à l'identique (`partial` n'y a jamais
+// existé ; `partially_paid` et `failed`, si). VERIF-596 passe 5 (M-E) — `cancelled` : une échéance
+// d'un bail parent que son renouvellement a remplacée.
 export type LeasePaymentStatus =
   | 'pending'
   | 'paid'
   | 'late'
   | 'partially_paid'
   | 'failed'
-  | 'refunded';
+  | 'refunded'
+  | 'cancelled';
 
 export type LeasePaymentMethod =
   | 'cash'

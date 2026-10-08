@@ -3,12 +3,17 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeaseRenewed;
+use App\Exceptions\ApiError;
 use App\Jobs\GenerateLeasePaymentSchedule;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Model\ReferenceNumberGenerator;
+use App\Services\Payments\PaymentGatewayService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -32,6 +37,9 @@ use Illuminate\Validation\ValidationException;
 class LeaseRenewalService
 {
     public const MAX_CHAIN_DEPTH = 10;
+
+    /** VERIF-596 passe 5 (M-E) — les échéances ouvertes sans aucun règlement, annulables. */
+    public const CANCELLABLE_DUE_STATUSES = [PaymentStatus::Pending, PaymentStatus::Late, PaymentStatus::Failed];
 
     /**
      * Statuts du parent autorisant un renouvellement.
@@ -67,7 +75,6 @@ class LeaseRenewalService
             $this->guardNoActiveChild($parent);
             $this->guardMaxChainDepth($parent);
 
-            $parentStart = $parent->start_date ? Carbon::parse($parent->start_date) : null;
             $parentEnd = $parent->end_date ? Carbon::parse($parent->end_date) : null;
 
             $startDate = isset($data['start_date'])
@@ -84,16 +91,6 @@ class LeaseRenewalService
                 throw ValidationException::withMessages([
                     'end_date' => [__('messages.lease_renewal_end_after_start')],
                 ])->status(422);
-            }
-
-            // Continuité dates : si chevauchement explicite, on ajuste
-            // rétroactivement le end_date du parent à start_date - 1.
-            if ($parentEnd !== null && $startDate->lt($parentEnd)) {
-                $adjusted = $startDate->copy()->subDay();
-                if ($parentStart !== null && $adjusted->lt($parentStart)) {
-                    $adjusted = $parentStart->copy();
-                }
-                $parent->forceFill(['end_date' => $adjusted])->save();
             }
 
             $child = new Lease([
@@ -135,12 +132,23 @@ class LeaseRenewalService
             $requireSignature = $this->requireSignatureFlag()
                 || ($this->isFrozen($parent) && $this->changesSignedTerms($parent, $child));
             $childStatus = $requireSignature ? LeaseStatus::PendingSignature : LeaseStatus::Active;
+            // VERIF-596 passe 5 (M-E) — une échéance du parent déjà réglée dans le chevauchement
+            // refuse le renouvellement, avant toute écriture (rejoué à l'activation d'un enfant en
+            // attente : un règlement a pu arriver entre-temps).
+            $this->assertNoSettledOverlap($parent, $startDate);
+
             $child->forceFill([
                 'status' => $childStatus,
                 'signed_at' => $childStatus === LeaseStatus::Active ? now() : null,
             ])->save();
 
-            $parent->forceFill(['status' => LeaseStatus::Renewed])->save();
+            // VERIF-596 passe 5 (M-E) — le parent ne cède sa place qu'à un enfant EN VIGUEUR. Un
+            // enfant `pending_signature` laisse le parent `active`, avec sa fin et son échéancier :
+            // un locataire qui ne signe pas garde son bail. La relève se fait à l'activation
+            // ({@see self::completeHandOver()}).
+            if ($childStatus === LeaseStatus::Active) {
+                $this->handOver($parent, $child, $actor);
+            }
 
             $changes = $this->diffChanges($parent, $child);
 
@@ -170,6 +178,126 @@ class LeaseRenewalService
 
             return $child->fresh();
         });
+    }
+
+    /**
+     * VERIF-596 passe 5 (M-E) — à l'activation d'un enfant né `pending_signature`, la relève que
+     * `renew` a reportée. L'appelant tient le verrou de la ligne de l'enfant ; le parent est
+     * verrouillé ici (enfant puis parent : aucune voie ne prend l'ordre inverse, `renew` refusant
+     * un second enfant ouvert). Un parent qui n'est plus `active` ni `expired` (résilié entre-temps,
+     * ou déjà relevé par un enfant antérieur à cette règle) n'est pas touché.
+     */
+    public function completeHandOver(Lease $child): void
+    {
+        if ($child->renewed_from_lease_id === null) {
+            return;
+        }
+
+        $parent = Lease::query()->whereKey($child->renewed_from_lease_id)->lockForUpdate()->first();
+        if ($parent === null || ! in_array($parent->status, self::RENEWABLE_PARENT_STATUSES, true)) {
+            return;
+        }
+
+        $this->assertNoSettledOverlap($parent, Carbon::parse($child->start_date));
+        $this->handOver($parent, $child, null);
+    }
+
+    /**
+     * La relève du parent par un enfant en vigueur, sous le verrou du parent :
+     * - continuité des dates (TCK-089) : un chevauchement ramène la fin du parent à la veille du
+     *   début de l'enfant ;
+     * - VERIF-596 passe 5 (M-E) : les échéances de loyer du parent encore dues à partir du début
+     *   de l'enfant passent `cancelled`, tracées ; l'échéancier de l'enfant les remplace. Avant,
+     *   chaque mois du chevauchement était facturé deux fois, pénalités de retard comprises ;
+     * - le parent passe `renewed`.
+     */
+    protected function handOver(Lease $parent, Lease $child, ?User $actor): void
+    {
+        $startDate = Carbon::parse($child->start_date);
+        $parentStart = $parent->start_date ? Carbon::parse($parent->start_date) : null;
+        $parentEnd = $parent->end_date ? Carbon::parse($parent->end_date) : null;
+
+        $attributes = ['status' => LeaseStatus::Renewed];
+        if ($parentEnd !== null && $startDate->lt($parentEnd)) {
+            $adjusted = $startDate->copy()->subDay();
+            if ($parentStart !== null && $adjusted->lt($parentStart)) {
+                $adjusted = $parentStart->copy();
+            }
+            $attributes['end_date'] = $adjusted;
+        }
+
+        $cancelled = [];
+        foreach ($this->overlappingRentDues($parent, $startDate) as $due) {
+            if (in_array($due->status, self::CANCELLABLE_DUE_STATUSES, true)) {
+                $due->update(['status' => PaymentStatus::Cancelled]);
+                $cancelled[] = $due->reference_number;
+            }
+        }
+
+        $parent->forceFill($attributes)->save();
+
+        if ($cancelled !== []) {
+            activity('Lease')
+                ->performedOn($parent)
+                ->causedBy($actor)
+                ->withProperties(['child_id' => $child->id, 'cancelled' => $cancelled])
+                ->event('lease_renewal_schedule_cancelled')
+                ->log('lease_renewal_schedule_cancelled');
+        }
+    }
+
+    /**
+     * VERIF-596 passe 5 (M-E) — une échéance du chevauchement déjà engagée ne s'annule pas en
+     * silence : réglée, en partie réglée, pénalité payée, ou paiement en ligne en cours. 409, avec
+     * les échéances en cause ; le remboursement reste un geste humain.
+     */
+    protected function assertNoSettledOverlap(Lease $parent, CarbonInterface $startDate): void
+    {
+        $engaged = $this->overlappingRentDues($parent, $startDate)
+            ->filter(fn (LeasePayment $due) => $this->isEngaged($due))
+            ->map(fn (LeasePayment $due) => [
+                'id' => $due->id,
+                'reference_number' => $due->reference_number,
+                'due_date' => $due->due_date?->toDateString(),
+                'status' => $due->status instanceof PaymentStatus ? $due->status->value : $due->status,
+            ])
+            ->values()
+            ->all();
+
+        if ($engaged !== []) {
+            throw (new ApiError(409, 'lease.renewal_overlaps_paid_schedule'))->with(['payments' => $engaged]);
+        }
+    }
+
+    /**
+     * Les échéances de loyer du parent dues à partir du début de l'enfant : celles que l'échéancier
+     * de l'enfant (premier terme ≥ son début) facture à nouveau. Vaut pour un parent sans fin.
+     *
+     * @return Collection<int, LeasePayment>
+     */
+    protected function overlappingRentDues(Lease $parent, CarbonInterface $startDate): Collection
+    {
+        return LeasePayment::query()
+            ->where('lease_id', $parent->id)
+            ->where('payment_type', LeasePaymentType::Rent->value)
+            ->whereDate('due_date', '>=', $startDate->toDateString())
+            ->orderBy('due_date')
+            ->lockForUpdate()
+            ->get();
+    }
+
+    protected function isEngaged(LeasePayment $due): bool
+    {
+        if (in_array($due->status, [PaymentStatus::Paid, PaymentStatus::PartiallyPaid], true)
+            || (float) $due->paid_amount > 0
+            || $due->late_fee_paid_at !== null) {
+            return true;
+        }
+
+        // Un paiement en ligne OUVERT sur l'échéance (la définition du dépôt : TCK-593) : le
+        // locataire est en train de payer. Confirmé après coup sur une échéance annulée, un
+        // règlement est marqué double encaissement, à rembourser (`PaymentGatewayService`).
+        return app(PaymentGatewayService::class)->openCheckout($due) !== null;
     }
 
     /**

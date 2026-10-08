@@ -230,6 +230,7 @@ return [
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
         'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
     ],
+        'renewal_overlaps_paid_schedule' => 'Une échéance du bail en cours, dans la période que le renouvellement reprend, est déjà réglée ou en cours de règlement : le renouvellement ne l\'annule pas. Remboursez-la ou faites commencer le renouvellement après elle.',
     'lease_signature' => [
         'already_signed' => 'Vous avez déjà signé ce contrat.',
         'code_locked' => 'Trop de codes faux : la signature est bloquée pendant 15 minutes.',

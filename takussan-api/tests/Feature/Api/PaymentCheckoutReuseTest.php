@@ -192,6 +192,38 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->assertCount(1, $payment->refresh()->metadata['gateway_duplicate_payment']);
     }
 
+    /**
+     * VERIF-596 passe 5 (M-E) — une échéance annulée par un renouvellement n'est plus due : on n'y
+     * ouvre pas de checkout, et un checkout ouvert AVANT l'annulation (sorti de la fenêtre de
+     * réutilisation, donc annulable) et payé après est marqué double encaissement, à rembourser,
+     * au lieu d'être refusé par la matrice (`cancelled → paid`) et perdu.
+     */
+    public function test_une_echeance_annulee_par_un_renouvellement_ne_se_paie_plus(): void
+    {
+        $ctx = $this->leaseDue();
+        $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
+        $ctx['agency']->update(['primary_admin_id' => $admin->id]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $ctx['payment']->refresh()->update(['status' => PaymentStatus::Cancelled]);
+
+        $this->initiate($ctx['payment']->id)->assertStatus(409)->assertJsonPath('code', 'payment.not_payable');
+
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Cancelled, $payment->status);
+        $this->assertSame('spy_txn_1', $payment->metadata['gateway_duplicate_payment'][0]['transaction_id']);
+        $this->assertSame(1, AppNotification::query()->where('user_id', $admin->id)
+            ->where('code', 'payment.duplicate')->count());
+
+        // Le rejeu du MÊME webhook n'ajoute rien.
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+        $this->assertCount(1, $payment->refresh()->metadata['gateway_duplicate_payment']);
+    }
+
     public function test_la_verification_forcee_du_meme_reglement_n_est_pas_un_doublon(): void
     {
         // La vérification forcée n'a pas la déduplication des webhooks : c'est `settled_by` qui

@@ -1655,7 +1655,8 @@
       "late": "Yeex na",
       "partially_paid": "Fey nañu ay genn-wàll",
       "failed": "Antuwul",
-      "refunded": "Delloo nañu ko"
+      "refunded": "Delloo nañu ko",
+      "cancelled": "Neenal nañu ko"
     },
     "invoiceStatus": {
       "draft": "Buruyoŋ",

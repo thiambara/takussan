@@ -3058,7 +3058,8 @@
       "late": "En retard",
       "partially_paid": "Partiellement payé",
       "failed": "Échec",
-      "refunded": "Remboursé"
+      "refunded": "Remboursé",
+      "cancelled": "Annulé"
     },
     "invoiceStatus": {
       "draft": "Brouillon",

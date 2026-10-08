@@ -72,6 +72,17 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    Sans cela, un renouvellement à J+1 à +50 % s'exécutait le lendemain sans le locataire, au-dessus du
    plafond que `force` ne passe plus. Un renouvellement sans changement de terme, ou d'un parent
    antérieur, suit le réglage comme avant.
+   **Le parent ne cède sa place qu'à un enfant en vigueur, et chaque mois ne se facture qu'une fois**
+   (amendé après VERIF-596 passe 5, M-E) : la relève du parent — fin ramenée à la veille du début de
+   l'enfant, échéances de loyer non réglées dues à partir de ce début passées `cancelled` (tracées
+   par `lease_renewal_schedule_cancelled`), statut `renewed` — se fait à la naissance d'un enfant
+   `active`, et à l'**activation** d'un enfant `pending_signature` (`LeaseService::completeActivation`,
+   par code ou sur papier, sous verrou). D'ici là, le parent reste `active`, fin et échéancier
+   intacts : un locataire qui ne signe pas l'avenant garde son bail. Une échéance du chevauchement
+   déjà engagée (réglée, en partie, pénalité payée, ou paiement en ligne ouvert) n'est jamais
+   annulée en silence : 409 `lease.renewal_overlaps_paid_schedule` avec les échéances en cause, au
+   renouvellement comme à l'activation. Un paiement en ligne confirmé sur une échéance annulée est
+   marqué double encaissement, à rembourser ; on n'en ouvre plus sur elle.
    **Toutes les voies de résiliation lisent le terme figé** (amendé après VERIF-596 passe 4, M-T) : la
    résiliation anticipée formelle (`EarlyTerminationService`) comme la résiliation immédiate
    (`POST leases/{id}/terminate`, `LeaseService::terminate`) facturent

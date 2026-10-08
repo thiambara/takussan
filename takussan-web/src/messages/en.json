@@ -3083,7 +3083,8 @@
       "late": "Late",
       "partially_paid": "Partially paid",
       "failed": "Failed",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
     },
     "invoiceStatus": {
       "draft": "Draft",
