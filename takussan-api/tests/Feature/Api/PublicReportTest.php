@@ -138,4 +138,26 @@ class PublicReportTest extends ApiTestCase
         $this->assertSame(1, $review->reported_count);
         $this->assertSame(ReviewStatus::Reported, $review->status);
     }
+
+    /**
+     * verif-597 m3 — la route AUTHENTIFIÉE refuse aussi un avis non publié. Avant, elle rendait 200
+     * et le faisait passer `pending → reported` : un oracle d'existence sur les identifiants, et un
+     * avis encore en attente qui changeait de statut.
+     */
+    public function test_an_unpublished_review_cannot_be_reported_by_an_account_either(): void
+    {
+        $pending = Review::factory()->create([
+            'reviewable_type' => Property::class,
+            'reviewable_id' => $this->property->id,
+            'status' => ReviewStatus::Pending,
+            'is_approved' => false,
+        ]);
+        $this->actingAsApi(User::factory()->create());
+
+        $this->postJson("/api/reviews/{$pending->id}/report", ['reason' => 'spam'])->assertNotFound();
+
+        $pending->refresh();
+        $this->assertSame(ReviewStatus::Pending, $pending->status);
+        $this->assertSame(0, $pending->reported_count);
+    }
 }

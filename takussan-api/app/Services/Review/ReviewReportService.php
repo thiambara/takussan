@@ -33,6 +33,10 @@ class ReviewReportService
     {
         return DB::transaction(function () use ($review, $user, $fingerprint, $reason): bool {
             $review = Review::query()->whereKey($review->getKey())->lockForUpdate()->firstOrFail();
+            // verif-597 m3 — seul un avis PUBLIÉ se signale, sur les DEUX routes : un avis en attente
+            // n'existe pas pour qui signale. La route authentifiée le faisait passer `pending →
+            // reported` et révélait qu'un identifiant existait.
+            abort_unless($review->is_approved, 404);
 
             $metadata = $review->metadata ?? [];
             $reports = $metadata['reports'] ?? [];

@@ -94,11 +94,12 @@ class ReviewModerationWorkflowTest extends TestCase
             ->assertJsonPath('data.status', ReviewStatus::Approved->value);
     }
 
-    public function test_report_transitions_pending_to_reported_when_threshold_reached(): void
+    /** verif-597 m3 — seul un avis PUBLIÉ se signale : c'est lui qui passe `reported`. */
+    public function test_report_transitions_approved_to_reported_when_threshold_reached(): void
     {
         $review = Review::factory()->create([
-            'status' => ReviewStatus::Pending,
-            'is_approved' => false,
+            'status' => ReviewStatus::Approved,
+            'is_approved' => true,
         ]);
 
         Sanctum::actingAs(User::factory()->create());
@@ -117,8 +118,8 @@ class ReviewModerationWorkflowTest extends TestCase
         // TCK-597 — le seuil est la constante `ReviewReportService::REPORTED_THRESHOLD` (1) : un
         // signalement range l'avis dans la file sans le masquer. Le dédoublonnage reste par compte.
         $review = Review::factory()->create([
-            'status' => ReviewStatus::Pending,
-            'is_approved' => false,
+            'status' => ReviewStatus::Approved,
+            'is_approved' => true,
         ]);
 
         $reporter = User::factory()->create();
@@ -138,6 +139,7 @@ class ReviewModerationWorkflowTest extends TestCase
         $this->assertSame(2, (int) $review->refresh()->reported_count);
     }
 
+    /** verif-597 m3 — un avis masqué n'est plus publié : il ne se signale pas (404). */
     public function test_report_does_not_transition_rejected_review(): void
     {
         $review = Review::factory()->create([
@@ -149,7 +151,7 @@ class ReviewModerationWorkflowTest extends TestCase
 
         $this->postJson("/api/reviews/{$review->id}/report", [
             'reason' => 'stale',
-        ])->assertOk();
+        ])->assertNotFound();
 
         $review->refresh();
         $this->assertSame(ReviewStatus::Rejected, $review->status);

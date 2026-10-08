@@ -27,8 +27,7 @@ class PublicReviewController extends Controller
             return $this->json(null, 204);
         }
 
-        abort_unless($review->is_approved, 404);
-
+        // Seul un avis publié se signale : `ReviewReportService` le garde pour les deux routes.
         $reports->report($review, $request->user(), VisitorFingerprint::of($request), $data['reason']);
 
         return $this->json(['message' => __('messages.review_reported')]);
