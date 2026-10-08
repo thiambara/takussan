@@ -137,22 +137,6 @@ class Customer extends AbstractModel
     }
 
     /**
-     * TCK-591 §9 — les fiches qu'un utilisateur peut LIRE, en une requête : exactement la règle de
-     * `CustomerPolicy::view` (TCK-587). Super-admin → tout ; personnel de l'agence de son profil
-     * actif tenant `crm.view_all` → l'agence, plus ses propres ajouts ; tout autre compte (personnel
-     * sans la capacité, bailleur, client) → ses seuls ajouts.
-     *
-     * TCK-591 (verif-591 M1) — « ses ajouts » : ceux d'une agence dont il est encore MEMBRE actif,
-     * ou hors agence (`CustomerPolicy::view`, même décision).
-     *
-     * Partagée par `CustomerController::index` et `PipelineStatsService` : le kanban et ses
-     * compteurs ne peuvent plus diverger de la fiche. `$user->agency_id` n'y entre pas — c'est
-     * l'agence du profil actif QUEL QU'IL SOIT, et un bailleur y lisait tout le CRM.
-     *
-     * @param  Builder<Customer>  $query
-     * @return Builder<Customer>
-     */
-    /**
      * TCK-591 (verif-591 m2, passe 2 N4) — qui lit et écrit les critères : super-admin, personnel de
      * l'agence de la fiche, ou — fiche hors agence — son auteur. Le bailleur auteur d'une fiche
      * d'agence garde la fiche (§9), pas les critères qu'y pose l'agent.
@@ -175,6 +159,22 @@ class Customer extends AbstractModel
         );
     }
 
+    /**
+     * TCK-591 §9 — les fiches qu'un utilisateur peut LIRE, en une requête : exactement la règle de
+     * `CustomerPolicy::view` (TCK-587). Super-admin → tout ; personnel de l'agence de son profil
+     * actif tenant `crm.view_all` → l'agence, plus ses propres ajouts ; tout autre compte (personnel
+     * sans la capacité, bailleur, client) → ses seuls ajouts.
+     *
+     * TCK-591 (verif-591 M1) — « ses ajouts » : ceux d'une agence dont il est encore MEMBRE actif,
+     * ou hors agence (`CustomerPolicy::view`, même décision).
+     *
+     * Partagée par `CustomerController::index` et `PipelineStatsService` : le kanban et ses
+     * compteurs ne peuvent plus diverger de la fiche. `$user->agency_id` n'y entre pas — c'est
+     * l'agence du profil actif QUEL QU'IL SOIT, et un bailleur y lisait tout le CRM.
+     *
+     * @param  Builder<Customer>  $query
+     * @return Builder<Customer>
+     */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         if ($user->isSuperAdmin()) {
