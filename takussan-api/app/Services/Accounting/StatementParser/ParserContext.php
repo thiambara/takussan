@@ -11,5 +11,7 @@ readonly class ParserContext
         public Agency $agency,
         public BankStatementSourceFormat $format,
         public ?array $csvMapping = null,
+        // TCK-593 — les lignes sautées, comptées par le pilote et lues par le job.
+        public ParseTally $tally = new ParseTally,
     ) {}
 }

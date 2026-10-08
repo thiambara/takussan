@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Accounting\BankCsvMappingController;
 use App\Http\Controllers\Api\Accounting\BankStatementController;
 use App\Http\Controllers\Api\Accounting\BankStatementLineController;
 use App\Http\Controllers\Api\Accounting\FinalizeBankStatementController;
@@ -11,6 +12,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('bank-statements', [BankStatementController::class, 'index']);
         Route::post('bank-statements', [BankStatementController::class, 'store']);
         Route::get('bank-statements/payment-search', PaymentSearchController::class);
+        // TCK-593 — le mapping CSV de l'agence.
+        Route::get('bank-statements/csv-mapping', [BankCsvMappingController::class, 'show']);
+        Route::put('bank-statements/csv-mapping', [BankCsvMappingController::class, 'update']);
     });
 
     Route::get('bank-statements/{statement}', [BankStatementController::class, 'show']);

@@ -32,6 +32,8 @@ describe('agencyFormSchema', () => {
     timezone: '',
     // TCK-098 added this required boolean to the schema.
     moderation_required: false,
+    // TCK-593 — le réglage d'encaissement des pénalités en ligne.
+    late_fee_online_collection: false,
     // TCK-594 — TVA par défaut, seuil des quatre yeux, mentions légales.
     default_tax_rate: '',
     payout_approval_threshold: '',
@@ -119,6 +121,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     currency: '',
     timezone: '',
     moderation_required: false,
+    late_fee_online_collection: false,
     default_tax_rate: '18',
     payout_approval_threshold: '500000',
     legal_name: ' Sen Immo SARL ',

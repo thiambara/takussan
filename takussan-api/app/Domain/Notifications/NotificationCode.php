@@ -37,6 +37,10 @@ enum NotificationCode: string
     case LeasePaymentRecorded = 'lease_payment.recorded';
     case LeasePaymentReceivedLandlord = 'lease_payment.received_landlord';
 
+    // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
+    case PaymentDuplicate = 'payment.duplicate';
+    case PaymentDuplicateLateFee = 'payment.duplicate_late_fee';
+
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
     case BookingConfirmed = 'booking.confirmed';
@@ -105,7 +109,8 @@ enum NotificationCode: string
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
-            self::LeasePaymentReceivedLandlord => NotificationType::Payment,
+            self::LeasePaymentReceivedLandlord, self::PaymentDuplicate,
+            self::PaymentDuplicateLateFee => NotificationType::Payment,
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder => NotificationType::Visit,
@@ -148,7 +153,9 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected => null,
+            self::PropertyApproved, self::PropertyRejected,
+            // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
+            self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
             // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
             // d'un détournement (ADR-0039 §6).
@@ -173,6 +180,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest => ['count' => self::PARAM_COUNT, 'total' => self::PARAM_MONEY],
             self::LeasePaymentRecorded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
+            self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],

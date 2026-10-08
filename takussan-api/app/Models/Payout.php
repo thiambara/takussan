@@ -31,6 +31,8 @@ class Payout extends AbstractModel
         'gross_amount', 'commission_amount', 'fees_amount', 'net_amount',
         'currency', 'payment_method', 'payout_method_id', 'transaction_id',
         'scheduled_at', 'processed_at', 'failed_reason', 'notes', 'metadata',
+        // TCK-593 — rapprochement bancaire (un débit du relevé).
+        'bank_reconciled_at', 'bank_statement_line_id',
     ];
 
     /** TCK-594 — le défaut de la colonne, lisible avant le premier `refresh()`. */
@@ -53,6 +55,7 @@ class Payout extends AbstractModel
         'processed_at' => 'datetime',
         'approved_at' => 'datetime',
         'metadata' => 'array',
+        'bank_reconciled_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['lease_id', 'booking_id', 'agency_id', 'landlord_id', 'payee_role', 'issued_by_id', 'approved_by_id', 'service_provider_bill_id', 'status', 'currency', 'payment_method'];

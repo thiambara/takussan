@@ -109,6 +109,14 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'payer_id' => $customer->id,
             'status' => PaymentStatus::Pending,
         ]);
+        // TCK-593 — une quittance ne se délivre que pour une échéance payée (422 sinon) : le jeu
+        // « quittance » porte la sienne, pour éprouver l'isolation et non la garde d'impayé.
+        $paidPayment = LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'payer_id' => $customer->id,
+            'status' => PaymentStatus::Paid,
+            'paid_at' => now(),
+        ]);
         $booking = Booking::factory()->create([
             'property_id' => $property->id,
             'customer_id' => $customer->id,
@@ -162,7 +170,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
         $agencyDocument = $attached($this->agency, $this->admin);
 
         return compact(
-            'property', 'customer', 'lease', 'payment', 'booking', 'payout',
+            'property', 'customer', 'lease', 'payment', 'paidPayment', 'booking', 'payout',
             'invoice', 'document', 'inventory', 'visit', 'guarantor',
             'leaseDocument', 'bookingDocument', 'customerDocument', 'inventoryDocument', 'agencyDocument',
         );
@@ -314,7 +322,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             ]],
             'paiements d\'une réservation' => ['GET', '/api/bookings/{booking}/payments', []],
             'partage d\'un document' => ['POST', '/api/documents/{document}/share', []],
-            'quittance' => ['GET', '/api/leases/{lease}/receipts/{payment}/pdf', []],
+            'quittance' => ['GET', '/api/leases/{lease}/receipts/{paidPayment}/pdf', []],
             'contrat de bail' => ['GET', '/api/leases/{lease}/contract/pdf', []],
             'facture PDF' => ['GET', '/api/invoices/{invoice}/pdf', []],
         ];

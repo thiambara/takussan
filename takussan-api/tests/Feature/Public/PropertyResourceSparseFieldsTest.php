@@ -41,7 +41,7 @@ use Tests\ApiTestCase;
  * Le correctif est `whenHas()`, qui teste
  * `array_key_exists(…, getAttributes())` et **omet la clé** au lieu d'en
  * fabriquer la valeur — même règle que `UserResource::has_usable_password`
- * (TCK-272) et que `PaymentGatewayService::paymentAmount()` (ardoise D-51).
+ * (TCK-272) et que `PaymentGatewayService::amountDue()` (ardoise D-51).
  *
  * La question posée à chaque test est « une régression silencieuse le
  * cocherait-elle aussi ? ». Trois réponses la ferment :

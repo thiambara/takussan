@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\User;
 use App\Services\Invoice\InvoiceNumberAllocator;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Support\Facades\DB;
 
 class InvoiceService
@@ -101,6 +102,9 @@ class InvoiceService
             'invoice.cannot_mark_paid'
         );
 
+        // TCK-593 (passe 2, N4) — un règlement manuel le dit : un checkout payé ensuite reste un
+        // double encaissement, pas le règlement de la facture.
+        app(PaymentGatewayService::class)->markManualSettlement($invoice);
         // TCK-594 (ADR-0039 §7) — payer un brouillon vaut émission : il reçoit son numéro.
         DB::transaction(function () use ($invoice): void {
             $invoice->update(['status' => InvoiceStatus::Paid]);

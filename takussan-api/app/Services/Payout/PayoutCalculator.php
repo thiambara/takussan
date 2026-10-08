@@ -224,9 +224,14 @@ final class PayoutCalculator
         return $agencyCurrency;
     }
 
+    /**
+     * La règle de `PaymentGatewayService::roundToCurrencyUnit()` (TCK-593, l'arrondi XOF de
+     * référence) : à l'unité de la devise, au plus proche, la moitié vers le haut. Ce qui entre
+     * et ce qui sort s'arrondissent de la même façon.
+     */
     private function round(float $value, int $places): float
     {
-        return round($value, $places);
+        return round($value, $places, PHP_ROUND_HALF_UP);
     }
 
     private function period(Builder $query, string $column, ?CarbonInterface $from, ?CarbonInterface $to): void

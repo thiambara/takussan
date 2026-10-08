@@ -11,11 +11,15 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Property;
+use App\Services\Lease\LateFeeCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
 class PaymentWebhookTest extends TestCase
 {
+    use LeaseDueFixture;
     use RefreshDatabase;
 
     protected string $secret = 'wave_secret_for_tests';
@@ -204,5 +208,135 @@ class PaymentWebhookTest extends TestCase
 
         $array = $integration->toArray();
         $this->assertArrayNotHasKey('credentials', $array);
+    }
+
+    // ─── TCK-593 — statut après paiement d'une échéance de loyer ───────────────
+
+    /**
+     * AC6 — réglage activé : un webhook de 157 500 solde loyer ET pénalité dans la même
+     * sauvegarde ; 150 000 sur ce checkout est un sous-paiement.
+     */
+    public function test_succes_avec_penalite_incluse_pose_late_fee_paid_at(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->waveWebhook('spy_txn_1', 150_000)->assertStatus(422);
+        $this->assertSame(PaymentStatus::Late, $ctx['payment']->refresh()->status);
+
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertNotNull($payment->paid_at);
+        $this->assertNotNull($payment->late_fee_paid_at);
+        $this->assertSame(0.0, $payment->lateFeeOutstanding());
+    }
+
+    /**
+     * TCK-593 (vérification adverse, V1) — une pénalité FRACTIONNAIRE, calculée par le vrai
+     * calculateur, ne fait plus refuser le paiement encaissé. Base : 150 000 − 33 333 déjà payés =
+     * 116 667 ; 5 % = 5 833,35 → arrondie à 5 833 (XOF, sans sous-unité). Avant : le fournisseur
+     * encaissait 122 500 (il arrondit à l'entier), le montant figé valait 122 500,35, et le webhook
+     * était refusé en 422 — le locataire, débité, voyait encore « Payer ».
+     */
+    public function test_une_penalite_fractionnaire_est_encaissee_au_montant_demande(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true], [
+            'status' => PaymentStatus::PartiallyPaid,
+            'metadata' => ['paid_amount' => 33_333],
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]);
+
+        $fee = app(LateFeeCalculator::class)->apply($ctx['payment']->fresh());
+        $this->assertSame(5_833.0, $fee);
+
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        // Ce que le pilote transmet est un entier d'unités, égal au montant figé.
+        $this->assertSame(12_250_000, $spy->calls[0]['amount_cents']);
+        $this->assertEquals(122_500, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
+
+        $this->waveWebhook('spy_txn_1', 122_500)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertNotNull($payment->late_fee_paid_at);
+    }
+
+    /**
+     * V1 — une pénalité fractionnaire DÉJÀ enregistrée (avant l'arrondi du calculateur) : c'est
+     * `amountDue` qui arrondit, avant de figer et de transmettre.
+     */
+    public function test_une_penalite_fractionnaire_deja_enregistree_est_arrondie_au_montant_du(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true], ['late_fee_amount' => 7_500.05]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->assertSame(15_750_000, $spy->calls[0]['amount_cents']);
+        $this->assertEquals(157_500, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
+
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+        $this->assertSame(PaymentStatus::Paid, $ctx['payment']->refresh()->status);
+    }
+
+    /** V1 — l'arrondi est au plus proche, la moitié vers le haut : 7 500,5 → 7 501. */
+    public function test_la_penalite_est_arrondie_a_l_unite_la_moitie_vers_le_haut(): void
+    {
+        $up = $this->leaseDue(null, ['amount' => 150_010, 'status' => PaymentStatus::Pending, 'late_fee_amount' => null, 'late_fee_applied_at' => null]);
+        $down = $this->leaseDue(null, ['amount' => 150_009, 'status' => PaymentStatus::Pending, 'late_fee_amount' => null, 'late_fee_applied_at' => null]);
+
+        $this->assertSame(7_501.0, app(LateFeeCalculator::class)->compute($up['payment']->fresh()));
+        $this->assertSame(7_500.0, app(LateFeeCalculator::class)->compute($down['payment']->fresh()));
+    }
+
+    /**
+     * AC5 — réglage désactivé : 150 000 solde le loyer, la pénalité reste due et le statut ne la
+     * dit pas (`paid`, ni `late` ni `partially_paid`).
+     */
+    public function test_succes_sans_penalite_incluse_laisse_la_penalite_due(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => false]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertNotNull($payment->paid_at);
+        $this->assertSame('7500.00', (string) $payment->late_fee_amount);
+        $this->assertNull($payment->late_fee_paid_at);
+        $this->assertSame(7_500.0, $payment->lateFeeOutstanding());
+    }
+
+    /**
+     * AC9 — un webhook `failed` ne fige pas l'échéance : elle reste `late`, l'échec est tracé, et
+     * l'agent peut ensuite enregistrer le paiement en espèces.
+     */
+    public function test_echec_en_ligne_laisse_l_echeance_ouverte(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->waveWebhook('spy_txn_1', null, 'checkout.session.payment_failed')->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Late, $payment->status);
+        $this->assertNotEmpty($payment->metadata['gateway']['last_failed_at'] ?? null);
+
+        Sanctum::actingAs($ctx['agent']);
+        $this->postJson("/api/lease-payments/{$payment->id}/mark-paid", [])->assertOk();
+        $this->assertSame(PaymentStatus::Paid, $payment->refresh()->status);
     }
 }
