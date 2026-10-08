@@ -360,7 +360,7 @@ du Delta et un critère qui rougit sur le code actuel.
       - le traitement des conflits (**option retenue par défaut** : l'événement importé est enregistré,
         marqué en conflit, bailleur et agent prévenus ; jamais d'annulation automatique) ;
       - la garde SSRF.
-- [ ] **ADR à écrire et accepter avant le code d'O17** : *« Quelle preuve de consentement Takussan
+- [x] **ADR à écrire et accepter avant le code d'O17** : *« Quelle preuve de consentement Takussan
       enregistre-t-elle pour un bail ? »* Il tranche :
       - l'objet signé (empreinte du PDF figé) ;
       - le canal du code (SMS sur numéro vérifié, sinon e-mail) ;
