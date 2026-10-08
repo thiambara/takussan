@@ -1,15 +1,15 @@
 ---
 id: TCK-504
 title: "Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise"
-status: todo
+status: doing
 phase: P2
 family: full
 estimate: M
 wave: 58
 created: 2026-08-31
-updated: 2026-08-31
+updated: 2026-10-08
 depends_on: [TCK-502]
-blocks: []
+blocks: [TCK-603]
 spec_refs:
   features:
     - docs/features.md#112-agence--équipe
@@ -98,4 +98,38 @@ il est simplement muet.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Re-mesure des prémisses sur `dev` à `3ae586cd` (2026-10-08)
+
+Le ticket date du 2026-08-31 ; 586, 587, 590, 591 et 598 ont touché le contact principal depuis.
+
+- **La règle de repli n'est plus « le plus anciennement invité » tout court.** TCK-590 y a ajouté
+  l'éligibilité : un collaborateur `agent` n'est retenu que joignable (ni `blocked` ni `deleted`) et,
+  pour un bien d'agence, personnel ACTIF de l'agence du bien (`PersonnelDeLAgence::estPersonnel`,
+  branché sur `isStaffAt()` de 587) ; le propriétaire, que bailleur actif (`estProprietaire`).
+  `PrimaryPropertyContact.php` relu en entier. Le choix explicite doit donc obéir à la même
+  éligibilité, sinon la marque désignerait quelqu'un que la règle écarte.
+- **« Quatre surfaces » : il y en a plus.** Outre la carte (`primary_contact` de `PropertyResource`),
+  `contact-lead`, `contact-message` et la résolution (`…/conversation`), `PrimaryPropertyContact::for`
+  sert aujourd'hui `GET …/contact` (téléphone public, 502/590), la notification du lead
+  (`ContactLeadService`), `VisitNotifier` et `SendLeasePaymentReminders`. Toutes passent par `for()` :
+  aucune n'a à changer.
+- **Colonnes d'acceptation** : la prémisse tient. `2026_04_17_160008_create_property_collaborators_table`
+  porte `invited_at`, `accepted_at`, `metadata` ; seul `PropertyCollaboratorSeeder` remplit
+  `accepted_at`. Hors périmètre, inchangé.
+- **598** : la fiche publique ne rend plus `collaborators` sur `public.*` et se lit dans un cache de
+  données de 300 s. `PropertyPublicCacheObserver` ne réagit qu'aux colonnes de `properties` et à
+  l'adresse — son docblock range le **contact** parmi ce qui attend les 300 s. Une désignation
+  n'atteindrait donc pas la fiche avant 300 s : à corriger ici.
+- **Écart majeur, côté front : il n'existe AUCUN écran de gestion des collaborateurs.** Le ticket
+  demande de poser le choix « là où les collaborateurs se gèrent déjà ». `grep -rn collaborators
+  takussan-web/src` ne rend que le type `PropertyListItem.collaborators` et la liste des agents du
+  filtre de `properties/(liste)/page.tsx` ; les quatre routes `properties/{p}/collaborators` n'ont
+  aucun appelant front. L'interface est donc posée dans la fiche du bien de l'espace pro, sans
+  prétendre remplacer la gestion complète (ajout, retrait, rôle), qui n'existe pas et reste hors
+  du Delta.
+- **591 (passation)** : `AgentHandoverService::move('collaborations')` réécrit `user_id` de la ligne
+  du partant vers le repreneur, ou la SUPPRIME si le repreneur en a déjà une. Une marque posée sur
+  la ligne suit donc la passation dans le premier cas, et tombe (repli) dans le second. Noté pour
+  TCK-603, qui reprend les biens à la passation.
+- **AC3** nomme `manager` en plus de `viewer` et `co_owner` (la contrainte 3 ne les cite pas) : tout
+  rôle autre qu'`agent` est refusé.
