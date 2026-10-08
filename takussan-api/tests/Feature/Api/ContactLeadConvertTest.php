@@ -47,7 +47,7 @@ class ContactLeadConvertTest extends ApiTestCase
 
         $this->postJson("/api/contact-leads/{$lead->id}/convert")
             ->assertStatus(409)
-            ->assertJsonPath('code', 'lead_already_converted');
+            ->assertJsonPath('code', 'lead.already_converted');
         $this->assertSame(1, Customer::query()->where('agency_id', $x->id)->count());
     }
 
@@ -66,7 +66,7 @@ class ContactLeadConvertTest extends ApiTestCase
         Sanctum::actingAs($bailleur);
         $this->postJson("/api/contact-leads/{$lead->id}/convert")
             ->assertUnprocessable()
-            ->assertJsonPath('code', 'lead_without_agency');
+            ->assertJsonPath('code', 'lead.without_agency');
         $this->assertDatabaseCount('customers', 0);
         $this->assertNull($lead->fresh()->customer_id);
     }

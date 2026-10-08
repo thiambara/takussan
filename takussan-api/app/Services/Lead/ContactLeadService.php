@@ -20,8 +20,6 @@ use App\Notifications\ContactLeadReceivedNotification;
 use App\Notifications\NewContactLeadNotification;
 use App\Services\Model\CustomerService;
 use App\Services\Property\PrimaryPropertyContact;
-use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +37,7 @@ use Illuminate\Support\Facades\Notification;
  *
  * {@see PrimaryPropertyContact::for()} reste la seule règle. À défaut, les **admins de l'agence du
  * bien**, puis son personnel qui lit toute la boîte (`crm.view_all`, passe 2 n3) ; à défaut — pas d'agence, ou une agence sans admin actif ni contact joignable —, la
- * demande est refusée — **409 `contact_unavailable`, avant toute écriture** : une piste que
+ * demande est refusée — **409 `lead.contact_unavailable`, avant toute écriture** : une piste que
  * personne ne lira n'est pas une piste, c'est une promesse non tenue au visiteur (décision de la
  * session après la vérification adverse, m3 : jamais de 201 pour une demande que personne ne lira). La même règle sert la demande de visite (`VisitNotifier`).
  */
@@ -147,13 +145,10 @@ class ContactLeadService
             ->values();
     }
 
-    /** 409 `contact_unavailable` — avant tout `create`. */
+    /** 409 `lead.contact_unavailable` — avant tout `create`. */
     public function refuseUnavailable(): never
     {
-        throw new HttpResponseException(new JsonResponse([
-            'code' => 'contact_unavailable',
-            'message' => __('leads.contact_unavailable'),
-        ], 409));
+        abort_code(409, 'lead.contact_unavailable');
     }
 
     /**
@@ -249,20 +244,14 @@ class ContactLeadService
             $fresh = PropertyContactLead::query()->whereKey($lead->id)->lockForUpdate()->firstOrFail();
 
             if ($fresh->customer_id !== null) {
-                throw new HttpResponseException(new JsonResponse([
-                    'code' => 'lead_already_converted',
-                    'message' => __('leads.already_converted'),
-                ], 409));
+                abort_code(409, 'lead.already_converted');
             }
 
             // Vérification adverse (m2) — sans agence, `CustomerService::create` retombait sur
             // l'agence ACTIVE de l'acteur : la fiche naissait dans une agence que la demande ne
             // visait pas. La fiche naît dans l'agence DE LA DEMANDE, ou pas du tout.
             if ($fresh->agency_id === null) {
-                throw new HttpResponseException(new JsonResponse([
-                    'code' => 'lead_without_agency',
-                    'message' => __('leads.without_agency'),
-                ], 422));
+                abort_code(422, 'lead.without_agency');
             }
 
             [$first, $last] = self::splitName($fresh->name);

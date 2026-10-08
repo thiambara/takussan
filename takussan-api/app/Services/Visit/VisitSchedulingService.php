@@ -315,10 +315,10 @@ class VisitSchedulingService
         return DB::transaction(function () use ($visit, $scheduledAt) {
             $fresh = PropertyVisit::query()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
 
-            abort_unless(
+            abort_code_unless(
                 in_array($fresh->status, self::ACTIVE_STATUSES, true),
                 422,
-                __('visits.reschedule_inactive'),
+                'visit.reschedule_inactive',
             );
 
             $this->assertNoOverlap($fresh, Carbon::instance($scheduledAt), lockForUpdate: true);

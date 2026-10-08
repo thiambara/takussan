@@ -200,7 +200,7 @@ class PropertyVisitController extends Controller
     {
         // Vérification adverse, passe 2 (b) — déplacer l'heure, c'est parler au visiteur au nom
         // de l'agence : sur un bien d'agence, le personnel seul (cf. `agitPourLeBien`).
-        abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
+        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
 
         abort_code_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
@@ -223,7 +223,7 @@ class PropertyVisitController extends Controller
         if (array_key_exists('agent_id', $data)
             && $visit->agent_id !== null
             && ($data['agent_id'] === null || (int) $data['agent_id'] !== $visit->agent_id)) {
-            abort_unless($this->canAssign($request->user(), $visit), 403, __('visits.reassign_forbidden'));
+            abort_code_unless($this->canAssign($request->user(), $visit), 403, 'visit.reassign_forbidden');
         }
 
         // Reschedule of a confirmed visit must re-check overlap on the
@@ -261,14 +261,14 @@ class PropertyVisitController extends Controller
     {
         $user = $request->user();
 
-        abort_if(
+        abort_code_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
-            __('visits.reschedule_inactive'),
+            'visit.closed',
         );
 
         if ($visit->agent_id !== null && $visit->agent_id !== $user->id && ! $this->canAssign($user, $visit)) {
-            abort(409, __('visits.already_assigned'));
+            abort_code(409, 'visit.already_assigned');
         }
 
         $visit->update(['agent_id' => $user->id]);
@@ -295,7 +295,7 @@ class PropertyVisitController extends Controller
         // Vérification adverse, passe 3 (B2″) — confirmer, c'est le geste qui fait partir le SMS au
         // visiteur (contrainte 4) : la même garde que `update` et `cancel`. Sur un bien d'agence,
         // le bailleur, l'agent parti et l'agent suspendu encore assigné confirmaient (200 + SMS).
-        abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
+        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
 
         // TCK-075 AC2 — source-state check, overlap guard and status
         // flip happen inside a single DB transaction with row-level
@@ -312,7 +312,7 @@ class PropertyVisitController extends Controller
     public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
         // Passe 3 (B2″, M7′) — clore la visite est un geste de l'agence, comme la confirmer.
-        abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
+        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
 
         abort_code_unless(
             in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true),
@@ -338,7 +338,7 @@ class PropertyVisitController extends Controller
         $user = $request->user();
         $byVisitor = $visit->visitor_id === $user->id
             || ($visit->customer !== null && $visit->customer->user_id === $user->id);
-        abort_unless($byVisitor || $this->agitPourLeBien($user, $visit), 403, __('visits.staff_only'));
+        abort_code_unless($byVisitor || $this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
 
         abort_code_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),

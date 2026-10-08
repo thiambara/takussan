@@ -409,7 +409,7 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
 
         Sanctum::actingAs($bailleur);
         $this->postJson("/api/property-visits/{$id}/confirm")->assertForbidden()
-            ->assertJsonPath('message', __('visits.staff_only'));
+            ->assertJsonPath('message', __('errors.visit.staff_only'));
         $this->postJson("/api/property-visits/{$id}/complete")->assertForbidden();
 
         $this->assertSame(0, $this->smsVers('+221779990301'));

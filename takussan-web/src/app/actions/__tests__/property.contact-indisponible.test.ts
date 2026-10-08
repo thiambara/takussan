@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * TCK-590 — décision de la session après la vérification adverse (m3) : quand personne ne lirait
- * la demande, l'API rend 409 `contact_unavailable` AVANT d'écrire. Le visiteur l'apprend dans sa
+ * la demande, l'API rend 409 `lead.contact_unavailable` AVANT d'écrire. Le visiteur l'apprend dans sa
  * langue — jamais « Demande envoyée », jamais la prose anglaise du serveur.
  */
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
@@ -17,7 +17,7 @@ describe('dépôt public refusé faute de destinataire', () => {
   beforeEach(() => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       async () =>
-        new Response(JSON.stringify({ code: 'contact_unavailable', message: 'No one can receive this request.' }), {
+        new Response(JSON.stringify({ code: 'lead.contact_unavailable', message: 'No one can receive this request.' }), {
           status: 409,
           headers: { 'content-type': 'application/json' },
         }),

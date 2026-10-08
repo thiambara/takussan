@@ -27,7 +27,7 @@ async function errorFromApi(
     // TCK-590 — personne ne lirait la demande (bien sans contact joignable, agence sans admin
     // actif) : l'API refuse AVANT d'écrire, et le visiteur l'apprend dans sa langue, sans
     // croire qu'on le rappellera.
-    if (e.status === 409 && data.code === 'contact_unavailable') {
+    if (e.status === 409 && data.code === 'lead.contact_unavailable') {
       return { status: 409, message: tRacine('publicLeadErrors.contactUnavailable') };
     }
     return {

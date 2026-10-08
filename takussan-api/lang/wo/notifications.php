@@ -254,13 +254,6 @@ return [
         'schedule' => 'Waxtu bi : :datetime.',
     ],
 
-    'visit_reminder' => [
-        'subject' => 'Fàttalikuwaay : seetaanu :property jege na',
-        'greeting' => 'Salaam,',
-        'intro_24h' => 'Fàttalikuwaay — sa seetaanu :property ëllëg la ci :datetime.',
-        'intro_1h' => 'Fàttalikuwaay — sa seetaanu :property dina tàmbali ci benn waxtu, ci :datetime.',
-    ],
-
     'visit_rescheduled' => [
         'subject' => 'Waxtu seetaanu :property soppiku na',
         'greeting' => 'Salaam,',

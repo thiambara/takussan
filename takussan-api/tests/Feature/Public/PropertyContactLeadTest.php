@@ -267,7 +267,7 @@ class PropertyContactLeadTest extends TestCase
 
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
-        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
+        ])->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
 
         $this->assertDatabaseCount('property_contact_leads', 0);
     }
@@ -353,12 +353,12 @@ class PropertyContactLeadTest extends TestCase
 
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
-        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable')
-            ->assertJsonPath('message', __('leads.contact_unavailable'));
+        ])->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable')
+            ->assertJsonPath('message', __('errors.lead.contact_unavailable'));
 
         $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
             'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567', 'scheduled_at' => $this->creneau(),
-        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
+        ])->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
 
         $this->assertDatabaseCount('property_contact_leads', 0);
         $this->assertDatabaseCount('property_visits', 0);
@@ -437,6 +437,6 @@ class PropertyContactLeadTest extends TestCase
 
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771231002', 'message' => 'Disponible ce samedi ?',
-        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
+        ])->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
     }
 }

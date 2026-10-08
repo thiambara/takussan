@@ -162,7 +162,7 @@ class VisitRequestRoutingTest extends TestCase
         Notification::assertSentTo($admin, VisitRequestedNotification::class);
 
         $this->demander($sansAgence->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567'])
-            ->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
+            ->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
         $this->assertSame(0, PropertyVisit::query()->where('property_id', $sansAgence->id)->count());
     }
 }

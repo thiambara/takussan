@@ -79,7 +79,7 @@ class ContactLeadController extends Controller
 
     public function convert(ConvertContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
     {
-        abort_unless($lead->channel === ContactLeadChannel::Form, 422, __('leads.not_convertible'));
+        abort_code_unless($lead->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
 
         $customer = $this->leads->convert($lead, $request->user());
 
