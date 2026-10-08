@@ -722,6 +722,17 @@ Le détail se trouve dans « Corrections après vérification adverse » des Not
 - [x] **AC-p3-1d** — ADR-0033 écrit la règle (§2) et le prix accepté de la borne par
       destinataire (§6) (`6516c3e9`).
 
+### AC ajoutés à la fusion de TCK-591 (`f6a2a868`, 2026-10-08)
+
+- [x] **AC-591-a** — La passation (`POST agencies/{a}/members/{u}/handover`, qui retire le membre
+      avec `remove_after`) et les absences (`POST` et `DELETE agencies/{a}/absences`) sont des
+      gestes de la famille d'équipe. Un admin d'agence sans 2FA reçoit 403
+      `two_factor_required`, et une passation refusée ne retire personne. Le personnel n'est
+      concerné que si `require_team_two_factor` est coché. Les lectures (portefeuille, liste des
+      absences) restent ouvertes. Preuve : `TeamHandoverAbsenceTwoFactorTest` (9 tests).
+      L'ablation de la passation ou des absences fait rougir ce test **et**
+      `ProtectedActionsCoverageTest`.
+
 ## Hors périmètre
 
 - Code par WhatsApp (option retenue par défaut : SMS seul — exclu par `features.md` §2.3, modèle
@@ -2173,3 +2184,26 @@ des gestes que 589 protège :
 - `check-i18n` est à parité (6359 clés), et `check-i18n-namespaces` est propre.
 - Toutes les gardes racine passent, ainsi que `gen-index --check`, `check-backlog` et
   `gen-features-by-actor --check`.
+
+**Classement des routes de 591 dans `ProtectedActions` (commit séparé).** Les deux fichiers de
+routes de 591, `agent-handover.php` et `agency-absences.php`, n'étaient dans **aucune** famille.
+`ProtectedActionsCoverageTest` restait donc vert, faute de les voir. `removeAgent` refusait un
+admin sans 2FA, tandis que la passation `remove_after` lui laissait retirer **le même membre**.
+
+Le correctif :
+- les deux fichiers entrent dans `FAMILIES` (`null`, toute la famille) ;
+- les deux contrôleurs entrent dans `FAMILY_CONTROLLERS` ;
+- `AgentHandoverController@store`, `AgentAbsenceController@store` et `@destroy` entrent dans
+  `AGENCY_TWO_FACTOR`, comme `removeAgent` et `RoleDelegationController@store`, dont l'absence
+  est une variante (elle crée une `RoleDelegation`).
+
+Les ablations, restaurées par `cp` avec un md5 identique :
+
+| Ablation | Résultat |
+|---|---|
+| G1 : la passation sort d'`AGENCY_TWO_FACTOR` | le nouveau test et la garde de couverture rougissent |
+| G2 : les absences sortent d'`AGENCY_TWO_FACTOR` | le nouveau test et la garde de couverture rougissent |
+| G3 : les deux fichiers sortent de `FAMILIES` | tout reste vert : `FAMILY_CONTROLLERS` classe déjà ces contrôleurs |
+
+Les entrées par fichier de G3 sont une redondance : elles couvrent un futur contrôleur ajouté à
+ces deux fichiers.

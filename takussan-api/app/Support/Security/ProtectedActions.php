@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
+use App\Http\Controllers\Api\Agency\AgentAbsenceController;
+use App\Http\Controllers\Api\Agency\AgentHandoverController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RoleController;
@@ -63,6 +65,10 @@ final class ProtectedActions
         'users.php' => null,
         // Suspendre ou retirer un agent de l'équipe (TCK-258).
         'profiles.php' => null,
+        // TCK-591 — la passation retire un membre (`remove_after`) et transmet son portefeuille ;
+        // l'absence est une délégation qui fait couvrir les tâches de l'absent par un suppléant.
+        'agent-handover.php' => null,
+        'agency-absences.php' => null,
         'agencies.php' => [
             AgencyController::class,
             AgencyMemberRoleController::class,
@@ -89,6 +95,10 @@ final class ProtectedActions
         // Décision du porteur : de l'argent qui SORT (remboursement, restitution de caution).
         BookingPaymentController::class,
         LeaseDepositRefundController::class,
+        // TCK-591 — gestes d'équipe, rattachés par contrôleur aussi : leurs routes ont
+        // chacune leur fichier, et un déplacement ne doit pas les faire sortir de la famille.
+        AgentHandoverController::class,
+        AgentAbsenceController::class,
     ];
 
     /**
@@ -131,6 +141,12 @@ final class ProtectedActions
         TeamMemberSuspensionController::class.'@reactivate',
         AgentProfileController::class.'@suspend',
         AgentProfileController::class.'@destroy',
+        // TCK-591 — même retrait que `removeAgent` quand `remove_after` est coché, et la
+        // transmission du portefeuille dans tous les cas.
+        AgentHandoverController::class.'@store',
+        // TCK-591 (ADR-0035) — une délégation : le suppléant couvre les tâches de l'absent.
+        AgentAbsenceController::class.'@store',
+        AgentAbsenceController::class.'@destroy',
 
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',
