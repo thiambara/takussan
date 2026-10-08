@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Notifications;
 
+use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Enums\VisitStatus;
 use App\Models\Integration;
 use App\Models\PropertyVisit;
@@ -97,5 +98,53 @@ class PlafondSmsDeVisiteTest extends TestCase
         $this->assertFalse($reponse['sms_sent']);
         $this->assertSame(VisitNotifier::CODE_SMS_RETENU, $reponse['sms_code']);
         $this->assertSame(0, $this->smsPartis());
+    }
+
+    /** Une visite anonyme CONFIRMÉE au numéro, à 24 h d'ici : le rappel de 588 la prend. */
+    private function visiteARappeler(): PropertyVisit
+    {
+        $x = $this->agence();
+
+        return PropertyVisit::factory()->create([
+            'property_id' => $this->bienDe($x)->id,
+            'agent_id' => $this->personnel($x)->id,
+            'visitor_id' => null,
+            'visitor_name' => 'Awa Diop',
+            'visitor_email' => null,
+            'visitor_phone' => $this->numero,
+            'scheduled_at' => now()->addDay(),
+            'status' => VisitStatus::Confirmed,
+        ]);
+    }
+
+    /**
+     * Passe 4 (X2) — le rappel de visite vers un contact sans compte passe par la même borne que
+     * les autres SMS de visite : une fois le filet du numéro atteint, aucun rappel mobile ne part.
+     * Il partait, borné par la seule limite générique du canal.
+     */
+    public function test_x2_le_rappel_vers_un_contact_sans_compte_passe_par_le_filet(): void
+    {
+        $visite = $this->visiteARappeler();
+        $empreinte = hash_hmac('sha256', $this->numero, (string) config('app.key'));
+        for ($i = 0; $i < VisitNotifier::SMS_PAR_JOUR_PAR_NUMERO; $i++) {
+            RateLimiter::hit('visit-sms:n:'.$empreinte, 86400);
+        }
+
+        (new SendPropertyVisitReminders)->handle();
+
+        $this->assertNotEmpty($visite->fresh()->metadata['reminder_24h_sent_at'] ?? null);
+        $this->assertSame(0, $this->smsPartis());
+    }
+
+    /** Le témoin : sous la borne, le rappel part, et il compte contre le filet du numéro. */
+    public function test_x2_sous_la_borne_le_rappel_part_et_compte(): void
+    {
+        $this->visiteARappeler();
+        $empreinte = hash_hmac('sha256', $this->numero, (string) config('app.key'));
+
+        (new SendPropertyVisitReminders)->handle();
+
+        $this->assertSame(1, $this->smsPartis());
+        $this->assertSame(1, RateLimiter::attempts('visit-sms:n:'.$empreinte));
     }
 }

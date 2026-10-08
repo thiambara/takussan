@@ -76,6 +76,25 @@ class VisitNotifier
         return $this->toVisitor($visit, NotificationCode::VisitConfirmed, $emetteur);
     }
 
+    /**
+     * Passe 4 (X2) — le rappel de visite de TCK-588 (`SendPropertyVisitReminders`) vers un contact
+     * SANS COMPTE passe par la même borne que les autres SMS de visite ({@see self::borneLeSms()}) :
+     * il compte contre le numéro × l'agence et contre le filet du numéro, et ne part plus par le
+     * canal mobile une fois une borne atteinte. Il n'était soumis qu'à la limite générique du
+     * canal, et le filet « qui protège le destinataire » ne le voyait pas.
+     *
+     * @param  array<string, mixed>  $params  les paramètres de `visit.reminder`
+     * @return bool|null le sort du SMS, comme {@see self::confirmed()}
+     */
+    public function reminderToContact(PropertyVisit $visit, ContactSansCompte $contact, array $params): ?bool
+    {
+        $code = NotificationCode::VisitReminder;
+        $sms = $this->borneLeSms($visit, $this->numeroMobile($contact, $code), $code, null);
+        $this->notifications->send($contact, $code, $params, null, mobileBorne: $sms === true);
+
+        return $sms;
+    }
+
     /** L'agence a déplacé l'heure : le visiteur est prévenu. */
     public function rescheduledByAgency(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
