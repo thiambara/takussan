@@ -16,13 +16,21 @@ use Illuminate\Contracts\Validation\ValidationRule;
  *   · un SUFFIXE n'est pas l'hôte : `evilyoutube.com`, `youtube.com.evil.test` sont refusés ;
  *   · les identifiants d'URL ne trompent pas : `https://youtube.com@evil.test/` a pour hôte
  *     `evil.test` (`parse_url`), refusé ;
- *   · le schéma est `https` seul (la règle `url:https` à côté), `javascript:` n'a pas d'hôte.
+ *   · le schéma est `https` seul (la règle `url:https` à côté), `javascript:` n'a pas d'hôte ;
+ *   · AUCUNE information d'utilisateur, même sur un hôte autorisé (verif-598, m9) :
+ *     `https://user:pw@www.youtube.com/…` était accepté, et le front ne l'affiche jamais.
  */
 class HoteDeVisiteVirtuelle implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! is_string($value) || $value === '') {
+            return;
+        }
+
+        if (parse_url($value, PHP_URL_USER) !== null || parse_url($value, PHP_URL_PASS) !== null) {
+            $fail(__('validation.rules.virtual_tour_host'));
+
             return;
         }
 

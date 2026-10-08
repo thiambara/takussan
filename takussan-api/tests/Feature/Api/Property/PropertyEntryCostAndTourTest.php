@@ -203,6 +203,11 @@ class PropertyEntryCostAndTourTest extends TestCase
             'https://evilyoutube.com/watch?v=abc',
             'https://youtube.com.evil.example/watch',
             'https://youtube.com@evil.example/watch',
+            // Après verif-598 (m9) : des identifiants d'URL sur un hôte AUTORISÉ. L'API les
+            // acceptait, le front ne les affiche jamais (`integrationDeVisite` → null).
+            'https://user:pw@www.youtube.com/watch?v=abc',
+            'https://evil.test%5C@youtube.com/watch?v=abc',
+            'https://user@my.matterport.com/show/?m=abc',
             'javascript:alert(1)',
         ] as $url) {
             $this->putJson("/api/properties/{$bien->id}", ['virtual_tour_url' => $url])
