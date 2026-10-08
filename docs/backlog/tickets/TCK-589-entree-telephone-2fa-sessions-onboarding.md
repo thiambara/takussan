@@ -683,6 +683,25 @@ Le détail se trouve dans « Corrections après vérification adverse » des Not
 - [x] **AC-m8** — La phrase d'ablation d'AC4 est re-mesurée et corrigée (rapport, Notes et
       docblock), et l'émetteur a son test direct (`db1b0497`).
 
+### AC ajoutés après la passe 2 (verif-589 sur `104589df`, 2026-10-08)
+
+- [x] **AC-p2a (M2bis)** — `destinationInterne` juge la valeur qu'elle **rend** : `/..//evil.com`,
+      `/.//evil.com`, `/a/..//evil.com` et `/%2e%2e//evil.com` rendent le défaut, plus jamais
+      `//evil.com`. Preuve : `redirection-interne.test.ts` (4 cas, rouges sur `104589df`) et
+      ablation du contrôle final → 4 rouges (`2f133961`).
+- [x] **AC-p2-1** — `send-otp` vers un numéro pris écrit le numéro **non vérifié** sur le compte
+      appelant, comme un envoi réel, sans SMS. `GET /auth/me` relit le même profil dans les deux
+      cas, et le refus ferme reste à la vérification (409). Preuve : `SendOtpNeutralResponseTest`
+      (4, dont 2 rouges sur `104589df`) (`8ce04065`).
+- [x] **AC-p2-2** — Le SMS de step-up de suppression passe la porte commune des codes : plafond
+      global `sms.otp_daily_cap` (même clé `sms-otp-day:<date>`) et liste d'indicatifs. Plafond
+      atteint ou indicatif hors liste : 202, et aucun SMS. Preuve : `AccountWithoutEmailTest`
+      (3 cas neufs, rouges sur `104589df`) (`496c6d38`).
+- [x] **AC-p2-3** — Une série d'échecs de connexion vit 24 h depuis son premier échec, sur un
+      compte (`metadata.failed_login_first_at`) comme sur le leurre. Des échecs vieux de 25 h ne
+      comptent plus, pour `connu@` et pour `inconnu@`, à l'identique. Preuve :
+      `LoginFailureWindowTest` (2 ; rouge sur `104589df` pour le compte) (`f3bafcbe`).
+
 ## Hors périmètre
 
 - Code par WhatsApp (option retenue par défaut : SMS seul — exclu par `features.md` §2.3, modèle
