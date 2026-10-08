@@ -153,21 +153,26 @@ class SendFavoriteChangeAlerts implements ShouldQueue
         $drops = array_values(array_filter($drops, fn (array $item) => isset($reserves[$item['favorite_id']])));
         $gone = array_values(array_filter($gone, fn (array $item) => isset($reserves[$item['favorite_id']])));
 
-        try {
-            if ($drops !== []) {
-                $user->notify(new FavoriteChangesNotification(FavoriteChangesNotification::KIND_PRICE_DROP, $drops));
+        // Un envoi qui échoue rend SES réservations, et elles seules : l'écart reste, le passage
+        // suivant l'annonce. L'annonce déjà partie garde les siennes (verif-599 m10) — rendre le
+        // lot entier la faisait repartir. Un recalage muet n'a rien à rejouer.
+        $echec = null;
+        foreach ([FavoriteChangesNotification::KIND_PRICE_DROP => $drops, FavoriteChangesNotification::KIND_UNAVAILABLE => $gone] as $kind => $items) {
+            if ($items === []) {
+                continue;
             }
-            if ($gone !== []) {
-                $user->notify(new FavoriteChangesNotification(FavoriteChangesNotification::KIND_UNAVAILABLE, $gone));
+            try {
+                $user->notify(new FavoriteChangesNotification($kind, $items));
+            } catch (Throwable $e) {
+                foreach ($items as $item) {
+                    $this->deplacer($item['favorite_id'], $reserves[$item['favorite_id']], $lu[$item['favorite_id']]);
+                }
+                $echec ??= $e;
             }
-        } catch (Throwable $e) {
-            // Un envoi qui échoue rend ses réservations : l'écart reste, le passage suivant
-            // l'annonce. Seules les annonces sont rendues ; un recalage muet n'a rien à rejouer.
-            foreach ([...$drops, ...$gone] as $item) {
-                $this->deplacer($item['favorite_id'], $reserves[$item['favorite_id']], $lu[$item['favorite_id']]);
-            }
+        }
 
-            throw $e;
+        if ($echec !== null) {
+            throw $echec;
         }
     }
 

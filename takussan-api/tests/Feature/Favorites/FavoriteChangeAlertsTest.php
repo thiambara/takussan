@@ -13,10 +13,13 @@ use App\Models\Favorite;
 use App\Models\NotificationPreference;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\FavoriteChangesNotification;
 use App\Services\Formatting\CurrencyFormatter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -256,6 +259,42 @@ class FavoriteChangeAlertsTest extends TestCase
         $echec = false;
         $this->lancerLeJob();
         $this->assertCount(1, $this->notificationsDe($client));
+    }
+
+    /**
+     * verif-599 m10 — l'échec d'UNE annonce ne rend que SES réservations. La baisse est partie,
+     * l'indisponibilité échoue : au passage suivant, seule l'indisponibilité repart.
+     */
+    public function test_l_echec_d_une_annonce_ne_rejoue_pas_l_autre(): void
+    {
+        $client = User::factory()->create();
+        $this->favori($client)->update(['price' => 450_000]);
+        $this->favori($client)->update(['status' => PropertyStatus::Rented]);
+        $echec = true;
+        Event::listen(NotificationSending::class, function (NotificationSending $e) use (&$echec): void {
+            if ($echec && $e->channel === 'mail' && $e->notification->kind === FavoriteChangesNotification::KIND_UNAVAILABLE) {
+                throw new \RuntimeException('transport indisponible');
+            }
+        });
+        $mails = [];
+        Event::listen(NotificationSent::class, function (NotificationSent $e) use (&$mails): void {
+            if ($e->channel === 'mail') {
+                $mails[] = $e->notification->kind;
+            }
+        });
+
+        $journal = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$journal): void {
+            $journal[] = $e->message;
+        });
+
+        $this->lancerLeJob();
+        $this->assertSame([FavoriteChangesNotification::KIND_PRICE_DROP], $mails);
+        $this->assertSame(['favorite_alert.failed'], $journal, 'l\'échec reste journalisé');
+
+        $echec = false;
+        $this->lancerLeJob();
+        $this->assertSame([FavoriteChangesNotification::KIND_PRICE_DROP, FavoriteChangesNotification::KIND_UNAVAILABLE], $mails, 'la baisse ne repart pas');
     }
 
     /** Le verrou de job : un passage mis en file pendant qu'un autre tient le verrou est abandonné. */
