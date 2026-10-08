@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IntegrationWebhookEndpointRequest;
 use App\Http\Requests\Api\StoreIntegrationRequest;
 use App\Http\Requests\Api\UpdateIntegrationRequest;
 use App\Http\Resources\IntegrationResource;
@@ -85,6 +86,48 @@ class IntegrationController extends Controller
         $integration->fill($data)->save();
 
         return $this->json(['data' => IntegrationResource::make($integration->refresh())->toArray($request)]);
+    }
+
+    /**
+     * TCK-293 (ADR-0046 §7) — l'URL de webhook de l'intégration, à coller chez Wave (Orange Money
+     * la reçoit à chaque paiement). Elle ne passe par aucune ressource ni `fields[]` : le jeton ne
+     * sort que d'ici, pour qui peut modifier l'intégration.
+     */
+    public function webhookEndpoint(IntegrationWebhookEndpointRequest $request, Integration $integration): JsonResponse
+    {
+        abort_code_unless($integration->isPaymentIntegration(), 422, 'integration.not_payment');
+
+        return $this->json(['data' => $this->webhookEndpointPayload($integration)]);
+    }
+
+    /**
+     * TCK-293 (ADR-0046 §7) — un jeton neuf ; l'ancien ne résout plus rien dès cette écriture.
+     * Journalisé sans le jeton.
+     */
+    public function rotateWebhookEndpoint(IntegrationWebhookEndpointRequest $request, Integration $integration): JsonResponse
+    {
+        abort_code_unless($integration->isPaymentIntegration(), 422, 'integration.not_payment');
+
+        $integration->rotateWebhookToken();
+
+        activity('Integration')
+            ->causedBy($request->user())
+            ->performedOn($integration)
+            ->withProperties(['provider' => $integration->provider, 'agency_id' => $integration->agency_id])
+            ->event('webhook_token_rotated')
+            ->log('integration.webhook_token_rotated');
+
+        return $this->json(['data' => $this->webhookEndpointPayload($integration)]);
+    }
+
+    /** @return array{integration_id: int, provider: string, url: ?string} */
+    private function webhookEndpointPayload(Integration $integration): array
+    {
+        return [
+            'integration_id' => (int) $integration->id,
+            'provider' => (string) $integration->provider,
+            'url' => $integration->webhookUrl(),
+        ];
     }
 
     public function destroy(Request $request, Integration $integration): JsonResponse

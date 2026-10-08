@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Integration;
+use App\Models\User;
 
 /**
  * TCK-305 — extrait de IntegrationController::update(), où les règles étaient écrites en ligne.
@@ -28,9 +30,15 @@ class UpdateIntegrationRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        $user = $this->user();
-        $integration = $this->route('integration');
+        return self::mayManage($this->user(), $this->route('integration'));
+    }
 
+    /**
+     * La règle, lue aussi par {@see IntegrationWebhookEndpointRequest} (TCK-293) : l'URL de webhook
+     * se lit et se régénère par qui peut modifier l'intégration, et par personne d'autre.
+     */
+    public static function mayManage(?User $user, Integration $integration): bool
+    {
         return $user !== null && ($user->isSuperAdmin()
             || ($user->agency_id !== null && $user->agency_id === $integration->agency_id && $user->isAgencyAdminAt((int) $integration->agency_id)));
     }

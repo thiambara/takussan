@@ -117,6 +117,8 @@ final class ProtectedActions
         IntegrationController::class.'@update',
         IntegrationController::class.'@test',
         IntegrationController::class.'@destroy',
+        // TCK-293 (ADR-0046 §7) — régénérer l'URL de webhook coupe les notifications de paiement.
+        IntegrationController::class.'@rotateWebhookEndpoint',
 
         RoleController::class.'@store',
         RoleController::class.'@update',

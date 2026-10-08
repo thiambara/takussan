@@ -24,6 +24,8 @@ class PaymentWebhookTest extends TestCase
 
     protected string $secret = 'wave_secret_for_tests';
 
+    protected ?Integration $pendingIntegration = null;
+
     /**
      * Build a paid-pending payment + active wave integration with a known secret.
      */
@@ -49,7 +51,7 @@ class PaymentWebhookTest extends TestCase
             'metadata' => ['gateway' => ['provider' => 'wave', 'transaction_id' => $txn]],
         ]);
 
-        Integration::factory()->create([
+        $this->pendingIntegration = Integration::factory()->create([
             'agency_id' => $agency->id,
             'provider' => 'wave',
             'is_active' => true,
@@ -57,6 +59,18 @@ class PaymentWebhookTest extends TestCase
         ]);
 
         return $payment;
+    }
+
+    /** TCK-293 (ADR-0046) — l'URL de webhook de l'intégration Wave d'`arrangePending()`. */
+    protected function pendingWebhookUri(): string
+    {
+        return '/api/webhooks/payments/wave/'.$this->pendingIntegration->webhook_token;
+    }
+
+    /** TCK-293 — l'URL de webhook d'une intégration, telle que la donne le modèle. */
+    protected function webhookUri(Integration $integration): string
+    {
+        return '/api/webhooks/payments/'.$integration->provider.'/'.$integration->webhook_token;
     }
 
     protected function signWave(string $body, string $secret, ?int $ts = null): string
@@ -75,7 +89,7 @@ class PaymentWebhookTest extends TestCase
 
         $response = $this->call(
             method: 'POST',
-            uri: '/api/webhooks/payments/wave',
+            uri: $this->pendingWebhookUri(),
             parameters: $payload,
             cookies: [],
             files: [],
@@ -96,7 +110,7 @@ class PaymentWebhookTest extends TestCase
 
         $response = $this->call(
             method: 'POST',
-            uri: '/api/webhooks/payments/wave',
+            uri: $this->pendingWebhookUri(),
             parameters: $payload,
             cookies: [],
             files: [],
@@ -118,8 +132,8 @@ class PaymentWebhookTest extends TestCase
 
         $server = ['CONTENT_TYPE' => 'application/json', 'HTTP_WAVE_SIGNATURE' => $sig];
 
-        $this->call('POST', '/api/webhooks/payments/wave', $payload, [], [], $server, $body)->assertOk();
-        $this->call('POST', '/api/webhooks/payments/wave', $payload, [], [], $server, $body)->assertOk();
+        $this->call('POST', $this->pendingWebhookUri(), $payload, [], [], $server, $body)->assertOk();
+        $this->call('POST', $this->pendingWebhookUri(), $payload, [], [], $server, $body)->assertOk();
 
         $payment->refresh();
         $events = $payment->metadata['gateway_events'] ?? [];
@@ -134,7 +148,7 @@ class PaymentWebhookTest extends TestCase
         $body = json_encode($payload);
         $sig = $this->signWave($body, $this->secret);
 
-        $this->call('POST', '/api/webhooks/payments/wave', $payload, [], [], [
+        $this->call('POST', $this->pendingWebhookUri(), $payload, [], [], [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_WAVE_SIGNATURE' => $sig,
         ], $body)->assertOk();
@@ -149,7 +163,7 @@ class PaymentWebhookTest extends TestCase
         // The generic proxy route is NOT covered by the LS package's signature
         // middleware, so an unsigned forged body must be rejected (401) rather
         // than marking a payment paid.
-        Integration::factory()->create([
+        $ls = Integration::factory()->create([
             'agency_id' => null,
             'provider' => 'lemon_squeezy',
             'is_active' => true,
@@ -159,14 +173,14 @@ class PaymentWebhookTest extends TestCase
         $payload = ['meta' => ['event_name' => 'order_created'], 'data' => ['id' => 'ord_forged', 'attributes' => []]];
         $body = json_encode($payload);
 
-        $this->call('POST', '/api/webhooks/payments/lemon_squeezy', $payload, [], [], [
+        $this->call('POST', $this->webhookUri($ls), $payload, [], [], [
             'CONTENT_TYPE' => 'application/json',
         ], $body)->assertStatus(401);
     }
 
     public function test_lemon_squeezy_webhook_accepts_valid_signature(): void
     {
-        Integration::factory()->create([
+        $ls = Integration::factory()->create([
             'agency_id' => null,
             'provider' => 'lemon_squeezy',
             'is_active' => true,
@@ -177,7 +191,7 @@ class PaymentWebhookTest extends TestCase
         $body = json_encode($payload);
         $sig = hash_hmac('sha256', $body, 'ls_secret');
 
-        $this->call('POST', '/api/webhooks/payments/lemon_squeezy', $payload, [], [], [
+        $this->call('POST', $this->webhookUri($ls), $payload, [], [], [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_X_SIGNATURE' => $sig,
         ], $body)->assertOk();
@@ -191,7 +205,7 @@ class PaymentWebhookTest extends TestCase
         $body = json_encode($payload);
         $sig = $this->signWave($body, $this->secret);
 
-        $this->call('POST', '/api/webhooks/payments/wave', $payload, [], [], [
+        $this->call('POST', $this->pendingWebhookUri(), $payload, [], [], [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_WAVE_SIGNATURE' => $sig,
         ], $body)->assertStatus(422);
