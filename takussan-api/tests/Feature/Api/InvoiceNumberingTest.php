@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Contracts\Payments\PaymentDriverContract;
+use App\Exceptions\ApiError;
 use App\Models\Customer;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Integration;
@@ -12,6 +13,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Model\InvoiceService;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Database\Events\QueryExecuted;
@@ -223,5 +225,59 @@ class InvoiceNumberingTest extends TestCase
         });
 
         return $levels;
+    }
+
+    /**
+     * VERIF-594 m-5 — deux `send` concurrents d'un même brouillon réussissaient tous deux (41
+     * émissions pour 40 factures) : le statut se jugeait sur le modèle de l'appelant, hors verrou. Un
+     * `send` sur un modèle chargé AVANT l'émission rend désormais 422, et n'écrit rien.
+     */
+    public function test_m5_a_second_send_on_a_stale_model_is_refused_and_writes_nothing(): void
+    {
+        [$agency, , $customer] = $this->invoicingAgency();
+        $draft = $this->draftOf($agency, $customer);
+        $stale = Invoice::query()->findOrFail($draft->id);
+        app(InvoiceService::class)->send($draft);
+        $trail = DB::table('activity_log')->where('subject_type', $draft->getMorphClass())->where('subject_id', $draft->id)->count();
+
+        $writes = 0;
+        DB::listen(function (QueryExecuted $query) use (&$writes): void {
+            $writes += (int) str_starts_with($query->sql, 'update "invoices"');
+        });
+        $this->assertGestureRefused(fn () => app(InvoiceService::class)->send($stale), 'invoice.not_draft_send');
+
+        $this->assertSame(0, $writes, 'le second envoi a réécrit la facture');
+        $this->assertSame($trail, DB::table('activity_log')->where('subject_type', $draft->getMorphClass())->where('subject_id', $draft->id)->count());
+        $this->assertSame('FA-2026-00001', $draft->fresh()->reference_number);
+    }
+
+    /**
+     * VERIF-594 m-5 — le même défaut sur les deux autres gestes : deux annulations d'une facture
+     * émise créaient deux avoirs, et un règlement manuel passait sur une facture annulée entre-temps.
+     */
+    public function test_m5_cancel_and_mark_paid_judge_the_locked_row(): void
+    {
+        [$agency, , $customer] = $this->invoicingAgency();
+        $invoice = $this->draftOf($agency, $customer);
+        app(InvoiceService::class)->send($invoice);
+        $stale = Invoice::query()->findOrFail($invoice->id);
+
+        app(InvoiceService::class)->cancel($invoice->fresh());
+        $this->assertGestureRefused(fn () => app(InvoiceService::class)->cancel($stale), 'invoice.cannot_cancel');
+        $this->assertSame(1, Invoice::query()->where('credited_invoice_id', $invoice->id)->count(), 'un seul avoir');
+
+        $this->assertGestureRefused(fn () => app(InvoiceService::class)->markPaid($stale), 'invoice.cannot_mark_paid');
+        $this->assertSame(InvoiceStatus::Cancelled, $invoice->fresh()->status);
+    }
+
+    private function assertGestureRefused(callable $gesture, string $code): void
+    {
+        try {
+            $gesture();
+            $this->fail("{$code} : le geste est passé.");
+        } catch (ApiError $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame($code, $e->errorCode);
+        }
     }
 }

@@ -558,6 +558,8 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **m-4** — le test du verrou de numérotation relève le niveau de transaction AU verrou
   (contre la base de `RefreshDatabase`) ; `PaymentGatewayService::verify` applique l'état et le
   numéro dans une transaction, l'appel au prestataire restant dehors.
+- [x] **m-5** — `InvoiceService::send` relit la facture sous `lockForUpdate()` dans sa transaction
+  et y juge `draft` ; `cancel` et `markPaid`, qui portaient le même défaut, aussi.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -778,6 +780,11 @@ rend **403** avec une clé i18n, jamais une phrase.
   l'appel. Une facture soldée par `PaymentGatewayService::verify` (pilote simulé) : `paid`,
   `FA-2026-00001`, et l'`UPDATE` de son statut s'écrit dans une transaction.
   **Preuve** : `InvoiceNumberingTest::test_m4_the_agency_lock_is_held_inside_a_transaction`, `test_m4_a_gateway_verification_writes_status_and_number_in_one_transaction` (le second rouge sur 9923b16c ; le premier y est vert — le comportement tenait, c'est l'AC qui ne le gardait pas). Ablations V-m4a (le `DB::transaction` de l'allocateur retiré : `test_the_counter_is_read_under_the_lock_of_the_agency_row` reste vert, le nouveau rougit) et V-m4b (la transaction de `verify`) : rouges.
+- [x] **AC-m5 — une facture ne s'émet qu'une fois.** Un `send` sur un modèle chargé avant
+  l'émission : 422 `invoice.not_draft_send`, aucun `UPDATE` de la facture, aucune trace d'audit de
+  plus, numéro inchangé. Une annulation sur un modèle périmé : 422 `invoice.cannot_cancel`, un seul
+  avoir ; un règlement manuel sur la facture annulée entre-temps : 422 `invoice.cannot_mark_paid`.
+  **Preuve** : `InvoiceNumberingTest::test_m5_a_second_send_on_a_stale_model_is_refused_and_writes_nothing`, `test_m5_cancel_and_mark_paid_judge_the_locked_row` (rouges sur 9923b16c). Ablations V-m5a (`send`), V-m5b (`cancel`), V-m5c (`markPaid`) : rouges.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -1134,3 +1141,14 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   VERIF (`:187`) est `verify()` ; le webhook (`applyEventToMatchingPayment`) était déjà en
   transaction. L'appel HTTP du pilote reste hors transaction : on ne tient pas un verrou pendant un
   aller-retour réseau.
+- **m-5 — deux `send` concurrents.** La décision ne nommait que `send` ; `cancel` et `markPaid`
+  portaient exactement le même défaut, et celui de `cancel` est plus grave — deux annulations d'une
+  facture émise créaient **deux avoirs**. Corrigés dans le même commit, par le même
+  `InvoiceService::locked()`, chacun avec son ablation. `markManualSettlement` s'applique désormais
+  à la ligne verrouillée (il ne fait que poser l'attribut ; la sauvegarde suit). Ordre des verrous :
+  facture, puis ligne agence par l'allocateur — celui du webhook de la passerelle.
+
+**Observation, sans correctif (décision de session, 2026-10-08).** Une agence `suspended` paie
+encore sur la chaîne agence : le gel d'une agence non active (ADR-0039 §5) ne couvre que la chaîne
+plateforme. Rendre au bailleur l'argent encaissé pour lui reste légitime pendant une suspension ; on
+n'y touche pas.

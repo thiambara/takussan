@@ -79,16 +79,17 @@ class InvoiceService
 
     public function send(Invoice $invoice): Invoice
     {
-        abort_code_unless(
-            $invoice->status === InvoiceStatus::Draft,
-            422,
-            'invoice.not_draft_send'
-        );
-
         // TCK-594 (ADR-0039 §7) — l'émission attribue le numéro, dans la même transaction.
         DB::transaction(function () use ($invoice): void {
-            $invoice->update(['status' => InvoiceStatus::Sent]);
-            $this->numbers->allocate($invoice);
+            $locked = $this->locked($invoice);
+            abort_code_unless(
+                $locked->status === InvoiceStatus::Draft,
+                422,
+                'invoice.not_draft_send'
+            );
+
+            $locked->update(['status' => InvoiceStatus::Sent]);
+            $this->numbers->allocate($locked);
         });
 
         return $invoice->refresh();
@@ -96,19 +97,20 @@ class InvoiceService
 
     public function markPaid(Invoice $invoice): Invoice
     {
-        abort_code_unless(
-            in_array($invoice->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Draft], true),
-            422,
-            'invoice.cannot_mark_paid'
-        );
-
-        // TCK-593 (passe 2, N4) — un règlement manuel le dit : un checkout payé ensuite reste un
-        // double encaissement, pas le règlement de la facture.
-        app(PaymentGatewayService::class)->markManualSettlement($invoice);
         // TCK-594 (ADR-0039 §7) — payer un brouillon vaut émission : il reçoit son numéro.
         DB::transaction(function () use ($invoice): void {
-            $invoice->update(['status' => InvoiceStatus::Paid]);
-            $this->numbers->allocate($invoice);
+            $locked = $this->locked($invoice);
+            abort_code_unless(
+                in_array($locked->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Draft], true),
+                422,
+                'invoice.cannot_mark_paid'
+            );
+
+            // TCK-593 (passe 2, N4) — un règlement manuel le dit : un checkout payé ensuite reste un
+            // double encaissement, pas le règlement de la facture.
+            app(PaymentGatewayService::class)->markManualSettlement($locked);
+            $locked->update(['status' => InvoiceStatus::Paid]);
+            $this->numbers->allocate($locked);
         });
 
         return $invoice->refresh();
@@ -116,24 +118,36 @@ class InvoiceService
 
     public function cancel(Invoice $invoice, ?User $actor = null): Invoice
     {
-        abort_code_if(
-            in_array($invoice->status, [InvoiceStatus::Paid, InvoiceStatus::Cancelled, InvoiceStatus::Void], true),
-            422,
-            'invoice.cannot_cancel'
-        );
-
         // TCK-594 (ADR-0039 §7) — une facture ÉMISE ne s'annule que par un avoir du même montant,
         // créé dans la même transaction ; un brouillon reste un simple changement de statut.
         DB::transaction(function () use ($invoice, $actor): void {
-            $issued = in_array($invoice->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue], true);
-            $invoice->update(['status' => InvoiceStatus::Cancelled]);
+            $locked = $this->locked($invoice);
+            abort_code_if(
+                in_array($locked->status, [InvoiceStatus::Paid, InvoiceStatus::Cancelled, InvoiceStatus::Void], true),
+                422,
+                'invoice.cannot_cancel'
+            );
 
-            if ($issued && $invoice->kind !== InvoiceKind::CreditNote) {
-                $this->numbers->allocate($this->creditNoteFor($invoice, $actor));
+            $issued = in_array($locked->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue], true);
+            $locked->update(['status' => InvoiceStatus::Cancelled]);
+
+            if ($issued && $locked->kind !== InvoiceKind::CreditNote) {
+                $this->numbers->allocate($this->creditNoteFor($locked, $actor));
             }
         });
 
         return $invoice->refresh();
+    }
+
+    /**
+     * VERIF-594 m-5 — chaque geste juge le statut sur la ligne VERROUILLÉE, jamais sur le modèle de
+     * l'appelant : deux `send` concurrents d'un même brouillon passaient tous deux le contrôle (41
+     * émissions pour 40 factures), deux `cancel` d'une facture émise auraient créé deux avoirs. Le
+     * verrou de la facture précède celui de la ligne agence (`InvoiceNumberAllocator`).
+     */
+    private function locked(Invoice $invoice): Invoice
+    {
+        return Invoice::query()->whereKey($invoice->getKey())->lockForUpdate()->firstOrFail();
     }
 
     /**

@@ -196,6 +196,9 @@ approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse
   pour `agency_id IS NULL` ; un index unique porte `(agency_id, kind, sequence_year, sequence_number)`.
 - Une facture émise ne s'annule que par un **avoir** (`kind = credit_note`, `credited_invoice_id`,
   même montant), créé dans la même transaction. Annuler un brouillon reste un changement de statut.
+- Émettre, régler et annuler jugent le statut sur la **ligne facture relue sous verrou**, jamais sur
+  le modèle de l'appelant (VERIF-594 m-5 : deux émissions concurrentes d'un même brouillon passaient
+  toutes deux) ; le verrou de la facture précède celui de la ligne agence.
 - La TVA par défaut est un réglage d'agence (`default_tax_rate`) ; un taux explicite gagne. Les
   mentions légales (`legal_name`, `ninea`, `rccm`, `legal_address`) sont des colonnes d'agence,
   reprises de `metadata.legal_info` (jamais `rib_pro`), réservées aux agences `standard` et imprimées
