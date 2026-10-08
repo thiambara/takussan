@@ -23,6 +23,7 @@ import { traduireChampsErreurs } from '@/lib/schemas/messages';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
   integrationFormSchema,
+  isPaymentProvider,
   isSmsProvider,
   normaliseIntegrationForm,
   type IntegrationFormValues,
@@ -34,6 +35,7 @@ import {
   updateIntegrationAction,
 } from '@/app/actions/admin-settings';
 import type { Integration, IntegrationTestResult } from '@/types/setting';
+import { IntegrationWebhookEndpoint } from './IntegrationWebhookEndpoint';
 
 /**
  * Integration providers manager — TCK-068.
@@ -41,10 +43,15 @@ import type { Integration, IntegrationTestResult } from '@/types/setting';
  * Cards-per-provider layout. The create/edit dialog treats credentials as
  * write-only: on edit, an empty input keeps the existing secret intact
  * (the backend never returns secrets in clear text).
+ *
+ * TCK-293 — chaque carte de paiement porte son adresse de notification
+ * (`IntegrationWebhookEndpoint`), préchargée par la page.
  */
 
 interface IntegrationsManagerProps {
   readonly initialIntegrations: Integration[];
+  /** TCK-293 — l'adresse de notification de chaque intégration de paiement, par identifiant. */
+  readonly initialWebhookUrls?: Readonly<Record<number, string>>;
 }
 
 const PROVIDER_SUGGESTIONS = [
@@ -81,7 +88,10 @@ function emptyForm(): IntegrationFormValues {
   };
 }
 
-export function IntegrationsManager({ initialIntegrations }: IntegrationsManagerProps) {
+export function IntegrationsManager({
+  initialIntegrations,
+  initialWebhookUrls = {},
+}: IntegrationsManagerProps) {
   const t = useTranslations('adminSettings.integrations');
   // À la RACINE du dictionnaire : `t` est cantonné à `adminSettings.integrations` et ne peut pas
   // résoudre un `validation.setting.…`.
@@ -302,6 +312,14 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
 
                 {rowError?.id === integration.id ? (
                   <FormError>{rowError.message}</FormError>
+                ) : null}
+
+                {isPaymentProvider(integration.provider) ? (
+                  <IntegrationWebhookEndpoint
+                    integrationId={integration.id}
+                    provider={integration.provider}
+                    initialUrl={initialWebhookUrls[integration.id] ?? null}
+                  />
                 ) : null}
 
                 <div className="flex flex-wrap gap-2 pt-2">

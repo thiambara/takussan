@@ -5,6 +5,7 @@ import {
   ENROLEMENT_DOUBLE_FACTEUR,
   ENROLEMENT_SUPER_ADMIN_COOPTE,
   avecGardeDoubleFacteur,
+  avecGardeDoubleFacteurAction,
   codeDoubleFacteur,
   configurationDoubleFacteurExigee,
 } from '../double-facteur';
@@ -71,5 +72,36 @@ describe('avecGardeDoubleFacteur', () => {
     const appel = vi.fn().mockRejectedValue(refus);
     await expect(avecGardeDoubleFacteur(appel, vi.fn().mockResolvedValue(true))).rejects.toBe(refus);
     expect(appel).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('avecGardeDoubleFacteurAction (TCK-293)', () => {
+  const refus = { ok: false as const, message: 'refus', code: 'two_factor_required' as const };
+  const fait = { ok: true as const };
+
+  it('confie le refus à la garde, puis rejoue l’action', async () => {
+    const action = vi.fn().mockResolvedValueOnce(refus).mockResolvedValueOnce(fait);
+    const garde = vi.fn().mockResolvedValue(true);
+    await expect(avecGardeDoubleFacteurAction(action, garde)).resolves.toBe(fait);
+    expect(garde).toHaveBeenCalledWith('two_factor_required');
+    expect(action).toHaveBeenCalledTimes(2);
+  });
+
+  it('garde refusée, sans garde, ou refus sans code : le résultat revient tel quel', async () => {
+    const action = vi.fn().mockResolvedValue(refus);
+    await expect(avecGardeDoubleFacteurAction(action, vi.fn().mockResolvedValue(false))).resolves.toBe(refus);
+    await expect(avecGardeDoubleFacteurAction(action, null)).resolves.toBe(refus);
+    expect(action).toHaveBeenCalledTimes(2);
+
+    const autre = { ok: false as const, message: 'non' };
+    const garde = vi.fn();
+    await expect(avecGardeDoubleFacteurAction(vi.fn().mockResolvedValue(autre), garde)).resolves.toBe(autre);
+    expect(garde).not.toHaveBeenCalled();
+  });
+
+  it('deux passages au plus : une garde qui dit toujours oui ne boucle pas', async () => {
+    const action = vi.fn().mockResolvedValue(refus);
+    await expect(avecGardeDoubleFacteurAction(action, vi.fn().mockResolvedValue(true))).resolves.toBe(refus);
+    expect(action).toHaveBeenCalledTimes(3);
   });
 });

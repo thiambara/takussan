@@ -75,6 +75,17 @@ export function isSmsProvider(provider: string): provider is SmsProviderId {
   return (SMS_PROVIDER_IDS as readonly string[]).includes(provider);
 }
 
+/**
+ * TCK-293 — les fournisseurs de paiement, miroir de l'enum `PaymentProvider` de l'API : seuls
+ * ceux-là ont une adresse de notification (ADR-0046).
+ */
+export const PAYMENT_PROVIDER_IDS = ['wave', 'orange_money', 'lemon_squeezy'] as const;
+export type PaymentProviderId = (typeof PAYMENT_PROVIDER_IDS)[number];
+
+export function isPaymentProvider(provider: string): provider is PaymentProviderId {
+  return (PAYMENT_PROVIDER_IDS as readonly string[]).includes(provider);
+}
+
 export const integrationFormSchema = z
   .object({
     provider: z

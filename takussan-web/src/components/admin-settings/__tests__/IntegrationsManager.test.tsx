@@ -9,12 +9,15 @@ const createMock = vi.fn();
 const updateMock = vi.fn();
 const testMock = vi.fn();
 const deleteMock = vi.fn();
+const fetchEndpointMock = vi.fn();
 
 vi.mock('@/app/actions/admin-settings', () => ({
   createIntegrationAction: (...args: unknown[]) => createMock(...args),
   updateIntegrationAction: (...args: unknown[]) => updateMock(...args),
   testIntegrationAction: (...args: unknown[]) => testMock(...args),
   deleteIntegrationAction: (...args: unknown[]) => deleteMock(...args),
+  fetchIntegrationWebhookEndpointAction: (...args: unknown[]) => fetchEndpointMock(...args),
+  rotateIntegrationWebhookEndpointAction: vi.fn(),
 }));
 
 const initial = [
@@ -48,8 +51,23 @@ function renderWithIntl(ui: React.ReactElement) {
 describe('<IntegrationsManager />', () => {
   it('renders the integration card with provider + status', () => {
     renderWithIntl(<IntegrationsManager initialIntegrations={initial} />);
-    expect(screen.getByText(/wave/i)).toBeInTheDocument();
+    // TCK-293 — la consigne Wave de l'adresse de notification nomme aussi le fournisseur.
+    expect(screen.getByRole('heading', { name: /wave/i })).toBeInTheDocument();
     expect(screen.getByText(/Active/)).toBeInTheDocument();
+  });
+
+  it('TCK-293 — la carte de paiement porte son adresse de notification, pas celle d’un SMS', () => {
+    const sms = { ...initial[0], id: 43, provider: 'sms_orange' };
+    renderWithIntl(
+      <IntegrationsManager
+        initialIntegrations={[...initial, sms]}
+        initialWebhookUrls={{ 42: 'https://api.takussan.test/api/webhooks/payments/wave/t' }}
+      />,
+    );
+    expect(screen.getByLabelText('Adresse de notification Wave')).toHaveValue(
+      'https://api.takussan.test/api/webhooks/payments/wave/t',
+    );
+    expect(screen.getAllByText('Adresse de notification')).toHaveLength(1);
   });
 
   it('runs the test action and shows a success message', async () => {

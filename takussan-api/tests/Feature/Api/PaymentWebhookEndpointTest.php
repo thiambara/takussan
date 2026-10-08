@@ -251,7 +251,10 @@ class PaymentWebhookEndpointTest extends ApiTestCase
         $this->materializeRoleProfile($admin, 'agency_admin', $agency);
         Sanctum::actingAs($admin);
 
-        $this->postJson("/api/integrations/{$integration->id}/webhook-endpoint")->assertForbidden();
+        // Le code, et pas seulement le 403 : c'est lui que l'écran confie à `GardeDoubleFacteur`.
+        $this->postJson("/api/integrations/{$integration->id}/webhook-endpoint")
+            ->assertForbidden()
+            ->assertJsonPath('code', 'two_factor_required');
         $this->assertSame($hash, $integration->refresh()->webhook_token_hash);
     }
 

@@ -6942,7 +6942,26 @@
         "hostLam": "Host LAMPUSH (mënul am — mu wuutu bu ndogal bi)",
         "webhookPlaceholder": "https://misaal.sn/webhook"
       },
-      "confirmDelete": "Ndax dëgg la nga bëgg far entegrasyon « {provider} » ? Jëf bii mënatul dellu."
+      "confirmDelete": "Ndax dëgg la nga bëgg far entegrasyon « {provider} » ? Jëf bii mënatul dellu.",
+      "webhookEndpoint": {
+        "title": "Adrees bu yégle",
+        "label": "Adrees bu yégle {provider}",
+        "hintWave": "Duggal adrees bii ci sa portail Wave Business, ci configuration webhooks yi : fa la Wave di dëggal fey yu integration bii.",
+        "hintOrangeMoney": "Amul dara lu ngay duggal : Takussan dafay yónnee adrees bii Orange Money ci fey bu nekk.",
+        "hintLemonSqueezy": "Duggal adrees bii ci webhooks yu sa bitig Lemon Squeezy.",
+        "show": "Wone adrees bi",
+        "copy": "Kopi",
+        "copied": "Kopi na",
+        "copyFailed": "Navigateur bii mënul kopi : adrees bi tànnees na, kopi ko ak sa loxo.",
+        "rotate": "Defaraat",
+        "confirmRotate": "Sos adrees bu bees ngir {provider} ? Adrees bi nga am leegi dina taxaw léegi léegi : duggal bu bees bi ci fournisseur bi. Fey Orange Money yu ubbiku ba noppi duñu leen yégle ; seen statut dina dëggu ci vérification bi.",
+        "rotated": "Adrees bu bees sosu na. Bu njëkk bi dootul dox.",
+        "providers": {
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "lemon_squeezy": "Lemon Squeezy"
+        }
+      }
     },
     "settings": {
       "empty_title": "Amul benn tëral ci tànneef bii",
