@@ -1,7 +1,7 @@
 ---
 id: TCK-603
 title: "Changer l'agent responsable sans déposséder le bailleur : bulk-assign, réattribution unitaire, réparation des biens réattribués, biens du partant à la passation (complément de TCK-591, après TCK-504)"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: L
@@ -68,9 +68,9 @@ et non `properties->…` comme l'écrivait le Delta d'origine.
 Delta est extrait tel quel.*
 
 **1. Réattribution (unitaire et en lot)**
-- [ ] `PropertyBulkAssignRequest`, `PropertyBulkAssignService`, route `bulk-assign` déclarée avant
+- [x] `PropertyBulkAssignRequest`, `PropertyBulkAssignService`, route `bulk-assign` déclarée avant
       `{property}` (`routes/api/properties.php`), sur le modèle de `bulk-visibility` (TCK-591).
-- [ ] `PropertyController::assignAgent` (corps, l.238-259) : **supprimer**
+- [x] `PropertyController::assignAgent` (corps, l.238-259) : **supprimer**
       `$property->update(['user_id' => $target->id])` (l.254) ; à la place, désigner la cible
       **agent responsable** selon l'ADR « agent responsable » (Delta 0 ; option retenue par défaut :
       la cible devient le collaborateur `agent` marqué principal par le service de TCK-504 — ligne
@@ -80,15 +80,15 @@ Delta est extrait tel quel.*
       intact). Le tout sous
       `DB::transaction`, ligne parent verrouillée (`Property::whereKey()->lockForUpdate()`, piège
       PostgreSQL n°2). La réponse charge `owner` et `PrimaryPropertyContact::eagerLoads()`.
-- [ ] Règle de cible : celle de **TCK-587** (Contraintes 9), appelée par `assignAgent` **et** par
+- [x] Règle de cible : celle de **TCK-587** (Contraintes 9), appelée par `assignAgent` **et** par
       `PropertyBulkAssignService` — 591 ne la réécrit pas ; en lot, son refus devient
       `invalid_target`. Le contrôle maison l.247-251 (`$target->agency_id === $agencyId`) disparaît.
-- [ ] `PropertyBulkAssignService` : même désignation que l'unitaire (un seul service
+- [x] `PropertyBulkAssignService` : même désignation que l'unitaire (un seul service
       `App\Services\Property\ResponsibleAgentAssigner::assign(Property, User $target, User $actor)`
       appelé par les deux), **jamais** d'écriture de `user_id` ; cible déjà responsable →
       `unchanged`. Journal : `activity('Property')`, évènement `responsible_agent_changed`
       (`property_id`, ancien et nouveau responsable) — la trace qui manquait au geste.
-- [ ] **Réparation des biens déjà réattribués** — commande
+- [x] **Réparation des biens déjà réattribués** — commande
       `properties:repair-reassigned-owners {--dry-run}` (idempotente). Source : `activity_log`
       `log_name = 'Property'`, `event = 'updated'`, `attribute_changes->'old'->>'user_id'` ≠
       `attribute_changes->'attributes'->>'user_id'` (activitylog v5.1, cf. Contexte ; seul
@@ -103,14 +103,14 @@ Delta est extrait tel quel.*
       préproduction** `takussan_preview` (`hebergement.md:80`) après le déploiement de ce ticket,
       `--dry-run` d'abord, résultat consigné dans les Notes d'implémentation ; une remise à zéro
       par le seed (`hebergement.md:213`) la rend sans objet. En local, `migrate:fresh --seed` suffit.
-- [ ] Front : les trois actions passent par `bulk-*` ; bilan chiffré et motivé (`invalid_target`
+- [x] Front : les trois actions passent par `bulk-*` ; bilan chiffré et motivé (`invalid_target`
       dit que la cible n'est pas du personnel actif de l'agence) ; seuls les refus restent
       sélectionnés ; la liste est rafraîchie dès qu'au moins un bien a changé, succès partiel
       compris. Le geste s'intitule « Changer l'agent responsable » ; la liste et la fiche distinguent
       propriétaire et agent responsable (`owner` / `primary_contact`).
 
 **2. Passation — les biens du partant**
-- [ ] Catégories de biens de `AgentHandoverService::transfer()` (TCK-591, Contraintes 3) :
+- [x] Catégories de biens de `AgentHandoverService::transfer()` (TCK-591, Contraintes 3) :
       `responsible_properties` → `ResponsibleAgentAssigner` vers le repreneur (jamais `user_id`) ;
       `held_properties` (`user_id` = le partant) → `user_id` ← repreneur du personnel de la même
       agence, selon la question 2 d'ADR-0036. Un bien dont `user_id` est un bailleur n'entre dans
@@ -118,24 +118,24 @@ Delta est extrait tel quel.*
       `GET …/portfolio` ; l'assistant front les transmet comme les autres.
 
 **3. Mesure**
-- [ ] AC15 de TCK-591, sa part restante : sur un **vrai téléphone**, changer l'étape d'un client
+- [ ] **→ au porteur** (un vrai téléphone, hors d'atteinte d'un agent : CDP ne pilote pas le `<select>` natif). AC15 de TCK-591, sa part restante : sur un **vrai téléphone**, changer l'étape d'un client
       **au doigt** dans le `<select>` natif (carte du pipeline et fiche) — CDP ne pilote pas le
       sélecteur natif ; le reste d'AC15 est mesuré dans 591.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — **sécurité, prouvé par ablation** : `bulk-assign` vers un bailleur de l'agence rend ce bien
+- [x] AC1 — **sécurité, prouvé par ablation** : `bulk-assign` vers un bailleur de l'agence rend ce bien
       en `failed` avec `invalid_target`, ne modifie ni `user_id` ni l'agent responsable ; vers un agent
       **suspendu** de l'agence, idem. Le refus vient de la règle de cible de **TCK-587** (Delta §3,
       AC5b), que `PropertyBulkAssignService` appelle (Contraintes 9) : on remplace l'appel par
       `true` → le bien passe en `updated`, rouge.
       *(ex-AC4 de TCK-591)*
-- [ ] AC2 — **sécurité** (cible de la réattribution unitaire) : `PUT /api/properties/{p}/assigned-agent`
+- [x] AC2 — **sécurité** (cible de la réattribution unitaire) : `PUT /api/properties/{p}/assigned-agent`
       avec l'`user_id` d'un bailleur de A → 422 `messages.target_user_not_in_active_agency` (200
       aujourd'hui : `$target->agency_id === $agencyId`, l.248, laisse passer le bailleur) ; vers un
       agent d'une autre agence → 422. (Règle de 587, appelée ici — l'AC5b de 587 la porte aussi.)
       *(ex-AC22 de TCK-591)*
-- [ ] AC3 — **intégrité, prouvé par ablation** (`PropertyReassignmentKeepsOwnerTest`, consolidation) :
+- [x] AC3 — **intégrité, prouvé par ablation** (`PropertyReassignmentKeepsOwnerTest`, consolidation) :
       bien P de A, `user_id` = bailleur B, agent X collaborateur `agent` principal. `PUT
       /api/properties/{P}/assigned-agent` vers l'agent Y de A → 200 ; **`properties.user_id` = B
       inchangé** (Y aujourd'hui) ; `PrimaryPropertyContact::for(P)` = Y (X aujourd'hui, l'appel
@@ -147,7 +147,7 @@ Delta est extrait tel quel.*
       `$property->update(['user_id' => $target->id])` dans `assignAgent` → rouge (`user_id` et
       `landlord_id` = Y).
       *(ex-AC29 de TCK-591)*
-- [ ] AC4 — réparation (`RepairReassignedOwnersCommandTest`) : jeu où P (`user_id` B) a été
+- [x] AC4 — réparation (`RepairReassignedOwnersCommandTest`) : jeu où P (`user_id` B) a été
       réattribué à X puis à Y comme le faisait l'ancien `assignAgent` — deux
       `$property->update(['user_id' => …])` dans le test, qui écrivent la même signature
       `activity_log` (`Property`, `updated`, `old.user_id` ≠ `attributes.user_id`) ; `user_id` final
@@ -158,13 +158,13 @@ Delta est extrait tel quel.*
       `active` inchangé et listé par identifiant. Second passage : `restored = 0` (idempotente). Un
       bien dont `user_id` n'a jamais changé n'est pas touché.
       *(ex-AC30 de TCK-591)*
-- [ ] AC5 — part « biens » d'AC12 de TCK-591 : passation d'un agent dont il est agent responsable
+- [x] AC5 — part « biens » d'AC12 de TCK-591 : passation d'un agent dont il est agent responsable
       d'un bien dont `user_id` est un **bailleur** B, et qui a saisi un bien (`user_id` = lui) :
       après `POST …/handover`, agent responsable du bien de B (`PrimaryPropertyContact::for`) =
       repreneur **avec `user_id` toujours = B** ; `user_id` du bien saisi = repreneur ; une entrée
       `activity_log` par catégorie ; une erreur injectée à mi-parcours ne déplace rien. Les autres
       catégories d'AC12 sont vertes dans 591.
-- [ ] AC6 — la part « au doigt dans le `<select>` natif » d'AC15 de TCK-591, mesurée sur un vrai
+- [ ] **→ au porteur** (vrai téléphone ; rien dans ce ticket ne touche ce `<select>`) — AC6 — la part « au doigt dans le `<select>` natif » d'AC15 de TCK-591, mesurée sur un vrai
       téléphone (Delta §3).
 
 ## Hors périmètre
@@ -216,3 +216,26 @@ Delta est extrait tel quel.*
   `user_id`, désigne la dernière cible, réécrit le seul brouillon, liste le bail actif ; second passage
   `restored=0` ; seuls les deux biens fabriqués changent de (titulaire, contact).
 - Ablations back : 16 mutations, 15 rouges, A1a vert (ci-dessus) ; journal dans le rapport.
+
+### 2026-10-08 — front livré (`e54112b7`), clôture
+
+- **« Changer l'agent responsable »** part en UN appel `bulk-assign` (`bulkAssignPropertiesAction`) ; le
+  `Promise.all` d'appels unitaires est retiré, et l'action unitaire `assignPropertyAgentAction` avec lui (plus
+  aucun appelant ; elle mettait l'identifiant du bien dans un chemin sans le vérifier). Bilan : changés, **déjà
+  suivis par l'agent** (`unchanged`, compté à part), refus motivés ; seuls les refus restent sélectionnés.
+  L'action refuse sans appel tout identifiant qui n'est pas un entier positif sûr (`../1`, `1?user_id=1`, `NaN`,
+  flottant, `2^53`, liste vide) — la règle de TCK-600, non fusionné, appliquée sans l'attendre.
+- **Propriétaire et agent responsable** sont nommés côte à côte dans la ligne, la carte mobile et l'en-tête de
+  la fiche (`ProprietaireEtResponsable`, un seul site pour la règle de lecture) : « Agent : » affichait
+  `owner`. Un `primary_contact` qui EST le propriétaire (repli de TCK-502) se lit « aucun ».
+  `DASHBOARD_PROPERTY_FIELDS` demande désormais `agency_id`, sans quoi l'index ne sert pas `primary_contact`
+  (éprouvé côté API et côté front).
+- **`invalid_target`** dit désormais « cet agent ne peut pas en être responsable (hors du personnel actif de
+  l'agence, ou copropriétaire du bien) » : le motif couvre aussi le refus `co_owner` d'ADR-0059 §1.
+- **Passation** : l'assistant compte et transmet `responsible_properties` et `held_properties`, dans l'ordre de
+  l'API ; `pending` est vide.
+- **Reste au porteur** : AC6 (vrai téléphone) ; le passage de `properties:repair-reassigned-owners` sur la
+  préproduction, `--dry-run` d'abord, après déploiement — jamais joué ici (consigne : aucun environnement
+  déployé).
+- Ablations front : 9 mutations (`F1`-`F9`) + 2 sur la ressource (`R1`, `R2`), toutes rouges, restauration
+  vérifiée par md5 ; journal dans le rapport.
