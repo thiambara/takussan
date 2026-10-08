@@ -1608,3 +1608,26 @@ allumée. `log` apparaît en `local` et en `testing`, jamais en `staging`, `prev
 `production`. Variable éteinte, aucune chaîne n'a `log`.
 **Rouge sur `4edffa44`** : 3 rouges (`staging`, `preview`, `production`).
 **Ablation** (garde d'environnement retirée, restaurée par `cp`) : les mêmes 3 rouges.
+
+#### m7 — purge des jetons morts d'inactivité
+
+- **Nouvelle commande `sessions:prune-idle`** (`PruneIdleSessionTokens`). Elle reprend la règle
+  d'`AccessTokenGate` : `COALESCE(last_used_at, created_at) + idle_timeout_minutes`, avec le
+  défaut `auth.sessions.idle_minutes` pour un jeton hérité. Elle accorde la même grâce de 24 h
+  que `sanctum:prune-expired --hours=24`. Un jeton sans borne (`<= 0`) n'est jamais purgé.
+- Elle est planifiée chaque jour dans `routes/console.php`, à côté de la purge de Sanctum. Cette
+  dernière ne lit que la durée absolue : un jeton de super-admin inactif depuis 30 min restait en
+  table 30 jours.
+
+**Test `IdleTokenPruneTest` (2)** :
+- cinq jetons ; seuls les morts d'inactivité, grâce échue, sont supprimés (super-admin inactif
+  2 j ; jamais utilisé, 9 j) ;
+- la commande est planifiée chaque jour.
+
+**Rouge sur `d84fc7fe`** : 2 rouges (commande absente).
+
+**Ablations, restaurées par `cp`**, chacune → 1 rouge :
+- clause « sans borne » retirée ;
+- `last_used_at` seul (sans `created_at`) ;
+- grâce retirée ;
+- ligne du planificateur retirée.

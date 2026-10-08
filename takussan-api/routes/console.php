@@ -76,6 +76,9 @@ Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
 // TCK-589 — les jetons expirés (durée absolue ou `expires_at`) sont purgés chaque jour ;
 // 24 h de grâce pour qu'un jeton tout juste échu reste lisible dans la liste des sessions.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlapping();
+// TCK-589 (vérification adverse m7) — et les jetons morts d'INACTIVITÉ, que la purge de
+// Sanctum ne voit pas : même règle que `AccessTokenGate`, même grâce de 24 h.
+Schedule::command('sessions:prune-idle --hours=24')->daily()->withoutOverlapping();
 
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();
