@@ -257,4 +257,97 @@ class LeaseContractTermsTest extends TestCase
 
         $this->assertSame([2, 20.0], [$lease->fresh()->early_termination_penalty_months, (float) $lease->fresh()->rent_review_max_pct]);
     }
+
+    // ── VERIF-596 passe 3 (N1') — le renouvellement recopie les termes figés du parent ───────────
+
+    /** Un parent signé et actif ; ses termes d'exécution négociés en brouillon, puis figés. */
+    private function signedParent(array $negotiated = []): Lease
+    {
+        $lease = $this->signableLease();
+        Sanctum::actingAs($lease->landlord);
+        if ($negotiated !== []) {
+            $this->patchJson("/api/leases/{$lease->id}", $negotiated)->assertOk();
+        }
+        app(LeaseSignatureService::class)->request($lease->fresh(), $lease->landlord);
+        $lease->fresh()->forceFill(['status' => LeaseStatus::Active])->save();
+
+        return $lease->fresh();
+    }
+
+    private function renew(Lease $parent, array $payload = []): Lease
+    {
+        $this->postJson("/api/leases/{$parent->id}/renew", $payload + ['end_date' => now()->addYears(5)->toDateString()])
+            ->assertCreated();
+
+        return Lease::query()->where('renewed_from_lease_id', $parent->id)->firstOrFail();
+    }
+
+    /**
+     * Avant : l'enfant naissait `active` avec les deux colonnes nulles, et exécutait le réglage
+     * global relu au jour J — 6 mois et +15 % là où le locataire avait signé 1 mois et 5 %.
+     */
+    public function test_a_renewal_without_signature_keeps_the_parent_frozen_terms(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 2);
+        $this->setting(RentReviewService::SETTING_KEY, 20);
+        $parent = $this->signedParent(['early_termination_penalty_months' => 1, 'rent_review_max_pct' => 5]);
+
+        $child = $this->renew($parent);
+        $this->setting(EarlyTerminationService::SETTING_KEY, 6);
+
+        $this->assertSame(LeaseStatus::Active, $child->status);
+        $this->assertSame([1, 5.0], [$child->early_termination_penalty_months, (float) $child->rent_review_max_pct]);
+        $this->assertEquals(100_000, app(EarlyTerminationService::class)->computePenalty($child->fresh(), now()->addYears(3)));
+        try {
+            app(RentReviewService::class)->review($child->fresh(), $child->landlord, ['new_rent' => 115_000, 'reason' => 'Révision annuelle du loyer']);
+            $this->fail('une hausse de 15 % passe le plafond de 5 % signé sur le parent');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('new_rent', $e->errors());
+        }
+        $this->assertEquals(100_000, (float) $child->fresh()->monthly_rent);
+    }
+
+    /** Un parent antérieur (colonnes nulles) donne un enfant nul : il garde la sémantique du réglage. */
+    public function test_a_renewal_of_a_legacy_lease_stays_unfrozen(): void
+    {
+        $parent = $this->lease(['status' => LeaseStatus::Active, 'monthly_rent' => 100_000, 'end_date' => now()->addMonths(2)->toDateString()]);
+        Sanctum::actingAs($parent->landlord);
+
+        $child = $this->renew($parent);
+
+        $this->assertSame([null, null], [$child->early_termination_penalty_months, $child->rent_review_max_pct]);
+    }
+
+    /** Renégocier au renouvellement est légitime : le corps l'emporte sur le parent, dans les bornes du PATCH. */
+    public function test_a_renewal_can_renegotiate_the_execution_terms(): void
+    {
+        $parent = $this->signedParent(['early_termination_penalty_months' => 1, 'rent_review_max_pct' => 5]);
+
+        $this->postJson("/api/leases/{$parent->id}/renew", ['early_termination_penalty_months' => 13])
+            ->assertStatus(422)->assertJsonValidationErrors('early_termination_penalty_months');
+        $this->postJson("/api/leases/{$parent->id}/renew", ['rent_review_max_pct' => 101])
+            ->assertStatus(422)->assertJsonValidationErrors('rent_review_max_pct');
+
+        $child = $this->renew($parent, ['early_termination_penalty_months' => 3, 'rent_review_max_pct' => 8]);
+
+        $this->assertSame([3, 8.0], [$child->early_termination_penalty_months, (float) $child->rent_review_max_pct]);
+    }
+
+    /** Un enfant `pending_signature` hérite de la valeur négociée, que la demande fige et imprime. */
+    public function test_a_renewal_awaiting_signature_prints_the_inherited_terms(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 2);
+        $parent = $this->signedParent(['early_termination_penalty_months' => 1, 'rent_review_max_pct' => 5]);
+        Setting::query()->updateOrCreate(['key' => 'lease.require_signature'], ['value' => true, 'scope' => SettingScope::Global]);
+        $this->setting(EarlyTerminationService::SETTING_KEY, 6);
+
+        $child = $this->renew($parent);
+        $this->assertSame(LeaseStatus::PendingSignature, $child->status);
+        app(LeaseSignatureService::class)->request($child, $child->landlord);
+
+        $frozen = (string) $child->fresh()->frozenContractBytes();
+        $this->assertSame(1, $child->fresh()->early_termination_penalty_months);
+        $this->assertStringContainsString('1 mois de loyer au plus', $frozen);
+        $this->assertStringContainsString('Variation de 5 % au plus', $frozen);
+    }
 }

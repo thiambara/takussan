@@ -120,6 +120,12 @@ class LeaseRenewalService
                 'payment_day' => $parent->payment_day,
                 'late_fee_percent' => $data['late_fee_percent'] ?? $parent->late_fee_percent,
                 'late_fee_grace_days' => $data['late_fee_grace_days'] ?? $parent->late_fee_grace_days,
+                // VERIF-596 passe 3 (N1', ADR-0042 §1) — les termes d'exécution figés avec le contrat
+                // du parent passent à l'enfant comme les autres termes imprimés. Sans eux, un enfant
+                // né `active` (sans signature) exécutait le réglage global relu au jour J, à l'encontre
+                // du contrat signé. Un parent antérieur (colonnes nulles) donne un enfant nul.
+                'early_termination_penalty_months' => $data['early_termination_penalty_months'] ?? $parent->early_termination_penalty_months,
+                'rent_review_max_pct' => $data['rent_review_max_pct'] ?? $parent->rent_review_max_pct,
                 'terms' => $data['terms'] ?? $parent->terms,
                 'special_conditions' => $data['special_conditions'] ?? $parent->special_conditions,
                 'signed_at' => $childStatus === LeaseStatus::Active ? now() : null,
@@ -293,6 +299,7 @@ class LeaseRenewalService
         $tracked = [
             'start_date', 'end_date', 'monthly_rent', 'deposit_amount',
             'late_fee_percent', 'late_fee_grace_days', 'terms', 'special_conditions',
+            'early_termination_penalty_months', 'rent_review_max_pct',
         ];
         $changes = [];
 

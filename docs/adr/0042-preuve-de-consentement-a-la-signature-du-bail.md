@@ -56,6 +56,13 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    valeur négociée sur le bail, sinon le réglage du moment), imprimées, et lues par
    `EarlyTerminationService::computePenalty` et `RentReviewService` ; nulles (bail antérieur), le
    réglage s'applique. Elles suivent la règle des termes imprimés (`lease.terms_locked`).
+   **Un renouvellement les hérite du parent** (amendé après VERIF-596 passe 3, N1') :
+   `LeaseRenewalService::renew` les recopie comme les autres termes imprimés, sauf valeur renégociée
+   dans le corps du renouvellement (`RenewLeaseRequest`, mêmes bornes que le `PATCH`). Un enfant né
+   `active` sans signature exécute donc les termes signés sur le parent — et non le réglage du jour,
+   ce qui n'est **pas** la sémantique d'un bail antérieur : le parent a une valeur figée et signée.
+   Un enfant `pending_signature` hérite de la valeur, que sa demande de signature fige et imprime.
+   Seul un parent antérieur (colonnes nulles) donne un enfant nul.
    `late_fees.cap_percent` n'est **pas** figé, délibérément : ce plafond ne peut que **baisser** la
    pénalité de retard imprimée, il ne joue jamais contre le locataire. **Point ouvert, non tranché ici** :
    la dérogation `leases.rent_review_force` permet encore de dépasser le plafond imprimé.
