@@ -64,6 +64,8 @@ export const agencyFormSchema = z.object({
     ),
   timezone: z.string().trim().max(64, msgValidation('agency.timezoneTooLong')),
   moderation_required: z.boolean(),
+  /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
+  late_fee_online_collection: z.boolean(),
 });
 
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
@@ -92,6 +94,11 @@ function emptyToNull(v: string | undefined): string | null {
  * Normalise the UI-friendly form values into the backend payload. Empty
  * strings become `null`; the commission rate is parsed to a number and
  * also mirrored in `settings.default_commission_rate` (spec alignment).
+ *
+ * TCK-593 — `settings` ne porte QUE les clés que cet écran gère. L'API fusionne `settings` clé par
+ * clé (`AgencyController::update`) : une clé absente est conservée, une clé à `null` est effacée.
+ * Renvoyer ici l'objet `settings` lu de l'agence réécrirait donc des réglages que l'écran ne montre
+ * pas (filigrane, accueil…) avec leur valeur du moment du chargement.
  */
 export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload {
   const commission = values.commission_rate.trim() === '' ? null : Number(values.commission_rate);
@@ -104,6 +111,7 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
   if (currency !== null) settings.currency = currency.toUpperCase();
   const timezone = emptyToNull(values.timezone);
   if (timezone !== null) settings.timezone = timezone;
+  settings.late_fee_online_collection = values.late_fee_online_collection;
 
   return {
     name: values.name.trim(),
@@ -114,7 +122,7 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
     website: emptyToNull(values.website),
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
-    ...(Object.keys(settings).length > 0 ? { settings } : {}),
+    settings,
     moderation_required: values.moderation_required,
   };
 }

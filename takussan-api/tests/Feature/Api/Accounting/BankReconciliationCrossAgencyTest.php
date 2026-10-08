@@ -2,16 +2,20 @@
 
 namespace Tests\Feature\Api\Accounting;
 
+use App\Jobs\Accounting\MatchBankStatementJob;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\Customer;
+use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\Currency;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Models\User;
+use App\Services\Accounting\ReconciliationMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 
@@ -180,6 +184,43 @@ class BankReconciliationCrossAgencyTest extends ApiTestCase
             ->assertOk();
 
         $this->assertSame($line->id, $ownPayment->refresh()->bank_statement_line_id);
+    }
+
+    public function test_a_payout_of_another_agency_is_never_suggested_nor_matched(): void
+    {
+        // TCK-593 (AC14) — un débit de A, un reversement `completed` de B au même net, le même
+        // jour : jamais proposé, et 403 si l'appelant le force.
+        $line = $this->lineOf($this->agencyA, [
+            'direction' => BankStatementLineDirection::Debit,
+            'amount' => 285000,
+            'posted_at' => '2026-04-11',
+            'match_status' => BankStatementLineMatchStatus::Unmatched,
+            'reference' => null,
+            'counterparty' => null,
+        ]);
+        $foreign = Payout::factory()->completed()->create([
+            'agency_id' => $this->agencyB->id,
+            'net_amount' => 285000,
+            'currency' => Currency::XOF,
+            'processed_at' => '2026-04-11 09:00:00',
+        ]);
+
+        (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+        $this->assertNull($line->refresh()->matched_payment_id);
+
+        $this->actingAs($this->adminA)
+            ->postJson("/api/bank-statement-lines/{$line->id}/match", [
+                'payment_type' => 'payout',
+                'payment_id' => $foreign->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertNull($foreign->refresh()->bank_statement_line_id);
+
+        // Le témoin : le même reversement, mais de l'agence A, est proposé.
+        $foreign->update(['agency_id' => $this->agencyA->id]);
+        (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+        $this->assertSame($foreign->id, $line->refresh()->matched_payment_id);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────

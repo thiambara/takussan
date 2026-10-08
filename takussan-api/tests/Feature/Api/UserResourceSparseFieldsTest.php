@@ -33,7 +33,7 @@ use Tests\ApiTestCase;
  *
  * `whenHas('password_set_at', …)` **omet** la clé au lieu d'en fabriquer la
  * valeur. C'est le seul comportement qui distingue « je ne sais pas » de
- * « non » — la même règle que `PaymentGatewayService::paymentAmount()`, qui rend
+ * « non » — la même règle que `PaymentGatewayService::amountDue()`, qui rend
  * `null` et jamais `0.0` (ardoise D-51). Le typage front la déclare déjà
  * optionnelle (`has_usable_password?: boolean`), donc l'absence est contractuelle.
  *
