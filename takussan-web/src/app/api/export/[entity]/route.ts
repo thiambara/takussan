@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
@@ -11,7 +12,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ entity: string }> },
 ): Promise<NextResponse> {
-  const { entity } = await params;
+  const entity = segmentAmont((await params).entity);
+  if (entity === null) return reponseSegmentInvalide();
 
   if (!ALLOWED_ENTITIES.has(entity)) {
     console.error('[BFF] export : entité inconnue', entity);

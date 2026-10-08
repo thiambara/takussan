@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
 import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
+import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 
 /**
  * TCK-600 (ADR-0055 §6) — le relais same-origin de l'espace applicatif pendant une session.
@@ -13,6 +14,8 @@ import { API_URL, effacerLaSession } from '@/lib/impersonation-serveur';
  * `impersonation.read_only`), avec son message traduit — une seule règle, un seul endroit.
  */
 async function relayer(request: NextRequest, segments: string[]): Promise<NextResponse> {
+  const chemin = cheminAmont(segments);
+  if (chemin === null) return reponseSegmentInvalide();
   const jeton = request.cookies.get(IMPERSONATION_COOKIE)?.value;
   if (!jeton) {
     const reponse = NextResponse.json({ code: 'impersonation.no_session' }, { status: 401 });
@@ -34,7 +37,7 @@ async function relayer(request: NextRequest, segments: string[]): Promise<NextRe
     init.body = await request.arrayBuffer();
   }
 
-  const amont = await fetch(`${API_URL}/api/${segments.map(encodeURIComponent).join('/')}${request.nextUrl.search}`, init);
+  const amont = await fetch(`${API_URL}/api/${chemin}${request.nextUrl.search}`, init);
   const enTetesReponse: Record<string, string> = {};
   for (const nom of ['content-type', 'content-disposition', 'cache-control']) {
     const valeur = amont.headers.get(nom);

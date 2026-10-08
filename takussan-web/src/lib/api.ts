@@ -192,6 +192,8 @@ export const CODES_ERREUR_BFF = [
   'server_error',
   // TCK-600 — le proxy de la console refuse les chemins d'impersonation sans appeler l'API.
   'not_found',
+  // TCK-600 (verif-600 B1) — un segment de route dynamique qui réécrirait l'URL de l'API.
+  'invalid_path',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -205,6 +207,7 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   unknown_entity: 'errors.api.unknownEntity',
   server_error: 'errors.api.serverError',
   not_found: 'errors.notFound',
+  invalid_path: 'errors.notFound',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */

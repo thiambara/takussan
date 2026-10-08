@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 
 
 /**
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest, ctx: { params: Params }): Promise<Ne
     return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }
 
-  const { id } = await ctx.params;
+  const id = segmentAmont((await ctx.params).id);
+  if (id === null) return reponseSegmentInvalide();
+
   if (!/^\d+$/.test(id)) {
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }

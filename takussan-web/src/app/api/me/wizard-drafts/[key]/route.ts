@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiError, apiRequest } from '@/lib/api';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 
 /**
  * TCK-250 — Per-key wizard-draft proxy.
@@ -22,14 +23,15 @@ async function readToken(): Promise<string | null> {
 }
 
 function buildPath(key: string): string {
-  // The route segment is already URL-decoded by Next; re-encode for the API.
-  return `/api/me/wizard-drafts/${encodeURIComponent(key)}`;
+  // `key` sort de `segmentAmont()` : déjà ré-encodé, et jamais `.`, `..` ni porteur de `/`.
+  return `/api/me/wizard-drafts/${key}`;
 }
 
 export async function GET(_req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
   const token = await readToken();
   if (!token) return NextResponse.json(null, { status: 401 });
-  const { key } = await ctx.params;
+  const key = segmentAmont((await ctx.params).key);
+  if (key === null) return reponseSegmentInvalide();
 
   try {
     const data = await apiRequest<unknown>(buildPath(key), { token });
@@ -46,7 +48,8 @@ export async function GET(_req: NextRequest, ctx: { params: Params }): Promise<N
 export async function PUT(req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
   const token = await readToken();
   if (!token) return NextResponse.json(null, { status: 401 });
-  const { key } = await ctx.params;
+  const key = segmentAmont((await ctx.params).key);
+  if (key === null) return reponseSegmentInvalide();
 
   let body: unknown;
   try {
@@ -74,7 +77,8 @@ export async function PUT(req: NextRequest, ctx: { params: Params }): Promise<Ne
 export async function DELETE(_req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
   const token = await readToken();
   if (!token) return NextResponse.json(null, { status: 401 });
-  const { key } = await ctx.params;
+  const key = segmentAmont((await ctx.params).key);
+  if (key === null) return reponseSegmentInvalide();
 
   try {
     await apiRequest<void>(buildPath(key), { method: 'DELETE', token });
