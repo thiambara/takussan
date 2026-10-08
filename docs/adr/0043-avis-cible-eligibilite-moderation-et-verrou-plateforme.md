@@ -63,6 +63,26 @@ un admin suspendu ne modère plus rien. La règle vit dans `App\Policies\ReviewP
 (`moderate`, `viewReports`) ; `index`, `pending_count`, `reports`, `approve`, `reject` et `moderate`
 la lisent, et la liste de l'admin d'agence est **filtrée côté serveur** sur `reviews.agency_id`.
 
+**L'admin d'agence ne tranche que l'avis avant sa publication** (verif-597 M3, décision de
+session). Sur un avis `pending` de son périmètre, il peut seulement **approuver** ou **masquer**.
+Dès qu'un avis est publié (`approved` ou `reported`), seule la plateforme le retire, et l'agence ne
+fait plus qu'y répondre ou le signaler. Retirer, ignorer des signalements et supprimer sont réservés
+à la plateforme, même pour un avis en attente.
+
+Le motif est celui qui écarte déjà les avis sur l'agence : **juge et partie**. Un avis sur le bien
+ou sur l'agent d'une agence la juge tout autant. Dans la version précédente, l'admin d'agence
+pouvait masquer un 1★ publié sur son propre bien, sans aucun signalement, et faire passer sa
+moyenne publique de 3 à 5.
+
+En conséquence :
+
+- `ReviewModerationScope::canModerate` exige `status = pending` et une décision prise parmi
+  `AGENCY_DECISIONS` ;
+- `pending_count` ne compte plus les avis `reported` pour l'agence ;
+- `viewReports` reste ouvert sur tout le périmètre (`inAgencyScope`).
+
+La décision est réversible.
+
 **Répondre** (`reply`, `deleteReply`) appartient : au publieur du bien (`properties.user_id`), s'il
 est encore bailleur actif ou personnel de l'agence ; au personnel de l'agence de l'avis
 ([ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md), `isStaffAt`) ; à l'agent

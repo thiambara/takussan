@@ -30,14 +30,15 @@ class ReviewPolicy extends BasePolicy
         return $this->scope->agencyFor($user) !== null;
     }
 
-    public function moderate(User $user, Review $review): bool
+    /** `$decision` nommée : l'admin d'agence n'approuve ou ne masque qu'un avis en attente. */
+    public function moderate(User $user, Review $review, ?string $decision = null): bool
     {
-        return $this->scope->canModerate($user, $review);
+        return $this->scope->canModerate($user, $review, $decision);
     }
 
     public function viewReports(User $user, Review $review): bool
     {
-        return $this->scope->canModerate($user, $review);
+        return $this->scope->inAgencyScope($user, $review);
     }
 
     /**

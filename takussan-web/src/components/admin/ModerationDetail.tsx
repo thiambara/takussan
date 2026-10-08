@@ -108,6 +108,9 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
 
   // Un avis SUR l'agence elle-même : l'admin d'agence le voit, la plateforme le tranche.
   const platformOnly = !platform && review.reviewable_type === AGENCY_SUBJECT;
+  // verif-597 M3 — l'agence ne tranche que l'avis EN ATTENTE, et seulement approuver ou masquer :
+  // une fois publié, seule la plateforme le retire (l'agence y répond ou le signale).
+  const publishedPlatformOnly = !platform && !platformOnly && review.status !== 'pending';
   const reasonOptions = MODERATION_REASON_CODES.map((code) => ({ value: code, label: tReasons(code) }));
 
   const reports = reportsData?.data ?? [];
@@ -132,9 +135,9 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
             })}
           </p>
         </div>
-        {platformOnly ? (
+        {platformOnly || publishedPlatformOnly ? (
           <p className="max-w-xs rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground" data-testid="moderation-platform-only">
-            {t('platformOnly')}
+            {platformOnly ? t('platformOnly') : t('publishedPlatformOnly')}
           </p>
         ) : (
         <div className="flex flex-wrap gap-2">
@@ -154,6 +157,7 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
             <EyeOff className="size-4" />
             {t('hide')}
           </Button>
+          {platform ? (
           <Button
             variant="destructive"
             onClick={() => handleDecision('delete')}
@@ -162,7 +166,8 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
             <Trash2 className="size-4" />
             {t('delete')}
           </Button>
-          {review.reported_count > 0 ? (
+          ) : null}
+          {platform && review.reported_count > 0 ? (
             <Button
               variant="ghost"
               onClick={() => handleDecision('ignore')}

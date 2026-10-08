@@ -36,7 +36,30 @@ class ReviewModerationScope
         return $kind === AgencyKind::Standard ? (int) $agencyId : null;
     }
 
-    public function canModerate(User $user, Review $review): bool
+    /**
+     * Les décisions de l'admin d'agence : approuver ou masquer un avis AVANT sa publication
+     * (verif-597 M3). Retirer, ignorer des signalements, revenir sur un avis publié : plateforme.
+     */
+    public const AGENCY_DECISIONS = ['approve', 'hide'];
+
+    /**
+     * Trancher un avis. L'admin d'agence ne tranche que l'avis EN ATTENTE de son périmètre
+     * (verif-597 M3, ADR-0043 §1) : une fois publié, l'avis la juge — retirer un 1★ de son propre
+     * bien faisait monter sa moyenne publique. Il garde la réponse et le signalement.
+     */
+    public function canModerate(User $user, Review $review, ?string $decision = null): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->inAgencyScope($user, $review)
+            && $review->status === ReviewStatus::Pending
+            && ($decision === null || in_array($decision, self::AGENCY_DECISIONS, true));
+    }
+
+    /** L'avis relève de l'agence que l'acteur modère, quel que soit son statut. */
+    public function inAgencyScope(User $user, Review $review): bool
     {
         if ($user->isSuperAdmin()) {
             return true;
@@ -76,11 +99,18 @@ class ReviewModerationScope
         return $query;
     }
 
-    /** Le compteur de la file : avis en attente ou signalés que l'acteur peut trancher. */
+    /**
+     * Le compteur de la file : les avis que l'acteur peut trancher. Pour l'admin d'agence, les
+     * seuls avis en attente (verif-597 M3) ; un avis signalé relève de la plateforme.
+     */
     public function pendingCount(User $user): int
     {
+        $statuses = $user->isSuperAdmin()
+            ? [ReviewStatus::Pending->value, ReviewStatus::Reported->value]
+            : [ReviewStatus::Pending->value];
+
         return $this->restrict(Review::query(), $user, moderatableOnly: true)
-            ->whereIn('status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
+            ->whereIn('status', $statuses)
             ->count();
     }
 }

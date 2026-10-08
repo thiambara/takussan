@@ -146,7 +146,8 @@ describe('<ModerationWorkspace>', () => {
     mockModerate.mockResolvedValue({ data: { id: 7, deleted: true } });
 
     const user = userEvent.setup();
-    render(wrap(<ModerationWorkspace />));
+    // Supprimer est un geste de plateforme (verif-597 M3).
+    render(wrap(<ModerationWorkspace platform />));
 
     await screen.findByTestId('moderation-detail');
     await user.click(screen.getByRole('button', { name: /supprimer/i }));
@@ -213,6 +214,37 @@ describe('<ModerationWorkspace>', () => {
 
     expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/modéré par la plateforme/i);
     expect(screen.getByTestId('moderation-agency-scope')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+  });
+
+  // verif-597 M3 — l'agence ne tranche que l'avis en attente, et seulement approuver ou masquer.
+  it('agency view: a pending review offers approve and hide only', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [makeReview({ id: 4, title: 'En attente', reported_count: 2 })],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-detail');
+    expect(screen.getByRole('button', { name: /^approuver$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^masquer$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /supprimer/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /ignorer/i })).toBeNull();
+  });
+
+  it('agency view: a published review offers no decision, and the screen says why', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [makeReview({ id: 5, title: 'Publié', status: 'approved' })],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/seule la plateforme peut le retirer/i);
+    expect(screen.queryByRole('button', { name: /^masquer$/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
   });
 

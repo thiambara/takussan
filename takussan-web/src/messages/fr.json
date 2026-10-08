@@ -4618,7 +4618,8 @@
         "reasonCodeLabel": "Motif",
         "reasonCodePlaceholder": "Choisir un motif",
         "reasonCodeRequired": "Choisissez un motif.",
-        "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)"
+        "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
+        "publishedPlatformOnly": "Avis déjà publié : seule la plateforme peut le retirer. Vous pouvez y répondre ou le signaler."
       }
     },
     "finances": {

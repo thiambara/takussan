@@ -20,7 +20,14 @@ class ModerateReviewRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('moderate', $this->route('review')) === true;
+        // verif-597 M3 — la décision compte : l'admin d'agence n'approuve ou ne masque qu'un avis
+        // en attente. Sans décision, la validation rend son 422.
+        $decision = $this->input('decision');
+
+        return $this->user()?->can('moderate', [
+            $this->route('review'),
+            is_string($decision) && $decision !== '' ? $decision : null,
+        ]) === true;
     }
 
     /** @return array<string, mixed> */

@@ -4618,7 +4618,8 @@
         "reasonCodeLabel": "Reason",
         "reasonCodePlaceholder": "Choose a reason",
         "reasonCodeRequired": "Choose a reason.",
-        "reasonLabelRequired": "Describe the reason (required for “Other reason”)"
+        "reasonLabelRequired": "Describe the reason (required for “Other reason”)",
+        "publishedPlatformOnly": "This review is already published: only the platform can take it down. You can reply to it or report it."
       }
     },
     "finances": {

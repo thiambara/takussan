@@ -111,8 +111,9 @@ class ReviewModerationScopeTest extends ApiTestCase
         $ids = collect($response->json('data'))->pluck('id')->sort()->values()->all();
         $expected = collect([$pendingA1, $pendingA2, $reportedA, $approvedA, $onAgencyA])->pluck('id')->sort()->values()->all();
         $this->assertSame($expected, $ids);
-        // 2 en attente + 1 signalé sur les biens de A ; l'avis sur l'agence relève de la plateforme.
-        $this->assertSame(3, $response->json('meta.pending_count'));
+        // Les 2 avis en attente sur les biens de A. Le signalé relève de la plateforme (verif-597 M3),
+        // l'avis sur l'agence aussi.
+        $this->assertSame(2, $response->json('meta.pending_count'));
     }
 
     public function test_pending_first_sort_puts_reviews_to_decide_on_top(): void
@@ -155,6 +156,38 @@ class ReviewModerationScopeTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.0.anonymous', true)
             ->assertJsonMissingPath('data.0.fingerprint');
+    }
+
+    /**
+     * verif-597 M3 — l'admin d'agence ne tranche que l'avis AVANT publication. Avant : il masquait
+     * un 1★ publié sur son propre bien, sans signalement, et sa moyenne publique passait de 3 à 5.
+     */
+    public function test_an_agency_admin_cannot_take_down_a_published_review_and_the_average_holds(): void
+    {
+        $this->reviewOn($this->propertyA, ReviewStatus::Approved, ['rating' => 5]);
+        $low = $this->reviewOn($this->propertyA, ReviewStatus::Approved, ['rating' => 1]);
+        $reported = $this->reviewOn($this->propertyA, ReviewStatus::Reported, ['rating' => 1]);
+        $pending = $this->reviewOn($this->propertyA, ReviewStatus::Pending, ['is_approved' => false]);
+        $average = (float) $this->propertyA->refresh()->average_rating;
+
+        $this->actingAsApi($this->adminA);
+        foreach ([$low, $reported] as $published) {
+            $this->patchJson("/api/reviews/{$published->id}/moderate", ['decision' => 'hide', 'reason_code' => 'off_topic'])
+                ->assertForbidden();
+            $this->patchJson("/api/reviews/{$published->id}/moderate", ['decision' => 'delete', 'reason_code' => 'spam'])
+                ->assertForbidden();
+            $this->postJson("/api/reviews/{$published->id}/reject")->assertForbidden();
+        }
+        // Même en attente, retirer ou ignorer reste à la plateforme : approuver ou masquer.
+        $this->patchJson("/api/reviews/{$pending->id}/moderate", ['decision' => 'delete', 'reason_code' => 'spam'])
+            ->assertForbidden();
+
+        $this->assertSame(ReviewStatus::Approved, $low->refresh()->status);
+        $this->assertSame(ReviewStatus::Reported, $reported->refresh()->status);
+        $this->assertNull($pending->refresh()->deleted_at);
+        $this->assertSame($average, (float) $this->propertyA->refresh()->average_rating);
+        // L'agence garde la lecture des signalements de son périmètre.
+        $this->getJson("/api/reviews/{$reported->id}/reports")->assertOk();
     }
 
     public function test_a_review_of_the_agency_itself_is_moderated_by_the_platform_only(): void
