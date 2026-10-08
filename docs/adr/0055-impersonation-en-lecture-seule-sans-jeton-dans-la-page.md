@@ -64,7 +64,9 @@ puis :
 - toute méthode autre que `GET` / `HEAD` / `OPTIONS` → **403 `impersonation_read_only`**. **Aucune
   écriture permise** ;
 - **lectures refusées malgré tout**, même code : les téléchargements d'export (`me/data-exports/*`,
-  `export/*`, exports de rapports), les codes de secours 2FA, et **toute action de la liste step-up**
+  `export/*`, exports de rapports), **toute la famille 2FA** (`auth/two-factor*` : codes de secours,
+  et QR de la graine TOTP en cours d'enrôlement — verif-600 M1), les liens de partage d'un document
+  (leur `token` ouvre le fichier sans session), et **toute action de la liste step-up**
   (`ProtectedActions::STEP_UP` et `STEP_UP_FOR_PLATFORM`) — le jeton d'impersonation ne porte jamais
   de confirmation 2FA ; `/api/admin/*` entier (la cible n'est jamais un opérateur, mais la règle ne
   repose pas sur cette seule garde).

@@ -4,6 +4,8 @@ namespace Tests\Feature\Admin\Platform;
 
 use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Models\DataExport;
+use App\Models\Document;
+use App\Models\User;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +62,29 @@ class ImpersonationReadOnlyTest extends TestCase
                 ->assertForbidden()
                 ->assertJsonPath('code', 'impersonation.read_only');
         }
+    }
+
+    /**
+     * verif-600 M1 — le QR de la graine TOTP en cours d'enrôlement : la cible le confirme, et la
+     * graine que l'opérateur a lue devient son second facteur. Les liens de partage d'un document
+     * portent un `token` qui ouvre le fichier sans session.
+     */
+    public function test_aucun_secret_de_la_cible_ne_se_lit(): void
+    {
+        $cible = User::factory()->create(['two_factor_enabled' => false]);
+        $cible->forceFill(['two_factor_secret' => 'JBSWY3DPEHPK3PXP'])->save();
+        $document = Document::factory()->create();
+        ['jeton' => $jeton] = $this->ouvrirUneSession(cible: $cible);
+
+        foreach (['/api/auth/two-factor/qr', "/api/documents/{$document->id}/share-links"] as $chemin) {
+            $reponse = $this->avecLeJeton($jeton)->getJson($chemin);
+            $reponse->assertForbidden()->assertJsonPath('code', 'impersonation.read_only');
+            $this->assertStringNotContainsString('<svg', $reponse->getContent(), $chemin);
+        }
+
+        // Témoin : la même cible, avec SON jeton, lit bien son QR — le refus est celui de la session.
+        $propre = $cible->createToken('mobile')->plainTextToken;
+        $this->avecLeJeton($propre)->get('/api/auth/two-factor/qr')->assertOk();
     }
 
     /** Les lectures refusées de l'ADR : la console, les exports, les codes de secours. */

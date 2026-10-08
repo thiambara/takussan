@@ -18,9 +18,16 @@ use Symfony\Component\HttpFoundation\Response;
  * ouverte, lie {@see ImpersonationContext} (lu par `Activity::creating`) puis refuse en
  * **403 `impersonation.read_only`** :
  *  - toute méthode autre que `GET` / `HEAD` / `OPTIONS` — aucune écriture permise ;
- *  - les lectures nommées par l'ADR : `/api/admin/*` entier, les téléchargements d'export, les codes
- *    de secours 2FA, et toute action de la liste step-up (le jeton n'a jamais de confirmation 2FA :
- *    `RequireRecentTwoFactor` les refuserait aussi, mais ce refus-ci ne dépend pas de cet autre).
+ *  - les lectures nommées par l'ADR : `/api/admin/*` entier, les téléchargements d'export, toute la
+ *    famille 2FA (codes de secours, et le QR de la graine TOTP en cours d'enrôlement ou de
+ *    renouvellement — verif-600 M1), les liens de partage d'un document (leur `token` ouvre le
+ *    fichier sans session, bien après les 15 minutes), et toute action de la liste step-up (le jeton
+ *    n'a jamais de confirmation 2FA : `RequireRecentTwoFactor` les refuserait aussi, mais ce
+ *    refus-ci ne dépend pas de cet autre).
+ *
+ * Relevé des autres lectures GET (verif-600 M1) : `auth/sessions` ne rend ni jeton ni secret (noms,
+ * dates), `me/calendar-feed` ne rend pas le lien `.ics` (seule sa création le rend, en POST),
+ * `integrations` cache `credentials`, `invitations` ne rend pas son `token`.
  *
  * Le contexte est remis à zéro en entrée ET en sortie : un singleton de portée n'est vidé qu'entre
  * deux jobs ou sous Octane, jamais entre deux requêtes d'un même processus.
@@ -34,7 +41,8 @@ class EnforceImpersonationReadOnly
         'api/data-exports/*',
         'api/export/*',
         'api/activity-logs/export*',
-        'api/auth/two-factor/recovery-codes*',
+        'api/auth/two-factor*',
+        'api/documents/*/share-links*',
     ];
 
     public function __construct(
