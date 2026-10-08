@@ -4,6 +4,7 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
@@ -19,7 +20,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class OwnerProfile extends AbstractModel
 {
     /** @use HasFactory<OwnerProfileFactory> */
-    use HasAgencyRole, HasFactory, SoftDeletes;
+    use Auditable, HasAgencyRole, HasFactory, SoftDeletes;
+
+    /** TCK-601 — liste blanche du journal — jamais les colonnes `SENSITIVE`. */
+    public const AUDIT_ONLY = ['status', 'agency_role_id'];
 
     protected $fillable = [
         'user_id', 'agency_id', 'agency_role_id', 'status',

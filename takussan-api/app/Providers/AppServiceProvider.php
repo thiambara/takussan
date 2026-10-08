@@ -83,6 +83,7 @@ use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
 use App\Services\Media\Cdn\CdnProviderContract;
@@ -546,6 +547,8 @@ class AppServiceProvider extends ServiceProvider
         // TCK-601 — le modèle du journal est `App\Models\Activity` : un écouteur posé sur la classe
         // spatie ne verrait plus aucune création (l'événement se nomme par classe).
         AuditActivity::created(fn (AuditActivity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-601 (E) — un acte de gouvernance journalisé avertit les autres admins de l'agence.
+        AuditActivity::created(fn (AuditActivity $activity) => app(GovernanceAlertService::class)->handle($activity));
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //

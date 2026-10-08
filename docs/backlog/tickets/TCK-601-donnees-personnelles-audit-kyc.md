@@ -420,22 +420,22 @@ Et autour :
 
 ### E. Actes de gouvernance
 
-- [ ] `Auditable` en liste blanche (`logOnly`) sur : `AgencyRole` (`name`, `description`,
+- [x] `Auditable` en liste blanche (`logOnly`) sur : `AgencyRole` (`name`, `description`,
       `base_profile_type`) ; `Agency` (`commission_rate`, `status`, `kind`, `is_verified`,
       `moderation_required`, `bank_csv_mapping`, `primary_admin_id`) ; `Integration` (`provider`,
       `is_active`, plus un drapeau `credentials_changed` sans valeur — jamais `last_used_at`,
       `last_health_check_at`, `health_status`) ; `AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`
       (`status`, `agency_role_id`, `commission_rate` pour l'agent — jamais les colonnes `SENSITIVE`).
-- [ ] `AgencyRoleService::replaceCapabilities` : activité `role_capabilities_changed` avec
+- [x] `AgencyRoleService::replaceCapabilities` : activité `role_capabilities_changed` avec
       `added` / `removed` ; `create` → `role_created` ; `assign` → `role_assigned`.
-- [ ] `App\Services\Governance\GovernanceAlertService` : avertit (in-app + e-mail, clés i18n, dans la
+- [x] `App\Services\Governance\GovernanceAlertService` : avertit (in-app + e-mail, clés i18n, dans la
       langue de chaque destinataire) les admins actifs de l'agence, sauf l'auteur. Déclenché **par le
       journal lui-même** (`created` du modèle `Activity` de D, sur une table d'événements nommée en
       constante), sans toucher aux fichiers des autres tickets : `role_capabilities_changed` ;
       création d'un `AgencyAdminProfile` ; `data_exported` d'une entité CRM (TCK-587) ; création,
       modification ou suppression d'une `Integration` ; changement de seuil d'approbation (TCK-594, nom
       d'événement aligné à l'implémentation).
-- [ ] Tests : `GovernanceAuditTest`, `GovernanceAlertTest`.
+- [x] Tests : `GovernanceAuditTest`, `GovernanceAlertTest`.
 
 ### F. Consultations et audit plateforme
 
@@ -546,7 +546,7 @@ Et autour :
       (audit d'agence non expurgé, liste plateforme sans ces clés).
 - [ ] **AC14** — Après la migration de rattrapage, une activité préexistante sur un `LeasePayment` de A
       porte `agency_id = A` ; une activité sur un `User` porte `null`.
-- [ ] **AC15** — Remplacer les capacités d'un rôle crée `role_capabilities_changed` avec `added` et
+- [x] **AC15** — Remplacer les capacités d'un rôle crée `role_capabilities_changed` avec `added` et
       `removed` exacts, et notifie les autres admins de l'agence (pas l'auteur) ; une entrée
       `data_exported` d'entité `customers` notifie de même. Modifier le RIB d'un
       bailleur ne laisse aucune valeur de RIB dans `activity_log` (recherche de la valeur témoin dans
@@ -670,6 +670,38 @@ Et autour :
   `request()` relu dans le job → rouge ; agence non transmise au job → rouge ; expurgation retirée de
   la liste → rouge, de l'export → rouge ; segments d'identifiants vidés → rouge ; enfant retiré du
   rattrapage → rouge.
+
+### E — actes de gouvernance (back)
+
+- `Auditable` lit une constante `AUDIT_ONLY` : liste blanche quand elle existe, `fillable` sinon.
+  Posée sur `AgencyRole`, `Agency` (raccord 594 en commentaire : `ninea`, `rccm`,
+  `payout_approval_threshold`), `Integration`, `AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`.
+  `Integration::buildChanges` ajoute `credentials_changed: true` (création avec identifiants, ou
+  modification qui les touche, même seule) ; un appel ou une sonde (`last_used_at`, santé) n'écrit rien.
+- `AgencyRoleService` : `role_capabilities_changed` (`added` / `removed`, triés ; un remplacement
+  identique n'écrit rien), `role_created` (avec `clone_from` et les capacités copiées — le `created` du
+  modèle est désactivé, il dirait moins), `role_assigned` (`from_role_id`, `to_role_id`, nom ; le
+  `updated` du profil est tu pour ne pas doubler).
+- `GovernanceAlertService`, branché sur `Activity::created` : deux tables en constantes
+  (`EVENTS` : `role_capabilities_changed`, `data_exported` limité à `customers`,
+  `agency_payout_threshold_changed` — nom pris sur la branche 594, inerte avant sa fusion ;
+  `SUBJECT_EVENTS` : `AgencyAdminProfile` créé, `Integration` créée/modifiée/supprimée). Destinataires :
+  admins **actifs** de l'agence de la ligne, sauf l'auteur, dans leur langue ; cible `audit`
+  (`/admin/audit`, nouvelle entrée de `NotificationTarget::PATHS`).
+- **Écart assumé** : une écriture **sans auteur** (seeder, commande, migration, fixture) n'alerte
+  personne — un acte de gouvernance est le geste d'un membre. Mesuré : sans cette règle, six tests
+  existants (absences, notification de bien proposé, demande de passage) recevaient une alerte
+  `admin_added` née de leurs propres fixtures.
+- Effets de bord corrigés dans les tests : `NamespaceAccessGuardTest` reçoit une demande de droits
+  réelle (`{privacyRequest}` est lié avant la garde) ; `MediaDiskCollectionsTest` inscrit
+  `PrivacyRequest.proof` (privé) et date la pièce du dirigeant.
+- Tests : `GovernanceAuditTest` 5/5, `GovernanceAlertTest` 6/6 ; 201 classes liées (journal,
+  notifications, rôles, intégrations, profils) en trois lots : 820 + 451 + 465 verts après
+  correctifs (6 puis 2 rouges, tous expliqués ci-dessus). Ablations, toutes rouges : liste blanche →
+  `logFillable` ; `Auditable` retiré du bailleur ; retiré de l'agence ; drapeau `credentials_changed`
+  retiré ; `removed` inversé ; `created` du rôle réactivé ; `updated` du profil non tu ; auteur non
+  exclu ; admins inactifs non filtrés ; filtre CRM neutralisé ; agence de la ligne ignorée ; écouteur
+  retiré ; règle « sans auteur » retirée.
 
 ### F — consultations et audit plateforme (back)
 

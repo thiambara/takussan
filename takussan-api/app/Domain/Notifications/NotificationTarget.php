@@ -43,6 +43,8 @@ final class NotificationTarget
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/admin/finances',
         'team' => '/admin/team',
+        // TCK-601 — une alerte de gouvernance ouvre le journal d'audit de l'agence.
+        'audit' => '/admin/audit',
     ];
 
     private function __construct(

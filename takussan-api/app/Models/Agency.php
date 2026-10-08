@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
@@ -24,7 +25,17 @@ class Agency extends AbstractModel implements HasMedia
 {
     // TCK-079: Lemon Squeezy `Billable` makes Agency the scope used to
     // create checkouts (`$agency->checkout(...)->withCustomPrice(...)`).
-    use HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
+    use Auditable, HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
+
+    /**
+     * TCK-601 — liste blanche du journal : jamais `metadata` (dont `legal_info`), ni les coordonnées.
+     * Raccord TCK-594 : `ninea`, `rccm` et `payout_approval_threshold` y entreront avec leurs
+     * colonnes (le seuil s'écrit aussi `agency_payout_threshold_changed` par son service).
+     */
+    public const AUDIT_ONLY = [
+        'commission_rate', 'status', 'kind', 'is_verified',
+        'moderation_required', 'bank_csv_mapping', 'primary_admin_id',
+    ];
 
     protected $fillable = [
         'name', 'slug', 'kind', 'license_number', 'description',
