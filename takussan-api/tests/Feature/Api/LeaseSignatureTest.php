@@ -662,6 +662,38 @@ class LeaseSignatureTest extends TestCase
         Bus::assertDispatchedTimes(GenerateLeasePaymentSchedule::class, 1);
     }
 
+    /**
+     * VERIF-596 M1 — second chemin vers la preuve du bailleur : la voie papier exige `leases.sign`
+     * comme la voie par code. L'agent sans la capacité recevait 200 et le bail passait `active`.
+     */
+    public function test_an_agent_without_leases_sign_cannot_activate_on_paper(): void
+    {
+        $agent = $this->agentWithout($this->agency, Capability::LeasesSign);
+        Sanctum::actingAs($agent);
+        $this->getJson("/api/leases/{$this->lease->id}")->assertOk()->assertJsonPath('data.can_activate_on_paper', false);
+
+        $this->activateOnPaper(UploadedFile::fake()->image('nimporte.png'), $agent)->assertForbidden();
+        $this->assertSame(LeaseStatus::Draft, $this->lease->fresh()->status);
+        $this->assertSame(0, LeaseSignature::query()->count());
+    }
+
+    public function test_an_agent_with_leases_sign_and_the_landlord_activate_on_paper(): void
+    {
+        $agent = $this->agencyAgent($this->agency);
+        Sanctum::actingAs($agent);
+        $this->getJson("/api/leases/{$this->lease->id}")->assertOk()->assertJsonPath('data.can_activate_on_paper', true);
+
+        $this->activateOnPaper(UploadedFile::fake()->create('bail.pdf', 50, 'application/pdf'), $agent)->assertOk();
+    }
+
+    public function test_super_admin_has_no_paper_path(): void
+    {
+        $admin = $this->actingAsRole('super_admin');
+
+        $this->activateOnPaper(UploadedFile::fake()->create('bail.pdf', 50, 'application/pdf'), $admin)->assertForbidden();
+        $this->assertSame(LeaseStatus::Draft, $this->lease->fresh()->status);
+    }
+
     public function test_a_third_party_cannot_activate_on_paper(): void
     {
         $this->activateOnPaper(null, User::factory()->create())->assertForbidden();

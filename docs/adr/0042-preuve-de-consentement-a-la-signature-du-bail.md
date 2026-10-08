@@ -72,7 +72,10 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
 6. **Le sort d'`activate`.** Elle devient la voie **papier** : contrat numérisé **obligatoire** (PDF ou
    image, 10 Mo), rangé dans `signed_contract`, haché, et une preuve `method = paper` par partie, avec
    l'auteur de l'enregistrement. Elle accepte `draft` **et** `pending_signature`. Elle émet toujours
-   l'échéancier et `LeaseActivated`.
+   l'échéancier et `LeaseActivated`. Parce qu'elle enregistre une preuve **pour le bailleur**, elle
+   exige le gestionnaire du bail **et** `LandlordSignatory::allows` — la règle de la voie par code
+   (amendé après VERIF-596, M1 : un agent sans `leases.sign` activait le bail avec n'importe quelle
+   image). Le super-admin n'a **pas** de voie papier. L'écran lit `can_activate_on_paper`.
 7. **La sortie de l'impasse `pending_signature`.** Un renouvellement `pending_signature` atteint
    `active` par la demande de signature puis les deux codes, ou par la voie papier.
 8. **L'activation à la seconde signature** se fait dans la transaction de cette signature, sous le

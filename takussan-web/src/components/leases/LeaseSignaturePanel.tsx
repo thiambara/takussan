@@ -52,6 +52,7 @@ export function LeaseSignaturePanel({ lease }: LeaseSignaturePanelProps) {
   const signatureOf = (role: LeaseSignatureRole): LeaseSignature | undefined =>
     current.find((s) => s.role === role);
   const canManage = lease.can_request_signature === true;
+  const canPaper = lease.can_activate_on_paper === true;
   const canSignAs = lease.can_sign_as ?? [];
   const onError = (e: unknown) => setError(messageErreur(e, t('genericError')));
 
@@ -132,23 +133,27 @@ export function LeaseSignaturePanel({ lease }: LeaseSignaturePanelProps) {
         </p>
       )}
 
-      {canManage && (
+      {(canManage || canPaper) && (
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4">
-          <Button type="button" onClick={handleRequest} disabled={requestSignature.isPending}>
-            {frozen ? t('requestAgain') : t('request')}
-          </Button>
-          <PaperActivation
-            pending={activateOnPaper.isPending}
-            onSubmit={async (file) => {
-              setError(null);
-              try {
-                await activateOnPaper.mutateAsync({ contract: file });
-                toast.add({ title: t('activatedToast'), type: 'success' });
-              } catch (e) {
-                onError(e);
-              }
-            }}
-          />
+          {canManage && (
+            <Button type="button" onClick={handleRequest} disabled={requestSignature.isPending}>
+              {frozen ? t('requestAgain') : t('request')}
+            </Button>
+          )}
+          {canPaper && (
+            <PaperActivation
+              pending={activateOnPaper.isPending}
+              onSubmit={async (file) => {
+                setError(null);
+                try {
+                  await activateOnPaper.mutateAsync({ contract: file });
+                  toast.add({ title: t('activatedToast'), type: 'success' });
+                } catch (e) {
+                  onError(e);
+                }
+              }}
+            />
+          )}
         </div>
       )}
     </section>

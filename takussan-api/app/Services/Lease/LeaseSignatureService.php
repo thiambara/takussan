@@ -179,6 +179,10 @@ class LeaseSignatureService
      */
     public function signOnPaper(Lease $lease, UploadedFile $contract, User $by): Lease
     {
+        // VERIF-596 M1 — revérifié ici comme pour la voie par code : la preuve `paper` du bailleur
+        // n'est enregistrée que par qui peut signer pour lui (super-admin exclu, `Gate::before`).
+        abort_unless(LandlordSignatory::allows($by, $lease), 403);
+
         $sha = hash_file('sha256', $contract->getRealPath());
 
         return DB::transaction(function () use ($lease, $contract, $sha, $by): Lease {

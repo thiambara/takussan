@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\LeaseSignature;
 use App\Models\User;
+use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Http\Request;
 
@@ -90,6 +91,9 @@ class LeaseResource extends BaseResource
                 ->all()),
             'can_sign_as' => $this->when($this->viewer !== null, fn (): array => LeaseSignatureService::rolesFor($this->viewer, $this->resource)),
             'can_request_signature' => $this->when($this->viewer !== null, fn (): bool => $this->viewer->can('requestSignature', $this->resource)),
+            // VERIF-596 M1 — la voie papier : gestionnaire ET signataire possible pour le bailleur.
+            'can_activate_on_paper' => $this->when($this->viewer !== null, fn (): bool => $this->viewer->can('update', $this->resource)
+                && LandlordSignatory::allows($this->viewer, $this->resource)),
             'created_at' => $this->iso($this->created_at),
         ];
     }

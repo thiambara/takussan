@@ -106,7 +106,7 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
   });
 
   it('le gestionnaire fige un brouillon : seule la demande et la voie papier sont offertes', async () => {
-    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true }));
+    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true, can_activate_on_paper: true }));
 
     expect(screen.queryByRole('button', { name: 'Lire le contrat à signer' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Recevoir mon code' })).not.toBeInTheDocument();
@@ -192,7 +192,7 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
   });
 
   it('la voie papier exige le fichier, puis l’envoie', async () => {
-    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true }));
+    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true, can_activate_on_paper: true }));
 
     const envoyer = screen.getByRole('button', { name: 'Activer sur contrat papier' });
     expect(envoyer).toBeDisabled();
@@ -205,6 +205,13 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
       fireEvent.click(envoyer);
     });
     expect(appels.activate).toHaveBeenCalledWith({ contract: fichier });
+  });
+
+  it("un gestionnaire sans `leases.sign` lance la demande mais n'a pas la voie papier (VERIF-596 M1)", () => {
+    rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true, can_activate_on_paper: false }));
+
+    expect(screen.getByRole('button', { name: 'Demander la signature' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activer sur contrat papier' })).not.toBeInTheDocument();
   });
 
   it("n'apparaît pas sur un bail actif", () => {

@@ -95,6 +95,8 @@ export type Lease = {
   can_sign_as?: readonly LeaseSignatureRole[];
   /** L'utilisateur courant peut figer le contrat et lancer la signature (gestionnaire du bail). */
   can_request_signature?: boolean;
+  /** La voie papier : gestionnaire ET signataire possible pour le bailleur (`leases.sign`). */
+  can_activate_on_paper?: boolean;
   created_at: string;
   updated_at: string;
 };
