@@ -115,6 +115,32 @@ class ExportReportingTypesTest extends ApiTestCase
         $this->assertSame(200000.0, (float) $row['held']);
     }
 
+    /**
+     * verif-595 M2 — l'export des commissions a la portée du relevé : un agent qui tient
+     * `reports.export` sans `reports.view_agency` n'exporte que ses lignes, jamais celles d'un collègue.
+     */
+    public function test_m2_an_agent_exports_only_his_own_commissions(): void
+    {
+        $agent = $this->agentWith($this->agency, Capability::ReportsExport);
+        $colleague = $this->agencyAgent($this->agency);
+        foreach (['LEASE-MINE' => $agent, 'LEASE-COLLEAGUE' => $colleague] as $reference => $beneficiary) {
+            CommissionEntry::factory()->create([
+                'agency_id' => $this->agency->id,
+                'lease_id' => Lease::factory()->create(['agency_id' => $this->agency->id, 'reference_number' => $reference])->id,
+                'beneficiary_id' => $beneficiary->id,
+            ]);
+        }
+
+        $body = $this->actingAsApi($agent)
+            ->getJson('/api/export/commissions?format=csv')
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringContainsString('LEASE-MINE', $body);
+        $this->assertStringNotContainsString('LEASE-COLLEAGUE', $body);
+        $this->assertStringNotContainsString('commissions-A', $body);
+    }
+
     private function seedAgency(Agency $agency, string $tag): void
     {
         $landlord = User::factory()->withOwnerProfile($agency)->create();

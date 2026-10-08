@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\CommissionEntryResource;
-use App\Models\Agency;
 use App\Models\CommissionEntry;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Services\Commission\CommissionLedgerService;
@@ -26,18 +25,8 @@ class CommissionEntryController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $base = CommissionEntry::query();
-
-        if (! $user->isSuperAdmin()) {
-            $agencyId = $user->staffAgencyId();
-            abort_if($agencyId === null, 403);
-            $base->where('commission_entries.agency_id', $agencyId);
-
-            $agency = Agency::query()->find($agencyId);
-            if ($agency === null || ! $user->can('viewReports', $agency)) {
-                $base->where('commission_entries.beneficiary_id', $user->id);
-            }
-        }
+        abort_if(! $user->isSuperAdmin() && $user->staffAgencyId() === null, 403);
+        $base = CommissionEntry::query()->visibleTo($user);
 
         $totals = (clone $base)
             ->toBase()

@@ -229,6 +229,8 @@ return [
     ],
     'lease' => [
         'cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',
+        'commission_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la commission et le négociateur.',
+        'commission_locked' => 'La commission et le négociateur se fixent sur un bail en brouillon : une fois activé, sa commission est déjà répartie.',
         'guarantor_already_attached' => 'Ce garant est déjà rattaché au bail.',
         'max_guarantors' => 'Un bail ne peut pas avoir plus de 3 garants.',
         'not_activatable' => 'Seul un bail en brouillon ou en attente de signature peut être activé.',

@@ -101,7 +101,11 @@ class TeamPerformanceService
             ->groupBy('user_id')
             ->pluck('n', 'user_id');
 
+        // verif-595 m3 — `tasks` n'a pas d'agence : elle se lit sur le parent (client ou bien). Seules
+        // les tâches dont le parent est DANS l'agence comptent ; une tâche d'une autre agence, ou sans
+        // parent, n'est pas l'activité de cette équipe.
         $overdue = $this->countBy(Task::query()
+            ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($parent) => $parent->where('agency_id', $agency->id))
             ->whereIn('assigned_to_id', $ids)
             ->whereIn('status', [TaskStatus::Open->value, TaskStatus::InProgress->value])
             ->whereNotNull('due_at')

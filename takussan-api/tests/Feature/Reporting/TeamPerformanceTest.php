@@ -3,12 +3,15 @@
 namespace Tests\Feature\Reporting;
 
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\PropertyVisit;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -139,5 +142,25 @@ class TeamPerformanceTest extends ApiTestCase
     public function test_ac17_the_system_agency_admin_reads_it_without_any_capability_added(): void
     {
         $this->actingAsApi($this->agencyAdmin($this->agency))->getJson($this->url())->assertOk();
+    }
+
+    /**
+     * verif-595 m3 — `tasks_overdue` ne compte que les tâches dont le parent est dans l'agence : un
+     * agent présent dans deux agences y lisait les retards de l'autre.
+     */
+    public function test_m3_overdue_tasks_are_bounded_to_the_agency(): void
+    {
+        $a = $this->agencyAgent($this->agency);
+        $other = Agency::factory()->create();
+        $elsewhere = Property::factory()->create(['agency_id' => $other->id]);
+        $here = Customer::factory()->create(['agency_id' => $this->agency->id]);
+        $overdue = ['assigned_to_id' => $a->id, 'status' => TaskStatus::Open, 'due_at' => now()->subDays(3)];
+        Task::factory()->count(3)->create($overdue + ['taskable_type' => $elsewhere->getMorphClass(), 'taskable_id' => $elsewhere->id]);
+        Task::factory()->create($overdue + ['taskable_type' => $this->property->getMorphClass(), 'taskable_id' => $this->property->id]);
+        Task::factory()->create($overdue + ['taskable_type' => $here->getMorphClass(), 'taskable_id' => $here->id]);
+        Task::factory()->create($overdue + ['taskable_type' => null, 'taskable_id' => null]);
+
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+        $this->assertSame(2, $this->rows()[$a->id]['tasks_overdue']);
     }
 }

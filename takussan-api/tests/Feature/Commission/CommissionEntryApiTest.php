@@ -7,9 +7,11 @@ use App\Models\CommissionEntry;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -162,5 +164,53 @@ class CommissionEntryApiTest extends ApiTestCase
 
         $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertForbidden();
         $this->assertSame(CommissionEntryStatus::Due, $this->lineA->fresh()->status);
+    }
+
+    /**
+     * verif-595 M3 — « jamais sur sa propre ligne » : l'admin (`payouts.approve`) qui est aussi agent
+     * de l'agence, bénéficiaire d'une ligne, ne la solde ni ne l'annule, sous l'un ou l'autre de ses
+     * profils. Le test de l'agent ne le gardait pas : l'agent est refusé faute de capacité.
+     */
+    public function test_m3_the_admin_beneficiary_cannot_settle_his_own_line(): void
+    {
+        $agentProfile = AgentProfile::factory()->create(['user_id' => $this->admin->id, 'agency_id' => $this->agency->id]);
+        $adminProfile = AgencyAdminProfile::query()->where('user_id', $this->admin->id)->firstOrFail();
+        $own = $this->line($this->agency, Lease::factory()->create(['agency_id' => $this->agency->id]), $this->admin, 50_000);
+        $this->actingWithStepUp($this->admin);
+
+        foreach (["agency_admin:{$adminProfile->id}", "agent:{$agentProfile->id}"] as $profile) {
+            foreach (['mark-paid', 'cancel'] as $gesture) {
+                $this->withHeaders(['X-Profile-Id' => $profile])
+                    ->postJson("/api/commissions/{$own->id}/{$gesture}")->assertForbidden();
+            }
+        }
+        $this->assertSame(CommissionEntryStatus::Due, $own->fresh()->status);
+
+        // Témoin : la ligne d'un autre bénéficiaire se solde, sous le même profil.
+        $this->withHeaders(['X-Profile-Id' => "agency_admin:{$adminProfile->id}"])
+            ->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertOk();
+    }
+
+    /**
+     * verif-595 m2 — le solde lit la ligne sous `FOR UPDATE`, DANS la transaction du geste : deux
+     * gestes concurrents (versée ∥ annulée) ne passent pas tous les deux. Relevé par `DB::listen`,
+     * avec le niveau de transaction au moment de la requête : un verrou pris hors transaction (au
+     * niveau de celle du test) ne tiendrait rien en production.
+     */
+    public function test_m2_settling_locks_the_line_inside_its_own_transaction(): void
+    {
+        $this->actingWithStepUp($this->admin);
+        $baseline = DB::transactionLevel();
+        $locks = [];
+        DB::listen(function ($query) use (&$locks): void {
+            if (str_contains($query->sql, 'commission_entries') && str_contains(strtolower($query->sql), 'for update')) {
+                $locks[] = DB::transactionLevel();
+            }
+        });
+
+        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertOk();
+
+        $this->assertNotEmpty($locks, 'aucune lecture verrouillée de la ligne');
+        $this->assertGreaterThan($baseline, max($locks), 'le verrou doit être pris dans la transaction du geste');
     }
 }

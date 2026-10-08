@@ -14,7 +14,8 @@ use Illuminate\Http\Request;
  * TCK-595 (ADR-0049 §4) — `scope=mine` (défaut) : les chiffres de l'agent ; `scope=agency` : ceux de
  * l'agence de son profil actif, sous `AgencyPolicy::viewReports` (403 pour un agent du rôle
  * système). L'accès de base est le personnel de l'agence active (`staffAgencyId()`), plus
- * `users.agency_id`, pont de compatibilité qui ignorait le profil actif.
+ * l'ancien rattachement direct de l'utilisateur à une agence (pont de compatibilité qui ignorait
+ * le profil actif).
  */
 class DashboardAgentController extends Controller
 {

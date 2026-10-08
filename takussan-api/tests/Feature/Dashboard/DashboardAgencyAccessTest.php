@@ -5,6 +5,7 @@ namespace Tests\Feature\Dashboard;
 use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -100,5 +101,46 @@ class DashboardAgencyAccessTest extends ApiTestCase
 
         $this->assertSame(3, $this->getJson('/api/dashboard/agency')->assertOk()->json('data.members_count'));
         $this->assertSame(3, $this->getJson("/api/agencies/{$agency->id}/stats")->assertOk()->json('data.members_count'));
+    }
+
+    /**
+     * verif-595 m1 — la clause de profil actif de `viewReports` (contrat TCK-146) : admin de A et agent
+     * de B, sous son profil d'agent de B, il ne lit pas les chiffres consolidés de A. `canActAt` seul
+     * le laisserait passer.
+     */
+    public function test_m1_an_admin_of_a_under_his_agent_profile_of_b_is_refused_on_a(): void
+    {
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        $user = $this->agencyAdmin($a);
+        $adminProfile = AgencyAdminProfile::query()->where('user_id', $user->id)->firstOrFail();
+        $agentProfile = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $b->id]);
+        $this->actingAsApi($user);
+
+        foreach (["/api/dashboard/agency?agency_id={$a->id}", "/api/agencies/{$a->id}/stats", "/api/agencies/{$a->id}/finance/aging"] as $url) {
+            $this->withHeaders(['X-Profile-Id' => "agent:{$agentProfile->id}"])->getJson($url)->assertForbidden();
+            $this->withHeaders(['X-Profile-Id' => "agency_admin:{$adminProfile->id}"])->getJson($url)->assertOk();
+        }
+    }
+
+    /**
+     * verif-595 M1 — `/dashboard/me` ne rend les chiffres consolidés (chiffre d'affaires, commissions,
+     * impayés) que sous `viewReports`, comme `/dashboard/agency`. Le rôle d'admin moins
+     * `reports.view_agency` les lisait par ce second chemin.
+     */
+    public function test_m1_dashboard_me_hides_consolidated_figures_without_view_agency(): void
+    {
+        $agency = Agency::factory()->create();
+
+        $this->actingAsApi($this->adminWithout($agency, Capability::ReportsViewAgency));
+        $this->getJson('/api/dashboard/agency')->assertForbidden();
+        $data = $this->getJson('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'agency_admin')->json('data');
+        foreach (['revenue_month', 'commission_month', 'overdue_count', 'overdue_amount', 'unpaid_rate_percent'] as $key) {
+            $this->assertArrayNotHasKey($key, $data['metrics'], $key);
+        }
+        $this->assertArrayHasKey('properties_total', $data['metrics']);
+
+        $this->actingAsApi($this->agencyAdmin($agency));
+        $this->assertArrayHasKey('revenue_month', $this->getJson('/api/dashboard/me')->assertOk()->json('data.metrics'));
     }
 }

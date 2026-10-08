@@ -160,7 +160,7 @@ class DashboardAgentScopeTest extends ApiTestCase
         $this->assertEquals(800000.0, $data['finance']['commissions_month']);
     }
 
-    public function test_the_timeseries_reads_the_ledger_for_mine_and_the_leases_for_the_agency(): void
+    public function test_the_timeseries_reads_the_ledger_for_mine_and_the_frozen_bases_for_the_agency(): void
     {
         $this->actingAsApi($this->a);
         $mine = $this->getJson('/api/dashboard/agent?include=timeseries&months=2')->assertOk()->json('timeseries');

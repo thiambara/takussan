@@ -63,15 +63,15 @@ class PlatformMetricsSnapshotter
         ];
     }
 
-    /** L'*Encaissé* cumulé, tous paiements payés confondus (y compris sans `paid_at`). */
+    /**
+     * L'*Encaissé* cumulé à l'instant : la règle de l'instantané (`collected_total_amount`), c'est-à-dire
+     * les flux payés datés jusqu'à maintenant. verif-595 m4 — la tuile comptait aussi les paiements sans
+     * `paid_at`, que l'instantané ne compte pas : la tendance affichait un écart sans aucun mouvement
+     * (ADR-0057 : une seule règle pour la tuile et sa tendance).
+     */
     public function collectedTotal(): float
     {
-        $lease = (float) CollectedPayments::leaseIncome()->sum('lease_payments.amount');
-        $booking = (float) CollectedPayments::bookingIncome()->toBase()
-            ->selectRaw('COALESCE(SUM('.CollectedPayments::BOOKING_NET_SQL.'), 0) AS total')
-            ->value('total');
-
-        return round($lease + $booking, 2);
+        return $this->flowsBetween(null, now())['gmv'];
     }
 
     /** Frais ÷ GMV, à 4 décimales ; `null` sans GMV (un taux sur zéro n'est pas zéro). */

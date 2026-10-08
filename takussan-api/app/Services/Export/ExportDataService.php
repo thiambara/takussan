@@ -241,7 +241,8 @@ class ExportDataService
         $query = CommissionEntry::query()
             ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name']);
 
-        $this->scopeToActor($query, $actor, 'commission');
+        // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
+        $query->visibleTo($actor);
         $this->applyRangeFilter($query, 'earned_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
         $rows = $query->orderByDesc('earned_at')->orderByDesc('id')->limit($this->limit($filters))->get()->map(fn ($c) => [
@@ -396,7 +397,7 @@ class ExportDataService
                 'lease' => $query->where('agency_id', $agencyId),
                 'lease_payment' => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId)),
                 // TCK-595 (§7) — les exports financiers portent leur agence en colonne.
-                'payout', 'invoice', 'commission' => $query->where('agency_id', $agencyId),
+                'payout', 'invoice' => $query->where('agency_id', $agencyId),
                 default => null,
             };
 

@@ -939,9 +939,9 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 - Écarts de chemin aux noms prescrits du § 9 : `DashboardQueryBudgetTest` couvre les trois budgets
   (bailleur, agent, agence). `TeamPerformanceTest`, `AgingBalanceTest`, `PlatformMetricsSnapshotTest`
   et `PlatformRevenueMrrTest` vivent sous `tests/Feature/Reporting/`.
-- `DashboardAgencyTest` et `AgencyStatsTest` posent encore `commission_amount` sur le bail. C'est
-  légitime : la tuile d'agence lit la commission du bail (ADR-0049 §5), que l'API enregistre
-  désormais (AC9 bis).
+- `DashboardAgencyTest` et `AgencyStatsTest` posent encore `commission_amount` sur le bail, sans
+  ligne au grand livre. C'est légitime : un bail sans ligne lit sa commission sur le bail (ADR-0049 §5,
+  précisé au lot 13).
 
 ### Lot 12 — fusion de `dev` (TCK-596) : statut `cancelled`, activation papier, renouvellement signé
 
@@ -954,3 +954,50 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 - Un renouvellement né `pending_signature` émet désormais `LeaseActivated` à sa signature : la règle
   « aucune ligne pour un renouvellement » (ADR-0049 §3) se tient dans `CommissionLedgerService`
   (`renewed_from_lease_id`), plus sur l'absence d'événement. Les tests activent par la voie papier.
+
+### Lot 13 — corrections de la contre-vérification (verif-595 : 1 bloquant, 3 majeurs, 7 mineurs) et CI
+
+Chaque point a un test nommé et une ablation qui le fait rougir (19 ablations, toutes rouges, toutes
+restaurées par `cp` + md5).
+
+- **B1** (ADR-0049 §1, §2, §5).
+  - `commission_amount` et `agent_id` sont les termes de commission (`LeaseService::COMMISSION_TERMS`).
+    Seul le personnel de l'agence du bail qui détient `leases.create` les écrit, à la création comme
+    au `PATCH` : sinon **403 `lease.commission_forbidden`**. Le bailleur et le locataire ne les
+    écrivent jamais.
+  - Hors `draft` : **422 `lease.commission_locked`**. Un bail `pending_signature` ne change donc plus
+    de négociateur.
+  - Une vente ouverte par le bailleur ne dérive aucune commission.
+  - La tuile d'agence, le cumul annuel et la série `scope=agency` lisent la base figée au grand livre
+    dès qu'un bail y a une ligne, et `leases.commission_amount` sinon.
+  - Tests : `CommissionLedgerTest::test_b1_*`, quatre tests. Le grand livre seul est *écarté* : un bail
+    sans part servie compterait 0, et l'ablation correspondante fait rougir `DashboardAgentScopeTest`
+    (800 000 → 300 000).
+- **M1** : `/dashboard/me` retire `revenue_month`, `commission_month` et les impayés sans
+  `viewReports`, et l'accueil masque les tuiles dont la clé manque.
+  - API : `DashboardAgencyAccessTest::test_m1_dashboard_me_hides_consolidated_figures_without_view_agency`.
+  - Front : `DashboardMeKpis.test.tsx`.
+- **M2** : un seul périmètre, `CommissionEntry::scopeVisibleTo()`, pour l'index et l'export.
+  Test : `ExportReportingTypesTest::test_m2_an_agent_exports_only_his_own_commissions`.
+- **M3** : `CommissionEntryApiTest::test_m3_the_admin_beneficiary_cannot_settle_his_own_line`. Il couvre
+  les deux profils du même utilisateur et les deux gestes.
+- **m1** : `DashboardAgencyAccessTest::test_m1_an_admin_of_a_under_his_agent_profile_of_b_is_refused_on_a`.
+- **m2** : `CommissionEntryApiTest::test_m2_settling_locks_the_line_inside_its_own_transaction` relève
+  `FOR UPDATE` par `DB::listen`, au-dessus du niveau de transaction du test.
+- **m3** : les tâches en retard de la performance d'équipe sont bornées à l'agence de leur parent
+  (client ou bien). Test : `TeamPerformanceTest::test_m3_overdue_tasks_are_bounded_to_the_agency`.
+- **m4** : `collectedTotal()` suit la règle de l'instantané (`flowsBetween`, `paid_at` exigé). Test :
+  `PlatformRevenueMrrTest::test_m4_the_collected_tile_and_its_snapshot_follow_one_rule`.
+- **m5** : `aDesChiffres()` (`lib/queries/dashboard-me.ts`). Un compte sans fiche client, neuf ou
+  prestataire pur, retrouve `DashboardEmpty` sur `/app`, sans retour du 404. Test :
+  `dashboard-me.tck-595.test.ts`.
+- **m6** : `LeaseResource` ne rend `commission_amount` qu'au personnel de l'agence du bail et au
+  super-admin. Test : `CommissionLedgerTest::test_m6_the_lease_commission_is_shown_to_agency_staff_only`.
+- **m7, laissé en suite** : les `AgentProfile` semés ont un `commission_rate` nul, et les baux semés
+  aucun négociateur. Ventiler à l'activation n'y créerait aucune ligne. Il faudrait d'abord semer des
+  taux, ce qui demande un `migrate:fresh --seed` complet pour le vérifier.
+- **CI** :
+  - `promesses-de-delai` : les tranches d'ancienneté et l'indice « sur 30 jours » entrent dans le
+    registre de la garde.
+  - `NoLegacyUserTypeTest` : le docblock de `DashboardAgentController` est reformulé sans le littéral.
+  - Le motif et la garde ne sont pas touchés.

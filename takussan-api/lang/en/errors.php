@@ -229,6 +229,8 @@ return [
     ],
     'lease' => [
         'cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
+        'commission_forbidden' => 'Only agency staff allowed to open leases can set the commission and the negotiator.',
+        'commission_locked' => 'The commission and the negotiator are set on a draft lease: once activated, its commission is already split.',
         'guarantor_already_attached' => 'This guarantor is already attached to the lease.',
         'max_guarantors' => 'A lease cannot have more than 3 guarantors.',
         'not_activatable' => 'Only a draft lease or one awaiting signature can be activated.',

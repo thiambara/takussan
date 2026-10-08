@@ -4,6 +4,7 @@ namespace App\Services\Dashboard;
 
 use App\Models\Agency;
 use App\Models\Booking;
+use App\Models\CommissionEntry;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
@@ -15,6 +16,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -160,9 +162,15 @@ class DashboardAgencyService
     }
 
     /**
-     * TCK-595 (ADR-0049 §5) — Σ `leases.commission_amount` des baux ACTIVÉS dans le mois courant
-     * (`signed_at` dans le mois, hors `draft` et `pending_signature`). Un bail résilié depuis reste
-     * compté : sa commission était acquise, et ses lignes du grand livre restent `due`.
+     * TCK-595 (ADR-0049 §5, verif-595 B1) — la commission de l'agence sur le mois courant : la base de
+     * chaque bail ACTIVÉ dans le mois (`signed_at` dans le mois, hors `draft` et `pending_signature`).
+     * Un bail résilié depuis reste compté : sa commission était acquise à l'activation.
+     *
+     * La base se lit dans le GRAND LIVRE dès que le bail y a une ligne (`base_amount`, figée à
+     * l'activation) : une écriture de `leases.commission_amount` après coup ne fait pas diverger la
+     * tuile. Un bail sans ligne (aucune part servie : le négociateur à 0 %, aucun collaborateur) n'en a
+     * pas d'autre trace que `leases.commission_amount`, que l'API ne réécrit plus hors `draft` (B1) ;
+     * le lire au grand livre seul lui ferait compter 0 pour une commission que l'agence garde entière.
      */
     public static function commissionMonth(int $agencyId): float
     {
@@ -172,10 +180,30 @@ class DashboardAgencyService
     /** La même règle sur une période quelconque (vue agent `scope=agency`, cumul annuel). */
     public static function commissionBetween(int $agencyId, CarbonInterface $from, CarbonInterface $to): float
     {
-        return round((float) Lease::query()
+        return round((float) DB::query()
+            ->fromSub(self::commissionBasesBetween($agencyId, $from, $to), 'bases')
+            ->sum('base'), 2);
+    }
+
+    /**
+     * Une ligne par bail activé dans la période : `signed_at` et sa base. Les lignes d'un même bail
+     * portent la même `base_amount` (copiée à l'activation, quel que soit leur statut) : `MAX` la lit une
+     * fois, quel que soit le nombre de parts.
+     */
+    public static function commissionBasesBetween(int $agencyId, CarbonInterface $from, CarbonInterface $to): QueryBuilder
+    {
+        $frozen = CommissionEntry::query()
             ->where('agency_id', $agencyId)
-            ->whereBetween('signed_at', [$from, $to])
-            ->whereNotIn('status', [LeaseStatus::Draft->value, LeaseStatus::PendingSignature->value])
-            ->sum('commission_amount'), 2);
+            ->toBase()
+            ->selectRaw('lease_id, MAX(base_amount) AS base')
+            ->groupBy('lease_id');
+
+        return Lease::query()
+            ->where('leases.agency_id', $agencyId)
+            ->whereBetween('leases.signed_at', [$from, $to])
+            ->whereNotIn('leases.status', [LeaseStatus::Draft->value, LeaseStatus::PendingSignature->value])
+            ->toBase()
+            ->leftJoinSub($frozen, 'frozen', 'frozen.lease_id', '=', 'leases.id')
+            ->selectRaw('leases.signed_at, COALESCE(frozen.base, leases.commission_amount, 0) AS base');
     }
 }

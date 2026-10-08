@@ -49,6 +49,28 @@ négociateur. Les chiffres consolidés d'une agence s'ouvrent par une capacité 
   bien, sinon `null`. Un bailleur qui crée son propre bail ne se désigne pas.
 - **Renouvellement** : `LeaseRenewalService` recopie `agent_id` sur le bail enfant.
 
+**Qui écrit le négociateur et le montant (verif-595 B1).** `agent_id` et `commission_amount` sont les
+**termes de commission** du bail (`LeaseService::COMMISSION_TERMS`), et les deux mêmes règles les
+gardent, à la création (`POST /api/leases`) comme à la modification (`PATCH /api/leases/{id}`) :
+
+- **Seul le personnel de l'agence du bail qui détient `leases.create`** les écrit
+  (`LeaseService::maySetCommissionTerms()` : `staffAgencyId()` = l'agence du bail, et
+  `canActAt(Capability::LeasesCreate, $agence)`). Sinon **403 `lease.commission_forbidden`**. Le
+  bailleur, débiteur de la commission, ne les écrit jamais, et le locataire non plus. Un membre du
+  personnel sans la capacité, non plus. Un `null` envoyé par `PATCH` est une écriture : il effacerait le
+  négociateur. *Pourquoi `leases.create`* : c'est la capacité qui ouvre un bail au nom de l'agence, donc
+  celle qui en fixe les conditions commerciales. Une capacité dédiée n'aurait aucun détenteur qui n'ait
+  pas déjà celle-ci.
+- **Ils sont refusés hors `draft`** : **422 `lease.commission_locked`**. Un bail activé a déjà ventilé
+  sa commission (§3), et la réécrire ferait diverger le bail du grand livre. *Conséquence voulue* : un
+  bail `pending_signature` ne change plus de négociateur. La question d'un contrat à « défiger » pour le
+  changer ne se pose donc plus : `agent_id` n'est pas imprimé (`Lease::CONTRACT_UNPRINTED_COLUMNS`),
+  mais il est figé dès que le bail quitte le brouillon.
+
+Mesuré avant cette règle (verif-595, P1) : le bailleur ramenait la base de 300 000 à 1 avant
+l'activation, choisissait le négociateur, puis réécrivait la commission après coup. La tuile d'agence
+affichait alors 99 000 000 pour un grand livre de 0,30.
+
 *Écarté* : un pivot `lease_agents` à plusieurs négociateurs. La co-négociation existe déjà sous forme de
 collaborateurs du bien, avec leur part. Un second mécanisme pour la même chose se lirait comme deux
 conventions concurrentes.
@@ -58,11 +80,14 @@ conventions concurrentes.
 - **Saisi explicitement** (`numeric|min:0`) à la création et à la modification.
 - **Dérivé pour une vente sans montant** : un bail `type=sale` qui porte `sale_price` et
   `commission_rate` mais pas de `commission_amount` naît avec
-  `round(sale_price × commission_rate / 100, 2)`.
+  `round(sale_price × commission_rate / 100, 2)`, **si son créateur pourrait l'écrire** (§1). Une vente
+  ouverte par le bailleur ne dérive aucune commission : son taux ne vaut pas saisie de la commission de
+  l'agence.
 - **Aucune dérivation pour une location.** Son `commission_rate` reste le taux de gestion que lisent
   les reversements (ADR-0039). Le recopier en commission d'agence confondrait deux flux.
-- Une modification après l'activation **ne régénère rien** : le grand livre est figé à l'activation
-  (§3). Corriger une ligne revient à l'annuler, geste de l'admin.
+- Une modification après l'activation est **refusée** (§1, 422 `lease.commission_locked`), et ne
+  régénérerait rien : le grand livre est figé à l'activation (§3). Corriger une ligne revient à
+  l'annuler, geste de l'admin.
 
 ### 3. Le grand livre : `commission_entries`
 
@@ -112,7 +137,9 @@ l'autre serait faux.
 
 - Le grand livre est **interne à l'agence**.
 - Un membre du personnel ne lit que ses lignes, sauf s'il détient `reports.view_agency` à l'agence : il
-  lit alors toutes celles de l'agence.
+  lit alors toutes celles de l'agence. Ce périmètre a **une seule définition**,
+  `CommissionEntry::scopeVisibleTo()`, que lisent l'index **et** l'export `commissions`
+  (verif-595 M2 : l'export ne bornait qu'à l'agence).
 - `mark-paid` et `cancel` exigent `payouts.approve` à l'agence de la ligne (`CommissionEntryPolicy`), et
   seule une ligne `due` change d'état. Chaque geste est journalisé (`activity('CommissionEntry')`).
   Le bénéficiaire ne solde pas sa propre ligne. Les deux gestes rejoignent la famille protégée de
@@ -142,10 +169,22 @@ potentiel de la plateforme.
 
 ### 5. La tuile « Commissions » de l'agence
 
-`finance.commission_month` = Σ `leases.commission_amount` des baux **activés dans le mois** (`signed_at`
-dans le mois, hors `draft` et `pending_signature`). Un bail résilié depuis reste compté, de même que ses
-lignes restent `due`. L'ancienne règle, qui excluait `terminated`, faisait disparaître du mois de
-signature une commission acquise.
+`finance.commission_month` = Σ des bases des baux **activés dans le mois** (`signed_at` dans le mois,
+hors `draft` et `pending_signature`). Un bail résilié depuis reste compté, de même que ses lignes restent
+`due`. L'ancienne règle, qui excluait `terminated`, faisait disparaître du mois de signature une
+commission acquise.
+
+**La base se lit au grand livre dès que le bail y a une ligne** (`base_amount`, copiée à l'activation,
+quel que soit le statut de la ligne), et dans `leases.commission_amount` sinon
+(`DashboardAgencyService::commissionBasesBetween()`, que lisent aussi le cumul annuel et la série
+`scope=agency`). Une écriture de `leases.commission_amount` après l'activation, même directe en base,
+ne déplace donc pas la tuile d'un bail ventilé (verif-595 B1).
+
+*Écarté* : lire la tuile dans le grand livre **seul**. Le reliquat reste à l'agence sans ligne (§3), donc
+un bail dont aucune part n'est servie (négociateur à 0 %, aucun collaborateur, ou un admin négociateur)
+n'a aucune ligne. Il compterait 0 pour une commission que l'agence garde **entière**. Mesuré :
+`DashboardAgentScopeTest` passe de 800 000 à 300 000. Pour ces baux, `leases.commission_amount` est la
+seule trace, et §1 la fige hors `draft`.
 
 La tuile de l'agent lit **ses** lignes du grand livre (`beneficiary_id` = lui, `status ≠ cancelled`,
 `earned_at` dans la période).
@@ -154,8 +193,11 @@ La tuile de l'agent lit **ses** lignes du grand livre (`beneficiary_id` = lui, `
 
 - La commission d'un bail créé avant cette décision vaut 0 et ne produit aucune ligne. C'est vrai, et
   c'est affiché comme tel.
-- Le grand livre devient la seule source de la commission **d'un agent**, et `leases.commission_amount`
-  celle **de l'agence**. Elles diffèrent du reliquat, ce qui est voulu.
+- Le grand livre devient la seule source de la commission **d'un agent**. La commission **de l'agence**
+  lit sa base figée au grand livre quand le bail en a une, sinon `leases.commission_amount` (§5). Les
+  deux diffèrent du reliquat, ce qui est voulu.
+- Le bailleur et le locataire ne lisent pas `commission_amount` : `LeaseResource` ne le rend qu'au
+  personnel de l'agence du bail et au super-admin (verif-595 m6).
 - L'admin peut annuler une ligne, mais ne peut pas la modifier. Une erreur de part se corrige en
   annulant la ligne, puis par un geste hors de ce ticket (aucune saisie manuelle n'est livrée).
 - Une seconde activation est impossible (`lease.not_draft_activate`), et l'unicité tient même si un

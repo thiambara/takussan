@@ -7,6 +7,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CommissionOrigin;
 use App\Models\Enums\Currency;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -53,6 +54,35 @@ class CommissionEntry extends AbstractModel
         'earned_at', 'paid_at', 'paid_by_id', 'cancelled_at', 'cancelled_by_id',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-595 (ADR-0049 §3, verif-595 M2) — le périmètre de lecture du grand livre, UN SEUL pour le
+     * relevé (`GET /api/commissions`) et pour l'export : le personnel de l'agence active ne lit que ses
+     * lignes, sauf sous `AgencyPolicy::viewReports`, qui ouvre toute l'agence. Le super-admin lit tout.
+     * Hors personnel : rien. L'export filtrait par la seule agence, et rendait à un agent porteur de
+     * `reports.export` la rémunération nominative de ses collègues, que le relevé lui refuse.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeVisibleTo(Builder $query, User $user): void
+    {
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+
+        $agencyId = $user->staffAgencyId();
+        if ($agencyId === null) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->where('commission_entries.agency_id', $agencyId);
+        $agency = Agency::query()->find($agencyId);
+        if ($agency === null || ! $user->can('viewReports', $agency)) {
+            $query->where('commission_entries.beneficiary_id', $user->id);
+        }
+    }
 
     public function agency(): BelongsTo
     {

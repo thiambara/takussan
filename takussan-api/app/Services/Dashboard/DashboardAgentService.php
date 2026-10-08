@@ -22,6 +22,7 @@ use App\Models\Task;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Agent-facing dashboard — CRM pipeline, commissions and pending tasks.
@@ -215,7 +216,7 @@ class DashboardAgentService
 
     /**
      * Une requête groupée par série, quel que soit `months` : commissions (grand livre pour `mine`,
-     * `commission_amount` des baux activés pour `agency`) et baux signés.
+     * la base de chaque bail activé pour `agency`, figée au grand livre dès qu'il y a une ligne) et baux signés.
      */
     public function monthlyTimeseries(User $agent, int $months = 12, string $scope = self::SCOPE_MINE, ?int $agencyId = null): array
     {
@@ -236,8 +237,9 @@ class DashboardAgentService
             ->when(! $agency, fn ($q) => $q->where('agent_id', $agent->id));
 
         if ($agency) {
-            $commissionRows = (clone $signed)->toBase()
-                ->selectRaw("to_char(signed_at, 'YYYY-MM') AS m, COALESCE(SUM(commission_amount), 0) AS v")
+            $commissionRows = DB::query()
+                ->fromSub(DashboardAgencyService::commissionBasesBetween($agencyId, $start, $end), 'bases')
+                ->selectRaw("to_char(signed_at, 'YYYY-MM') AS m, COALESCE(SUM(base), 0) AS v")
                 ->groupBy('m')->pluck('v', 'm');
         } else {
             $commissionRows = CommissionEntry::query()

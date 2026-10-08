@@ -6,6 +6,7 @@ use App\Events\Lease\LeaseActivated;
 use App\Models\Agency;
 use App\Models\CommissionEntry;
 use App\Models\Customer;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CommissionOrigin;
 use App\Models\Lease;
@@ -17,6 +18,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -342,5 +344,118 @@ class CommissionLedgerTest extends ApiTestCase
         $this->assertSame(CommissionEntryStatus::Due, $line->status);
         $this->assertSame('2026-07-15 10:00:00', $line->earned_at->format('Y-m-d H:i:s'));
         $this->assertSame($this->agency->id, $line->agency_id);
+    }
+
+    private function landlord(): User
+    {
+        return User::query()->findOrFail($this->property->user_id);
+    }
+
+    /** Un client que le bailleur a lui-même ajouté : il peut ouvrir un bail à son nom. */
+    private function landlordsTenant(): Customer
+    {
+        return Customer::factory()->create(['agency_id' => $this->agency->id, 'added_by_id' => $this->property->user_id]);
+    }
+
+    /**
+     * verif-595 B1 — le bailleur, débiteur de la commission, ne réécrit ni la base ni le négociateur
+     * (il ramenait la base de 300 000 à 1 avant l'activation) ; le grand livre reste juste.
+     */
+    public function test_b1_the_landlord_cannot_set_the_commission_terms(): void
+    {
+        [$a, , , $lease] = $this->scenarioAc9();
+
+        $this->actingAsApi($this->landlord());
+        $this->patchJson("/api/leases/{$lease->id}", ['commission_amount' => 1])
+            ->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+        $this->patchJson("/api/leases/{$lease->id}", ['agent_id' => null])
+            ->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+        $this->postJson('/api/leases', [
+            'property_id' => $this->property->id,
+            'tenant_id' => $this->landlordsTenant()->id,
+            'type' => 'residential_rent',
+            'start_date' => '2026-08-01',
+            'monthly_rent' => 300000,
+            'commission_amount' => 1,
+        ])->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+
+        $this->activate($lease);
+        $entries = $this->entries($lease);
+        $this->assertEquals(90000.0, $entries[$a->id]['amount']);
+        $this->assertSame($a->id, $lease->fresh()->agent_id);
+    }
+
+    /** verif-595 B1 — une vente créée par le bailleur ne dérive pas de commission de son taux. */
+    public function test_b1_a_sale_created_by_the_landlord_derives_no_commission(): void
+    {
+        $this->actingAsApi($this->landlord());
+        $id = $this->postJson('/api/leases', [
+            'property_id' => $this->property->id,
+            'tenant_id' => $this->landlordsTenant()->id,
+            'type' => 'sale',
+            'start_date' => '2026-08-01',
+            'sale_price' => 50_000_000,
+            'commission_rate' => 3,
+        ])->assertCreated()->json('data.id');
+
+        $this->assertNull(Lease::query()->findOrFail($id)->commission_amount);
+    }
+
+    /** verif-595 B1 — le personnel sans `leases.create` ne fixe pas la commission non plus. */
+    public function test_b1_staff_without_leases_create_cannot_set_the_commission_terms(): void
+    {
+        [, , , $lease] = $this->scenarioAc9();
+
+        $this->actingAsApi($this->adminWithout($this->agency, Capability::LeasesCreate));
+        $this->patchJson("/api/leases/{$lease->id}", ['commission_amount' => 1])
+            ->assertForbidden()->assertJsonPath('code', 'lease.commission_forbidden');
+        $this->assertEquals(300000.0, (float) $lease->fresh()->commission_amount);
+    }
+
+    /** verif-595 B1 — hors brouillon, la commission a déjà été ventilée : 422, même pour l'admin. */
+    public function test_b1_the_commission_terms_are_locked_once_activated(): void
+    {
+        [$a, $b, , $lease] = $this->scenarioAc9();
+        $this->activate($lease);
+
+        $this->actingAsApi($this->admin);
+        $this->patchJson("/api/leases/{$lease->id}", ['commission_amount' => 999_000])
+            ->assertStatus(422)->assertJsonPath('code', 'lease.commission_locked');
+        $this->patchJson("/api/leases/{$lease->id}", ['agent_id' => $b->id])
+            ->assertStatus(422)->assertJsonPath('code', 'lease.commission_locked');
+        $this->assertEquals(300000.0, (float) $lease->fresh()->commission_amount);
+        $this->assertSame($a->id, $lease->fresh()->agent_id);
+    }
+
+    /**
+     * verif-595 B1 — la tuile d'agence lit le grand livre : une écriture directe de
+     * `leases.commission_amount` après l'activation ne la fait pas diverger.
+     */
+    public function test_b1_the_agency_tile_reads_the_frozen_base_not_the_lease(): void
+    {
+        [, , , $lease] = $this->scenarioAc9();
+        $this->activate($lease);
+
+        DB::table('leases')->where('id', $lease->id)->update(['commission_amount' => 99_000_000]);
+
+        $this->actingAsApi($this->admin);
+        $this->assertSame(300000.0, (float) $this->getJson('/api/dashboard/agency')->assertOk()->json('data.finance.commission_month'));
+    }
+
+    /** verif-595 m6 — la commission d'agence n'est rendue qu'au personnel : ni au bailleur, ni au locataire. */
+    public function test_m6_the_lease_commission_is_shown_to_agency_staff_only(): void
+    {
+        $tenantUser = User::factory()->create();
+        $this->tenant->forceFill(['user_id' => $tenantUser->id])->save();
+        $lease = $this->createLease(['commission_amount' => 300000]);
+
+        $this->actingAsApi($this->admin);
+        $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.commission_amount', 300000);
+        $this->assertSame(300000, $this->getJson('/api/leases')->assertOk()->json('data.0.commission_amount'));
+
+        foreach ([$this->landlord(), $tenantUser] as $reader) {
+            $this->actingAsApi($reader);
+            $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonMissingPath('data.commission_amount');
+        }
     }
 }

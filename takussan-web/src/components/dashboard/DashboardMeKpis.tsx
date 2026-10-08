@@ -50,12 +50,18 @@ function AgencyTiles({ metrics }: { metrics: Record<string, unknown> }) {
     <>
       <StatCard label={t('properties')} value={displayNumber(metrics.properties_total)} />
       <StatCard label={t('activeLeases')} value={displayNumber(metrics.leases_active)} accent="success" />
-      <StatCard label={t('revenueMonth')} value={displayCurrency(metrics.revenue_month)} accent="success" />
-      <StatCard
-        label={t('overdue')}
-        value={displayNumber(metrics.overdue_count)}
-        accent={overdue > 0 ? 'warning' : 'default'}
-      />
+      {/* TCK-595 (verif-595 M1) — les chiffres consolidés n'arrivent que sous `reports.view_agency` :
+          sans la clé, la tuile n'est pas rendue (un « — » laisserait croire à une donnée absente). */}
+      {'revenue_month' in metrics ? (
+        <StatCard label={t('revenueMonth')} value={displayCurrency(metrics.revenue_month)} accent="success" />
+      ) : null}
+      {'overdue_count' in metrics ? (
+        <StatCard
+          label={t('overdue')}
+          value={displayNumber(metrics.overdue_count)}
+          accent={overdue > 0 ? 'warning' : 'default'}
+        />
+      ) : null}
     </>
   );
 }

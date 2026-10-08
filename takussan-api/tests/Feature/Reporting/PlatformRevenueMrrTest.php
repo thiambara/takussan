@@ -10,6 +10,7 @@ use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Plan;
+use App\Services\Reporting\PlatformMetricsSnapshotter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -97,5 +98,30 @@ class PlatformRevenueMrrTest extends TestCase
 
         $this->assertEquals(0.0, $rows['2026-05']['mrr']);
         $this->assertEquals(10000.0, $rows['2026-06']['mrr']);
+    }
+
+    /**
+     * verif-595 m4 — la tuile « Flux encaissé » suit la règle de l'instantané (ADR-0057) : un paiement
+     * marqué payé sans `paid_at` ne compte ni dans l'une ni dans l'autre. La tuile valait 140 000 pour
+     * un instantané de 100 000, et la console aurait affiché +40 % sans aucun mouvement.
+     */
+    public function test_m4_the_collected_tile_and_its_snapshot_follow_one_rule(): void
+    {
+        Carbon::setTestNow('2026-07-15 10:00:00');
+        LeasePayment::factory()->create([
+            'payment_type' => LeasePaymentType::Rent, 'status' => PaymentStatus::Paid,
+            'amount' => 100_000, 'paid_at' => '2026-07-01 09:00:00',
+        ]);
+        LeasePayment::factory()->create([
+            'payment_type' => LeasePaymentType::Rent, 'status' => PaymentStatus::Paid,
+            'amount' => 40_000, 'paid_at' => null,
+        ]);
+        $snapshot = app(PlatformMetricsSnapshotter::class)->snapshot(Carbon::parse('2026-07-14'), true);
+        $this->actingAsRole('super_admin');
+
+        $collected = $this->getJson('/api/admin/system/metrics')->assertOk()->json('data.revenue.collected_total');
+
+        $this->assertEquals(100000.0, (float) $snapshot->collected_total_amount);
+        $this->assertEquals((float) $snapshot->collected_total_amount, (float) $collected);
     }
 }
