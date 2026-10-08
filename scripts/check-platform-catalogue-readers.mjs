@@ -28,6 +28,8 @@
  *
  * `CAS_EPREUVE` tourne à chaque invocation sur des arbres figés : une clé citée dans un docblock ou
  * par son éditeur ne compte pas ; `getValue`, `isEnabled`, `Flag::X` et `useFeatureFlag` comptent.
+ * `CAS_EPREUVE_CATALOGUE` éprouve la lecture du catalogue : une clé à chiffre est lue, une clé hors
+ * motif est comptée comme entrée (et fait donc échouer la comparaison des deux comptes).
  * Une garde dont le motif régresse sort en 1 sur elle-même.
  *
  * Usage :
@@ -84,12 +86,29 @@ function sansCommentaires(src, php = true) {
   return out;
 }
 
-/** Les clés du tableau rendu par `all()` : les entrées de premier niveau `'a.b' => [`. */
+/**
+ * Les clés du tableau rendu par `all()` : les entrées de premier niveau `'a.b' => [`. Rend aussi le
+ * nombre d'entrées de premier niveau QUELLE QUE SOIT leur clé : une clé qui sortirait du motif
+ * (majuscule, tiret…) serait sinon ignorée en silence — verif-600 m4, où `platform.max_upload_mb2`
+ * passait inaperçue quand le motif excluait les chiffres.
+ */
 function clesDuCatalogue(src) {
   const corps = /function\s+all\s*\(\)[\s\S]*?return\s*\[([\s\S]*?)\n\s{8}\];/.exec(sansCommentaires(src));
   if (!corps) return null;
-  return [...corps[1].matchAll(/^\s{12}'([a-z_]+(?:\.[a-z_]+)+)'\s*=>\s*\[/gm)].map((m) => m[1]);
+  return {
+    cles: [...corps[1].matchAll(/^\s{12}'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'\s*=>\s*\[/gm)].map((m) => m[1]),
+    entrees: [...corps[1].matchAll(/^\s{12}'[^']*'\s*=>\s*\[/gm)].length,
+  };
 }
+
+/** Un catalogue figé : le corps de `all()` tel que le PHP l'écrit (indentation à 8 et 12). */
+const catalogue = (...cles) =>
+  `public static function all(): array\n    {\n        return [\n${cles.map((c) => `            '${c}' => [\n                'type' => 'int',\n            ],`).join('\n')}\n        ];\n    }`;
+
+const CAS_EPREUVE_CATALOGUE = [
+  { nom: 'clé portant un chiffre', src: catalogue('a.b', 'platform.max_upload_mb2'), cles: ['a.b', 'platform.max_upload_mb2'], entrees: 2 },
+  { nom: 'clé hors motif comptée comme entrée', src: catalogue('a.b', 'Platform.Max'), cles: ['a.b'], entrees: 2 },
+];
 
 /** `{ NomDuCas: 'valeur' }` depuis le source de l'enum `Flag`. */
 function casDesDrapeaux(src) {
@@ -170,6 +189,13 @@ const CAS_EPREUVE = [
 ];
 
 let rouge = false;
+for (const cas of CAS_EPREUVE_CATALOGUE) {
+  const lu = clesDuCatalogue(cas.src);
+  if (JSON.stringify(lu) !== JSON.stringify({ cles: cas.cles, entrees: cas.entrees })) {
+    console.error(`✗ auto-épreuve « ${cas.nom} » : attendu ${JSON.stringify({ cles: cas.cles, entrees: cas.entrees })}, obtenu ${JSON.stringify(lu)}`);
+    rouge = true;
+  }
+}
 for (const cas of CAS_EPREUVE) {
   const cles = cas.drapeaux ? [] : ['a.b'];
   const obtenu = sansLecteur(cas.arbre, cles, cas.drapeaux ?? {});
@@ -187,12 +213,19 @@ for (const chemin of [SETTINGS, FLAGS]) {
   }
 }
 
-const cles = clesDuCatalogue(readFileSync(join(ROOT, SETTINGS), 'utf8'));
-if (!cles || cles.length === 0) {
+const lu = clesDuCatalogue(readFileSync(join(ROOT, SETTINGS), 'utf8'));
+if (!lu || lu.cles.length === 0) {
   // Une garde qui parcourt une liste vide passe au vert sans rien avoir vérifié.
   console.error(`✗ aucune clé lue dans ${SETTINGS} — la garde n'aurait rien vérifié.`);
   process.exit(1);
 }
+if (lu.cles.length !== lu.entrees) {
+  console.error(
+    `✗ ${lu.entrees} entrée(s) de premier niveau dans ${SETTINGS}, ${lu.cles.length} clé(s) reconnue(s) : une clé hors du motif \`[a-z0-9_.]\` échapperait à la garde.`,
+  );
+  process.exit(1);
+}
+const cles = lu.cles;
 const drapeaux = casDesDrapeaux(readFileSync(join(ROOT, FLAGS), 'utf8'));
 
 function balayer(dossier, garder, arbre = {}) {
@@ -233,5 +266,5 @@ if (manquants.length > 0) {
 }
 
 console.log(
-  `✓ ${cles.length} paramètre(s) et ${Object.keys(drapeaux).length} drapeau(x) de la console, chacun lu (${fichiers} fichiers balayés, ${CAS_EPREUVE.length} auto-épreuves).`,
+  `✓ ${cles.length} paramètre(s) et ${Object.keys(drapeaux).length} drapeau(x) de la console, chacun lu (${fichiers} fichiers balayés, ${CAS_EPREUVE.length + CAS_EPREUVE_CATALOGUE.length} auto-épreuves).`,
 );
