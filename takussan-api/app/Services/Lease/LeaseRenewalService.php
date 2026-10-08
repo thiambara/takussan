@@ -3,6 +3,7 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeaseRenewed;
+use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Setting;
@@ -143,6 +144,14 @@ class LeaseRenewalService
                 ->log('lease_created');
 
             LeaseRenewed::dispatch($parent->fresh(), $child->fresh(), $changes);
+
+            // TCK-596 — un enfant qui naît `active` produit son échéancier, comme une activation,
+            // après validation de la transaction : sans lui, ni relance ni pénalité tant que
+            // personne ne cliquait « générer l'échéancier ». Un enfant `pending_signature` le reçoit
+            // à son activation par signature. Pas de `LeaseActivated` ici (coordination TCK-595).
+            if ($childStatus === LeaseStatus::Active) {
+                GenerateLeasePaymentSchedule::dispatch($child->fresh())->afterCommit();
+            }
 
             return $child->fresh();
         });

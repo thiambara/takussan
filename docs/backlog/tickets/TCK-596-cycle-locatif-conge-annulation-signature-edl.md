@@ -490,11 +490,11 @@ du Delta et un critère qui rougit sur le code actuel.
         de plus de 1 Mo refusée, avec `Http::fake`.
 
 ### 4A. Bail renouvelé sans échéancier (défaut, sans ADR)
-- [ ] `LeaseRenewalService` : quand l'enfant naît `active`, émettre `GenerateLeasePaymentSchedule`
+- [x] `LeaseRenewalService` : quand l'enfant naît `active`, émettre `GenerateLeasePaymentSchedule`
       pour lui **après validation** de la transaction (`DB::afterCommit` ou job
       `ShouldDispatchAfterCommit`). Un enfant `pending_signature` n'en émet pas : son échéancier vient
       de l'activation (§4B). Ne pas émettre `LeaseActivated` ici (coordination TCK-595).
-- [ ] Test `LeaseRenewalScheduleTest` : renouvellement de 12 mois en paiement mensuel, réglage
+- [x] Test `LeaseRenewalScheduleTest` : renouvellement de 12 mois en paiement mensuel, réglage
       `lease.require_signature` absent → l'enfant a 12 échéances `pending` au bon montant ; réglage à
       vrai → 0 échéance ; le bail parent garde les siennes.
 
@@ -811,3 +811,13 @@ Preuve : `BookingAvailabilityTest` 7/7 + 4 classes voisines → 39 verts. Ablati
 `cp`) : A3.1 bornes fermées (le code d'origine) → 2 rouges ; A3.2 `create` sans vérification → 1 ;
 A3.3 demande publique sans vérification → 2 ; A3.4 statut ignoré → 2 ; A3.5 `confirm` sans
 vérification → 1.
+
+**§4A — renouvellement sans échéancier.** Re-mesuré : `LeaseRenewalService::renew` n'émet ni job ni
+`LeaseActivated`. L'enfant `active` émet `GenerateLeasePaymentSchedule` en `afterCommit()` ; un enfant
+`pending_signature` n'émet rien. Pas de `LeaseActivated` (595). Preuve : `LeaseRenewalScheduleTest`
+2/2 (12 échéances `pending` à 250 000, du 2026-11-01 au 2027-10-01 ; parent inchangé ; 0 avec
+`lease.require_signature`) + `LeaseRenewalServiceTest`, `LeaseRenewalEndpointTest` → 16 verts.
+Ablations : A4.1 sans émission (le code d'origine) → 1 rouge ; A4.2 émission sans condition de
+statut → 1 rouge. ⚠ Incident : une commande de vérification a, par un motif de fichiers vide, lancé
+`php artisan test` sans argument (suite entière) ; arrêtée à la main après ~7 min, aucun résultat
+exploité.
