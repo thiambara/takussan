@@ -181,6 +181,22 @@ Ajoutées à la fusion de TCK-600 (ADR-0048, suspension d'agence), même règle 
     favori est masqué, et le personnel de l'agence le garde), appliqué `withTrashed()` : un bien
     supprimé reste une carte éteinte.
 
+Ajoutée à la demande de la session, même règle :
+
+13. **La demande d'un visiteur est traitée hors de la requête.** Le corps de la réponse 202 était
+    identique dans tous les cas, mais pas son temps : une borne atteinte répondait sans rien
+    faire, alors qu'un contact neuf attendait l'envoi synchrone de l'e-mail de confirmation. Le
+    contrôleur fait désormais le même travail dans tous les cas : il valide, normalise et pousse
+    `RecordPublicSearchAlert`.
+
+    Ce job est chiffré (`ShouldBeEncrypted`), car sa charge porte le contact. Il compte les
+    demandes, écrit l'abonné, puis envoie le lien ou le code. Il tourne sur la file `default`,
+    une seule fois (`tries = 1`). S'il échoue, il journalise `SafeExceptionContext` sans relancer
+    l'erreur, et la purge efface la demande à 48 h.
+
+    Le code WhatsApp vit 5 minutes : un worker en retard en consomme une partie. Pour revenir à un
+    envoi synchrone, il suffit d'appeler `dispatchSync`, au prix de la fuite par le temps.
+
 ## Conséquences
 
 - Une alerte et la liste ne peuvent plus diverger sur le sens d'un critère : elles partagent
@@ -198,6 +214,7 @@ Ajoutées à la fusion de TCK-600 (ADR-0048, suspension d'agence), même règle 
 
 ## Application
 
+- Demande d'un visiteur : `App\Jobs\RecordPublicSearchAlert` (décision 13).
 - Moteur : `App\Services\Search\PropertySearchService::alertMatches()`,
   `App\Services\Model\SearchService::getMatchingProperties()`.
 - Vocabulaire : `App\Support\SavedSearchCriteria`, `tests/Feature/Search/SavedSearchCriteriaVocabularyTest.php`.

@@ -555,6 +555,7 @@ d'implémentation).
       troisième message de confirmation au même contact dans les 24 h n'est pas envoyé ; le
       dépassement du limiteur rend 429 ; une demande non confirmée a disparu après 48 h.
       ✓ `PublicSearchAlertTest` : `test_aucune_enumeration_et_deux_confirmations_par_jour`, `test_cinq_alertes_au_plus_par_contact`, `test_le_limiteur_rend_429`, `test_le_limiteur_compte_par_contact_quelle_que_soit_l_adresse_ip`, `test_une_demande_non_confirmee_est_purgee_a_48_h` — run du 2026-10-08.
+      ✓ Le temps de réponse, demandé par la session : la requête ne fait que pousser `RecordPublicSearchAlert`, un job chiffré (ADR-0050, décision 13). Preuve : `test_la_requete_ne_fait_que_pousser_un_job_chiffre`, avec `Queue::fake` et `Notification::fake`. Trois cas sont envoyés : un contact connu à sa borne, un contact neuf, un WhatsApp. Les trois rendent le même 202, poussent 3 jobs, aucun sur `sync`, et n'écrivent, n'envoient ni mail ni SMS. `test_l_echec_du_job_ne_journalise_pas_le_contact`. Run du 2026-10-08.
 - [x] **AC18 (désinscription)** — `POST …/unsubscribe` avec le jeton → plus aucun envoi, contact
       effacé ; un `GET` du lien visible seul ne désinscrit pas ; l'e-mail porte
       `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
@@ -720,6 +721,16 @@ Restauration vérifiée par md5 après chaque ablation.
 | Crochet `smsFallbackAllowed` qui refuse toujours | `WhatsappChannelTest` | 6 échecs |
 | Crochet inversé / crochet retiré | idem | 2 échecs / 1 échec |
 | Clé `whatsapp-channel:user:{id}` perdue pour un `User` | idem | 1 échec |
+
+**La demande d'un visiteur est mise en file** (demande de session, ADR-0050, décision 13) :
+
+| Ablation | Test | Résultat |
+|---|---|---|
+| `dispatchSync()` dans le contrôleur | `PublicSearchAlertTest` | 1 échec |
+| Le contrôleur fait le travail en ligne (`->handle()`) | idem | 1 échec |
+| `ShouldBeEncrypted` retiré | idem | 1 échec |
+| `getMessage()` ajouté au journal d'échec | idem | 1 échec |
+| L'erreur est relancée par le job | idem | 1 échec |
 
 **`WhatsappChannel` reste strictement additif** (demande de session) : une notification sans
 `smsFallbackAllowed()` — toutes celles d'avant 599 — garde le repli SMS, et la clé `user:{id}` d'un

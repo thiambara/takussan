@@ -2,16 +2,23 @@
 
 namespace Tests\Feature\Search;
 
+use App\Jobs\RecordPublicSearchAlert;
 use App\Jobs\SendSavedSearchAlerts;
 use App\Models\Address;
 use App\Models\AlertSubscriber;
 use App\Models\Property;
 use App\Models\SavedSearch;
 use App\Models\WhatsappContact;
+use App\Services\Auth\PhoneVerificationService;
 use App\Services\Model\SearchService;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mime\Email;
 use Tests\Concerns\InteractsWithMeilisearch;
@@ -191,6 +198,63 @@ class PublicSearchAlertTest extends TestCase
         $this->assertSame(202, $premiere->getStatusCode());
         $this->assertCount(2, $this->emailsA(self::EMAIL), 'deux confirmations au plus par 24 h');
         $this->assertCount(1, $this->emailsA('inconnu@exemple.sn'));
+    }
+
+    /**
+     * **AC17**, le temps de réponse — la requête ne fait RIEN qui dépende du contact : ni
+     * compte, ni écriture, ni envoi. Un contact connu, à sa borne, et un contact neuf poussent le
+     * même job chiffré et repartent sans qu'un message soit parti ; c'est le worker qui envoie.
+     */
+    public function test_la_requete_ne_fait_que_pousser_un_job_chiffre(): void
+    {
+        foreach (range(1, 5) as $i) {
+            $this->postJson('/api/public/search-alerts', $this->demande(['name' => "Connue {$i}"]))->assertStatus(202);
+            $this->travel(61)->minutes();
+        }
+        $this->assertSame(5, AlertSubscriber::count(), 'le contact connu est à sa borne');
+        $this->assertCount(2, $this->emailsA(self::EMAIL));
+
+        config(['search_alerts.whatsapp_enabled' => true]);
+        Queue::fake();
+        Notification::fake();
+
+        $connu = $this->postJson('/api/public/search-alerts', $this->demande(['name' => 'Sixième']));
+        $inconnu = $this->postJson('/api/public/search-alerts', $this->demande(['email' => 'inconnu@exemple.sn']));
+        $whatsapp = $this->postJson('/api/public/search-alerts', $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => self::PHONE]));
+
+        foreach ([$connu, $inconnu, $whatsapp] as $reponse) {
+            $reponse->assertStatus(202);
+            $this->assertSame($connu->json(), $reponse->json());
+        }
+        Queue::assertPushed(RecordPublicSearchAlert::class, 3);
+        Queue::assertPushed(RecordPublicSearchAlert::class, fn (RecordPublicSearchAlert $job) => $job instanceof ShouldBeEncrypted
+            && $job->contact === 'inconnu@exemple.sn');
+        // `dispatchSync()` passe AUSSI par la file simulée, sur la connexion `sync` : c'est elle
+        // qui trahirait un travail fait pendant la requête en production.
+        Queue::assertNotPushed(RecordPublicSearchAlert::class, fn (RecordPublicSearchAlert $job) => $job->connection === 'sync');
+        Notification::assertNothingSent();
+        $this->assertSame([], $this->sms->sentTo(self::PHONE));
+        $this->assertSame(5, AlertSubscriber::count(), 'aucune écriture dans la requête');
+        $this->assertCount(2, $this->emailsA(self::EMAIL));
+        $this->assertCount(0, $this->emailsA('inconnu@exemple.sn'));
+    }
+
+    /** Le job qui échoue se journalise sans contact ni message, et ne relance pas l'erreur. */
+    public function test_l_echec_du_job_ne_journalise_pas_le_contact(): void
+    {
+        $journal = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$journal): void {
+            $journal[] = $e;
+        });
+        AlertSubscriber::creating(fn () => throw new \RuntimeException('refus pour '.self::EMAIL));
+
+        (new RecordPublicSearchAlert(['criteria' => [], 'frequency' => 'daily', 'locale' => 'fr'], 'email', self::EMAIL))
+            ->handle(app(PhoneVerificationService::class));
+
+        $echecs = array_values(array_filter($journal, fn (MessageLogged $e) => $e->message === 'search_alert.request_failed'));
+        $this->assertCount(1, $echecs);
+        $this->assertStringNotContainsString(self::EMAIL, json_encode($echecs[0]->context));
+        $this->assertSame(0, AlertSubscriber::count());
     }
 
     /** **AC17** — au plus cinq alertes ouvertes par contact : la sixième n'est pas créée, en silence. */
