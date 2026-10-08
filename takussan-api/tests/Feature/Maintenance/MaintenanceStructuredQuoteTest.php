@@ -130,7 +130,7 @@ class MaintenanceStructuredQuoteTest extends TestCase
         Sanctum::actingAs($landlord);
         $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")
             ->assertUnprocessable()
-            ->assertJsonPath('message', __('maintenance.errors.quote_expired'));
+            ->assertJsonPath('code', 'maintenance.quote_expired');
 
         $this->assertSame(MaintenanceStatus::QuoteSubmitted, $mr->refresh()->status);
     }

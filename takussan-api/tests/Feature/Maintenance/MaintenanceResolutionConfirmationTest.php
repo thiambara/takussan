@@ -30,7 +30,7 @@ class MaintenanceResolutionConfirmationTest extends TestCase
 
         $this->assertSame(MaintenanceStatus::Closed, $mr->refresh()->status);
         $this->assertSame(
-            [__('maintenance.notifications.confirmed.title', ['title' => $mr->title], 'fr')],
+            [__('notifications.codes.maintenance.confirmed.title', ['request' => $mr->title], 'fr')],
             AppNotification::query()->where('user_id', $provider->id)->pluck('title')->all(),
         );
     }

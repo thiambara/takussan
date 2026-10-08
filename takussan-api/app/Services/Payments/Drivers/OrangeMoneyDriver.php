@@ -10,6 +10,7 @@ use App\Services\Payments\Dto\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Orange Money Merchant API driver (Senegal).
@@ -55,12 +56,15 @@ class OrangeMoneyDriver implements PaymentDriverContract
             ->timeout(20)
             ->post($this->baseUrl().'/orange-money-webpay/v1/webpayment', $payload);
 
-        abort_if(! $response->successful(), 502, 'Orange Money checkout failed: '.$response->body());
+        if (! $response->successful()) {
+            Log::warning('[orange-money] checkout failed', ['status' => $response->status(), 'body' => $response->body()]);
+            abort_code(502, 'payment.provider_failed', ['provider' => 'Orange Money']);
+        }
 
         $data = $response->json();
         $checkoutUrl = (string) ($data['payment_url'] ?? '');
         $transactionId = (string) ($data['pay_token'] ?? $data['notif_token'] ?? '');
-        abort_if($checkoutUrl === '' || $transactionId === '', 502, 'Orange Money returned an invalid checkout payload.');
+        abort_code_if($checkoutUrl === '' || $transactionId === '', 502, 'payment.provider_invalid_response');
 
         return new CheckoutSession(
             checkoutUrl: $checkoutUrl,
@@ -83,7 +87,10 @@ class OrangeMoneyDriver implements PaymentDriverContract
                 'pay_token' => $externalId,
             ]);
 
-        abort_if(! $response->successful(), 502, 'Orange Money verify failed: '.$response->body());
+        if (! $response->successful()) {
+            Log::warning('[orange-money] verify failed', ['status' => $response->status(), 'body' => $response->body()]);
+            abort_code(502, 'payment.provider_failed', ['provider' => 'Orange Money']);
+        }
         $data = $response->json();
         $status = match (strtoupper((string) ($data['status'] ?? ''))) {
             'SUCCESS', 'SUCCESSFULL' => PaymentStatus::SUCCESS,
@@ -100,11 +107,11 @@ class OrangeMoneyDriver implements PaymentDriverContract
         $signature = (string) $request->header('X-OM-Signature', '');
 
         $expected = hash_hmac('sha256', $request->getContent(), $secret);
-        abort_unless($signature !== '' && hash_equals($expected, $signature), 401, 'Orange Money webhook signature mismatch.');
+        abort_code_unless($signature !== '' && hash_equals($expected, $signature), 401, 'webhook.signature_invalid');
 
         $payload = $request->all();
         $transactionId = (string) ($payload['pay_token'] ?? $payload['txnid'] ?? '');
-        abort_if($transactionId === '', 422, 'Orange Money webhook missing transaction id.');
+        abort_code_if($transactionId === '', 422, 'webhook.transaction_id_missing');
 
         $status = strtoupper((string) ($payload['status'] ?? ''));
         $type = match ($status) {
@@ -130,7 +137,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
     {
         $creds = $this->integration->credentials ?? [];
         $value = is_array($creds) ? ($creds[$key] ?? null) : null;
-        abort_if(empty($value), 500, "Orange Money integration is missing credential `{$key}`.");
+        abort_code_if(empty($value), 500, 'payment.integration_credential_missing', ['credential' => $key]);
 
         return (string) $value;
     }

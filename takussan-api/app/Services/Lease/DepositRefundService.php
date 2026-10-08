@@ -39,17 +39,17 @@ class DepositRefundService
     {
         // Cheap pre-flight: status / non-zero deposit / amount shape don't
         // change under contention so they're worth failing fast on.
-        abort_unless(
+        abort_code_unless(
             in_array($lease->status, [LeaseStatus::Terminated, LeaseStatus::Expired], true),
             422,
-            __('messages.lease_must_be_ended_for_refund')
+            'deposit_refund.lease_not_ended'
         );
 
         $deposit = (float) ($lease->deposit_amount ?? 0);
-        abort_if($deposit <= 0, 422, __('messages.no_deposit_to_refund'));
+        abort_code_if($deposit <= 0, 422, 'deposit_refund.no_deposit');
 
         $amount = round((float) ($data['amount'] ?? 0), 2);
-        abort_if($amount <= 0, 422, __('messages.refund_amount_required'));
+        abort_code_if($amount <= 0, 422, 'deposit_refund.amount_required');
 
         $reason = isset($data['reason']) ? trim((string) $data['reason']) : '';
         $currency = $lease->currency?->value ?? 'XOF';
@@ -65,15 +65,15 @@ class DepositRefundService
                 ->firstOrFail();
 
             $remaining = (float) $lease->deposit_remaining;
-            abort_if($remaining <= 0, 422, __('messages.deposit_already_refunded'));
-            abort_if(
+            abort_code_if($remaining <= 0, 422, 'deposit_refund.already_refunded');
+            abort_code_if(
                 $amount > $remaining + 0.001,
                 422,
-                __('messages.refund_amount_exceeds_remaining')
+                'deposit_refund.exceeds_remaining'
             );
 
             $isPartial = $amount + 0.001 < $remaining;
-            abort_if($isPartial && $reason === '', 422, __('messages.refund_reason_required_for_partial'));
+            abort_code_if($isPartial && $reason === '', 422, 'deposit_refund.reason_required');
 
             $retained = round($remaining - $amount, 2);
             $now = now();

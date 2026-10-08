@@ -52,10 +52,10 @@ class ServiceProviderOnboardingService
         // TCK-592 — une suspension posée par la plateforme ne se lève pas par le prestataire : la fin
         // d'onboarding est REJOUABLE (aucune garde « déjà fait », OTP sauté si le téléphone est
         // vérifié), et chaque appel repassait le profil à `active`. Refus AVANT toute écriture.
-        abort_if(
+        abort_code_if(
             $sp->status === ServiceProviderProfileStatus::Suspended,
             403,
-            __('service_providers.onboarding.errors.suspended'),
+            'onboarding.service_provider_suspended',
         );
 
         // OTP gate. Bypass when the user is already phone-verified — the

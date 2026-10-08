@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
@@ -15,7 +17,6 @@ use App\Http\Resources\MaintenanceRequestResource;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
@@ -131,16 +132,10 @@ class MaintenanceRequestController extends Controller
         }
 
         if ($owner && $owner->id !== $user->id) {
-            // TCK-592 — clé de traduction rendue dans la langue du DESTINATAIRE, pas de l'auteur.
-            $locale = $owner->preferredLocale();
-            $params = ['title' => $mr->title, 'property' => $property->title];
-            $this->notifications->notify(
-                $owner,
-                NotificationType::Maintenance,
-                __('maintenance.notifications.created.title', $params, $locale),
-                __('maintenance.notifications.created.body', $params, $locale),
-                ['maintenance_request_id' => $mr->id],
-            );
+            $this->notifications->send($owner, NotificationCode::MaintenanceCreated, [
+                'property' => $property->title,
+                'reference' => '#'.$mr->id,
+            ], NotificationTarget::of('maintenance', $mr->id));
         }
 
         return $this->json([
@@ -178,7 +173,7 @@ class MaintenanceRequestController extends Controller
     {
         // TCK-592 (verif-592, M2) — une demande close ou annulée ne se modifie plus : le prestataire
         // réécrivait ses notes après la confirmation du locataire, le donneur d'ordre le coût.
-        abort_if($this->machine->isTerminal($maintenanceRequest->status), 422, __('maintenance.errors.terminal_request'));
+        abort_code_if($this->machine->isTerminal($maintenanceRequest->status), 422, 'maintenance.terminal_request');
 
         $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
 
@@ -218,10 +213,10 @@ class MaintenanceRequestController extends Controller
 
         // TCK-592 — les cibles de devis, et la contestation, ont leur endpoint : il porte ce que le
         // générique ignorerait (montant, validité, plafond du bailleur, commentaire).
-        abort_unless(
+        abort_code_unless(
             $current === $target || $this->machine->isGeneric($current, $target),
             422,
-            __('maintenance.errors.dedicated_endpoint'),
+            'maintenance.dedicated_endpoint',
         );
 
         $maintenanceRequest = $this->service->transition($maintenanceRequest, $target, $request->user());
@@ -239,7 +234,7 @@ class MaintenanceRequestController extends Controller
         // Reject ambiguous payloads rather than silently preferring one field.
         if (array_key_exists('cost', $data) && array_key_exists('actual_cost', $data)
             && $data['cost'] !== null && $data['actual_cost'] !== null) {
-            abort(422, __('maintenance.errors.cost_ambiguous'));
+            abort_code(422, 'maintenance.cost_ambiguous');
         }
 
         $photos = $request->file('photos', []) ?? [];
@@ -307,7 +302,7 @@ class MaintenanceRequestController extends Controller
         // should not accept new photos (prevents abuse and keeps the audit
         // log on media consistent with the work actually performed).
         if (in_array($maintenanceRequest->status, [MaintenanceStatus::Closed, MaintenanceStatus::Cancelled], true)) {
-            abort(422, __('maintenance.errors.terminal_request'));
+            abort_code(422, 'maintenance.photos_closed');
         }
 
         $data = $request->validated();
@@ -323,7 +318,7 @@ class MaintenanceRequestController extends Controller
         // acceptée. Avant acceptation, il n'est pas encore passé sur place.
         if ($collection === 'before_photos') {
             $this->authorize('actAsProvider', $maintenanceRequest);
-            abort_if($maintenanceRequest->accepted_at === null, 422, __('maintenance.errors.before_photos_requires_acceptance'));
+            abort_code_if($maintenanceRequest->accepted_at === null, 422, 'maintenance.before_photos_requires_acceptance');
         }
 
         $added = $this->service->addPhotos($maintenanceRequest, $request->file('photos', []), $collection);

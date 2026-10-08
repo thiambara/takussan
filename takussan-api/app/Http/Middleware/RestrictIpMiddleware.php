@@ -27,14 +27,14 @@ class RestrictIpMiddleware
         $allowed = array_values(array_filter(array_map('trim', $allowed)));
         if (empty($allowed)) {
             if (app()->environment('production')) {
-                abort(403, 'Webhook IP allowlist not configured');
+                abort_code(403, 'webhook.ip_allowlist_not_configured');
             }
 
             return $next($request);
         }
         $ip = (string) $request->ip();
         if (! in_array($ip, $allowed, true)) {
-            abort(403, 'Source IP not allowed');
+            abort_code(403, 'webhook.ip_not_allowed');
         }
 
         return $next($request);

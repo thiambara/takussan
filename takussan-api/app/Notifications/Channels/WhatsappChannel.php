@@ -42,6 +42,11 @@ use Illuminate\Support\Facades\RateLimiter;
  *   - window closed + template    → approved template           (AC2)
  *   - window closed, no template  → ineligible → SMS fallback
  *
+ * TCK-588 — un destinataire ROUTÉ (contact sans compte) n'a ni préférence ni clé : WhatsApp
+ * exige alors qu'il y ait consenti (`opted_in`), sinon SMS ; sa limite se compte par numéro,
+ * `whatsapp-channel:phone:{e164}`. Le gabarit se cherche par `whatsappTemplateEvent()` quand la
+ * notification le déclare — l'événement de préférence et celui du registre ne sont pas le même.
+ *
  * A hard WhatsApp failure also rolls over to SMS (AC3). Exactly one mobile
  * channel is delivered; the SMS opt-in is NOT re-checked on fallback (the
  * user already consented to a mobile message for this event) — only the
@@ -85,7 +90,7 @@ class WhatsappChannel
         if (! $isCritical && ! $this->isOptedIn($notifiable, $notification)) {
             return null;
         }
-        if (! $isCritical && ! $this->withinRateLimit($notifiable)) {
+        if (! $isCritical && ! $this->withinRateLimit($notifiable, $phone)) {
             return null;
         }
 
@@ -104,7 +109,7 @@ class WhatsappChannel
             // WhatsApp ineligible (opted-out, or out-of-window without an
             // approved template) — record a deferred attempt then roll to SMS
             // without touching the provider.
-            $deferred = WhatsappResult::deferred($phone, $this->driver->id(), $this->ineligibilityReason($contact));
+            $deferred = WhatsappResult::deferred($phone, $this->driver->id(), $this->ineligibilityReason($contact, $notifiable));
             $this->logAttempt($context['notification_id'], 1, $deferred);
 
             return $this->fallbackToSms($notifiable, $notification, $phone, $context, $deferred);
@@ -134,6 +139,10 @@ class WhatsappChannel
         if ($contact && $contact->isOptedOut()) {
             return null;
         }
+        // TCK-588 — un destinataire sans compte ne reçoit WhatsApp que s'il y a consenti.
+        if (! $notifiable instanceof User && $contact?->opt_in_status !== WhatsappContact::OPT_IN_OPTED_IN) {
+            return null;
+        }
         if ($this->serviceWindow->isOpen($contact)) {
             return WhatsappMessage::text($notification->toWhatsapp($notifiable));
         }
@@ -159,20 +168,26 @@ class WhatsappChannel
         if ($ref !== null) {
             return $ref;
         }
-        if (! $eventType) {
+        $templateEvent = method_exists($notification, 'whatsappTemplateEvent')
+            ? (string) $notification->whatsappTemplateEvent()
+            : $eventType;
+        if (! $templateEvent) {
             return null;
         }
         $params = method_exists($notification, 'whatsappTemplateParams')
             ? (array) $notification->whatsappTemplateParams($notifiable)
             : [];
 
-        return $this->templates->resolve($eventType, app()->getLocale(), array_values($params));
+        return $this->templates->resolve($templateEvent, app()->getLocale(), array_values($params));
     }
 
-    private function ineligibilityReason(?WhatsappContact $contact): string
+    private function ineligibilityReason(?WhatsappContact $contact, object $notifiable): string
     {
         if ($contact && $contact->isOptedOut()) {
             return 'contact_opted_out';
+        }
+        if (! $notifiable instanceof User && $contact?->opt_in_status !== WhatsappContact::OPT_IN_OPTED_IN) {
+            return 'contact_not_opted_in';
         }
 
         return 'outside_window_no_template';
@@ -266,13 +281,12 @@ class WhatsappChannel
         return $this->preferences->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_WHATSAPP);
     }
 
-    private function withinRateLimit(object $notifiable): bool
+    private function withinRateLimit(object $notifiable, string $phone): bool
     {
         $userId = method_exists($notifiable, 'getKey') ? $notifiable->getKey() : null;
-        if (! $userId) {
-            return true;
-        }
-        $key = "whatsapp-channel:user:{$userId}";
+        $key = $userId
+            ? "whatsapp-channel:user:{$userId}"
+            : 'whatsapp-channel:phone:'.PhoneNumber::normalize($phone);
         $maxAttempts = (int) $this->config->get('whatsapp.rate_limit.per_user_per_hour', 10);
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             Log::info('[whatsapp-channel] rate limit hit — skipping', ['user_id' => $userId]);

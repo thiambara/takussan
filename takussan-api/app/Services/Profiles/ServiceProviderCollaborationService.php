@@ -67,10 +67,10 @@ class ServiceProviderCollaborationService
 
     private function pause(ServiceProviderAgencyCollaboration $collaboration, User $actor): ServiceProviderAgencyCollaboration
     {
-        abort_unless(
+        abort_code_unless(
             $collaboration->status === CollaborationStatus::Active,
             422,
-            __('maintenance.errors.collaboration_transition'),
+            'maintenance.collaboration_transition',
         );
 
         $collaboration->forceFill([
@@ -94,10 +94,10 @@ class ServiceProviderCollaborationService
     {
         $profile = $collaboration->serviceProviderProfile;
 
-        abort_unless(
+        abort_code_unless(
             $profile !== null && $profile->user_id !== null && $profile->status === ServiceProviderProfileStatus::Active,
             422,
-            __('maintenance.errors.collaboration_transition'),
+            'maintenance.collaboration_transition',
         );
 
         $collaboration->forceFill([

@@ -90,10 +90,10 @@ class MaintenanceRequestService
      */
     public function assertTransition(MaintenanceStatus $from, MaintenanceStatus $to): void
     {
-        abort_unless(
+        abort_code_unless(
             $this->machine->canTransition($from, $to),
             422,
-            __('maintenance.errors.transition_not_allowed', ['from' => $from->value, 'to' => $to->value]),
+            'maintenance.status_transition_invalid', ['from' => $from->value, 'to' => $to->value],
         );
     }
 
@@ -107,7 +107,7 @@ class MaintenanceRequestService
     {
         // TCK-592 (verif-592, M2) — assigner une demande annulée ouvrait au nouveau prestataire la
         // fiche, le fil et ses notifications.
-        abort_if($this->machine->isTerminal($mr->status), 422, __('maintenance.errors.terminal_request'));
+        abort_code_if($this->machine->isTerminal($mr->status), 422, 'maintenance.terminal_request');
 
         $previous = $mr->assigned_to;
         if ($previous === $assignee?->id) {
@@ -181,8 +181,8 @@ class MaintenanceRequestService
 
     public function accept(MaintenanceRequest $mr, User $provider): MaintenanceRequest
     {
-        abort_if($this->machine->isTerminal($mr->status), 422, __('maintenance.errors.terminal_request'));
-        abort_if($mr->accepted_at !== null, 422, __('maintenance.errors.already_accepted'));
+        abort_code_if($this->machine->isTerminal($mr->status), 422, 'maintenance.terminal_request');
+        abort_code_if($mr->accepted_at !== null, 422, 'maintenance.already_accepted');
 
         $mr->accepted_at = now();
         $mr->save();
@@ -201,10 +201,10 @@ class MaintenanceRequestService
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_if(
+        abort_code_if(
             $mr->accepted_at !== null || ! in_array($current->value, self::UNSTARTED, true),
             422,
-            __('maintenance.errors.decline_after_accept'),
+            'maintenance.decline_after_accept',
         );
 
         $mr->assigned_to = null;

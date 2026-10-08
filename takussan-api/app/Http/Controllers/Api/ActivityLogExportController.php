@@ -46,7 +46,7 @@ class ActivityLogExportController extends Controller
             ExportActivityLogJob::dispatch($user, array_merge($filters, ['format' => $format]));
 
             return response()->json([
-                'message' => 'Export en préparation, téléchargement imminent…',
+                'message' => __('messages.activity_log_export_queued'),
             ], 202);
         }
 
@@ -61,7 +61,7 @@ class ActivityLogExportController extends Controller
     public function download(Request $request): mixed
     {
         if (! $request->hasValidSignature()) {
-            abort(403, 'Lien expiré ou invalide.');
+            abort_code(403, 'activity_log.export_link_invalid');
         }
 
         $path = $request->query('path');

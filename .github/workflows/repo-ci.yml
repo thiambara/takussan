@@ -71,6 +71,9 @@ on:
       # Le premier côté est couvert par `takussan-web/src/**` ; sans cette ligne, retirer une
       # exclusion de `config.json` passerait sans que la garde tourne.
       - '.design-sync/**'
+      # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
+      # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
+      - 'takussan-api/lang/**'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -164,6 +167,9 @@ on:
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
       - '.design-sync/**'
+      # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
+      # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
+      - 'takussan-api/lang/**'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -668,6 +674,14 @@ jobs:
         # qu'il est bien décrit. C'est un cliquet contre la régression franche, pas une mesure de
         # qualité (dette D-23 : chercher un jeton ne mesure pas une propriété).
         run: node scripts/check-models-spec.mjs --report
+      - name: Chaque code de notification a son texte, côté API et côté front, en fr, en et wo
+        # TCK-588 (ADR-0032) — une notification est un CODE rendu dans la langue du destinataire :
+        # par l'API (`lang/*/notifications.php`, e-mail, SMS, ligne stockée) et par le front
+        # (`src/messages/*.json`, la cloche). Un code ajouté à l'enum sans son texte ne lève rien :
+        # le front retombe sur le titre stocké, l'API sur la langue de repli, et l'utilisateur
+        # wolof lit de l'anglais. La garde compare aussi les placeholders des deux côtés, langue
+        # par langue, et échoue si elle ne lit aucun cas.
+        run: node scripts/check-notification-codes.mjs --report
       - name: L'enveloppe de pagination se construit en un seul endroit
         # Mesuré le 2026-08-17, avant convergence : **57 contrôleurs et 1 service** recopiaient la
         # forme à la main, et les jeux de clés divergeaient — `total` 88 occurrences,

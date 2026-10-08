@@ -4,7 +4,6 @@ namespace App\Http\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Spatie\QueryBuilder\Filters\FiltersExact;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 /**
  * Le filtre exact d'une colonne d'IDENTIFIANT (`id`, `*_id`) : il refuse en 400 une valeur qui
@@ -29,7 +28,7 @@ class ExactIdentifierFilter extends FiltersExact
     {
         foreach ((array) $value as $identifiant) {
             if (! self::estUnIdentifiant($identifiant)) {
-                throw new BadRequestHttpException("Filter value for `{$property}` must be an integer identifier.");
+                abort_code(400, 'filter.identifier_invalid', ['filter' => $property]);
             }
         }
 

@@ -252,7 +252,7 @@ class AgencyIndividualCustomRolesTest extends ApiTestCase
         $rendus = [];
 
         foreach (['fr', 'en', 'wo'] as $locale) {
-            $attendu = trans('agencies.errors.individual_no_custom_roles', [], $locale);
+            $attendu = trans('errors.agency.individual_no_custom_roles', [], $locale);
             $rendus[$locale] = $attendu;
 
             // Les deux mailles ne prennent PAS le même défaut, et il a fallu
@@ -264,7 +264,7 @@ class AgencyIndividualCustomRolesTest extends ApiTestCase
             //    cette assertion-ci qui rougit.
             // *Une seule des deux laissait passer la moitié des cas.*
             $this->assertNotSame(
-                'agencies.errors.individual_no_custom_roles',
+                'errors.agency.individual_no_custom_roles',
                 $attendu,
                 "La clé manque au catalogue `{$locale}` : Laravel rend son propre nom.",
             );

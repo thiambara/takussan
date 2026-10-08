@@ -5,6 +5,7 @@ namespace Tests\Feature\Maintenance;
 use App\Models\AppNotification;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\User;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\MaintenanceActors;
@@ -30,8 +31,8 @@ class MaintenanceNotificationsTest extends TestCase
         Sanctum::actingAs($landlord);
         $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $provider->id])->assertOk();
 
-        $expected = __('maintenance.notifications.assigned.title', ['title' => $mr->title], 'wo');
-        $this->assertNotSame(__('maintenance.notifications.assigned.title', ['title' => $mr->title], 'fr'), $expected);
+        $expected = __('notifications.codes.maintenance.assigned.title', ['request' => $mr->title], 'wo');
+        $this->assertNotSame(__('notifications.codes.maintenance.assigned.title', ['request' => $mr->title], 'fr'), $expected);
         $this->assertSame([$expected], $this->titlesFor($provider));
     }
 
@@ -49,12 +50,11 @@ class MaintenanceNotificationsTest extends TestCase
         $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['resolution_notes' => 'Réparé'])->assertOk();
 
         $this->assertSame(
-            ['assigned', 'in_progress', 'completed'],
-            AppNotification::query()->where('user_id', $tenant->id)->orderBy('id')->get()
-                ->map(fn (AppNotification $n) => $n->data['status'] === 'open' ? 'assigned' : $n->data['status'])->all(),
+            ['maintenance.step_assigned', 'maintenance.step_in_progress', 'maintenance.step_completed'],
+            AppNotification::query()->where('user_id', $tenant->id)->orderBy('id')->pluck('code')->all(),
         );
         $this->assertSame(
-            __('maintenance.notifications.step.title', ['title' => $mr->title, 'status' => __('maintenance.status.in_progress', [], 'fr')], 'fr'),
+            __('notifications.codes.maintenance.step_in_progress.title', ['request' => $mr->title], 'fr'),
             $this->titlesFor($tenant)[1],
         );
     }
@@ -69,8 +69,12 @@ class MaintenanceNotificationsTest extends TestCase
         Sanctum::actingAs($provider);
         $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'in_progress'])->assertOk();
 
-        $body = AppNotification::query()->where('user_id', $tenant->id)->sole()->body;
-        $this->assertStringContainsString($mr->scheduled_at->copy()->locale('fr')->isoFormat('LLL'), $body);
+        $notification = AppNotification::query()->where('user_id', $tenant->id)->sole();
+        $this->assertSame('maintenance.step_in_progress_scheduled', $notification->code);
+        $this->assertStringContainsString(
+            $mr->scheduled_at->copy()->setTimezone($tenant->timezone ?: NotificationRenderer::DEFAULT_TIMEZONE)->locale('fr')->isoFormat('LLL'),
+            $notification->body,
+        );
     }
 
     /** AC10 — devis soumis sur une demande du locataire : rien au locataire, l'agence et le bailleur. */
@@ -85,7 +89,7 @@ class MaintenanceNotificationsTest extends TestCase
         $this->assertSame(0, AppNotification::query()->where('user_id', $tenant->id)->count());
         foreach ([$agent, $landlord] as $principal) {
             $this->assertSame(
-                [__('maintenance.notifications.quote_submitted.title', ['title' => $mr->title], 'fr')],
+                [__('notifications.codes.maintenance_quote.submitted.title', ['request' => $mr->title], 'fr')],
                 $this->titlesFor($principal),
             );
         }

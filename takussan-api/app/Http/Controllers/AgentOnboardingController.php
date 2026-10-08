@@ -40,7 +40,7 @@ class AgentOnboardingController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        abort_if($agent === null, 403, __('team.onboarding.errors.not_owner'));
+        abort_code_if($agent === null, 403, 'onboarding.agent_not_owner');
 
         $result = $this->service->complete($agent, $user, $validated);
 

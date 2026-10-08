@@ -12,7 +12,6 @@ return [
         'errors' => [
             'invalid_otp' => 'Code bu vérification bi baaxul mbaa mu mat na.',
             'not_owner' => 'Mënuloo soppi profil prestataire bii.',
-            'suspended' => 'Profil prestataire bii dañu ko taxawal : jeexal bindu bi du ko yeesal.',
         ],
     ],
 ];

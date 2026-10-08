@@ -21,7 +21,7 @@ class DataExportDownloadController extends Controller
         );
 
         if ($dataExport->expires_at !== null && $dataExport->expires_at->isPast()) {
-            return $this->json(['message' => 'Data export expired.'], 410);
+            abort_code(410, 'data_export.expired');
         }
 
         abort_unless($dataExport->status === DataExportStatus::Ready && $dataExport->archive_path, 404);

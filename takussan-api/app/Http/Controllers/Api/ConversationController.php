@@ -80,7 +80,7 @@ class ConversationController extends Controller
             $data['participants'],
             fn ($id) => (int) $id !== (int) $user->id
         )));
-        abort_if(count($participantIds) === 0, 422, 'At least one other participant is required.');
+        abort_code_if(count($participantIds) === 0, 422, 'conversation.participant_required');
         $data['participants'] = $participantIds;
 
         $conversation = DB::transaction(function () use ($data, $user) {

@@ -2,15 +2,16 @@
 
 namespace App\Listeners\Maintenance;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceParticipants;
 use App\Services\Model\NotificationService;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Number;
 
 /**
  * TCK-592 (C7, P4, P13, O14) — chacun apprend ce qui le regarde, dans SA langue.
@@ -123,42 +124,60 @@ class NotifyMaintenanceParticipants implements ShouldQueue
         return $plan;
     }
 
-    /** @param  array<string, mixed>  $extra */
+    /**
+     * TCK-588 (ADR-0032) — un code et des paramètres bruts : le texte se rend dans la langue du
+     * destinataire, à l'émission (ligne stockée, e-mail) comme dans la cloche.
+     *
+     * @param  array<string, mixed>  $extra
+     */
     private function send(User $recipient, string $key, array $extra, MaintenanceRequest $mr, MaintenanceStatusChanged $event): void
     {
-        $locale = $recipient->preferredLocale() ?? app()->getLocale();
+        $params = ['request' => (string) $mr->title];
 
-        $params = [
-            'title' => $mr->title,
-            'property' => (string) $mr->property?->title,
-            'provider' => $this->nameOf($mr->assignee ?? $event->actor),
-            ...array_diff_key($extra, ['status_key' => true]),
-        ];
+        $code = match ($key) {
+            'assigned' => NotificationCode::MaintenanceAssigned,
+            'unassigned' => NotificationCode::MaintenanceUnassigned,
+            'accepted' => NotificationCode::MaintenanceAccepted,
+            'declined' => NotificationCode::MaintenanceDeclined,
+            'quote_requested' => NotificationCode::MaintenanceQuoteRequested,
+            'quote_submitted' => NotificationCode::MaintenanceQuoteSubmitted,
+            'quote_awaiting_owner' => NotificationCode::MaintenanceQuoteAwaitingOwner,
+            'quote_approved' => NotificationCode::MaintenanceQuoteApproved,
+            'quote_rejected' => NotificationCode::MaintenanceQuoteRejected,
+            'completed' => NotificationCode::MaintenanceCompleted,
+            'confirmed' => NotificationCode::MaintenanceConfirmed,
+            'contested' => NotificationCode::MaintenanceContested,
+            'auto_closed' => NotificationCode::MaintenanceAutoClosed,
+            'cancelled' => NotificationCode::MaintenanceCancelled,
+            'step' => $this->stepCode((string) $extra['status_key'], $mr, $params),
+        };
 
-        if ($key === 'quote_submitted' || $key === 'quote_awaiting_owner') {
-            $params['amount'] = Number::format((float) $mr->quote_amount, locale: $locale).' '.$mr->quote_currency;
+        foreach (array_keys($code->params()) as $name) {
+            $params[$name] ??= match ($name) {
+                'property' => (string) $mr->property?->title,
+                'provider' => $this->nameOf($mr->assignee ?? $event->actor),
+                'amount' => NotificationRenderer::money($mr->quote_amount, $mr->quote_currency),
+                default => $extra[$name] ?? '',
+            };
         }
 
-        $body = "maintenance.notifications.{$key}.body";
-        if ($key === 'step') {
-            $params['status'] = __('maintenance.status.'.$extra['status_key'], [], $locale);
-            if ($mr->scheduled_at !== null && ! in_array($extra['status_key'], ['closed', 'cancelled', 'completed'], true)) {
-                $params['date'] = $mr->scheduled_at->copy()->locale($locale)->isoFormat('LLL');
-                $body = 'maintenance.notifications.step.body_scheduled';
-            }
+        $this->notifications->send($recipient, $code, $params, NotificationTarget::of('maintenance', $mr->id));
+    }
+
+    /**
+     * L'étape que le demandeur voit passer : un code par statut, et sa variante datée quand un
+     * passage est prévu et que l'intervention n'est pas finie.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function stepCode(string $status, MaintenanceRequest $mr, array &$params): NotificationCode
+    {
+        $scheduled = $mr->scheduled_at !== null && ! in_array($status, ['closed', 'cancelled', 'completed'], true);
+        if ($scheduled) {
+            $params['scheduled_at'] = $mr->scheduled_at->toIso8601String();
         }
 
-        $this->notifications->notify(
-            $recipient,
-            NotificationType::Maintenance,
-            __("maintenance.notifications.{$key}.title", $params, $locale),
-            __($body, $params, $locale),
-            [
-                'maintenance_request_id' => $mr->id,
-                'event' => $event->cause,
-                'status' => $event->to->value,
-            ],
-        );
+        return NotificationCode::from('maintenance.step_'.$status.($scheduled ? '_scheduled' : ''));
     }
 
     private function nameOf(?User $user): string

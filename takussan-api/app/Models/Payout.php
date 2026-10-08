@@ -83,11 +83,10 @@ class Payout extends AbstractModel
                 PayoutStatus::Processing,
             ];
             if ($originalEnum === PayoutStatus::Completed && in_array($newEnum, $open, true)) {
-                abort(422, sprintf(
-                    'Invalid payout status transition: %s → %s.',
-                    $originalEnum->value,
-                    $newEnum->value,
-                ));
+                abort_code(422, 'payout.status_transition_invalid', [
+                    'from' => $originalEnum->value,
+                    'to' => $newEnum->value,
+                ]);
             }
         });
     }

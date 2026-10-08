@@ -29,7 +29,7 @@ class MaintenanceOwnerApprovalThresholdTest extends TestCase
         $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk()->assertJsonPath('data.status', 'awaiting_owner');
 
         $this->assertSame(
-            [__('maintenance.notifications.quote_awaiting_owner.title', ['title' => $mr->title], 'fr')],
+            [__('notifications.codes.maintenance_quote.awaiting_owner.title', ['request' => $mr->title], 'fr')],
             AppNotification::query()->where('user_id', $landlord->id)->pluck('title')->all(),
         );
 

@@ -124,7 +124,7 @@ class ReviewController extends Controller
 
         // Reason required for anything other than approve.
         if ($decision !== 'approve' && empty($reason)) {
-            abort(422, __('validation.required', ['attribute' => 'reason']));
+            abort_code(422, 'review.reason_required');
         }
 
         $result = $this->moderationService->moderate($review, $request->user(), $decision, $reason);
@@ -195,7 +195,7 @@ class ReviewController extends Controller
         // éligible ET mal formé doit rendre 403, pas 422. Le 422 ci-dessous reste ici — « déjà
         // noté » n'est pas un refus d'accès mais un état métier.
         $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
-        abort_if($alreadyReviewed, 422, 'You have already reviewed this property.');
+        abort_code_if($alreadyReviewed, 422, 'review.property_already_reviewed');
 
         $data = $request->validated();
 
@@ -225,7 +225,7 @@ class ReviewController extends Controller
             || ($user->agency_id && $reviewable && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
         abort_unless($ok, 403);
 
-        abort_if($review->reply_content === null, 404, 'Review has no reply to delete.');
+        abort_code_if($review->reply_content === null, 404, 'review.no_reply');
 
         $review->update([
             'reply_content' => null,
@@ -247,10 +247,10 @@ class ReviewController extends Controller
         // Rejected is a terminal state: no public-facing view, no reply.
         // Reply is not a ReviewStatus transition so assertTransition() does
         // not fit — just guard directly on the terminal state.
-        abort_if(
+        abort_code_if(
             ($review->status ?? ReviewStatus::Pending) === ReviewStatus::Rejected,
             422,
-            'Cannot reply to a rejected review.'
+            'review.reply_rejected'
         );
 
         $data = $request->validated();
@@ -301,7 +301,7 @@ class ReviewController extends Controller
 
         // TCK-305 — même raison que dans storeForProperty() ci-dessus.
         $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
-        abort_if($alreadyReviewed, 422, 'You have already reviewed this agency.');
+        abort_code_if($alreadyReviewed, 422, 'review.agency_already_reviewed');
 
         $data = $request->validated();
 

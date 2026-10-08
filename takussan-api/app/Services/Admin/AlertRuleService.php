@@ -53,7 +53,7 @@ class AlertRuleService
     {
         SendAdminAlert::dispatch($rule->id, [
             'title' => '[TEST] '.$rule->event,
-            'message' => '[TEST] '.$rule->event.' déclenché par test synthétique.',
+            'message' => __('notifications.admin_alert.test_message', ['event' => $rule->event]),
             'audit_url' => '/super-admin/audit?filter[event]='.$rule->event,
             'event' => $rule->event,
             'actor_id' => null,
@@ -75,7 +75,11 @@ class AlertRuleService
             ->each(function (AlertRule $rule) use ($activity, $event): void {
                 SendAdminAlert::dispatch($rule->id, [
                     'title' => $event,
-                    'message' => "{$event} actor_id={$activity->causer_id} subject_id={$activity->subject_id}",
+                    'message' => __('notifications.admin_alert.activity_message', [
+                        'event' => $event,
+                        'actor' => (string) $activity->causer_id,
+                        'subject' => (string) $activity->subject_id,
+                    ]),
                     'audit_url' => '/super-admin/audit?filter[event]='.$event,
                     'event' => $event,
                     'actor_id' => $activity->causer_id,

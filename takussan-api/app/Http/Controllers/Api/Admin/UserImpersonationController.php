@@ -34,7 +34,7 @@ class UserImpersonationController extends Controller
         $actor = $request->user();
 
         if ($actor->id === $user->id) {
-            return $this->json(['message' => 'You cannot impersonate yourself.'], 422);
+            abort_code(422, 'impersonation.self');
         }
 
         // Revoke any prior impersonation tokens for this target so repeated
@@ -73,12 +73,12 @@ class UserImpersonationController extends Controller
         $actor = $request->user();
         $userId = $request->integer('user_id');
         if ($userId <= 0) {
-            return $this->json(['message' => 'user_id is required.'], 422);
+            abort_code(422, 'impersonation.user_required');
         }
 
         $target = User::find($userId);
         if (! $target) {
-            return $this->json(['message' => 'Target user not found.'], 404);
+            abort_code(404, 'impersonation.target_not_found');
         }
 
         $revoked = PersonalAccessToken::query()
@@ -99,7 +99,7 @@ class UserImpersonationController extends Controller
             ->log('Super-admin impersonation stopped');
 
         return $this->json([
-            'message' => 'Impersonation stopped.',
+            'message' => __('messages.impersonation_stopped'),
             'revoked_count' => $revoked,
         ]);
     }

@@ -13,7 +13,6 @@ use App\Models\ReportExport;
 use App\Services\Export\ExportWriter;
 use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * TCK-227 — Cross-tenant reporting. All endpoints respond with the same
@@ -80,7 +79,7 @@ class ReportingController extends Controller
     public function export(ReportExportRequest $request, string $report): mixed
     {
         if (! in_array($report, ['growth', 'revenue', 'cohorts', 'funnel'], true)) {
-            throw new HttpException(404, "Unknown report '{$report}'.");
+            abort_code(404, 'reporting.report_unknown', ['report' => $report]);
         }
 
         $payload = match ($report) {
@@ -138,7 +137,7 @@ class ReportingController extends Controller
                 'data' => [
                     'export_id' => $export->id,
                     'status' => 'queued',
-                    'message' => 'Export en cours, vous recevrez un email lorsqu\'il sera prêt.',
+                    'message' => __('messages.report_export_queued'),
                 ],
             ], 202);
         }

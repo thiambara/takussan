@@ -31,7 +31,7 @@ class MaintenanceTerminalRequestTest extends TestCase
         $this->patchJson("/api/maintenance-requests/{$mr->id}", [
             'resolution_notes' => 'réécrit après clôture',
             'scheduled_at' => now()->addDay()->toIso8601String(),
-        ])->assertUnprocessable()->assertJsonPath('message', __('maintenance.errors.terminal_request'));
+        ])->assertUnprocessable()->assertJsonPath('code', 'maintenance.terminal_request');
 
         $mr->refresh();
         $this->assertSame('orig', $mr->resolution_notes);

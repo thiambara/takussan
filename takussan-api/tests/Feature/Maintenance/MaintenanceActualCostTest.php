@@ -58,7 +58,7 @@ class MaintenanceActualCostTest extends TestCase
         Sanctum::actingAs($agent);
         $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 750000])
             ->assertUnprocessable()
-            ->assertJsonPath('message', __('maintenance.errors.actual_cost_needs_owner'));
+            ->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
         $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['actual_cost' => 750000])->assertUnprocessable();
         $this->assertNull($mr->refresh()->actual_cost);
         $this->assertSame(MaintenanceStatus::InProgress, $mr->status);

@@ -46,7 +46,7 @@ class MaintenanceQuoteWorkflowTest extends TestCase
         ]);
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage(__('maintenance.errors.transition_not_allowed', ['from' => 'in_progress', 'to' => 'quote_requested']));
+        $this->expectExceptionMessage('maintenance.status_transition_invalid');
 
         $this->workflow->requestQuote($mr);
     }

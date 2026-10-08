@@ -102,7 +102,7 @@ trait HasPaymentAttributes
                 $refund = (float) ($payment->getAttributes()['refund_amount'] ?? 0);
                 $amount = (float) ($payment->getAttributes()['amount'] ?? 0);
                 if ($refund < 0 || $refund > $amount) {
-                    abort(422, 'Refund amount must be between 0 and the payment amount.');
+                    abort_code(422, 'payment.refund_amount_invalid');
                 }
             }
 
@@ -112,7 +112,7 @@ trait HasPaymentAttributes
                 if (is_array($metadata) && array_key_exists('paid_amount', $metadata)) {
                     $metaPaid = $metadata['paid_amount'];
                     if (! is_numeric($metaPaid) || (float) $metaPaid < 0) {
-                        abort(422, 'metadata.paid_amount must be a non-negative number.');
+                        abort_code(422, 'payment.paid_amount_invalid');
                     }
                 }
             }
@@ -141,11 +141,10 @@ trait HasPaymentAttributes
             $allowed = $matrix[$originalEnum->value] ?? [];
 
             if (! in_array($newEnum, $allowed, true)) {
-                abort(422, sprintf(
-                    'Invalid payment status transition: %s → %s.',
-                    $originalEnum->value,
-                    $newEnum->value,
-                ));
+                abort_code(422, 'payment.status_transition_invalid', [
+                    'from' => $originalEnum->value,
+                    'to' => $newEnum->value,
+                ]);
             }
         });
     }

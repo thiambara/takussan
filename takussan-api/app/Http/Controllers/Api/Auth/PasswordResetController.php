@@ -18,7 +18,7 @@ class PasswordResetController extends Controller
 
         Password::sendResetLink($request->only('email'));
 
-        return $this->json(['message' => 'If an account with that email exists, a password reset link has been sent.']);
+        return $this->json(['message' => __('messages.password_reset_link_sent')]);
     }
 
     public function resetPassword(ResetPasswordPasswordResetRequest $request): JsonResponse

@@ -170,7 +170,7 @@ class GroupConversationService
             ->wherePivotNull('left_at')
             ->first();
 
-        abort_if(! $pivot, 404, 'Participant not in conversation.');
+        abort_code_if(! $pivot, 404, 'conversation.participant_not_found');
 
         $isSelf = $actor->id === $target->id;
 
@@ -210,7 +210,7 @@ class GroupConversationService
             ->wherePivotNull('left_at')
             ->first();
 
-        abort_if(! $pivot, 404, 'Participant not in conversation.');
+        abort_code_if(! $pivot, 404, 'conversation.participant_not_found');
 
         $current = $pivot->pivot->role instanceof ParticipantRole
             ? $pivot->pivot->role->value

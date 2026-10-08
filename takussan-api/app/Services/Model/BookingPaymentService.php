@@ -43,16 +43,16 @@ class BookingPaymentService
      */
     public function refund(BookingPayment $payment, array $data): BookingPayment
     {
-        abort_unless(
+        abort_code_unless(
             $payment->status === PaymentStatus::Paid,
             422,
-            'Only paid payments can be refunded.'
+            'booking_payment.refund_unpaid'
         );
 
-        abort_if(
+        abort_code_if(
             (float) $data['refund_amount'] > (float) $payment->amount,
             422,
-            'Refund amount cannot exceed the paid amount.'
+            'booking_payment.refund_exceeds_paid'
         );
 
         $payment->update([

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
@@ -29,28 +30,26 @@ class BookingController extends Controller
         $user = $request->user();
 
         // Check minimum role requirement: agency_admin or super_admin
-        abort_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403, 'Insufficient privileges.');
+        abort_code_unless($user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)), 403, 'auth.insufficient_privileges');
 
         // Agency admins can only expire bookings from the agency they are
         // *currently* acting under. A multi-agency admin must explicitly
         // switch profile to expire bookings from a different tenant.
         if (! $user->isSuperAdmin()) {
-            abort_unless(
+            abort_code_unless(
                 $booking->agency_id !== null
                     && $request->activeProfile()?->agency_id === $booking->agency_id,
                 403,
-                'Booking does not belong to your active agency.',
+                'booking.not_in_active_agency',
             );
         }
 
         // Check if booking can be expired
         if (! $this->expirationService->canBeExpired($booking)) {
-            return $this->json([
-                'message' => 'Booking cannot be expired.',
-                'reason' => 'Booking status must be pending and not already expired.',
+            throw (new ApiError(422, 'booking.cannot_expire'))->with([
                 'current_status' => $booking->status->value,
                 'expired_at' => $booking->expired_at?->toIso8601String(),
-            ], 422);
+            ]);
         }
 
         // Perform the expiration. Returns false if the booking raced to a
@@ -58,15 +57,13 @@ class BookingController extends Controller
         $expired = $this->expirationService->expireBookingManually($booking, $user->id);
 
         if (! $expired) {
-            return $this->json([
-                'message' => 'Booking cannot be expired.',
-                'reason' => 'Booking status changed before expiration could be applied.',
+            throw (new ApiError(422, 'booking.expire_race'))->with([
                 'current_status' => $booking->fresh()->status->value,
-            ], 422);
+            ]);
         }
 
         return $this->json([
-            'message' => 'Booking has been manually expired.',
+            'message' => __('messages.booking_expired_manually'),
             'data' => BookingResource::make($booking->fresh())->toArray($request),
         ]);
     }

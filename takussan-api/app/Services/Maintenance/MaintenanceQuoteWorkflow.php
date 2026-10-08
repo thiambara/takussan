@@ -36,10 +36,10 @@ class MaintenanceQuoteWorkflow
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, $to),
             422,
-            __('maintenance.errors.transition_not_allowed', ['from' => $current->value, 'to' => $to->value]),
+            'maintenance.status_transition_invalid', ['from' => $current->value, 'to' => $to->value],
         );
 
         return $current;
@@ -212,10 +212,10 @@ class MaintenanceQuoteWorkflow
 
     private function assertNotExpired(MaintenanceRequest $mr): void
     {
-        abort_if(
+        abort_code_if(
             $mr->quote_valid_until !== null && $mr->quote_valid_until->endOfDay()->isPast(),
             422,
-            __('maintenance.errors.quote_expired'),
+            'maintenance.quote_expired',
         );
     }
 

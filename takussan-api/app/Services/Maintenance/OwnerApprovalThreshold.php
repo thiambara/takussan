@@ -61,6 +61,6 @@ class OwnerApprovalThreshold
             && $this->isLandlord($mr, (int) $mr->quote_decision_by_id)
             && bccomp((string) $amount, (string) $mr->quote_amount, 2) <= 0;
 
-        abort_unless($agreedByOwner, 422, __('maintenance.errors.actual_cost_needs_owner'));
+        abort_code_unless($agreedByOwner, 422, 'maintenance.actual_cost_needs_owner');
     }
 }

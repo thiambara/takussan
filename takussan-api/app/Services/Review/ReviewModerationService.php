@@ -50,7 +50,7 @@ class ReviewModerationService
             'reject', 'hide' => ['review' => $this->reject($review, $actor, $reason), 'deleted' => false],
             'delete', 'remove' => $this->remove($review, $actor, $reason),
             'ignore' => ['review' => $this->ignore($review, $actor, $reason), 'deleted' => false],
-            default => abort(422, 'Unsupported review moderation decision.'),
+            default => abort_code(422, 'review.moderation_decision_invalid'),
         };
     }
 
@@ -99,10 +99,11 @@ class ReviewModerationService
     private function assertTransition(Review $review, ReviewStatus $target): void
     {
         $current = $review->status ?? ReviewStatus::Pending;
-        abort_unless(
+        abort_code_unless(
             $current->canTransitionTo($target),
             422,
-            "Cannot transition review from {$current->value} to {$target->value}."
+            'review.status_transition_invalid',
+            ['from' => $current->value, 'to' => $target->value]
         );
     }
 }

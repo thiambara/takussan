@@ -18,6 +18,7 @@ class UserObserver
     public function created(User $user): void
     {
         $now = now();
+        $resolver = app(PreferenceResolver::class);
         $rows = [];
         foreach (PreferenceResolver::EVENTS as $event) {
             foreach (PreferenceResolver::CHANNELS as $channel) {
@@ -28,7 +29,9 @@ class UserObserver
                     'user_id' => $user->id,
                     'event_type' => $event,
                     'channel' => $channel,
-                    'enabled' => PreferenceResolver::DEFAULTS[$channel] ?? false,
+                    // TCK-588 — les défauts mobiles par événement ; les lire dans DEFAULTS
+                    // matérialisait un « non » que l'utilisateur n'avait jamais dit.
+                    'enabled' => $resolver->defaultFor($event, $channel),
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
