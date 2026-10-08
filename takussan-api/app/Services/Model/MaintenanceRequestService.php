@@ -115,6 +115,10 @@ class MaintenanceRequestService
             return $mr;
         }
 
+        // verif-592 passe 2 (N6) — `completed` n'est pas terminal, mais le travail est rendu :
+        // réassigner créditait le nouveau prestataire du travail de l'ancien à la confirmation.
+        abort_code_if($mr->status === MaintenanceStatus::Completed, 422, 'maintenance.reassign_after_completion');
+
         $from = $mr->status ?? MaintenanceStatus::Open;
 
         $mr->assigned_to = $assignee?->id;

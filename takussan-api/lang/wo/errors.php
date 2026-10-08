@@ -218,6 +218,7 @@ return [
         'in_progress' => 'Maintenance mi ngi dox. Jéemaatal ci kanam.',
         'photos_closed' => 'Mënuñu yokk nataal ci laaj bu ñu tëj walla neenal.',
         'quote_expired' => 'Devis bii amatul solo : bisu jeexitalam wees na.',
+        'reassign_after_completion' => 'Liggéey bi jeex na : liggéey bi kenn du ko jotaat.',
         'status_transition_invalid' => 'Soppi statut intervention bii nangouñu ko.',
         'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal, kenn mënatu koo soppi.',
     ],

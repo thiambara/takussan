@@ -81,7 +81,31 @@ class MaintenanceTerminalRequestTest extends TestCase
         ], ['Accept' => 'application/json']);
     }
 
-    /** Sonde v01.
+    /**
+     * Passe 2 (N6, sonde p07) — réassigner une demande `completed` rendait 200 : B devenait le
+     * prestataire d'un travail rendu par A, crédité à la confirmation (ce que lit TCK-594).
+     */
+    public function test_a_completed_request_is_neither_reassigned_nor_unassigned(): void
+    {
+        ['mr' => $mr, 'provider' => $a, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::Completed, ['accepted_at' => now(), 'completed_at' => now(), 'actual_cost' => 30000]);
+        $b = $this->providerFor($agency);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $b->id])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.reassign_after_completion');
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => null])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.reassign_after_completion');
+
+        $mr->refresh();
+        $this->assertSame($a->id, $mr->assigned_to);
+        $this->assertSame(MaintenanceStatus::Completed, $mr->status);
+        $this->assertSame('30000.00', (string) $mr->actual_cost);
+
+        // Le même prestataire renvoyé avec le formulaire n'est pas une réassignation.
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $a->id])->assertOk();
+    }
+
+    /** Sonde v01. */
     public function test_the_provider_cannot_rewrite_a_closed_request(): void
     {
         ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Closed, ['accepted_at' => now(), 'resolution_notes' => 'orig']);

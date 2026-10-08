@@ -218,6 +218,7 @@ return [
         'in_progress' => 'Maintenance en cours. Réessayez dans quelques instants.',
         'photos_closed' => 'Impossible d\'ajouter des photos à une demande clôturée ou annulée.',
         'quote_expired' => 'Ce devis n\'est plus valable : sa date de validité est passée.',
+        'reassign_after_completion' => 'Les travaux sont terminés : l\'intervention ne se réassigne plus.',
         'status_transition_invalid' => 'Ce changement de statut de l\'intervention n\'est pas autorisé.',
         'terminal_request' => 'Une demande clôturée ou annulée ne se modifie plus.',
     ],
