@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 33 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 32 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 510 |
@@ -64,12 +64,12 @@
 - [TCK-599](tickets/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md) — Une alerte de recherche qu'on règle, qui liste les bons biens et marche sans compte ; des favoris qui ne servent plus un bien redevenu privé et préviennent quand il baisse ou disparaît `XL · P1 · full`
 - [TCK-600](tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md) — Console plateforme : la suspension d'agence ne suspend rien, l'impersonation n'impersonne pas, un compte bloqué se reconnecte, tout opérateur est super-admin, et paramètres, drapeaux, santé et alertes ne pilotent ni ne mesurent rien `XL · P0 · full`
 - [TCK-601](tickets/TCK-601-donnees-personnelles-audit-kyc.md) — Données personnelles et audit : RIB et pièces en clair, journal d'agence qui montre les actes d'une autre agence et cache ceux des admins, consultations non tracées, aucun registre des demandes de droits `XL · P1 · full`
-- [TCK-602](tickets/TCK-602-paiement-sans-compte-journal-webhooks.md) — Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable `XL · P1 · full`
 - [TCK-603](tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md) — Changer l'agent responsable sans déposséder le bailleur : bulk-assign, réattribution unitaire, réparation des biens réattribués, biens du partant à la passation (complément de TCK-591, après TCK-504) `L · P1 · full`
 
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-602](tickets/TCK-602-paiement-sans-compte-journal-webhooks.md) — Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable `XL · P1 · full`
 
 ## 👀 Review
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-602
 title: "Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: [TCK-293, TCK-593]
 blocks: []
 spec_refs:
@@ -711,4 +711,35 @@ explicitement.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure sur `0e3c9027` (2026-10-08, avant code)
+
+293, 593, 594 et 588 ont réécrit le paiement depuis `e3ab4a4e`. Constat par constat :
+
+- **§1 « aucun payeur ne voit le bouton »** — *partiellement fermé par TCK-593* :
+  `usePaymentProviders.ts` rend désormais `undefined` sur 403, et le bouton apparaît au locataire
+  avec **tous** les fournisseurs compatibles avec la devise, y compris ceux que son agence n'a pas
+  (l'initiation rend alors 404 `payment.integration_missing`). Le front lit toujours
+  `GET /api/integrations` : AC22/AC24 restent à faire.
+- **§1 chemin sans compte, notification au passage `paid`** : inchangés (routes sous
+  `auth:sanctum`, aucune notification dans `applyStatusToPayment`).
+- **§1 quittance** : *fermé par TCK-593* (`DocumentPdfController::receipt` rend 422
+  `lease_payment.receipt_unpaid`).
+- **§1 corps du fournisseur renvoyé au client** : *fermé par TCK-588* — les pilotes écrivent
+  `abort_code(502, 'payment.provider_failed')` et journalisent le corps. **Reste ouvert** : le nom de
+  la clé manquante sort dans `params.credential` du 500 `payment.integration_credential_missing`.
+- **§2 Free Money** : inchangé ; `grep -rniE "free_?money" docs` ne trouve que le mode de versement
+  de TCK-594 (`models-spec` §PayoutMethod, ADR-0039) — aucune documentation marchande.
+- **§3 Orange Money** : inchangé (le pilote lit `access_token`, absent du schéma). Le formulaire
+  d'agence écrit toujours `api_key`/`api_secret`/`webhook_url` (`lib/schemas/setting.ts:241-246`), et
+  `IntegrationController::update` remplace `credentials` en entier (`fill($data)`).
+- **§4 journal** : inchangé — `recordWebhook` après `handleWebhook`, `whereNull('agency_id')`,
+  troncature à 4000, purge à la lecture et sur le chemin du webhook. 293 a fixé l'intégration qui
+  valide (`$integration` dans `PaymentWebhookController`, `PaymentEvent::$authority`).
+- **§4 `recordInitiation`** : réécrit tout `metadata.gateway` ; `last_failed_at` est perdu à la
+  ré-initiation (relu l. 546-594).
+- **§5 liens de partage** : jeton UUID en clair, aucune limite de débit, aucun compteur de mot de
+  passe. TCK-587 a ajouté les variantes `POST` (mot de passe dans le corps) : la limite de débit
+  s'applique aussi à elles.
+- **Patron des notifications** : depuis TCK-588, une notification est un `NotificationCode` envoyé
+  par `NotificationService::send()` (clés `lang/*/notifications.php`), et un contact sans compte
+  passe par `ContactSansCompte`. La quittance suit ce patron, pas une classe `app/Notifications/`.
