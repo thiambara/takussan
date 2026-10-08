@@ -25,6 +25,7 @@ import {
   BookmarkCheck,
   ClipboardList,
   ClipboardCheck,
+  Inbox,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -38,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
+import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 
 /**
  * Une entrée porte une CLÉ de libellé, pas un libellé.
@@ -89,7 +91,7 @@ export const SECTION_LABEL_KEYS: Record<NavSection, string | null> = {
 };
 
 /** Clé du compteur porté par une entrée. Le rendu la résout, la donnée ne connaît aucun nombre. */
-export type NavCounterKey = 'unreadMessages' | 'pendingVisits';
+export type NavCounterKey = 'unreadMessages' | 'pendingVisits' | 'unhandledLeads';
 
 export interface NavItem {
   href: string;
@@ -318,6 +320,12 @@ export function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/bookings', labelKey: isCustomerOnly(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'requests' });
     // TCK-075 visits — customers see their requests, agents see what to manage.
     items.push({ href: '/app/visits', labelKey: isCustomerOnly(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'requests', counterKey: 'pendingVisits' });
+  }
+  // TCK-590 — la boîte « Demandes » : les messages laissés sur le site public, avec le nombre de
+  // non traitées. Même audience que l'agenda : le bailleur est destinataire des demandes de ses
+  // biens quand aucun agent n'en est le contact.
+  if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
+    items.push({ href: '/app/leads', labelKey: 'leads', icon: Inbox, section: 'requests', counterKey: 'unhandledLeads' });
   }
   // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
   if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
@@ -553,12 +561,14 @@ export function AppSidebar({
   const counted = countersToPoll(navItems);
   const unreadMessages = useUnreadCount({ enabled: counted.has('unreadMessages') });
   const pendingVisits = usePendingVisitsCount({ enabled: counted.has('pendingVisits') });
+  const unhandledLeads = useUnhandledLeadsCount({ enabled: counted.has('unhandledLeads') });
   // Une requête en échec rend `data === undefined` : le compteur vaut 0, et 0 ne s'affiche pas.
   // C'est la même branche que « rien en attente » — délibérément : le menu n'est pas l'endroit
   // où l'on apprend qu'un endpoint est tombé.
   const counters: Record<NavCounterKey, number> = {
     unreadMessages,
     pendingVisits: pendingVisits.data?.meta.total ?? 0,
+    unhandledLeads: unhandledLeads.data?.meta?.total ?? 0,
   };
 
   const activeHref = resolveActiveHref(

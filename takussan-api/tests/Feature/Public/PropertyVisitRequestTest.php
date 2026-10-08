@@ -19,7 +19,7 @@ class PropertyVisitRequestTest extends TestCase
         $property = Property::factory()->published()->create();
 
         $response = $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
-            'scheduled_at' => now()->addDays(2)->toIso8601String(),
+            'scheduled_at' => now()->addDays(2)->setTime(10, 0)->toIso8601String(),
             'visitor_name' => 'Awa Ndiaye',
             'visitor_email' => 'awa@example.com',
             'visitor_phone' => '+221770000000',
@@ -46,7 +46,7 @@ class PropertyVisitRequestTest extends TestCase
         Sanctum::actingAs($user);
 
         $response = $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
-            'scheduled_at' => now()->addDays(3)->toIso8601String(),
+            'scheduled_at' => now()->addDays(3)->setTime(10, 0)->toIso8601String(),
             'duration_minutes' => 45,
         ]);
 
@@ -75,7 +75,7 @@ class PropertyVisitRequestTest extends TestCase
         $response = $this->postJson(
             "/api/public/properties/{$property->slug}/visit-request",
             [
-                'scheduled_at' => now()->addDays(2)->toIso8601String(),
+                'scheduled_at' => now()->addDays(2)->setTime(10, 0)->toIso8601String(),
                 'type' => VisitType::InPerson->value,
             ],
             ['Authorization' => "Bearer {$token}"],
@@ -94,7 +94,7 @@ class PropertyVisitRequestTest extends TestCase
         $property = Property::factory()->published()->create();
 
         $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
-            'scheduled_at' => now()->addDays(1)->toIso8601String(),
+            'scheduled_at' => now()->addDays(1)->setTime(10, 0)->toIso8601String(),
         ])->assertUnprocessable();
     }
 
@@ -121,16 +121,19 @@ class PropertyVisitRequestTest extends TestCase
         $tokenA = $userA->createToken('test-visit')->plainTextToken;
         $tokenB = $userB->createToken('test-visit')->plainTextToken;
         $payload = [
-            'scheduled_at' => now()->addDays(2)->toIso8601String(),
+            'scheduled_at' => now()->addDays(2)->setTime(10, 0)->toIso8601String(),
             'type' => VisitType::InPerson->value,
         ];
 
+        // TCK-590 — la demande publique compte désormais le quota de 3 visites actives PAR BIEN :
+        // les dix demandes de A portent donc sur dix biens, pour n'éprouver que le limiteur.
         for ($i = 0; $i < 10; $i++) {
+            $autre = Property::factory()->published()->create();
             $this->withHeaders([
                 'X-Forwarded-For' => '203.0.113.88',
                 'Authorization' => "Bearer {$tokenA}",
             ])
-                ->postJson("/api/public/properties/{$property->slug}/visit-request", $payload)
+                ->postJson("/api/public/properties/{$autre->slug}/visit-request", $payload)
                 ->assertCreated();
         }
         $this->withHeaders([
@@ -151,7 +154,7 @@ class PropertyVisitRequestTest extends TestCase
     public function test_unknown_slug_returns_404(): void
     {
         $this->postJson('/api/public/properties/unknown-slug/visit-request', [
-            'scheduled_at' => now()->addDay()->toIso8601String(),
+            'scheduled_at' => now()->addDay()->setTime(10, 0)->toIso8601String(),
         ])->assertNotFound();
     }
 }

@@ -7,6 +7,8 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -36,6 +38,86 @@ class VisitSchedulingService
     ];
 
     /**
+     * TCK-590 (contrainte 6) — l'heure d'une visite se construit à Dakar, côté front comme côté
+     * serveur. Le serveur est en UTC (`config/app.php`) et Dakar est à UTC+0 sans heure d'été :
+     * les deux coïncident aujourd'hui, et c'est précisément ce qui cachait le défaut du front.
+     */
+    public const TIMEZONE = 'Africa/Dakar';
+
+    /** La grille des créneaux proposés : premier départ, dernier départ, pas (minutes). */
+    public const GRID_FIRST = '09:00';
+
+    public const GRID_LAST = '18:30';
+
+    public const GRID_STEP_MINUTES = 30;
+
+    /** Délai minimal entre maintenant et un créneau proposé. */
+    public const SLOT_LEAD_MINUTES = 30;
+
+    /**
+     * L'instant tombe-t-il sur un départ de la grille, à Dakar ?
+     */
+    public static function estSurLaGrille(CarbonInterface $instant): bool
+    {
+        $local = CarbonImmutable::instance($instant)->setTimezone(self::TIMEZONE);
+        $hhmm = $local->format('H:i');
+
+        return $local->second === 0
+            && $local->minute % self::GRID_STEP_MINUTES === 0
+            && $hhmm >= self::GRID_FIRST
+            && $hhmm <= self::GRID_LAST;
+    }
+
+    /**
+     * TCK-590 — les créneaux d'une journée, à Dakar, avec leur disponibilité.
+     *
+     * Un créneau est indisponible s'il part dans moins de {@see self::SLOT_LEAD_MINUTES} minutes,
+     * ou s'il chevauche une visite CONFIRMÉE du bien — ou de l'agent pressenti, qui ne visite pas
+     * deux biens à la fois. Rien n'est rendu sur les visites qui l'occupent : ni qui, ni pourquoi.
+     *
+     * @return list<array{start: string, label: string, available: bool}>
+     */
+    public function availableSlots(Property $property, CarbonImmutable $date, ?User $agent = null): array
+    {
+        $day = $date->setTimezone(self::TIMEZONE)->startOfDay();
+        $first = $day->setTimeFromTimeString(self::GRID_FIRST);
+        $last = $day->setTimeFromTimeString(self::GRID_LAST);
+        $earliest = CarbonImmutable::now()->addMinutes(self::SLOT_LEAD_MINUTES);
+
+        $busy = PropertyVisit::query()
+            ->where('status', VisitStatus::Confirmed)
+            ->whereNotNull('scheduled_at')
+            ->where(function ($q) use ($property, $agent) {
+                $q->where('property_id', $property->id);
+                if ($agent !== null) {
+                    $q->orWhere('agent_id', $agent->id);
+                }
+            })
+            // Une visite confirmée de la veille au soir ne déborde pas sur 09:00 ; on borne
+            // large (fenêtre de la journée ± 1 jour) plutôt que de calculer la durée en SQL.
+            ->whereBetween('scheduled_at', [$first->subDay()->utc(), $last->addDay()->utc()])
+            ->get(['scheduled_at', 'duration_minutes'])
+            ->map(fn (PropertyVisit $v) => [
+                CarbonImmutable::instance($v->scheduled_at),
+                CarbonImmutable::instance($v->scheduled_at)->addMinutes($v->duration_minutes ?? self::DEFAULT_DURATION_MINUTES),
+            ]);
+
+        $slots = [];
+        for ($start = $first; $start->lte($last); $start = $start->addMinutes(self::GRID_STEP_MINUTES)) {
+            $end = $start->addMinutes(self::DEFAULT_DURATION_MINUTES);
+            $taken = $busy->contains(fn (array $b) => $start->lt($b[1]) && $end->gt($b[0]));
+
+            $slots[] = [
+                'start' => $start->utc()->format('Y-m-d\TH:i:s\Z'),
+                'label' => $start->format('H:i'),
+                'available' => ! $taken && $start->gte($earliest),
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
      * Abort with 422 if confirming `$visit` would overlap another
      * confirmed visit on the same property. Accepts optional override
      * values for reschedule scenarios (update endpoint).
@@ -59,7 +141,9 @@ class VisitSchedulingService
 
         $query = PropertyVisit::query()
             ->where('property_id', $visit->property_id)
-            ->where('id', '!=', $visit->id)
+            // TCK-590 — une visite pas encore enregistrée (planification console) n'a pas d'id :
+            // `id != NULL` ne vaut jamais vrai en SQL, et aurait écarté toutes les candidates.
+            ->when($visit->exists, fn ($q) => $q->where('id', '!=', $visit->id))
             ->where('status', VisitStatus::Confirmed)
             ->whereNotNull('scheduled_at');
 
@@ -199,6 +283,52 @@ class VisitSchedulingService
             );
 
             return PropertyVisit::create($attributes);
+        });
+    }
+
+    /**
+     * TCK-590 — la planification par le personnel : la visite naît CONFIRMÉE, donc le garde de
+     * chevauchement court avant l'insertion, sous le même verrou de bien que le quota.
+     *
+     * @param  array<string,mixed>  $attributes
+     */
+    public function createConfirmedOrFail(Property $property, ?User $visitor, array $attributes): PropertyVisit
+    {
+        return DB::transaction(function () use ($property, $visitor, $attributes) {
+            $this->assertQuota($property, $visitor, $attributes['customer_id'] ?? null, lockForUpdate: true);
+
+            $candidate = new PropertyVisit($attributes);
+            $candidate->property_id = $property->id;
+            $this->assertNoOverlap($candidate, lockForUpdate: true);
+
+            return PropertyVisit::create(array_merge($attributes, ['status' => VisitStatus::Confirmed]));
+        });
+    }
+
+    /**
+     * TCK-590 — le visiteur propose un autre créneau : nouvelle heure, et la visite REPASSE en
+     * attente de confirmation (`scheduled`), même si elle était confirmée. Le créneau ne doit
+     * chevaucher aucune visite confirmée du bien.
+     */
+    public function rescheduleOrFail(PropertyVisit $visit, CarbonInterface $scheduledAt): PropertyVisit
+    {
+        return DB::transaction(function () use ($visit, $scheduledAt) {
+            $fresh = PropertyVisit::query()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
+
+            abort_code_unless(
+                in_array($fresh->status, self::ACTIVE_STATUSES, true),
+                422,
+                'visit.reschedule_inactive',
+            );
+
+            $this->assertNoOverlap($fresh, Carbon::instance($scheduledAt), lockForUpdate: true);
+
+            $fresh->update([
+                'scheduled_at' => $scheduledAt,
+                'status' => VisitStatus::Scheduled,
+            ]);
+
+            return $fresh;
         });
     }
 }

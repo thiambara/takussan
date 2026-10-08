@@ -19,6 +19,8 @@ const mutation = {
 };
 const cancelMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const updateMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+const claimMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+const proposeMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const push = vi.fn();
 
 vi.mock('@/context/AuthContext', () => ({
@@ -47,6 +49,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useCompleteVisit: () => mutation,
   useConfirmVisit: () => mutation,
   useUpdateVisit: () => updateMutation,
+  useClaimVisit: () => claimMutation,
+  useProposeVisitSlot: () => proposeMutation,
 }));
 
 function renderDetail() {
@@ -212,8 +216,9 @@ describe('<VisitDetail>', () => {
     await user.type(field, '2026-06-01T14:30');
     await user.click(screen.getByRole('button', { name: /enregistrer le créneau/i }));
 
+    // TCK-590 — le champ se lit à l'heure de Dakar (UTC+0), plus dans le fuseau du navigateur.
     expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
-      scheduled_at: new Date('2026-06-01T14:30').toISOString(),
+      scheduled_at: '2026-06-01T14:30:00Z',
     });
   });
 });

@@ -3,6 +3,7 @@
 namespace App\Notifications\Channels;
 
 use App\Models\User;
+use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -67,7 +68,11 @@ class SmsChannel
         if (! $isCritical && ! $this->isOptedIn($notifiable, $notification)) {
             return null;
         }
-        if (! $this->withinRateLimit($notifiable, $isCritical, $phone)) {
+        // TCK-590 — un SMS déjà borné au point d'envoi (par numéro et émetteur, par numéro, par
+        // acteur : `VisitNotifier`) n'est pas recompté ici. Compté deux fois, la limite horaire
+        // générique par numéro rouvrirait le déni de service que la borne par émetteur ferme.
+        $dejaBorne = $notification instanceof CodedNotification && $notification->mobileDejaBorne();
+        if (! $dejaBorne && ! $this->withinRateLimit($notifiable, $isCritical, $phone)) {
             return null;
         }
 

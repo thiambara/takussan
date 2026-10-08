@@ -8,6 +8,7 @@ import type {
   VisitStatus,
   VisitType,
 } from '@/types/visit';
+import type { SortDuSms } from '@/lib/visites/sort-du-sms';
 
 /**
  * TCK-075 — React Query hooks for `/api/property-visits`.
@@ -56,6 +57,8 @@ export type UseVisitsParams = {
   page?: number;
   per_page?: number;
   sort?: string;
+  /** TCK-590 — les visites qu'aucun agent n'a encore prises en charge (`filter[unassigned]`). */
+  unassigned?: boolean;
 };
 
 export const visitsQueryKeys = {
@@ -111,6 +114,7 @@ export function useVisits(params: UseVisitsParams = {}) {
     page,
     per_page,
     sort,
+    unassigned,
   } = params;
 
   const spatieParams: SpatieQueryParams = {
@@ -128,6 +132,7 @@ export function useVisits(params: UseVisitsParams = {}) {
       ...(property_id ? { property_id: String(property_id) } : {}),
       ...(scheduled_at_min ? { scheduled_at_min } : {}),
       ...(scheduled_at_max ? { scheduled_at_max } : {}),
+      ...(unassigned ? { unassigned: '1' } : {}),
     },
     include: ['property', 'agent', 'visitor'],
     sort: [sort ?? 'scheduled_at'],
@@ -163,8 +168,14 @@ export function useVisit(id: number | null | undefined) {
   );
 }
 
+/**
+ * TCK-590 (passe 3, R1) — les actions de l'agence qui préviennent le visiteur rendent aussi le
+ * sort du SMS ({@link SortDuSms}).
+ */
+export type VisitActionResponse = ApiResponse<PropertyVisit> & SortDuSms;
+
 export function useConfirmVisit(id: number) {
-  return useApiMutation<ApiResponse<PropertyVisit>, void>(
+  return useApiMutation<VisitActionResponse, void>(
     { path: `/api/property-visits/${id}/confirm`, method: 'POST' },
     {
       invalidate: [
@@ -191,7 +202,7 @@ export function useCompleteVisit(id: number) {
 }
 
 export function useCancelVisit(id: number) {
-  return useApiMutation<ApiResponse<PropertyVisit>, { reason?: string }>(
+  return useApiMutation<VisitActionResponse, { reason?: string }>(
     { path: `/api/property-visits/${id}/cancel`, method: 'POST' },
     {
       invalidate: [
@@ -204,7 +215,7 @@ export function useCancelVisit(id: number) {
 
 export function useUpdateVisit(id: number) {
   return useApiMutation<
-    ApiResponse<PropertyVisit>,
+    VisitActionResponse,
     { scheduled_at?: string; duration_minutes?: number; notes?: string }
   >(
     { path: `/api/property-visits/${id}`, method: 'PATCH' },
@@ -226,5 +237,56 @@ export function useSubmitVisitFeedback(id: number) {
         ['visits', 'detail', id],
       ],
     },
+  );
+}
+
+/**
+ * TCK-590 — « Prendre en charge » : l'appelant, personnel de l'agence du bien, devient l'agent de
+ * la visite. 409 si un collègue l'a déjà prise (sauf `crm.assign`).
+ */
+export function useClaimVisit(id: number) {
+  return useApiMutation<ApiResponse<PropertyVisit>, void>(
+    { path: `/api/property-visits/${id}/claim`, method: 'POST', body: () => ({}) },
+    {
+      invalidate: [
+        ['visits', 'list'],
+        ['visits', 'detail', id],
+      ],
+    },
+  );
+}
+
+/**
+ * TCK-590 — le VISITEUR propose un autre créneau : la visite repasse en attente de confirmation
+ * et l'agence est prévenue. L'heure est construite à Dakar par l'appelant.
+ */
+export function useProposeVisitSlot(id: number) {
+  return useApiMutation<ApiResponse<PropertyVisit>, { scheduled_at: string }>(
+    { path: `/api/property-visits/${id}/reschedule`, method: 'POST' },
+    {
+      invalidate: [
+        ['visits', 'list'],
+        ['visits', 'detail', id],
+      ],
+    },
+  );
+}
+
+/**
+ * TCK-590 — le personnel planifie une visite pour un client (ou un prospect : nom + téléphone).
+ * Elle naît confirmée, et le client est prévenu.
+ */
+export interface PlanVisitPayload {
+  property_id: number;
+  scheduled_at: string;
+  customer_id?: number;
+  visitor_name?: string;
+  visitor_phone?: string;
+}
+
+export function usePlanVisit() {
+  return useApiMutation<VisitActionResponse, PlanVisitPayload>(
+    { path: '/api/property-visits', method: 'POST' },
+    { invalidate: [['visits'], ['calendar']] },
   );
 }
