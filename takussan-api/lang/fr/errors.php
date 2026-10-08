@@ -476,4 +476,8 @@ return [
     'wizard_draft' => [
         'not_found' => 'Aucun brouillon.',
     ],
+    'webhook_log' => [
+        'not_replayable' => 'Cette ligne du journal ne se rejoue pas : seul un webhook authentifié, en échec ou non apparié, au corps conservé, peut l\'être.',
+        'integration_unavailable' => 'L\'intégration qui avait validé ce webhook n\'est plus active : il ne peut pas être rejoué.',
+    ],
 ];

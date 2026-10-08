@@ -30,6 +30,7 @@ use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
+use App\Services\Webhooks\WebhookJournal;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -242,7 +243,13 @@ class PaymentGatewayService
             ->handleWebhook($request)
             ->authenticatedBy(WebhookAuthority::of($integration));
 
-        $this->applyEventToMatchingPayment($event);
+        // TCK-602 (ADR-0051 §4) — la signature a passé : le journal le sait, et se rattache à
+        // l'intégration QUI l'a validée (ADR-0046), plus à l'intégration globale du fournisseur.
+        $journal = app(WebhookJournal::class);
+        $journal->authenticated($integration);
+        $journal->annotate(['external_id' => $event->transactionId, 'event_type' => $event->type]);
+
+        $journal->annotate(['matched_count' => $this->applyEventToMatchingPayment($event)]);
 
         return $event;
     }
@@ -306,17 +313,22 @@ class PaymentGatewayService
             authority: WebhookAuthority::platform($platform),
         );
 
-        $this->applyEventToMatchingPayment($event);
+        $journal = app(WebhookJournal::class);
+        $journal->annotate(['external_id' => $event->transactionId, 'event_type' => $event->type]);
+        $journal->annotate(['matched_count' => $this->applyEventToMatchingPayment($event)]);
 
         return $event;
     }
 
     /**
      * Apply an event to the matching local payment row (idempotent).
+     *
+     * TCK-602 (ADR-0051 §4) — rend le nombre de payables appariés : `0` est un « non apparié »,
+     * que le journal distingue d'un succès.
      */
-    public function applyEventToMatchingPayment(PaymentEvent $event): void
+    public function applyEventToMatchingPayment(PaymentEvent $event): int
     {
-        DB::transaction(function () use ($event): void {
+        return DB::transaction(function () use ($event): int {
             $candidates = $this->paymentsForEvent($event);
 
             // TCK-593 (V2) — un événement qui ne retrouve aucun payable est de l'argent peut-être
@@ -333,7 +345,7 @@ class PaymentGatewayService
                     'agency_id' => $event->authority?->agencyId,
                 ]);
 
-                return;
+                return 0;
             }
 
             foreach ($candidates as $payment) {
@@ -344,6 +356,8 @@ class PaymentGatewayService
                 $this->applyStatusToPayment($payment, $this->mapEventTypeToDriverStatus($event->type), $event->metadata, $event->transactionId);
                 $this->markAsProcessed($payment, $event);
             }
+
+            return count($candidates);
         });
     }
 
@@ -573,14 +587,17 @@ class PaymentGatewayService
                 // webhook à lui, et le rapprochement bancaire le cherche sur la ligne de relevé.
                 'gateway_expected_amount' => $amount,
                 'late_fee_included' => $lateFeeIncluded,
-                'gateway' => [
+                'gateway' => array_filter([
                     'provider' => $provider->value,
                     'transaction_id' => $session->transactionId,
                     'integration_id' => $integration?->id,
                     'checkout_url' => $session->checkoutUrl,
                     'initiated_at' => now()->toIso8601String(),
                     'transactions' => $transactions,
-                ],
+                    // TCK-602 — l'échec du checkout précédent survit à la nouvelle tentative : la
+                    // console des paiements le compte (`PaymentSupervisionService`).
+                    'last_failed_at' => $previous['last_failed_at'] ?? null,
+                ], fn ($value) => $value !== null),
             ]),
         ]);
 

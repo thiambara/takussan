@@ -79,7 +79,21 @@ class PaymentWebhookEndpointTest extends ApiTestCase
         $this->assertCount(1, array_unique($bodies), 'Le corps du 404 diffère : '.json_encode($bodies));
         $this->assertSame('webhook.endpoint_unknown', json_decode((string) reset($bodies), true)['code'] ?? null);
         $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
-        $this->assertSame(0, IntegrationWebhookLog::query()->count());
+        // TCK-602 (ADR-0051 §4) — chaque appel est journalisé AVANT tout traitement, et rejeté :
+        // aucune autorité, aucun rattachement, aucun jeton dans une colonne.
+        $logs = IntegrationWebhookLog::query()->get();
+        $this->assertCount(count($urls), $logs);
+        foreach ($logs as $log) {
+            $this->assertSame(IntegrationWebhookLog::STATUS_REJECTED, $log->status);
+            $this->assertSame(404, $log->http_status);
+            $this->assertNull($log->authenticated_at);
+            $this->assertNull($log->integration_id);
+            $this->assertNull($log->agency_id);
+        }
+        $raw = json_encode(DB::table('integration_webhook_logs')->get());
+        foreach ([$integration->webhook_token, $inactive->webhook_token, $deletedToken] as $token) {
+            $this->assertStringNotContainsString($token, $raw);
+        }
     }
 
     // ─── Le jeton ────────────────────────────────────────────────

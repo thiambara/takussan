@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Notifications\Sms\Dlr\MtargetTicketMatcher;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -34,7 +35,7 @@ use Illuminate\Support\Facades\Log;
  */
 class MtargetSmsStatusController extends Controller
 {
-    public function __invoke(Request $request, DeliveryAttemptUpdater $updater): JsonResponse
+    public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
         if (! config('sms.mtarget.webhook_enabled', true)) {
             abort(404);
@@ -43,7 +44,15 @@ class MtargetSmsStatusController extends Controller
         if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
             abort(404);
         }
+        // TCK-602 — l'IP (`restrict.ip`, en amont) et le jeton ont passé.
+        $journal->authenticated();
 
+        return $this->process($request, $updater, $journal);
+    }
+
+    /** TCK-602 (ADR-0051 §5) — le traitement d'un accusé AUTHENTIFIÉ, partagé avec le rejeu. */
+    public function process(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
+    {
         $providerMessageId = (string) $request->input('MsgId', '');
         $statusCode = (int) $request->input('Status', -1);
         $statusText = (string) $request->input('StatusText', '');
@@ -52,6 +61,7 @@ class MtargetSmsStatusController extends Controller
         if ($providerMessageId === '') {
             abort(404);
         }
+        $journal->annotate(['external_id' => $providerMessageId, 'event_type' => (string) $statusCode]);
 
         $newStatus = match (true) {
             $statusCode === 3 => SmsResult::STATUS_DELIVERED,
@@ -76,8 +86,10 @@ class MtargetSmsStatusController extends Controller
             }
         }
         if (! $updated) {
+            $journal->unmatched();
             abort(404);
         }
+        $journal->annotate(['matched_count' => 1]);
 
         // TCK-294 — the overlap period is only measurable if both paths
         // count what they move. The pulling command prints its counters;

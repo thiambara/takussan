@@ -476,4 +476,8 @@ return [
     'wizard_draft' => [
         'not_found' => 'No draft.',
     ],
+    'webhook_log' => [
+        'not_replayable' => 'This journal entry cannot be replayed: only an authenticated webhook that failed or matched nothing, with its body kept, can be.',
+        'integration_unavailable' => 'The integration that validated this webhook is no longer active: it cannot be replayed.',
+    ],
 ];

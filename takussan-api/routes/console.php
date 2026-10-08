@@ -130,3 +130,8 @@ Schedule::command('payouts:remind-due')->dailyAt('07:30')->timezone('Africa/Daka
 
 // TCK-594 (ADR-0039 §3) — le 1er du mois, avis du relevé de gérance du mois précédent.
 Schedule::command('payouts:send-owner-statements')->monthlyOn(1, '08:00')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-602 (ADR-0051 §6) — rétention du journal des webhooks par canal (`config/webhooks.php`).
+// Idempotente : une suppression par date, qu'une seconde exécution trouve vide. La lecture de la
+// console ne purge plus rien.
+Schedule::command('webhooks:prune')->dailyAt('03:45')->timezone('Africa/Dakar')->withoutOverlapping();

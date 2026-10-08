@@ -4,6 +4,7 @@ use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
+use App\Http\Middleware\JournalizeIncomingWebhook;
 use App\Http\Middleware\MaintenanceMode;
 use App\Http\Middleware\RequireRecentTwoFactor;
 use App\Http\Middleware\RequireTwoFactor;
@@ -79,6 +80,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'restrict.ip' => RestrictIpMiddleware::class,
             'super-admin' => EnsureSuperAdmin::class,
+            // TCK-602 (ADR-0051 §4) — le journal des webhooks entrants, après `throttle`.
+            'webhook.journal' => JournalizeIncomingWebhook::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

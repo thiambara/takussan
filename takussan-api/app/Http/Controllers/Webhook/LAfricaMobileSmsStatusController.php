@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhook;
 use App\Http\Controllers\Controller;
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,7 +23,7 @@ use Illuminate\Http\Request;
  */
 class LAfricaMobileSmsStatusController extends Controller
 {
-    public function __invoke(Request $request, DeliveryAttemptUpdater $updater): JsonResponse
+    public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
         $token = (string) config('sms.webhook_url_token', '');
         if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
@@ -31,13 +32,28 @@ class LAfricaMobileSmsStatusController extends Controller
         if (! $request->hasValidSignature()) {
             abort_code(403, 'webhook.signature_invalid');
         }
+        // TCK-602 — l'IP (`restrict.ip`), le jeton et la signature d'URL ont passé.
+        $journal->authenticated();
+
+        $notificationId = $request->route('notification');
+
+        return $this->process($request, $updater, $journal, is_numeric($notificationId) ? (int) $notificationId : null);
+    }
+
+    /**
+     * TCK-602 (ADR-0051 §5) — le traitement d'un accusé AUTHENTIFIÉ, partagé avec le rejeu. Le
+     * rejeu ne connaît pas l'identifiant de notification de l'URL (le chemin n'est pas journalisé) :
+     * l'appariement se fait alors par `push_id` seul.
+     */
+    public function process(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal, ?int $notificationId = null): JsonResponse
+    {
         $pushId = (string) $request->query('push_id', '');
         $statusCode = (int) $request->query('status', 0);
         $statusText = (string) $request->query('text', '');
-        $notificationId = $request->route('notification');
         if ($pushId === '') {
             abort(404);
         }
+        $journal->annotate(['external_id' => $pushId, 'event_type' => (string) $statusCode]);
         $newStatus = match ($statusCode) {
             6 => SmsResult::STATUS_DELIVERED,
             4 => SmsResult::STATUS_SENT,
@@ -48,13 +64,15 @@ class LAfricaMobileSmsStatusController extends Controller
             provider: 'lafricamobile',
             providerMessageId: $pushId,
             newStatus: $newStatus,
-            hintNotificationId: is_numeric($notificationId) ? (int) $notificationId : null,
+            hintNotificationId: $notificationId,
             failureReason: $newStatus === SmsResult::STATUS_FAILED ? $statusText : null,
             deliveredAt: $deliveredAt,
         );
         if (! $updated) {
+            $journal->unmatched();
             abort(404);
         }
+        $journal->annotate(['matched_count' => 1]);
 
         return new JsonResponse(['ok' => true]);
     }

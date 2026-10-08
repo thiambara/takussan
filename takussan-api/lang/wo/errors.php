@@ -476,4 +476,8 @@ return [
     'wizard_draft' => [
         'not_found' => 'Amul benn brouillon.',
     ],
+    'webhook_log' => [
+        'not_replayable' => 'Bind bii mënuñu ko defaat : webhook bu ñu wóor, bu dañu ci tële walla bu amul lu mu méngóo, te ñu denc corps bi rekk lañuy defaat.',
+        'integration_unavailable' => 'Intégration bi wóoral webhook bii dootul dox : mënuñu ko defaat.',
+    ],
 ];

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
+use App\Http\Controllers\Api\Admin\WebhookLogController;
 use App\Http\Controllers\Api\Agency\AgentAbsenceController;
 use App\Http\Controllers\Api\Agency\AgentHandoverController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
@@ -229,6 +230,10 @@ final class ProtectedActions
         // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
         // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
         PayoutMethodController::class.'@verify',
+
+        // TCK-602 (ADR-0051 §5) — rejouer un webhook peut solder une échéance : un jeton volé ne
+        // le tient plus sans le TOTP.
+        WebhookLogController::class.'@replay',
 
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',
