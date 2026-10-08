@@ -825,6 +825,87 @@ Sans recopier la spec, voici ce qui change.
   barre latérale l'interdit ; ses avis restent lisibles par l'API) ; un avis en attente ne se
   répond ni ne se signale depuis la boîte ; aucune passe au navigateur.
 
+### Raccord avec le lot de TCK-591 (à éprouver après la fusion d'`origin/dev`, `f6a2a868`)
+
+Relu sur `origin/dev` : `PropertyPublication` (règle et écriture de « dépublier » et « archiver »,
+partagées par l'unitaire et le lot) et `PropertyBulkVisibilityService`.
+
+- **`bulk-visibility` ne publie pas** : `PropertyBulkVisibilityRequest` n'accepte que
+  `visibility: private`. Une visibilité `public` en lot rend donc 422 à la validation, avant
+  tout service. Le verrou n'y est pas sollicité, mais le test doit le fixer : si la règle s'élargit
+  un jour, le verrou devra tenir.
+- **Dépublier en lot un bien verrouillé** : `hide` écrit `status = rejected`, et
+  `PropertyPublication::canUnpublish` n'accepte que `available | published`. Le bien revient donc en
+  `invalid_status`, intact.
+- **Archiver en lot un bien verrouillé** (`bulk-archive`, `update`) : `archivedAttributes()` ne
+  rend pas le bien public, le garde de `updating` le laisse donc passer, et `platform_hold_at` reste
+  posé. La sortie d'archive vers `available` doit buter sur `moderation.platform_hold`. Les deux
+  services écrivent par `forceFill()->save()` : l'observateur s'applique.
+- **Conflits attendus à la fusion** (`git merge-tree`) : `docs/adr/README.md`,
+  `docs/backlog/INDEX.md` (à régénérer), `docs/models-spec.md`, et
+  `app/Domain/Notifications/NotificationCode.php` (cas ajoutés des deux côtés : garder l'union).
+- ⚠ **Trou trouvé en relisant, antérieur au lot et dans le périmètre de §8.** Sous
+  `moderation_required`, un bien `pending_review` peut passer en `archived` (unitaire ou lot), puis
+  en `available` sans passer par la file. En effet, `archived` n'est pas dans
+  `PRE_ACTIVATION_STATUSES`, et `test_unarchiving_is_not_an_activation` fixe ce comportement. Or
+  `archivedAttributes()` efface `published_at` : rien ne distingue plus un bien déjà approuvé d'un
+  bien jamais approuvé. La correction reste à trancher par la session, voir le second test.
+
+Test à ajouter à `tests/Feature/Api/Admin/PropertyReportDecisionTest.php` après la fusion :
+
+```php
+/** TCK-591 × TCK-597 — les actions groupées ne contournent pas le verrou plateforme. */
+public function test_bulk_actions_never_put_a_hidden_listing_back_online(): void
+{
+    Notification::fake();
+    $this->decide($this->report(null, str_repeat('c', 64)), 'hide')->assertOk();
+    $id = $this->property->id;
+    $this->actingAsApi($this->adminA);
+
+    // Le lot ne publie pas : `public` est refusé à la validation.
+    $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$id], 'visibility' => 'public'])
+        ->assertStatus(422)->assertJsonValidationErrors('visibility');
+
+    // Dépublier un bien masqué : `rejected` n'est pas en vitrine, rien n'est écrit.
+    $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$id], 'visibility' => 'private'])
+        ->assertOk()->assertJsonPath('updated', 0)
+        ->assertJsonPath('failed.0.reason', 'invalid_status');
+
+    // Archiver est permis, mais ne lève pas le verrou ; en sortir vers la vitrine bute dessus.
+    $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$id]])
+        ->assertOk()->assertJsonPath('archived', 1);
+    $this->putJson("/api/properties/{$id}/status", ['status' => 'available'])
+        ->assertStatus(422)->assertJsonPath('code', 'moderation.platform_hold');
+
+    $property = $this->property->refresh();
+    $this->assertNotNull($property->platform_hold_at);
+    $this->assertSame(PropertyStatus::Archived, $property->status);
+    $this->assertNull($property->published_at);
+    $this->assertSame(PropertyVisibility::Private, $property->visibility);
+}
+```
+
+Ablation prévue : `guardPlatformHold()` court-circuité dans `PropertyObserver::updating`, puis
+restauré par `cp`. La sortie d'archive doit alors rendre 200 et le test rougir. Si elle reste verte,
+c'est que l'assertion ne mord pas.
+
+Second test, pour `tests/Feature/Api/PropertyModerationGateTest.php`. **Il est rouge sur le code
+actuel**, et l'écrire suppose que la session tranche le trou ci-dessus :
+
+```php
+/** Archiver un bien jamais approuvé ne le dispense pas de la file d'agence. */
+public function test_archiving_a_listing_awaiting_review_does_not_skip_the_queue(): void
+{
+    $property = $this->draft(PropertyStatus::PendingReview, ['submitted_at' => now()]);
+    $this->actingAsApi($this->agent);
+
+    $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$property->id]])->assertOk();
+    $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk();
+
+    $this->assertQueuedNotPublic($property);
+}
+```
+
 ### Ce que ce ticket ne porte pas
 
 - Aucun AC « suite entière » : la suite backend complète reste à la session (dernier lot ciblé :
