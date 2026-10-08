@@ -7,7 +7,7 @@ family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -1087,3 +1087,52 @@ corrigent rien.
   « Enregistrer » ».
 - Ablation F1 (`can_assign` → `true`) : 2 rouges, dont ce test. Avant, seul un test de libellés
   rougissait, par effet de bord.
+
+### Après 588 — refus et notifications par code (merge de `origin/dev` à acf58a66, 469fa296)
+
+- **Refus.** Les 14 refus de 592 passent à `abort_code*` avec un code littéral. Les textes quittent
+  `lang/*/maintenance.php` (`errors.*`) et `service_providers.php` (`onboarding.errors.suspended`)
+  pour `lang/*/errors.php` :
+  - `maintenance.*` : `terminal_request`, `dedicated_endpoint`, `before_photos_requires_acceptance`,
+    `already_accepted`, `decline_after_accept`, `quote_expired`, `collaboration_transition`,
+    `actual_cost_needs_owner` ;
+  - `maintenance.status_transition_invalid`, le code de 588, remplace `transition_not_allowed` ;
+  - `onboarding.service_provider_suspended`.
+
+  Restent dans `maintenance.php` les deux refus de validation (`$fail`), que la garde admet. Les
+  notes plus haut qui citent `maintenance.errors.<clé>` décrivent l'état d'avant 588.
+- **Notifications.** `NotifyMaintenanceParticipants` émet par `send()` :
+  - 19 codes neufs :
+    - `maintenance.{assigned, unassigned, accepted, declined, completed, confirmed, contested,
+      auto_closed, cancelled}` ;
+    - `maintenance.step_<statut>` pour les six étapes du demandeur, plus la variante
+      `_scheduled` pour `acknowledged`, `assigned` et `in_progress`, qui porte
+      `scheduled_at` (`datetime`) ;
+    - `maintenance_quote.awaiting_owner` ;
+  - les 4 codes de devis de 588 sont réutilisés. `maintenance_quote.rejected` gagne le paramètre
+    `reason`.
+
+  Les textes API (`title`, `body`, `sms`) et front (`title`, `body`) sont écrits en fr, en et wo.
+  La cible est `NotificationTarget::of('maintenance', id)`. Le bloc `notifications.*` de
+  `maintenance.php`, devenu mort, est retiré. Une variante par code plutôt que l'option `_link` du
+  rendu : cette option nomme le lien de paiement, et l'emprunter pour une date aurait menti.
+- **Classes `Quote*` mortes.** Aucune n'est ressuscitée : ni `git diff origin/dev` ni `grep` dans
+  `app/`, `tests/` et `routes/` ne les retrouvent.
+- **Tests** : 4 classes passent du message au `code` (`MaintenanceTerminalRequestTest`,
+  `MaintenanceActualCostTest`, `MaintenanceStructuredQuoteTest`, `MaintenanceQuoteWorkflowTest`).
+  4 autres passent aux clés `notifications.codes.*` : `MaintenanceNotificationsTest`, qui assertit
+  désormais le `code` de chaque étape, `MaintenanceResolutionConfirmationTest` et
+  `MaintenanceOwnerApprovalThresholdTest`.
+- **Ablations** (rejouées et restaurées par `cp`) :
+  - jamais la variante datée : 1 rouge ;
+  - une seule étape pour toutes : 2 rouges ;
+  - aucun envoi : 10 rouges ;
+  - motif perdu : 1 rouge ;
+  - placeholder wo retiré : 1 rouge sur `LangGroupParityTest`.
+- **Vert** :
+  - `ProseLitteraleInterditeTest`, `tests/Unit/Lang` et `tests/Feature/Notifications` : 114 ;
+  - `tests/Feature/Maintenance`, les tests de devis, de priorité et les contrôleurs
+    `Maintenance*` : 159 ;
+  - ServiceProvider, Onboarding, la messagerie et le limiteur : 210 ;
+  - front : lint, `tsc`, et vitest sur `notifications`, `maintenance` et `lib` (1102) ;
+  - `check-notification-codes.mjs` (50 codes) et toutes les gardes racine.
