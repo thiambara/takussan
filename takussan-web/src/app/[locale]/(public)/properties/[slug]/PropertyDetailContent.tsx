@@ -38,6 +38,8 @@ import { PropertyReviews } from './components/PropertyReviews';
 import { PropertyReportButton } from './components/PropertyReportButton';
 import { PropertySimilar } from './components/PropertySimilar';
 import { PropertyRecentlyViewed } from './components/PropertyRecentlyViewed';
+import { PropertySafetyNotice } from './components/PropertySafetyNotice';
+import { PropertyVirtualTour } from './components/PropertyVirtualTour';
 
 /**
  * Le corps de la fiche — **inchangé**, seulement déplacé (TCK-335, étape 6).
@@ -166,6 +168,14 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
               onOpenLightbox={handleOpenLightbox}
             />
           </div>
+          {/* TCK-598 (V19) — la visite virtuelle se range avec la galerie ; rien ne se charge avant
+              le clic, et rien ne s'affiche sans URL. */}
+          <div className="mt-3 empty:hidden">
+            <PropertyVirtualTour
+              url={property.virtual_tour_url ?? property.media_extra?.virtual_tour_url}
+              title={property.title}
+            />
+          </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 lg:mt-10 grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-10">
@@ -212,6 +222,8 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
               onMessage={ouvrirContact}
               canMessage={peutContacter}
             />
+            {/* TCK-598 (V8) — hors de la carte de contact (TCK-590), juste sous elle. */}
+            <PropertySafetyNotice />
           </aside>
         </div>
 

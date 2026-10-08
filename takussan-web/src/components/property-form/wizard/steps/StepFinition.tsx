@@ -26,6 +26,29 @@ function versNombre(valeur: unknown): number | undefined {
 }
 
 /**
+ * TCK-598 (V19) — l'URL d'une visite virtuelle ou d'une vidéo, facultative. Un lien seulement :
+ * aucun fichier vidéo ne se téléverse. Partagé avec la page d'édition.
+ */
+export function VirtualTourField({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
+  const t = useTranslations('property.wizard.virtualTour');
+
+  return (
+    <div className="space-y-1">
+      <FormInput
+        control={form.control}
+        name="virtual_tour_url"
+        label={t('label')}
+        type="url"
+        inputMode="url"
+        placeholder={t('placeholder')}
+        maxLength={2048}
+      />
+      <p className="text-xs text-muted-foreground">{t('hint')}</p>
+    </div>
+  );
+}
+
+/**
  * TCK-464 — la dernière étape : un titre déjà composé, et une description facultative.
  *
  * Écrire un titre à froid est la chose la plus dure du formulaire, et c'était son PREMIER champ.
@@ -77,6 +100,7 @@ export function StepFinition({ form }: { readonly form: UseFormReturn<PropertyFo
       <p className="text-right text-xs text-muted-foreground">
         {t('descriptionCounter', { count: description.length })}
       </p>
+      <VirtualTourField form={form} />
     </>
   );
 }

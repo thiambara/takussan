@@ -91,7 +91,7 @@ export type PropertyUpdatePayload = PropertyBodyFields &
   };
 
 function contexte(values: PropertyFormPayload): RelevanceContext {
-  return { type: values.type, contract: values.contract_type };
+  return { type: values.type, contract: values.contract_type, rentPeriod: values.rent_period };
 }
 
 /** Compose le bloc adresse. Rend `undefined` — et non un objet vide — si rien n'est renseigné. */
@@ -141,6 +141,39 @@ export function toCreatePayload(
     visibility: 'private',
     ...(adresse ? { address: adresse } : {}),
   };
+}
+
+/**
+ * TCK-598 — les champs facultatifs du coût d'entrée et de la visite virtuelle qu'on peut VIDER
+ * depuis la page d'édition. Même défaut que l'adresse (`withAddressErasures`) : un champ vidé sort
+ * du schéma en `undefined`, donc OMIS du corps, et l'API garde l'ancienne valeur.
+ */
+export const CHAMPS_EFFACABLES_TCK598 = [
+  'deposit_months',
+  'advance_months',
+  'agency_fee_months',
+  'monthly_charges',
+  'virtual_tour_url',
+] as const;
+
+/**
+ * Pose `null` sur chacun de ces champs que l'utilisateur a MODIFIÉ (`dirtyFields`) et laissé vide.
+ * Un champ jamais touché reste omis : un enregistrement n'efface rien de ce que l'écran n'a pas
+ * changé. Un `null` déjà posé par la matrice (contexte non pertinent) traverse intact.
+ */
+export function withClearedFields(
+  corps: PropertyUpdatePayload,
+  values: PropertyFormPayload,
+  dirtyFields: Partial<Record<string, unknown>>,
+): PropertyUpdatePayload {
+  const sortie: Record<string, unknown> = { ...corps };
+  const source = values as unknown as Record<string, unknown>;
+  for (const cle of CHAMPS_EFFACABLES_TCK598) {
+    if (!dirtyFields[cle]) continue;
+    if (source[cle] !== undefined && source[cle] !== '') continue;
+    if (sortie[cle] === undefined) sortie[cle] = null;
+  }
+  return sortie as PropertyUpdatePayload;
 }
 
 /**
