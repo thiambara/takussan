@@ -17,7 +17,7 @@ class ReviewModerationWorkflowTest extends TestCase
     private function admin(): User
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;
@@ -94,13 +94,12 @@ class ReviewModerationWorkflowTest extends TestCase
             ->assertJsonPath('data.status', ReviewStatus::Approved->value);
     }
 
-    public function test_report_transitions_pending_to_reported_when_threshold_reached(): void
+    /** verif-597 m3 — seul un avis PUBLIÉ se signale : c'est lui qui passe `reported`. */
+    public function test_report_transitions_approved_to_reported_when_threshold_reached(): void
     {
-        config()->set('takussan.reviews.report_threshold', 1);
-
         $review = Review::factory()->create([
-            'status' => ReviewStatus::Pending,
-            'is_approved' => false,
+            'status' => ReviewStatus::Approved,
+            'is_approved' => true,
         ]);
 
         Sanctum::actingAs(User::factory()->create());
@@ -116,14 +115,11 @@ class ReviewModerationWorkflowTest extends TestCase
 
     public function test_report_is_deduped_per_user(): void
     {
-        // With threshold=2, a single user hitting the endpoint twice must
-        // not count as two distinct reports — otherwise one actor could
-        // trip the auto-report transition alone.
-        config()->set('takussan.reviews.report_threshold', 2);
-
+        // TCK-597 — le seuil est la constante `ReviewReportService::REPORTED_THRESHOLD` (1) : un
+        // signalement range l'avis dans la file sans le masquer. Le dédoublonnage reste par compte.
         $review = Review::factory()->create([
-            'status' => ReviewStatus::Pending,
-            'is_approved' => false,
+            'status' => ReviewStatus::Approved,
+            'is_approved' => true,
         ]);
 
         $reporter = User::factory()->create();
@@ -134,21 +130,18 @@ class ReviewModerationWorkflowTest extends TestCase
 
         $review->refresh();
         $this->assertSame(1, (int) $review->reported_count);
-        $this->assertSame(ReviewStatus::Pending, $review->status);
+        $this->assertSame(ReviewStatus::Reported, $review->status);
 
-        // A different reporter trips the threshold.
+        // Un autre compte compte.
         Sanctum::actingAs(User::factory()->create());
         $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
 
-        $review->refresh();
-        $this->assertSame(2, (int) $review->reported_count);
-        $this->assertSame(ReviewStatus::Reported, $review->status);
+        $this->assertSame(2, (int) $review->refresh()->reported_count);
     }
 
+    /** verif-597 m3 — un avis masqué n'est plus publié : il ne se signale pas (404). */
     public function test_report_does_not_transition_rejected_review(): void
     {
-        config()->set('takussan.reviews.report_threshold', 1);
-
         $review = Review::factory()->create([
             'status' => ReviewStatus::Rejected,
             'is_approved' => false,
@@ -158,7 +151,7 @@ class ReviewModerationWorkflowTest extends TestCase
 
         $this->postJson("/api/reviews/{$review->id}/report", [
             'reason' => 'stale',
-        ])->assertOk();
+        ])->assertNotFound();
 
         $review->refresh();
         $this->assertSame(ReviewStatus::Rejected, $review->status);

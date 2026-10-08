@@ -45,6 +45,9 @@ final class NotificationTarget
         'team' => '/admin/team',
         // TCK-601 — une alerte de gouvernance ouvre le journal d'audit de l'agence.
         'audit' => '/admin/audit',
+        // TCK-597 — la boîte des avis reçus, et la modération des avis de l'agence.
+        'reviews' => '/app/reviews',
+        'review_moderation' => '/admin/reviews',
     ];
 
     private function __construct(

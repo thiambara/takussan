@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Admin\UnifiedModerationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -31,6 +32,10 @@ class ModerationItemResource extends BaseResource
         return [
             'id' => $this->resource['id'],
             'type' => $this->resource['type'],
+            'source_type' => $this->resource['source_type'],
+            // TCK-597 (ADR-0043 §4) — les seules décisions valides pour CE type d'élément : le
+            // front n'en propose pas d'autre, et n'en tient pas de copie.
+            'decisions' => UnifiedModerationService::DECISIONS[$this->resource['source_type']] ?? [],
             'status' => $this->resource['status'],
             'subject_type' => $this->resource['subject_type'],
             'subject_id' => $this->resource['subject_id'],
@@ -39,8 +44,28 @@ class ModerationItemResource extends BaseResource
             'agency' => $this->resource['agency'],
             'reason' => $this->resource['reason'],
             'reported_count' => $this->resource['reported_count'],
+            'suspicious' => (bool) ($this->resource['suspicious'] ?? false),
+            'duplicate' => $this->resource['duplicate'] ?? null,
+            'claim' => $this->claim(),
             'reported_at' => $this->iso($this->instant('reported_at')),
             'created_at' => $this->iso($this->instant('created_at')),
+            // TCK-597 — l'âge de l'élément dans la file, en minutes, calculé par le serveur.
+            'age_minutes' => ($reportedAt = $this->instant('reported_at')) ? (int) max(0, $reportedAt->diffInMinutes(now())) : null,
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function claim(): ?array
+    {
+        $claim = $this->resource['claim'] ?? null;
+        if ($claim === null) {
+            return null;
+        }
+
+        return [
+            'by' => $claim['by'],
+            'claimed_at' => $this->iso($claim['claimed_at']),
+            'expires_at' => $this->iso($claim['expires_at']),
         ];
     }
 

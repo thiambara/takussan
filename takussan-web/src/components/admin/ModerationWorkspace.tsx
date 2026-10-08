@@ -54,7 +54,15 @@ const P_SUJET = 'filter[subject_type]';
 
 const PAR_PAGE = 20;
 
-export function ModerationWorkspace() {
+interface ModerationWorkspaceProps {
+  /**
+   * Super-admin : toute la plateforme. Sinon l'admin d'une agence `standard`, que l'API cloisonne
+   * à son agence — et qui ne tranche pas les avis portés sur l'agence elle-même (TCK-597).
+   */
+  readonly platform?: boolean;
+}
+
+export function ModerationWorkspace({ platform = false }: ModerationWorkspaceProps = {}) {
   const t = useTranslations('admin.moderation.workspace');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
@@ -104,6 +112,11 @@ export function ModerationWorkspace() {
 
   return (
     <div className="space-y-4">
+      {platform ? null : (
+        <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground" data-testid="moderation-agency-scope">
+          {t('agencyScope')}
+        </p>
+      )}
       <FilterBar
         controlsClassName="flex flex-wrap items-center gap-3"
         resultCount={meta ? t('queued', { count: String(meta.pending_count) }) : undefined}
@@ -180,7 +193,7 @@ export function ModerationWorkspace() {
               onSelect={(r: ModerationReview) => url.selectionner(r.id)}
             />
             {selected ? (
-              <ModerationDetail review={selected} onModerated={onModerated} />
+              <ModerationDetail review={selected} onModerated={onModerated} platform={platform} />
             ) : null}
           </div>
           {/*

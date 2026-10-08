@@ -22,13 +22,24 @@ const DATE_HEURE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 export type ValeursNotification = Record<string, string | number>;
 
+/**
+ * TCK-597 (verif-597 m5) — un motif de modération arrive CODÉ (`reason_code`) : il s'affiche par
+ * son libellé traduit, suivi du complément libre (`reason`) s'il y en a un. Jamais le code brut.
+ */
+export type LibelleMotif = (code: string) => string | null;
+
 export function valeursDeNotification(
   params: Record<string, NotificationParam> | null | undefined,
   fmt: Formatteurs,
+  motif?: LibelleMotif,
 ): ValeursNotification {
   const valeurs: ValeursNotification = {};
   for (const [nom, valeur] of Object.entries(params ?? {})) {
-    if (valeur === null || valeur === undefined || valeur === '') {
+    if (nom === 'reason_code' && typeof valeur === 'string' && valeur !== '') {
+      const libelle = motif?.(valeur) ?? VALEUR_ABSENTE;
+      const detail = params?.reason;
+      valeurs[nom] = typeof detail === 'string' && detail !== '' ? `${libelle} (${detail})` : libelle;
+    } else if (valeur === null || valeur === undefined || valeur === '') {
       valeurs[nom] = VALEUR_ABSENTE;
     } else if (typeof valeur === 'number') {
       valeurs[nom] = valeur;
@@ -51,7 +62,9 @@ export type TexteNotification = { titre: string; corps: string | null };
 /** Rend le titre et le corps d'une notification dans la langue de l'écran. */
 export function useTexteNotification(): (notification: AppNotification) => TexteNotification {
   const t = useTranslations('notifications.codes');
+  const tMotifs = useTranslations('common.moderationReasons');
   const fmt = useFormatteurs();
+  const motif: LibelleMotif = (code) => (tMotifs.has(code) ? tMotifs(code) : null);
 
   return (notification) => {
     const repli: TexteNotification = {
@@ -61,7 +74,7 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
     const code = notification.code;
     if (!code || !t.has(`${code}.title`)) return repli;
 
-    const valeurs = valeursDeNotification(notification.params, fmt);
+    const valeurs = valeursDeNotification(notification.params, fmt, motif);
     return {
       titre: t(`${code}.title`, valeurs),
       corps: t.has(`${code}.body`) ? t(`${code}.body`, valeurs) : repli.corps,

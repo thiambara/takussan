@@ -90,6 +90,7 @@ class NotificationRenderer
                 NotificationCode::PARAM_DATETIME => $this->date($value, $locale, $timezone),
                 NotificationCode::PARAM_COUNT => (string) (int) $value,
                 NotificationCode::PARAM_URL => is_string($value) && $value !== '' ? $value : '—',
+                NotificationCode::PARAM_REASON_CODE => $this->reasonCode($value, $params['reason'] ?? null, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -145,6 +146,19 @@ class NotificationRenderer
         }
 
         return false;
+    }
+
+    /**
+     * verif-597 m5 — le libellé traduit du motif, jamais le code brut (« Motif : personal_data. »),
+     * puis le complément libre entre parenthèses s'il y en a un.
+     */
+    private function reasonCode(mixed $code, mixed $detail, string $locale, ?int $max): string
+    {
+        $key = 'moderation.reasons.'.(is_string($code) ? $code : '');
+        $label = is_string($code) && $code !== '' && trans()->has($key, $locale) ? __($key, [], $locale) : '—';
+        $label = is_string($detail) && $detail !== '' ? $label.' ('.$detail.')' : $label;
+
+        return $this->text($label, $max);
     }
 
     private function text(string $value, ?int $max): string

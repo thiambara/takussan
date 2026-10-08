@@ -215,6 +215,14 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Agenda
 72. [CalendarFeed](#72-calendarfeed-) ✅
 
+#### Modération (TCK-597)
+73. [ModerationClaim](#73-moderationclaim-) 🆕
+74. [MediaFingerprint](#74-mediafingerprint-) 🆕
+75. [DuplicateSuspicion](#75-duplicatesuspicion-) 🆕
+
+#### Données personnelles (TCK-601)
+76. [PrivacyRequest](#76-privacyrequest-) ✅
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -2983,7 +2991,86 @@ rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
 
 ---
 
-### 73. PrivacyRequest ✅
+### 73. ModerationClaim 🆕
+
+**Table :** `moderation_claims`
+**Description :** Prise en charge d'un élément de la file de modération super-admin pour
+10 minutes (`ModerationClaim::DURATION_MINUTES`, ADR-0043 §7). Tant qu'elle court, un autre
+modérateur reçoit 409 en décidant ; expirée, elle ne protège plus rien et la prise suivante la
+réécrit. Elle est supprimée avec la décision.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| item_key | string(64) | | | Identifiant de la file (`property:12`, `property_report:3`, `review:7`) |
+| claimed_by_id | FK users | | | Modérateur (`cascadeOnDelete`, `moderation_claims_claimed_by_fk`) |
+| claimed_at | timestamp | | | Début de la prise |
+| expires_at | timestamp | | | Fin de la prise |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `item_key` (`moderation_claims_item_key_uniq`)
+
+**Relations :**
+- `claimedBy()` → belongsTo User (via `claimed_by_id`)
+
+---
+
+### 74. MediaFingerprint 🆕
+
+**Table :** `media_fingerprints`
+**Description :** Empreinte dHash 64 bits de la photo **originale** d'un bien (collection `photos`),
+calculée par `ComputePhotoFingerprintJob` sur la file `media` (ADR-0054 §1-2). Sert à soupçonner
+une annonce recopiée par un autre publieur.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| media_id | FK media | | | Photo (`cascadeOnDelete`), unique (`media_fingerprints_media_uniq`) |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| agency_id | FK agencies | oui | null | Agence du bien au calcul (`nullOnDelete`) |
+| hash | bigint | | | Les 64 bits du dHash (signés) |
+| band_0 … band_3 | integer | | | Les quatre tranches de 16 bits, chacune indexée |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :** `media_fingerprints_property_idx`, `media_fingerprints_band_{0..3}_idx`.
+
+**Relations :** `media()` → belongsTo Media ; `property()` → belongsTo Property.
+
+---
+
+### 75. DuplicateSuspicion 🆕
+
+**Table :** `duplicate_suspicions`
+**Description :** Deux biens de publieurs différents soupçonnés d'être la même annonce (ADR-0054
+§5), remis à la file de modération super-admin (`suspected_duplicate`, décisions `hide` | `reject`).
+Aucune action automatique.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien soupçonné (`cascadeOnDelete`) |
+| matched_property_id | FK properties | | | Bien qu'il recopierait (`cascadeOnDelete`) |
+| signal | string(20) | | | `photo` \| `address` |
+| distance | smallint | oui | null | Distance de Hamming (signal `photo`) |
+| decision | string(20) | oui | null | `hide` \| `reject` |
+| resolved_by_id | FK users | oui | null | Modérateur (`nullOnDelete`) |
+| reason_code | string(40) | oui | null | `ModerationReasonCode` |
+| resolved_at | timestamp | oui | null | `null` = ouverte |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :** la PAIRE, quel que soit l'ordre —
+`duplicate_suspicions_pair_uniq (LEAST(property_id, matched_property_id), GREATEST(…))`.
+
+**Relations :** `property()`, `matchedProperty()` → belongsTo Property ; `resolvedBy()` →
+belongsTo User.
+
+---
+
+### 76. PrivacyRequest ✅
 
 **Table :** `privacy_requests`
 **Description :** Registre des demandes de droits (TCK-601,

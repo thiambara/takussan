@@ -33,6 +33,17 @@
     "languageSwitcher": {
       "label": "Language",
       "current": "Current language: {locale}"
+    },
+    "moderationReasons": {
+      "fraud": "Fraud or scam",
+      "spam": "Spam",
+      "misleading": "Misleading content",
+      "offensive": "Abusive language",
+      "personal_data": "Personal data",
+      "duplicate": "Duplicate",
+      "conflict_of_interest": "Conflict of interest",
+      "off_topic": "Off topic",
+      "other": "Other reason"
     }
   },
   "console": {
@@ -153,7 +164,8 @@
       "counters": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
-      }
+      },
+      "receivedReviews": "Reviews received"
     },
     "admin": {
       "dashboard": "Dashboard",
@@ -857,19 +869,19 @@
         "other": "Other"
       },
       "trigger": "Report this listing",
-      "loginTitle": "Sign-in required",
-      "loginBody": "Sign in to report this listing.",
       "cancel": "Cancel",
-      "signIn": "Sign in",
       "dialogTitle": "Report this listing",
       "dialogBody": "Help us keep the platform's quality up.",
-      "sent": "Report sent. Thank you!",
       "reasonLabel": "Reason",
       "detailsLabel": "Details (optional)",
       "detailsPlaceholder": "Specify what is problematic…",
       "dialogBodyFull": "Help us keep the platform's quality up. Our team will review your report.",
       "sending": "Sending…",
-      "submit": "Report"
+      "submit": "Report",
+      "thanks": "Thank you, we will review this report.",
+      "thanksNotified": "You will be notified of the outcome.",
+      "close": "Close",
+      "honeypotLabel": "Company"
     },
     "visitDialog": {
       "types": {
@@ -1213,7 +1225,8 @@
         "deleteTitle": "Delete this property?",
         "deleteBodyRow": "The property <b>{title}</b> will be archived (soft-delete). You will be able to restore it from the admin area.",
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
       }
     },
     "visibility": {
@@ -1402,6 +1415,21 @@
       "urgent_sale": "Urgent sale",
       "seasonal": "Seasonal",
       "correction": "Correction"
+    },
+    "reviewReport": {
+      "trigger": "Report",
+      "triggerAria": "Report this review",
+      "dialogTitle": "Report this review",
+      "dialogBody": "Our team will review it. It stays visible until it has been reviewed.",
+      "reasons": {
+        "fraud": "Fake review",
+        "offensive": "Abusive language",
+        "personal_data": "Personal data",
+        "conflict_of_interest": "Conflict of interest",
+        "spam": "Spam",
+        "off_topic": "Off topic",
+        "other": "Other"
+      }
     },
     "retired": {
       "title": {
@@ -5080,7 +5108,8 @@
         "reportedOnly": "Reported only",
         "queued": "{count} in the queue",
         "loading": "Loading the moderation queue…",
-        "loadError": "The queue could not be loaded."
+        "loadError": "The queue could not be loaded.",
+        "agencyScope": "You moderate reviews of your agency's listings and agents. A review of the agency itself is moderated by the platform."
       },
       "detail": {
         "genericError": "Something went wrong.",
@@ -5100,7 +5129,14 @@
         "confirmHide": "Hide this review?",
         "confirmIgnore": "Dismiss the reports?",
         "reasonLabel": "Reason (recorded in the audit log)",
-        "reasonPlaceholder": "Reason shown in the audit log"
+        "reasonPlaceholder": "Reason shown in the audit log",
+        "platformOnly": "Review of your agency: it is moderated by the platform, not by the agency.",
+        "reasonCodeLabel": "Reason",
+        "reasonCodePlaceholder": "Choose a reason",
+        "reasonCodeRequired": "Choose a reason.",
+        "reasonLabelRequired": "Describe the reason (required for “Other reason”)",
+        "publishedPlatformOnly": "This review is already published: only the platform can take it down. You can reply to it or report it.",
+        "platformReserved": "This review is moderated by the platform, not by the agency."
       }
     },
     "finances": {
@@ -5677,7 +5713,8 @@
       },
       "moderation": {
         "label": "Moderation required before publishing",
-        "hint": "When this option is enabled, every new property submitted by an agent is set to “Pending validation” until an administrator approves it, before it becomes publicly visible."
+        "hint": "When this option is enabled, every new property submitted by an agent is set to “Pending validation” until an administrator approves it, before it becomes publicly visible.",
+        "notSaved": "Changes saved, except mandatory moderation: the API did not apply it. The checkbox shows the value actually saved."
       },
       "security": {
         "title": "Team security",
@@ -6486,8 +6523,6 @@
       "colAge": "Age",
       "colAction": "Action",
       "subjectUnavailable": "Subject unavailable",
-      "typeProperty": "Property",
-      "typeReview": "Review",
       "statusFlagged": "Flagged",
       "statusPending": "Pending",
       "noAgency": "No agency",
@@ -6501,7 +6536,6 @@
       "statProperties": "Properties",
       "statReviews": "Reviews",
       "staleWarning": "{count, plural, one {# item} other {# items}} on this page have been waiting for more than 7 days.",
-      "ageToday": "Today",
       "ageOneDay": "1 day",
       "ageDays": "{days} days",
       "types": {
@@ -6524,7 +6558,69 @@
         "reject": "Reject",
         "remove": "Delete"
       },
-      "tableCaption": "Cross-tenant moderation queue"
+      "tableCaption": "Cross-tenant moderation queue",
+      "selectAll": "Select every item on the page",
+      "selectItem": "Select “{subject}”",
+      "sources": {
+        "property": "Listing to approve",
+        "property_report": "Listing report",
+        "review": "Review",
+        "suspected_duplicate": "Suspected duplicate"
+      },
+      "suspicious": "Suspicious review",
+      "suspiciousHint": "Suspicious review: burst of reviews, recent account or address shared with another author. It is only a hint.",
+      "colClaim": "Claimed",
+      "claimedBy": "Claimed by {name} · {time}",
+      "claimedByYou": "You claimed it",
+      "unclaimed": "Free",
+      "claim": "Claim",
+      "release": "Release",
+      "ageLabel": "In the queue for {age}",
+      "ageMinutes": "{minutes} min",
+      "ageHours": "{hours} h",
+      "duplicateSignal": {
+        "photo": "Same photo as another listing (distance {distance})",
+        "address": "Same address, area and price as another listing"
+      },
+      "duplicateOf": "Original listing: “{title}” ({agency})",
+      "reasonCode": "Reason",
+      "reasonCodePlaceholder": "Choose a reason",
+      "decisionReasonRequired": "Describe the reason (required for “Other reason”)",
+      "decisionsByType": {
+        "property": {
+          "approve": "Approve",
+          "reject": "Refuse"
+        },
+        "property_report": {
+          "hide": "Hide the listing",
+          "remove": "Delete the listing",
+          "reject": "Dismiss the report"
+        },
+        "review": {
+          "approve": "Approve the review",
+          "hide": "Hide the review",
+          "remove": "Delete the review"
+        },
+        "suspected_duplicate": {
+          "hide": "Hide the listing",
+          "reject": "Dismiss: not a duplicate"
+        }
+      },
+      "hideListingHint": "Hiding the listing takes it off the site and locks it: the agency can no longer put it back online, only the platform can.",
+      "batchTitle": "Batch processing",
+      "batchSelected": "{count, plural, one {# item selected} other {# items selected}}",
+      "batchClear": "Clear selection",
+      "batchNoCommonDecision": "No decision is common to the selected items.",
+      "batchDecision": "Decision",
+      "batchDecisionPlaceholder": "Choose a decision",
+      "batchApply": "Apply to {count, plural, one {# item} other {# items}}",
+      "batchResult": "{ok} processed, {failed} failed.",
+      "batchErrors": {
+        "already_decided": "already decided",
+        "claimed_by_other": "claimed by another moderator",
+        "concurrent_decision": "another moderator was acting on the same listing",
+        "other": "refused"
+      }
     },
     "properties": {
       "empty_title": "No property to show",
@@ -7879,23 +7975,15 @@
       "opportunitiesError": "Could not load your review opportunities.",
       "receivedTitle": "Received reviews",
       "loadingAria": "Loading",
-      "stayCompleted": "Stay completed",
-      "leaseActive": "Lease in progress",
-      "leaseEnded": "Lease ended",
-      "details": "Details",
       "filterByProperty": "Filter by property",
       "allProperties": "All properties",
       "filterByReply": "Filter by reply",
-      "replyFilterPlaceholder": "Reply",
       "allReviews": "All reviews",
       "unreplied": "Without a reply",
       "replied": "Replied to",
       "replyPrompt": "Your public reply",
       "replyToastTitle": "Reply published",
       "replyToastDescription": "Your reply is visible under the review.",
-      "reportPrompt": "Reason for reporting",
-      "reportToastTitle": "Review reported",
-      "reportToastDescription": "Moderation can now look into this review.",
       "yourReply": "Your reply",
       "editReply": "Edit the reply",
       "reply": "Reply",
@@ -7905,7 +7993,41 @@
         "approved": "Approved",
         "reported": "Reported",
         "rejected": "Rejected"
-      }
+      },
+      "filterByStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "filterBySubject": "Filter by subject",
+      "allSubjects": "All subjects",
+      "subjects": {
+        "property": "Listings",
+        "agent": "Me (agent)",
+        "agency": "The agency",
+        "service_provider": "Me (service provider)"
+      },
+      "pendingNotice": "Awaiting approval: this review is not published yet.",
+      "replyRequired": "Write a reply before publishing.",
+      "replyError": "The reply could not be published.",
+      "replySubmit": "Publish reply",
+      "replyCancel": "Cancel",
+      "contexts": {
+        "visit": "After your visit",
+        "lease": "Your lease",
+        "booking": "Your stay",
+        "maintenance_request": "Your service request"
+      },
+      "targets": {
+        "property": "The listing",
+        "agent": "The agent",
+        "agency": "The agency",
+        "service_provider": "The service provider"
+      },
+      "starsLabel": "{count, plural, one {# star} other {# stars}}",
+      "opportunityCommentLabel": "Your comment (optional)",
+      "opportunityRatingRequired": "Give at least one rating.",
+      "opportunitySubmit": "Publish my reviews",
+      "opportunitySentTitle": "Review sent",
+      "opportunitySentBody": "Thank you! Your review will be published once approved.",
+      "opportunityError": "Your review could not be sent."
     },
     "contact": {
       "title": "Contact details",
@@ -9415,6 +9537,34 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        }
+      },
+      "review": {
+        "to_moderate": {
+          "title": "Review to moderate: {subject}",
+          "body": "A new review ({rating}/5) on “{subject}” is awaiting your approval."
+        },
+        "received": {
+          "title": "New review: {subject}",
+          "body": "A review ({rating}/5) on “{subject}” has just been published. You can reply from your reviews inbox."
+        }
+      },
+      "moderation": {
+        "property_hidden": {
+          "title": "Listing taken down: {property}",
+          "body": "Your listing “{property}” was taken down by the platform following a report. Reason: {reason_code}. Only the platform can put it back online."
+        },
+        "property_removed": {
+          "title": "Listing removed: {property}",
+          "body": "Your listing “{property}” was removed by the platform following a report. Reason: {reason_code}."
+        },
+        "report_upheld": {
+          "title": "Report handled: {property}",
+          "body": "Thank you: the listing “{property}” you reported has been taken down."
+        },
+        "report_dismissed": {
+          "title": "Report reviewed: {property}",
+          "body": "We reviewed your report of the listing “{property}” and did not uphold it."
         }
       }
     },

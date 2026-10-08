@@ -12,6 +12,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
@@ -38,6 +39,12 @@ class Property extends AbstractModel implements HasMedia
 
     /** Le lot qui décide du filigrane sans charger `agency` — cf. `requiresWatermark()`. */
     private ?WatermarkRequirement $watermarkRequirement = null;
+
+    /**
+     * TCK-597 (ADR-0043 §5) — vrai pendant {@see withoutModerationGate()}, et seulement pendant.
+     * Statique, remis à son état dans un `finally` : jamais un attribut de requête ni un rôle.
+     */
+    private static bool $moderationGateBypassed = false;
 
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',
@@ -77,6 +84,7 @@ class Property extends AbstractModel implements HasMedia
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'platform_hold_at' => 'datetime',
         'metadata' => 'array',
         'deposit_months' => 'integer',
         'advance_months' => 'integer',
@@ -720,6 +728,47 @@ class Property extends AbstractModel implements HasMedia
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * TCK-597 (ADR-0043 §4, §5) — exécute `$callback` en passant outre le verrou plateforme et la
+     * modération d'agence de {@see PropertyObserver::updating()}.
+     *
+     * Son SEUL appelant est `PropertyModerationService::approve` : l'approbation est la décision
+     * que la modération attend, elle ne peut pas être réécrite en `pending_review` par la règle
+     * qu'elle tranche. Le drapeau ne survit pas à l'appel, exception comprise.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    public static function withoutModerationGate(callable $callback): mixed
+    {
+        $previous = self::$moderationGateBypassed;
+        self::$moderationGateBypassed = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$moderationGateBypassed = $previous;
+        }
+    }
+
+    public static function moderationGateBypassed(): bool
+    {
+        return self::$moderationGateBypassed;
+    }
+
+    /** TCK-597 — le bien est verrouillé par la plateforme (masqué ou supprimé sur signalement). */
+    public function isUnderPlatformHold(): bool
+    {
+        return $this->platform_hold_at !== null;
+    }
+
+    public function platformHoldBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'platform_hold_by_id');
     }
 
     public function agency(): BelongsTo
