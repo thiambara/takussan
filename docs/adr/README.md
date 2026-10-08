@@ -70,6 +70,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0047](0047-niveaux-d-operateur-plateforme.md) | Un opérateur plateforme agit par `/api/admin` selon son niveau (`PlatformAbility`) ; toute route qui ne déclare aucun geste reste au `super_admin` ; la cooptation est le seul chemin d'octroi | Accepté |
 | [0048](0048-effet-d-une-suspension-d-agence.md) | Une agence suspendue disparaît du site et ne s'écrit plus ; ses locataires paient encore | Accepté |
 | [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
+| [0053](0053-l-agent-principal-est-une-marque-unique-par-bien.md) | L'agent principal d'un bien est une marque posée sur sa ligne de collaboration, unique par bien et réservée au rôle `agent` par le schéma ; une seule écriture la déplace, sous le verrou du bien | Accepté |
 | [0054](0054-detection-des-doublons-d-annonces.md) | Un doublon d'annonce se soupçonne par le dHash de la photo originale (quatre bandes indexées, seuil 3) et par l'adresse normalisée, entre publieurs différents seulement ; il entre dans la file de la plateforme et n'est jamais masqué seul ; un avis suspect est un drapeau de tri | Accepté |
 | [0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) | L'impersonation est une session de lecture de 15 minutes, dont le jeton ne quitte jamais le serveur du front | Accepté |
 
