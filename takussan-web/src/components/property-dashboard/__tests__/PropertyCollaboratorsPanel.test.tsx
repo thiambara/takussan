@@ -35,11 +35,13 @@ const ligne = (id: number, prenom: string, role: string, isPrimary = false) => (
 const parOrdre: PropertyCollaboratorsPayload = {
   data: [ligne(1, 'Awa', 'agent'), ligne(2, 'Moussa', 'agent'), ligne(3, 'Fatou', 'viewer')] as never,
   primary_contact: { user_id: 101, collaborator_id: 1, source: 'invitation_order' },
+  can_designate: true,
 };
 
 const moussaDesigne: PropertyCollaboratorsPayload = {
   data: [ligne(1, 'Awa', 'agent'), ligne(2, 'Moussa', 'agent', true), ligne(3, 'Fatou', 'viewer')] as never,
   primary_contact: { user_id: 102, collaborator_id: 2, source: 'designated' },
+  can_designate: true,
 };
 
 function rendu() {
@@ -111,11 +113,21 @@ describe('PropertyCollaboratorsPanel', () => {
   });
 
   it('sans collaborateur, le propriétaire répond, sobrement', async () => {
-    fetchPropertyCollaborators.mockResolvedValue({ data: [], primary_contact: { user_id: 9, collaborator_id: null, source: 'owner' } });
+    fetchPropertyCollaborators.mockResolvedValue({ data: [], primary_contact: { user_id: 9, collaborator_id: null, source: 'owner' }, can_designate: true });
     rendu();
 
     expect(await screen.findByText("Aucun collaborateur n'est associé à ce bien.")).toBeInTheDocument();
     expect(screen.getByTestId('primary-contact-source')).toHaveTextContent('le propriétaire répond');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('sans le droit de désigner, aucun bouton — mais qui répond reste dit', async () => {
+    // Vérification adverse m2 : un agent lit la liste sans tenir `update` du bien.
+    fetchPropertyCollaborators.mockResolvedValue({ ...parOrdre, can_designate: false });
+    rendu();
+
+    expect(await screen.findByTestId('primary-contact-source')).toHaveTextContent("Aucun choix n'est posé");
+    expect(within(screen.getByTestId('collaborator-1')).getByText('Répond par défaut')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
 

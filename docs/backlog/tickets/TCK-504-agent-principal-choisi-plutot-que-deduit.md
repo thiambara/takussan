@@ -295,3 +295,10 @@ suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `Prim
   | R-b écriture inconditionnelle | 422 (le verrou tient) | 404 | OK |
   | R-c ni l'un ni l'autre | **`SQLSTATE 23514`** | **`ModelNotFoundException`** | OK |
   | R-d sans `updating` du modèle | 422 | 404 | **`SQLSTATE 23514`** |
+- **m2 — le bouton ne s'affiche qu'à qui peut désigner.** `GET …/collaborators` (et la réponse de la
+  désignation) portent `can_designate`, calculé par la règle même de l'endpoint (`can('update', $bien)`,
+  profil actif compris) ; le panneau conditionne le bouton dessus. Un agent de l'agence qui n'a pas
+  créé le bien lit la liste (200, `can_designate: false`), ne voit aucun bouton, et son `PUT` reste
+  403. Preuves : `test_la_liste_dit_si_l_appelant_peut_designer_par_la_regle_de_l_endpoint`, vitest
+  « sans le droit de désigner, aucun bouton » ; ablations M2a (droit toujours vrai) et M2b (bouton
+  sans droit) rouges (`t504/ablations-m2.log`).

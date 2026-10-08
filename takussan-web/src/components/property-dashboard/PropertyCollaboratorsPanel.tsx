@@ -33,8 +33,9 @@ const ROLES: readonly CollaboratorRole[] = ['agent', 'manager', 'co_owner', 'vie
  * et les demandes, et dont le numéro s'affiche.
  *
  * Un bien sans choix n'a pas l'air mal configuré : le repli (l'agent invité le premier, sinon le
- * propriétaire) est énoncé sobrement, sans alerte. Seul un `agent` porte le bouton ; le serveur
- * refuse les autres rôles de toute façon, et son refus s'affiche tel quel.
+ * propriétaire) est énoncé sobrement, sans alerte. Seul un `agent` porte le bouton, et seulement
+ * pour qui peut désigner (`can_designate`, la règle de l'endpoint dite par le serveur) ; le serveur
+ * refuse le reste de toute façon, et son refus s'affiche tel quel.
  */
 export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaboratorsPanelProps) {
   const t = useTranslations('property.dashboard.collaborators');
@@ -65,6 +66,7 @@ export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaborators
   const rows = query.data?.data ?? [];
   const contact = query.data?.primary_contact;
   const source = contact?.source ?? null;
+  const peutDesigner = query.data?.can_designate === true;
 
   return (
     <section className="rounded-xl bg-card p-6" data-testid="property-collaborators" aria-labelledby="property-collaborators-title">
@@ -95,7 +97,7 @@ export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaborators
               {rows.map((row) => {
                 const repond = contact?.collaborator_id === row.id;
                 const role = ROLES.includes(row.role) ? t(`roles.${row.role}`) : row.role;
-                const designable = row.role === 'agent' && !row.is_primary;
+                const designable = peutDesigner && row.role === 'agent' && !row.is_primary;
                 const enCours = designation.isPending && designation.variables === row.id;
 
                 return (

@@ -39,6 +39,8 @@ export interface PropertyCollaboratorsPayload {
     readonly collaborator_id: number | null;
     readonly source: PrimaryContactSource | null;
   };
+  /** L'appelant peut-il désigner ? La règle de l'endpoint (`update` du bien), dite par le serveur. */
+  readonly can_designate: boolean;
 }
 
 export const PROPERTY_COLLABORATORS_QUERY_KEY = {

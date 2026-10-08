@@ -8,6 +8,7 @@ use App\Http\Requests\Api\StorePropertyCollaboratorRequest;
 use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
+use App\Models\User;
 use App\Services\Property\PrimaryAgentDesignator;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,7 @@ class PropertyCollaboratorController extends Controller
     {
         $this->authorize('view', $property);
 
-        return $this->json($this->collaboratorsPayload($property));
+        return $this->json($this->collaboratorsPayload($property, $request->user()));
     }
 
     /**
@@ -35,7 +36,7 @@ class PropertyCollaboratorController extends Controller
 
         $designator->designate($property, $collaborator, $request->user());
 
-        return $this->json($this->collaboratorsPayload($property));
+        return $this->json($this->collaboratorsPayload($property, $request->user()));
     }
 
     public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
@@ -118,9 +119,13 @@ class PropertyCollaboratorController extends Controller
      * le propriétaire (`owner`). Une seule lecture, `PrimaryPropertyContact` : l'écran ne
      * recalcule rien.
      *
-     * @return array{data: mixed, primary_contact: array{user_id: int|null, collaborator_id: int|null, source: string|null}}
+     * `can_designate` dit si l'appelant peut désigner (vérification adverse m2) : la même règle que
+     * l'endpoint, `update` du bien. Un agent qui lit la liste sans tenir `update` ne voit pas un
+     * geste que le serveur lui refuserait.
+     *
+     * @return array{data: mixed, primary_contact: array{user_id: int|null, collaborator_id: int|null, source: string|null}, can_designate: bool}
      */
-    private function collaboratorsPayload(Property $property): array
+    private function collaboratorsPayload(Property $property, ?User $viewer): array
     {
         $property->load(PrimaryPropertyContact::eagerLoads());
 
@@ -140,6 +145,7 @@ class PropertyCollaboratorController extends Controller
                     default => null,
                 },
             ],
+            'can_designate' => $viewer?->can('update', $property) === true,
         ];
     }
 

@@ -356,4 +356,22 @@ class PrimaryAgentDesignationTest extends ApiTestCase
             ->assertJsonPath('data.0.id', $this->ligneSecond->id)
             ->assertJsonPath('data.0.is_primary', false);
     }
+
+    /**
+     * Vérification adverse m2 — la liste dit si l'appelant peut désigner, par la règle même de
+     * l'endpoint : un agent de l'agence lit la liste, mais ne tient pas `update` d'un bien qu'il n'a
+     * pas créé ; il ne doit pas voir un geste que le serveur lui refuse.
+     */
+    public function test_la_liste_dit_si_l_appelant_peut_designer_par_la_regle_de_l_endpoint(): void
+    {
+        $this->actingAsApi($this->admin)->apiGet("/api/properties/{$this->property->id}/collaborators")
+            ->assertOk()->assertJsonPath('can_designate', true);
+
+        $this->assertFalse($this->ancien->can('update', $this->property));
+        $this->actingAsApi($this->ancien)->apiGet("/api/properties/{$this->property->id}/collaborators")
+            ->assertOk()->assertJsonPath('can_designate', false);
+        $this->designer($this->ligneAncien, $this->ancien)->assertForbidden();
+
+        $this->designer($this->ligneSecond)->assertOk()->assertJsonPath('can_designate', true);
+    }
 }
