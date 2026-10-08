@@ -173,3 +173,24 @@ Delta est extrait tel quel.*
 - Le choix de l'agent principal lui-même : TCK-504.
 
 ## Notes d'implémentation
+
+### 2026-10-08 — re-mesure sur `ddc8f8e4` (504 fusionné), avant le code
+
+- `PropertyController::assignAgent` est aux **l.253-277** (et non 238-259) ; l'écriture `user_id` est
+  l.272. La règle de 587 y est **en ligne** (l.260-269, `isStaffAt($target, $property->agency_id ??
+  $actor->agency_id)`), et son code est **`user.not_in_active_agency`** depuis TCK-588 (`abort_code`), pas
+  `messages.target_user_not_in_active_agency`. `AssignableAgentRule` n'existe pas (587 a fusionné avant 591).
+  Sans agence déterminée (bien sans agence, acteur sans profil d'agence) la règle **ne juge rien**.
+- Deux tests du dépôt fixent le défaut : `PropertyCrudTest::test_assigns_property_agent_inside_active_agency`
+  (`data.owner.id` = la cible) et `PropertyAuthorizationTest::test_le_bien_ne_se_reassigne_qu_au_personnel_actif_de_l_agence`
+  (`user_id` = l'agent, l.290). Ils sont réécrits sur le nouveau contrat.
+- `AgentPortfolio::PENDING = ['held_properties']`, `responsible_properties` absente ; `AgentHandoverController::show`
+  rend `pending`. `AgentHandoverService::move()` verrouille ses lignes, jamais le bien (relevé de verif-504).
+- Seul `assignAgent` écrit `user_id` hors création (grep `'user_id' =>` dans `app/` : `store` l.96 et la
+  duplication, évènement `created`). `Property` est `Auditable` (`logFillable` + `logOnlyDirty`), activitylog
+  **5.1.0** : la signature est dans `attribute_changes`.
+- Front : « Réassigner » en lot est toujours un `Promise.all` d'appels unitaires (`PropertyList.tsx:118-139`,
+  `:359-366`) ; les motifs `invalid_target` et `unchanged` existent déjà dans `agentCrm.bulk.reason` (591). La
+  ligne de la liste affiche `owner.name` derrière le libellé « Agent : » — le propriétaire sous le nom d'agent.
+- Décisions neuves → [ADR-0059](../../adr/0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md)
+  (commit `d56e443f`, avant le code).
