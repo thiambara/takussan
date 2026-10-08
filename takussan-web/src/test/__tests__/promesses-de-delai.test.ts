@@ -47,6 +47,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
   'auth.phoneLogin.codeSentTo':
     'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
+  // TCK-589 (p3-1) — le code de preuve envoyé à l'ANCIEN numéro avant de le remplacer :
+  // `PhoneChangeGuard::sendCode` → `sendCodeTo('phone-change', …)` → `issue()`, même TTL, consommé
+  // par `PhoneChangeGuard::authorize`.
+  'profile.contact.changeProofCodeSent':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, posé à :207 via PhoneChangeGuard::sendCode',
   'agency.tenantOnboardingPending.emptyDescription':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
   'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
@@ -78,6 +83,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 5,
   'onboarding.host.steps.identity.otp.sentBody': 5,
   'profile.contact.otpSent': 5,
+  'profile.contact.changeProofCodeSent': 5,
   'agency.tenantOnboardingPending.emptyDescription': 7,
   'dashboard.onboardingPending.subtitle': 7,
   'superAdmin.integrations.webhooks.retention': 30,
