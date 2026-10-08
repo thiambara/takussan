@@ -314,25 +314,33 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $this->patchJson("/api/inventories/{$dansB->id}", ['notes' => 'réécrit'])->assertOk();
     }
 
-    /** N2 — la visite de son bien : il la lit, il ne la déplace plus. */
-    public function test_un_bailleur_bloque_ne_modifie_plus_une_visite(): void
+    /**
+     * N2 — la visite de son bien. TCK-590 (passe 3, t1) : sur un bien d'AGENCE, aucun bailleur,
+     * actif ou bloqué, ne déplace, confirme ni n'annule plus une visite (`visits.staff_only`) —
+     * l'écriture ne distingue donc plus le blocage. Ce qui le distingue, c'est la LECTURE (M7′) :
+     * le bailleur actif de B lit la visite de son bien, sans la fiche client ; bloqué dans A, il
+     * ne la lit plus. Avant la passe 3, ce test attendait 200 à la lecture dans A, et 200 au
+     * déplacement dans B.
+     */
+    public function test_un_bailleur_bloque_ne_lit_plus_la_visite_de_son_bien(): void
     {
         [, $bienA, $bienB] = $this->bailleurBloqueDansA();
+        $ficheB = Customer::factory()->create(['agency_id' => $this->agencyB->id]);
         $visiteA = PropertyVisit::factory()->create(['property_id' => $bienA->id]);
-        $visiteB = PropertyVisit::factory()->create(['property_id' => $bienB->id]);
+        $visiteB = PropertyVisit::factory()->create(['property_id' => $bienB->id, 'customer_id' => $ficheB->id]);
         $nouvelle = now()->addDays(5)->setTime(10, 0)->toIso8601String();
 
-        // TCK-590 (passe 3, M7′, décision de la session) — `property.user_id` ne fait le
-        // propriétaire d'un bien d'agence que s'il y est bailleur ACTIF : le bailleur bloqué perd
-        // aussi la lecture de la visite. Avant M7′, ce test attendait 200 ici.
         $this->getJson("/api/property-visits/{$visiteA->id}")->assertForbidden();
-        $this->patchJson("/api/property-visits/{$visiteA->id}", ['scheduled_at' => $nouvelle])->assertForbidden();
-        $this->assertTrue($visiteA->fresh()->scheduled_at->equalTo($visiteA->scheduled_at));
-        // TCK-590 (vérification adverse passe 2, écart b, décision de la session) — sur un bien
-        // d'AGENCE, seul le personnel déplace ou annule une visite : le bailleur actif de B ne le
-        // fait pas davantage. Avant la fusion, ce test attendait 200 ici.
-        $this->patchJson("/api/property-visits/{$visiteB->id}", ['scheduled_at' => $nouvelle])
-            ->assertForbidden()->assertJsonPath('message', __('visits.staff_only'));
+        $this->getJson("/api/property-visits/{$visiteB->id}")->assertOk()
+            ->assertJsonPath('data.id', $visiteB->id)
+            ->assertJsonPath('data.customer_id', null);
+        $this->assertSame([$visiteB->id], collect($this->getJson('/api/property-visits')->json('data'))->pluck('id')->all());
+
+        foreach ([$visiteA, $visiteB] as $visite) {
+            $this->patchJson("/api/property-visits/{$visite->id}", ['scheduled_at' => $nouvelle])->assertForbidden();
+            $this->postJson("/api/property-visits/{$visite->id}/confirm")->assertForbidden();
+            $this->assertTrue($visite->fresh()->scheduled_at->equalTo($visite->scheduled_at));
+        }
     }
 
     /**
