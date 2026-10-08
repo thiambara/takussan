@@ -114,6 +114,16 @@ class PhoneChangeProofTest extends TestCase
 
         // Le compte n'a plus de numéro vérifié : le code consommé ne rouvre rien d'autre.
         $this->assertFalse(app(PhoneChangeGuard::class)->replacesVerified($u->fresh(), '+221770009304'));
+
+        // Le rejeu (verif-589 passe 4, §6). Rejoué tel quel, il passerait sans preuve puisque plus
+        // rien n'est vérifié : il ne dirait rien de la consommation. Le compte retrouve donc P
+        // vérifié, et le MÊME code, s'il n'avait pas été consommé, vaudrait encore preuve pour P.
+        $u->forceFill(['phone' => self::P, 'phone_verified_at' => now()])->save();
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+221770009304', 'phone_change_code' => $code])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'phone.change_requires_proof');
+        $this->assertSame(self::P, $u->fresh()->phone);
+        $this->assertNotNull($u->fresh()->phone_verified_at);
     }
 
     public function test_le_mot_de_passe_vaut_preuve_et_ses_echecs_sont_bornes(): void

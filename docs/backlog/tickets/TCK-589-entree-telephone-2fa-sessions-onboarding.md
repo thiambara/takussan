@@ -2244,3 +2244,14 @@ et n'ouvrent **aucun** canal mobile vers un compte, puisque la branche `User` de
   fusion (`Visit*`, `ContactLead*`…) donnent 850 verts.
 - Front : `promesses-de-delai`, `profile` et les actions donnent 182 verts.
 - `tsc` et eslint sont propres, et `check-i18n` est à parité.
+
+#### Observation 2 de verif-589, passe 4 (§6) : le rejeu du code de preuve
+
+`test_le_code_ne_sert_qu_une_fois` ne vérifiait pas que le code était consommé. Rendre
+`verifyCodeFor(…, $code, false)` dans `PhoneChangeGuard::authorize`, donc ne pas consommer le
+code, le laissait vert. Un rejeu nu n'aurait rien prouvé de plus : après le premier usage, le
+compte n'a plus de numéro vérifié, et le rejeu passe sans preuve.
+
+Le test redonne donc au compte le numéro P vérifié, puis rejoue **le même** code. Il attend 403
+`phone.change_requires_proof`, avec P inchangé et toujours vérifié. Sous la même ablation, il
+rougit ; l'ancien test restait vert.
