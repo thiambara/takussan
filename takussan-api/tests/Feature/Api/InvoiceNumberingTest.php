@@ -2,19 +2,24 @@
 
 namespace Tests\Feature\Api;
 
+use App\Contracts\Payments\PaymentDriverContract;
 use App\Models\Customer;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Integration;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use App\Services\Payments\PaymentGatewayService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
+use Mockery;
 use ReflectionMethod;
 use Tests\Concerns\BuildsInvoices;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -156,5 +161,67 @@ class InvoiceNumberingTest extends TestCase
     {
         Sanctum::actingAs($user);
         $this->postJson("/api/invoices/{$draft->id}/send")->assertOk();
+    }
+
+    /**
+     * VERIF-594 m-4 — le test ci-dessus ne vérifie que l'ORDRE des requêtes : sans le
+     * `DB::transaction` de l'allocateur, le verrou passe en autocommit, se relâche aussitôt, et il
+     * restait vert. Celui-ci relève le niveau de transaction AU MOMENT du verrou, contre la base de
+     * `RefreshDatabase` (qui en ouvre déjà une).
+     */
+    public function test_m4_the_agency_lock_is_held_inside_a_transaction(): void
+    {
+        [$agency, , $customer] = $this->invoicingAgency();
+        $draft = $this->draftOf($agency, $customer);
+        $levels = $this->levelsAtLock();
+
+        $baseline = DB::transactionLevel();
+        app(InvoiceNumberAllocator::class)->allocate($draft);
+
+        $this->assertNotSame([], $levels->lock, 'la ligne agence doit être verrouillée');
+        $this->assertGreaterThan($baseline, $levels->lock[0]);
+    }
+
+    /**
+     * VERIF-594 m-4 — la vérification forcée par la passerelle (`verify`) appliquait l'état hors de
+     * toute transaction : la facture passait `paid`, puis l'allocateur la numérotait à part. L'état
+     * et le numéro s'écrivent désormais ensemble.
+     */
+    public function test_m4_a_gateway_verification_writes_status_and_number_in_one_transaction(): void
+    {
+        [$agency, , $customer] = $this->invoicingAgency();
+        $draft = $this->draftOf($agency, $customer, 50_000);
+        $draft->forceFill(['transaction_id' => 'tx-m4', 'metadata' => ['gateway' => ['provider' => 'wave']]])->save();
+
+        $driver = Mockery::mock(PaymentDriverContract::class);
+        $driver->shouldReceive('verify')->with('tx-m4')->andReturn(new PaymentDriverStatus(PaymentDriverStatus::SUCCESS, 'tx-m4'));
+        $gateway = Mockery::mock(PaymentGatewayService::class)->makePartial();
+        $gateway->shouldReceive('resolveIntegration')->andReturn(new Integration(['provider' => 'wave']));
+        $gateway->shouldReceive('driverFor')->andReturn($driver);
+        $levels = $this->levelsAtLock();
+
+        $baseline = DB::transactionLevel();
+        $gateway->verify($draft);
+
+        $this->assertSame(InvoiceStatus::Paid, $draft->fresh()->status);
+        $this->assertSame('FA-2026-00001', $draft->fresh()->reference_number);
+        $this->assertNotSame([], $levels->status, "l'état de la facture doit s'écrire");
+        $this->assertGreaterThan($baseline, $levels->status[0], "l'état s'écrit hors transaction");
+    }
+
+    /** Le niveau de transaction au verrou de la ligne agence, et à l'écriture de l'état de la facture. */
+    private function levelsAtLock(): object
+    {
+        $levels = (object) ['lock' => [], 'status' => []];
+        DB::listen(function (QueryExecuted $query) use ($levels): void {
+            if (str_contains($query->sql, 'from "agencies"') && str_contains($query->sql, 'for update')) {
+                $levels->lock[] = DB::transactionLevel();
+            }
+            if (str_starts_with($query->sql, 'update "invoices" set') && str_contains($query->sql, '"status"')) {
+                $levels->status[] = DB::transactionLevel();
+            }
+        });
+
+        return $levels;
     }
 }

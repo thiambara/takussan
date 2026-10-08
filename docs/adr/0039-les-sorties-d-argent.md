@@ -186,8 +186,12 @@ approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse
   `AV-2026-00001` pour un avoir — et attribué **à l'émission** (premier passage hors `draft`) par un
   seul point, `App\Services\Invoice\InvoiceNumberAllocator`. Un brouillon ne consomme aucun numéro ;
   payer un brouillon vaut émission. Le compteur se lit sous verrou de la **ligne agence**
-  (`Agency::whereKey()->lockForUpdate()`, puis `MAX` hors verrou d'agrégat). On ne renumérote jamais
-  une facture déjà émise : les `INV-…` existantes restent.
+  (`Agency::whereKey()->lockForUpdate()`, puis `MAX` hors verrou d'agrégat), **dans une
+  transaction** — hors d'elle, le verrou se relâche aussitôt l'instruction finie. L'allocateur ouvre
+  la sienne, et chaque site d'appel écrit l'émission et le numéro dans la même : y compris la
+  vérification forcée de la passerelle (`PaymentGatewayService::verify`), qui l'appliquait en
+  autocommit (VERIF-594 m-4). On ne renumérote jamais une facture déjà émise : les `INV-…`
+  existantes restent.
 - L'unicité de `reference_number` devient `(agency_id, reference_number)`, plus un index partiel
   pour `agency_id IS NULL` ; un index unique porte `(agency_id, kind, sequence_year, sequence_number)`.
 - Une facture émise ne s'annule que par un **avoir** (`kind = credit_note`, `credited_invoice_id`,

@@ -555,6 +555,9 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **m-3** — la facture d'intervention naît à l'unité de la devise (`MaintenanceRequestObserver`,
   `Currency::decimalPlacesOf`, demi vers le haut), et `createForBill` arrondit de même le montant
   d'une facture antérieure : le prestataire reçoit ce que le bailleur paie.
+- [x] **m-4** — le test du verrou de numérotation relève le niveau de transaction AU verrou
+  (contre la base de `RefreshDatabase`) ; `PaymentGatewayService::verify` applique l'état et le
+  numéro dans une transaction, l'appel au prestataire restant dehors.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -770,6 +773,11 @@ rend **403** avec une clé i18n, jamais une phrase.
   60 001, paiement au prestataire net 60 001, reversement au bailleur frais 60 001 (net 139 999 sur
   200 000). Une facture qui garde 70 000,6 en base est payée 70 001.
   **Preuve** : `ServiceProviderBillTest::test_m3_an_xof_bill_is_rounded_to_the_unit_on_both_sides` (rouge sur 9923b16c). Ablations V-m3a (observateur) et V-m3b (`createForBill`) : rouges.
+- [x] **AC-m4 — le verrou de numérotation tient dans une transaction.** L'allocateur appelé seul :
+  au `SELECT … FOR UPDATE` de la ligne agence, `DB::transactionLevel()` dépasse celui d'avant
+  l'appel. Une facture soldée par `PaymentGatewayService::verify` (pilote simulé) : `paid`,
+  `FA-2026-00001`, et l'`UPDATE` de son statut s'écrit dans une transaction.
+  **Preuve** : `InvoiceNumberingTest::test_m4_the_agency_lock_is_held_inside_a_transaction`, `test_m4_a_gateway_verification_writes_status_and_number_in_one_transaction` (le second rouge sur 9923b16c ; le premier y est vert — le comportement tenait, c'est l'AC qui ne le gardait pas). Ablations V-m4a (le `DB::transaction` de l'allocateur retiré : `test_the_counter_is_read_under_the_lock_of_the_agency_row` reste vert, le nouveau rougit) et V-m4b (la transaction de `verify`) : rouges.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -1118,3 +1126,11 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   aurait gardées avec leurs décimales (aucune en production : la table n'a pas quitté la branche ;
   le test les fabrique par `forceFill`). Le reversement au bailleur lisait déjà les frais arrondis
   par `PayoutCalculator` : il n'est pas touché.
+- **m-4 — l'AC du verrou de numérotation.** Le test d'ordre est gardé (il prouve que le `MAX` suit
+  le verrou) ; un second relève `DB::transactionLevel()` dans un écouteur `DB::listen` au moment du
+  `FOR UPDATE`. La base est 1, pas 0 : `RefreshDatabase` ouvre une transaction — d'où la
+  comparaison à la base et non à zéro. Les ablations substituent `call_user_func(` à
+  `DB::transaction(` : même fermeture, exécutée sans transaction. Le chemin passerelle cité par
+  VERIF (`:187`) est `verify()` ; le webhook (`applyEventToMatchingPayment`) était déjà en
+  transaction. L'appel HTTP du pilote reste hors transaction : on ne tient pas un verrou pendant un
+  aller-retour réseau.

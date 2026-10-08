@@ -184,7 +184,9 @@ class PaymentGatewayService
         $driver = $this->driverFor($integration);
         $status = $driver->verify($transactionId);
 
-        $this->applyStatusToPayment($payment, $status->status, [], $transactionId);
+        // VERIF-594 m-4 — l'appel au prestataire reste hors transaction ; l'état et le numéro de la
+        // facture soldée (`InvoiceNumberAllocator`) s'écrivent ensemble, comme sur le chemin webhook.
+        DB::transaction(fn () => $this->applyStatusToPayment($payment, $status->status, [], $transactionId));
 
         return $status;
     }
