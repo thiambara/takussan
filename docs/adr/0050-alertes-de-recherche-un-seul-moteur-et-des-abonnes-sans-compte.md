@@ -120,10 +120,27 @@ Non tranchées par le ticket, structurantes, prises dans le sens le plus facile 
 1. **Une ligne d'abonné par demande, pas par contact** — chaque nouvelle alerte se confirme ; un
    tiers ne peut pas greffer une alerte sur un contact déjà confirmé. Revenir à « une ligne par
    contact » est une migration de regroupement par `contact_hash`.
-2. **Contact chiffré + empreinte sous `app.key`.** Une rotation d'`APP_KEY` change les empreintes :
-   les demandes en attente (≤ 48 h) et le rattachement des abonnés existants cessent de se
-   retrouver jusqu'à un recalcul — même limite que `PayoutMethod`, à traiter par la commande de
-   rotation qu'ADR-0044 renvoie à son premier usage.
+2. **Contact chiffré + empreinte sous `app.key`.** Une rotation d'`APP_KEY` change toutes les
+   empreintes `contact_hash`, et `APP_PREVIOUS_KEYS` n'y peut rien : il sert au déchiffrement, pas
+   au HMAC. Tant que les empreintes ne sont pas recalculées, **les abonnés existants deviennent
+   introuvables par leur contact**. Concrètement :
+   - **Le rattachement à un compte ne les trouve plus.** `SavedSearchController` hache l'e-mail et
+     le téléphone du compte sous la nouvelle clé.
+   - **« Effacer le contact » n'efface que les lignes postérieures à la rotation.**
+     `eraseContact()` filtre par empreinte, si bien que les lignes antérieures survivent à une
+     demande d'effacement.
+   - **Les plafonds par contact repartent de zéro.** Cela vaut pour les 5 demandes ouvertes, les
+     2 confirmations par 24 h et le limiteur `contact:`.
+   - **Des doublons deviennent possibles.** Une nouvelle demande crée une nouvelle ligne sous la
+     nouvelle empreinte, à côté de l'ancienne. La personne qui se réabonne reçoit alors deux fois
+     la même alerte.
+
+   Ce qui tient : la désinscription par lien et la confirmation, parce que leurs jetons sont hachés
+   en SHA-256 sans clé. Le contact et le jeton de désinscription chiffrés se déchiffrent tant que
+   l'ancienne clé figure dans `APP_PREVIOUS_KEYS`. Sans elle, les envois échouent au déchiffrement.
+
+   C'est la même limite que `PayoutMethod`. Elle se traite par la commande de rotation qu'ADR-0044
+   renvoie à son premier usage : déchiffrer avec l'ancienne clé, puis ré-hacher avec la nouvelle.
 3. **Pas de repli SMS pour une alerte** : la notification déclare `smsFallbackAllowed(): false`, que
    `WhatsappChannel` lit avant de basculer (ajout voisin dans le fichier de 588). Sans ce crochet,
    un échec dur de WhatsApp enverrait l'alerte par SMS.

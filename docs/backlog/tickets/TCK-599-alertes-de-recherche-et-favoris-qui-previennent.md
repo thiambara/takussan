@@ -717,6 +717,15 @@ Restauration vérifiée par md5 après chaque ablation.
 | Visibilité jugée sans `scopePublic` | idem | 3 échecs |
 | Base non posée à la mise en favori | idem | 3 échecs |
 | Seeder remis à `neighborhoods` / fabrique à `max_price` | vocabulaire | 1 échec chacune |
+| Crochet `smsFallbackAllowed` qui refuse toujours | `WhatsappChannelTest` | 6 échecs |
+| Crochet inversé / crochet retiré | idem | 2 échecs / 1 échec |
+| Clé `whatsapp-channel:user:{id}` perdue pour un `User` | idem | 1 échec |
+
+**`WhatsappChannel` reste strictement additif** (demande de session) : une notification sans
+`smsFallbackAllowed()` — toutes celles d'avant 599 — garde le repli SMS, et la clé `user:{id}` d'un
+`User` est inchangée. Seuls `User` et `AlertSubscriber` sont `Notifiable` dans `app/`, et
+`AnonymousNotifiable` n'a pas de `getKey()` : aucun notifiable existant ne change de clé. Quatre
+tests `test_tck599_*` dans `WhatsappChannelTest` (17/17).
 
 **Gardes doubles, assumées** : l'usage unique du jeton tient par l'empreinte effacée ET par
 `whereNull('confirmed_at')` — chacune seule survit à l'ablation de l'autre, les deux ensemble

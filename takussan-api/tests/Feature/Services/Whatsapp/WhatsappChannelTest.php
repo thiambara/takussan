@@ -293,6 +293,126 @@ class WhatsappChannelTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /**
+     * TCK-599 (ADR-0050) — le crochet `smsFallbackAllowed()` est strictement additif : une
+     * notification qui ne le déclare pas — toutes celles d'avant 599 — garde le repli SMS.
+     */
+    public function test_tck599_sans_crochet_le_repli_sms_est_inchange(): void
+    {
+        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->contact(now()->subHour());
+        $notification = $this->makeNotification('hi');
+        $this->assertFalse(method_exists($notification, 'smsFallbackAllowed'));
+
+        $result = $this->app->make(WhatsappChannel::class)->send($this->user, $notification);
+
+        $this->assertSame(WhatsappResult::STATUS_FAILED, $result['whatsapp']->status);
+        $this->assertArrayHasKey('sms', $result);
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'lampush'));
+    }
+
+    public function test_tck599_un_crochet_qui_accepte_garde_le_repli_sms(): void
+    {
+        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->contact(now()->subHour());
+
+        $result = $this->app->make(WhatsappChannel::class)
+            ->send($this->user, $this->avecCrochetDeRepli($this->makeNotification('hi'), permis: true));
+
+        $this->assertArrayHasKey('sms', $result);
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'lampush'));
+    }
+
+    public function test_tck599_un_crochet_qui_refuse_coupe_le_repli_sms(): void
+    {
+        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->contact(now()->subHour());
+
+        $result = $this->app->make(WhatsappChannel::class)
+            ->send($this->user, $this->avecCrochetDeRepli($this->makeNotification('hi'), permis: false));
+
+        $this->assertSame(['whatsapp'], array_keys($result));
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), 'lampush'));
+    }
+
+    /**
+     * TCK-599 — la clé `user:{id}` du limiteur reste celle d'un `User` : seul un notifiable qui
+     * n'est pas un `User` (l'abonné sans compte) bascule sur la clé du numéro.
+     */
+    public function test_tck599_la_cle_du_limiteur_d_un_user_est_inchangee(): void
+    {
+        $this->fakeHttp();
+        $this->contact(now()->subHour());
+
+        $this->app->make(WhatsappChannel::class)->send($this->user, $this->makeNotification('hi'));
+
+        $this->assertSame(1, RateLimiter::attempts("whatsapp-channel:user:{$this->user->id}"));
+    }
+
+    /** Délègue tout à `$base` et ajoute le seul crochet `smsFallbackAllowed()`. */
+    private function avecCrochetDeRepli(Notification&SupportsSms&SupportsWhatsapp $base, bool $permis): Notification
+    {
+        return new class($base, $permis) extends Notification implements SupportsSms, SupportsWhatsapp
+        {
+            public function __construct(private Notification&SupportsSms&SupportsWhatsapp $base, private bool $permis) {}
+
+            public function smsFallbackAllowed(): bool
+            {
+                return $this->permis;
+            }
+
+            public function via(object $notifiable): array
+            {
+                return $this->base->via($notifiable);
+            }
+
+            public function whatsappEventType(): string
+            {
+                return $this->base->whatsappEventType();
+            }
+
+            public function smsEventType(): string
+            {
+                return $this->base->smsEventType();
+            }
+
+            public function toWhatsapp(object $notifiable): string
+            {
+                return $this->base->toWhatsapp($notifiable);
+            }
+
+            public function whatsappTemplate(object $notifiable): ?WhatsappTemplateRef
+            {
+                return $this->base->whatsappTemplate($notifiable);
+            }
+
+            public function shouldSendWhatsapp(): bool
+            {
+                return $this->base->shouldSendWhatsapp();
+            }
+
+            public function isCriticalWhatsapp(): bool
+            {
+                return $this->base->isCriticalWhatsapp();
+            }
+
+            public function toSms(object $notifiable): string
+            {
+                return $this->base->toSms($notifiable);
+            }
+
+            public function shouldSendSms(): bool
+            {
+                return $this->base->shouldSendSms();
+            }
+
+            public function isCriticalSms(): bool
+            {
+                return $this->base->isCriticalSms();
+            }
+        };
+    }
+
     private function makeNotification(
         string $body,
         bool $critical = false,
