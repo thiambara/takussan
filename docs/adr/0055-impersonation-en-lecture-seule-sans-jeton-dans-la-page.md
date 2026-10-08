@@ -67,13 +67,15 @@ puis :
   `export/*`, exports de rapports), **toute la famille 2FA** (`auth/two-factor*` : codes de secours,
   et QR de la graine TOTP en cours d'enrôlement — verif-600 M1), les liens de partage d'un document
   (leur `token` ouvre le fichier sans session), l'URL de webhook de paiement d'une intégration
-  (`integrations/*/webhook-endpoint`, ADR-0046 — verif-600 m-D), et **toute action de la liste step-up**
+  (`integrations/*/webhook-endpoint`, ADR-0046 — verif-600 m-D), les **pièces d'identité KYC**
+  (`kyc/documents/*` — verif-600 passe 4 : tout opérateur qui peut impersonner les lit déjà par
+  `/api/admin/kyc`, sous son nom), et **toute action de la liste step-up**
   (`ProtectedActions::STEP_UP` et `STEP_UP_FOR_PLATFORM`) — le jeton d'impersonation ne porte jamais
   de confirmation 2FA ; `/api/admin/*` entier (la cible n'est jamais un opérateur, mais la règle ne
   repose pas sur cette seule garde).
 
-**Consigne : toute route `GET` qui rend un secret durable entre dans `REFUSED_READS` le jour où
-elle est créée.** Un secret durable, c'est un jeton, une URL secrète, une graine, ou un lien qui
+**Consigne : toute route `GET` qui rend un secret durable, ou une pièce d'identité, entre dans
+`REFUSED_READS` le jour où elle est créée.** Un secret durable, c'est un jeton, une URL secrète, une graine, ou un lien qui
 ouvre sans session. Aucune garde ne l'attrape : une lecture neuve qui rend un secret ne casse aucun
 test, et l'opérateur repart avec ce qu'il a lu bien après les 15 minutes. La consigne est répétée
 en tête de la constante.
@@ -95,7 +97,10 @@ en tête de la constante.
 
 `activity_log.impersonator_id` (FK `users`, `nullOnDelete`). `Activity::creating` le renseigne depuis
 `ImpersonationContext`. Début et fin journalisés sur la cible, motif compris ;
-`GET /api/admin/users/{u}/activity` expose `impersonator {id, name}`.
+`GET /api/admin/users/{u}/activity` expose `impersonator {id, name}`. Une consultation tracée par
+`PersonalDataAccessLogger` (ADR-0044 §4) se dédoublonne par (lecteur, sujet, surface,
+**`impersonator_id`**). L'opérateur est un lecteur distinct de sa cible, et une consultation de
+l'un n'avale jamais celle de l'autre (verif-600 passe 4, G).
 
 ### 6. Le front : aucun jeton dans la page
 

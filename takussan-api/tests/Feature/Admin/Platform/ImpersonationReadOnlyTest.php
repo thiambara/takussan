@@ -6,16 +6,22 @@ use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Models\Agency;
 use App\Models\DataExport;
 use App\Models\Document;
+use App\Models\Enums\KycDossierStatus;
 use App\Models\Integration;
+use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\PersonalAccessToken;
 use ReflectionClass;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tests\Support\RemoteDiskFake;
 use Tests\Support\SessionsDImpersonation;
 use Tests\TestCase;
 
@@ -117,6 +123,35 @@ class ImpersonationReadOnlyTest extends TestCase
         $this->avecLeJeton($propre)->getJson($chemin)
             ->assertOk()
             ->assertJsonPath('data.url', $integration->webhookUrl());
+    }
+
+    /**
+     * verif-600 passe 4 — une pièce d'identité de l'agence de la cible ne se lit pas par la session :
+     * l'opérateur qui peut impersonner la lit déjà par `/api/admin/kyc`, sous son propre nom.
+     */
+    public function test_une_piece_d_identite_ne_se_lit_pas_sous_impersonation(): void
+    {
+        Storage::fake('public');
+        RemoteDiskFake::install('r2-private');
+        $agence = Agency::factory()->create();
+        $cible = User::factory()->create(['agency_id' => $agence->id]);
+        $this->materializeRoleProfile($cible, 'agency_admin', $agence);
+        $piece = KycDossier::create([
+            'subject_type' => Agency::class,
+            'subject_id' => $agence->id,
+            'status' => KycDossierStatus::Submitted,
+            'submitted_at' => now(),
+        ])->addMedia(UploadedFile::fake()->createWithContent('cni.pdf', 'piece-identite'))->toMediaCollection('documents');
+        $url = URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $piece->id]);
+        ['jeton' => $jeton] = $this->ouvrirUneSession(cible: $cible);
+
+        $reponse = $this->avecLeJeton($jeton)->get($url);
+        $reponse->assertForbidden()->assertJsonPath('code', 'impersonation.read_only');
+        $this->assertStringNotContainsString('piece-identite', (string) $reponse->getContent());
+
+        // Témoin : l'admin d'agence, avec SON jeton, lit la pièce — le refus est celui de la session.
+        $propre = $cible->createToken('mobile')->plainTextToken;
+        $this->avecLeJeton($propre)->get($url)->assertOk();
     }
 
     /** Les lectures refusées de l'ADR : la console, les exports, les codes de secours. */

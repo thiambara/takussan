@@ -36,7 +36,8 @@ class EnforceImpersonationReadOnly
 {
     /**
      * CONSIGNE (verif-600 m-D) : toute route GET qui rend un SECRET DURABLE — un jeton, une URL
-     * secrète, une graine, un lien qui ouvre sans session — entre ici, le jour où elle est créée.
+     * secrète, une graine, un lien qui ouvre sans session — ou une PIÈCE D'IDENTITÉ entre ici, le
+     * jour où elle est créée.
      * Rien d'autre ne l'attrape : une lecture neuve qui rend un secret ne casse aucun test, et la
      * session repart avec ce qu'elle a lu bien après ses 15 minutes (ADR-0055 §3).
      */
@@ -51,6 +52,9 @@ class EnforceImpersonationReadOnly
         'api/documents/*/share-links*',
         // TCK-293 (ADR-0046) — l'URL de webhook porte le jeton qui route les paiements de l'agence.
         'api/integrations/*/webhook-endpoint',
+        // verif-600 passe 4 — une PIÈCE D'IDENTITÉ. Tout opérateur qui peut impersonner la lit déjà
+        // par `/api/admin/kyc`, sous son nom : la voie par la cible n'ajoute qu'une lecture prêtée.
+        'api/kyc/documents/*',
     ];
 
     public function __construct(
