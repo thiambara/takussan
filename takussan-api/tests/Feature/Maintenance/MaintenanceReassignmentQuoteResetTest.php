@@ -2,7 +2,12 @@
 
 namespace Tests\Feature\Maintenance;
 
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\MaintenanceActors;
@@ -72,5 +77,69 @@ class MaintenanceReassignmentQuoteResetTest extends TestCase
         $mr->refresh();
         $this->assertSame(MaintenanceStatus::Open, $mr->status);
         $this->assertArrayNotHasKey('previous_quotes', $mr->metadata ?? []);
+    }
+
+    /**
+     * Passe 2 (N4, sonde p06) — la fin de collaboration ne remettait pas le devis à zéro : B
+     * démarrait sans devis, et l'accord donné par le bailleur au devis de A (200 000, plafond
+     * 50 000) couvrait le coût réel inscrit par l'agence.
+     */
+    public function test_collaboration_end_archives_the_quote_and_drops_the_owner_agreement(): void
+    {
+        ['mr' => $mr, 'provider' => $a, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested);
+        $agency->forceFill(['kind' => AgencyKind::Standard])->save();
+        $admin = User::factory()->create();
+        AgencyAdminProfile::query()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+        OwnerProfile::query()->where('user_id', $landlord->id)->where('agency_id', $agency->id)->update(['works_approval_threshold' => 50000]);
+
+        Sanctum::actingAs($a);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(200000))->assertOk();
+        Sanctum::actingAs($landlord);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk()->assertJsonPath('data.status', 'approved');
+
+        $sp = ServiceProviderProfile::query()->where('user_id', $a->id)->firstOrFail();
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/agencies/{$agency->id}/service-providers/{$sp->id}/collaboration", ['status' => 'ended'])->assertOk();
+
+        $mr->refresh();
+        $this->assertSame(MaintenanceStatus::Open, $mr->status);
+        $this->assertNull($mr->assigned_to);
+        $this->assertNull($mr->quote_amount);
+        $this->assertNull($mr->quote_decision_by_id);
+        $this->assertSame($a->id, $mr->metadata['previous_quotes'][0]['provider_id']);
+        $this->assertSame('200000.00', $mr->metadata['previous_quotes'][0]['amount']);
+
+        $b = $this->providerFor($agency);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $b->id])->assertOk();
+        Sanctum::actingAs($b);
+        $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'in_progress'])->assertOk();
+
+        // L'accord du bailleur ne passe pas d'un prestataire à l'autre : l'agence n'inscrit pas
+        // 200 000 au-delà du plafond, le bailleur le peut.
+        Sanctum::actingAs($admin);
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['actual_cost' => 200000])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
+        $this->assertNull($mr->refresh()->actual_cost);
+    }
+
+    /**
+     * Passe 2 (N4) — le refus archive de même un devis resté sur la demande. Latent : soumettre un
+     * devis vaut acceptation, et un prestataire qui a accepté ne refuse plus ; l'état est posé en
+     * base pour éprouver le chemin, que la session a voulu aligner « par cohérence ».
+     */
+    public function test_decline_archives_the_quote_of_the_provider_who_declines(): void
+    {
+        ['mr' => $mr, 'provider' => $a] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested, ['accepted_at' => null]);
+
+        Sanctum::actingAs($a);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(30000))->assertOk();
+        $mr->refresh()->forceFill(['accepted_at' => null])->save();
+        $this->postJson("/api/maintenance-requests/{$mr->id}/decline", ['reason' => 'Finalement pas disponible'])->assertOk();
+
+        $mr->refresh();
+        $this->assertSame(MaintenanceStatus::Open, $mr->status);
+        $this->assertNull($mr->quote_amount);
+        $this->assertNull($mr->quote_submitted_at);
+        $this->assertSame($a->id, $mr->metadata['previous_quotes'][0]['provider_id']);
     }
 }

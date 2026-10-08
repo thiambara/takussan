@@ -146,6 +146,9 @@ class MaintenanceRequestService
      * `unassignProviderFromAgency`) : de `quote_submitted`, `awaiting_owner`, `rejected`,
      * `approved` et `in_progress` vers `quote_requested`. Les pièces jointes du devis (collection
      * `quotes`) restent sur la demande.
+     *
+     * Passe 2 (N4) : le refus et la fin de collaboration passent aussi par ici ; ils remettent
+     * ensuite la demande en `open`, au donneur d'ordre, qui choisit de redemander un devis ou non.
      */
     private function resetQuoteOfPreviousProvider(MaintenanceRequest $mr, int $previousProviderId): void
     {
@@ -207,6 +210,9 @@ class MaintenanceRequestService
             'maintenance.decline_after_accept',
         );
 
+        // verif-592 passe 2 (N4) — le devis du prestataire qui refuse part avec lui, comme à la
+        // réassignation : archivé, et l'accord du bailleur avec.
+        $this->resetQuoteOfPreviousProvider($mr, $provider->id);
         $mr->assigned_to = null;
         $mr->accepted_at = null;
         $mr->status = MaintenanceStatus::Open;
@@ -249,6 +255,9 @@ class MaintenanceRequestService
         foreach ($requests as $mr) {
             DB::transaction(function () use ($mr, $provider, $actor): void {
                 $from = $mr->status ?? MaintenanceStatus::Open;
+                // verif-592 passe 2 (N4) — même remise à zéro que la réassignation : le suivant
+                // partait du devis de l'ancien, et l'accord du bailleur couvrait son coût réel.
+                $this->resetQuoteOfPreviousProvider($mr, $provider->id);
                 $mr->assigned_to = null;
                 $mr->accepted_at = null;
                 $mr->status = MaintenanceStatus::Open;
