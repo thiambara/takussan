@@ -11,6 +11,7 @@ use App\Models\Invitation;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Providers\AppServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -54,6 +55,8 @@ class AgencyTeamInvitationListingTest extends TestCase
         $this->postJson("/api/invitations/{$invitation->id}/resend")->assertOk();
         $deuxiemeJeton = $invitation->fresh()->token;
 
+        // TCK-589 (m1) : une relance par fenêtre de 10 min et par invitation.
+        $this->travel(AppServiceProvider::INVITATION_RESEND_MINUTES + 1)->minutes();
         $this->postJson("/api/invitations/{$invitation->id}/resend")->assertOk();
         $troisiemeJeton = $invitation->fresh()->token;
 
@@ -412,6 +415,8 @@ class AgencyTeamInvitationListingTest extends TestCase
             ->where('agency_id', $admin->agency_id)
             ->forceDelete();
 
+        // TCK-589 (m1) : hors de la fenêtre de relance, pour que le 403 soit celui de l'autorisation.
+        $this->travel(AppServiceProvider::INVITATION_RESEND_MINUTES + 1)->minutes();
         $this->postJson("/api/invitations/{$invitation->id}/resend")->assertStatus(403);
         $this->postJson("/api/invitations/{$invitation->id}/revoke")->assertStatus(403);
         $this->assertSame(InvitationStatus::Sent, $invitation->fresh()->status);

@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Resend / revoke réutilisent les routes génériques /api/invitations/{id}/*
     // exposées par TCK-249 (InvitationController).
     Route::post('agencies/{agency}/owners/invite', OwnerInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.owners.invite');
 
     // TCK-258 — équipe : listing membres + invitation agent. Resend / revoke
@@ -78,6 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
         ->name('agencies.team.index');
     Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.agents.invite');
 
     // TCK-266 — Console agence : queue locataires avec onboarding bloqué
@@ -93,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/service-providers', [ServiceProviderProfileController::class, 'index'])
         ->name('agencies.serviceProviders.index');
     Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.serviceProviders.invite');
 
     // TCK-267 — agency-side upgrade request flow (`individual → standard`).

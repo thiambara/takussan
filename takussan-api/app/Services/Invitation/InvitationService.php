@@ -22,7 +22,9 @@ use App\Services\Notifications\Sms\PhoneNumber;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -189,6 +191,10 @@ class InvitationService
         }
 
         $existingUser = $this->recipientAccount($email, $phone);
+
+        if ($email === null) {
+            $this->reserveAgencySms($agencyId);
+        }
 
         $invitation = DB::transaction(function () use (
             $email, $phone, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser
@@ -364,6 +370,13 @@ class InvitationService
      * de la base : le destinataire le voit en 404 et l'inviteur le corrige
      * en relançant. *Le premier défaut est silencieux, le second se voit* —
      * c'est ce qui départage (TCK-367, reconduit ici).
+     *
+     * ## Le SMS, lui, part APRÈS le commit (TCK-589, vérification adverse m1)
+     *
+     * Le compromis de TCK-367 ne tient pas pour un SMS : il part en file, son
+     * échec ne défait donc rien, et un rollback survenu après sa mise en file
+     * remettrait au destinataire un jeton absent de la base. Il sort de la
+     * transaction ; le courriel y reste.
      */
     public function resend(Invitation $invitation, User $actor): Invitation
     {
@@ -373,7 +386,11 @@ class InvitationService
             ])->status(422);
         }
 
-        return DB::transaction(function () use ($invitation, $actor): Invitation {
+        if ($this->smsRecipient($invitation) !== null) {
+            $this->reserveAgencySms($invitation->agency_id);
+        }
+
+        $fraiche = DB::transaction(function () use ($invitation, $actor): Invitation {
             // Relire SOUS le verrou : le modèle vient du route-model binding,
             // donc d'avant la transaction. `lockForUpdate()` sur la ligne
             // elle-même ferme la course avec les écrivains qui ne passent pas
@@ -400,7 +417,10 @@ class InvitationService
                 'last_reminded_at' => null,
             ])->save();
 
-            $this->deliver($fraiche, $this->recipientAccount($fraiche->email, $this->smsRecipient($fraiche)));
+            // Le courriel part DANS la transaction (TCK-367 : un échec la défait).
+            if ($this->smsRecipient($fraiche) === null) {
+                $this->deliver($fraiche, $this->recipientAccount($fraiche->email, null));
+            }
 
             activity('Invitation')
                 ->performedOn($fraiche)
@@ -410,6 +430,37 @@ class InvitationService
 
             return $fraiche;
         });
+
+        // Le SMS part APRÈS le commit (vérification adverse m1).
+        if ($this->smsRecipient($fraiche) !== null) {
+            $this->deliver($fraiche, $this->recipientAccount(null, $this->smsRecipient($fraiche)));
+        }
+
+        return $fraiche;
+    }
+
+    /**
+     * Vérification adverse m1 — le plafond journalier des SMS d'invitation d'une agence
+     * (`sms.invitation_daily_cap_per_agency`), réservé AVANT toute écriture : un refus
+     * ne laisse ni ligne ni jeton tourné. Une invitation sans agence (plateforme) a son
+     * propre compteur.
+     */
+    protected function reserveAgencySms(?int $agencyId): void
+    {
+        $key = 'invitation-sms-day:'.($agencyId ?? 'platform').':'.now('UTC')->toDateString();
+        Cache::add($key, 0, now('UTC')->endOfDay()->addHour());
+        $sent = (int) Cache::increment($key);
+        $cap = (int) config('sms.invitation_daily_cap_per_agency');
+
+        if ($sent > $cap) {
+            if ($sent === $cap + 1) {
+                Log::warning('Plafond journalier des SMS d\'invitation atteint pour une agence.', [
+                    'agency_id' => $agencyId,
+                    'cap' => $cap,
+                ]);
+            }
+            abort_code(429, 'invitation.sms_daily_cap_reached');
+        }
     }
 
     /**
@@ -878,8 +929,9 @@ class InvitationService
      * l'expéditeur Takussan un relais d'hameçonnage (vérification adverse m1) : le nom
      * de l'agence seul, filtré ({@see self::smsAgencyName()}) et tronqué au rendu.
      *
-     * Hors transaction, comme l'était le courriel : un échec d'envoi ne défait pas
-     * l'invitation, l'invitant peut relancer.
+     * Hors transaction à l'envoi et pour tout SMS : un échec d'envoi ne défait pas
+     * l'invitation, l'invitant peut relancer. Seul le courriel d'une RELANCE part
+     * dans sa transaction ({@see self::resend()}, TCK-367).
      */
     protected function deliver(Invitation $invitation, ?User $existingUser, bool $isReminder = false): void
     {

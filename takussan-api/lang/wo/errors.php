@@ -170,6 +170,7 @@ return [
         'tenant_not_found' => 'Luwekat bu bail bi gisuñu ko.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'Limu woote yi ci SMS ci bés bi jot na ci agence bi. Jéemaatal ëllëg, walla woo ko ci e-mail.',
         'phone_mismatch' => 'Nimero bii du bi ñu yónne woote bi.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',

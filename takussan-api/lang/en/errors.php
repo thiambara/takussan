@@ -170,6 +170,7 @@ return [
         'tenant_not_found' => 'The lease tenant was not found.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
         'phone_mismatch' => 'This number is not the one the invitation was sent to.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',

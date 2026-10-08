@@ -1425,3 +1425,45 @@ limite par numéro du canal.
 **Ablations, restaurées par `cp`** (empreinte md5 vérifiée) :
 - filtre du nom retiré → 1 rouge (`…filtre et tronque`) ;
 - rappel envoyé sous `invitation.received` → 1 rouge (`…son propre code`).
+
+#### m1 (bornes) — invitations par SMS bornées par invitation, numéro, invitant et agence
+
+- **Limiteur nommé `invitations-send`** sur les trois routes `agencies/{a}/…/invite`,
+  `POST invitations` et `POST invitations/{id}/resend` :
+  - 20 invitations par heure et par invitant ;
+  - 3 par jour et par numéro destinataire, seulement quand le lien part par SMS ;
+  - une relance par 10 min et par invitation.
+
+  Les constantes sont dans `AppServiceProvider`. Le throttle passe avant la liaison de route, si
+  bien que le limiteur relit l'invitation par son identifiant.
+- **Plafond journalier par agence** : `sms.invitation_daily_cap_per_agency`, 50 par défaut.
+  - Il est réservé **avant toute écriture**, à l'envoi et à la relance. Au-delà : 429
+    `invitation.sms_daily_cap_reached` (clé fr/en/wo), une alerte au journal, et ni ligne ni
+    jeton tourné.
+  - Le rappel automatique n'y est pas compté : il y en a un par invitation, et il ne se déclenche
+    pas à la demande.
+- **La relance envoie le SMS après le commit. Le courriel reste dans la transaction.** C'est un
+  écart assumé au texte de m1, qui disait « `deliver()` sort de la transaction ».
+  - `test_a_failing_email_leaves_the_invitation_exactly_as_it_was` (TCK-367) garde le contraire
+    pour le courriel, avec son motif : un échec SMTP défait la relance. Sortir le courriel de la
+    transaction aurait fait rougir ce test.
+  - Le risque que nomme le vérificateur est celui du SMS : un jeton qu'un rollback annule. Il
+    est fermé.
+  - Le docblock de `resend()` porte les deux raisons.
+- **Deux tests de TCK-367/368 ajustés** (`AgencyTeamInvitationListingTest`). Deux relances
+  successives, puis la relance de l'ex-admin, avancent le temps au-delà de la fenêtre de 10 min.
+  Le 403 attendu reste ainsi celui de l'autorisation.
+
+**Test `InvitationSmsLimitsTest` (5)** : une relance par 10 min ; 3 invitations par numéro et par
+jour ; 20 par invitant et par heure ; le plafond par agence refusé avant d'écrire (l'e-mail
+passe) ; le SMS de relance envoyé hors transaction (niveau de transaction relevé à
+`NotificationSending`).
+**Rouge sur `84be9f7d`** : 5 rouges.
+**Ablations, restaurées par `cp`** (md5 vérifiés) :
+- route sans limiteur → 2 rouges (numéro, invitant) ;
+- relance à 100 par fenêtre → 1 rouge ;
+- réservation du plafond retirée → 1 rouge ;
+- SMS rendu à la transaction → 2 rouges.
+
+**Exécutions** : `tests/Feature/Invitation` donne 102 verts. Les tests de super-admin, de
+drapeau, d'équipe, de délégation et d'onboarding donnent 80 verts.

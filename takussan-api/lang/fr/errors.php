@@ -170,6 +170,7 @@ return [
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'Le plafond journalier d\'invitations par SMS de l\'agence est atteint. Réessayez demain, ou invitez par e-mail.',
         'phone_mismatch' => 'Ce numéro n\'est pas celui qui a reçu l\'invitation.',
         'email_mismatch' => 'L\'email du compte connecté ne correspond pas à celui de l\'invitation.',
         'requires_login' => 'Cet email correspond à un compte existant. Veuillez vous connecter pour accepter l\'invitation.',

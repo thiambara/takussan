@@ -95,6 +95,7 @@ use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\OrangeDailyCapTracker;
 use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
+use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsRouterDriver;
@@ -123,6 +124,13 @@ class AppServiceProvider extends ServiceProvider
 {
     /** Vérification adverse M1 (c) — codes SMS vérifiables par numéro et par 15 min. */
     public const PHONE_VERIFY_PER_WINDOW = 4;
+
+    /** Vérification adverse m1 — bornes des invitations (un SMS sous l'expéditeur Takussan). */
+    public const INVITATIONS_PER_INVITER_PER_HOUR = 20;
+
+    public const INVITATIONS_PER_NUMBER_PER_DAY = 3;
+
+    public const INVITATION_RESEND_MINUTES = 10;
 
     public function register(): void
     {
@@ -350,6 +358,33 @@ class AppServiceProvider extends ServiceProvider
         // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
         // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,
         // un tiers verrouillait le numéro à chaque échéance.
+        // TCK-589, vérification adverse m1 — une invitation par SMS dépense un SMS sous
+        // l'expéditeur Takussan. Par invitant (toute invitation), par numéro destinataire
+        // (seulement quand le lien part par SMS), et une relance par fenêtre et par
+        // invitation. Le throttle passe AVANT la liaison de route : `{invitation}` peut
+        // n'être encore que l'identifiant.
+        RateLimiter::for('invitations-send', function (Request $request): array {
+            $limits = [Limit::perHour(self::INVITATIONS_PER_INVITER_PER_HOUR)
+                ->by('inviter:'.($request->user()?->getAuthIdentifier() ?? $request->ip()))];
+
+            $bound = $request->route('invitation');
+            if ($bound !== null) {
+                $invitation = $bound instanceof Invitation ? $bound : Invitation::query()->find($bound);
+                $limits[] = Limit::perMinutes(self::INVITATION_RESEND_MINUTES, 1)
+                    ->by('invitation:'.($invitation?->getKey() ?? (string) $bound));
+                $numero = $invitation !== null && $invitation->email === null ? $invitation->phone : null;
+            } else {
+                $numero = filled($request->input('email')) ? null : $request->input('phone');
+            }
+
+            if (is_string($numero) && trim($numero) !== '') {
+                $limits[] = Limit::perDay(self::INVITATIONS_PER_NUMBER_PER_DAY)
+                    ->by('invitation-number:'.$this->normalizedPhone($numero));
+            }
+
+            return $limits;
+        });
+
         RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, self::PHONE_VERIFY_PER_WINDOW)
             ->by('phone:'.$this->phoneRateLimitKey($request)));
 
@@ -383,6 +418,15 @@ class AppServiceProvider extends ServiceProvider
         }
 
         return preg_replace('/\s+/', '', $phone) ?? '';
+    }
+
+    private function normalizedPhone(string $phone): string
+    {
+        try {
+            return PhoneNumber::normalize($phone);
+        } catch (\InvalidArgumentException) {
+            return preg_replace('/\s+/', '', $phone) ?? $phone;
+        }
     }
 
     private function visitorRateLimitKey(Request $request): string

@@ -100,6 +100,13 @@ return [
     'otp_daily_cap' => (int) env('SMS_OTP_DAILY_CAP', 2000),
 
     /**
+     * TCK-589, vérification adverse m1 — plafond journalier (UTC) des SMS d'invitation PAR
+     * AGENCE, envoi et relance (le rappel automatique, un par invitation, n'y est pas compté).
+     * Atteint : 429 `invitation.sms_daily_cap_reached`, et rien n'est écrit.
+     */
+    'invitation_daily_cap_per_agency' => (int) env('SMS_INVITATION_DAILY_CAP_PER_AGENCY', 50),
+
+    /**
      * Application-level rate limit applied before any driver is called.
      * Protects against abuse of 2FA / password reset endpoints.
      */
