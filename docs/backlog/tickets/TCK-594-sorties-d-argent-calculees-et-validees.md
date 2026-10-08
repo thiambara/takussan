@@ -819,3 +819,22 @@ le ticket nommé (vérifié dans son texte).
   quatre yeux, même destination vérifiée ; un second `pay` sur une facture déjà dans un reversement
   vivant rend 409. `markProcessed` passe la facture à `paid`.
 
+### Partie 6 — relevé de gérance (§ 2)
+
+- `GET /api/owner-statements?period=YYYY-MM|YYYY[&landlord_id=][&agency_id=]`, `…/pdf`, `…/csv`.
+  `OwnerStatementService` relit les règles du calculateur : encaissements éligibles de la période
+  (`paid_at`), commission par ligne ; les **frais** sont les factures d'intervention imputées aux
+  reversements **au bailleur** (non annulés ni échoués) qui portent ces encaissements ; il rend les
+  reversements avec leurs références, le total `completed` (`paid_out`), une ventilation par bien et
+  les impayés de la période (loyers `pending`/`late`/`partially_paid` échus dans la période).
+  `period=YYYY` rend l'attestation annuelle (`annual: true`).
+- `OwnerStatementPolicy::view` (liée par `Gate::define('viewOwnerStatement')`, le relevé n'étant pas un
+  modèle) : le bailleur, dans une agence où il est bailleur ; le personnel de cette agence qui détient
+  `payouts.create`. Un autre bailleur de la même agence : 403.
+- PDF `pdf/statements/owner.blade.php` (libellés `money_out.statement.*`, NINEA/RCCM de l'agence s'ils
+  existent). CSV séparé par `;`.
+- `payouts:send-owner-statements` (le 1er, 08:00, Africa/Dakar) avise chaque bailleur qui a eu des
+  encaissements le mois précédent (`OwnerStatementAvailableNotification`). Idempotence par
+  `Cache::add` (40 jours) : un cache vidé entre deux exécutions du même mois renverrait l'avis.
+- `PayoutPreparationService` aligné sur `PayoutService::create` : le `agency_id` du super-admin l'emporte.
+

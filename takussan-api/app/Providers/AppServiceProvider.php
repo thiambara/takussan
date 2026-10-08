@@ -69,6 +69,7 @@ use App\Policies\LeasePolicy;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
+use App\Policies\OwnerStatementPolicy;
 use App\Policies\PayoutPolicy;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Policies\PropertyModerationPolicy;
@@ -520,6 +521,8 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.
+        // TCK-594 (ADR-0039 §3) — le relevé de gérance n'est pas un modèle.
+        Gate::define('viewOwnerStatement', [OwnerStatementPolicy::class, 'view']);
         Gate::define('approve-property', [PropertyModerationPolicy::class, 'approve']);
         Gate::define('reject-property', [PropertyModerationPolicy::class, 'reject']);
         Gate::define('resubmit-property', [PropertyModerationPolicy::class, 'resubmit']);

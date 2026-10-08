@@ -113,3 +113,6 @@ Schedule::command('sms:pull-mtarget-dlr')->everyFiveMinutes()->withoutOverlappin
 // `payouts.metadata.due_reminded_at`, posé avant l'envoi : une exécution rejouée ne renvoie rien.
 // Elle ne décaisse rien (décaissement manuel, ADR-0039 §1).
 Schedule::command('payouts:remind-due')->dailyAt('07:30')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-594 (ADR-0039 §3) — le 1er du mois, avis du relevé de gérance du mois précédent.
+Schedule::command('payouts:send-owner-statements')->monthlyOn(1, '08:00')->timezone('Africa/Dakar')->withoutOverlapping();

@@ -24,7 +24,9 @@ final class PayoutPreparationService
      */
     public function prepare(User $issuer, User $landlord, CarbonInterface $start, CarbonInterface $end, ?int $agencyId = null): array
     {
-        $agencyId = $issuer->agency_id ?? ($issuer->isSuperAdmin() ? $agencyId : null);
+        // Comme `PayoutService::create` : le super-admin désigne l'agence ; pour tout autre, c'est celle
+        // de son profil actif.
+        $agencyId = $issuer->isSuperAdmin() && $agencyId !== null ? $agencyId : $issuer->agency_id;
         abort_if($agencyId === null, 403, __('money_out.payout.agency_required'));
         $agency = Agency::query()->findOrFail($agencyId);
 
