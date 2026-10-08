@@ -1963,7 +1963,8 @@
         "paid": "Fey nañu ko",
         "late": "Yeex na",
         "pending": "Di ñëw",
-        "other": "Weneen"
+        "other": "Weneen",
+        "cancelled": "Neenal nañu ko"
       },
       "listLabel": "Bési fey yu kontaraa bi",
       "dueOn": "Bisu pey : {date}",

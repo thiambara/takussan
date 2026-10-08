@@ -3430,7 +3430,8 @@
         "paid": "Payé",
         "late": "En retard",
         "pending": "À venir",
-        "other": "Autre"
+        "other": "Autre",
+        "cancelled": "Annulée"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",

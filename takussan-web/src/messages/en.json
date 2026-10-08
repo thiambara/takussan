@@ -3455,7 +3455,8 @@
         "paid": "Paid",
         "late": "Overdue",
         "pending": "Upcoming",
-        "other": "Other"
+        "other": "Other",
+        "cancelled": "Cancelled"
       },
       "listLabel": "Lease instalments",
       "dueOn": "Due: {date}",
