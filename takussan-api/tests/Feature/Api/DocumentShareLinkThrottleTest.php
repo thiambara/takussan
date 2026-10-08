@@ -9,6 +9,8 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /**
@@ -85,5 +87,47 @@ class DocumentShareLinkThrottleTest extends TestCase
         }
         $this->postJson("/api/share/{$token}", ['password' => 'bon'])->assertOk();
         $this->postJson("/api/share/{$token}", ['password' => 'bon'])->assertOk();
+    }
+
+    /**
+     * VERIF-602 m1 — une rafale simultanée ne dépasse pas la borne. Chaque évaluation du mot de passe
+     * (bcrypt, la fenêtre de la course) voit arriver une AUTRE requête faux sur le même lien, comme
+     * douze processus partis au même instant : au plus 5 essais sont évalués, les autres rendent 429
+     * sans l'être — et le bon mot de passe, arrivé après la rafale, aussi.
+     */
+    public function test_a_simultaneous_burst_evaluates_at_most_five_passwords(): void
+    {
+        $token = $this->link(['password' => 'BonMotDePasse']);
+        $service = app(DocumentShareLinkService::class);
+        $state = (object) ['evaluated' => 0, 'refused' => 0, 'pending' => 11];
+
+        $nextRequest = function () use ($service, $token, $state): void {
+            if ($state->pending <= 0) {
+                return;
+            }
+            $state->pending--;
+            try {
+                $service->validate($token, 'faux'.$state->pending);
+            } catch (HttpException $e) {
+                if ($e->getStatusCode() === 429) {
+                    $state->refused++;
+                }
+            }
+        };
+        $real = app('hash');
+        Hash::shouldReceive('check')->andReturnUsing(function (string $value, string $hash) use ($real, $nextRequest, $state): bool {
+            $state->evaluated++;
+            $nextRequest(); // une requête concurrente arrive pendant le bcrypt de celle-ci
+
+            return $real->check($value, $hash);
+        });
+
+        while ($state->pending > 0) {
+            $nextRequest(); // la rafale se vide : le reste arrive après le premier essai jugé
+        }
+
+        $this->assertSame(5, $state->evaluated, 'essais évalués');
+        $this->assertSame(6, $state->refused, 'essais refusés sans évaluation');
+        $this->postJson("/api/share/{$token}", ['password' => 'BonMotDePasse'])->assertStatus(429);
     }
 }

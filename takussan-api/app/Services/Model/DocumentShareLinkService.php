@@ -5,6 +5,7 @@ namespace App\Services\Model;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 
 class DocumentShareLinkService
@@ -50,12 +51,16 @@ class DocumentShareLinkService
             // TCK-602 (ADR-0051 §7) — les essais faux se comptent PAR LIEN, quelle que soit
             // l'adresse : un limiteur par IP se contourne en changeant d'adresse. Au-delà, même
             // le bon mot de passe attend la fin de la fenêtre.
+            // VERIF-602 m1 — l'essai est compté AVANT d'être évalué, par l'incrément atomique du
+            // cache, et c'est la valeur qu'il rend qui décide : des requêtes simultanées ne passent
+            // plus toutes un contrôle lu avant le premier compte. Le bon mot de passe rend son essai.
             $key = 'share-password:'.$link->getKey();
-            abort_code_if(RateLimiter::tooManyAttempts($key, self::PASSWORD_MAX_ATTEMPTS), 429, 'share_link.too_many_attempts');
-            if ($password === null || ! password_verify($password, $link->password_hash)) {
-                RateLimiter::hit($key, self::PASSWORD_DECAY_SECONDS);
+            $attempt = RateLimiter::hit($key, self::PASSWORD_DECAY_SECONDS);
+            abort_code_if($attempt > self::PASSWORD_MAX_ATTEMPTS, 429, 'share_link.too_many_attempts');
+            if ($password === null || ! Hash::check($password, $link->password_hash)) {
                 abort_code(401, 'share_link.password_invalid');
             }
+            RateLimiter::decrement($key, self::PASSWORD_DECAY_SECONDS);
         }
 
         return $link;
