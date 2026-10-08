@@ -4,6 +4,7 @@ import type {
   Integration,
   IntegrationTestResult,
   IntegrationWebhookEndpoint,
+  PaymentProviderSchema,
   Setting,
   SettingScope,
   SettingValue,
@@ -177,6 +178,17 @@ export async function fetchIntegrations(
     `/api/integrations${qs ? `?${qs}` : ''}`,
     { token, activeProfileId },
   );
+}
+
+/** TCK-602 — les champs que chaque fournisseur de paiement exige, pour le formulaire. */
+export async function fetchPaymentProviderSchemas(
+  token: string,
+  activeProfileId?: string,
+): Promise<{ data: PaymentProviderSchema[] }> {
+  return apiRequest<{ data: PaymentProviderSchema[] }>('/api/integrations/payment-providers', {
+    token,
+    activeProfileId,
+  });
 }
 
 export async function createIntegration(

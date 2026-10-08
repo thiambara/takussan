@@ -7870,6 +7870,18 @@
           "orange_money": "Orange Money"
         },
         "unsupported": "Automatic payment confirmation is not yet supported for this provider."
+      },
+      "paymentFields": {
+        "legend": "Provider credentials",
+        "api_key": "API key",
+        "webhook_secret": "Webhook secret",
+        "client_id": "Client ID",
+        "client_secret": "Client secret",
+        "merchant_key": "Merchant key",
+        "store_id": "Store ID",
+        "variant_id": "Variant ID",
+        "signing_secret": "Signing secret",
+        "secret_key": "Secret key"
       }
     },
     "settings": {

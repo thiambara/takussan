@@ -7259,6 +7259,18 @@
           "orange_money": "Orange Money"
         },
         "unsupported": "Takussan mënagul dëggal fey yi ci boppam ak fournisseur bii."
+      },
+      "paymentFields": {
+        "legend": "Identifiants yu jottalikat bi",
+        "api_key": "Caabi API",
+        "webhook_secret": "Secret webhook",
+        "client_id": "Identifiant client",
+        "client_secret": "Secret client",
+        "merchant_key": "Caabi jaaykat",
+        "store_id": "Identifiant bitik",
+        "variant_id": "Identifiant variante",
+        "signing_secret": "Secret xaatim",
+        "secret_key": "Caabi bu kumpaywul"
       }
     },
     "settings": {

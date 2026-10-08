@@ -292,13 +292,14 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
   {
     fichier: 'src/components/admin-settings/IntegrationsManager.tsx',
-    motif: /^(Orange Money|SMS — Orange Sénégal)$/,
+    motif: /^(Orange Money|Lemon Squeezy|SMS — Orange Sénégal)$/,
     famille: 'NOM-PROPRE',
     raison:
       "Noms commerciaux de fournisseurs de paiement et de SMS, dans la table `PROVIDER_SUGGESTIONS`"
-      + " qui alimente un `<datalist>`. Ils ne se traduisent pas. ⚠ La table en porte sept ; le "
-      + "scanner n'en voit que DEUX (les seules à accentuer ou à former deux mots séparés d'une "
-      + "espace) — le compte de cette famille est un PLANCHER, pas un inventaire.",
+      + " qui alimente un `<datalist>`. Ils ne se traduisent pas. ⚠ La table en porte huit (Lemon "
+      + "Squeezy ajouté par TCK-602) ; le scanner n'en voit que TROIS (les seules à accentuer ou à "
+      + "former deux mots séparés d'une espace) — le compte de cette famille est un PLANCHER, pas un "
+      + "inventaire.",
   },
   { fichier: 'src/components/admin-settings/IntegrationsManager.tsx', motif: /^placeholder="(TAKUSSAN|Takussan)"$/, famille: 'NOM-PROPRE', raison: R_MARQUE_TAKUSSAN },
   {

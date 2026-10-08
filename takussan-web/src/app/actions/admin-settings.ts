@@ -12,6 +12,7 @@ import {
   deleteSetting,
   fetchIntegrations,
   fetchIntegrationWebhookEndpoint,
+  fetchPaymentProviderSchemas,
   fetchSettings,
   rotateIntegrationWebhookEndpoint,
   testIntegration,
@@ -25,6 +26,7 @@ import type {
   Integration,
   IntegrationTestResult,
   IntegrationWebhookEndpoint,
+  PaymentProviderSchema,
   Setting,
   SettingScope,
 } from '@/types/setting';
@@ -166,6 +168,18 @@ export async function fetchIntegrationsAction(): Promise<
   try {
     const data = await fetchIntegrations(auth.token, {}, await getActiveProfileId());
     return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+/** TCK-602 (ADR-0051 §3) — les champs que chaque fournisseur de paiement exige. */
+export async function fetchPaymentProviderSchemasAction(): Promise<ActionResult<PaymentProviderSchema[]>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const res = await fetchPaymentProviderSchemas(auth.token, await getActiveProfileId());
+    return { ok: true, data: res.data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }

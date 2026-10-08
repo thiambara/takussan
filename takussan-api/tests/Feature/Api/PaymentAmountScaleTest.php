@@ -118,6 +118,7 @@ class PaymentAmountScaleTest extends TestCase
     public function test_orange_money_recoit_le_montant_de_la_base_et_non_cent_fois_plus(): void
     {
         Http::fake([
+            'api.orange.com/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]),
             'api.orange.com/orange-money-webpay/v1/webpayment' => Http::response([
                 'pay_token' => 'omt_scale',
                 'payment_url' => 'https://webpayment.orange-money.com/pay/omt_scale',
@@ -125,7 +126,7 @@ class PaymentAmountScaleTest extends TestCase
         ]);
 
         $this->integration('orange_money', [
-            'access_token' => 'om_token',
+            'client_id' => 'om_client', 'client_secret' => 'om_secret',
             'merchant_key' => 'mk',
             'webhook_secret' => 's',
         ]);

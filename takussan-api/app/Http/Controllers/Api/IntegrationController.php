@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\IntegrationWebhookEndpointRequest;
 use App\Http\Requests\Api\StoreIntegrationRequest;
@@ -30,6 +31,38 @@ class IntegrationController extends Controller
             ->paginate();
 
         return $this->paginated($paginator, IntegrationResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * TCK-602 (ADR-0051 §3) — les fournisseurs de PAIEMENT et les champs de leur schéma : le
+     * formulaire de l'agence présente exactement ce que le pilote lit, et ce que `store` exige.
+     * Même garde que la liste ; rien de secret (des noms de champs).
+     */
+    public function paymentProviders(Request $request, IntegrationProviderRegistry $registry): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user->isSuperAdmin()) {
+            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
+        }
+
+        $providers = [];
+        foreach ($registry->all() as $provider) {
+            if ($provider->category() !== 'payments') {
+                continue;
+            }
+            $providers[] = [
+                'key' => $provider->key(),
+                'label' => $provider->label(),
+                'fields' => array_map(static fn (array $field): array => [
+                    'name' => $field['name'],
+                    'type' => $field['type'],
+                    'secret' => (bool) $field['secret'],
+                    'required' => (bool) $field['required'],
+                ], $provider->schema()),
+            ];
+        }
+
+        return $this->json(['data' => $providers]);
     }
 
     public function store(StoreIntegrationRequest $request): JsonResponse
@@ -81,6 +114,13 @@ class IntegrationController extends Controller
         // also clears.
         if ($request->has('metadata') && ! isset($data['metadata'])) {
             $data['metadata'] = [];
+        }
+
+        // TCK-602 — les identifiants envoyés recouvrent les enregistrés, comme dans la console
+        // (`IntegrationService::update`) : un formulaire qui ne renvoie pas un secret masqué ne
+        // l'efface plus.
+        if (array_key_exists('credentials', $data)) {
+            $data['credentials'] = $request->mergedCredentials();
         }
 
         $integration->fill($data)->save();

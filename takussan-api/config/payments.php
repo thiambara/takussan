@@ -21,4 +21,14 @@ return [
         'ttl_days_after_due' => 60,
         'receipt_days' => 30,
     ],
+
+    /*
+     * TCK-602 (ADR-0051 §3) — Orange Money : le jeton d'accès s'obtient par OAuth
+     * `client_credentials` sur la passerelle d'Orange (même point que le pilote SMS) et se garde en
+     * cache jusqu'à `expires_in` moins cette marge.
+     */
+    'orange_money' => [
+        'oauth_token_url' => env('ORANGE_MONEY_OAUTH_URL', 'https://api.orange.com/oauth/v3/token'),
+        'oauth_token_safety_margin_seconds' => 60,
+    ],
 ];

@@ -7,6 +7,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\AlertRule;
 use App\Models\Announcement;
 use App\Models\Integration;
+use App\Models\IntegrationWebhookLog;
 use App\Models\Invitation;
 use App\Models\KycDossier;
 use App\Models\Plan;
@@ -85,6 +86,10 @@ class NamespaceAccessGuardTest extends TestCase
             'invitable_id' => $user->id,
         ]);
 
+        // TCK-602 — même motif, sur le journal des webhooks (`webhook-logs/{webhookLog}` et son
+        // rejeu) : sans ligne réelle, le repli « 1 » rendait 404 avant la garde.
+        $webhookLog = IntegrationWebhookLog::query()->create(['provider' => 'wave', 'direction' => 'incoming', 'status' => 'failed', 'payload' => []]);
+
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
 
@@ -107,6 +112,7 @@ class NamespaceAccessGuardTest extends TestCase
                     '{payout}' => (string) $payout->id,
                     '{upgradeRequest}' => (string) $upgradeRequest->id,
                     '{invitation}' => (string) $invitation->id,
+                    '{webhookLog}' => (string) $webhookLog->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

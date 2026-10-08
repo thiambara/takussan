@@ -37,6 +37,7 @@ class PaymentGatewayInitiateTest extends TestCase
                 'amount' => '50000',
                 'currency' => 'XOF',
             ], 200),
+            'api.orange.com/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]),
             'api.orange.com/*' => Http::response([
                 'pay_token' => 'om_token_abc',
                 'payment_url' => 'https://webpayment.orange-money.com/pay/om_token_abc',
@@ -81,7 +82,7 @@ class PaymentGatewayInitiateTest extends TestCase
             'credentials' => $credentials !== [] ? $credentials : [
                 'api_key' => 'wave_test_key',
                 'webhook_secret' => 'wave_secret',
-                'access_token' => 'om_token',
+                'client_id' => 'om_client', 'client_secret' => 'om_secret',
                 'merchant_key' => 'om_merchant',
                 'store_id' => 'ls_store',
                 'variant_id' => 'ls_variant',

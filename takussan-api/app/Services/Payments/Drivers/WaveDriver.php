@@ -64,7 +64,7 @@ class WaveDriver implements PaymentDriverContract
 
         if (! $response->successful()) {
             Log::warning('[wave] checkout failed', ['status' => $response->status(), 'body' => $response->body()]);
-            abort_code(502, 'payment.provider_failed', ['provider' => 'Wave']);
+            abort_code(502, 'payment.provider_unavailable');
         }
 
         $data = $response->json();
@@ -93,7 +93,7 @@ class WaveDriver implements PaymentDriverContract
 
         if (! $response->successful()) {
             Log::warning('[wave] verify failed', ['status' => $response->status(), 'body' => $response->body()]);
-            abort_code(502, 'payment.provider_failed', ['provider' => 'Wave']);
+            abort_code(502, 'payment.provider_unavailable');
         }
         $data = $response->json();
         $status = match ($data['payment_status'] ?? $data['status'] ?? null) {
@@ -160,7 +160,11 @@ class WaveDriver implements PaymentDriverContract
     {
         $creds = $this->integration->credentials ?? [];
         $value = is_array($creds) ? ($creds[$key] ?? null) : null;
-        abort_code_if(empty($value), 500, 'payment.integration_credential_missing', ['credential' => $key]);
+        // TCK-602 — le nom de la clé manquante ne sort pas : il reste au journal du serveur.
+        if (empty($value)) {
+            Log::warning('[payments] integration credential missing', ['integration_id' => $this->integration->getKey(), 'credential' => $key]);
+            abort_code(500, 'payment.integration_misconfigured');
+        }
 
         return (string) $value;
     }

@@ -9,6 +9,7 @@ use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,8 +18,15 @@ use Illuminate\Support\Facades\Log;
  *
  * Reference: https://developer.orange.com/apis/om-webpay/
  *
+ *   POST https://api.orange.com/oauth/v3/token          (Basic client_id:client_secret,
+ *        grant_type=client_credentials)                → { access_token, expires_in }
  *   POST https://api.orange.com/orange-money-webpay/dev/v1/webpayment
  *   Authorization: Bearer {access_token}
+ *
+ * TCK-602 (ADR-0051 §3) — le jeton d'accès de la passerelle d'Orange vit une heure : stocké dans
+ * l'intégration, il la cassait en silence à la première expiration. Le pilote l'obtient par
+ * `client_id` / `client_secret` — le même flux que le pilote SMS d'Orange (`OrangeSmsDriver`, même
+ * passerelle `api.orange.com`) — et le garde en cache jusqu'à `expires_in` moins une marge.
  *   { "merchant_key": "...", "currency": "OUV", "order_id": "...", "amount": 1000, "return_url": "...", "cancel_url": "...", "notif_url": "..." }
  *
  * Webhook signature: header `X-OM-Signature: <hmac_sha256(secret, body)>` (hex).
@@ -32,7 +40,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
      *
      * @var list<string>
      */
-    public const CREDENTIAL_KEYS = ['access_token', 'merchant_key', 'webhook_secret'];
+    public const CREDENTIAL_KEYS = ['client_id', 'client_secret', 'merchant_key', 'webhook_secret'];
 
     public const PROVIDER = 'orange_money';
 
@@ -40,8 +48,8 @@ class OrangeMoneyDriver implements PaymentDriverContract
 
     public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
     {
-        $accessToken = $this->credential('access_token');
         $merchantKey = $this->credential('merchant_key');
+        $accessToken = $this->accessToken();
 
         // OM amounts are in major units (XOF integer). Cents → integer XOF.
         $amount = (int) round($amountCents / 100);
@@ -73,7 +81,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
 
         if (! $response->successful()) {
             Log::warning('[orange-money] checkout failed', ['status' => $response->status(), 'body' => $response->body()]);
-            abort_code(502, 'payment.provider_failed', ['provider' => 'Orange Money']);
+            abort_code(502, 'payment.provider_unavailable');
         }
 
         $data = $response->json();
@@ -91,7 +99,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
 
     public function verify(string $externalId): PaymentStatus
     {
-        $accessToken = $this->credential('access_token');
+        $accessToken = $this->accessToken();
 
         $response = Http::withToken($accessToken)
             ->acceptJson()
@@ -104,7 +112,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
 
         if (! $response->successful()) {
             Log::warning('[orange-money] verify failed', ['status' => $response->status(), 'body' => $response->body()]);
-            abort_code(502, 'payment.provider_failed', ['provider' => 'Orange Money']);
+            abort_code(502, 'payment.provider_unavailable');
         }
         $data = $response->json();
         $status = match (strtoupper((string) ($data['status'] ?? ''))) {
@@ -143,6 +151,38 @@ class OrangeMoneyDriver implements PaymentDriverContract
         ]);
     }
 
+    /**
+     * Le jeton OAuth de la passerelle d'Orange, en cache par intégration. Un échec d'obtention est
+     * un fournisseur indisponible (502) : son corps reste au journal du serveur, sans les
+     * identifiants.
+     */
+    protected function accessToken(): string
+    {
+        $key = 'payments:orange_money:oauth_token:'.$this->integration->getKey();
+        $cached = Cache::get($key);
+        if (is_string($cached) && $cached !== '') {
+            return $cached;
+        }
+
+        $response = Http::asForm()
+            ->acceptJson()
+            ->withBasicAuth($this->credential('client_id'), $this->credential('client_secret'))
+            ->connectTimeout(5)
+            ->timeout(15)
+            ->post((string) config('payments.orange_money.oauth_token_url'), ['grant_type' => 'client_credentials']);
+
+        $token = (string) ($response->json('access_token') ?? '');
+        if (! $response->successful() || $token === '') {
+            Log::warning('[orange-money] oauth failed', ['status' => $response->status(), 'body' => $response->body()]);
+            abort_code(502, 'payment.provider_unavailable');
+        }
+
+        $margin = (int) config('payments.orange_money.oauth_token_safety_margin_seconds', 60);
+        Cache::put($key, $token, max(30, (int) ($response->json('expires_in') ?? 3600) - $margin));
+
+        return $token;
+    }
+
     protected function baseUrl(): string
     {
         return rtrim((string) ($this->integration->credentials['base_url'] ?? 'https://api.orange.com'), '/');
@@ -152,7 +192,11 @@ class OrangeMoneyDriver implements PaymentDriverContract
     {
         $creds = $this->integration->credentials ?? [];
         $value = is_array($creds) ? ($creds[$key] ?? null) : null;
-        abort_code_if(empty($value), 500, 'payment.integration_credential_missing', ['credential' => $key]);
+        // TCK-602 — le nom de la clé manquante ne sort pas : il reste au journal du serveur.
+        if (empty($value)) {
+            Log::warning('[payments] integration credential missing', ['integration_id' => $this->integration->getKey(), 'credential' => $key]);
+            abort_code(500, 'payment.integration_misconfigured');
+        }
 
         return (string) $value;
     }
