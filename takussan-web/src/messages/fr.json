@@ -4619,7 +4619,8 @@
         "reasonCodePlaceholder": "Choisir un motif",
         "reasonCodeRequired": "Choisissez un motif.",
         "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
-        "publishedPlatformOnly": "Avis déjà publié : seule la plateforme peut le retirer. Vous pouvez y répondre ou le signaler."
+        "publishedPlatformOnly": "Avis déjà publié : seule la plateforme peut le retirer. Vous pouvez y répondre ou le signaler.",
+        "platformReserved": "Cet avis est modéré par la plateforme, pas par l'agence."
       }
     },
     "finances": {

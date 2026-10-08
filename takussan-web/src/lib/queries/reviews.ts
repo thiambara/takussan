@@ -32,6 +32,9 @@ export type Review = {
   reply_content: string | null;
   replied_at: string | null;
   created_at: string | null;
+  /** verif-597 m1 — jugés par les policies de l'API ; absents sur une lecture anonyme. */
+  can_reply?: boolean;
+  can_moderate?: boolean;
 };
 
 export type OwnerReviewProperty = Pick<

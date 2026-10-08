@@ -551,11 +551,15 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
         </form>
       ) : (
         // Un avis en attente n'est pas public : on n'y répond pas, on ne le signale pas encore.
+        // « Répondre » suit `can_reply`, jugé par la policy (verif-597 m1) : le collaborateur d'une
+        // autre agence ou le publieur retiré voient l'avis, sans le geste que l'API refuserait.
         pending ? null : (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button type="button" size="sm" onClick={() => setEditing(true)}>
-              {review.reply_content ? t('editReply') : t('reply')}
-            </Button>
+            {review.can_reply ? (
+              <Button type="button" size="sm" onClick={() => setEditing(true)}>
+                {review.reply_content ? t('editReply') : t('reply')}
+              </Button>
+            ) : null}
             <ReviewReportButton reviewId={review.id} />
           </div>
         )

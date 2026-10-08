@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\ReviewStatus;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
@@ -188,6 +189,29 @@ class ReviewModerationScopeTest extends ApiTestCase
         $this->assertSame($average, (float) $this->propertyA->refresh()->average_rating);
         // L'agence garde la lecture des signalements de son périmètre.
         $this->getJson("/api/reviews/{$reported->id}/reports")->assertOk();
+    }
+
+    /**
+     * verif-597 m1 — la file rend `can_moderate` jugé par la policy : un avis sur un prestataire
+     * de l'agence est listé, mais l'agence ne le tranche pas.
+     */
+    public function test_the_queue_says_which_reviews_the_agency_may_decide(): void
+    {
+        $provider = ServiceProviderProfile::factory()->create(['user_id' => User::factory()->create()->id]);
+        $onProvider = Review::factory()->create([
+            'reviewable_type' => ServiceProviderProfile::class, 'reviewable_id' => $provider->id,
+            'agency_id' => $this->agencyA->id, 'status' => ReviewStatus::Pending, 'is_approved' => false,
+        ]);
+        $pending = $this->reviewOn($this->propertyA, ReviewStatus::Pending, ['is_approved' => false]);
+        $published = $this->reviewOn($this->propertyA, ReviewStatus::Approved);
+
+        $this->actingAsApi($this->adminA);
+        $flags = collect($this->getJson('/api/reviews')->assertOk()->json('data'))->pluck('can_moderate', 'id');
+
+        $this->assertTrue($flags[$pending->id]);
+        $this->assertFalse($flags[$published->id]);
+        $this->assertFalse($flags[$onProvider->id]);
+        $this->patchJson("/api/reviews/{$onProvider->id}/moderate", ['decision' => 'approve'])->assertForbidden();
     }
 
     public function test_a_review_of_the_agency_itself_is_moderated_by_the_platform_only(): void

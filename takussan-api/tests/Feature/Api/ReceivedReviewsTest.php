@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\ReviewStatus;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\Review;
@@ -125,5 +126,36 @@ class ReceivedReviewsTest extends ApiTestCase
     {
         $this->review($this->mine);
         $this->assertSame([], $this->ids(User::factory()->create()));
+    }
+
+    /**
+     * verif-597 m1 — la boîte rend `can_reply` jugé par la policy de réponse. Avant, le front
+     * offrait « Répondre » au collaborateur d'une autre agence et au publieur retiré, et l'API
+     * leur rendait 403.
+     */
+    public function test_the_inbox_says_who_may_reply(): void
+    {
+        $review = $this->review($this->mine);
+
+        $other = Agency::factory()->create();
+        $outsider = User::factory()->create();
+        $this->materializeRoleProfile($outsider, 'agent', $other);
+        PropertyCollaborator::create(['property_id' => $this->mine->id, 'user_id' => $outsider->id, 'role' => 'manager']);
+
+        $canReply = function (User $viewer) use ($review): ?bool {
+            $this->app['auth']->forgetGuards();
+            $this->actingAsApi($viewer);
+
+            return collect($this->getJson('/api/reviews/received')->assertOk()->json('data'))
+                ->firstWhere('id', $review->id)['can_reply'] ?? null;
+        };
+
+        $this->assertTrue($canReply($this->agent));
+        $this->assertFalse($canReply($outsider));
+        $this->postJson("/api/reviews/{$review->id}/reply", ['reply_content' => 'x'])->assertForbidden();
+
+        // Le publieur retiré de l'agence : l'avis reste dans sa boîte, la réponse ne lui est plus ouverte.
+        AgentProfile::query()->where('user_id', $this->agent->id)->delete();
+        $this->assertFalse($canReply($this->agent));
     }
 }

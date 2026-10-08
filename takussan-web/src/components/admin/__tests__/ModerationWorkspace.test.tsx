@@ -68,6 +68,7 @@ function makeReview(overrides: Partial<{
   content: string;
   status: string;
   reported_count: number;
+  can_moderate: boolean;
 }> = {}) {
   return {
     id: overrides.id ?? 1,
@@ -81,6 +82,7 @@ function makeReview(overrides: Partial<{
     is_approved: false,
     reported_count: overrides.reported_count ?? 0,
     created_at: '2025-01-01T00:00:00Z',
+    can_moderate: overrides.can_moderate ?? (overrides.status ?? 'pending') === 'pending',
   };
 }
 
@@ -205,7 +207,7 @@ describe('<ModerationWorkspace>', () => {
   // pas : l'écran le dit, et aucun bouton de décision n'est offert.
   it('agency view: a review of the agency itself is platform-only, and the screen says so', async () => {
     mockFetchQueue.mockResolvedValue({
-      data: [{ ...makeReview({ id: 3 }), reviewable_type: 'App\\Models\\Agency' }],
+      data: [{ ...makeReview({ id: 3, can_moderate: false }), reviewable_type: 'App\\Models\\Agency' }],
       meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
       links: { first: null, last: null, prev: null, next: null },
     });
@@ -245,6 +247,21 @@ describe('<ModerationWorkspace>', () => {
 
     expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/seule la plateforme peut le retirer/i);
     expect(screen.queryByRole('button', { name: /^masquer$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+  });
+
+  // verif-597 m1 — un avis sur un prestataire, listé dans la file d'agence : l'API rend
+  // `can_moderate: false`, l'écran n'offre aucun bouton et dit que la plateforme le tranche.
+  it('agency view: a review the API says the agency cannot decide offers no button', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [{ ...makeReview({ id: 6, can_moderate: false }), reviewable_type: 'App\\Models\\Profiles\\ServiceProviderProfile' }],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/modéré par la plateforme/i);
     expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
   });
 

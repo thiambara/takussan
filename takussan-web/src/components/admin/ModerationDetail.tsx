@@ -33,7 +33,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 interface ModerationDetailProps {
   readonly review: ModerationReview;
   readonly onModerated: () => void;
-  /** Super-admin : tranche aussi les avis SUR une agence (TCK-597, ADR-0043 §1). */
+  /** Super-admin : retirer et ignorer des signalements lui sont réservés (verif-597 M3). */
   readonly platform?: boolean;
 }
 
@@ -106,11 +106,18 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
     setErrorMessage(null);
   }
 
-  // Un avis SUR l'agence elle-même : l'admin d'agence le voit, la plateforme le tranche.
-  const platformOnly = !platform && review.reviewable_type === AGENCY_SUBJECT;
-  // verif-597 M3 — l'agence ne tranche que l'avis EN ATTENTE, et seulement approuver ou masquer :
-  // une fois publié, seule la plateforme le retire (l'agence y répond ou le signale).
-  const publishedPlatformOnly = !platform && !platformOnly && review.status !== 'pending';
+  // verif-597 m1 — l'écran offre ce que l'API acceptera, lu dans `can_moderate` (policy), plus
+  // deviné ici : un avis sur un prestataire listé dans la file d'agence offrait des boutons que
+  // l'API refusait. Quand il n'offre rien, il dit pourquoi : l'avis porte sur l'agence elle-même,
+  // il est déjà publié (verif-597 M3 : seule la plateforme le retire), ou il relève de la plateforme.
+  const decidable = review.can_moderate === true;
+  const notice = decidable
+    ? null
+    : review.reviewable_type === AGENCY_SUBJECT
+      ? t('platformOnly')
+      : review.status !== 'pending'
+        ? t('publishedPlatformOnly')
+        : t('platformReserved');
   const reasonOptions = MODERATION_REASON_CODES.map((code) => ({ value: code, label: tReasons(code) }));
 
   const reports = reportsData?.data ?? [];
@@ -135,9 +142,9 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
             })}
           </p>
         </div>
-        {platformOnly || publishedPlatformOnly ? (
+        {notice !== null ? (
           <p className="max-w-xs rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground" data-testid="moderation-platform-only">
-            {platformOnly ? t('platformOnly') : t('publishedPlatformOnly')}
+            {notice}
           </p>
         ) : (
         <div className="flex flex-wrap gap-2">

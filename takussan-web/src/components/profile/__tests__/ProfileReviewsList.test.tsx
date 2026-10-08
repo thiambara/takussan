@@ -226,6 +226,7 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     author: { id: 5, name: 'Awa Ndiaye', avatar_url: null },
     target: { type: 'property', id: 7, title: 'Villa Ngor', slug: 'villa-ngor', subtitle: null },
     title: 'Bon accueil',
+    can_reply: true,
     ...overrides,
   });
 
@@ -273,6 +274,17 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     const carte = await screen.findByTestId('received-review-90');
     expect(carte).toHaveTextContent(/en attente de validation/i);
     expect(within(carte).queryByRole('button', { name: /répondre/i })).toBeNull();
+  });
+
+  // verif-597 m1 — « Répondre » suit `can_reply` (policy de l'API) : le collaborateur d'une autre
+  // agence voit l'avis dans sa boîte, sans le geste que l'API lui refuserait.
+  it('sans `can_reply`, l’avis reste lisible et signalable, sans « Répondre »', async () => {
+    mockFetch({ received: page([recu({ can_reply: false })]) });
+    renderList(['agent', 'customer']);
+
+    const carte = await screen.findByTestId('received-review-90');
+    expect(within(carte).queryByRole('button', { name: /répondre/i })).toBeNull();
+    expect(within(carte).getByRole('button', { name: /signaler cet avis/i })).toBeInTheDocument();
   });
 
   it('la réponse se rédige dans la page, sans boîte de dialogue du navigateur', async () => {

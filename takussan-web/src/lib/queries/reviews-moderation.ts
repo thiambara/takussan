@@ -47,6 +47,8 @@ export interface ModerationReview {
   is_approved: boolean;
   reported_count: number;
   created_at: string;
+  /** verif-597 m1 — jugé par la policy de l'API : ce que l'acteur peut trancher. */
+  can_moderate?: boolean;
 }
 
 export interface ModerationQueueMeta {

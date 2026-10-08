@@ -3217,7 +3217,8 @@
         "reasonCodePlaceholder": "Tànnal lu tax",
         "reasonCodeRequired": "Tànnal lu tax.",
         "reasonLabelRequired": "Leeralal lu tax (war na ci « Leneen »)",
-        "publishedPlatformOnly": "Avis bii génn na ba noppi : platform bi rekk moo ko mën a dindi. Mën nga ko tontu walla signaler ko."
+        "publishedPlatformOnly": "Avis bii génn na ba noppi : platform bi rekk moo ko mën a dindi. Mën nga ko tontu walla signaler ko.",
+        "platformReserved": "Avis bii, platform bi moo koy saytu, du agence bi."
       }
     },
     "finances": {
