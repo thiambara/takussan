@@ -1635,7 +1635,8 @@
       "payments": {
         "title": "Payments",
         "subtitle": "History, invoices and landlord payouts — one unified view.",
-        "metaTitle": "Payments"
+        "metaTitle": "Payments",
+        "customerSubtitle": "What you owe, your payments and your rent receipts."
       },
       "calendar": {
         "metaTitle": "Calendar",
@@ -2834,7 +2835,8 @@
   "payments": {
     "gateway": {
       "button": {
-        "payOnline": "Pay online"
+        "payOnline": "Pay online",
+        "payAmount": "Pay {amount}"
       },
       "picker": {
         "title": "Select a payment method",
@@ -2879,7 +2881,14 @@
         "verifying": "Verifying the payment…"
       },
       "error": {
-        "generic": "Something went wrong, please try again."
+        "generic": "Something went wrong, please try again.",
+        "checkoutInProgress": "An online payment of {amount} is already in progress for this instalment. Complete it, or try again after {time}."
+      },
+      "breakdown": {
+        "rent": "Rent",
+        "lateFee": "Late fee",
+        "total": "Total to pay",
+        "lateFeeAtAgency": "Late fee of {amount} to be settled with the agency — it isn’t included in this payment."
       }
     },
     "invoices": {
@@ -3085,6 +3094,25 @@
       "markFailed": "Mark as failed",
       "cancel": "Cancel",
       "close": "Close"
+    },
+    "customer": {
+      "nextTitle": "Next payment",
+      "upToDate": "You’re up to date: no payment pending.",
+      "error": "Couldn’t load your payments.",
+      "period": "Rent from {start} to {end}",
+      "rent": "Rent",
+      "booking": "Booking",
+      "dueOn": "due on {date}",
+      "paidOn": "Paid on {date}",
+      "lateFeeAtAgency": "Late fee: {amount}, to be settled with the agency.",
+      "otherDues": "Other payments due",
+      "historyTitle": "History",
+      "emptyTitle": "No payments yet",
+      "emptyDescription": "Your payments and their receipts will show up here.",
+      "receiptPdf": "Rent receipt PDF",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {total}"
     }
   },
   "lease": {
@@ -3231,6 +3259,26 @@
         "late": "Overdue",
         "pending": "Upcoming",
         "other": "Other"
+      },
+      "listLabel": "Lease instalments",
+      "dueOn": "Due: {date}",
+      "receiptPdf": "Rent receipt PDF",
+      "lateFee": {
+        "label": "Late fee",
+        "atAgency": "Late fee to be settled with the agency",
+        "settled": "Late fee settled",
+        "markPaid": "Late fee settled",
+        "markedPaid": "Late fee recorded as settled.",
+        "markFailed": "The late fee couldn’t be recorded as settled.",
+        "override": {
+          "title": "An online payment is in progress",
+          "description": "An online payment of {amount} is in progress for this instalment. Only record the late fee if you have actually received it.",
+          "confirm": "I confirm I received the payment. The online payment in progress will be flagged if it goes through.",
+          "reason": "Reason",
+          "reasonPlaceholder": "E.g. cash received at the counter",
+          "submit": "Record anyway",
+          "cancel": "Cancel"
+        }
       }
     },
     "fallbackReference": "Lease #{id}",
@@ -5192,7 +5240,8 @@
       "finances": {
         "noAgency": "Finances",
         "title": "Finances",
-        "subtitle": "Collections, invoices and payouts — the agency's commercial view."
+        "subtitle": "Collections, invoices and payouts — the agency's commercial view.",
+        "reconciliationLink": "Bank reconciliation"
       },
       "agencyConfig": {
         "title": "Agency configuration",
@@ -5373,6 +5422,10 @@
       },
       "submit": {
         "saving": "Saving…"
+      },
+      "lateFeeOnline": {
+        "label": "Collect late fees with online payment",
+        "hint": "On: the tenant pays the rent and the late fee together online. Off: only the rent is paid online, and the late fee is settled with the agency."
       }
     },
     "inviteMember": {
@@ -5463,6 +5516,155 @@
       },
       "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
       "submit": "Send the invitation"
+    },
+    "reconciliation": {
+      "title": "Bank reconciliation",
+      "subtitle": "Import your statements and match each line to the payment it settles.",
+      "status": {
+        "processing": "Processing",
+        "failed": "Processing failed",
+        "ready_for_review": "To review",
+        "partially_reconciled": "Partially reconciled",
+        "reconciled": "Reconciled",
+        "archived": "Archived"
+      },
+      "lineStatus": {
+        "unmatched": "Unmatched",
+        "suggested": "Suggested",
+        "confirmed": "Matched",
+        "ignored": "Ignored"
+      },
+      "directions": {
+        "credit": "Incoming",
+        "debit": "Outgoing"
+      },
+      "paymentTypes": {
+        "booking_payment": "Booking payment",
+        "lease_payment": "Rent",
+        "invoice": "Invoice",
+        "payout": "Payout"
+      },
+      "import": {
+        "title": "Import a statement",
+        "file": "File (CSV or OFX)",
+        "format": "Format",
+        "formats": {
+          "csv": "CSV",
+          "ofx": "OFX"
+        },
+        "bankName": "Bank (optional)",
+        "submit": "Import",
+        "uploading": "Importing…",
+        "accepted": "Statement received: processing has started.",
+        "failed": "The statement import failed."
+      },
+      "list": {
+        "title": "Imported statements",
+        "error": "Couldn’t load the statements.",
+        "emptyTitle": "No statement imported",
+        "emptyDescription": "Import a CSV or OFX statement to start reconciling.",
+        "statement": "Statement",
+        "period": "Period",
+        "status": "Status",
+        "progress": "Progress",
+        "fallbackName": "Statement #{id}",
+        "ratio": "{confirmed} / {total} matched",
+        "skipped": "{count, plural, one {# line not read} other {# lines not read}} — check the CSV settings.",
+        "failed": "Processing the statement failed — check the CSV settings."
+      },
+      "mapping": {
+        "title": "CSV settings",
+        "description": "Tell us how to read your bank’s CSV statements: columns, dates and amounts.",
+        "error": "Couldn’t load the CSV settings.",
+        "delimiter": "Column separator",
+        "delimiters": {
+          "comma": "Comma (,)",
+          "semicolon": "Semicolon (;)",
+          "tab": "Tab",
+          "pipe": "Pipe (|)"
+        },
+        "hasHeader": "The first line holds the column names",
+        "dateFormat": "Date format",
+        "dateFormatPlaceholder": "d/m/Y",
+        "columns": {
+          "date_column": "Date column",
+          "amount_column": "Amount column",
+          "label_column": "Label column",
+          "reference_column": "Reference column",
+          "counterparty_column": "Counterparty column",
+          "currency_column": "Currency column",
+          "direction_column": "Direction column (debit / credit)"
+        },
+        "signConvention": "Amount direction",
+        "signConventions": {
+          "amount_signed": "Signed amount (negative = outgoing)",
+          "direction_column": "A column gives the direction"
+        },
+        "decimalSeparator": "Decimal separator",
+        "decimalHint": "Choose it: “1.500” means 1,500 with a decimal comma and 1.5 with a decimal point.",
+        "decimals": {
+          "dot": "Point (1500.50)",
+          "comma": "Comma (1500,50)"
+        },
+        "decimalRequired": "Choose your statements’ decimal separator.",
+        "thousandsSeparator": "Thousands separator",
+        "thousands": {
+          "none": "None",
+          "space": "Space",
+          "dot": "Point",
+          "comma": "Comma",
+          "apostrophe": "Apostrophe"
+        },
+        "save": "Save settings",
+        "saving": "Saving…",
+        "saved": "CSV settings saved.",
+        "saveFailed": "The settings couldn’t be saved."
+      },
+      "detail": {
+        "back": "All statements",
+        "error": "Couldn’t load this statement.",
+        "linesError": "Couldn’t load the statement lines.",
+        "noLines": "No line for this filter.",
+        "remaining": "{count, plural, =0 {nothing left to process} other {# to process}}",
+        "filterLabel": "Filter lines",
+        "all": "All",
+        "date": "Date",
+        "label": "Label",
+        "direction": "Direction",
+        "amount": "Amount",
+        "match": "Match",
+        "actions": "Actions",
+        "paymentRef": "{type} #{id}",
+        "confidence": "Confidence: {value}",
+        "validate": "Confirm",
+        "search": "Search",
+        "ignore": "Ignore",
+        "unmatch": "Unmatch",
+        "finalize": "Finalize statement",
+        "matchFailed": "Matching failed.",
+        "ignoreFailed": "The line couldn’t be ignored.",
+        "unmatchFailed": "The match couldn’t be undone.",
+        "finalizeFailed": "The statement couldn’t be finalized.",
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page} of {total}"
+      },
+      "search": {
+        "title": "Find the payment",
+        "hint": {
+          "credit": "Incoming: only received payments are offered.",
+          "debit": "Outgoing: only outgoing payments are offered.",
+          "any": "Search by reference, name or amount."
+        },
+        "query": "Reference or name",
+        "amount": "Amount",
+        "submit": "Search",
+        "searching": "Searching…",
+        "empty": "No matching payment.",
+        "error": "The search failed.",
+        "choose": "Match",
+        "matchFailed": "Matching failed."
+      }
     }
   },
   "documents": {
@@ -5621,6 +5823,14 @@
       "description_label": "Description",
       "submitting": "Sending…",
       "submit": "Upload"
+    },
+    "download": {
+      "inProgress": "Downloading…",
+      "errors": {
+        "interdit": "You don’t have access to this document.",
+        "indisponible": "This document isn’t available yet.",
+        "echec": "The download failed. Please try again."
+      }
     }
   },
   "bookings": {
@@ -8358,6 +8568,16 @@
         "received_landlord": {
           "title": "Rent received: {property}",
           "body": "{tenant} paid {amount} for {property}."
+        }
+      },
+      "payment": {
+        "duplicate": {
+          "title": "Payment collected twice",
+          "body": "An online payment of {amount} was received for {reference}, which was already settled. Refund the payer or allocate the amount."
+        },
+        "duplicate_late_fee": {
+          "title": "Late fee collected twice",
+          "body": "The late fee of {amount} for {reference}, already settled at the agency, was also collected online. Refund the payer or allocate the amount."
         }
       },
       "booking": {

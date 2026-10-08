@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
  */
 class PaymentHistoryTest extends TestCase
 {
+    use LeaseDueFixture;
     use RefreshDatabase;
 
     public function test_history_returns_merged_booking_and_lease_payments(): void
@@ -254,5 +256,51 @@ class PaymentHistoryTest extends TestCase
         $this->assertEqualsWithDelta(300_000.0, (float) $totals['amount'], 0.001);
         $this->assertEqualsWithDelta(300_000.0, (float) $totals['paid_amount'], 0.001);
         $this->assertEqualsWithDelta(0.0, (float) $totals['remaining_amount'], 0.001);
+    }
+
+    // ─── TCK-593 — « ce que je dois », et la pénalité dans l'historique ─────────
+
+    /** `filter[status]` accepte une liste : le locataire obtient ses échéances ouvertes. */
+    public function test_filtre_de_statut_en_liste(): void
+    {
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Late]);
+        foreach ([PaymentStatus::Pending, PaymentStatus::Failed, PaymentStatus::Paid, PaymentStatus::Refunded] as $status) {
+            LeasePayment::factory()->create([
+                'lease_id' => $ctx['lease']->id,
+                'payer_id' => $ctx['payment']->payer_id,
+                'status' => $status,
+                'paid_at' => in_array($status, [PaymentStatus::Paid, PaymentStatus::Refunded], true) ? now() : null,
+            ]);
+        }
+        Sanctum::actingAs($ctx['tenant']);
+
+        $statuses = collect($this->getJson('/api/payments/history?filter[status]=pending,late,failed')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->json('data'))->pluck('status')->sort()->values()->all();
+
+        $this->assertSame(['failed', 'late', 'pending'], $statuses);
+
+        $this->getJson('/api/payments/history?filter[status]=pending,nimporte')->assertStatus(422);
+    }
+
+    /** AC3 — l'historique porte les mêmes montants que la ressource, sous les deux réglages. */
+    public function test_l_historique_porte_la_penalite_et_le_montant_du(): void
+    {
+        $off = $this->leaseDue(['late_fee_online_collection' => false]);
+        Sanctum::actingAs($off['tenant']);
+
+        $row = $this->getJson('/api/payments/history')->assertOk()->json('data.0');
+        $this->assertEquals(7500, $row['late_fee_amount']);
+        $this->assertEquals(7500, $row['late_fee_outstanding']);
+        $this->assertFalse($row['late_fee_payable_online']);
+        $this->assertEquals(150000, $row['amount_due']);
+
+        $on = $this->leaseDue(['late_fee_online_collection' => true]);
+        Sanctum::actingAs($on['tenant']);
+
+        $row = $this->getJson('/api/payments/history')->assertOk()->json('data.0');
+        $this->assertTrue($row['late_fee_payable_online']);
+        $this->assertEquals(157500, $row['amount_due']);
     }
 }

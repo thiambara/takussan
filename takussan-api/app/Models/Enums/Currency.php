@@ -49,6 +49,18 @@ enum Currency: string
     }
 
     /**
+     * TCK-593 — le nombre de décimales d'une devise donnée sous n'importe quelle forme (les colonnes
+     * `currency` des paiements ne sont pas toutes castées). Une devise inconnue garde 2 décimales :
+     * ne rien arrondir de plus que le centime est le repli neutre.
+     */
+    public static function decimalPlacesOf(self|string|null $currency): int
+    {
+        $case = $currency instanceof self ? $currency : self::tryFrom((string) $currency);
+
+        return $case?->decimalPlaces() ?? 2;
+    }
+
+    /**
      * Default locale tag used for grouping/decimal separators. Callers can
      * override at format-time when they really need a different locale (e.g.
      * an English-speaking landlord billing in EUR).

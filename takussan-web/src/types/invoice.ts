@@ -79,6 +79,14 @@ export type PaymentHistoryRow = {
   status: string | null;
   paid_amount: number;
   remaining_amount: number;
+  /**
+   * TCK-593 — lignes de loyer seulement (`PaymentController::leaseRow`) : la même lecture que
+   * `LeasePaymentResource`. Le front affiche ces montants, il n'en recalcule aucun.
+   */
+  late_fee_amount?: number | null;
+  late_fee_outstanding?: number;
+  late_fee_payable_online?: boolean;
+  amount_due?: number;
   date: string | null;
   paid_at: string | null;
   period_start?: string | null;

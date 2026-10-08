@@ -188,11 +188,11 @@
     ".": 14,
     "(auth)": 17,
     "publish": 18,
-    "onboarding": 39,
+    "onboarding": 38,
     "(dashboard)": 15,
-    "(dashboard)/app": 71,
-    "(dashboard)/admin": 60,
-    "[locale]/(public)": 38,
-    "(super-admin)/super-admin": 42
+    "(dashboard)/app": 70,
+    "(dashboard)/admin": 61,
+    "[locale]/(public)": 37,
+    "(super-admin)/super-admin": 40
   }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Accounting\MatchCandidateResource;
 use App\Models\Agency;
 use App\Models\BankStatement;
+use App\Models\Enums\BankStatementLineDirection;
 use App\Services\Accounting\PaymentSearchService;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,7 @@ class PaymentSearchController extends Controller
             query: $request->query('q', ''),
             amountHint: $request->float('amount') ?: null,
             limit: 20,
+            direction: BankStatementLineDirection::tryFrom((string) $request->query('direction', '')),
         );
 
         return MatchCandidateResource::collection($candidates);

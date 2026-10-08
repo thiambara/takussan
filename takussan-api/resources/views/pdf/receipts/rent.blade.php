@@ -11,7 +11,11 @@
     if ($payment->period_start) {
         $periodLabel = $payment->period_start->translatedFormat('F Y');
     }
-    $paymentDate = $payment->paid_at ?? $payment->due_date;
+    // TCK-593 — une quittance n'est délivrée que pour un loyer acquitté (`DocumentPdfController`
+    // rend 422 sinon) : elle est datée du RÈGLEMENT, jamais de l'échéance.
+    $paymentDate = $payment->paid_at;
+    $lateFee = (float) ($payment->late_fee_amount ?? 0);
+    $lateFeePaid = $lateFee > 0 && $payment->late_fee_paid_at !== null;
 @endphp
 
 @section('content')
@@ -53,9 +57,25 @@
         </tr>
         @endif
         <tr>
-            <th>Montant</th>
+            <th>Loyer acquitté</th>
             <td class="amount"><strong>@currency($payment->amount, $currency)</strong></td>
         </tr>
+        {{-- TCK-593 — la pénalité sur sa propre ligne ; elle ne s'additionne au loyer que réglée. --}}
+        @if ($lateFee > 0)
+        <tr>
+            <th>Pénalité de retard</th>
+            <td class="amount">
+                @currency($lateFee, $currency)
+                — {{ $lateFeePaid ? 'acquittée' : 'restant due, à régler auprès de l’agence' }}
+            </td>
+        </tr>
+        @endif
+        @if ($lateFeePaid)
+        <tr>
+            <th>Total acquitté</th>
+            <td class="amount"><strong>@currency((float) $payment->amount + $lateFee, $currency)</strong></td>
+        </tr>
+        @endif
         <tr>
             <th>Méthode</th>
             <td>{{ $payment->payment_method?->value ?? $payment->payment_method ?? 'n/a' }}</td>
@@ -72,7 +92,7 @@
         </tr>
         <tr>
             <th>Statut</th>
-            <td><span class="pill">{{ $payment->status?->value ?? $payment->status ?? '—' }}</span></td>
+            <td><span class="pill">Acquitté</span></td>
         </tr>
     </table>
 

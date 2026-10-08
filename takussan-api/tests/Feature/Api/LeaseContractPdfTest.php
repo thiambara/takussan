@@ -48,6 +48,22 @@ class LeaseContractPdfTest extends TestCase
         $this->assertGreaterThan(2000, strlen($body));
     }
 
+    public function test_le_locataire_du_bail_telecharge_son_contrat(): void
+    {
+        // TCK-593 (AC1) — le locataire, et non seulement le bailleur, obtient un PDF non vide.
+        $tenantUser = User::factory()->create();
+        $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
+        $lease = Lease::factory()->create(['tenant_id' => $tenant->id]);
+
+        Sanctum::actingAs($tenantUser);
+
+        $response = $this->get("/api/leases/{$lease->id}/contract/pdf");
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $this->assertTrue(str_starts_with($response->getContent(), '%PDF-'));
+        $this->assertGreaterThan(2000, strlen($response->getContent()));
+    }
+
     public function test_stranger_gets_403_on_lease_contract(): void
     {
         $landlord = User::factory()->create();
