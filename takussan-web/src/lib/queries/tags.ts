@@ -2,6 +2,7 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { Tag, TagType } from '@/types/tag';
 import type { TagFormPayload } from '@/lib/schemas/tag';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Tag (admin) queries — TCK-023 / TCK-066. Sparse fieldsets are mandatory
@@ -55,7 +56,7 @@ export async function fetchTags(
   params: FetchTagsParams = {},
 ): Promise<PaginatedResponse<Tag>> {
   const qs = buildQueryString(buildListParams(params));
-  return apiRequest<PaginatedResponse<Tag>>(`/api/tags${qs ? `?${qs}` : ''}`, { token });
+  return apiRequest<PaginatedResponse<Tag>>(cheminApi`/api/tags${requete(qs)}`, { token });
 }
 
 export async function createTag(token: string, payload: TagFormPayload): Promise<Tag> {
@@ -72,7 +73,7 @@ export async function updateTag(
   tagId: number,
   payload: Partial<TagFormPayload>,
 ): Promise<Tag> {
-  const res = await apiRequest<ApiResponse<Tag>>(`/api/tags/${tagId}`, {
+  const res = await apiRequest<ApiResponse<Tag>>(cheminApi`/api/tags/${tagId}`, {
     method: 'PATCH',
     body: payload,
     token,
@@ -81,7 +82,7 @@ export async function updateTag(
 }
 
 export async function deleteTag(token: string, tagId: number): Promise<void> {
-  await apiRequest<unknown>(`/api/tags/${tagId}`, {
+  await apiRequest<unknown>(cheminApi`/api/tags/${tagId}`, {
     method: 'DELETE',
     token,
   });

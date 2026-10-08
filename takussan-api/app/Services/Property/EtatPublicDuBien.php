@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
  * Un bien a droit à un état s'il satisfait TOUS les critères de `scopePublic()` sauf le statut
- * (`visibility`, `is_test`, `published_at`, et ce que TCK-600 y ajoutera : l'agence active). Les
+ * (`visibility`, `is_test`, `published_at`, et l'agence active de TCK-600). Les
  * recopier ici ferait diverger les deux prédicats au premier critère ajouté — exactement le défaut
  * des six portefeuilles de V15.
  *

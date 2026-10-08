@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { cheminApi } from '@/lib/chemin-api';
 import type { GatewayPaymentType, GatewayProvider } from '@/hooks/useInitiatePayment';
 
 const KNOWN_PROVIDERS: readonly GatewayProvider[] = ['wave', 'orange_money', 'lemon_squeezy'];
@@ -22,7 +23,7 @@ export function usePaymentProviders(paymentType: GatewayPaymentType, paymentId: 
   const valide = typeof paymentId === 'number' && Number.isSafeInteger(paymentId) && paymentId > 0;
   const query = useApiQuery<{ data: { providers: string[] } }>(
     ['payments', 'gateway-providers', paymentType, valide ? paymentId : null] as const,
-    `/api/${paymentType}/${valide ? paymentId : 0}/providers`,
+    cheminApi`/api/${paymentType}/${valide ? paymentId : 0}/providers`,
     { enabled: valide },
   );
 

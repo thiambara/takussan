@@ -8,6 +8,7 @@
  */
 
 import { apiRequest } from './api';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type TwoFactorEnableResponse = {
   secret: string;
@@ -124,7 +125,7 @@ export async function listActiveSessions(token: string): Promise<ActiveSession[]
 }
 
 export async function revokeSession(token: string, sessionId: number): Promise<void> {
-  await apiRequest(`/api/auth/sessions/${sessionId}`, {
+  await apiRequest(cheminApi`/api/auth/sessions/${sessionId}`, {
     method: 'DELETE',
     token,
   });

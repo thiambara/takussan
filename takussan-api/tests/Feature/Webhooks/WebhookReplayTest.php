@@ -105,7 +105,7 @@ class WebhookReplayTest extends TestCase
     public function test_a_failed_row_emits_webhook_processing_failed_without_any_subscriber(): void
     {
         $this->assertFalse(Event::hasListeners(WebhookProcessingFailed::class), 'Aucun écouteur : l\'abonnement appartient à TCK-600.');
-        $this->assertSame([], array_filter(array_keys(AlertableEvents::all()), fn (string $key): bool => str_contains($key, 'webhook')));
+        $this->assertSame([], array_filter(AlertableEvents::keys(), fn (string $key): bool => str_contains($key, 'webhook')));
 
         [$payment, $integration] = $this->arrange();
         Event::fake([WebhookProcessingFailed::class]);

@@ -253,6 +253,32 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        'impersonation' => [
+            'ended' => [
+                'title' => 'Ekibu Takussan seet na sa kont',
+                'body' => 'Benn ci ekibu Takussan, :operator, seet na sa kont te soppiwul dara, li dale :started_at ba :ended_at. Lu ko waral : :reason. Defuñu dara ci sa tur.',
+                'sms' => 'Takussan : sunu ekib seet na sa kont te soppiwul dara (:operator). Xoolal sa yëgle yi.',
+            ],
+        ],
+        'agency' => [
+            'suspended' => [
+                'title' => 'Ajans bi taxawal nañu ko : :agency',
+                'body' => 'Platform bi taxawal na ajans :agency. Lu ko waral : :reason. Ay yéenekaayam feeñatul te mënuñu soppi dara ci béréb bi.',
+                'sms' => 'Takussan : ajans :agency taxawal nañu ko. Ay yéenekaayam dindi nañu leen ci site bi.',
+            ],
+            'reinstated' => [
+                'title' => 'Taxawal gi dindi nañu ko : :agency',
+                'body' => 'Taxawal gu ajans :agency dindi nañu ko. Lu ko waral : :reason. Ay yéenekaayam feeñ nañu ci kaw.',
+                'sms' => 'Takussan : taxawal gu :agency dindi nañu ko.',
+            ],
+        ],
+        'platform_operator' => [
+            'revoked' => [
+                'title' => 'Operatëer bi dindi nañu ko : :operator',
+                'body' => 'Dindi nañu :operator ci konsol platform bi. Lu ko waral : :reason.',
+                'sms' => 'Takussan : :operator amatul konsol bi.',
+            ],
+        ],
         'lease_payment' => [
             'due_soon' => [
                 'title' => 'Pey kër bi ngir :due_date',
@@ -355,6 +381,16 @@ return [
                 'title' => 'Nimero telefon bi soppi nañu ko',
                 'body' => 'Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi.',
                 'sms' => 'Takussan : nimero bii du nimero sa kont kenn. Su dul yow moo ko soppi, jokkoo ak support bi.',
+            ],
+            'blocked' => [
+                'title' => 'Sa kont tëj nañu ko',
+                'body' => 'Platform bi tëj na sa kont Takussan. Lu ko waral : :reason. Jokkool ak support bi su la soxlaa.',
+                'sms' => 'Takussan : sa kont tëj nañu ko. Jokkool ak support bi.',
+            ],
+            'reactivated' => [
+                'title' => 'Sa kont ubbi nañu ko',
+                'body' => 'Sa kont Takussan ubbi nañu ko. Lu ko waral : :reason. Mën nga dugg ci kaw.',
+                'sms' => 'Takussan : sa kont ubbi nañu ko.',
             ],
         ],
         'visit' => [
@@ -671,6 +707,11 @@ return [
                 'title' => 'Yégle bi gàntu nañu ko : :property',
                 'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',
                 'sms' => 'Takussan : yégle « :property » gàntu nañu ko.',
+            ],
+            'unpublished_contact_erased' => [
+                'title' => 'Yéenekaay bi dindi nañu ko : :property',
+                'body' => 'Yéenekaay :property (:reference) dindi nañu ko ci site bi : ki ñuy jokkoo ak moom far na kontam. Joxal ko benn ajaŋ te ngay ko siiwal ci kaw : :url',
+                'sms' => 'Takussan : yéenekaay :reference dindi nañu ko, amatul ku ñuy jokkoo.',
             ],
             'calendar_conflict' => [
                 'title' => 'Calendrier yi dañuy xeex : :property',

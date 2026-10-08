@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { PublicReview } from '@/components/public/profile/ReviewsSection';
 import type { PropertyListItem } from '@/types/property';
+import { cheminApi } from '@/lib/chemin-api';
 
 export interface AgentStats {
   rent_count: number;
@@ -66,7 +67,7 @@ export type ResultatFicheAgent =
 export const getAgent = cache(async (slug: string, locale: string): Promise<ResultatFicheAgent> => {
   try {
     const res = await apiFetch<{ data: AgentDto }>(
-      `/public/agents/${encodeURIComponent(slug)}`,
+      cheminApi`/public/agents/${slug}`,
       undefined,
       { locale },
     );

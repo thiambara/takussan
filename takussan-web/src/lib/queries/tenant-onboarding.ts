@@ -3,6 +3,7 @@
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { TenantOnboardingChecklist, TenantOnboardingChecklistItem } from '@/types/tenant-onboarding';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-266 — React Query hooks for the TenantOnboardingChecklist resource.
@@ -28,7 +29,7 @@ const CHECKLIST_FIELDS: string[] = [
 export function useTenantOnboardingChecklist(leaseId: number | null | undefined) {
   return useApiQuery<ApiResponse<TenantOnboardingChecklist | null>>(
     ['tenant-onboarding', 'checklist', leaseId],
-    `/api/me/leases/${leaseId ?? ''}/onboarding-checklist`,
+    cheminApi`/api/me/leases/${leaseId ?? 0}/onboarding-checklist`,
     {
       enabled: Boolean(leaseId),
     },
@@ -41,7 +42,7 @@ export function useCompleteOnboardingItem(leaseId: number) {
     { item: TenantOnboardingChecklistItem }
   >(
     {
-      path: ({ item }) => `/api/me/leases/${leaseId}/onboarding-checklist/${item}/complete`,
+      path: ({ item }) => cheminApi`/api/me/leases/${leaseId}/onboarding-checklist/${item}/complete`,
       method: 'POST',
       // The route encodes the item segment ; the body is empty.
       body: () => ({}),
@@ -79,7 +80,7 @@ export function useAgencyOnboardingPending(params: AgencyOnboardingPendingParams
 
   return useApiQuery<PaginatedResponse<TenantOnboardingChecklist & { lease?: unknown }>>(
     ['tenant-onboarding', 'agency-pending', agencyId, page, per_page],
-    `/api/agencies/${agencyId ?? ''}/tenant-onboarding-pending`,
+    cheminApi`/api/agencies/${agencyId ?? 0}/tenant-onboarding-pending`,
     {
       params: spatieParams,
       enabled: Boolean(agencyId),

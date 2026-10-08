@@ -159,6 +159,19 @@ class SuperAdminCooptationTest extends TestCase
         $candidate = User::factory()->create([
             'force_2fa_at_first_login' => true,
         ]);
+        // TCK-600 (ADR-0047 §4) — la confirmation n'octroie que d'après une cooptation ACCEPTÉE.
+        Invitation::factory()->create([
+            'email' => $candidate->email,
+            'invited_by' => $peer->id,
+            'invited_user_id' => $candidate->id,
+            'agency_id' => null,
+            'invitable_type' => null,
+            'invitable_id' => null,
+            'role' => 'super_admin',
+            'status' => InvitationStatus::Accepted->value,
+            'accepted_at' => now(),
+            'metadata' => ['requires_2fa' => true],
+        ]);
 
         $totp = app(TwoFactorService::class);
         $secret = $totp->generateSecret();

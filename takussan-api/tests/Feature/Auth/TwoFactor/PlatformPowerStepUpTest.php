@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 /**
  * TCK-589, vérification adverse B1 — `PUT /api/users/{u}/role {"role":"super_admin"}` et
- * `POST /api/users/{u}/activate` vivent hors de `/api/admin/*` : un super-admin SANS 2FA, puis
+ * `POST /api/users/{u}/activate` (retirée par TCK-600 : la console) vivent hors de `/api/admin/*` : un super-admin SANS 2FA, puis
  * un jeton super-admin SANS step-up (volé), y fabriquaient un super-admin et rouvraient un
  * compte bloqué. Rouge sur `e59cb8b2` (200 aux quatre appels).
  */
@@ -65,13 +65,17 @@ class PlatformPowerStepUpTest extends TestCase
         $this->assertSame('Avant', $agence->fresh()->name);
     }
 
-    public function test_avec_step_up_le_super_admin_promeut_et_debloque(): void
+    /**
+     * TCK-600 (ADR-0047 §4) — même avec step-up, la route de rôle ne promeut plus : la cooptation
+     * est le seul chemin d'octroi (`SuperAdminGrantOnlyByCooptationTest`).
+     */
+    public function test_avec_step_up_le_super_admin_debloque_mais_ne_promeut_plus(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->promouvoir()->assertOk();
+        $this->promouvoir()->assertStatus(422);
         $this->debloquer()->assertOk();
-        $this->assertTrue(PlatformProfile::query()->where('user_id', $this->cible->id)->exists());
+        $this->assertFalse(PlatformProfile::query()->where('user_id', $this->cible->id)->exists());
     }
 
     public function test_l_admin_d_agence_attribue_un_role_dans_son_agence_sans_step_up(): void
@@ -92,7 +96,9 @@ class PlatformPowerStepUpTest extends TestCase
 
     private function debloquer()
     {
-        return $this->postJson("/api/users/{$this->cible->id}/activate");
+        // TCK-600 (verif-600 m1) — `POST /api/users/{u}/activate` est retirée : débloquer passe par
+        // la console, sous la même garde (2FA, puis step-up).
+        return $this->postJson("/api/admin/users/{$this->cible->id}/reactivate", ['reason' => 'Identité vérifiée par appel.']);
     }
 
     private function jetonSansStepUp(User $user): PersonalAccessToken

@@ -6,7 +6,7 @@ import {
   fetchMyProfiles,
   patchActiveProfile,
 } from '@/lib/profiles';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
@@ -27,8 +27,10 @@ export async function getMyProfilesAction(): Promise<ProfilesActionResult> {
     return { ok: false, message: tErr('missingToken') };
   }
 
-  const cookieStore = await cookies();
-  const active = cookieStore.get(ACTIVE_PROFILE_COOKIE)?.value;
+  // TCK-600 (invariant 11, verif-600 O1) — `getToken()` rend le jeton d'impersonation pendant une
+  // session : le profil actif qui l'accompagne est celui de l'ESPACE APPLICATIF, donc aucun, jamais
+  // celui de l'opérateur.
+  const active = await getActiveProfileId();
 
   try {
     const data = await fetchMyProfiles(token, active);

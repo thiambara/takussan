@@ -235,8 +235,10 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Signature du bail 🆕 (TCK-596, ADR-0042)
 82. [LeaseSignature](#82-leasesignature-) 🆕
 
+#### Console plateforme
+83. [ImpersonationSession](#83-impersonationsession-) 🆕
 #### Paiement sans compte (TCK-602, ADR-0051)
-83. [LeasePaymentLink](#83-leasepaymentlink-) 🆕
+84. [LeasePaymentLink](#84-leasepaymentlink-) 🆕
 
 ### Enums
 
@@ -3307,13 +3309,56 @@ belongsTo User.
 > Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
 > timestamp nullable. VERIF-596 passe 2 (N1) : `early_termination_penalty_months` unsigned smallint
 > nullable et `rent_review_max_pct` decimal(5,2) nullable, figés avec le contrat (nuls : le réglage
-> global s'applique, bail antérieur). Un renouvellement les hérite du parent, sauf valeur renégociée
+> de l'agence du bail, sinon le global, s'applique — TCK-600, verif-600 H1 ; bail antérieur). Un renouvellement les hérite du parent, sauf valeur renégociée
 > (VERIF-596 passe 3, N1'). Une colonne du contrat modifiée pendant `pending_signature` (hors
 > `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
 
 ---
 
-### 83. LeasePaymentLink 🆕
+### 83. ImpersonationSession 🆕
+
+**Table :** `impersonation_sessions`
+**Description :** Une session d'impersonation (TCK-600,
+[ADR-0055](adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md)) : un opérateur `super_admin`
+lit, **en lecture seule**, ce que voit un compte, pendant 15 minutes non prolongeables
+(`ImpersonationSession::TTL_MINUTES`), avec un motif. La session porte le jeton Sanctum dédié
+(`name = impersonation`, capacité unique `impersonation:read`) ; `AccessTokenGate` ne l'accepte
+que tant que la session est ouverte, non échue, et que l'opérateur est toujours un `super_admin`
+actif. Fermée par `ImpersonationService::stop()` — idempotent, sous verrou — qui supprime le jeton
+et notifie la cible (`impersonation.ended`) une seule fois.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| impersonator_id | FK users | | | L'opérateur (`imp_sessions_impersonator_fk`, `cascadeOnDelete`) |
+| target_user_id | FK users | | | Le compte lu (`imp_sessions_target_fk`, `cascadeOnDelete`) |
+| personal_access_token_id | FK personal_access_tokens | ✓ | null | Le jeton dédié (`imp_sessions_token_fk`, `nullOnDelete` : `stop` supprime le jeton, la ligne reste) |
+| reason | text | | | Motif saisi (10..1000), repris dans l'activité de début |
+| started_at | timestamp | | | |
+| expires_at | timestamp | | | `started_at + 15 min` |
+| ended_at | timestamp | ✓ | null | Fermeture ; `null` = session non fermée |
+| end_reason | string(20) / `ImpersonationEndReason` | ✓ | null | `stopped` / `expired` / `operator_revoked` / `target_blocked` |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :** `personal_access_token_id` (`imp_sessions_token_uniq`)
+
+**Index :** `(impersonator_id, ended_at)` (`imp_sessions_open_idx`), `(ended_at, expires_at)`
+(`imp_sessions_expiry_idx`), `target_user_id` (`imp_sessions_target_idx`)
+
+**Relations :**
+- `impersonator()` → belongsTo User
+- `target()` → belongsTo User
+- `token()` → belongsTo `Laravel\Sanctum\PersonalAccessToken`
+
+**Scopes :** `open()` — `ended_at IS NULL AND expires_at > now()`
+
+**Attribution :** `activity_log.impersonator_id` (FK `users`, `activity_log_impersonator_fk`,
+`nullOnDelete`, index `activity_log_impersonator_idx`) est posé par `App\Models\Activity::creating` (TCK-601) sur toute
+activité écrite pendant une requête authentifiée par le jeton d'une session ouverte.
+
+---
+
+### 84. LeasePaymentLink 🆕
 
 > **Entrée minimale posée par TCK-602** ; description complète par `/sync-specs`. Source :
 > ADR-0051 §1.

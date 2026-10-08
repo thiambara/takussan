@@ -259,6 +259,32 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        'impersonation' => [
+            'ended' => [
+                'title' => 'Votre compte a été consulté par l\'équipe Takussan',
+                'body' => 'Un membre de l\'équipe Takussan, :operator, a consulté votre compte en lecture seule du :started_at au :ended_at. Motif : :reason. Aucune modification n\'a été faite en votre nom.',
+                'sms' => 'Takussan : notre équipe a consulté votre compte en lecture seule (:operator). Détails dans vos notifications.',
+            ],
+        ],
+        'agency' => [
+            'suspended' => [
+                'title' => 'Agence suspendue : :agency',
+                'body' => 'L\'agence :agency est suspendue par la plateforme. Motif : :reason. Ses annonces ne sont plus publiées et son espace est en lecture seule.',
+                'sms' => 'Takussan : l\'agence :agency est suspendue. Ses annonces sont retirées du site.',
+            ],
+            'reinstated' => [
+                'title' => 'Suspension levée : :agency',
+                'body' => 'La suspension de l\'agence :agency est levée. Motif : :reason. Ses annonces publiques sont de nouveau visibles.',
+                'sms' => 'Takussan : la suspension de :agency est levée.',
+            ],
+        ],
+        'platform_operator' => [
+            'revoked' => [
+                'title' => 'Opérateur retiré : :operator',
+                'body' => 'L\'accès de :operator à la console plateforme a été retiré. Motif : :reason.',
+                'sms' => 'Takussan : l\'accès de :operator à la console est retiré.',
+            ],
+        ],
         'lease_payment' => [
             'due_soon' => [
                 'title' => 'Loyer à payer le :due_date',
@@ -361,6 +387,16 @@ return [
                 'title' => 'Numéro de téléphone remplacé',
                 'body' => 'Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n\'est pas vous, contactez le support.',
                 'sms' => 'Takussan : ce numéro n\'est plus celui de votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez le support.',
+            ],
+            'blocked' => [
+                'title' => 'Votre compte est bloqué',
+                'body' => 'Votre compte Takussan a été bloqué par la plateforme. Motif : :reason. Contactez le support pour toute question.',
+                'sms' => 'Takussan : votre compte est bloqué. Contactez le support.',
+            ],
+            'reactivated' => [
+                'title' => 'Votre compte est réactivé',
+                'body' => 'Votre compte Takussan a été réactivé. Motif : :reason. Vous pouvez vous reconnecter.',
+                'sms' => 'Takussan : votre compte est réactivé.',
             ],
         ],
         'visit' => [
@@ -677,6 +713,11 @@ return [
                 'title' => 'Bien refusé : :property',
                 'body' => 'Votre bien « :property » a été refusé. Motif : :reason. Vous pouvez corriger l\'annonce et la resoumettre depuis votre espace.',
                 'sms' => 'Takussan : annonce « :property » refusée.',
+            ],
+            'unpublished_contact_erased' => [
+                'title' => 'Annonce retirée : :property',
+                'body' => 'L\'annonce :property (:reference) a été retirée du site : son seul contact a effacé son compte. Attribuez-lui un agent puis republiez-la : :url',
+                'sms' => 'Takussan : l\'annonce :reference est retirée faute de contact.',
             ],
             'calendar_conflict' => [
                 'title' => 'Conflit de calendrier : :property',

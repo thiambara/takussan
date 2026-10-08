@@ -66,13 +66,13 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // TCK-602 (ADR-0051, décision 4) — la rétention par canal : 90 jours pour les paiements, 30 pour
   // la messagerie. La purge d'IntegrationService (subDays(30) pour tous) a disparu avec ce ticket.
   'superAdmin.integrations.webhooks.retention':
-    'takussan-api/config/webhooks.php:12-14 — `retention_days` payment 90, sms et whatsapp 30, appliqués par PruneWebhookLogs.php:32 (`webhooks:prune`, routes/console.php:142, chaque jour)',
+    'takussan-api/config/webhooks.php:12-14 — `retention_days` payment 90, sms et whatsapp 30, appliqués par PruneWebhookLogs.php:32 (`webhooks:prune`, routes/console.php:154, chaque jour)',
   // TCK-602 — la liste « à suivre » de la console des paiements : sans `filter[from]` (le front n'en
   // envoie pas), la fenêtre est les 30 derniers jours. Période affichée, tenue par le serveur.
   'superAdmin.payments.list.empty_description':
     'takussan-api/app/Http/Controllers/Api/Admin/PaymentSupervisionController.php:24 — fenêtre par défaut `$to->subDays(30)`',
   'superAdmin.pages.users.impersonateDescription':
-    'takussan-api/app/Http/Controllers/Api/Admin/UserImpersonationController.php:30 — IMPERSONATION_TTL_MINUTES = 60',
+    'takussan-api/app/Models/ImpersonationSession.php — TTL_MINUTES = 15, non prolongeable (ADR-0055, TCK-600)',
   'privacy.dataExports.throttled':
     'takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:32 — une demande par subDay() ; la date affichée est `available_at` rendu par l\'API',
   'superAdmin.moderation.staleWarning':
@@ -105,7 +105,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'dashboard.onboardingPending.subtitle': 7,
   'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': [90, 30],
-  'superAdmin.pages.users.impersonateDescription': 1,
+  'superAdmin.pages.users.impersonateDescription': 15,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
 };

@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-259 — wire types & helpers for the post-acceptance Agent
@@ -70,7 +71,7 @@ export async function submitAgentKyc(
   agentProfileId: number,
 ): Promise<AgentKycSubmitResponse> {
   return apiRequest<AgentKycSubmitResponse>(
-    `/api/me/agent-profiles/${agentProfileId}/kyc/submit`,
+    cheminApi`/api/me/agent-profiles/${agentProfileId}/kyc/submit`,
     { method: 'POST', token },
   );
 }
@@ -81,7 +82,7 @@ export async function patchAgentSpecialization(
   payload: AgentSpecializationPayload,
 ): Promise<AgentSpecializationResponse> {
   return apiRequest<AgentSpecializationResponse>(
-    `/api/me/agent-profiles/${agentProfileId}/specialization`,
+    cheminApi`/api/me/agent-profiles/${agentProfileId}/specialization`,
     { method: 'PATCH', token, body: payload },
   );
 }
@@ -91,7 +92,7 @@ export async function fetchAgentFirstLead(
   agentProfileId: number,
 ): Promise<AgentFirstLeadResponse> {
   return apiRequest<AgentFirstLeadResponse>(
-    `/api/me/agent-profiles/${agentProfileId}/first-lead`,
+    cheminApi`/api/me/agent-profiles/${agentProfileId}/first-lead`,
     { token },
   );
 }

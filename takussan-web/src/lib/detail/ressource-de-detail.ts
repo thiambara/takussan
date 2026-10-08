@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-442 — **remonter la REQUÊTE, pas seulement la décision.**
@@ -102,7 +103,7 @@ export const sonderExistence = cache(
 
     const { api, table } = RESSOURCES_DE_DETAIL[segment];
     try {
-      await apiRequest<unknown>(`/api/${api}/${id}?fields[${table}]=id`, { token });
+      await apiRequest<unknown>(cheminApi`/api/${api}/${id}?fields[${table}]=id`, { token });
       return 'existe';
     } catch (erreur) {
       if (erreur instanceof ApiError && erreur.status === 404) return 'introuvable';

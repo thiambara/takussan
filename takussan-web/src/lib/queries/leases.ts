@@ -5,6 +5,7 @@ import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/
 import type { CustomerListItem } from '@/types/customer';
 import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * React Query hooks for the Lease resource.
@@ -185,7 +186,7 @@ export function useLease(id: number | null | undefined) {
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(
     ['leases', 'detail', id],
-    `/api/leases/${id ?? ''}`,
+    cheminApi`/api/leases/${id ?? 0}`,
     {
       params: spatieParams,
       enabled: Boolean(id),
@@ -228,7 +229,7 @@ export function useLeasePayments(leaseId: number | null | undefined) {
 
   return useApiQuery<PaginatedResponse<LeasePayment>>(
     ['leases', 'payments', leaseId],
-    `/api/leases/${leaseId ?? ''}/payments`,
+    cheminApi`/api/leases/${leaseId ?? 0}/payments`,
     {
       params: spatieParams,
       enabled: Boolean(leaseId),
@@ -263,7 +264,7 @@ export function useCreateLease() {
 
 export function useUpdateLease(id: number) {
   return useApiMutation<ApiResponse<Lease>, Partial<CreateLeasePayload>>(
-    { path: `/api/leases/${id}`, method: 'PUT' },
+    { path: cheminApi`/api/leases/${id}`, method: 'PUT' },
     {
       invalidate: [
         ['leases', 'list'],
@@ -282,7 +283,7 @@ export type ActivateLeaseOnPaperPayload = { contract: File };
 export function useActivateLease(id: number) {
   return useApiMutation<ApiResponse<Lease>, ActivateLeaseOnPaperPayload>(
     {
-      path: `/api/leases/${id}/activate`,
+      path: cheminApi`/api/leases/${id}/activate`,
       method: 'POST',
       formData: true,
       body: (vars) => {
@@ -304,7 +305,7 @@ export function useActivateLease(id: number) {
 /** TCK-596 §4B (ADR-0042 §1) — le gestionnaire fige le contrat ; le bail passe `pending_signature`. */
 export function useRequestLeaseSignature(id: number) {
   return useApiMutation<ApiResponse<Lease>, void>(
-    { path: `/api/leases/${id}/signature-request`, method: 'POST' },
+    { path: cheminApi`/api/leases/${id}/signature-request`, method: 'POST' },
     { invalidate: [['leases', 'list'], ['leases', 'detail', id]] },
   );
 }
@@ -314,7 +315,7 @@ export type LeaseSignatureCodeSent = { channel: 'sms' | 'mail'; destination: str
 /** TCK-596 §4B (ADR-0042 §2) — envoie au signataire le code qui vaut signature. */
 export function useSendLeaseSignatureCode(id: number) {
   return useApiMutation<ApiResponse<LeaseSignatureCodeSent>, { role: LeaseSignatureRole }>({
-    path: `/api/leases/${id}/signature/otp`,
+    path: cheminApi`/api/leases/${id}/signature/otp`,
     method: 'POST',
   });
 }
@@ -322,7 +323,7 @@ export function useSendLeaseSignatureCode(id: number) {
 /** TCK-596 §4B — saisit le code ; la seconde signature active le bail (échéancier compris). */
 export function useSignLease(id: number) {
   return useApiMutation<ApiResponse<Lease>, { role: LeaseSignatureRole; code: string }>(
-    { path: `/api/leases/${id}/signature`, method: 'POST' },
+    { path: cheminApi`/api/leases/${id}/signature`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'list'],
@@ -342,7 +343,7 @@ export type ReviewRentPayload = {
 
 export function useReviewLeaseRent(id: number) {
   return useApiMutation<ApiResponse<Lease>, ReviewRentPayload>(
-    { path: `/api/leases/${id}/rent`, method: 'PATCH' },
+    { path: cheminApi`/api/leases/${id}/rent`, method: 'PATCH' },
     {
       invalidate: [
         ['leases', 'list'],
@@ -365,7 +366,7 @@ export type CreateLeasePaymentPayload = {
 
 export function useCreateLeasePayment(leaseId: number) {
   return useApiMutation<ApiResponse<LeasePayment>, CreateLeasePaymentPayload>(
-    { path: `/api/leases/${leaseId}/payments`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/payments`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
@@ -395,7 +396,7 @@ export type MarkLateFeePaidPayload = {
 export function useMarkLateFeePaid(leaseId: number) {
   return useApiMutation<ApiResponse<LeasePayment>, MarkLateFeePaidPayload>(
     {
-      path: ({ paymentId }) => `/api/lease-payments/${paymentId}/late-fee/mark-paid`,
+      path: ({ paymentId }) => cheminApi`/api/lease-payments/${paymentId}/late-fee/mark-paid`,
       method: 'POST',
       body: ({ paymentId: _paymentId, ...rest }) => rest,
     },
@@ -418,7 +419,7 @@ export function useIssuePaymentLink() {
   return useApiMutation<ApiResponse<{ url: string; expires_at: string | null }>, IssuePaymentLinkPayload>({
     path: ({ paymentId }) => {
       if (!Number.isSafeInteger(paymentId) || paymentId <= 0) throw new RangeError(String(paymentId));
-      return `/api/lease-payments/${paymentId}/payment-link`;
+      return cheminApi`/api/lease-payments/${paymentId}/payment-link`;
     },
     method: 'POST',
     body: ({ paymentId: _paymentId, ...rest }) => rest,
@@ -432,7 +433,7 @@ export type GenerateSchedulePayload = {
 
 export function useGenerateSchedule(leaseId: number) {
   return useApiMutation<ApiResponse<{ generated: number }>, GenerateSchedulePayload>(
-    { path: `/api/leases/${leaseId}/generate-schedule`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/generate-schedule`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
@@ -458,7 +459,7 @@ export type CreateGuarantorPayload = {
 
 export function useCreateGuarantor(leaseId: number) {
   return useApiMutation<ApiResponse<Guarantor>, CreateGuarantorPayload>(
-    { path: `/api/leases/${leaseId}/guarantors`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/guarantors`, method: 'POST' },
     { invalidate: [['leases', 'detail', leaseId]] },
   );
 }
@@ -477,7 +478,7 @@ export type DepositRefundState = {
 export function useDepositRefundState(leaseId: number | null | undefined) {
   return useApiQuery<ApiResponse<DepositRefundState>>(
     ['leases', 'deposit-refund', leaseId],
-    `/api/leases/${leaseId ?? ''}/deposit-refund`,
+    cheminApi`/api/leases/${leaseId ?? 0}/deposit-refund`,
     { enabled: Boolean(leaseId) },
   );
 }
@@ -490,7 +491,7 @@ export type RefundDepositPayload = {
 
 export function useRefundDeposit(leaseId: number) {
   return useApiMutation<ApiResponse<unknown>, RefundDepositPayload>(
-    { path: `/api/leases/${leaseId}/deposit-refund`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/deposit-refund`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
@@ -515,7 +516,7 @@ export type RenewLeasePayload = {
 
 export function useRenewLease(leaseId: number) {
   return useApiMutation<ApiResponse<Lease>, RenewLeasePayload>(
-    { path: `/api/leases/${leaseId}/renew`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/renew`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
@@ -544,7 +545,7 @@ const CHAIN_FIELDS: string[] = [
 export function useLeaseChain(leaseId: number | null | undefined) {
   return useApiQuery<{ data: Lease[] }>(
     ['leases', 'chain', leaseId],
-    `/api/leases/${leaseId ?? ''}/chain`,
+    cheminApi`/api/leases/${leaseId ?? 0}/chain`,
     {
       params: { fields: { leases: CHAIN_FIELDS } },
       enabled: Boolean(leaseId),
@@ -561,7 +562,7 @@ export type RequestEarlyTerminationPayload = {
 
 export function useRequestEarlyTermination(leaseId: number) {
   return useApiMutation<ApiResponse<Lease>, RequestEarlyTerminationPayload>(
-    { path: `/api/leases/${leaseId}/early-termination`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/early-termination`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
@@ -573,7 +574,7 @@ export function useRequestEarlyTermination(leaseId: number) {
 
 export function useCancelEarlyTermination(leaseId: number) {
   return useApiMutation<ApiResponse<Lease>, void>(
-    { path: `/api/leases/${leaseId}/early-termination`, method: 'DELETE' },
+    { path: cheminApi`/api/leases/${leaseId}/early-termination`, method: 'DELETE' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
@@ -585,7 +586,7 @@ export function useCancelEarlyTermination(leaseId: number) {
 
 export function useConfirmEarlyTermination(leaseId: number) {
   return useApiMutation<ApiResponse<Lease>, void>(
-    { path: `/api/leases/${leaseId}/early-termination/confirm`, method: 'POST' },
+    { path: cheminApi`/api/leases/${leaseId}/early-termination/confirm`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],

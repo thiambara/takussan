@@ -16,6 +16,7 @@ import {
   CreditCard,
   ExternalLink,
   Home,
+  RotateCcw,
   ShieldCheck,
   ShieldOff,
   Users,
@@ -34,6 +35,7 @@ import {
   fetchAdminAgencyProperties,
   fetchAdminAgencyTeam,
   postAgencyAction,
+  type AgencyModerationAction,
 } from '@/lib/queries/super-admin';
 import { AdminAgencySubscriptionPanel } from '@/components/billing/AdminAgencySubscriptionPanel';
 import { KycDossierTimeline, KycReviewPanel } from '@/components/kyc/kyc-components';
@@ -46,8 +48,10 @@ import type {
 } from '@/types/super-admin';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
+import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
+import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 
-type Action = 'verify' | 'suspend' | 'unverify';
+type Action = AgencyModerationAction;
 type Tab = 'kyc' | 'subscription' | 'team' | 'properties' | 'transactions';
 
 /** La donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyDetail.tabs.*`). */
@@ -88,8 +92,22 @@ function actionMeta(t: (key: string) => string): Record<Action, ActionMeta> {
       label: t('actions.unverify.label'),
       destructive: true,
     },
+    reinstate: {
+      title: t('actions.reinstate.title'),
+      description: t('actions.reinstate.description'),
+      phrase: 'LEVER',
+      label: t('actions.reinstate.label'),
+    },
   };
 }
+
+/** L'icône et le rendu de chaque transition : `suspend` est le seul geste rouge. */
+const BOUTONS: Record<Action, { icon: typeof Ban; variant: 'default' | 'destructive' | 'outline' }> = {
+  verify: { icon: CheckCircle2, variant: 'default' },
+  suspend: { icon: Ban, variant: 'destructive' },
+  unverify: { icon: ShieldOff, variant: 'outline' },
+  reinstate: { icon: RotateCcw, variant: 'default' },
+};
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
 const STATUS_KEY: Record<string, string> = {
@@ -304,6 +322,17 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
           <ExternalLink className="size-4" aria-hidden="true" />
         </Link>
       </div>
+      {/* TCK-600 — une agence suspendue l'affiche avec son motif et sa date (ADR-0048). */}
+      {agency.suspension ? (
+        <div data-testid="agency-suspension" className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          <p className="font-semibold">
+            {t('suspension.since', { date: fmt.date(agency.suspension.suspended_at) })}
+          </p>
+          {agency.suspension.reason ? (
+            <p className="mt-1 text-pretty">{t('suspension.reason', { reason: agency.suspension.reason })}</p>
+          ) : null}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -312,8 +341,10 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
   const t = useTranslations('superAdmin.agencyDetail');
   const [pending, setPending] = useState<Action | null>(null);
   const queryClient = useQueryClient();
+  const { can } = usePlatformAbilities();
   const mutation = useMutation({
-    mutationFn: (action: Action) => postAgencyAction(agency.id, action),
+    mutationFn: ({ action, reason }: { action: Action; reason: string }) =>
+      postAgencyAction(agency.id, action, reason || undefined),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['super-admin', 'agencies'] }),
@@ -322,15 +353,11 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
       setPending(null);
     },
   });
-  const meta = pending ? actionMeta(t)[pending] : null;
-  // Mêmes règles que `AgencyModerationCard` : on ne propose que les transitions qui changent
-  // quelque chose. `verify` reste la voie de réactivation d'une agence vérifiée suspendue.
-  const status = agency.status ?? 'inactive';
-  const canVerify = !(agency.is_verified && status === 'active');
-  const canSuspend = status !== 'suspended';
-  // `unverify` passe AUSSI le statut à `inactive` (API) : il change quelque chose tant que
-  // l'agence est vérifiée OU pas encore inactive — c'est la seule voie vers `inactive`.
-  const canUnverify = agency.is_verified || status !== 'inactive';
+  const metas = actionMeta(t);
+  const meta = pending ? metas[pending] : null;
+  // Mêmes règles que `AgencyModerationCard` (`transitionsDeModeration`), filtrées par niveau.
+  const transitions = transitionsDeModeration(agency).filter((action) => can(GESTE_DE_TRANSITION[action]));
+  if (transitions.length === 0) return null;
 
   return (
     /*
@@ -366,36 +393,34 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
         <p className="text-pretty text-sm text-foreground/70">{t('moderationSubtitle')}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        {canVerify ? (
-          <Button size="sm" onClick={() => setPending('verify')} disabled={mutation.isPending}>
-            <CheckCircle2 className="size-4" aria-hidden="true" />
-            {t('actions.verify.label')}
-          </Button>
-        ) : null}
-        {canSuspend ? (
-          <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
-            <Ban className="size-4" aria-hidden="true" />
-            {t('actions.suspend.label')}
-          </Button>
-        ) : null}
-        {canUnverify ? (
-          <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
-            <ShieldOff className="size-4" aria-hidden="true" />
-            {t('actions.unverify.label')}
-          </Button>
-        ) : null}
+        {transitions.map((action) => {
+          const { icon: Icon, variant } = BOUTONS[action];
+          return (
+            <Button key={action} size="sm" variant={variant} onClick={() => setPending(action)} disabled={mutation.isPending}>
+              <Icon className="size-4" aria-hidden="true" />
+              {metas[action].label}
+            </Button>
+          );
+        })}
       </div>
       {meta ? (
         <ConfirmActionDialog
           open={pending !== null}
-          onOpenChange={(open) => !open && setPending(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPending(null);
+              mutation.reset();
+            }
+          }}
           title={meta.title}
           description={meta.description}
           confirmPhrase={meta.phrase}
           confirmLabel={meta.label}
           destructive={meta.destructive}
           pending={mutation.isPending}
-          onConfirm={() => pending && mutation.mutate(pending)}
+          reason={pending && AVEC_MOTIF.has(pending) ? { label: t('reasonLabel') } : undefined}
+          error={mutation.error}
+          onConfirm={(reason) => pending && mutation.mutate({ action: pending, reason })}
         />
       ) : null}
     </section>

@@ -35,9 +35,10 @@ vi.mock('@/lib/queries/property-moderation', () => ({
     meta: { pending_count: 0 },
   })),
 }));
+const impersonation = vi.hoisted(() => ({ session: null as null | Record<string, unknown> }));
 vi.mock('@/hooks/useImpersonation', () => ({
-  useImpersonationSession: () => null,
-  useStopImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
+  useImpersonationCourante: () => ({ data: impersonation.session }),
+  useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 // Les modales de bienvenue d'`AppShell` montent chacune leur propre requête : hors sujet ici.
@@ -119,5 +120,55 @@ describe('AppShell — emplacement des bandeaux du site (TCK-572)', () => {
     expect(main).toContainElement(bandeau as HTMLElement);
     // Avant le contenu de la page, dans la même zone de défilement.
     expect(bandeau!.compareDocumentPosition(screen.getByText('contenu')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+/**
+ * TCK-600 (ADR-0055 §6) — AC5g : la bannière d'impersonation est montée dans l'ESPACE APPLICATIF.
+ * Elle ne l'était que dans la console — où l'opérateur ne lit justement pas en tant que la cible.
+ */
+describe('AppShell — bannière d\'impersonation (TCK-600)', () => {
+  function rendre() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <AppShell user={user}>
+              <p>contenu</p>
+            </AppShell>
+          </ToastProvider>
+        </QueryClientProvider>,
+      ),
+    );
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => MAINTENANCE }));
+  });
+  afterEach(() => {
+    impersonation.session = null;
+    vi.unstubAllGlobals();
+  });
+
+  it('pendant une session : cible, lecture seule, « Quitter »', () => {
+    impersonation.session = {
+      session_id: 7,
+      impersonator: { id: 1, name: 'Ibrahima Fall' },
+      target: { id: 42, name: 'Awa Diop' },
+      expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+      read_only: true,
+    };
+    rendre();
+
+    const banniere = screen.getByTestId('impersonation-banner');
+    expect(banniere).toHaveTextContent('Lecture seule');
+    expect(banniere).toHaveTextContent('Awa Diop');
+    expect(screen.getByRole('button', { name: 'Quitter' })).toBeInTheDocument();
+  });
+
+  it('hors session : pas de bannière', () => {
+    rendre();
+    expect(screen.queryByTestId('impersonation-banner')).not.toBeInTheDocument();
   });
 });

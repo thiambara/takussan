@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /** Un créneau tel que `GET …/visit-slots` le rend : rien sur la visite qui l'occupe. */
 export interface Creneau {
@@ -26,7 +27,7 @@ export function useCreneaux(slug: string, jour: string | null): EtatDesCreneaux 
     if (!jour) return;
     let actif = true;
     apiFetch<{ data: { slots: Creneau[] } }>(
-      `/public/properties/${encodeURIComponent(slug)}/visit-slots?date=${jour}`,
+      cheminApi`/public/properties/${slug}/visit-slots?date=${jour}`,
     )
       .then((res) => {
         if (actif) setEtat({ jour, valeur: { etat: 'charge', creneaux: res.data.slots } });

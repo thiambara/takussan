@@ -121,6 +121,7 @@ use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
+use App\Support\ImpersonationContext;
 use App\Support\Logging\SanitizingFailedJobProvider;
 use App\Support\TelephoneSaisi;
 use App\Support\VisitorFingerprint;
@@ -163,6 +164,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-600 (ADR-0055 §5) — la session d'impersonation de la requête courante.
+        $this->app->scoped(ImpersonationContext::class);
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
@@ -621,6 +625,15 @@ class AppServiceProvider extends ServiceProvider
         AuditActivity::created(fn (AuditActivity $activity) => app(DispatchAlerts::class)->handle($activity));
         // TCK-601 (E) — un acte de gouvernance journalisé avertit les autres admins de l'agence.
         AuditActivity::created(fn (AuditActivity $activity) => app(GovernanceAlertService::class)->handle($activity));
+        // TCK-600 (ADR-0055 §5) — toute activité écrite pendant une session d'impersonation
+        // porte l'opérateur, en plus de son `causer` (la cible). Sur `AuditActivity` (TCK-601) :
+        // posé sur la classe spatie, l'écouteur ne verrait plus aucune création.
+        AuditActivity::creating(function (AuditActivity $activity): void {
+            $context = app(ImpersonationContext::class);
+            if ($context->active()) {
+                $activity->setAttribute('impersonator_id', $context->impersonatorId());
+            }
+        });
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //

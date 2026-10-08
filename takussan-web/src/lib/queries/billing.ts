@@ -1,5 +1,6 @@
 import { ApiError } from '@/lib/api';
 import type { AgencySubscriptionResponse } from '@/types/super-admin';
+import { cheminApi } from '@/lib/chemin-api';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -13,6 +14,6 @@ export async function fetchMeSubscription(): Promise<AgencySubscriptionResponse>
   const qs = new URLSearchParams();
   qs.set('fields[agency_subscriptions]', 'id,agency_id,plan_id,status,trial_ends_at,current_period_start,current_period_end,ended_at,platform_fee_pct_override,limits_override,created_at,updated_at');
   qs.set('include', 'plan');
-  const res = await fetch(`/api/me/subscription?${qs.toString()}`, { credentials: 'include' });
+  const res = await fetch(cheminApi`/api/me/subscription?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<AgencySubscriptionResponse>(res);
 }

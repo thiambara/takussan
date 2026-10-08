@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Server-side fetcher for the agency dashboard endpoint (TCK-032 / TCK-131).
@@ -63,7 +64,7 @@ export async function fetchDashboardAgency(
     if (opts.months) params.set('months', String(opts.months));
   }
   const qs = params.toString();
-  const path = qs ? `/api/dashboard/agency?${qs}` : '/api/dashboard/agency';
+  const path = qs ? cheminApi`/api/dashboard/agency?${qs}` : '/api/dashboard/agency';
 
   try {
     return await apiRequest<DashboardAgencyPayload>(path, {

@@ -9,7 +9,9 @@ class AgencyDetailResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
-        $primaryAdmin = $this->whenLoaded('primaryAdmin');
+        // `whenLoaded()` rend un `MissingValue` (objet, donc vrai) quand la relation n'est pas
+        // chargée — ce que fait la fiche lue par un `viewer` (TCK-600).
+        $primaryAdmin = $this->relationLoaded('primaryAdmin') ? $this->primaryAdmin : null;
         $address = $this->relationLoaded('addresses') ? $this->addresses->first() : null;
 
         return [

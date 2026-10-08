@@ -1,5 +1,6 @@
 import { apiFetch } from '@/lib/api';
 import { DEFAULT_LOCALE } from '@/i18n/config';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * L'énumération du catalogue public pour le sitemap — TCK-431.
@@ -66,7 +67,7 @@ export async function listerBiensDuSitemap(): Promise<readonly BienDuSitemap[]> 
 
   do {
     const reponse = await apiFetch<ReponseSitemap>(
-      `/public/properties/sitemap?page=${page}&per_page=${TAILLE_DE_PAGE_SITEMAP}`,
+      cheminApi`/public/properties/sitemap?page=${page}&per_page=${TAILLE_DE_PAGE_SITEMAP}`,
       undefined,
       // Le catalogue du sitemap ne porte aucun libellé traduit — `slug` et `updated_at` sont les
       // mêmes dans les trois langues. La locale est passée quand même : `apiFetch` la devine

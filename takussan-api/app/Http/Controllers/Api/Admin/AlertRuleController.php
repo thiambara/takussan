@@ -17,7 +17,7 @@ class AlertRuleController extends Controller
 
     public function index(): JsonResponse
     {
-        return $this->json(['data' => $this->alerts->all(), 'catalogue' => AlertableEvents::all()]);
+        return $this->json(['data' => $this->alerts->all(), 'catalogue' => AlertableEvents::keys()]);
     }
 
     public function store(StoreAlertRuleRequest $request): JsonResponse

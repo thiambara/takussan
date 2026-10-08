@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { ApiError } from '@/lib/api';
 import { fetchMyWizardDrafts } from '@/lib/wizard-drafts';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
 
 /**
  * TCK-250 — GET /api/me/wizard-drafts (Next proxy).
@@ -13,7 +13,7 @@ import { fetchMyWizardDrafts } from '@/lib/wizard-drafts';
  */
 export async function GET(): Promise<NextResponse> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(cookieStore);
   if (!token) return NextResponse.json(null, { status: 401 });
 
   try {

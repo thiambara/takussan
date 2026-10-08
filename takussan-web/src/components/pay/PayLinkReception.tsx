@@ -35,6 +35,9 @@ function etatDeLErreur(err: unknown): Etat | null {
     return { kind: 'gone', agency: typeof params?.agency === 'string' && params.agency !== '' ? params.agency : null };
   }
   if (err.status === 404) return { kind: 'notFound' };
+  // Un jeton que `cheminApi` refuse (`/`, `?`, `#`, `..`) ne désigne aucun lien : aucun appel n'est
+  // parti, et la page dit la même chose qu'à un jeton inconnu.
+  if (err.status === 400 && (err.data as { code?: unknown } | null)?.code === 'invalid_path') return { kind: 'notFound' };
   return null;
 }
 

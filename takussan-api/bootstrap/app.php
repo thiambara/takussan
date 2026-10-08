@@ -2,6 +2,9 @@
 
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
+use App\Http\Middleware\EnforceImpersonationReadOnly;
+use App\Http\Middleware\EnsureAgencyWritable;
+use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\JournalizeIncomingWebhook;
@@ -73,6 +76,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // la seconde orpheline — elle décrivait donc toujours une API supprimée.
         $middleware->api(append: [
             ResolveActiveProfile::class,
+            // TCK-600 (ADR-0048) — une agence suspendue ne s'écrit plus sous son profil actif.
+            EnsureAgencyWritable::class,
+            // TCK-600 (ADR-0055) — une session d'impersonation lit, elle n'écrit jamais.
+            EnforceImpersonationReadOnly::class,
             // TCK-589 — 2FA exigée (plateforme, admin et personnel d'agence sur les
             // familles protégées, réinitialisation par le support), puis step-up par
             // jeton sur les actions sensibles. Listes : `App\Support\Security\ProtectedActions`.
@@ -86,6 +93,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'super-admin' => EnsureSuperAdmin::class,
             // TCK-602 (ADR-0051 §4) — le journal des webhooks entrants, après `throttle`.
             'webhook.journal' => JournalizeIncomingWebhook::class,
+            // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
+            'platform-can' => EnsurePlatformAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

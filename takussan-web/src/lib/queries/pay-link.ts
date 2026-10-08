@@ -1,9 +1,10 @@
 import { ApiError, apiFetch, urlApiPublique } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-602 (ADR-0051 §1) — le lien de paiement d'une échéance, côté locataire SANS COMPTE.
  *
- * Le jeton EST le droit d'accès : il ne voyage que dans le chemin, encodé (TCK-600), et la page
+ * Le jeton EST le droit d'accès : il ne voyage que dans le chemin, par `cheminApi` (TCK-600), et la page
  * qui le porte sert `no-referrer`. Aucune session : ces appels n'en ont pas besoin, et l'API ne
  * rend que l'échéance — ni le nom ni le téléphone du locataire, ni d'identifiant interne.
  *
@@ -35,12 +36,8 @@ export interface PayLinkVerification {
   readonly receipt_available: boolean;
 }
 
-function chemin(token: string, suffixe = ''): string {
-  return `/pay/${encodeURIComponent(token)}${suffixe}`;
-}
-
 export async function fetchPayLink(token: string): Promise<PayLink> {
-  const res = await apiFetch<{ data: PayLink }>(chemin(token));
+  const res = await apiFetch<{ data: PayLink }>(cheminApi`/pay/${token}`);
   return res.data;
 }
 
@@ -49,7 +46,7 @@ export async function initiatePayLink(
   token: string,
   provider: PayLinkProvider,
 ): Promise<{ checkout_url: string }> {
-  const res = await apiFetch<{ data: { checkout_url: string } }>(chemin(token, '/initiate'), {
+  const res = await apiFetch<{ data: { checkout_url: string } }>(cheminApi`/pay/${token}/initiate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider }),
@@ -59,7 +56,7 @@ export async function initiatePayLink(
 
 /** Au retour du fournisseur : relit l'état chez lui (le webhook a pu se perdre). */
 export async function verifyPayLink(token: string): Promise<PayLinkVerification> {
-  const res = await apiFetch<{ data: PayLinkVerification }>(chemin(token, '/verify'), {
+  const res = await apiFetch<{ data: PayLinkVerification }>(cheminApi`/pay/${token}/verify`, {
     method: 'POST',
   });
   return res.data;
@@ -67,7 +64,7 @@ export async function verifyPayLink(token: string): Promise<PayLinkVerification>
 
 /** La quittance PDF d'une échéance payée. */
 export async function downloadPayLinkReceipt(token: string): Promise<Blob> {
-  const res = await fetch(urlApiPublique(chemin(token, '/receipt')), { method: 'GET' });
+  const res = await fetch(urlApiPublique(cheminApi`/pay/${token}/receipt`), { method: 'GET' });
   if (!res.ok) {
     throw new ApiError(res.status, await res.json().catch(() => null));
   }

@@ -111,12 +111,21 @@ describe('<PayLinkReception> (TCK-602)', () => {
     expect(assign).toHaveBeenCalledWith('https://pay.wave.example/c/1');
   });
 
-  it('un jeton hors alphabet est encodé, jamais interprété comme un chemin', async () => {
+  it('un jeton qui réécrirait le chemin est refusé sans appel, et la page dit « introuvable »', async () => {
+    // TCK-600 (ADR-0055 §6) — `cheminApi` refuse `/`, `?`, `#` et `..` au lieu de les encoder.
     bouchonner(reponse(404, { code: 'pay_link.not_found' }));
     render(withIntl(<PayLinkReception token="../me?x=1" />));
 
     expect(await screen.findByTestId('pay-not-found')).toBeInTheDocument();
-    expect(appels[0].url).toMatch(/\/api\/pay\/\.\.%2Fme%3Fx%3D1$/);
+    expect(appels).toHaveLength(0);
+  });
+
+  it('un jeton hors alphabet mais sans séparateur est encodé', async () => {
+    bouchonner(reponse(404, { code: 'pay_link.not_found' }));
+    render(withIntl(<PayLinkReception token="é t" />));
+
+    expect(await screen.findByTestId('pay-not-found')).toBeInTheDocument();
+    expect(appels[0].url).toMatch(/\/api\/pay\/%C3%A9%20t$/);
   });
 
   it('410 : le lien n’est plus valide, et la page nomme l’agence', async () => {

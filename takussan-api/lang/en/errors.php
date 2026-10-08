@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'Deletion has already been executed.',
         'grace_expired' => 'The cancellation window has expired.',
+        'has_obligations' => 'This account still has open commitments (leases, instalments, invoices or bookings): they must be settled before erasure.',
     ],
     'activity_log' => [
         'export_too_large' => 'Too many rows to export: narrow the filters.',
@@ -29,8 +30,11 @@ return [
         'individual_no_owner_invites' => 'Individual agencies cannot invite owners.',
         'individual_no_team' => 'Individual agencies don\'t have a team to manage.',
         'kyc_not_verified' => 'The agency KYC must be verified before the agency can be verified.',
+        'not_suspended' => 'This agency is not suspended.',
+        'reinstate_first' => 'This agency is suspended: lift the suspension first, with a reason.',
         'staff_only' => 'This data is reserved for the agency\'s staff.',
         'standard_only' => 'This feature is reserved for standard agencies.',
+        'suspended' => 'This agency is suspended: its data can still be read and exported, but nothing can be changed.',
     ],
     'agency_member' => [
         'already_in_other_agency' => 'This user already belongs to another agency.',
@@ -173,9 +177,12 @@ return [
         'unsupported_media_type' => 'This file type is not supported.',
     ],
     'impersonation' => [
-        'self' => 'You cannot impersonate yourself.',
-        'target_not_found' => 'User not found.',
-        'user_required' => 'Specify the user to impersonate.',
+        'no_session' => 'No impersonation session is open.',
+        'query_refused' => 'Starting or ending an impersonation takes no parameter in the address.',
+        'read_only' => 'Read-only during impersonation: no change is possible.',
+        'target_inactive' => 'This account is not active: it cannot be viewed through impersonation.',
+        'target_operator' => 'A platform operator cannot be viewed through impersonation.',
+        'target_self' => 'You cannot impersonate yourself.',
     ],
     'integration' => [
         'not_payment' => 'Only a payment integration has a notification address.',
@@ -373,6 +380,14 @@ return [
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',
     ],
+    'platform' => [
+        'ability_missing' => 'Your operator level does not allow this action.',
+        'last_super_admin' => 'The last active super administrator cannot be removed.',
+        'operator_not_found' => 'This account is not an active operator.',
+        'operator_self_revoke' => 'You cannot remove your own access.',
+        'revoke_operator_first' => 'This account belongs to a platform operator: revoke the operator first.',
+        'target_is_operator' => 'Only a super administrator can act on an operator\'s account.',
+    ],
     'platform_payout' => [
         'agency_frozen' => 'This agency is not active: its payouts are frozen.',
         'agency_unverified' => 'An unverified agency cannot be paid.',
@@ -438,6 +453,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Only platform administrators manage global settings.',
+        'managed_by_catalogue' => 'This setting is managed by its catalogue: change it from the platform console.',
         'other_agency_forbidden' => 'You can only manage your own agency\'s settings.',
     ],
     'share_link' => [
@@ -484,10 +500,10 @@ return [
         'overlaps_booking' => 'A confirmed booking already holds these dates.',
     ],
     'user' => [
-        'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',
         'cannot_block_self' => 'You cannot block your own account.',
-        'cannot_delete_self' => 'You cannot delete your own account via this route.',
+        'cannot_erase_self' => 'You cannot erase your own account from the console: use your personal space.',
         'no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',
+        'not_blocked' => 'This account is not blocked.',
         'not_in_active_agency' => 'The target user does not belong to your active agency.',
     ],
     'visit' => [

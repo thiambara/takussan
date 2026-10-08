@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
 import { attendAucuneCleBrute } from '@/test/cles-brutes';
+import { avecGestes, SUPER_ADMIN } from '@/test/habilitations';
+import type { PlatformAbilities } from '@/lib/platform-abilities';
 import SuperAdminUsersPage from '../page';
 
 const mockReplace = vi.fn();
@@ -19,7 +21,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
-function renderPage() {
+function renderPage(gestes: PlatformAbilities = SUPER_ADMIN) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -29,7 +31,7 @@ function renderPage() {
   return render(
     withIntl(
       <QueryClientProvider client={queryClient}>
-        <SuperAdminUsersPage />
+        {avecGestes(<SuperAdminUsersPage />, gestes)}
       </QueryClientProvider>,
     ),
   );
@@ -55,6 +57,33 @@ afterEach(() => {
   mockPush.mockReset();
   mockSearchParams.get.mockReturnValue(null);
   mockSearchParams.toString.mockReturnValue('');
+});
+
+describe('super-admin users page — impersonation réservée au super_admin (TCK-600)', () => {
+  const ligne = {
+    id: 7,
+    first_name: 'Awa',
+    last_name: 'Ndiaye',
+    full_name: 'Awa Ndiaye',
+    email: 'awa@example.test',
+    status: 'active',
+    roles: [],
+    agencies: [],
+  };
+
+  it.each([
+    ['super_admin', 1, SUPER_ADMIN],
+    [
+      'support',
+      0,
+      { level: 'support', abilities: ['platform.console.access', 'platform.users.view', 'platform.users.block'] },
+    ],
+  ] as const)('%s → %i bouton « Impersonifier »', async (_niveau, attendus, gestes) => {
+    mockFetch([ligne]);
+    renderPage(gestes as PlatformAbilities);
+    expect(await screen.findByText('Awa Ndiaye')).toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: 'Impersonifier' })).toHaveLength(attendus);
+  });
 });
 
 describe('super-admin users page', () => {
