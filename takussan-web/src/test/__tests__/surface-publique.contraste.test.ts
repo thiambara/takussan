@@ -116,7 +116,6 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReportButton.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'l’alpha du survol mange la marge du bouton primaire'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
   ['app/[locale]/(public)/properties/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur un sous-jacent inconnu (pire pixel 255)', 4.18, 'idem, alpha 90 %'],
   ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #ffffff', 4.18, 'idem, sur un ancêtre `--card` connu'],
   ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fffffe', 4.18, 'idem, sur `--background` (l’ancêtre `bg-card/95` compose à un octet près)'],
@@ -310,8 +309,16 @@ const FICHIERS_HORS_JETONS = 5;
  * 14,87 et 17,53 pour l'encre pleine — tous au-dessus de 4,5. Relevé en isolant les fichiers
  * touchés, `HEAD` contre la branche : aucune autre entrée n'a bougé (`PropertyPhoto` a failli en
  * ajouter une, par un fond en `color-mix` que ce relevé ne lit pas ; il passe par un jeton).
+ *
+ * **248 → 256 le 2026-10-07 (TCK-590).** La boîte de visite s'ouvre au visiteur sans compte : ses
+ * champs nom / téléphone / e-mail, la légende « heure de Dakar », les états des créneaux et la
+ * mention de confidentialité (`public/MentionDeConfidentialite.tsx`) portent `text-muted-foreground`
+ * sans fond sur le même élément — le fond est celui du `DialogContent` (`bg-popover`). Et
+ * `ui/phone-input.tsx` entre dans la surface par les deux formulaires sans compte. Même encre,
+ * même fond que les libellés existants de ces boîtes : au-dessus de 4,5:1 (4,85:1 au pire, sur
+ * `bg-muted`, relevé plus haut).
  */
-const ENCRES_INVERSES = 248;
+const ENCRES_INVERSES = 256;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

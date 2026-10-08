@@ -29,8 +29,6 @@ use App\Notifications\TenantInventoryReminderNotification;
 use App\Notifications\TenantWelcomeNotification;
 use App\Notifications\ThresholdAlertTriggered;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
-use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitRequestedNotification;
 use Illuminate\Notifications\Notification;
 use LogicException;
 
@@ -78,7 +76,7 @@ use LogicException;
  *   · `title` — lu dans `toArray()['title']`, que 23 des 29 classes portent déjà.
  *   · `type`  — lu dans {@see self::TYPES}, **jamais dans `toArray()['type']`** : cette
  *     clé existe dans plusieurs classes et n'y désigne pas le type de notification mais
- *     celui de l'objet métier (`VisitRequestedNotification` y met le type de la visite).
+ *     celui de l'objet métier (la notification de visite d'avant TCK-590 y mettait le type de la visite).
  *     Deviner ici aurait produit des lignes fausses sans jamais lever.
  *   · Une classe qui a besoin d'autre chose — un titre construit, un `referenceable` —
  *     déclare `toAppNotification(object $notifiable): array` et prend la main sur tout.
@@ -122,8 +120,6 @@ class AppDatabaseChannel
         TenantWelcomeNotification::class => NotificationType::Lease,
         ThresholdAlertTriggered::class => NotificationType::System,
         UrgentMaintenanceCreatedNotification::class => NotificationType::Maintenance,
-        VisitConfirmedNotification::class => NotificationType::Visit,
-        VisitRequestedNotification::class => NotificationType::Visit,
     ];
 
     public function send(object $notifiable, Notification $notification): ?AppNotification

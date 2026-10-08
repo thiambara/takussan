@@ -5,6 +5,7 @@ import { CalendarSubscription } from '@/components/crm/CalendarSubscription';
 import { isAdmin, isAgencyAdmin, isAgent, isOwner } from '@/lib/roles';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.calendar');
@@ -21,7 +22,7 @@ export default async function Page() {
   const audience: CalendarAudience = staff ? 'staff' : isOwner(roles) ? 'landlord' : 'provider';
   return (
     <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('subtitle')} />
+      <PageHeader title={t('title')} description={t('subtitle')} actions={<PlanifierUneVisite />} />
       <CalendarPage audience={audience} defaultMine={isAgent(roles) && !isAdmin(roles)} />
       {/* TCK-591 (verif-591 N3, ADR-0034 §2) — le lien est celui du personnel d'une agence ; le
           super-admin garde la console, l'API lui refuse le lien. */}

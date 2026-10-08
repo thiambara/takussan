@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "id": "owner:1",
+      "type": "owner",
+      "numeric_id": 1,
+      "agency_id": 1,
+      "agency": {
+        "id": 1,
+        "name": "Agence R2",
+        "slug": "towne-inc-yjalx",
+        "kind": "standard"
+      },
+      "status": "active",
+      "created_at": "2026-10-07T22:39:28+00:00"
+    }
+  ],
+  "meta": {
+    "active_profile_id": "owner:1",
+    "count": 1
+  }
+}

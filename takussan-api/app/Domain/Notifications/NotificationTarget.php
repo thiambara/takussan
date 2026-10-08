@@ -37,6 +37,8 @@ final class NotificationTarget
         'maintenance' => '/app/maintenance/{id}',
         'property' => '/app/properties/{id}',
         'conversation' => '/app/messages?conversation={id}',
+        // TCK-590 — la boîte « Demandes », ouverte sur la demande.
+        'lead' => '/app/leads?lead={id}',
         'agency_kyc' => '/admin/agency/kyc',
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/admin/finances',

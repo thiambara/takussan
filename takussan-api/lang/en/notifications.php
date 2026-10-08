@@ -79,20 +79,6 @@ return [
         'role_delegation_revoked' => 'Delegation revoked',
     ],
 
-    'visit_requested' => [
-        'subject' => 'New visit request for :property',
-        'greeting' => 'Hello,',
-        'intro' => 'A visitor has requested a visit for :property.',
-        'schedule' => 'Requested slot: :datetime.',
-    ],
-
-    'visit_confirmed' => [
-        'subject' => 'Visit confirmed for :property',
-        'greeting' => 'Hello,',
-        'intro' => 'Your visit request for :property has been confirmed.',
-        'schedule' => 'Scheduled for: :datetime.',
-    ],
-
     'task_due_reminder' => [
         'subject' => 'Reminder: task due soon — :title',
         'greeting' => 'Hello,',
@@ -336,6 +322,42 @@ return [
                 'body' => 'Reminder: the visit of :property is scheduled for :scheduled_at.',
                 'sms' => 'Takussan: visit of :property on :scheduled_at.',
             ],
+            'requested' => [
+                'title' => 'Visit request: :property',
+                'body' => 'Requested slot: :scheduled_at. To reach the visitor: :contact.',
+                'mail_body' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).\nTo reach the visitor: :contact.",
+                'sms' => 'Takussan: visit request for :property on :scheduled_at (:timezone).',
+            ],
+            'rescheduled_by_visitor' => [
+                'title' => 'Another slot suggested: :property',
+                'body' => 'The visitor suggests :scheduled_at. The visit awaits your confirmation.',
+                'mail_body' => "The visitor has suggested another slot for :property. The visit awaits your confirmation.\nSuggested slot: :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: the visitor suggests :scheduled_at (:timezone) for :property.',
+            ],
+            'cancelled_by_visitor' => [
+                'title' => 'Visit cancelled by the visitor: :property',
+                'body' => 'The visitor has cancelled the visit planned for :scheduled_at.',
+                'mail_body' => "The visitor has cancelled their visit of :property.\nIt was planned for :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: the visitor cancelled the visit of :property on :scheduled_at (:timezone).',
+            ],
+            'confirmed' => [
+                'title' => 'Visit confirmed: :property',
+                'body' => 'Your visit of :property is confirmed for :scheduled_at.',
+                'mail_body' => "Your visit request for :property has been confirmed.\nScheduled for :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: your visit of “:property” is confirmed for :scheduled_at (:timezone).',
+            ],
+            'rescheduled' => [
+                'title' => 'Your visit of :property has a new time',
+                'body' => 'New time: :scheduled_at.',
+                'mail_body' => "The agency has moved your visit of :property.\nNew time: :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: your visit of “:property” has been moved to :scheduled_at (:timezone).',
+            ],
+            'cancelled' => [
+                'title' => 'Your visit of :property is cancelled',
+                'body' => 'The visit planned for :scheduled_at is cancelled.',
+                'mail_body' => "The agency has cancelled your visit of :property.\nIt was planned for :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: your visit of “:property” planned for :scheduled_at (:timezone) is cancelled.',
+            ],
         ],
         'message' => [
             'received' => [
@@ -346,9 +368,14 @@ return [
         ],
         'lead' => [
             'received' => [
-                'title' => 'New contact without an account',
-                'body' => ':name (:email): :excerpt',
-                'sms' => 'Takussan: new contact from :name.',
+                'title' => 'New request from :name — :contact',
+                'body' => ':name (:contact): :message',
+                'sms' => 'Takussan: new request from :name.',
+            ],
+            'acknowledged' => [
+                'title' => 'Your request has been sent',
+                'body' => 'Your request about “:about” has been sent. You will hear back shortly, by phone or by email.',
+                'sms' => 'Takussan: your request about :about has been sent.',
             ],
         ],
         'kyc' => [

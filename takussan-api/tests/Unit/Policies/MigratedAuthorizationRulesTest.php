@@ -366,7 +366,11 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_property_visit_view_admits_visitor_and_customer_but_update_does_not(): void
     {
         $visiteur = $this->quidam();
+        // TCK-590 (passe 3, M7′) — sur un bien d'agence, l'agent assigné lit la visite tant qu'il
+        // est du personnel de l'agence : un quidam assigné ne la lit plus.
         $agent = $this->quidam();
+        $this->materializeRoleProfile($agent, 'agent', $this->agency);
+        $agentParti = $this->quidam();
         $clientUser = $this->quidam();
         $customer = Customer::factory()->create([
             'user_id' => $clientUser->id,
@@ -380,6 +384,8 @@ class MigratedAuthorizationRulesTest extends TestCase
             'customer_id' => $customer->id,
         ]);
         $policy = new PropertyVisitPolicy;
+        $visiteDuParti = PropertyVisit::factory()->create(['property_id' => $property->id, 'agent_id' => $agentParti->id]);
+        $this->assertFalse($policy->view($agentParti, $visiteDuParti), "assigné, mais hors du personnel de l'agence");
 
         $this->assertTrue($policy->view($visiteur, $visit), 'VISITEUR — clause propre à view');
         $this->assertTrue($policy->view($clientUser, $visit), 'CLIENT — clause propre à view');
