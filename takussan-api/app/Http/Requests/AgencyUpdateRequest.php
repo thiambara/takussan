@@ -34,12 +34,17 @@ class AgencyUpdateRequest extends BaseFormRequest
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'currency' => ['sometimes', Rule::enum(Currency::class)],
-            'settings' => ['sometimes', 'nullable', 'array'],
+            // TCK-593 — plus `nullable` : `settings` se FUSIONNE clé par clé dans
+            // `AgencyController::update`, et un `null` au premier niveau ne dit pas quelle clé
+            // retirer. Une clé à `null`, elle, revient au défaut du code.
+            'settings' => ['sometimes', 'array'],
             'settings.watermark_enabled' => ['sometimes', 'boolean'],
             'settings.watermark_position' => ['sometimes', Rule::enum(WatermarkPosition::class)],
             'settings.watermark_opacity' => ['sometimes', 'integer', 'between:10,100'],
             // TCK-589 — 2FA exigée de tout le personnel de l'agence (contrainte 7).
             'settings.require_team_two_factor' => ['sometimes', 'boolean'],
+            // TCK-593 — absent = `false` (`Agency::collectsLateFeesOnline()`).
+            'settings.late_fee_online_collection' => ['sometimes', 'nullable', 'boolean'],
         ];
     }
 }

@@ -34,6 +34,8 @@ describe('agencyFormSchema', () => {
     moderation_required: false,
     // TCK-589 — second facteur exigé de l'équipe.
     require_team_two_factor: false,
+    // TCK-593 — le réglage d'encaissement des pénalités en ligne.
+    late_fee_online_collection: false,
   };
 
   it('accepts minimal valid input', () => {

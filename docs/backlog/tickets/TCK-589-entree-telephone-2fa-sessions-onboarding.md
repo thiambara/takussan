@@ -1703,3 +1703,39 @@ allumée. `log` apparaît en `local` et en `testing`, jamais en `staging`, `prev
   la clause le fait rougir (2/13), et la clause restaurée par `cp` le rend vert (13/13).
 - Le rapport, le docblock de `BlockedAccountAuthenticationTest` et la ligne d'ablation du § Notes
   sont corrigés.
+
+#### Fusion d'`origin/dev` après TCK-593 (PR #331, `6dc81542`)
+
+**Conflits textuels, les deux côtés gardés :**
+- `AgencyUpdateRequest` : `settings.require_team_two_factor` (589) et
+  `settings.late_fee_online_collection` (593).
+- `NotificationCode::preferenceEvent` : les codes d'invitation (589) et de paiement en double
+  (593), tous deux non désactivables.
+- Front : `AgencyConfigForm`, `schemas/agency.ts`, `types/agency.ts` et `admin-schemas.test.ts`
+  portent les deux clés.
+- INDEX régénéré.
+
+**`AgencyController::update`** : la fusion des `settings` de 593 l'emporte. Elle est plus large
+que la mienne : une clé à `null` est retirée, et `array_key_exists` est utilisé. Le commentaire
+note que 589 en dépend.
+
+**Conflit de sens** : `AgencyConfigForm.penalites.test.tsx` (593) énumère les clés émises par
+l'écran, sans `require_team_two_factor`. Ma clé est toujours émise, `false` compris, pour que
+décocher lève l'exigence. Elle est ajoutée à l'attendu avec ce motif. L'esprit du test tient : les
+clés non gérées (`watermark_enabled`, `welcome`) ne sont toujours ni renvoyées ni vidées.
+
+**M4 contrôlé** : `booking-payments/{payment}/refund` (`BookingPaymentController@refund`) et
+`leases/{lease}/deposit-refund` (`LeaseDepositRefundController@store`) n'ont pas bougé.
+- Les routes neuves de 593 sont `bank-statements/csv-mapping` et
+  `lease-payments/{payment}/late-fee/mark-paid`. Ce sont des entrées d'argent ou des réglages, pas
+  des sorties.
+- `ProtectedActionsCoverageTest`, qui apparie par contrôleur, reste vert.
+
+**Exécutions** (charge à 20, durées non comparables) :
+- API : les classes touchées et `AgencySettingsMergeTest` (593) donnent 669 verts. Les 24
+  fichiers de test apportés par la fusion donnent 301 verts.
+- Front : vitest sur `src/lib`, `src/components/auth`, `src/components/admin-agency` et les pages
+  d'auth donne 1177 verts après l'ajustement.
+- eslint, `tsc` et `check-i18n-namespaces` sont propres.
+- Toutes les gardes racine passent, ainsi que `gen-index --check` et `gen-features-by-actor
+  --check`.

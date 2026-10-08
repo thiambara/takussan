@@ -1653,7 +1653,8 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "Historique, factures et reversements bailleurs — suivi unifié.",
-        "metaTitle": "Paiements"
+        "metaTitle": "Paiements",
+        "customerSubtitle": "Ce que vous devez, vos paiements et vos quittances."
       },
       "calendar": {
         "metaTitle": "Calendrier",
@@ -2552,7 +2553,8 @@
   "payments": {
     "gateway": {
       "button": {
-        "payOnline": "Payer en ligne"
+        "payOnline": "Payer en ligne",
+        "payAmount": "Payer {amount}"
       },
       "picker": {
         "title": "Choisir un mode de paiement",
@@ -2597,7 +2599,14 @@
         "verifying": "Vérification du paiement…"
       },
       "error": {
-        "generic": "Une erreur est survenue, réessayez."
+        "generic": "Une erreur est survenue, réessayez.",
+        "checkoutInProgress": "Un paiement en ligne de {amount} est déjà en cours sur cette échéance. Terminez-le, ou réessayez après {time}."
+      },
+      "breakdown": {
+        "rent": "Loyer",
+        "lateFee": "Pénalité de retard",
+        "total": "Total à payer",
+        "lateFeeAtAgency": "Pénalité de retard de {amount} à régler auprès de l’agence — elle n’est pas incluse dans ce paiement."
       }
     },
     "invoices": {
@@ -2803,6 +2812,25 @@
       "markFailed": "Marquer échoué",
       "cancel": "Annuler",
       "close": "Fermer"
+    },
+    "customer": {
+      "nextTitle": "Prochain paiement",
+      "upToDate": "Vous êtes à jour : aucun paiement en attente.",
+      "error": "Impossible de charger vos paiements.",
+      "period": "Loyer du {start} au {end}",
+      "rent": "Loyer",
+      "booking": "Réservation",
+      "dueOn": "échéance le {date}",
+      "paidOn": "Payé le {date}",
+      "lateFeeAtAgency": "Pénalité de retard : {amount}, à régler auprès de l’agence.",
+      "otherDues": "Autres paiements à régler",
+      "historyTitle": "Historique",
+      "emptyTitle": "Aucun paiement pour l’instant",
+      "emptyDescription": "Vos paiements et leurs quittances apparaîtront ici.",
+      "receiptPdf": "Quittance PDF",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageOf": "Page {page} sur {total}"
     }
   },
   "lease": {
@@ -2949,6 +2977,26 @@
         "late": "En retard",
         "pending": "À venir",
         "other": "Autre"
+      },
+      "listLabel": "Échéances du bail",
+      "dueOn": "Échéance : {date}",
+      "receiptPdf": "Quittance PDF",
+      "lateFee": {
+        "label": "Pénalité de retard",
+        "atAgency": "Pénalité à régler auprès de l’agence",
+        "settled": "Pénalité réglée",
+        "markPaid": "Pénalité réglée",
+        "markedPaid": "Pénalité enregistrée comme réglée.",
+        "markFailed": "La pénalité n’a pas pu être enregistrée comme réglée.",
+        "override": {
+          "title": "Un paiement en ligne est en cours",
+          "description": "Un paiement en ligne de {amount} est en cours sur cette échéance. Enregistrez la pénalité seulement si vous l’avez bien reçue.",
+          "confirm": "Je confirme avoir reçu le paiement. Le paiement en ligne en cours sera signalé s’il aboutit.",
+          "reason": "Motif",
+          "reasonPlaceholder": "Ex. : espèces reçues au guichet",
+          "submit": "Enregistrer quand même",
+          "cancel": "Annuler"
+        }
       }
     },
     "fallbackReference": "Bail #{id}",
@@ -4930,7 +4978,8 @@
       "finances": {
         "noAgency": "Finances",
         "title": "Finances",
-        "subtitle": "Encaissements, factures et reversements — vue commerciale de l'agence."
+        "subtitle": "Encaissements, factures et reversements — vue commerciale de l'agence.",
+        "reconciliationLink": "Rapprochement bancaire"
       },
       "agencyConfig": {
         "title": "Configuration de l'agence",
@@ -5117,6 +5166,10 @@
       },
       "submit": {
         "saving": "Enregistrement…"
+      },
+      "lateFeeOnline": {
+        "label": "Encaisser les pénalités de retard avec le paiement en ligne",
+        "hint": "Activé : le locataire paie en ligne le loyer et la pénalité de retard ensemble. Désactivé : seul le loyer est payé en ligne, et la pénalité se règle auprès de l’agence."
       }
     },
     "inviteMember": {
@@ -5211,6 +5264,155 @@
       },
       "adminNote": "Un administrateur d'agence ne s'invite pas par e-mail : il s'ajoute depuis « Ajouter un compte existant », qui exige un compte Takussan déjà créé.",
       "submit": "Envoyer l'invitation"
+    },
+    "reconciliation": {
+      "title": "Rapprochement bancaire",
+      "subtitle": "Importez vos relevés et rapprochez chaque ligne du paiement qu’elle règle.",
+      "status": {
+        "processing": "Analyse en cours",
+        "failed": "Échec de l’analyse",
+        "ready_for_review": "À vérifier",
+        "partially_reconciled": "Partiellement rapproché",
+        "reconciled": "Rapproché",
+        "archived": "Archivé"
+      },
+      "lineStatus": {
+        "unmatched": "Non rapprochée",
+        "suggested": "Suggestion",
+        "confirmed": "Rapprochée",
+        "ignored": "Ignorée"
+      },
+      "directions": {
+        "credit": "Encaissement",
+        "debit": "Décaissement"
+      },
+      "paymentTypes": {
+        "booking_payment": "Paiement de réservation",
+        "lease_payment": "Loyer",
+        "invoice": "Facture",
+        "payout": "Reversement"
+      },
+      "import": {
+        "title": "Importer un relevé",
+        "file": "Fichier (CSV ou OFX)",
+        "format": "Format",
+        "formats": {
+          "csv": "CSV",
+          "ofx": "OFX"
+        },
+        "bankName": "Banque (facultatif)",
+        "submit": "Importer",
+        "uploading": "Import…",
+        "accepted": "Relevé reçu : l’analyse est en cours.",
+        "failed": "L’import du relevé a échoué."
+      },
+      "list": {
+        "title": "Relevés importés",
+        "error": "Impossible de charger les relevés.",
+        "emptyTitle": "Aucun relevé importé",
+        "emptyDescription": "Importez un relevé CSV ou OFX pour commencer le rapprochement.",
+        "statement": "Relevé",
+        "period": "Période",
+        "status": "Statut",
+        "progress": "Avancement",
+        "fallbackName": "Relevé n° {id}",
+        "ratio": "{confirmed} / {total} rapprochées",
+        "skipped": "{count, plural, one {# ligne non lue} other {# lignes non lues}} — vérifiez le paramétrage CSV.",
+        "failed": "L’analyse du relevé a échoué — vérifiez le paramétrage CSV."
+      },
+      "mapping": {
+        "title": "Paramétrage CSV",
+        "description": "Indiquez comment lire les relevés CSV de votre banque : colonnes, dates et montants.",
+        "error": "Impossible de charger le paramétrage CSV.",
+        "delimiter": "Séparateur de colonnes",
+        "delimiters": {
+          "comma": "Virgule (,)",
+          "semicolon": "Point-virgule (;)",
+          "tab": "Tabulation",
+          "pipe": "Barre verticale (|)"
+        },
+        "hasHeader": "La première ligne contient les noms de colonnes",
+        "dateFormat": "Format de date",
+        "dateFormatPlaceholder": "d/m/Y",
+        "columns": {
+          "date_column": "Colonne de la date",
+          "amount_column": "Colonne du montant",
+          "label_column": "Colonne du libellé",
+          "reference_column": "Colonne de la référence",
+          "counterparty_column": "Colonne de la contrepartie",
+          "currency_column": "Colonne de la devise",
+          "direction_column": "Colonne du sens (débit / crédit)"
+        },
+        "signConvention": "Sens des montants",
+        "signConventions": {
+          "amount_signed": "Montant signé (négatif = décaissement)",
+          "direction_column": "Une colonne indique le sens"
+        },
+        "decimalSeparator": "Séparateur décimal",
+        "decimalHint": "À choisir : « 1.500 » vaut 1 500 avec une virgule décimale, et 1,5 avec un point décimal.",
+        "decimals": {
+          "dot": "Point (1500.50)",
+          "comma": "Virgule (1500,50)"
+        },
+        "decimalRequired": "Choisissez le séparateur décimal de vos relevés.",
+        "thousandsSeparator": "Séparateur de milliers",
+        "thousands": {
+          "none": "Aucun",
+          "space": "Espace",
+          "dot": "Point",
+          "comma": "Virgule",
+          "apostrophe": "Apostrophe"
+        },
+        "save": "Enregistrer le paramétrage",
+        "saving": "Enregistrement…",
+        "saved": "Paramétrage CSV enregistré.",
+        "saveFailed": "Le paramétrage n’a pas pu être enregistré."
+      },
+      "detail": {
+        "back": "Tous les relevés",
+        "error": "Impossible de charger ce relevé.",
+        "linesError": "Impossible de charger les lignes du relevé.",
+        "noLines": "Aucune ligne pour ce filtre.",
+        "remaining": "{count, plural, =0 {plus rien à traiter} one {# à traiter} other {# à traiter}}",
+        "filterLabel": "Filtrer les lignes",
+        "all": "Toutes",
+        "date": "Date",
+        "label": "Libellé",
+        "direction": "Sens",
+        "amount": "Montant",
+        "match": "Rapprochement",
+        "actions": "Actions",
+        "paymentRef": "{type} n° {id}",
+        "confidence": "Confiance : {value}",
+        "validate": "Valider",
+        "search": "Chercher",
+        "ignore": "Ignorer",
+        "unmatch": "Délier",
+        "finalize": "Finaliser le relevé",
+        "matchFailed": "Le rapprochement a échoué.",
+        "ignoreFailed": "La ligne n’a pas pu être ignorée.",
+        "unmatchFailed": "Le rapprochement n’a pas pu être défait.",
+        "finalizeFailed": "Le relevé n’a pas pu être finalisé.",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "pageOf": "Page {page} sur {total}"
+      },
+      "search": {
+        "title": "Chercher le paiement",
+        "hint": {
+          "credit": "Encaissement : seuls les paiements reçus sont proposés.",
+          "debit": "Décaissement : seuls les paiements sortants sont proposés.",
+          "any": "Cherchez par référence, nom ou montant."
+        },
+        "query": "Référence ou nom",
+        "amount": "Montant",
+        "submit": "Chercher",
+        "searching": "Recherche…",
+        "empty": "Aucun paiement ne correspond.",
+        "error": "La recherche a échoué.",
+        "choose": "Rapprocher",
+        "matchFailed": "Le rapprochement a échoué."
+      }
     }
   },
   "documents": {
@@ -5369,6 +5571,14 @@
       "description_label": "Description",
       "submitting": "Envoi…",
       "submit": "Téléverser"
+    },
+    "download": {
+      "inProgress": "Téléchargement…",
+      "errors": {
+        "interdit": "Vous n’avez pas accès à ce document.",
+        "indisponible": "Ce document n’est pas encore disponible.",
+        "echec": "Le téléchargement a échoué. Réessayez."
+      }
     }
   },
   "bookings": {
@@ -8099,6 +8309,16 @@
         "received_landlord": {
           "title": "Loyer reçu : {property}",
           "body": "{tenant} a payé {amount} pour {property}."
+        }
+      },
+      "payment": {
+        "duplicate": {
+          "title": "Paiement encaissé deux fois",
+          "body": "Un paiement en ligne de {amount} a été reçu pour {reference}, déjà réglée. Remboursez le payeur ou affectez la somme."
+        },
+        "duplicate_late_fee": {
+          "title": "Pénalité encaissée deux fois",
+          "body": "La pénalité de retard de {amount} pour {reference}, déjà réglée à l'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme."
         }
       },
       "booking": {

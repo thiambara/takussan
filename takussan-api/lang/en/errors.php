@@ -205,6 +205,8 @@ return [
     ],
     'lease_payment' => [
         'cannot_mark_paid' => 'Only a pending or late payment can be marked paid.',
+        'late_fee_not_due' => 'No late fee remains due on this instalment.',
+        'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
     ],
     'mail' => [
         'invitation_not_sent' => 'The invitation email could not be sent.',
@@ -241,6 +243,7 @@ return [
         'amount_not_positive' => 'The amount to pay must be positive.',
         'amount_short' => 'The amount received is less than the amount expected.',
         'amount_unresolved' => 'The amount to pay could not be determined.',
+        'checkout_in_progress' => 'An online payment is in progress on this instalment: try again in a few minutes.',
         'currency_unsupported' => 'The provider :provider does not accept the :currency currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy does not accept XOF: use Wave or Orange Money for a payment in XOF.',
         'filter_entity_invalid' => 'Invalid item type filter.',
@@ -248,6 +251,7 @@ return [
         'integration_agency_missing' => 'The payment integration does not match any agency.',
         'integration_credential_missing' => 'The payment integration is incomplete: a credential is missing.',
         'integration_missing' => 'No active payment integration for this provider.',
+        'not_payable' => 'This payment can no longer be paid online: it is already settled, refunded or has nothing due.',
         'paid_amount_invalid' => 'The paid amount cannot be negative.',
         'provider_failed' => 'The payment provider :provider could not process the request.',
         'provider_invalid_response' => 'The payment provider returned an invalid response.',

@@ -8,6 +8,8 @@ use App\Models\Customer;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\User;
+use App\Services\Payments\Dto\PaymentEvent;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -102,6 +104,35 @@ class InvoiceTest extends TestCase
         $this->postJson("/api/invoices/{$invoice->id}/mark-paid")
             ->assertOk()
             ->assertJsonPath('data.status', 'paid');
+    }
+
+    /**
+     * TCK-593 (passe 2, N4) — une facture réglée à la main le dit (`settled_by = manual`) : le
+     * webhook d'un checkout ouvert avant reste un double encaissement, et non « son » règlement.
+     */
+    public function test_une_facture_reglee_a_la_main_garde_le_checkout_paye_pour_doublon(): void
+    {
+        $agent = User::factory()->create();
+        $invoice = Invoice::factory()->sent()->create([
+            'issued_by_id' => $agent->id,
+            'transaction_id' => 'inv_txn',
+            'metadata' => ['gateway' => [
+                'provider' => 'wave',
+                'transaction_id' => 'inv_txn',
+                'checkout_url' => 'https://pay.example/inv',
+                'initiated_at' => now()->subHour()->toIso8601String(),
+            ]],
+        ]);
+
+        Sanctum::actingAs($agent);
+        $this->postJson("/api/invoices/{$invoice->id}/mark-paid")->assertOk();
+        $this->assertSame(PaymentGatewayService::SETTLED_MANUALLY, $invoice->refresh()->metadata['gateway']['settled_by']);
+
+        app(PaymentGatewayService::class)->applyEventToMatchingPayment(
+            new PaymentEvent('wave', PaymentEvent::TYPE_PAID, 'inv_txn', ['amount' => (float) $invoice->total_amount]),
+        );
+
+        $this->assertSame('inv_txn', $invoice->refresh()->metadata['gateway_duplicate_payment'][0]['transaction_id'] ?? null);
     }
 
     public function test_cannot_cancel_paid_invoice(): void

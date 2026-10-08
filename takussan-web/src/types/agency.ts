@@ -42,6 +42,11 @@ export interface AgencySettings {
   timezone?: string | null;
   /** TCK-589 — second facteur exigé de chaque membre de l'agence. */
   require_team_two_factor?: boolean;
+  /**
+   * TCK-593 — l'agence encaisse la pénalité de retard AVEC le loyer payé en ligne. Absente = non :
+   * une agence neuve n'encaisse que le loyer, la pénalité se règle auprès d'elle.
+   */
+  late_fee_online_collection?: boolean;
   [key: string]: unknown;
 }
 
