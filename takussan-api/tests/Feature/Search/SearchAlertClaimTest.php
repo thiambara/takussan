@@ -39,7 +39,8 @@ class SearchAlertClaimTest extends TestCase
     public function test_un_e_mail_verifie_rattache_les_alertes_de_son_adresse_quelle_que_soit_la_casse(): void
     {
         $this->abonne('email', 'awa@exemple.sn');
-        $this->abonne('email', 'awa@exemple.sn', nom: 'Thiès');
+        // verif-599 m5 (A19) — saisie `AWA@…` : le repli de casse de l'abonné, pas celui de `User`.
+        $this->abonne('email', 'AWA@exemple.sn', nom: 'Thiès');
         $this->abonne('email', 'autre@exemple.sn');
         $awa = User::factory()->create(['email' => 'Awa@Exemple.sn', 'email_verified_at' => now()]);
         SavedSearch::create(['user_id' => $awa->id, 'name' => 'Dakar', 'criteria' => ['city' => 'Dakar']]);

@@ -332,7 +332,9 @@ class PublicSearchAlertTest extends TestCase
             // Une heure entre deux demandes : la borne est celle des alertes OUVERTES, pas le
             // limiteur par contact (cinq par heure), éprouvé à part.
             $this->travel(61)->minutes();
-            $this->postJson('/api/public/search-alerts', $this->demande(['name' => "Alerte {$i}", 'email' => strtoupper(self::EMAIL)]))->assertStatus(202);
+            // verif-599 m5 (A19) — casses ALTERNÉES : une seule casse répétée n'éprouvait rien.
+            $email = $i % 2 === 0 ? strtoupper(self::EMAIL) : self::EMAIL;
+            $this->postJson('/api/public/search-alerts', $this->demande(['name' => "Alerte {$i}", 'email' => $email]))->assertStatus(202);
         }
 
         $this->assertSame(5, AlertSubscriber::count(), 'la casse ne fait pas un nouveau contact');

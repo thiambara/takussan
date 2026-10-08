@@ -9,14 +9,17 @@ use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\NotificationPreference;
 use App\Models\NotificationTemplate;
+use App\Models\SavedSearch;
 use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Notifications\NewBookingNotification;
+use App\Notifications\SavedSearchMatchesNotification;
 use App\Services\Notifications\Whatsapp\WhatsappResult;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Http;
@@ -331,6 +334,30 @@ class WhatsappChannelTest extends TestCase
         $result = $this->app->make(WhatsappChannel::class)
             ->send($this->user, $this->avecCrochetDeRepli($this->makeNotification('hi'), permis: false));
 
+        $this->assertSame(['whatsapp'], array_keys($result));
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), 'lampush'));
+    }
+
+    /**
+     * verif-599 m5 (A13) — l'alerte de recherche ELLE-MÊME refuse le repli (ADR-0050, décision de
+     * session 3) : WhatsApp échoue, aucun SMS ne part. Les trois tests précédents éprouvent le
+     * crochet sur une notification de test ; celui-ci, sur la vraie.
+     */
+    public function test_tck599_l_alerte_de_recherche_ne_se_replie_jamais_en_sms(): void
+    {
+        config()->set('search_alerts.whatsapp_enabled', true);
+        NotificationPreference::updateOrCreate(
+            ['user_id' => $this->user->id, 'event_type' => SavedSearchMatchesNotification::EVENT_TYPE, 'channel' => 'whatsapp'],
+            ['enabled' => true],
+        );
+        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->contact(now()->subHour());
+        $recherche = SavedSearch::create(['user_id' => $this->user->id, 'name' => 'Dakar', 'criteria' => ['city' => 'Dakar']]);
+
+        $result = $this->app->make(WhatsappChannel::class)
+            ->send($this->user, new SavedSearchMatchesNotification($recherche, new Collection, 3));
+
+        $this->assertSame(WhatsappResult::STATUS_FAILED, $result['whatsapp']->status, 'WhatsApp a bien été tenté');
         $this->assertSame(['whatsapp'], array_keys($result));
         Http::assertNotSent(fn ($req) => str_contains($req->url(), 'lampush'));
     }
