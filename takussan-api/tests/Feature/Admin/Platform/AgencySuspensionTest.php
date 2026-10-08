@@ -6,10 +6,12 @@ use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RentPeriod;
 use App\Models\KycDossier;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\User;
@@ -109,6 +111,33 @@ class AgencySuspensionTest extends TestCase
             $avant = PropertyContactLead::query()->count();
             $this->postJson("{$page}/contact-lead", $this->demande())->assertNotFound();
             $this->assertSame($avant, PropertyContactLead::query()->count(), "aucune demande déposée ({$statut->value})");
+        }
+    }
+
+    /**
+     * verif-600 m-A — la page lit l'agence par `User::agency()`, quel que soit le statut du profil
+     * d'agent : le masque juge donc tout profil. Un agent au profil `inactive`, `suspended` ou `draft`
+     * dans une agence suspendue gardait sa page (l'agence suspendue y figurait) et son contact.
+     */
+    public function test_le_masque_juge_l_agence_de_tout_profil_d_agent_quel_que_soit_son_statut(): void
+    {
+        foreach ([AgentProfileStatus::Inactive, AgentProfileStatus::Suspended, AgentProfileStatus::Draft] as $statutProfil) {
+            $agence = $this->agence();
+            $agent = $this->personnel($agence, attributes: ['username' => "agent-profil-{$statutProfil->value}"]);
+            AgentProfile::query()->where('user_id', $agent->id)->update(['status' => $statutProfil->value]);
+            $page = "/api/public/agents/agent-profil-{$statutProfil->value}";
+
+            // Témoin : agence active, la page de l'agent s'ouvre et affiche son agence.
+            $this->getJson($page)->assertOk()->assertJsonPath('data.agency.id', $agence->id);
+
+            $agence->forceFill(['status' => AgencyStatus::Suspended])->save();
+
+            $inconnu = $this->getJson('/api/public/agents/personne-de-tel')->assertNotFound()->getContent();
+            $this->assertSame($inconnu, $this->getJson($page)->assertNotFound()->getContent(), $statutProfil->value);
+            $avant = PropertyContactLead::query()->count();
+            $this->postJson("{$page}/contact-lead", $this->demande())->assertNotFound();
+            $this->assertSame($avant, PropertyContactLead::query()->count(), "aucune demande ({$statutProfil->value})");
+            $this->assertNotContains("agent-profil-{$statutProfil->value}", $this->getJson('/api/public/agents?per_page=48')->json('data.*.slug'));
         }
     }
 
