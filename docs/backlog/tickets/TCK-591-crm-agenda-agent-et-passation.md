@@ -626,6 +626,14 @@ téléphone tenu d'une main, entre deux visites**.
       ignore les clés de critères d'un autre appelant. Front : une fiche lue sans critères n'en
       montre pas la section et ne les renvoie pas.
 
+**13. Ajoutés après la passe 3 (verif-591 passe 3, 2026-10-08 — ACCEPTÉ, un mineur P3-1)**
+- [x] P3-1 — la console et le lien jugent le **profil actif** (`CalendarEventCollector::agencyOf()`) :
+      sous un `ServiceProviderProfile`, aucune agence, donc l'agenda du prestataire et son lien sans
+      agence. Un compte agent de A et prestataire tient deux liens, celui de A et celui du
+      prestataire. Emploi : console, émission, état et révocation du lien.
+- [x] Docblocks de `Customer::scopeVisibleTo()` et `criteriaBelongTo()` remis au-dessus de leur
+      méthode.
+
 ## Critères d'acceptation
 
 - [x] AC1 — `POST /api/customers` avec `phone="77 123 45 67"` enregistre `+221771234567` ;
@@ -834,6 +842,15 @@ comportement attendu (Q6, qui assertait le défaut, rougit).
       `CustomerScopeTest::test_a_landlord_saving_his_customer_does_not_wipe_the_agent_criteria`,
       vitest `CustomerForm.doublon.test.tsx` (`a503da59`). Ablations → rouge : filtre de la requête,
       règle « fiche hors agence », garde du formulaire.
+
+**Ajouté après la passe 3** (verif-591 passe 3, 2026-10-08). Test rouge sur `a4315296`, ablation
+restaurée par `cp`.
+
+- [x] AC44 (P3-1) — un compte agent de A et prestataire : sous son profil prestataire, la console et
+      le lien (sans agence) servent l'intervention qu'il assure sur « Bien C » hors de A ; sous son
+      profil agent, « Bien C » est absent et le lien est celui de A. Preuve :
+      `CalendarFeedTest::test_the_provider_profile_of_an_agent_has_its_own_agenda_and_link`
+      (`5d7c3da6`). Ablation du jugement du profil → rouge.
 
 ## Hors périmètre
 
@@ -1120,3 +1137,16 @@ comportement attendu (Q6, qui assertait le défaut, rougit).
   `Feature/Crm` + `Feature/Authorization` en entier (204), autres classes clientes, tâches et agenda
   (98 + 34) : verts. Pint, lint, `tsc --noEmit`, `check:i18n`, `check:i18n-namespaces`, vitest des
   écrans touchés (57), toutes les gardes racine : verts.
+
+### 2026-10-08 — passe 3 de verif-591 (ACCEPTÉ, un mineur et une remarque)
+
+- **P3-1** (`5d7c3da6`) — décision de la session : la console et le lien jugent le profil actif.
+  `staffAgencyId()` retombait sur A même sous le profil prestataire, qui n'a pas d'agence, si bien
+  que la borne N2 retirait au compte agent + prestataire toute vue sur sa prestation hors de A.
+  **À savoir** : sous le profil prestataire, l'agenda garde les tâches que ce compte se voit assigner
+  dans les agences où il est personnel (borne de B1 : elles disparaissent s'il quitte l'agence).
+- **Docblock** (`e5a53fed`) — `scopeVisibleTo()` et `criteriaBelongTo()` retrouvent chacun le leur.
+- **Fusion d'`origin/dev`** (`a4315296`, TCK-593) faite avant, conflit sur
+  `NotificationCode::preferenceEvent()` seulement.
+- Vérifié : `Feature/Calendar`, `AgencyMemberRemovalTest`, `CustomerScopeTest` (31 verts),
+  `Unit/Architecture` et `Unit/Lang`, Pint, toutes les gardes racine.
