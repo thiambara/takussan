@@ -223,7 +223,8 @@ export function CustomerPayments() {
                   {estStatut(row.status) && (
                     <StatusBadge tone={PAYMENT_STATUS_TONE[row.status]} label={tStatus(row.status)} />
                   )}
-                  {row.source === 'lease' && row.status === 'paid' && row.lease_id !== null && (
+                  {/* TCK-594 (P5-3) — une caution rendue n'a pas de quittance de loyer. */}
+                  {row.source === 'lease' && row.status === 'paid' && row.payment_type !== 'deposit_refund' && row.lease_id !== null && (
                     <BoutonTelechargement
                       chemin={`/api/leases/${row.lease_id}/receipts/${row.id}/pdf`}
                       nomFichier={`quittance-${row.reference_number ?? row.id}.pdf`}

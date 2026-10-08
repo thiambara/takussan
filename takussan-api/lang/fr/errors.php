@@ -224,6 +224,7 @@ return [
         'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
         'deposit_refund_paid_by_payout' => 'Une caution rendue se règle par son reversement, jamais à la main.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
+        'receipt_not_a_payment' => 'Une caution rendue n\'est pas un paiement du locataire : elle n\'a pas de quittance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',
     ],
     'mail' => [

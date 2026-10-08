@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Exceptions\ApiError;
+use App\Http\Resources\LeasePaymentResource;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Models\Agency;
@@ -1211,6 +1212,28 @@ class PayoutBypassTest extends TestCase
         $this->postJson("/api/bank-statement-lines/{$credit->id}/match", ['payment_type' => 'lease_payment', 'payment_id' => $line->id])
             ->assertUnprocessable()->assertJsonValidationErrors(['payment_type']);
         $this->assertNull($line->fresh()->bank_reconciled_at);
+    }
+
+    /**
+     * VERIF-594 passe 5, P5-3 — une caution rendue, payée, ne donne pas de « Quittance de loyer » :
+     * le document attesterait que le locataire a payé ce que l'agence lui a rendu.
+     */
+    public function test_p5_3_a_refunded_deposit_gives_no_rent_receipt(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $payer = $this->agencyAdmin($lease->agency);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $this->actingWithStepUp($payer);
+        $this->postJson("/api/payouts/{$refund->json('data.payout_id')}/mark-processed", ['payment_method' => 'cash', 'notes' => 'remis en main propre'])->assertOk();
+        $line = LeasePayment::query()->findOrFail($refund->json('data.payment_id'));
+        $this->assertSame(PaymentStatus::Paid, $line->status);
+
+        $this->actingWithStepUp($admin);
+        $this->getJson("/api/leases/{$lease->id}/receipts/{$line->id}/pdf")
+            ->assertUnprocessable()->assertJsonPath('code', 'lease_payment.receipt_not_a_payment');
+        $this->assertFalse((new LeasePaymentResource($line))->toArray(request())['receipt_available']);
     }
 
     /**
