@@ -165,7 +165,8 @@
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
       },
-      "receivedReviews": "Reviews received"
+      "receivedReviews": "Reviews received",
+      "commissions": "Commissions"
     },
     "admin": {
       "dashboard": "Dashboard",
@@ -9625,5 +9626,44 @@
     "reessayer": "Try again",
     "favorisTitre": "Your favorites already viewed on this device",
     "favorisVide": "None of your favorites is available offline on this device."
+  },
+  "commissions": {
+    "metaTitle": "Commissions",
+    "title": "Commission statement",
+    "subtitle": "Commissions earned on activated leases, one line per beneficiary.",
+    "filterLabel": "Filter by status",
+    "filterAll": "All",
+    "status": {
+      "due": "Due",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "totals": {
+      "due": "Outstanding",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "columns": {
+      "earnedAt": "Earned on",
+      "lease": "Lease",
+      "beneficiary": "Beneficiary",
+      "share": "Share",
+      "amount": "Amount",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "origins": {
+      "negotiator": "Negotiator",
+      "collaborator": "Collaborator"
+    },
+    "shareOf": "{percent} of {base}",
+    "leaseFallback": "Lease #{id}",
+    "beneficiaryFallback": "User #{id}",
+    "markPaid": "Mark as paid",
+    "cancel": "Cancel",
+    "actionFailed": "The action could not be completed.",
+    "emptyTitle": "No commission",
+    "emptyDescription": "A commission is created when a lease carrying a commission amount is activated.",
+    "tableCaption": "Commission ledger lines"
   }
 }

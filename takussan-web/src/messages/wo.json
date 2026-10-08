@@ -155,7 +155,8 @@
         "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
         "pendingVisits": "{count, plural, one {# ñaan gis-gis bu di xaar} other {# ñaan gis-gis yu di xaar}}"
       },
-      "receivedReviews": "Avis yi ñu la bind"
+      "receivedReviews": "Avis yi ñu la bind",
+      "commissions": "Komisioŋ yi"
     },
     "admin": {
       "dashboard": "Taablo",
@@ -9625,5 +9626,44 @@
     "reessayer": "Jéemaatal",
     "favorisTitre": "Sa bëgg-bëgg yi nga xoolewoon ci bii aparey",
     "favorisVide": "Amul benn ci sa bëgg-bëgg yi mën a feeñ te amul internet ci bii aparey."
+  },
+  "commissions": {
+    "metaTitle": "Komisioŋ yi",
+    "title": "Limu komisioŋ yi",
+    "subtitle": "Komisioŋ yi juge ci kontaraa yu ñu ubbi, benn rëdd ci ku ko jot.",
+    "filterLabel": "Tànn ci nekkin",
+    "filterAll": "Yépp",
+    "status": {
+      "due": "Ñu ko war",
+      "paid": "Fey nañu ko",
+      "cancelled": "Neenal nañu ko"
+    },
+    "totals": {
+      "due": "Li des",
+      "paid": "Li ñu fey",
+      "cancelled": "Li ñu neenal"
+    },
+    "columns": {
+      "earnedAt": "Jot nañu ko ci",
+      "lease": "Kontaraa",
+      "beneficiary": "Ku ko jot",
+      "share": "Wàll",
+      "amount": "Xaalis bi",
+      "status": "Nekkin",
+      "actions": "Jëf yi"
+    },
+    "origins": {
+      "negotiator": "Waxtaankat",
+      "collaborator": "Ndimbal"
+    },
+    "shareOf": "{percent} ci {base}",
+    "leaseFallback": "Kontaraa #{id}",
+    "beneficiaryFallback": "Jëfandikukat #{id}",
+    "markPaid": "Tegg ne fey nañu ko",
+    "cancel": "Neenal",
+    "actionFailed": "Jëf ji antuwul.",
+    "emptyTitle": "Amul komisioŋ",
+    "emptyDescription": "Komisioŋ dafay juddu bu ñu ubbee kontaraa bu am xaalisu komisioŋ.",
+    "tableCaption": "Rëddi téereb komisioŋ yi"
   }
 }

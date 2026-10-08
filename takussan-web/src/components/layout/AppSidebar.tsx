@@ -27,6 +27,7 @@ import {
   ClipboardCheck,
   MessageSquareQuote,
   Inbox,
+  HandCoins,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -226,6 +227,12 @@ export function buildNavItems(user: User): NavItem[] {
   // entrées tiennent sans césure, et une cinquième en imposerait une.
   if (!isCustomerOnly(roles) && (isOwner(roles) || isAgent(roles) || isAdmin(roles))) {
     items.push({ href: '/app/profile/reviews', labelKey: 'receivedReviews', icon: MessageSquareQuote, section: 'engagements' });
+  }
+
+  // TCK-595 (ADR-0049 §3) — le grand livre des commissions : l'agent y lit ses lignes, l'admin
+  // d'agence toutes celles de l'agence (avec « marquer payée » et « annuler »).
+  if (isAgent(roles) || isAdmin(roles)) {
+    items.push({ href: '/app/commissions', labelKey: 'commissions', icon: HandCoins, section: 'engagements' });
   }
 
   // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global

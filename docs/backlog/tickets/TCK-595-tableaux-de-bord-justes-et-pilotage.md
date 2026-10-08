@@ -884,3 +884,14 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 - L'accueil client sans dossier invite à chercher dans `preferences.city` (recherche publique,
   `contract_type` déduit de `search_intent`), et garde « ce qui m'attend » : une demande d'intervention
   ne suppose pas de dossier.
+
+### Lot 8 — front : relevé des commissions (§2)
+
+- `/app/commissions` (agent et admin d'agence, garde dans le layout) lit `GET /api/commissions` avec
+  ses champs, `include=lease,beneficiary`, et affiche `meta.totals` par statut : la somme porte sur
+  toute la portée, pas sur la page.
+- « Marquer payée » et « Annuler » ne s'offrent qu'avec `payouts.approve`, et jamais sur la ligne dont
+  on est le bénéficiaire (la policy la refuse). Le step-up passe par `useApiMutation`.
+- Nouvelle entrée de navigation « Commissions » pour l'agent et l'admin ; espace i18n `commissions`
+  ajouté à la frontière `(dashboard)/app` (`namespaces.json`, les plafonds des autres frontières
+  inchangés).

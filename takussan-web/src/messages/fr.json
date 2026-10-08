@@ -165,7 +165,8 @@
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
         "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
       },
-      "receivedReviews": "Avis reçus"
+      "receivedReviews": "Avis reçus",
+      "commissions": "Commissions"
     },
     "admin": {
       "dashboard": "Tableau de bord",
@@ -9625,5 +9626,44 @@
     "reessayer": "Réessayer",
     "favorisTitre": "Vos favoris déjà consultés sur cet appareil",
     "favorisVide": "Aucun de vos favoris n'est disponible hors ligne sur cet appareil."
+  },
+  "commissions": {
+    "metaTitle": "Commissions",
+    "title": "Relevé des commissions",
+    "subtitle": "Les commissions nées des baux activés, ligne par bénéficiaire.",
+    "filterLabel": "Filtrer par statut",
+    "filterAll": "Toutes",
+    "status": {
+      "due": "Due",
+      "paid": "Payée",
+      "cancelled": "Annulée"
+    },
+    "totals": {
+      "due": "Reste dû",
+      "paid": "Payé",
+      "cancelled": "Annulé"
+    },
+    "columns": {
+      "earnedAt": "Acquise le",
+      "lease": "Bail",
+      "beneficiary": "Bénéficiaire",
+      "share": "Part",
+      "amount": "Montant",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "origins": {
+      "negotiator": "Négociateur",
+      "collaborator": "Collaborateur"
+    },
+    "shareOf": "{percent} de {base}",
+    "leaseFallback": "Bail #{id}",
+    "beneficiaryFallback": "Utilisateur #{id}",
+    "markPaid": "Marquer payée",
+    "cancel": "Annuler",
+    "actionFailed": "L'action n'a pas abouti.",
+    "emptyTitle": "Aucune commission",
+    "emptyDescription": "Une commission naît à l'activation d'un bail qui porte un montant de commission.",
+    "tableCaption": "Lignes du grand livre des commissions"
   }
 }

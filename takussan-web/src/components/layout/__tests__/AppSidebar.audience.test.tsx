@@ -75,15 +75,16 @@ const ATTENDU: Record<string, string[]> = {
   ],
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/messages',
-    '/app/documents',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
+    '/app/messages', '/app/documents',
     // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
     '/app/overview', '/app/overview/exports', '/app/customers',
     '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/maintenance/providers',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
+    '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
@@ -91,7 +92,8 @@ const ATTENDU: Record<string, string[]> = {
   ],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/maintenance/providers',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
+    '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
