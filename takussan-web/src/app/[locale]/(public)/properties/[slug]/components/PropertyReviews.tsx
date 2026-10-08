@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getReviewEligibility } from '@/app/actions/property';
 import { PropertyReviewForm } from './PropertyReviewForm';
 import { PropertyReviewReplyForm } from './PropertyReviewReplyForm';
+import { ReviewReportButton } from '@/components/reports/ReviewReportButton';
 import type { PropertyReview } from '@/types/review';
 
 interface PropertyReviewsProps {
@@ -81,6 +82,9 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
           </div>
           {review.title && <p className="font-medium text-foreground mt-2">{review.title}</p>}
           {review.content && <p className="text-sm text-foreground mt-1">{review.content}</p>}
+          <div className="mt-2">
+            <ReviewReportButton reviewId={review.id} />
+          </div>
 
           {hasReply && !editing && (
             <div

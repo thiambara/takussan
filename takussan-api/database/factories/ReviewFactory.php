@@ -21,7 +21,9 @@ class ReviewFactory extends Factory
             'title' => fake()->sentence(4),
             'content' => fake()->paragraph(),
             'is_approved' => true,
-            'approved_at' => now(),
+            // verif-597 m4 — un avis non publié n'a jamais été approuvé : `approved_at` suit
+            // `is_approved`, sinon une fixture « en attente » se présente comme déjà publiée.
+            'approved_at' => fn (array $attributes) => ($attributes['is_approved'] ?? false) ? now() : null,
         ];
     }
 }

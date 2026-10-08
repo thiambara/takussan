@@ -25,6 +25,7 @@ class ReportPublicPropertyRequest extends BaseFormRequest
         return [
             'reason' => ['required', Rule::in(['spam', 'misleading', 'fraud', 'inappropriate_content', 'other'])],
             'details' => ['nullable', 'string', 'max:1000'],
+            'company' => ['nullable', 'string', 'max:120'], // TCK-597 — champ piège (cf. ContactLeadPublicRequest)
         ];
     }
 }

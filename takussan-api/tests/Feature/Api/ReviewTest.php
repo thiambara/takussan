@@ -10,6 +10,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -70,6 +71,42 @@ class ReviewTest extends TestCase
             ->assertStatus(422);
     }
 
+    /**
+     * verif-597 M4 — « une fois par auteur et par bien / par agence » tient sous concurrence : le
+     * contrôle et l'écriture se font sous le verrou de la ligne parent. L'index unique ne couvre
+     * pas ces deux voies (pas de `context_id`) ; quatre envois simultanés posaient quatre avis.
+     * La course réelle à deux processus est rejouée hors suite (rapport TCK-597).
+     */
+    public function test_posting_a_property_or_agency_review_locks_the_parent_row(): void
+    {
+        $user = User::factory()->create();
+        $property = Property::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        Booking::factory()->create([
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Completed,
+        ]);
+        $super = User::factory()->withTwoFactor()->create();
+        $this->materializeRoleProfile($super, 'super_admin');
+        $agency = Agency::factory()->create();
+
+        $locked = [];
+        DB::listen(function ($query) use (&$locked): void {
+            if (str_contains(strtolower($query->sql), 'for update')
+                && preg_match('/from "(properties|agencies)"/', $query->sql, $m)) {
+                $locked[] = $m[1];
+            }
+        });
+
+        Sanctum::actingAs($user);
+        $this->postJson("/api/properties/{$property->id}/reviews", ['rating' => 4])->assertCreated();
+        Sanctum::actingAs($super);
+        $this->postJson("/api/agencies/{$agency->id}/reviews", ['rating' => 4])->assertCreated();
+
+        $this->assertSame(['properties', 'agencies'], $locked);
+    }
+
     public function test_only_approved_reviews_are_listed(): void
     {
         $property = Property::factory()->create();
@@ -108,7 +145,7 @@ class ReviewTest extends TestCase
     public function test_admin_can_approve_review(): void
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
         $review = Review::factory()->create(['is_approved' => false]);
 

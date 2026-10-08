@@ -26,6 +26,7 @@ class AgencyResource extends BaseResource
             'properties_count' => $this->properties_count,
             'active_leases_count' => $this->active_leases_count,
             'average_rating' => $this->average_rating !== null ? (float) $this->average_rating : null,
+            'reviews_count' => (int) ($this->reviews_count ?? 0), // TCK-597 — avis publiés seulement
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
             'settings' => $this->settings ?? null,
             // TCK-269 — metadata carries `welcome.standard_unlocked_at` (read by

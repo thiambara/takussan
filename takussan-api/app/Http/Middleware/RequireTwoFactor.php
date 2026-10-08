@@ -68,10 +68,12 @@ class RequireTwoFactor
 
         // Vérification adverse B1 — `Gate::before` ouvre toute policy au super-admin : hors de
         // `/api/admin/*`, une action protégée (rôles, blocage, reversements…) lui était ouverte
-        // sans 2FA. Tout profil plateforme la porte sur TOUTE action listée.
+        // sans 2FA. Tout profil plateforme la porte sur TOUTE action listée. TCK-597 (verif-597
+        // passe 3, M5) — et sur la modération qu'il tranche hors de la console.
         $action = $request->route()?->getActionName();
         if ($plateforme && ! $request->isMethodSafe()
-            && (ProtectedActions::requiresAgencyTwoFactor($action) || ProtectedActions::requiresStepUpForPlatform($action))) {
+            && (ProtectedActions::requiresAgencyTwoFactor($action) || ProtectedActions::requiresStepUpForPlatform($action)
+                || ProtectedActions::requiresPlatformTwoFactor($action))) {
             return true;
         }
 
