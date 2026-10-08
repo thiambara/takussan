@@ -2,8 +2,13 @@
 
 namespace Tests\Feature\Search;
 
+use App\Mail\DailyNotificationDigest;
+use App\Mail\NotificationDigestMail;
 use App\Models\Address;
+use App\Models\AppNotification;
 use App\Models\Enums\Currency;
+use App\Models\Enums\NotificationChannel;
+use App\Models\Enums\NotificationType;
 use App\Models\Favorite;
 use App\Models\Property;
 use App\Models\SavedSearch;
@@ -136,6 +141,36 @@ class SaisieDansLesEmailsTest extends TestCase
                 $html = (string) $notification->toMail($user)->render();
                 $this->assertSansLienNiImageEtrangers($html);
                 $this->assertStringContainsString('evil.example', $html, 'la saisie reste lisible, en texte');
+            }
+        }
+    }
+
+    /**
+     * verif-599 B1-bis, balayage — les deux e-mails de résumé recopient le titre et le corps des
+     * cloches dans le Markdown. Une cloche peut citer une saisie (titre de bien d'une proposition,
+     * nom d'une alerte) : elle reste du texte, dans les deux gabarits.
+     */
+    public function test_les_resumes_rendent_les_cloches_en_texte(): void
+    {
+        $user = User::factory()->create(['preferred_language' => 'fr']);
+        foreach (self::PIEGES as $piege) {
+            $cloche = AppNotification::create([
+                'user_id' => $user->id,
+                'type' => NotificationType::System,
+                'delivery_channel' => NotificationChannel::App,
+                'title' => $piege,
+                'body' => $piege,
+                'is_read' => false,
+            ]);
+
+            $resumes = [
+                new DailyNotificationDigest(user: $user, notifications: collect([$cloche]), targetLocale: 'fr'),
+                new NotificationDigestMail($user, collect(['system' => collect([$cloche])]), 'https://takussan.test/unsubscribe'),
+            ];
+            foreach ($resumes as $resume) {
+                $html = (string) $resume->render();
+                $this->assertSansLienNiImageEtrangers($html);
+                $this->assertStringContainsString('evil.example', $html, $resume::class.' : la cloche reste lisible');
             }
         }
     }
