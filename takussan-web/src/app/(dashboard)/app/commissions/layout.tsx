@@ -1,7 +1,5 @@
-import { redirect } from 'next/navigation';
-
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isAgent } from '@/lib/roles';
+import { assertCanReachAgencyStaffArea } from '@/lib/auth/guards';
 
 /**
  * TCK-595 — le grand livre est celui du PERSONNEL d'une agence : l'API rend 403 à tout autre
@@ -9,7 +7,6 @@ import { isAdmin, isAgent } from '@/lib/roles';
  * `loading.tsx`, rendrait 200 et le squelette de la vue refusée).
  */
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  const user = await getMeAction();
-  if (!isAgent(user.roles) && !isAdmin(user.roles)) redirect('/app');
+  assertCanReachAgencyStaffArea((await getMeAction()).roles);
   return <>{children}</>;
 }
