@@ -15,7 +15,7 @@ import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
 import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
 
 import { PropertyDetailContent } from './PropertyDetailContent';
-import { bienRetire, estRetire, metadonneesDeBienRetire } from './bien-retire';
+import { bienRetire, estRetire } from './bien-retire';
 import { CompteurDeVue } from './components/CompteurDeVue';
 
 type Props = {
@@ -51,7 +51,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // L'API rend 404 sur `/status` pour tout bien qui n'a jamais été une annonce publique.
   if (resultat.etat === 'introuvable') {
     const etat = await getEtatDuBien(slug, locale);
-    if (estRetire(etat)) return metadonneesDeBienRetire(etat);
+    if (estRetire(etat)) {
+      // L'objet est rendu SUR PLACE, pas par une fonction d'aide : `canonique-de-chaque-page.test.ts`
+      // ne juge que les objets littéraux, et un appel lui serait opaque.
+      const tRetire = await getTranslations('property.retired');
+      return {
+        title: tRetire(`title.${etat.state}`),
+        description: tRetire('metaDescription'),
+        robots: { index: false, follow: true },
+      };
+    }
     if (etat === null) notFound();
   }
 

@@ -30,11 +30,11 @@ export function PropertyVirtualTour({ url, title }: { readonly url: string | nul
         href={integration.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:border-primary transition-colors"
       >
         <Icone className="size-4 text-primary" aria-hidden />
         {libelle}
-        <ExternalLink className="size-3.5 text-muted-foreground" aria-hidden />
+        <ExternalLink className="size-3.5 bg-card text-muted-foreground" aria-hidden />
         <span className="sr-only">{t('opensNewTab')}</span>
       </a>
     );
@@ -45,14 +45,14 @@ export function PropertyVirtualTour({ url, title }: { readonly url: string | nul
       <button
         type="button"
         onClick={() => setOuverte(true)}
-        className="group flex w-full items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-left hover:bg-muted transition-colors"
+        className="group flex w-full items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-left hover:border-primary transition-colors"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Icone className="size-5" aria-hidden />
         </span>
         <span className="min-w-0">
           <span className="block text-sm font-medium text-foreground">{libelle}</span>
-          <span className="block text-xs text-muted-foreground">{t('loadHint')}</span>
+          <span className="block bg-card text-xs text-muted-foreground">{t('loadHint')}</span>
         </span>
       </button>
     );

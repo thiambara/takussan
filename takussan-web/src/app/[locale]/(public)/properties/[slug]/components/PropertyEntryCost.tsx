@@ -37,12 +37,12 @@ export function PropertyEntryCost({ entryCost, currency }: PropertyEntryCostProp
   }
 
   return (
-    <section aria-labelledby="cout-d-entree" className="rounded-lg bg-muted/40 p-3 text-sm">
+    <section aria-labelledby="cout-d-entree" className="rounded-lg bg-muted p-3 text-sm">
       <h2 id="cout-d-entree" className="font-medium text-foreground">{t('title')}</h2>
       <dl className="mt-2 space-y-1 tabular-nums">
         {lignes.map((ligne) => (
           <div key={ligne.cle} className="flex items-baseline justify-between gap-3">
-            <dt className="text-muted-foreground">{ligne.libelle}</dt>
+            <dt className="bg-muted text-muted-foreground">{ligne.libelle}</dt>
             <dd className="text-foreground">{ligne.valeur}</dd>
           </div>
         ))}

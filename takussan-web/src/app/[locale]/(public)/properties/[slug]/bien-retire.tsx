@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { PropertyCard } from '@/components/property/PropertyCard';
@@ -11,7 +10,7 @@ import type { EtatPublicDuBien } from '@/lib/queries/public-property';
  * d'erreur** : le lien d'un bien loué continue de circuler sur WhatsApp, et son lecteur cherche un
  * logement, pas une explication.
  *
- * Trois interdits, chacun gardé par `__tests__/bien-retire.test.tsx` :
+ * Trois interdits, chacun gardé par `__tests__/page.server.test.tsx` :
  *
  *   · jamais indexable (`noindex`) — c'est la fiche d'une annonce qui n'existe plus ;
  *   · aucun JSON-LD `RealEstateListing` — ce serait annoncer à un moteur un bien à louer ;
@@ -39,15 +38,6 @@ export function rechercheDuQuartier(etat: EtatPublicDuBien): string {
   return requete === '' ? '/properties' : `/properties?${requete}`;
 }
 
-export async function metadonneesDeBienRetire(etat: EtatRetire): Promise<Metadata> {
-  const t = await getTranslations('property.retired');
-  return {
-    title: t(`title.${etat.state}`),
-    description: t('metaDescription'),
-    robots: { index: false, follow: true },
-  };
-}
-
 /** Une FONCTION qui rend du JSX, pas un composant `async` : testable sous jsdom (patron de la page). */
 export async function bienRetire(etat: EtatRetire) {
   const t = await getTranslations('property.retired');
@@ -65,10 +55,10 @@ export async function bienRetire(etat: EtatRetire) {
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl">
           {t(`title.${etat.state}`)}
         </h1>
-        <p className="mt-3 text-muted-foreground text-pretty">{t('body')}</p>
+        <p className="mt-3 bg-background text-muted-foreground text-pretty">{t('body')}</p>
         <LienLocalise
           href={rechercheDuQuartier(etat)}
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-[var(--primary-deep)]"
         >
           {libelleRecherche}
         </LienLocalise>

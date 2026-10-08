@@ -13,14 +13,14 @@ export function PropertySafetyNotice() {
   return (
     <aside
       aria-labelledby="conseil-de-prudence"
-      className="flex gap-3 rounded-xl border border-border bg-muted/40 p-4 text-sm"
+      className="flex gap-3 rounded-xl border border-border bg-muted p-4 text-sm"
     >
-      <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <Info className="mt-0.5 size-4 shrink-0 bg-muted text-muted-foreground" aria-hidden />
       <div className="space-y-1">
         <p id="conseil-de-prudence" className="font-medium text-foreground">
           {t('safetyTitle')}
         </p>
-        <p className="text-muted-foreground text-pretty">{t('safetyBody')}</p>
+        <p className="bg-muted text-muted-foreground text-pretty">{t('safetyBody')}</p>
       </div>
     </aside>
   );
