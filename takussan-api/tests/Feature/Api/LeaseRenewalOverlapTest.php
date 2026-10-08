@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Exceptions\ApiError;
+use App\Http\Resources\LeasePaymentResource;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Models\Customer;
@@ -326,6 +327,51 @@ class LeaseRenewalOverlapTest extends TestCase
         $this->assertTrue($slipped);
         $this->assertSame(PaymentStatus::Cancelled, $due->fresh()->status);
         $this->assertNull($due->fresh()->paid_at);
+    }
+
+    /**
+     * VERIF-596 passe 6 (m-h, m-k P6-ME.9, sonde E4) — un enfant qui commence à une date passée : les
+     * échéances du chevauchement sont `late`, pénalité posée et non réglée. Elles s'annulent (pas
+     * seulement les `pending`), et leur pénalité avec : rien à régler, ni en ligne ni à l'agence, et
+     * le job ne la repose pas.
+     */
+    public function test_late_dues_in_the_overlap_are_cancelled_with_their_late_fee(): void
+    {
+        $parent = $this->parent([
+            'start_date' => now()->subMonths(6)->toDateString(),
+            'end_date' => now()->addMonths(6)->toDateString(),
+        ]);
+        app(ApplyLateFeesJob::class)->handle(app(LateFeeCalculator::class));
+        $start = now()->subMonths(2);
+        $late = LeasePayment::query()->where('lease_id', $parent->id)->where('status', PaymentStatus::Late->value)
+            ->whereDate('due_date', '>=', $start)->pluck('id');
+        $this->assertNotEmpty($late, 'aucune échéance en retard dans le chevauchement : le test ne mesure rien');
+        // Lue par le job AVANT le renouvellement (encore `pending`), traitée après.
+        $stale = LeasePayment::query()->where('lease_id', $parent->id)->whereDate('due_date', '>', now())->orderBy('due_date')->firstOrFail();
+
+        $this->renew($parent, ['start_date' => $start->toDateString(), 'end_date' => $start->copy()->addYear()->toDateString()])->assertCreated();
+        $child = $this->child($parent);
+        $this->runChildSchedule($child);
+
+        $this->assertSame([], $this->doubledMonths($parent, $child));
+        foreach (LeasePayment::query()->whereIn('id', $late)->get() as $due) {
+            $this->assertSame(PaymentStatus::Cancelled, $due->status);
+            $this->assertGreaterThan(0, (float) $due->late_fee_amount);
+            $this->assertSame(0.0, $due->lateFeeOutstanding());
+            $this->assertSame(0.0, LeasePaymentResource::make($due)->toArray(request())['late_fee_outstanding']);
+
+            $this->postJson("/api/lease-payments/{$due->id}/late-fee/mark-paid", [])
+                ->assertStatus(422)->assertJsonPath('code', 'lease_payment.cancelled');
+            $this->assertNull($due->fresh()->late_fee_paid_at);
+        }
+
+        // Rejugé sous verrou : le job a lu l'échéance `pending`, le renouvellement l'a annulée depuis.
+        $this->travelTo(now()->addMonths(3));
+        $this->assertSame(PaymentStatus::Pending, $stale->status);
+        $this->assertSame(PaymentStatus::Cancelled, $stale->fresh()->status);
+        $this->assertSame(0.0, app(LateFeeCalculator::class)->apply($stale));
+        $this->assertSame(PaymentStatus::Cancelled, $stale->fresh()->status);
+        $this->assertNull($stale->fresh()->late_fee_applied_at);
     }
 
     /** À terme (fin + 1) : rien à annuler, rien ne change. */

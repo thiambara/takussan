@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasPaymentAttributes;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,6 +69,12 @@ class LeasePayment extends AbstractModel
      */
     public function lateFeeOutstanding(): float
     {
+        // VERIF-596 passe 6 (m-h) — une échéance annulée par un renouvellement ne doit plus rien,
+        // pénalité comprise : l'enfant refacture le mois.
+        if ($this->status === PaymentStatus::Cancelled) {
+            return 0.0;
+        }
+
         $fee = (float) ($this->late_fee_amount ?? 0);
 
         return $fee > 0 && $this->late_fee_paid_at === null ? round($fee, 2) : 0.0;
