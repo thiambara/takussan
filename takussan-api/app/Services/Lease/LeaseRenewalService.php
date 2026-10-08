@@ -96,10 +96,7 @@ class LeaseRenewalService
                 $parent->forceFill(['end_date' => $adjusted])->save();
             }
 
-            $requireSignature = $this->requireSignatureFlag();
-            $childStatus = $requireSignature ? LeaseStatus::PendingSignature : LeaseStatus::Active;
-
-            $child = Lease::create([
+            $child = new Lease([
                 'property_id' => $parent->property_id,
                 'landlord_id' => $parent->landlord_id,
                 'tenant_id' => $parent->tenant_id,
@@ -108,7 +105,6 @@ class LeaseRenewalService
                 'renewed_from_lease_id' => $parent->id,
                 'reference_number' => ReferenceNumberGenerator::lease(),
                 'type' => $parent->type,
-                'status' => $childStatus,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'monthly_rent' => $data['monthly_rent'] ?? $parent->monthly_rent,
@@ -128,8 +124,21 @@ class LeaseRenewalService
                 'rent_review_max_pct' => $data['rent_review_max_pct'] ?? $parent->rent_review_max_pct,
                 'terms' => $data['terms'] ?? $parent->terms,
                 'special_conditions' => $data['special_conditions'] ?? $parent->special_conditions,
-                'signed_at' => $childStatus === LeaseStatus::Active ? now() : null,
             ]);
+
+            // VERIF-596 passe 4 (m-d, ADR-0042 §1) — un renouvellement qui CHANGE un terme qu'un
+            // contrat figé a fait signer est un avenant : il naît `pending_signature`, quel que soit
+            // le réglage, et ne s'exécute qu'une fois signé (par code ou sur papier). Sans cela, un
+            // renouvellement à J+1 portait le loyer à +50 % (ou l'indemnité à 12 mois) dès le
+            // lendemain, sans le locataire. Sans changement de terme, ou sur un parent antérieur,
+            // le réglage décide comme avant.
+            $requireSignature = $this->requireSignatureFlag()
+                || ($this->isFrozen($parent) && $this->changesSignedTerms($parent, $child));
+            $childStatus = $requireSignature ? LeaseStatus::PendingSignature : LeaseStatus::Active;
+            $child->forceFill([
+                'status' => $childStatus,
+                'signed_at' => $childStatus === LeaseStatus::Active ? now() : null,
+            ])->save();
 
             $parent->forceFill(['status' => LeaseStatus::Renewed])->save();
 
@@ -275,6 +284,35 @@ class LeaseRenewalService
                 'parent' => [__('messages.lease_renewal_max_chain_exceeded', ['max' => self::MAX_CHAIN_DEPTH])],
             ])->status(422);
         }
+    }
+
+    /**
+     * Les termes imprimés qu'un renouvellement peut renégocier (`RenewLeaseRequest`), hors les dates :
+     * un renouvellement les change toujours, c'est son objet.
+     */
+    public const RENEGOTIABLE_SIGNED_TERMS = [
+        'monthly_rent', 'deposit_amount', 'late_fee_percent', 'late_fee_grace_days',
+        'early_termination_penalty_months', 'rent_review_max_pct', 'terms', 'special_conditions',
+    ];
+
+    /** Le parent a un contrat figé, ou des termes d'exécution figés (voie papier, bail signé). */
+    protected function isFrozen(Lease $parent): bool
+    {
+        return $parent->contract_sha256 !== null
+            || $parent->early_termination_penalty_months !== null
+            || $parent->rent_review_max_pct !== null;
+    }
+
+    /** Comparés après cast, comme `diffChanges` : `150000` et `"150000.00"` sont le même loyer. */
+    protected function changesSignedTerms(Lease $parent, Lease $child): bool
+    {
+        foreach (self::RENEGOTIABLE_SIGNED_TERMS as $field) {
+            if ((string) $parent->{$field} !== (string) $child->{$field}) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function requireSignatureFlag(): bool

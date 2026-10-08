@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Customer;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
@@ -18,6 +19,7 @@ use App\Services\Lease\RentReviewService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -624,5 +626,68 @@ class LeaseContractTermsTest extends TestCase
 
         $this->assertSame(LeaseStatus::Active, $lease->fresh()->status);
         $this->assertSame($sha, $lease->fresh()->contract_sha256);
+    }
+
+    // ── VERIF-596 passe 4 (m-d) — un renouvellement qui change un terme signé se signe ───────────
+
+    /**
+     * Parent figé à 10 %, actif un an encore : un renouvellement à J+1 à +50 % naissait `active` dès
+     * le lendemain, sans signature du locataire — un avenant unilatéral qui dépassait le plafond que
+     * m-b refuse même au super-admin. Désormais il naît `pending_signature`, quel que soit le réglage,
+     * et ne s'exécute qu'une fois signé (ici, la voie papier).
+     */
+    public function test_a_renewal_changing_a_signed_term_awaits_signature(): void
+    {
+        Bus::fake([GenerateLeasePaymentSchedule::class]);
+        $parent = $this->signedParent(['rent_review_max_pct' => 10], ['end_date' => now()->addYear()->toDateString()]);
+
+        $child = $this->renew($parent, ['start_date' => now()->addDay()->toDateString(), 'monthly_rent' => 150_000]);
+
+        $this->assertSame(LeaseStatus::PendingSignature, $child->status);
+        $this->assertNull($child->signed_at);
+        $this->assertEquals(150_000, (float) $child->monthly_rent);
+        $this->assertEquals(100_000, (float) $parent->fresh()->monthly_rent);
+        Bus::assertNotDispatched(GenerateLeasePaymentSchedule::class);
+
+        app(LeaseSignatureService::class)->signOnPaper($child, UploadedFile::fake()->create('avenant.pdf', 20, 'application/pdf'), $child->landlord);
+        $this->assertSame(LeaseStatus::Active, $child->fresh()->status);
+    }
+
+    /** Chaque terme imprimé renégociable compte, pas seulement le loyer. */
+    public function test_any_signed_term_change_makes_the_renewal_await_signature(): void
+    {
+        $changes = [
+            'deposit_amount' => 900_000, 'late_fee_percent' => 9, 'late_fee_grace_days' => 1,
+            'terms' => 'Clauses neuves.', 'special_conditions' => 'AUCUN ANIMAL',
+            'early_termination_penalty_months' => 12, 'rent_review_max_pct' => 100,
+        ];
+        $statuses = [];
+        foreach ($changes as $field => $value) {
+            $parent = $this->signedParent();
+            $statuses[$field] = $this->renew($parent, [$field => $value])->status;
+        }
+
+        $this->assertSame(array_fill_keys(array_keys($changes), LeaseStatus::PendingSignature), $statuses);
+    }
+
+    /** Sans changement de terme — dates seules, ou loyer redit à l'identique — rien ne change. */
+    public function test_a_renewal_without_term_change_is_active_as_before(): void
+    {
+        $parent = $this->signedParent(['rent_review_max_pct' => 10]);
+
+        $child = $this->renew($parent, ['monthly_rent' => 100_000]);
+
+        $this->assertSame(LeaseStatus::Active, $child->status);
+    }
+
+    /** Un parent antérieur (rien de figé) garde le comportement du réglage, même à loyer changé. */
+    public function test_a_legacy_renewal_changing_the_rent_is_active_as_before(): void
+    {
+        $parent = $this->lease(['status' => LeaseStatus::Active, 'monthly_rent' => 100_000, 'end_date' => now()->addMonths(2)->toDateString()]);
+        Sanctum::actingAs($parent->landlord);
+
+        $child = $this->renew($parent, ['monthly_rent' => 150_000]);
+
+        $this->assertSame(LeaseStatus::Active, $child->status);
     }
 }

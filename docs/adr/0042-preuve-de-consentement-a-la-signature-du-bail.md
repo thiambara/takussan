@@ -63,6 +63,15 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    ce qui n'est **pas** la sémantique d'un bail antérieur : le parent a une valeur figée et signée.
    Un enfant `pending_signature` hérite de la valeur, que sa demande de signature fige et imprime.
    Seul un parent antérieur (colonnes nulles) donne un enfant nul.
+   **Un renouvellement qui change un terme signé est un avenant, et se signe** (amendé après VERIF-596
+   passe 4, m-d, décision de session réversible, signalée au porteur) : si le parent est figé
+   (`contract_sha256` posé, ou termes d'exécution figés) et que le renouvellement change un terme
+   imprimé renégociable (loyer, caution, pénalités de retard, indemnité, plafond, clauses,
+   conditions — `LeaseRenewalService::RENEGOTIABLE_SIGNED_TERMS`), l'enfant naît `pending_signature`
+   quel que soit `lease.require_signature`, et ne s'exécute qu'une fois signé, par code ou sur papier.
+   Sans cela, un renouvellement à J+1 à +50 % s'exécutait le lendemain sans le locataire, au-dessus du
+   plafond que `force` ne passe plus. Un renouvellement sans changement de terme, ou d'un parent
+   antérieur, suit le réglage comme avant.
    **Toutes les voies de résiliation lisent le terme figé** (amendé après VERIF-596 passe 4, M-T) : la
    résiliation anticipée formelle (`EarlyTerminationService`) comme la résiliation immédiate
    (`POST leases/{id}/terminate`, `LeaseService::terminate`) facturent
