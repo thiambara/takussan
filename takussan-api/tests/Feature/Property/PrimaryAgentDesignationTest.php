@@ -13,6 +13,7 @@ use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Services\Property\PrimaryAgentDesignator;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as RequeteSortante;
 use Illuminate\Support\Facades\DB;
@@ -225,6 +226,31 @@ class PrimaryAgentDesignationTest extends ApiTestCase
             ->assertOk();
         $this->assertFalse($this->ligneSecond->fresh()->is_primary);
         $this->assertSame($this->ancien->id, $this->contact());
+    }
+
+    /**
+     * Vérification adverse m4 — dupliquer un bien avec ses collaborateurs ne change pas son contact :
+     * la marque suit la ligne du même agent, et l'ordre d'invitation recopié garde le repli.
+     */
+    public function test_dupliquer_le_bien_garde_son_contact_par_le_choix_comme_par_le_repli(): void
+    {
+        $dupliquer = fn () => app(PropertyDuplicationService::class)->duplicate(
+            source: $this->property->fresh(), actor: $this->admin, options: ['copy_collaborators' => true],
+        );
+        $contactDe = fn (Property $bien) => PrimaryPropertyContact::for($bien->fresh()->load(PrimaryPropertyContact::eagerLoads()))?->id;
+
+        // Sans choix : le repli (l'invité le premier, qui n'est pas le plus petit id) se recopie.
+        $sansChoix = $dupliquer();
+        $this->assertSame($this->ancien->id, $contactDe($sansChoix));
+
+        $this->designer($this->ligneSecond)->assertOk();
+        $clone = $dupliquer();
+
+        $this->assertSame($this->second->id, $contactDe($clone));
+        $this->assertSame([$this->second->id], PropertyCollaborator::query()->where('property_id', $clone->id)
+            ->where('is_primary', true)->pluck('user_id')->all());
+        $this->assertSame([$this->ligneSecond->id], PropertyCollaborator::query()->where('property_id', $this->property->id)
+            ->where('is_primary', true)->pluck('id')->all(), 'la source garde sa marque');
     }
 
     /**

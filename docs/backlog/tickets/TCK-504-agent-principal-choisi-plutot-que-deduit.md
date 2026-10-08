@@ -311,3 +311,10 @@ suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `Prim
   `test_une_marque_sur_un_agent_inactif_est_dite_indisponible_et_le_repli_nomme` (repli agent, repli
   propriétaire, retour du choix à la réactivation) et deux vitest ; ablations M3a (source absente),
   M3b (badge sur la marque), M3c (repli toujours « agent ») rouges (`t504/ablations-m3.log`).
+- **m4 — la duplication garde le contact.** `PropertyDuplicationService` recopie `invited_at` (le
+  repli reste identique) et pose la marque sur la ligne clonée du même titulaire, par le
+  constructeur de requêtes (bien neuf : aucune marque concurrente possible). Preuves :
+  `test_dupliquer_le_bien_garde_son_contact_par_le_choix_comme_par_le_repli` ; le cas `v2d` du
+  vérificateur, joué tel quel, passe (`marques du clone = [4], contact du clone = 4 (source : 4)`) ;
+  ablations M4a (marque non recopiée) et M4b (`invited_at` non recopié) rouges
+  (`t504/ablations-m4.log`).
