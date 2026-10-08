@@ -341,6 +341,28 @@ class LeaseRenewalOverlapTest extends TestCase
     }
 
     /**
+     * VERIF-596 passe 7 (m-l) — la correction de M-G tient tout entière au verrou de la relecture :
+     * sans lui, la course réelle rouvre M-G 11 fois sur 11, et le test précédent reste vert (il
+     * annule AVANT la relecture). La garde relève le `FOR UPDATE` sur `lease_payments`.
+     */
+    public function test_mark_paid_rereads_the_due_under_lock(): void
+    {
+        $parent = $this->parent();
+        $due = LeasePayment::query()->where('lease_id', $parent->id)->orderBy('due_date')->firstOrFail();
+        $locks = [];
+        DB::listen(function (QueryExecuted $query) use (&$locks): void {
+            if (preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
+                $locks[] = $query->sql;
+            }
+        });
+
+        $this->postJson("/api/lease-payments/{$due->id}/mark-paid", ['payment_method' => 'cash'])->assertOk();
+
+        $this->assertNotEmpty($locks, 'mark-paid : l\'échéance n\'est pas relue FOR UPDATE');
+        $this->assertSame(PaymentStatus::Paid, $due->fresh()->status);
+    }
+
+    /**
      * VERIF-596 passe 7 (M-H, sonde G1) — la vérification forcée d'un paiement en ligne lisait
      * l'échéance, interrogeait le fournisseur, puis écrivait `paid` sur l'instance lue AVANT. Un
      * renouvellement qui annule l'échéance pendant l'appel (centaines de ms) : le loyer payé en
