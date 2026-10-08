@@ -17,7 +17,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
  *   - le **bailleur direct** du bien (`properties.user_id`), sauf s'il est suspendu dans l'agence
  *     du bien : il reste partie, il perd les écritures (ADR-0031 §2) ;
  *   - le **personnel de l'agence de la réservation** (prédicat TCK-587 `isStaffAt`, jamais
- *     `users.agency_id`) — pour rembourser, titulaire de `bookings.refund` dans CETTE agence ;
+ *     l'accesseur d'agence unique de l'utilisateur) — pour rembourser, titulaire de `bookings.refund` dans CETTE agence ;
  *   - le super-admin.
  *
  * Ni un autre bailleur de l'agence : `canManageBooking` acceptait « même agence », et l'accesseur

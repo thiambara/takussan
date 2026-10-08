@@ -15,7 +15,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
  *   1. le **bailleur du bail** (`leases.landlord_id`) signe pour lui-même — sauf s'il est suspendu
  *      dans l'agence du bail : il reste partie et lecteur, il perd les écritures (ADR-0031 §2) ;
  *   2. un membre du **personnel de l'agence du bail** (prédicat TCK-587 `isStaffAt`, jamais
- *      `users.agency_id`) titulaire de `leases.sign` dans CETTE agence signe **pour son compte**,
+ *      l'accesseur d'agence unique de l'utilisateur) titulaire de `leases.sign` dans CETTE agence signe **pour son compte**,
  *      au titre du mandat de gestion. La preuve enregistre alors `on_behalf_of`.
  *
  * Personne d'autre. Ni un collaborateur du bien, quel que soit son rôle (`viewer`, `co_owner`,
