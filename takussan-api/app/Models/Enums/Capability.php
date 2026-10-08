@@ -89,6 +89,9 @@ enum Capability: string
 
     // reports.*
     case ReportsViewGlobal = 'reports.view_global';
+    // TCK-595 (ADR-0049 §4) — les chiffres consolidés D'UNE agence : assignable à un rôle d'agence,
+    // là où `reports.view_global` (multi-agences) reste à la plateforme.
+    case ReportsViewAgency = 'reports.view_agency';
     case ReportsExport = 'reports.export';
 
     // roles.*

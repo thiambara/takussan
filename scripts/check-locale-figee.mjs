@@ -608,7 +608,7 @@ const PLAFOND_CONSOLE = 1; // mesuré le 2026-08-27
  *
  * Même plancher/plafond que ci-dessus.
  */
-const PLAFOND_RESTE = 22; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
+const PLAFOND_RESTE = 20; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
 //                          (TCK-374 a porté deux graphiques de `/app` sur la locale active).
 //                          48 → 28 le 2026-09-16, re-mesuré sur l'arbre fusionné de la revue
 //                          design (dates et montants portés sur la locale active par les groupes).
@@ -619,6 +619,9 @@ const PLAFOND_RESTE = 22; // mesuré le 2026-08-27, resserré de 50 à 48 à la 
 //                          24 → 22 le 2026-09-24 : les deux dates de l'avis de maintenance
 //                          (`maintenance/MaintenanceBanner.tsx`, `toLocaleString('fr-SN')`) passent
 //                          par `useFormatteurs()` (TCK-572).
+//                          22 → 20 le 2026-10-08 : les deux heures de la vue agent
+//                          (`app/overview/agent/page.tsx`, `Intl.DateTimeFormat` figé) passent par
+//                          `formatDate` et la langue de la requête (TCK-595).
 
 const consoleCompte = compter(consoleHorsPerimetre);
 const resteCompte = compter(reste);

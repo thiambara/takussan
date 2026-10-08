@@ -240,6 +240,10 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Paiement sans compte (TCK-602, ADR-0051)
 84. [LeasePaymentLink](#84-leasepaymentlink-) 🆕
 
+#### Pilotage 🆕 (TCK-595, ADR-0049, ADR-0057)
+85. [CommissionEntry](#85-commissionentry-) 🆕
+86. [PlatformMetricDaily](#86-platformmetricdaily-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -3384,6 +3388,68 @@ compte. Un seul lien actif par échéance ; le jeton se cherche par son empreint
 `WHERE revoked_at IS NULL` — un seul lien actif par échéance. Index `lpl_lease_payment_idx`.
 
 **Relations :** `leasePayment()` → belongsTo LeasePayment (`withTrashed`) ; `creator()` → belongsTo User.
+
+---
+
+### 85. CommissionEntry 🆕
+
+> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0049 §3. Le même ticket
+> ajoute `leases.agent_id` (FK users, `nullOnDelete`, le négociateur, ADR-0049 §1).
+
+**Table :** `commission_entries`
+**Description :** Grand livre des commissions d'agence : la part d'un bénéficiaire (négociateur du
+bail ou collaborateur `agent` du bien) sur `leases.commission_amount`, figée à l'activation du bail
+(`LeaseActivated` → `CommissionLedgerService::generateFor`). Jamais recalculée depuis un état courant.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| lease_id | FK leases | | | `cascadeOnDelete` |
+| beneficiary_id | FK users | | | `cascadeOnDelete` |
+| origin | string(20) | | | `CommissionOrigin` : `negotiator`, `collaborator` |
+| base_amount | decimal(14,2) | | | `commission_amount` du bail à l'activation |
+| share_percent | decimal(5,2) | | | Part servie |
+| amount | decimal(14,2) | | | Arrondi au centime inférieur (Σ ≤ base) |
+| currency | string(3) | | XOF | |
+| status | string(20) | | due | `CommissionEntryStatus` : `due`, `paid`, `cancelled` |
+| earned_at | timestamp | | | `signed_at` du bail |
+| paid_at / paid_by_id | timestamp / FK users | oui | null | Marquage versé (`payouts.approve`) |
+| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulation (`payouts.approve`) |
+| metadata | jsonb | oui | null | Détail des parts du négociateur également collaborateur |
+| created_at / updated_at | timestamp | | auto | |
+
+Unicité `commission_entries_lease_benef_uq (lease_id, beneficiary_id)` ; index
+`commission_entries_agency_benef_idx (agency_id, beneficiary_id, earned_at)`.
+
+**Relations :** `agency()`, `lease()`, `beneficiary()` → belongsTo. Inverse :
+`Lease.commissionEntries()`.
+
+---
+
+### 86. PlatformMetricDaily 🆕
+
+> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0057.
+
+**Table :** `platform_metrics_daily`
+**Description :** Instantané quotidien des métriques de la console plateforme, écrit à 00:30 pour la
+veille (`SnapshotPlatformMetricsJob`) ou rejoué par `metrics:snapshot --date=`. La tendance à 30 jours
+de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part ailleurs.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| date | date | | | Unique (`platform_metrics_daily_date_uq`) |
+| gmv_amount / platform_fees_amount | decimal(16,2) | | 0 | Flux du jour (`paid_at`), rattrapables |
+| collected_total_amount | decimal(16,2) | | 0 | *Encaissé* cumulé à la fin du jour, rattrapable |
+| mrr_amount / mrr_trialing_amount | decimal(16,2) | oui | null | Stock, hors essais / essais seuls ; jamais rattrapé |
+| active_subscriptions, agencies_*, users_*, properties_*, leases_active | integer | oui | null | Stocks par statut courant ; jamais rattrapés |
+| stocks_captured_at | timestamp | oui | null | Instant de mesure des stocks, `null` sur une ligne rattrapée |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** aucune.
 
 ---
 

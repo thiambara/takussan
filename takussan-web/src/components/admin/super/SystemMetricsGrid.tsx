@@ -30,6 +30,10 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
  * et non des tuiles (`users.active` et `verification_rate` sont ici des précisions sous une autre
  * tuile, `leases.active` n'est pas rendue). Une clé absente de `trend.previous` ne se remplace
  * donc pas par un zéro : elle supprime le delta.
+ *
+ * TCK-595 (ADR-0057) — « Revenu plateforme » devient « Flux encaissé », et quatre tuiles de pilotage
+ * financier suivent (volume d'affaires, take rate, MRR, essais), chacune rendue seulement si l'API
+ * en rend la clé. Les tendances se lisent dans l'instantané de J-30 : sans instantané, pas de delta.
  */
 
 interface Tile {
@@ -137,6 +141,9 @@ function tilesOf(
   fmt: Formatteurs,
 ): Tile[] {
   const previous = m.trend?.previous;
+  // Le symbole « F CFA » ne se coupe jamais en deux (« F / CFA ») : l'espace qu'il porte devient
+  // insécable. Le retour à la ligne, s'il reste nécessaire, tombe avant le symbole (collision C6).
+  const montant = (valeur: number) => fmt.montant(valeur, m.revenue.currency).replace(/F CFA/g, 'F\u00a0CFA');
 
   return [
     {
@@ -198,15 +205,71 @@ function tilesOf(
       href: '/super-admin/properties?filter[status]=pending_review',
     },
     {
-      key: 'platformRevenue',
-      label: t('platformRevenue'),
-      // Le symbole « F CFA » ne se coupe jamais en deux (« F / CFA ») : l'espace qu'il porte devient
-      // insécable. Le retour à la ligne, s'il reste nécessaire, tombe avant le symbole (collision C6).
-      value: fmt.montant(m.revenue.platform_total_paid, m.revenue.currency).replace(/F CFA/g, 'F\u00a0CFA'),
-      hint: t('cumulativeRents'),
+      // TCK-595 (§ Direction UX) — le libellé dit ce que le chiffre mesure : « Flux encaissé », pas
+      // « Revenu ». Il comptait les cautions et leurs restitutions, et ignorait les réservations.
+      key: 'collectedTotal',
+      label: t('collectedTotal'),
+      value: montant(m.revenue.collected_total ?? m.revenue.platform_total_paid),
+      hint: t('collectedTotalHint'),
       href: '/super-admin/reports',
-      current: m.revenue.platform_total_paid,
-      previous: previous?.revenue_platform_total_paid,
+      current: m.revenue.collected_total ?? m.revenue.platform_total_paid,
+      previous: previous?.revenue_collected_total,
     },
+    ...revenueTiles(m, t, fmt, montant),
   ];
+}
+
+/**
+ * TCK-595 (ADR-0057) — les tuiles de pilotage financier. Chacune n'est rendue que si l'API rend sa
+ * clé : une réponse antérieure n'en porte pas, et une tuile à zéro y mentirait.
+ */
+function revenueTiles(
+  m: SystemMetrics,
+  t: ReturnType<typeof useTranslations<'superAdmin.metrics'>>,
+  fmt: Formatteurs,
+  montant: (valeur: number) => string,
+): Tile[] {
+  const r = m.revenue;
+  const previous = m.trend?.previous;
+  const tuiles: Tile[] = [];
+  if (r.gmv_30d !== undefined) {
+    tuiles.push({
+      key: 'gmv',
+      label: t('gmv'),
+      value: montant(r.gmv_30d),
+      hint: t('gmvHint'),
+      href: '/super-admin/payouts',
+    });
+  }
+  if (r.take_rate !== undefined) {
+    tuiles.push({
+      key: 'takeRate',
+      label: t('takeRate'),
+      value: r.take_rate === null ? '—' : fmt.nombre(r.take_rate, { style: 'percent', maximumFractionDigits: 2 }),
+      hint: t('takeRateHint', { fees: montant(r.platform_fees_30d ?? 0) }),
+      // Le take rate se règle par les frais plateforme, qui vivent dans les réglages.
+      href: '/super-admin/settings',
+    });
+  }
+  if (r.mrr !== undefined) {
+    tuiles.push({
+      key: 'mrr',
+      label: t('mrr'),
+      value: montant(r.mrr),
+      hint: t('mrrHint', { count: r.active_subscriptions ?? 0 }),
+      href: '/super-admin/reports?tab=revenue',
+      current: r.mrr,
+      previous: previous?.revenue_mrr,
+    });
+  }
+  if (r.mrr_trialing !== undefined) {
+    tuiles.push({
+      key: 'trialing',
+      label: t('trialing'),
+      value: montant(r.mrr_trialing),
+      hint: t('trialingHint'),
+      href: '/super-admin/plans',
+    });
+  }
+  return tuiles;
 }

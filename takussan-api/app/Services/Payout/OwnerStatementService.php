@@ -11,6 +11,7 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
+use App\Services\Dashboard\CollectedPayments;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -146,7 +147,8 @@ final class OwnerStatementService
 
         return [
             'count' => (clone $query)->count(),
-            'amount' => (float) $query->sum('lease_payments.amount'),
+            // verif-595 passe 2 — le reste dû, la règle des tuiles Impayés et de la balance âgée.
+            'amount' => round((float) $query->sum(DB::raw(CollectedPayments::OWED_REMAINING_SQL)), 2),
         ];
     }
 }

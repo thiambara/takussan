@@ -10,7 +10,7 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
 import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
-import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
+import { aDesChiffres, fetchDashboardMe } from '@/lib/queries/dashboard-me';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
           quelqu'un qui n'en a aucun. */}
       {isTenant(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
 
-      {payload?.data ? (
+      {aDesChiffres(payload) ? (
         <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />
       ) : (
         <DashboardEmpty roles={user.roles} />

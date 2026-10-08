@@ -3,12 +3,14 @@
 use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
+use App\Http\Controllers\Api\Agency\AgingBalanceController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
 use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
+use App\Http\Controllers\Api\Agency\TeamPerformanceController;
 use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
@@ -53,6 +55,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
+
+    // TCK-595 (§6, §7) — pilotage : performance d'équipe (agences `standard`) et balance âgée.
+    Route::get('agencies/{agency}/team-performance', [TeamPerformanceController::class, 'show'])->name('agencies.team-performance');
+    Route::get('agencies/{agency}/finance/aging', [AgingBalanceController::class, 'show'])->name('agencies.finance.aging');
 
     // TCK-589 §7 — mise en service : sept étapes lues sur l'état réel.
     Route::get('agencies/{agency}/setup-status', AgencySetupStatusController::class)->name('agencies.setup-status');

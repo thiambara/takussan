@@ -43,9 +43,16 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        // TCK-603 — `PrimaryPropertyContact::eagerLoads()` : la liste rend l'agent responsable
-        // (`primary_contact`) à côté du propriétaire, sans une requête d'avatar par ligne.
-        $base = Property::query()->with(['address', ...PrimaryPropertyContact::eagerLoads()]);
+        // TCK-595 (§4) — ce que `PropertyResource` lit pour une ligne : la photo principale (`media`) et
+        // l'avatar du propriétaire. TCK-603 — `PrimaryPropertyContact::eagerLoads()` : la liste rend
+        // l'agent responsable (`primary_contact`) à côté du propriétaire, sans une requête d'avatar par
+        // ligne. `is_agent` se juge par l'amorce de la page (plus bas), jamais par une requête par ligne.
+        $base = Property::query()->with([
+            'address',
+            'media',
+            'owner.media',
+            ...PrimaryPropertyContact::eagerLoads(),
+        ]);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {

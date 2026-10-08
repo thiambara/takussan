@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
 use App\Http\Controllers\Api\BookingPaymentController;
+use App\Http\Controllers\Api\CommissionEntryController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
@@ -67,6 +68,8 @@ final class ProtectedActions
      */
     public const FAMILIES = [
         'payouts.php' => null,
+        // TCK-595 (ADR-0049 §3) — solder ou annuler la commission d'un agent.
+        'commissions.php' => null,
         'integrations.php' => null,
         'agency-roles.php' => null,
         'invitations.php' => null,
@@ -124,6 +127,9 @@ final class ProtectedActions
         PayoutController::class.'@markProcessed',
         PayoutController::class.'@markFailed',
         PayoutController::class.'@cancel',
+        // TCK-595 (ADR-0049 §3) — les deux gestes du grand livre, par qui détient `payouts.approve`.
+        CommissionEntryController::class.'@markPaid',
+        CommissionEntryController::class.'@cancel',
 
         IntegrationController::class.'@store',
         IntegrationController::class.'@update',
@@ -225,6 +231,8 @@ final class ProtectedActions
         // plateforme (`PlatformPayoutController`) sont plus haut.
         PayoutController::class.'@approve',
         PayoutController::class.'@markProcessed',
+        // TCK-595 (ADR-0049 §3) — le marquage « versée » d'une commission, pendant de `markProcessed`.
+        CommissionEntryController::class.'@markPaid',
         ServiceProviderBillController::class.'@pay',
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',

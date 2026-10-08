@@ -28,6 +28,14 @@ describe('<DashboardMeKpis>', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
+  it('TCK-595 (verif-595 M1) — sans reports.view_agency, ni revenu ni impayés (clés absentes)', () => {
+    render(withIntl(<DashboardMeKpis role="agency_admin" metrics={{ properties_total: 42, leases_active: 31 }} />));
+
+    expect(screen.getByText('Biens')).toBeInTheDocument();
+    expect(screen.queryByText('Revenus du mois')).not.toBeInTheDocument();
+    expect(screen.queryByText('Impayés')).not.toBeInTheDocument();
+  });
+
   it('formats owner cashflow of 0 as a real value (not "—")', () => {
     render(withIntl(<DashboardMeKpis
         role="owner"

@@ -103,6 +103,9 @@ return [
         'sync_throttled' => 'Calendrier bii leegi lañu ko synchroniser. Jéemaatal ci benn simili.',
         'unsafe_url' => 'Lien calendrier bii mënuñu koo jële : dafa wara nekk HTTPS te jëm ci benn service bu ubbeeku.',
     ],
+    'commission' => [
+        'not_due' => 'Komisiyoŋ bu ñu war a fey rekk lañu mën a bind ne fey nañu ko walla neenal ko.',
+    ],
     'conversation' => [
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
@@ -112,7 +115,7 @@ return [
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
     'dashboard' => [
-        'profile_unresolved' => 'Amul benn tableau de bord bu méngoo ak sa profil.',
+        'invalid_scope' => 'Wàll wi ñu laaj war na nekk « mine » walla « agency ».',
     ],
     'data_export' => [
         'expired' => 'Export données bii jeex na.',
@@ -234,6 +237,8 @@ return [
     ],
     'lease' => [
         'cannot_terminate' => 'Luwé yi jàpp walla yi ñu baaxal rekk la ñu mën tas.',
+        'commission_forbidden' => 'Personelu ajaans bi rekk ñoo mën a tëral komisioŋ bi ak ki ko jëflante, su ñu leen may ubbi ay kontaraa.',
+        'commission_locked' => 'Komisioŋ bi ak ki ko jëflante dañuy tëru ci kontaraa bu nekkagul ci jëfandikoo : bu ñu ko taalee, komisioŋ bi séddalees na ko ba noppi.',
         'guarantor_already_attached' => 'Garant bii takk nañu ko ci bail bi ba noppi.',
         'max_guarantors' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
         'not_activatable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a doxal.',
@@ -422,6 +427,7 @@ return [
         'duplicate_file' => 'Bii relevé dañu ko wone nanu bii agence.',
     ],
     'reporting' => [
+        'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',
         'range_too_wide' => 'Diggante bi nga laaj ëpp na :max intervalle « :granularity ». Wàññil diggante bi walla yokk granularité bi.',
         'report_unknown' => 'Rapport bii xamuñu ko.',
     ],

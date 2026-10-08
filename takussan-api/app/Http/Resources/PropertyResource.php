@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
+use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
@@ -331,11 +332,15 @@ class PropertyResource extends BaseResource
      */
     private function actsAsAgent(User $user): bool
     {
-        $agency = $this->resource->agency;
+        // TCK-595 (§4) — l'identifiant suffit : charger `agency` coûtait une requête par ligne.
+        $agencyId = $this->resource->getAttribute('agency_id');
+        if ($agencyId === null) {
+            return false;
+        }
 
         // TCK-603 (verif-603 m4) — sur la liste, l'amorce de la page a déjà jugé le couple.
-        return $agency !== null
-            && (MembershipCapabilityResolver::amorce('agent', (int) $user->id, (int) $agency->id) ?? $user->isAgentAt($agency->id));
+        return MembershipCapabilityResolver::amorce('agent', (int) $user->id, (int) $agencyId)
+            ?? $user->isAgentAt((int) $agencyId);
     }
 
     /**

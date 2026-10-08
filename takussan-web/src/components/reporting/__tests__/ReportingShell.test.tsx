@@ -13,11 +13,11 @@ vi.mock('../RevenueChart', () => ({ RevenueChart: () => <div data-testid="pannea
 vi.mock('../CohortHeatmap', () => ({ CohortHeatmap: () => <div data-testid="panneau-cohorts" /> }));
 vi.mock('../FunnelChart', () => ({ FunnelChart: () => <div data-testid="panneau-funnel" /> }));
 
-function rendre() {
+function rendre(initialTab?: string) {
   return render(
     withIntl(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <ReportingShell />
+        <ReportingShell initialTab={initialTab} />
       </QueryClientProvider>,
     ),
   );
@@ -66,5 +66,15 @@ describe('<ReportingShell>', () => {
     await user.keyboard('{ArrowRight}');
 
     expect(onglets[1]).toHaveFocus();
+  });
+
+  /** TCK-595 — la tuile MRR de l'accueil super-admin mène à `?tab=revenue`. */
+  it('ouvre l’onglet demandé par l’URL, et ignore une valeur inconnue', () => {
+    const { unmount } = rendre('revenue');
+    expect(screen.getByTestId('panneau-revenue')).toBeInTheDocument();
+    unmount();
+
+    rendre('inconnu');
+    expect(screen.getByTestId('panneau-growth')).toBeInTheDocument();
   });
 });

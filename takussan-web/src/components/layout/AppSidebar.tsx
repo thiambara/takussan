@@ -27,6 +27,7 @@ import {
   ClipboardCheck,
   MessageSquareQuote,
   Inbox,
+  HandCoins,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -228,6 +229,12 @@ export function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/profile/reviews', labelKey: 'receivedReviews', icon: MessageSquareQuote, section: 'engagements' });
   }
 
+  // TCK-595 (ADR-0049 §3) — le grand livre des commissions : l'agent y lit ses lignes, l'admin
+  // d'agence toutes celles de l'agence (avec « marquer payée » et « annuler »).
+  if (isAgent(roles) || isAdmin(roles)) {
+    items.push({ href: '/app/commissions', labelKey: 'commissions', icon: HandCoins, section: 'engagements' });
+  }
+
   // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global
   // admin / super_admin via le gate). Ouvert aux agences `standard` ET
   // `individual` (un host individual a aussi besoin de ses prestataires).
@@ -274,7 +281,12 @@ export function buildNavItems(user: User): NavItem[] {
   // servis ici — `isProRouteLocked` inclut `agent` depuis TCK-284, sans quoi
   // un agent d'agence `individual` cliquait une entrée d'apparence normale
   // pour se faire renvoyer en silence.
-  if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
+  //
+  // TCK-595 (AC17 bis) — plus pour l'agent : les chiffres consolidés s'ouvrent par
+  // `reports.view_agency` (rôle d'admin d'agence), l'API rend 403 à l'agent et le layout de la page
+  // le renvoie sur sa vue. L'agent qui détient la capacité par un rôle personnalisé lit l'agence
+  // par la bascule « Agence » de sa propre vue.
+  if (roles.includes('agency_admin') || isAdmin(roles)) {
     items.push({ href: '/app/overview/agency', labelKey: 'agencyView', icon: BarChart3, section: 'manage' });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {

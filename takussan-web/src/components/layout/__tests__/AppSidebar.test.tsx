@@ -156,9 +156,10 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
-    '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
+    // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
+    '/app/overview', '/app/overview/exports', '/app/customers',
     '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
-    '/app/profile/reviews',
+    '/app/profile/reviews', '/app/commissions',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
@@ -166,7 +167,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews',
+    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
   ],
   // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
   // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
@@ -193,7 +194,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews',
+    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
   ],
 };
 
@@ -334,13 +335,14 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
 
   // TCK-590 — 23 → 24 : la boîte « Demandes de contact » (`/app/leads`).
   // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
-  it('les 25 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  // TCK-595 — 25 → 26 : le grand livre des commissions (`/app/commissions`).
+  it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(25);
+    expect(items).toHaveLength(26);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(25);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(26);
   });
 
   it('un rôle sans catalogue ne voit aucune césure vide', () => {

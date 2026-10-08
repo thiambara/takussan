@@ -3,16 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\Agency;
-use App\Models\Enums\AgencyStatus;
-use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\PaymentStatus;
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\UserStatus;
-use App\Models\Lease;
-use App\Models\LeasePayment;
-use App\Models\Property;
-use App\Models\User;
+use App\Models\PlatformMetricDaily;
+use App\Services\Reporting\PlatformMetricsSnapshotter;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -20,84 +12,81 @@ use Illuminate\Http\JsonResponse;
  * (no fan-out) returning the four blocks the platform console needs:
  * agencies, users, properties and revenue.
  *
- * TCK-360 — le bloc `trend` : le point de comparaison à J-30, et RIEN d'autre.
+ * TCK-360 — le bloc `trend` : le point de comparaison à J-30, et RIEN d'autre. Le calcul de la
+ * variation appartient au front ; l'API rend la valeur qu'avait la métrique à la coupure, ou rien.
  *
- * L'accueil de la console rend une variation par tuile. Le calcul de la variation appartient au
- * front (c'est lui qui possède le texte affiché) ; ce qui appartient à l'API, c'est **la valeur
- * qu'avait la métrique à la date de coupure**, ou son absence.
+ * TCK-595 (ADR-0057 §4) — ce point se lit dans l'instantané quotidien `platform_metrics_daily` du
+ * jour J-30, et NULLE PART ailleurs. Chaque colonne non nulle de cette ligne donne sa clé ; une
+ * colonne nulle (ligne rattrapée) ou l'absence de ligne n'en donne aucune. La reconstruction de
+ * TCK-360 depuis `created_at` et `paid_at` est retirée : une tuile et sa tendance suivaient deux
+ * règles. Conséquence assumée : aucune tendance pendant les trente jours qui suivent le déploiement.
  *
- * ⚠ HUIT des onze métriques de cette réponse n'ont PAS de point de comparaison, et n'en auront
- * pas sans table d'historique. Comptées PAR EXÉCUTION sur la réponse elle-même (2026-08-27) :
- * `agencies.verified` / `active` / `suspended` / `verification_rate`, `users.active`,
- * `properties.published`, `properties.pending_review`, `leases.active`. Toutes dérivent d'un
- * **statut courant** : la ligne ne porte aucune trace de ce qu'était son statut il y a trente
- * jours — une agence suspendue hier compte aujourd'hui comme suspendue depuis toujours. *Une
- * tendance reconstruite depuis un statut courant n'est pas une mesure, c'est une invention* ; ces
- * métriques sont donc absentes de `previous`, et le front ne rend alors aucun delta (contrainte
- * du ticket : « jamais de tendance inventée »).
- *
- * ⚠ Ce HUIT ne contredit pas le CINQ du ticket et du front : les deux ne comptent pas la même
- * chose. Ici, des métriques de la réponse ; là-bas, des TUILES de l'accueil — cinq des huit n'ont
- * jamais de delta. `users.active` et `verification_rate` y sont des précisions sous une autre
- * tuile, et `leases.active` n'y est pas rendue du tout. Le docblock précédent écrivait « trois
- * des huit » puis en énumérait six : il mélangeait les deux dénombrements et n'en donnait aucun
- * juste.
- *
- * ⚠ Ce que `previous` reconstruit exactement : « les enregistrements ENCORE présents dont la
- * création précède la coupure ». Ce n'est pas un instantané — `Agency` et `User` portent
- * `SoftDeletes`, une ligne supprimée depuis manque des deux côtés. C'est la seule reconstruction
- * possible sans historiser, et elle est nommée ici plutôt que devinée plus tard.
+ * Le bloc `revenue` suit l'*Encaissé* (`CollectedPayments`) : loyers de revenu et réservations nettes
+ * de remboursement, jamais un dépôt de garantie ni sa restitution. `platform_total_paid` reprend
+ * `collected_total` le temps que le front migre.
  */
 class SystemMetricsController extends Controller
 {
     /** Fenêtre de comparaison, en jours. Alignée sur le « delta 30 jours » de l'accueil. */
     private const TREND_PERIOD_DAYS = 30;
 
+    /** Colonne de l'instantané → clé de `trend.previous`. */
+    private const TREND_KEYS = [
+        'agencies_total' => 'agencies_total',
+        'agencies_active' => 'agencies_active',
+        'agencies_verified' => 'agencies_verified',
+        'agencies_suspended' => 'agencies_suspended',
+        'users_total' => 'users_total',
+        'users_active' => 'users_active',
+        'properties_published' => 'properties_published',
+        'properties_pending_review' => 'properties_pending_review',
+        'leases_active' => 'leases_active',
+        'collected_total_amount' => 'revenue_collected_total',
+        'mrr_amount' => 'revenue_mrr',
+        'mrr_trialing_amount' => 'revenue_mrr_trialing',
+    ];
+
+    public function __construct(private readonly PlatformMetricsSnapshotter $metrics) {}
+
     public function index(): JsonResponse
     {
-        $totalAgencies = Agency::query()->count();
-        $verifiedAgencies = Agency::query()->where('is_verified', true)->count();
-        $activeAgencies = Agency::query()->where('status', AgencyStatus::Active)->count();
-        $suspendedAgencies = Agency::query()->where('status', AgencyStatus::Suspended)->count();
-
-        $totalUsers = User::query()->count();
-        $activeUsers = User::query()->where('status', UserStatus::Active)->count();
-
-        $publishedProperties = Property::query()->where('status', PropertyStatus::Published)->count();
-        $pendingProperties = Property::query()->where('status', PropertyStatus::PendingReview)->count();
-
-        $activeLeases = Lease::query()->where('status', LeaseStatus::Active)->count();
-
-        // TCK-594 (P4-5) — une caution rendue est une sortie, pas un encaissement.
-        $platformRevenue = (float) LeasePayment::query()
-            ->exceptDepositRefunds()
-            ->where('status', PaymentStatus::Paid)
-            ->sum('amount');
+        $stocks = $this->metrics->stocks(now());
+        $flows = $this->metrics->flowsBetween(now()->subDays(PlatformMetricsSnapshotter::WINDOW_DAYS), now());
+        $collected = $this->metrics->collectedTotal();
+        $totalAgencies = (int) $stocks['agencies_total'];
 
         return $this->json([
             'data' => [
                 'agencies' => [
                     'total' => $totalAgencies,
-                    'verified' => $verifiedAgencies,
-                    'active' => $activeAgencies,
-                    'suspended' => $suspendedAgencies,
+                    'verified' => $stocks['agencies_verified'],
+                    'active' => $stocks['agencies_active'],
+                    'suspended' => $stocks['agencies_suspended'],
                     'verification_rate' => $totalAgencies > 0
-                        ? round($verifiedAgencies / $totalAgencies, 4)
+                        ? round($stocks['agencies_verified'] / $totalAgencies, 4)
                         : 0.0,
                 ],
                 'users' => [
-                    'total' => $totalUsers,
-                    'active' => $activeUsers,
+                    'total' => $stocks['users_total'],
+                    'active' => $stocks['users_active'],
                 ],
                 'properties' => [
-                    'published' => $publishedProperties,
-                    'pending_review' => $pendingProperties,
+                    'published' => $stocks['properties_published'],
+                    'pending_review' => $stocks['properties_pending_review'],
                 ],
                 'leases' => [
-                    'active' => $activeLeases,
+                    'active' => $stocks['leases_active'],
                 ],
                 'revenue' => [
-                    'platform_total_paid' => $platformRevenue,
+                    'collected_total' => $collected,
+                    // Transition : même valeur que `collected_total`, retirée quand le front l'aura quittée.
+                    'platform_total_paid' => $collected,
+                    'gmv_30d' => $flows['gmv'],
+                    'platform_fees_30d' => $flows['fees'],
+                    'take_rate' => PlatformMetricsSnapshotter::takeRate($flows['gmv'], $flows['fees']),
+                    'mrr' => $stocks['mrr_amount'],
+                    'mrr_trialing' => $stocks['mrr_trialing_amount'],
+                    'active_subscriptions' => $stocks['active_subscriptions'],
                     'currency' => 'XOF',
                 ],
                 'trend' => $this->trend(),
@@ -107,47 +96,22 @@ class SystemMetricsController extends Controller
     }
 
     /**
-     * Le point de comparaison à J-30 — une clé par métrique REELLEMENT reconstructible.
-     *
-     * Une clé absente est un contrat : « pas de point de comparaison ». Le front n'a donc jamais à
-     * deviner si un `0` veut dire « zéro » ou « inconnu » — et c'est bien un `0` qu'on omet ici :
-     * sans une seule ligne antérieure à la coupure, la « variation » vaut la totalité du jeu de
-     * données. Ce n'est pas une tendance sur 30 jours, c'est l'âge de la plateforme.
+     * Le point de comparaison à J-30, lu dans l'instantané de ce jour-là — une clé par colonne
+     * mesurée. Une clé absente est un contrat : « pas de point de comparaison ».
      *
      * @return array<string, mixed>
      */
     private function trend(): array
     {
         $cutoff = now()->subDays(self::TREND_PERIOD_DAYS);
+        $snapshot = PlatformMetricDaily::query()->whereDate('date', $cutoff->toDateString())->first();
 
         $previous = [];
-
-        $agenciesBefore = Agency::query()->where('created_at', '<', $cutoff)->count();
-        if ($agenciesBefore > 0) {
-            $previous['agencies_total'] = $agenciesBefore;
-        }
-
-        $usersBefore = User::query()->where('created_at', '<', $cutoff)->count();
-        if ($usersBefore > 0) {
-            $previous['users_total'] = $usersBefore;
-        }
-
-        // Le revenu est cumulatif et daté par `paid_at` — mais cette colonne est NULLABLE. Un
-        // encaissement sans date n'appartient à aucune fenêtre : il manquerait du seul côté
-        // « avant » et gonflerait la croissance d'autant. Tant qu'il en existe un, il n'y a pas de
-        // point de comparaison honnête, et la clé reste absente.
-        $paidWithoutDate = LeasePayment::query()
-            ->where('status', PaymentStatus::Paid)
-            ->whereNull('paid_at')
-            ->exists();
-
-        $paidBefore = LeasePayment::query()
-            ->exceptDepositRefunds()
-            ->where('status', PaymentStatus::Paid)
-            ->where('paid_at', '<', $cutoff);
-
-        if (! $paidWithoutDate && $paidBefore->clone()->exists()) {
-            $previous['revenue_platform_total_paid'] = (float) $paidBefore->sum('amount');
+        foreach (self::TREND_KEYS as $column => $key) {
+            $value = $snapshot?->getAttribute($column);
+            if ($value !== null) {
+                $previous[$key] = str_ends_with($column, '_amount') ? (float) $value : (int) $value;
+            }
         }
 
         return [

@@ -27,6 +27,8 @@ class AgencyStatsTest extends ApiTestCase
         // Seed some data attached to this agency.
         Property::factory()->count(3)->create(['agency_id' => $agency->id]);
         Property::factory()->count(2)->create(['agency_id' => null]); // noise — different agency
+        // TCK-595 — l'équipe est le personnel ACTIF : deux agents comptent, deux bailleurs non.
+        User::factory()->count(2)->withAgentProfile($agency)->create();
         User::factory()->count(2)->create(['agency_id' => $agency->id]);
         Customer::factory()->count(4)->create(['agency_id' => $agency->id]);
 
@@ -56,7 +58,7 @@ class AgencyStatsTest extends ApiTestCase
         $data = $response->json('data');
         $this->assertSame($agency->id, $data['agency_id']);
         $this->assertSame(3, $data['properties_count']);
-        // Members: primary admin + 2 seeded members = 3.
+        // Members: primary admin + 2 active agents = 3 (the 2 landlords are not the team).
         $this->assertSame(3, $data['members_count']);
         $this->assertSame(4, $data['customers_count']);
         $this->assertSame(2, $data['active_leases_count']);
@@ -83,7 +85,12 @@ class AgencyStatsTest extends ApiTestCase
             ]);
     }
 
-    public function test_commission_month_excludes_unsigned_and_terminated_leases(): void
+    /**
+     * TCK-595 (ADR-0049 §5) — un bail résilié dans le mois de sa signature reste compté : sa
+     * commission était acquise à l'activation, et ses lignes du grand livre restent `due` (l'admin
+     * peut les annuler). L'ancienne règle la retirait du mois de signature.
+     */
+    public function test_commission_month_excludes_unsigned_leases_and_keeps_terminated_ones(): void
     {
         $agency = Agency::factory()->create();
         $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
@@ -112,7 +119,7 @@ class AgencyStatsTest extends ApiTestCase
             'signed_at' => now(),
         ]);
 
-        // Terminated this month — commission is reversed.
+        // Terminated this month — the commission was earned at activation: it stays.
         Lease::factory()->create([
             'agency_id' => $agency->id,
             'status' => LeaseStatus::Terminated,
@@ -130,7 +137,7 @@ class AgencyStatsTest extends ApiTestCase
         ]);
 
         $response = $this->apiGet("/api/agencies/{$agency->id}/stats")->assertOk();
-        $this->assertEqualsWithDelta(100_000, $response->json('data.commission_month'), 0.01);
+        $this->assertEqualsWithDelta(800_000, $response->json('data.commission_month'), 0.01);
     }
 
     public function test_agency_admin_cannot_view_stats_of_another_agency(): void

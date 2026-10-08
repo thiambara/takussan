@@ -19,6 +19,7 @@ import { AgentAbsencesSection } from '@/components/crm/AgentAbsencesSection';
 import { ConfirmSuspendDialog } from '@/components/admin/ConfirmSuspendDialog';
 import { suspensionOffer } from '@/components/admin/users/team-suspension';
 import { PendingInvitationsSection } from '@/components/admin/PendingInvitationsSection';
+import { TeamPerformanceTable } from '@/components/admin/team/TeamPerformanceTable';
 import { fetchAdminUsers } from '@/lib/queries/admin-users';
 import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
@@ -35,15 +36,22 @@ import type {
 } from '@/types/admin-users';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const TAB_VALUES = ['tous', 'agents', 'admins', 'proprietaires'] as const;
+const TAB_VALUES = ['tous', 'agents', 'admins', 'proprietaires', 'performance'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
-const TAB_TO_ROLE: Record<TabValue, AdminUserRoleFilter | ''> = {
+const TAB_TO_ROLE: Record<Exclude<TabValue, 'performance'>, AdminUserRoleFilter | ''> = {
   tous: '',
   agents: 'agent',
   admins: 'agency_admin',
   proprietaires: 'owner',
 };
+
+/**
+ * TCK-595 (AD16) — l'onglet « Performance » n'est pas un filtre de rôle : il remplace la liste des
+ * membres par le tableau comparatif des agents. Il vit dans `?vue=performance`, à côté de
+ * `filter[role]` qu'il efface.
+ */
+const VUE_PERFORMANCE = 'performance';
 
 const ROLE_TO_TAB: Record<string, TabValue> = {
   agent: 'agents',
@@ -95,7 +103,12 @@ export function TeamConsole({
   const { token } = useAuth();
 
   const currentRole = searchParams.get('filter[role]') ?? '';
-  const tab: TabValue = ROLE_TO_TAB[currentRole] ?? 'tous';
+  // TCK-595 — la performance d'équipe : agences `standard`, et `reports.view_agency` (la même garde
+  // que l'API). Sans la capacité, un `?vue=performance` retombe sur la liste.
+  const { can: canViewPerformance } = useCan('reports.view_agency', agencyId);
+  const performanceOffered = canViewPerformance && agencyKind === 'standard';
+  const performance = performanceOffered && searchParams.get('vue') === VUE_PERFORMANCE;
+  const tab: TabValue = performance ? 'performance' : (ROLE_TO_TAB[currentRole] ?? 'tous');
 
   const [drawerUser, setDrawerUser] = useState<AdminAgencyUserRow | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -141,6 +154,7 @@ export function TeamConsole({
     queryKey: ['admin-users', 'list', params],
     queryFn: () => fetchAdminUsers(params),
     staleTime: 15_000,
+    enabled: !performance,
   });
 
   // TCK-279 (AC11) — le rôle d'agence de chaque ligne affichée.
@@ -228,11 +242,17 @@ export function TeamConsole({
       const value = (TAB_VALUES as readonly string[]).includes(next)
         ? (next as TabValue)
         : 'tous';
-      const nextRole = TAB_TO_ROLE[value];
       const qs = new URLSearchParams(searchParams.toString());
-      if (nextRole) qs.set('filter[role]', nextRole);
-      else qs.delete('filter[role]');
       qs.delete('page');
+      if (value === 'performance') {
+        qs.delete('filter[role]');
+        qs.set('vue', VUE_PERFORMANCE);
+      } else {
+        const nextRole = TAB_TO_ROLE[value];
+        if (nextRole) qs.set('filter[role]', nextRole);
+        else qs.delete('filter[role]');
+        qs.delete('vue');
+      }
       const str = qs.toString();
       router.replace(str ? `?${str}` : '?');
     },
@@ -249,73 +269,86 @@ export function TeamConsole({
 
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>
-            <TabsTrigger value="agents">{tConsole('tabs.agents')}</TabsTrigger>
-            <TabsTrigger value="admins">{tConsole('tabs.admins')}</TabsTrigger>
-            <TabsTrigger value="proprietaires">{tConsole('tabs.owners')}</TabsTrigger>
-          </TabsList>
+          {/* TCK-595 — un cinquième onglet ne tient plus à 360 px : le ruban défile dans son
+              conteneur plutôt que de pousser la page (même forme que `/admin/finances`). */}
+          <div className="-mx-1 max-w-full overflow-x-auto px-1">
+            <TabsList>
+              <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>
+              <TabsTrigger value="agents">{tConsole('tabs.agents')}</TabsTrigger>
+              <TabsTrigger value="admins">{tConsole('tabs.admins')}</TabsTrigger>
+              <TabsTrigger value="proprietaires">{tConsole('tabs.owners')}</TabsTrigger>
+              {performanceOffered ? (
+                <TabsTrigger value="performance">{tConsole('tabs.performance')}</TabsTrigger>
+              ) : null}
+            </TabsList>
+          </div>
         </div>
       </Tabs>
 
-      <AgentAbsencesSection agencyId={agencyId} currentUserId={currentUserId} />
+      {performance ? (
+        <TeamPerformanceTable agencyId={agencyId} />
+      ) : (
+        <>
+          <AgentAbsencesSection agencyId={agencyId} currentUserId={currentUserId} />
 
-      <AdminUsersFilters hideRoleFilter />
+          <AdminUsersFilters hideRoleFilter />
 
-      {actionError ? <ErrorState message={actionError} /> : null}
+          {actionError ? <ErrorState message={actionError} /> : null}
 
-      <DataState
-        data-testid="team-console-loading"
-        loading={usersQuery.isLoading}
-        error={usersQuery.isError ? messageErreur(usersQuery.error, t('error')) : null}
-        onRetry={() => void usersQuery.refetch()}
-        retryLabel={tCommon('actions.retry')}
-        skeletonRows={6}
-        skeletonRowClassName="h-12"
-        isEmpty={!usersQuery.data || usersQuery.data.data.length === 0}
-        emptyState={(
-          // `team.*` était un namespace ORPHELIN : ses clés existaient dans les trois locales et
-          // aucun fichier ne les consommait. Elles portent exactement la copie « encouragement +
-          // CTA » que `design-guidelines.md:83` exige, là où l'écran affichait en dur « Aucun
-          // membre ne correspond aux filtres courants. » — un constat, pas un encouragement.
-          <EmptyState
-            data-testid="team-console-empty"
-            icon={<Users className="size-8" aria-hidden="true" />}
-            title={hasActiveFilters ? t('empty_filtered_title') : t('empty_title')}
-            description={
-              hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
-            }
-            action={
-              hasActiveFilters ? undefined : (
-                <Button onClick={() => setInviteOpen(true)}>
-                  <UserPlus className="mr-1 size-4" aria-hidden="true" />
-                  {t('add')}
-                </Button>
-              )
-            }
-          />
-        )}
-      >
-        {usersQuery.data ? (
-          <div className="space-y-4">
-            <AdminUsersTable
-              rows={usersQuery.data.data}
-              total={usersQuery.data.meta.total}
-              currentUserId={currentUserId}
-              assignmentsByUser={assignmentsByUser}
-              onSelect={(u) => setDrawerUser(u)}
-              suspensionFor={suspensionFor}
-              onSuspension={(member, action) => setSuspending({ member, action })}
-              onRemove={(u) => setRemoving(u)}
-            />
-            <Pagination
-              page={usersQuery.data.meta.current_page}
-              lastPage={usersQuery.data.meta.last_page ?? usersQuery.data.meta.current_page}
-              onChange={goToPage}
-            />
-          </div>
-        ) : null}
-      </DataState>
+          <DataState
+            data-testid="team-console-loading"
+            loading={usersQuery.isLoading}
+            error={usersQuery.isError ? messageErreur(usersQuery.error, t('error')) : null}
+            onRetry={() => void usersQuery.refetch()}
+            retryLabel={tCommon('actions.retry')}
+            skeletonRows={6}
+            skeletonRowClassName="h-12"
+            isEmpty={!usersQuery.data || usersQuery.data.data.length === 0}
+            emptyState={(
+              // `team.*` était un namespace ORPHELIN : ses clés existaient dans les trois locales et
+              // aucun fichier ne les consommait. Elles portent exactement la copie « encouragement +
+              // CTA » que `design-guidelines.md:83` exige, là où l'écran affichait en dur « Aucun
+              // membre ne correspond aux filtres courants. » — un constat, pas un encouragement.
+              <EmptyState
+                data-testid="team-console-empty"
+                icon={<Users className="size-8" aria-hidden="true" />}
+                title={hasActiveFilters ? t('empty_filtered_title') : t('empty_title')}
+                description={
+                  hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
+                }
+                action={
+                  hasActiveFilters ? undefined : (
+                    <Button onClick={() => setInviteOpen(true)}>
+                      <UserPlus className="mr-1 size-4" aria-hidden="true" />
+                      {t('add')}
+                    </Button>
+                  )
+                }
+              />
+            )}
+          >
+            {usersQuery.data ? (
+              <div className="space-y-4">
+                <AdminUsersTable
+                  rows={usersQuery.data.data}
+                  total={usersQuery.data.meta.total}
+                  currentUserId={currentUserId}
+                  assignmentsByUser={assignmentsByUser}
+                  onSelect={(u) => setDrawerUser(u)}
+                  suspensionFor={suspensionFor}
+                  onSuspension={(member, action) => setSuspending({ member, action })}
+                  onRemove={(u) => setRemoving(u)}
+                />
+                <Pagination
+                  page={usersQuery.data.meta.current_page}
+                  lastPage={usersQuery.data.meta.last_page ?? usersQuery.data.meta.current_page}
+                  onChange={goToPage}
+                />
+              </div>
+            ) : null}
+          </DataState>
+        </>
+      )}
 
       <UserDetailDrawer
         user={drawerUser}

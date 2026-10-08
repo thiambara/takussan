@@ -82,6 +82,13 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'dashboard.agency.chartTitle': 'période affichée, pas une promesse',
   'dashboard.agent.chartTitle': 'période affichée, pas une promesse',
   'dashboard.owner.chartTitle': 'période affichée, pas une promesse',
+  'superAdmin.metrics.gmvHint': 'période affichée (« sur 30 jours »), pas une promesse',
+  // TCK-595 — les tranches de la balance âgée : une ANCIENNETÉ de retard mesurée (« 61 à 90 jours »,
+  // « Plus de 90 jours »), bornes de `AgingBalanceService::BUCKETS`, pas un délai promis.
+  'admin.finances.aging.buckets.1_30': 'tranche d\'ancienneté affichée, pas une promesse',
+  'admin.finances.aging.buckets.31_60': 'tranche d\'ancienneté affichée, pas une promesse',
+  'admin.finances.aging.buckets.61_90': 'tranche d\'ancienneté affichée, pas une promesse',
+  'admin.finances.aging.buckets.90_plus': 'tranche d\'ancienneté affichée, pas une promesse',
 };
 
 /**

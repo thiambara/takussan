@@ -103,6 +103,9 @@ return [
         'sync_throttled' => 'This calendar was just synchronised. Try again in a minute.',
         'unsafe_url' => 'This calendar link cannot be imported: it must use HTTPS and point to a public service.',
     ],
+    'commission' => [
+        'not_due' => 'Only a commission that is due can be marked paid or cancelled.',
+    ],
     'conversation' => [
         'participant_not_found' => 'This participant is not part of the conversation.',
         'participant_required' => 'At least one other participant is required.',
@@ -112,7 +115,7 @@ return [
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
     'dashboard' => [
-        'profile_unresolved' => 'No dashboard matches your profile.',
+        'invalid_scope' => 'The requested scope must be “mine” or “agency”.',
     ],
     'data_export' => [
         'expired' => 'This data export has expired.',
@@ -234,6 +237,8 @@ return [
     ],
     'lease' => [
         'cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
+        'commission_forbidden' => 'Only agency staff allowed to open leases can set the commission and the negotiator.',
+        'commission_locked' => 'The commission and the negotiator are set on a draft lease: once activated, its commission is already split.',
         'guarantor_already_attached' => 'This guarantor is already attached to the lease.',
         'max_guarantors' => 'A lease cannot have more than 3 guarantors.',
         'not_activatable' => 'Only a draft lease or one awaiting signature can be activated.',
@@ -422,6 +427,7 @@ return [
         'duplicate_file' => 'This statement has already been imported for this agency.',
     ],
     'reporting' => [
+        'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
     ],
