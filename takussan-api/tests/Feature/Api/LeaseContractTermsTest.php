@@ -3,9 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Customer;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\SettingScope;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\Setting;
 use App\Models\User;
@@ -164,7 +166,7 @@ class LeaseContractTermsTest extends TestCase
     }
 
     /** Un bail en brouillon, signable par code : son locataire a un compte. */
-    private function signableLease(): Lease
+    private function signableLease(array $attributes = []): Lease
     {
         Notification::fake();
         $this->mock(DocumentPdfService::class, function ($mock): void {
@@ -173,7 +175,7 @@ class LeaseContractTermsTest extends TestCase
             );
         });
 
-        return $this->lease([
+        return $this->lease($attributes + [
             'tenant_id' => Customer::factory()->create(['user_id' => User::factory()->create()->id])->id,
             'monthly_rent' => 100_000,
             'start_date' => now()->subMonth()->toDateString(),
@@ -262,9 +264,9 @@ class LeaseContractTermsTest extends TestCase
     // ── VERIF-596 passe 3 (N1') — le renouvellement recopie les termes figés du parent ───────────
 
     /** Un parent signé et actif ; ses termes d'exécution négociés en brouillon, puis figés. */
-    private function signedParent(array $negotiated = []): Lease
+    private function signedParent(array $negotiated = [], array $attributes = []): Lease
     {
-        $lease = $this->signableLease();
+        $lease = $this->signableLease($attributes);
         Sanctum::actingAs($lease->landlord);
         if ($negotiated !== []) {
             $this->patchJson("/api/leases/{$lease->id}", $negotiated)->assertOk();
@@ -427,5 +429,76 @@ class LeaseContractTermsTest extends TestCase
         $this->patchJson("/api/leases/{$lease->id}/rent", ['new_rent' => 130_000, 'reason' => 'Révision forcée', 'force' => true])
             ->assertOk();
         $this->assertEquals(130_000, (float) $lease->fresh()->monthly_rent);
+    }
+
+    // ── VERIF-596 passe 4 (M-T) — la résiliation immédiate facture l'indemnité figée ─────────────
+
+    /** Une activation validée à la LIAISON de route : l'instance liée reste `pending_signature`. */
+    private function slipActivationAtBinding(int $id): void
+    {
+        $slipped = false;
+        Lease::retrieved(function (Lease $model) use ($id, &$slipped): void {
+            if (! $slipped && $model->id === $id && $model->status === LeaseStatus::PendingSignature) {
+                $slipped = true;
+                Lease::query()->whereKey($id)->update(['status' => LeaseStatus::Active->value, 'signed_at' => now()]);
+            }
+        });
+    }
+
+    private function terminationPenalty(Lease $lease): ?float
+    {
+        $rows = LeasePayment::query()->where('lease_id', $lease->id)->where('payment_type', LeasePaymentType::Penalty->value)->get();
+
+        return $rows->isEmpty() ? null : (float) $rows->sum('amount');
+    }
+
+    /**
+     * Avant : `LeaseService::terminate` facturait `min(mois restants, 3)` loyers en dur — 300 000
+     * pour un contrat qui imprime « 1 mois » ou « 0 mois », 300 000 pour « 6 mois ».
+     */
+    public function test_an_immediate_termination_bills_the_frozen_penalty(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 2);
+        $billed = [];
+        foreach ([1 => 100_000.0, 0 => null, 6 => 600_000.0] as $months => $expected) {
+            $lease = $this->signedParent(['early_termination_penalty_months' => $months], ['end_date' => now()->addMonths(10)->toDateString()]);
+            $this->postJson("/api/leases/{$lease->id}/terminate", ['reason' => 'force majeure'])
+                ->assertOk()->assertJsonPath('data.status', 'terminated');
+            $billed[$months] = [$this->terminationPenalty($lease), $expected];
+        }
+
+        foreach ($billed as $months => [$actual, $expected]) {
+            $this->assertSame($expected, $actual, "figé à {$months} mois");
+        }
+    }
+
+    /** Un bail antérieur (colonne nulle) suit le réglage, exactement comme `computePenalty`. */
+    public function test_an_immediate_termination_of_a_legacy_lease_follows_the_setting(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 4);
+        $lease = $this->lease(['status' => LeaseStatus::Active, 'monthly_rent' => 100_000, 'end_date' => now()->addMonths(10)->toDateString()]);
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/terminate", [])->assertOk();
+
+        $this->assertSame(400_000.0, $this->terminationPenalty($lease));
+    }
+
+    /**
+     * m-c, volet `terminate` : une activation glissée à la liaison de route. Avant : le statut se
+     * jugeait sur l'instance liée (`pending_signature`) et le bail actif était résilié sans indemnité.
+     */
+    public function test_an_immediate_termination_is_judged_on_the_locked_row(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 2);
+        $lease = $this->signableLease(['end_date' => now()->addMonths(10)->toDateString()]);
+        app(LeaseSignatureService::class)->request($lease, $lease->landlord);
+        $this->slipActivationAtBinding($lease->id);
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/terminate", [])->assertOk();
+
+        $this->assertSame(LeaseStatus::Terminated, $lease->fresh()->status);
+        $this->assertSame(200_000.0, $this->terminationPenalty($lease));
     }
 }

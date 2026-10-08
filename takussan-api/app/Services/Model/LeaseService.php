@@ -15,6 +15,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Lease\EarlyTerminationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -186,46 +187,53 @@ class LeaseService
 
     public function terminate(Lease $lease, User $user, ?string $reason = null): Lease
     {
-        abort_code_unless(
-            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
-            422,
-            'lease.cannot_terminate'
-        );
-
-        $penaltyAmount = null;
-        if ($lease->status === LeaseStatus::Active && $lease->end_date && $lease->end_date->isFuture()) {
-            $remainingMonths = (int) now()->diffInMonths($lease->end_date);
-            $penaltyAmount = min($remainingMonths, 3) * ($lease->monthly_rent ?? 0);
-        }
-
         // The status flip and the penalty charge must commit together: if the
         // penalty insert failed after the status update, the lease would be
         // Terminated with no penalty and the charge could never be re-applied
         // (it's no longer Active).
-        DB::transaction(function () use ($lease, $user, $reason, $penaltyAmount): void {
-            $lease->update([
+        return DB::transaction(function () use ($lease, $user, $reason): Lease {
+            // VERIF-596 passe 4 (m-c) — statut et indemnité se jugent sur la ligne VERROUILLÉE : sur
+            // l'instance liée, une activation validée entre-temps laissait résilier un bail actif
+            // sans indemnité.
+            /** @var Lease $locked */
+            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            abort_code_unless(
+                in_array($locked->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
+                422,
+                'lease.cannot_terminate'
+            );
+
+            // VERIF-596 passe 4 (M-T, ADR-0042 §1) — l'indemnité est celle que le contrat imprime :
+            // même règle que la voie formelle (`computePenalty`), le terme figé borné aux mois
+            // restants. Avant : `min(mois restants, 3)` loyers en dur, quel que soit le contrat
+            // signé. Un bail en attente de signature n'est pas en vigueur : aucune indemnité.
+            $penaltyAmount = $locked->status === LeaseStatus::Active
+                ? app(EarlyTerminationService::class)->computePenalty($locked, now())
+                : 0.0;
+
+            $locked->update([
                 'status' => LeaseStatus::Terminated,
                 'terminated_at' => now(),
                 'terminated_by_id' => $user->id,
                 'termination_reason' => $reason,
             ]);
 
-            if ($penaltyAmount && $penaltyAmount > 0) {
+            if ($penaltyAmount > 0) {
                 LeasePayment::create([
-                    'lease_id' => $lease->id,
+                    'lease_id' => $locked->id,
                     'reference_number' => ReferenceNumberGenerator::leasePayment(),
-                    'payer_id' => $lease->tenant_id,
+                    'payer_id' => $locked->tenant_id,
                     'payment_type' => LeasePaymentType::Penalty->value,
                     'amount' => $penaltyAmount,
-                    'currency' => $lease->currency?->value ?? 'XOF',
+                    'currency' => $locked->currency?->value ?? 'XOF',
                     'status' => PaymentStatus::Pending,
                     'due_date' => now()->addDays(30)->toDateString(),
                     'period_start' => now()->toDateString(),
                     'period_end' => now()->addDays(30)->toDateString(),
                 ]);
             }
-        });
 
-        return $lease->refresh();
+            return $locked->refresh();
+        });
     }
 }

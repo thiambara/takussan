@@ -63,6 +63,13 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    ce qui n'est **pas** la sémantique d'un bail antérieur : le parent a une valeur figée et signée.
    Un enfant `pending_signature` hérite de la valeur, que sa demande de signature fige et imprime.
    Seul un parent antérieur (colonnes nulles) donne un enfant nul.
+   **Toutes les voies de résiliation lisent le terme figé** (amendé après VERIF-596 passe 4, M-T) : la
+   résiliation anticipée formelle (`EarlyTerminationService`) comme la résiliation immédiate
+   (`POST leases/{id}/terminate`, `LeaseService::terminate`) facturent
+   `EarlyTerminationService::computePenalty` — le terme figé, borné aux mois restants ; le réglage
+   seulement pour un bail antérieur. Un bail figé à 0 ne produit aucune ligne de pénalité. La
+   résiliation immédiate facturait auparavant `min(mois restants, 3)` loyers en dur, quel que soit le
+   contrat signé. Elle juge statut et indemnité sur la ligne verrouillée.
    `late_fees.cap_percent` n'est **pas** figé, délibérément : ce plafond ne peut que **baisser** la
    pénalité de retard imprimée, il ne joue jamais contre le locataire. **La dérogation
    `leases.rent_review_force` ne dépasse pas un plafond figé** (tranché après VERIF-596 passe 3, m-b,
