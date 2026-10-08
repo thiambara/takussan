@@ -44,13 +44,10 @@ const SONDE = [
 
 describe('cheminApi', () => {
   it.each(SONDE)('refuse %j dans le chemin, par une ApiError 400 invalid_path', (valeur) => {
+    expect(() => cheminApi`/api/customers/${valeur}/notes`).toThrow(
+      expect.objectContaining({ status: 400, data: { code: 'invalid_path' } }),
+    );
     expect(() => cheminApi`/api/customers/${valeur}/notes`).toThrow(ApiError);
-    try {
-      cheminApi`/api/customers/${valeur}/notes`;
-    } catch (e) {
-      expect((e as ApiError).status).toBe(400);
-      expect((e as ApiError).data).toEqual({ code: 'invalid_path' });
-    }
   });
 
   it('encode un segment ordinaire', () => {
