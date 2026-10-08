@@ -2080,3 +2080,24 @@ refuse pour tout numéro vérifié : l'écran devait donc demander la preuve.
 - eslint et `tsc` sont propres.
 - `check-i18n` est à parité (6137 clés), et `check-i18n-namespaces` est propre.
 - Toutes les gardes racine passent.
+
+#### p3-1a bis — le code de preuve compte dans la borne de l'**ancien** numéro (trouvé en écrivant l'ADR)
+
+**Le défaut, dans la route que p3-1a ajoutait.** `auth-phone-send` compte par numéro
+destinataire et prend pour cela le `phone` du **corps** quand il y en a un
+(`phoneRateLimitKey`). `change-code` ignore ce champ et envoie toujours au numéro du compte. Un
+`phone` différent à chaque appel ouvrait donc un seau neuf à chaque fois. Le porteur d'un jeton
+volé pouvait ainsi envoyer un SMS par minute vers le titulaire (délai de renvoi de 60 s), hors de
+la borne de 3 par 15 min et de 5 par 24 h.
+
+**Le correctif.** Pour la route `auth.phone.change-code`, la clé du limiteur est toujours le
+numéro du compte. Pour `send-otp` et `resend`, la clé reste le numéro du corps : c'est vers lui
+que leur SMS part.
+
+**Les preuves :**
+- `PhoneChangeProofTest::test_le_code_de_preuve_compte_dans_la_borne_de_l_ancien_numero` rejoue
+  le limiteur réel : quatre appels espacés de 61 s, chacun avec un `phone` différent. Attendu
+  `[200, 200, 200, 429]`, avec 3 SMS vers P.
+- Rouge avant correctif : `[200, 200, 200, 200]`.
+- Ablation (la clé reprend le corps) : 1 rouge sur 9. Restauré par `cp`, md5 identique.
+- Exécutions : `tests/Feature/Auth/Phone` (dont `PhoneLoginRateLimitTest`) donne 59 verts.

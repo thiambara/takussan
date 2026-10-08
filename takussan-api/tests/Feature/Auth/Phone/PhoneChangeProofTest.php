@@ -149,6 +149,27 @@ class PhoneChangeProofTest extends TestCase
         $this->assertSame(self::N, $u->fresh()->phone);
     }
 
+    /**
+     * Le code de preuve compte dans la borne par numéro de l'ANCIEN numéro, quoi que porte le
+     * corps : `auth-phone-send` prend le `phone` du corps quand il y en a un, et un corps changeant
+     * à chaque appel aurait ouvert un seau neuf à chaque fois — un SMS par minute vers le titulaire.
+     */
+    public function test_le_code_de_preuve_compte_dans_la_borne_de_l_ancien_numero(): void
+    {
+        $this->withMiddleware(ThrottleRequests::class);
+        $u = $this->compteSansEmail();
+        $this->en($u);
+
+        $statuts = [];
+        for ($i = 0; $i < 4; $i++) {
+            $statuts[] = $this->postJson('/api/auth/phone/change-code', ['phone' => '+22177000980'.$i])->status();
+            $this->travel(61)->seconds();
+        }
+
+        $this->assertSame([200, 200, 200, 429], $statuts);
+        $this->assertCount(3, $this->sms->sentTo(self::P));
+    }
+
     public function test_un_compte_sans_numero_verifie_n_est_pas_concerne(): void
     {
         $u = User::factory()->create(['phone' => self::P, 'phone_verified_at' => null]);

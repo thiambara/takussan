@@ -412,7 +412,9 @@ class AppServiceProvider extends ServiceProvider
      */
     private function phoneRateLimitKey(Request $request): string
     {
-        $phone = (string) $request->input('phone');
+        // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
+        // `phone` glissé dans le corps aurait ouvert un seau neuf à chaque appel.
+        $phone = $request->routeIs('auth.phone.change-code') ? '' : (string) $request->input('phone');
         if ($phone === '') {
             $phone = (string) ($request->user()?->phone ?? '');
         }
