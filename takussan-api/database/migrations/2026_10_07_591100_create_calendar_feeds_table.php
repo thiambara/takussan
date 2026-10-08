@@ -24,6 +24,10 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['user_id', 'agency_id'], 'calendar_feeds_user_agency_idx');
+            // PostgreSQL n'indexe pas une clé étrangère (piège n° 8) : la suppression d'une agence
+            // (cascade) et toute lecture par agence ont leur index. Aucune lecture ne liste par agence
+            // puis par utilisateur — celles du lien partent de l'utilisateur (index ci-dessus).
+            $table->index('agency_id', 'calendar_feeds_agency_idx');
         });
     }
 
