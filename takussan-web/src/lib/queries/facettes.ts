@@ -48,7 +48,9 @@ export async function villesDuCatalogue(): Promise<Map<string, string> | null> {
     const reponse = await apiFetch<ReponseVilles>(
       '/public/properties/cities',
       { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,
-      { locale: DEFAULT_LOCALE },
+      // TCK-598 — PARTAGÉ : en cache de données, la même réponse sert tous les visiteurs. Une IP
+      // dans la clé la fragmenterait, et lire les en-têtes entrants rendrait la route dynamique.
+      { locale: DEFAULT_LOCALE, partage: true },
     );
 
     if (reponse.meta?.truncated) {

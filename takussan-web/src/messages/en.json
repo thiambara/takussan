@@ -1400,6 +1400,19 @@
       "urgent_sale": "Urgent sale",
       "seasonal": "Seasonal",
       "correction": "Correction"
+    },
+    "retired": {
+      "title": {
+        "rented": "This property has been rented",
+        "sold": "This property has been sold",
+        "withdrawn": "This property is no longer listed"
+      },
+      "body": "The listing you are looking for is no longer available. Here are nearby properties that may suit you.",
+      "similarTitle": "Similar properties",
+      "searchQuarter": "See properties in {quarter}, {city}",
+      "searchCity": "See properties in {city}",
+      "searchAll": "See all properties",
+      "metaDescription": "This Takussan listing is no longer available. Discover similar properties."
     }
   },
   "dashboard": {

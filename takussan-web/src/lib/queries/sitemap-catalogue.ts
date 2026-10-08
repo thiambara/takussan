@@ -70,8 +70,9 @@ export async function listerBiensDuSitemap(): Promise<readonly BienDuSitemap[]> 
       undefined,
       // Le catalogue du sitemap ne porte aucun libellé traduit — `slug` et `updated_at` sont les
       // mêmes dans les trois langues. La locale est passée quand même : `apiFetch` la devine
-      // sinon depuis `document.cookie`, qui n'existe pas côté serveur.
-      { locale: DEFAULT_LOCALE },
+      // sinon depuis `document.cookie`, qui n'existe pas côté serveur. TCK-598 — PARTAGÉ : la route
+      // du sitemap est revalidée, elle ne lit aucun en-tête entrant et ne parle pour aucun visiteur.
+      { locale: DEFAULT_LOCALE, partage: true },
     );
 
     biens.push(...reponse.data);

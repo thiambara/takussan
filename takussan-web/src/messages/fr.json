@@ -1375,6 +1375,19 @@
       "urgent_sale": "Vente urgente",
       "seasonal": "Saisonnier",
       "correction": "Correction"
+    },
+    "retired": {
+      "title": {
+        "rented": "Ce bien a été loué",
+        "sold": "Ce bien a été vendu",
+        "withdrawn": "Ce bien n'est plus proposé"
+      },
+      "body": "L'annonce que vous cherchez n'est plus disponible. Voici des biens proches qui pourraient vous convenir.",
+      "similarTitle": "Des biens similaires",
+      "searchQuarter": "Voir les biens à {quarter}, {city}",
+      "searchCity": "Voir les biens à {city}",
+      "searchAll": "Voir tous les biens",
+      "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires."
     }
   },
   "dashboard": {

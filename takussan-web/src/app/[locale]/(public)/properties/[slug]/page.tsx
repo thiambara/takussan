@@ -12,9 +12,11 @@ import { alternatesPubliques } from '@/lib/alternates';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
-import { getProperty } from '@/lib/queries/public-property';
+import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
 
 import { PropertyDetailContent } from './PropertyDetailContent';
+import { bienRetire, estRetire, metadonneesDeBienRetire } from './bien-retire';
+import { CompteurDeVue } from './components/CompteurDeVue';
 
 type Props = {
   readonly params: Promise<{ slug: string }>;
@@ -44,9 +46,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // de lui ; c'est `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts` qui le
   // verrouille. Cette ligne reste parce qu'elle est PORTEUSE POUR LES TYPES : `notFound()` rend
   // `never` et retire `introuvable` de l'union avant la lecture de `resultat.bien`.
-  if (resultat.etat === 'introuvable') notFound();
+  //
+  // TCK-598 (V10) — avant le 404, l'état : un bien loué, vendu ou retiré a sa page, non indexable.
+  // L'API rend 404 sur `/status` pour tout bien qui n'a jamais été une annonce publique.
+  if (resultat.etat === 'introuvable') {
+    const etat = await getEtatDuBien(slug, locale);
+    if (estRetire(etat)) return metadonneesDeBienRetire(etat);
+    if (etat === null) notFound();
+  }
 
-  if (resultat.etat === 'indisponible') {
+  // `introuvable` qui arrive ici : `/status` dit le bien SERVI alors que la fiche vient de rendre
+  // 404 — une course entre les deux appels. Le bien existe : on ne dit pas qu'il est introuvable.
+  if (resultat.etat !== 'trouve') {
     // ⚠️ **`robots: { index: false }`, et c'est le cœur du correctif.** Mesuré en production le
     // 2026-08-21 : la fiche `/properties/studio-meuble-a-parcelles-assainies-5Kyslt` répondait
     // **200** avec `<title>Bien introuvable</title>`, sans `<h1>` ni JSON-LD — un soft-404 offert
@@ -142,12 +153,26 @@ export default async function PropertyDetailPage({ params }: Props) {
   const locale = isLocale(brut) ? brut : 'fr';
   const resultat = await getProperty(slug, locale);
 
-  // Un 404 amont produit un VRAI 404 — statut compris. C'est la seule panne dont on sache
-  // qu'elle signifie « ce bien n'existe pas ».
-  if (resultat.etat === 'introuvable') notFound();
+  // Un 404 amont produit un VRAI 404 — statut compris — sauf si le bien a été une annonce publique
+  // et ne l'est plus (TCK-598, V10) : il a alors sa page, en 200 + `noindex` (cf. `bien-retire.tsx`).
+  // `getEtatDuBien` est mémoïsé : `generateMetadata` et la page font UN appel à `/status`.
+  if (resultat.etat === 'introuvable') {
+    const etat = await getEtatDuBien(slug, locale);
+    if (etat === null) notFound();
+    if (estRetire(etat)) {
+      return (
+        <>
+          <Navbar />
+          <NavbarSpacer />
+          {await bienRetire(etat)}
+          <Footer />
+        </>
+      );
+    }
+  }
 
   const corps =
-    resultat.etat === 'indisponible' ? (
+    resultat.etat !== 'trouve' ? (
       await bienIndisponible()
     ) : (
       <>
@@ -164,6 +189,7 @@ export default async function PropertyDetailPage({ params }: Props) {
           )}
         />
         <PropertyDetailContent property={resultat.bien} />
+        <CompteurDeVue slug={resultat.bien.slug} />
       </>
     );
 

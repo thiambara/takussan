@@ -5272,6 +5272,19 @@
       "urgent_sale": "Jaay bu gaaw",
       "seasonal": "Ci jamono ji",
       "correction": "Jubbanti"
+    },
+    "retired": {
+      "title": {
+        "rented": "Kër gii, ñu luwe ko ba noppi",
+        "sold": "Kër gii, ñu jaay ko ba noppi",
+        "withdrawn": "Kër gii, ñu génne ko ci jaaykat yi"
+      },
+      "body": "Yéené bi ngay seet amatul. Kër yii ci wetam man nañu la neex.",
+      "similarTitle": "Kër yu ni mel",
+      "searchQuarter": "Xool kër yi nekk {quarter}, {city}",
+      "searchCity": "Xool kër yi nekk {city}",
+      "searchAll": "Xool kër yépp",
+      "metaDescription": "Yéenéb Takussan bii amatul. Gisal kër yu ni mel."
     }
   },
   "documents": {
