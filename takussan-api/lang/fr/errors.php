@@ -261,6 +261,12 @@ return [
     ],
     'moderation' => [
         'item_id_invalid' => 'Élément de modération invalide.',
+        'already_decided' => 'Cet élément a déjà été traité.',
+        'claim_not_held' => 'Vous ne tenez pas cet élément.',
+        'concurrent_decision' => 'Un autre modérateur agit sur la même annonce : rechargez la file, puis réessayez.',
+        'claimed_by_other' => 'Un autre modérateur traite cet élément.',
+        'decision_invalid_for_type' => 'Cette décision n\'est pas possible pour ce type d\'élément.',
+        'platform_hold' => 'Cette annonce a été retirée par la plateforme : seule la plateforme peut la remettre en ligne.',
     ],
     'onboarding' => [
         'agent_not_owner' => 'Vous n\'avez pas accès à ce profil agent.',
@@ -369,6 +375,8 @@ return [
         'reason_required' => 'Le motif est obligatoire.',
         'reply_rejected' => 'Impossible de répondre à un avis refusé.',
         'status_transition_invalid' => 'Ce changement de statut de l\'avis n\'est pas autorisé.',
+        'agent_already_reviewed' => 'Vous avez déjà donné un avis sur cet agent.',
+        'intervention_already_reviewed' => 'Vous avez déjà noté ce prestataire pour cette intervention.',
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Seul un super administrateur peut attribuer le rôle super_admin.',

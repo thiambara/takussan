@@ -152,12 +152,21 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         }
         return result.data as Agency;
       },
-      onSuccess: (saved) => {
+      // TCK-597 (§8) — la case « modération » RELIT la valeur rendue par l'API. Elle était envoyée
+      // et ignorée en silence (`AgencyUpdateRequest` ne la validait pas) : l'écran disait
+      // « enregistré » sur une valeur que la base n'avait jamais reçue.
+      onSuccess: (saved, values) => {
+        const persisted = saved?.moderation_required ?? false;
+        form.setValue('moderation_required', persisted, { shouldDirty: false });
         // VERIF-594 M-2 — un relâchement du seuil n'est pas appliqué : il attend un second
         // approbateur (202). Le dire, plutôt qu'un « enregistré » qui laisserait croire le contraire.
         const pending = saved?.pending_payout_threshold_change != null
           && agency.pending_payout_threshold_change?.requested_at !== saved.pending_payout_threshold_change.requested_at;
-        setSuccessMessage(pending ? tMoney('thresholdPendingSaved') : t('successSaved'));
+        if (persisted !== values.moderation_required) {
+          setSuccessMessage(t('moderation.notSaved'));
+        } else {
+          setSuccessMessage(pending ? tMoney('thresholdPendingSaved') : t('successSaved'));
+        }
         router.refresh();
       },
     });

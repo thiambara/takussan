@@ -32,7 +32,9 @@ import type {
   AdminFeatureFlagsResponse,
   AlertRulesResponse,
   AlertRuleResponse,
+  ModerationBatchResult,
   ModerationDecision,
+  ModerationDecisionPayload,
   ModerationItemStatus,
   ModerationItemType,
   AgencyProvisioningResponse,
@@ -570,7 +572,7 @@ export async function fetchModerationQueue(params: {
 
 export async function postModerationDecision(
   itemId: string,
-  payload: { decision: ModerationDecision; reason: string },
+  payload: ModerationDecisionPayload,
 ): Promise<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }> {
   const res = await fetch(`/api/super-admin/moderation/${encodeURIComponent(itemId)}/decide`, {
     method: 'POST',
@@ -579,6 +581,43 @@ export async function postModerationDecision(
     body: JSON.stringify(payload),
   });
   return jsonOrThrow<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }>(res);
+}
+
+/** TCK-597 (ADR-0043 §7) — une décision et un motif communs à au plus 50 éléments ; un résultat par élément. */
+export async function postModerationDecisionBatch(
+  ids: string[],
+  payload: ModerationDecisionPayload,
+): Promise<{ data: ModerationBatchResult[] }> {
+  const res = await fetch('/api/super-admin/moderation/decide-batch', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, ...payload }),
+  });
+  return jsonOrThrow<{ data: ModerationBatchResult[] }>(res);
+}
+
+/** TCK-597 — prendre l'élément en charge pour dix minutes ; tenu par un autre : 409. */
+export async function claimModerationItem(
+  itemId: string,
+): Promise<{ data: { id: string; by: { id: number; name: string | null }; claimed_at: string; expires_at: string } }> {
+  const res = await fetch(`/api/super-admin/moderation/${encodeURIComponent(itemId)}/claim`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return jsonOrThrow(res);
+}
+
+/** TCK-597 — rendre sa prise. L'API répond 204, sans corps. */
+export async function releaseModerationItem(itemId: string): Promise<void> {
+  const res = await fetch(`/api/super-admin/moderation/${encodeURIComponent(itemId)}/claim`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(res.status, data);
+  }
 }
 
 export async function fetchBusinessEnums(): Promise<BusinessEnumsResponse> {

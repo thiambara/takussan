@@ -276,6 +276,37 @@ final class ResourceSubjects
     }
 
     /**
+     * Une ligne de `UnifiedModerationService::hydrateItems()`, clé pour clé. Les dates du `selectRaw`
+     * unifié sont exactement ce que rend le pilote PDO sur une colonne `timestamp` : des CHAÎNES,
+     * jamais passées par un cast Eloquent.
+     *
+     * @param  array<string,mixed>|null  $claim
+     * @return array<string,mixed>
+     */
+    private static function ligneDeModeration(?array $claim): array
+    {
+        return [
+            'id' => 'property:1',
+            'source_type' => 'property',
+            'source_id' => 1,
+            'type' => 'property',
+            'status' => 'pending',
+            'subject_type' => 'property',
+            'subject_id' => 1,
+            'subject' => null,
+            'reporter' => null,
+            'agency' => null,
+            'reason' => 'Bien en attente de validation',
+            'reported_count' => 0,
+            'suspicious' => false,
+            'duplicate' => null,
+            'claim' => $claim,
+            'reported_at' => self::INSTANT,
+            'created_at' => self::INSTANT,
+        ];
+    }
+
+    /**
      * Les cinq ressources qu'aucun modèle n'adosse. Chaque recette reproduit ce que la couche
      * appelante passe RÉELLEMENT — c'est le seul point où la fabrication a le droit d'écrire des
      * valeurs, et écrire autre chose que la réalité ferait mesurer un contrat imaginaire.
@@ -301,22 +332,14 @@ final class ResourceSubjects
                 ),
             ],
             ModerationItemResource::class => [
-                // Exactement ce que rend le pilote PDO sur les colonnes `timestamp` du `selectRaw`
-                // unifié : des CHAÎNES, jamais passées par un cast Eloquent.
-                'selectRaw' => [
-                    'id' => 'property:1',
-                    'type' => 'property',
-                    'status' => 'pending',
-                    'subject_type' => 'property',
-                    'subject_id' => 1,
-                    'subject' => null,
-                    'reporter' => null,
-                    'agency' => null,
-                    'reason' => 'Bien en attente de validation',
-                    'reported_count' => 0,
-                    'reported_at' => self::INSTANT,
-                    'created_at' => self::INSTANT,
-                ],
+                'selectRaw' => self::ligneDeModeration(claim: null),
+                // TCK-597 (ADR-0043 §7) — un élément pris en charge porte deux dates de PLUS, et
+                // celles-là viennent du cast `datetime` de `ModerationClaim` : des Carbon.
+                'selectRaw, pris en charge' => self::ligneDeModeration(claim: [
+                    'by' => ['id' => 1, 'name' => 'Awa Ndiaye'],
+                    'claimed_at' => Carbon::parse(self::INSTANT, 'UTC'),
+                    'expires_at' => Carbon::parse(self::INSTANT, 'UTC')->addMinutes(15),
+                ]),
             ],
             AgencyProvisioningResource::class => [
                 'tableau' => [

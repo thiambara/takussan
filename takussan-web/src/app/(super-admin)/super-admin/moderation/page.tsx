@@ -7,6 +7,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
+  ModerationBatchBar,
   ModerationDecisionPanel,
   ModerationFilters,
   ModerationQueueTable,
@@ -31,6 +32,8 @@ export default function SuperAdminModerationPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selected, setSelected] = useState<AdminModerationItem | null>(null);
+  // TCK-597 — la sélection multiple : des identifiants, relus dans la page courante.
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
 
   const params = useMemo(
     () => ({
@@ -57,6 +60,20 @@ export default function SuperAdminModerationPage() {
 
   const items = queueQuery.data?.data ?? [];
   const meta = queueQuery.data?.meta;
+  const checkedItems = items.filter((item) => checked.has(item.id));
+  // Le panneau suit la ligne rafraîchie (prise en charge, décision) plutôt que l'instantané du clic.
+  const selectedItem = selected ? (items.find((item) => item.id === selected.id) ?? null) : null;
+
+  const toggleChecked = (ids: string[], value: boolean) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (value) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
 
   const goTo = (page: number) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -93,17 +110,24 @@ export default function SuperAdminModerationPage() {
         // la table, qui sortait de l'écran à 768 sans défiler.
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0 space-y-4">
+            <ModerationBatchBar
+              items={checkedItems}
+              onClear={() => setChecked(new Set())}
+              onDone={() => setChecked(new Set())}
+            />
             <ModerationQueueTable
               items={items}
-              selectedId={selected?.id ?? null}
+              selectedId={selectedItem?.id ?? null}
               onSelect={setSelected}
+              checkedIds={checked}
+              onToggleChecked={toggleChecked}
             />
             {meta ? (
               <Pagination page={meta.current_page} lastPage={meta.last_page} onChange={goTo} />
             ) : null}
           </div>
           <ModerationDecisionPanel
-            item={selected}
+            item={selectedItem}
             onDone={() => {
               setSelected(null);
               queueQuery.refetch();

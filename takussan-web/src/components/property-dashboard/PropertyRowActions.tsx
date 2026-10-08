@@ -64,7 +64,7 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
   const [success, setSuccess] = useState<string | null>(null);
 
   const runAction = (
-    fn: () => Promise<{ ok: boolean; message?: string }>,
+    fn: () => Promise<{ ok: boolean; message?: string; data?: { status?: string | null } }>,
     successMessage: string,
   ) => {
     setError(null);
@@ -75,7 +75,9 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
         setError(result.message ?? t('error'));
         return;
       }
-      setSuccess(successMessage);
+      // TCK-597 (§8) — une mise en ligne qui revient `pending_review` n'est PAS publiée : l'agence
+      // modère, et l'écran le dit au lieu d'annoncer un succès qui n'a pas eu lieu.
+      setSuccess(result.data?.status === 'pending_review' ? t('sentForReview') : successMessage);
       router.refresh();
     });
   };

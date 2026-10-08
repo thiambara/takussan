@@ -36,6 +36,7 @@ class AgencyUpdateRequest extends BaseFormRequest
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'currency' => ['sometimes', Rule::enum(Currency::class)],
+            'moderation_required' => ['sometimes', 'boolean'], // TCK-597 — l'agence choisit de modérer ses annonces.
             // TCK-593 — plus `nullable` : `settings` se FUSIONNE clé par clé dans
             // `AgencyController::update`, et un `null` au premier niveau ne dit pas quelle clé
             // retirer. Une clé à `null`, elle, revient au défaut du code.

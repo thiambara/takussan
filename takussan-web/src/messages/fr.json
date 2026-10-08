@@ -33,6 +33,17 @@
     "languageSwitcher": {
       "label": "Langue",
       "current": "Langue actuelle : {locale}"
+    },
+    "moderationReasons": {
+      "fraud": "Fraude ou arnaque",
+      "spam": "Spam",
+      "misleading": "Contenu trompeur",
+      "offensive": "Propos injurieux",
+      "personal_data": "Données personnelles",
+      "duplicate": "Doublon",
+      "conflict_of_interest": "Conflit d'intérêts",
+      "off_topic": "Hors sujet",
+      "other": "Autre motif"
     }
   },
   "console": {
@@ -153,7 +164,8 @@
       "counters": {
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
         "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
-      }
+      },
+      "receivedReviews": "Avis reçus"
     },
     "admin": {
       "dashboard": "Tableau de bord",
@@ -831,19 +843,19 @@
         "other": "Autre"
       },
       "trigger": "Signaler cette annonce",
-      "loginTitle": "Connexion requise",
-      "loginBody": "Connectez-vous pour signaler cette annonce.",
       "cancel": "Annuler",
-      "signIn": "Se connecter",
       "dialogTitle": "Signaler cette annonce",
       "dialogBody": "Aidez-nous à maintenir la qualité de la plateforme.",
-      "sent": "Signalement envoyé. Merci !",
       "reasonLabel": "Motif",
       "detailsLabel": "Détails (optionnel)",
       "detailsPlaceholder": "Précisez les éléments problématiques…",
       "dialogBodyFull": "Aidez-nous à maintenir la qualité de la plateforme. Notre équipe examinera votre signalement.",
       "sending": "Envoi…",
-      "submit": "Signaler"
+      "submit": "Signaler",
+      "thanks": "Merci, nous allons examiner ce signalement.",
+      "thanksNotified": "Vous serez prévenu de l'issue.",
+      "close": "Fermer",
+      "honeypotLabel": "Société"
     },
     "visitDialog": {
       "types": {
@@ -1187,7 +1199,8 @@
         "deleteTitle": "Supprimer ce bien ?",
         "deleteBodyRow": "Le bien <b>{title}</b> sera archivé (soft-delete). Vous pourrez le restaurer depuis l’administration.",
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
       }
     },
     "visibility": {
@@ -1376,6 +1389,21 @@
       "urgent_sale": "Vente urgente",
       "seasonal": "Saisonnier",
       "correction": "Correction"
+    },
+    "reviewReport": {
+      "trigger": "Signaler",
+      "triggerAria": "Signaler cet avis",
+      "dialogTitle": "Signaler cet avis",
+      "dialogBody": "Notre équipe examinera cet avis. Il reste affiché tant qu'il n'a pas été examiné.",
+      "reasons": {
+        "fraud": "Faux avis",
+        "offensive": "Propos injurieux",
+        "personal_data": "Données personnelles",
+        "conflict_of_interest": "Conflit d'intérêts",
+        "spam": "Spam",
+        "off_topic": "Hors sujet",
+        "other": "Autre"
+      }
     },
     "retired": {
       "title": {
@@ -5165,7 +5193,8 @@
         "reportedOnly": "Signalés uniquement",
         "queued": "{count} en file d'attente",
         "loading": "Chargement de la file de modération…",
-        "loadError": "Impossible de charger la file."
+        "loadError": "Impossible de charger la file.",
+        "agencyScope": "Vous modérez les avis portés sur les biens et les agents de votre agence. Un avis sur l'agence elle-même est modéré par la plateforme."
       },
       "detail": {
         "genericError": "Une erreur est survenue.",
@@ -5185,7 +5214,14 @@
         "confirmHide": "Masquer cet avis ?",
         "confirmIgnore": "Ignorer les signalements ?",
         "reasonLabel": "Raison (consignée dans le journal d'audit)",
-        "reasonPlaceholder": "Motif visible dans le journal d'audit"
+        "reasonPlaceholder": "Motif visible dans le journal d'audit",
+        "platformOnly": "Avis sur votre agence : il est modéré par la plateforme, pas par l'agence.",
+        "reasonCodeLabel": "Motif",
+        "reasonCodePlaceholder": "Choisir un motif",
+        "reasonCodeRequired": "Choisissez un motif.",
+        "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
+        "publishedPlatformOnly": "Avis déjà publié : seule la plateforme peut le retirer. Vous pouvez y répondre ou le signaler.",
+        "platformReserved": "Cet avis est modéré par la plateforme, pas par l'agence."
       }
     },
     "finances": {
@@ -5736,7 +5772,8 @@
       },
       "moderation": {
         "label": "Modération obligatoire avant publication",
-        "hint": "Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut « En attente de validation » jusqu'à l'approbation d'un administrateur, avant d'être visible publiquement."
+        "hint": "Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut « En attente de validation » jusqu'à l'approbation d'un administrateur, avant d'être visible publiquement.",
+        "notSaved": "Modifications enregistrées, sauf la modération obligatoire : l'API ne l'a pas prise en compte. La case affiche la valeur réellement enregistrée."
       },
       "security": {
         "title": "Sécurité de l’équipe",
@@ -6563,8 +6600,6 @@
       "colAge": "Âge",
       "colAction": "Action",
       "subjectUnavailable": "Sujet indisponible",
-      "typeProperty": "Bien",
-      "typeReview": "Avis",
       "statusFlagged": "Signalé",
       "statusPending": "En attente",
       "noAgency": "Sans agence",
@@ -6578,7 +6613,6 @@
       "statProperties": "Biens",
       "statReviews": "Avis",
       "staleWarning": "{count, plural, one {# item} other {# items}} de cette page attendent depuis plus de 7 jours.",
-      "ageToday": "Aujourd'hui",
       "ageOneDay": "1 jour",
       "ageDays": "{days} jours",
       "types": {
@@ -6601,7 +6635,69 @@
         "reject": "Rejeter",
         "remove": "Supprimer"
       },
-      "tableCaption": "File de modération cross-tenant"
+      "tableCaption": "File de modération cross-tenant",
+      "selectAll": "Sélectionner tous les éléments de la page",
+      "selectItem": "Sélectionner « {subject} »",
+      "sources": {
+        "property": "Bien à valider",
+        "property_report": "Signalement d'annonce",
+        "review": "Avis",
+        "suspected_duplicate": "Doublon soupçonné"
+      },
+      "suspicious": "Avis suspect",
+      "suspiciousHint": "Avis suspect : rafale d'avis, compte récent ou adresse partagée avec un autre auteur. Ce n'est qu'un indice.",
+      "colClaim": "Prise en charge",
+      "claimedBy": "Pris par {name} · {time}",
+      "claimedByYou": "Vous l'avez pris en charge",
+      "unclaimed": "Libre",
+      "claim": "Prendre en charge",
+      "release": "Rendre",
+      "ageLabel": "Dans la file depuis {age}",
+      "ageMinutes": "{minutes} min",
+      "ageHours": "{hours} h",
+      "duplicateSignal": {
+        "photo": "Même photo qu'une autre annonce (écart {distance})",
+        "address": "Même adresse, surface et prix qu'une autre annonce"
+      },
+      "duplicateOf": "Annonce d'origine : « {title} » ({agency})",
+      "reasonCode": "Motif",
+      "reasonCodePlaceholder": "Choisir un motif",
+      "decisionReasonRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
+      "decisionsByType": {
+        "property": {
+          "approve": "Approuver",
+          "reject": "Refuser"
+        },
+        "property_report": {
+          "hide": "Masquer l'annonce",
+          "remove": "Supprimer l'annonce",
+          "reject": "Classer le signalement"
+        },
+        "review": {
+          "approve": "Approuver l'avis",
+          "hide": "Masquer l'avis",
+          "remove": "Supprimer l'avis"
+        },
+        "suspected_duplicate": {
+          "hide": "Masquer l'annonce",
+          "reject": "Classer : pas un doublon"
+        }
+      },
+      "hideListingHint": "Masquer l'annonce la retire du site et la verrouille : l'agence ne peut plus la remettre en ligne, seule la plateforme le peut.",
+      "batchTitle": "Traitement en lot",
+      "batchSelected": "{count, plural, one {# élément sélectionné} other {# éléments sélectionnés}}",
+      "batchClear": "Tout désélectionner",
+      "batchNoCommonDecision": "Aucune décision n'est commune aux éléments sélectionnés.",
+      "batchDecision": "Décision",
+      "batchDecisionPlaceholder": "Choisir une décision",
+      "batchApply": "Appliquer à {count, plural, one {# élément} other {# éléments}}",
+      "batchResult": "{ok} traité(s), {failed} en échec.",
+      "batchErrors": {
+        "already_decided": "déjà tranché",
+        "claimed_by_other": "pris en charge par un autre modérateur",
+        "concurrent_decision": "un autre modérateur agissait sur la même annonce",
+        "other": "refusé"
+      }
     },
     "properties": {
       "empty_title": "Aucun bien à afficher",
@@ -7858,23 +7954,15 @@
       "opportunitiesError": "Impossible de charger vos opportunités de dépôt d’avis.",
       "receivedTitle": "Avis reçus",
       "loadingAria": "Chargement",
-      "stayCompleted": "Séjour terminé",
-      "leaseActive": "Bail en cours",
-      "leaseEnded": "Bail terminé",
-      "details": "Détails",
       "filterByProperty": "Filtrer par bien",
       "allProperties": "Tous les biens",
       "filterByReply": "Filtrer par réponse",
-      "replyFilterPlaceholder": "Réponse",
       "allReviews": "Tous les avis",
       "unreplied": "Sans réponse",
       "replied": "Répondus",
       "replyPrompt": "Votre réponse publique",
       "replyToastTitle": "Réponse publiée",
       "replyToastDescription": "Votre réponse est visible sous l’avis.",
-      "reportPrompt": "Motif du signalement",
-      "reportToastTitle": "Avis signalé",
-      "reportToastDescription": "La modération peut maintenant examiner cet avis.",
       "yourReply": "Votre réponse",
       "editReply": "Modifier la réponse",
       "reply": "Répondre",
@@ -7884,7 +7972,41 @@
         "approved": "Approuvé",
         "reported": "Signalé",
         "rejected": "Rejeté"
-      }
+      },
+      "filterByStatus": "Filtrer par statut",
+      "allStatuses": "Tous les statuts",
+      "filterBySubject": "Filtrer par cible",
+      "allSubjects": "Toutes les cibles",
+      "subjects": {
+        "property": "Biens",
+        "agent": "Moi (agent)",
+        "agency": "L'agence",
+        "service_provider": "Moi (prestataire)"
+      },
+      "pendingNotice": "En attente de validation : cet avis n'est pas encore publié.",
+      "replyRequired": "Écrivez une réponse avant de publier.",
+      "replyError": "La réponse n'a pas pu être publiée.",
+      "replySubmit": "Publier la réponse",
+      "replyCancel": "Annuler",
+      "contexts": {
+        "visit": "Après votre visite",
+        "lease": "Votre bail",
+        "booking": "Votre séjour",
+        "maintenance_request": "Votre intervention"
+      },
+      "targets": {
+        "property": "Le bien",
+        "agent": "L'agent",
+        "agency": "L'agence",
+        "service_provider": "Le prestataire"
+      },
+      "starsLabel": "{count, plural, one {# étoile} other {# étoiles}}",
+      "opportunityCommentLabel": "Votre commentaire (facultatif)",
+      "opportunityRatingRequired": "Donnez au moins une note.",
+      "opportunitySubmit": "Publier mes avis",
+      "opportunitySentTitle": "Avis envoyé",
+      "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
+      "opportunityError": "Votre avis n'a pas pu être envoyé."
     },
     "contact": {
       "title": "Coordonnées",
@@ -9422,6 +9544,34 @@
         "relax_requested": {
           "title": "Assouplissement du seuil des reversements à confirmer",
           "body": "Un membre de l'agence {agency} demande d'assouplir le seuil d'approbation des reversements. Rien ne change tant qu'un second approbateur ne l'a pas confirmé depuis les réglages de l'agence."
+        }
+      },
+      "review": {
+        "to_moderate": {
+          "title": "Avis à modérer : {subject}",
+          "body": "Un nouvel avis ({rating}/5) sur « {subject} » attend votre validation."
+        },
+        "received": {
+          "title": "Nouvel avis : {subject}",
+          "body": "Un avis ({rating}/5) sur « {subject} » vient d'être publié. Vous pouvez y répondre depuis votre boîte des avis."
+        }
+      },
+      "moderation": {
+        "property_hidden": {
+          "title": "Annonce retirée : {property}",
+          "body": "Votre annonce « {property} » a été retirée du site par la plateforme à la suite d'un signalement. Motif : {reason_code}. Seule la plateforme peut la remettre en ligne."
+        },
+        "property_removed": {
+          "title": "Annonce supprimée : {property}",
+          "body": "Votre annonce « {property} » a été supprimée par la plateforme à la suite d'un signalement. Motif : {reason_code}."
+        },
+        "report_upheld": {
+          "title": "Signalement traité : {property}",
+          "body": "Merci : l'annonce « {property} » que vous avez signalée a été retirée du site."
+        },
+        "report_dismissed": {
+          "title": "Signalement examiné : {property}",
+          "body": "Nous avons examiné votre signalement de l'annonce « {property} » et ne l'avons pas retenu."
         }
       }
     },

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\WelcomeViewController;
 use App\Http\Controllers\WizardDraftController;
@@ -35,6 +36,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // 403. ⚠️ C'est de l'AFFICHAGE, jamais une autorisation : la décision
     // reste entière dans les policies côté serveur.
     Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
+    // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
+    Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');

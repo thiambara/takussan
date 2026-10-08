@@ -79,6 +79,7 @@ use App\Policies\PropertyContactLeadPolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
+use App\Policies\ReviewPolicy;
 use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
@@ -112,7 +113,9 @@ use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
+use App\Services\Review\ReviewModerationScope;
 use App\Support\TelephoneSaisi;
+use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -154,6 +157,10 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
+
+        // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
+        // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
+        $this->app->scoped(ReviewModerationScope::class);
     }
 
     public function boot(Dispatcher $events): void
@@ -505,7 +512,11 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        return 'ip:'.$request->ip();
+        // verif-597 m6 — le /64 d'une IPv6, comme l'empreinte visiteur : sinon une adresse neuve
+        // du même abonné repart avec un compteur neuf.
+        $ip = $request->ip();
+
+        return 'ip:'.($ip === null ? '' : VisitorFingerprint::network($ip));
     }
 
     private function bootObservers(): void
@@ -661,6 +672,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-590 — la boîte « Demandes ». Une policy jamais liée REFUSE tout le monde, sans trace.
         Gate::policy(PropertyContactLead::class, PropertyContactLeadPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+
+        // TCK-597 (ADR-0043 §1) — modérer, lire les signalements, répondre : la règle était
+        // recopiée dans six méthodes, et aucune copie ne comparait l'agence de l'avis.
+        Gate::policy(Review::class, ReviewPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

@@ -114,7 +114,6 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur hover:bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem, état survolé'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-muted-foreground sur group-hover:bg-foreground/10 sur un sous-jacent inconnu (pire pixel 111)', 1.00, 'voile de survol à 10 % sur un fond que le fichier ne pose pas'],
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyReportButton.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'l’alpha du survol mange la marge du bouton primaire'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
   ['app/[locale]/(public)/properties/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur un sous-jacent inconnu (pire pixel 255)', 4.18, 'idem, alpha 90 %'],
   ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #ffffff', 4.18, 'idem, sur un ancêtre `--card` connu'],
@@ -317,8 +316,17 @@ const FICHIERS_HORS_JETONS = 5;
  * `ui/phone-input.tsx` entre dans la surface par les deux formulaires sans compte. Même encre,
  * même fond que les libellés existants de ces boîtes : au-dessus de 4,5:1 (4,85:1 au pire, sur
  * `bg-muted`, relevé plus haut).
+ *
+ * **256 → 257 le 2026-10-08 (TCK-597, compté 248 → 249 avant la fusion de TCK-590).**
+ * `reports/ReviewReportButton.tsx`, fichier neuf entré dans la surface par les avis publics (fiche
+ * bien, `ReviewsSection`), apporte 1 entrée : le lien
+ * « Signaler » porte `text-muted-foreground` sans fond — celui de la carte d'avis (`bg-card`) ou
+ * de la page (`--background`), le même que le « Signaler cette annonce » voisin, déjà compté.
+ * Relevé en vidant la liste des encres inverses : c'est la seule entrée neuve. Recompté après la
+ * fusion de TCK-598 (qui garde 256 sur `dev` et y déclare des fonds) : 257 sur
+ * l'arbre fusionné, 256 en retirant l'encre de ce seul lien.
  */
-const ENCRES_INVERSES = 256;
+const ENCRES_INVERSES = 257;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

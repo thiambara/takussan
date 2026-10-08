@@ -657,6 +657,40 @@ return [
                 'sms' => 'Takussan: :period management statement available.',
             ],
         ],
+        'review' => [
+            'to_moderate' => [
+                'title' => 'Review to moderate: :subject',
+                'body' => 'A new review (:rating/5) on “:subject” is awaiting your approval.',
+                'sms' => 'Takussan: review to moderate on “:subject”.',
+            ],
+            'received' => [
+                'title' => 'New review: :subject',
+                'body' => 'A review (:rating/5) on “:subject” has just been published. You can reply from your reviews inbox.',
+                'sms' => 'Takussan: new review on “:subject”.',
+            ],
+        ],
+        'moderation' => [
+            'property_hidden' => [
+                'title' => 'Listing taken down: :property',
+                'body' => 'Your listing “:property” was taken down by the platform following a report. Reason: :reason_code. Only the platform can put it back online.',
+                'sms' => 'Takussan: listing “:property” taken down by the platform.',
+            ],
+            'property_removed' => [
+                'title' => 'Listing removed: :property',
+                'body' => 'Your listing “:property” was removed by the platform following a report. Reason: :reason_code.',
+                'sms' => 'Takussan: listing “:property” removed by the platform.',
+            ],
+            'report_upheld' => [
+                'title' => 'Report handled: :property',
+                'body' => 'Thank you: the listing “:property” you reported has been taken down.',
+                'sms' => 'Takussan: your report of “:property” was upheld.',
+            ],
+            'report_dismissed' => [
+                'title' => 'Report reviewed: :property',
+                'body' => 'We reviewed your report of the listing “:property” and did not uphold it.',
+                'sms' => 'Takussan: report of “:property” reviewed.',
+            ],
+        ],
     ],
 
     // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).
