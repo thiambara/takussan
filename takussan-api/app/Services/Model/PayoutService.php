@@ -295,6 +295,9 @@ class PayoutService
                 ),
             ]);
 
+            // VERIF-594 passe 3, P3-2 — la caution rendue solde SA ligne `deposit_refund` du bail.
+            $this->depositRefundLine($locked)?->update(['status' => PaymentStatus::Paid, 'paid_at' => $locked->processed_at]);
+
             if ($locked->payee_role === PayeeRole::ServiceProvider && $locked->service_provider_bill_id !== null) {
                 ServiceProviderBill::query()->whereKey($locked->service_provider_bill_id)
                     ->update(['status' => ServiceProviderBillStatus::Paid->value]);
@@ -717,13 +720,7 @@ class PayoutService
             'deposit_refunded_at' => $refunded > 0 ? $lease->deposit_refunded_at : null,
         ])->save();
 
-        $line = LeasePayment::query()
-            ->where('lease_id', $lease->id)
-            ->where('payment_type', LeasePaymentType::DepositRefund->value)
-            ->where('status', PaymentStatus::Pending->value)
-            ->where('amount', $amount)
-            ->orderByDesc('id')
-            ->first();
+        $line = $this->depositRefundLine($payout);
         $line?->update(['status' => PaymentStatus::Failed]);
         $invoice = $this->releaseRetentionInvoice($payout, $actor);
 
@@ -736,6 +733,27 @@ class PayoutService
             ])
             ->event('deposit_refund_reversed')
             ->log('deposit_refund_reversed');
+    }
+
+    /**
+     * VERIF-594 passe 3, P3-2 — la ligne `deposit_refund` d'une caution rendue se retrouve par le lien
+     * que la restitution a posé (`metadata.lease_payment_id`), jamais par son montant : deux
+     * restitutions de même montant se départageaient par l'id le plus récent, et l'annulation de la
+     * première faisait échouer la ligne de la seconde. Seule une ligne encore `pending` bouge.
+     */
+    private function depositRefundLine(Payout $payout): ?LeasePayment
+    {
+        $lineId = $payout->metadata['lease_payment_id'] ?? null;
+        if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null || $lineId === null) {
+            return null;
+        }
+
+        return LeasePayment::query()
+            ->whereKey((int) $lineId)
+            ->where('lease_id', $payout->lease_id)
+            ->where('payment_type', LeasePaymentType::DepositRefund->value)
+            ->where('status', PaymentStatus::Pending->value)
+            ->first();
     }
 
     /**

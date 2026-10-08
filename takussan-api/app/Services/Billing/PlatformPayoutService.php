@@ -8,6 +8,7 @@ use App\Models\BookingPayment;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\LeasePayment;
@@ -239,8 +240,11 @@ class PlatformPayoutService
             ->lockForUpdate()
             ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency']);
 
+        // VERIF-594 passe 3, P3-2 — une ligne `deposit_refund` payée est une caution RENDUE au
+        // locataire, une sortie : elle n'entre jamais dans ce que la plateforme reverse à l'agence.
         $leasePayments = LeasePayment::query()
             ->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))
+            ->where('payment_type', '!=', LeasePaymentType::DepositRefund->value)
             ->where('status', PaymentStatus::Paid)
             ->whereNotNull('paid_at')
             ->where('paid_at', '<=', $periodEnd)
@@ -324,6 +328,7 @@ class PlatformPayoutService
 
         $leaseAgencies = LeasePayment::query()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->where('lease_payments.payment_type', '!=', LeasePaymentType::DepositRefund->value)
             ->where('lease_payments.status', PaymentStatus::Paid)
             ->whereNotNull('lease_payments.paid_at')
             ->where('lease_payments.paid_at', '<=', $periodEnd)

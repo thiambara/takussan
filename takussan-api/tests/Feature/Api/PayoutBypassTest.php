@@ -20,6 +20,7 @@ use App\Models\PayoutMethod;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
+use App\Services\Billing\PlatformPayoutService;
 use App\Services\Model\PayoutService;
 use App\Services\Payout\PayoutApprovalRule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -767,5 +768,36 @@ class PayoutBypassTest extends TestCase
             ->where('kind', InvoiceKind::Invoice->value)
             ->whereNotIn('status', [InvoiceStatus::Cancelled->value, InvoiceStatus::Void->value])
             ->get();
+    }
+
+    /**
+     * VERIF-594 passe 3, P3-2 — la ligne `deposit_refund` d'une restitution se retrouve par son lien,
+     * jamais par son montant : deux restitutions de 100 000, on annule la première, c'est SA ligne qui
+     * échoue ; la seconde payée, sa ligne passe `paid`.
+     */
+    public function test_p3_2_the_deposit_refund_line_is_found_by_its_link(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        Sanctum::actingAs($admin);
+
+        $p1 = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'x'])->assertCreated();
+        $p2 = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'x'])->assertCreated();
+
+        $this->postJson("/api/payouts/{$p1->json('data.payout_id')}/cancel")->assertOk();
+        $this->assertSame(PaymentStatus::Failed, LeasePayment::query()->findOrFail($p1->json('data.payment_id'))->status);
+        $this->assertSame(PaymentStatus::Pending, LeasePayment::query()->findOrFail($p2->json('data.payment_id'))->status);
+
+        $this->postJson("/api/payouts/{$p2->json('data.payout_id')}/mark-processed", ['payment_method' => 'cash', 'notes' => 'remis en main propre'])
+            ->assertOk()->assertJsonPath('data.status', 'completed');
+        $line = LeasePayment::query()->findOrFail($p2->json('data.payment_id'));
+        $this->assertSame(PaymentStatus::Paid, $line->status);
+        $this->assertNotNull($line->paid_at);
+
+        // Payée, la ligne reste une SORTIE : la clôture plateforme ne la compte pas comme un encaissement
+        // à reverser à l'agence.
+        $closed = app(PlatformPayoutService::class)->closePeriod($lease->agency, now(), $admin);
+        $this->assertSame([], $closed['created']);
+        $this->assertNull($line->fresh()->platform_payout_id);
     }
 }

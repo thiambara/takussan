@@ -134,7 +134,10 @@ deux agences ne font pas deux personnes.
   une seconde, et la retenue se facturait deux fois) : la restitution porte `metadata.invoice_id` et
   `metadata.lease_payment_id`, et le refus ou l'échec annule la facture par le chemin de toute facture
   (`InvoiceService::cancel`) — un brouillon s'annule, une facture émise se contrepasse par un avoir ;
-  payée, elle reste. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
+  payée, elle reste. **La ligne `deposit_refund` se retrouve par ce lien, jamais par son montant**
+  (VERIF-594 passe 3, P3-2) : elle passe `failed` au refus ou à l'échec, `paid` (avec `paid_at`) au
+  paiement ; payée, elle reste une sortie, et la clôture plateforme (`PlatformPayoutService`) ne la
+  compte pas parmi les encaissements reversés à l'agence. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
   (`agency_payout_threshold_changed`). **Le relâcher exige deux personnes** (VERIF-594 M-2 : celui
   qui allait payer le coupait seul, payait seul, puis le remettait) : un passage à `null` ou une
