@@ -207,11 +207,11 @@
       },
       "prod": {
         "etat": "mesure",
-        "valeur": "v0.30.6",
-        "date": "2026-09-14",
-        "source": "TCK-526 — relevé sur 178.18.247.62 ; Traefik v3.6.7 à côté, conteneur `dokploy-traefik` hors Swarm",
+        "valeur": "v0.30.8",
+        "date": "2026-10-08",
+        "source": "Mise à jour par l'interface (Settings → Update) le 2026-10-08, après lecture des notes de v0.30.7 et du diff de v0.30.8 (retrait du widget HubSpot) ; relevé sur 178.18.247.62 (`dokploy/dokploy:v0.30.8@sha256:e8789a3f…`). Posée d'abord par TCK-526 en v0.30.6. Traefik v3.6.7 à côté, non redémarré, conteneur `dokploy-traefik` hors Swarm",
         "commande": "ssh root@178.18.247.62 \"docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'\"",
-        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.30.6` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
+        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.30.8` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
       }
     }
   }
