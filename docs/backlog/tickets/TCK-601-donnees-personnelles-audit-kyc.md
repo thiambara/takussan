@@ -372,21 +372,21 @@ Et autour :
 
 ### C. KYC d'agence
 
-- [ ] Migration `add_expires_at_to_kyc_dossiers` (+ index nommé du Contrat de données).
-- [ ] `UploadKycDocumentRequest` : `expires_at` `required_if:document_type,director_id`, date
+- [x] Migration `add_expires_at_to_kyc_dossiers` (+ index nommé du Contrat de données).
+- [x] `UploadKycDocumentRequest` : `expires_at` `required_if:document_type,director_id`, date
       postérieure à aujourd'hui ; stockée en propriété du média par `KycWorkflowService::upload`.
-- [ ] `KycWorkflowService::verify` : `expires_at` du dossier = plus petite échéance parmi les pièces
+- [x] `KycWorkflowService::verify` : `expires_at` du dossier = plus petite échéance parmi les pièces
       **les plus récentes** de chaque type.
-- [ ] Commande `kyc:expire-dossiers`, planifiée chaque jour : relance des admins de l'agence à J-30 et
+- [x] Commande `kyc:expire-dossiers`, planifiée chaque jour : relance des admins de l'agence à J-30 et
       J-7 (une seule fois chacune, mémorisée dans `metadata`) ; à l'échéance, le dossier repasse
       `pending`, `metadata.expired_at` est posé, l'activité `kyc_expired` écrite, et l'agence perd
       `is_verified` **sans** changer de statut (**option retenue par défaut** : la suspension relève de
       TCK-600 et serait disproportionnée pour une pièce à renouveler).
-- [ ] **Aucun contrôle de forme du NINEA ni du RCCM, aucune regex** (tranché par le porteur, D-68) :
+- [x] **Aucun contrôle de forme du NINEA ni du RCCM, aucune regex** (tranché par le porteur, D-68) :
       `SubmitAgencyUpgradeRequestRequest` garde `'string','max:30'` / `'max:60'`.
-- [ ] `Agency/KycController` (`upload`, `submit`) : autorisation par
+- [x] `Agency/KycController` (`upload`, `submit`) : autorisation par
       `canActAt(Capability::AgencyUpdateKyc, $agency)` ; `show` reste à l'admin.
-- [ ] `App\Services\Kyc\SharedLegalIdentifierDetector` : NINEA et RIB professionnel comparés à ceux
+- [x] `App\Services\Kyc\SharedLegalIdentifierDetector` : NINEA et RIB professionnel comparés à ceux
       des **autres** agences sur une forme normalisée qui ne suppose **aucun** format — tout blanc retiré
       (`preg_replace('/\s+/u', '')`), puis `mb_strtoupper`. Comparaison **en PHP** sur les valeurs
       déchiffrées (le chiffrement d'A2 interdit l'égalité SQL ; une demande par agence, le volume le
@@ -395,7 +395,7 @@ Et autour :
       demande de passage `standard` (`shared_identifiers` : `ninea` / `rib_pro`, identifiants des
       agences en conflit). Aucun refus automatique : un signal pour la revue.
 - [ ] `KycDossierResource` expose `expires_at` et l'échéance de chaque pièce ; le front l'affiche.
-- [ ] Tests : `KycDossierExpiryTest`, `AgencyKycCapabilityTest`, `SharedLegalIdentifierTest`.
+- [x] Tests : `KycDossierExpiryTest`, `AgencyKycCapabilityTest`, `SharedLegalIdentifierTest`.
 
 ### D. Audit d'agence
 
@@ -514,18 +514,18 @@ Et autour :
       `FlipAgencyKindOnUpgradeApproved`), à l'expiration d'une réservation (`BookingExpirationService`,
       écrivain d'événement `updating` qui lève) et passée à `ExpirePendingBookingsJob::failed`. Rouge sur
       le code actuel pour les trois.
-- [ ] **AC7** — Un upload `director_id` sans `expires_at` ou avec une date passée → 422. Après
+- [x] **AC7** — Un upload `director_id` sans `expires_at` ou avec une date passée → 422. Après
       vérification, `expires_at` du dossier vaut l'échéance de la pièce la plus récente.
-- [ ] **AC8** — `kyc:expire-dossiers` (horloge figée) : à J-30 puis J-7, une notification par admin,
+- [x] **AC8** — `kyc:expire-dossiers` (horloge figée) : à J-30 puis J-7, une notification par admin,
       jamais deux fois ; le jour d'échéance, dossier `pending`, `is_verified = false`, statut de l'agence
       inchangé, activité `kyc_expired`.
-- [ ] **AC9** — `SharedLegalIdentifierTest` : l'agence A a une demande `approved` de NINEA `00123452g3`
+- [x] **AC9** — `SharedLegalIdentifierTest` : l'agence A a une demande `approved` de NINEA `00123452g3`
       et de RIB `SN0123456789` ; l'agence B soumet `0012345 2G3` et `sn 0123 4567 89`. La demande de B,
       lue par le super-admin, porte `shared_identifiers.ninea = [A]` et `shared_identifiers.rib_pro = [A]` ;
       lue par l'admin de B, elle ne porte pas la clé. Une agence C au NINEA différent d'un caractère ne
       porte aucun signal. Un NINEA `ABC` est **accepté** (201) : aucun contrôle de forme (D-68). Rouge
       sur le code actuel (clé absente).
-- [ ] **AC9b** — Un membre de l'agence à qui un rôle personnalisé donne `agency.update_kyc` dépose une
+- [x] **AC9b** — Un membre de l'agence à qui un rôle personnalisé donne `agency.update_kyc` dépose une
       pièce (201) ; un admin dont le rôle la retire reçoit 403. Ablation : revenir à `isAgencyAdminAt`
       → rouge.
 - [ ] **AC10** — L'admin 1 de l'agence A voit l'activité causée par l'admin 2 de A (qui n'a **que** un
@@ -693,6 +693,40 @@ Et autour :
   → rouge ; du dossier (agence) → rouge ; de la pièce → rouge ; fenêtre de 15 min neutralisée →
   rouge ; préréglage sensible vidé → 2 rouges ; expurgation de l'export retirée → rouge ; journal de
   l'export retiré → rouge ; step-up retiré → rouge ; policy à `true` (step-up fait) → rouge.
+
+### C — KYC d'agence (back)
+
+- `kyc_dossiers.expires_at` (migration `2026_10_08_601500`, index `kyc_dossiers_status_expires_idx`).
+  L'échéance d'une pièce est une propriété du média, exigée pour `director_id` et postérieure à
+  aujourd'hui. `KycWorkflowService::expiryOf` prend la pièce **la plus récente** de chaque type, puis
+  la plus proche des échéances ; `verify` la pose et efface `expiry_reminders` / `expired_at`.
+- `kyc:expire-dossiers` (`KycExpiryService`, chaque jour à 06:00) : un passage relance au **jalon le
+  plus proche atteint** et le mémorise — un passage manqué à J-30 relance une fois à J-29, jamais deux
+  fois d'un coup ; seuls les admins **actifs** sont relancés (`kyc.expiring_soon`, préférence
+  `kyc_status_changed`). À l'échéance : `pending`, `metadata.expired_at`, activité `kyc_expired`
+  (rattachée à l'agence par D), `is_verified = false`, statut de l'agence inchangé.
+- `Agency/KycController::upload|submit` : `canActAt(Capability::AgencyUpdateKyc)` **sur l'agence du
+  profil actif** (comme l'ancienne garde) ; `show` reste à l'admin. `agency.update_kyc` quitte
+  `CapabilityEnforcementInventory::AWAITING`, `CLIQUET` 14 → 13 (raccord 594, qui l'abaisse aussi).
+- `SharedLegalIdentifierDetector` : forme normalisée sans format (blancs retirés, `mb_strtoupper`),
+  comparée en PHP aux demandes `pending`/`approved` des **autres** agences, mémorisée par requête
+  HTTP (une liste ne déchiffre qu'une fois). Exposé au seul super-admin sur la demande de passage et
+  sur le dossier KYC d'une agence. Aucun refus ; aucun contrôle de forme (`ABC` → 201).
+- Trouvé en passant par `DateInventoryByValueTest` : `OwnerProfileResource` (A) rendait ses instants
+  en `…000000Z` (ADR-0018) — réécrits par `iso()` ; inscrite au registre (`MODELES_EXPLICITES`), et
+  les deux `shared_identifiers` en `CLES_JAMAIS_ATTEINTES` (listes d'agences, aucune date).
+- Les six codes de notification de C et E (`kyc.expiring_soon`, `governance.*`) : textes API et front
+  (`check-notification-codes` vert, 50 codes).
+- Tests : `KycDossierExpiryTest` 3/3, `AgencyKycCapabilityTest` 5/5, `SharedLegalIdentifierTest` 2/2 ;
+  KYC, demandes de passage, onboarding, notifications, `Privacy/*`, ressources : verts (287 puis 66).
+  Ablations : capacité retirée → rouge ; agence du profil actif à `true` → **vert** au premier jet
+  (le cas « autre agence » est fermé par `canActAt` seul) → test ajouté (admin de B agissant comme
+  agent de A) → rouge ; `required_if` retiré → rouge ; `after:today` retiré → rouge ; « pièce la plus
+  récente » retirée → rouge ; mémoire des relances retirée → rouge (deux fois) ; admins actifs non
+  filtrés → rouge ; `is_verified` conservé → rouge ; normalisation retirée → rouge ; exclusion de sa
+  propre agence retirée → rouge ; `when(super-admin)` à `true` → rouge ; signal du dossier coupé →
+  rouge. Le marquage des jalons plus lointains (« rattraper sans doubler ») était un **mutant
+  équivalent** (vert) : le jalon le plus proche seul suffit, le code a été simplifié.
 
 ### G — registre des demandes de droits (back)
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Kyc\UploadKycDocumentRequest;
 use App\Http\Resources\KycDossierResource;
 use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Services\Kyc\KycWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,13 +26,14 @@ class KycController extends Controller
 
     public function upload(UploadKycDocumentRequest $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAgencyAdmin($request, $agency);
+        $this->authorizeKycUpdate($request, $agency);
 
         $dossier = $this->kyc->dossierForAgency($agency);
         $this->kyc->upload(
             $dossier,
             $request->file('document'),
             $request->string('document_type')->toString(),
+            $request->validated('expires_at'),
         );
 
         return $this->json([
@@ -41,13 +43,32 @@ class KycController extends Controller
 
     public function submit(Request $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAgencyAdmin($request, $agency);
+        $this->authorizeKycUpdate($request, $agency);
 
         $dossier = $this->kyc->submit($this->kyc->dossierForAgency($agency), $request->user());
 
         return $this->json([
             'data' => (new KycDossierResource($dossier))->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-601 (C) — déposer une pièce et soumettre le dossier se jugent par la capacité
+     * `agency.update_kyc`, sur l'agence du profil ACTIF : un rôle personnalisé peut la donner à un
+     * membre, la retirer à un admin. La lecture (`show`) reste à l'admin.
+     */
+    private function authorizeKycUpdate(Request $request, Agency $agency): void
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->isSuperAdmin()
+            || (
+                $request->activeProfile()?->agency_id === $agency->id
+                && $user->canActAt(Capability::AgencyUpdateKyc, $agency)
+            ),
+            403,
+        );
     }
 
     private function authorizeAgencyAdmin(Request $request, Agency $agency): void

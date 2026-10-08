@@ -68,6 +68,15 @@ enum NotificationCode: string
     case KycSubmitted = 'kyc.submitted';
     case KycVerified = 'kyc.verified';
     case KycRejected = 'kyc.rejected';
+    // TCK-601 — la pièce du dirigeant arrive à échéance (J-30, J-7).
+    case KycExpiringSoon = 'kyc.expiring_soon';
+
+    // ─── Gouvernance d'agence (TCK-601) : aux admins actifs, sauf l'auteur ───────────────
+    case GovernanceRoleCapabilitiesChanged = 'governance.role_capabilities_changed';
+    case GovernanceAdminAdded = 'governance.admin_added';
+    case GovernanceDataExported = 'governance.data_exported';
+    case GovernanceIntegrationChanged = 'governance.integration_changed';
+    case GovernanceApprovalThresholdChanged = 'governance.approval_threshold_changed';
 
     // ─── Délégations de rôle ────────────────────────────────────────────────────────────
     case RoleDelegationActivated = 'role_delegation.activated';
@@ -137,7 +146,9 @@ enum NotificationCode: string
             self::BankStatementFinalized => NotificationType::BankStatementFinalized,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
-            self::KycSubmitted, self::KycVerified, self::KycRejected,
+            self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
+            self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
+            self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
@@ -166,7 +177,10 @@ enum NotificationCode: string
             self::MessageReceived, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
-            self::KycSubmitted, self::KycVerified, self::KycRejected => 'kyc_status_changed',
+            self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
+            // Une alerte de sécurité ne se désactive pas : c'est sa raison d'être.
+            self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
+            self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator,
@@ -216,6 +230,11 @@ enum NotificationCode: string
             self::KycSubmitted => ['agency' => self::PARAM_TEXT],
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
+            self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
+            self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
+            self::GovernanceIntegrationChanged => ['provider' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::RoleDelegationActivated => ['role' => self::PARAM_TEXT, 'ends_at' => self::PARAM_DATE],
             self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_TEXT],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,

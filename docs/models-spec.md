@@ -1870,12 +1870,17 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | reviewed_at | datetime | oui | null | Décision rendue |
 | reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
 | rejection_reason | text | oui | null | Motif si `status=rejected` |
-| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) ; `expiry_reminders` (jalons de relance déjà envoyés, J-30 / J-7) et `expired_at` (TCK-601) |
+| expires_at | timestamp | oui | null | Échéance du dossier vérifié : la plus proche des échéances des pièces les plus récentes de chaque type (pièce du dirigeant). Posée par la vérification ; `kyc:expire-dossiers` remet le dossier à `pending` ce jour-là et retire `is_verified` à l'agence (TCK-601) |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
 - `(subject_type, subject_id)` — unique : un seul dossier actif par sujet
 - `(status)` — file de modération
+- `(status, expires_at)` — `kyc_dossiers_status_expires_idx`, la passe quotidienne d'expiration (TCK-601)
+
+L'échéance d'une pièce est une propriété du média (`custom_properties.expires_at`, `YYYY-MM-DD`),
+exigée pour `director_id`.
 
 **Traits :**
 - `LogsActivity` (spatie) — chaque transition de statut est journalisée

@@ -24,7 +24,16 @@ class OwnerProfileResource extends BaseResource
         /** @var OwnerProfile $profile */
         $profile = $this->resource;
 
-        return array_merge($profile->attributesToArray(), $profile->relationsToArray(), [
+        $attributes = $profile->attributesToArray();
+        // `attributesToArray()` sérialise les instants par `toISOString()` (`…000000Z`) : ADR-0018
+        // veut `iso()`. Seules les colonnes PRÉSENTES sont réécrites — les sparse fieldsets décident.
+        foreach (['created_at', 'updated_at', 'deleted_at'] as $column) {
+            if (array_key_exists($column, $attributes)) {
+                $attributes[$column] = $this->iso($profile->getAttribute($column));
+            }
+        }
+
+        return array_merge($attributes, $profile->relationsToArray(), [
             'rib_masked' => $this->masked($profile, 'rib', Masking::iban(...)),
             'tax_id_masked' => $this->masked($profile, 'tax_id', Masking::tail(...)),
             'id_document_number_masked' => $this->masked($profile, 'id_document_number', Masking::tail(...)),

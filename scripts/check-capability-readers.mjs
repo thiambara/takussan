@@ -73,7 +73,7 @@ const ENUM = 'app/Models/Enums/Capability.php';
 const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
 
 /** Taille de l'inventaire. Bilatéral : il suit `AWAITING`, dans les deux sens. */
-const CLIQUET = 14;
+const CLIQUET = 13; // TCK-601 : `agency.update_kyc` branchée (Agency\KycController::upload, submit).
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;

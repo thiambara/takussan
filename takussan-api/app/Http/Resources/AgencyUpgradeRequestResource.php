@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Kyc\SharedLegalIdentifierDetector;
 use Illuminate\Http\Request;
 
 /**
@@ -34,6 +35,12 @@ class AgencyUpgradeRequestResource extends BaseResource
             'review_comment' => $this->review_comment,
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
+            // TCK-601 (C) — au super-admin SEUL : un autre identifiant d'agence qui coïncide est un
+            // signal de revue, et l'admin de l'agence n'a pas à savoir qui d'autre porte ce RIB.
+            'shared_identifiers' => $this->when(
+                $request->user()?->isSuperAdmin() === true,
+                fn () => SharedLegalIdentifierDetector::forRequestCycle($request)->forRequest($this->resource),
+            ),
         ];
     }
 }

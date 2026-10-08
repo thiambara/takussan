@@ -145,6 +145,6 @@ class PrivacyRequest extends AbstractModel implements HasMedia
 
     public function isOverdue(): bool
     {
-        return $this->status->isOpen() && $this->due_at !== null && $this->due_at->isPast();
+        return $this->status?->isOpen() === true && $this->due_at !== null && $this->due_at->isPast();
     }
 }

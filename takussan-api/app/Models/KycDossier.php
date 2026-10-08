@@ -26,18 +26,20 @@ class KycDossier extends AbstractModel implements HasAuditAgency, HasMedia
         'reviewed_by',
         'rejection_reason',
         'metadata',
+        'expires_at',
     ];
 
     protected $casts = [
         'status' => KycDossierStatus::class,
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'expires_at' => 'datetime',
         'metadata' => 'array',
     ];
 
     protected static array $requestFilterable = ['status', 'subject_id'];
 
-    protected static array $requestSortable = ['id', 'submitted_at', 'reviewed_at', 'created_at'];
+    protected static array $requestSortable = ['id', 'submitted_at', 'reviewed_at', 'expires_at', 'created_at'];
 
     protected static array $requestLoadable = ['subject', 'reviewer'];
 
@@ -51,6 +53,7 @@ class KycDossier extends AbstractModel implements HasAuditAgency, HasMedia
         'reviewed_by',
         'rejection_reason',
         'metadata',
+        'expires_at',
         'created_at',
         'updated_at',
     ];
