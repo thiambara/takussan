@@ -412,7 +412,6 @@ return [
         'password_or_code_invalid' => 'Mot de passe ou code invalide.',
     ],
     'user' => [
-        'account_block_reserved' => 'Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d\'agence suspend un membre dans son agence.',
         'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
         'cannot_erase_self' => 'Vous ne pouvez pas effacer votre propre compte depuis la console : passez par votre espace personnel.',
         'no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',

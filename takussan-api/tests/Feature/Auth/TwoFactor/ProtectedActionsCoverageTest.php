@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth\TwoFactor;
 
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
+use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\UserAdminController;
@@ -111,7 +112,8 @@ class ProtectedActionsCoverageTest extends TestCase
         // TCK-600 (ADR-0047 §4) — `UserRoleController` ne confère plus de pouvoir plateforme (sa
         // branche `super_admin` est retirée) : le plancher passe à la cooptation.
         $this->assertArrayHasKey(SuperAdminInvitationController::class, $conferent);
-        $this->assertArrayHasKey(UserAdminController::class, $conferent);
+        // TCK-600 (verif-600 m1) — réactiver un compte a quitté `UserAdminController` pour la console.
+        $this->assertArrayHasKey(UserLifecycleController::class, $conferent);
 
         $oubliees = [];
         foreach (Route::getRoutes()->getRoutes() as $route) {

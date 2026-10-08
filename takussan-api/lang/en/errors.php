@@ -412,7 +412,6 @@ return [
         'password_or_code_invalid' => 'Invalid password or code.',
     ],
     'user' => [
-        'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',
         'cannot_block_self' => 'You cannot block your own account.',
         'cannot_erase_self' => 'You cannot erase your own account from the console: use your personal space.',
         'no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',

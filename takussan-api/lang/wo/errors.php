@@ -412,7 +412,6 @@ return [
         'password_or_code_invalid' => 'Baatu jàll bi walla code bi baaxul.',
     ],
     'user' => [
-        'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
         'cannot_block_self' => 'Mën nga téqale sa bopp.',
         'cannot_erase_self' => 'Mënoo far sa kont ci konsol bi : jaaral ci sa bopp.',
         'no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',

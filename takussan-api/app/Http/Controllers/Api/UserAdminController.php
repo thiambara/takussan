@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\CalendarFeed;
-use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
@@ -65,38 +63,11 @@ class UserAdminController extends Controller
         return $this->paginated($paginator, $items);
     }
 
-    /**
-     * TCK-587 (ADR-0031 §2) — bloquer un COMPTE est un geste du super-admin seul.
-     *
-     * L'admin d'agence y avait accès, pour un compte qui n'est pas celui de son agence : un
-     * bailleur présent dans deux agences était coupé des deux par l'admin de l'une, et l'admin
-     * d'agence réactivait un compte bloqué par le super-admin. L'admin d'agence suspend désormais
-     * un membre DANS son agence (`Agency\TeamMemberSuspensionController`).
-     */
-    public function block(Request $request, User $user): JsonResponse
-    {
-        $actor = $request->user();
-        abort_code_unless($actor->isSuperAdmin(), 403, 'user.account_block_reserved');
-        abort_code_if($user->id === $actor->id, 422, 'user.cannot_block_self');
-
-        $user->update(['status' => UserStatus::Blocked]);
-        $user->tokens()->delete();
-        // TCK-591 (verif-591 M4) — un lien d'agenda est une méthode d'authentification (ADR-0034) :
-        // bloquer le compte le coupe aussi, comme les jetons.
-        CalendarFeed::query()->active()->where('user_id', $user->id)->update(['revoked_at' => now()]);
-
-        return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
-    }
-
-    public function activate(Request $request, User $user): JsonResponse
-    {
-        abort_code_unless($request->user()->isSuperAdmin(), 403, 'user.account_block_reserved');
-
-        $user->update(['status' => UserStatus::Active]);
-
-        return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
-    }
-
+    // TCK-587 (ADR-0031 §2) — bloquer un COMPTE est un geste de la plateforme seule ; l'admin
+    // d'agence suspend un membre DANS son agence (`Agency\TeamMemberSuspensionController`).
+    // TCK-600 (verif-600 m1) — `block` et `activate` sont SUPPRIMÉS d'ici : second chemin du cycle
+    // de vie, sans motif ni trace. Ils passent par `Admin\UserLifecycleController`.
+    //
     // TCK-600 — `destroy`, `deleteOwnAccount` et leur copie locale d'`anonymize()` sont SUPPRIMÉS.
     // Ils effaçaient un compte sur-le-champ, sans obligations, sans délai de grâce, sans activité,
     // et `deleteOwnAccount` sans step-up. L'effacement n'a plus qu'un chemin :

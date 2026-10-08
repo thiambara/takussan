@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\UserStatus;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,47 +59,14 @@ class UserAdminTest extends TestCase
         $this->getJson('/api/users')->assertForbidden();
     }
 
-    public function test_admin_can_block_user(): void
-    {
-        $admin = $this->createAdmin();
-        $user = User::factory()->create();
-
-        $this->actingAsWithStepUp($admin);
-
-        $this->postJson("/api/users/{$user->id}/block")
-            ->assertOk()
-            ->assertJsonPath('data.status', UserStatus::Blocked->value);
-
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'status' => UserStatus::Blocked->value]);
-    }
-
-    public function test_admin_cannot_block_self(): void
-    {
-        $admin = $this->createAdmin();
-
-        $this->actingAsWithStepUp($admin);
-
-        $this->postJson("/api/users/{$admin->id}/block")
-            ->assertStatus(422);
-    }
-
-    public function test_admin_can_activate_user(): void
-    {
-        $admin = $this->createAdmin();
-        $user = User::factory()->create(['status' => UserStatus::Blocked->value]);
-
-        $this->actingAsWithStepUp($admin);
-
-        $this->postJson("/api/users/{$user->id}/activate")
-            ->assertOk()
-            ->assertJsonPath('data.status', UserStatus::Active->value);
-    }
-
     // TCK-278 — Les endpoints POST /users/{user}/roles et
     // DELETE /users/{user}/roles/{role} ont été retirés en P3 (cf.
     // routes/api/users.php). L'assignation de rôle passe désormais par
     // `PUT /users/{user}/role` (UserRoleController), testé dans
     // UserRoleControllerTest.
+
+    // TCK-600 (verif-600 m1) — `POST /users/{user}/block|activate` ont été retirés, pour tous les
+    // rôles : `AccountBlockSingleRouteTest` ; bloquer et réactiver passent par la console.
 
     // TCK-600 — `DELETE /users/{user}` et `DELETE /auth/account` ont été retirés :
     // `OwnAccountImmediateDeletionRemovedTest` éprouve leur absence, `AdminUserLifecycleTest`

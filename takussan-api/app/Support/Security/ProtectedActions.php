@@ -30,7 +30,6 @@ use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\Profile\AgencyRoleController;
-use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
 use App\Http\Middleware\RequireRecentTwoFactor;
@@ -135,8 +134,6 @@ final class ProtectedActions
         AgencyController::class.'@destroy',
         AgencyController::class.'@addAgent',
         AgencyController::class.'@removeAgent',
-        UserAdminController::class.'@block',
-        UserAdminController::class.'@activate',
         TeamMemberSuspensionController::class.'@suspend',
         TeamMemberSuspensionController::class.'@reactivate',
         AgentProfileController::class.'@suspend',
@@ -218,11 +215,10 @@ final class ProtectedActions
      * @var list<string>
      */
     public const STEP_UP_FOR_PLATFORM = [
-        UserAdminController::class.'@block',
-        // Vérification adverse B1 — débloquer un compte, et `PUT users/{u}/role`, qui CRÉE un
-        // super-admin quand l'acteur en est un : hors `/api/admin/*`, ils échappaient aux deux
-        // gardes. Un jeton volé sans step-up promouvait le compte de l'attaquant.
-        UserAdminController::class.'@activate',
+        // Vérification adverse B1 — `PUT users/{u}/role`, qui CRÉE un super-admin quand l'acteur en
+        // est un : hors `/api/admin/*`, il échappait aux deux gardes. Un jeton volé sans step-up
+        // promouvait le compte de l'attaquant. (Bloquer et débloquer un compte y figuraient aussi :
+        // TCK-600 a retiré ces routes au profit de la console.)
         UserRoleController::class.'@update',
     ];
 
