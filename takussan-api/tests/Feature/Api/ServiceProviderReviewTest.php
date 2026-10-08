@@ -127,4 +127,15 @@ class ServiceProviderReviewTest extends ApiTestCase
         $this->assertEquals(4.0, round((float) $row['average_rating'], 2));
         $this->assertSame(2, (int) $row['reviews_count']);
     }
+
+    /** verif-597 M2 — un avis retiré par la plateforme interdit d'en redéposer un : 422, jamais 500. */
+    public function test_a_review_removed_by_the_platform_cannot_be_posted_again(): void
+    {
+        $done = $this->intervention(MaintenanceStatus::Completed);
+        $this->rate($this->requester, $done)->assertCreated();
+        Review::query()->firstOrFail()->delete();
+
+        $this->rate($this->requester, $done)->assertStatus(422)->assertJsonPath('code', 'review.intervention_already_reviewed');
+        $this->assertSame(1, Review::withTrashed()->count());
+    }
 }

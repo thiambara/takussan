@@ -100,6 +100,16 @@ nommait l'index sans lui — parce qu'un même bail rend éligible à noter le b
 l'agence : sans la cible dans la clé, le formulaire commun « bien + agent » se refuserait à
 lui-même.
 
+**Un avis retiré compte** (verif-597 M2). Un avis supprimé en douceur par la plateforme
+(`remove`) interdit d'en déposer un autre sur le même sujet. Les quatre contrôles d'unicité et la
+liste des invitations (`ReviewEligibility::opportunities`) le lisent `withTrashed()`, et le refus
+est un 422 `review.*_already_reviewed`. L'index, de son côté, compte déjà les lignes supprimées.
+La règle inverse (pouvoir noter de nouveau) aurait demandé `AND deleted_at IS NULL` dans l'index.
+Elle est écartée : un retrait sanctionne l'avis, et le redéposer le contournerait.
+
+Avant ce correctif, le contrôleur ignorait les avis supprimés alors que l'index les comptait.
+L'invitation revenait donc après un retrait, et la cliquer rendait 500.
+
 ### 4. Le levier du masquage : statut, visibilité et verrou plateforme
 
 Masquer une annonce (`hide`) écrit `status = rejected`, `visibility = private`,

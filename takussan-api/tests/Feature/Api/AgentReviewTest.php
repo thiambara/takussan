@@ -144,4 +144,24 @@ class AgentReviewTest extends ApiTestCase
         $this->rate($this->client, $this->agent)->assertStatus(422)->assertJsonPath('code', 'review.agent_already_reviewed');
         $this->assertSame(1, Review::query()->count());
     }
+
+    /**
+     * verif-597 M2 — un avis retiré par la plateforme interdit d'en redéposer un, et l'invitation
+     * ne revient pas. Avant : l'invitation réapparaissait, et la cliquer rendait 500
+     * (`reviews_author_context_uniq` refusait ce que le contrôleur laissait passer).
+     */
+    public function test_a_review_removed_by_the_platform_cannot_be_posted_again(): void
+    {
+        $this->completedVisit();
+        $this->rate($this->client, $this->agent)->assertCreated();
+        Review::query()->firstOrFail()->delete();
+
+        $this->actingAsApi($this->client);
+        $invited = collect($this->getJson('/api/me/review-opportunities')->assertOk()->json('data'))
+            ->where('type', 'agent');
+        $this->assertCount(0, $invited);
+
+        $this->rate($this->client, $this->agent)->assertStatus(422)->assertJsonPath('code', 'review.agent_already_reviewed');
+        $this->assertSame(1, Review::withTrashed()->count());
+    }
 }

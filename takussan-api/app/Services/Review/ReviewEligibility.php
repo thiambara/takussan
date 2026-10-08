@@ -96,7 +96,8 @@ class ReviewEligibility
      */
     public function opportunities(User $author): array
     {
-        $reviewed = Review::query()->where('author_id', $author->id)
+        // verif-597 M2 — un avis retiré par la plateforme ferme l'invitation, comme un avis publié.
+        $reviewed = Review::withTrashed()->where('author_id', $author->id)
             ->get(['reviewable_type', 'reviewable_id', 'context_type', 'context_id']);
         $done = fn (string $type, int $id) => $reviewed->contains(fn (Review $r) => $r->reviewable_type === $type && (int) $r->reviewable_id === $id);
 

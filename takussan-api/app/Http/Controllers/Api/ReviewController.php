@@ -259,7 +259,8 @@ class ReviewController extends Controller
         // StoreForPropertyReviewRequest::authorize(), donc AVANT la validation : un appel non
         // éligible ET mal formé doit rendre 403, pas 422. Le 422 ci-dessous reste ici — « déjà
         // noté » n'est pas un refus d'accès mais un état métier.
-        $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
+        // verif-597 M2 — un avis RETIRÉ par la plateforme compte : il interdit d'en redéposer un.
+        $alreadyReviewed = $property->reviews()->withTrashed()->where('author_id', $user->id)->exists();
         abort_code_if($alreadyReviewed, 422, 'review.property_already_reviewed');
 
         $data = $request->validated();
@@ -358,7 +359,7 @@ class ReviewController extends Controller
         $user = $request->user();
 
         // TCK-305 — même raison que dans storeForProperty() ci-dessus.
-        $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
+        $alreadyReviewed = $agency->reviews()->withTrashed()->where('author_id', $user->id)->exists();
         abort_code_if($alreadyReviewed, 422, 'review.agency_already_reviewed');
 
         $data = $request->validated();
@@ -390,7 +391,8 @@ class ReviewController extends Controller
             User::query()->whereKey($user->id)->lockForUpdate()->first();
 
             abort_code_if(
-                $user->receivedReviews()->where('author_id', $author->id)->exists(),
+                // verif-597 M2 — un avis retiré compte (ADR-0043 §3) : sinon l'index le refusait en 500.
+                $user->receivedReviews()->withTrashed()->where('author_id', $author->id)->exists(),
                 422,
                 'review.agent_already_reviewed'
             );
@@ -425,7 +427,7 @@ class ReviewController extends Controller
             MaintenanceRequest::query()->whereKey($intervention->id)->lockForUpdate()->first();
 
             abort_code_if(
-                $serviceProviderProfile->reviews()
+                $serviceProviderProfile->reviews()->withTrashed()
                     ->where('author_id', $author->id)
                     ->where('context_type', $intervention->getMorphClass())
                     ->where('context_id', $intervention->id)
