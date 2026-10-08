@@ -8,7 +8,7 @@ import type { MaintenanceRequest, MaintenanceStatus } from '@/types/maintenance'
 /** `id` EST la clé sous `maintenance.stepper.*` — la donnée porte la clé, le rendu la résout. */
 const STEPS = [
   { id: 'created', statuses: ['open', 'acknowledged', 'assigned'] },
-  { id: 'quote', statuses: ['quote_requested', 'quote_submitted', 'rejected', 'approved'] },
+  { id: 'quote', statuses: ['quote_requested', 'quote_submitted', 'awaiting_owner', 'rejected', 'approved'] },
   { id: 'progress', statuses: ['in_progress'] },
   { id: 'completed', statuses: ['completed', 'closed'] },
 ] as const;

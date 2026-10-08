@@ -72,4 +72,20 @@ describe('<SystemMessageBubble>', () => {
     );
     expect(screen.getByText('unknown event')).toBeInTheDocument();
   });
+
+  // TCK-592 — l'avis d'étape du fil d'une intervention : des CODES, rendus dans la langue du lecteur.
+  it('renders a maintenance assignment from its cause', () => {
+    render(wrap(<SystemMessageBubble message={mkSys('maintenance', { cause: 'assigned', status: 'open', provider_name: 'Awa' })} />));
+    expect(screen.getByText('Intervention confiée à Awa.')).toBeInTheDocument();
+  });
+
+  it('renders a maintenance step from its status', () => {
+    render(wrap(<SystemMessageBubble message={mkSys('maintenance', { cause: 'quote_awaiting_owner', status: 'awaiting_owner' })} />));
+    expect(screen.getByText('Statut : En attente du bailleur.')).toBeInTheDocument();
+  });
+
+  it('falls back to the server text for an unknown maintenance code', () => {
+    render(wrap(<SystemMessageBubble message={{ ...mkSys('maintenance', { cause: 'x', status: 'y' }), content: 'Repli serveur' }} />));
+    expect(screen.getByText('Repli serveur')).toBeInTheDocument();
+  });
 });

@@ -86,12 +86,14 @@ class MessagingReach
         return User::query()
             ->whereKeyNot($actor->getKey())
             ->where(function (Builder $reach) use ($actor, $agencyId, $actorIsStaff, $contextAgencyId) {
-                // 1. Correspondants.
+                // 1. Correspondants. TCK-592 (passe 2, N1) — par les seuls fils que la garde de
+                //    conversation lui ouvre : un fil d'intervention fermé ne garde pas le contact.
                 $reach->whereIn('users.id', function (QueryBuilder $sub) use ($actor) {
                     $sub->select('cpb.user_id')
-                        ->from('conversation_participants as cpa')
-                        ->join('conversation_participants as cpb', 'cpa.conversation_id', '=', 'cpb.conversation_id')
-                        ->where('cpa.user_id', $actor->id);
+                        ->from('conversation_participants as cpb')
+                        ->whereIn('cpb.conversation_id', app(ConversationAccess::class)
+                            ->participatingQuery($actor, activeOnly: false)
+                            ->select('conversations.id'));
                 });
 
                 // 2. Lien CRM, dans les trois sens où une fiche client relie deux comptes :

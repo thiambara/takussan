@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class ServiceProviderProfile extends AbstractModel
 {
@@ -61,6 +62,33 @@ class ServiceProviderProfile extends AbstractModel
         'active_until', 'metadata',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-592 — le carnet d'une agence se filtre par métier, par zone et par statut de collaboration.
+     *
+     * `collaboration_status` est déclaré ici pour que spatie l'accepte, mais il n'agit PAS ici : un
+     * profil collabore avec N agences, et le statut qui compte est celui du couple (profil, agence de
+     * l'écran). C'est `ServiceProviderProfileController::scopeForAgency()` qui l'applique, défaut
+     * `active` compris — un filtre `whereHas` posé ici retiendrait une collaboration ACTIVE AILLEURS.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('collaboration_status', static fn (): null => null),
+            AllowedFilter::callback('specialty', static fn (Builder $q, mixed $value) => $q->where(
+                static fn (Builder $inner) => collect((array) $value)->each(
+                    static fn ($v) => $inner->orWhereJsonContains('specialties', (string) $v),
+                ),
+            )),
+            AllowedFilter::callback('zone', static fn (Builder $q, mixed $value) => $q->where(
+                static fn (Builder $inner) => collect((array) $value)->each(
+                    static fn ($v) => $inner->orWhereJsonContains('service_areas', (string) $v),
+                ),
+            )),
+        ];
+    }
 
     public function user(): BelongsTo
     {

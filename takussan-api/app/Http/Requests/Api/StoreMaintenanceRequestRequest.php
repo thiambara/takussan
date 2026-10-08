@@ -5,6 +5,8 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
+use App\Models\Property;
+use App\Rules\AssignableProvider;
 use Illuminate\Validation\Rule;
 
 /**
@@ -27,13 +29,22 @@ class StoreMaintenanceRequestRequest extends BaseFormRequest
         return true;
     }
 
+    private function targetProperty(): ?Property
+    {
+        $id = $this->input('property_id');
+
+        return is_numeric($id) ? Property::query()->find((int) $id) : null;
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
             'property_id' => ['required', 'exists:properties,id'],
             'lease_id' => ['nullable', 'exists:leases,id'],
-            'assigned_to' => ['nullable', 'exists:users,id'],
+            // TCK-592 — un compte assignable au bien visé (prestataire actif en collaboration active
+            // avec son agence, ou membre de son équipe).
+            'assigned_to' => ['nullable', 'integer', new AssignableProvider($this->targetProperty())],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'category' => ['required', Rule::enum(MaintenanceCategory::class)],

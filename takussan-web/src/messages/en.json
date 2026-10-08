@@ -2874,6 +2874,39 @@
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",
       "newThreadHint": "Your first message to {name} about this property.",
       "newThreadHintNoName": "Your first message about this property."
+    },
+    "voiceNote": {
+      "record": "Record a voice note",
+      "stop": "Stop recording",
+      "elapsed": "{seconds} s / {max} s",
+      "preview": "Listen before sending",
+      "send": "Send the voice note",
+      "discard": "Delete the note",
+      "microphoneDenied": "The microphone is not accessible. Allow it in your browser.",
+      "sendFailed": "The voice note was not sent. Please try again.",
+      "label": "Voice note",
+      "duration": "{seconds} s"
+    },
+    "maintenanceEvents": {
+      "assigned": "Job assigned to {provider}.",
+      "unassigned": "The job is no longer assigned to {provider}.",
+      "accepted": "{provider} accepted the job.",
+      "declined": "{provider} declined the job.",
+      "status": "Status: {status}.",
+      "statuses": {
+        "open": "Open",
+        "acknowledged": "Acknowledged",
+        "quote_requested": "Quote requested",
+        "quote_submitted": "Quote submitted",
+        "awaiting_owner": "Awaiting landlord",
+        "approved": "Quote approved",
+        "rejected": "Quote rejected",
+        "assigned": "Assigned",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "closed": "Closed",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "payments": {
@@ -3487,6 +3520,7 @@
       "acknowledged": "Acknowledged",
       "quote_requested": "Quote requested",
       "quote_submitted": "Quote submitted",
+      "awaiting_owner": "Awaiting landlord",
       "approved": "Quote approved",
       "rejected": "Quote rejected",
       "assigned": "Assigned",
@@ -3588,6 +3622,105 @@
         "reason_placeholder": "Please explain why this quote is refused...",
         "reason_min": "The reason must be at least 5 characters long",
         "confirm": "Confirm the rejection"
+      }
+    },
+    "intervention": {
+      "response": {
+        "title": "This job has been assigned to you",
+        "body": "Accept it to see the address and the tenant's contact, or decline it: it will go back to the agency.",
+        "accept": "I accept",
+        "decline": "I decline",
+        "reason_label": "Why are you declining?",
+        "reason_placeholder": "Unavailable that day, outside my area…",
+        "confirm_decline": "Confirm decline",
+        "back": "Back",
+        "failed": "Your answer was not saved. Please try again."
+      },
+      "access": {
+        "title": "Access to the property",
+        "address_missing": "No address provided",
+        "instructions": "Access instructions",
+        "directions": "Directions",
+        "call_requester": "Call the tenant",
+        "discuss": "Chat"
+      },
+      "assignment": {
+        "title": "Provider and time slot",
+        "invite": "Invite a new provider",
+        "provider_label": "Provider",
+        "nobody": "No provider",
+        "directory_unavailable": "The agency's provider directory is not available to your account.",
+        "slot_label": "Time slot",
+        "unavailable_that_day": "This provider does not declare working on that day.",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Saved.",
+        "failed": "The assignment was not saved."
+      },
+      "gallery": {
+        "title": "Photos and files",
+        "reported": "Report",
+        "before": "Before",
+        "after": "After",
+        "quotes": "Quote",
+        "before_label": "Photos before the work",
+        "send": "{count, plural, =0 {Send} =1 {Send # photo} other {Send # photos}}",
+        "sending": "Sending…",
+        "failed": "The photos were not sent. They are still selected: try again."
+      },
+      "resolution": {
+        "title": "The work is done",
+        "body": "Is the problem fixed? Without an answer from you, the request will be closed in 7 days.",
+        "confirm": "It's fixed",
+        "contest": "The problem persists",
+        "comment_label": "What is wrong?",
+        "comment_placeholder": "Describe what persists",
+        "photos_label": "Photos (optional)",
+        "send_contest": "Send",
+        "back": "Back",
+        "failed": "Your answer was not saved. Please try again."
+      },
+      "quote": {
+        "request": "Request a quote",
+        "approve": "Approve the quote",
+        "reject": "Reject the quote",
+        "failed": "The quote action failed.",
+        "awaiting_owner_you": "This quote exceeds your works threshold: it is awaiting your approval.",
+        "awaiting_owner_other": "This quote exceeds the landlord's works threshold: it is awaiting their approval.",
+        "pdf": "Download the quote (PDF)",
+        "pdf_downloading": "Downloading…",
+        "pdf_failed": "The quote PDF could not be downloaded.",
+        "line_label": "Description",
+        "line_kind": "Type",
+        "line_quantity": "Quantity",
+        "line_unit_price": "Unit price",
+        "line_total": "Total",
+        "kinds": {
+          "labour": "Labour",
+          "supply": "Supplies"
+        },
+        "valid_until": "Valid until {date}",
+        "duration": "{days, plural, =1 {Estimated duration: # day} other {Estimated duration: # days}}"
+      },
+      "quote_form": {
+        "title": "Submit a quote",
+        "title_again": "Submit a new quote",
+        "intro": "Itemise labour and supplies: the amount is calculated from the lines.",
+        "remove_line": "Remove line",
+        "add_line": "Add a line",
+        "total_preview": "Estimated total: {amount}",
+        "valid_until_label": "Valid until",
+        "duration_label": "Estimated duration (days)",
+        "attachments_label": "Attachments (PDF or images)",
+        "remove_file": "Remove",
+        "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
+        "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
+        "failed": "The quote was not sent.",
+        "submitting": "Sending…",
+        "submit": "Send the quote"
+      },
+      "list": {
+        "agency": "Agency {name}"
       }
     }
   },
@@ -7836,6 +7969,21 @@
         "phoneNotVerified": "Phone not verified.",
         "channelUnavailable": "No message of this kind is sent on this channel."
       }
+    },
+    "serviceProvider": {
+      "title": "My provider activity",
+      "subtitle": "What the agencies you work with see. Each setting is saved separately.",
+      "trades": "Trades",
+      "zones": "Service areas",
+      "zonesPlaceholder": "Dakar, Mbour, Thiès",
+      "rates": "Rates",
+      "hourlyRate": "Hourly rate (FCFA)",
+      "visitFee": "Call-out fee (FCFA)",
+      "availability": "Availability",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "failed": "This setting was not saved."
     }
   },
   "contact": {
@@ -8929,6 +9077,78 @@
         "created": {
           "title": "New maintenance request",
           "body": "A maintenance request ({reference}) was submitted for {property}."
+        },
+        "assigned": {
+          "title": "New job: {request}",
+          "body": "A job is assigned to you at {property}. Accept or decline it from its page."
+        },
+        "unassigned": {
+          "title": "Job withdrawn: {request}",
+          "body": "The job \"{request}\" is no longer assigned to you."
+        },
+        "accepted": {
+          "title": "Job accepted: {request}",
+          "body": "{provider} accepted the job \"{request}\"."
+        },
+        "declined": {
+          "title": "Job declined: {request}",
+          "body": "{provider} declined the job \"{request}\". Reason: {reason}"
+        },
+        "completed": {
+          "title": "Job completed: {request}",
+          "body": "The service provider completed the job \"{request}\". The requester must confirm the repair."
+        },
+        "confirmed": {
+          "title": "Repair confirmed: {request}",
+          "body": "The requester confirmed the repair: the job \"{request}\" is closed."
+        },
+        "contested": {
+          "title": "Repair contested: {request}",
+          "body": "The problem persists on \"{request}\". Comment: {comment}"
+        },
+        "auto_closed": {
+          "title": "Job closed: {request}",
+          "body": "With no answer within {days} days, the job \"{request}\" was closed automatically."
+        },
+        "cancelled": {
+          "title": "Job cancelled: {request}",
+          "body": "The job \"{request}\" was cancelled."
+        },
+        "step_acknowledged": {
+          "title": "Your request \"{request}\": acknowledged",
+          "body": "Your maintenance request is now: acknowledged."
+        },
+        "step_assigned": {
+          "title": "Your request \"{request}\": assigned",
+          "body": "Your maintenance request is now: assigned."
+        },
+        "step_in_progress": {
+          "title": "Your request \"{request}\": in progress",
+          "body": "Your maintenance request is now: in progress."
+        },
+        "step_completed": {
+          "title": "Your request \"{request}\": completed",
+          "body": "Your maintenance request is now: completed."
+        },
+        "step_closed": {
+          "title": "Your request \"{request}\": closed",
+          "body": "Your maintenance request is now: closed."
+        },
+        "step_cancelled": {
+          "title": "Your request \"{request}\": cancelled",
+          "body": "Your maintenance request is now: cancelled."
+        },
+        "step_acknowledged_scheduled": {
+          "title": "Your request \"{request}\": acknowledged",
+          "body": "Your maintenance request is now: acknowledged. Visit planned on {scheduled_at}."
+        },
+        "step_assigned_scheduled": {
+          "title": "Your request \"{request}\": assigned",
+          "body": "Your maintenance request is now: assigned. Visit planned on {scheduled_at}."
+        },
+        "step_in_progress_scheduled": {
+          "title": "Your request \"{request}\": in progress",
+          "body": "Your maintenance request is now: in progress. Visit planned on {scheduled_at}."
         }
       },
       "maintenance_quote": {
@@ -8946,7 +9166,11 @@
         },
         "rejected": {
           "title": "Quote rejected: {request}",
-          "body": "Your quote for the job \"{request}\" was rejected."
+          "body": "Your quote for the job \"{request}\" was rejected. Reason: {reason}"
+        },
+        "awaiting_owner": {
+          "title": "Your approval is required: {request}",
+          "body": "A quote of {amount} for \"{request}\" exceeds the works ceiling agreed with your agency. Approve or reject it."
         }
       },
       "prospect_match": {
