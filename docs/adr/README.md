@@ -70,6 +70,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
 | [0053](0053-l-agent-principal-est-une-marque-unique-par-bien.md) | L'agent principal d'un bien est une marque posée sur sa ligne de collaboration, unique par bien et réservée au rôle `agent` par le schéma ; une seule écriture la déplace, sous le verrou du bien | Accepté |
 | [0054](0054-detection-des-doublons-d-annonces.md) | Un doublon d'annonce se soupçonne par le dHash de la photo originale (quatre bandes indexées, seuil 3) et par l'adresse normalisée, entre publieurs différents seulement ; il entre dans la file de la plateforme et n'est jamais masqué seul ; un avis suspect est un drapeau de tri | Accepté |
+| [0059](0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md) | Changer l'agent responsable passe par un seul service (unitaire, lot, passation, réparation) ; la passation verrouille les biens avant les lignes ; seule l'ancienne réattribution porte la signature que la réparation lit | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

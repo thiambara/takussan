@@ -1,13 +1,13 @@
 ---
 id: TCK-603
 title: "Changer l'agent responsable sans déposséder le bailleur : bulk-assign, réattribution unitaire, réparation des biens réattribués, biens du partant à la passation (complément de TCK-591, après TCK-504)"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: L
 wave: 73
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: [TCK-504, TCK-591]
 blocks: []
 spec_refs:
