@@ -91,6 +91,14 @@ class PayoutService
             'payout.landlord_not_in_agency',
         );
 
+        // ADR-0039 §4 (VERIF-594 m-1) — une agence `individual` ne reverse qu'à son hôte : son argent
+        // sort par la chaîne plateforme. Le prestataire de l'hôte passe par `createForBill`.
+        abort_code_if(
+            $agency->kind?->isIndividual() && ! $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
+            422,
+            'payout.individual_third_party',
+        );
+
         // ADR-0039 §4 — le bénéficiaire ne prépare pas son propre reversement.
         SegregationOfDuties::assertDistinct($user, [$landlord->id], SegregationOfDuties::STEP_PREPARE);
 

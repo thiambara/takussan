@@ -274,6 +274,7 @@ return [
         'failure_reason_required' => 'Waxal lu tax mu daanu.',
         'issuer_forbidden' => 'Way agence walla administrateur yi rekk ñoo mën a génne reversement.',
         'landlord_not_in_agency' => 'Boroom kër gii bokkul ci sa agence.',
+        'individual_third_party' => 'Agence bu benn nit du fey kenn ku dul boroom bi : platform bi mooy fey ñeneen ñi.',
         'mixed_currencies' => 'Reversement du boole ñaari devise.',
         'net_negative' => 'Xaalis net bi mënul a nekk ci suufu tus.',
         'not_awaiting_approval' => 'Bii reversement du xaar ñu nangu ko.',

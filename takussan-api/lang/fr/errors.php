@@ -274,6 +274,7 @@ return [
         'failure_reason_required' => 'Indiquez le motif de l\'échec.',
         'issuer_forbidden' => 'Seuls les membres de l\'agence ou les administrateurs peuvent émettre un reversement.',
         'landlord_not_in_agency' => 'Ce bailleur n\'appartient pas à votre agence.',
+        'individual_third_party' => 'Une agence individuelle ne reverse qu\'à son hôte : un tiers est payé par la plateforme.',
         'mixed_currencies' => 'Un reversement ne mélange pas deux devises.',
         'net_negative' => 'Le montant net ne peut pas être négatif.',
         'not_awaiting_approval' => 'Ce reversement n\'attend pas d\'approbation.',

@@ -274,6 +274,7 @@ return [
         'failure_reason_required' => 'Provide the reason for the failure.',
         'issuer_forbidden' => 'Only agency members or administrators can issue payouts.',
         'landlord_not_in_agency' => 'This landlord does not belong to your agency.',
+        'individual_third_party' => 'An individual agency only pays out to its host: a third party is paid by the platform.',
         'mixed_currencies' => 'A payout cannot mix two currencies.',
         'net_negative' => 'The net amount cannot be negative.',
         'not_awaiting_approval' => 'This payout is not awaiting approval.',

@@ -65,6 +65,14 @@ n'existe, et un pilote qu'on ne peut pas éprouver contre le vrai service est un
 est un `Customer`, pas forcément un utilisateur. Le nom est historique ; le renommer casserait
 TCK-593 et TCK-595, qui lisent déjà `payouts` (`transaction_id` garde son nom pour la même raison).
 
+**Une agence `individual` ne reverse qu'à son hôte** (VERIF-594 m-1) : `PayoutService::create`
+refuse un bénéficiaire qui ne tient pas d'`AgencyAdminProfile` dans l'agence (422
+`payout.individual_third_party`). L'argent d'une agence individuelle sort par la chaîne plateforme ;
+le `Payout` n'y trace que ce que la plateforme rend à l'hôte. **Exception délibérée** : la facture
+d'intervention (§8). `createForBill` reste permis à une agence `individual` — son prestataire est
+celui de l'hôte, qu'il a lui-même assigné et dont il valide la facture ; le lui interdire laisserait
+la pièce sans aucune chaîne de paiement.
+
 *Écarté* : une table par bénéficiaire. Trois tables pour un seul flux de sortie, c'est trois
 chaînes de quatre yeux à tenir égales.
 

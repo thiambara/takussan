@@ -546,6 +546,9 @@ rend **403** avec une clé i18n, jamais une phrase.
   changé (422 `payout.destination_changed_since_approval`) ; l'approbateur voit la destination
   masquée (API et écran) ; le vérificateur d'une destination ne la paie pas dans les 24 h (403
   `payout.verifier_cannot_pay_yet`).
+- [x] **m-1** — une agence `individual` ne reverse qu'à son hôte : `PayoutService::create` rend
+  422 `payout.individual_third_party` pour un bénéficiaire sans `AgencyAdminProfile` dans l'agence.
+  `createForBill` reste permis (exception écrite à l'ADR-0039 §2).
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -749,6 +752,10 @@ rend **403** avec une clé i18n, jamais une phrase.
   paie 25 h après. Écran : la destination prévue, puis approuvée, est affichée ; approuvé, le choix
   de destination n'offre que l'approuvée, et approuvé sans destination il le dit.
   **Preuve** : `PayoutBypassTest::test_m4_the_destination_changed_after_approval_is_refused`, `…_another_destination_than_the_approved_one_is_refused`, `…_a_payout_approved_without_destination_is_not_paid_to_one`, `…_the_verifier_does_not_pay_the_destination_within_24_hours` (rouges sur 9923b16c) ; front `PayoutDetailDialog.capacites.test.tsx` (trois tests VERIF-594 M-4). Ablations V-M4a, V-M4d, V-M4e, W-M4a, W-M4b : rouges ; V-M4b, V-M4c : vertes (l'empreinte couvre seule ces cas, voir les notes).
+- [x] **AC-m1 — une agence individuelle ne paie pas un tiers.** L'hôte d'une agence `individual`
+  prépare un reversement à un autre bailleur de son agence : 422 `payout.individual_third_party`,
+  aucun `Payout` écrit. Un super-admin qui reverse à l'hôte lui-même : 201.
+  **Preuve** : `PayoutBypassTest::test_m1_an_individual_agency_does_not_pay_a_third_party` (rouge sur 9923b16c : 201). Ablation V-m1 : rouge.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -1082,3 +1089,8 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   - La route de confirmation porte le commentaire de raccord TCK-589 (step-up 2FA).
   - `PayoutApprovalThresholdTest::test_ac8_two_approvers_enable_it_and_each_change_is_traced`
     relevait puis coupait le seuil d'une seule main : il passe par la confirmation du second.
+- **m-1 — l'agence `individual` qui paie un tiers.** « Tiers » se lit comme tout bénéficiaire qui
+  ne tient pas d'`AgencyAdminProfile` dans l'agence : l'hôte est l'administrateur de son agence
+  individuelle (`HostIndividualOnboardingService`). La règle se juge après l'appartenance (403
+  `payout.landlord_not_in_agency` d'abord) et avant la séparation des tâches. Le prestataire de
+  l'hôte reste payable par `createForBill` : c'est la seule chaîne de paiement de sa facture.

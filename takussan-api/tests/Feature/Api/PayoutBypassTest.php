@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Domain\Notifications\NotificationCode;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
@@ -416,5 +417,30 @@ class PayoutBypassTest extends TestCase
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])
             ->assertForbidden()->assertJsonPath('code', 'payout.threshold_needs_second_approver');
         $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
+    }
+
+    /**
+     * m-1 — une agence `individual` n'émet pas de `Payout` à un tiers : son argent sort par la chaîne
+     * plateforme. L'hôte paie son prestataire par `createForBill`, pas un bailleur tiers par `create`.
+     */
+    public function test_m1_an_individual_agency_does_not_pay_a_third_party(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency(['kind' => AgencyKind::Individual, 'commission_rate' => 0]);
+        $host = $this->agencyAdmin($agency);
+        $third = $this->landlordOf($agency);
+        Sanctum::actingAs($host);
+        $rent = $this->leasePayment($this->leaseOf($agency, $third, 0), 80_000);
+
+        $this->postJson('/api/payouts', ['landlord_id' => $third->id, 'lease_payment_ids' => [$rent->id]])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.individual_third_party');
+        $this->assertSame(0, Payout::query()->count());
+
+        // L'hôte lui-même, payé par la plateforme, reste permis.
+        OwnerProfile::factory()->create(['user_id' => $host->id, 'agency_id' => $agency->id]);
+        $own = $this->leasePayment($this->leaseOf($agency, $host, 0), 80_000);
+        $this->actingAsRole('super_admin');
+        $this->postJson('/api/payouts', ['landlord_id' => $host->id, 'agency_id' => $agency->id, 'lease_payment_ids' => [$own->id]])
+            ->assertCreated();
     }
 }
