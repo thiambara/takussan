@@ -1,7 +1,7 @@
 ---
 id: TCK-504
 title: "Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: M
@@ -67,27 +67,48 @@ il est simplement muet.
 
 ## Delta à produire
 
-- [ ] Migration : marquer le collaborateur principal, avec l'unicité par bien portée par le schéma.
-- [ ] Backfill : les biens existants gardent le contact que `PrimaryPropertyContact` leur donne
+- [x] Migration : marquer le collaborateur principal, avec l'unicité par bien portée par le schéma.
+      → `is_primary` + index unique partiel + `CHECK` (`PrimaryAgentSchemaTest`, 5 verts).
+- [x] Backfill : les biens existants gardent le contact que `PrimaryPropertyContact` leur donne
       aujourd'hui, pour qu'aucune fiche publique ne change de visage à la migration.
-- [ ] `PrimaryPropertyContact::for()` : le choix explicite d'abord, le repli actuel ensuite.
-- [ ] Endpoint de désignation + `FormRequest` + policy déléguée.
-- [ ] UI de gestion des collaborateurs : désigner, voir qui l'est, comprendre ce que ça change.
-- [ ] Tests : unicité, refus sur un rôle non-`agent`, repli après suppression du principal,
+      → `PrimaryAgentBackfillTest` (3 verts) et le jeu des seeders (AC5).
+- [x] `PrimaryPropertyContact::for()` : le choix explicite d'abord, le repli actuel ensuite.
+      → `collaborateurPrincipal()` ; ablations A5 et B7 rouges.
+- [x] Endpoint de désignation + `FormRequest` + policy déléguée.
+      → `PUT /api/properties/{p}/collaborators/{c}/primary`, `DesignatePrimaryCollaboratorRequest`
+      → `can('update', $property)` ; ablation B6 rouge.
+- [x] UI de gestion des collaborateurs : désigner, voir qui l'est, comprendre ce que ça change.
+      → `PropertyCollaboratorsPanel` (6 vitest verts, ablations W1–W4 rouges), mesuré au navigateur
+      (§ Partie 3). Aucun écran de collaborateurs n'existait : le panneau est posé dans la fiche pro.
+- [x] Tests : unicité, refus sur un rôle non-`agent`, repli après suppression du principal,
       et le backfill qui ne déplace aucun contact.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — sur un bien à deux collaborateurs `agent`, désigner le second fait que la carte de
+- [x] AC1 — sur un bien à deux collaborateurs `agent`, désigner le second fait que la carte de
       contact, `contact-lead`, `contact-message` et la résolution nomment tous le second.
-- [ ] AC2 — deux désignations concurrentes sur le même bien laissent **un** principal, pas deux.
-- [ ] AC3 — désigner un collaborateur de rôle `viewer`, `manager` ou `co_owner` est refusé par le
+      → `test_designer_le_second_agent_le_fait_nommer_par_toutes_les_surfaces` (+ `GET …/contact`) ;
+      au navigateur, la fiche publique nomme chaque agent désigné à l'écran (3 désignations sur 3).
+- [x] AC2 — deux désignations concurrentes sur le même bien laissent **un** principal, pas deux.
+      → course réelle à deux processus sur base jetable (§ AC2) : 1 principal sur S1, S1 inversé et
+      80 `PUT` ; témoin R2 (sans verrou ni index) → 2 principaux.
+- [x] AC3 — désigner un collaborateur de rôle `viewer`, `manager` ou `co_owner` est refusé par le
       serveur.
-- [ ] AC4 — supprimer le collaborateur principal ramène le contact au repli de TCK-502, sans
+      → `test_designer_un_role_autre_qu_agent_est_refuse_par_le_serveur` (422
+      `property.primary_requires_agent`, les trois rôles) ; ablation B2 rouge.
+- [x] AC4 — supprimer le collaborateur principal ramène le contact au repli de TCK-502, sans
       qu'aucun écran ne rende un contact vide.
-- [ ] AC5 — après la migration, **aucun** bien du jeu de données ne change de contact principal.
-- [ ] AC6 — chaque test rougit si l'on retire la colonne ou si l'on ignore le choix explicite
+      → `test_supprimer_le_principal_ramene_le_repli_sans_contact_vide` (agent suivant, puis
+      propriétaire) ; côté écran, la source `owner` se lit « le propriétaire répond » (vitest).
+- [x] AC5 — après la migration, **aucun** bien du jeu de données ne change de contact principal.
+      → 856 biens, 182 marques, 0 contact changé sur trois relevés (§ AC5) ; `PrimaryAgentBackfillTest`.
+- [x] AC6 — chaque test rougit si l'on retire la colonne ou si l'on ignore le choix explicite
       (ablation).
+      → C1 (migration sans colonne) : 18 rouges sur 19 — le seul vert est
+      `test_la_ligne_d_un_autre_bien_rend_404`, jugé avant toute lecture de la marque, que garde
+      sa propre condition. A5 et B7 (choix ignoré) : rouges sur les tests qui lisent le choix.
+      Lu comme « aucun test de la marque ne passe sans elle » ; les tests d'autre chose (404,
+      autorisation) ont chacun leur ablation (B6…).
 
 ## Hors périmètre
 
@@ -223,3 +244,32 @@ Puis `migrate:rollback --step=1` (seule `2026_10_08_120000_…` revient), relev�
 64 biens y ont deux agents ou plus ; le semeur leur donne la même date d'invitation (départage par
 `id`) : les cas où l'ordre d'invitation contredit l'ordre d'insertion, un premier agent bloqué,
 suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `PrimaryAgentBackfillTest`.
+
+### Partie 3 — l'écran, et la mesure au navigateur
+
+- `PropertyCollaboratorsPanel`, onglet « Vue d'ensemble » de `/app/properties/{id}` (rendu par
+  `PropertyDetailTabs`, pas par `PropertyOverviewPanel` dont le test n'a pas de `QueryClient`). Il dit
+  ce que le choix change (« la personne que la fiche publique du bien nomme, qui reçoit les messages
+  et les demandes des visiteurs, et dont le numéro s'affiche »), pourquoi quelqu'un répond
+  (`source` : choisi par l'agence / premier agent associé / propriétaire, sans alerte), marque la ligne
+  (« Agent principal », ou « Répond par défaut » sans choix), et porte « Désigner comme principal » sur
+  les seules lignes `agent` non marquées. Le refus du serveur s'affiche tel quel (`messageErreurApi`).
+  Libellés `property.dashboard.collaborators` en fr/en/wo.
+- Preuves : `PropertyCollaboratorsPanel.test.tsx` → 6 verts ; `tsc --noEmit` 0 ; `npm run lint` 0 ;
+  `check-i18n`, `check-i18n-namespaces`, `check-classes-emises` verts ; vitest `property-dashboard`,
+  `(dashboard)/app/properties`, `promesses-de-delai`, `src/i18n` → 253 verts.
+- Ablations (`t504/abl-web.sh`, `cp` + md5, `t504/ablations-web.log`), toutes rouges : W1 bouton sur
+  tout rôle ; W2 désignation envoyée pour une autre ligne ; W3 refus du serveur remplacé par un message
+  générique ; W4 source muette (4 rouges).
+- **Au navigateur** (Chrome headless par CDP, ports 8116/3116/9356, base jetable
+  `takussan_tck504_seed`, supprimée ; session posée par `set-token` pour l'admin de l'agence 1 ;
+  bien 8, deux agents) : désigner l'autre agent → `PUT …/collaborators/6/primary` 200, la ligne prend
+  le badge, l'état survit au rechargement, la base porte la marque, le journal compte l'évènement.
+  fr, en et wo relus à l'écran. À 360 px : `scrollWidth` = `innerWidth` = 360. **Défaut trouvé et
+  corrigé** : le bouton mesurait 180 × 36, sous les 44 px que le dépôt tient ailleurs → `min-h-11`
+  sous `sm`, 180 × 44 remesuré.
+- **Fiche publique, au navigateur.** Sans `PUBLIC_CACHE_REVALIDATE_URL` (témoin), la fiche publique
+  est restée sur l'ancien agent après une désignation : le cache de données de 598 est réel. Avec
+  l'URL et le secret câblés vers le front local, trois désignations successives à l'écran
+  (Coumba → Ousmane → Coumba) sont chacune lues sur la fiche publique à la lecture suivante, et le
+  front journalise trois `POST /api/revalidation/fiche` 200.

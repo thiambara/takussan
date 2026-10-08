@@ -193,6 +193,8 @@ reprend : c'est le comportement d'avant, pas un état incohérent.
   `App\Services\Property\PrimaryAgentDesignator`, `App\Services\Property\PrimaryAgentDesignation`,
   `PropertyCollaboratorController::designatePrimary`, `DesignatePrimaryCollaboratorRequest`,
   `PropertyPublicCacheObserver::collaborationModifiee`.
+- Front : `PropertyCollaboratorsPanel` (onglet « Vue d'ensemble » de la fiche pro), lu et écrit par
+  `src/lib/queries/property-collaborators.ts` ; libellés `property.dashboard.collaborators` en fr/en/wo.
 - Tests : `tests/Feature/Property/PrimaryAgentDesignationTest.php` (AC1, AC3, AC4, invalidation,
   journal, autorisation), `tests/Feature/Property/PrimaryAgentSchemaTest.php` (index et `CHECK`),
   `tests/Feature/Property/PrimaryAgentBackfillTest.php` (AC5) ; la course à deux processus (AC2) se

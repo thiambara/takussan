@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**547 tickets** — 37 ouverts, 508 livrés.
+**547 tickets** — 36 ouverts, 509 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 34 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 508 |
+| ✅ Done | 509 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -71,7 +71,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 
 ## 👀 Review
 
@@ -83,7 +82,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 508
+## ✅ Done — 509
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 10 tickets</summary>
@@ -248,9 +247,10 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 58 — Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)</strong> — 1 ticket</summary>
+<summary><strong>Vague 58 — Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)</strong> — 2 tickets</summary>
 
 - [TCK-503](tickets/TCK-503-la-coque-du-tableau-de-bord-tient-en-100vh.md) — Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas `S · P2 · bug`
+- [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 
 </details>
 
