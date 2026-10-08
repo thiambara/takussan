@@ -3,6 +3,7 @@
 namespace App\Services\Messaging;
 
 use App\Models\Conversation;
+use App\Models\ConversationParticipant;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,11 @@ use Illuminate\Database\Eloquent\Builder;
  * écrivait, alors que la fiche lui rendait 403. La contrainte du ticket : « collaboration finie ou
  * profil suspendu = plus d'accès, historique compris ». Juger par la policy de la demande couvre
  * ces trois cas, et ceux qui viendront, sans retirer personne du fil.
+ *
+ * Passe 2 (N1) : la participation n'est jamais lue seule. Tout lecteur qui part de
+ * `conversation_participants` (recherche de messages, export des données, correspondants du
+ * sélecteur de contacts) passe par {@see self::participatingQuery()} ; la recherche rendait le
+ * texte et l'URL signée des notes vocales d'un fil que la fiche refusait.
  */
 class ConversationAccess
 {
@@ -62,5 +68,23 @@ class ConversationAccess
         return $query->where(fn (Builder $q) => $q
             ->whereNull('conversations.maintenance_request_id')
             ->orWhereIn('conversations.maintenance_request_id', MaintenanceRequest::query()->visibleTo($user)->select('maintenance_requests.id')));
+    }
+
+    /**
+     * Les fils dont `$user` est participant ET qu'il peut lire, par la règle de la liste.
+     *
+     * @param  bool  $activeOnly  false : compte aussi les fils quittés (`left_at`), pour les
+     *                            lecteurs qui les comptaient déjà (export, correspondants).
+     * @return Builder<Conversation>
+     */
+    public function participatingQuery(User $user, bool $activeOnly = true): Builder
+    {
+        return $this->constrainListing(
+            Conversation::query()->whereIn('conversations.id', ConversationParticipant::query()
+                ->where('user_id', $user->id)
+                ->when($activeOnly, fn ($q) => $q->whereNull('left_at'))
+                ->select('conversation_id')),
+            $user,
+        );
     }
 }

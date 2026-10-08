@@ -1,7 +1,7 @@
 ---
 id: TCK-592
 title: "Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul"
-status: done
+status: doing
 phase: P1
 family: full
 estimate: XL

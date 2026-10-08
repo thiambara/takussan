@@ -10,10 +10,14 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Message;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
+use App\Services\Privacy\DataExportBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
@@ -76,6 +80,96 @@ class MaintenanceThreadAccessTest extends TestCase
         $this->getJson("/api/conversations/{$conversation->id}/messages")->assertOk();
         $this->postJson("/api/conversations/{$conversation->id}/messages", ['content' => 'Je passe demain'])->assertCreated();
         $this->assertContains($conversation->id, collect($this->getJson('/api/conversations')->assertOk()->json('data'))->pluck('id')->all());
+    }
+
+    /**
+     * Passe 2 (N1, sondes p03 et p13) — la recherche de messages lisait la seule participation :
+     * le prestataire en pause y retrouvait le texte du locataire et l'URL signée de sa note vocale.
+     */
+    public function test_a_paused_provider_finds_nothing_of_the_thread_through_search(): void
+    {
+        config(['scout.driver' => 'collection']);
+        Storage::fake('local');
+        [$mr, $provider, $agency, $conversation, $admin] = $this->threadScenario();
+        $tenant = User::query()->findOrFail($mr->requester_id);
+
+        Sanctum::actingAs($tenant);
+        $this->postJson("/api/conversations/{$conversation->id}/messages", ['content' => 'code portail 4512 et digicode'])->assertCreated();
+        $this->postJson("/api/conversations/{$conversation->id}/messages", ['type' => 'audio', 'duration' => 4,
+            'audio' => UploadedFile::fake()->createWithContent('n.webm', "\x1A\x45\xDF\xA3".str_repeat("\0", 200))])->assertCreated();
+        $voiceWord = collect(explode(' ', (string) Message::query()->where('conversation_id', $conversation->id)->latest('id')->value('content')))
+            ->sortByDesc(fn (string $w) => mb_strlen($w))->first();
+
+        // Témoin : actif, il trouve les deux, l'URL de la note comprise.
+        Sanctum::actingAs($provider);
+        $this->assertSame(['code portail 4512 et digicode'], $this->searchContents('portail'));
+        $this->assertNotNull($this->searchAudioUrl($voiceWord));
+
+        $this->pause($agency, $provider, $admin);
+
+        Sanctum::actingAs($provider);
+        $this->assertSame([], $this->searchContents('portail'));
+        $this->assertSame([], $this->searchContents($voiceWord));
+        $this->assertNull($this->searchAudioUrl($voiceWord));
+    }
+
+    /** Passe 2 (N1) — l'export de ses données garde SES messages, plus ceux d'un fil fermé. */
+    public function test_a_paused_provider_exports_only_their_own_thread_messages(): void
+    {
+        [$mr, $provider, $agency, $conversation, $admin] = $this->threadScenario();
+        $tenant = User::query()->findOrFail($mr->requester_id);
+
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/conversations/{$conversation->id}/messages", ['content' => 'Je passe demain'])->assertCreated();
+        Sanctum::actingAs($tenant);
+        $this->postJson("/api/conversations/{$conversation->id}/messages", ['content' => 'code portail 4512'])->assertCreated();
+
+        $exported = fn () => collect(app(DataExportBuilder::class)->payloads($provider->refresh())['messages.json'])->pluck('content')->all();
+        $this->assertContains('code portail 4512', $exported());
+
+        $this->pause($agency, $provider, $admin);
+
+        $this->assertContains('Je passe demain', $exported());
+        $this->assertNotContains('code portail 4512', $exported());
+    }
+
+    /** Passe 2 (N1) — un fil fermé ne garde pas le locataire dans ses correspondants. */
+    public function test_a_paused_provider_no_longer_reaches_the_tenant_through_the_thread(): void
+    {
+        [$mr, $provider, $agency, , $admin] = $this->threadScenario();
+
+        Sanctum::actingAs($provider);
+        $this->assertContains($mr->requester_id, $this->contactIds());
+
+        $this->pause($agency, $provider, $admin);
+
+        Sanctum::actingAs($provider);
+        $this->assertNotContains($mr->requester_id, $this->contactIds());
+    }
+
+    private function pause(Agency $agency, User $provider, User $admin): void
+    {
+        $sp = ServiceProviderProfile::query()->where('user_id', $provider->id)->firstOrFail();
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/agencies/{$agency->id}/service-providers/{$sp->id}/collaboration", ['status' => 'paused'])->assertOk();
+    }
+
+    /** @return list<string> */
+    private function searchContents(string $q): array
+    {
+        return collect($this->getJson('/api/search/messages?q='.urlencode($q))->assertOk()->json('data'))->pluck('content')->all();
+    }
+
+    private function searchAudioUrl(string $q): ?string
+    {
+        return collect($this->getJson('/api/search/messages?q='.urlencode($q))->assertOk()->json('data'))
+            ->pluck('attachments')->flatten(1)->pluck('url')->first();
+    }
+
+    /** @return list<int> */
+    private function contactIds(): array
+    {
+        return collect($this->getJson('/api/conversations/contacts?per_page=100')->assertOk()->json('data'))->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     private function assertThreadClosedTo(User $provider, MaintenanceRequest $mr, Conversation $conversation): void
