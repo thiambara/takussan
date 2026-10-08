@@ -96,8 +96,6 @@ class ReviewModerationWorkflowTest extends TestCase
 
     public function test_report_transitions_pending_to_reported_when_threshold_reached(): void
     {
-        config()->set('takussan.reviews.report_threshold', 1);
-
         $review = Review::factory()->create([
             'status' => ReviewStatus::Pending,
             'is_approved' => false,
@@ -116,11 +114,8 @@ class ReviewModerationWorkflowTest extends TestCase
 
     public function test_report_is_deduped_per_user(): void
     {
-        // With threshold=2, a single user hitting the endpoint twice must
-        // not count as two distinct reports — otherwise one actor could
-        // trip the auto-report transition alone.
-        config()->set('takussan.reviews.report_threshold', 2);
-
+        // TCK-597 — le seuil est la constante `ReviewReportService::REPORTED_THRESHOLD` (1) : un
+        // signalement range l'avis dans la file sans le masquer. Le dédoublonnage reste par compte.
         $review = Review::factory()->create([
             'status' => ReviewStatus::Pending,
             'is_approved' => false,
@@ -134,21 +129,17 @@ class ReviewModerationWorkflowTest extends TestCase
 
         $review->refresh();
         $this->assertSame(1, (int) $review->reported_count);
-        $this->assertSame(ReviewStatus::Pending, $review->status);
+        $this->assertSame(ReviewStatus::Reported, $review->status);
 
-        // A different reporter trips the threshold.
+        // Un autre compte compte.
         Sanctum::actingAs(User::factory()->create());
         $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
 
-        $review->refresh();
-        $this->assertSame(2, (int) $review->reported_count);
-        $this->assertSame(ReviewStatus::Reported, $review->status);
+        $this->assertSame(2, (int) $review->refresh()->reported_count);
     }
 
     public function test_report_does_not_transition_rejected_review(): void
     {
-        config()->set('takussan.reviews.report_threshold', 1);
-
         $review = Review::factory()->create([
             'status' => ReviewStatus::Rejected,
             'is_approved' => false,

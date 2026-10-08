@@ -16,6 +16,8 @@ use App\Models\Review;
 use App\Models\User;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
+use App\Services\Review\ReviewReportService;
+use App\Support\VisitorFingerprint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -317,51 +319,11 @@ class ReviewController extends Controller
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
 
-    public function report(ReportReviewRequest $request, Review $review): JsonResponse
+    public function report(ReportReviewRequest $request, Review $review, ReviewReportService $reports): JsonResponse
     {
-        $data = $request->validated();
-
-        $userId = (int) $request->user()->id;
-
-        $metadata = $review->metadata ?? [];
-        $reports = $metadata['reports'] ?? [];
-
-        // Dedupe: each user can only count as one report against a review.
-        // Without this, a single user hitting the endpoint N times would
-        // trigger the auto-report threshold and game the moderation queue.
-        $alreadyReported = collect($reports)
-            ->contains(fn ($r) => (int) ($r['user_id'] ?? 0) === $userId);
-
-        if ($alreadyReported) {
-            return $this->json(['message' => __('messages.review_reported')]);
-        }
-
-        $reports[] = [
-            'user_id' => $userId,
-            'reason' => $data['reason'],
-            'reported_at' => now()->toISOString(),
-        ];
-        $metadata['reports'] = $reports;
-        $metadata['reported'] = true;
-
-        $attrs = [
-            'metadata' => $metadata,
-            'reported_count' => ($review->reported_count ?? 0) + 1,
-        ];
-
-        // Automatically transition to `reported` once the threshold is
-        // reached so admins see the review in their moderation queue.
-        $threshold = (int) config('takussan.reviews.report_threshold', 1);
-        $currentStatus = $review->status ?? ReviewStatus::Pending;
-        if (
-            $attrs['reported_count'] >= $threshold
-            && $currentStatus !== ReviewStatus::Rejected
-            && $currentStatus->canTransitionTo(ReviewStatus::Reported)
-        ) {
-            $attrs['status'] = ReviewStatus::Reported;
-        }
-
-        $review->update($attrs);
+        // TCK-597 — la règle (dédoublonnage, seuil) vit dans `ReviewReportService`, partagée avec
+        // la route publique sans compte.
+        $reports->report($review, $request->user(), VisitorFingerprint::of($request), $request->validated('reason'));
 
         return $this->json(['message' => __('messages.review_reported')]);
     }

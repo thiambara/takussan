@@ -5,6 +5,7 @@ use App\Http\Controllers\Public\PublicAgentController;
 use App\Http\Controllers\Public\PublicPropertyController;
 use App\Http\Controllers\Public\PublicPropertyDocumentController;
 use App\Http\Controllers\Public\PublicPropertyTypeController;
+use App\Http\Controllers\Public\PublicReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('public')->name('public.')->middleware('throttle:public-read')->group(function () {
@@ -132,6 +133,11 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::post('properties/{slug}/report', [PublicPropertyController::class, 'report'])
         ->middleware('throttle:public-report')
         ->name('properties.report');
+
+    // TCK-597 — signaler un avis sans compte (même limiteur que le signalement d'annonce).
+    Route::post('reviews/{review}/report', [PublicReviewController::class, 'report'])
+        ->middleware('throttle:public-report')
+        ->name('reviews.report');
 
     Route::post('properties/{slug}/visit-request', [PublicPropertyController::class, 'visitRequest'])
         ->middleware('throttle:public-visit-request')

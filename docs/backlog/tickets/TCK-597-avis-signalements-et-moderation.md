@@ -649,3 +649,17 @@ Sans recopier la spec, voici ce qui change.
 - Ablations (restaurées par `cp`) : sans contrôle « encore ouvert » → 2 rouges ; sans contrôle de
   prise dans `decide` → 1 rouge ; prise sans expiration → 1 rouge ; sans capture des erreurs
   métier par élément du lot → 1 rouge.
+
+### §3 — signaler sans compte (API)
+
+- `ReviewReportService` porte la règle des deux routes : dédoublonnage par compte, sinon par
+  empreinte ; verrou de la ligne de l'avis ; `REPORTED_THRESHOLD = 1` (constante commentée). Le
+  réglage fantôme `config('takussan.reviews.report_threshold')` n'est plus lu ;
+  `ReviewModerationWorkflowTest` qui le posait est réécrit sur la constante.
+- `POST /api/public/reviews/{review}/report` (`public.reviews.report`, `throttle:public-report`) :
+  200 ; piège → 204 sans écriture ; 404 sur un avis non publié. Le signalement d'annonce (piège,
+  24 h, empreinte) est livré avec §2.
+- Preuves : `PublicReportTest` 6 verts ; 81 tests `Review*` verts.
+- Ablations (restaurées par `cp`) : sans dédoublonnage par empreinte → 1 rouge ; sans piège → 1
+  rouge ; un signalement qui masque (`is_approved = false`) → 3 rouges (liste publique, moyenne) ;
+  sans le filtre « avis publié » → 1 rouge.
