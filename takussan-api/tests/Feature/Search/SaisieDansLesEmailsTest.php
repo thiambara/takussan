@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Search;
 
+use App\Models\Address;
 use App\Models\Enums\Currency;
 use App\Models\Favorite;
 use App\Models\Property;
@@ -90,6 +91,33 @@ class SaisieDansLesEmailsTest extends TestCase
 
             $this->assertSansLienNiImageEtrangers($html);
             $this->assertStringContainsString('evil.example', $html, 'la saisie reste lisible, en texte');
+        }
+    }
+
+    /**
+     * verif-599 B1-bis — le LIEU de la carte (quartier, ou la ville quand le quartier est vide) est
+     * une saisie libre de l'annonceur, au même titre que le titre.
+     */
+    public function test_l_alerte_rend_le_quartier_et_la_ville_en_texte(): void
+    {
+        $user = User::factory()->create();
+        $search = SavedSearch::create([
+            'user_id' => $user->id,
+            'name' => 'Dakar',
+            'criteria' => ['city' => 'Dakar'],
+            'notification_frequency' => 'daily',
+            'is_active' => true,
+        ]);
+        foreach (self::PIEGES as $piege) {
+            foreach ([['neighborhood' => $piege, 'city' => 'Dakar'], ['neighborhood' => null, 'city' => mb_substr($piege, 0, 100)]] as $adresse) {
+                $bien = Property::factory()->published()->create(['title' => 'Villa']);
+                Address::create(['addressable_type' => Property::class, 'addressable_id' => $bien->id, 'country' => 'SN'] + $adresse);
+
+                $html = (string) (new SavedSearchMatchesNotification($search, new Collection([$bien->fresh('address')]), 1))->toMail($user)->render();
+
+                $this->assertSansLienNiImageEtrangers($html);
+                $this->assertStringContainsString('evil.example', $html, 'le lieu reste lisible, en texte');
+            }
         }
     }
 

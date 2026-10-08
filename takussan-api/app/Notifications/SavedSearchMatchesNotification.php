@@ -230,7 +230,8 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
                 'title' => MarkdownText::escape((string) $property->title),
                 'url' => $this->frontend('/'.$locale.'/properties/'.rawurlencode((string) $property->slug)),
                 'price' => $formatter->format((float) $property->price, $property->currency, $locale),
-                'place' => $address?->neighborhood ?: $address?->city,
+                // Le quartier et la ville sont des saisies libres de l'annonceur (verif-599 B1-bis).
+                'place' => ($lieu = $address?->neighborhood ?: $address?->city) ? MarkdownText::escape((string) $lieu) : null,
                 'photo' => $media ? PublicPhotoUrl::upTo($media, 'preview', fn () => $property->requiresWatermark()) : null,
             ];
         })->all();
