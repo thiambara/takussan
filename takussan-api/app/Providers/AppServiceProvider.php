@@ -103,6 +103,7 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
+use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -364,7 +365,11 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        return 'ip:'.$request->ip();
+        // verif-597 m6 — le /64 d'une IPv6, comme l'empreinte visiteur : sinon une adresse neuve
+        // du même abonné repart avec un compteur neuf.
+        $ip = $request->ip();
+
+        return 'ip:'.($ip === null ? '' : VisitorFingerprint::network($ip));
     }
 
     private function bootObservers(): void

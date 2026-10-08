@@ -198,8 +198,10 @@ jetée sans erreur.
   (`reviews_count`, `average_rating`) se refait à chaque changement de `is_approved` ou de `status`.
 - **Signaler sans compte** : le dédoublonnage se fait par compte si l'auteur est connecté, sinon par
   **empreinte visiteur** — `HMAC-SHA256(IP, clé applicative)`, jamais l'IP en clair dans
-  `reviews.metadata` ni dans un signalement d'annonce neuf. Un champ piège rempli rend 204 sans rien
-  enregistrer. Le limiteur `public-report` reste.
+  `reviews.metadata` ni dans un signalement d'annonce neuf. Pour une IPv6, l'« IP » est son **/64**,
+  dans l'empreinte comme dans la clé des limiteurs publics (verif-597 m6) : un abonné IPv6 dispose
+  d'un /64 entier, et l'adresse complète lui donnait autant d'empreintes et de compteurs qu'il en
+  voulait. Un champ piège rempli rend 204 sans rien enregistrer. Le limiteur `public-report` reste.
 
 ### 7. Aucune décision de la file ne se joue deux fois
 

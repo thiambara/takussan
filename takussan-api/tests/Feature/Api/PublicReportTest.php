@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Support\VisitorFingerprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 use Tests\ApiTestCase;
@@ -159,5 +160,34 @@ class PublicReportTest extends ApiTestCase
         $pending->refresh();
         $this->assertSame(ReviewStatus::Pending, $pending->status);
         $this->assertSame(0, $pending->reported_count);
+    }
+
+    /**
+     * verif-597 m6 — un visiteur IPv6 dispose d'un /64 entier : l'empreinte et la clé du limiteur
+     * se prennent sur le /64, pas sur l'adresse. Avant, chaque adresse neuve du même abonné donnait
+     * une empreinte neuve (un signalement de plus) et un compteur de limiteur neuf.
+     */
+    public function test_two_ipv6_addresses_of_the_same_64_are_one_visitor(): void
+    {
+        $a = '2001:db8:abcd:12::1';
+        $b = '2001:db8:abcd:12:ffff:ffff:ffff:fffe';
+        $other = '2001:db8:abcd:13::1';
+
+        $this->assertSame(VisitorFingerprint::ofIp($a), VisitorFingerprint::ofIp($b));
+        $this->assertNotSame(VisitorFingerprint::ofIp($a), VisitorFingerprint::ofIp($other));
+        $this->assertSame(hash_hmac('sha256', '203.0.113.7', (string) config('app.key')), VisitorFingerprint::ofIp('203.0.113.7'));
+
+        $key = fn (string $ip): string => RateLimiter::limiter('public-report')(
+            Request::create('/api/public/reviews/1/report', 'POST', server: ['REMOTE_ADDR' => $ip])
+        )->key;
+        $this->assertSame($key($a), $key($b));
+        $this->assertNotSame($key($a), $key($other));
+
+        // De bout en bout : le même visiteur, deux adresses de son /64, compte une fois.
+        $this->withServerVariables(['REMOTE_ADDR' => $a])
+            ->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'spam'])->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => $b])
+            ->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'spam'])->assertOk();
+        $this->assertSame(1, $this->five->refresh()->reported_count);
     }
 }
