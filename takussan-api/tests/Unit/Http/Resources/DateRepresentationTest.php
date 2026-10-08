@@ -345,6 +345,7 @@ class DateRepresentationTest extends TestCase
     {
         $ligne = [
             'id' => 'property:1',
+            'source_type' => 'property',
             'type' => 'property',
             'status' => 'pending',
             'subject_type' => 'property',
@@ -382,7 +383,7 @@ class DateRepresentationTest extends TestCase
     public function test_une_colonne_nulle_du_selectraw_reste_nulle(): void
     {
         $ligne = [
-            'id' => 'property:1', 'type' => 'property', 'status' => 'pending',
+            'id' => 'property:1', 'source_type' => 'property', 'type' => 'property', 'status' => 'pending',
             'subject_type' => 'property', 'subject_id' => 1, 'subject' => null,
             'reporter' => null, 'agency' => null, 'reason' => '', 'reported_count' => 0,
             'reported_at' => null,
