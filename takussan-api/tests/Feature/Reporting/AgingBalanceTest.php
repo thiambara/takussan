@@ -142,6 +142,39 @@ class AgingBalanceTest extends ApiTestCase
         $this->assertSame(['count' => 4, 'amount' => 400000], $this->aging()['total']);
     }
 
+    /**
+     * TCK-596 (VERIF-596 M-E) — une échéance `cancelled` (remplacée par un renouvellement) n'est plus
+     * due : ni dans la balance âgée, ni dans les impayés de la tuile, ni dans l'export, ni dans
+     * l'encaissé. Elle porte ici un `paid_at` du mois, pour qu'une règle par date et non par statut
+     * se voie.
+     */
+    public function test_a_cancelled_installment_is_neither_owed_nor_collected(): void
+    {
+        $this->actingAsApi($this->admin);
+        $incomeBefore = $this->getJson('/api/dashboard/agency')->assertOk()->json('data.finance.lease_income_month');
+
+        $lease = $this->leaseOf($this->landlords['L2']);
+        LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'payer_id' => $lease->tenant_id,
+            'reference_number' => 'LPY-CANCELLED',
+            'payment_type' => LeasePaymentType::Rent,
+            'status' => PaymentStatus::Cancelled,
+            'amount' => 700_000,
+            'due_date' => now()->subDays(40)->toDateString(),
+            'paid_at' => now()->subDay(),
+        ]);
+
+        $this->assertSame(['count' => 4, 'amount' => 400000], $this->aging()['total']);
+        $finance = $this->getJson('/api/dashboard/agency')->assertOk()->json('data.finance');
+        $this->assertSame(4, $finance['overdue_count']);
+        $this->assertEquals(400000.0, $finance['overdue_amount']);
+        $this->assertEquals($incomeBefore, $finance['lease_income_month']);
+
+        $csv = $this->getJson('/api/export/aging?format=csv')->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('LPY-CANCELLED', $csv);
+    }
+
     public function test_an_agent_is_refused(): void
     {
         $this->actingAsApi($this->agencyAgent($this->agency))

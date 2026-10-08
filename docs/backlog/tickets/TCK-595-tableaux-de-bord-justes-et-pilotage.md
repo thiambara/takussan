@@ -919,7 +919,7 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 ### Lot 11 — fusion de `dev` (TCK-601) et exports financiers (§7, AC19)
 
 - Fusion d'`origin/dev` `33932c60` : PrivacyRequest garde le § 79 de `models-spec.md`,
-  CommissionEntry et PlatformMetricDaily passent aux § 80 et 81. Le layout de `/app/commissions`
+  CommissionEntry et PlatformMetricDaily passent aux § 80 et 81 (puis 83 et 84, lot 12). Le layout de `/app/commissions`
   passe par `assertCanReachAgencyStaffArea` (cliquet de `check-auth-interrupts.mjs`).
 - `GET /api/export/payouts|invoices|commissions|aging|deposits` : `reports.export` au personnel,
   **403 au bailleur et au locataire** (`STAFF_ONLY`). `aging` exporte à la ligne (retard, tranche)
@@ -942,3 +942,15 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 - `DashboardAgencyTest` et `AgencyStatsTest` posent encore `commission_amount` sur le bail. C'est
   légitime : la tuile d'agence lit la commission du bail (ADR-0049 §5), que l'API enregistre
   désormais (AC9 bis).
+
+### Lot 12 — fusion de `dev` (TCK-596) : statut `cancelled`, activation papier, renouvellement signé
+
+- Fusion d'`origin/dev` `b432d8e3`. TCK-596 prend les § 80 à 82 de `models-spec.md` : CommissionEntry
+  et PlatformMetricDaily passent aux § 83 et 84, avec leur entrée au sommaire. `leases.agent_id`
+  choisit son camp dans `Lease::CONTRACT_UNPRINTED_COLUMNS` (`LeaseContractTermsTest`).
+- L'échéance `cancelled` de TCK-596 est hors de toutes les sommes : les règles sont des listes
+  d'inclusion (`pending|late` pour *Impayé*, `paid` pour *Encaissé*). Un test le prouve sur la balance
+  âgée, la tuile Impayés, l'encaissé et l'export `aging`, avec une échéance annulée porteuse d'un `paid_at`.
+- Un renouvellement né `pending_signature` émet désormais `LeaseActivated` à sa signature : la règle
+  « aucune ligne pour un renouvellement » (ADR-0049 §3) se tient dans `CommissionLedgerService`
+  (`renewed_from_lease_id`), plus sur l'absence d'événement. Les tests activent par la voie papier.

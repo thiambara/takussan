@@ -40,7 +40,10 @@ class CommissionLedgerService
     {
         $base = (float) ($lease->commission_amount ?? 0);
         $agencyId = $lease->agency_id !== null ? (int) $lease->agency_id : null;
-        if ($base <= 0 || $agencyId === null) {
+        // ADR-0049 §3 — un renouvellement ne crée aucune ligne. Depuis TCK-596, un enfant né
+        // `pending_signature` émet `LeaseActivated` à sa signature : la règle se tient ici, sur le
+        // bail, et non sur l'absence d'événement.
+        if ($base <= 0 || $agencyId === null || $lease->renewed_from_lease_id !== null) {
             return 0;
         }
 

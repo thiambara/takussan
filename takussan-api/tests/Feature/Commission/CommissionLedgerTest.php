@@ -15,7 +15,9 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -88,7 +90,10 @@ class CommissionLedgerTest extends ApiTestCase
     private function activate(Lease $lease): void
     {
         $this->actingAsApi($this->admin);
-        $this->postJson("/api/leases/{$lease->id}/activate")->assertOk();
+        // TCK-596 (ADR-0042 §6) — la voie papier exige le contrat numérisé.
+        Storage::fake(config('media-library.disk_name'));
+        $this->post("/api/leases/{$lease->id}/activate", ['contract' => UploadedFile::fake()->create('bail.pdf', 120, 'application/pdf')], ['Accept' => 'application/json'])
+            ->assertOk();
     }
 
     /** @return array<int, array{origin: string, amount: float, status: string}> */
@@ -185,6 +190,29 @@ class CommissionLedgerTest extends ApiTestCase
         $this->assertSame($a->id, Lease::query()->findOrFail($childId)->agent_id);
         $this->assertSame(0, CommissionEntry::query()->where('lease_id', $childId)->count());
         $this->assertSame(2, CommissionEntry::query()->count());
+    }
+
+    /**
+     * TCK-596 — un renouvellement né `pending_signature` émet `LeaseActivated` à sa signature. Même
+     * porteur d'un montant et d'un négociateur, il ne crée aucune ligne (ADR-0049 §3).
+     */
+    public function test_ac9_a_renewal_activated_later_creates_no_line(): void
+    {
+        [$a, , , $lease] = $this->scenarioAc9();
+        $this->activate($lease);
+
+        $child = Lease::factory()->create([
+            'property_id' => $lease->property_id,
+            'landlord_id' => $lease->landlord_id,
+            'tenant_id' => $lease->tenant_id,
+            'agency_id' => $lease->agency_id,
+            'renewed_from_lease_id' => $lease->id,
+            'agent_id' => $a->id,
+            'commission_amount' => 300000,
+        ]);
+        LeaseActivated::dispatch($child);
+
+        $this->assertSame(0, CommissionEntry::query()->where('lease_id', $child->id)->count());
     }
 
     public function test_ac9_bis_the_agency_tile_reads_the_commission_of_a_lease_created_through_the_api(): void

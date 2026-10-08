@@ -102,7 +102,9 @@ retenues par défaut) :
 Par construction, Σ des lignes ≤ `commission_amount`.
 
 **Résiliation** : les lignes restent `due`, et l'admin peut les annuler. **Renouvellement** : aucune
-ligne, car `LeaseRenewalService` n'émet pas `LeaseActivated`. Seul `agent_id` est recopié.
+ligne. Depuis TCK-596, un renouvellement né `pending_signature` émet `LeaseActivated` à sa signature :
+`CommissionLedgerService::generateFor` refuse donc tout bail qui porte `renewed_from_lease_id`. Seul
+`agent_id` est recopié.
 **Aucun rattrapage** des baux existants : ils n'ont ni montant ni négociateur, et inventer l'un ou
 l'autre serait faux.
 
