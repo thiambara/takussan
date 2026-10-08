@@ -88,3 +88,35 @@ la configuration chez le fournisseur, pas seulement le code :
 Le test `PaymentWebhookMultiTenantTest` existe déjà et sonde la **cause** (l'absence de scope dans la
 résolution), pas le symptôme : il se rallumera de lui-même le jour de la correction, sans que
 personne n'ait à se souvenir de venir le retirer.
+
+### 2026-10-08 — Arbitrage rendu, re-mesure sur `dev` (2a755b71) avant le code
+
+**Le porteur a tranché le 2026-10-08 : option 1, une URL de webhook par agence** (jeton dans le
+chemin). Décision écrite dans ADR-0046.
+
+Re-mesure, la constatation d'août tient **à l'identique** :
+
+- `php artisan test tests/Feature/Api/PaymentWebhookMultiTenantTest.php` → `2 skipped` : la sonde
+  lit toujours `handleWebhook` sans scope (`PaymentGatewayService.php:195-210` sur `dev`, et non
+  plus 132-137).
+- Mesure du ticket rejouée par un test jetable (supprimé dans le même script), deux agences, B
+  créée d'abord : secret légitime de A → **HTTP 401**, paiement de A `pending` ; secret de B →
+  **HTTP 200**, paiement de A **`paid`**. Inversé dans les deux sens, comme le 2026-08-15.
+
+Écarts relevés en relisant le code qui a bougé depuis août :
+
+- `handleWebhook` porte désormais un `orderByRaw('agency_id IS NULL')` (préférence pour une
+  intégration d'agence) : il ORDONNE sans restreindre. Avec deux agences, c'est l'ordre de
+  création qui décide.
+- `handleWebhookEvent` (chemin du paquet Lemon Squeezy) reproduit la même résolution sans scope,
+  et `paymentsForEvent` a un TROISIÈME chemin d'appariement : `custom_data.payment_id` +
+  `class_exists($type)` — n'importe quelle classe, n'importe quel identifiant, sans agence.
+- `IntegrationService::recordWebhook` rattache toujours le journal à l'intégration globale
+  (`whereNull('agency_id')`) : c'est l'objet de TCK-602 (AC9), qui lira l'intégration que 293
+  résout.
+- `OrangeMoneyDriver.php:47` : `notif_url` fixe (`/api/webhooks/payments/orange_money`), sans
+  agence — confirmé.
+- **Hors périmètre, relevé pour 602 (§3 de son ticket)** : le formulaire d'agence écrit
+  `api_key`/`api_secret`/`webhook_url`, jamais `webhook_secret` que lisent `WaveDriver:101` et
+  `OrangeMoneyDriver:106`. Une intégration Wave créée par l'écran rend donc 500 au webhook, avec ou
+  sans 293. 602 possède ce formulaire pour la catégorie `payments` ; 293 n'y ajoute que l'URL.
