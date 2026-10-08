@@ -3,6 +3,7 @@
 namespace App\Services\Payout;
 
 use App\Models\Agency;
+use App\Models\Enums\PayeeRole;
 use App\Models\PayoutMethod;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -17,7 +18,10 @@ use Carbon\CarbonInterface;
  */
 final class PayoutPreparationService
 {
-    public function __construct(private readonly PayoutCalculator $calculator) {}
+    public function __construct(
+        private readonly PayoutCalculator $calculator,
+        private readonly PayoutApprovalRule $approvalRule,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -52,7 +56,8 @@ final class PayoutPreparationService
             'landlord_id' => $landlord->id,
             'period_start' => $start->toDateString(),
             'period_end' => $end->toDateString(),
-            'requires_approval' => $threshold !== null && $computation['totals']['net'] >= (float) $threshold,
+            // VERIF-594 M-1 — la même règle que la création : le cumul non approuvé compte.
+            'requires_approval' => $this->approvalRule->requiresApproval($agency, (float) $computation['totals']['net'], PayeeRole::Landlord, (int) $landlord->id),
             'approval_threshold' => $threshold !== null ? (float) $threshold : null,
             // La forme masquée seule : l'agence ne lit jamais le numéro en clair (ADR-0039 §6).
             'payout_methods' => PayoutMethod::query()

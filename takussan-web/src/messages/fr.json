@@ -2762,7 +2762,7 @@
       "billLine": "Intervention {reference}",
       "rateFromLease": "({rate} % du bail)",
       "rateFromAgency": "({rate} % de l'agence)",
-      "requiresApproval": "Ce net atteint le seuil d'approbation de l'agence ({threshold}) : un autre membre devra l'approuver avant le paiement.",
+      "requiresApproval": "Ce net, ajouté aux reversements non approuvés vers ce bailleur depuis 30 jours, atteint le seuil d'approbation de l'agence ({threshold}) : un autre membre devra l'approuver avant le paiement.",
       "destination": "Destination",
       "destinationNone": "Aucune destination enregistrée",
       "destinationOption": "{kind} {masked} — {state}",

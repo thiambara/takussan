@@ -529,6 +529,8 @@ rend **403** avec une clé i18n, jamais une phrase.
 ### 8. Ajoutés après vérification adverse (VERIF-594, 2026-10-08)
 
 - [x] **B-1** — la vérification d'office disparaît : toute destination attend un membre de l'agence.
+- [x] **M-1** — le seuil se juge sur le cumul des nets non approuvés vers le même bénéficiaire,
+  dans l'agence, sur 30 jours glissants (`PayoutApprovalRule`), sous le verrou de la ligne agence.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -696,6 +698,12 @@ rend **403** avec une clé i18n, jamais une phrase.
   marquage payé vers elle rend 422 `payout.unverified_destination` tant qu'aucun membre de l'agence
   ne l'a vérifiée, puis 200.
   **Preuve** : `PayoutBypassTest::test_b1_a_destination_equal_to_a_freshly_verified_phone_is_not_verified` (rouge sur 9923b16c) ; `PayoutMethodTest::test_adding_a_destination_notifies_and_nothing_verifies_itself`. Ablation V-B1 : rouge.
+- [x] **AC-M1 — pas de fractionnement sous le seuil.** Seuil 100 000 : un reversement de 60 000 naît
+  `pending` et se paie ; la préparation d'un second de 60 000 vers le même bailleur rend
+  `requires_approval = true`, et il naît `awaiting_approval`. Un autre bailleur n'hérite pas du cumul
+  (60 000 → `pending`). Une fois le second approuvé, 30 000 de plus naissent `pending` ; un
+  reversement non approuvé vieux de 31 jours ne compte plus.
+  **Preuve** : `PayoutBypassTest::test_m1_splitting_under_the_threshold_still_requires_an_approval` (rouge sur 9923b16c). Ablations V-M1 (cumul), V-M1b (approuvés comptés), V-M1c (sans fenêtre) : rouges.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -964,3 +972,17 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   rejoue la course de `conc/race.sh` (course 3) sans second processus : le modèle chargé avant le
   paiement est exactement ce que voyait le processus perdant. V-M5b seule laisse le premier test vert
   — le verrou suffit à ce chemin — et rougit le second : deux gardes, chacune prouvée.
+- **M-1 — fractionnement sous le seuil.** Nouvelle classe `App\Services\Payout\PayoutApprovalRule`
+  (`requiresApproval`, `unapprovedRecentNet`), seule à juger le seuil ; `PayoutService::initialStatus`
+  devient public et la prend en paramètre de rôle et de bénéficiaire (l'utilisateur de `landlord_id`,
+  ou le `tenant_id` du bail pour une caution). Statuts comptés : `pending`, `scheduled`, `processing`
+  et `completed`, `approved_by_id IS NULL` — `processing` ajouté à la liste de la session, c'est
+  aussi de l'argent non approuvé en route. La préparation emprunte la même règle (son bandeau le
+  dit : « ajouté aux reversements non approuvés vers ce bailleur depuis 30 jours »).
+  - **Verrou** : la ligne agence n'était pas prise par la création (seuls les baux, réservations et
+    factures l'étaient). Elle l'est désormais, **en dernier**, après les pièces — le même ordre que
+    la caution rendue (bail, puis agence) ; aucun chemin ne prend l'agence avant un bail. Le seuil
+    se relit sur cette ligne verrouillée. Non éprouvé en concurrence réelle (un seul processus en
+    test) : seule la règle l'est.
+  - V-M1c est d'abord restée **verte** : le dernier montant du test (9 000) laissait le cumul sous le
+    seuil même sans fenêtre. Porté à 15 000, elle rougit.

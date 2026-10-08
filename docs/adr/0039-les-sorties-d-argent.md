@@ -104,14 +104,19 @@ deux agences ne font pas deux personnes.
 - **Chaîne agence → bailleur / prestataire** (tranché par le porteur le 2026-10-06) :
   `agencies.payout_approval_threshold` vaut `null` pour toute agence, neuve ou existante. Tant qu'il
   est `null`, un reversement naît `pending` (ou `scheduled`) et une seule personne peut le préparer
-  puis le payer. L'agence active elle-même le seuil (net ≥ seuil ⇒ `awaiting_approval` ; `0` ⇒
-  toujours), et l'activation est refusée (422) tant que moins de deux membres actifs détiennent
+  puis le payer. L'agence active elle-même le seuil (`0` ⇒ toujours). Le seuil se juge sur le
+  **cumul** : le net, ajouté aux nets **non approuvés** déjà émis vers le même bénéficiaire dans
+  l'agence sur **30 jours glissants** (`pending`, `scheduled`, `processing`, `completed` sans
+  `approved_by_id`), atteint le seuil ⇒ `awaiting_approval` (VERIF-594 M-1 : jugé reversement par
+  reversement, il se contournait en fractionnant). Une règle, `PayoutApprovalRule`, lue sous le
+  verrou de la ligne agence, prise en dernier après les pièces ; la création et la préparation
+  l'empruntent. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
   (`agency_payout_threshold_changed`). L'approbation est un état (`awaiting_approval`) que
   `mark-processed` et `mark-failed` refusent ; elle ne se rejoue pas (elle n'est permise que depuis
   cet état) ; le net approuvé est figé dans `metadata.approved_net_amount` et un paiement dont le net
-  a changé depuis est refusé. Les trois gestes qui suivent la préparation (`approve`,
-  `mark-processed`, `mark-failed`, et `cancel`) jugent le statut sur la ligne **verrouillée**
+  a changé depuis est refusé. Les gestes qui suivent la préparation (`approve`,
+  `mark-processed`, `mark-failed` et `cancel`) jugent le statut sur la ligne **verrouillée**
   (VERIF-594 M-5), et **on ne sort jamais de `completed`** : le modèle refuse toute transition depuis
   cet état, `failed` et `cancelled` compris, puisqu'elles détacheraient les pièces d'un argent parti.
 - **Chaîne plateforme → agence** : approbation **toujours** exigée, sans seuil. `closed_by_id`,

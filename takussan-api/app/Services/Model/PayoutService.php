@@ -24,6 +24,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payout\PayoutApprovalRule;
 use App\Services\Payout\PayoutApprovers;
 use App\Services\Payout\PayoutCalculator;
 use App\Support\SegregationOfDuties;
@@ -63,6 +64,7 @@ class PayoutService
         private readonly PayoutCalculator $calculator,
         private readonly PayoutApprovers $approvers,
         private readonly DisbursementDriverContract $disbursement,
+        private readonly PayoutApprovalRule $approvalRule,
     ) {}
 
     /**
@@ -130,7 +132,7 @@ class PayoutService
         $agency = Agency::query()->findOrFail($bill->agency_id);
         $destination = $this->destinationOf($data['payout_method_id'] ?? null, (int) $bill->provider_id);
 
-        $payout = DB::transaction(function () use ($user, $bill, $agency, $destination, $data): Payout {
+        $payout = DB::transaction(function () use ($user, $bill, &$agency, $destination, $data): Payout {
             /** @var ServiceProviderBill $locked */
             $locked = ServiceProviderBill::query()->whereKey($bill->id)->lockForUpdate()->firstOrFail();
 
@@ -145,6 +147,8 @@ class PayoutService
             abort_code_if($live, 409, 'service_provider_bill.already_in_payout');
 
             $amount = (float) $locked->amount;
+            // VERIF-594 M-1 — le cumul vers ce prestataire se lit sous le verrou de la ligne agence.
+            $agency = $this->lockAgency($agency);
 
             return Payout::create([
                 'service_provider_bill_id' => $locked->id,
@@ -153,7 +157,7 @@ class PayoutService
                 'payee_role' => PayeeRole::ServiceProvider->value,
                 'issued_by_id' => $user->id,
                 'reference_number' => ReferenceNumberGenerator::payout(),
-                'status' => $this->initialStatus($agency, $amount, $data['scheduled_at'] ?? null)->value,
+                'status' => $this->initialStatus($agency, $amount, $data['scheduled_at'] ?? null, PayeeRole::ServiceProvider, (int) $locked->provider_id)->value,
                 'gross_amount' => $amount,
                 'commission_amount' => 0,
                 'net_amount' => $amount,
@@ -351,6 +355,9 @@ class PayoutService
         Booking::query()->whereIn('id', $bookingPayments->pluck('booking_id')->unique()->sort()->values())
             ->orderBy('id')->lockForUpdate()->get(['id']);
         $bills = ServiceProviderBill::query()->whereIn('id', $billIds)->orderBy('id')->lockForUpdate()->get();
+        // VERIF-594 M-1 — la ligne agence en DERNIER (les pièces d'abord, comme la caution rendue) :
+        // le cumul des nets non approuvés vers ce bailleur se lit sous son verrou.
+        $agency = $this->lockAgency($agency);
 
         // Relu sous verrou : une pièce reversée entre la vérification et le verrou rend 409. La
         // course que ce test ne voit pas, l'index unique la refuse — et elle devient 409 aussi.
@@ -381,7 +388,7 @@ class PayoutService
             'payee_role' => PayeeRole::Landlord->value,
             'issued_by_id' => $user->id,
             'reference_number' => ReferenceNumberGenerator::payout(),
-            'status' => $this->initialStatus($agency, $totals['net'], $data['scheduled_at'] ?? null)->value,
+            'status' => $this->initialStatus($agency, $totals['net'], $data['scheduled_at'] ?? null, PayeeRole::Landlord, (int) $landlord->id)->value,
             'period_start' => $data['period_start'] ?? $this->dateOf($paidAt->min()),
             'period_end' => $data['period_end'] ?? $this->dateOf($paidAt->max()),
             'gross_amount' => $totals['gross'],
@@ -545,15 +552,24 @@ class PayoutService
         return $destination;
     }
 
-    private function initialStatus(Agency $agency, float $net, mixed $scheduledAt): PayoutStatus
+    /**
+     * L'état de naissance d'une sortie d'argent : `awaiting_approval` quand {@see PayoutApprovalRule}
+     * l'exige, sinon `scheduled` ou `pending`. `$agency` est la ligne relue sous verrou.
+     */
+    public function initialStatus(Agency $agency, float $net, mixed $scheduledAt, PayeeRole $role, ?int $beneficiaryKey): PayoutStatus
     {
-        // ADR-0039 §4 — pas de seuil par défaut (porteur, 2026-10-06) : `null` ⇒ jamais d'attente.
-        $threshold = $agency->payout_approval_threshold;
-        if ($threshold !== null && $net >= (float) $threshold) {
+        if ($this->approvalRule->requiresApproval($agency, $net, $role, $beneficiaryKey)) {
             return PayoutStatus::AwaitingApproval;
         }
 
         return $scheduledAt !== null && $scheduledAt !== '' ? PayoutStatus::Scheduled : PayoutStatus::Pending;
+    }
+
+    /** La ligne agence relue sous verrou : le point de sérialisation des sorties d'une agence. */
+    private function lockAgency(Agency $agency): Agency
+    {
+        /** @var Agency */
+        return Agency::query()->whereKey($agency->id)->lockForUpdate()->firstOrFail();
     }
 
     /**

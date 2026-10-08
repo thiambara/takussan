@@ -1401,7 +1401,7 @@
       "billLine": "Intervention {reference}",
       "rateFromLease": "({rate} % bu bail bi)",
       "rateFromAgency": "({rate} % bu agence bi)",
-      "requiresApproval": "Net bii jot na seuil d'approbation bu agence bi ({threshold}) : keneen ci mbootaay bi war na ko nangu bala ñuy fey.",
+      "requiresApproval": "Net bii, boole ko ak reversement yi ñu nanguwul ci bailleur bii ci 30 fan yi weesu, jot na seuil d'approbation bu agence bi ({threshold}) : keneen ci mbootaay bi war na ko nangu bala ñuy fey.",
       "destination": "Destination",
       "destinationNone": "Amul destination bu ñu bind",
       "destinationOption": "{kind} {masked} — {state}",
