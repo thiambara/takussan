@@ -142,8 +142,12 @@ const APPELANTS: readonly Appelant[] = [
       ['src/app/(dashboard)/app/properties/(liste)/page.tsx', ['property']],
       ['src/components/property-dashboard/PropertyList.tsx', ['property']],
       ['src/components/property-dashboard/PropertyRowActions.tsx', ['property']],
+      ['src/components/property-dashboard/ProprietaireEtResponsable.tsx', ['property']],
     ],
-    inconditionnelles: ['location', 'main_photo_url', 'owner', 'collaborators'],
+    // `primary_contact` (TCK-603) : servie sur l'index dès que `agency_id` et `user_id` sont
+    // demandés — les deux le sont, et `takussan-api` l'éprouve
+    // (`PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`).
+    inconditionnelles: ['location', 'main_photo_url', 'owner', 'collaborators', 'primary_contact'],
     horsQueryFields: [],
     minColonnesLues: 13,
   },
@@ -157,6 +161,7 @@ const APPELANTS: readonly Appelant[] = [
       ['src/components/property-dashboard/PropertyHeaderActions.tsx', ['property']],
       ['src/components/property-form/PropertyForm.tsx', ['property']],
       ['src/components/property-form/PropertyModerationBanner.tsx', ['property']],
+      ['src/components/property-dashboard/ProprietaireEtResponsable.tsx', ['property']],
     ],
     inconditionnelles: [
       'location',
@@ -173,6 +178,11 @@ const APPELANTS: readonly Appelant[] = [
       'rejection_reason',
       // TCK-598 — calculé par `CoutDEntree` depuis quatre colonnes DEMANDÉES ci-dessus.
       'entry_cost',
+      // TCK-603 — l'en-tête nomme propriétaire et agent responsable : la route `show` les charge
+      // toujours (`PrimaryPropertyContact::eagerLoads()`), éprouvé par
+      // `PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`.
+      'owner',
+      'primary_contact',
     ],
     horsQueryFields: ['description'],
     minColonnesLues: 20,

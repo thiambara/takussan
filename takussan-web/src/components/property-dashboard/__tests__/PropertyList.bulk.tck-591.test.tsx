@@ -35,7 +35,7 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   duplicatePropertyAction: vi.fn(),
   updatePropertyStatusAction: vi.fn(),
   updatePropertyVisibilityAction: vi.fn(),
-  assignPropertyAgentAction: vi.fn(),
+  bulkAssignPropertiesAction: vi.fn(),
   bulkArchivePropertiesAction: vi.fn(),
   bulkUnpublishPropertiesAction: bulkUnpublish,
 }));
@@ -93,7 +93,7 @@ describe('PropertyList — actions en masse (AC28)', () => {
     const bilan = await within(barre).findByRole('status');
     expect(bilan).toHaveTextContent('3 biens dépubliés — 2 refusés :');
     expect(bilan).toHaveTextContent('Bien 4 : déjà dans cet état');
-    expect(bilan).toHaveTextContent("Bien 5 : la cible n'est pas du personnel actif de l'agence");
+    expect(bilan).toHaveTextContent("Bien 5 : cet agent ne peut pas en être responsable (hors du personnel actif de l'agence, ou copropriétaire du bien)");
     expect(refresh).toHaveBeenCalledTimes(1);
 
     // Chaque bien a deux cases (table et cartes) : on lit l'état par libellé.

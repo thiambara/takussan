@@ -107,6 +107,33 @@ class PropertyReassignmentKeepsOwnerTest extends ApiTestCase
         $this->assertSame($this->b->id, (int) Lease::query()->findOrFail($leaseId)->landlord_id);
     }
 
+    /**
+     * La liste du tableau de bord nomme le propriétaire ET l'agent responsable — à condition que
+     * `agency_id` et `user_id` soient demandés (`DASHBOARD_PROPERTY_FIELDS`, côté front) : sans eux,
+     * la règle jugerait un bien d'agence comme celui d'un particulier, et la clé ne sort pas.
+     */
+    public function test_la_liste_sert_le_responsable_si_l_agence_est_demandee(): void
+    {
+        $this->actingAsApi($this->admin)
+            ->getJson('/api/properties?fields[properties]=id,user_id,agency_id,title&include=owner,collaborators')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $this->p->id)
+            ->assertJsonPath('data.0.owner.id', $this->b->id)
+            ->assertJsonPath('data.0.primary_contact.id', $this->x->id);
+
+        $sansAgence = $this->actingAsApi($this->admin)
+            ->getJson('/api/properties?fields[properties]=id,user_id,title&include=owner')
+            ->assertOk()->json('data.0');
+        $this->assertArrayNotHasKey('primary_contact', $sansAgence);
+
+        // La fiche les sert toujours, sous les `fields[]` de `DASHBOARD_PROPERTY_DETAIL_FIELDS`.
+        $this->actingAsApi($this->admin)
+            ->getJson("/api/properties/{$this->p->id}?fields[properties]=id,user_id,agency_id,title")
+            ->assertOk()
+            ->assertJsonPath('data.owner.id', $this->b->id)
+            ->assertJsonPath('data.primary_contact.id', $this->x->id);
+    }
+
     /** AC3 — le journal du geste, qui manquait : ancien et nouveau responsable, sous `responsible_agent_changed`. */
     public function test_le_geste_est_journalise_et_n_ecrit_pas_la_signature_d_une_reattribution(): void
     {

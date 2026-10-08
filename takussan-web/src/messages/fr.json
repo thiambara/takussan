@@ -1110,21 +1110,22 @@
         },
         "selectAll": "Sélectionner tous les biens",
         "selectOne": "Sélectionner {title}",
-        "agentPrefix": "Agent :",
         "viewsTitle": "Vues",
         "favoritesTitle": "Favoris",
+        "ownerPrefix": "Propriétaire :",
+        "responsiblePrefix": "Agent responsable :",
+        "responsibleNone": "aucun",
         "agentSelf": "{name} (moi)",
         "bulkAria": "Actions groupées",
         "bulkSelected": "{count, plural, =1 {# bien sélectionné} other {# biens sélectionnés}}",
         "bulkArchive": "Archiver",
         "bulkUnpublish": "Dépublier",
-        "bulkReassignPlaceholder": "Réassigner à…",
-        "bulkAssign": "Assigner",
+        "bulkReassignPlaceholder": "Agent responsable…",
+        "bulkAssign": "Changer l'agent responsable",
         "bulkClear": "Tout désélectionner",
         "bulkError": "Action en lot impossible.",
         "bulkArchived": "Biens archivés.",
         "bulkUnpublished": "Biens dépubliés.",
-        "bulkAssigned": "Agent assigné mis à jour.",
         "caption": "Liste des biens du tableau de bord"
       },
       "filters": {
@@ -2724,7 +2725,8 @@
     "bulk": {
       "summary": {
         "archive": "{updated, plural, =0 {Aucun bien archivé} one {# bien archivé} other {# biens archivés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}",
-        "unpublish": "{updated, plural, =0 {Aucun bien dépublié} one {# bien dépublié} other {# biens dépubliés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}"
+        "unpublish": "{updated, plural, =0 {Aucun bien dépublié} one {# bien dépublié} other {# biens dépubliés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}",
+        "assign": "{updated, plural, =0 {Aucun bien n'a changé d'agent responsable} one {# bien a changé d'agent responsable} other {# biens ont changé d'agent responsable}}{unchanged, plural, =0 {} one {, # déjà suivi par cet agent} other {, # déjà suivis par cet agent}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}"
       },
       "failure": "{title} : {reason}",
       "reason": {
@@ -2732,7 +2734,7 @@
         "forbidden": "vous n'avez pas le droit de le modifier",
         "unchanged": "déjà dans cet état",
         "already_archived": "déjà archivé",
-        "invalid_target": "la cible n'est pas du personnel actif de l'agence",
+        "invalid_target": "cet agent ne peut pas en être responsable (hors du personnel actif de l'agence, ou copropriétaire du bien)",
         "invalid_status": "il n’est ni disponible ni publié : rien à dépublier",
         "other": "refusé"
       }
@@ -2748,7 +2750,8 @@
         "maintenance": "Interventions en cours",
         "collaborations": "Collaborations sur des biens",
         "customers": "Clients dont il est le référent",
-        "held_properties": "Biens détenus"
+        "responsible_properties": "Biens dont il est l’agent responsable",
+        "held_properties": "Biens saisis à son nom"
       },
       "notTransferable": "pas encore transmissible",
       "successor": "Repreneur",

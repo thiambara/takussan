@@ -52,6 +52,12 @@ export interface PropertyListItem {
   condition?: PropertyCondition | null;
   main_photo_url: string | null;
   owner?: PropertyOwnerLite | null;
+  /**
+   * TCK-603 — l'agent responsable (TCK-502/504), à côté du propriétaire. Servie par la liste du
+   * tableau de bord seulement quand `agency_id` ET `user_id` sont demandés (sans eux la règle
+   * jugerait un bien d'agence comme celui d'un particulier) : clé ABSENTE sinon.
+   */
+  primary_contact?: PropertyOwnerLite | null;
   collaborators?: {
     id: number;
     user_id: number;
