@@ -113,7 +113,8 @@ class PayoutService
 
         // AC19 — le périmètre se vérifie AVANT toute écriture : rien n'est écrit sur un refus.
         $this->assertItemsInScope($agency, $landlord, $leaseIds, $bookingIds, $billIds);
-        $destination = $this->destinationOf($data['payout_method_id'] ?? null, $landlord->id);
+        $destination = $this->destinationOf($data['payout_method_id'] ?? null, $landlord->id)
+            ?? $this->defaultVerifiedDestination($landlord->id, (int) $agency->id);
 
         try {
             // Piège PostgreSQL n° 1 : une violation d'unicité n'est JAMAIS attrapée dans la
@@ -142,7 +143,8 @@ class PayoutService
         SegregationOfDuties::assertDistinct($user, [$bill->provider_id], SegregationOfDuties::STEP_PREPARE);
 
         $agency = Agency::query()->findOrFail($bill->agency_id);
-        $destination = $this->destinationOf($data['payout_method_id'] ?? null, (int) $bill->provider_id);
+        $destination = $this->destinationOf($data['payout_method_id'] ?? null, (int) $bill->provider_id)
+            ?? $this->defaultVerifiedDestination((int) $bill->provider_id, (int) $agency->id);
 
         $payout = DB::transaction(function () use ($user, $bill, &$agency, $destination, $data): Payout {
             /** @var ServiceProviderBill $locked */
@@ -194,9 +196,9 @@ class PayoutService
      * La destination l'est aussi (VERIF-594 M-4) : son identifiant, sa forme masquée — celle que
      * l'approbateur a lue — et l'empreinte de son numéro.
      */
-    public function approve(Payout $payout, User $actor): Payout
+    public function approve(Payout $payout, User $actor, mixed $payoutMethodId = null): Payout
     {
-        DB::transaction(function () use ($payout, $actor): void {
+        DB::transaction(function () use ($payout, $actor, $payoutMethodId): void {
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
@@ -208,11 +210,16 @@ class PayoutService
                 SegregationOfDuties::STEP_APPROVE,
             );
 
-            $destination = $locked->payout_method_id !== null
-                ? PayoutMethod::withTrashed()->find($locked->payout_method_id)
-                : null;
+            // VERIF-594 N-1 — l'approbateur peut fixer (ou remplacer) la destination en approuvant :
+            // sans elle, un reversement approuvé ne se payait plus qu'en espèces ou par chèque. Il ne
+            // cite qu'une destination du bénéficiaire vérifiée pour l'agence ; elle entre dans
+            // l'empreinte figée.
+            $destination = $payoutMethodId !== null && $payoutMethodId !== ''
+                ? $this->approvableDestination($locked, (int) $payoutMethodId)
+                : ($locked->payout_method_id !== null ? PayoutMethod::withTrashed()->find($locked->payout_method_id) : null);
 
             $locked->update([
+                'payout_method_id' => $destination?->id,
                 'status' => $locked->scheduled_at !== null ? PayoutStatus::Scheduled : PayoutStatus::Pending,
                 'approved_by_id' => $actor->id,
                 'approved_at' => now(),
@@ -523,6 +530,34 @@ class PayoutService
     }
 
     /** Une destination citée à la préparation appartient au bénéficiaire (vérifiée ou non). */
+    /**
+     * VERIF-594 N-1 — sans destination citée, un reversement prend la destination par défaut du
+     * bénéficiaire, si elle est vérifiée POUR CETTE AGENCE. Sinon il n'en a pas : l'approbateur
+     * pourra la fixer.
+     */
+    private function defaultVerifiedDestination(int $beneficiaryId, int $agencyId): ?PayoutMethod
+    {
+        return PayoutMethod::query()
+            ->where('user_id', $beneficiaryId)
+            ->where('is_default', true)
+            ->verifiedFor($agencyId)
+            ->first();
+    }
+
+    /** VERIF-594 N-1 — la destination citée par l'approbateur : du bénéficiaire, vérifiée pour l'agence. */
+    private function approvableDestination(Payout $payout, int $payoutMethodId): PayoutMethod
+    {
+        $destination = $payout->payee_role === PayeeRole::Tenant ? null : PayoutMethod::query()
+            ->whereKey($payoutMethodId)
+            ->where('user_id', $payout->beneficiaryUserId())
+            ->verifiedFor((int) $payout->agency_id)
+            ->first();
+
+        abort_code_if($destination === null, 422, 'payout.unverified_destination');
+
+        return $destination;
+    }
+
     private function destinationOf(mixed $payoutMethodId, int $beneficiaryId): ?PayoutMethod
     {
         if ($payoutMethodId === null || $payoutMethodId === '') {

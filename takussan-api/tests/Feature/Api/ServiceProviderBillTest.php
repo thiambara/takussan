@@ -7,6 +7,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Payout;
+use App\Models\PayoutMethod;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\ServiceProviderBill;
@@ -188,5 +189,37 @@ class ServiceProviderBillTest extends TestCase
         $this->postJson("/api/service-provider-bills/{$old->id}/validate")->assertOk();
         $this->postJson("/api/service-provider-bills/{$old->id}/pay", ['payment_method' => 'cash'])
             ->assertCreated()->assertJsonPath('data.net_amount', 70001);
+    }
+
+    /**
+     * VERIF-594 N-1 — l'écran paie une facture sans citer de destination. Au-dessus du seuil, le
+     * reversement était approuvé sans destination, puis refusé en Wave
+     * (`destination_changed_since_approval`) : le prestataire n'était plus payable qu'en espèces. Il
+     * prend désormais la destination par défaut du prestataire vérifiée pour l'agence.
+     */
+    public function test_n1_a_bill_paid_like_the_screen_goes_to_the_default_verified_destination(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
+        $provider = $this->provider($agency);
+        [$issuer, $approver] = [$this->agencyAdmin($agency), $this->agencyAdmin($agency)];
+        $destination = PayoutMethod::factory()->verifiedFor($agency, $this->agencyAgent($agency), now()->subDays(3))
+            ->create(['user_id' => $provider->id, 'is_default' => true]);
+        $request = $this->request($agency, $provider, ['quote_amount' => 150_000]);
+        $request->update(['status' => MaintenanceStatus::Completed]);
+        $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
+
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk();
+        $id = $this->postJson("/api/service-provider-bills/{$bill->id}/pay", [])
+            ->assertCreated()->assertJsonPath('data.status', 'awaiting_approval')
+            ->assertJsonPath('data.payout_method_id', $destination->id)->json('data.id');
+
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-N1', 'payout_method_id' => $destination->id])
+            ->assertOk()->assertJsonPath('data.status', 'completed');
     }
 }

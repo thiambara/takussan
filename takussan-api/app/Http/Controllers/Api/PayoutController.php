@@ -72,7 +72,7 @@ class PayoutController extends Controller
      */
     public function approve(ApprovePayoutRequest $request, Payout $payout): JsonResponse
     {
-        $payout = $this->payouts->approve($payout, $request->user());
+        $payout = $this->payouts->approve($payout, $request->user(), $request->validated('payout_method_id'));
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),

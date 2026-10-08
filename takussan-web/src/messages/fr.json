@@ -3110,7 +3110,11 @@
       "plannedDestination": "Destination prévue",
       "approvedDestination": "Destination approuvée",
       "approveWithoutDestination": "Aucune destination n'est prévue : une fois approuvé, ce reversement ne se paiera qu'en espèces ou par chèque.",
-      "approvedDestinationOnly": "Ce reversement ne part que vers la destination approuvée, et elle n'est pas vérifiée pour ce moyen. Payez en espèces ou par chèque, ou faites-le préparer à nouveau."
+      "approvedDestinationOnly": "Ce reversement ne part que vers la destination approuvée, et elle n'est pas vérifiée pour ce moyen. Payez en espèces ou par chèque, ou faites-le préparer à nouveau.",
+      "approveDestination": "Destination du paiement",
+      "approveKeepDestination": "Garder la destination prévue ({masked})",
+      "approveNoDestination": "Sans destination (espèces ou chèque)",
+      "approveDestinationOption": "{kind} · {masked} (vérifiée)"
     },
     "customer": {
       "nextTitle": "Prochain paiement",

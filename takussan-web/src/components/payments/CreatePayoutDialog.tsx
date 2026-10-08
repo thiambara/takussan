@@ -58,7 +58,9 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const [landlordId, setLandlordId] = useState('');
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
-  const [payoutMethodId, setPayoutMethodId] = useState('');
+  // VERIF-594 N-1 — `null` : pas encore choisie. La destination par défaut du bénéficiaire, si elle
+  // est vérifiée pour l'agence, est alors présélectionnée (le serveur la prend de même).
+  const [payoutMethodChoice, setPayoutMethodId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [notes, setNotes] = useState('');
@@ -94,6 +96,8 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
     : 0;
   // TCK-594 (ADR-0039 §6) — l'agence vérifie la destination qu'elle va payer : le titulaire la
   // déclare, quelqu'un d'autre la confirme (le serveur refuse au titulaire de se vérifier lui-même).
+  const defaultVerified = prep?.payout_methods.find((m) => m.is_default && m.verified);
+  const payoutMethodId = payoutMethodChoice ?? (defaultVerified ? String(defaultVerified.id) : '');
   const selectedMethod = prep?.payout_methods.find((m) => String(m.id) === payoutMethodId);
   const verifyDestination = async (id: number) => {
     setError(null);
@@ -109,7 +113,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
     setLandlordId('');
     setPeriodStart('');
     setPeriodEnd('');
-    setPayoutMethodId('');
+    setPayoutMethodId(null);
     setPaymentMethod('');
     setScheduledAt('');
     setNotes('');
@@ -163,7 +167,10 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
                 className={SELECT_CLASS}
                 value={landlordId}
                 disabled={owners.isLoading}
-                onChange={(e) => setLandlordId(e.target.value)}
+                onChange={(e) => {
+                  setLandlordId(e.target.value);
+                  setPayoutMethodId(null);
+                }}
               >
                 <option value="">{t('landlordPlaceholder')}</option>
                 {(owners.data?.data ?? [])

@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
@@ -301,7 +302,8 @@ class PayoutBypassTest extends TestCase
     {
         Notification::fake();
         [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
-        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
+        // Pas la destination par défaut : sinon la préparation la prend (VERIF-594 N-1).
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id, 'is_default' => false]);
         $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
         Sanctum::actingAs($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
@@ -467,5 +469,89 @@ class PayoutBypassTest extends TestCase
         $this->getJson("/api/agencies/{$agency->id}")->assertOk()
             ->assertJsonPath('data.payout_approval_threshold', 250000)
             ->assertJsonPath('data.pending_payout_threshold_change', null);
+    }
+
+    /**
+     * VERIF-594 N-1 — sans destination à la préparation (la destination par défaut du bailleur n'est
+     * pas vérifiée pour l'agence), l'approbateur la fixe en approuvant : elle entre dans l'empreinte
+     * figée, et le paiement Wave passe.
+     */
+    public function test_n1_the_approver_sets_the_destination_and_it_is_paid(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        PayoutMethod::factory()->create(['user_id' => $landlord->id, 'is_default' => true]);
+        $verified = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))
+            ->create(['user_id' => $landlord->id, 'is_default' => false]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
+        $this->assertNull(Payout::query()->findOrFail($id)->payout_method_id);
+
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $verified->id])->assertOk()
+            ->assertJsonPath('data.payout_method_id', $verified->id)
+            ->assertJsonPath('data.approved_destination_masked', $verified->masked_identifier);
+
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-N1b', 'payout_method_id' => $verified->id])
+            ->assertOk()->assertJsonPath('data.status', 'completed');
+    }
+
+    /**
+     * VERIF-594 N-1 — l'approbateur ne fixe qu'une destination du bénéficiaire vérifiée POUR
+     * L'AGENCE : vérifiée par une autre agence, ou d'un autre utilisateur, elle est refusée.
+     */
+    public function test_n1_the_approver_cannot_set_an_unverified_destination(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver] = $this->fourEyesAgency();
+        $elsewhere = PayoutMethod::factory()->verifiedFor($this->moneyAgency(), null, now()->subDays(3))
+            ->create(['user_id' => $landlord->id, 'is_default' => false]);
+        $foreign = PayoutMethod::factory()->verifiedFor($agency, null, now()->subDays(3))->create();
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
+
+        Sanctum::actingAs($approver);
+        foreach ([$elsewhere, $foreign] as $method) {
+            $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $method->id])
+                ->assertStatus(422)->assertJsonPath('code', 'payout.unverified_destination');
+        }
+        $this->assertSame(PayoutStatus::AwaitingApproval, Payout::query()->findOrFail($id)->status);
+    }
+
+    /**
+     * VERIF-594 N-1 — un reversement au bailleur préparé sans destination prend sa destination par
+     * défaut, si elle est vérifiée pour l'agence ; vérifiée par une autre agence seulement, aucune.
+     */
+    public function test_n1_a_landlord_payout_takes_the_default_destination_verified_for_the_agency(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, , $agent] = $this->fourEyesAgency();
+        $default = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))
+            ->create(['user_id' => $landlord->id, 'is_default' => true]);
+        $other = $this->landlordOf($agency);
+        PayoutMethod::factory()->verifiedFor($this->moneyAgency(), null, now()->subDays(3))
+            ->create(['user_id' => $other->id, 'is_default' => true]);
+
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
+        $this->assertSame($default->id, Payout::query()->findOrFail($id)->payout_method_id);
+        $id = $this->awaitingPayoutTo($agency, $other, $issuer, null);
+        $this->assertNull(Payout::query()->findOrFail($id)->payout_method_id);
+    }
+
+    /**
+     * VERIF-594 N-1 — l'approbateur qui ne prépare pas (`payouts.approve` sans `payouts.create`) lit
+     * les destinations masquées du bénéficiaire pour en fixer une ; il ne les vérifie pas.
+     */
+    public function test_n1_an_approver_reads_the_beneficiary_destinations_but_does_not_verify_them(): void
+    {
+        [$agency, $landlord] = $this->fourEyesAgency();
+        $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
+        $approver = $this->adminWithout($agency, Capability::PayoutsCreate);
+        $this->assertTrue($approver->canActAt(Capability::PayoutsApprove, $agency));
+        Sanctum::actingAs($approver);
+
+        $this->getJson('/api/payout-methods?filter[user_id]='.$landlord->id)->assertOk()
+            ->assertJsonPath('data.0.id', $method->id)
+            ->assertJsonMissingPath('data.0.account_identifier');
+        $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden();
     }
 }

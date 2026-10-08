@@ -17,9 +17,16 @@ class ApprovePayoutRequest extends BaseFormRequest
         return $this->user()?->can('approve', $this->route('payout')) === true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * VERIF-594 N-1 — l'approbateur peut fixer la destination en approuvant (du bénéficiaire, vérifiée
+     * pour l'agence : jugé par `PayoutService::approve`).
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        return [];
+        return [
+            'payout_method_id' => ['sometimes', 'nullable', 'integer'],
+        ];
     }
 }

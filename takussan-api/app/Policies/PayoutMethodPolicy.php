@@ -33,7 +33,9 @@ class PayoutMethodPolicy
     /** Lire (masquées) les destinations d'un titulaire : le personnel d'une agence qui le paie. */
     public function viewHolder(User $user, User $holder): bool
     {
-        return $holder->id === $user->id || $this->paysHolder($user, $holder);
+        // VERIF-594 N-1 — l'approbateur lit aussi les destinations (masquées) du bénéficiaire : il
+        // peut fixer celle du reversement en l'approuvant. Il ne les vérifie pas pour autant.
+        return $holder->id === $user->id || $this->paysHolder($user, $holder, approverReads: true);
     }
 
     public function verify(User $user, PayoutMethod $method): bool
@@ -43,7 +45,7 @@ class PayoutMethodPolicy
         return $holder !== null && $holder->id !== $user->id && $this->paysHolder($user, $holder);
     }
 
-    private function paysHolder(User $user, User $holder): bool
+    private function paysHolder(User $user, User $holder, bool $approverReads = false): bool
     {
         $agencyId = $user->staffAgencyId();
         if ($agencyId === null) {
@@ -51,7 +53,9 @@ class PayoutMethodPolicy
         }
 
         $agency = Agency::query()->find($agencyId);
-        if ($agency === null || ! $user->canActAt(Capability::PayoutsCreate, $agency)) {
+        $allowed = $agency !== null && ($user->canActAt(Capability::PayoutsCreate, $agency)
+            || ($approverReads && $user->canActAt(Capability::PayoutsApprove, $agency)));
+        if (! $allowed) {
             return false;
         }
 

@@ -149,3 +149,40 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     expect(VERIFY.mutateAsync).toHaveBeenCalledWith({ id: 9 });
   });
 });
+
+describe('CreatePayoutDialog — la destination par défaut vérifiée est présélectionnée (VERIF-594 N-1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    PREPARATION.current = { data: CALCUL, isError: false, isFetching: false, error: null };
+  });
+
+  it('présélectionne la destination par défaut vérifiée, et l’envoie sans geste', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    expect((screen.getByLabelText('Destination') as HTMLSelectElement).value).toBe('8');
+    await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));
+    expect(MUTATION.mutateAsync.mock.calls[0][0]).toMatchObject({ payout_method_id: 8 });
+  });
+
+  it('ne présélectionne pas une destination par défaut non vérifiée', () => {
+    PREPARATION.current = {
+      data: {
+        ...CALCUL,
+        data: {
+          ...CALCUL.data,
+          payout_methods: [
+            { id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: false },
+            { id: 9, kind: 'orange_money', masked_identifier: '•••• 8899', is_default: false, verified: true },
+          ],
+        },
+      },
+      isError: false,
+      isFetching: false,
+      error: null,
+    };
+    monter();
+
+    expect((screen.getByLabelText('Destination') as HTMLSelectElement).value).toBe('');
+  });
+});

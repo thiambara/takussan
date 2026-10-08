@@ -563,6 +563,15 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
+### 9. Ajoutés après la passe 2 (VERIF-594 passe 2, 2026-10-08)
+
+- [x] **N-1** — préparé sans destination, un reversement prend la destination par défaut du
+  bénéficiaire vérifiée pour l'agence (`create`, `createForBill`) ; l'approbateur peut fixer ou
+  remplacer la destination en approuvant (`payout_method_id`, vérifiée pour l'agence, sinon 422
+  `payout.unverified_destination`), et lit pour cela les destinations masquées du bénéficiaire.
+  Front : `CreatePayoutDialog` présélectionne la destination par défaut vérifiée ;
+  `PayoutDetailDialog` propose à l'approbateur les destinations vérifiées, masquées.
+
 ### Front (intentionnel)
 
 - [x] Préparation d'un reversement par bailleur et période, montants en lecture seule ; file « À
@@ -790,6 +799,19 @@ rend **403** avec une clé i18n, jamais une phrase.
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
   `→ cancelled` lève `payout.status_transition_invalid`.
   **Preuve** : `PayoutBypassTest::test_m5_a_stale_mark_failed_or_cancel_does_not_undo_a_payment`, `test_m5_the_model_refuses_to_leave_completed` (rouges sur 9923b16c). Ablations V-M5a, V-M5b : rouges.
+
+### AC ajoutés après la passe 2 (VERIF-594 passe 2)
+
+- [x] **AC-N1 — un reversement approuvé se paie en mobile money.** Seuil 100 000, facture de
+  150 000 payée comme l'écran (`pay` sans destination), prestataire dont la destination par défaut est
+  vérifiée pour l'agence par un tiers depuis trois jours : 201 `awaiting_approval` vers cette
+  destination ; approuvée par un second, payée en Wave vers elle : 200 `completed`. Un bailleur dont
+  la destination par défaut n'est pas vérifiée pour l'agence : préparé sans destination, l'approbateur
+  fixe une destination vérifiée en approuvant (masquée rendue), payée en Wave : 200. Une destination
+  vérifiée par une autre agence, ou d'un autre utilisateur, citée à l'approbation : 422
+  `payout.unverified_destination`, toujours `awaiting_approval`. Un approbateur sans `payouts.create`
+  lit les destinations masquées (200) et ne les vérifie pas (403).
+  **Preuve** : `ServiceProviderBillTest::test_n1_a_bill_paid_like_the_screen_goes_to_the_default_verified_destination`, `PayoutBypassTest::test_n1_*` (quatre ; rouges sur 38495c16) ; front `CreatePayoutDialog.test.tsx` (deux) et `PayoutDetailDialog.capacites.test.tsx` (trois). Ablations V-N1a à V-N1g, W-N1a à W-N1d : rouges.
 
 ## Hors périmètre
 
@@ -1162,3 +1184,15 @@ cliquet de `check-capability-readers` de 16 à 14. La fusion n'a eu aucun confli
 14 pour un inventaire de 12 : la garde était rouge. Le cliquet passe à 12. `AgencyIdIsIndexedTest`
 est vert : `payout_method_verifications.agency_id` est la première colonne de
 `pm_verifications_agency_method_unique`.
+
+### Corrections après la passe 2 (VERIF-594 passe 2, 2026-10-08)
+
+- **N-1 — approuvé sans destination, jamais payé en mobile money.** Les deux voies de la décision,
+  toutes deux : le défaut à la préparation suffit à l'écran d'intervention (qui ne cite aucune
+  destination), la fixation à l'approbation couvre le bénéficiaire sans défaut vérifié. « Par défaut »
+  se lit `is_default = true` ET vérifiée pour l'agence ; une autre destination vérifiée n'est pas
+  prise d'office — c'est l'approbateur qui la choisit. Une caution (`tenant`) refuse toute destination
+  citée à l'approbation (422). Pour que l'approbateur sans `payouts.create` puisse choisir,
+  `PayoutMethodPolicy::viewHolder` lui ouvre la LECTURE (masquée) ; `verify` reste réservé à
+  `payouts.create`. `test_m4_a_payout_approved_without_destination_is_not_paid_to_one` crée désormais
+  sa destination hors défaut : sinon la préparation la prend, et le cas « approuvé sans » n'existe plus.

@@ -259,3 +259,55 @@ describe("PayoutDetailDialog — l'approbation couvre la destination (VERIF-594 
     expect(screen.getByText(fr.payments.payoutDetail.approvedDestinationOnly)).toBeInTheDocument();
   });
 });
+
+describe("PayoutDetailDialog — l'approbateur fixe la destination (VERIF-594 N-1)", () => {
+  const CHOIX = fr.payments.payoutDetail.approveDestination;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    PAYOUT.current = {
+      ...PAYOUT.current, status: 'awaiting_approval', approved_by_id: null, payment_method: null, payee_role: 'landlord',
+      payout_method_id: null, payout_method_masked: null, approved_destination_masked: null,
+    };
+    DESTINATIONS.current = {
+      isLoading: false,
+      data: {
+        data: [
+          { id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true },
+          { id: 9, kind: 'wave', masked_identifier: '•••• 0000', is_default: false, verified: false },
+          { id: 10, kind: 'orange_money', masked_identifier: '•••• 8899', is_default: false, verified: true },
+        ],
+      },
+    };
+  });
+
+  it('propose les seules destinations vérifiées, présélectionne celle par défaut, et l’envoie', async () => {
+    en(11, ['payouts.approve']);
+    rendre();
+
+    const choix = screen.getByLabelText(CHOIX) as HTMLSelectElement;
+    expect(Array.from(choix.options).map((o) => o.value)).toEqual(['', '8', '10']);
+    expect(choix.value).toBe('8');
+    expect(screen.queryByText(fr.payments.payoutDetail.approveWithoutDestination)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: APPROUVER }));
+    await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledWith({ payout_method_id: 8 }));
+  });
+
+  it('approuver sans destination se dit, et n’en envoie aucune', async () => {
+    en(11, ['payouts.approve']);
+    rendre();
+
+    fireEvent.change(screen.getByLabelText(CHOIX), { target: { value: '' } });
+    expect(screen.getByText(fr.payments.payoutDetail.approveWithoutDestination)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: APPROUVER }));
+    await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledWith(undefined));
+  });
+
+  it('la caution rendue au locataire ne propose aucune destination', () => {
+    PAYOUT.current = { ...PAYOUT.current, payee_role: 'tenant' };
+    en(11, ['payouts.approve']);
+    rendre();
+
+    expect(screen.queryByLabelText(CHOIX)).not.toBeInTheDocument();
+  });
+});

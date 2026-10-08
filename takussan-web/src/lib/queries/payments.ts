@@ -325,9 +325,10 @@ export function usePayoutPreparation(params: UsePayoutPreparationParams) {
 }
 
 /** Le second geste d'un reversement au-dessus du seuil de l'agence (ADR-0039 §4). */
+/** VERIF-594 N-1 — l'approbateur peut fixer la destination en approuvant (vérifiée pour l'agence). */
 export function usePayoutApprove(payoutId: number) {
-  return useApiMutation<ApiResponse<Payout>, void>(
-    { path: `/api/payouts/${payoutId}/approve`, method: 'POST', body: () => undefined },
+  return useApiMutation<ApiResponse<Payout>, { payout_method_id?: number } | void>(
+    { path: `/api/payouts/${payoutId}/approve`, method: 'POST', body: (v) => v ?? undefined },
     { invalidate: [['payouts']] },
   );
 }

@@ -3135,7 +3135,11 @@
       "plannedDestination": "Planned destination",
       "approvedDestination": "Approved destination",
       "approveWithoutDestination": "No destination is planned: once approved, this payout can only be paid in cash or by check.",
-      "approvedDestinationOnly": "This payout can only go to the approved destination, and it is not verified for this method. Pay in cash or by check, or have it prepared again."
+      "approvedDestinationOnly": "This payout can only go to the approved destination, and it is not verified for this method. Pay in cash or by check, or have it prepared again.",
+      "approveDestination": "Payment destination",
+      "approveKeepDestination": "Keep the planned destination ({masked})",
+      "approveNoDestination": "No destination (cash or check)",
+      "approveDestinationOption": "{kind} · {masked} (verified)"
     },
     "customer": {
       "nextTitle": "Next payment",

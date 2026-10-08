@@ -138,7 +138,13 @@ deux agences ne font pas deux personnes.
   numéro (HMAC sous la clé de l'application, jamais un hachage nu : un numéro se retrouve par force
   brute). Le paiement refuse (422) une autre destination, la même dont le numéro a changé, et toute
   destination pour un reversement approuvé sans (espèces et chèque restent permis). L'API rend la
-  destination prévue, masquée, avant l'approbation. Les gestes qui suivent la préparation (`approve`,
+  destination prévue, masquée, avant l'approbation. **Un reversement ne reste pas sans destination par
+  défaut** (VERIF-594 passe 2, N-1 : approuvé sans, il ne se payait plus qu'en espèces) : préparé sans
+  en citer, il prend la destination par défaut du bénéficiaire **vérifiée pour l'agence** (`create`
+  comme `createForBill`) ; et l'approbateur peut **fixer ou remplacer** la destination en approuvant,
+  par une destination du bénéficiaire vérifiée pour l'agence (sinon 422 `payout.unverified_destination`),
+  qui entre dans l'empreinte figée. Pour la choisir, il lit les destinations masquées du bénéficiaire
+  (`PayoutMethodPolicy::viewHolder`) ; il ne les vérifie pas. Les gestes qui suivent la préparation (`approve`,
   `mark-processed`, `mark-failed` et `cancel`) jugent le statut sur la ligne **verrouillée**
   (VERIF-594 M-5), et **on ne sort jamais de `completed`** : le modèle refuse toute transition depuis
   cet état, `failed` et `cancelled` compris, puisqu'elles détacheraient les pièces d'un argent parti.

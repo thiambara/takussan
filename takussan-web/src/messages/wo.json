@@ -1749,7 +1749,11 @@
       "plannedDestination": "Fi ñu waajal",
       "approvedDestination": "Fi ñu nangu",
       "approveWithoutDestination": "Amul fenn fu ñu waajal : bu ñu ko nanguwee, reversement bii dina fayu rekk ci xaalis loxo walla ci chèque.",
-      "approvedDestinationOnly": "Reversement bii dem rekk fa ñu ko nangoo, te seetluwuñu ko ngir pexe mii. Fayal ci xaalis loxo walla ci chèque, walla nañu ko waajal ci kanam."
+      "approvedDestinationOnly": "Reversement bii dem rekk fa ñu ko nangoo, te seetluwuñu ko ngir pexe mii. Fayal ci xaalis loxo walla ci chèque, walla nañu ko waajal ci kanam.",
+      "approveDestination": "Fan lañuy fey",
+      "approveKeepDestination": "Denc fan lañu waajal ({masked})",
+      "approveNoDestination": "Amul fan (xaalis loxo walla chèque)",
+      "approveDestinationOption": "{kind} · {masked} (seetlu nañu ko)"
     },
     "customer": {
       "nextTitle": "Fey bi ci topp",

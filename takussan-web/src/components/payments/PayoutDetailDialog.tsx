@@ -57,6 +57,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const [transactionId, setTransactionId] = useState('');
   const [cashNote, setCashNote] = useState('');
   const [destinationId, setDestinationId] = useState('');
+  const [approveDestinationId, setApproveDestinationId] = useState<string | null>(null);
   const [failedReason, setFailedReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -97,7 +98,15 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const allowedKinds = DESTINATION_KINDS_BY_METHOD[method as keyof typeof DESTINATION_KINDS_BY_METHOD];
   const needsDestination = allowedKinds !== undefined && payout?.payee_role !== 'tenant';
   const mayPay = actionable && canManage && !isBeneficiary;
-  const beneficiaryMethods = useBeneficiaryPayoutMethods(payout?.landlord_id, mayPay && needsDestination);
+  const mayApprove = status === 'awaiting_approval' && canApprove && !isBeneficiary;
+  // VERIF-594 N-1 — l'approbateur fixe (ou remplace) la destination en approuvant : approuvé sans
+  // destination, un reversement ne se payait plus qu'en espèces ou par chèque. Il ne choisit
+  // qu'une destination vérifiée pour l'agence, sous sa forme masquée.
+  const approvesDestination = mayApprove && payout?.payee_role !== 'tenant';
+  const beneficiaryMethods = useBeneficiaryPayoutMethods(
+    payout?.landlord_id,
+    (mayPay && needsDestination) || approvesDestination,
+  );
   // VERIF-594 M-4 — l'approbation couvre la destination : approuvé, le reversement ne part que vers
   // la destination approuvée (aucune, s'il a été approuvé sans). Le serveur refuse tout le reste.
   const approved = payout?.approved_by_id != null;
@@ -105,6 +114,14 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
     (m) => m.verified && allowedKinds?.includes(m.kind) && (!approved || m.id === payout?.payout_method_id),
   );
   const plannedDestination = payout?.approved_destination_masked ?? payout?.payout_method_masked ?? null;
+  const approvableDestinations = (beneficiaryMethods.data?.data ?? []).filter((m) => m.verified);
+  // '' : garder la destination prévue (ou n'en fixer aucune). Sans destination prévue, la destination
+  // par défaut vérifiée est proposée.
+  const approveDestinationValue =
+    approveDestinationId ??
+    (payout?.payout_method_masked
+      ? ''
+      : String(approvableDestinations.find((m) => m.is_default)?.id ?? approvableDestinations[0]?.id ?? ''));
   const preselected =
     destinations.find((m) => m.id === payout?.payout_method_id) ?? destinations.find((m) => m.is_default) ?? destinations[0];
   const destination = destinations.find((m) => String(m.id) === destinationId) ?? preselected;
@@ -235,13 +252,43 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                 {isIssuer ? (
                   <p className="text-sm text-muted-foreground">{t('approveSelfRefused')}</p>
                 ) : null}
-                {payout.payout_method_masked ? null : (
+                {approvesDestination && approvableDestinations.length > 0 ? (
+                  <div>
+                    <Label htmlFor="payout-approve-destination" className="mb-1.5 block text-xs font-medium">
+                      {t('approveDestination')}
+                    </Label>
+                    <select
+                      id="payout-approve-destination"
+                      className={SELECT_CLASS}
+                      value={approveDestinationValue}
+                      onChange={(e) => setApproveDestinationId(e.target.value)}
+                    >
+                      <option value="">
+                        {payout.payout_method_masked
+                          ? t('approveKeepDestination', { masked: payout.payout_method_masked })
+                          : t('approveNoDestination')}
+                      </option>
+                      {approvableDestinations.map((m) => (
+                        <option key={m.id} value={String(m.id)}>
+                          {t('approveDestinationOption', { kind: tKind(m.kind), masked: m.masked_identifier ?? '' })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                {payout.payout_method_masked || approveDestinationValue !== '' ? null : (
                   <p className="text-sm text-muted-foreground">{t('approveWithoutDestination')}</p>
                 )}
                 <Button
                   type="button"
                   disabled={isIssuer || approve.isPending}
-                  onClick={() => void handleAction(() => approve.mutateAsync())}
+                  onClick={() =>
+                    void handleAction(() =>
+                      approve.mutateAsync(
+                        approveDestinationValue !== '' ? { payout_method_id: Number(approveDestinationValue) } : undefined,
+                      ),
+                    )
+                  }
                 >
                   {approve.isPending ? t('working') : t('approve')}
                 </Button>
