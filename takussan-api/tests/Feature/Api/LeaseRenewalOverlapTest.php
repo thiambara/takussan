@@ -374,6 +374,24 @@ class LeaseRenewalOverlapTest extends TestCase
         $this->assertNull($stale->fresh()->late_fee_applied_at);
     }
 
+    /**
+     * VERIF-596 passe 6 (m-k P6-ME.10, sonde E10) — l'enfant commence LE JOUR d'une échéance du
+     * parent (début le 5, paiement le 5) : cette échéance-là est reprise par l'enfant, donc annulée.
+     */
+    public function test_a_child_starting_on_a_parent_due_date_cancels_that_due(): void
+    {
+        $parent = $this->parent();
+        $due = LeasePayment::query()->where('lease_id', $parent->id)->whereDate('due_date', '>', now())->orderBy('due_date')->firstOrFail();
+        $start = $due->due_date->copy();
+
+        $this->renew($parent, ['start_date' => $start->toDateString(), 'end_date' => $start->copy()->addYear()->toDateString()])->assertCreated();
+        $child = $this->child($parent);
+        $this->runChildSchedule($child);
+
+        $this->assertSame(PaymentStatus::Cancelled, $due->fresh()->status);
+        $this->assertSame([], $this->doubledMonths($parent, $child));
+    }
+
     /** À terme (fin + 1) : rien à annuler, rien ne change. */
     public function test_a_renewal_at_term_is_unchanged(): void
     {
