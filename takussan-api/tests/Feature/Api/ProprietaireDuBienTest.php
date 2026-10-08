@@ -233,4 +233,45 @@ class ProprietaireDuBienTest extends ApiTestCase
             ->assertJsonPath('data.0.customer_id', $visite->customer_id)
             ->assertJsonPath('data.0.customer.email', 'fatou@exemple.sn');
     }
+
+    /**
+     * Passe 4 (M7″) — la planification pour une fiche recopie son nom, son téléphone et son e-mail
+     * dans `visitor_*` : le bailleur qui lit la visite sans la fiche ne les lit pas davantage par
+     * là, au détail comme à l'index. Une demande publique, sans fiche, garde ses `visitor_*`.
+     */
+    public function test_m7seconde_le_bailleur_ne_lit_pas_la_fiche_par_les_champs_visitor(): void
+    {
+        $b = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $b);
+        $fiche = $this->ficheClient($this->x, attributes: [
+            'first_name' => 'Fiche', 'last_name' => 'Secrete', 'phone' => '+221775551101', 'email' => 'fiche@example.com',
+        ]);
+
+        Sanctum::actingAs($this->personnel($this->x));
+        $id = $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'customer_id' => $fiche->id, 'scheduled_at' => $this->creneau(jours: 3),
+        ])->assertCreated()->json('data.id');
+        $publique = PropertyVisit::factory()->create([
+            'property_id' => $bien->id, 'customer_id' => null, 'visitor_id' => null,
+            'visitor_name' => 'Moussa Fall', 'visitor_phone' => '+221778889900',
+            'status' => VisitStatus::Scheduled, 'scheduled_at' => $this->creneau(jours: 4),
+        ]);
+
+        Sanctum::actingAs($b);
+        $detail = $this->getJson("/api/property-visits/{$id}")->assertOk()
+            ->assertJsonPath('data.visitor_name', null)
+            ->assertJsonPath('data.visitor_phone', null)
+            ->assertJsonPath('data.visitor_email', null);
+        $liste = $this->getJson('/api/property-visits?per_page=100')->assertOk();
+        $lignes = collect($liste->json('data'))->keyBy('id');
+        $this->assertNull($lignes[$id]['visitor_phone']);
+        $this->assertSame('+221778889900', $lignes[$publique->id]['visitor_phone']);
+        $this->assertSame('Moussa Fall', $lignes[$publique->id]['visitor_name']);
+
+        foreach ([$detail, $liste] as $reponse) {
+            $this->assertStringNotContainsString('775551101', $reponse->getContent());
+            $this->assertStringNotContainsString('fiche@example.com', $reponse->getContent());
+            $this->assertStringNotContainsString('Secrete', $reponse->getContent());
+        }
+    }
 }

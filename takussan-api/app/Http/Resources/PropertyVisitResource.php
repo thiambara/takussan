@@ -10,6 +10,10 @@ class PropertyVisitResource extends BaseResource
     public function toArray(Request $request): array
     {
         $fiche = $this->ficheClientLisible($request);
+        // Passe 4 (M7″) — planifier pour une fiche recopie son nom, son téléphone et son e-mail
+        // dans `visitor_*` : sans la fiche, ils ne se lisent pas davantage par là. Une visite sans
+        // fiche (demande publique) garde les siens.
+        $visiteurLisible = $fiche || $this->customer_id === null;
 
         return [
             'id' => $this->id,
@@ -17,9 +21,9 @@ class PropertyVisitResource extends BaseResource
             'visitor_id' => $this->visitor_id,
             'customer_id' => $fiche ? $this->customer_id : null,
             'agent_id' => $this->agent_id,
-            'visitor_name' => $this->visitor_name,
-            'visitor_phone' => $this->visitor_phone,
-            'visitor_email' => $this->visitor_email,
+            'visitor_name' => $visiteurLisible ? $this->visitor_name : null,
+            'visitor_phone' => $visiteurLisible ? $this->visitor_phone : null,
+            'visitor_email' => $visiteurLisible ? $this->visitor_email : null,
             'type' => $this->type?->value,
             'status' => $this->status?->value,
             'scheduled_at' => $this->iso($this->scheduled_at),
