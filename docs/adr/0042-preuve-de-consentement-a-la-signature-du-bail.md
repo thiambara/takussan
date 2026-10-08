@@ -47,6 +47,18 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    ligne dans `pdf.leases.contract`, et un test rend la vraie vue terme par terme. Une fois le bail
    signé, ces termes ne se modifient plus par `PATCH` (422 `lease.terms_locked`) : la pénalité
    exécutée reste celle que les parties ont lue. Avant la signature, la modification défige.
+   **Un terme lu dans un réglage global est figé sur le bail avec le contrat** (amendé après
+   VERIF-596 passe 2, N1) : l'indemnité de départ anticipé (`lease.early_termination_penalty_months`)
+   et le plafond de révision du loyer (`lease.rent_review_max_pct`) étaient imprimés (ou absents)
+   au contrat, puis relus dans le réglage **au jour** de l'exécution — un réglage changé changeait
+   l'indemnité de tous les baux signés. Les colonnes `leases.early_termination_penalty_months` et
+   `leases.rent_review_max_pct` sont posées par la demande de signature et par la voie papier (la
+   valeur négociée sur le bail, sinon le réglage du moment), imprimées, et lues par
+   `EarlyTerminationService::computePenalty` et `RentReviewService` ; nulles (bail antérieur), le
+   réglage s'applique. Elles suivent la règle des termes imprimés (`lease.terms_locked`).
+   `late_fees.cap_percent` n'est **pas** figé, délibérément : ce plafond ne peut que **baisser** la
+   pénalité de retard imprimée, il ne joue jamais contre le locataire. **Point ouvert, non tranché ici** :
+   la dérogation `leases.rent_review_force` permet encore de dépasser le plafond imprimé.
    **Le contrat figé est une preuve** (amendé après la vérification adverse VERIF-596, B1) : aucune
    route générique ne le supprime — `DELETE /api/media/{id}` refuse la collection `signed_contract`
    (et les `room_photos` d'un état des lieux sorti du brouillon) **avant** la policy, super-admin

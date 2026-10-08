@@ -24,7 +24,10 @@
     $frequencyValue = $lease->payment_frequency?->value ?? $lease->payment_frequency ?? 'monthly';
     $earlyTermination = app(\App\Services\Lease\EarlyTerminationService::class);
     $noticeDays = $earlyTermination->resolveNoticeDays($lease);
-    $penaltyMonths = $earlyTermination->resolvePenaltyMonths();
+    // VERIF-596 passe 2 (N1) — les valeurs FIGÉES sur le bail avec le contrat, celles que
+    // `computePenalty` et `RentReviewService` exécuteront ; le réglage seulement si elles manquent.
+    $penaltyMonths = $earlyTermination->penaltyMonthsFor($lease);
+    $rentReviewMaxPct = app(\App\Services\Lease\RentReviewService::class)->maxPctFor($lease);
     $number = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, ',', ' '), '0'), ',');
 @endphp
 
@@ -142,6 +145,10 @@
         <tr>
             <th>Indemnité de résiliation anticipée</th>
             <td>{{ $penaltyMonths }} mois de loyer au plus, dans la limite des mois restant à courir</td>
+        </tr>
+        <tr>
+            <th>Révision du loyer</th>
+            <td>Variation de {{ $number($rentReviewMaxPct) }} % au plus du loyer en vigueur, à chaque révision</td>
         </tr>
     </table>
 

@@ -34,6 +34,8 @@ class Lease extends AbstractModel implements HasMedia
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
         'late_fee_percent', 'late_fee_grace_days',
+        // VERIF-596 passe 2 (N1) — figés quand le contrat l'est ; nuls, le réglage global s'applique.
+        'early_termination_penalty_months', 'rent_review_max_pct',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason', 'terminated_by_id', 'metadata',
         // TCK-265 — set by SendTenantWelcomeNotification once the welcome
@@ -58,6 +60,8 @@ class Lease extends AbstractModel implements HasMedia
         'commission_amount' => 'decimal:2',
         'commission_rate' => 'decimal:2',
         'late_fee_percent' => 'decimal:2',
+        'early_termination_penalty_months' => 'integer',
+        'rent_review_max_pct' => 'decimal:2',
         'late_fee_grace_days' => 'integer',
         'start_date' => 'date',
         'end_date' => 'date',
@@ -95,6 +99,8 @@ class Lease extends AbstractModel implements HasMedia
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
         'late_fee_percent', 'late_fee_grace_days',
+        // VERIF-596 passe 2 (N1) — figés quand le contrat l'est ; nuls, le réglage global s'applique.
+        'early_termination_penalty_months', 'rent_review_max_pct',
         'terms', 'special_conditions',
         'signed_at', 'terminated_at', 'termination_reason',
         'created_at', 'updated_at',
@@ -284,6 +290,7 @@ class Lease extends AbstractModel implements HasMedia
         'monthly_rent', 'sale_price', 'currency', 'deposit_amount',
         'payment_frequency', 'payment_day',
         'late_fee_percent', 'late_fee_grace_days', 'notice_period_days',
+        'early_termination_penalty_months', 'rent_review_max_pct',
         'terms', 'special_conditions',
     ];
 

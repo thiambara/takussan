@@ -3060,7 +3060,9 @@ signature active le bail.
 belongsTo User.
 
 > Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
-> timestamp nullable. Une colonne du contrat modifiée pendant `pending_signature` (hors
+> timestamp nullable. VERIF-596 passe 2 (N1) : `early_termination_penalty_months` unsigned smallint
+> nullable et `rent_review_max_pct` decimal(5,2) nullable, figés avec le contrat (nuls : le réglage
+> global s'applique, bail antérieur). Une colonne du contrat modifiée pendant `pending_signature` (hors
 > `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
 
 ---

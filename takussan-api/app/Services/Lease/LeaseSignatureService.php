@@ -50,10 +50,16 @@ class LeaseSignatureService
         // ADR-0042 §5 — la v1 exige un compte au locataire ; sinon, la voie papier.
         abort_code_if($lease->tenant?->user_id === null, 422, 'lease_signature.tenant_without_account');
 
+        // VERIF-596 passe 2 (N1) — les termes exécutés hors colonne sont figés AVANT le rendu : le
+        // PDF imprime exactement ce que le bail enregistre, et exécutera.
+        // Sur une copie : le modèle de l'appelant ne garde pas d'attributs sales.
+        $terms = $this->executionTerms($lease);
+        $printed = (clone $lease)->forceFill($terms);
+
         $bytes = $this->pdf->render('pdf.leases.contract', [
             'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
             'document_label' => 'Bail',
-            'lease' => $lease,
+            'lease' => $printed,
             'tenant' => $lease->tenant,
             'landlord' => $lease->landlord,
             'property' => $lease->property,
@@ -62,7 +68,7 @@ class LeaseSignatureService
         ]);
         $sha = hash('sha256', $bytes);
 
-        $fresh = DB::transaction(function () use ($lease, $bytes, $sha): Lease {
+        $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms): Lease {
             /** @var Lease $locked */
             $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
             abort_code_unless(
@@ -75,7 +81,7 @@ class LeaseSignatureService
                 ->usingFileName(sprintf('bail-%s.pdf', $locked->reference_number ?? $locked->id))
                 ->toMediaCollection('signed_contract');
 
-            $locked->forceFill([
+            $locked->forceFill($terms + [
                 'status' => LeaseStatus::PendingSignature,
                 'contract_sha256' => $sha,
                 'signature_requested_at' => now(),
@@ -197,7 +203,7 @@ class LeaseSignatureService
             );
 
             $locked->addMedia($contract)->toMediaCollection('signed_contract');
-            $locked->forceFill(['contract_sha256' => $sha])->save();
+            $locked->forceFill($this->executionTerms($locked) + ['contract_sha256' => $sha])->save();
 
             foreach (LeaseSignature::ROLES as $role) {
                 LeaseSignature::query()->firstOrCreate(
@@ -234,6 +240,22 @@ class LeaseSignatureService
         }
 
         return $roles;
+    }
+
+    /**
+     * VERIF-596 passe 2 (N1, ADR-0042 §1) — l'indemnité de départ anticipé et le plafond de révision
+     * que le contrat imprime, figés sur le bail : la valeur négociée sur le bail si elle existe,
+     * sinon le réglage global AU MOMENT où le contrat est figé. `late_fees.cap_percent` ne l'est
+     * pas : il ne peut que baisser la pénalité imprimée.
+     *
+     * @return array{early_termination_penalty_months: int, rent_review_max_pct: float}
+     */
+    private function executionTerms(Lease $lease): array
+    {
+        return [
+            'early_termination_penalty_months' => app(EarlyTerminationService::class)->penaltyMonthsFor($lease),
+            'rent_review_max_pct' => app(RentReviewService::class)->maxPctFor($lease),
+        ];
     }
 
     private function assertAwaiting(Lease $lease, string $role): void

@@ -79,7 +79,7 @@ class RentReviewService
             }
 
             $variationPct = abs($newRent - $oldRent) / $oldRent * 100;
-            $maxPct = $this->resolveMaxPct();
+            $maxPct = $this->maxPctFor($lease);
             if ($variationPct > $maxPct + 0.0001) {
                 if (! $force) {
                     throw ValidationException::withMessages([
@@ -125,6 +125,17 @@ class RentReviewService
 
             return $lease;
         });
+    }
+
+    /**
+     * VERIF-596 passe 2 (N1, ADR-0042 §1) — le plafond que CE bail exécute : celui figé avec son
+     * contrat, imprimé et signé ; le réglage global seulement pour un bail antérieur (colonne nulle).
+     */
+    public function maxPctFor(Lease $lease): float
+    {
+        return $lease->rent_review_max_pct !== null
+            ? (float) $lease->rent_review_max_pct
+            : $this->resolveMaxPct();
     }
 
     /**
