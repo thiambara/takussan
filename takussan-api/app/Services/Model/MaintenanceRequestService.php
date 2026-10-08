@@ -157,7 +157,9 @@ class MaintenanceRequestService
      */
     private function resetQuoteOfPreviousProvider(MaintenanceRequest $mr, int $previousProviderId): void
     {
-        if ($mr->quote_submitted_at === null) {
+        // verif-592 passe 3 (N9) — le coût réel suit le devis : inscrit sous l'accord donné au
+        // devis de l'ancien, il couvrait le travail du suivant.
+        if ($mr->quote_submitted_at === null && $mr->actual_cost === null) {
             return;
         }
 
@@ -167,7 +169,9 @@ class MaintenanceRequestService
             'provider_id' => $previousProviderId,
             'amount' => $mr->quote_amount !== null ? (string) $mr->quote_amount : null,
             'approved_at' => $approved ? $mr->quote_decision_at?->toIso8601String() : null,
+            'actual_cost' => $mr->actual_cost !== null ? (string) $mr->actual_cost : null,
         ];
+        unset($metadata[OwnerApprovalThreshold::OWNER_AGREED_COST]);
         $mr->metadata = $metadata;
 
         $mr->forceFill([
@@ -180,6 +184,7 @@ class MaintenanceRequestService
             'quote_decision_at' => null,
             'quote_decision_by_id' => null,
             'quote_rejection_reason' => null,
+            'actual_cost' => null,
         ]);
 
         if (in_array($mr->status, self::QUOTE_RESET_FROM, true)) {
@@ -297,11 +302,15 @@ class MaintenanceRequestService
         $cost = $data['cost'] ?? $data['actual_cost'] ?? null;
         // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
         $cost = $cost !== null ? CurrencyUnit::cost($mr, $cost) : null;
-        if ($cost !== null && $actor !== null) {
-            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($mr, $cost, $actor->id);
+        // verif-592 passe 3 (N8, N9) — sans coût fourni, celui déjà inscrit est REJUGÉ : un coût
+        // posé sous un accord qui n'existe plus (refusé, ou donné au devis d'un autre prestataire)
+        // ne se fige pas à la fin des travaux.
+        $judged = $cost ?? ($mr->actual_cost !== null ? (string) $mr->actual_cost : null);
+        if ($judged !== null && $actor !== null) {
+            app(OwnerApprovalThreshold::class)->assertActualCostAgreed($mr, $judged, $actor->id);
         }
 
-        DB::transaction(function () use ($mr, $data, $photos, $cost): void {
+        DB::transaction(function () use ($mr, $data, $photos, $cost, $actor): void {
             $mr->status = MaintenanceStatus::Completed;
             $mr->completed_at = now();
 
@@ -311,6 +320,9 @@ class MaintenanceRequestService
 
             if ($cost !== null) {
                 $mr->actual_cost = $cost;
+                if ($actor !== null) {
+                    app(OwnerApprovalThreshold::class)->recordOwnerCost($mr, $cost, $actor->id);
+                }
             }
 
             $mr->save();

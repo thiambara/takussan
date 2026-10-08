@@ -142,4 +142,40 @@ class MaintenanceReassignmentQuoteResetTest extends TestCase
         $this->assertNull($mr->quote_submitted_at);
         $this->assertSame($a->id, $mr->metadata['previous_quotes'][0]['provider_id']);
     }
+
+    /**
+     * Passe 3 (N9, sonde q07) — le coût réel suit le devis : inscrit par l'agent sous l'accord du
+     * bailleur au devis de A (200 000, plafond 50 000), il survivait à la réassignation et devenait
+     * le coût des travaux de B, dont l'agent seul avait approuvé 30 000.
+     */
+    public function test_the_actual_cost_is_archived_and_cleared_with_the_quote(): void
+    {
+        ['mr' => $mr, 'provider' => $a, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested);
+        OwnerProfile::query()->where('user_id', $landlord->id)->where('agency_id', $agency->id)->update(['works_approval_threshold' => 50000]);
+        $agent = $this->agentOf($agency);
+
+        Sanctum::actingAs($a);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(200000))->assertOk();
+        Sanctum::actingAs($landlord);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk();
+        Sanctum::actingAs($agent);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 200000])->assertOk();
+
+        $b = $this->providerFor($agency);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $b->id])->assertOk();
+
+        $mr->refresh();
+        $this->assertNull($mr->actual_cost);
+        $this->assertSame('200000.00', $mr->metadata['previous_quotes'][0]['actual_cost']);
+
+        Sanctum::actingAs($b);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(30000))->assertOk();
+        Sanctum::actingAs($agent);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk()->assertJsonPath('data.status', 'approved');
+        Sanctum::actingAs($b);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/start")->assertOk();
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['resolution_notes' => 'fait'])->assertOk();
+
+        $this->assertNull($mr->refresh()->actual_cost);
+    }
 }

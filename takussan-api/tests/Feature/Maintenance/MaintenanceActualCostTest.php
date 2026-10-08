@@ -46,6 +46,38 @@ class MaintenanceActualCostTest extends TestCase
     }
 
     /**
+     * Passe 3 (N8, N9) — sans coût fourni, la fin des travaux REJUGE le coût déjà inscrit. Posé
+     * sous un accord qui n'existe plus (ici, en base : les chemins de l'API le referment par
+     * ailleurs), il ne se fige pas.
+     */
+    public function test_completion_rejudges_a_cost_already_inscribed(): void
+    {
+        ['mr' => $mr, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now()]);
+        $this->threshold($landlord->id, $agency->id, 50000);
+        $mr->forceFill(['actual_cost' => 200000])->save();
+
+        Sanctum::actingAs($this->agentOf($agency));
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['resolution_notes' => 'fait'])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
+        $this->assertSame(MaintenanceStatus::InProgress, $mr->refresh()->status);
+    }
+
+    /** Témoin du rejugement : le coût que le bailleur a inscrit lui-même est son accord. */
+    public function test_a_cost_the_landlord_inscribed_survives_the_rejudgement(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null]);
+        $this->threshold($landlord->id, $agency->id, 50000);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 750000])->assertOk();
+        Sanctum::actingAs($provider);
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['resolution_notes' => 'fait'])->assertOk();
+
+        $this->assertSame('750000.00', (string) $mr->refresh()->actual_cost);
+        $this->assertSame(MaintenanceStatus::Completed, $mr->status);
+    }
+
+    /**
      * Passe 2 (N5, sonde p05) — `numeric` admettait la notation scientifique, que bcmath refuse au
      * premier plafond lu : `5e5` rendait une 500. Désormais un 422 de validation, et rien d'écrit.
      */

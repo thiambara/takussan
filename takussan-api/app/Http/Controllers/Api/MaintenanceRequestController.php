@@ -185,6 +185,7 @@ class MaintenanceRequestController extends Controller
             // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
             $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
             app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
+            app(OwnerApprovalThreshold::class)->recordOwnerCost($maintenanceRequest, $data['actual_cost'], $request->user()->id);
         }
 
         $assignmentChanged = array_key_exists('assigned_to', $data);

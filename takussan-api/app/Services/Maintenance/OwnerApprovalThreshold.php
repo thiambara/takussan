@@ -15,6 +15,13 @@ use App\Models\Profiles\OwnerProfile;
  */
 class OwnerApprovalThreshold
 {
+    /**
+     * verif-592 passe 3 (N9) — le coût réel que le bailleur a inscrit LUI-MÊME : son accord à ce
+     * montant, que le rejugement de la fin des travaux doit reconnaître. Effacé avec le devis
+     * quand le prestataire change.
+     */
+    public const OWNER_AGREED_COST = 'owner_agreed_actual_cost';
+
     /** Le plafond du couple (bailleur du bien, agence du bien). Nul : pas d'accord requis. */
     public function of(MaintenanceRequest $mr): ?string
     {
@@ -52,6 +59,8 @@ class OwnerApprovalThreshold
      */
     public function assertActualCostAgreed(MaintenanceRequest $mr, mixed $amount, int $actorId): void
     {
+        $ownerCost = data_get($mr->metadata, self::OWNER_AGREED_COST);
+
         if ($amount === null || $this->isLandlord($mr, $actorId) || ! $this->exceeds($mr, $amount)) {
             return;
         }
@@ -64,7 +73,21 @@ class OwnerApprovalThreshold
             && $mr->quote_decision_by_id !== null
             && $this->isLandlord($mr, (int) $mr->quote_decision_by_id)
             && bccomp((string) $amount, (string) $mr->quote_amount, 2) <= 0;
+        $agreedByOwner = $agreedByOwner
+            || ($ownerCost !== null && bccomp((string) $amount, (string) $ownerCost, 2) <= 0);
 
         abort_code_unless($agreedByOwner, 422, 'maintenance.actual_cost_needs_owner');
+    }
+
+    /** Le bailleur qui inscrit le coût réel l'accorde : tracé sur la demande, à sauver par l'appelant. */
+    public function recordOwnerCost(MaintenanceRequest $mr, string $amount, int $actorId): void
+    {
+        if (! $this->isLandlord($mr, $actorId)) {
+            return;
+        }
+
+        $metadata = $mr->metadata ?? [];
+        $metadata[self::OWNER_AGREED_COST] = $amount;
+        $mr->metadata = $metadata;
     }
 }
