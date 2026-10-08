@@ -36,7 +36,7 @@ class UserSupportService
 
         abort_code_if(empty($metadata['locked_at']) && ! $numeroVerrouille, 409, 'support.account_not_locked');
 
-        unset($metadata['locked_at'], $metadata['failed_login_attempts']);
+        unset($metadata['locked_at'], $metadata['failed_login_attempts'], $metadata['failed_login_first_at']);
         $target->forceFill(['metadata' => $metadata])->save();
         if ($numero !== null) {
             $lock->clearNumber($numero);

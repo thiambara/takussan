@@ -117,8 +117,8 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
 | Plafond global des codes (M3) | 2000 / jour UTC (`sms.otp_daily_cap`) ; atteint : 503 `sms_capacity_reached` (202 muet à `request-code`), alerte au journal une fois | service (cache) |
 | `auth-phone-verify` — par numéro | **4** / 15 min (sous la moitié du seuil, M1) | limiteur nommé |
 | Échecs sur un même code | 5 → code invalidé | service |
-| Échecs avant verrou, **par canal** | **10** | mot de passe : `metadata.failed_login_attempts` ; téléphone : cache, par numéro, fenêtre fixe de 15 min |
-| E-mail sans compte (m3) | **10**, même 423 | compteur **leurre** en cache, par adresse (empreinte sha256), échecs consécutifs comme un compte |
+| Échecs avant verrou, **par canal** | **10** | mot de passe : `metadata.failed_login_attempts`, série de **24 h** depuis son premier échec (`failed_login_first_at`, passe 2 p2-3) ; téléphone : cache, par numéro, fenêtre fixe de 15 min |
+| E-mail sans compte (m3) | **10**, même 423 | compteur **leurre** en cache, par adresse (empreinte sha256), échecs consécutifs comme un compte, même série de 24 h (l'échéance de la clé) |
 | Durée du verrou | **15 min**, calculée depuis `metadata.locked_at` | lu avant toute vérification |
 
 - **Le plafond Orange de 3 SMS / jour / MSISDN** (`SmsRouterDriver.php:127-138`) est compté : la borne

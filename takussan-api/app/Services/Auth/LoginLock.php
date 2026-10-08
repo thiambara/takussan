@@ -12,8 +12,9 @@ use Illuminate\Support\Carbon;
  *
  *  - **mot de passe** (et le second facteur saisi derrière lui, ou derrière un rappel
  *    OAuth) : sur le compte. 10 échecs consécutifs posent `metadata.locked_at` ; le
- *    verrou court 15 min depuis `locked_at` ; un succès remet le compteur à zéro.
- *    `UserSupportService::unlock` efface les deux clés.
+ *    verrou court 15 min depuis `locked_at` ; un succès remet le compteur à zéro. La
+ *    série vit 24 h depuis son premier échec (`failed_login_first_at`), comme le leurre
+ *    (passe 2, p2-3). `UserSupportService::unlock` efface les trois clés.
  *  - **téléphone** : sur le NUMÉRO, en cache, qu'un compte l'ait vérifié ou non — le 423
  *    tombe au même seuil dans les deux cas, et ne dit donc rien de l'existence d'un compte.
  *    Les échecs se comptent dans une fenêtre FIXE de 15 min ouverte par le premier.
@@ -36,6 +37,9 @@ class LoginLock
 
     public const LOCK_MINUTES = 15;
 
+    /** Passe 2 (p2-3) — durée de vie d'une série d'échecs, depuis son premier : celle du leurre. */
+    public const SERIES_HOURS = 24;
+
     public function __construct(private readonly CacheRepository $cache) {}
 
     public function isLocked(User $user): bool
@@ -52,9 +56,21 @@ class LoginLock
 
         // Un verrou échu ne compte plus : la série repart de zéro.
         if (is_string($lockedAt) && ! $this->stillRunning(Carbon::parse($lockedAt))) {
-            unset($metadata['locked_at']);
+            unset($metadata['locked_at'], $metadata['failed_login_first_at']);
             $metadata['failed_login_attempts'] = 0;
         }
+
+        // Passe 2 (p2-3) — une série vit 24 h depuis son premier échec, comme le leurre d'une
+        // adresse inconnue (sa clé de cache). Sans cette fenêtre, le compteur du compte durait
+        // toujours, celui du leurre non : neuf échecs anciens verrouillaient `connu@` au premier
+        // essai suivant, jamais `inconnu@`, et le verrou énumérait de nouveau les adresses.
+        $firstAt = $metadata['failed_login_first_at'] ?? null;
+        if (! isset($metadata['locked_at']) && is_string($firstAt)
+            && Carbon::parse($firstAt)->addHours(self::SERIES_HOURS)->isPast()) {
+            unset($metadata['failed_login_first_at']);
+            $metadata['failed_login_attempts'] = 0;
+        }
+        $metadata['failed_login_first_at'] ??= now()->toIso8601String();
 
         $failures = (int) ($metadata['failed_login_attempts'] ?? 0) + 1;
         $metadata['failed_login_attempts'] = $failures;
@@ -68,11 +84,12 @@ class LoginLock
     public function clear(User $user): void
     {
         $metadata = $user->metadata ?? [];
-        if (! array_key_exists('locked_at', $metadata) && ! array_key_exists('failed_login_attempts', $metadata)) {
+        if (! array_key_exists('locked_at', $metadata) && ! array_key_exists('failed_login_attempts', $metadata)
+            && ! array_key_exists('failed_login_first_at', $metadata)) {
             return;
         }
 
-        unset($metadata['locked_at'], $metadata['failed_login_attempts']);
+        unset($metadata['locked_at'], $metadata['failed_login_attempts'], $metadata['failed_login_first_at']);
         $user->forceFill(['metadata' => $metadata])->save();
     }
 
@@ -118,13 +135,14 @@ class LoginLock
     }
 
     /**
-     * Comme le compteur d'un compte : des échecs CONSÉCUTIFS, sans fenêtre (la clé ne vit
-     * que pour borner le cache), remis à zéro quand le verrou tombe.
+     * Comme le compteur d'un compte : des échecs CONSÉCUTIFS, dans une série qui vit 24 h depuis
+     * son premier échec (l'échéance de la clé, qu'`increment` garde), remis à zéro quand le
+     * verrou tombe. Le compte a la même fenêtre depuis la passe 2 (p2-3).
      */
     public function recordUnknownEmailFailure(string $email): void
     {
         $key = $this->emailFailuresKey($email);
-        $this->cache->add($key, 0, now()->addDay());
+        $this->cache->add($key, 0, now()->addHours(self::SERIES_HOURS));
         $failures = (int) $this->cache->increment($key);
 
         if ($failures >= self::MAX_FAILURES) {

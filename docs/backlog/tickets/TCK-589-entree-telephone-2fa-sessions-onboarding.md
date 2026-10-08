@@ -1837,3 +1837,36 @@ Ce n'était pas « simple ». La solution retenue :
 - Ablation `if (false && $bySms && …)` : 3 rouges sur 5. Restauré par `cp`, md5 identique.
 - Exécutions : `tests/Feature/Auth/Phone`, `AccountDeletionStepUpTest`, `PhoneVerificationTest`
   et `SmsOtpRelayTest` donnent 86 verts.
+
+#### p2-3 — une série d'échecs vit 24 h, sur un compte comme sur le leurre
+
+**Le défaut.** Le leurre d'une adresse inconnue tombait 24 h après son premier échec : c'est
+l'échéance de sa clé de cache, qu'`increment` garde. `metadata.failed_login_attempts` d'un compte,
+lui, ne tombait jamais. Neuf échecs vieux d'un mois verrouillaient donc `connu@` au deuxième essai
+suivant, mais jamais `inconnu@`. Le verrou énumérait de nouveau les adresses, par l'ancienneté.
+
+**Le correctif, dans `LoginLock::recordFailure`.**
+- Le premier échec d'une série pose `metadata.failed_login_first_at`.
+- Hors verrou en cours, une série dont le premier échec date de plus de `SERIES_HOURS` (24 h)
+  repart de zéro.
+- Une série sans horodatage, écrite avant ce correctif, prend le sien au prochain échec.
+- Un verrou échu efface aussi l'horodatage.
+- `clear()` et `UserSupportService::unlock` effacent les trois clés.
+- Le leurre lit la même constante (`addHours(self::SERIES_HOURS)` au lieu de `addDay()`).
+- Le docblock de `LoginLock` et le tableau §6 d'ADR-0033 sont mis à jour.
+
+**Les tests, dans le nouveau `LoginFailureWindowTest` (2)** :
+- 9 échecs, 25 h, puis 11 essais : dix 401 puis 423, **à l'identique** pour `connu@` et
+  `inconnu@` ;
+- 9 échecs, 23 h, puis 2 essais : `[401, 423]` pour les deux. La série continue bien dans la
+  fenêtre.
+
+**Preuves :**
+- Rouge sur `104589df` : 1 rouge sur 2 (`connu@` reçoit 423 dès le deuxième essai après 25 h).
+  La moitié « leurre » était déjà verte : c'est le témoin de parité.
+- Ablation A, fenêtre retirée (`if (false && …)`) : 1 rouge sur 2.
+- Ablation B, série toujours échue (`isPast() || true`) : 2 rouges sur 2, plus 3 rouges dans
+  `PasswordLoginLockTest`.
+- Ablation C, leurre à 48 h : 1 rouge sur 2.
+- Les trois sont restaurées par `cp`, md5 `f0827d17…` identique.
+- Exécutions : `tests/Feature/Auth/Session` et `tests/Feature/Admin` donnent 51 verts.
