@@ -120,7 +120,11 @@ deux agences ne font pas deux personnes.
   verrou de la ligne agence, prise en dernier après les pièces ; la création, la préparation et la
   **caution rendue** l'empruntent (VERIF-594 M-3 : la caution naissait `pending` à côté du seuil —
   c'est une sortie d'argent, seule sa destination reste hors contrôle, le locataire n'ayant pas
-  toujours de compte). L'activation est refusée (422) tant que moins de deux membres actifs détiennent
+  toujours de compte). Une caution **refusée** (`cancel`) ou dont le virement **échoue**
+  (`mark-failed`) n'a rien rendu : son montant quitte `deposit_refunded_amount` sous le verrou du bail
+  (`deposit_refunded_at` à nul si le solde revient à zéro), sa ligne `deposit_refund` passe `failed`,
+  l'activité `deposit_refund_reversed` le trace, et elle se rend de nouveau — une seule fois par
+  reversement (VERIF-594 passe 2, N-2 ; défaut hérité de TCK-088 que M-3 rendait courant). L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
   (`agency_payout_threshold_changed`). **Le relâcher exige deux personnes** (VERIF-594 M-2 : celui
   qui allait payer le coupait seul, payait seul, puis le remettait) : un passage à `null` ou une

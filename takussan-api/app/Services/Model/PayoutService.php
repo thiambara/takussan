@@ -9,6 +9,7 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
@@ -329,11 +330,13 @@ class PayoutService
             );
             abort_code_if($reason === '', 422, 'payout.failure_reason_required');
 
+            $previous = $locked->status;
             $locked->update([
                 'status' => PayoutStatus::Failed,
                 'failed_reason' => $reason,
             ]);
             $this->detachItems($locked);
+            $this->releaseDeposit($locked, $previous, 'failed');
         });
 
         $payout->refresh();
@@ -355,8 +358,10 @@ class PayoutService
                 'payout.cannot_cancel'
             );
 
+            $previous = $locked->status;
             $locked->update(['status' => PayoutStatus::Cancelled]);
             $this->detachItems($locked);
+            $this->releaseDeposit($locked, $previous, 'cancelled');
         });
 
         return $payout->refresh();
@@ -680,6 +685,52 @@ class PayoutService
     /**
      * Les pièces d'un reversement annulé ou échoué redeviennent reversables (ADR-0039 §3).
      */
+    /**
+     * VERIF-594 passe 2, N-2 — une caution dont le reversement est refusé (`cancel`, le seul refus de
+     * l'approbateur) ou échoue n'a rien rendu : son montant quitte `deposit_refunded_amount`, sous le
+     * verrou du bail (pris après celui du reversement), et elle se rend de nouveau. Sans cela, le bail
+     * restait « caution rendue » sans qu'aucun argent soit parti (`deposit_refund.already_refunded`).
+     *
+     * Une seule fois par reversement : seulement depuis un état qui tenait la caution — un reversement
+     * `failed` puis annulé ne la rend pas deux fois. La ligne `deposit_refund` du bail (le journal de
+     * TCK-027) passe `failed`, et l'activité `deposit_refund_reversed` trace le retour.
+     */
+    private function releaseDeposit(Payout $payout, PayoutStatus $previous, string $outcome): void
+    {
+        if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null
+            || ! in_array($previous, PayoutStatus::holdingItems(), true)) {
+            return;
+        }
+
+        /** @var Lease|null $lease */
+        $lease = Lease::query()->whereKey($payout->lease_id)->lockForUpdate()->first();
+        if ($lease === null) {
+            return;
+        }
+
+        $amount = (float) $payout->net_amount;
+        $refunded = max(0.0, round((float) ($lease->deposit_refunded_amount ?? 0) - $amount, 2));
+        $lease->forceFill([
+            'deposit_refunded_amount' => $refunded,
+            'deposit_refunded_at' => $refunded > 0 ? $lease->deposit_refunded_at : null,
+        ])->save();
+
+        $line = LeasePayment::query()
+            ->where('lease_id', $lease->id)
+            ->where('payment_type', LeasePaymentType::DepositRefund->value)
+            ->where('status', PaymentStatus::Pending->value)
+            ->where('amount', $amount)
+            ->orderByDesc('id')
+            ->first();
+        $line?->update(['status' => PaymentStatus::Failed]);
+
+        activity('Lease')
+            ->performedOn($lease)
+            ->withProperties(['payout_id' => $payout->id, 'amount' => $amount, 'outcome' => $outcome, 'lease_payment_id' => $line?->id])
+            ->event('deposit_refund_reversed')
+            ->log('deposit_refund_reversed');
+    }
+
     private function detachItems(Payout $payout): void
     {
         DB::table('payout_lease_payment')->where('payout_id', $payout->id)->delete();

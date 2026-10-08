@@ -8,7 +8,9 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\PayoutMethod;
 use App\Models\Profiles\OwnerProfile;
@@ -16,6 +18,7 @@ use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Model\PayoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -553,5 +556,57 @@ class PayoutBypassTest extends TestCase
             ->assertJsonPath('data.0.id', $method->id)
             ->assertJsonMissingPath('data.0.account_identifier');
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden();
+    }
+
+    /**
+     * VERIF-594 passe 2, N-2 — une caution dont l'approbation est refusée (`cancel`, le seul refus de
+     * l'approbateur) laissait le bail « caution rendue » sans qu'aucun argent soit parti, et ne se
+     * rendait plus jamais (`deposit_refund.already_refunded`).
+     */
+    public function test_n2_a_refused_deposit_refund_can_be_refunded_again(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $agency->forceFill(['payout_approval_threshold' => 0])->save();
+        $lease = $this->leaseOf($agency, $this->landlordOf($agency));
+        $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
+        Sanctum::actingAs($this->agencyAdmin($agency));
+
+        $id = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated()->json('data.payout_id');
+        $this->postJson("/api/payouts/{$id}/cancel")->assertOk()->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertEquals(0, (float) $lease->fresh()->deposit_refunded_amount);
+        $this->assertNull($lease->fresh()->deposit_refunded_at);
+        $this->assertSame(PaymentStatus::Failed, LeasePayment::query()->where('lease_id', $lease->id)->sole()->status);
+        $this->assertSame(1, DB::table('activity_log')->where('event', 'deposit_refund_reversed')->where('subject_id', $lease->id)->count());
+
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated();
+        $this->assertEquals(400000, (float) $lease->fresh()->deposit_refunded_amount);
+    }
+
+    /**
+     * VERIF-594 passe 2, N-2 — le même défaut sur l'échec du virement, sans seuil ; et un reversement
+     * échoué PUIS annulé ne rend pas la caution deux fois. Une restitution partielle garde le reste
+     * exact.
+     */
+    public function test_n2_a_failed_deposit_refund_is_released_once(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $lease = $this->leaseOf($agency, $this->landlordOf($agency));
+        $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
+        Sanctum::actingAs($this->agencyAdmin($agency));
+
+        $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated()->json('data.payout_id');
+        $second = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000])->assertCreated()->json('data.payout_id');
+        $this->postJson("/api/payouts/{$second}/mark-failed", ['failed_reason' => 'numéro erroné'])->assertOk();
+        $this->postJson("/api/payouts/{$second}/cancel")->assertOk();
+
+        $this->assertEquals(100000, (float) $lease->fresh()->deposit_refunded_amount, 'le premier reste rendu, le second une fois');
+        $this->assertNotNull($lease->fresh()->deposit_refunded_at);
+        $this->assertSame(PayoutStatus::Pending, Payout::query()->findOrFail($first)->status);
+
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000])->assertCreated();
+        $this->assertEquals(400000, (float) $lease->fresh()->deposit_refunded_amount);
     }
 }

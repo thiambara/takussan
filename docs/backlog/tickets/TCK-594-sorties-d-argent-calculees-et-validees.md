@@ -571,6 +571,10 @@ rend **403** avec une clé i18n, jamais une phrase.
   `payout.unverified_destination`), et lit pour cela les destinations masquées du bénéficiaire.
   Front : `CreatePayoutDialog` présélectionne la destination par défaut vérifiée ;
   `PayoutDetailDialog` propose à l'approbateur les destinations vérifiées, masquées.
+- [x] **N-2** — `cancel` et `markFailed` d'un reversement `tenant` rendent son montant au bail
+  (`deposit_refunded_amount`, `deposit_refunded_at` à nul à solde nul), sous le verrou du bail, une
+  seule fois ; la ligne `deposit_refund` passe `failed` et l'activité `deposit_refund_reversed` le
+  trace.
 
 ### Front (intentionnel)
 
@@ -812,6 +816,13 @@ rend **403** avec une clé i18n, jamais une phrase.
   `payout.unverified_destination`, toujours `awaiting_approval`. Un approbateur sans `payouts.create`
   lit les destinations masquées (200) et ne les vérifie pas (403).
   **Preuve** : `ServiceProviderBillTest::test_n1_a_bill_paid_like_the_screen_goes_to_the_default_verified_destination`, `PayoutBypassTest::test_n1_*` (quatre ; rouges sur 38495c16) ; front `CreatePayoutDialog.test.tsx` (deux) et `PayoutDetailDialog.capacites.test.tsx` (trois). Ablations V-N1a à V-N1g, W-N1a à W-N1d : rouges.
+- [x] **AC-N2 — une caution refusée ou échouée se rend de nouveau.** Seuil 0, caution 400 000 :
+  restitution (201), refus par `cancel` → `deposit_refunded_amount` 0, `deposit_refunded_at` nul,
+  ligne `deposit_refund` `failed`, une activité `deposit_refund_reversed` ; nouvelle restitution 201,
+  400 000 rendus. Sans seuil : 100 000 rendus avec motif, puis 300 000 échoués (`mark-failed`) et
+  annulés ensuite → 100 000 rendus (une seule fois), le premier reversement intact ; nouvelle
+  restitution de 300 000 : 201, 400 000 rendus.
+  **Preuve** : `PayoutBypassTest::test_n2_a_refused_deposit_refund_can_be_refunded_again`, `test_n2_a_failed_deposit_refund_is_released_once` (rouges sur 38495c16). Ablations V-N2a à V-N2e : rouges.
 
 ## Hors périmètre
 
@@ -1196,3 +1207,11 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   `PayoutMethodPolicy::viewHolder` lui ouvre la LECTURE (masquée) ; `verify` reste réservé à
   `payouts.create`. `test_m4_a_payout_approved_without_destination_is_not_paid_to_one` crée désormais
   sa destination hors défaut : sinon la préparation la prend, et le cas « approuvé sans » n'existe plus.
+- **N-2 — la caution refusée ne se rendait plus.** « La ligne de grand livre correspondante » se lit
+  comme la ligne `deposit_refund` du bail (`LeasePayment`, le journal de TCK-027 que
+  `DepositRefundService` garde) : elle passe `failed`, retrouvée par bail, type, statut `pending` et
+  montant — aucune clé ne la lie au reversement. Il n'y a pas d'autre grand livre dans le dépôt.
+  L'activité `deposit_refund_reversed` porte le reversement, le montant, l'issue et la ligne. Le
+  retour ne joue que depuis un état qui tenait la caution (`PayoutStatus::holdingItems()`) : un
+  reversement `failed` puis `cancelled` ne la rend pas deux fois. Ordre des verrous : reversement,
+  puis bail.
