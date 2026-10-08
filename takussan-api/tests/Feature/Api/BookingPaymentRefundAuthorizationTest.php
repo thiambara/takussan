@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\BookingPaymentType;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Profiles\AgentProfile;
@@ -110,6 +111,33 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
 
         $this->refundAs($this->landlord)->assertForbidden();
         $this->assertStillPaid();
+    }
+
+    /**
+     * VERIF-596 (hors diff, fermé ici) — le bailleur suspendu perd aussi confirmer, refuser et
+     * annuler : `BookingPolicy::validate` et `cancel` ne lisaient que `property.user_id`.
+     */
+    public function test_a_blocked_direct_landlord_cannot_confirm_reject_or_cancel(): void
+    {
+        OwnerProfile::query()->where('user_id', $this->landlord->id)->update(['status' => 'blocked']);
+        Sanctum::actingAs($this->landlord);
+
+        foreach (['confirm', 'reject', 'cancel'] as $gesture) {
+            $booking = $this->bookingOfClient();
+            $this->postJson("/api/bookings/{$booking->id}/{$gesture}")->assertForbidden();
+            $this->assertSame(BookingStatus::Pending, $booking->fresh()->status, $gesture);
+        }
+    }
+
+    /** Le même bailleur, non suspendu, garde les trois gestes. */
+    public function test_an_active_direct_landlord_confirms_rejects_and_cancels(): void
+    {
+        Sanctum::actingAs($this->landlord);
+
+        foreach (['confirm', 'reject', 'cancel'] as $gesture) {
+            $booking = $this->bookingOfClient();
+            $this->postJson("/api/bookings/{$booking->id}/{$gesture}")->assertOk();
+        }
     }
 
     /** Second chemin : un admin d'une AUTRE agence, titulaire de la capacité chez lui. */
