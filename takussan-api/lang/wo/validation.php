@@ -180,6 +180,8 @@ return [
         'currency' => 'Xaalisu waxe bi war na bokk ci : :allowed.',
         'date_range' => 'Bés bi war na doon walla ëpp :start.',
         'strong_password' => 'Baatu-jubluwaay war na am 8 araf walla lu ko ëpp, ànd ak araf bu mag, araf bu ndaw, limam, ak araf bu jëm.',
+        // TCK-598 — l'hôte d'une visite virtuelle hors de la liste d'autorisation (`config/catalogue.php`).
+        'virtual_tour_host' => 'Lien bii du ñu ko nangu : YouTube, Vimeo, Matterport ak Kuula rekk lañuy nangu, ci https.',
     ],
     'max_guarantors_reached' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
     'bounds_format' => 'Barabu :attribute bi war na am ñeent nimero ñu taxaw ci virgule : sw_lat,sw_lng,ne_lat,ne_lng.',

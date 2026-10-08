@@ -680,3 +680,27 @@ tiennent tous, relus un par un.
   `show()` ne change donc plus d'un appel à l'autre (`CataloguePublicCacheTest` asserte l'identité
   au lieu de la divergence, comme son propre docblock le demandait).
 
+- **Invalidation (Delta 2)** : l'observateur invalide sur « une colonne a changé » moins une liste
+  d'exclusions (`views_count`, `favorites_count`, `updated_at`), et non sur une liste de champs
+  servis — celle-ci oublierait le prochain champ de la fiche. Ablation B3 (exclusions retirées) :
+  verte tant que seul le comptage de vue l'éprouvait (il ne passe plus par Éloquent) ; le test
+  `test_un_compteur_incremente_par_le_modele_n_invalide_rien` la fait rougir.
+  **Écart AC6** : le slug ne suit PAS le titre (il n'est posé qu'à la création) ; le test change
+  donc le slug lui-même, et vérifie que les DEUX étiquettes partent.
+- **Coût d'entrée (Delta 3)** : une seule définition, `App\Services\Property\CoutDEntree` (formule,
+  applicabilité, règles). La modification juge le contrat **résultant** (envoyé, sinon celui du
+  bien) : un `PUT {contract_type: sale, deposit_months: 1}` rend 422. Le total est arrondi par
+  `Currency::decimalPlacesOf()`, moitié vers le haut, comme `amountDue()` (TCK-593). La duplication
+  copie les colonnes sans code : `PropertyDuplicationService` passe par `replicate()`, qui exclut une
+  liste et prend le reste. Seeder : 65 % des locations reçoivent un coût d'entrée (2 mois de caution
+  le plus souvent, 1 à 3 d'avance, ½ ou 1 mois de frais) ; état de fabrique `withEntryCost()`.
+- **Visite virtuelle (Delta 10)** : `App\Rules\HoteDeVisiteVirtuelle`, hôte de `parse_url` comparé
+  EXACTEMENT à `config('catalogue.virtual_tour_hosts')` ; `url:https` à côté. `https://youtube.com@evil.example`
+  a pour hôte `evil.example` : refusé.
+- **Deux tests rendus faux par la contrainte 2, réécrits** : `PropertyPhotoExposureTest::test_view_raw_receives…`
+  et `PropertyMediaConversionsTest::test_authorized_caller_still_receives_the_source_file` lisaient
+  l'original signé du super-admin sur la fiche PUBLIQUE. Ils le lisent sur `properties.show`, et le
+  premier asserte en plus que la fiche publique ne le rend pas au même super-admin.
+- **Ablations C1–C5** (`ablations-b3.log`) : `prohibitedIf(false)` → 2 rouges ; hôte par suffixe → 1 ;
+  `url` sans `:https` → 1 ; total sans arrondi → 1 ; la modification juge `true` → 1. Toutes
+  restaurées par copie, md5 identique.

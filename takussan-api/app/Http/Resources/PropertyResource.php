@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -138,11 +139,20 @@ class PropertyResource extends BaseResource
                         'order' => $media->order_column ?? ($index + 1),
                     ])->filter(fn (array $photo) => $photo['full'] !== null)->values()->all()
             ),
+            // TCK-598 (V19) — la visite virtuelle a sa colonne, et sort au premier niveau.
+            // `media_extra.virtual_tour_url` la REPREND pour la compatibilité : il lisait
+            // `metadata.virtual_tour_url`, qu'aucune route n'écrivait. Il disparaît une fois le
+            // front migré (« Pour la session » du ticket).
+            'virtual_tour_url' => $this->when($isDetail, fn () => $this->whenHas('virtual_tour_url')),
             'media_extra' => $this->when($isDetail, fn () => [
                 'videos' => $this->getMedia('videos')->map(fn (Media $m) => $m->getUrl())->values()->all(),
                 'plans' => $this->getMedia('plans')->map(fn (Media $m) => $m->getUrl())->values()->all(),
-                'virtual_tour_url' => data_get($this->metadata, 'virtual_tour_url'),
+                'virtual_tour_url' => $this->resource->getAttribute('virtual_tour_url'),
             ]),
+            // TCK-598 (V9) — ce qu'il faut verser pour emménager, d'une location mensuelle
+            // seulement ; `null` sinon, et `null` si rien n'est renseigné. Le calcul :
+            // `CoutDEntree`.
+            'entry_cost' => $this->when($isDetail, fn () => CoutDEntree::pour($this->resource)),
             'tags' => $this->when($isDetail, fn () => $this->resource->tags->map(fn (Tag $tag) => [
                 'id' => $tag->id,
                 'name' => $tag->name,
@@ -339,6 +349,10 @@ class PropertyResource extends BaseResource
             'avatar_url' => $user->getFirstMediaUrl('avatar') ?: null,
             'is_agent' => $this->actsAsAgent($user),
             'member_since' => $this->iso($user->created_at),
+            // TCK-598 (V8, contrainte 9) — un BOOLÉEN dérivé, jamais la date ni le numéro. Il ne
+            // dépend pas de l'appelant (contrainte 2). Aucun « identité vérifiée » de personne :
+            // le modèle n'en porte pas (le KYC est celui de l'agence, `agency.verified`).
+            'phone_verified' => $user->phone_verified_at !== null,
         ];
     }
 
