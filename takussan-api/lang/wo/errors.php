@@ -328,8 +328,11 @@ return [
         'cannot_publish' => 'Mbaar yi ñu jaay walla ñu luwé du ñu mën a siiwal.',
         'cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
         'collaborator_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
+        'collaborator_not_found' => 'Jàngalekat bii bokkul ci kër gii.',
         'not_found' => 'Kër gi gisuñu ko.',
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
+        'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
+        'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
         'resubmit_not_rejected' => 'Kër gu ñu bañ rekk lañu mën a yónniwaat.',
     ],
     'quota' => [

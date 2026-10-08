@@ -110,7 +110,7 @@ Garanties, dans l'ordre d'exécution :
 3. **Refus** : ligne absente ou d'un autre bien → `404 property.collaborator_not_found` ; rôle autre
    qu'`agent` → `422 property.primary_requires_agent` ; titulaire inéligible au sens du §2 → `422
    property.primary_not_eligible`. Les erreurs sont des `ApiError` (ADR-0032) : un appelant en lot les
-   attrape et lit `->code`.
+   attrape et lit `->errorCode`.
 4. **Déjà principale** → `changed = false`, aucune écriture, aucun journal, aucune invalidation.
 5. **Déplacement** : l'ancienne ligne perd la marque **puis** la cible la reçoit (l'ordre inverse
    heurterait l'index). L'ancien principal **garde sa ligne, son rôle et sa `commission_share`**.
@@ -139,7 +139,9 @@ collaborateurs et `primary_contact` (`user_id`, `collaborator_id`, `source` ∈ 
 
 Toute écriture d'une ligne de collaboration (création, rôle, titulaire, suppression) peut changer le
 contact par le repli : `PropertyPublicCacheObserver::collaborationModifiee()` invalide le slug du bien
-sur `saved` et `deleted` de `PropertyCollaborator`. Le service écrit par le constructeur de requêtes
+sur `created`, `deleted` et `updated` de `PropertyCollaborator` — ce dernier seulement si `role`,
+`user_id`, `invited_at`, `is_primary` ou `property_id` change (une part de commission n'est pas servie
+par la fiche). Le service écrit par le constructeur de requêtes
 (pas d'évènement de modèle) et invalide lui-même, une fois.
 
 ### 6. Le backfill

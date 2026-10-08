@@ -155,3 +155,41 @@ Le ticket date du 2026-08-31 ; 586, 587, 590, 591 et 598 ont touché le contact 
   rouge (`QueryException` 23514) ; A4 backfill sur le plus récent invité → `le_backfill_marque…` rouge ;
   A5 choix explicite ignoré dans `collaborateurPrincipal` → les deux tests de backfill rouges ; A6 sans
   backfill → les deux tests de backfill rouges.
+
+### Partie 2 — le service de désignation, l'endpoint, la fiche publique, le journal
+
+- `App\Services\Property\PrimaryAgentDesignator::designate(Property, PropertyCollaborator, ?User): PrimaryAgentDesignation`
+  — la seule écriture de la marque (ADR-0053 §3). Verrou `Property::withTrashed()->whereKey()->lockForUpdate()`,
+  cible relue sous le verrou, refus en `ApiError` (`404 property.collaborator_not_found`,
+  `422 property.primary_requires_agent`, `422 property.primary_not_eligible`), écriture SQL
+  (ancienne marque retirée puis nouvelle posée), `activity('Property')` évènement
+  `property.primary_agent_designated` avec `agency_id`, ancien/nouveau collaborateur et utilisateur et
+  le contact d'avant, puis `RevalidatePublicPropertyPage` (après validation). Codes ajoutés en fr/en/wo
+  dans `lang/*/errors.php`.
+- `PUT /api/properties/{p}/collaborators/{c}/primary` (`properties.collaborators.primary`) ;
+  `DesignatePrimaryCollaboratorRequest::authorize()` délègue à `update` de `PropertyPolicy`, comme
+  `store`/`update` des collaborateurs. `GET …/collaborators` et la désignation rendent
+  `primary_contact {user_id, collaborator_id, source: designated|invitation_order|owner}` ; la liste
+  garde sa forme (`with('user')`), triée par `id`. `PropertyResource.collaborators[].is_primary`.
+- `PropertyPublicCacheObserver::collaborationModifiee()` : création, suppression, ou modification
+  de `role`/`user_id`/`invited_at`/`is_primary`/`property_id` d'une collaboration invalide la fiche
+  (le docblock rangeait le contact parmi ce qui attend 300 s). Écouté sur `created`/`updated`/`deleted`
+  et non `saved` : `wasRecentlyCreated` reste vrai sur l'instance après une création, et une simple
+  mise à jour de commission repassait pour une création (mesuré, test rouge avant la correction).
+- Le propriétaire du bien tient `update` (`properties.update_own`) : il peut désigner, exactement
+  comme il peut déjà ajouter et retirer un collaborateur. Aucune règle neuve (contrainte 4).
+- Preuves : `php artisan test tests/Feature/Property/PrimaryAgentDesignationTest.php` → 14 verts.
+  Transverses : `tests/Feature/Property`, `DateInventoryByValueTest`, `DateRepresentationTest`,
+  `AgencyIdIsIndexedTest`, `BasePolicyCapabilityTest`, `tests/Unit/Lang`,
+  `AuthorizationPrecedesValidationTest`, `PropertyPublicCacheObserverTest`, `PropertyCollaboratorTest`,
+  `AgentHandoverTest`, `PropertyPrimaryContactTest`, `PrimaryPropertyContactEligibilityTest`,
+  `PropertyCollaboratorsNotExposedTest` → 171 verts ; `tests/Unit/Architecture`,
+  `TeamFormationBoundaryTest`, `CataloguePublicCacheTest` → 20 verts. Gardes racine vertes.
+- Ablations (`t504/ablations-p2.log`, `t504/ablations-c1.log`), toutes rouges : B1 sans verrou →
+  `le_verrou_porte_sur_la_ligne_du_bien…` ; B2 sans refus de rôle → `designer_un_role_autre_qu_agent…`
+  (le `CHECK` rend alors une 500) ; B3 sans éligibilité → `un_agent_bloque_ou_suspendu…` ; B4 sans
+  invalidation → les deux tests de cache ; B5 sans journal → `…journalisee…` ; B6 `authorize()` ouvert
+  à tout connecté → `l_autorisation_est_celle…` ; B7 choix explicite ignoré à la lecture → AC1 et le
+  repli/réactivation ; B8 sans écoute des collaborations → `retirer_ou_ajouter…` ; B9 l'ancienne marque
+  gardée → `redesigner_deplace_la_marque…` (23505) ; C1 migration sans colonne → 18 rouges sur 19
+  (le 404 d'une ligne d'un autre bien est jugé avant le service).

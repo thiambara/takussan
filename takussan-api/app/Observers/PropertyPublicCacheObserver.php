@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Jobs\Property\RevalidatePublicPropertyPage;
 use App\Models\Address;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 
 /**
  * TCK-598 (contrainte 6, ADR-0052 §2) — invalide les données en cache de la fiche publique quand
@@ -21,8 +22,13 @@ use App\Models\Property;
  * Une vue n'invalide rien, et pas parce qu'elle est exclue : elle ne passe pas par Éloquent
  * (`PropertyViewCounter`, `toBase()`), donc aucun événement ne part.
  *
- * Ce que l'appel signé ne porte pas — photos, étiquettes, avis, documents, agence, contact — attend
- * la revalidation temporelle du front (300 s).
+ * Ce que l'appel signé ne porte pas — photos, étiquettes, avis, documents, agence — attend la
+ * revalidation temporelle du front (300 s).
+ *
+ * TCK-504 — le CONTACT ne l'attend plus : une ligne de collaboration créée, supprimée, ou dont le
+ * rôle, le titulaire, la date d'invitation ou la marque de principal change peut changer qui répond
+ * pour le bien (`primary_contact`), par la marque ou par le repli. La désignation elle-même écrit
+ * par le constructeur de requêtes et invalide de son côté (`PrimaryAgentDesignator`), une fois.
  */
 class PropertyPublicCacheObserver
 {
@@ -66,6 +72,29 @@ class PropertyPublicCacheObserver
         if (is_string($slug) && $slug !== '') {
             $this->invalider([$slug]);
         }
+    }
+
+    /** @var list<string> les colonnes d'une collaboration qui décident du contact principal */
+    public const COLONNES_DU_CONTACT = ['role', 'user_id', 'invited_at', 'is_primary', 'property_id'];
+
+    /**
+     * TCK-504 — une collaboration créée ou supprimée (`$modifiee = false`), ou modifiée sur une
+     * colonne qui décide du contact. ⚠ `wasRecentlyCreated` ne distingue pas une création d'une
+     * modification ultérieure de la même instance : d'où un évènement par cas, pas `saved`.
+     */
+    public function collaborationModifiee(PropertyCollaborator $collaborator, bool $modifiee = false): void
+    {
+        if ($modifiee && ! $collaborator->wasChanged(self::COLONNES_DU_CONTACT)) {
+            return;
+        }
+
+        $ids = array_values(array_unique(array_filter([
+            $collaborator->property_id,
+            $collaborator->wasChanged('property_id') ? $collaborator->getOriginal('property_id') : null,
+        ])));
+        $slugs = Property::withTrashed()->whereKey($ids)->pluck('slug')->filter()->map(fn ($s) => (string) $s)->all();
+
+        $this->invalider(array_values($slugs));
     }
 
     /** @param  list<string>  $slugs */

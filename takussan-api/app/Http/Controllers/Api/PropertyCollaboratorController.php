@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\DesignatePrimaryCollaboratorRequest;
 use App\Http\Requests\Api\StorePropertyCollaboratorRequest;
 use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
+use App\Services\Property\PrimaryAgentDesignator;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +21,21 @@ class PropertyCollaboratorController extends Controller
     {
         $this->authorize('view', $property);
 
-        $collaborators = $property->collaborators()->with('user')->get();
+        return $this->json($this->collaboratorsPayload($property));
+    }
 
-        return $this->json(['data' => $collaborators]);
+    /**
+     * TCK-504 (ADR-0053 §4) — désigne l'agent principal du bien. L'autorisation est celle de la
+     * gestion des collaborateurs (`DesignatePrimaryCollaboratorRequest`), le reste — rôle,
+     * éligibilité, verrou, journal, invalidation de la fiche — vit dans le service.
+     */
+    public function designatePrimary(DesignatePrimaryCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator, PrimaryAgentDesignator $designator): JsonResponse
+    {
+        abort_if($collaborator->property_id !== $property->id, 404);
+
+        $designator->designate($property, $collaborator, $request->user());
+
+        return $this->json($this->collaboratorsPayload($property));
     }
 
     public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
@@ -74,6 +89,37 @@ class PropertyCollaboratorController extends Controller
         $collaborator->delete();
 
         return $this->json(null, 204);
+    }
+
+    /**
+     * TCK-504 — les collaborateurs, et qui répond pour le bien : la ligne marquée
+     * (`designated`), la ligne que l'ordre d'invitation désigne à défaut (`invitation_order`), ou
+     * le propriétaire (`owner`). Une seule lecture, `PrimaryPropertyContact` : l'écran ne
+     * recalcule rien.
+     *
+     * @return array{data: mixed, primary_contact: array{user_id: int|null, collaborator_id: int|null, source: string|null}}
+     */
+    private function collaboratorsPayload(Property $property): array
+    {
+        $property->load(PrimaryPropertyContact::eagerLoads());
+
+        $principal = PrimaryPropertyContact::collaborateurPrincipal($property);
+        $contact = PrimaryPropertyContact::for($property);
+
+        return [
+            // La forme d'avant (`with('user')`, sans les médias que le contact principal charge).
+            'data' => $property->collaborators()->with('user')->orderBy('id')->get(),
+            'primary_contact' => [
+                'user_id' => $contact?->id,
+                'collaborator_id' => $principal?->id,
+                'source' => match (true) {
+                    $principal?->is_primary === true => 'designated',
+                    $principal !== null => 'invitation_order',
+                    $contact !== null => 'owner',
+                    default => null,
+                },
+            ],
+        ];
     }
 
     /**
