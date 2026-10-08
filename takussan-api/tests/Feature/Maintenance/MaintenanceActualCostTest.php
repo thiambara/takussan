@@ -121,6 +121,40 @@ class MaintenanceActualCostTest extends TestCase
     }
 
     /**
+     * Passe 4 (N12, sondes r02a à r02c) — la borne se juge APRÈS l'arrondi : 999 999 999 999,99 passe
+     * le `max` de la FormRequest, puis l'arrondi XOF le porte à 1 000 000 000 000, et l'écriture
+     * rendait 500 (`numeric field overflow`). Par `PATCH`, `PUT` et `complete`.
+     */
+    public function test_a_cost_that_rounds_beyond_the_column_is_refused(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null, 'estimated_cost' => null]);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '999999999999.99'])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.amount_too_large');
+        $this->putJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '999999999999.5'])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.amount_too_large');
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['actual_cost' => '999999999999.5'])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.amount_too_large');
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['cost' => '999999999999.99'])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.amount_too_large');
+        // L'estimation n'est pas arrondie par l'application : son `max` suffit, tout ce qu'il admet
+        // tient dans la colonne une fois arrondi par PostgreSQL.
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['estimated_cost' => '999999999999.995'])
+            ->assertUnprocessable()->assertJsonValidationErrors('estimated_cost');
+        $mr->refresh();
+        $this->assertNull($mr->actual_cost);
+        $this->assertNull($mr->estimated_cost);
+        $this->assertSame(MaintenanceStatus::InProgress, $mr->status);
+
+        // Juste sous la demi-unité, l'arrondi reste dans la colonne.
+        $this->putJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '999999999999.49'])->assertOk();
+        $this->assertSame('999999999999.00', (string) $mr->refresh()->actual_cost);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['estimated_cost' => '999999999999.99'])->assertOk();
+        $this->assertSame('999999999999.99', (string) $mr->refresh()->estimated_cost);
+    }
+
+    /**
      * Passe 2 (N5, sonde p05) — `numeric` admettait la notation scientifique, que bcmath refuse au
      * premier plafond lu : `5e5` rendait une 500. Désormais un 422 de validation, et rien d'écrit.
      */

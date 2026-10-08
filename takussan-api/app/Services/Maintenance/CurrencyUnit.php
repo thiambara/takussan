@@ -34,11 +34,19 @@ final class CurrencyUnit
         return bcadd($rounded, '0', 2);
     }
 
-    /** Le coût saisi d'une demande, arrondi à l'unité de sa devise (celle du devis, sinon XOF). */
+    /**
+     * Le coût saisi d'une demande, arrondi à l'unité de sa devise (celle du devis, sinon XOF).
+     *
+     * verif-592 passe 4 (N12) — la borne de la colonne se juge APRÈS l'arrondi : le `max` de la
+     * FormRequest laisse passer 999 999 999 999,5, que l'arrondi XOF porte à 1 000 000 000 000.
+     */
     public static function cost(MaintenanceRequest $mr, int|float|string $amount): string
     {
         $currency = Currency::tryFrom((string) $mr->quote_currency) ?? Currency::XOF;
+        $rounded = self::round(is_string($amount) ? trim($amount) : (string) $amount, $currency->decimalPlaces());
 
-        return self::round(is_string($amount) ? trim($amount) : (string) $amount, $currency->decimalPlaces());
+        abort_code_if(bccomp($rounded, self::MAX_COLUMN, 2) === 1, 422, 'maintenance.amount_too_large');
+
+        return $rounded;
     }
 }

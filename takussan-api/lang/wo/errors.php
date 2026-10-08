@@ -212,6 +212,7 @@ return [
     'maintenance' => [
         'actual_cost_needs_owner' => 'Njëg jii weesu na digu liggéey bu boroom kër gi ak li mu nangu : boroom kër gi rekk mën koo bind.',
         'already_accepted' => 'Liggéey bi nangu nañu ko ba noppi.',
+        'amount_too_large' => 'Lim bii, bu ñu ko yokk ba unité devise bi, ëpp na li ñu mëna bind.',
         'before_photos_requires_acceptance' => 'Nataal yu « laata » yi, prestataire bi nangu liggéey bi rekk moo leen mën a yónnee.',
         'collaboration_transition' => 'Soppi statut collaboration bii sañuñu ko.',
         'cost_ambiguous' => 'Joxeel coût bi walla coût bu dëgg bi, du ñaar yépp.',

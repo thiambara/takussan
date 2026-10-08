@@ -212,6 +212,7 @@ return [
     'maintenance' => [
         'actual_cost_needs_owner' => 'This cost exceeds the landlord\'s works threshold and what they approved: only the landlord can record it.',
         'already_accepted' => 'The request is already accepted.',
+        'amount_too_large' => 'This amount, rounded to the currency unit, exceeds the largest amount that can be recorded.',
         'before_photos_requires_acceptance' => '"Before" photos are reserved to the service provider who accepted the request.',
         'collaboration_transition' => 'This collaboration status change is not allowed.',
         'cost_ambiguous' => 'Provide either the cost or the actual cost, not both.',

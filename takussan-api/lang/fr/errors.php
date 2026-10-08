@@ -212,6 +212,7 @@ return [
     'maintenance' => [
         'actual_cost_needs_owner' => 'Ce coût dépasse le plafond de travaux du bailleur et ce qu\'il a approuvé : seul le bailleur peut l\'inscrire.',
         'already_accepted' => 'L\'intervention est déjà acceptée.',
+        'amount_too_large' => 'Ce montant, arrondi à l\'unité de la devise, dépasse le maximum enregistrable.',
         'before_photos_requires_acceptance' => 'Les photos « avant » sont réservées au prestataire qui a accepté l\'intervention.',
         'collaboration_transition' => 'Ce changement de statut de collaboration n\'est pas permis.',
         'cost_ambiguous' => 'Indiquez le coût ou le coût réel, pas les deux.',
