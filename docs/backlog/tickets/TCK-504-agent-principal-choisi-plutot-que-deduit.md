@@ -318,3 +318,8 @@ suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `Prim
   vérificateur, joué tel quel, passe (`marques du clone = [4], contact du clone = 4 (source : 4)`) ;
   ablations M4a (marque non recopiée) et M4b (`invited_at` non recopié) rouges
   (`t504/ablations-m4.log`).
+- **m5 — le retrait de l'écoute `updated` rougit désormais.** `test_retirer_ou_ajouter_un_collaborateur_invalide_aussi_la_fiche`
+  ajoute le `PUT …/collaborators/{principal}` `role=viewer` : la marque tombe et la fiche du bien est
+  invalidée. Ablation M5 (ligne `PropertyCollaborator::updated(...)` retirée) : rouge, sur les 4
+  classes TCK-504 (`t504/ablations-m5.log`) — elle restait 22/22 verte avant. B8 du rapport ne
+  couvrait que `created`/`deleted`.

@@ -356,6 +356,16 @@ class PrimaryAgentDesignationTest extends ApiTestCase
         ])->assertCreated();
         Queue::assertPushed(RevalidatePublicPropertyPage::class, fn ($job) => $job->slugs === [$this->property->slug]);
 
+        // Vérification adverse m5 — retirer le rôle `agent` au principal change le contact par une
+        // simple MODIFICATION de ligne : c'est l'écoute `updated`, et elle seule, qui invalide.
+        $this->designer($this->ligneSecond)->assertOk();
+        Queue::fake();
+        $this->actingAsApi($this->admin)
+            ->apiPut("/api/properties/{$this->property->id}/collaborators/{$this->ligneSecond->id}", ['role' => CollaboratorRole::Viewer->value])
+            ->assertOk();
+        $this->assertFalse($this->ligneSecond->fresh()->is_primary);
+        Queue::assertPushed(RevalidatePublicPropertyPage::class, fn ($job) => $job->slugs === [$this->property->slug]);
+
         // La part de commission n'est pas servie par la fiche : rien à invalider.
         Queue::fake();
         $this->ligneSecond->update(['commission_share' => 12]);
