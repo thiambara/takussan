@@ -55,14 +55,11 @@ class LeaseSignatureTest extends TestCase
         Bus::fake([GenerateLeasePaymentSchedule::class]);
         Storage::fake(config('media-library.disk_name'));
 
-        // Octets déterministes ET dépendants du contenu : un bail modifié rend un autre PDF.
+        // VERIF-596 M2 — le VRAI gabarit, rendu en HTML sans le pied de page horodaté : un bail
+        // modifié ne rend un autre contrat QUE si le gabarit imprime ce qui a changé. (L'ancien faux
+        // rendu imprimait `late_fee_percent`, que le vrai contrat n'imprimait pas.)
         $this->mock(DocumentPdfService::class, function ($mock) {
-            $mock->shouldReceive('render')->andReturnUsing(fn (string $template, array $data) => sprintf(
-                '%%PDF-1.4 bail %d frais %s garants [%s]',
-                $data['lease']->id,
-                (string) $data['lease']->late_fee_percent,
-                $data['guarantors']->pluck('id')->join(','),
-            ));
+            $mock->shouldReceive('render')->andReturnUsing(fn (string $template, array $data) => self::stableRender($template, $data));
         });
 
         $this->agency = Agency::factory()->create();
@@ -80,6 +77,17 @@ class LeaseSignatureTest extends TestCase
     }
 
     // ─── Outils ──────────────────────────────────────────────────────────────────────────────
+
+    /** @param  array<string, mixed>  $data */
+    private static function stableRender(string $template, array $data): string
+    {
+        return (string) preg_replace('/Document généré le [^<]*/u', '', view($template, $data)->render());
+    }
+
+    private function frozenBytes(): string
+    {
+        return (string) $this->lease->fresh()->frozenContractBytes();
+    }
 
     private function requestSignature(?User $by = null): TestResponse
     {
@@ -134,7 +142,7 @@ class LeaseSignatureTest extends TestCase
     {
         $this->requestSignature()->assertOk()
             ->assertJsonPath('data.status', LeaseStatus::PendingSignature->value)
-            ->assertJsonPath('data.contract_sha256', hash('sha256', sprintf('%%PDF-1.4 bail %d frais 5.00 garants []', $this->lease->id)));
+            ->assertJsonPath('data.contract_sha256', hash('sha256', $this->frozenBytes()));
 
         $this->signWithCode($this->tenantUser, 'tenant')->assertOk()
             ->assertJsonPath('data.status', LeaseStatus::PendingSignature->value);
@@ -410,7 +418,8 @@ class LeaseSignatureTest extends TestCase
         Sanctum::actingAs($this->tenantUser);
         $body = $this->get("/api/leases/{$this->lease->id}/contract/pdf")->assertOk()->getContent();
 
-        $this->assertSame(sprintf('%%PDF-1.4 bail %d frais 5.00 garants []', $this->lease->id), $body);
+        $this->assertStringContainsString('Contrat de bail', $body);
+        $this->assertStringContainsString("5 % de l'échéance impayée", html_entity_decode($body, ENT_QUOTES));
         $this->assertSame(hash('sha256', $body), $this->lease->fresh()->contract_sha256);
     }
 

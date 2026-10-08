@@ -207,6 +207,7 @@ return [
         'not_draft_activate' => 'Seul un bail en brouillon peut être activé.',
         'not_found' => 'Bail introuvable.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
+        'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
     ],
     'lease_signature' => [
         'already_signed' => 'Vous avez déjà signé ce contrat.',

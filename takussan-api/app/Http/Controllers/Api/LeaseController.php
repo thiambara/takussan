@@ -9,6 +9,7 @@ use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Http\Requests\Api\TerminateLeaseRequest;
 use App\Http\Requests\UpdateLeaseRequest;
 use App\Http\Resources\LeaseResource;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
@@ -81,6 +82,15 @@ class LeaseController extends Controller
         $this->authorize('update', $lease);
 
         $data = $request->validated();
+        // VERIF-596 M2 (ADR-0042 §1) — un terme imprimé au contrat ne bouge plus une fois le bail
+        // signé : la pénalité exécutée doit rester celle que les parties ont lue. Avant la
+        // signature (brouillon, attente), la modification reste possible et défige le contrat.
+        abort_code_if(
+            ! in_array($lease->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true)
+                && array_intersect(array_keys($data), Lease::CONTRACT_PRINTED_TERMS) !== [],
+            422,
+            'lease.terms_locked'
+        );
         if ($data !== []) {
             $lease->fill($data)->save();
         }

@@ -41,6 +41,12 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    celles dont l'empreinte est l'empreinte courante. Toute modification du bail en attente (colonne
    du contrat, garant attaché ou détaché) **défige** le contrat (`contract_sha256 = null`) : les
    signatures déjà posées cessent de compter, une nouvelle demande refige un nouveau PDF.
+   **Le contrat imprime tout ce que le bail exécute** (amendé après VERIF-596, M2) : chaque colonne
+   de `Lease::CONTRACT_PRINTED_TERMS` — dont la pénalité de retard (taux, délai de grâce), les
+   conditions particulières, le préavis et l'indemnité de résiliation anticipée applicables — a sa
+   ligne dans `pdf.leases.contract`, et un test rend la vraie vue terme par terme. Une fois le bail
+   signé, ces termes ne se modifient plus par `PATCH` (422 `lease.terms_locked`) : la pénalité
+   exécutée reste celle que les parties ont lue. Avant la signature, la modification défige.
    **Le contrat figé est une preuve** (amendé après la vérification adverse VERIF-596, B1) : aucune
    route générique ne le supprime — `DELETE /api/media/{id}` refuse la collection `signed_contract`
    (et les `room_photos` d'un état des lieux sorti du brouillon) **avant** la policy, super-admin

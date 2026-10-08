@@ -207,6 +207,7 @@ return [
         'not_draft_activate' => 'Only a draft lease can be activated.',
         'not_found' => 'Lease not found.',
         'schedule_exists' => 'The payment schedule has already been generated.',
+        'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
     ],
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',

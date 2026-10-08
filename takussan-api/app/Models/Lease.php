@@ -273,6 +273,56 @@ class Lease extends AbstractModel implements HasMedia
         }
     }
 
+    /**
+     * TCK-596 (VERIF-596 M2) — les colonnes que le contrat IMPRIME, parce que le bail les exécute
+     * après activation (échéancier, pénalités, préavis, conditions). `pdf.leases.contract` a une
+     * ligne pour chacune ; `LeaseContractTermsTest` rougit si l'une manque au gabarit, et
+     * `LeaseController::update` refuse de les changer une fois le bail signé.
+     */
+    public const CONTRACT_PRINTED_TERMS = [
+        'type', 'start_date', 'end_date', 'renewal_date',
+        'monthly_rent', 'sale_price', 'currency', 'deposit_amount',
+        'payment_frequency', 'payment_day',
+        'late_fee_percent', 'late_fee_grace_days', 'notice_period_days',
+        'terms', 'special_conditions',
+    ];
+
+    /**
+     * Les colonnes remplissables que le contrat n'imprime PAS, chacune pour une raison. Avec
+     * {@see self::CONTRACT_PRINTED_TERMS}, elles couvrent `$fillable` exactement : une colonne neuve
+     * doit choisir son camp (`LeaseContractTermsTest`).
+     *
+     * @var array<string, string>
+     */
+    public const CONTRACT_UNPRINTED_COLUMNS = [
+        'property_id' => 'imprimé par le bien (adresse, désignation)',
+        'landlord_id' => 'imprimé par les parties',
+        'tenant_id' => 'imprimé par les parties',
+        'agency_id' => 'imprimé par les parties',
+        'guarantor_id' => 'ancienne colonne ; les garants imprimés sont ceux du pivot',
+        'booking_id' => 'origine du bail, pas un terme',
+        'renewed_from_lease_id' => 'filiation, pas un terme',
+        'reference_number' => 'imprimé en tête',
+        'status' => 'cycle de vie',
+        'deposit_refunded_amount' => 'sortie du bail, pas un terme',
+        'deposit_refunded_at' => 'sortie du bail, pas un terme',
+        'deposit_refund_reason' => 'sortie du bail, pas un terme',
+        'commission_amount' => 'mandat entre bailleur et agence, le locataire n\'y est pas partie',
+        'commission_rate' => 'mandat entre bailleur et agence, le locataire n\'y est pas partie',
+        'signed_at' => 'cycle de vie',
+        'terminated_at' => 'cycle de vie',
+        'termination_reason' => 'cycle de vie',
+        'terminated_by_id' => 'cycle de vie',
+        'metadata' => 'technique',
+        'tenant_welcomed_at' => 'technique',
+        'early_termination_requested_at' => 'sortie du bail ; le préavis et l\'indemnité applicables sont imprimés',
+        'early_termination_requested_by' => 'sortie du bail',
+        'early_termination_effective_date' => 'sortie du bail',
+        'early_termination_penalty_amount' => 'sortie du bail ; la règle de calcul est imprimée',
+        'early_termination_reason' => 'sortie du bail',
+        'early_termination_invoice_id' => 'sortie du bail',
+    ];
+
     /** Les colonnes dont la modification ne change pas le contrat signé. */
     public const CONTRACT_NEUTRAL_COLUMNS = [
         'status', 'signed_at', 'contract_sha256', 'signature_requested_at', 'updated_at',

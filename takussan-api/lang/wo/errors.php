@@ -207,6 +207,7 @@ return [
         'not_draft_activate' => 'Bail bu nekk brouillon rekk lañu mën a doxal.',
         'not_found' => 'Bail bi gisuñu ko.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
+        'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
     ],
     'lease_signature' => [
         'already_signed' => 'Xaatim nga kontraa bii ba noppi.',
