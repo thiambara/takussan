@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import { PaymentProviderPicker } from './PaymentProviderPicker';
+import type { DetailMontantDu } from './montant-du';
 import type {
   GatewayPaymentType,
   GatewayProvider,
@@ -21,6 +24,11 @@ interface PayOnlineButtonProps {
    */
   readonly availableProviders?: readonly GatewayProvider[];
   readonly disabled?: boolean;
+  /**
+   * TCK-593 — le montant dû, décomposé tel que l'API le rend. Fourni, il s'affiche sur le bouton
+   * (« Payer 150 000 FCFA ») et se détaille dans le sélecteur ; absent, le bouton reste générique.
+   */
+  readonly montant?: DetailMontantDu;
 }
 
 export function PayOnlineButton({
@@ -29,8 +37,10 @@ export function PayOnlineButton({
   currency,
   availableProviders,
   disabled,
+  montant,
 }: PayOnlineButtonProps) {
   const t = useTranslations('payments.gateway');
+  const locale = useLocale() as Locale;
   const [open, setOpen] = useState(false);
 
   if (availableProviders !== undefined && availableProviders.length === 0) {
@@ -48,7 +58,11 @@ export function PayOnlineButton({
         onClick={() => setOpen(true)}
         disabled={disabled}
       >
-        {t('button.payOnline')}
+        {montant
+          ? t('button.payAmount', {
+              amount: formatCurrency(montant.total, locale, { currency: currency ?? 'XOF' }),
+            })
+          : t('button.payOnline')}
       </Button>
       <PaymentProviderPicker
         open={open}
@@ -57,6 +71,7 @@ export function PayOnlineButton({
         paymentId={paymentId}
         currency={currency}
         availableProviders={availableProviders}
+        montant={montant}
       />
     </>
   );

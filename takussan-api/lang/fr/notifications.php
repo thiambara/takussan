@@ -85,6 +85,9 @@ return [
         'greeting' => 'Bonjour,',
         'intro' => 'Une pénalité de retard de :amount a été appliquée au paiement :reference.',
         'details' => 'Calculée à :percent % du solde restant dû (:base).',
+        // TCK-593 — ce que dit la notification est ce que dit l'écran (`late_fee_payable_online`).
+        'pay_online' => 'Elle sera ajoutée au montant de votre paiement en ligne.',
+        'pay_at_agency' => 'Elle est à régler auprès de votre agence ; elle ne sera pas demandée lors du paiement en ligne.',
     ],
 
     'task_due_reminder' => [
@@ -281,6 +284,19 @@ return [
                 'title' => 'Loyer reçu : :property',
                 'body' => ':tenant a payé :amount pour :property.',
                 'sms' => 'Takussan : :tenant a payé :amount (:property).',
+            ],
+        ],
+        // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
+        'payment' => [
+            'duplicate' => [
+                'title' => 'Paiement encaissé deux fois',
+                'body' => 'Un paiement en ligne de :amount a été reçu pour :reference, déjà réglée. Remboursez le payeur ou affectez la somme.',
+                'sms' => 'Takussan : paiement de :amount reçu en double pour :reference. À rembourser ou affecter.',
+            ],
+            'duplicate_late_fee' => [
+                'title' => 'Pénalité encaissée deux fois',
+                'body' => 'La pénalité de retard de :amount pour :reference, déjà réglée à l\'agence, a aussi été encaissée en ligne. Remboursez le payeur ou affectez la somme.',
+                'sms' => 'Takussan : pénalité de :amount encaissée en double pour :reference. À rembourser ou affecter.',
             ],
         ],
         'booking' => [

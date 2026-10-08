@@ -71,6 +71,8 @@ function toDefaults(agency: Agency): AgencyFormValues {
     currency: currency.toUpperCase(),
     timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
     moderation_required: agency.moderation_required ?? false,
+    // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
+    late_fee_online_collection: settings.late_fee_online_collection === true,
   };
 }
 
@@ -363,6 +365,32 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             </label>
             <p id="moderation_required-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
               {t('moderation.hint')}
+            </p>
+          </div>
+        </div>
+
+        {/* TCK-593 — encaissement des pénalités de retard avec le paiement en ligne. */}
+        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+          <input
+            id="late_fee_online_collection"
+            type="checkbox"
+            role="switch"
+            aria-describedby="late_fee_online_collection-hint"
+            {...form.register('late_fee_online_collection')}
+            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+          />
+          <div>
+            <label
+              htmlFor="late_fee_online_collection"
+              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+            >
+              {t('lateFeeOnline.label')}
+            </label>
+            <p
+              id="late_fee_online_collection-hint"
+              className="mt-0.5 text-pretty text-xs text-muted-foreground"
+            >
+              {t('lateFeeOnline.hint')}
             </p>
           </div>
         </div>

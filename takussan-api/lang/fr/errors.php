@@ -208,6 +208,8 @@ return [
     ],
     'lease_payment' => [
         'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
+        'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
+        'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',
     ],
     'mail' => [
         'invitation_not_sent' => 'L\'e-mail d\'invitation n\'a pas pu être envoyé.',
@@ -244,6 +246,7 @@ return [
         'amount_not_positive' => 'Le montant à payer doit être positif.',
         'amount_short' => 'Le montant reçu est inférieur au montant attendu.',
         'amount_unresolved' => 'Le montant à payer n\'a pas pu être déterminé.',
+        'checkout_in_progress' => 'Un paiement en ligne est en cours sur cette échéance : réessayez dans quelques minutes.',
         'currency_unsupported' => 'Le prestataire :provider n\'accepte pas la devise :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy n\'accepte pas le XOF : utilisez Wave ou Orange Money pour un paiement en XOF.',
         'filter_entity_invalid' => 'Filtre de type d\'objet invalide.',
@@ -251,6 +254,7 @@ return [
         'integration_agency_missing' => 'L\'intégration de paiement ne correspond à aucune agence.',
         'integration_credential_missing' => 'L\'intégration de paiement est incomplète : un identifiant manque.',
         'integration_missing' => 'Aucune intégration de paiement active pour ce prestataire.',
+        'not_payable' => 'Ce paiement n\'est plus payable en ligne : il est déjà réglé, remboursé ou sans montant dû.',
         'paid_amount_invalid' => 'Le montant payé ne peut pas être négatif.',
         'provider_failed' => 'Le prestataire de paiement :provider n\'a pas pu traiter la demande.',
         'provider_invalid_response' => 'Le prestataire de paiement a renvoyé une réponse invalide.',

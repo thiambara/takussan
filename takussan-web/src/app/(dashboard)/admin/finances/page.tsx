@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
@@ -5,6 +6,7 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
 import { PageHeader } from '@/components/console';
+import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 
 /**
@@ -62,7 +64,19 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('subtitle')} />
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          // TCK-593 — le rapprochement bancaire vit sous les finances de l'agence.
+          <Link
+            href="/admin/finances/reconciliation"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('reconciliationLink')}
+          </Link>
+        }
+      />
       <AdminFinancesClient
         canViewFinances
         canEmitFinances

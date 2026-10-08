@@ -8,6 +8,7 @@ use App\Http\Middleware\MaintenanceMode;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
+use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -42,8 +43,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // qu'elle a été laissée. Toutes les autres routes restent normalisées. Le détail, et le
         // troisième mécanisme neutralisé : `UpsertWizardDraftRequest`.
         $brouillon = fn (Request $request): bool => UpsertWizardDraftRequest::estEcritureDeBrouillon($request);
-        $middleware->trimStrings(except: [$brouillon]);
-        $middleware->convertEmptyStringsToNull(except: [$brouillon]);
+        // TCK-593 — de même pour le mapping CSV : sa tabulation et son espace sont des valeurs.
+        $mappingCsv = fn (Request $request): bool => UpdateBankCsvMappingRequest::estEcritureDeMapping($request);
+        $middleware->trimStrings(except: [$brouillon, $mappingCsv]);
+        $middleware->convertEmptyStringsToNull(except: [$brouillon, $mappingCsv]);
 
         $middleware->api(prepend: [
             ForceJsonResponseMiddleware::class,

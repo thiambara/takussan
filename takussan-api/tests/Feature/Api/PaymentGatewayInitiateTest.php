@@ -15,10 +15,12 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
 class PaymentGatewayInitiateTest extends TestCase
 {
+    use LeaseDueFixture;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -192,5 +194,178 @@ class PaymentGatewayInitiateTest extends TestCase
         $this->postJson("/api/booking-payments/{$ctx['payment']->id}/initiate", [
             'provider' => 'wave',
         ])->assertOk();
+    }
+
+    // ─── TCK-593 — ce qui est dû, et une seule fois ─────────────────────────
+
+    /**
+     * AC3 (réglage désactivé) — la pénalité restant due n'entre pas dans le checkout : le pilote
+     * reçoit le loyer seul, ×100.
+     */
+    public function test_penalite_exclue_quand_l_agence_ne_l_encaisse_pas_en_ligne(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => false]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertOk();
+
+        $this->assertSame(15_000_000, $spy->calls[0]['amount_cents']);
+        $meta = $ctx['payment']->refresh()->metadata;
+        $this->assertEquals(150_000, $meta['gateway_expected_amount']);
+        $this->assertFalse($meta['late_fee_included']);
+    }
+
+    /** AC3 (réglage activé) — loyer et pénalité ensemble : 157 500 ×100. */
+    public function test_penalite_incluse_quand_l_agence_l_encaisse_en_ligne(): void
+    {
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertOk();
+
+        $this->assertSame(15_750_000, $spy->calls[0]['amount_cents']);
+        $meta = $ctx['payment']->refresh()->metadata;
+        $this->assertEquals(157_500, $meta['gateway_expected_amount']);
+        $this->assertTrue($meta['late_fee_included']);
+    }
+
+    /** AC4 — une agence créée par l'API n'a pas la clé : la pénalité n'entre pas. */
+    public function test_agence_neuve_n_encaisse_pas_la_penalite_en_ligne(): void
+    {
+        $creator = User::factory()->create();
+        Sanctum::actingAs($creator);
+        $agencyId = $this->postJson('/api/agencies', ['name' => 'Agence neuve '.uniqid()])
+            ->assertCreated()
+            ->json('data.id');
+
+        $ctx = $this->leaseDue();
+        // L'échéance de l'AC3, rattachée à l'agence que l'API vient de créer.
+        $ctx['lease']->update(['agency_id' => $agencyId]);
+        Integration::query()->update(['agency_id' => $agencyId]);
+        $agency = Agency::query()->findOrFail($agencyId);
+        $this->assertArrayNotHasKey('late_fee_online_collection', $agency->settings ?? []);
+        $this->assertFalse($agency->collectsLateFeesOnline());
+
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertOk();
+
+        $this->assertSame(15_000_000, $spy->calls[0]['amount_cents']);
+    }
+
+    /** AC8 — une échéance payée, remboursée, ou un acompte payé : 409, zéro appel au pilote. */
+    public function test_initiation_refusee_sur_une_echeance_deja_payee(): void
+    {
+        $paid = $this->leaseDue(null, ['status' => PaymentStatus::Paid, 'paid_at' => now()]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($paid['tenant']);
+
+        $this->postJson("/api/lease-payments/{$paid['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'payment.not_payable');
+
+        $refunded = $this->leaseDue(null, ['status' => PaymentStatus::Refunded, 'paid_at' => now()]);
+        Sanctum::actingAs($refunded['tenant']);
+        $this->postJson("/api/lease-payments/{$refunded['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409);
+
+        $booking = $this->makeContext('wave');
+        $booking['payment']->update(['status' => PaymentStatus::Paid, 'paid_at' => now()]);
+        Sanctum::actingAs($booking['owner']);
+        $this->postJson("/api/booking-payments/{$booking['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409);
+
+        // Passe 2, N7 — sur un LOYER, la garde de statut s'observe aussi : remboursé, pénalité due,
+        // réglage activé, le reste dû est 0 mais `amountDue` vaudrait 7 500 sans elle.
+        $refundedWithFee = $this->leaseDue(['late_fee_online_collection' => true], ['status' => PaymentStatus::Refunded, 'paid_at' => now()]);
+        Sanctum::actingAs($refundedWithFee['tenant']);
+        $this->postJson("/api/lease-payments/{$refundedWithFee['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'payment.not_payable');
+
+        // Vérification adverse (AC8a) — l'échéance `refunded` ci-dessus est refusée par la garde
+        // du montant nul : `lease_payments` n'a pas de `refund_amount`, son reste dû est donc
+        // toujours 0. C'est un acompte remboursé INTÉGRALEMENT (`refund_amount = amount`, reste
+        // dû = 50 000) qui éprouve la garde de STATUT.
+        $refundedBooking = $this->makeContext('wave');
+        $refundedBooking['payment']->update([
+            'status' => PaymentStatus::Refunded,
+            'paid_at' => now(),
+            'refund_amount' => 50000,
+        ]);
+        $this->assertEquals(50000, $refundedBooking['payment']->refresh()->remaining_amount);
+        Sanctum::actingAs($refundedBooking['owner']);
+        $this->postJson("/api/booking-payments/{$refundedBooking['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'payment.not_payable');
+
+        $this->assertSame([], $spy->calls, 'Le pilote ne doit jamais être appelé sur un paiement réglé.');
+    }
+
+    /** AC8 — réessayer après un échec est le cas nominal. */
+    public function test_initiation_acceptee_sur_une_echeance_en_echec(): void
+    {
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Failed]);
+        $spy = $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
+            ->assertOk();
+
+        $this->assertCount(1, $spy->calls);
+    }
+
+    /**
+     * AC7 — le montant est figé à l'initiation. Un checkout ouvert à 150 000 (réglage activé, AVANT
+     * la pénalité) se solde par un webhook de 150 000 arrivé APRÈS la pénalité ; 140 000 reste
+     * refusé. Désactiver le réglage après un checkout à 157 500 ne fait pas refuser 157 500.
+     */
+    public function test_webhook_compare_au_montant_fige_a_l_initiation(): void
+    {
+        // 1. Checkout ouvert avant la pénalité, réglage activé.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true], [
+            'status' => PaymentStatus::Pending,
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+        $this->assertEquals(150_000, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
+
+        // 2. La pénalité tombe entre l'ouverture et le webhook.
+        $ctx['payment']->forceFill([
+            'late_fee_amount' => 7_500,
+            'late_fee_applied_at' => now(),
+            'status' => PaymentStatus::Late,
+        ])->save();
+
+        // 140 000 reste un sous-paiement du montant figé.
+        $this->waveWebhook('spy_txn_1', 140_000)->assertStatus(422);
+        $this->assertSame(PaymentStatus::Late, $ctx['payment']->refresh()->status);
+
+        // 150 000 solde le loyer ; la pénalité n'était pas incluse, elle reste due.
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertNull($payment->late_fee_paid_at);
+        $this->assertSame(7_500.0, $payment->lateFeeOutstanding());
+
+        // 3. Checkout à 157 500, puis réglage désactivé : 157 500 n'est pas refusé.
+        $other = $this->leaseDue(['late_fee_online_collection' => true]);
+        Sanctum::actingAs($other['tenant']);
+        $this->postJson("/api/lease-payments/{$other['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+        $other['agency']->update(['settings' => ['late_fee_online_collection' => false]]);
+
+        $this->waveWebhook('spy_txn_2', 157_500)->assertOk();
+        $settled = $other['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $settled->status);
+        $this->assertNotNull($settled->late_fee_paid_at);
     }
 }

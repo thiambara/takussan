@@ -56,7 +56,7 @@ class PropertyResource extends BaseResource
             // SELECTIONNEE qui vaut `null` reste donc émise à `null` — la distinction porte sur
             // « lue ou pas », jamais sur « nulle ou pas ». Même règle que
             // `UserResource::has_usable_password` (TCK-272) et que
-            // `PaymentGatewayService::paymentAmount()` (ardoise D-51).
+            // `PaymentGatewayService::amountDue()` (ardoise D-51).
             //
             // ⚠ Les clés DÉRIVÉES restent inconditionnelles, et ce n'est pas un oubli :
             // `location`, `main_photo_url`, les cinq `*_label`, `photos`, `tags`,

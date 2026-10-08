@@ -32,6 +32,8 @@ describe('agencyFormSchema', () => {
     timezone: '',
     // TCK-098 added this required boolean to the schema.
     moderation_required: false,
+    // TCK-593 — le réglage d'encaissement des pénalités en ligne.
+    late_fee_online_collection: false,
   };
 
   it('accepts minimal valid input', () => {
