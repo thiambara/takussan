@@ -27,6 +27,9 @@ class GovernanceAlertService
         'data_exported' => NotificationCode::GovernanceDataExported,
         // TCK-594 — `PayoutApprovalThreshold::trace()` ; nom repris de sa branche, inerte avant sa fusion.
         'agency_payout_threshold_changed' => NotificationCode::GovernanceApprovalThresholdChanged,
+        // TCK-293 — l'URL secrète de webhook régénérée. Seules les colonnes du jeton changent, hors de
+        // la liste blanche : la ligne `updated` n'est pas écrite, celle-ci l'est par le contrôleur.
+        'webhook_token_rotated' => NotificationCode::GovernanceIntegrationChanged,
     ];
 
     /** Événements de modèle (`Auditable`), par classe du sujet. */

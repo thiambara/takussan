@@ -901,3 +901,15 @@ Et autour :
   - Retrait des colonnes de la liste blanche.
   - `agencies.ninea` retiré des sources du détecteur, puis de l'agence elle-même.
   - Code d'alerte du seuil retiré.
+
+### Raccord TCK-293 (fusion de `0e3c9027`, 2026-10-08)
+
+- **`Integration`** garde ses deux mécanismes : la liste blanche avec le drapeau `credentials_changed`
+  (601), et les hooks de jeton de webhook (293). Le jeton n'entre jamais au journal : ses deux colonnes
+  sont hors de la liste blanche, et la trace de 293 l'omet.
+- **Alerte** : régénérer l'URL secrète de webhook ne change que les colonnes du jeton. Aucune ligne
+  `updated` n'est donc écrite, et aucun admin n'était prévenu. `webhook_token_rotated`, l'événement
+  qu'écrit le contrôleur de 293, entre dans `GovernanceAlertService::EVENTS`, sous le même code
+  qu'une intégration modifiée.
+  - Test : `test_une_url_de_webhook_regeneree_avertit`.
+  - Ablation : la ligne retirée → rouge.

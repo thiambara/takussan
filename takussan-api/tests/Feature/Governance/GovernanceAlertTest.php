@@ -121,6 +121,19 @@ class GovernanceAlertTest extends ApiTestCase
         }
     }
 
+    /** Raccord TCK-293 — régénérer l'URL secrète de webhook est un geste sur l'intégration. */
+    public function test_une_url_de_webhook_regeneree_avertit(): void
+    {
+        $integration = Integration::factory()->create(['agency_id' => $this->agency->id, 'provider' => 'wave']);
+        AppNotification::query()->delete();
+
+        $this->actingAsWithStepUp($this->auteur);
+        $this->postJson("/api/integrations/{$integration->id}/webhook-endpoint")->assertOk();
+
+        $this->seulLeCollegue(NotificationCode::GovernanceIntegrationChanged);
+        $this->assertStringContainsString('wave', AppNotification::query()->where('user_id', $this->collegue->id)->sole()->body);
+    }
+
     /** Une écriture sans auteur (seeder, commande) n'est pas un acte de membre : aucune alerte. */
     public function test_une_ecriture_sans_auteur_n_avertit_personne(): void
     {
