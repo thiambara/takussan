@@ -215,6 +215,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Sorties d'argent (TCK-594, ADR-0039)
 72. [PayoutMethod](#72-payoutmethod-) 🆕
 73. [ServiceProviderBill](#73-serviceproviderbill-) 🆕
+74. [PayoutMethodVerification](#74-payoutmethodverification-) 🆕
 
 ### Enums
 
@@ -2944,7 +2945,7 @@ traite `key` comme un identifiant court opaque.
 **Table :** `payout_methods`
 **Description :** Destination de paiement d'un utilisateur (bailleur, prestataire) : numéro mobile
 money ou compte bancaire. Un reversement Wave / Orange Money / Free Money / virement ne se marque
-payé que vers une destination **vérifiée** du bénéficiaire.
+payé que vers une destination du bénéficiaire **vérifiée par l'agence qui paie** (§74).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -2955,12 +2956,37 @@ payé que vers une destination **vérifiée** du bénéficiaire.
 | account_holder_name | text | oui | null | Nom du titulaire — cast `encrypted`, `$hidden` |
 | masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`, `PayoutMethod::mask()`, provisoire jusqu'à TCK-601) |
 | is_default | boolean | | false | |
-| verified_at | timestamp | oui | null | Toute modification la remet à `null` |
-| verified_by_id | FK users | oui | null | `nullOnDelete` |
 | deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
 | created_at / updated_at | timestamp | | auto | |
 
-**Relations :** `user()`, `verifier()` → belongsTo User. Inverse : `Payout.payoutMethod()` (withTrashed).
+**Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
+(§74). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
+`verified_by_id` ont été retirées (VERIF-594 M-6) : une vérification globale valait pour toute
+agence.
+
+---
+
+### 74. PayoutMethodVerification 🆕
+
+> **Entrée minimale posée par TCK-594** (VERIF-594 M-6) ; description complète par `/sync-specs`.
+> Source : ADR-0039 §6.
+
+**Table :** `payout_method_verifications`
+**Description :** Une destination de paiement vérifiée **par une agence**. Elle ne vaut que pour
+cette agence : un reversement d'une autre agence ne part pas vers elle. Une destination modifiée
+perd **toutes** ses vérifications.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete`, `pm_verifications_agency_fk` |
+| payout_method_id | FK payout_methods | | | `cascadeOnDelete`, indexé (`pm_verifications_method_idx`) |
+| verified_by_id | FK users | oui | null | Membre de l'agence qui a vérifié (`nullOnDelete`) |
+| verified_at | timestamp | | | Date du dernier geste de vérification |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `(agency_id, payout_method_id)` (`pm_verifications_agency_method_unique`) ;
+une vérification rejouée met à jour la ligne (`upsert`).
 
 ---
 

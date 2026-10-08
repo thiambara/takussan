@@ -21,6 +21,7 @@ class PayoutMethodController extends Controller
     public function index(Request $request): JsonResponse
     {
         $methods = PayoutMethod::query()
+            ->with('verifications')
             ->where('user_id', $request->user()->id)
             ->orderByDesc('is_default')
             ->orderBy('id')

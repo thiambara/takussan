@@ -7,11 +7,13 @@ use App\Models\Enums\PayoutMethodKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * TCK-594 (ADR-0039 §6) — une destination de paiement : numéro Wave / Orange Money / Free Money, ou
- * RIB. Elle appartient à un utilisateur (bailleur, prestataire) et ne sert à verser que vérifiée.
+ * RIB. Elle appartient à un utilisateur (bailleur, prestataire) et ne sert à verser que vérifiée PAR
+ * L'AGENCE QUI PAIE ({@see PayoutMethodVerification}, VERIF-594 M-6).
  *
  * ⚠ **`account_identifier` et `account_holder_name` portent la donnée d'une personne physique.** Ils
  * suivent le mécanisme de TCK-601, sans variante : colonne `text`, cast `encrypted`, `$hidden`, hors
@@ -25,7 +27,7 @@ class PayoutMethod extends AbstractModel
 
     protected $fillable = [
         'user_id', 'kind', 'account_identifier', 'account_holder_name', 'masked_identifier',
-        'is_default', 'verified_at', 'verified_by_id',
+        'is_default',
     ];
 
     protected $hidden = ['account_identifier', 'account_holder_name'];
@@ -35,7 +37,6 @@ class PayoutMethod extends AbstractModel
         'account_identifier' => 'encrypted',
         'account_holder_name' => 'encrypted',
         'is_default' => 'boolean',
-        'verified_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['user_id', 'kind', 'is_default'];
@@ -43,8 +44,7 @@ class PayoutMethod extends AbstractModel
     protected static array $requestSortable = ['id', 'created_at'];
 
     protected static array $queryFields = [
-        'id', 'user_id', 'kind', 'masked_identifier', 'is_default', 'verified_at', 'verified_by_id',
-        'created_at', 'updated_at',
+        'id', 'user_id', 'kind', 'masked_identifier', 'is_default', 'created_at', 'updated_at',
     ];
 
     /**
@@ -67,23 +67,32 @@ class PayoutMethod extends AbstractModel
         return preg_replace('/[^0-9A-Za-z+]/', '', $identifier) ?? '';
     }
 
-    public function isVerified(): bool
+    /** La vérification de CETTE agence, s'il y en a une. */
+    public function verificationFor(int $agencyId): ?PayoutMethodVerification
     {
-        return $this->verified_at !== null;
+        return $this->relationLoaded('verifications')
+            ? $this->verifications->firstWhere('agency_id', $agencyId)
+            : $this->verifications()->where('agency_id', $agencyId)->first();
     }
 
-    public function scopeVerified(Builder $query): Builder
+    public function isVerifiedFor(int $agencyId): bool
     {
-        return $query->whereNotNull('verified_at');
+        return $this->verificationFor($agencyId) !== null;
+    }
+
+    /** Les destinations vérifiées par CETTE agence — la seule qui puisse payer vers elles. */
+    public function scopeVerifiedFor(Builder $query, int $agencyId): Builder
+    {
+        return $query->whereHas('verifications', fn (Builder $q) => $q->where('agency_id', $agencyId));
+    }
+
+    public function verifications(): HasMany
+    {
+        return $this->hasMany(PayoutMethodVerification::class);
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function verifier(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'verified_by_id');
     }
 }

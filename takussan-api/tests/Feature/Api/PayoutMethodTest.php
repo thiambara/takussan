@@ -110,7 +110,7 @@ class PayoutMethodTest extends TestCase
         Notification::fake();
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
-        $foreign = PayoutMethod::factory()->verified()->create();
+        $foreign = PayoutMethod::factory()->verifiedFor($agency)->create();
         Sanctum::actingAs($this->agencyAgent($agency));
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 100_000);
         $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])
@@ -149,14 +149,17 @@ class PayoutMethodTest extends TestCase
     public function test_ac16_modifying_a_destination_unverifies_it_and_notifies_the_holder(): void
     {
         Notification::fake();
-        $landlord = $this->landlordOf($this->moneyAgency());
-        $method = PayoutMethod::factory()->verified()->create(['user_id' => $landlord->id]);
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $method = PayoutMethod::factory()->verifiedFor($agency)->verifiedFor($this->moneyAgency())->create(['user_id' => $landlord->id]);
         Sanctum::actingAs($landlord);
 
         $this->patchJson("/api/me/payout-methods/{$method->id}", ['account_identifier' => '+221 78 000 11 22'])
             ->assertOk()
             ->assertJsonPath('data.verified', false)
             ->assertJsonPath('data.masked_identifier', '•••• 1122');
+        // VERIF-594 M-6 — modifiée, elle perd la vérification de CHAQUE agence.
+        $this->assertSame(0, $method->verifications()->count());
 
         Notification::assertSentTo($landlord, CodedNotification::class, function ($n, array $channels): bool {
             return $n->code === NotificationCode::PayoutMethodUpdated && in_array('mail', $channels, true);
@@ -203,6 +206,6 @@ class PayoutMethodTest extends TestCase
         Sanctum::actingAs($this->agentWithout($agency, Capability::PayoutsCreate));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden();
 
-        $this->assertNull($method->fresh()->verified_at);
+        $this->assertSame(0, $method->verifications()->count());
     }
 }

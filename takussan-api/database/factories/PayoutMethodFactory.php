@@ -2,13 +2,16 @@
 
 namespace Database\Factories;
 
+use App\Models\Agency;
 use App\Models\Enums\PayoutMethodKind;
 use App\Models\PayoutMethod;
+use App\Models\PayoutMethodVerification;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * TCK-594 — une destination Wave non vérifiée ; `verified()` la rend utilisable pour verser.
+ * TCK-594 — une destination Wave non vérifiée ; `verifiedFor($agency)` la rend utilisable pour verser
+ * depuis CETTE agence (VERIF-594 M-6 : la vérification vaut par agence).
  */
 class PayoutMethodFactory extends Factory
 {
@@ -28,8 +31,13 @@ class PayoutMethodFactory extends Factory
         ];
     }
 
-    public function verified(): static
+    public function verifiedFor(Agency $agency, ?User $by = null, mixed $at = null): static
     {
-        return $this->state(['verified_at' => now()]);
+        return $this->afterCreating(fn (PayoutMethod $method) => PayoutMethodVerification::query()->create([
+            'agency_id' => $agency->id,
+            'payout_method_id' => $method->id,
+            'verified_by_id' => $by?->id,
+            'verified_at' => $at ?? now(),
+        ]));
     }
 }

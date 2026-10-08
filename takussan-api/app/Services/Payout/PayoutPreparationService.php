@@ -61,6 +61,7 @@ final class PayoutPreparationService
             'approval_threshold' => $threshold !== null ? (float) $threshold : null,
             // La forme masquée seule : l'agence ne lit jamais le numéro en clair (ADR-0039 §6).
             'payout_methods' => PayoutMethod::query()
+                ->with('verifications')
                 ->where('user_id', $landlord->id)
                 ->orderByDesc('is_default')
                 ->orderBy('id')
@@ -70,7 +71,8 @@ final class PayoutPreparationService
                     'kind' => $m->kind?->value,
                     'masked_identifier' => $m->masked_identifier,
                     'is_default' => $m->is_default,
-                    'verified' => $m->isVerified(),
+                    // VERIF-594 M-6 — vérifiée par CETTE agence, la seule qui paie.
+                    'verified' => $m->isVerifiedFor((int) $agency->id),
                 ])
                 ->values()
                 ->all(),

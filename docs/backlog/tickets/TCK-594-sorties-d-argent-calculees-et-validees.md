@@ -533,6 +533,9 @@ rend **403** avec une clé i18n, jamais une phrase.
   dans l'agence, sur 30 jours glissants (`PayoutApprovalRule`), sous le verrou de la ligne agence.
 - [x] **M-3** — la caution rendue naît par `PayoutService::initialStatus()` et avise les approbateurs
   (`notifyApprovers()`, rendus publics) ; seule l'exemption de destination du locataire reste.
+- [x] **M-6** — la vérification d'une destination vaut par agence : table
+  `payout_method_verifications`, `verifiedDestination` exige celle de l'agence du reversement, une
+  destination modifiée les perd toutes ; colonnes `verified_at` / `verified_by_id` retirées.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -711,6 +714,12 @@ rend **403** avec une clé i18n, jamais une phrase.
   et `mark-processed` y rend 422 `payout.awaiting_approval` ; approuvé par une autre personne, il se
   paie.
   **Preuve** : `PayoutBypassTest::test_m3_a_deposit_refund_goes_through_the_four_eyes` (rouge sur 9923b16c). Ablations V-M3 (statut), V-M3b (avis) : rouges.
+- [x] **AC-M6 — une vérification ne vaut que pour son agence.** Un bailleur des agences A et B ; un
+  agent de A vérifie sa destination. L'agence B la lit `verified = false` (liste des destinations et
+  préparation), et son marquage payé vers elle rend 422 `payout.unverified_destination` ; vérifiée
+  par un membre de B, le paiement passe. Une destination modifiée perd la vérification de chaque
+  agence.
+  **Preuve** : `PayoutBypassTest::test_m6_a_destination_verified_by_one_agency_does_not_pay_from_another` (rouge sur 9923b16c) ; `PayoutMethodTest::test_ac16_modifying_a_destination_unverifies_it_and_notifies_the_holder` (deux agences). Ablations V-M6, V-M6b : rouges.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -999,3 +1008,15 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   (cas des tests unitaires de la caution, `leases.agency_id` nullable) n'a pas de seuil : la caution
   y naît `pending`, comme avant — relevé quand 8 tests de `DepositRefundServiceTest` ont rougi sur un
   `firstOrFail()`.
+- **M-6 — vérification par agence.** Table `payout_method_verifications` (migration
+  `2026_10_08_100000`) ; `PayoutMethodService::verify` écrit, par `upsert`, la ligne de l'agence de
+  personnel du vérificateur (celle que la policy a jugée ; sans agence → 403 `payout.agency_required`).
+  `PayoutMethod::scopeVerifiedFor` sert le paiement ; `PayoutMethodResource.verified` dit si la
+  destination sert **au lecteur** (son agence ; pour le titulaire, au moins une agence) sans révéler
+  lesquelles. Le front n'a rien à changer : il lit toujours `verified`.
+  - **Migration de l'existant : invalidé**, choix écrit dans la migration. On ne sait pas
+    reconstituer l'agence au nom de laquelle un membre de plusieurs agences vérifiait, et
+    `payout_methods` n'a jamais quitté cette branche : rien n'existe hors des bases de développement.
+    Le `down()` redonne à chaque destination sa vérification la plus récente ; `down()` puis `up()`
+    joués dans un test jetable (retiré), verts.
+  - La fabrique perd `verified()` au profit de `verifiedFor($agency, $by, $at)`.

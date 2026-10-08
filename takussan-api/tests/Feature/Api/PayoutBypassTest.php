@@ -9,6 +9,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
 use App\Models\PayoutMethod;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Model\PayoutService;
@@ -206,5 +207,43 @@ class PayoutBypassTest extends TestCase
         Sanctum::actingAs($admin);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-7'])
             ->assertOk()->assertJsonPath('data.status', 'completed');
+    }
+
+    /**
+     * M-6 — `verified_at` était global : vérifiée par l'agence A, une destination servait à payer
+     * depuis l'agence B où le titulaire est aussi bailleur. La vérification vaut par agence.
+     */
+    public function test_m6_a_destination_verified_by_one_agency_does_not_pay_from_another(): void
+    {
+        Notification::fake();
+        $a = $this->moneyAgency();
+        $b = $this->moneyAgency();
+        $landlord = User::factory()->withOwnerProfile($a)->create();
+        OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $b->id]);
+        $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
+
+        Sanctum::actingAs($this->agencyAgent($a));
+        $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk()->assertJsonPath('data.verified', true);
+
+        $payerB = $this->agencyAdmin($b);
+        Sanctum::actingAs($payerB);
+        // L'agence B la lit non vérifiée, partout où elle la lit.
+        $this->getJson("/api/payout-methods?filter[user_id]={$landlord->id}")->assertOk()->assertJsonPath('data.0.verified', false);
+        $rent = $this->leasePayment($this->leaseOf($b, $landlord, 0), 100_000);
+        $this->getJson("/api/payouts/preparation?landlord_id={$landlord->id}&period_start=2026-01-01&period_end=2026-12-31")
+            ->assertOk()->assertJsonPath('data.payout_methods.0.verified', false);
+        $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])
+            ->assertCreated()->json('data.id');
+
+        $body = ['payment_method' => 'wave', 'transaction_id' => 'W-B', 'payout_method_id' => $method->id];
+        $this->postJson("/api/payouts/{$id}/mark-processed", $body)
+            ->assertStatus(422)->assertJsonPath('code', 'payout.unverified_destination');
+
+        // Vérifiée par un membre de B, elle sert depuis B.
+        Sanctum::actingAs($this->agencyAgent($b));
+        $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk();
+        Sanctum::actingAs($payerB);
+        $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk();
+        $this->assertSame(2, $method->verifications()->count());
     }
 }

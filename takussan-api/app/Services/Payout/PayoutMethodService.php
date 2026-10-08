@@ -3,8 +3,10 @@
 namespace App\Services\Payout;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Models\Agency;
 use App\Models\Enums\PayoutMethodKind;
 use App\Models\PayoutMethod;
+use App\Models\PayoutMethodVerification;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Support\SegregationOfDuties;
@@ -16,7 +18,8 @@ use Illuminate\Support\Facades\DB;
  * Trois règles, toutes contre le détournement après prise de compte :
  *  - ajouter, modifier ou supprimer une destination NOTIFIE le titulaire (critique : par e-mail
  *    quelles que soient ses préférences) ;
- *  - une destination modifiée repasse en « non vérifiée » ;
+ *  - une destination modifiée repasse en « non vérifiée », pour TOUTES les agences ;
+ *  - une vérification vaut pour l'agence de son auteur, et pour elle seule (VERIF-594 M-6) ;
  *  - RIEN n'est vérifié d'office : toute destination attend un membre de l'agence (`verify`),
  *    jamais le titulaire lui-même. Un numéro égal au téléphone vérifié du compte ne fait pas
  *    exception (VERIF-594 B-1) : ce téléphone se change et se revérifie en libre-service, sans
@@ -73,10 +76,11 @@ final class PayoutMethodService
             $method->fill($changes);
             // Une destination dont la nature, le numéro ou le titulaire change n'est plus celle
             // qu'on a vérifiée.
-            if ($method->isDirty(['kind', 'account_identifier', 'account_holder_name'])) {
-                $method->forceFill(['verified_at' => null, 'verified_by_id' => null]);
-            }
+            $unverify = $method->isDirty(['kind', 'account_identifier', 'account_holder_name']);
             $method->save();
+            if ($unverify) {
+                $method->verifications()->delete();
+            }
 
             $this->keepOneDefault($method);
         });
@@ -104,14 +108,32 @@ final class PayoutMethodService
         }
     }
 
+    /**
+     * Vérifier au nom de l'agence du vérificateur (son agence de personnel, celle que
+     * `PayoutMethodPolicy::verify` a jugée). Rejouée, la vérification se met à jour : son auteur et
+     * sa date sont ceux du dernier geste.
+     */
     public function verify(PayoutMethod $method, User $verifier): PayoutMethod
     {
         // Le titulaire ne vérifie pas sa propre destination — super-admin compris.
         SegregationOfDuties::assertDistinct($verifier, [$method->user_id], SegregationOfDuties::STEP_APPROVE);
 
-        $method->forceFill(['verified_at' => now(), 'verified_by_id' => $verifier->id])->save();
+        $agencyId = $verifier->staffAgencyId();
+        abort_code_if($agencyId === null, 403, 'payout.agency_required');
+        $agency = Agency::query()->findOrFail($agencyId);
 
-        return $method->refresh();
+        // Piège PostgreSQL n° 1 : un `upsert` plutôt qu'une violation d'unicité attrapée.
+        $now = now();
+        PayoutMethodVerification::query()->upsert([[
+            'agency_id' => $agency->id,
+            'payout_method_id' => $method->id,
+            'verified_by_id' => $verifier->id,
+            'verified_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]], ['agency_id', 'payout_method_id'], ['verified_by_id', 'verified_at', 'updated_at']);
+
+        return $method->refresh()->load('verifications');
     }
 
     private function keepOneDefault(PayoutMethod $method): void

@@ -525,8 +525,8 @@ class PayoutService
     }
 
     /**
-     * ADR-0039 §6 — le mobile money et le virement ne partent que vers une destination VÉRIFIÉE du
-     * bénéficiaire, de la nature du moyen choisi. Le locataire d'une caution rendue n'a pas
+     * ADR-0039 §6 — le mobile money et le virement ne partent que vers une destination du
+     * bénéficiaire VÉRIFIÉE PAR L'AGENCE DU REVERSEMENT (VERIF-594 M-6), de la nature du moyen choisi. Le locataire d'une caution rendue n'a pas
      * toujours de compte : sa destination reste hors de ce contrôle (Notes du ticket).
      */
     private function verifiedDestination(Payout $payout, PaymentMethod $method, mixed $requestedId): ?PayoutMethod
@@ -540,7 +540,7 @@ class PayoutService
         $destination = $id === null ? null : PayoutMethod::query()
             ->whereKey($id)
             ->where('user_id', $payout->beneficiaryUserId())
-            ->verified()
+            ->verifiedFor((int) $payout->agency_id)
             ->first();
 
         abort_code_if(
