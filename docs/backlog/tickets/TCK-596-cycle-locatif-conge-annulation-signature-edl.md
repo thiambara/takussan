@@ -383,28 +383,28 @@ du Delta et un critère qui rougit sur le code actuel.
       → inchangé.
 
 ### 2. Demande, annulation et remboursement à traiter
-- [ ] `App\Services\Booking\BookingStakeholders::for(Booking): Collection<User>` : client (s'il a
+- [x] `App\Services\Booking\BookingStakeholders::for(Booking): Collection<User>` : client (s'il a
       un compte), bailleur (`properties.user_id`), auteur de la réservation s'il est du personnel,
       collaborateurs acceptés `manager|agent` du bien. Une seule résolution, partagée par les deux
       écouteurs ci-dessous.
-- [ ] `App\Events\Booking\BookingRequested` (`ShouldDispatchAfterCommit`), émis par
+- [x] `App\Events\Booking\BookingRequested` (`ShouldDispatchAfterCommit`), émis par
       `BookingService::create` et par `PublicPropertyController::bookingRequest` après **chacun** de ses
       deux `Booking::create` (séjour et offre d'achat). `App\Listeners\Booking\NotifyOnBookingRequested`
       prévient les parties prenantes **moins le client et l'auteur**, par clés
       `notifications.booking_requested.*`. Le `notifyMany` littéral de `create` (l.105-121) disparaît.
-- [ ] Une seule voie d'expiration : `BookingExpirationService::expireBooking` devient public
+- [x] Une seule voie d'expiration : `BookingExpirationService::expireBooking` devient public
       (`expire(Booking, string $reason)`). `ExpireBookings` cesse son `update` de masse : il lit les
       identifiants échus par paquets et passe chacun par ce service, qui pose `expired_at` et
       `expiry_reason = 'deadline'`, journalise et envoie `BookingExpiredNotification`.
-- [ ] `App\Events\Booking\BookingClosed` (`ShouldDispatchAfterCommit`, `reason` =
+- [x] `App\Events\Booking\BookingClosed` (`ShouldDispatchAfterCommit`, `reason` =
       `cancelled|rejected|expired`, auteur nullable). Il est émis par `BookingService::cancel`, `reject`
       et `BookingExpirationService` (les trois expirations : seuil d'agence, échéance propre,
       `expire-now`).
-- [ ] `App\Listeners\Booking\NotifyOnBookingCancelled`, sur le patron de `NotifyOnEarlyTermination`,
+- [x] `App\Listeners\Booking\NotifyOnBookingCancelled`, sur le patron de `NotifyOnEarlyTermination`,
       **seulement pour `reason = cancelled`** (le refus notifie déjà le client, l'expiration passe par
       `BookingExpiredNotification`). Destinataires : les parties prenantes **moins l'auteur de l'annulation**. Le
       littéral actuel de `cancel()` est converti en clés `notifications.booking_cancelled.*`.
-- [ ] `App\Listeners\Booking\OpenBookingRefundTask` (toutes raisons ; sort sans rien faire si la
+- [x] `App\Listeners\Booking\OpenBookingRefundTask` (toutes raisons ; sort sans rien faire si la
       réservation ne porte aucun paiement `paid`) →
       `App\Services\Booking\BookingRefundTaskService::openFor(Booking)`, idempotent. Il crée une
       `Task` « remboursement à traiter » (priorité `high`, `taskable` = réservation,
@@ -413,19 +413,19 @@ du Delta et un critère qui rougit sur le code actuel.
       premier collaborateur accepté `manager` puis `agent` du bien ; sinon le premier admin de
       l'agence ; sinon le bailleur (hôte sans agence). Le service clôt la tâche (`done`) quand le
       dernier paiement `paid` passe `refunded`.
-- [ ] `RefundBookingPaymentRequest::authorize` : personnel de l'agence de la réservation (prédicat de
+- [x] `RefundBookingPaymentRequest::authorize` : personnel de l'agence de la réservation (prédicat de
       la règle 3, jamais `users.agency_id`) **et** `Gate::allows('bookings.refund')`, OU bailleur direct
       du bien, OU super-admin. **Le client est exclu, un autre bailleur de l'agence aussi.**
-- [ ] `AuthorizesTransitionally::canManageBooking` (l.103) : la clause « même agence » devient le
+- [x] `AuthorizesTransitionally::canManageBooking` (l.103) : la clause « même agence » devient le
       prédicat de la règle 3, avec un commentaire `TCK-587`. Ses deux seuls appelants sont
       `StoreBookingPaymentRequest` et `RefundBookingPaymentRequest`. `BookingPaymentController::store`
       (l.44-49) : `isOwnerAt(agence)` est remplacé par « bailleur direct du bien »
       (`property.user_id`).
-- [ ] `BookingResource::refund_status` (voir Contrat de données).
-- [ ] Front : état « remboursement en cours » / « remboursé » pour le client ; pour le personnel
+- [x] `BookingResource::refund_status` (voir Contrat de données).
+- [x] Front : état « remboursement en cours » / « remboursé » pour le client ; pour le personnel
       autorisé, « remboursement à traiter » avec le geste qui appelle la route existante (montant,
       motif).
-- [ ] Tests :
+- [x] Tests :
       - `BookingRequestNotificationTest` : demande publique (séjour, puis offre d'achat) et demande
         privée → bailleur et agent du bien notifiés, client non ;
       - `BookingCancellationNotificationTest` : annulation par le client → bailleur et agent notifiés,
@@ -772,3 +772,31 @@ Preuve : `npx vitest run src/components/inventory src/components/media src/compo
 2 rouges (AC13) ; F5.2 réduction sans plafond → 1 (AC14) ; F5.3 valider avant de réduire → 1 (AC14) ;
 F5.4 canevas deviné par les rôles → 1. Les tests jsdom doublent `createImageBitmap`/`OffscreenCanvas`
 (poids proportionnel aux pixels) ; **non mesuré au navigateur réel** à ce stade.
+
+**§2 — demande, annulation, remboursement.** Re-mesuré sur acf58a66 : `canManageBooking` porte déjà
+`staffAgencyId()` (587) — l'« autre bailleur » ne passait plus `authorize` de `store` ni de `refund`,
+mais le **client** remboursait toujours son acompte, l'agent remboursait sans `bookings.refund`, et
+`staffAgencyId()` lit l'accesseur `users.agency_id` (une seule agence). Règle unique dans
+`App\Services\Booking\BookingMoneyAccess` : bailleur direct (sauf suspendu dans l'agence, ADR-0031 §2),
+personnel de l'agence **de la réservation** (`isStaffAt`), super-admin ; rembourser exige en plus
+`canActAt(bookings.refund, agence de la réservation)` (pas `$user->can()` : `Gate::before`).
+`bookings.refund` sort de l'inventaire, cliquet 15 → 14 (594 le baisse aussi : conflit attendu sur
+la constante, prendre la plus basse).
+Destinataires : `BookingStakeholders::for()` ; un collaborateur d'un bien d'agence n'est retenu que
+s'il est **encore** personnel actif (un agent suspendu garde sa ligne de collaboration). Codes : le
+corps de `booking.cancelled` devient neutre (« La réservation … a été annulée », il part désormais au
+bailleur et à l'agent) ; nouveau code `booking.requested_undated` pour l'offre d'achat et la demande
+privée sans dates (sinon « du  au  »). Expiration : `BookingExpirationService::expire()` est la voie
+unique (verrou de ligne, relecture, `BookingClosed`) ; `ExpireBookings::handle()` garde sa signature
+sans argument. Tâche : titre `__('bookings.refund_task.title')`, `metadata.booking_payment_ids`,
+sérialisée sur la ligne de la réservation. **Ajouts** : `refund()` verrouille la ligne du paiement
+(deux remboursements concurrents) et refuse un montant à décimales en XOF
+(`booking_payment.refund_fractional`) ; `show` charge `payments` et rend `booking_payments` — le front
+les attendait et ne les recevait jamais (liste « aucun paiement » permanente) — plus `can_refund`.
+Front : `BookingRefundPanel`, bloc distinct du reçu de 593, monté seulement si `refund_status`.
+Preuve : 5 classes neuves (36 tests) + 59 classes voisines → 697 verts, 2 ignorés ;
+`BookingDetail.remboursement.test.tsx` 5/5. Ablations (restaurées par `cp`) : A2.1 → 2 rouges,
+A2.2 → 1, A2.3 → 1, A2.4 → 1, A2.5 → 1, A2.6 → 2, A2.7 → 5, A2.8 → 1, A2.9 → 3, A2.10 → 2,
+A2.11 → 1, A2.12 → 1, A2.13 → 1, A2.14 → 2, A2.15 → 1, A2.16 → 1 (après ajout du test « agent d'une
+autre agence » : la première passe l'avait laissée verte), A2.17 → 1, A2.18 → 1, A2.19 → 1, A2.20 → 1 ;
+F2.1 → 4, F2.2 → 1, F2.3 → 1, F2.4 → 1.

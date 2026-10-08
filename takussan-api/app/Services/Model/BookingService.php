@@ -3,7 +3,8 @@
 namespace App\Services\Model;
 
 use App\Domain\Notifications\NotificationCode;
-use App\Domain\Notifications\NotificationTarget;
+use App\Events\Booking\BookingClosed;
+use App\Events\Booking\BookingRequested;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
@@ -11,6 +12,7 @@ use App\Models\Enums\CancellationBy;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -108,11 +110,10 @@ class BookingService
             'expires_at' => $data['expires_at'] ?? now()->addDays(7),
         ]));
 
-        // Notify the landlord (property owner)
-        $owner = $property->owner;
-        if ($owner) {
-            $this->notifyBooking($owner, NotificationCode::BookingCreated, $booking);
-        }
+        // TCK-596 — prévenir qui doit traiter la demande (bailleur, personnel, agent du bien) est
+        // le rôle de `NotifyOnBookingRequested`, partagé avec la demande publique : ici, le seul
+        // bailleur l'était, et jamais l'agent du bien.
+        BookingRequested::dispatch($booking, $user->id);
 
         return $booking;
     }
@@ -194,7 +195,7 @@ class BookingService
         return $booking;
     }
 
-    public function reject(Booking $booking, ?string $reason = null): Booking
+    public function reject(Booking $booking, ?string $reason = null, ?User $by = null): Booking
     {
         abort_code_unless(
             $booking->status === BookingStatus::Pending,
@@ -214,6 +215,9 @@ class BookingService
         if ($customer) {
             $this->notifyBooking($customer, NotificationCode::BookingRejected, $booking);
         }
+
+        // TCK-596 — un acompte encaissé sur une demande refusée devient une tâche.
+        BookingClosed::dispatch($booking, BookingClosed::REASON_REJECTED, $by?->id);
 
         return $booking;
     }
@@ -274,10 +278,10 @@ class BookingService
 
         $booking->refresh();
 
-        $customer = $booking->customer?->user;
-        if ($customer) {
-            $this->notifyBooking($customer, NotificationCode::BookingCancelled, $booking);
-        }
+        // TCK-596 — l'annulation prévient toutes les parties prenantes MOINS son auteur
+        // (`NotifyOnBookingCancelled`), et un acompte encaissé ouvre une tâche
+        // (`OpenBookingRefundTask`). Seul le client était prévenu, même quand il annulait lui-même.
+        BookingClosed::dispatch($booking, BookingClosed::REASON_CANCELLED, $user->id);
 
         return $booking;
     }
@@ -285,13 +289,6 @@ class BookingService
     /** TCK-588 (ADR-0032) — une notification de réservation, rendue dans la langue de son destinataire. */
     private function notifyBooking(User $to, NotificationCode $code, Booking $booking): void
     {
-        $booking->loadMissing('property');
-
-        $this->notifications->send($to, $code, [
-            'reference' => $booking->reference_number ?? (string) $booking->id,
-            'property' => $booking->property?->title,
-            'start_date' => $booking->start_date?->toDateString(),
-            'end_date' => $booking->end_date?->toDateString(),
-        ], NotificationTarget::of('booking', $booking->id));
+        $this->notifications->send($to, $code, BookingNotificationParams::for($booking, $code), BookingNotificationParams::target($booking));
     }
 }

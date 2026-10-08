@@ -298,6 +298,11 @@ return [
                 'body' => 'Booking :reference was requested for :property, from :start_date to :end_date.',
                 'sms' => 'Takussan: new booking :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'New request',
+                'body' => 'Request :reference was made for :property.',
+                'sms' => 'Takussan: new request :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Booking confirmed',
                 'body' => 'Your booking :reference for :property, from :start_date to :end_date, is confirmed.',
@@ -310,7 +315,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Booking cancelled',
-                'body' => 'Your booking :reference for :property was cancelled.',
+                'body' => 'Booking :reference for :property was cancelled.',
                 'sms' => 'Takussan: booking :reference cancelled (:property).',
             ],
         ],

@@ -5421,7 +5421,24 @@
           "submit": "Annuler la réservation"
         }
       },
-      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès."
+      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès.",
+      "refund": {
+        "pendingTitle": "Remboursement en cours",
+        "pendingDescription": "Votre réservation n'aura pas lieu : l'acompte versé vous sera remboursé.",
+        "refundedTitle": "Remboursé",
+        "refundedDescription": "L'acompte versé pour cette réservation a été remboursé.",
+        "toProcessTitle": "Remboursement à traiter",
+        "toProcessDescription": "Cette réservation est fermée et porte un acompte encaissé. Enregistrez son remboursement une fois l'argent rendu.",
+        "action": "Rembourser",
+        "dialogTitle": "Enregistrer un remboursement",
+        "dialogDescription": "Montant encaissé : {amount}.",
+        "fields": {
+          "amount": "Montant remboursé",
+          "reason": "Motif"
+        },
+        "submit": "Enregistrer le remboursement",
+        "submitting": "Enregistrement…"
+      }
     },
     "public": {
       "no_property_title": "Aucun bien sélectionné",
@@ -8076,7 +8093,11 @@
         },
         "cancelled": {
           "title": "Réservation annulée",
-          "body": "Votre réservation {reference} pour {property} a été annulée."
+          "body": "La réservation {reference} pour {property} a été annulée."
+        },
+        "requested_undated": {
+          "title": "Nouvelle demande",
+          "body": "Une demande {reference} a été faite pour {property}."
         }
       },
       "visit": {

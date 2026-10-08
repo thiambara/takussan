@@ -39,6 +39,9 @@ enum NotificationCode: string
 
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
+
+    /** TCK-596 — une demande sans dates (offre d'achat, demande privée non datée) : « du … au … » vide sinon. */
+    case BookingRequestedUndated = 'booking.requested_undated';
     case BookingConfirmed = 'booking.confirmed';
     case BookingRejected = 'booking.rejected';
     case BookingCancelled = 'booking.cancelled';
@@ -96,7 +99,7 @@ enum NotificationCode: string
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord => NotificationType::Payment,
-            self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
+            self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder => NotificationType::Visit,
             self::MessageReceived, self::LeadReceived => NotificationType::Message,
@@ -124,7 +127,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest => 'lease_payment_overdue',
             self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord => 'lease_payment_received',
-            self::BookingCreated => 'booking_request',
+            self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
             self::VisitReminder => 'visit_reminder',
             self::MessageReceived, self::LeadReceived => 'message_received',
@@ -156,6 +159,7 @@ enum NotificationCode: string
             self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
+            self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::LeadReceived => ['name' => self::PARAM_TEXT, 'email' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],

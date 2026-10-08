@@ -5421,7 +5421,24 @@
           "submit": "Cancel the booking"
         }
       },
-      "forbidden": "This booking belongs to another agency: you don't have access to it."
+      "forbidden": "This booking belongs to another agency: you don't have access to it.",
+      "refund": {
+        "pendingTitle": "Refund in progress",
+        "pendingDescription": "Your booking will not take place: the deposit you paid will be refunded.",
+        "refundedTitle": "Refunded",
+        "refundedDescription": "The deposit paid for this booking has been refunded.",
+        "toProcessTitle": "Refund to process",
+        "toProcessDescription": "This booking is closed and holds a collected deposit. Record its refund once the money has been returned.",
+        "action": "Refund",
+        "dialogTitle": "Record a refund",
+        "dialogDescription": "Amount collected: {amount}.",
+        "fields": {
+          "amount": "Amount refunded",
+          "reason": "Reason"
+        },
+        "submit": "Record the refund",
+        "submitting": "Saving…"
+      }
     },
     "public": {
       "no_property_title": "No property selected",
@@ -8076,7 +8093,11 @@
         },
         "cancelled": {
           "title": "Booking cancelled",
-          "body": "Your booking {reference} for {property} was cancelled."
+          "body": "Booking {reference} for {property} was cancelled."
+        },
+        "requested_undated": {
+          "title": "New request",
+          "body": "Request {reference} was made for {property}."
         }
       },
       "visit": {

@@ -32,7 +32,6 @@ final class CapabilityEnforcementInventory
         'maintenance.close' => 'TCK-592',
         'payouts.approve' => 'TCK-594',
         'agency.update_billing' => 'TCK-594',
-        'bookings.refund' => 'TCK-596',
         'team.remove' => 'TCK-591',
         'crm.assign' => 'TCK-590 / TCK-591',
         'agency.update_kyc' => 'TCK-601',

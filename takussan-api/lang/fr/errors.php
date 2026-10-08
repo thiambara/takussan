@@ -70,6 +70,7 @@ return [
     'booking_payment' => [
         'receipt_unpaid' => 'La quittance est disponible uniquement pour un paiement acquitté.',
         'refund_exceeds_paid' => 'Le remboursement ne peut pas dépasser le montant payé.',
+        'refund_fractional' => 'Ce montant comporte des décimales que la devise du paiement n\'a pas.',
         'refund_unpaid' => 'Seul un paiement acquitté peut être remboursé.',
     ],
     'business_enum' => [

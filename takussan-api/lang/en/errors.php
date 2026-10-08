@@ -70,6 +70,7 @@ return [
     'booking_payment' => [
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
+        'refund_fractional' => 'This amount has decimals the payment currency does not have.',
         'refund_unpaid' => 'Only a settled payment can be refunded.',
     ],
     'business_enum' => [

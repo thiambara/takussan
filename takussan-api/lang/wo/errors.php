@@ -70,6 +70,7 @@ return [
     'booking_payment' => [
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
+        'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',
         'refund_unpaid' => 'Fay bu ñu fay ba noppi rekk lañu mën a delloo.',
     ],
     'business_enum' => [

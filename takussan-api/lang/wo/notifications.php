@@ -283,6 +283,11 @@ return [
                 'body' => 'Ñu laaj na réservation :reference ngir :property, li dale :start_date ba :end_date.',
                 'sms' => 'Takussan : réservation bu bees :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'Laaj bu bees',
+                'body' => 'Ñu def na laaj :reference ngir :property.',
+                'sms' => 'Takussan : laaj bu bees :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Réservation bi dëggal nañu ko',
                 'body' => 'Sa réservation :reference ngir :property, li dale :start_date ba :end_date, dëggal nañu ko.',
@@ -295,7 +300,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Réservation bi neenal nañu ko',
-                'body' => 'Sa réservation :reference ngir :property, neenal nañu ko.',
+                'body' => 'Réservation :reference ngir :property, neenal nañu ko.',
                 'sms' => 'Takussan : réservation :reference neenal nañu ko (:property).',
             ],
         ],

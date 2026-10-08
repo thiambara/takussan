@@ -4812,7 +4812,24 @@
           "submit": "Neenal réservasioŋ bi"
         }
       },
-      "forbidden": "Réservation bii beneen ajaans la bokk : amoo ci benn sañ-sañ."
+      "forbidden": "Réservation bii beneen ajaans la bokk : amoo ci benn sañ-sañ.",
+      "refund": {
+        "pendingTitle": "Delloo bi ngi dox",
+        "pendingDescription": "Sa réservation du am : xaalis bi nga jëkk a fay dañu koy delloo.",
+        "refundedTitle": "Delloo nañu ko",
+        "refundedDescription": "Xaalis bi ñu jëkk a fay ngir réservation bii, delloo nañu ko.",
+        "toProcessTitle": "Delloo bu ñu wara def",
+        "toProcessDescription": "Réservation bii tëju na te am na xaalis bu ñu jot. Bindal delloo bi bu xaalis bi delloo.",
+        "action": "Delloo",
+        "dialogTitle": "Bind benn delloo",
+        "dialogDescription": "Xaalis bi ñu jot : {amount}.",
+        "fields": {
+          "amount": "Limu xaalis bi ñu delloo",
+          "reason": "Lu tax"
+        },
+        "submit": "Bind delloo bi",
+        "submitting": "Mu ngi bind…"
+      }
     },
     "public": {
       "no_property_title": "Tànnuloo benn kër",
@@ -8076,7 +8093,11 @@
         },
         "cancelled": {
           "title": "Réservation bi neenal nañu ko",
-          "body": "Sa réservation {reference} ngir {property}, neenal nañu ko."
+          "body": "Réservation {reference} ngir {property}, neenal nañu ko."
+        },
+        "requested_undated": {
+          "title": "Laaj bu bees",
+          "body": "Ñu def na laaj {reference} ngir {property}."
         }
       },
       "visit": {

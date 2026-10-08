@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Booking\BookingRequested;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
 use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
@@ -742,6 +743,9 @@ class PublicPropertyController extends Controller
                 ],
             ]);
 
+            // TCK-596 — l'offre prévient qui doit la traiter : elle ne prévenait personne.
+            BookingRequested::dispatch($booking, $user->id);
+
             return $this->json([
                 'data' => BookingResource::make($booking)->toArray($request),
             ], 201);
@@ -763,6 +767,9 @@ class PublicPropertyController extends Controller
             'notes' => $data['message'] ?? null,
             'metadata' => ['guests' => $data['guests']],
         ]);
+
+        // TCK-596 — la demande publique prévient qui doit la traiter : elle ne prévenait personne.
+        BookingRequested::dispatch($booking, $user->id);
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),
