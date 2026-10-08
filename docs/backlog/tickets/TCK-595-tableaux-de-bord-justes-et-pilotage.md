@@ -1034,3 +1034,25 @@ restaurées par `cp` + md5).
     « Commissions : … » de la tuile Revenus ;
   - les chiffres non financiers de `/dashboard/me` sans `view_agency`.
 
+### Lot 16 — fusions de `dev` (TCK-603, TCK-602), garde `cheminApi`, passe 3 de verif-595
+
+- **Fusion de TCK-603** (`2ee36e20`). La liste des biens précharge la photo et l'avatar (595) avec
+  `PrimaryPropertyContact::eagerLoads()` (603). Le bloc `agency` et l'amorce de page de 603 restent.
+  `is_agent` lit `agency_id`, l'amorce, puis `isAgentAt` ; le préchargement `owner.agentProfiles`
+  disparaît, puisqu'il faisait double emploi avec l'amorce. `PropertyIndexQueryBudgetTest` réunit
+  les deux fichiers. Budgets remesurés : 22 requêtes pour 2 biens comme pour 20, et `agency_id`
+  coûte +6 sous le plafond de 8.
+- **Fusion de TCK-602** (`fe4e7561`). TCK-602 prend le § 84 de `models-spec.md` : CommissionEntry et
+  PlatformMetricDaily passent aux § 85 et 86. L'instantané des métriques et la purge des webhooks
+  sont planifiés tous les deux.
+- **Garde `cheminApi`** (TCK-600, `94b52aa5`). Les chemins de la balance âgée, de la performance
+  d'équipe et des gestes sur les commissions passent par `cheminApi`.
+- **Passe 3** (`1c87ca74`).
+  - `/api/dashboard/stats` compte `overdue_payments` par `CollectedPayments::leaseOwed()`.
+  - `OwedRemainderTest` ajoute une échéance trop payée, dont le reste dû est 0. Retirer `GREATEST`
+    fait rougir le test.
+- **En suite, hors de ce ticket :**
+  - aucun parcours n'enregistre un paiement partiel ;
+  - `mark-paid` rend 422 sur `partially_paid` ;
+  - un `paid_amount` non numérique, écrit hors du modèle, rend 500.
+
