@@ -37,11 +37,12 @@ class SendRentReceiptAfterOnlinePayment
         $target = NotificationTarget::of('lease', $lease->id);
 
         $tenant = $lease->tenant;
-        $params = ['amount' => $amount, 'property' => $property, 'receipt_url' => $this->links->urlFor($payment)];
+        $params = ['amount' => $amount, 'property' => $property];
         if ($tenant?->user) {
+            // VERIF-602 M2 — un compte lit sa quittance dans son espace : jamais le lien porteur.
             $this->notifications->send($tenant->user, NotificationCode::LeasePaymentSettledOnline, $params, $target);
         } elseif ($tenant !== null && ($contact = ContactSansCompte::fromCustomer($tenant))->hasPhone()) {
-            $this->notifications->send($contact, NotificationCode::LeasePaymentSettledOnline, $params, $target);
+            $this->notifications->send($contact, NotificationCode::LeasePaymentSettledOnline, $params + ['receipt_url' => $this->links->urlFor($payment)], $target);
         } else {
             Log::info('[pay-link] quittance non envoyée — locataire sans compte ni téléphone valide', [
                 'lease_payment_id' => $payment->id,

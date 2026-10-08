@@ -13,6 +13,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\LeasePaymentLink;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
@@ -25,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Tests\Support\EnvoisParCode;
 use Tests\TestCase;
 
 /**
@@ -36,7 +38,7 @@ use Tests\TestCase;
  */
 class SendLeasePaymentRemindersTest extends TestCase
 {
-    use RefreshDatabase;
+    use EnvoisParCode, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -289,18 +291,18 @@ class SendLeasePaymentRemindersTest extends TestCase
     // ─── TCK-602 — le lien de paiement dans la relance ─────────────────────────────────
 
     /**
-     * TCK-602 AC14 (ADR-0051 §1) — un fournisseur actif chez l'agence : la relance porte le lien
-     * `/pay/{jeton}`, le MÊME d'une relance à l'autre ; sans fournisseur, pas de lien.
+     * TCK-602 (ADR-0051 §1) — la relance d'un locataire SANS COMPTE porte le lien de paiement quand
+     * un fournisseur sert l'agence : le même d'une relance à l'autre.
      */
     public function test_tck602_la_relance_porte_le_lien_de_paiement_quand_un_fournisseur_sert_l_agence(): void
     {
         config()->set('app.frontend_url', 'https://front.test');
         Carbon::setTestNow('2026-09-30 08:00:00');
-        $payment = $this->payment(['due_date' => '2026-09-29']);
-        $tenant = $payment->lease->tenant->user;
+        $tenant = Customer::factory()->create(['user_id' => null, 'phone' => '+221 77 123 45 67']);
+        $payment = $this->payment(['due_date' => '2026-09-29'], $tenant);
 
         $this->run_();
-        $this->assertArrayNotHasKey('payment_url', $this->rows($tenant, NotificationCode::LeasePaymentOverdue)->sole()->params);
+        $this->assertArrayNotHasKey('payment_url', self::envoisALaDemande(NotificationCode::LeasePaymentOverdue)->sole()[0]->params);
 
         Integration::factory()->create([
             'agency_id' => $payment->lease->agency_id,
@@ -311,11 +313,35 @@ class SendLeasePaymentRemindersTest extends TestCase
         Carbon::setTestNow('2026-10-06 08:00:00');
         $this->run_();
 
-        $row = $this->rows($tenant, NotificationCode::LeasePaymentOverdue)->sortBy('id')->last();
-        $url = $row->params['payment_url'] ?? null;
+        $url = self::envoisALaDemande(NotificationCode::LeasePaymentOverdue)->last()[0]->params['payment_url'] ?? null;
         $this->assertMatchesRegularExpression('#^https://front\.test/pay/[A-Za-z0-9_-]{43}$#', (string) $url);
-        $this->assertStringContainsString($url, $row->body);
         // Le même lien d'une relance à l'autre : celui qu'un nouvel appel relit.
         $this->assertSame($url, app(LeasePaymentLinkService::class)->urlFor($payment));
+    }
+
+    /**
+     * VERIF-602 M2 — un locataire AVEC compte ne reçoit jamais le lien porteur : ni dans sa cloche
+     * (`app_notifications.params`, `body`), ni dans l'envoi ; aucun lien n'est même émis pour lui.
+     */
+    public function test_tck602_un_compte_ne_recoit_jamais_le_lien_porteur(): void
+    {
+        config()->set('app.frontend_url', 'https://front.test');
+        Carbon::setTestNow('2026-10-06 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29']);
+        $tenant = $payment->lease->tenant->user;
+        Integration::factory()->create([
+            'agency_id' => $payment->lease->agency_id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'k', 'webhook_secret' => 's'],
+        ]);
+
+        $this->run_();
+
+        $row = $this->rows($tenant, NotificationCode::LeasePaymentOverdue)->sole();
+        $this->assertArrayNotHasKey('payment_url', $row->params);
+        $this->assertStringNotContainsString('/pay/', (string) $row->body);
+        Notification::assertSentTo($tenant, CodedNotification::class, fn (CodedNotification $n): bool => ! array_key_exists('payment_url', $n->params));
+        $this->assertSame(0, LeasePaymentLink::query()->count());
     }
 }

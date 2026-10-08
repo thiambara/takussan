@@ -301,8 +301,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest => ['count' => self::PARAM_COUNT, 'total' => self::PARAM_MONEY],
             self::LeasePaymentRecorded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
-            // Le lien `/pay/{jeton}` sert la quittance : jamais tronqué.
-            self::LeasePaymentSettledOnline => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'receipt_url' => self::PARAM_URL],
+            self::LeasePaymentSettledOnline => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
@@ -383,6 +382,26 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url' => self::PARAM_URL],
+            // Le lien `/pay/{jeton}` sert la quittance : jamais tronqué.
+            self::LeasePaymentSettledOnline => ['receipt_url' => self::PARAM_URL],
+            default => [],
+        };
+    }
+
+    /**
+     * TCK-602 (VERIF-602 M2, ADR-0051 §1) — les paramètres qui portent un LIEN PORTEUR (`/pay/{jeton}`) :
+     * qui le détient paie l'échéance et lit sa quittance. Il ne part que par un canal sortant vers
+     * un contact SANS compte, et n'est jamais persisté : `NotificationService` le retire de tout
+     * envoi à un compte (cloche, `app_notifications`), et chiffre la notification mise en file qui le
+     * porte.
+     *
+     * @return list<string>
+     */
+    public function bearerParams(): array
+    {
+        return match ($this) {
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url'],
+            self::LeasePaymentSettledOnline => ['receipt_url'],
             default => [],
         };
     }

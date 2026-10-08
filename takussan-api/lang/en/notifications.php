@@ -291,8 +291,10 @@ return [
             ],
             'settled_online' => [
                 'title' => 'Payment received: :property',
-                'body' => 'Your payment of :amount for :property has been received. Your receipt: :receipt_url',
-                'sms' => 'Takussan: payment of :amount received (:property). Receipt: :receipt_url',
+                'body' => 'Your payment of :amount for :property has been received. Your receipt is available in your account.',
+                'body_link' => 'Your payment of :amount for :property has been received. Your receipt: :receipt_url',
+                'sms' => 'Takussan: payment of :amount received (:property).',
+                'sms_link' => 'Takussan: payment of :amount received (:property). Receipt: :receipt_url',
             ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
