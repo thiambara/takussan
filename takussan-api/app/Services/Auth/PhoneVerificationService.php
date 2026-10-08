@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\Account\DeletionStepUpService;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Support\CanonicalPhone;
@@ -177,12 +178,23 @@ class PhoneVerificationService
         return false;
     }
 
+    /**
+     * Passe 2 (p2-2) — la porte de TOUT SMS porteur d'un code : l'indicatif est servi, puis une
+     * place est prise dans le plafond global du jour. `false` : rien ne doit partir. Publique pour
+     * le step-up de suppression ({@see DeletionStepUpService}), qui garde
+     * son code et son texte mais ne doit pas être une voie hors plafond.
+     */
+    public function reserveCodeDelivery(string $phone): bool
+    {
+        return self::countryAllowed($phone) && $this->reserveDailyCapacity();
+    }
+
     private function issue(string $subject, string $phone, ?string $locale): bool
     {
         if (! self::countryAllowed($phone) || $this->cache->has($this->cooldownKey($subject))) {
             return false;
         }
-        if (! $this->reserveDailyCapacity()) {
+        if (! $this->reserveCodeDelivery($phone)) {
             return false;
         }
 

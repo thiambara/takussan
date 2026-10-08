@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth\Phone;
 
 use App\Models\User;
 use App\Notifications\AccountDeletionStepUpCodeNotification;
+use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
@@ -68,5 +69,46 @@ class AccountWithoutEmailTest extends TestCase
         $this->postJson('/api/auth/me/deletion-request', [
             'step_up_code' => $sms->lastCodeFor(self::NUMERO),
         ])->assertSuccessful();
+    }
+
+    /**
+     * Passe 2 (p2-2) — le SMS de suppression partait par le routeur sans passer par le plafond
+     * GLOBAL des codes (`sms.otp_daily_cap`) : une voie de plus, hors compte. Rouge sur 104589df.
+     */
+    public function test_plafond_global_atteint_aucun_sms_de_suppression(): void
+    {
+        config(['sms.otp_daily_cap' => 1]);
+        $sms = FakeSmsRouter::install();
+        $this->assertTrue(app(PhoneVerificationService::class)->sendCodeTo('login', '+221770000602'));
+        $this->actingAs($this->user, 'sanctum');
+
+        // Réponse invariante : rien ne dit au porteur du jeton que le plafond est atteint.
+        $this->postJson('/api/auth/me/deletion-request/step-up')->assertStatus(202);
+
+        $this->assertSame([], $sms->sentTo(self::NUMERO));
+    }
+
+    public function test_le_sms_de_suppression_compte_dans_le_meme_plafond(): void
+    {
+        config(['sms.otp_daily_cap' => 1]);
+        $sms = FakeSmsRouter::install();
+        $this->actingAs($this->user, 'sanctum');
+
+        $this->postJson('/api/auth/me/deletion-request/step-up')->assertStatus(202);
+        $this->assertCount(1, $sms->sentTo(self::NUMERO));
+
+        $this->assertFalse(app(PhoneVerificationService::class)->sendCodeTo('login', '+221770000602'));
+        $this->assertSame([], $sms->sentTo('+221770000602'));
+    }
+
+    public function test_un_indicatif_hors_liste_ne_recoit_pas_de_sms_de_suppression(): void
+    {
+        $sms = FakeSmsRouter::install();
+        $this->user->forceFill(['phone' => '+33612345678'])->save();
+        $this->actingAs($this->user, 'sanctum');
+
+        $this->postJson('/api/auth/me/deletion-request/step-up')->assertStatus(202);
+
+        $this->assertSame([], $sms->sentTo('+33612345678'));
     }
 }

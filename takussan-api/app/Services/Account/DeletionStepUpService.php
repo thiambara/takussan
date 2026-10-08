@@ -26,6 +26,10 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
  *     provisioning OAuth ne renseigne jamais `phone` : un step-up SMS serait
  *     ici un mécanisme sans transport ET sans destinataire. `users.email`,
  *     lui, est NOT NULL pour tout le monde.
+ *     ⚠ Périmé depuis TCK-589 : un compte créé par téléphone n'a pas d'e-mail,
+ *     et son code part par SMS — derrière la porte commune des codes
+ *     ({@see PhoneVerificationService::reserveCodeDelivery()} : indicatif servi,
+ *     plafond global du jour).
  *  2. La vérification est scindée en {@see verifyCode()} (lit, ne consomme
  *     pas) et {@see consumeCode()} (efface). Voir
  *     `RequestAccountDeletionRequest` : le code
@@ -43,6 +47,7 @@ class DeletionStepUpService
     public function __construct(
         private readonly CacheRepository $cache,
         private readonly SmsRouterDriver $sms,
+        private readonly PhoneVerificationService $phones,
     ) {}
 
     public function canResend(User $user): bool
@@ -62,14 +67,22 @@ class DeletionStepUpService
             return null;
         }
 
+        // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le code part par
+        // SMS, au numéro VÉRIFIÉ, directement par le routeur (jamais `SmsChannel`).
+        $bySms = ($user->email === null || $user->email === '') && $user->phone && $user->phone_verified_at !== null;
+
+        // Passe 2 (p2-2) — ce SMS passe la MÊME porte que tout code : indicatif servi et plafond
+        // global du jour. Refusé, rien n'est émis ni rangé ; la réponse reste le 202 invariant.
+        if ($bySms && ! $this->phones->reserveCodeDelivery((string) $user->phone)) {
+            return null;
+        }
+
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         $this->cache->put($this->codeKey($user), $code, self::CODE_TTL_SECONDS);
         $this->cache->put($this->cooldownKey($user), true, self::RESEND_COOLDOWN_SECONDS);
 
-        // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le code part par
-        // SMS, au numéro VÉRIFIÉ, directement par le routeur (jamais `SmsChannel`).
-        if (($user->email === null || $user->email === '') && $user->phone && $user->phone_verified_at !== null) {
+        if ($bySms) {
             $this->sms->send((string) $user->phone, __('auth.phone.deletion_code', [
                 'code' => $code,
                 'minutes' => (int) (self::CODE_TTL_SECONDS / 60),

@@ -1805,3 +1805,35 @@ corrigé.
   et `[libre] … phone = "+221770009101"`.
 - Exécutions : `AuthProfileTest`, `tests/Feature/Auth/Phone` et `PhoneVerificationTest` donnent
   83 verts.
+
+#### p2-2 — le SMS de suppression passe par le plafond global et la liste d'indicatifs
+
+**Le défaut.** `DeletionStepUpService::sendCode` envoyait le code de suppression d'un compte sans
+e-mail par `$this->sms->send(...)` directement. Cet envoi ne comptait pas dans `sms.otp_daily_cap`
+et ignorait `sms.otp_allowed_country_codes` : c'était une voie de codes hors des deux bornes de M3.
+
+**Choix : la porte commune, pas `sendCodeTo('deletion', …)`.** Passer par `sendCodeTo` aurait
+changé le stockage du code (haché, rangé par numéro), sa vérification (`verifyCode` et
+`consumeCode`, scindées pour TCK-272) et le texte du SMS (`sms_code` au lieu de `deletion_code`).
+Ce n'était pas « simple ». La solution retenue :
+- `PhoneVerificationService::reserveCodeDelivery(string $phone)` est la porte publique de tout
+  SMS porteur d'un code : `countryAllowed` puis `reserveDailyCapacity`, sur la clé
+  `sms-otp-day:<date>`. `issue()` la passe aussi, si bien qu'une seule porte existe.
+- `DeletionStepUpService` la passe **avant** d'émettre ou de ranger le code. En cas de refus, rien
+  n'est émis, rangé ni mis en délai. La réponse reste le 202 invariant du contrôleur : le porteur
+  d'un jeton n'apprend pas que le plafond est atteint.
+- La voie e-mail n'est pas touchée.
+- Le docblock « écart 1 » de `DeletionStepUpService`, périmé depuis TCK-589, est annoté.
+
+**Les tests, dans `AccountWithoutEmailTest` (5, dont 3 nouveaux)** :
+- plafond à 1, consommé par un code de connexion : le step-up rend 202, sans aucun SMS de
+  suppression ;
+- plafond à 1, consommé par le step-up de suppression : un code de connexion est alors refusé.
+  Les deux voies tombent donc dans le **même** plafond ;
+- un numéro vérifié en `+33` : 202, sans aucun SMS.
+
+**Preuves :**
+- Rouge sur `104589df` : 3 rouges sur 5.
+- Ablation `if (false && $bySms && …)` : 3 rouges sur 5. Restauré par `cp`, md5 identique.
+- Exécutions : `tests/Feature/Auth/Phone`, `AccountDeletionStepUpTest`, `PhoneVerificationTest`
+  et `SmsOtpRelayTest` donnent 86 verts.
