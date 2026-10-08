@@ -258,8 +258,10 @@ class PropertyMediaConversionsTest extends TestCase
         $superAdmin = User::factory()->create();
         $this->materializeRoleProfile($superAdmin, 'super_admin');
 
+        // TCK-598 (contrainte 2) — par la route AUTHENTIFIÉE : une route `public.*` rend le même
+        // corps à tous, et l'original n'y sort pour personne.
         $reponse = $this->actingAs($superAdmin)
-            ->getJson('/api/public/properties/'.$property->slug)
+            ->getJson('/api/properties/'.$property->id)
             ->assertOk();
 
         // TCK-539 (D2) — l'original vit sur le disque PRIVÉ : il sort par l'URL d'API signée,

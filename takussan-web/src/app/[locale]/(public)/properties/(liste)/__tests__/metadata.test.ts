@@ -50,15 +50,29 @@ let localeCourante: Locale = 'fr';
  * Le domaine des villes vient de l'API ; il est doublé ici pour que le test porte sur la RÈGLE et
  * non sur l'état du catalogue de développement. Deux villes, casse canonique du catalogue.
  */
-vi.mock('@/lib/queries/facettes', () => ({
-  villesDuCatalogue: async () =>
-    new Map([
-      ['dakar', 'Dakar'],
-      ['thiès', 'Thiès'],
-      ['ziguinchor', 'Ziguinchor'],
-    ]),
-  FRAICHEUR_DOMAINE_VILLES: 3600,
-}));
+vi.mock('@/lib/queries/facettes', async () => {
+  const { domainesStatiques } = await import('@/lib/canonique');
+  const villes = new Map([
+    ['dakar', 'Dakar'],
+    ['thiès', 'Thiès'],
+    ['ziguinchor', 'Ziguinchor'],
+  ]);
+  return {
+    villesDuCatalogue: async () => villes,
+    // TCK-598 — le domaine des quartiers INDEXABLES de Dakar (seuil déjà appliqué : c'est
+    // `quartiersDeLaVille` qui le juge, éprouvée dans `queries/__tests__/facettes.test.ts`).
+    // Les autres villes n'en ont aucun.
+    domainesDeLaListe: async (params: URLSearchParams) => ({
+      ...domainesStatiques(),
+      villes,
+      quartiers:
+        (params.get('city') ?? '').trim().toLocaleLowerCase('fr') === 'dakar'
+          ? new Map([['mermoz', 'Mermoz']])
+          : null,
+    }),
+    FRAICHEUR_DOMAINE_VILLES: 3600,
+  };
+});
 
 vi.mock('next-intl/server', () => ({
   getLocale: async () => localeCourante,
@@ -251,5 +265,43 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
     expect(titre).toContain('Ziguinchor');
     expect(titre).not.toContain('null');
     expect(titre).not.toContain('meta.');
+  });
+});
+
+describe('TCK-598 · AC11 — le quartier dans la canonique et le titre', () => {
+  it('`?city=Dakar&location=Inventé` a pour canonique `?city=Dakar`', async () => {
+    const meta = await metadonnee({ city: 'Dakar', location: 'Inventé' });
+    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar`);
+    expect(meta.title).not.toContain('Inventé');
+  });
+
+  it('un quartier du domaine est canonique de lui-même, casse du catalogue', async () => {
+    const meta = await metadonnee({ city: 'dakar', location: 'MERMOZ', page: '2' });
+    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar&location=Mermoz`);
+    expect(meta.alternates!.languages!.wo).toBe(`${ORIGINE_SITE}/wo/properties?city=Dakar&location=Mermoz`);
+  });
+
+  it('un quartier sans ville ne crée pas d’URL indexable', async () => {
+    const meta = await metadonnee({ location: 'Mermoz' });
+    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+  });
+
+  it.each<[Locale, string]>([
+    ['fr', 'à Mermoz, Dakar'],
+    ['en', 'in Mermoz, Dakar'],
+    ['wo', 'ci Mermoz, Dakar'],
+  ])('%s : le titre nomme le quartier ET la ville, sans gabarit qui fuit', async (locale, attendu) => {
+    const meta = await metadonnee({ type: 'villa', city: 'Dakar', location: 'Mermoz' }, locale);
+    const rendu = `${meta.title} | ${meta.description}`;
+    expect(meta.title).toContain(attendu);
+    expect(meta.title).toContain('Dakar');
+    expect(rendu).not.toMatch(/[{}]/);
+    expect(rendu).not.toContain('meta.');
+  });
+
+  it('un quartier replié ne laisse pas le gabarit de quartier dans le titre', async () => {
+    const meta = await metadonnee({ city: 'Thiès', location: 'Mermoz' });
+    expect(meta.title).toContain('Thiès');
+    expect(meta.title).not.toContain('Mermoz');
   });
 });

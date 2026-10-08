@@ -2,6 +2,7 @@
 
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { segmentDeSlug } from '@/lib/slug-de-bien';
 import { getTranslations } from 'next-intl/server';
 import type { AnonymousLeadPayload } from '@/types/contact-lead';
 import type {
@@ -43,6 +44,15 @@ async function errorFromApi(
   return { message: t('networkError') };
 }
 
+/**
+ * TCK-598, après verif-598 (m5) — le slug est un ARGUMENT DU CLIENT : interpolé brut, il faisait
+ * poster le serveur Next sur n'importe quel chemin de l'hôte de l'API. Hors de la forme d'un slug
+ * de bien (`lib/slug-de-bien.ts`), rien ne part, et l'appelant reçoit le 404 d'un bien inconnu.
+ */
+async function bienIntrouvable(): Promise<ActionResult<never>> {
+  return { ok: false, ...(await errorFromApi(new ApiError(404, null))) };
+}
+
 /** Le jeton manque : aucune requête n'est partie. */
 async function authRequise(): Promise<ActionResult<never>> {
   const t = await getTranslations('serverActions.shared');
@@ -53,8 +63,10 @@ export async function submitPropertyReport(
   slug: string,
   payload: ReportPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   try {
-    await apiRequest(`/api/public/properties/${slug}/report`, {
+    await apiRequest(`/api/public/properties/${segment}/report`, {
       method: 'POST',
       body: payload,
     });
@@ -68,9 +80,11 @@ export async function submitVisitRequest(
   slug: string,
   payload: VisitRequestPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   try {
-    await apiRequest(`/api/public/properties/${slug}/visit-request`, {
+    await apiRequest(`/api/public/properties/${segment}/visit-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -85,10 +99,12 @@ export async function submitBookingRequest(
   slug: string,
   payload: BookingRequestPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/public/properties/${slug}/booking-request`, {
+    await apiRequest(`/api/public/properties/${segment}/booking-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -133,10 +149,12 @@ export async function submitPurchaseOffer(
   slug: string,
   payload: OfferRequestPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/public/properties/${slug}/booking-request`, {
+    await apiRequest(`/api/public/properties/${segment}/booking-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -151,11 +169,13 @@ export async function submitContactMessage(
   slug: string,
   message: string,
 ): Promise<ActionResult<{ conversation_id: number; redirect_to: string }>> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   if (!token) return authRequise();
   try {
     const res = await apiRequest<{ data: { conversation_id: number; redirect_to: string } }>(
-      `/api/public/properties/${slug}/contact-message`,
+      `/api/public/properties/${segment}/contact-message`,
       { method: 'POST', body: { message }, token },
     );
     return { ok: true, data: res.data };
@@ -173,8 +193,10 @@ export async function submitContactLead(
   slug: string,
   payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   try {
-    await apiRequest(`/api/public/properties/${slug}/contact-lead`, {
+    await apiRequest(`/api/public/properties/${segment}/contact-lead`, {
       method: 'POST',
       body: payload,
     });

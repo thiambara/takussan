@@ -95,10 +95,15 @@ export const SEGMENTS_NON_LOCALISES: readonly string[] = [
  * **C'est une RÈGLE DE FORME et non une liste**, parce que le suffixe numérique est ouvert : Next
  * accepte `icon1`, `icon2`, … et aucune liste écrite à la main ne les contient tous.
  *
- * Ce qui n'est PAS ici, et pourquoi — mesuré, pas déduit : `manifest.ts` sert
- * `/manifest.webmanifest` (200), `sitemap.ts` sert `/sitemap.xml`, `robots.ts` sert `/robots.txt`.
- * Ils portent une extension, donc la règle du dernier segment les couvre déjà. Les ajouter ici
- * réserverait des segments (`/manifest`) qu'aucune route ne sert.
+ * Ce qui n'est PAS ici, et pourquoi : `sitemap.ts` sert `/sitemap.xml`, `robots.ts` sert
+ * `/robots.txt`, et — depuis TCK-598 — `manifest.ts` sert `/manifest.webmanifest` et
+ * `sw.js/route.ts` sert `/sw.js`. Ils portent une extension de {@link EXTENSIONS_DE_FICHIERS},
+ * donc la règle du dernier segment les couvre déjà (éprouvé pour les deux derniers par
+ * `src/app/sw.js/__tests__/route.test.ts`). Les ajouter ici réserverait des segments
+ * (`/manifest`) qu'aucune route ne sert.
+ *
+ * ⚠ Jusqu'à TCK-598, cette phrase affirmait « mesuré » un `manifest.ts` qui N'EXISTAIT PAS :
+ * `/manifest.webmanifest` rendait 404. *Une mesure qu'on ne peut pas refaire n'en est pas une.*
  */
 const MOTIF_METADONNEES_NEXT = /^(?:icon|apple-icon|opengraph-image|twitter-image)\d*$/;
 

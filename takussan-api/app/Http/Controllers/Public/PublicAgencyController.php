@@ -9,8 +9,6 @@ use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -213,10 +211,11 @@ class PublicAgencyController extends Controller
         abort_if($agency === null, 404);
 
         // Base query (non limitée) — sert aux stats globales.
+        // TCK-598 (V15) — `publicPortfolio()`, le prédicat de l'index des profils (même motif que
+        // `PublicAgentController::show()`), ici et aux trois requêtes suivantes.
         $portfolioBase = fn () => Property::query()
             ->where('agency_id', $agency->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public);
+            ->publicPortfolio();
 
         $portfolio = $portfolioBase()
             ->with('address')
@@ -228,7 +227,10 @@ class PublicAgencyController extends Controller
         $rentCount = $portfolioBase()->where('contract_type', ContractType::Rent)->count();
         $saleCount = $portfolioBase()->where('contract_type', ContractType::Sale)->count();
         $portfolioTotal = $portfolioBase()->count();
-        $citiesCount = $portfolioBase()
+        // Jointure : le portefeuille entre par sa sous-requête d'identifiants, sans quoi les
+        // colonnes nues du scope (`status`, `visibility`) deviendraient ambiguës (piège n°7).
+        $citiesCount = Property::query()
+            ->whereIn('properties.id', $portfolioBase()->select('properties.id'))
             ->join('addresses', function ($join) {
                 $join->on('addresses.addressable_id', '=', 'properties.id')
                     ->where('addresses.addressable_type', '=', Property::class);
@@ -253,8 +255,7 @@ class PublicAgencyController extends Controller
 
         $publisherUserIds = Property::query()
             ->where('agency_id', $agency->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public)
+            ->publicPortfolio()
             ->distinct()
             ->pluck('user_id');
 
@@ -269,8 +270,7 @@ class PublicAgencyController extends Controller
             ? collect()
             : Property::query()
                 ->where('agency_id', $agency->id)
-                ->where('status', PropertyStatus::Available)
-                ->where('visibility', PropertyVisibility::Public)
+                ->publicPortfolio()
                 ->whereIn('user_id', $teamUserIds)
                 ->selectRaw('user_id, COUNT(*) as cnt')
                 ->groupBy('user_id')
@@ -381,8 +381,7 @@ class PublicAgencyController extends Controller
 
         $properties = Property::query()
             ->where('agency_id', $agency->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public)
+            ->publicPortfolio()
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

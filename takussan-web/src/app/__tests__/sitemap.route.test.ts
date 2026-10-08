@@ -37,6 +37,26 @@ vi.mock('@/lib/queries/public-profiles', async (importOriginal) => ({
   listerSlugsDeProfils: profils.listerSlugsDeProfils,
 }));
 
+/**
+ * TCK-598 (V14) — les pages de ville et de quartier sont une source du sitemap. Doublée pour la
+ * même raison que les profils : sans double, chaque cas verrait une panne de plus au journal.
+ * Par défaut, aucun catalogue de villes : la source ne produit rien.
+ */
+const facettes = vi.hoisted(() => ({ villesAvecComptes: vi.fn(), quartiersDeLaVille: vi.fn() }));
+
+vi.mock('@/lib/queries/facettes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/facettes')>()),
+  villesAvecComptes: facettes.villesAvecComptes,
+  quartiersDeLaVille: facettes.quartiersDeLaVille,
+}));
+
+beforeEach(() => {
+  facettes.villesAvecComptes.mockReset();
+  facettes.villesAvecComptes.mockResolvedValue([]);
+  facettes.quartiersDeLaVille.mockReset();
+  facettes.quartiersDeLaVille.mockResolvedValue(new Map());
+});
+
 async function jouerSitemap() {
   const route = await import('../sitemap');
   return route.default();
@@ -349,5 +369,76 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
       en: `${ORIGINE_SITE}/en/agents/awa-diop`,
       wo: `${ORIGINE_SITE}/wo/agents/awa-diop`,
     });
+  });
+});
+
+/**
+ * TCK-598 · AC11 — **les pages de ville et de quartier entrent au sitemap, et ce sont exactement
+ * les canoniques.** Le seuil vit dans `quartiersDeLaVille` (éprouvé dans `facettes.test.ts`) : ce
+ * qu'elle ne rend pas n'entre pas ici.
+ */
+describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    catalogue.listerBiensDuSitemap.mockReset();
+    catalogue.listerBiensDuSitemap.mockResolvedValue([]);
+    profils.listerSlugsDeProfils.mockReset();
+    profils.listerSlugsDeProfils.mockResolvedValue([]);
+    facettes.villesAvecComptes.mockResolvedValue([
+      { value: 'Dakar', count: 12 },
+      { value: 'Thiès', count: 2 },
+    ]);
+    facettes.quartiersDeLaVille.mockImplementation(async (ville: string) =>
+      ville === 'Dakar' ? new Map([['mermoz', 'Mermoz']]) : new Map([['nguinth', 'Nguinth']]),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('porte la page de chaque ville et le quartier indexable, `&` échappé, dans les trois langues', async () => {
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    for (const langue of ['fr', 'en', 'wo']) {
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/properties?city=Dakar`);
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/properties?city=Dakar&amp;location=Mermoz`);
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/properties?city=Thi%C3%A8s`);
+    }
+    // Aucun `&` nu : un seul suffit à rendre le fichier ENTIER invalide.
+    expect(urls.filter((u) => /&(?!amp;)/.test(u))).toEqual([]);
+  });
+
+  it('une ville sous le seuil ne coûte aucun appel et n’a aucun quartier', async () => {
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(facettes.quartiersDeLaVille).toHaveBeenCalledTimes(1);
+    expect(facettes.quartiersDeLaVille).toHaveBeenCalledWith('Dakar');
+    expect(urls.some((u) => u.includes('Nguinth'))).toBe(false);
+  });
+
+  it('le XML que Next en tire est BIEN FORMÉ, et le moteur y lit l’URL canonique au caractère près', async () => {
+    const { resolveSitemap } = await import('next/dist/build/webpack/loaders/metadata/resolve-route-data');
+    const xml = resolveSitemap(await jouerSitemap());
+
+    const document = new DOMParser().parseFromString(xml, 'application/xml');
+    expect(document.getElementsByTagName('parsererror')).toHaveLength(0);
+    const locs = [...document.getElementsByTagName('loc')].map((n) => n.textContent);
+    expect(locs).toContain(`${ORIGINE_SITE}/fr/properties?city=Dakar&location=Mermoz`);
+    const hrefs = [...document.getElementsByTagName('xhtml:link')].map((n) => n.getAttribute('href'));
+    expect(hrefs).toContain(`${ORIGINE_SITE}/en/properties?city=Dakar&location=Mermoz`);
+  });
+
+  it('une panne du domaine des villes est écrite, et n’emporte pas les autres sources', async () => {
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+    catalogue.listerBiensDuSitemap.mockResolvedValue([BIEN]);
+    facettes.villesAvecComptes.mockRejectedValue(new Error('domaine des villes TRONQUÉ'));
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
+    expect(urls.some((u) => u.includes('?city='))).toBe(false);
+    expect(journal).toHaveBeenCalledTimes(1);
+    expect(String(journal.mock.calls[0]![0])).toContain('quartiers-et-villes');
   });
 });

@@ -65,6 +65,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0037](0037-plafond-de-travaux-du-bailleur.md) | Le plafond de travaux du bailleur vit sur son profil d'agence ; au-delà, le bailleur tranche (`awaiting_owner`) | Accepté |
 | [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 | [0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md) | Une donnée personnelle sensible est chiffrée sous `APP_KEY` et ne sort jamais en clair, ni dans un journal ; le journal d'audit est cloisonné par l'agence de son sujet ; consultations et demandes de droits sont tracées cinq ans | Accepté |
+| [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
