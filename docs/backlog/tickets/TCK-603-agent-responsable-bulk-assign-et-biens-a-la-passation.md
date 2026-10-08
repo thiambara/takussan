@@ -239,3 +239,39 @@ Delta est extrait tel quel.*
   déployé).
 - Ablations front : 9 mutations (`F1`-`F9`) + 2 sur la ressource (`R1`, `R2`), toutes rouges, restauration
   vérifiée par md5 ; journal dans le rapport.
+
+### 2026-10-08 — corrections de la vérification adverse (verif-603, REFUSÉ sur `7082cd7a`)
+
+ADR-0059 §6 amendé **avant** le code (`9c4074fe`). Chaque point a un test nommé et une ablation qui le rougit.
+
+- **M1 — la réparation ne rend le bien qu'à un bailleur de son agence.** Sinon le bien va en `owners_to_review`
+  sans aucune écriture, avec un motif : `no_agency`, `original_missing` (suppression douce comprise — m1),
+  `original_not_landlord` (aucun profil bailleur non supprimé dans l'agence — v6, v10), `current_is_landlord`,
+  `designated_after` (m2). La sortie, `--dry-run` compris, donne **une ligne par bien** avec ses identifiants :
+  `restore property= owner=actuel->origine responsible= leases_fixed= leases_to_review=`, ou
+  `review property= reason= owner= original=`.
+- **m2 — une désignation postérieure n'est jamais écrasée** : une entrée `property.primary_agent_designated`
+  du journal, ou une ligne marquée dont `updated_at` suit la réattribution fautive, envoie le bien en revue.
+  Le journal seul couvre le cas où la ligne désignée a disparu depuis.
+- **M2 — l'API dit d'où vient le contact.** `primary_contact_source` : `designated` | `invitation_order` |
+  `owner` | `null`, même vocabulaire que `GET …/collaborators`, rendu là où `primary_contact` l'est et
+  **jamais sur `public.*`**. L'écran lit ce champ (liste, carte mobile, en-tête de fiche) et ne compare plus
+  `owner.id` à `primary_contact.id` : un agent qui a saisi le bien et en est l'agent marqué se lit
+  responsable. Le repli sur le propriétaire (`owner`) se lit « aucun » — ADR-0036 : le responsable est la ligne
+  `agent`. Source absente : la moitié « responsable » ne s'affiche pas.
+- **m4 — N+1 de l'index.** L'agence (logo, moyenne des avis) est préchargée et les paires d'appartenance de
+  la page sont amorcées le temps du rendu (`MembershipCapabilityResolver::primed()`, vidée en `finally`).
+  Sur 20 lignes, le surcoût d'`agency_id` passe de 120 requêtes à 6 ; `PropertyIndexQueryBudgetTest` le borne
+  à 8 et vérifie que la ligne amorcée rend ce que rend la fiche.
+- **m5 — les quatre mutations survivantes ont leur test** : agence du bien prioritaire sur celle de l'acteur
+  (V2), profil bailleur supprimé qui n'exclut pas un bien saisi (V3), bail antérieur à la réattribution non
+  touché (V4) ; dans le lot, une `ApiError` hors refus de cible annule tout (V5) quand les refus de cible,
+  quel qu'en soit le motif, sont rangés ligne à ligne. Plus le lot sur un bien sans agence (A1a, resté vert à
+  la première passe).
+- **m3 — fermé localement.** Les biens touchés par `responsible_properties` et `held_properties` sont relus
+  sans verrou puis comparés à l'ensemble verrouillé ; ceux des collaborations, après le verrou des lignes. Un
+  bien apparu après le verrou refuse la passation entière en `409 agency_member.handover_conflict` (rien n'est
+  transmis) au lieu de verrouiller un bien hors ordre. Course réelle sur base jetable `takussan_t603_race2`
+  (harnais de verif-603) : 2/2 sans 40P01, la passation refuse, la désignation concurrente passe ; ablation du
+  refus → **40P01** 2/2, comme la reproduction.
+- **En suite** : m6 (le sélecteur propose des bailleurs et omet les agents absents de la page).
