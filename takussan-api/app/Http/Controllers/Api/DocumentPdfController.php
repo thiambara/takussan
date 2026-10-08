@@ -72,14 +72,17 @@ class DocumentPdfController extends Controller
 
         // TCK-596 §4B (ADR-0042 §1) — dès qu'un contrat est figé (signature demandée, ou scan de
         // la voie papier), c'est LUI qui est servi, octet pour octet : c'est son empreinte que les
-        // parties signent. Le rendu à la volée ne reste que pour le brouillon.
-        $frozen = $lease->getFirstMedia('signed_contract');
-        if ($frozen !== null) {
-            $stream = $frozen->stream();
+        // parties signent. Le rendu à la volée ne reste que pour un contrat NON figé (brouillon, ou
+        // défigé par une modification). Et l'on FERME À L'ÉCHEC : un contrat figé introuvable, ou
+        // dont les octets n'ont plus l'empreinte enregistrée, n'est jamais remplacé par un rendu.
+        if ($lease->contract_sha256 !== null) {
+            $bytes = $lease->frozenContractBytes();
+            abort_code_if($bytes === null, 409, 'lease_signature.contract_missing');
+            $frozen = $lease->getFirstMedia('signed_contract');
 
-            return new Response(is_resource($stream) ? (string) stream_get_contents($stream) : '', 200, [
-                'Content-Type' => $frozen->mime_type ?: 'application/pdf',
-                'Content-Disposition' => sprintf('inline; filename="%s"', $frozen->file_name),
+            return new Response($bytes, 200, [
+                'Content-Type' => $frozen?->mime_type ?: 'application/pdf',
+                'Content-Disposition' => sprintf('inline; filename="%s"', $frozen?->file_name ?? 'bail.pdf'),
                 'Cache-Control' => 'private, max-age=0, no-cache',
             ]);
         }

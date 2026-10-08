@@ -211,6 +211,7 @@ return [
     'lease_signature' => [
         'already_signed' => 'Xaatim nga kontraa bii ba noppi.',
         'code_locked' => 'Kood yu baaxul bari nañu : xaatim bi tëju na diirub 15 simili.',
+        'contract_missing' => 'Kontraa bu taxaw bu bayle bii gisuñu ko : xaatim bi taxaw na. Jokkooal ak ndimbal.',
         'invalid_code' => 'Kood bi baaxul walla jeex na.',
         'not_requestable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a yónne ngir xaatim.',
         'not_requested' => 'Amul kontraa buñuy xaar xaatim : laaj bi lañu wara jëkk a yónne.',
@@ -233,6 +234,7 @@ return [
         'status_transition_invalid' => 'Soppi statut intervention bii nangouñu ko.',
     ],
     'media' => [
+        'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',
         'photo_unprocessable' => 'Nataal bii mënuñu ko liggéeyal. Seetal fichier bi te jéemaat.',
         'unsupported_target' => 'Mbir mii mënul am média.',
     ],

@@ -237,6 +237,9 @@ class LeaseSignatureService
             409,
             'lease_signature.not_requested'
         );
+        // ADR-0042 §1 — on ne signe pas une empreinte sans document : le contrat figé doit exister et
+        // avoir encore cette empreinte (fermé à l'échec, comme le téléchargement).
+        abort_code_if($lease->frozenContractBytes() === null, 409, 'lease_signature.contract_missing');
         abort_code_if(
             $lease->signatures()->where('document_sha256', $lease->contract_sha256)->where('role', $role)->exists(),
             409,

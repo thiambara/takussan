@@ -211,6 +211,7 @@ return [
     'lease_signature' => [
         'already_signed' => 'Vous avez déjà signé ce contrat.',
         'code_locked' => 'Trop de codes faux : la signature est bloquée pendant 15 minutes.',
+        'contract_missing' => 'Le contrat figé de ce bail est introuvable : la signature est suspendue. Contactez le support.',
         'invalid_code' => 'Code invalide ou expiré.',
         'not_requestable' => 'Seul un bail en brouillon ou en attente de signature peut être soumis à signature.',
         'not_requested' => 'Aucun contrat n\'attend de signature : la demande doit d\'abord être lancée.',
@@ -233,6 +234,7 @@ return [
         'status_transition_invalid' => 'Ce changement de statut de l\'intervention n\'est pas autorisé.',
     ],
     'media' => [
+        'evidence_locked' => 'Ce fichier est une pièce de preuve : il ne se supprime pas.',
         'photo_unprocessable' => 'Cette image ne peut pas être traitée. Vérifiez le fichier puis réessayez.',
         'unsupported_target' => 'Cet objet ne peut pas porter de médias.',
     ],

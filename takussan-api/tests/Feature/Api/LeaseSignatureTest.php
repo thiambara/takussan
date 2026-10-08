@@ -414,6 +414,54 @@ class LeaseSignatureTest extends TestCase
         $this->assertSame(hash('sha256', $body), $this->lease->fresh()->contract_sha256);
     }
 
+    /**
+     * VERIF-596 B1 — le contrat figé est une PREUVE : aucune route générique ne le supprime, ni l'admin
+     * de l'agence (`MediaPolicy::delete` l'accordait par `agency_id`), ni le super-admin (`Gate::before`).
+     */
+    public function test_no_one_deletes_the_frozen_contract_through_the_generic_media_route(): void
+    {
+        $this->requestSignature()->assertOk();
+        $this->signWithCode($this->tenantUser, 'tenant')->assertOk();
+        $this->signWithCode($this->owner, 'landlord')->assertOk()->assertJsonPath('data.status', 'active');
+        $media = $this->lease->fresh()->getFirstMedia('signed_contract');
+
+        Sanctum::actingAs($this->agencyAdmin($this->agency));
+        $this->deleteJson("/api/media/{$media->id}")->assertForbidden()->assertJsonPath('code', 'media.evidence_locked');
+        $this->actingAsRole('super_admin');
+        $this->deleteJson("/api/media/{$media->id}")->assertForbidden()->assertJsonPath('code', 'media.evidence_locked');
+
+        $this->assertNotNull($this->lease->fresh()->getFirstMedia('signed_contract'));
+    }
+
+    /**
+     * VERIF-596 B1 — fermé à l'échec : un contrat figé disparu (ou altéré) n'est JAMAIS remplacé par un
+     * rendu à la volée, et l'on ne signe plus une empreinte sans document.
+     */
+    public function test_a_missing_frozen_contract_closes_download_and_signing(): void
+    {
+        $this->requestSignature()->assertOk();
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202);
+        $code = $this->lastCode($this->tenantUser);
+        $this->lease->fresh()->getFirstMedia('signed_contract')->delete();
+
+        Sanctum::actingAs($this->tenantUser);
+        $this->get("/api/leases/{$this->lease->id}/contract/pdf", ['Accept' => 'application/json'])
+            ->assertStatus(409)->assertJsonPath('code', 'lease_signature.contract_missing');
+        $this->sign($this->tenantUser, 'tenant', $code)->assertStatus(409)->assertJsonPath('code', 'lease_signature.contract_missing');
+        $this->assertSame(0, LeaseSignature::query()->count());
+    }
+
+    public function test_an_altered_frozen_contract_is_not_served(): void
+    {
+        $this->requestSignature()->assertOk();
+        $media = $this->lease->fresh()->getFirstMedia('signed_contract');
+        Storage::disk($media->disk)->put($media->getPathRelativeToRoot(), '%PDF-1.4 un autre contrat');
+
+        Sanctum::actingAs($this->tenantUser);
+        $this->get("/api/leases/{$this->lease->id}/contract/pdf", ['Accept' => 'application/json'])
+            ->assertStatus(409)->assertJsonPath('code', 'lease_signature.contract_missing');
+    }
+
     public function test_a_tenant_without_account_cannot_be_asked_to_sign(): void
     {
         $this->lease->tenant->forceFill(['user_id' => null])->save();

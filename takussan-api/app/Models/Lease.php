@@ -241,6 +241,27 @@ class Lease extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-596 (ADR-0042 §1) — les octets du contrat figé, SEULEMENT s'ils ont l'empreinte
+     * enregistrée ; `null` si le média manque ou ne correspond plus. Les lecteurs ferment à l'échec.
+     */
+    public function frozenContractBytes(): ?string
+    {
+        $media = $this->contract_sha256 !== null ? $this->getFirstMedia('signed_contract') : null;
+        if ($media === null) {
+            return null;
+        }
+
+        try {
+            $stream = $media->stream();
+        } catch (\Throwable) {
+            return null;
+        }
+        $bytes = is_resource($stream) ? (string) stream_get_contents($stream) : null;
+
+        return $bytes !== null && hash_equals((string) $this->contract_sha256, hash('sha256', $bytes)) ? $bytes : null;
+    }
+
+    /**
      * TCK-596 §4B (ADR-0042 §1) — défige le contrat d'un bail en attente de signature : les
      * signatures posées sur l'ancienne empreinte cessent de compter. Appelé par toute écriture qui
      * change ce que le PDF figé dit (colonnes ci-dessous, garants).

@@ -128,6 +128,27 @@ class InventoryRoomPhotosTest extends TestCase
         $this->assertCount(1, $inventory->refresh()->getMedia('room_photos'));
     }
 
+    /**
+     * VERIF-596 B1 — second chemin : la route générique `DELETE /api/media/{id}` ne retire pas une photo
+     * d'un état des lieux sorti du brouillon, super-admin compris (`Gate::before` passait la policy).
+     */
+    public function test_the_generic_media_route_cannot_remove_a_photo_of_a_submitted_inventory(): void
+    {
+        [, $inventory] = $this->scaffold();
+        $media = $inventory->addMedia(UploadedFile::fake()->image('k.jpg'))
+            ->withCustomProperties(['room_name' => 'Kitchen'])
+            ->toMediaCollection('room_photos');
+        $inventory->update(['status' => InventoryStatus::Signed]);
+
+        $this->actingAsRole('super_admin');
+        $this->deleteJson("/api/media/{$media->id}")->assertForbidden()->assertJsonPath('code', 'media.evidence_locked');
+        $this->assertCount(1, $inventory->refresh()->getMedia('room_photos'));
+
+        // En brouillon, la route générique reste ce qu'elle était.
+        $inventory->update(['status' => InventoryStatus::Draft]);
+        $this->deleteJson("/api/media/{$media->id}")->assertNoContent();
+    }
+
     /** Un média d'un AUTRE état des lieux, ou d'une autre collection → 404, et il reste. */
     public function test_delete_a_media_of_another_inventory_or_collection_returns_404(): void
     {

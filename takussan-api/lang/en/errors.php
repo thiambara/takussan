@@ -211,6 +211,7 @@ return [
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',
         'code_locked' => 'Too many wrong codes: signing is blocked for 15 minutes.',
+        'contract_missing' => 'This lease\'s frozen contract cannot be found: signing is suspended. Contact support.',
         'invalid_code' => 'Invalid or expired code.',
         'not_requestable' => 'Only a draft lease or one awaiting signature can be sent for signature.',
         'not_requested' => 'No contract is awaiting signature: the request must be sent first.',
@@ -233,6 +234,7 @@ return [
         'status_transition_invalid' => 'This maintenance status change is not allowed.',
     ],
     'media' => [
+        'evidence_locked' => 'This file is evidence: it cannot be deleted.',
         'photo_unprocessable' => 'This image cannot be processed. Check the file and try again.',
         'unsupported_target' => 'This item cannot hold media.',
     ],

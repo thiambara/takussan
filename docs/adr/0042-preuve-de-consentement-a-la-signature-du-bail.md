@@ -41,6 +41,12 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    celles dont l'empreinte est l'empreinte courante. Toute modification du bail en attente (colonne
    du contrat, garant attaché ou détaché) **défige** le contrat (`contract_sha256 = null`) : les
    signatures déjà posées cessent de compter, une nouvelle demande refige un nouveau PDF.
+   **Le contrat figé est une preuve** (amendé après la vérification adverse VERIF-596, B1) : aucune
+   route générique ne le supprime — `DELETE /api/media/{id}` refuse la collection `signed_contract`
+   (et les `room_photos` d'un état des lieux sorti du brouillon) **avant** la policy, super-admin
+   compris (`media.evidence_locked`, 403). Et tout lecteur **ferme à l'échec** : un contrat figé
+   introuvable, ou dont les octets n'ont plus l'empreinte enregistrée, n'est jamais remplacé par un
+   rendu à la volée — téléchargement 409 et signature 409 (`lease_signature.contract_missing`).
 2. **Le canal du code.** SMS si le signataire a un numéro **vérifié**, sinon e-mail (`users.email` est
    toujours renseigné). Code à 6 chiffres, valable 10 min, lié au bail, au signataire, au rôle et à
    l'empreinte ; renvoi espacé de 60 s ; **5 essais faux verrouillent** la signature de ce signataire
