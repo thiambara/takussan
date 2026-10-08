@@ -1,13 +1,13 @@
 ---
 id: TCK-591
 title: "Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -581,6 +581,37 @@ téléphone tenu d'une main, entre deux visites**.
 - [ ] `PropertyAssignAgentTest`, `PropertyBulkAssignTest`, `PropertyReassignmentKeepsOwnerTest`,
       `RepairReassignedOwnersCommandTest` → transféré à TCK-603
 
+**11. Ajoutés après vérification adverse (verif-591, 2026-10-07 — B1, M1 à M5, m1 à m3)**
+- [x] B1 — la branche « assigné » est bornée par l'agence du parent ET le statut de personnel
+      (`isStaffAt`) : `TaskPolicy::view`/`update`, `TaskController::index`,
+      `CalendarEventCollector::tasks()` et la branche `assigned_to` de `maintenance()`.
+      `CalendarFeedService::issue()` refuse un lien sans agence hors prestataire (403
+      `calendar.feed_not_staff`), `resolve()` ne le sert pas (ADR-0034 §2).
+- [x] M1 — la clause « auteur » exige l'appartenance (profil actif de tout type dans l'agence de la
+      fiche ou du parent ; une fiche sans agence garde son auteur) : `CustomerPolicy::view`,
+      `Customer::scopeVisibleTo`, `TaskPolicy::view`/`delete`, branche « créées » de
+      `TaskController::index` et du collecteur. `authorizeAssignee` ne court-circuite « soi-même »
+      que sur un parent hors agence. **Cette décision de la session modifie la règle de TCK-587**
+      (`CustomerPolicy::view`, `Customer::scopeVisibleTo` : « sinon → `added_by_id` = moi » devient
+      « sinon → `added_by_id` = moi ET membre de l'agence de la fiche, ou fiche sans agence »).
+- [x] M2 — passation et `GET …/portfolio` réservées à un membre de l'équipe (profil agent ou admin
+      d'agence dans l'agence, 422 `agent_handover.member_not_staff`) ; `collaborations` bornées à
+      `role = agent`.
+- [x] M3 — `App\Services\Property\PropertyPublication` : `unpublish` et `bulk-visibility` écrivent
+      `draft`/`private`/`published_at = null` et refusent hors `available | published` (motif de lot
+      `invalid_status`) ; l'archivage en lot écrit ce qu'écrit l'archivage unitaire (`published_at =
+      null`), droits inchangés (précision de la session). `PipelineStatsService` hors périmètre.
+- [x] M4 — `resolve()` ne sert pas le flux d'un compte non actif ; `UserAdminController::block`
+      révoque les liens d'agenda.
+- [x] M5 — `AgentAvailability` (`substituteFor`, `covers`, `coveredBy`) exige un remplaçant
+      personnel actif ; `substituteFor` retombe sur l'absent sinon.
+- [x] m1 — la détection de doublon ne sonde que pour le personnel de l'agence de la fiche.
+- [x] m2 — les critères de recherche (`budget_*`, `seeking_*`, `min_bedrooms`) ne sont rendus qu'au
+      personnel de l'agence (au super-admin, à l'auteur d'une fiche sans agence), y compris par
+      `include=tenant` / `include=customer`.
+- [x] m3 — `reason` d'une absence rendu à l'absent, à l'auteur et au titulaire de
+      `team.delegate_role` seulement.
+
 ## Critères d'acceptation
 
 - [x] AC1 — `POST /api/customers` avec `phone="77 123 45 67"` enregistre `+221771234567` ;
@@ -718,6 +749,54 @@ téléphone tenu d'une main, entre deux visites**.
       Sans `--dry-run` : `user_id` = B, responsable = Y, bail `draft` → `landlord_id` = B, bail
       `active` inchangé et listé par identifiant. Second passage : `restored = 0` (idempotente). Un
       bien dont `user_id` n'a jamais changé n'est pas touché. → transféré à TCK-603
+
+**Ajoutés après vérification adverse** (verif-591, 2026-10-07). Chaque test est rouge sur `b3840d0b`,
+chaque ablation est rejouée et restaurée par `cp`, et chaque sonde du vérificateur (qui assertait le
+défaut) rougit après correctif.
+
+- [x] AC31 (B1) — un agent retiré avec `leave_unassigned` ne lit plus ni ses tâches, ni ses
+      interventions, ni son flux, et ne peut pas en créer un neuf ; seul un prestataire reçoit un
+      flux sans agence. Preuve : `AgencyMemberRemovalTest::test_an_agent_removed_with_leave_unassigned_loses_his_tasks_interventions_and_feed`,
+      `::test_only_a_provider_is_served_an_agencyless_feed` (`9e27ceee`). Ablations → rouge : garde de
+      `TaskPolicy` (assigné), `TaskController::index`, `CalendarEventCollector::tasks()`, branche
+      `assigned_to` de `maintenance()`, garde hors agence de `resolve()`. Sonde P1 → rouge.
+- [x] AC32 (M1) — après passation et retrait, le partant ne garde ni ses fiches ni ses tâches
+      créées ; un bailleur actif garde ses propres ajouts, un bailleur bloqué non ; s'assigner une
+      tâche d'agence exige d'être du personnel. Preuve :
+      `AgentHandoverTest::test_after_handover_and_removal_the_leaver_keeps_nothing_he_authored`,
+      `CustomerScopeTest::test_an_active_landlord_keeps_his_own_adds_a_blocked_one_does_not`,
+      `TaskAuthorizationTest::test_assigning_oneself_on_an_agency_parent_requires_being_staff`
+      (`bdddd1d0`, `b79005bb`). Ablations → rouge : appartenance dans `CustomerPolicy::view`, dans
+      `scopeVisibleTo`, dans `TaskPolicy::delete`, court-circuit « soi-même ». Sonde P2 → rouge.
+      `MigratedAuthorizationRulesTest` : deux tests de TCK-306 alignés sur la règle nouvelle.
+- [x] AC33 (M2) — la passation d'un bailleur rend 422 `agent_handover.member_not_staff` (lecture et
+      écriture), et seules les collaborations `agent` sont transmises. Preuve :
+      `AgentHandoverTest::test_only_a_team_member_is_handed_over_and_only_his_agent_collaborations`
+      (`a49eba65`). Ablations → rouge : garde du cédant, filtre `role = agent`. Sonde P3 → rouge.
+- [x] AC34 (M3) — AC5 étendu : « Dépublier » en lot écrit `status = draft`, `visibility = private`,
+      `published_at = null` comme l'unitaire, et compte un bien hors `available | published` en
+      `invalid_status` ; l'archivage en lot écrit l'état de l'archivage unitaire. Preuve :
+      `PropertyBulkVisibilityTest::test_bulk_unpublish_is_the_unitary_unpublish` (+ AC5 étendu),
+      `PropertyBulkArchiveTest::test_bulk_archive_writes_what_the_unitary_archive_writes`, vitest
+      `invalid_status` (`b26f6af9`). Ablations → rouge : écriture du lot réduite à `visibility`, garde
+      de statut, écriture d'archive d'avant. Sonde P4 → rouge.
+- [x] AC35 (M4) — bloquer un compte coupe son flux (`404`), et le réactiver ne le ressuscite pas.
+      Preuve : `CalendarFeedTest::test_blocking_the_account_kills_its_feed` (`43a734a4`). Ablations →
+      rouge : révocation dans `block()`, garde de statut dans `resolve()`. Sonde P5 → rouge.
+- [x] AC36 (M5) — un remplaçant suspendu ne couvre plus : la tâche reste à l'absent, `covers` et
+      `coveredBy` l'ignorent. Preuve : `AgentAbsenceTest::test_a_suspended_substitute_no_longer_covers`
+      (`f5ff0535`). Ablations → rouge : `substituteFor`, `covers`, `coveredBy`. Sonde P6 → rouge.
+- [x] AC37 (m1) — un bailleur auteur ne reçoit pas de 409 de doublon. Preuve :
+      `CustomerPhoneAndDuplicateTest::test_the_duplicate_check_is_no_oracle_for_a_landlord`
+      (`230eefb7`). Ablation de la garde → rouge.
+- [x] AC38 (m2) — le bailleur ne lit pas les critères de recherche de son locataire (fiche,
+      `include=tenant`, `include=customer`). Preuve :
+      `CustomerScopeTest::test_search_criteria_are_rendered_to_agency_staff_only` (`c64dbcbb`).
+      Ablation → rouge.
+- [x] AC39 (m3) — `reason` est absent pour un agent tiers, présent pour l'absent, l'auteur et le
+      délégant. Preuve :
+      `AgentAbsenceTest::test_the_absence_reason_is_read_only_by_the_absent_the_author_and_the_delegator`
+      (`95dbf59b`). Ablation → rouge.
 
 ## Hors périmètre
 
@@ -952,3 +1031,36 @@ téléphone tenu d'une main, entre deux visites**.
   (test jetable, retiré) : un `PATCH …/pipeline-stage` écrit `properties = []`,
   `attribute_changes = {"old":{"pipeline_stage":"lead"},"attributes":{"pipeline_stage":"prospect"}}`,
   et `stage_changes_last_30d` rend **0**. `avg_time_in_stage` lit les mêmes chemins. Non corrigé ici.
+
+### 2026-10-08 — corrections après vérification adverse, puis fusion de TCK-588
+
+- **verif-591 : REFUSÉ (1 bloquant, 5 majeurs, 3 mineurs).** Un commit par point, de `9e27ceee` à
+  `95dbf59b` ; preuves au Delta §11 et en AC31 à AC39. Les six sondes du vérificateur, copiées sous
+  `tests/Feature/Verif591/`, rougissent toutes après correctif ; elles sont retirées.
+- **M1 modifie une règle de TCK-587**, sur décision de la session : dans `CustomerPolicy::view` et
+  `Customer::scopeVisibleTo`, la clause « auteur » exige désormais un profil actif (de tout type)
+  dans l'agence de la fiche ; une fiche sans agence garde son auteur. Deux tests de TCK-306
+  (`MigratedAuthorizationRulesTest`) qui affirmaient l'ancienne règle sont alignés.
+- **Trouvé en route** : `CustomerResource::toArray` est appelé directement par les contrôleurs, si
+  bien qu'un `mergeWhen` n'y est jamais résolu (la clé `MergeValue` sortait telle quelle) ; m2 étale
+  les critères par un tableau. `PropertyBulkArchiveService` garde un constructeur sans argument
+  (`new` direct dans un test de TCK-074).
+- **Fusion d'`origin/dev`** (`059ce17c`, TCK-588) — conflits : `AgencyController::removeAgent` (le
+  service de 591 reste seul chemin), `CalendarController`, `PropertyController::unpublish` (méthode
+  partagée de M3), `TaskController::authorizeAssignee` (règle de 591), `INDEX.md`, `adr/README.md`.
+- **Conversion aux codes de TCK-588** (`7471b568`, ADR-0032) — plus aucune `HttpResponseException`
+  ni réponse d'erreur construite à la main. Codes renommés, **à lire ainsi dans ce ticket** :
+  `task_assignee_not_staff` → `task.assignee_not_staff` ; `member_not_staff` → `agency_member.not_staff`
+  (retrait) et `agent_handover.member_not_staff` (passation) ; `portfolio_not_empty` →
+  `agency_member.portfolio_not_empty` ; `absence_overlaps` → `agent_absence.overlaps` ;
+  `calendar_feed_not_staff` → `calendar.feed_not_staff` ; `customer_duplicate` →
+  `customer.duplicate` ; `user_not_in_agency` → `agency_member.not_in_agency`. Les charges utiles
+  (`existing`, `portfolio`) passent par `ApiError::with()`. Le récapitulatif quotidien est le code
+  `prospect_match.digest` (`send()`) ; `data.kind` + `data.digest_date` restent sa clé
+  d'idempotence. Front : le 409 de doublon se lit sur `customer.duplicate` (test neuf, rouge sur
+  l'ancien code). TCK-603 cite encore `portfolio_not_empty` dans son texte.
+- **Vérifié au premier plan** : `tests/Unit` (536), `tests/Feature/{Agency,Crm,Calendar,Notifications}`
+  (239), `tests/Feature/Authorization` en entier (151), 25 autres classes qui appellent les routes
+  touchées (262) : tous verts. `ProseLitteraleInterditeTest`, `LangGroupParityTest`,
+  `check-notification-codes` (32 codes) verts. Pint, lint, `tsc --noEmit`, `check:i18n`,
+  `check:i18n-namespaces`, vitest des écrans touchés (83), toutes les gardes racine : verts.
