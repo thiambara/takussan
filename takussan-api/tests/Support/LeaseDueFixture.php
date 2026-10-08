@@ -90,6 +90,11 @@ trait LeaseDueFixture
             /** TCK-602 — ce que `verify()` répond : `pending` par défaut. */
             public string $verifyStatus = DriverStatus::PENDING;
 
+            /** VERIF-602 M1 — ce qui se passe PENDANT l'appel au fournisseur (un webhook qui arrive). */
+            public ?\Closure $onVerify = null;
+
+            public bool $verified = false;
+
             public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
             {
                 // TCK-602 — `meta` aussi : les URLs de retour que le service transmet au pilote.
@@ -100,6 +105,11 @@ trait LeaseDueFixture
 
             public function verify(string $externalId): DriverStatus
             {
+                if ($this->onVerify !== null) {
+                    ($this->onVerify)();
+                }
+                $this->verified = true;
+
                 return new DriverStatus($this->verifyStatus, $externalId, []);
             }
 

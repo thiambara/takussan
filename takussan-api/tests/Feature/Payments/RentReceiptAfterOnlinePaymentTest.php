@@ -7,6 +7,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\IntegrationWebhookLog;
 use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\LeasePaymentLinkService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -132,6 +133,40 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $this->getJson("/api/pay/{$token}")->assertStatus(410)->assertJsonPath('code', 'pay_link.gone');
+    }
+
+    /**
+     * VERIF-602 M1 — au retour du fournisseur, la page appelle `verify` pendant que le webhook du
+     * même règlement arrive. Le webhook solde PENDANT l'appel au fournisseur : `verify` relit
+     * l'échéance sous verrou, dans SA transaction, après l'appel — une seule quittance, un seul avis
+     * au bailleur, et l'entrée `gateway_events` du webhook n'est pas écrasée.
+     */
+    public function test_verify_racing_the_webhook_sends_a_single_receipt_and_keeps_the_webhook_event(): void
+    {
+        [$ctx, $token, $spy] = $this->initiatedWithoutAccount();
+        $spy->verifyStatus = DriverStatus::SUCCESS;
+        $spy->onVerify = function (): void {
+            $this->waveWebhook('spy_txn_1', 150000)->assertOk();
+        };
+
+        $base = DB::transactionLevel();
+        $locksAfterCall = [];
+        DB::listen(function (QueryExecuted $query) use ($spy, &$locksAfterCall): void {
+            if ($spy->verified && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
+                $locksAfterCall[] = DB::transactionLevel();
+            }
+        });
+
+        $this->postJson("/api/pay/{$token}/verify")->assertOk()->assertJsonPath('data.status', 'paid');
+
+        $this->assertNotEmpty($locksAfterCall, "verify : l'échéance n'est pas relue FOR UPDATE après l'appel au fournisseur");
+        foreach ($locksAfterCall as $level) {
+            $this->assertGreaterThan($base, $level, "verify : le FOR UPDATE n'est tenu par aucune transaction du code");
+        }
+        $this->assertCount(1, self::envoisALaDemande(NotificationCode::LeasePaymentSettledOnline));
+        $this->assertSame(1, self::nombreDEnvois($ctx['lease']->landlord, NotificationCode::LeasePaymentReceivedLandlord));
+        $events = $ctx['payment']->fresh()->metadata['gateway_events'] ?? [];
+        $this->assertCount(1, $events, "L'entrée du webhook survit à verify.");
     }
 
     /** AC19 — `verify` seul (webhook perdu) : une quittance. */
