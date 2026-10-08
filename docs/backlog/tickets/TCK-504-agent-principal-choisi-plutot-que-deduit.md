@@ -193,3 +193,33 @@ Le ticket date du 2026-08-31 ; 586, 587, 590, 591 et 598 ont touché le contact 
   repli/réactivation ; B8 sans écoute des collaborations → `retirer_ou_ajouter…` ; B9 l'ancienne marque
   gardée → `redesigner_deplace_la_marque…` (23505) ; C1 migration sans colonne → 18 rouges sur 19
   (le 404 d'une ligne d'un autre bien est jugé avant le service).
+
+### AC2 — la course réelle, à deux processus, sur base jetable
+
+Harnais `scratchpad/vague73/t504/race/` (base `takussan_tck504_race`, migrée par le code de la branche,
+`Notification::fake()`, `Http::preventStrayRequests()`, `LARAVEL_PDF_DRIVER=dompdf`, garde sur le nom de la
+base ; supprimée après). S1 : le processus A désigne sa ligne dans une transaction extérieure tenue
+1500 ms avant le `COMMIT`, B désigne l'autre ligne 300 ms après — le chevauchement est certain, pas
+probable. S2 : deux processus, 40 `PUT …/primary` HTTP chacun (noyau Laravel), alternés, en même temps.
+
+| Code | S1 | S1 inversé | S2 |
+|---|---|---|---|
+| branche (`course-head.log`) | A OK, B **attend 1259 ms** puis OK → 1 principal [B] | 1 principal [A] | 80 × 200, 1 principal |
+| R1 sans verrou du bien (`course-ablation.log`) | B → `23505` sur `property_collaborators_one_primary_per_property`, 1 principal [A] | idem, [B] | — |
+| R2 sans verrou ni index unique | A et B OK, **2 principaux [A,B]** | **2 principaux [B,A]** | — |
+| R3 sans index unique, verrou en place | 1 principal [B] | 1 principal [A] | — |
+
+Lecture : l'index garantit « un seul principal » à lui seul (R1), mais la seconde désignation y meurt en
+500 ; le verrou de la ligne du bien sérialise et fait réussir les deux (R3) ; sans les deux, deux
+principaux (R2). Mutation, course et restauration (`cp` + md5) dans `ablation-course.sh`, un seul script.
+
+### AC5 — le backfill sur le jeu des seeders
+
+Base `takussan_tck504_seed` : `migrate:fresh --seed` (179 s, `SEED_DOWNLOAD_MEDIA=false`, `Http::preventStrayRequests()`).
+La migration y passe avant les seeders, donc sans données : relevé « avant » = le repli de 502/590.
+Puis `migrate:rollback --step=1` (seule `2026_10_08_120000_…` revient), relevé sans la colonne, puis
+`migrate` (le backfill tourne sur les données semées), relevé « après » (`t504/seed/step2.sh`) :
+**856 biens, 182 marques posées, 0 contact changé** sur les trois relevés, mêmes ensembles de biens.
+64 biens y ont deux agents ou plus ; le semeur leur donne la même date d'invitation (départage par
+`id`) : les cas où l'ordre d'invitation contredit l'ordre d'insertion, un premier agent bloqué,
+suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `PrimaryAgentBackfillTest`.
