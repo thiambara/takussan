@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Public;
 
+use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\SimilarPropertiesService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\Sanctum;
 use Mockery\MockInterface;
 use Tests\ApiTestCase;
@@ -107,15 +110,49 @@ class PublicPropertyViewCounterTest extends ApiTestCase
         $this->assertSame(3, (int) Property::query()->whereKey($property->id)->value('views_count'));
     }
 
-    /** AC5 — un slug inconnu, ou un bien non public, rend 204 sans écriture. */
+    /**
+     * AC5 — un slug inconnu, ou un bien non public, rend 204 sans écriture. Après verif-598 (N3) :
+     * un brouillon seul ne suffisait pas — un `view()` qui n'écartait QUE les brouillons restait
+     * vert. Loué, privé et bien de test sont des biens hors du catalogue public qui ne sont pas des
+     * brouillons.
+     */
     public function test_un_slug_inconnu_ou_non_public_rend_204_sans_ecrire(): void
     {
-        $brouillon = Property::factory()->draft()->create(['views_count' => 0]);
+        $horsPublic = [
+            'brouillon' => Property::factory()->draft()->create(['views_count' => 0]),
+            'loué' => Property::factory()->published()->create(['views_count' => 0, 'status' => PropertyStatus::Rented]),
+            'privé' => Property::factory()->published()->create(['views_count' => 0, 'visibility' => 'private']),
+            'de test' => Property::factory()->published()->create(['views_count' => 0, 'is_test' => true]),
+        ];
 
         $this->postJson('/api/public/properties/slug-qui-n-existe-pas/view')->assertNoContent();
-        $this->postJson("/api/public/properties/{$brouillon->slug}/view")->assertNoContent();
+        foreach ($horsPublic as $cas => $bien) {
+            $this->postJson("/api/public/properties/{$bien->slug}/view")->assertNoContent();
+            $this->assertSame(0, (int) Property::query()->whereKey($bien->id)->value('views_count'), "bien {$cas} compté");
+        }
+    }
 
-        $this->assertSame(0, (int) Property::query()->whereKey($brouillon->id)->value('views_count'));
+    /**
+     * Après verif-598 (m1) — la déduplication est ATOMIQUE. « Lire le compte, puis l'incrémenter »
+     * laissait passer des requêtes simultanées (20 POST en parallèle → 6 vues mesurées, pour 3).
+     * Le compteur du limiteur est incrémenté AVANT toute décision : un crédit déjà épuisé par un
+     * autre processus entre la lecture et l'écriture — simulé ici en le consommant par
+     * `RateLimiter::hit()` directement, sans passer par `tooManyAttempts()` — ne compte plus.
+     */
+    public function test_la_deduplication_decide_sur_le_compte_incremente(): void
+    {
+        $property = $this->bienFige(0);
+        $cle = PropertyViewCounter::cle($property, '198.51.100.7');
+        $compteur = app(PropertyViewCounter::class);
+
+        foreach (range(1, 5) as $_) {
+            $compteur->record($property, '198.51.100.7');
+        }
+
+        $this->assertSame(3, (int) Property::query()->whereKey($property->id)->value('views_count'));
+        // Chaque appel a consommé le crédit, y compris ceux qui n'ont rien compté : la décision
+        // porte sur la valeur RENDUE par l'incrément, pas sur une lecture préalable.
+        $this->assertSame(5, RateLimiter::attempts($cle));
     }
 
     /**

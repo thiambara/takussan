@@ -36,11 +36,12 @@ class PropertyViewCounter
     {
         $cle = self::cle($property, $ip);
 
-        if (RateLimiter::tooManyAttempts($cle, self::MAX_PAR_HEURE)) {
+        // ATOMIQUE (verif-598, m1) : la décision porte sur la valeur que l'incrément RENVOIE. Lire
+        // le compte puis l'incrémenter laissait passer des requêtes simultanées — 20 POST en
+        // parallèle comptaient 6 vues au lieu de 3.
+        if (RateLimiter::hit($cle, self::FENETRE_SECONDES) > self::MAX_PAR_HEURE) {
             return;
         }
-
-        RateLimiter::hit($cle, self::FENETRE_SECONDES);
 
         Property::query()->whereKey($property->getKey())->toBase()->increment('views_count');
     }
