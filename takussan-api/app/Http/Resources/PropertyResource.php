@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -38,6 +39,13 @@ class PropertyResource extends BaseResource
         $isDetail = $request->routeIs('public.properties.show')
             || $request->routeIs('properties.show')
             || $request->routeIs('public.properties.compare');
+        // TCK-598 (contraintes 1 et 2, ADR-0052 §1) — sur une route `public.*`, le corps ne
+        // dépend PAS de l'appelant. `ResolveActiveProfile` propage un porteur Bearer au garde par
+        // défaut sur tout `api/*` (TCK-179) : sans cette règle, le jeton du propriétaire ajoutait
+        // les champs de modération, l'e-mail des collaborateurs et l'original signé des photos —
+        // et la fiche ne pouvait pas entrer dans un cache partagé.
+        $surfacePublique = $request->routeIs('public.*');
+        $appelantConnu = $request->user() !== null && ! $surfacePublique;
         $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [
@@ -131,11 +139,20 @@ class PropertyResource extends BaseResource
                         'order' => $media->order_column ?? ($index + 1),
                     ])->filter(fn (array $photo) => $photo['full'] !== null)->values()->all()
             ),
+            // TCK-598 (V19) — la visite virtuelle a sa colonne, et sort au premier niveau.
+            // `media_extra.virtual_tour_url` la REPREND pour la compatibilité : il lisait
+            // `metadata.virtual_tour_url`, qu'aucune route n'écrivait. Il disparaît une fois le
+            // front migré (« Pour la session » du ticket).
+            'virtual_tour_url' => $this->when($isDetail, fn () => $this->whenHas('virtual_tour_url')),
             'media_extra' => $this->when($isDetail, fn () => [
                 'videos' => $this->getMedia('videos')->map(fn (Media $m) => $m->getUrl())->values()->all(),
                 'plans' => $this->getMedia('plans')->map(fn (Media $m) => $m->getUrl())->values()->all(),
-                'virtual_tour_url' => data_get($this->metadata, 'virtual_tour_url'),
+                'virtual_tour_url' => $this->resource->getAttribute('virtual_tour_url'),
             ]),
+            // TCK-598 (V9) — ce qu'il faut verser pour emménager, d'une location mensuelle
+            // seulement ; `null` sinon, et `null` si rien n'est renseigné. Le calcul :
+            // `CoutDEntree`.
+            'entry_cost' => $this->when($isDetail, fn () => CoutDEntree::pour($this->resource)),
             'tags' => $this->when($isDetail, fn () => $this->resource->tags->map(fn (Tag $tag) => [
                 'id' => $tag->id,
                 'name' => $tag->name,
@@ -157,8 +174,13 @@ class PropertyResource extends BaseResource
             // Redéfinir une clé existante aurait corrigé la fiche en cassant tout le reste en
             // silence. La clé neuve, elle, ne ment nulle part : là où elle manque, elle manque.
             'primary_contact' => $this->when($isDetail, fn () => $this->buildPrimaryContact()),
+            // TCK-598 (B1) — JAMAIS sur une route `public.*`, quel que soit l'appelant : la part de
+            // commission et le rôle d'un collaborateur sont des données d'agence. `show()` et
+            // `compare()` chargent pourtant la relation, parce que `PrimaryPropertyContact` en a
+            // besoin : c'est la sérialisation qui se conditionne, pas le chargement (le retirer
+            // ferait un N+1 sans rien fermer). Qui peut la lire ailleurs relève de TCK-587.
             'collaborators' => $this->when(
-                $this->resource->relationLoaded('collaborators'),
+                ! $surfacePublique && $this->resource->relationLoaded('collaborators'),
                 fn () => $this->resource->collaborators->map(fn ($collaborator) => [
                     'id' => $collaborator->id,
                     'user_id' => $collaborator->user_id,
@@ -174,7 +196,7 @@ class PropertyResource extends BaseResource
                             // Collaborator email is private team data — only surface it to
                             // authenticated viewers (agent dashboard), never on the public
                             // property page which eager-loads `collaborators.user`.
-                            'email' => $request->user() ? $collaborator->user->email : null,
+                            'email' => $appelantConnu ? $collaborator->user->email : null,
                         ]
                         : null,
                 ])->values()->all()
@@ -198,20 +220,24 @@ class PropertyResource extends BaseResource
             // `NON_PUBLIC_STATUSES`) — 8.5% of the search payload, and a needless
             // disclosure of the moderation machinery. Absent, not null: a missing
             // key gets noticed, a null one gets believed.
+            //
+            // TCK-598 — `$appelantConnu` et non plus `$request->user() !== null` : sur une route
+            // `public.*`, ils ne sortent pour personne. Le tableau de bord les lit sur
+            // `properties.show`, authentifiée.
             'rejection_reason' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('rejection_reason'),
             ),
             'submitted_at' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('submitted_at', fn ($valeur) => $this->iso($valeur)),
             ),
             'approved_at' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('approved_at', fn ($valeur) => $this->iso($valeur)),
             ),
             'rejected_at' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('rejected_at', fn ($valeur) => $this->iso($valeur)),
             ),
         ];
@@ -323,6 +349,10 @@ class PropertyResource extends BaseResource
             'avatar_url' => $user->getFirstMediaUrl('avatar') ?: null,
             'is_agent' => $this->actsAsAgent($user),
             'member_since' => $this->iso($user->created_at),
+            // TCK-598 (V8, contrainte 9) — un BOOLÉEN dérivé, jamais la date ni le numéro. Il ne
+            // dépend pas de l'appelant (contrainte 2). Aucun « identité vérifiée » de personne :
+            // le modèle n'en porte pas (le KYC est celui de l'agence, `agency.verified`).
+            'phone_verified' => $user->phone_verified_at !== null,
         ];
     }
 
@@ -392,7 +422,7 @@ class PropertyResource extends BaseResource
      */
     private function urlFor(Media $media, string $conversion): ?string
     {
-        if (request()->boolean('raw') && Gate::allows('viewRaw', $media)) {
+        if (request()->boolean('raw') && ! request()->routeIs('public.*') && Gate::allows('viewRaw', $media)) {
             return app(PrivateMediaAccess::class)->signedUrl($media);
         }
 
@@ -410,7 +440,9 @@ class PropertyResource extends BaseResource
      */
     private function originalUrlFor(Media $media): ?string
     {
-        if (Gate::allows('viewRaw', $media)) {
+        // TCK-598 (contrainte 2) — jamais sur une route `public.*` : le propriétaire y reçoit la
+        // même conversion filigranée que n'importe qui, sinon la fiche dépend de l'appelant.
+        if (! request()->routeIs('public.*') && Gate::allows('viewRaw', $media)) {
             // TCK-539 (D2) — l'original est sur le disque PRIVÉ : `getUrl()` n'y est servie par
             // personne. Il sort par l'URL d'API signée, émise ici après la décision `viewRaw`.
             return app(PrivateMediaAccess::class)->signedUrl($media);

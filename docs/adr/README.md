@@ -66,6 +66,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 | [0041](0041-indisponibilites-et-echange-ical.md) | Une indisponibilité est une plage semi-ouverte du bien ; l'échange avec les calendriers externes passe par iCal, en jeton haché à l'export et derrière une garde SSRF à l'import | Accepté — précise ADR-0031 et ADR-0032 |
 | [0042](0042-preuve-de-consentement-a-la-signature-du-bail.md) | Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier » | Accepté — précise ADR-0031 et ADR-0032 |
+| [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

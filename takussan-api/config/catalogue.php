@@ -30,4 +30,35 @@ return [
     */
     'cities_max' => 500,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Domaine des quartiers — TCK-598
+    |--------------------------------------------------------------------------
+    |
+    | Plafond de `GET /api/public/properties/neighborhoods?city=…`, par ville. Même patron que
+    | `cities_max` : un domaine se rend entier ou dit qu'il est tronqué (`meta.truncated`).
+    |
+    */
+    'neighborhoods_max' => 300,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Hôtes autorisés d'une visite virtuelle — TCK-598 (contrainte 13)
+    |--------------------------------------------------------------------------
+    |
+    | Comparaison EXACTE de l'hôte, jamais par suffixe (`evilyoutube.com` est refusé). C'est une
+    | décision de produit, déclarée côté API : le front n'intègre que ce que l'API a laissé entrer.
+    | Option retenue par défaut, non tranchée par le porteur.
+    |
+    */
+    'virtual_tour_hosts' => [
+        'youtube.com',
+        'www.youtube.com',
+        'youtu.be',
+        'vimeo.com',
+        'player.vimeo.com',
+        'my.matterport.com',
+        'kuula.co',
+    ],
+
 ];

@@ -8,8 +8,6 @@ use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Property;
 use App\Models\Review;
@@ -208,10 +206,12 @@ class PublicAgentController extends Controller
 
         abort_if($agent === null, 404);
 
+        // TCK-598 (V15) — `publicPortfolio()`, le prédicat de l'index des profils : le prédicat
+        // écrit à la main ici oubliait `is_test` et `published_at`, et la page listait des biens
+        // dont la fiche rend 404.
         $portfolioBase = fn () => Property::query()
             ->where('user_id', $agent->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public);
+            ->publicPortfolio();
 
         $portfolio = $portfolioBase()
             ->with('address')
@@ -223,7 +223,10 @@ class PublicAgentController extends Controller
         $rentCount = $portfolioBase()->where('contract_type', ContractType::Rent)->count();
         $saleCount = $portfolioBase()->where('contract_type', ContractType::Sale)->count();
         $portfolioTotal = $portfolioBase()->count();
-        $citiesCount = $portfolioBase()
+        // Jointure : le portefeuille entre par sa sous-requête d'identifiants, sans quoi les
+        // colonnes nues du scope (`status`, `visibility`) deviendraient ambiguës (piège n°7).
+        $citiesCount = Property::query()
+            ->whereIn('properties.id', $portfolioBase()->select('properties.id'))
             ->join('addresses', function ($join) {
                 $join->on('addresses.addressable_id', '=', 'properties.id')
                     ->where('addresses.addressable_type', '=', Property::class);
@@ -359,8 +362,7 @@ class PublicAgentController extends Controller
 
         $properties = Property::query()
             ->where('user_id', $agent->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public)
+            ->publicPortfolio()
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

@@ -213,6 +213,26 @@ const EPREUVE = [
   // avaler la suite du fichier, donc rater en silence les `className` traversés.
   ['H5', 'H-valide', "<p className='truncate'>Aujourd'hui c'est l'été</p>", ['truncate'], []],
   ['H6', 'H-valide', "<p>{'du texte entre accolades'}</p>", [], []],
+
+  // ── I · ce qui a la FORME d'une liste sans en avoir la POSITION — CI de la PR #337 (TCK-598) ──
+  // I1 et I2 sont les deux faux positifs mesurés, à l'identique ; I3 à I5 bornent la correction :
+  // un attribut qui parle de classe, une constante et une variante arbitraire restent relevés.
+  ['I1', 'I-forme-sans-position',
+    '<iframe className="size-full" sandbox="allow-scripts allow-same-origin allow-presentation" />',
+    ['size-full'], []],
+  ['I2', 'I-forme-sans-position',
+    'console.error(`[canonique] le domaine des quartiers de ${ville} est TRONQUÉ côté API`);', [], []],
+  ['I3', 'I-forme-sans-position', '<Filtres controlsClassName="md:grid-cols-2 bg-vertkalpe" />',
+    ['md:grid-cols-2', 'bg-vertkalpe'], ['bg-vertkalpe']],
+  ['I4', 'I-forme-sans-position', "const VOILE = 'bg-vertkalpe/40 [&>div]:hidden [mask-type:alpha]';",
+    ['bg-vertkalpe/40', '[&>div]:hidden', '[mask-type:alpha]'], ['bg-vertkalpe/40']],
+  ['I5', 'I-forme-sans-position',
+    "<iframe {...props} title={t('x')} aria-label=\"allow-forms allow-popups\" sandbox=\"allow-scripts allow-forms\" />",
+    [], []],
+  // Sans point-virgule, un `<` de comparaison ressemble à une balise ouvrante : la déclaration
+  // qui suit ne doit pas être prise pour un attribut.
+  ['I6', 'I-forme-sans-position', "const petit = a < b\nconst VOILE = 'bg-vertkalpe/40 p-4';",
+    ['bg-vertkalpe/40', 'p-4'], ['bg-vertkalpe/40']],
 ];
 
 /**
@@ -232,6 +252,7 @@ const PLANCHER_PAR_FAMILLE = {
   'F-discriminant': 6,
   'G-execution': 2,
   'H-valide': 6,
+  'I-forme-sans-position': 6,
 };
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────

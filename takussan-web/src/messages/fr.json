@@ -322,7 +322,8 @@
       "titleContract": "{contract, select, rent {{subject} à louer} sale {{subject} à vendre} other {{subject}}}",
       "titleCity": "{subject} à {city}",
       "subjectAny": "Biens immobiliers",
-      "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
+      "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier.",
+      "titleQuarter": "{subject} à {quarter}, {city}"
     },
     "compare": {
       "title": "Comparer des biens",
@@ -760,7 +761,28 @@
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants.",
       "favoriteAddShort": "Ajouter",
       "favoriteSavedShort": "Favori",
-      "descriptionLanguageNotice": "{langue, select, fr {Description rédigée en français par l'annonceur} en {Description rédigée en anglais par l'annonceur} wo {Description rédigée en wolof par l'annonceur} other {Description rédigée par l'annonceur, dans sa langue}}"
+      "descriptionLanguageNotice": "{langue, select, fr {Description rédigée en français par l'annonceur} en {Description rédigée en anglais par l'annonceur} wo {Description rédigée en wolof par l'annonceur} other {Description rédigée par l'annonceur, dans sa langue}}",
+      "entryCost": {
+        "title": "Coût d'entrée",
+        "advance": "Avance",
+        "deposit": "Caution",
+        "agencyFee": "Frais d'agence",
+        "monthlyCharges": "Charges mensuelles",
+        "months": "{count, plural, one {# mois} other {# mois}}",
+        "total": "Total à l'entrée"
+      },
+      "trust": {
+        "phoneVerified": "Téléphone vérifié",
+        "safetyTitle": "Conseil de prudence",
+        "safetyBody": "Ne versez jamais d'argent avant d'avoir visité le bien et rencontré la personne qui le propose."
+      },
+      "virtualTour": {
+        "video": "Voir la vidéo du bien",
+        "tour": "Visite virtuelle",
+        "loadHint": "Se charge seulement quand vous l'ouvrez",
+        "frameTitle": "Visite virtuelle — {title}",
+        "opensNewTab": "(s'ouvre dans un nouvel onglet)"
+      }
     },
     "reviews": {
       "title": "Avis",
@@ -1360,7 +1382,20 @@
       "draftResumed": "Nous avons repris votre brouillon là où vous l’aviez laissé.",
       "draftSaveFailed": "Votre brouillon n’a pas pu être enregistré. Rien n’est perdu tant que vous restez sur cette page.",
       "draftSaveRetry": "Réessayer",
-      "draftAutosaveFailed": "L’enregistrement automatique ne répond plus : vos dernières modifications ne sont pas encore à l’abri."
+      "draftAutosaveFailed": "L’enregistrement automatique ne répond plus : vos dernières modifications ne sont pas encore à l’abri.",
+      "entryCost": {
+        "legend": "Coût d'entrée",
+        "hint": "Ce que le locataire verse pour emménager. Laissez vide ce qui ne s'applique pas.",
+        "advance": "Mois d'avance",
+        "deposit": "Mois de caution",
+        "agencyFee": "Frais d'agence (en mois de loyer)",
+        "monthlyCharges": "Charges mensuelles"
+      },
+      "virtualTour": {
+        "label": "Visite virtuelle ou vidéo (lien)",
+        "placeholder": "https://www.youtube.com/watch?v=…",
+        "hint": "Un lien YouTube, Vimeo, Matterport ou Kuula. Aucun fichier vidéo à envoyer."
+      }
     },
     "titleTypes": {
       "bail": "Bail",
@@ -1382,6 +1417,19 @@
       "urgent_sale": "Vente urgente",
       "seasonal": "Saisonnier",
       "correction": "Correction"
+    },
+    "retired": {
+      "title": {
+        "rented": "Ce bien a été loué",
+        "sold": "Ce bien a été vendu",
+        "withdrawn": "Ce bien n'est plus proposé"
+      },
+      "body": "L'annonce que vous cherchez n'est plus disponible. Voici des biens proches qui pourraient vous convenir.",
+      "similarTitle": "Des biens similaires",
+      "searchQuarter": "Voir les biens à {quarter}, {city}",
+      "searchCity": "Voir les biens à {city}",
+      "searchAll": "Voir tous les biens",
+      "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires."
     }
   },
   "dashboard": {
@@ -2205,7 +2253,8 @@
       "parking": "Places de parking",
       "amenities": "Équipements",
       "tags": "Autres",
-      "titleDeed": "Titre foncier"
+      "titleDeed": "Titre foncier",
+      "entryCost": "Coût d'entrée"
     },
     "table": {
       "ariaLabel": "Tableau comparatif des biens",
@@ -8460,7 +8509,8 @@
       "yearInvalid": "Année invalide.",
       "dateInvalid": "Format de date invalide (AAAA-MM-JJ).",
       "descriptionTooLong": "La description est trop longue.",
-      "statusInvalid": "Statut invalide."
+      "statusInvalid": "Statut invalide.",
+      "virtualTourInvalid": "Saisissez un lien qui commence par https://."
     },
     "search": {
       "savedSearchNameRequired": "Donnez un nom à cette recherche."
@@ -9325,5 +9375,17 @@
       "next": "Suivante",
       "pageOf": "Page {page} sur {last}"
     }
+  },
+  "horsLigne": {
+    "application": {
+      "nom": "Takussan — Immobilier au Sénégal",
+      "nomCourt": "Takussan",
+      "description": "Louez, achetez et vendez des biens au Sénégal."
+    },
+    "titre": "Vous êtes hors ligne",
+    "message": "Takussan ne parvient pas à joindre le réseau. La page se chargera dès que la connexion reviendra.",
+    "reessayer": "Réessayer",
+    "favorisTitre": "Vos favoris déjà consultés sur cet appareil",
+    "favorisVide": "Aucun de vos favoris n'est disponible hors ligne sur cet appareil."
   }
 }

@@ -65,6 +65,7 @@ export async function titreEtDescription(
   const type = retenus.get('type');
   const contrat = retenus.get('contract_type');
   const ville = retenus.get('city');
+  const quartier = retenus.get('location');
 
   // ⚠️ **DEUX DÉFENSES, ET ELLES NE GARDENT PAS LA MÊME CHOSE — ne pas en retirer une en croyant
   // qu'elle double l'autre.** Le texte ci-dessous décrivait l'état d'avant la fusion du lot, où
@@ -96,7 +97,9 @@ export async function titreEtDescription(
 
   let titre = libelleDuType ?? t('subjectAny');
   if (contrat) titre = t('titleContract', { subject: titre, contract: contrat });
-  if (ville) titre = t('titleCity', { subject: titre, city: ville });
+  // TCK-598 — un quartier n'est retenu qu'avec sa ville : le gabarit les nomme tous les deux.
+  if (ville && quartier) titre = t('titleQuarter', { subject: titre, quarter: quartier, city: ville });
+  else if (ville) titre = t('titleCity', { subject: titre, city: ville });
 
   return { title: titre, description: t('description', { title: titre }) };
 }

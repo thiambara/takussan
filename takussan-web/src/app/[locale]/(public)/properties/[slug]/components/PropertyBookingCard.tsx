@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import type { PropertyDetail } from '@/types/property';
+import { PropertyEntryCost } from './PropertyEntryCost';
 
 interface PropertyBookingCardProps {
   property: PropertyDetail;
@@ -50,6 +51,9 @@ export function PropertyBookingCard({
           <p className="text-sm text-muted-foreground mt-0.5">{property.contract_type_label}</p>
         )}
       </div>
+
+      {/* TCK-598 (V9) — sous le prix ; absent quand l'API rend `null`. */}
+      <PropertyEntryCost entryCost={property.entry_cost} currency={property.currency} />
 
       <div className="space-y-2">
         <Button type="button" className="w-full h-11 gap-2" onClick={onRequestBooking}>

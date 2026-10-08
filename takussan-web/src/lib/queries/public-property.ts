@@ -1,7 +1,20 @@
 import { cache } from 'react';
 
 import { ApiError, apiFetch } from '@/lib/api';
-import type { PropertyDetail } from '@/types/property';
+import { segmentDeSlug } from '@/lib/slug-de-bien';
+import type { PropertyDetail, PropertyListItem } from '@/types/property';
+
+/**
+ * TCK-598 (ADR-0052 §1) — la durée de vie des données de la fiche dans le cache de Next : le retard
+ * MAXIMAL d'un changement que l'invalidation signée n'a pas porté (photos, avis, agence, contact) —
+ * et du compteur de vues affiché (contrainte 4, accepté par le porteur le 2026-10-06).
+ */
+export const FRAICHEUR_FICHE_SECONDES = 300;
+
+/** L'étiquette de cache d'une fiche, que `api/revalidation/fiche` expire sur appel signé de l'API. */
+export function etiquetteDeFiche(slug: string): string {
+  return `property:${slug}`;
+}
 
 /**
  * Ce que la fiche publique a obtenu du serveur — **trois issues, jamais deux** (TCK-335, étape 6).
@@ -58,11 +71,21 @@ export type ResultatFichePublique =
  */
 export const getProperty = cache(
   async (slug: string, locale: string): Promise<ResultatFichePublique> => {
+    // Après verif-598 (m2) : `.` et `..` survivent à `encodeURIComponent` — `getProperty('.')`
+    // mettait la LISTE du catalogue en cache sous `property:.`. Hors forme, un bien introuvable.
+    const segment = segmentDeSlug(slug);
+    if (segment === null) return { etat: 'introuvable' };
     try {
+      // TCK-598 — lecture PARTAGÉE, en cache de données étiqueté par slug : une visite ne coûte
+      // plus un aller-retour à l'API, une revalidation par langue et par fenêtre le fait. Aucun
+      // en-tête propre au visiteur (`partage`) : ni IP ni jeton ne fragmentent la clé, et le corps
+      // de `public.*` ne dépend plus de l'appelant (contrainte 2). La vue se compte à part, depuis
+      // le navigateur (`CompteurDeVue`). Seules les réponses 200 entrent au cache : un 404 n'y
+      // reste pas.
       const res = await apiFetch<{ data: PropertyDetail }>(
-        `/public/properties/${encodeURIComponent(slug)}`,
-        undefined,
-        { locale },
+        `/public/properties/${segment}`,
+        { next: { revalidate: FRAICHEUR_FICHE_SECONDES, tags: [etiquetteDeFiche(slug)] } } as RequestInit,
+        { locale, partage: true },
       );
       return { etat: 'trouve', bien: res.data };
     } catch (err: unknown) {
@@ -74,6 +97,42 @@ export const getProperty = cache(
       // Elle part au journal serveur : elle est utile au développeur, jamais au visiteur.
       console.error(`[fiche publique] ${slug} : `, err);
       return { etat: 'indisponible' };
+    }
+  },
+);
+
+/** TCK-598 (V10) — ce qu'est devenu un bien dont la fiche rend 404. Des CODES : le front traduit. */
+export type EtatPublicDuBien = {
+  readonly state: 'available' | 'rented' | 'sold' | 'withdrawn';
+  readonly contract_type: string | null;
+  readonly type: string | null;
+  readonly location: { readonly city: string | null; readonly quarter: string | null };
+  readonly similar: readonly PropertyListItem[];
+};
+
+/**
+ * L'état d'un bien dont la fiche a rendu 404 — `null` si l'API dit 404 à son tour (le bien n'a
+ * jamais été une annonce publique, ou n'existe pas : indiscernables, et c'est voulu), ou si elle ne
+ * répond pas (on ne dira alors rien de plus que le 404).
+ *
+ * Appel rendu POUR le visiteur, hors cache : il n'a lieu que sur un 404 de la fiche.
+ */
+export const getEtatDuBien = cache(
+  async (slug: string, locale: string): Promise<EtatPublicDuBien | null> => {
+    const segment = segmentDeSlug(slug);
+    if (segment === null) return null;
+    try {
+      const res = await apiFetch<{ data: EtatPublicDuBien }>(
+        `/public/properties/${segment}/status`,
+        undefined,
+        { locale },
+      );
+      return res.data;
+    } catch (err: unknown) {
+      if (!(err instanceof ApiError && err.status === 404)) {
+        console.error(`[fiche publique] état de ${slug} : `, err);
+      }
+      return null;
     }
   },
 );

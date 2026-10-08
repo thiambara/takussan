@@ -24,6 +24,9 @@ export const COMPARE_ROW_DEFS: readonly CompareRowDef[] = [
   { id: 'contract_type', labelKey: 'contractType', category: 'general' },
   { id: 'type', labelKey: 'type', category: 'general' },
   { id: 'rent_period', labelKey: 'rentPeriod', category: 'general' },
+  // TCK-598 (V9) — ce qu'il faut verser pour emménager : deux loyers égaux ne coûtent pas la même
+  // chose à l'entrée. Le TOTAL calculé par l'API, jamais une addition refaite ici.
+  { id: 'entry_cost', labelKey: 'entryCost', category: 'general' },
   // TCK-491 — au Sénégal, le statut foncier départage deux terrains au même prix : il se lit avec
   // les critères qui décident, pas noyé dans les équipements.
   { id: 'title_type', labelKey: 'titleDeed', category: 'general' },
@@ -82,6 +85,10 @@ export function buildCell(
       return property.type_label ?? property.type ?? null;
     case 'rent_period':
       return property.rent_period_label ?? property.rent_period ?? null;
+    case 'entry_cost':
+      return property.entry_cost
+        ? formatPrice(property.entry_cost.total, property.currency || 'XOF')
+        : null;
     // Le libellé vient de l'API, dans la langue négociée — le même que celui de la fiche. Aucun
     // second vocabulaire côté front : `DIVERGENCES_CONNUES` de la garde de parité ne grossit pas.
     case 'title_type':
