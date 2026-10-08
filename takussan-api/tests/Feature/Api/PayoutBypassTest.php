@@ -23,6 +23,7 @@ use App\Notifications\CodedNotification;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Model\PayoutService;
 use App\Services\Payout\PayoutApprovalRule;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -968,6 +969,51 @@ class PayoutBypassTest extends TestCase
         $this->travel(25)->hours();
         $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk()->assertJsonPath('data.payout_method_id', $fresh->id);
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-4 — la retenue réglée pendant que sa restitution échoue : l'échec juge la
+     * facture sur la ligne verrouillée et la laisse payée (P4-1 la déduit), au lieu d'échouer en entier
+     * sur un `invoice.cannot_cancel` qui parle d'une facture. La course est rejouée sur ce que l'échec
+     * lit : le règlement concurrent se pose juste APRÈS une lecture sans verrou de la facture
+     * (l'instance lue est alors périmée), ou juste AVANT une lecture verrouillée (il l'a précédée — sous
+     * le verrou, il ne pourrait que l'attendre).
+     */
+    public function test_p4_4_a_retention_paid_meanwhile_does_not_fail_the_failed_refund(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $invoiceId = (int) $refund->json('data.invoice_id');
+        $this->postJson("/api/invoices/{$invoiceId}/send")->assertOk();
+
+        $paid = false;
+        $payMeanwhile = function (string $sql, array $bindings) use (&$paid, $invoiceId): void {
+            if ($paid || ! str_contains($sql, 'from "invoices"') || ! in_array($invoiceId, $bindings)) {
+                return;
+            }
+            $paid = true;
+            DB::table('invoices')->where('id', $invoiceId)->update(['status' => InvoiceStatus::Paid->value]);
+        };
+        DB::beforeExecuting(function (string $sql, array $bindings) use ($payMeanwhile): void {
+            if (str_contains($sql, 'for update')) {
+                $payMeanwhile($sql, $bindings);
+            }
+        });
+        DB::listen(function (QueryExecuted $query) use ($payMeanwhile): void {
+            if (! str_contains($query->sql, 'for update')) {
+                $payMeanwhile($query->sql, $query->bindings);
+            }
+        });
+
+        $this->postJson("/api/payouts/{$refund->json('data.payout_id')}/mark-failed", ['failed_reason' => 'numéro erroné'])
+            ->assertOk()->assertJsonPath('data.status', 'failed');
+
+        $this->assertTrue($paid, 'le règlement concurrent a eu lieu');
+        $this->assertSame(InvoiceStatus::Paid, Invoice::query()->findOrFail($invoiceId)->status);
+        $this->assertSame(0, Invoice::query()->where('kind', InvoiceKind::CreditNote->value)->count());
+        $this->assertEquals(300000, $lease->fresh()->deposit_remaining);
     }
 
     /**

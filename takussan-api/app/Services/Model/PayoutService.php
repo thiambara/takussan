@@ -776,11 +776,16 @@ class PayoutService
      * au locataire. Elle suit le chemin d'annulation de toute facture ({@see InvoiceService::cancel}) :
      * un brouillon s'annule, une facture émise se contrepasse par un avoir. Une facture déjà payée ou
      * annulée reste telle quelle — la restitution n'a pas à défaire un règlement.
+     *
+     * Passe 4, P4-4 — la facture se relit sous verrou (après le reversement et le bail, l'ordre de
+     * toute sortie) et son statut se juge sur cette ligne : lue sans verrou, une facture réglée entre
+     * la lecture et l'annulation faisait échouer tout le refus sur `invoice.cannot_cancel`. Réglée
+     * avant, elle reste payée, et le restituable la déduit (P4-1).
      */
     private function releaseRetentionInvoice(Payout $payout, ?User $actor): ?Invoice
     {
         $invoiceId = $payout->metadata['invoice_id'] ?? null;
-        $invoice = $invoiceId === null ? null : Invoice::query()->find((int) $invoiceId);
+        $invoice = $invoiceId === null ? null : Invoice::query()->whereKey((int) $invoiceId)->lockForUpdate()->first();
         if ($invoice === null) {
             return null;
         }
