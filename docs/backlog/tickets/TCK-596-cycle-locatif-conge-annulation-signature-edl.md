@@ -766,6 +766,18 @@ contrôlé, dans un seul script.
       course voyait, sont gardées par le relevé des requêtes de m-j (`cdbef851`).
 - Hors périmètre, ticket de suite : un bail résilié continue de facturer (sonde E11, préexistant).
 
+### 12. Ajoutés après la passe 7 de vérification adverse (verif-596 passe 7, REFUSÉ : 1 majeur, 1 mineur)
+
+- [x] **M-H** — `PaymentGatewayService::verify` (vérification forcée, `GET …/verify`) applique l'état sur la
+      ligne relue `FOR UPDATE` en transaction, **après** l'appel au fournisseur ; une échéance annulée
+      pendant l'appel prend la branche doublon (`gateway_duplicate_payment`). — `a79b9190`. Ablations
+      P7-MH.1 (instance lue avant) et P7-MH.2 (relecture sans verrou) rouges. Autres écrivains de `paid`
+      relus : le webhook (`paymentsForEvent`, déjà sous verrou), `markPaid` (M-G), `PayoutService` (ligne
+      `deposit_refund` seulement, qu'un renouvellement n'annule pas), `BookingPaymentService::create`
+      (création, aucune instance jugée) — aucun autre ne juge une instance périmée.
+- [x] **m-l** — le `FOR UPDATE` de la relecture de `markPaid` est gardé par un relevé `DB::listen`. —
+      `73332db9`. Ablation P7-MG.1 rouge.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -966,6 +978,10 @@ contrôlé, dans un seul script.
       réglée », sans pénalité (`LeaseSchedule.test.tsx`).
 - [x] AC53 — `renew` et l'activation verrouillent le parent `FOR NO KEY UPDATE`, et `renew` lit les
       échéances `FOR UPDATE` (`LeaseRenewalOverlapTest`).
+- [x] AC54 — Un renouvellement qui annule l'échéance pendant la vérification forcée d'un paiement en
+      ligne : l'échéance reste `cancelled`, sans `paid_at`, le règlement est marqué doublon, aucun mois
+      doublé ; la relecture se fait `FOR UPDATE` après l'appel (`LeaseRenewalOverlapTest`).
+- [x] AC55 — `mark-paid` relit l'échéance `FOR UPDATE` (`LeaseRenewalOverlapTest`).
 
 ## Hors périmètre
 
