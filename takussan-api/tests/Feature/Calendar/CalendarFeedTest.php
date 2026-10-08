@@ -5,11 +5,13 @@ namespace Tests\Feature\Calendar;
 use App\Models\Agency;
 use App\Models\CalendarFeed;
 use App\Models\Customer;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -209,6 +211,13 @@ class CalendarFeedTest extends ApiTestCase
         $provider = ServiceProviderProfile::factory()->create(['user_id' => $this->agent->id]);
         $agent = AgentProfile::query()->where('user_id', $this->agent->id)->value('id');
         $elsewhere = Property::factory()->create(['agency_id' => Agency::factory()->create()->id, 'title' => 'Bien C']);
+        // TCK-592 — l'intervention hors de A ne lui reste que par une collaboration active.
+        ServiceProviderAgencyCollaboration::query()->create([
+            'service_provider_profile_id' => $provider->id,
+            'agency_id' => $elsewhere->agency_id,
+            'status' => CollaborationStatus::Active->value,
+            'started_at' => now()->subMonth()->toDateString(),
+        ]);
         $here = Property::factory()->create(['agency_id' => $this->agency->id, 'title' => 'Bien A']);
         foreach ([$elsewhere, $here] as $property) {
             MaintenanceRequest::factory()->create([
