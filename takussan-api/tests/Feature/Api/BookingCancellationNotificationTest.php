@@ -2,9 +2,15 @@
 
 namespace Tests\Feature\Api;
 
+use App\Events\Booking\BookingClosed;
+use App\Exceptions\ApiError;
 use App\Models\AppNotification;
+use App\Models\Enums\BookingStatus;
 use App\Models\User;
+use App\Services\Booking\BookingExpirationService;
+use App\Services\Model\BookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsBookingStakeholders;
@@ -83,5 +89,51 @@ class BookingCancellationNotificationTest extends TestCase
 
         $this->assertSame([], $this->cancelledRecipients());
         $this->assertSame([$this->client->id], AppNotification::query()->where('code', 'booking.rejected')->pluck('user_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    /**
+     * VERIF-596 m2 — une annulation lue AVANT qu'une expiration ne valide. Sans verrou, elle écrasait
+     * `expired` par `cancelled` : la réservation était fermée deux fois, et deux avis partaient.
+     */
+    public function test_a_stale_cancel_after_an_expiry_is_refused_and_closes_once(): void
+    {
+        $booking = $this->bookingOfClient();
+        $stale = $booking->fresh();
+        Event::fake([BookingClosed::class]);
+
+        $this->assertTrue(app(BookingExpirationService::class)->expire($booking->fresh(), 'deadline'));
+
+        try {
+            app(BookingService::class)->cancel($stale, $this->client);
+            $this->fail('une réservation expirée ne s\'annule pas');
+        } catch (ApiError $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('booking.cannot_cancel', $e->errorCode);
+        }
+
+        $this->assertSame(BookingStatus::Expired, $booking->fresh()->status);
+        Event::assertDispatchedTimes(BookingClosed::class, 1);
+        Event::assertDispatched(BookingClosed::class, fn (BookingClosed $e) => $e->reason === BookingClosed::REASON_EXPIRED);
+    }
+
+    /** Même défaut sur le refus : lu avant l'expiration, il ne la réécrit pas. */
+    public function test_a_stale_reject_after_an_expiry_is_refused_and_closes_once(): void
+    {
+        $booking = $this->bookingOfClient();
+        $stale = $booking->fresh();
+        Event::fake([BookingClosed::class]);
+
+        $this->assertTrue(app(BookingExpirationService::class)->expire($booking->fresh(), 'deadline'));
+
+        try {
+            app(BookingService::class)->reject($stale, null, $this->landlord);
+            $this->fail('une réservation expirée ne se refuse pas');
+        } catch (ApiError $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('booking.not_pending_reject', $e->errorCode);
+        }
+
+        $this->assertSame(BookingStatus::Expired, $booking->fresh()->status);
+        Event::assertDispatchedTimes(BookingClosed::class, 1);
     }
 }

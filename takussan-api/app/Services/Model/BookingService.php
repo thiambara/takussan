@@ -210,19 +210,25 @@ class BookingService
 
     public function reject(Booking $booking, ?string $reason = null, ?User $by = null): Booking
     {
-        abort_code_unless(
-            $booking->status === BookingStatus::Pending,
-            422,
-            'booking.not_pending_reject'
-        );
+        // VERIF-596 m2 (même défaut que `cancel`) — sous le verrou de la ligne, relue : un refus lu
+        // avant qu'une expiration ne valide écrasait `expired` et fermait la réservation deux fois.
+        $booking = DB::transaction(function () use ($booking, $reason): Booking {
+            /** @var Booking $locked */
+            $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            abort_code_unless(
+                $locked->status === BookingStatus::Pending,
+                422,
+                'booking.not_pending_reject'
+            );
 
-        $booking->update([
-            'status' => BookingStatus::Rejected,
-            'cancelled_at' => now(),
-            'cancellation_reason' => $reason,
-        ]);
+            $locked->update([
+                'status' => BookingStatus::Rejected,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $reason,
+            ]);
 
-        $booking->refresh();
+            return $locked->refresh();
+        });
 
         $customer = $booking->customer?->user;
         if ($customer) {
@@ -250,29 +256,36 @@ class BookingService
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
     {
-        abort_code_if(
-            in_array($booking->status, self::TERMINAL_CANCEL_STATUSES, true),
-            422,
-            'booking.cannot_cancel'
-        );
+        // VERIF-596 m2 — le contrôle terminal se fait sous le verrou de la ligne, relue : une
+        // annulation lue avant qu'une expiration ne valide écrasait `expired` par `cancelled`, et la
+        // réservation était fermée deux fois (`BookingClosed` expiré PUIS annulé, deux avis).
+        $booking = DB::transaction(function () use ($booking, $user, $reason): Booking {
+            /** @var Booking $locked */
+            $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            abort_code_if(
+                in_array($locked->status, self::TERMINAL_CANCEL_STATUSES, true),
+                422,
+                'booking.cannot_cancel'
+            );
 
-        $property = $booking->property;
-        if ($user->id === $booking->customer?->user_id) {
-            $by = CancellationBy::Customer;
-        } elseif ($property && $property->user_id === $user->id) {
-            $by = CancellationBy::Owner;
-        } else {
-            $by = CancellationBy::Agent;
-        }
+            $property = $locked->property;
+            if ($user->id === $locked->customer?->user_id) {
+                $by = CancellationBy::Customer;
+            } elseif ($property && $property->user_id === $user->id) {
+                $by = CancellationBy::Owner;
+            } else {
+                $by = CancellationBy::Agent;
+            }
 
-        $booking->update([
-            'status' => BookingStatus::Cancelled,
-            'cancelled_at' => now(),
-            'cancellation_by' => $by,
-            'cancellation_reason' => $reason,
-        ]);
+            $locked->update([
+                'status' => BookingStatus::Cancelled,
+                'cancelled_at' => now(),
+                'cancellation_by' => $by,
+                'cancellation_reason' => $reason,
+            ]);
 
-        $booking->refresh();
+            return $locked->refresh();
+        });
 
         // TCK-596 — l'annulation prévient toutes les parties prenantes MOINS son auteur
         // (`NotifyOnBookingCancelled`), et un acompte encaissé ouvre une tâche
