@@ -2690,7 +2690,8 @@
       "history": "History",
       "invoices": "Invoices",
       "payouts": "Payouts",
-      "approvals": "To approve"
+      "approvals": "To approve",
+      "bills": "Repairs"
     },
     "actions": {
       "createInvoice": "Generate an invoice",
@@ -2841,6 +2842,35 @@
       "downloadCsv": "Download CSV",
       "downloadFailed": "The statement download failed.",
       "unavailable": "The statement is not available."
+    },
+    "serviceProviderBills": {
+      "providerTitle": "My repair invoices",
+      "agencyTitle": "Service provider invoices",
+      "emptyTitle": "No repair invoice",
+      "emptyProvider": "Your invoices will appear here once your jobs are completed.",
+      "emptyAgency": "Service provider invoices to validate will appear here.",
+      "reference": "Reference",
+      "intervention": "Job",
+      "amount": "Amount",
+      "statusLabel": "Status",
+      "actions": "Actions",
+      "exceedsQuote": "Exceeds the approved quote",
+      "rechargeable": "Recharge to the landlord",
+      "rechargedToLandlord": "Charged to the landlord's payout",
+      "validate": "Validate",
+      "reject": "Reject",
+      "confirmReject": "Confirm rejection",
+      "cancel": "Cancel",
+      "rejectionReason": "Rejection reason",
+      "pay": "Pay the provider",
+      "actionFailed": "The invoice action failed.",
+      "status": {
+        "pending_validation": "To validate",
+        "validated": "Validated",
+        "rejected": "Rejected",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "lease": {

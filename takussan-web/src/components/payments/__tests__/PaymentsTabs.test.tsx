@@ -23,6 +23,7 @@ vi.mock('next/navigation', () => ({
 const AUTH = vi.hoisted(() => ({ current: { user: { id: 9, roles: ['agent'] as string[] } } }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH.current }));
 vi.mock('../OwnerStatementPanel', () => ({ OwnerStatementPanel: () => <p>relevé de gérance</p> }));
+vi.mock('../ServiceProviderBillsTable', () => ({ ServiceProviderBillsTable: () => null }));
 
 // Les tables et les dialogues ont leurs propres tests ; ils tireraient ici leurs requêtes.
 vi.mock('../PaymentsHistoryFilters', () => ({ PaymentsHistoryFilters: () => null }));
@@ -53,6 +54,17 @@ describe('PaymentsTabs — boutons de création gardés par capacité (TCK-528)'
     vi.clearAllMocks();
     ONGLET.current = '';
     AUTH.current = { user: { id: 9, roles: ['agent'] } };
+  });
+
+  it('ne montre les factures des prestataires qu’à qui tient payouts.create (TCK-594)', () => {
+    accorder(['payouts.approve']);
+    const { unmount } = rendre();
+    expect(screen.queryByRole('tab', { name: fr.payments.tabs.bills })).not.toBeInTheDocument();
+    unmount();
+
+    accorder(['payouts.create']);
+    rendre();
+    expect(screen.getByRole('tab', { name: fr.payments.tabs.bills })).toBeInTheDocument();
   });
 
   it('montre le relevé de gérance au bailleur, à côté de ses versements (TCK-594)', () => {

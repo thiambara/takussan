@@ -1305,7 +1305,8 @@
       "history": "Taariix",
       "invoices": "Fakteer yi",
       "payouts": "Delloo xaalis",
-      "approvals": "Ngir nangu"
+      "approvals": "Ngir nangu",
+      "bills": "Liggéey yi"
     },
     "actions": {
       "createInvoice": "Génne fakteer",
@@ -1456,6 +1457,35 @@
       "downloadCsv": "Yebbi CSV bi",
       "downloadFailed": "Yebbi relevé bi antuwul.",
       "unavailable": "Relevé bi amul fii."
+    },
+    "serviceProviderBills": {
+      "providerTitle": "Samay factuur liggéey",
+      "agencyTitle": "Factuur yu prestataire yi",
+      "emptyTitle": "Amul benn factuur liggéey",
+      "emptyProvider": "Say factuur dinañu feeñ fii bu say liggéey jeexee.",
+      "emptyAgency": "Factuur yu prestataire yi ñuy war a nangu dinañu feeñ fii.",
+      "reference": "Référence",
+      "intervention": "Liggéey",
+      "amount": "Xaalis bi",
+      "statusLabel": "Fan la tollu",
+      "actions": "Jëf yi",
+      "exceedsQuote": "Ëpp na devis bi ñu nangu",
+      "rechargeable": "Yobbu ko ci boroom kër gi",
+      "rechargedToLandlord": "Dañu ko wàññi ci reversement boroom kër gi",
+      "validate": "Nangu",
+      "reject": "Bañ",
+      "confirmReject": "Dëggal bañ bi",
+      "cancel": "Neenal",
+      "rejectionReason": "Lu tax ñu bañ",
+      "pay": "Fey prestataire bi",
+      "actionFailed": "Jëf ji ci factuur bi antuwul.",
+      "status": {
+        "pending_validation": "Ngir nangu",
+        "validated": "Nangu nañu ko",
+        "rejected": "Bañ nañu ko",
+        "paid": "Fey nañu ko",
+        "cancelled": "Neenal nañu ko"
+      }
     }
   },
   "lease": {

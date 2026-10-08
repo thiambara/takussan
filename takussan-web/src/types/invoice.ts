@@ -197,3 +197,27 @@ export type OwnerStatement = {
     processed_at: string | null;
   }>;
 };
+
+/** TCK-594 (ADR-0039 §8) — la facture d'un prestataire pour une intervention terminée. */
+export type ServiceProviderBillStatus = 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
+
+export type ServiceProviderBill = {
+  id: number;
+  maintenance_request_id: number | null;
+  agency_id: number | null;
+  property_id: number | null;
+  provider_id: number;
+  reference_number: string | null;
+  provider_reference: string | null;
+  amount: number;
+  currency: string;
+  /** Le montant dépasse le devis approuvé : l'agence le lit avant de valider. */
+  exceeds_quote: boolean;
+  status: ServiceProviderBillStatus;
+  validated_at: string | null;
+  rejection_reason: string | null;
+  rechargeable_to_landlord: boolean;
+  imputed_payout_id: number | null;
+  created_at: string | null;
+};
+

@@ -18,6 +18,7 @@ import type {
   PayoutMethodKind,
   PayoutPreparation,
   PayoutStatus,
+  ServiceProviderBill,
 } from '@/types/invoice';
 
 /**
@@ -76,6 +77,7 @@ export const paymentsQueryKeys = {
     ['payouts', 'preparation', params] as const,
   myPayoutMethods: ['payout-methods', 'me'] as const,
   ownerStatement: (period: string) => ['owner-statements', period] as const,
+  serviceProviderBills: (params: UseServiceProviderBillsParams) => ['service-provider-bills', params] as const,
 };
 
 export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
@@ -426,3 +428,84 @@ export function useDeleteMyPayoutMethod() {
     { invalidate: [['payout-methods']] },
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TCK-594 (ADR-0039 §8) — factures d'intervention
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SERVICE_PROVIDER_BILL_FIELDS = [
+  'id',
+  'maintenance_request_id',
+  'agency_id',
+  'property_id',
+  'provider_id',
+  'reference_number',
+  'provider_reference',
+  'amount',
+  'currency',
+  'exceeds_quote',
+  'status',
+  'validated_at',
+  'rejection_reason',
+  'rechargeable_to_landlord',
+  'imputed_payout_id',
+  'created_at',
+];
+
+export type UseServiceProviderBillsParams = {
+  /** Le prestataire lit SES factures ; l'agence lit celles qu'elle a à traiter. */
+  provider_id?: number;
+  agency_id?: number;
+  page?: number;
+};
+
+export function useServiceProviderBills(params: UseServiceProviderBillsParams, enabled = true) {
+  const filter: Record<string, number> = {};
+  if (params.provider_id) filter.provider_id = params.provider_id;
+  if (params.agency_id) filter.agency_id = params.agency_id;
+  return useApiQuery<PaginatedResponse<ServiceProviderBill>>(
+    paymentsQueryKeys.serviceProviderBills(params),
+    '/api/service-provider-bills',
+    {
+      params: {
+        fields: { service_provider_bills: SERVICE_PROVIDER_BILL_FIELDS },
+        filter,
+        sort: '-created_at',
+        page: params.page ?? 1,
+        per_page: 20,
+      },
+      enabled,
+    },
+  );
+}
+
+export function useValidateServiceProviderBill() {
+  return useApiMutation<ApiResponse<ServiceProviderBill>, { id: number; rechargeable_to_landlord: boolean }>(
+    {
+      path: ({ id }) => `/api/service-provider-bills/${id}/validate`,
+      method: 'POST',
+      body: ({ rechargeable_to_landlord }) => ({ rechargeable_to_landlord }),
+    },
+    { invalidate: [['service-provider-bills'], ['payouts']] },
+  );
+}
+
+export function useRejectServiceProviderBill() {
+  return useApiMutation<ApiResponse<ServiceProviderBill>, { id: number; rejection_reason: string }>(
+    {
+      path: ({ id }) => `/api/service-provider-bills/${id}/reject`,
+      method: 'POST',
+      body: ({ rejection_reason }) => ({ rejection_reason }),
+    },
+    { invalidate: [['service-provider-bills'], ['payouts']] },
+  );
+}
+
+/** Crée le reversement au prestataire (soumis au seuil des quatre yeux), sans le marquer payé. */
+export function usePayServiceProviderBill() {
+  return useApiMutation<ApiResponse<Payout>, { id: number }>(
+    { path: ({ id }) => `/api/service-provider-bills/${id}/pay`, method: 'POST', body: () => ({}) },
+    { invalidate: [['service-provider-bills'], ['payouts']] },
+  );
+}
+

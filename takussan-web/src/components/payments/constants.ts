@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/console';
-import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
+import type { InvoiceStatus, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
 
 /**
  * Variantes de badge et helpers purs des vues « paiements » (TCK-063). À garder
@@ -81,6 +81,15 @@ export const PAYOUT_STATUS_TONE: Record<PayoutStatus, StatusTone> = {
   processing: 'info',
   completed: 'success',
   failed: 'danger',
+  cancelled: 'neutral',
+};
+
+/** TCK-594 (ADR-0039 §8) — la facture d'intervention attend la validation de l'agence. */
+export const SERVICE_PROVIDER_BILL_STATUS_TONE: Record<ServiceProviderBillStatus, StatusTone> = {
+  pending_validation: 'attention',
+  validated: 'info',
+  rejected: 'danger',
+  paid: 'success',
   cancelled: 'neutral',
 };
 

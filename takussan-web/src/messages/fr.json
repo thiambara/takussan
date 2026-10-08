@@ -2665,7 +2665,8 @@
       "history": "Historique",
       "invoices": "Factures",
       "payouts": "Reversements",
-      "approvals": "À approuver"
+      "approvals": "À approuver",
+      "bills": "Interventions"
     },
     "actions": {
       "createInvoice": "Générer une facture",
@@ -2816,6 +2817,35 @@
       "downloadCsv": "Télécharger le CSV",
       "downloadFailed": "Le téléchargement du relevé a échoué.",
       "unavailable": "Le relevé n'est pas disponible."
+    },
+    "serviceProviderBills": {
+      "providerTitle": "Mes factures d'intervention",
+      "agencyTitle": "Factures des prestataires",
+      "emptyTitle": "Aucune facture d'intervention",
+      "emptyProvider": "Vos factures apparaîtront ici une fois vos interventions terminées.",
+      "emptyAgency": "Les factures des prestataires à valider apparaîtront ici.",
+      "reference": "Référence",
+      "intervention": "Intervention",
+      "amount": "Montant",
+      "statusLabel": "Statut",
+      "actions": "Actions",
+      "exceedsQuote": "Dépasse le devis approuvé",
+      "rechargeable": "Refacturer au bailleur",
+      "rechargedToLandlord": "Imputée sur le reversement du bailleur",
+      "validate": "Valider",
+      "reject": "Rejeter",
+      "confirmReject": "Confirmer le rejet",
+      "cancel": "Annuler",
+      "rejectionReason": "Motif du rejet",
+      "pay": "Payer le prestataire",
+      "actionFailed": "L'action sur la facture a échoué.",
+      "status": {
+        "pending_validation": "À valider",
+        "validated": "Validée",
+        "rejected": "Rejetée",
+        "paid": "Payée",
+        "cancelled": "Annulée"
+      }
     }
   },
   "lease": {

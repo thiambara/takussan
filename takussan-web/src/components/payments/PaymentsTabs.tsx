@@ -21,8 +21,9 @@ import { PayoutDetailDialog } from './PayoutDetailDialog';
 import { PayoutsTable } from './PayoutsTable';
 import { PaymentsHistoryFilters } from './PaymentsHistoryFilters';
 import { PaymentsHistoryTable } from './PaymentsHistoryTable';
+import { ServiceProviderBillsTable } from './ServiceProviderBillsTable';
 
-const TAB_VALUES = ['history', 'invoices', 'payouts', 'approvals'] as const;
+const TAB_VALUES = ['history', 'invoices', 'payouts', 'approvals', 'bills'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 function isTabValue(value: string | null): value is TabValue {
@@ -82,6 +83,8 @@ export function PaymentsTabs() {
             <TabsTrigger value="invoices">{t('tabs.invoices')}</TabsTrigger>
             <TabsTrigger value="payouts">{t('tabs.payouts')}</TabsTrigger>
             {peutApprouver ? <TabsTrigger value="approvals">{t('tabs.approvals')}</TabsTrigger> : null}
+            {/* TCK-594 (ADR-0039 §8) — les factures des prestataires, à valider puis à payer. */}
+            {peutReverser ? <TabsTrigger value="bills">{t('tabs.bills')}</TabsTrigger> : null}
           </TabsList>
           {capacitesEnCours ? (
             <Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" data-testid="payments-actions-loading" />
@@ -120,6 +123,12 @@ export function PaymentsTabs() {
         {peutApprouver ? (
           <TabsContent value="approvals" className="space-y-4">
             <PayoutsTable onSelect={setPayoutId} status="awaiting_approval" />
+          </TabsContent>
+        ) : null}
+
+        {peutReverser ? (
+          <TabsContent value="bills" className="space-y-4">
+            <ServiceProviderBillsTable mode="agency" onPaid={setPayoutId} />
           </TabsContent>
         ) : null}
       </Tabs>
