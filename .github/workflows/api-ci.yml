@@ -128,7 +128,12 @@ jobs:
           # aussi `vendor/` (~100 paquets) pour un résultat que `<source>` de
           # `phpunit.xml` filtre de toute façon à l'arrivée : on paierait la collecte
           # d'un rapport qu'on jette.
-          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=1G
+          # `memory_limit` : les rapports de couverture (PHP pour la carte d'impact, HTML) se
+          # construisent en mémoire et grossissent avec la suite. À 1G, ils échouaient après une
+          # suite VERTE (`Allowed memory size … exhausted`, sortie 255, cliquet non évalué) :
+          # mesuré sur les 3 pushes vers `dev` du 2026-10-08 (5289 tests) et sur la PR #343.
+          # Le runner public a 16 Go ; 4G laisse de la marge sans masquer une fuite d'un test.
+          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=4G
           tools: composer:v2
 
       - name: Cache composer dependencies
