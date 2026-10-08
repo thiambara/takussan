@@ -186,6 +186,14 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [{ key: 'X-Build-Sha', value: process.env.BUILD_SHA ?? 'inconnu' }],
       },
+      // TCK-602 (ADR-0051 §1) — le jeton d'un lien de paiement EST le droit de payer et de lire la
+      // quittance : aucun `Referer` ne le porte vers le fournisseur ni vers un lien sortant. La
+      // balise de `generateMetadata` ne couvre que le HTML ; l'en-tête couvre aussi la redirection
+      // `/pay/…` → `/<langue>/pay/…` du proxy.
+      ...['/pay/:path*', '/:locale/pay/:path*'].map((source) => ({
+        source,
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      })),
     ];
   },
 };

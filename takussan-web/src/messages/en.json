@@ -3530,6 +3530,12 @@
           "submit": "Record anyway",
           "cancel": "Cancel"
         }
+      },
+      "paymentLink": {
+        "copy": "Payment link",
+        "copied": "Payment link copied: send it to the tenant.",
+        "ready": "Payment link ready: send it to the tenant.",
+        "failed": "The payment link could not be created."
       }
     },
     "fallbackReference": "Lease #{id}",
@@ -9705,5 +9711,37 @@
     "reessayer": "Try again",
     "favorisTitre": "Your favorites already viewed on this device",
     "favorisVide": "None of your favorites is available offline on this device."
+  },
+  "payLink": {
+    "metaTitle": "Pay my rent",
+    "title": "Pay your instalment",
+    "loading": "Opening the link…",
+    "dueDate": "Due date",
+    "reference": "Reference",
+    "amountDue": "Amount to pay",
+    "rent": "Rent",
+    "lateFee": "Late fee",
+    "lateFeeAtAgency": "To be paid to the agency {agency}.",
+    "payWith": "Pay with {provider}",
+    "providers": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "lemon_squeezy": "Bank card",
+      "free_money": "Free Money"
+    },
+    "payError": "The payment could not be opened. Please try again in a moment.",
+    "unavailable": "Online payment is not available for this instalment. Please contact the agency {agency}.",
+    "cancelledNotice": "The payment was cancelled. You can try again.",
+    "paid": "This instalment is paid. Thank you!",
+    "receipt": "Download the receipt",
+    "receiptFile": "receipt",
+    "receiptError": "The receipt could not be downloaded. Please try again in a moment.",
+    "goneTitle": "This link is no longer valid",
+    "goneDescription": "It has expired or been replaced. Ask your agency for a new link.",
+    "goneDescriptionAgency": "It has expired or been replaced. Ask the agency {agency} for a new link.",
+    "notFoundTitle": "Link not found",
+    "notFoundDescription": "Check the address you received, or ask your agency for a new link.",
+    "error": "The instalment could not be loaded. Please try again in a moment.",
+    "retry": "Try again"
   }
 }

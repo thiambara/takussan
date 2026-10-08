@@ -3505,6 +3505,12 @@
           "submit": "Enregistrer quand même",
           "cancel": "Annuler"
         }
+      },
+      "paymentLink": {
+        "copy": "Lien de paiement",
+        "copied": "Lien de paiement copié : transmettez-le au locataire.",
+        "ready": "Lien de paiement prêt : transmettez-le au locataire.",
+        "failed": "Le lien de paiement n'a pas pu être créé."
       }
     },
     "fallbackReference": "Bail #{id}",
@@ -9705,5 +9711,37 @@
     "reessayer": "Réessayer",
     "favorisTitre": "Vos favoris déjà consultés sur cet appareil",
     "favorisVide": "Aucun de vos favoris n'est disponible hors ligne sur cet appareil."
+  },
+  "payLink": {
+    "metaTitle": "Payer mon loyer",
+    "title": "Régler votre échéance",
+    "loading": "Ouverture du lien…",
+    "dueDate": "Échéance",
+    "reference": "Référence",
+    "amountDue": "Montant à payer",
+    "rent": "Loyer",
+    "lateFee": "Pénalité de retard",
+    "lateFeeAtAgency": "À régler auprès de l'agence {agency}.",
+    "payWith": "Payer avec {provider}",
+    "providers": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "lemon_squeezy": "Carte bancaire",
+      "free_money": "Free Money"
+    },
+    "payError": "Le paiement n'a pas pu être ouvert. Réessayez dans un instant.",
+    "unavailable": "Le paiement en ligne n'est pas disponible pour cette échéance. Contactez l'agence {agency}.",
+    "cancelledNotice": "Le paiement a été annulé. Vous pouvez réessayer.",
+    "paid": "Cette échéance est réglée. Merci !",
+    "receipt": "Télécharger la quittance",
+    "receiptFile": "quittance",
+    "receiptError": "La quittance n'a pas pu être téléchargée. Réessayez dans un instant.",
+    "goneTitle": "Ce lien n'est plus valide",
+    "goneDescription": "Il a expiré ou a été remplacé. Demandez un nouveau lien à votre agence.",
+    "goneDescriptionAgency": "Il a expiré ou a été remplacé. Demandez un nouveau lien à l'agence {agency}.",
+    "notFoundTitle": "Lien introuvable",
+    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à votre agence.",
+    "error": "L'échéance n'a pas pu être chargée. Réessayez dans un instant.",
+    "retry": "Réessayer"
   }
 }

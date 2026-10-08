@@ -23,6 +23,7 @@ import { LeaseSchedule } from '../LeaseSchedule';
 
 const useLeasePayments = vi.fn();
 const markLateFeePaid = vi.fn();
+const issuePaymentLink = vi.fn();
 const providers = vi.fn<() => string[]>(() => []);
 
 /**
@@ -41,6 +42,7 @@ vi.mock('@/lib/queries/leases', () => ({
         : markLateFeePaid(variables),
     isPending: false,
   }),
+  useIssuePaymentLink: () => ({ mutateAsync: issuePaymentLink, isPending: false }),
 }));
 
 vi.mock('@/hooks/usePaymentProviders', () => ({
@@ -364,5 +366,29 @@ describe('LeaseSchedule — le montant annoncé est celui que la passerelle enca
     const valeurs = within(dialogue).getAllByRole('definition').map((dd) => texte(dd.textContent));
     expect(valeurs).toEqual(['150 000 F CFA', '7 500 F CFA', '157 500 F CFA']);
     expect(within(dialogue).queryByText(/auprès de l’agence/)).toBeNull();
+  });
+});
+
+describe('LeaseSchedule — lien de paiement (TCK-602)', () => {
+  it('qui gère le bail obtient le lien d’une échéance due, et il part au presse-papiers', async () => {
+    avecEcheances([PAYEE, enRetard()]);
+    const url = 'https://www.takussan.com/pay/' + 'a'.repeat(43);
+    issuePaymentLink.mockResolvedValue({ data: { url, expires_at: null } });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    rendre(true);
+
+    expect(within(ligne(/LP-2026-0011|juil/)).queryByTestId('lien-de-paiement')).toBeNull();
+    fireEvent.click(screen.getByTestId('lien-de-paiement'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(url));
+    expect(issuePaymentLink).toHaveBeenCalledWith({ paymentId: 12 });
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: fr.lease.schedule.paymentLink.copied, type: 'success' }));
+  });
+
+  it('le locataire ne voit pas l’action', () => {
+    avecEcheances([enRetard()]);
+    rendre(false);
+    expect(screen.queryByTestId('lien-de-paiement')).toBeNull();
   });
 });

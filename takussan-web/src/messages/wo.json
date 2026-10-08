@@ -2079,6 +2079,12 @@
           "submit": "Bind ko rekk",
           "cancel": "Neenal"
         }
+      },
+      "paymentLink": {
+        "copy": "Lien bu ñuy fey",
+        "copied": "Lien bu ñuy fey bi duppi nañu ko : yónneel ko ki luwaas.",
+        "ready": "Lien bu ñuy fey bi pare na : yónneel ko ki luwaas.",
+        "failed": "Lien bu ñuy fey bi mënul sosu."
       }
     },
     "fallbackReference": "Luwé #{id}",
@@ -9705,5 +9711,37 @@
     "reessayer": "Jéemaatal",
     "favorisTitre": "Sa bëgg-bëgg yi nga xoolewoon ci bii aparey",
     "favorisVide": "Amul benn ci sa bëgg-bëgg yi mën a feeñ te amul internet ci bii aparey."
+  },
+  "payLink": {
+    "metaTitle": "Fey sama luwaasu kër",
+    "title": "Fey sa luwaas",
+    "loading": "Nu ngi ubbi lien bi…",
+    "dueDate": "Bës bu ñuy fey",
+    "reference": "Référence",
+    "amountDue": "Xaalis bi nga wara fey",
+    "rent": "Luwaas",
+    "lateFee": "Pénalité yeexteg",
+    "lateFeeAtAgency": "Dangay fey ko ca agence {agency}.",
+    "payWith": "Fey ak {provider}",
+    "providers": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "lemon_squeezy": "Carte bancaire",
+      "free_money": "Free Money"
+    },
+    "payError": "Feyum bi mënul ubbiku. Jéemaatal ci kanam.",
+    "unavailable": "Feyum internet amul ci luwaas bii. Jokkool ak agence {agency}.",
+    "cancelledNotice": "Feyum bi dañu ko neenal. Mën nga jéemaat.",
+    "paid": "Luwaas bii fey nañu ko. Jërëjëf!",
+    "receipt": "Yebbi quittance bi",
+    "receiptFile": "quittance",
+    "receiptError": "Quittance bi mënul yebbiku. Jéemaatal ci kanam.",
+    "goneTitle": "Lien bii baaxatul",
+    "goneDescription": "Jeexna walla soppi nañu ko. Laajal sa agence lien bu bees.",
+    "goneDescriptionAgency": "Jeexna walla soppi nañu ko. Laajal agence {agency} lien bu bees.",
+    "notFoundTitle": "Lien bi gisuñu ko",
+    "notFoundDescription": "Seetal adres bi nga jot, walla laajal sa agence lien bu bees.",
+    "error": "Luwaas bi mënul feeñ. Jéemaatal ci kanam.",
+    "retry": "Jéemaat"
   }
 }
