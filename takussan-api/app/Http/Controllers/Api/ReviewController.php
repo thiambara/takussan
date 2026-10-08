@@ -27,6 +27,7 @@ use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
 use App\Support\VisitorFingerprint;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -66,7 +67,7 @@ class ReviewController extends Controller
         // verif-597 passe 2 n2 — l'avatar de l'auteur et le profil plateforme de l'acteur
         // (`Gate::before`, deux fois par ligne pour `can_reply` / `can_moderate`) chargés une fois.
         $user->loadMissing('platformProfile');
-        $query = Review::query()->with(['author.media', 'reviewable']);
+        $query = Review::query()->with(['author.media', 'reviewable' => self::reviewableWithAccount(...)]);
 
         if ($isSelfFilter) {
             $query->where('author_id', $user->id);
@@ -230,7 +231,7 @@ class ReviewController extends Controller
         $request->user()->loadMissing('platformProfile');
 
         $query = $received->for($request->user())
-            ->with(['author.media', 'reviewable'])
+            ->with(['author.media', 'reviewable' => self::reviewableWithAccount(...)])
             ->latest('reviews.created_at')
             ->latest('reviews.id');
 
@@ -255,6 +256,15 @@ class ReviewController extends Controller
             'data' => ReviewResource::collection($paginator->getCollection())->toArray($request),
             'meta' => $this->paginationMeta($paginator),
         ]);
+    }
+
+    /**
+     * verif-597 passe 3, n3 — `ReviewResource` titre un avis de prestataire par le nom de son
+     * compte : sans ce préchargement, chaque ligne relisait `users`.
+     */
+    private static function reviewableWithAccount(MorphTo $reviewable): void
+    {
+        $reviewable->morphWith([ServiceProviderProfile::class => ['user']]);
     }
 
     public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse
