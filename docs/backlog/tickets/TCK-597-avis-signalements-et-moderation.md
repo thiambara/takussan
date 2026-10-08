@@ -536,6 +536,23 @@ ticket de suite côté session).
 - [x] **Fusion d'`origin/dev`** avec 589 et 592 (`bbbe65d2`) : les admins créés à la main par les tests
   portent la 2FA exigée par 589.
 
+### 11. Ajoutés après la passe 3 de vérification adverse (verif-597 passe 3, 2026-10-08)
+
+Rapport du vérificateur : REFUSÉ, 0 bloquant, 1 majeur (M5), 2 mineurs (n3, n1′). B1′ est fermé
+(0 fuite sur 24 chemins).
+
+- [x] **M5** — la modération plateforme hors de `/api/admin` exige la 2FA de 589 : nouvelle liste
+  `ProtectedActions::PLATFORM_TWO_FACTOR` (`PropertyModerationController@approve` et `@reject`,
+  `ReviewController@moderate`, `@approve` et `@reject`), lue par `RequireTwoFactor` pour les **seuls**
+  profils plateforme, jamais rangée dans `AGENCY_TWO_FACTOR` : l'admin d'agence garde ses gestes
+  d'agence sans 2FA. Pas de step-up : la décision symétrique sous `/api/admin/moderation` n'en exige
+  pas. Ajout local, sans réorganiser les deux fichiers (raccord TCK-600). ADR-0043 §4, ADR-0033 §8.
+- [x] **n3** — `index` et `received` préchargent le compte des avis de prestataire
+  (`morphWith([ServiceProviderProfile::class => ['user']])`).
+- [x] **n1′** — le test de n1 juge aussi les écritures hexadécimale (`::ffff:cb00:7105`), majuscule
+  (`::FFFF:a.b.c.d`) et développée d'une IPv4-mappée.
+- [x] **Fusion d'`origin/dev`** (`92f72217`, carte d'impact du bot seule).
+
 ## Critères d'acceptation
 
 - [x] **AC1 (cloisonnement, rouge sur le code actuel).** Prenons deux agences A et B, et un admin
@@ -812,6 +829,43 @@ correctif. Chaque ablation est restaurée par `cp` avec contrôle md5 (`scratchp
   policy sans la mémoire → 2 rouges ; mémoire rangée sous l'application → 1 rouge
   (`test_the_memory_does_not_outlive_the_request`).
 
+### Ajoutés après la passe 3 de vérification adverse (verif-597 passe 3, 2026-10-08)
+
+« Rouge sur b7be45ca » : le test écrit d'abord, joué sur les sources de b7be45ca, avant le correctif.
+Ablations dans un seul script, restaurées par `cp` avec contrôle md5 (`scratchpad/t597/ablate-p3.py`).
+
+- [x] **AC30 (M5).** Hors de `/api/admin`, un super-admin sans 2FA reçoit 403 `two_factor_required`
+  sur `PATCH /api/reviews/{id}/moderate` (retrait d'un avis publié), `POST /api/reviews/{id}/approve`
+  et `…/reject`, `POST /api/properties/{id}/approve` et `…/reject` d'un bien sous verrou ; un jeton
+  réel qui n'a pas vu le second facteur reçoit 403 `two_factor_step_up_required` sur les mêmes. Rien
+  ne change en base. Une session à deux facteurs tranche ici comme sous la console (200). Un admin
+  d'agence sans 2FA approuve et masque un avis en attente et approuve un bien sans verrou (200).
+  `ProtectedActionsCoverageTest` exige que toute route mutante des contrôleurs de la liste soit
+  rangée (protégée ou exemptée avec motif).
+
+  **Preuve :** `Admin/PlatformModerationTwoFactorTest` (6 tests) et
+  `ProtectedActionsCoverageTest::test_toute_route_mutante_de_la_moderation_plateforme_est_rangee`.
+  Rouge sur b7be45ca : 4 tests. Ablations : garde retirée du middleware → 4 rouges ; entrée
+  `ReviewController@moderate` retirée → 3 rouges (couverture comprise) ; entrée
+  `PropertyModerationController@approve` retirée → 3 rouges ; liste appliquée à tous comme
+  `AGENCY_TWO_FACTOR` → 1 rouge (témoin de l'admin d'agence).
+
+- [x] **AC31 (n3).** Avec des avis de bien, d'agent, d'agence et de prestataire mêlés, le nombre de
+  requêtes est constant en N, à 3 près, sur 4 endpoints : `/reviews` (admin d'agence et super-admin),
+  `/reviews/received` (admin d'agence et agent).
+
+  **Preuve :** `ReviewFlagsQueryCountTest`. Rouge sur b7be45ca : 3 tests (27 → 44, 18 → 35 et
+  26 → 32 requêtes ; après : 23 → 20, 14 → 11, 22 → 20, 18 → 16). Ablations : `morphWith` retiré →
+  3 rouges ; `index` sans le préchargement → 2 rouges ; `received` sans le préchargement → 1 rouge.
+
+- [x] **AC32 (n1′).** `::ffff:cb00:7105`, `::FFFF:203.0.113.5` et `0:0:0:0:0:ffff:cb00:7105` donnent
+  le réseau `203.0.113.5` et l'empreinte de l'IPv4 nue ; deux IPv4-mappées hexadécimales distinctes
+  donnent deux empreintes.
+
+  **Preuve :** `PublicReportTest::test_ipv4_mapped_addresses_are_ipv4_visitors`. Correctif de test
+  seul : vert sur b7be45ca, mais la mutation « déballage textuel seul » du vérificateur, qui y
+  survivait, le rougit maintenant (1 rouge) ; déballage retiré → 1 rouge.
+
 ## Hors périmètre
 
 - **L'annuaire public des prestataires** (seconde moitié de P20). Aucune ligne de spec ne le porte
@@ -822,6 +876,10 @@ correctif. Chaque ablation est restaurée par `cp` avec contrôle md5 (`scratchp
 - **La page « bien retiré »** : TCK-598.
 - **Le plafond de `per_page` sur `public/properties/{slug}/reviews`** : TCK-598 (V16).
 - **L'auto-masquage d'une annonce après N signalements** : refusé par ADR B (contournable).
+- **`featured` et les autres pouvoirs plateforme hors `/api/admin` qui ne sont pas de 597** (verif-597
+  passe 3) : la 2FA ne couvre ici que la modération de 597. Ticket de suite côté session.
+- **Le bien en ligne avant la modération, puis rendu privé, réécrit et rendu public** (observation de
+  la passe 3) : ticket de suite côté session.
 
 ## Notes d'implémentation
 
