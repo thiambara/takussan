@@ -27,6 +27,7 @@ use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
 use App\Support\VisitorFingerprint;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class ReviewController extends Controller
         private readonly ReviewNotifier $notifier,
     ) {}
 
-    /** TCK-597 — plafond de `per_page` de la file : un client ne tire pas toute la table. */
+    /** TCK-597 — plafond de `per_page` de la file et des listes d'un sujet : un client ne tire pas toute la table. */
     public const MAX_PER_PAGE = 100;
 
     /**
@@ -208,14 +209,28 @@ class ReviewController extends Controller
 
     public function indexForProperty(Request $request, Property $property): JsonResponse
     {
-        $reviews = $property->reviews()
+        return $this->subjectReviews($request, $property->reviews(), $property);
+    }
+
+    /**
+     * verif-597 passe 4, n4 — la page des avis publiés d'un sujet (bien, agence). Les drapeaux
+     * `can_reply` / `can_moderate` relisaient, ligne à ligne, le profil plateforme de l'acteur
+     * (`Gate::before`) et la cible (`ReviewPolicy::reply`) : l'acteur est chargé une fois, la cible
+     * est le sujet lui-même, posé sur chaque avis. La page est plafonnée comme la file.
+     */
+    private function subjectReviews(Request $request, MorphMany $reviews, Model $subject): JsonResponse
+    {
+        $request->user()?->loadMissing('platformProfile');
+
+        $page = $reviews->with('author.media')
             ->where('is_approved', true)
             ->latest()
-            ->paginate((int) $request->input('per_page', 10));
+            ->paginate(max(1, min((int) $request->input('per_page', 10), self::MAX_PER_PAGE)));
+        $page->getCollection()->each->setRelation('reviewable', $subject);
 
         return $this->json([
-            'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => $this->paginationMeta($reviews),
+            'data' => ReviewResource::collection($page)->toArray($request),
+            'meta' => $this->paginationMeta($page),
         ]);
     }
 
@@ -366,15 +381,7 @@ class ReviewController extends Controller
 
     public function indexForAgency(Request $request, Agency $agency): JsonResponse
     {
-        $reviews = $agency->reviews()
-            ->where('is_approved', true)
-            ->latest()
-            ->paginate((int) $request->input('per_page', 10));
-
-        return $this->json([
-            'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => $this->paginationMeta($reviews),
-        ]);
+        return $this->subjectReviews($request, $agency->reviews(), $agency);
     }
 
     public function storeForAgency(StoreForAgencyReviewRequest $request, Agency $agency): JsonResponse

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Controllers\Api\ReviewController;
 use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\ReviewStatus;
@@ -127,6 +128,72 @@ class ReviewFlagsQueryCountTest extends ApiTestCase
         $at100 = $this->queriesFor($viewer, $uri, $rowsAt100);
 
         $this->assertLessThanOrEqual($at20 + 3, $at100, "20 avis : {$at20} requêtes ; 100 avis : {$at100}.");
+    }
+
+    /**
+     * verif-597 passe 4, n4 — les listes d'un sujet (`GET /api/properties/{id}/reviews`,
+     * `GET /api/agencies/{id}/reviews`) émettent les mêmes drapeaux : 5 → 25 avis coûtaient
+     * 44 → 144 requêtes (acteur, cible, auteur et avatar relus ligne à ligne).
+     *
+     * @return array<string, array{string, string}>
+     */
+    public static function subjectListings(): array
+    {
+        return [
+            'avis du bien, client' => ['client', 'property'],
+            'avis du bien, admin' => ['agency_admin', 'property'],
+            'avis du bien, super-admin' => ['super_admin', 'property'],
+            'avis de l\'agence, client' => ['client', 'agency'],
+            'avis de l\'agence, admin' => ['agency_admin', 'agency'],
+        ];
+    }
+
+    private function subjectReviews(Property $property, int $count): void
+    {
+        foreach ([Property::class => $property->id, Agency::class => $this->agency->id] as $type => $id) {
+            Review::factory()->count($count)->create([
+                'reviewable_type' => $type,
+                'reviewable_id' => $id,
+                'agency_id' => $this->agency->id,
+                'status' => ReviewStatus::Approved,
+                'is_approved' => true,
+            ]);
+        }
+    }
+
+    #[DataProvider('subjectListings')]
+    public function test_the_subject_listings_cost_the_same_for_5_and_for_25_reviews(string $viewer, string $subject): void
+    {
+        $this->viewers['client'] = User::factory()->create();
+        $property = Property::factory()->published()->create([
+            'agency_id' => $this->agency->id,
+            'user_id' => $this->viewers['agent']->id,
+        ]);
+        $uri = $subject === 'property'
+            ? "/api/properties/{$property->id}/reviews?per_page=100"
+            : "/api/agencies/{$this->agency->id}/reviews?per_page=100";
+
+        $this->subjectReviews($property, 5);
+        $at5 = $this->queriesFor($viewer, $uri, 5);
+
+        $this->subjectReviews($property, 20);
+        $at25 = $this->queriesFor($viewer, $uri, 25);
+
+        $this->assertLessThanOrEqual($at5 + 3, $at25, "5 avis : {$at5} requêtes ; 25 avis : {$at25}.");
+    }
+
+    /** n4 — la page d'un sujet est plafonnée comme la file : un client ne tire pas toute la table. */
+    public function test_the_subject_listings_cap_per_page(): void
+    {
+        $property = Property::factory()->published()->create(['agency_id' => $this->agency->id]);
+        $this->subjectReviews($property, 1);
+        $this->actingAsApi($this->viewers['agent']);
+
+        foreach (["/api/properties/{$property->id}/reviews", "/api/agencies/{$this->agency->id}/reviews"] as $uri) {
+            $this->getJson("{$uri}?per_page=100000")->assertOk()
+                ->assertJsonPath('meta.per_page', ReviewController::MAX_PER_PAGE);
+            $this->getJson("{$uri}?per_page=0")->assertOk()->assertJsonPath('meta.per_page', 1);
+        }
     }
 
     /**
