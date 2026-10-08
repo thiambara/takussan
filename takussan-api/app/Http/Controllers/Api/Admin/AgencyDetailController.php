@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\PropertyResource;
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PropertyStatus;
@@ -14,6 +15,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Models\Activity;
 
 class AgencyDetailController extends Controller
 {
@@ -24,8 +26,35 @@ class AgencyDetailController extends Controller
         $agency->load(self::readsPeople($request) ? ['primaryAdmin', 'addresses'] : ['addresses']);
 
         return $this->json([
-            'data' => (new AgencyDetailResource($agency))->resolve($request),
+            'data' => (new AgencyDetailResource($agency))->resolve($request) + [
+                'suspension' => $this->suspension($agency),
+            ],
         ]);
+    }
+
+    /**
+     * TCK-600 (ADR-0048) — une agence suspendue l'affiche avec son motif et sa date : ceux de la
+     * dernière suspension journalisée. `null` hors suspension.
+     *
+     * @return array{reason: string|null, suspended_at: string|null}|null
+     */
+    private function suspension(Agency $agency): ?array
+    {
+        if ($agency->status !== AgencyStatus::Suspended) {
+            return null;
+        }
+
+        $activite = Activity::query()
+            ->where('subject_type', $agency->getMorphClass())
+            ->where('subject_id', $agency->getKey())
+            ->where('event', 'super_admin_agency_suspended')
+            ->latest('id')
+            ->first();
+
+        return [
+            'reason' => $activite?->properties['reason'] ?? null,
+            'suspended_at' => $activite?->created_at?->toIso8601String(),
+        ];
     }
 
     public function health(Agency $agency): JsonResponse

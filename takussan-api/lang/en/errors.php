@@ -30,6 +30,7 @@ return [
         'individual_no_team' => 'Individual agencies don\'t have a team to manage.',
         'kyc_not_verified' => 'The agency KYC must be verified before the agency can be verified.',
         'not_suspended' => 'This agency is not suspended.',
+        'reinstate_first' => 'This agency is suspended: lift the suspension first, with a reason.',
         'staff_only' => 'This data is reserved for the agency\'s staff.',
         'standard_only' => 'This feature is reserved for standard agencies.',
         'suspended' => 'This agency is suspended: its data can still be read and exported, but nothing can be changed.',

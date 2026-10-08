@@ -6,8 +6,10 @@ use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RentPeriod;
+use App\Models\KycDossier;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\CodedNotification;
@@ -104,6 +106,13 @@ class AgencySuspensionTest extends TestCase
 
         $activite = Activity::query()->where('event', 'super_admin_agency_suspended')->sole();
         $this->assertSame(self::MOTIF, $activite->properties['reason']);
+        // La fiche de la console l'affiche, motif et date compris — à un `viewer` aussi.
+        $this->agirEnOperateur(PlatformProfileLevel::Viewer);
+        $this->getJson("/api/admin/agencies/{$this->agence->id}")
+            ->assertOk()
+            ->assertJsonPath('data.suspension.reason', self::MOTIF)
+            ->assertJsonPath('data.suspension.suspended_at', $activite->created_at->toIso8601String());
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
         Notification::assertSentTo($admin, CodedNotification::class, function (CodedNotification $n) {
             return $n->code === NotificationCode::AgencySuspended && $n->params['reason'] === self::MOTIF;
         });
@@ -114,6 +123,7 @@ class AgencySuspensionTest extends TestCase
             Activity::query()->where('event', 'super_admin_agency_reinstated')->sole()->properties['reason'],
         );
         Notification::assertSentTo($admin, CodedNotification::class, self::deCode(NotificationCode::AgencyReinstated));
+        $this->getJson("/api/admin/agencies/{$this->agence->id}")->assertOk()->assertJsonPath('data.suspension', null);
     }
 
     public function test_lever_n_agit_que_sur_une_agence_suspendue_et_garde_la_verification(): void
@@ -127,6 +137,29 @@ class AgencySuspensionTest extends TestCase
         $this->postJson("/api/admin/agencies/{$this->agence->id}/reinstate", ['reason' => 'Encore.'])
             ->assertStatus(422)
             ->assertJsonPath('code', 'agency.not_suspended');
+    }
+
+    /** Second chemin : ni `verify` ni `unverify` ne sortent de `suspended` sans motif. */
+    public function test_verifier_ou_deverifier_ne_levent_pas_la_suspension(): void
+    {
+        Notification::fake();
+        $this->agence->forceFill(['status' => AgencyStatus::Suspended, 'is_verified' => true, 'verified_at' => now()])->save();
+        KycDossier::query()->create([
+            'subject_type' => Agency::class,
+            'subject_id' => $this->agence->id,
+            'status' => KycDossierStatus::Verified,
+        ]);
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+
+        foreach (['verify', 'unverify'] as $geste) {
+            $this->postJson("/api/admin/agencies/{$this->agence->id}/{$geste}")
+                ->assertStatus(422)
+                ->assertJsonPath('code', 'agency.reinstate_first');
+        }
+
+        $this->assertSame(AgencyStatus::Suspended, $this->agence->fresh()->status);
+        $this->assertTrue((bool) $this->agence->fresh()->is_verified);
+        Notification::assertNothingSent();
     }
 
     public function test_seul_le_super_admin_suspend(): void

@@ -30,6 +30,7 @@ return [
         'individual_no_team' => 'Les agences individuelles n\'ont pas d\'équipe à gérer.',
         'kyc_not_verified' => 'Le KYC de l\'agence doit être vérifié avant de vérifier l\'agence.',
         'not_suspended' => 'Cette agence n\'est pas suspendue.',
+        'reinstate_first' => 'Cette agence est suspendue : levez d\'abord la suspension, avec un motif.',
         'staff_only' => 'Cette donnée est réservée au personnel de l\'agence.',
         'standard_only' => 'Cette fonctionnalité est réservée aux agences standard.',
         'suspended' => 'Cette agence est suspendue : ses données restent consultables et exportables, mais aucune modification n\'est possible.',

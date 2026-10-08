@@ -30,6 +30,7 @@ return [
         'individual_no_team' => 'Ajance ind amul kuréel mu mën a toppatoo.',
         'kyc_not_verified' => 'KYC agence bi war nañu ko dëggal balaa ñuy dëggal agence bi.',
         'not_suspended' => 'Ajaans bii taxawaluñu ko.',
+        'reinstate_first' => 'Ajaans bii dañu ko taxawal : neddi taxawal bi ci kanam, ak ab lay.',
         'staff_only' => 'Xibaar yii, liggéeykati ajaans bi rekk ñoo ko moom.',
         'standard_only' => 'Fonctionnalité bii, agence standard yi rekk ñoo ko am.',
         'suspended' => 'Ajaans bii dañu ko taxawal : sa bataaxal yi mën nañu leen jàng ak génne, waaye dara mënul soppiku.',

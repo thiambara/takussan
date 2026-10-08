@@ -179,6 +179,7 @@ class AgencyModerationController extends Controller
 
     public function verify(Request $request, Agency $agency): JsonResponse
     {
+        $this->refuseSuspended($agency);
         abort_code_unless(
             $agency->kycDossier?->status === KycDossierStatus::Verified,
             422,
@@ -214,10 +215,22 @@ class AgencyModerationController extends Controller
 
     public function unverify(Request $request, Agency $agency): JsonResponse
     {
+        $this->refuseSuspended($agency);
+
         return $this->transition($request, $agency, AgencyStatus::Inactive, 'super_admin_agency_unverified', [
             'is_verified' => false,
             'verified_at' => null,
         ]);
+    }
+
+    /**
+     * TCK-600 (ADR-0048 §6) — `reinstate` est la SEULE sortie de `suspended`. `verify` (vers
+     * `active`) et `unverify` (vers `inactive`, qui lève le verrou d'écriture) en étaient deux
+     * autres, sans motif ni avis aux admins : chacune levait la sanction en silence.
+     */
+    private function refuseSuspended(Agency $agency): void
+    {
+        abort_code_if($agency->status === AgencyStatus::Suspended, 422, 'agency.reinstate_first');
     }
 
     private function transition(
