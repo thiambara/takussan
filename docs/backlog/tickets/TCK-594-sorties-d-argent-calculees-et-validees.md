@@ -1346,4 +1346,9 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   Conséquence produit : **un bailleur ou un prestataire configure un second facteur avant d'ajouter
   sa première destination** ; l'écran le résout sur place (`GardeDoubleFacteur`, enrôlement puis
   rejeu).
-
+- **Fusion de `origin/dev` (TCK-592).** Conflits de texte résolus en gardant les deux côtés (ADR
+  README, page profil, `messages`). `CapabilityEnforcementInventory` : chaque branche retirait ce
+  qu'elle branche ; les quatre capacités sortent, le cliquet passe de 12 à 10. Le test de 592 qui
+  exigeait l'absence de `MaintenanceRequestObserver` vérifie désormais que le seul observateur est
+  celui de 594 et qu'il n'écoute pas `MaintenanceStatusChanged` (coordination prévue). L'observateur
+  lit `quote_decision_at` / `quote_rejection_reason`, que 592 garde : inchangé.
