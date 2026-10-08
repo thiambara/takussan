@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -13,7 +14,7 @@ import { GripVertical, Loader2, Star, Trash2, UploadCloud, X } from 'lucide-reac
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { reduirePhotos } from '@/lib/reduire-photo';
+import { reduirePhotos, reduirePhotosSousPlafond } from '@/lib/reduire-photo';
 
 /**
  * MediaManager — TCK-071
@@ -123,6 +124,8 @@ export function MediaManager({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // TCK-596 — un identifiant par instance (voir `MediaDropzone`).
+  const inputId = useId();
   // Mirror of `dragIndex` so synchronous drop handlers can read it even
   // before React has committed the state update from dragStart.
   const dragIndexRef = useRef<number | null>(null);
@@ -298,7 +301,7 @@ export function MediaManager({
       </header>
 
       <label
-        htmlFor="media-manager-input"
+        htmlFor={inputId}
         onDragEnter={(e) => {
           e.preventDefault();
           setIsDragOverDropzone(true);
@@ -325,7 +328,7 @@ export function MediaManager({
         </p>
         <input
           ref={fileInputRef}
-          id="media-manager-input"
+          id={inputId}
           data-testid="media-manager-input"
           type="file"
           accept={acceptAttr}
@@ -549,33 +552,37 @@ export function MediaDropzone({
   const t = useTranslations('media');
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // TCK-596 — un identifiant PAR zone. Un id fixe faisait désigner au `<label for>` de chaque zone
+  // le premier input de la page : toucher la zone de la pièce N remplissait la pièce 1.
+  const inputId = useId();
 
-  const validateAndEmit = useCallback(
-    (list: FileList | null) => {
-      if (!list || list.length === 0) return;
-      if (list.length + files.length > maxFiles) {
-        setError(t('max_files', { max: maxFiles }));
+  const validateAndEmit = async (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    if (list.length + files.length > maxFiles) {
+      setError(t('max_files', { max: maxFiles }));
+      return;
+    }
+    // TCK-596 — réduites AVANT la validation, comme `MediaManager` (TCK-542), et jusque sous le
+    // plafond : une photo de téléphone de 7 Mo passe sous les 5 Mo de l'état des lieux au lieu
+    // d'être refusée.
+    const reduites = await reduirePhotosSousPlafond(Array.from(list), maxSize);
+    const next: File[] = [];
+    for (const f of reduites) {
+      const err = validateFile(f, accept, maxSize, t);
+      if (err) {
+        setError(err);
         return;
       }
-      const next: File[] = [];
-      for (const f of Array.from(list)) {
-        const err = validateFile(f, accept, maxSize, t);
-        if (err) {
-          setError(err);
-          return;
-        }
-        next.push(f);
-      }
-      setError(null);
-      onChange(next);
-    },
-    [accept, files.length, maxFiles, maxSize, onChange, t],
-  );
+      next.push(f);
+    }
+    setError(null);
+    onChange(next);
+  };
 
   return (
     <div>
       <label
-        htmlFor="media-dropzone-input"
+        htmlFor={inputId}
         onDragEnter={(e) => {
           e.preventDefault();
           setIsDragOver(true);
@@ -588,7 +595,7 @@ export function MediaDropzone({
         onDrop={(e) => {
           e.preventDefault();
           setIsDragOver(false);
-          validateAndEmit(e.dataTransfer.files);
+          void validateAndEmit(e.dataTransfer.files);
         }}
         className={cn(
           'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
@@ -601,13 +608,15 @@ export function MediaDropzone({
           {t('dropzone_hint_short', { size: formatMo(maxSize), max: maxFiles })}
         </p>
         <input
-          id="media-dropzone-input"
+          id={inputId}
           data-testid="media-dropzone-input"
           type="file"
           accept={accept.join(',')}
           multiple
           className="sr-only"
-          onChange={(e) => validateAndEmit(e.target.files)}
+          onChange={(e) => {
+            void validateAndEmit(e.target.files);
+          }}
         />
       </label>
 

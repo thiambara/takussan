@@ -34,6 +34,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'auth.forgotPassword.sentBody': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
     'takussan-api/app/Services/Account/DeletionStepUpService.php:38 — CODE_TTL_SECONDS = 300, usage unique',
+  // TCK-596 §4B (ADR-0042 §2) — le code de signature d'un bail.
+  'lease.signature.codeSentSms':
+    'takussan-api/app/Services/Lease/LeaseSignatureOtpService.php:24 — CODE_TTL_SECONDS = 600, usage unique',
+  'lease.signature.codeSentMail': 'idem — LeaseSignatureOtpService.php:24',
   // Ces cinq textes promettaient « jusqu'à 60 secondes pour arriver » : un délai de LIVRAISON du
   // SMS, que rien ne tient (le transport est un journal en dev, un fournisseur tiers en prod). Le
   // 60 était le délai avant renvoi, une autre chose. Ils annoncent désormais ce que le serveur

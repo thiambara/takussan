@@ -33,6 +33,11 @@ export interface DatePickerProps {
   readonly disabled?: boolean;
   readonly required?: boolean;
   /**
+   * TCK-596 — un jour à griser en plus de `min`/`max`, jugé sur sa date `YYYY-MM-DD` (les nuits
+   * déjà prises d'un bien, par exemple).
+   */
+  readonly isDateDisabled?: (isoDate: string) => boolean;
+  /**
    * TCK-468 — `className` atterrit sur le BOUTON, c'est-à-dire sur la cible cliquable, comme
    * `className` de `FormInput` atterrit sur l'`<input>`. Il ne l'a pas toujours fait : il allait
    * à l'enveloppe positionnée, ce qui rendait ce champ **impossible à ajuster** et condamnait
@@ -77,6 +82,7 @@ export function DatePicker({
   max,
   disabled,
   required,
+  isDateDisabled,
   className,
   containerClassName,
   buttonClassName,
@@ -94,13 +100,13 @@ export function DatePicker({
   const maxDate = toDate(max);
 
   const disabledMatcher = React.useMemo(() => {
-    if (!minDate && !maxDate) return undefined;
+    if (!minDate && !maxDate && !isDateDisabled) return undefined;
     return (date: Date) => {
       if (minDate && date.getTime() < minDate.getTime()) return true;
       if (maxDate && date.getTime() > maxDate.getTime()) return true;
-      return false;
+      return isDateDisabled ? isDateDisabled(toIsoDate(date)) : false;
     };
-  }, [minDate, maxDate]);
+  }, [minDate, maxDate, isDateDisabled]);
 
   return (
     <div className={cn("relative", containerClassName)}>

@@ -14,6 +14,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useBookingRequest } from '@/hooks/useBookingRequest';
+import { usePropertyAvailability } from '@/hooks/usePropertyAvailability';
+import { isNightOccupied, isStayFree } from '@/lib/occupancy';
 import { submitPurchaseOffer } from '@/app/actions/property';
 import { formatCurrency } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
@@ -192,6 +194,13 @@ function ReservationForm({
   const tPeriods = useTranslations('property.rentPeriodsShort');
   const longTermPeriod = property.rent_period === 'yearly' ? 'yearly' : 'monthly';
 
+  // TCK-596 §3B — un séjour court lit les nuits déjà prises (réservées ou bloquées) et les grise.
+  // Une arrivée tombe sur une nuit libre ; un départ ne franchit aucune nuit prise.
+  const isShortStay = property.rent_period === 'daily' || property.rent_period === 'weekly';
+  const occupied = usePropertyAvailability(property.slug, isShortStay);
+  const arrivalTaken = (day: string) => isNightOccupied(day, occupied);
+  const departureTaken = (day: string) => startDate !== '' && !isStayFree(startDate, day, occupied);
+
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     try {
@@ -221,8 +230,13 @@ function ReservationForm({
             <DatePicker
               required
               value={startDate}
-              onValueChange={setStartDate}
+              onValueChange={(day) => {
+                setStartDate(day);
+                // Un départ choisi avant qui franchirait désormais une nuit prise est retiré.
+                if (endDate !== '' && day !== '' && !isStayFree(day, endDate, occupied)) setEndDate('');
+              }}
               min={new Date().toISOString().slice(0, 10)}
+              isDateDisabled={arrivalTaken}
               placeholder={t('booking.checkInPlaceholder')}
             />
           </label>
@@ -233,6 +247,7 @@ function ReservationForm({
               value={endDate}
               onValueChange={setEndDate}
               min={startDate || new Date().toISOString().slice(0, 10)}
+              isDateDisabled={departureTaken}
               placeholder={t('booking.checkOutPlaceholder')}
             />
           </label>
@@ -291,7 +306,16 @@ function ReservationForm({
             <p className="text-pretty text-xs text-muted-foreground">{t('booking.rentNotice')}</p>
           </div>
         )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {isShortStay && occupied.length > 0 && (
+          <p className="bg-popover text-pretty text-xs text-muted-foreground" data-testid="reservation-occupied-hint">
+            {t('booking.occupiedHint')}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t('cancel')}

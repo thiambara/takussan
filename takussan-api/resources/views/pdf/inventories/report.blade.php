@@ -173,6 +173,9 @@
                     <img src="{{ $ownerSignature }}" alt="Signature bailleur"
                          style="max-height: 70px; max-width: 260px;">
                     <div class="muted" style="margin-top: 4px;">Signé le {{ $ownerSignedAt ?? '—' }}</div>
+                    @if (! empty($owner_signed_on_behalf))
+                        <div class="muted" style="margin-top: 2px;">{{ $owner_signed_on_behalf }}</div>
+                    @endif
                 @else
                     <em class="muted">En attente</em>
                 @endif

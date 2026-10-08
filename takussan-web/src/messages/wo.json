@@ -1566,6 +1566,11 @@
           "title": "Pewam dañu mënul",
           "body": "Pewam bi mënul jeex. Mën nga ko jeem yeneen yoon."
         },
+        "refund": {
+          "title": "Fey bi agsi na, dañuy delloo xaalis bi",
+          "bodyCancelled": "Fey bi agsi na ci ab fey bu ñu neenal : ajaas bi dina la delloo sa xaalis.",
+          "bodyAlreadyPaid": "Fey bii, fey nañu ko bu jëkk : ajaas bi dina la delloo xaalis bii."
+        },
         "pending": {
           "title": "Pewam ngiy taxaw",
           "body": "Nu di ko seet ak fournisseur bi — mën na yagg lu tuuti."
@@ -1669,7 +1674,8 @@
       "late": "Yeex na",
       "partially_paid": "Fey nañu ay genn-wàll",
       "failed": "Antuwul",
-      "refunded": "Delloo nañu ko"
+      "refunded": "Delloo nañu ko",
+      "cancelled": "Neenal nañu ko"
     },
     "invoiceStatus": {
       "draft": "Buruyoŋ",
@@ -1999,7 +2005,8 @@
       "banner_cancel_request": "Neenal tas bi",
       "cancelled_toast_title": "Tas bi neenal",
       "cancelled_toast_body": "Luwé bi delloo na ci jàpp.",
-      "cancel_failed_title": "Neenal bi am na njuumte"
+      "cancel_failed_title": "Neenal bi am na njuumte",
+      "cta_tenant": "Yégle sama dem"
     },
     "error_generic": "Lu ñu mën a def amul.",
     "list": {
@@ -2058,7 +2065,8 @@
         "paid": "Fey nañu ko",
         "late": "Yeex na",
         "pending": "Di ñëw",
-        "other": "Weneen"
+        "other": "Weneen",
+        "cancelled": "Neenal nañu ko"
       },
       "listLabel": "Bési fey yu kontaraa bi",
       "dueOn": "Bisu pey : {date}",
@@ -2200,6 +2208,35 @@
         "passport": "Paspoor",
         "driving_license": "Permi"
       }
+    },
+    "signature": {
+      "title": "Xaatim bayle bi",
+      "notFrozenDescription": "Kontraa bi taxawagul. Laajal xaatim bi : kontraa bi dina taxaw, te ku nekk ci wàll yi dina ko xaatim ak kood bu mu jot ci SMS walla ci e-mail.",
+      "frozenDescription": "Kontraa bi taxaw na. Ku nekk ci wàll yi dina ko jàng, te xaatim ko ak kood am. Xaatim bu ñaareel bi mooy taal bayle bi. Bu ñu soppee bayle bi, xaatim yi ñuy xaar dañuy neen.",
+      "readContract": "Jàngal kontraa bi ñuy xaatim",
+      "roles": {
+        "tenant": "Luwatekat",
+        "landlord": "Boroom kër"
+      },
+      "signed": "Xaatimu na",
+      "awaiting": "Ñu ngi koy xaar",
+      "signedBy": "{signer} moo ko xaatim ci {date}",
+      "signedOnBehalf": "{signer} moo ko xaatim ci turu {landlord} ci {date}",
+      "sendCode": "Jot sama kood",
+      "resendCode": "Yónneeti kood bi",
+      "codeSentSms": "Kood bi yónne nañu ko ci SMS ci {destination}. Fukki simili la am.",
+      "codeSentMail": "Kood bi yónne nañu ko ci e-mail ci {destination}. Fukki simili la am.",
+      "codeLabel": "Kood bu am 6 siifar",
+      "sign": "Xaatim",
+      "consent": "Su ma bindee kood bii, maa ngi xaatim kontraa bi ñu wone ci kaw.",
+      "request": "Laaj xaatim bi",
+      "requestAgain": "Taxawalaat kontraa bi",
+      "requestedToast": "Xaatim bi laaj nañu ko : wàll yi xibaaru nañu leen.",
+      "signedToast": "Sa xaatim denc nañu ko.",
+      "activatedToast": "Bayle bi xaatimu na te dox na.",
+      "paperLabel": "Kontraa bu ñu xaatim ci kayit (PDF, JPG walla PNG, 10 Mo)",
+      "paperSubmit": "Taal ci kontraa kayit",
+      "genericError": "Jëf ji antuwul. Jéemaatal."
     }
   },
   "maintenance": {
@@ -3613,7 +3650,11 @@
       "disputeReason": "Mboor werante bi",
       "disputeReasonPlaceholder": "Leeralal li ngay werante",
       "sendDispute": "Yónnee werante bi",
-      "disputeFailed": "Nanguwul nañu yónnee sa ñàkk-nangu. Jéemaatal ci kanam tuuti."
+      "disputeFailed": "Nanguwul nañu yónnee sa ñàkk-nangu. Jéemaatal ci kanam tuuti.",
+      "roomPhotos": "Nataali néeg bi: {room}",
+      "roomPhotoAlt": "Nataal {index} — {room}",
+      "deleteRoomPhotoAria": "Far nataal {index} bu néeg bi {room}",
+      "deleteRoomPhotoFailed": "Mënuñu far nataal bi. Jéemaatal."
     },
     "roomEditor": {
       "empty_title": "Amul néeg",
@@ -3685,7 +3726,9 @@
       "signAs": "Xaatim ni {role}",
       "confirmAs": "Xaatim ni {role}",
       "helper": "Bindal sa xaatim ba noppi dëggal — jëf ji du soppiku.",
-      "signFailed": "Xaatim bi mënul. Jéemaatal."
+      "signFailed": "Xaatim bi mënul. Jéemaatal.",
+      "onBehalfOf": "Ci turu {name}",
+      "signedOnBehalf": "Ki di yor kër gi moo xaatim ci turu boroom kër gi"
     },
     "signaturePad": {
       "label": "Xaatimal fii",
@@ -4962,7 +5005,8 @@
         "weeklyLine": "{price} ci ayu-bés, ci limu {count, plural, other {# guddi}}",
         "deposit": "Waar (30 %)",
         "rentLine": "Njëgu luwe",
-        "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi."
+        "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi.",
+        "occupiedHint": "Bés yi ñu fukkal, jël nañu leen ba noppi."
       },
       "offerForm": {
         "invalidAmount": "Waññi bu baaxul.",
@@ -5115,7 +5159,8 @@
         "fullPriceHistory": "Taariixu njëg bu mat",
         "fullPriceHistoryHint": "Coppite yépp yu ñu bind ci kër gii.",
         "noPriceHistory": "Amul coppiteg njëg bu ñu bind ci kër gii.",
-        "unknownDate": "Bes bu ñu xamul"
+        "unknownDate": "Bes bu ñu xamul",
+        "calendar": "Arminaat"
       },
       "pagination": {
         "aria": "Xët yi",
@@ -5232,6 +5277,45 @@
         "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey ajaŋ. Bind bi man nañ ko delloo ci wàllu njiit bi.",
         "cancel": "Neenal",
         "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee."
+      },
+      "calendar": {
+        "title": "Arminaatu kër gi",
+        "description": "Reserwasioŋ yi ñu dëggal, bés yi ñu tëj ak bés yi ñu jële ci yeneen platfoorm, ci fukki weer ak ñaar.",
+        "legend": "Leeral",
+        "legendBooked": "Reserwe nañu ko",
+        "legendBlocked": "Tëj nañu ko",
+        "legendImported": "Jële nañu ko",
+        "genericError": "Liggéey bi antuwul.",
+        "blockTitle": "Tëj ay bés",
+        "blockHint": "Guddi yi ñu tëj, kenn mënatul leen a reserwe, fii ak ci platfoorm yi di jàng sa lëkkalekaay bu génné.",
+        "blockFrom": "Guddi bu jëkk",
+        "blockTo": "Bésu ubbeeku",
+        "blockReason": "Lu tax (bul ko war, yaw rekk a koy gis)",
+        "blockSubmit": "Tëj",
+        "blocksTitle": "Bés yi ñu tëj",
+        "blocksEmpty": "Amul bés bu ñu tëj ci fukki weer ak ñaar yii di ñëw.",
+        "range": "Li dale {from} ba {to}",
+        "manual": "Tëj ak loxo",
+        "importedFrom": "Jële nañu ko ci {feed}",
+        "conflict": "Dafa jéppante ak ab reserwasioŋ",
+        "unblock": "Ubbi",
+        "feedsTitle": "Arminaat yi ñu jële",
+        "feedsHint": "Taqal lëkkalekaay iCal bu Airbnb, Booking.com walla ab arminaat : bés yi ñu jël ci nii dañuy tëju fii saa bu nekk. Bés bu ñu jële, ci cosaanam lañu koy far.",
+        "feedUrl": "Lëkkalekaay iCal (https)",
+        "feedLabel": "Tur (bul ko war)",
+        "feedAdd": "Jële",
+        "feedOk": "dëppoo na",
+        "feedFailing": "antuwul ({count, plural, =1 {# yéem} other {# yéem}})",
+        "feedSync": "Dëppale",
+        "feedRemove": "Far",
+        "exportTitle": "Lëkkalekaay bu génné",
+        "exportHint": "Joxal lëkkalekaay bii yeneen platfoorm ngir ñu tëj sa reserwasioŋi Takussan. Amul tur, amul telefon.",
+        "exportGenerate": "Defar lëkkalekaay bu bees",
+        "exportUrl": "Lëkkalekaay iCal bu génné",
+        "exportCopy": "Duppi",
+        "exportCopied": "Duppi nañu ko",
+        "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba.",
+        "feedPending": "njëkk dëppale mi ngi dox"
       },
       "collaborators": {
         "title": "Ajaa bu njëkk",
@@ -5759,7 +5843,24 @@
           "submit": "Neenal réservasioŋ bi"
         }
       },
-      "forbidden": "Réservation bii beneen ajaans la bokk : amoo ci benn sañ-sañ."
+      "forbidden": "Réservation bii beneen ajaans la bokk : amoo ci benn sañ-sañ.",
+      "refund": {
+        "pendingTitle": "Delloo bi ngi dox",
+        "pendingDescription": "Sa réservation du am : xaalis bi nga jëkk a fay dañu koy delloo.",
+        "refundedTitle": "Delloo nañu ko",
+        "refundedDescription": "Xaalis bi ñu jëkk a fay ngir réservation bii, delloo nañu ko.",
+        "toProcessTitle": "Delloo bu ñu wara def",
+        "toProcessDescription": "Réservation bii tëju na te am na xaalis bu ñu jot. Bindal delloo bi bu xaalis bi delloo.",
+        "action": "Delloo",
+        "dialogTitle": "Bind benn delloo",
+        "dialogDescription": "Xaalis bi ñu jot : {amount}.",
+        "fields": {
+          "amount": "Limu xaalis bi ñu delloo",
+          "reason": "Lu tax"
+        },
+        "submit": "Bind delloo bi",
+        "submitting": "Mu ngi bind…"
+      }
     },
     "public": {
       "no_property_title": "Tànnuloo benn kër",
@@ -9603,7 +9704,11 @@
         },
         "cancelled": {
           "title": "Réservation bi neenal nañu ko",
-          "body": "Sa réservation {reference} ngir {property}, neenal nañu ko."
+          "body": "Réservation {reference} ngir {property}, neenal nañu ko."
+        },
+        "requested_undated": {
+          "title": "Laaj bu bees",
+          "body": "Ñu def na laaj {reference} ngir {property}."
         }
       },
       "account": {
@@ -9867,9 +9972,31 @@
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
         },
+        "calendar_conflict": {
+          "title": "Calendrier yi dañuy xeex : {property}",
+          "body": "Calendrier « {feed} » dafa tëj {property} li dale {start_date} ba {end_date}, fekk réservation bu ñu dëggal moo jël bis yooyu. Dara neenalu ci : xoolal ñaari plateforme yi."
+        },
+        "calendar_feed_failing": {
+          "title": "Calendrier bi ñu jële du dox : {property}",
+          "body": "Calendrier « {feed} » bu {property} mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi."
+        },
         "unpublished_contact_erased": {
           "title": "Yéenekaay bi dindi nañu ko : {property}",
           "body": "Yéenekaay {property} ({reference}) dindi nañu ko ci site bi : ki ñuy jokkoo ak moom far na kontam. Joxal ko benn ajaŋ te ngay ko siiwal ci kaw : {url}"
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Bayle bu ñuy xaatimal : {reference}",
+          "body": "Bayle {reference} bu {property} pare na. Jàngal kontraa bi, te xaatimal ko ak kood bi ngay jot."
+        },
+        "signed_by_party": {
+          "title": "{signer} xaatim na bayle {reference}",
+          "body": "{signer} xaatim na bayle {reference} bu {property}. Sa xaatim lañuy xaar."
+        },
+        "signature_completed": {
+          "title": "Bayle {reference} xaatimu na",
+          "body": "Ñaari wàll yi xaatim nañu bayle {reference} bu {property}. Leegi mu ngi dox."
         }
       },
       "impersonation": {

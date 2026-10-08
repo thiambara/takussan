@@ -174,8 +174,9 @@ class AdminGlobalSearchTest extends TestCase
 
     /**
      * Une recherche REFUSÉE ne consulte rien : ni par un viewer (403), ni par une requête trop
-     * courte ou trop longue (422). Chacune viserait un compte que la recherche rendrait sinon —
-     * le témoin le montre —, sans quoi le refus ne prouverait rien.
+     * courte ou trop longue (422). Le viewer et la requête trop longue visent un compte que la
+     * recherche rendrait sinon (le témoin le montre). `q=d`, lui, ne trace rien par construction
+     * (texte libre à 3 caractères, rien d'exact) : il garde le statut, pas la trace.
      */
     public function test_une_recherche_refusee_n_ecrit_aucune_trace(): void
     {

@@ -258,7 +258,7 @@ class EarlyTerminationService
         $diffDays = max(1, (int) $effectiveDate->copy()->startOfDay()->diffInDays($end->copy()->startOfDay(), false));
         $monthsRemaining = (int) ceil($diffDays / 30);
 
-        $configuredMonths = $this->resolvePenaltyMonths($lease->agency_id);
+        $configuredMonths = $this->penaltyMonthsFor($lease);
         $billable = min($configuredMonths, $monthsRemaining);
 
         return round($monthlyRent * $billable, 2);
@@ -272,6 +272,19 @@ class EarlyTerminationService
         }
 
         return self::DEFAULT_NOTICE_DAYS;
+    }
+
+    /**
+     * VERIF-596 passe 2 (N1, ADR-0042 §1) — l'indemnité que CE bail exécute : celle figée avec son
+     * contrat, imprimée et signée. Le réglage global, relu au jour de la résiliation, ne vaut que
+     * pour un bail antérieur dont la colonne est nulle : sinon un changement de réglage changeait
+     * l'indemnité de tous les baux déjà signés, à l'encontre du PDF.
+     */
+    public function penaltyMonthsFor(Lease $lease): int
+    {
+        return $lease->early_termination_penalty_months !== null
+            ? (int) $lease->early_termination_penalty_months
+            : $this->resolvePenaltyMonths($lease->agency_id); // TCK-600 (verif-600 H1)
     }
 
     public function resolvePenaltyMonths(?int $agencyId = null): int

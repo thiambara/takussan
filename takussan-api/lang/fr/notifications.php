@@ -108,6 +108,15 @@ return [
     // TCK-272 — code de step-up pour les comptes sans mot de passe
     // utilisable (OAuth, invitation, provisioning). Pas de lien cliquable :
     // c'est la confirmation d'un acte destructif, pas une invitation à agir.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Votre code de signature du bail :reference',
+        'greeting' => 'Bonjour,',
+        'intro' => 'Voici le code à saisir pour signer le bail :reference :',
+        'expires' => 'Ce code est valable :minutes minutes et ne peut servir qu\'une seule fois.',
+        'ignore' => 'Si vous n\'avez rien demandé, ignorez ce message : sans ce code, rien n\'est signé.',
+        'sms' => 'Takussan : votre code de signature du bail :reference est :code (valable :minutes min). Ne le communiquez à personne.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Votre code de confirmation de suppression de compte',
         'greeting' => 'Bonjour,',
@@ -331,6 +340,11 @@ return [
                 'body' => 'La réservation :reference a été demandée pour :property, du :start_date au :end_date.',
                 'sms' => 'Takussan : nouvelle réservation :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'Nouvelle demande',
+                'body' => 'Une demande :reference a été faite pour :property.',
+                'sms' => 'Takussan : nouvelle demande :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Réservation confirmée',
                 'body' => 'Votre réservation :reference pour :property, du :start_date au :end_date, est confirmée.',
@@ -343,7 +357,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Réservation annulée',
-                'body' => 'Votre réservation :reference pour :property a été annulée.',
+                'body' => 'La réservation :reference pour :property a été annulée.',
                 'sms' => 'Takussan : réservation :reference annulée (:property).',
             ],
         ],
@@ -657,6 +671,24 @@ return [
                 'sms' => 'Takussan : Votre accord est requis : :request',
             ],
         ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Bail à signer : :reference',
+                'body' => 'Le bail :reference pour :property est prêt. Lisez le contrat, puis signez-le avec le code que vous recevrez.',
+                'sms' => 'Takussan : le bail :reference est prêt à signer.',
+            ],
+            'signed_by_party' => [
+                'title' => 'Bail :reference signé par :signer',
+                'body' => ':signer a signé le bail :reference pour :property. Il attend votre signature.',
+                'sms' => 'Takussan : :signer a signé le bail :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Bail :reference signé',
+                'body' => 'Les deux parties ont signé le bail :reference pour :property. Il est désormais actif.',
+                'sms' => 'Takussan : le bail :reference est signé et actif.',
+            ],
+        ],
         'prospect_match' => [
             'digest' => [
                 'title' => 'Des biens correspondent à vos prospects',
@@ -679,6 +711,16 @@ return [
                 'title' => 'Annonce retirée : :property',
                 'body' => 'L\'annonce :property (:reference) a été retirée du site : son seul contact a effacé son compte. Attribuez-lui un agent puis republiez-la : :url',
                 'sms' => 'Takussan : l\'annonce :reference est retirée faute de contact.',
+            ],
+            'calendar_conflict' => [
+                'title' => 'Conflit de calendrier : :property',
+                'body' => 'Le calendrier « :feed » bloque :property du :start_date au :end_date, alors qu\'une réservation confirmée occupe ces dates. Rien n\'a été annulé : vérifiez les deux plateformes.',
+                'sms' => 'Takussan : conflit de calendrier sur :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Calendrier importé en échec : :property',
+                'body' => 'Le calendrier « :feed » de :property ne se synchronise plus depuis trois tentatives. Vérifiez son lien.',
+                'sms' => 'Takussan : le calendrier « :feed » ne se synchronise plus.',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

@@ -228,8 +228,15 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Données personnelles (TCK-601)
 79. [PrivacyRequest](#79-privacyrequest-) ✅
 
+#### Calendrier d'hôte 🆕 (TCK-596, ADR-0041)
+80. [PropertyUnavailability](#80-propertyunavailability-) 🆕
+81. [PropertyCalendarFeed](#81-propertycalendarfeed-) 🆕
+
+#### Signature du bail 🆕 (TCK-596, ADR-0042)
+82. [LeaseSignature](#82-leasesignature-) 🆕
+
 #### Console plateforme
-80. [ImpersonationSession](#80-impersonationsession-) 🆕
+83. [ImpersonationSession](#83-impersonationsession-) 🆕
 
 ### Enums
 
@@ -3213,7 +3220,100 @@ en liste blanche (ni nom, ni contact, ni résumé). Preuve de réponse : média 
 
 ---
 
-### 80. ImpersonationSession 🆕
+### 80. PropertyUnavailability 🆕
+
+**Table :** `property_unavailabilities`
+**Description :** Une plage `[starts_on, ends_on)` où un bien n'est pas réservable (TCK-596,
+[ADR-0041](adr/0041-indisponibilites-et-echange-ical.md)). `ends_on` est **exclusif**, comme le jour
+de départ d'une réservation. Manuelle (posée par qui peut modifier le bien) ou importée d'un flux
+iCal ; une plage importée ne se supprime pas à la main.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| starts_on | date | | | Première nuit bloquée |
+| ends_on | date | | | Lendemain de la dernière nuit (exclusif) ; `CHECK ends_on > starts_on` |
+| reason | string(255) | ✓ | | Motif, visible de l'hôte seul |
+| source | string(20) | | `manual` | `manual` \| `ical` |
+| calendar_feed_id | FK property_calendar_feeds | ✓ | | Flux d'origine (`cascadeOnDelete`) |
+| external_uid | string(255) | ✓ | | `UID` de l'événement importé |
+| conflict_booking_id | FK bookings | ✓ | | Réservation confirmée chevauchée (`nullOnDelete`) — jamais annulée par l'import |
+| created_by_id | FK users | ✓ | | Auteur d'un blocage manuel |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :** `(calendar_feed_id, external_uid)`, partielle (flux non nul).
+**Index :** `(property_id, starts_on, ends_on)`.
+
+**Relations :** `property()`, `feed()`, `conflictBooking()` → belongsTo.
+
+### 81. PropertyCalendarFeed 🆕
+
+**Table :** `property_calendar_feeds`
+**Description :** Un calendrier iCal externe importé pour un bien, synchronisé toutes les heures
+derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). Au plus 10 par bien.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| url | text | | | **Chiffrée** (cast `encrypted`), cachée de toute sérialisation |
+| url_host | string(255) | | | Hôte de l'URL — seule partie rendue par l'API |
+| label | string(120) | ✓ | | Nom donné par l'hôte |
+| created_by_id | FK users | ✓ | | |
+| last_synced_at | timestamp | ✓ | | Dernière tentative |
+| last_status | string(20) | ✓ | | `pending` (première synchronisation en file) \| `ok` \| `failed` |
+| last_error | string(60) | ✓ | | Motif codé (`private_address`, `too_large`, `http_error`…) |
+| failing_since | timestamp | ✓ | | Premier échec de la série en cours |
+| consecutive_failures | unsigned int | | 0 | Au 3ᵉ, le bailleur est prévenu une fois |
+| created_at / updated_at | timestamp | | | |
+
+**Relations :** `property()` → belongsTo ; `unavailabilities()` → hasMany PropertyUnavailability.
+
+> Le jeton d'export du bien vit sur `properties.ical_export_token_hash` (SHA-256, unique, caché) :
+> le jeton en clair n'est rendu qu'une fois, à la régénération.
+
+---
+
+### 82. LeaseSignature 🆕
+
+**Table :** `lease_signatures`
+**Description :** La preuve de consentement d'une partie à un bail (TCK-596, ADR-0042). Une signature
+lie l'empreinte du contrat FIGÉ (`leases.contract_sha256`, PDF rangé dans la collection média privée
+`signed_contract`) ; seules comptent celles dont l'empreinte est l'empreinte courante. La seconde
+signature active le bail.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_id | FK leases | | | Bail (`cascadeOnDelete`) |
+| role | string(20) | | | `tenant` \| `landlord` |
+| method | string(20) | | | `otp` (code à usage unique) \| `paper` (contrat numérisé, voie `activate`) |
+| user_id | FK users | ✓ | | Signataire (`otp`) — `nullOnDelete` |
+| on_behalf_of_user_id | FK users | ✓ | | Bailleur pour le compte duquel le personnel de l'agence a signé |
+| recorded_by_id | FK users | ✓ | | Auteur de l'enregistrement (`paper`) |
+| document_sha256 | string(64) | | | Empreinte du contrat signé |
+| signed_at | timestamp | | | |
+| ip_address | string(45) | ✓ | | **Caché**, jamais rendu par l'API |
+| user_agent | string(512) | ✓ | | **Caché**, jamais rendu par l'API |
+| otp_channel | string(10) | ✓ | | `sms` \| `mail` |
+| otp_destination | string(120) | ✓ | | Destination **masquée** du code |
+| created_at / updated_at | timestamp | | | |
+
+**Unicité :** `(lease_id, role, document_sha256)`.
+**Relations :** `lease()` → belongsTo ; `signer()` → belongsTo User (`user_id`) ; `onBehalfOf()` →
+belongsTo User.
+
+> Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
+> timestamp nullable. VERIF-596 passe 2 (N1) : `early_termination_penalty_months` unsigned smallint
+> nullable et `rent_review_max_pct` decimal(5,2) nullable, figés avec le contrat (nuls : le réglage
+> de l'agence du bail, sinon le global, s'applique — TCK-600, verif-600 H1 ; bail antérieur). Un renouvellement les hérite du parent, sauf valeur renégociée
+> (VERIF-596 passe 3, N1'). Une colonne du contrat modifiée pendant `pending_signature` (hors
+> `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
+
+---
+
+### 83. ImpersonationSession 🆕
 
 **Table :** `impersonation_sessions`
 **Description :** Une session d'impersonation (TCK-600,

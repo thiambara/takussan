@@ -158,23 +158,21 @@ export function useSubmitInventory(id: number) {
 /**
  * `POST /api/inventories/{id}/sign` — TCK-076 role-explicit payload.
  *
- * When called without arguments (legacy behaviour used by early UIs), the
- * backend falls back to inferring the role from the caller identity and
- * skips the signature payload persistence. Prefer passing `{role,
- * signature}` to store an actual signature capture.
+ * TCK-596 — `role` et `signature` sont REQUIS : l'API rend 422 sans eux. Il n'existe plus d'appel
+ * sans tracé.
  */
 export interface InventorySignInput {
   readonly role: InventorySignatureRole;
-  /** Base64-encoded PNG/SVG payload — typically a canvas `toDataURL()`. */
+  /** Base64-encoded PNG payload — a canvas `toDataURL('image/png')`. */
   readonly signature: string;
 }
 
 export function useSignInventory(id: number) {
-  return useApiMutation<ApiResponse<Inventory>, InventorySignInput | void>(
+  return useApiMutation<ApiResponse<Inventory>, InventorySignInput>(
     {
       path: cheminApi`/api/inventories/${id}/sign`,
       method: 'POST',
-      body: (input) => (input ?? {}) as Record<string, unknown>,
+      body: (input) => ({ role: input.role, signature: input.signature }),
     },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
@@ -209,6 +207,21 @@ export function useUploadInventoryRoomPhotos(id: number) {
         fd.append('room_name', roomName);
         return fd;
       },
+    },
+    { invalidate: [inventoryKeys.detail(id)] },
+  );
+}
+
+/**
+ * TCK-596 — `DELETE /api/inventories/{id}/room-photos/{media}` : brouillon seulement (409 signé,
+ * 422 soumis), et le média doit appartenir à cet état des lieux (404 sinon).
+ */
+export function useDeleteInventoryRoomPhoto(id: number) {
+  return useApiMutation<unknown, number>(
+    {
+      path: (mediaId) => cheminApi`/api/inventories/${id}/room-photos/${mediaId}`,
+      method: 'DELETE',
+      body: () => undefined,
     },
     { invalidate: [inventoryKeys.detail(id)] },
   );

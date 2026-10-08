@@ -34,6 +34,11 @@ export interface VerifyPaymentResult {
   readonly status: string | null;
   readonly provider_status?: string;
   readonly transaction_id?: string;
+  /**
+   * TCK-596 (VERIF-596 passe 8, m-o) — le règlement vérifié a débité le payeur sans rien solder
+   * (échéance annulée par un renouvellement, ou déjà réglée) : l'agence doit le rembourser.
+   */
+  readonly refund_pending?: boolean;
 }
 
 const STORAGE_KEY = 'tks.payments.lastProvider';

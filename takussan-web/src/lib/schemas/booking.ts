@@ -80,3 +80,16 @@ export const bookingPaymentSchema = z.object({
 });
 
 export type BookingPaymentFormValues = z.infer<typeof bookingPaymentSchema>;
+
+/** TCK-596 — remboursement d'un paiement de réservation (`RefundBookingPaymentRequest`). */
+export const bookingRefundSchema = z.object({
+  refund_amount: z.number().positive(msgValidation('common.amountPositive')),
+  refund_reason: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+});
+
+export type BookingRefundFormValues = z.infer<typeof bookingRefundSchema>;
