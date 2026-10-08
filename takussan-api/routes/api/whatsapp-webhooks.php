@@ -14,6 +14,6 @@ use Illuminate\Support\Facades\Route;
  */
 Route::prefix('webhooks/whatsapp')->group(function (): void {
     Route::post('status/{token}', WhatsappStatusController::class)
-        ->middleware('throttle:120,1')
+        ->middleware(['throttle:120,1', 'webhook.journal:whatsapp,whatsapp_cloud'])
         ->name('whatsapp.webhook.status');
 });

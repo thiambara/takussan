@@ -103,6 +103,7 @@ class PaymentDriverTest extends TestCase
     public function test_orange_money_driver_initiate_calls_api(): void
     {
         Http::fake([
+            'api.orange.com/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]),
             'api.orange.com/orange-money-webpay/v1/webpayment' => Http::response([
                 'pay_token' => 'omt_321',
                 'payment_url' => 'https://webpayment.orange-money.com/pay/omt_321',
@@ -111,7 +112,7 @@ class PaymentDriverTest extends TestCase
 
         $integration = Integration::factory()->create([
             'provider' => 'orange_money',
-            'credentials' => ['access_token' => 'om_token', 'merchant_key' => 'mk', 'webhook_secret' => 's'],
+            'credentials' => ['client_id' => 'om_client', 'client_secret' => 'om_secret', 'merchant_key' => 'mk', 'webhook_secret' => 's'],
         ]);
 
         $agency = Agency::factory()->create();
@@ -133,7 +134,7 @@ class PaymentDriverTest extends TestCase
         $integration = Integration::factory()->create([
             'provider' => 'orange_money',
             'credentials' => [
-                'access_token' => 't', 'merchant_key' => 'm', 'webhook_secret' => $secret,
+                'client_id' => 'om_client', 'client_secret' => 'om_secret', 'merchant_key' => 'm', 'webhook_secret' => $secret,
             ],
         ]);
 

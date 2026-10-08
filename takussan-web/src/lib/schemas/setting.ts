@@ -153,6 +153,9 @@ export const integrationFormSchema = z
     sms_service_id: z.string().trim().default(''),
     // SMS LAfricaMobile — accountid + password + host override.
     sms_accountid: z.string().trim().default(''),
+    // TCK-602 (ADR-0051 §3) — les identifiants d'un fournisseur de PAIEMENT, par nom de champ de
+    // son schéma serveur (`GET /api/integrations/payment-providers`).
+    payment_credentials: z.record(z.string(), z.string()).default({}),
     sms_host: z
       .string()
       .trim()
@@ -238,10 +241,17 @@ export function normaliseIntegrationForm(
       if (host) metadata.host = host;
     }
   } else {
+    // TCK-602 — un fournisseur de paiement envoie les champs de son schéma ; les champs génériques
+    // ne servent que de repli quand le schéma n'a pas pu être lu.
+    if (isPaymentProvider(trimmedProvider)) {
+      for (const [name, value] of Object.entries(values.payment_credentials ?? {})) {
+        if (value.trim()) credentials[name] = value.trim();
+      }
+    }
     const apiKey = values.api_key.trim();
     const apiSecret = values.api_secret.trim();
     const webhookUrl = values.webhook_url.trim();
-    if (apiKey) credentials.api_key = apiKey;
+    if (apiKey && !credentials.api_key) credentials.api_key = apiKey;
     if (apiSecret) credentials.api_secret = apiSecret;
     if (webhookUrl) credentials.webhook_url = webhookUrl;
   }

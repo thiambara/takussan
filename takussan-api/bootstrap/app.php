@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureAgencyWritable;
 use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
+use App\Http\Middleware\JournalizeIncomingWebhook;
 use App\Http\Middleware\MaintenanceMode;
 use App\Http\Middleware\RequireRecentTwoFactor;
 use App\Http\Middleware\RequireTwoFactor;
@@ -90,6 +91,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'restrict.ip' => RestrictIpMiddleware::class,
             'super-admin' => EnsureSuperAdmin::class,
+            // TCK-602 (ADR-0051 §4) — le journal des webhooks entrants, après `throttle`.
+            'webhook.journal' => JournalizeIncomingWebhook::class,
             // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
             'platform-can' => EnsurePlatformAbility::class,
         ]);

@@ -64,6 +64,12 @@ class NotificationService
      * des canaux mobiles ; `true`, l'appelant a DÉJÀ borné le SMS au point d'envoi (`VisitNotifier`)
      * et les canaux ne le recomptent pas ; `false`, aucun canal mobile (SMS retenu, ou pas prévu).
      *
+     * TCK-602 (VERIF-602 M2, ADR-0051 §1) — un paramètre PORTEUR
+     * ({@see NotificationCode::bearerParams()}) n'atteint jamais un compte : il est retiré ici, avant
+     * la ligne `app_notifications` (cloche) et l'envoi. Le locataire avec compte va à la page
+     * authentifiée de son échéance ; seul un contact sans compte reçoit le lien, par un canal
+     * sortant, dans une notification mise en file chiffrée.
+     *
      * @param  array<string, mixed>  $params  paramètres BRUTS (cf. {@see NotificationCode::params()})
      */
     public function send(
@@ -79,6 +85,7 @@ class NotificationService
             return null;
         }
 
+        $params = array_diff_key($params, array_flip($code->bearerParams()));
         $locale = $to->preferredLocale() ?? (string) config('app.locale');
         $timezone = $to->timezone ?: NotificationRenderer::DEFAULT_TIMEZONE;
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-602
 title: "Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: [TCK-293, TCK-593]
 blocks: []
 spec_refs:
@@ -421,155 +421,159 @@ explicitement.
 ## Delta à produire
 
 ### 0. Décision
-- [ ] **ADR à écrire et accepter avant le code** : *« Un lien porteur peut-il donner accès à une
+- [x] **ADR à écrire et accepter avant le code** : *« Un lien porteur peut-il donner accès à une
       échéance et en déclencher le paiement sans compte, et que doit-on garder d'un webhook
       entrant ? »* L'ADR tranche la forme du jeton (opaque, haché et chiffré, appliquée aussi aux
       liens de partage), sa durée de vie avant et après paiement, ce que la page révèle, la
       rétention du journal par canal, et ce qui est chiffré ou expurgé.
 
 ### 1. Journal des webhooks (S8) — à livrer en premier
-- [ ] Migration `extend_integration_webhook_logs_for_journal` : colonnes et index du Contrat,
+- [x] Migration `extend_integration_webhook_logs_for_journal` : colonnes et index du Contrat,
       `down()` réversible.
-- [ ] `App\Http\Middleware\JournalizeIncomingWebhook` (alias `webhook.journal:{channel}`) et un
+- [x] `App\Http\Middleware\JournalizeIncomingWebhook` (alias `webhook.journal:{channel}`) et un
       service à portée de requête `App\Services\Webhooks\WebhookJournal`
       (`open`, `authenticated`, `annotate`, `close`).
-- [ ] `App\Services\Webhooks\WebhookPayloadRedactor`, avec une liste blanche par canal et
+- [x] `App\Services\Webhooks\WebhookPayloadRedactor`, avec une liste blanche par canal et
       fournisseur.
-- [ ] Brancher le middleware sur `payments.webhook`, `sms.webhook.{orange,mtarget,lafricamobile}`
+- [x] Brancher le middleware sur `payments.webhook`, `sms.webhook.{orange,mtarget,lafricamobile}`
       et `whatsapp.webhook.status`. Les contrôleurs annotent `authenticated`, `external_id` et
       `matched_count`.
-- [ ] `PaymentGatewayService::applyEventToMatchingPayment` renvoie `int` (payables appariés) ;
+- [x] `PaymentGatewayService::applyEventToMatchingPayment` renvoie `int` (payables appariés) ;
       `handleWebhook` le transmet au journal.
-- [ ] Lemon Squeezy : `LemonSqueezy::ignoreRoutes()` dans `AppServiceProvider::register()`, route
+- [x] Lemon Squeezy : `LemonSqueezy::ignoreRoutes()` dans `AppServiceProvider::register()`, route
       reprise à l'URL et au nom identiques avec `throttle:60,1` et `webhook.journal:payment`, et un
       écouteur de `WebhookReceived` qui pose `authenticated`.
-- [ ] Supprimer `IntegrationService::recordWebhook`, ou le réduire à un appel au journal, et
+- [x] Supprimer `IntegrationService::recordWebhook`, ou le réduire à un appel au journal, et
       retirer `pruneWebhookLogs()` de `webhooks()`.
-- [ ] Commande `webhooks:prune` planifiée dans `routes/console.php` (`dailyAt('03:45')`,
+- [x] Commande `webhooks:prune` planifiée dans `routes/console.php` (`dailyAt('03:45')`,
       `withoutOverlapping()`), et `config/webhooks.php` pour les rétentions.
-- [ ] `App\Services\Webhooks\WebhookReplayer`, le contrôleur `Admin\WebhookLogController`
+- [x] `App\Services\Webhooks\WebhookReplayer`, le contrôleur `Admin\WebhookLogController`
       (`index`, `show`, `replay`) et `ReplayWebhookLogRequest`.
-- [ ] `Admin\PaymentSupervisionController` (`index`, `summary`) et
+- [x] `Admin\PaymentSupervisionController` (`index`, `summary`) et
       `App\Services\Admin\PaymentSupervisionService`, avec la définition unique de « en échec »
       du Contrat : `lease_payments` par `metadata.gateway.last_failed_at` dans la période,
       `booking_payments` par `status = failed`. Aucune lecture de `lease_payments.status = failed`.
-- [ ] `PaymentGatewayService::recordInitiation` : le nouveau bloc `metadata.gateway` reprend
+- [x] `PaymentGatewayService::recordInitiation` : le nouveau bloc `metadata.gateway` reprend
       `last_failed_at` de l'ancien s'il existe (une ligne, après TCK-593). Sans elle, une nouvelle
       tentative efface l'échec avant que la console le compte.
-- [ ] Front : la page console « Paiements » et son entrée de navigation. La piste par intégration
+- [x] Front : la page console « Paiements » et son entrée de navigation. La piste par intégration
       existante lit le nouveau journal.
-- [ ] Tests : `WebhookJournalTest`, `WebhookReplayTest`, `WebhookPayloadRedactionTest`,
+- [x] Tests : `WebhookJournalTest`, `WebhookReplayTest`, `WebhookPayloadRedactionTest`,
       `LemonSqueezyWebhookJournalTest`, `PaymentSupervisionTest`, `PruneWebhookLogsCommandTest`.
       Réécrire `IntegrationAdminTest::test_webhook_trail_prunes_entries_older_than_30_days` pour
       qu'il vérifie que la lecture **ne** purge **pas**.
 
 ### 2. Lien de paiement (O6)
-- [ ] Migration `create_lease_payment_links_table`, avec un index unique partiel nommé.
-- [ ] Modèle `LeasePaymentLink` et `App\Services\Payments\LeasePaymentLinkService`
+- [x] Migration `create_lease_payment_links_table`, avec un index unique partiel nommé.
+- [x] Modèle `LeasePaymentLink` et `App\Services\Payments\LeasePaymentLinkService`
       (`urlFor`, `regenerate`, `revoke`, `resolve`).
-- [ ] `routes/api/pay.php` et `Api\PublicPaymentLinkController` (`show`, `initiate`, `verify`,
+- [x] `routes/api/pay.php` et `Api\PublicPaymentLinkController` (`show`, `initiate`, `verify`,
       `receipt`), avec `InitiatePublicPaymentLinkRequest`. `show` rend `amount_due`,
       `late_fee_outstanding` et `late_fee_payable_online` lus par `amountDue` et
       `Agency::collectsLateFeesOnline` (TCK-593) ; `initiate` délègue à
       `PaymentGatewayService::initiate` ; `receipt` sert le PDF de quittance de 593.
-- [ ] `Api\LeasePaymentLinkController` (`store`, `destroy`).
-- [ ] Événement `LeasePaymentSettledOnline`, émis dans `applyStatusToPayment` à la seule
+- [x] `Api\LeasePaymentLinkController` (`store`, `destroy`).
+- [x] Événement `LeasePaymentSettledOnline`, émis dans `applyStatusToPayment` à la seule
       transition vers `paid` d'un `LeasePayment` (webhook, rejeu, `verify()`), et l'écouteur
       `SendRentReceiptAfterOnlinePayment`, qui prévient le locataire sans compte et le bailleur.
-- [ ] Clés i18n `payments.pay_link.*` en fr, en et wo, côté API et côté front.
-- [ ] Front : la page publique `/pay/{token}` et l'action « lien de paiement » sur l'échéance. La
+- [x] Clés i18n `payments.pay_link.*` en fr, en et wo, côté API et côté front.
+- [x] Front : la page publique `/pay/{token}` et l'action « lien de paiement » sur l'échéance. La
       page affiche `amount_due` tel quel ; une pénalité non incluse (`late_fee_payable_online =
       false`, `late_fee_outstanding > 0`) apparaît à part, « à régler auprès de l'agence ».
-- [ ] Tests : `PublicPaymentLinkTest`, `LeasePaymentLinkTest`, `RentReceiptAfterOnlinePaymentTest`.
+- [x] Tests : `PublicPaymentLinkTest`, `LeasePaymentLinkTest`, `RentReceiptAfterOnlinePaymentTest`.
 
 ### 3. Les payeurs voient les fournisseurs que le serveur accepte
-- [ ] `PaymentGatewayService::availableProviders(Model $payment)` (règle des Contraintes).
-- [ ] Route `GET {paymentType}/{paymentId}/providers` dans `routes/api/payments.php` (groupe
+- [x] `PaymentGatewayService::availableProviders(Model $payment)` (règle des Contraintes).
+- [x] Route `GET {paymentType}/{paymentId}/providers` dans `routes/api/payments.php` (groupe
       `auth:sanctum`, mêmes `where` que `initiate`), et `PaymentGatewayController::providers`, qui
       appelle `authorize('update', $payment)` comme `initiate`. Réponse :
       `{ data: { providers: ["wave", …] } }`.
-- [ ] `PaymentGatewayController::initiate` et `PublicPaymentLinkController::initiate` rendent 422
+- [x] `PaymentGatewayController::initiate` et `PublicPaymentLinkController::initiate` rendent 422
       quand le fournisseur demandé n'est pas dans `availableProviders`.
-- [ ] Front : l'action « Payer en ligne » obtient la liste de ce point d'entrée, par payable, sur
+- [x] Front : l'action « Payer en ligne » obtient la liste de ce point d'entrée, par payable, sur
       l'échéance, la réservation et la facture. La lecture de `/api/integrations` pour cet usage
       disparaît.
-- [ ] Tests : `PaymentProvidersEndpointTest` ; test front de l'action sur l'échéancier vu par un
+- [x] Tests : `PaymentProvidersEndpointTest` ; test front de l'action sur l'échéancier vu par un
       locataire.
 
 ### 4. Les intégrations de paiement enregistrées fonctionnent
-- [ ] `CREDENTIAL_KEYS` sur `WaveDriver`, `OrangeMoneyDriver` (puis `FreeMoneyDriver`), et
+- [x] `CREDENTIAL_KEYS` sur `WaveDriver`, `OrangeMoneyDriver` (puis `FreeMoneyDriver`), et
       `OrangeMoneyProvider::schema` aligné sur ce que lit le pilote (voir Contraintes).
-- [ ] `Store/UpdateIntegrationRequest` (agence) : `provider` borné au registre ; `credentials`
+- [x] `Store/UpdateIntegrationRequest` (agence) : `provider` borné au registre ; `credentials`
       validé par le schéma pour la catégorie `payments`.
-- [ ] Pilotes Wave, Orange Money et Lemon Squeezy : plus aucun corps de réponse ni nom de clé
+- [x] Pilotes Wave, Orange Money et Lemon Squeezy : plus aucun corps de réponse ni nom de clé
       dans un message d'erreur (clés `payments.gateway.provider_unavailable` et
       `payments.gateway.misconfigured`, fr/en/wo) ; le corps est journalisé côté serveur.
-- [ ] Front : le formulaire d'intégration de l'agence, pour un fournisseur de paiement, présente
+- [x] Front : le formulaire d'intégration de l'agence, pour un fournisseur de paiement, présente
       les champs du schéma du fournisseur et affiche les erreurs `credentials.<clé>`.
-- [ ] Tests : `PaymentDriverCredentialsTest` (unitaire), `IntegrationStoreValidationTest`,
+- [x] Tests : `PaymentDriverCredentialsTest` (unitaire), `IntegrationStoreValidationTest`,
       `PaymentDriverErrorLeakTest`.
 
 ### 5. Liens de partage de documents (D-52)
-- [ ] Migration `hash_document_share_links_tokens` : `token_hash` (unique, nommé), `token` en
+- [x] Migration `hash_document_share_links_tokens` : `token_hash` (unique, nommé), `token` en
       `text`, retrait de l'index unique sur `token`, et hachage + chiffrement des jetons existants
       (`down()` qui rétablit la colonne en clair à partir du déchiffrement).
-- [ ] `DocumentShareLink` : cast `token` → `encrypted`. `DocumentShareLinkService` : jeton de 32
+- [x] `DocumentShareLink` : cast `token` → `encrypted`. `DocumentShareLinkService` : jeton de 32
       octets en base64url, `token_hash` à la création, recherche par `token_hash` dans
       `validate`, compteur d'essais de mot de passe par lien.
-- [ ] `routes/api/documents.php:28-29` : `throttle:30,1` sur `share.show`, `throttle:10,1` sur
+- [x] `routes/api/documents.php:28-29` : `throttle:30,1` sur `share.show`, `throttle:10,1` sur
       `share.download`.
-- [ ] Tests : `DocumentShareLinkTokenStorageTest`, `DocumentShareLinkThrottleTest`.
+- [x] Tests : `DocumentShareLinkTokenStorageTest`, `DocumentShareLinkThrottleTest`.
 
-### 6. Pilote Free Money — livré en dernier, prérequis : documentation marchande
-- [ ] Verser la documentation marchande du fournisseur au dépôt (`docs/infra/paiements/free-money.md` :
+### 6. Pilote Free Money — livré en dernier, prérequis : documentation marchande → TCK-604
+
+> **→ [TCK-604](TCK-604-free-money-quand-la-documentation-marchande-est-versee.md)** (décision de
+> session du 2026-10-08) : rien de cette sous-partie n'est livré ici.
+
+- [ ] → TCK-604 — Verser la documentation marchande du fournisseur au dépôt (`docs/infra/paiements/free-money.md` :
       endpoints, authentification, signature, statuts, bac à sable, date du relevé et source).
-- [ ] `PaymentProvider::FreeMoney` (`supportedCurrencies` = `['XOF']`, `paymentMethod()` =
+- [ ] → TCK-604 — `PaymentProvider::FreeMoney` (`supportedCurrencies` = `['XOF']`, `paymentMethod()` =
       `PaymentMethod::FreeMoney`).
-- [ ] `App\Services\Payments\Drivers\FreeMoneyDriver` (`initiate`, `verify`, `handleWebhook`,
+- [ ] → TCK-604 — `App\Services\Payments\Drivers\FreeMoneyDriver` (`initiate`, `verify`, `handleWebhook`,
       `CREDENTIAL_KEYS`), selon les Contraintes.
-- [ ] `PaymentGatewayService::driverFor` et `extractProvider` : bras `free_money`.
-- [ ] `App\Domain\Integrations\Providers\FreeMoneyProvider` (catégorie `payments`, schéma = les
+- [ ] → TCK-604 — `PaymentGatewayService::driverFor` et `extractProvider` : bras `free_money`.
+- [ ] → TCK-604 — `App\Domain\Integrations\Providers\FreeMoneyProvider` (catégorie `payments`, schéma = les
       clés du pilote), enregistré dans `IntegrationProviderRegistry`.
-- [ ] `WebhookPayloadRedactor` : liste blanche `payment/free_money`.
-- [ ] Front : Free Money dans la sélection du fournisseur (page authentifiée et page publique),
+- [ ] → TCK-604 — `WebhookPayloadRedactor` : liste blanche `payment/free_money`.
+- [ ] → TCK-604 — Front : Free Money dans la sélection du fournisseur (page authentifiée et page publique),
       affiché seulement quand la liste du serveur le contient ; Free Money proposé dans le
       formulaire d'intégration de l'agence ; libellés fr/en/wo.
-- [ ] Tests : `FreeMoneyDriverTest` (réponses simulées `Http::fake`), `PaymentGatewayFreeMoneyTest`.
+- [ ] → TCK-604 — Tests : `FreeMoneyDriverTest` (réponses simulées `Http::fake`), `PaymentGatewayFreeMoneyTest`.
 
 ## Critères d'acceptation
 
 **Journal des webhooks**
-- [ ] **AC1** — Un `POST /api/webhooks/payments/wave` à la signature invalide crée **une** ligne
+- [x] **AC1** — Un `POST /api/webhooks/payments/wave` à la signature invalide crée **une** ligne
       `rejected`, avec `authenticated_at` nul et `http_status = 401`. *Ce test rougit sur le code
       actuel, où aucune ligne n'est créée.*
-- [ ] **AC2** — Un webhook valide dont le `transaction_id` n'apparie aucun payable produit une
+- [x] **AC2** — Un webhook valide dont le `transaction_id` n'apparie aucun payable produit une
       ligne `processed` avec `matched_count = 0`, et
       `GET /api/admin/webhook-logs?filter[unmatched]=1` la renvoie. *Ce test rougit sur le code
       actuel, où la ligne n'a pas de compte d'appariement.*
-- [ ] **AC3** — Une exception levée **après** la vérification de signature (forcée dans le test)
+- [x] **AC3** — Une exception levée **après** la vérification de signature (forcée dans le test)
       produit une ligne `failed`. Le `POST …/replay` de cette ligne passe alors le paiement à
       `paid`. Un second rejeu ne modifie plus le paiement et ne crée aucune nouvelle entrée dans
       `gateway_events`.
-- [ ] **AC4** — Le rejeu d'une ligne `rejected` rend **422** et ne mute rien. Ce test devient
+- [x] **AC4** — Le rejeu d'une ligne `rejected` rend **422** et ne mute rien. Ce test devient
       **rouge si l'on retire la condition sur `authenticated_at`** (ablation).
-- [ ] **AC5** — Le rejeu d'un webhook Wave réussit parce que la signature, recalculée sur `body`
+- [x] **AC5** — Le rejeu d'un webhook Wave réussit parce que la signature, recalculée sur `body`
       déchiffré, est identique. La vérification n'est pas contournée : le test devient rouge si
       l'on altère un octet de `body`.
-- [ ] **AC6** — Un payload WhatsApp ou SMS contenant un numéro `221771234567` et un e-mail ne
+- [x] **AC6** — Un payload WhatsApp ou SMS contenant un numéro `221771234567` et un e-mail ne
       laisse apparaître ni l'un ni l'autre en clair dans `payload`, ni dans la réponse
       `GET /api/admin/webhook-logs/{id}`. Une lecture SQL brute de `body` ne contient pas la
       chaîne `221771234567`, parce que la colonne est chiffrée. *Rougit sur le code actuel : le
       numéro est en clair dans `payload.truncated`.*
-- [ ] **AC7** — Le segment `{token}` des URL SMS et WhatsApp n'apparaît dans aucune colonne d'une
+- [x] **AC7** — Le segment `{token}` des URL SMS et WhatsApp n'apparaît dans aucune colonne d'une
       ligne de journal.
-- [ ] **AC8** — `GET /api/admin/integrations/{id}/webhooks` ne supprime aucune ligne vieille de
+- [x] **AC8** — `GET /api/admin/integrations/{id}/webhooks` ne supprime aucune ligne vieille de
       31 jours. `php artisan webhooks:prune` supprime une ligne de paiement de 91 jours et une
       ligne SMS de 31 jours, mais conserve une ligne de paiement de 89 jours.
-- [ ] **AC9** — Un webhook validé par l'intégration de l'agence A est rattaché à
+- [x] **AC9** — Un webhook validé par l'intégration de l'agence A est rattaché à
       `integration_id` = celle de A et `agency_id` = A, et non à l'intégration globale. *Rougit
       sur le code actuel (`IntegrationService.php:141-144`) ; redevient rouge si l'on rétablit
       `whereNull('agency_id')`.*
-- [ ] **AC10** — Jeu construit **par le chemin réel** (webhook `failed` traité par
+- [x] **AC10** — Jeu construit **par le chemin réel** (webhook `failed` traité par
       `applyEventToMatchingPayment`, pas une fabrique qui écrit `status = failed`) : 2 échéances
       Wave `pending` qui reçoivent un webhook `failed` (elles restent `pending`, TCK-593), dont
       une est **ré-initiée** ensuite ; 1 `BookingPayment` Wave `failed` ; 1 échéance `late` Orange
@@ -580,46 +584,46 @@ explicitement.
       service compte `lease_payments.status = failed` (Wave `failed = 1`), ou si `recordInitiation`
       cesse de reprendre `last_failed_at` (Wave `failed = 2`).* Un agent ou un admin d'agence reçoit
       403 sur les quatre routes `admin/payments` et `admin/webhook-logs`.
-- [ ] **AC11** — Un webhook Wave valide dont le corps fait **10 000 octets** est conservé à
+- [x] **AC11** — Un webhook Wave valide dont le corps fait **10 000 octets** est conservé à
       l'identique : `body` déchiffré === corps envoyé, `body_sha256` = `hash('sha256', corps)`,
       `body_truncated = false`. Un corps de 300 Kio donne `body` nul, `body_truncated = true`, et
       son rejeu rend 422. *Rougit sur le code actuel (troncature à 4000, `IntegrationService.php:153`).*
-- [ ] **AC12** — Un `POST /api/webhooks/sms/orange/status/{token}` depuis une IP hors liste rend
+- [x] **AC12** — Un `POST /api/webhooks/sms/orange/status/{token}` depuis une IP hors liste rend
       403 et crée une ligne `rejected`, `channel = sms`, `http_status = 403`. Un accusé Orange
       authentifié qui n'apparie aucun envoi rend 404 et crée une ligne `processed`,
       `matched_count = 0`, `http_status = 404`. *Rougit sur le code actuel : aucune ligne.*
-- [ ] **AC13** — Un `POST /lemon-squeezy/webhook` au `X-Signature` faux rend 403 et crée une
+- [x] **AC13** — Un `POST /lemon-squeezy/webhook` au `X-Signature` faux rend 403 et crée une
       ligne `rejected`, `provider = lemon_squeezy`. Avec une signature juste, la ligne est
       `processed` et `authenticated_at` est posé. *Rougit sur le code actuel : aucune ligne.*
 
 **Lien de paiement**
-- [ ] **AC14** — Pour un locataire **sans compte**, `GET /api/pay/{token}` rend 200 avec le
+- [x] **AC14** — Pour un locataire **sans compte**, `GET /api/pay/{token}` rend 200 avec le
       montant, le titre du bien et les fournisseurs disponibles de **son** agence. La réponse ne
       contient ni son nom ni son téléphone. Un fournisseur actif uniquement chez une autre agence
       n'y figure pas.
-- [ ] **AC15** — Un jeton inconnu rend 404. Un jeton révoqué rend 410, et un jeton expiré rend
+- [x] **AC15** — Un jeton inconnu rend 404. Un jeton révoqué rend 410, et un jeton expiré rend
       410. `initiate` sur une échéance `paid` rend 409. `initiate` avec un `provider` non
       disponible pour l'agence rend 422.
-- [ ] **AC16** — `initiate` ignore tout `return_url` fourni : l'URL transmise au pilote pointe
+- [x] **AC16** — `initiate` ignore tout `return_url` fourni : l'URL transmise au pilote pointe
       vers la page publique du lien. Le test devient rouge si le contrôleur relit `return_url` dans
       la requête.
-- [ ] **AC17** — `token` en base n'est pas égal au jeton en clair, et la recherche par jeton en
+- [x] **AC17** — `token` en base n'est pas égal au jeton en clair, et la recherche par jeton en
       clair dans `token_hash` ne trouve rien. Deux appels successifs à `urlFor` rendent la même
       URL, alors que `regenerate` en rend une nouvelle et fait passer l'ancienne à 410.
-- [ ] **AC18** — Un webhook `paid` sur une échéance dont le locataire n'a pas de compte envoie
+- [x] **AC18** — Un webhook `paid` sur une échéance dont le locataire n'a pas de compte envoie
       **une** notification de quittance au téléphone du `Customer`, et une notification au
       bailleur. *Ce test rougit sur le code actuel, où aucune notification n'est envoyée.*
       `GET /api/pay/{token}/receipt` rend un PDF pour une échéance `paid`, et 409 pour une
       échéance `pending`.
-- [ ] **AC19** — Sur la même échéance, le même webhook `paid` reçu deux fois, puis rejoué, puis
+- [x] **AC19** — Sur la même échéance, le même webhook `paid` reçu deux fois, puis rejoué, puis
       suivi d'un `verify()` qui relit `succeeded`, produit **une seule** quittance au total. Une
       échéance passée à `paid` par `verify()` seul (sans webhook) en produit une. *Redevient rouge
       si l'événement est émis sans tester le statut précédent (ablation).*
-- [ ] **AC20** — La 31ᵉ requête `GET /api/pay/{token}` dans la minute, depuis la même IP, rend
+- [x] **AC20** — La 31ᵉ requête `GET /api/pay/{token}` dans la minute, depuis la même IP, rend
       429.
-- [ ] **AC21** — La page publique sert `Referrer-Policy: no-referrer` et
+- [x] **AC21** — La page publique sert `Referrer-Policy: no-referrer` et
       `<meta name="robots" content="noindex">`. Elle s'affiche en fr, en et wo, et sans session.
-- [ ] **AC34 — le lien paie `amountDue`, deux réglages.** Échéance de 150 000 XOF,
+- [x] **AC34 — le lien paie `amountDue`, deux réglages.** Échéance de 150 000 XOF,
       `late_fee_amount = 7 500`, pénalité non réglée, pilote Wave simulé :
       - réglage d'agence **désactivé** (clé absente) : `GET /api/pay/{token}` rend
         `amount_due = 150000`, `late_fee_outstanding = 7500`, `late_fee_payable_online = false`, et
@@ -631,7 +635,7 @@ explicitement.
       `late_fee_outstanding = 7500`, et son `initiate` rend 409. *Rougit sur le code actuel (la
       route n'existe pas). Redevient rouge si le contrôleur lit `amount` ou `remaining_amount`
       (cas activé), ou ajoute la pénalité sans lire le réglage (cas désactivé).*
-- [ ] **AC35 — Front, page publique, deux réglages.** Test Vitest de `/pay/{token}` :
+- [x] **AC35 — Front, page publique, deux réglages.** Test Vitest de `/pay/{token}` :
       avec `amount_due = 150000`, `late_fee_outstanding = 7500`, `late_fee_payable_online = false`,
       le montant à payer vaut « 150 000 » et la pénalité « 7 500 » figure à part avec « à régler
       auprès de l'agence » et le nom de l'agence ; aucun nœud n'affiche « 157 500 ». Avec
@@ -640,57 +644,57 @@ explicitement.
       si la page additionne `late_fee_outstanding` à `amount_due` (« 165 000 »).*
 
 **Fournisseurs proposés**
-- [ ] **AC22** — Un locataire **avec compte**, sur une échéance d'un bail de l'agence A qui a une
+- [x] **AC22** — Un locataire **avec compte**, sur une échéance d'un bail de l'agence A qui a une
       intégration Wave active, obtient `GET /api/lease-payments/{p}/providers` → 200,
       `providers = ["wave"]`. Une échéance d'une agence sans intégration propre, alors qu'une
       intégration Orange Money globale est active, donne `["orange_money"]`. Une intégration
       inactive n'y figure pas, ni Lemon Squeezy sur une échéance en XOF. L'admin d'une agence B
       reçoit 403. *Rougit sur le code actuel : la route n'existe pas, et le seul moyen du front
       (`GET /api/integrations`) rend 403 au locataire.*
-- [ ] **AC23** — `POST /api/lease-payments/{p}/initiate` avec `provider=lemon_squeezy` sur une
+- [x] **AC23** — `POST /api/lease-payments/{p}/initiate` avec `provider=lemon_squeezy` sur une
       échéance en XOF, ou avec un fournisseur sans intégration couvrant l'agence, rend **422** avant
       tout appel au fournisseur (`Http::assertNothingSent`).
-- [ ] **AC24** — Front : l'échéancier vu par un locataire affiche « Payer en ligne » quand le point
+- [x] **AC24** — Front : l'échéancier vu par un locataire affiche « Payer en ligne » quand le point
       d'entrée rend `["wave"]`, et ne l'affiche pas quand il rend `[]`. *Rougit sur le code actuel,
       qui lit `/api/integrations`.*
 
 **Intégrations et pilotes**
-- [ ] **AC25** — `POST /api/integrations` par un admin d'agence avec `provider=wave` et
+- [x] **AC25** — `POST /api/integrations` par un admin d'agence avec `provider=wave` et
       `credentials = {api_key, api_secret}` rend **422** avec une erreur sur
       `credentials.webhook_secret`. `provider=inconnu` rend 422. *Rougit sur le code actuel (201).*
-- [ ] **AC26** — `PaymentDriverCredentialsTest` : pour chaque fournisseur de paiement qui a un
+- [x] **AC26** — `PaymentDriverCredentialsTest` : pour chaque fournisseur de paiement qui a un
       pilote, chaque clé de `CREDENTIAL_KEYS` est un champ `required` du schéma de son
       `IntegrationProvider`. *Rougit sur le code actuel pour Orange Money (`access_token` absent du
       schéma) ; redevient rouge si l'on retire une clé du schéma (ablation).*
-- [ ] **AC27** — Le fournisseur simulé répond 500 avec le corps `UPSTREAM-SECRET-42` :
+- [x] **AC27** — Le fournisseur simulé répond 500 avec le corps `UPSTREAM-SECRET-42` :
       `POST /api/lease-payments/{p}/initiate` rend 502, et la réponse ne contient pas
       `UPSTREAM-SECRET-42`. Même chose pour `verify`, pour Wave et Orange Money. *Rougit sur le
       code actuel (`WaveDriver.php:55`).*
 
 **Liens de partage de documents**
-- [ ] **AC28** — Après création d'un lien, une lecture SQL brute de `document_share_links.token`
+- [x] **AC28** — Après création d'un lien, une lecture SQL brute de `document_share_links.token`
       ne contient pas le jeton en clair, et `GET /api/share/{jeton}` rend 200. Un lien créé
       **avant** la migration (UUID) s'ouvre toujours après. *Rougit sur le code actuel (colonne en
       clair).*
-- [ ] **AC29** — La 31ᵉ requête `GET /api/share/{token}` dans la minute, depuis la même IP, rend
+- [x] **AC29** — La 31ᵉ requête `GET /api/share/{token}` dans la minute, depuis la même IP, rend
       429. *Rougit sur le code actuel.*
-- [ ] **AC30** — Sur un lien protégé, 5 mots de passe faux depuis 5 IP différentes, puis le bon
+- [x] **AC30** — Sur un lien protégé, 5 mots de passe faux depuis 5 IP différentes, puis le bon
       mot de passe depuis une 6ᵉ : la 6ᵉ requête rend **429**. *Rougit sur le code actuel (401
       puis 200) ; redevient rouge si le compteur est indexé par IP au lieu du lien.*
 
 **Free Money**
-- [ ] **AC31** — `FreeMoneyDriverTest` (`Http::fake`) : l'initiation d'une échéance de 15 000 XOF
+- [ ] → TCK-604 — **AC31** — `FreeMoneyDriverTest` (`Http::fake`) : l'initiation d'une échéance de 15 000 XOF
       envoie le montant **15000** (pas 1 500 000) et l'URL de retour reçue dans `$meta`, puis rend
       `checkout_url` et l'identifiant de transaction lus dans la réponse documentée. Un webhook à
       la signature juste rend un `PaymentEvent` du type attendu pour **chaque** statut de la
       documentation. Un octet altéré du corps rend 401, et un identifiant absent 422.
-- [ ] **AC32** — Avec une intégration `free_money` active pour l'agence A : `providers` liste
+- [ ] → TCK-604 — **AC32** — Avec une intégration `free_money` active pour l'agence A : `providers` liste
       `free_money`, `initiate` rend un `checkout_url`, et le webhook `paid` signé passe l'échéance
       à `paid` avec une entrée `gateway_events`. Sans intégration active, `free_money` est absent
       de `providers` et `initiate` rend 422. *Rougit sur le code actuel :
       `POST /api/webhooks/payments/free_money` rend 404 et `initiate` refuse `free_money` (422 de
       validation).*
-- [ ] **AC33** — Front : la sélection du fournisseur affiche Free Money si et seulement si la
+- [ ] → TCK-604 — **AC33** — Front : la sélection du fournisseur affiche Free Money si et seulement si la
       liste du serveur le contient ; le formulaire de reversement garde son mode `free_money`.
 
 ## Hors périmètre
@@ -711,4 +715,85 @@ explicitement.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure sur `0e3c9027` (2026-10-08, avant code)
+
+293, 593, 594 et 588 ont réécrit le paiement depuis `e3ab4a4e`. Constat par constat :
+
+- **§1 « aucun payeur ne voit le bouton »** — *partiellement fermé par TCK-593* :
+  `usePaymentProviders.ts` rend désormais `undefined` sur 403, et le bouton apparaît au locataire
+  avec **tous** les fournisseurs compatibles avec la devise, y compris ceux que son agence n'a pas
+  (l'initiation rend alors 404 `payment.integration_missing`). Le front lit toujours
+  `GET /api/integrations` : AC22/AC24 restent à faire.
+- **§1 chemin sans compte, notification au passage `paid`** : inchangés (routes sous
+  `auth:sanctum`, aucune notification dans `applyStatusToPayment`).
+- **§1 quittance** : *fermé par TCK-593* (`DocumentPdfController::receipt` rend 422
+  `lease_payment.receipt_unpaid`).
+- **§1 corps du fournisseur renvoyé au client** : *fermé par TCK-588* — les pilotes écrivent
+  `abort_code(502, 'payment.provider_failed')` et journalisent le corps. **Reste ouvert** : le nom de
+  la clé manquante sort dans `params.credential` du 500 `payment.integration_credential_missing`.
+- **§2 Free Money** : inchangé ; `grep -rniE "free_?money" docs` ne trouve que le mode de versement
+  de TCK-594 (`models-spec` §PayoutMethod, ADR-0039) — aucune documentation marchande.
+- **§3 Orange Money** : inchangé (le pilote lit `access_token`, absent du schéma). Le formulaire
+  d'agence écrit toujours `api_key`/`api_secret`/`webhook_url` (`lib/schemas/setting.ts:241-246`), et
+  `IntegrationController::update` remplace `credentials` en entier (`fill($data)`).
+- **§4 journal** : inchangé — `recordWebhook` après `handleWebhook`, `whereNull('agency_id')`,
+  troncature à 4000, purge à la lecture et sur le chemin du webhook. 293 a fixé l'intégration qui
+  valide (`$integration` dans `PaymentWebhookController`, `PaymentEvent::$authority`).
+- **§4 `recordInitiation`** : réécrit tout `metadata.gateway` ; `last_failed_at` est perdu à la
+  ré-initiation (relu l. 546-594).
+- **§5 liens de partage** : jeton UUID en clair, aucune limite de débit, aucun compteur de mot de
+  passe. TCK-587 a ajouté les variantes `POST` (mot de passe dans le corps) : la limite de débit
+  s'applique aussi à elles.
+- **Patron des notifications** : depuis TCK-588, une notification est un `NotificationCode` envoyé
+  par `NotificationService::send()` (clés `lang/*/notifications.php`), et un contact sans compte
+  passe par `ContactSansCompte`. La quittance suit ce patron, pas une classe `app/Notifications/`.
+
+### Livraison partielle (2026-10-08, branche `feat/tck-602-paiement-sans-compte`)
+
+**§0 à §5 livrés, §6 (Free Money) NON livré — sorti vers [TCK-604](TCK-604-free-money-quand-la-documentation-marchande-est-versee.md)** : le dépôt ne contient aucune documentation marchande
+Free Money (`grep -rniE "free_?money" docs` ne rend que le mode de versement de TCK-594). Le
+premier point du §6 est un prérequis, et rien ne s'écrit sur un contrat d'API supposé.
+
+**Clôture (2026-10-08, décision de session, réversible)** : le §6 et AC31 à AC33 sortent vers
+TCK-604, qui attend la documentation marchande versée par le porteur ; TCK-602 passe `done` sur
+§0 à §5, 32 AC sur 32 restants prouvés (test nommé + ablation).
+
+Écarts relevés en cours de route :
+
+- **AC1** cite `POST /api/webhooks/payments/wave`, qui rend 410 depuis TCK-293 (ADR-0046). Les
+  tests visent l'URL réelle `…/wave/{token}`.
+- **AC27** était déjà vert sur `0e3c9027` pour le corps (TCK-588) ; il rougit pour le nom de clé
+  et pour l'OAuth Orange Money. Codes renommés `payment.provider_unavailable` /
+  `payment.integration_misconfigured`.
+- **Orange Money** : jeton OAuth `client_credentials` (`client_id`, `client_secret`), mis en cache
+  jusqu'à `expires_in` − 60 s — calqué sur la passerelle SMS Orange, faute de documentation OM au
+  dépôt (décision à confirmer, ADR-0051).
+- **Raccord TCK-600** : `WebhookJournal::close` émet `WebhookProcessingFailed` au seul statut
+  `failed`, sans écouteur ni règle d'alerte.
+- **AC21** : l'en-tête `Referrer-Policy` est prouvé sur `next.config.ts` et la métadonnée de page ;
+  il n'a pas été relevé sur un `next start` réel.
+
+
+### Passe 1 — contre-vérification `verif-602` (REFUSÉ sur 1d83f463 : 0 bloquant, 4 majeurs, 4 mineurs)
+
+Chaque point a un test nommé et une ablation qui le fait rougir.
+
+- **M1** — `verify` concurrent au webhook : déjà fermé par TCK-596 (relecture sous verrou). Gardé par
+  `RentReceiptAfterOnlinePaymentTest::test_verify_racing_the_webhook_sends_a_single_receipt_and_keeps_the_webhook_event`
+  (le `FOR UPDATE` est lu à un niveau de transaction supérieur à celui du test).
+- **M2** — le jeton n'est plus persisté en clair : la cloche d'un compte ne porte jamais un lien
+  porteur (`NotificationCode::bearerParams()`, retirés par `NotificationService::send()`), et
+  `CodedNotification` est `ShouldBeEncrypted`. `BearerLinkAtRestTest` balaie toutes les colonnes
+  texte et JSON de la base.
+- **M3** — la mesure d'audience Vercel n'envoie plus `/pay/<jeton>` (`beforeSend`,
+  `src/lib/analytics-sans-secret.ts`).
+- **M4** — une requête non authentifiée n'écrit ni corps, ni en-têtes, ni charge : la ligne
+  rejetée d'un corps de 250 Ko pèse moins de 2 Ko.
+- **m1** — les essais de mot de passe d'un lien de partage sont comptés AVANT d'être évalués,
+  par l'incrément atomique du limiteur.
+- **m2** — `body_sha256` est un HMAC sous `APP_KEY`, et il ne sort plus de l'API.
+- **m3** — mutations survivantes S1, S3, S4, S5, S6 et S9 : un test chacune.
+- **m4** (limiteur par jeton) : suite, hors de ce ticket.
+- **M-1** : la formule d'ADR-0051 est corrigée — la garde ne protège qu'un checkout courant ouvert
+  chez un AUTRE fournisseur ; sans checkout, `custom_data` passe (limite inchangée, suite de
+  TCK-293).

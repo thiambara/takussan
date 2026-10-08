@@ -5,17 +5,26 @@ namespace App\Services\Model;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
 use App\Models\User;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class DocumentShareLinkService
 {
+    /** TCK-602 (ADR-0051 §7) — 32 octets aléatoires, en base64url : 43 caractères. */
+    public const TOKEN_BYTES = 32;
+
+    /** Mots de passe faux tolérés par lien, toutes adresses confondues, sur la fenêtre. */
+    public const PASSWORD_MAX_ATTEMPTS = 5;
+
+    public const PASSWORD_DECAY_SECONDS = 900;
+
     /** @param array<string,mixed> $data */
     public function create(Document $document, User $actor, array $data = []): DocumentShareLink
     {
         return DocumentShareLink::create([
             'document_id' => $document->id,
             'created_by_id' => $actor->id,
-            'token' => Str::uuid()->toString(),
+            'token' => rtrim(strtr(base64_encode(random_bytes(self::TOKEN_BYTES)), '+/', '-_'), '='),
             'expires_at' => $data['expires_at'] ?? now()->addDays(7),
             'max_downloads' => $data['max_downloads'] ?? null,
             'password_hash' => isset($data['password']) ? bcrypt($data['password']) : null,
@@ -25,7 +34,10 @@ class DocumentShareLinkService
 
     public function validate(string $token, ?string $password = null): DocumentShareLink
     {
-        $link = DocumentShareLink::where('token', $token)->firstOrFail();
+        // TCK-602 — recherche par l'empreinte : le jeton en clair n'est plus en base.
+        $hash = DocumentShareLink::hashToken($token);
+        $link = DocumentShareLink::query()->where('token_hash', $hash)->firstOrFail();
+        abort_if(! hash_equals((string) $link->token_hash, $hash), 404);
 
         abort_code_if($link->revoked_at !== null, 410, 'share_link.revoked');
         abort_code_if($link->expires_at !== null && $link->expires_at->isPast(), 410, 'share_link.expired');
@@ -36,11 +48,19 @@ class DocumentShareLinkService
         );
 
         if ($link->password_hash !== null) {
-            abort_code_unless(
-                $password !== null && password_verify($password, $link->password_hash),
-                401,
-                'share_link.password_invalid'
-            );
+            // TCK-602 (ADR-0051 §7) — les essais faux se comptent PAR LIEN, quelle que soit
+            // l'adresse : un limiteur par IP se contourne en changeant d'adresse. Au-delà, même
+            // le bon mot de passe attend la fin de la fenêtre.
+            // VERIF-602 m1 — l'essai est compté AVANT d'être évalué, par l'incrément atomique du
+            // cache, et c'est la valeur qu'il rend qui décide : des requêtes simultanées ne passent
+            // plus toutes un contrôle lu avant le premier compte. Le bon mot de passe rend son essai.
+            $key = 'share-password:'.$link->getKey();
+            $attempt = RateLimiter::hit($key, self::PASSWORD_DECAY_SECONDS);
+            abort_code_if($attempt > self::PASSWORD_MAX_ATTEMPTS, 429, 'share_link.too_many_attempts');
+            if ($password === null || ! Hash::check($password, $link->password_hash)) {
+                abort_code(401, 'share_link.password_invalid');
+            }
+            RateLimiter::decrement($key, self::PASSWORD_DECAY_SECONDS);
         }
 
         return $link;

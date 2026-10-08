@@ -122,45 +122,17 @@ class IntegrationService
         return ['success' => $result['success'], 'latency_ms' => $latency, 'error' => $result['error'] ?? null];
     }
 
+    /**
+     * TCK-602 (ADR-0051 §6) — la piste d'une intégration lit le journal ; elle ne purge plus rien
+     * (la rétention est l'affaire de `webhooks:prune`, au scheduler). Jamais `body` ni `headers`.
+     */
     public function webhooks(Integration $integration): LengthAwarePaginator
     {
-        $this->pruneWebhookLogs();
-
         return IntegrationWebhookLog::query()
             ->where('integration_id', $integration->id)
             ->latest()
+            ->latest('id')
             ->paginate(20);
-    }
-
-    /**
-     * @param  array<string,mixed>  $payload
-     */
-    public function recordWebhook(string $provider, array $payload, string $status = 'processed', ?string $eventType = null): void
-    {
-        $this->pruneWebhookLogs();
-        $integration = Integration::query()
-            ->where('provider', $provider)
-            ->whereNull('agency_id')
-            ->first();
-
-        IntegrationWebhookLog::create([
-            'integration_id' => $integration?->id,
-            'provider' => $provider,
-            'direction' => 'incoming',
-            'status' => $status,
-            'event_type' => $eventType,
-            'payload' => [
-                'truncated' => Str::of(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}')->limit(4000)->toString(),
-            ],
-            'processed_at' => now(),
-        ]);
-    }
-
-    public function pruneWebhookLogs(): void
-    {
-        IntegrationWebhookLog::query()
-            ->where('created_at', '<', now()->subDays(30))
-            ->delete();
     }
 
     /**

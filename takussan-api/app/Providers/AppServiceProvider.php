@@ -120,6 +120,7 @@ use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
+use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
 use App\Support\Logging\SanitizingFailedJobProvider;
 use App\Support\TelephoneSaisi;
@@ -136,6 +137,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
+use LemonSqueezy\Laravel\LemonSqueezy;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -175,10 +177,19 @@ class AppServiceProvider extends ServiceProvider
         // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
         // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
         $this->app->scoped(ReviewModerationScope::class);
+
+        // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
+        // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
+        $this->app->scoped(WebhookJournal::class);
+
+        // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
+        // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.
+        LemonSqueezy::ignoreRoutes();
     }
 
     public function boot(Dispatcher $events): void
     {
+        $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootRequestMacros();
         $this->bootRateLimiters();
         // TCK-589 — le rappel UNIQUE de Sanctum (statut du compte + bornes de session).

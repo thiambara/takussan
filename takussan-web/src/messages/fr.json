@@ -228,7 +228,8 @@
         "failedJobs": "Jobs échoués",
         "maintenance": "Maintenance",
         "scheduler": "Planificateur",
-        "privacyRequests": "Demandes de droits"
+        "privacyRequests": "Demandes de droits",
+        "payments": "Paiements"
       }
     },
     "notifications": {
@@ -3611,6 +3612,12 @@
           "submit": "Enregistrer quand même",
           "cancel": "Annuler"
         }
+      },
+      "paymentLink": {
+        "copy": "Lien de paiement",
+        "copied": "Lien de paiement copié : transmettez-le au locataire.",
+        "ready": "Lien de paiement prêt : transmettez-le au locataire.",
+        "failed": "Le lien de paiement n'a pas pu être créé."
       }
     },
     "fallbackReference": "Bail #{id}",
@@ -7194,7 +7201,7 @@
         "empty_title": "Aucun webhook récent",
         "empty_description": "Les appels reçus de ce provider apparaîtront ici.",
         "title": "Webhooks {label}",
-        "retention": "Trail conservé 30 jours.",
+        "retention": "Journal conservé 90 jours pour les paiements, 30 jours pour la messagerie.",
         "closeAria": "Fermer les webhooks",
         "colEvent": "Événement",
         "colStatus": "Statut",
@@ -7742,6 +7749,10 @@
         "metaTitle": "Demandes de droits — Console Takussan",
         "title": "Demandes de droits",
         "subtitle": "Le registre des demandes d'accès, de rectification, d'opposition, d'effacement et de portabilité, suivies jusqu'à leur échéance."
+      },
+      "payments": {
+        "title": "Paiements",
+        "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
       }
     },
     "featureFlags": {
@@ -8202,6 +8213,83 @@
         "proofHint": "PDF ou image (JPG, PNG, WebP, HEIC).",
         "proofReplace": "Une preuve est déjà déposée ({name}) : un nouveau fichier la remplace."
       }
+    },
+    "payments": {
+      "all": "Tous",
+      "loadError": "Impossible de charger les paiements.",
+      "providers": {
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "lemon_squeezy": "Carte (Lemon Squeezy)",
+        "unknown": "Fournisseur inconnu"
+      },
+      "summary": {
+        "title": "Par fournisseur",
+        "windowLabel": "Période",
+        "last7": "7 derniers jours",
+        "last30": "30 derniers jours",
+        "caption": "Paiements en échec, en retard et webhooks non appariés, par fournisseur",
+        "colProvider": "Fournisseur",
+        "colFailed": "En échec",
+        "colLate": "En retard",
+        "colUnmatched": "Webhooks non appariés"
+      },
+      "list": {
+        "title": "Paiements à suivre",
+        "reasonLabel": "Motif",
+        "providerLabel": "Fournisseur",
+        "caption": "Paiements en échec ou en retard sur la période",
+        "colReason": "Motif",
+        "colType": "Type",
+        "colReference": "Référence",
+        "colStatus": "Statut",
+        "colProvider": "Fournisseur",
+        "colAmount": "Montant",
+        "colAt": "Date",
+        "reasons": {
+          "failed": "En échec",
+          "late": "En retard"
+        },
+        "types": {
+          "lease_payment": "Échéance de loyer",
+          "booking_payment": "Paiement de réservation"
+        },
+        "empty_title": "Rien à suivre",
+        "empty_description": "Aucun paiement en échec ni en retard sur les 30 derniers jours."
+      },
+      "journal": {
+        "title": "Journal des webhooks",
+        "retention": "Conservé 90 jours pour les paiements, 30 jours pour la messagerie. Les numéros et adresses y sont masqués.",
+        "channelLabel": "Canal",
+        "onlyUnmatched": "Non appariés seulement",
+        "caption": "Webhooks reçus des fournisseurs",
+        "colReceived": "Reçu",
+        "colSource": "Source",
+        "colStatus": "Statut",
+        "colHttp": "HTTP",
+        "colError": "Erreur",
+        "colExternal": "Identifiant fournisseur",
+        "colActions": "Actions",
+        "channels": {
+          "payment": "Paiement",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "statuses": {
+          "received": "Reçu",
+          "processed": "Traité",
+          "rejected": "Rejeté",
+          "failed": "En échec"
+        },
+        "unmatched": "Non apparié",
+        "replay": "Rejouer",
+        "confirmTitle": "Rejouer ce webhook",
+        "confirmDescription": "Le webhook {source} sera retraité tel qu'il a été reçu, signature revérifiée. Un paiement déjà réglé ne l'est pas deux fois.",
+        "replayOutcome": "Webhook rejoué : {status}.",
+        "replayError": "Le rejeu a échoué.",
+        "empty_title": "Aucun webhook",
+        "empty_description": "Les appels reçus des fournisseurs apparaîtront ici."
+      }
     }
   },
   "adminSettings": {
@@ -8271,6 +8359,18 @@
           "orange_money": "Orange Money"
         },
         "unsupported": "La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."
+      },
+      "paymentFields": {
+        "legend": "Identifiants du fournisseur",
+        "api_key": "Clé d'API",
+        "webhook_secret": "Secret de webhook",
+        "client_id": "Identifiant client (client ID)",
+        "client_secret": "Secret client",
+        "merchant_key": "Clé marchand",
+        "store_id": "Identifiant de boutique",
+        "variant_id": "Identifiant de variante",
+        "signing_secret": "Secret de signature",
+        "secret_key": "Clé secrète"
       }
     },
     "settings": {
@@ -9767,6 +9867,10 @@
         "received_landlord": {
           "title": "Loyer reçu : {property}",
           "body": "{tenant} a payé {amount} pour {property}."
+        },
+        "settled_online": {
+          "title": "Paiement reçu : {property}",
+          "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance est disponible dans votre espace."
         }
       },
       "payment": {
@@ -10264,5 +10368,37 @@
     "emptyTitle": "Aucune commission",
     "emptyDescription": "Une commission naît à l'activation d'un bail qui porte un montant de commission.",
     "tableCaption": "Lignes du grand livre des commissions"
+  },
+  "payLink": {
+    "metaTitle": "Payer mon loyer",
+    "title": "Régler votre échéance",
+    "loading": "Ouverture du lien…",
+    "dueDate": "Échéance",
+    "reference": "Référence",
+    "amountDue": "Montant à payer",
+    "rent": "Loyer",
+    "lateFee": "Pénalité de retard",
+    "lateFeeAtAgency": "À régler auprès de l'agence {agency}.",
+    "payWith": "Payer avec {provider}",
+    "providers": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "lemon_squeezy": "Carte bancaire",
+      "free_money": "Free Money"
+    },
+    "payError": "Le paiement n'a pas pu être ouvert. Réessayez dans un instant.",
+    "unavailable": "Le paiement en ligne n'est pas disponible pour cette échéance. Contactez l'agence {agency}.",
+    "cancelledNotice": "Le paiement a été annulé. Vous pouvez réessayer.",
+    "paid": "Cette échéance est réglée. Merci !",
+    "receipt": "Télécharger la quittance",
+    "receiptFile": "quittance",
+    "receiptError": "La quittance n'a pas pu être téléchargée. Réessayez dans un instant.",
+    "goneTitle": "Ce lien n'est plus valide",
+    "goneDescription": "Il a expiré ou a été remplacé. Demandez un nouveau lien à votre agence.",
+    "goneDescriptionAgency": "Il a expiré ou a été remplacé. Demandez un nouveau lien à l'agence {agency}.",
+    "notFoundTitle": "Lien introuvable",
+    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à votre agence.",
+    "error": "L'échéance n'a pas pu être chargée. Réessayez dans un instant.",
+    "retry": "Réessayer"
   }
 }

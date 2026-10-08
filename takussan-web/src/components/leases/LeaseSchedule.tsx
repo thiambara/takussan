@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock } from 'lucide-react';
-import { useLeasePayments, useMarkLateFeePaid } from '@/lib/queries/leases';
+import { CalendarClock, Link2 } from 'lucide-react';
+import { useIssuePaymentLink, useLeasePayments, useMarkLateFeePaid } from '@/lib/queries/leases';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
@@ -73,8 +73,8 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
   const toast = useToast();
   const paymentsQuery = useLeasePayments(leaseId);
   const { data, isLoading, isError } = paymentsQuery;
-  const { providers } = usePaymentProviders(agencyId ?? null);
   const markLateFeePaid = useMarkLateFeePaid(leaseId);
+  const issuePaymentLink = useIssuePaymentLink();
   const { user } = useAuth();
   const { data: mesProfils } = useMyProfiles();
   // Passe 3 (m3) — l'offre de passer outre suit la règle de l'API : un bailleur d'agence gère le
@@ -91,6 +91,9 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
   } | null>(null);
 
   const payments = useMemo(() => data?.data ?? [], [data]);
+  // TCK-602 — les fournisseurs ne dépendent que de l'agence et de la devise du bail : la première
+  // échéance due suffit à les lire, une requête par échéancier et non par ligne.
+  const { providers } = usePaymentProviders('lease-payments', payments.find((p) => p.status !== 'cancelled' && p.amount_due > 0)?.id ?? null);
 
   if (isLoading) {
     return <Skeleton className="h-40 rounded-xl" />;
@@ -112,6 +115,30 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
         description={t('empty_description')}
       />
     );
+  }
+
+  /**
+   * TCK-602 — le lien de paiement d'une échéance, copié pour être transmis au locataire sans
+   * compte (la relance le porte déjà quand un fournisseur sert l'agence).
+   */
+  async function copierLienDePaiement(paymentId: number) {
+    try {
+      const { data: lien } = await issuePaymentLink.mutateAsync({ paymentId });
+      let copie = false;
+      try {
+        await navigator.clipboard.writeText(lien.url);
+        copie = true;
+      } catch {
+        // Presse-papiers refusé (contexte non sécurisé, permission) : le lien s'affiche à la place.
+      }
+      toast.add({
+        title: copie ? t('paymentLink.copied') : t('paymentLink.ready'),
+        description: copie ? undefined : lien.url,
+        type: 'success',
+      });
+    } catch (err) {
+      toast.add({ title: messageErreur(err, t('paymentLink.failed')), type: 'error' });
+    }
   }
 
   async function constaterPenaliteReglee(paymentId: number, motifPassageOutre?: string) {
@@ -219,6 +246,19 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
                   >
                     {t('receiptPdf')}
                   </BoutonTelechargement>
+                )}
+                {canManage && !annulee && p.amount_due > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void copierLienDePaiement(p.id)}
+                    disabled={issuePaymentLink.isPending}
+                    data-testid="lien-de-paiement"
+                  >
+                    <Link2 className="size-4" aria-hidden="true" />
+                    {t('paymentLink.copy')}
+                  </Button>
                 )}
                 {canManage && !annulee && p.late_fee_outstanding > 0 && (
                   <Button

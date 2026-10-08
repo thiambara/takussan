@@ -228,7 +228,8 @@
         "failedJobs": "Failed jobs",
         "maintenance": "Maintenance",
         "scheduler": "Scheduler",
-        "privacyRequests": "Rights requests"
+        "privacyRequests": "Rights requests",
+        "payments": "Payments"
       }
     },
     "notifications": {
@@ -3636,6 +3637,12 @@
           "submit": "Record anyway",
           "cancel": "Cancel"
         }
+      },
+      "paymentLink": {
+        "copy": "Payment link",
+        "copied": "Payment link copied: send it to the tenant.",
+        "ready": "Payment link ready: send it to the tenant.",
+        "failed": "The payment link could not be created."
       }
     },
     "fallbackReference": "Lease #{id}",
@@ -7194,7 +7201,7 @@
         "empty_title": "No recent webhook",
         "empty_description": "Calls received from this provider will show up here.",
         "title": "Webhooks {label}",
-        "retention": "Trail kept for 30 days.",
+        "retention": "Log kept 90 days for payments, 30 days for messaging.",
         "closeAria": "Close the webhooks",
         "colEvent": "Event",
         "colStatus": "Status",
@@ -7742,6 +7749,10 @@
         "metaTitle": "Rights requests — Takussan Console",
         "title": "Rights requests",
         "subtitle": "The register of access, rectification, objection, erasure and portability requests, tracked until their deadline."
+      },
+      "payments": {
+        "title": "Payments",
+        "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
       }
     },
     "featureFlags": {
@@ -8202,6 +8213,83 @@
         "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
         "proofReplace": "A proof is already on file ({name}): a new file replaces it."
       }
+    },
+    "payments": {
+      "all": "All",
+      "loadError": "Could not load payments.",
+      "providers": {
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "lemon_squeezy": "Card (Lemon Squeezy)",
+        "unknown": "Unknown provider"
+      },
+      "summary": {
+        "title": "By provider",
+        "windowLabel": "Period",
+        "last7": "Last 7 days",
+        "last30": "Last 30 days",
+        "caption": "Failed and late payments and unmatched webhooks, by provider",
+        "colProvider": "Provider",
+        "colFailed": "Failed",
+        "colLate": "Late",
+        "colUnmatched": "Unmatched webhooks"
+      },
+      "list": {
+        "title": "Payments to follow up",
+        "reasonLabel": "Reason",
+        "providerLabel": "Provider",
+        "caption": "Failed or late payments over the period",
+        "colReason": "Reason",
+        "colType": "Type",
+        "colReference": "Reference",
+        "colStatus": "Status",
+        "colProvider": "Provider",
+        "colAmount": "Amount",
+        "colAt": "Date",
+        "reasons": {
+          "failed": "Failed",
+          "late": "Late"
+        },
+        "types": {
+          "lease_payment": "Rent instalment",
+          "booking_payment": "Booking payment"
+        },
+        "empty_title": "Nothing to follow up",
+        "empty_description": "No failed or late payment over the last 30 days."
+      },
+      "journal": {
+        "title": "Webhook log",
+        "retention": "Kept 90 days for payments, 30 days for messaging. Phone numbers and addresses are masked.",
+        "channelLabel": "Channel",
+        "onlyUnmatched": "Unmatched only",
+        "caption": "Webhooks received from providers",
+        "colReceived": "Received",
+        "colSource": "Source",
+        "colStatus": "Status",
+        "colHttp": "HTTP",
+        "colError": "Error",
+        "colExternal": "Provider ID",
+        "colActions": "Actions",
+        "channels": {
+          "payment": "Payment",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "statuses": {
+          "received": "Received",
+          "processed": "Processed",
+          "rejected": "Rejected",
+          "failed": "Failed"
+        },
+        "unmatched": "Unmatched",
+        "replay": "Replay",
+        "confirmTitle": "Replay this webhook",
+        "confirmDescription": "The {source} webhook will be processed again exactly as received, with its signature re-verified. A payment already settled is never settled twice.",
+        "replayOutcome": "Webhook replayed: {status}.",
+        "replayError": "The replay failed.",
+        "empty_title": "No webhook",
+        "empty_description": "Calls received from providers will appear here."
+      }
     }
   },
   "adminSettings": {
@@ -8271,6 +8359,18 @@
           "orange_money": "Orange Money"
         },
         "unsupported": "Automatic payment confirmation is not yet supported for this provider."
+      },
+      "paymentFields": {
+        "legend": "Provider credentials",
+        "api_key": "API key",
+        "webhook_secret": "Webhook secret",
+        "client_id": "Client ID",
+        "client_secret": "Client secret",
+        "merchant_key": "Merchant key",
+        "store_id": "Store ID",
+        "variant_id": "Variant ID",
+        "signing_secret": "Signing secret",
+        "secret_key": "Secret key"
       }
     },
     "settings": {
@@ -9767,6 +9867,10 @@
         "received_landlord": {
           "title": "Rent received: {property}",
           "body": "{tenant} paid {amount} for {property}."
+        },
+        "settled_online": {
+          "title": "Payment received: {property}",
+          "body": "Your payment of {amount} for {property} has been received. Your receipt is available in your account."
         }
       },
       "payment": {
@@ -10264,5 +10368,37 @@
     "emptyTitle": "No commission",
     "emptyDescription": "A commission is created when a lease carrying a commission amount is activated.",
     "tableCaption": "Commission ledger lines"
+  },
+  "payLink": {
+    "metaTitle": "Pay my rent",
+    "title": "Pay your instalment",
+    "loading": "Opening the link…",
+    "dueDate": "Due date",
+    "reference": "Reference",
+    "amountDue": "Amount to pay",
+    "rent": "Rent",
+    "lateFee": "Late fee",
+    "lateFeeAtAgency": "To be paid to the agency {agency}.",
+    "payWith": "Pay with {provider}",
+    "providers": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "lemon_squeezy": "Bank card",
+      "free_money": "Free Money"
+    },
+    "payError": "The payment could not be opened. Please try again in a moment.",
+    "unavailable": "Online payment is not available for this instalment. Please contact the agency {agency}.",
+    "cancelledNotice": "The payment was cancelled. You can try again.",
+    "paid": "This instalment is paid. Thank you!",
+    "receipt": "Download the receipt",
+    "receiptFile": "receipt",
+    "receiptError": "The receipt could not be downloaded. Please try again in a moment.",
+    "goneTitle": "This link is no longer valid",
+    "goneDescription": "It has expired or been replaced. Ask your agency for a new link.",
+    "goneDescriptionAgency": "It has expired or been replaced. Ask the agency {agency} for a new link.",
+    "notFoundTitle": "Link not found",
+    "notFoundDescription": "Check the address you received, or ask your agency for a new link.",
+    "error": "The instalment could not be loaded. Please try again in a moment.",
+    "retry": "Try again"
   }
 }

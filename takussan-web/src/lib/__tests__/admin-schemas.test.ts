@@ -247,10 +247,25 @@ describe('integrationFormSchema & normaliseIntegrationForm', () => {
     sms_service_id: '',
     sms_accountid: '',
     sms_host: '',
+    payment_credentials: {} as Record<string, string>,
   };
 
   it('requires a provider', () => {
     expect(integrationFormSchema.safeParse({ ...base, provider: ' ' }).success).toBe(false);
+  });
+
+  it('TCK-602 — un fournisseur de paiement envoie les champs de son schéma', () => {
+    const payload = normaliseIntegrationForm(
+      {
+        ...base,
+        provider: 'orange_money',
+        api_key: '',
+        api_secret: '',
+        payment_credentials: { client_id: ' cid ', client_secret: 'cs', merchant_key: '', webhook_secret: 'ws' },
+      },
+      'create',
+    );
+    expect(payload.credentials).toEqual({ client_id: 'cid', client_secret: 'cs', webhook_secret: 'ws' });
   });
 
   it('normalises credentials into a sub-object on create', () => {

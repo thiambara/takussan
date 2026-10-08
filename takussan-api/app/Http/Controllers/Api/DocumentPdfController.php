@@ -38,9 +38,18 @@ class DocumentPdfController extends Controller
         // locataire : une « Quittance de loyer » attesterait l'inverse.
         abort_code_if($payment->payment_type === LeasePaymentType::DepositRefund, 422, 'lease_payment.receipt_not_a_payment');
 
+        return self::streamRentReceipt($this->pdf, $lease, $payment);
+    }
+
+    /**
+     * Le rendu de la quittance de TCK-593 — UN gabarit, servi aussi par le lien de paiement
+     * public (TCK-602, `PublicPaymentLinkController::receipt`), qui ne crée pas le sien.
+     */
+    public static function streamRentReceipt(DocumentPdfService $pdf, Lease $lease, LeasePayment $payment): Response
+    {
         $lease->loadMissing(['property.address', 'tenant', 'agency']);
 
-        return $this->pdf->stream('pdf.receipts.rent', [
+        return $pdf->stream('pdf.receipts.rent', [
             'title' => 'Quittance de loyer',
             'document_label' => 'Quittance',
             'lease' => $lease,

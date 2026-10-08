@@ -4,6 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import {
   fetchIntegrationWebhookEndpointAction,
   fetchIntegrationsAction,
+  fetchPaymentProviderSchemasAction,
 } from '@/app/actions/admin-settings';
 import { hasWebhookEndpoint } from '@/lib/schemas/setting';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
@@ -35,7 +36,10 @@ export default async function Page() {
     redirect('/admin');
   }
 
-  const result = await fetchIntegrationsAction();
+  const [result, schemas] = await Promise.all([fetchIntegrationsAction(), fetchPaymentProviderSchemasAction()]);
+  // TCK-602 — sans les schémas, le formulaire retombe sur ses champs génériques ; l'API refuse en
+  // 422, champ par champ, une intégration de paiement incomplète.
+  const paymentProviders = schemas.ok && schemas.data ? schemas.data : [];
   const integrations = result.ok && result.data ? result.data.data : [];
   const webhookUrls = Object.fromEntries(
     (
@@ -62,7 +66,11 @@ export default async function Page() {
         /* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */
         <ErrorState message={t('loadError', { message: result.message })} />
       ) : (
-        <IntegrationsManager initialIntegrations={integrations} initialWebhookUrls={webhookUrls} />
+        <IntegrationsManager
+          initialIntegrations={integrations}
+          initialWebhookUrls={webhookUrls}
+          paymentProviders={paymentProviders}
+        />
       )}
     </div>
   );

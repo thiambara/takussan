@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les QUINZE pages publiques déclarent leur métadonnée sur place', () => {
+  it('les SEIZE pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -363,7 +363,9 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // 11 → 14 : TCK-531 ajoute `/legal/{terms,privacy,notice}`, toutes trois `jamais`.
     // 14 → 15 : TCK-587 ajoute `/share/[token]`, `jamais` — la réception d'un lien de partage, dont
     // l'URL porte le jeton d'accès (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
-    expect(ROUTES.length).toBe(15);
+    // 15 → 16 : TCK-602 ajoute `/pay/[token]`, `jamais` — le lien de paiement d'une échéance, lien
+    // porteur comme celui de partage (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
+    expect(ROUTES.length).toBe(16);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -455,10 +457,12 @@ describe('TCK-431 · AC4 — /playground n’est plus servi indexable', () => {
 describe('TCK-431 — le point d’extension des routes dynamiques (TCK-436)', () => {
   const dynamiques = ROUTES.filter((r) => r.dynamique);
 
-  it('trouve les quatre routes dynamiques publiques', () => {
+  it('trouve les cinq routes dynamiques publiques', () => {
+    // 4 → 5 : TCK-602 ajoute `/pay/[token]`, le lien porteur de paiement, exclu du sitemap.
     expect(dynamiques.map((r) => r.chemin).sort()).toEqual([
       '/agencies/[slug]',
       '/agents/[slug]',
+      '/pay/[token]',
       '/properties/[slug]',
       '/share/[token]',
     ]);

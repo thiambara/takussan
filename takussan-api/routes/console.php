@@ -153,3 +153,8 @@ Schedule::command('payouts:send-owner-statements')->monthlyOn(1, '08:00')->timez
 // et les stocks mesurés à l'exécution. Rejoué, il réécrit la même ligne (`upsert` sur `date`). La
 // tendance à 30 jours de la console se lit dans ces lignes, et nulle part ailleurs.
 Schedule::job(new SnapshotPlatformMetricsJob)->dailyAt('00:30')->withoutOverlapping();
+
+// TCK-602 (ADR-0051 §6) — rétention du journal des webhooks par canal (`config/webhooks.php`).
+// Idempotente : une suppression par date, qu'une seconde exécution trouve vide. La lecture de la
+// console ne purge plus rien.
+Schedule::command('webhooks:prune')->dailyAt('03:45')->timezone('Africa/Dakar')->withoutOverlapping();
