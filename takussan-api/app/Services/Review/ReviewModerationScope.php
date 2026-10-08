@@ -7,7 +7,11 @@ use App\Models\Enums\AgencyKind;
 use App\Models\Enums\ReviewStatus;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use WeakMap;
 
 /**
  * TCK-597 (ADR-0043 §1) — QUI modère QUELS avis, écrit une fois.
@@ -20,20 +24,80 @@ use Illuminate\Database\Eloquent\Builder;
  * L'ancienne expression (`isAgencyAdminAt($user->agency_id)`) ouvrait le geste à l'admin de
  * N'IMPORTE QUELLE agence, sur les avis de toutes les agences : elle ne comparait jamais l'agence
  * de l'avis à celle de l'acteur.
+ *
+ * verif-597 passe 2 n2 — ce qui ne dépend que de l'ACTEUR (son agence modérée, le genre de
+ * celle-ci, son agence de personnel, ses profils dans une agence) se calcule UNE fois par requête :
+ * `ReviewResource` interroge la policy pour chaque avis d'une liste, et chaque ligne relisait tout
+ * (412 requêtes pour 50 avis). La mémoire est rangée sous l'objet `Request` courant, jamais sous
+ * l'instance seule : une requête neuve repart à vide, et l'instance est `scoped` (remise à zéro
+ * entre deux jobs de la file).
  */
 class ReviewModerationScope
 {
+    /** @var WeakMap<Request, array<string, mixed>> */
+    private WeakMap $memo;
+
+    public function __construct(private readonly MembershipCapabilityResolver $resolver)
+    {
+        $this->memo = new WeakMap;
+    }
+
     /** L'agence dont l'acteur modère les avis, ou `null` s'il n'en modère aucune. */
     public function agencyFor(User $user): ?int
     {
-        $agencyId = $user->agency_id;
-        if ($agencyId === null || ! $user->isAgencyAdminAt((int) $agencyId)) {
-            return null;
+        return $this->remember($user, 'agencyFor', function () use ($user): ?int {
+            $agencyId = $user->agency_id;
+            if ($agencyId === null || ! $user->isAgencyAdminAt((int) $agencyId)) {
+                return null;
+            }
+
+            $kind = Agency::query()->whereKey($agencyId)->first(['id', 'kind'])?->kind;
+
+            return $kind === AgencyKind::Standard ? (int) $agencyId : null;
+        });
+    }
+
+    /** {@see MembershipCapabilityResolver::staffAgencyId()}, une fois par requête. */
+    public function staffAgencyId(User $user): ?int
+    {
+        return $this->remember($user, 'staffAgencyId', fn (): ?int => $this->resolver->staffAgencyId($user));
+    }
+
+    /** {@see MembershipCapabilityResolver::isStaffAt()}, une fois par requête et par agence. */
+    public function isStaffAt(User $user, int $agencyId): bool
+    {
+        return $this->remember($user, "isStaffAt:{$agencyId}", fn (): bool => $this->resolver->isStaffAt($user, $agencyId));
+    }
+
+    /** Bailleur actif de l'agence, une fois par requête et par agence. */
+    public function isOwnerAt(User $user, int $agencyId): bool
+    {
+        return $this->remember($user, "isOwnerAt:{$agencyId}", fn (): bool => $user->isOwnerAt($agencyId));
+    }
+
+    private function isSuperAdmin(User $user): bool
+    {
+        return $this->remember($user, 'isSuperAdmin', fn (): bool => $user->isSuperAdmin());
+    }
+
+    /**
+     * @template T
+     *
+     * @param  Closure(): T  $compute
+     * @return T
+     */
+    private function remember(User $user, string $key, Closure $compute): mixed
+    {
+        $request = app('request');
+        $bucket = $this->memo[$request] ?? [];
+        $slot = $user->getKey().'|'.$key;
+
+        if (! array_key_exists($slot, $bucket)) {
+            $bucket[$slot] = $compute();
+            $this->memo[$request] = $bucket;
         }
 
-        $kind = Agency::query()->whereKey($agencyId)->first(['id', 'kind'])?->kind;
-
-        return $kind === AgencyKind::Standard ? (int) $agencyId : null;
+        return $bucket[$slot];
     }
 
     /**
@@ -49,7 +113,7 @@ class ReviewModerationScope
      */
     public function canModerate(User $user, Review $review, ?string $decision = null): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($this->isSuperAdmin($user)) {
             return true;
         }
 
@@ -61,7 +125,7 @@ class ReviewModerationScope
     /** L'avis relève de l'agence que l'acteur modère, quel que soit son statut. */
     public function inAgencyScope(User $user, Review $review): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($this->isSuperAdmin($user)) {
             return true;
         }
 
@@ -81,7 +145,7 @@ class ReviewModerationScope
      */
     public function restrict(Builder $query, User $user, bool $moderatableOnly = false): Builder
     {
-        if ($user->isSuperAdmin()) {
+        if ($this->isSuperAdmin($user)) {
             return $query;
         }
 
@@ -105,7 +169,7 @@ class ReviewModerationScope
      */
     public function pendingCount(User $user): int
     {
-        $statuses = $user->isSuperAdmin()
+        $statuses = $this->isSuperAdmin($user)
             ? [ReviewStatus::Pending->value, ReviewStatus::Reported->value]
             : [ReviewStatus::Pending->value];
 

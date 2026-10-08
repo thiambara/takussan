@@ -7,7 +7,6 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
-use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Review\ReviewModerationScope;
 
 /**
@@ -16,12 +15,15 @@ use App\Services\Review\ReviewModerationScope;
  * Avant ce ticket, la règle était RECOPIÉE dans quatre méthodes de `ReviewController` et deux
  * FormRequest, et aucune copie ne comparait l'agence de l'avis à celle de l'acteur. Elle vit ici,
  * une fois ; le super-admin passe par `Gate::before`.
+ *
+ * verif-597 passe 2 n2 — `ReviewResource` interroge `reply` et `moderate` pour chaque avis d'une
+ * liste : les prédicats de l'acteur passent par {@see ReviewModerationScope}, qui les calcule une
+ * fois par requête.
  */
 class ReviewPolicy extends BasePolicy
 {
     public function __construct(
         private readonly ReviewModerationScope $scope,
-        private readonly MembershipCapabilityResolver $resolver,
     ) {}
 
     /** Ouvrir la file de modération des avis (filtrée ensuite par {@see ReviewModerationScope}). */
@@ -54,7 +56,7 @@ class ReviewPolicy extends BasePolicy
             $subject instanceof Property => $this->publisherReplies($user, $subject)
                 || $this->isStaffOf($user, $review->agency_id ?? $subject->agency_id),
             $subject instanceof User => ($subject->id === $user->id
-                    && ($review->agency_id === null || $this->resolver->isStaffAt($user, (int) $review->agency_id)))
+                    && ($review->agency_id === null || $this->scope->isStaffAt($user, (int) $review->agency_id)))
                 || $this->isStaffOf($user, $review->agency_id),
             $subject instanceof Agency => $this->isStaffOf($user, $subject->id),
             $subject instanceof ServiceProviderProfile => (int) $subject->user_id === $user->id,
@@ -82,7 +84,19 @@ class ReviewPolicy extends BasePolicy
             return true;
         }
 
-        return $user->isOwnerAt((int) $property->agency_id)
-            || $this->resolver->isStaffAt($user, (int) $property->agency_id);
+        return $this->scope->isOwnerAt($user, (int) $property->agency_id)
+            || $this->scope->isStaffAt($user, (int) $property->agency_id);
+    }
+
+    /** {@see BasePolicy::isStaffOf()}, sur l'agence de personnel mémorisée par requête. */
+    protected function isStaffOf(User $user, mixed $agencyId): bool
+    {
+        if ($agencyId === null) {
+            return false;
+        }
+
+        $staffAgencyId = $this->scope->staffAgencyId($user);
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
     }
 }

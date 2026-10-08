@@ -63,7 +63,10 @@ class ReviewController extends Controller
             $this->authorize('viewModerationQueue', Review::class);
         }
 
-        $query = Review::query()->with(['author', 'reviewable']);
+        // verif-597 passe 2 n2 — l'avatar de l'auteur et le profil plateforme de l'acteur
+        // (`Gate::before`, deux fois par ligne pour `can_reply` / `can_moderate`) chargés une fois.
+        $user->loadMissing('platformProfile');
+        $query = Review::query()->with(['author.media', 'reviewable']);
 
         if ($isSelfFilter) {
             $query->where('author_id', $user->id);
@@ -222,6 +225,9 @@ class ReviewController extends Controller
     public function received(IndexReceivedReviewsRequest $request, ReceivedReviews $received): JsonResponse
     {
         $filters = $request->validated('filter', []);
+        // verif-597 passe 2 n2 — `Gate::before` relit le profil plateforme de l'acteur deux fois
+        // par ligne (`can_reply`, `can_moderate`) : chargé une fois.
+        $request->user()->loadMissing('platformProfile');
 
         $query = $received->for($request->user())
             ->with(['author.media', 'reviewable'])

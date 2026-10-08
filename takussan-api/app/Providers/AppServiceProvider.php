@@ -105,6 +105,7 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
+use App\Services\Review\ReviewModerationScope;
 use App\Support\TelephoneSaisi;
 use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -135,6 +136,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
+        // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
+        $this->app->scoped(ReviewModerationScope::class);
     }
 
     public function boot(Dispatcher $events): void
