@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
 use App\Models\PayoutMethod;
 use App\Models\User;
+use App\Notifications\CodedNotification;
 use App\Services\Model\PayoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -172,5 +175,36 @@ class PayoutBypassTest extends TestCase
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), $net);
 
         return $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])->assertCreated();
+    }
+
+    /**
+     * M-3 — la caution rendue naissait `pending`, sans passer par le seuil : avec un seuil à 0
+     * (approbation toujours exigée), 1 500 000 sortaient d'une seule main.
+     */
+    public function test_m3_a_deposit_refund_goes_through_the_four_eyes(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $agency->forceFill(['payout_approval_threshold' => 0])->save();
+        $landlord = $this->landlordOf($agency);
+        $lease = $this->leaseOf($agency, $landlord);
+        $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 1_500_000])->save();
+        $admin = $this->agencyAdmin($agency);
+        $approver = $this->agencyAdmin($agency);
+        Sanctum::actingAs($admin);
+
+        $id = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 1_500_000])
+            ->assertCreated()->json('data.payout_id');
+        $this->assertSame(PayoutStatus::AwaitingApproval, Payout::query()->findOrFail($id)->status);
+        Notification::assertSentTo($approver, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutAwaitingApproval);
+
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-7'])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.awaiting_approval');
+
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+        Sanctum::actingAs($admin);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-7'])
+            ->assertOk()->assertJsonPath('data.status', 'completed');
     }
 }

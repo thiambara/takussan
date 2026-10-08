@@ -531,6 +531,8 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **B-1** — la vérification d'office disparaît : toute destination attend un membre de l'agence.
 - [x] **M-1** — le seuil se juge sur le cumul des nets non approuvés vers le même bénéficiaire,
   dans l'agence, sur 30 jours glissants (`PayoutApprovalRule`), sous le verrou de la ligne agence.
+- [x] **M-3** — la caution rendue naît par `PayoutService::initialStatus()` et avise les approbateurs
+  (`notifyApprovers()`, rendus publics) ; seule l'exemption de destination du locataire reste.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -704,6 +706,11 @@ rend **403** avec une clé i18n, jamais une phrase.
   (60 000 → `pending`). Une fois le second approuvé, 30 000 de plus naissent `pending` ; un
   reversement non approuvé vieux de 31 jours ne compte plus.
   **Preuve** : `PayoutBypassTest::test_m1_splitting_under_the_threshold_still_requires_an_approval` (rouge sur 9923b16c). Ablations V-M1 (cumul), V-M1b (approuvés comptés), V-M1c (sans fenêtre) : rouges.
+- [x] **AC-M3 — la caution passe par les quatre yeux.** Seuil 0 : `POST /api/leases/{id}/deposit-refund`
+  de 1 500 000 crée un `Payout` `awaiting_approval`, avise le second détenteur de `payouts.approve`,
+  et `mark-processed` y rend 422 `payout.awaiting_approval` ; approuvé par une autre personne, il se
+  paie.
+  **Preuve** : `PayoutBypassTest::test_m3_a_deposit_refund_goes_through_the_four_eyes` (rouge sur 9923b16c). Ablations V-M3 (statut), V-M3b (avis) : rouges.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -986,3 +993,9 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
     test) : seule la règle l'est.
   - V-M1c est d'abord restée **verte** : le dernier montant du test (9 000) laissait le cumul sous le
     seuil même sans fenêtre. Porté à 15 000, elle rougit.
+- **M-3 — la caution rendue à côté des quatre yeux.** `DepositRefundService` verrouille la ligne
+  agence après le bail, prend son état de `PayoutService::initialStatus()` (bénéficiaire : le
+  `tenant_id` du bail), et avise les approbateurs après la transaction. Un bail **sans agence**
+  (cas des tests unitaires de la caution, `leases.agency_id` nullable) n'a pas de seuil : la caution
+  y naît `pending`, comme avant — relevé quand 8 tests de `DepositRefundServiceTest` ont rougi sur un
+  `firstOrFail()`.

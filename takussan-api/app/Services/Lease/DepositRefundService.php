@@ -3,6 +3,7 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeaseDepositRefunded;
+use App\Models\Agency;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
@@ -15,6 +16,7 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Model\PayoutService;
 use App\Services\Model\ReferenceNumberGenerator;
 use Illuminate\Support\Facades\DB;
 
@@ -55,7 +57,7 @@ class DepositRefundService
         $reason = isset($data['reason']) ? trim((string) $data['reason']) : '';
         $currency = $lease->currency?->value ?? 'XOF';
 
-        return DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $currency, $data) {
+        $result = DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $currency, $data) {
             // Re-fetch under a row lock so two concurrent partial refunds can't
             // each observe `deposit_refunded_amount=0` and over-credit the
             // tenant. The remaining-amount and partial-vs-full checks are
@@ -94,6 +96,18 @@ class DepositRefundService
                 'notes' => $reason !== '' ? $reason : null,
             ]);
 
+            // TCK-594 (VERIF-594 M-3) — rendre la caution est une sortie d'argent : elle naît par le
+            // même seuil que tout reversement, jugé sous le verrou de la ligne agence (pris après
+            // celui du bail, l'ordre de toute création). Seule la destination du locataire reste hors
+            // contrôle (il n'a pas toujours de compte) — l'approbation, non. Un bail hors agence n'a
+            // pas de seuil : la caution naît `pending`.
+            $agency = $lease->agency_id !== null
+                ? Agency::query()->whereKey($lease->agency_id)->lockForUpdate()->first()
+                : null;
+            $status = $agency === null ? PayoutStatus::Pending : app(PayoutService::class)->initialStatus(
+                $agency, $amount, null, PayeeRole::Tenant, $lease->tenant_id !== null ? (int) $lease->tenant_id : null,
+            );
+
             $payout = Payout::create([
                 'lease_id' => $lease->id,
                 'agency_id' => $lease->agency_id,
@@ -103,7 +117,7 @@ class DepositRefundService
                 'payee_role' => PayeeRole::Tenant->value,
                 'issued_by_id' => $issuedBy->id,
                 'reference_number' => ReferenceNumberGenerator::payout(),
-                'status' => PayoutStatus::Pending->value,
+                'status' => $status->value,
                 'period_start' => $now->toDateString(),
                 'period_end' => $now->toDateString(),
                 'gross_amount' => $amount,
@@ -180,6 +194,13 @@ class DepositRefundService
                 'invoice' => $invoice?->fresh(),
             ];
         });
+
+        $agency = $lease->agency_id !== null ? Agency::query()->find($lease->agency_id) : null;
+        if ($agency !== null) {
+            app(PayoutService::class)->notifyApprovers($result['payout'], $agency);
+        }
+
+        return $result;
     }
 
     /**

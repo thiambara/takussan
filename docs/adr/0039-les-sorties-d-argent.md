@@ -109,8 +109,10 @@ deux agences ne font pas deux personnes.
   l'agence sur **30 jours glissants** (`pending`, `scheduled`, `processing`, `completed` sans
   `approved_by_id`), atteint le seuil ⇒ `awaiting_approval` (VERIF-594 M-1 : jugé reversement par
   reversement, il se contournait en fractionnant). Une règle, `PayoutApprovalRule`, lue sous le
-  verrou de la ligne agence, prise en dernier après les pièces ; la création et la préparation
-  l'empruntent. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
+  verrou de la ligne agence, prise en dernier après les pièces ; la création, la préparation et la
+  **caution rendue** l'empruntent (VERIF-594 M-3 : la caution naissait `pending` à côté du seuil —
+  c'est une sortie d'argent, seule sa destination reste hors contrôle, le locataire n'ayant pas
+  toujours de compte). L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
   (`agency_payout_threshold_changed`). L'approbation est un état (`awaiting_approval`) que
   `mark-processed` et `mark-failed` refusent ; elle ne se rejoue pas (elle n'est permise que depuis

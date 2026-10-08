@@ -582,7 +582,8 @@ class PayoutService
         ServiceProviderBill::query()->where('imputed_payout_id', $payout->id)->update(['imputed_payout_id' => null]);
     }
 
-    private function notifyApprovers(Payout $payout, Agency $agency): void
+    /** Les approbateurs possibles d'un reversement en attente, hors émetteur et bénéficiaire. */
+    public function notifyApprovers(Payout $payout, Agency $agency): void
     {
         if ($payout->status !== PayoutStatus::AwaitingApproval) {
             return;
