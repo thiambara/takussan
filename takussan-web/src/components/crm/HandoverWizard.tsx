@@ -38,8 +38,10 @@ interface HandoverWizardProps {
   readonly onDone: () => void;
 }
 
+// L'ordre de `AgentPortfolio::TRANSFERABLE` (API) : les biens avant les collaborations, que la
+// passation traite dans cet ordre (TCK-603, ADR-0059 §3).
 const CATEGORIES: readonly PortfolioCategory[] = [
-  'tasks', 'visits', 'maintenance', 'collaborations', 'customers', 'held_properties',
+  'tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers',
 ];
 
 /**
@@ -49,7 +51,11 @@ const CATEGORIES: readonly PortfolioCategory[] = [
  *
  * Sans repreneur, le retrait reste possible, mais ASSUMÉ (`leave_unassigned`) : c'est le refus
  * `agency_member.portfolio_not_empty` de l'API rendu en choix explicite. Ce que l'API ne transmet pas encore
- * (les biens détenus, TCK-504) est dit, et exige ce même aveu.
+ * (`pending`) est dit, et exige ce même aveu.
+ *
+ * TCK-603 — les biens se transmettent : ceux dont le partant est l'agent responsable (la marque passe
+ * au repreneur, le bailleur reste propriétaire) et ceux saisis à son nom. `pending` est vide depuis ;
+ * le mécanisme reste pour la prochaine catégorie que l'API comptera avant de savoir la transmettre.
  */
 export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWizardProps) {
   const t = useTranslations('agentCrm.handover');

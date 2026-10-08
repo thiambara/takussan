@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
+import { ProprietaireEtResponsable } from '@/components/property-dashboard/ProprietaireEtResponsable';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 import { agenceDuBien } from '@/lib/visites/agence-du-bien';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
@@ -93,7 +94,7 @@ export default async function Page({ params }: { params: Params }) {
 
   // TCK-591 §5 — le rapprochement est un outil du personnel ; le bailleur n'en voit pas l'entrée
   // (l'API le lui refuse aussi). `getMeAction` est mémoïsé : le layout l'a déjà appelé.
-  const { roles } = await getMeAction();
+  const { id: currentUserId, roles } = await getMeAction();
   const staff = isAgent(roles) || isAdmin(roles);
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
@@ -105,15 +106,24 @@ export default async function Page({ params }: { params: Params }) {
         eyebrow={t('eyebrow', { reference: property.reference_number ?? `#${property.id}` })}
         title={property.title}
         description={
-          <span className="flex flex-wrap items-center gap-2">
-            <PropertyStatusBadge status={property.status} />
-            <PropertyVisibilityBadge visibility={property.visibility} />
-            <span className="text-xs text-muted-foreground">
-              {typeLabel}
-              {contractLabel ? ` · ${contractLabel}` : ''}
-              {property.location?.city ? ` · ${property.location.city}` : ''}
+          <>
+            <span className="flex flex-wrap items-center gap-2">
+              <PropertyStatusBadge status={property.status} />
+              <PropertyVisibilityBadge visibility={property.visibility} />
+              <span className="text-xs text-muted-foreground">
+                {typeLabel}
+                {contractLabel ? ` · ${contractLabel}` : ''}
+                {property.location?.city ? ` · ${property.location.city}` : ''}
+              </span>
             </span>
-          </span>
+            {/* TCK-603 — la fiche, comme la liste, nomme le propriétaire ET l'agent responsable. */}
+            <ProprietaireEtResponsable
+              property={property}
+              currentUserId={currentUserId}
+              as="span"
+              className="block whitespace-normal"
+            />
+          </>
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">

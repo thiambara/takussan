@@ -43,6 +43,7 @@ return [
         'not_in_agency' => 'Cet utilisateur ne fait pas partie de cette agence.',
         'not_staff' => "Seuls un agent ou un administrateur de l'agence se retirent de l'équipe ; un bailleur n'en fait pas partie.",
         'portfolio_not_empty' => 'Ce membre porte encore un portefeuille : faites la passation, ou confirmez le retrait sans repreneur.',
+        'handover_conflict' => 'Le portefeuille de ce membre a changé pendant la passation : rien n\'a été transmis, relancez-la.',
         'user_not_found_by_email' => 'Aucun utilisateur actif n\'a été trouvé pour cet email.',
     ],
     'agency_role' => [
@@ -409,6 +410,7 @@ return [
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
         'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
+        'responsible_agent_co_owner' => 'Un co-propriétaire du bien ne peut pas en devenir l\'agent responsable.',
         'resubmit_not_rejected' => 'Seul un bien refusé peut être resoumis.',
     ],
     'quota' => [

@@ -1275,7 +1275,8 @@
     "bulk": {
       "summary": {
         "archive": "{updated, plural, =0 {Benn kër dencuñu ko} other {# kër lañu denc}}{failed, plural, =0 {.} other { — # lañu gàntu :}}",
-        "unpublish": "{updated, plural, =0 {Benn kër génnewuñu ko} other {# kër lañu génne}}{failed, plural, =0 {.} other { — # lañu gàntu :}}"
+        "unpublish": "{updated, plural, =0 {Benn kër génnewuñu ko} other {# kër lañu génne}}{failed, plural, =0 {.} other { — # lañu gàntu :}}",
+        "assign": "{updated, plural, =0 {Benn kër soppiwul ajaŋ} other {# kër soppi nañu ajaŋ}}{unchanged, plural, =0 {} other {, # ajaŋ bii moo leen doon topp ba noppi}}{failed, plural, =0 {.} other { — # lañu gàntu :}}"
       },
       "failure": "{title} : {reason}",
       "reason": {
@@ -1283,7 +1284,7 @@
         "forbidden": "amoo sañ-sañu soppi ko",
         "unchanged": "noppi na ci nekkin boobu",
         "already_archived": "dencees na ko ba noppi",
-        "invalid_target": "ki ñu tànn bokkul ci liggéeykati ajaas bi",
+        "invalid_target": "ajaŋ bii manul a topp kër gii (bokkul ci liggéeykati ajaas bi, walla mi ngi bokk kër gi)",
         "invalid_status": "du ci jaay, du ci wone : amul lu ñuy far",
         "other": "gàntu nañu ko"
       }
@@ -1299,7 +1300,8 @@
         "maintenance": "Defar yi nekk ci yoon",
         "collaborations": "Ndimbalante ci kër yi",
         "customers": "Kiliyaan yi mu yor",
-        "held_properties": "Kër yi mu yor"
+        "responsible_properties": "Kër yi mu di ajaŋ bi leen topp",
+        "held_properties": "Kër yi ñu bind ci turam"
       },
       "notTransferable": "jotul a jàll",
       "successor": "Ki koy jël",
@@ -5193,21 +5195,22 @@
         },
         "selectAll": "Tànn kër yépp",
         "selectOne": "Tànn {title}",
-        "agentPrefix": "Ajaŋ :",
         "viewsTitle": "Xool",
         "favoritesTitle": "Cofeel",
+        "ownerPrefix": "Boroom kër :",
+        "responsiblePrefix": "Ajaŋ bi ko topp :",
+        "responsibleNone": "kenn",
         "agentSelf": "{name} (man)",
         "bulkAria": "Aksioŋ yu booloo",
         "bulkSelected": "{count, plural, other {# kër yu tànn}}",
         "bulkArchive": "Denc",
         "bulkUnpublish": "Dindi ci génn gi",
-        "bulkReassignPlaceholder": "Jox beneen…",
-        "bulkAssign": "Jox",
+        "bulkReassignPlaceholder": "Ajaŋ bi ko topp…",
+        "bulkAssign": "Soppi ajaŋ bi ko topp",
         "bulkClear": "Dindi tànneef yépp",
         "bulkError": "Aksioŋ bu booloo bi antuwul.",
         "bulkArchived": "Denc nañu kër yi.",
         "bulkUnpublished": "Dindi nañu leen ci génn gi.",
-        "bulkAssigned": "Soppi nañu ajaŋ bi.",
         "caption": "Limu kër yi ci tablo bi"
       },
       "filters": {

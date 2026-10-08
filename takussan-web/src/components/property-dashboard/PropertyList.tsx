@@ -41,13 +41,14 @@ import {
   propertyVisibilityValues,
 } from '@/lib/schemas/property';
 import {
-  assignPropertyAgentAction,
   bulkArchivePropertiesAction,
+  bulkAssignPropertiesAction,
   bulkUnpublishPropertiesAction,
 } from '@/app/actions/dashboard-properties';
 import type { BulkResult } from '@/types/agent-crm';
 
 import { PropertyRowActions } from './PropertyRowActions';
+import { ProprietaireEtResponsable } from './ProprietaireEtResponsable';
 import { useGestesDuBien } from './useGestesDuBien';
 
 /**
@@ -115,35 +116,18 @@ export function PropertyList({
     );
   };
 
-  const runBulk = (
-    action: (id: number) => Promise<{ ok: boolean; message?: string }>,
-    successMessage: string,
-  ) => {
-    if (selectedIds.length === 0) return;
-    setBulkError(null);
-    setBulkMessage(null);
-    startTransition(async () => {
-      const results = await Promise.all(selectedIds.map((id) => action(id)));
-      const failed = results.find((result) => !result.ok);
-      if (failed) {
-        setBulkError(failed.message ?? t('bulkError'));
-        return;
-      }
-      setSelectedIds([]);
-      setBulkAgentId('');
-      setBulkMessage(successMessage);
-      router.refresh();
-    });
-  };
-
   /**
    * TCK-591 §7 (AC28) — le bilan d'un lot : combien ont changé, lesquels sont refusés et POURQUOI.
    * Seuls les refus restent sélectionnés (on peut les corriger et relancer) ; la liste se rafraîchit
    * dès qu'un bien a changé, succès partiel compris.
+   *
+   * TCK-603 — « Changer l'agent responsable » passe par le même lot (`bulk-assign`) : il remplaçait
+   * un `Promise.all` d'appels unitaires qui s'arrêtait au premier refus sans dire lesquels avaient
+   * changé. Un bien déjà suivi par l'agent est compté à part (`unchanged`), pas refusé.
    */
   const runBatch = (
     action: (ids: number[]) => Promise<{ ok: boolean; message?: string; data?: BulkResult }>,
-    kind: 'archive' | 'unpublish',
+    kind: 'archive' | 'unpublish' | 'assign',
   ) => {
     if (selectedIds.length === 0) return;
     setBulkError(null);
@@ -155,10 +139,11 @@ export function PropertyList({
         setBulkError(result.message ?? t('bulkError'));
         return;
       }
-      const { updated, failed } = result.data;
+      const { updated, failed, unchanged = 0 } = result.data;
       setSelectedIds(failed.map((f) => f.id));
       setBulkFailures(failed);
-      setBulkMessage(tBulk(`summary.${kind}`, { updated, failed: failed.length }));
+      if (failed.length === 0) setBulkAgentId('');
+      setBulkMessage(tBulk(`summary.${kind}`, { updated, unchanged, failed: failed.length }));
       if (updated > 0) router.refresh();
     });
   };
@@ -324,12 +309,8 @@ export function PropertyList({
                     <Heart className="size-3" aria-hidden="true" />
                     {property.favorites_count ?? 0}
                   </span>
-                  {currentUserId !== undefined &&
-                  property.owner &&
-                  property.owner.id !== currentUserId
-                    ? ` · ${property.owner.name}`
-                    : ''}
                 </p>
+                <ProprietaireEtResponsable property={property} currentUserId={currentUserId} />
                 {/* Les actions en PIED de carte, dans le flux : posées en absolu en haut à
                     droite, « Modifier » recouvrait le titre à 360-390 px. */}
                 <div className="mt-auto pt-2">
@@ -357,10 +338,7 @@ export function PropertyList({
           onArchive={() => runBatch(bulkArchivePropertiesAction, 'archive')}
           onUnpublish={() => runBatch(bulkUnpublishPropertiesAction, 'unpublish')}
           onAssign={() =>
-            runBulk(
-              (id) => assignPropertyAgentAction(id, Number(bulkAgentId)),
-              t('bulkAssigned'),
-            )
+            runBatch((ids) => bulkAssignPropertiesAction(ids, Number(bulkAgentId)), 'assign')
           }
           onClear={() => {
             setSelectedIds([]);
@@ -382,12 +360,7 @@ function BienCell({
   readonly property: PropertyListItem;
   readonly currentUserId?: number;
 }) {
-  const t = useTranslations('property.dashboard.list');
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
-  const showAgent =
-    currentUserId !== undefined &&
-    property.owner &&
-    property.owner.id !== currentUserId;
   return (
     <div className="flex items-center gap-3">
       <PropertyThumbnail property={property} />
@@ -403,12 +376,7 @@ function BienCell({
           {property.location?.city ? ` · ${property.location.city}` : ''}
           {property.reference_number ? ` · ${property.reference_number}` : ''}
         </p>
-        {showAgent ? (
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            <span className="text-muted-foreground/70">{t('agentPrefix')}</span>{' '}
-            <span className="font-medium text-foreground">{property.owner?.name}</span>
-          </p>
-        ) : null}
+        <ProprietaireEtResponsable property={property} currentUserId={currentUserId} />
       </div>
     </div>
   );
@@ -729,7 +697,10 @@ function BulkActionBar({
               onValueChange={(v) => setBulkAgentId((v ?? '') as string)}
               items={items}
             >
-              <SelectTrigger className="h-9 border-card/30 bg-card/10 text-primary-foreground">
+              <SelectTrigger
+                aria-label={t('bulkReassignPlaceholder')}
+                className="h-9 border-card/30 bg-card/10 text-primary-foreground"
+              >
                 <SelectValue placeholder={t('bulkReassignPlaceholder')} />
               </SelectTrigger>
               <SelectContent>

@@ -52,6 +52,14 @@ export interface PropertyListItem {
   condition?: PropertyCondition | null;
   main_photo_url: string | null;
   owner?: PropertyOwnerLite | null;
+  /**
+   * TCK-603 — l'agent responsable (TCK-502/504), à côté du propriétaire. Servie par la liste du
+   * tableau de bord seulement quand `agency_id` ET `user_id` sont demandés (sans eux la règle
+   * jugerait un bien d'agence comme celui d'un particulier) : clé ABSENTE sinon.
+   */
+  primary_contact?: PropertyOwnerLite | null;
+  /** TCK-603 (verif-603 M2) — d'où vient `primary_contact` ; absente avec lui. */
+  primary_contact_source?: PrimaryContactSource | null;
   collaborators?: {
     id: number;
     user_id: number;
@@ -68,6 +76,9 @@ export interface PropertyListItem {
   published_at: string | null;
   created_at: string;
 }
+
+/** Le vocabulaire de `GET …/collaborators` (TCK-504), sans `designated_unavailable`. */
+export type PrimaryContactSource = 'designated' | 'invitation_order' | 'owner';
 
 export interface PropertyOwnerLite {
   id: number;
@@ -224,6 +235,12 @@ export interface PropertyDetail extends PropertyListItem {
    * nulle signale un bien sans contact.
    */
   primary_contact: PropertyOwnerLite | null;
+  /**
+   * TCK-603 (ADR-0059 §6, verif-603 M2) — d'où vient `primary_contact` : la ligne `agent` marquée
+   * (`designated`), le repli sur l'ordre d'invitation (`invitation_order`), sur le titulaire (`owner`),
+   * ou personne (`null`). Absente sur les routes publiques : optionnelle.
+   */
+  primary_contact_source?: PrimaryContactSource | null;
   agency: PropertyAgencyLite | null;
   documents: PropertyDocument[];
   price_history: PropertyPriceHistoryItem[];

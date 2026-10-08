@@ -156,14 +156,16 @@ class PropertyCrudTest extends TestCase
 
         Sanctum::actingAs($owner);
 
+        // TCK-603 (ADR-0036) — la cible devient l'agent responsable ; le propriétaire ne change pas.
         $this->putJson("/api/properties/{$property->id}/assigned-agent", [
             'user_id' => $target->id,
         ])->assertOk()
-            ->assertJsonPath('data.owner.id', $target->id);
+            ->assertJsonPath('data.owner.id', $owner->id)
+            ->assertJsonPath('data.primary_contact.id', $target->id);
 
         $this->assertDatabaseHas('properties', [
             'id' => $property->id,
-            'user_id' => $target->id,
+            'user_id' => $owner->id,
         ]);
     }
 
