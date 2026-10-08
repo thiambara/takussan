@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Events\Booking\BookingRequested;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
 use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
@@ -42,6 +43,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
+use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
@@ -907,7 +909,7 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, BookingQuote $quotes, string $slug): JsonResponse
+    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, BookingQuote $quotes, PropertyAvailabilityService $availability, string $slug): JsonResponse
     {
         $property = $request->property();
 
@@ -971,27 +973,40 @@ class PublicPropertyController extends Controller
                 ],
             ]);
 
+            // TCK-596 — l'offre prévient qui doit la traiter : elle ne prévenait personne.
+            BookingRequested::dispatch($booking, $user->id);
+
             return $this->json([
                 'data' => BookingResource::make($booking)->toArray($request),
             ], 201);
         }
 
-        $booking = Booking::create([
-            'property_id' => $property->id,
-            'customer_id' => $customer->id,
-            'created_by_id' => $user->id,
-            'agency_id' => $property->agency_id,
-            'start_date' => $data['start_date'],
-            'end_date' => $data['end_date'],
-            // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à
-            // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
-            'total_amount' => $amounts['total_amount'],
-            'deposit_amount' => $amounts['deposit_amount'],
-            'currency' => $property->currency,
-            'status' => BookingStatus::Pending->value,
-            'notes' => $data['message'] ?? null,
-            'metadata' => ['guests' => $data['guests']],
-        ]);
+        // TCK-596 — un séjour daté sur des nuits déjà confirmées est refusé, sous le verrou de la
+        // ligne du bien que `BookingService::confirm` prend aussi. L'offre d'achat n'a pas de nuits.
+        $booking = DB::transaction(function () use ($availability, $property, $customer, $user, $data, $amounts): Booking {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+            $availability->assertAvailable($property, $data['start_date'], $data['end_date']);
+
+            return Booking::create([
+                'property_id' => $property->id,
+                'customer_id' => $customer->id,
+                'created_by_id' => $user->id,
+                'agency_id' => $property->agency_id,
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'],
+                // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à
+                // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
+                'total_amount' => $amounts['total_amount'],
+                'deposit_amount' => $amounts['deposit_amount'],
+                'currency' => $property->currency,
+                'status' => BookingStatus::Pending->value,
+                'notes' => $data['message'] ?? null,
+                'metadata' => ['guests' => $data['guests']],
+            ]);
+        });
+
+        // TCK-596 — la demande publique prévient qui doit la traiter : elle ne prévenait personne.
+        BookingRequested::dispatch($booking, $user->id);
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),

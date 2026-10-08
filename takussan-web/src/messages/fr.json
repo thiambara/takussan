@@ -932,7 +932,8 @@
         "weeklyLine": "{price} / semaine, au prorata de {count, plural, =1 {# nuit} other {# nuits}}",
         "deposit": "Acompte (30 %)",
         "rentLine": "Loyer",
-        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif."
+        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif.",
+        "occupiedHint": "Les dates grisées sont déjà prises."
       },
       "offerForm": {
         "invalidAmount": "Montant invalide.",
@@ -1085,7 +1086,8 @@
         "fullPriceHistory": "Historique complet des prix",
         "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
         "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
-        "unknownDate": "Date inconnue"
+        "unknownDate": "Date inconnue",
+        "calendar": "Calendrier"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1202,6 +1204,45 @@
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
         "cancel": "Annuler",
         "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
+      },
+      "calendar": {
+        "title": "Calendrier du bien",
+        "description": "Réservations confirmées, dates bloquées et dates importées d'autres plateformes, sur douze mois.",
+        "legend": "Légende",
+        "legendBooked": "Réservé",
+        "legendBlocked": "Bloqué",
+        "legendImported": "Importé",
+        "genericError": "L'opération n'a pas abouti.",
+        "blockTitle": "Bloquer des dates",
+        "blockHint": "Les nuits bloquées ne sont plus réservables, ici comme sur les plateformes qui lisent votre lien d'export.",
+        "blockFrom": "Première nuit",
+        "blockTo": "Jour de reprise",
+        "blockReason": "Motif (facultatif, visible de vous seul)",
+        "blockSubmit": "Bloquer",
+        "blocksTitle": "Dates bloquées",
+        "blocksEmpty": "Aucune date bloquée sur les douze prochains mois.",
+        "range": "Du {from} au {to}",
+        "manual": "Blocage manuel",
+        "importedFrom": "Importé de {feed}",
+        "conflict": "Conflit avec une réservation",
+        "unblock": "Débloquer",
+        "feedsTitle": "Calendriers importés",
+        "feedsHint": "Collez le lien iCal d'Airbnb, de Booking.com ou d'un agenda : leurs dates prises sont bloquées ici toutes les heures. Une date importée se retire à la source.",
+        "feedUrl": "Lien iCal (https)",
+        "feedLabel": "Nom (facultatif)",
+        "feedAdd": "Importer",
+        "feedOk": "synchronisé",
+        "feedFailing": "en échec ({count, plural, =1 {# tentative} other {# tentatives}})",
+        "feedSync": "Synchroniser",
+        "feedRemove": "Retirer",
+        "exportTitle": "Lien d'export",
+        "exportHint": "Donnez ce lien aux autres plateformes pour qu'elles bloquent vos réservations Takussan. Il ne contient ni nom ni téléphone.",
+        "exportGenerate": "Générer un nouveau lien",
+        "exportUrl": "Lien d'export iCal",
+        "exportCopy": "Copier",
+        "exportCopied": "Copié",
+        "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent.",
+        "feedPending": "première synchronisation en cours"
       },
       "collaborators": {
         "title": "Agent principal",
@@ -3017,6 +3058,11 @@
           "title": "Paiement échoué",
           "body": "Le paiement n’a pas pu aboutir. Vous pouvez réessayer."
         },
+        "refund": {
+          "title": "Paiement reçu, remboursement à venir",
+          "bodyCancelled": "Paiement reçu sur une échéance annulée : l’agence vous remboursera.",
+          "bodyAlreadyPaid": "Cette échéance était déjà réglée : l’agence vous remboursera ce paiement."
+        },
         "pending": {
           "title": "Paiement en cours",
           "body": "Nous vérifions le statut du paiement avec le fournisseur — cela peut prendre quelques secondes."
@@ -3120,7 +3166,8 @@
       "late": "En retard",
       "partially_paid": "Partiellement payé",
       "failed": "Échec",
-      "refunded": "Remboursé"
+      "refunded": "Remboursé",
+      "cancelled": "Annulé"
     },
     "invoiceStatus": {
       "draft": "Brouillon",
@@ -3450,7 +3497,8 @@
       "banner_cancel_request": "Annuler la résiliation",
       "cancelled_toast_title": "Résiliation annulée",
       "cancelled_toast_body": "Le bail revient à l'état actif.",
-      "cancel_failed_title": "L'annulation a échoué"
+      "cancel_failed_title": "L'annulation a échoué",
+      "cta_tenant": "Donner mon préavis"
     },
     "error_generic": "Action impossible.",
     "list": {
@@ -3509,7 +3557,8 @@
         "paid": "Payé",
         "late": "En retard",
         "pending": "À venir",
-        "other": "Autre"
+        "other": "Autre",
+        "cancelled": "Annulée"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",
@@ -3651,6 +3700,35 @@
         "passport": "Passeport",
         "driving_license": "Permis de conduire"
       }
+    },
+    "signature": {
+      "title": "Signature du bail",
+      "notFrozenDescription": "Le contrat n’est pas encore figé. Demandez la signature : le contrat est alors arrêté, et chaque partie le signe avec un code reçu par SMS ou par e-mail.",
+      "frozenDescription": "Le contrat est figé. Chaque partie le lit, puis le signe avec son code. La seconde signature active le bail. Toute modification du bail annule les signatures en attente.",
+      "readContract": "Lire le contrat à signer",
+      "roles": {
+        "tenant": "Locataire",
+        "landlord": "Bailleur"
+      },
+      "signed": "Signé",
+      "awaiting": "En attente",
+      "signedBy": "Signé par {signer} le {date}",
+      "signedOnBehalf": "Signé par {signer} pour le compte de {landlord} le {date}",
+      "sendCode": "Recevoir mon code",
+      "resendCode": "Renvoyer le code",
+      "codeSentSms": "Code envoyé par SMS au {destination}. Il est valable 10 minutes.",
+      "codeSentMail": "Code envoyé par e-mail à {destination}. Il est valable 10 minutes.",
+      "codeLabel": "Code à 6 chiffres",
+      "sign": "Signer",
+      "consent": "En saisissant ce code, je signe le contrat affiché ci-dessus.",
+      "request": "Demander la signature",
+      "requestAgain": "Figer à nouveau le contrat",
+      "requestedToast": "Signature demandée : les parties sont prévenues.",
+      "signedToast": "Votre signature est enregistrée.",
+      "activatedToast": "Bail signé et activé.",
+      "paperLabel": "Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)",
+      "paperSubmit": "Activer sur contrat papier",
+      "genericError": "L’opération a échoué. Réessayez."
     }
   },
   "maintenance": {
@@ -5089,7 +5167,11 @@
       "disputeReason": "Motif du litige",
       "disputeReasonPlaceholder": "Expliquez le point contesté",
       "sendDispute": "Envoyer le litige",
-      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant."
+      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant.",
+      "roomPhotos": "Photos de la pièce {room}",
+      "roomPhotoAlt": "Photo {index} — {room}",
+      "deleteRoomPhotoAria": "Supprimer la photo {index} de la pièce {room}",
+      "deleteRoomPhotoFailed": "La photo n'a pas pu être supprimée. Réessayez."
     },
     "roomEditor": {
       "empty_title": "Aucune pièce",
@@ -5161,7 +5243,9 @@
       "signAs": "Signer comme {role}",
       "confirmAs": "Signer en tant que {role}",
       "helper": "Tracez votre signature puis confirmez — l'action est définitive.",
-      "signFailed": "Signature impossible. Réessayez."
+      "signFailed": "Signature impossible. Réessayez.",
+      "onBehalfOf": "Pour le compte de {name}",
+      "signedOnBehalf": "Signé par le gestionnaire pour le compte du bailleur"
     },
     "signaturePad": {
       "label": "Signez ici",
@@ -6370,7 +6454,24 @@
           "submit": "Annuler la réservation"
         }
       },
-      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès."
+      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès.",
+      "refund": {
+        "pendingTitle": "Remboursement en cours",
+        "pendingDescription": "Votre réservation n'aura pas lieu : l'acompte versé vous sera remboursé.",
+        "refundedTitle": "Remboursé",
+        "refundedDescription": "L'acompte versé pour cette réservation a été remboursé.",
+        "toProcessTitle": "Remboursement à traiter",
+        "toProcessDescription": "Cette réservation est fermée et porte un acompte encaissé. Enregistrez son remboursement une fois l'argent rendu.",
+        "action": "Rembourser",
+        "dialogTitle": "Enregistrer un remboursement",
+        "dialogDescription": "Montant encaissé : {amount}.",
+        "fields": {
+          "amount": "Montant remboursé",
+          "reason": "Motif"
+        },
+        "submit": "Enregistrer le remboursement",
+        "submitting": "Enregistrement…"
+      }
     },
     "public": {
       "no_property_title": "Aucun bien sélectionné",
@@ -9466,7 +9567,11 @@
         },
         "cancelled": {
           "title": "Réservation annulée",
-          "body": "Votre réservation {reference} pour {property} a été annulée."
+          "body": "La réservation {reference} pour {property} a été annulée."
+        },
+        "requested_undated": {
+          "title": "Nouvelle demande",
+          "body": "Une demande {reference} a été faite pour {property}."
         }
       },
       "account": {
@@ -9721,6 +9826,28 @@
         "rejected": {
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        },
+        "calendar_conflict": {
+          "title": "Conflit de calendrier : {property}",
+          "body": "Le calendrier « {feed} » bloque {property} du {start_date} au {end_date}, alors qu'une réservation confirmée occupe ces dates. Rien n'a été annulé : vérifiez les deux plateformes."
+        },
+        "calendar_feed_failing": {
+          "title": "Calendrier importé en échec : {property}",
+          "body": "Le calendrier « {feed} » de {property} ne se synchronise plus depuis trois tentatives. Vérifiez son lien."
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Bail à signer : {reference}",
+          "body": "Le bail {reference} pour {property} est prêt. Lisez le contrat, puis signez-le avec le code que vous recevrez."
+        },
+        "signed_by_party": {
+          "title": "Bail {reference} signé par {signer}",
+          "body": "{signer} a signé le bail {reference} pour {property}. Il attend votre signature."
+        },
+        "signature_completed": {
+          "title": "Bail {reference} signé",
+          "body": "Les deux parties ont signé le bail {reference} pour {property}. Il est désormais actif."
         }
       },
       "payout": {

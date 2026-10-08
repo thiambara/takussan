@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Inventory;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-305 — extrait de InventoryController::uploadRoomPhotos(), où les règles étaient écrites en ligne.
@@ -35,7 +37,23 @@ class UploadRoomPhotosInventoryRequest extends BaseFormRequest
         return [
             'photos' => ['required', 'array', 'min:1'],
             'photos.*' => ['required', 'image', 'max:5120'],
-            'room_name' => ['required', 'string'],
+            // TCK-596 — une photo appartient à une PIÈCE de cet état des lieux, pas à une chaîne libre.
+            'room_name' => ['required', 'string', Rule::in($this->roomNames())],
         ];
+    }
+
+    /** @return list<string> */
+    private function roomNames(): array
+    {
+        $inventory = $this->route('inventory');
+        if (! $inventory instanceof Inventory) {
+            return [];
+        }
+
+        return collect($inventory->rooms ?? [])
+            ->map(fn ($room) => is_array($room) ? ($room['name'] ?? null) : null)
+            ->filter(fn ($name) => is_string($name) && $name !== '')
+            ->values()
+            ->all();
     }
 }

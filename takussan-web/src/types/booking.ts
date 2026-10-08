@@ -84,4 +84,11 @@ export type Booking = {
   };
   customer?: { id: number; user_id?: number | null } | null;
   booking_payments?: BookingPayment[];
+  /**
+   * TCK-596 — dérivé des paiements : `pending` tant qu'un acompte encaissé reste à rendre sur une
+   * réservation annulée, refusée ou expirée ; `refunded` une fois tout rendu.
+   */
+  refund_status?: 'pending' | 'refunded' | null;
+  /** TCK-596 — l'appelant peut-il rembourser (`bookings.refund`, bailleur direct, super-admin). */
+  can_refund?: boolean;
 };

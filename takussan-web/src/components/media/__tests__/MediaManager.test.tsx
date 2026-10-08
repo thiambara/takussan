@@ -26,6 +26,7 @@ import {
 const reduction = vi.hoisted(() => ({
   reduirePhoto: vi.fn(async (f: File) => f),
   reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+  reduirePhotosSousPlafond: vi.fn(async (fs: readonly File[]) => [...fs]),
 }));
 vi.mock('@/lib/reduire-photo', () => reduction);
 
@@ -57,7 +58,7 @@ describe('<MediaDropzone>', () => {
     expect(emitted.map((f) => f.name)).toEqual(['a.jpg', 'b.png']);
   });
 
-  it('rejects an unsupported MIME with a visible error and does not emit', () => {
+  it('rejects an unsupported MIME with a visible error and does not emit', async () => {
     const onChange = vi.fn();
     const onRemove = vi.fn();
     render(withIntl(<MediaDropzone files={[]} onChange={onChange} onRemove={onRemove} />));
@@ -69,11 +70,12 @@ describe('<MediaDropzone>', () => {
       target: { files: [makeFile('bad.exe', 'application/octet-stream')] },
     });
 
+    // TCK-596 — la zone réduit avant de valider : le verdict arrive après une promesse.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/non supporté/i);
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/non supporté/i);
   });
 
-  it('rejects a file larger than maxSize', () => {
+  it('rejects a file larger than maxSize', async () => {
     const onChange = vi.fn();
     const onRemove = vi.fn();
     render(withIntl(<MediaDropzone
@@ -89,8 +91,8 @@ describe('<MediaDropzone>', () => {
       target: { files: [makeFile('big.jpg', 'image/jpeg', 100)] },
     });
 
+    expect(await screen.findByRole('alert')).toHaveTextContent(/dépasse/);
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/dépasse/);
   });
 });
 

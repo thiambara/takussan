@@ -41,6 +41,8 @@ trait HasPaymentAttributes
      *     open state or to `paid`, but not directly to `refunded`.
      *   - `paid` may only be refunded (no retroactive flip to failed).
      *   - `refunded` is terminal.
+     *   - `cancelled` (VERIF-596 passe 5, M-E) is terminal, reached only from an unpaid open
+     *     state (`pending`, `late`, `failed`): a due that is no longer owed.
      *
      * @var array<string, list<PaymentStatus>>
      */
@@ -61,7 +63,7 @@ trait HasPaymentAttributes
         ];
 
         return self::$allowedPaymentTransitions = [
-            PaymentStatus::Pending->value => $openAndTerminals,
+            PaymentStatus::Pending->value => [...$openAndTerminals, PaymentStatus::Cancelled],
             PaymentStatus::PartiallyPaid->value => [
                 PaymentStatus::Paid,
                 PaymentStatus::PartiallyPaid,
@@ -75,6 +77,7 @@ trait HasPaymentAttributes
                 PaymentStatus::Late,
                 PaymentStatus::Failed,
                 PaymentStatus::Refunded,
+                PaymentStatus::Cancelled,
             ],
             PaymentStatus::Failed->value => [
                 PaymentStatus::Pending,
@@ -82,6 +85,7 @@ trait HasPaymentAttributes
                 PaymentStatus::PartiallyPaid,
                 PaymentStatus::Late,
                 PaymentStatus::Failed,
+                PaymentStatus::Cancelled,
             ],
             PaymentStatus::Paid->value => [
                 PaymentStatus::Paid,
@@ -89,6 +93,9 @@ trait HasPaymentAttributes
             ],
             PaymentStatus::Refunded->value => [
                 PaymentStatus::Refunded,
+            ],
+            PaymentStatus::Cancelled->value => [
+                PaymentStatus::Cancelled,
             ],
         ];
     }

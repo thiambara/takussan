@@ -3,7 +3,7 @@
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
-import type { Guarantor, Lease, LeasePayment } from '@/types/lease';
+import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
 
 /**
@@ -54,6 +54,9 @@ const DETAIL_FIELDS: string[] = [
   'early_termination_reason',
   'early_termination_invoice_id',
   'notice_period_days',
+  // TCK-596 §4B (ADR-0042) — le panneau de signature.
+  'contract_sha256',
+  'signature_requested_at',
 ];
 
 export type UseLeasesParams = {
@@ -155,8 +158,16 @@ export type LeasePropertyLite = {
   main_photo_url: string | null;
 };
 
+// TCK-596 — `show` charge toujours le locataire (`LeaseController::show`). Seul `user_id` sert
+// ici : il désigne le compte du locataire, et c'est lui qui ouvre le geste de préavis.
+export type LeaseTenantLite = {
+  id: number;
+  user_id: number | null;
+};
+
 export type LeaseWithRelations = Lease & {
   guarantor?: Guarantor;
+  tenant?: LeaseTenantLite | null;
   payments?: LeasePayment[];
   property?: LeasePropertyLite;
 };
@@ -262,9 +273,56 @@ export function useUpdateLease(id: number) {
   );
 }
 
+/**
+ * TCK-596 §4B (ADR-0042 §6) — la voie PAPIER : le contrat signé hors plateforme, numérisé (PDF ou
+ * image, 10 Mo), est obligatoire. La signature en ligne passe par les trois crochets suivants.
+ */
+export type ActivateLeaseOnPaperPayload = { contract: File };
+
 export function useActivateLease(id: number) {
+  return useApiMutation<ApiResponse<Lease>, ActivateLeaseOnPaperPayload>(
+    {
+      path: `/api/leases/${id}/activate`,
+      method: 'POST',
+      formData: true,
+      body: (vars) => {
+        const fd = new FormData();
+        fd.append('contract', vars.contract);
+        return fd;
+      },
+    },
+    {
+      invalidate: [
+        ['leases', 'list'],
+        ['leases', 'detail', id],
+        ['leases', 'payments', id],
+      ],
+    },
+  );
+}
+
+/** TCK-596 §4B (ADR-0042 §1) — le gestionnaire fige le contrat ; le bail passe `pending_signature`. */
+export function useRequestLeaseSignature(id: number) {
   return useApiMutation<ApiResponse<Lease>, void>(
-    { path: `/api/leases/${id}/activate`, method: 'POST' },
+    { path: `/api/leases/${id}/signature-request`, method: 'POST' },
+    { invalidate: [['leases', 'list'], ['leases', 'detail', id]] },
+  );
+}
+
+export type LeaseSignatureCodeSent = { channel: 'sms' | 'mail'; destination: string };
+
+/** TCK-596 §4B (ADR-0042 §2) — envoie au signataire le code qui vaut signature. */
+export function useSendLeaseSignatureCode(id: number) {
+  return useApiMutation<ApiResponse<LeaseSignatureCodeSent>, { role: LeaseSignatureRole }>({
+    path: `/api/leases/${id}/signature/otp`,
+    method: 'POST',
+  });
+}
+
+/** TCK-596 §4B — saisit le code ; la seconde signature active le bail (échéancier compris). */
+export function useSignLease(id: number) {
+  return useApiMutation<ApiResponse<Lease>, { role: LeaseSignatureRole; code: string }>(
+    { path: `/api/leases/${id}/signature`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'list'],

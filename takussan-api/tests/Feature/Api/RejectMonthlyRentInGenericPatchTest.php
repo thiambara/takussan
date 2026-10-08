@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Customer;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
@@ -60,6 +61,9 @@ class RejectMonthlyRentInGenericPatchTest extends TestCase
     public function test_generic_patch_still_accepts_late_fee_config(): void
     {
         [$landlord, $lease] = $this->scaffold();
+        // TCK-596 (VERIF-596 M2) — la pénalité est imprimée au contrat : elle ne bouge plus sur un
+        // bail signé (`lease.terms_locked`, `LeaseContractTermsTest`), seulement avant signature.
+        $lease->forceFill(['status' => LeaseStatus::Draft])->saveQuietly();
         Sanctum::actingAs($landlord);
 
         $this->patchJson("/api/leases/{$lease->id}", [

@@ -133,7 +133,10 @@ class LateFeeCalculator
                 ->lockForUpdate()
                 ->first();
 
-            if ($locked === null || $locked->late_fee_applied_at !== null) {
+            // VERIF-596 passe 6 (m-h) — rejugé sous verrou : une échéance réglée ou annulée (par un
+            // renouvellement) depuis la sélection du job ne prend pas de pénalité.
+            if ($locked === null || $locked->late_fee_applied_at !== null
+                || ! in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::PartiallyPaid, PaymentStatus::Late], true)) {
                 return 0.0;
             }
 

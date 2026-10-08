@@ -50,6 +50,8 @@ vi.mock('../LeaseRenewalDialog', () => ({ LeaseRenewalDialog: () => null }));
 vi.mock('../LeaseChainTimeline', () => ({ LeaseChainTimeline: () => null }));
 vi.mock('../EarlyTerminationDialog', () => ({ EarlyTerminationDialog: () => null }));
 vi.mock('../EarlyTerminationBanner', () => ({ EarlyTerminationBanner: () => null }));
+// TCK-596 §4B — le panneau de signature a ses propres tests (`LeaseSignaturePanel.test.tsx`).
+vi.mock('../LeaseSignaturePanel', () => ({ LeaseSignaturePanel: () => null }));
 vi.mock('@/components/reviews/LeaveReviewCta', () => ({ LeaveReviewCta: () => null }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/context/AuthContext', () => ({

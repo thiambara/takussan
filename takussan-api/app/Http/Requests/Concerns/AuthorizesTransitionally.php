@@ -4,6 +4,7 @@ namespace App\Http\Requests\Concerns;
 
 use App\Models\Booking;
 use App\Models\Conversation;
+use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Messaging\ConversationAccess;
 use Illuminate\Database\Eloquent\Model;
 
@@ -83,6 +84,9 @@ trait AuthorizesTransitionally
      * (TCK-172 — le client crée lui-même son paiement en attente pour lancer le règlement depuis
      * `/app/bookings/[id]`). Déléguer à `update` aurait fermé ce chemin. C'est précisément le
      * genre d'écart qu'on ne voit qu'en lisant les deux règles côte à côte.
+     *
+     * ⚠ TCK-596 — elle ne sert plus au REMBOURSEMENT : le client y passait, et faisait passer son
+     * propre acompte à `refunded`. `RefundBookingPaymentRequest` juge `BookingMoneyAccess::canRefund`.
      */
     protected function canManageBooking(?Booking $booking): bool
     {
@@ -92,12 +96,10 @@ trait AuthorizesTransitionally
             return false;
         }
 
-        $property = $booking->property;
-
-        return $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
-            || ($booking->agency_id !== null && $user->staffAgencyId() === (int) $booking->agency_id)
+        // TCK-587 — le personnel de l'agence de la RÉSERVATION (`isStaffAt`, règle 3), plus « même
+        // agence » ni l'agence active : un autre bailleur de l'agence passait par l'accesseur
+        // `agency_id`. TCK-596 — la règle vit dans `BookingMoneyAccess`, partagée avec `store`.
+        return BookingMoneyAccess::canRecordAsCollector($user, $booking)
             || ($booking->customer && $booking->customer->user_id === $user->id);
     }
 }

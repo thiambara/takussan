@@ -5,6 +5,7 @@ namespace Tests\Unit\Notifications;
 use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
+use App\Notifications\LeaseSignatureCodeNotification;
 use App\Services\Notifications\PreferenceResolver;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -20,6 +21,18 @@ use ReflectionClass;
  */
 class MobileClassEventsTest extends TestCase
 {
+    /**
+     * TCK-596 §4B — les classes HORS PRÉFÉRENCES : un code à usage unique demandé par son
+     * destinataire, toujours critique (`isCriticalSms()` vrai), que `SmsChannel` envoie sans lire la
+     * matrice. Lui ouvrir une case ouvrirait une case qui ne commande rien — l'inverse exact de ce
+     * que ce test garde. La liste est fermée : y entrer se justifie dans le docblock de la classe.
+     *
+     * @var list<class-string>
+     */
+    private const HORS_PREFERENCES = [
+        LeaseSignatureCodeNotification::class,
+    ];
+
     /** @return array<class-string, string> classe → EVENT_TYPE */
     private function mobileClasses(): array
     {
@@ -27,7 +40,7 @@ class MobileClassEventsTest extends TestCase
         $found = [];
         foreach (glob($root.'/*.php') ?: [] as $file) {
             $class = 'App\\Notifications\\'.basename($file, '.php');
-            if (! class_exists($class) || $class === CodedNotification::class) {
+            if (! class_exists($class) || $class === CodedNotification::class || in_array($class, self::HORS_PREFERENCES, true)) {
                 continue;
             }
             $reflection = new ReflectionClass($class);
@@ -54,5 +67,12 @@ class MobileClassEventsTest extends TestCase
         foreach (PreferenceResolver::MOBILE_CLASS_EVENTS as $event) {
             $this->assertContains($event, $classes, "{$event} listé sans classe mobile");
         }
+    }
+
+    /** Une exemption ne tient que si la classe contourne vraiment la matrice : critique, toujours. */
+    public function test_les_classes_hors_preferences_sont_critiques(): void
+    {
+        $this->assertTrue((new LeaseSignatureCodeNotification('000000', 'LS-1', 10, LeaseSignatureCodeNotification::CHANNEL_SMS))->isCriticalSms());
+        $this->assertSame([LeaseSignatureCodeNotification::class], self::HORS_PREFERENCES);
     }
 }
