@@ -347,7 +347,7 @@ du Delta et un critère qui rougit sur le code actuel.
       livré en trois PR dans cet ordre : §1 + §5 + §2 + §3A + §4A (défauts, sans ADR), puis §3B
       derrière l'ADR d'O12, puis §4B derrière l'ADR d'O17. La signature du bail reste dans ce ticket :
       **tranché par le porteur le 2026-10-06**, la spec la porte en P2 (§1.4).
-- [ ] **ADR à écrire et accepter avant le code d'O12** : *« Comment Takussan représente une
+- [x] **ADR à écrire et accepter avant le code d'O12** : *« Comment Takussan représente une
       indisponibilité et échange avec les calendriers externes ? »* Il tranche :
       - le format iCal (RFC 5545, `VEVENT` journée entière) et la bibliothèque (génération + analyse) ;
       - le jeton d'export : aléatoire 256 bits stocké haché (**option retenue par défaut**), ou URL
