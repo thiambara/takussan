@@ -8,6 +8,7 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
@@ -157,7 +158,9 @@ class PayoutService
                 ->exists();
             abort_code_if($live, 409, 'service_provider_bill.already_in_payout');
 
-            $amount = (float) $locked->amount;
+            // VERIF-594 m-3 — une facture antérieure à l'arrondi de l'observateur garde ses décimales :
+            // le prestataire reçoit ce que le bailleur paie, à l'unité de la devise.
+            $amount = round((float) $locked->amount, Currency::decimalPlacesOf($locked->currency), PHP_ROUND_HALF_UP);
             // VERIF-594 M-1 — le cumul vers ce prestataire se lit sous le verrou de la ligne agence.
             $agency = $this->lockAgency($agency);
 

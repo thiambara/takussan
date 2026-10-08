@@ -205,7 +205,9 @@ agence.
 
 `ServiceProviderBill` est un modèle propre — c'est une pièce **reçue**, alors qu'`Invoice` est une
 pièce **émise** vers un `Customer`. Elle naît d'un observateur sur `MaintenanceRequest` au passage à
-`completed`, avec un prestataire assigné et un montant (coût réel, à défaut devis approuvé), sans
+`completed`, avec un prestataire assigné et un montant (coût réel, à défaut devis approuvé —
+**arrondi à l'unité de la devise**, la règle de `PayoutCalculator::round`, à la création comme au
+paiement par `createForBill` : VERIF-594 m-3), sans
 exception attendue (une demande n'a qu'une facture ouverte, par index unique partiel et
 `insertOrIgnore`). Elle se valide ou se rejette par l'agence, et se paie par un `Payout`
 `payee_role = service_provider` : même seuil, mêmes quatre yeux, même destination vérifiée. Pas de PDF

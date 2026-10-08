@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Models\Enums\Currency;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\MaintenanceRequest;
@@ -53,6 +54,7 @@ class MaintenanceRequestObserver implements ShouldHandleEventsAfterCommit
 
         $property = $request->property()->first(['id', 'agency_id']);
         $now = now();
+        $currency = $request->quote_currency ?? 'XOF';
 
         ServiceProviderBill::query()->insertOrIgnore([
             'maintenance_request_id' => $request->id,
@@ -60,8 +62,10 @@ class MaintenanceRequestObserver implements ShouldHandleEventsAfterCommit
             'property_id' => $property?->id,
             'provider_id' => $request->assigned_to,
             'reference_number' => 'SPB-'.$now->format('Ym').'-'.strtoupper(Str::random(8)),
-            'amount' => round($amount, 2),
-            'currency' => $request->quote_currency ?? 'XOF',
+            // VERIF-594 m-3 — à l'unité de la devise, comme `PayoutCalculator::round` : 60 000,6 XOF
+            // payés au prestataire et 60 001 débités au bailleur divergeaient.
+            'amount' => round($amount, Currency::decimalPlacesOf($currency), PHP_ROUND_HALF_UP),
+            'currency' => $currency,
             'exceeds_quote' => $quote > 0 && $actual > $quote,
             'status' => ServiceProviderBillStatus::PendingValidation->value,
             'rechargeable_to_landlord' => true,

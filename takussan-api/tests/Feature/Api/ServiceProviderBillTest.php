@@ -151,4 +151,42 @@ class ServiceProviderBillTest extends TestCase
         Sanctum::actingAs($this->agencyAgent($this->moneyAgency()));
         $this->getJson("/api/service-provider-bills/{$mine->id}")->assertNotFound();
     }
+
+    /**
+     * VERIF-594 m-3 — un coût réel de 60 000,6 XOF : le prestataire recevait 60 000,6 et le bailleur
+     * était débité de 60 001. La facture naît à l'unité de la devise, et le paiement d'une facture
+     * antérieure qui garde ses décimales l'arrondit de même : 60 001 des deux côtés.
+     */
+    public function test_m3_an_xof_bill_is_rounded_to_the_unit_on_both_sides(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $request = $this->request($agency, $this->provider($agency), [
+            'property_id' => Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $landlord->id])->id,
+            'actual_cost' => 60_000.6,
+        ]);
+        $request->update(['status' => MaintenanceStatus::Completed]);
+        $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
+        $this->assertEquals(60001, (float) $bill->amount);
+
+        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk();
+        $this->postJson("/api/service-provider-bills/{$bill->id}/pay", ['payment_method' => 'cash'])
+            ->assertCreated()->assertJsonPath('data.net_amount', 60001);
+
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 200_000);
+        $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id], 'service_provider_bill_ids' => [$bill->id]])
+            ->assertCreated()->assertJsonPath('data.fees_amount', 60001)->assertJsonPath('data.net_amount', 139999);
+
+        // Une facture écrite AVANT l'arrondi de l'observateur garde ses décimales : le paiement
+        // l'arrondit.
+        $legacy = $this->request($agency, $this->provider($agency), ['actual_cost' => 70_000]);
+        $legacy->update(['status' => MaintenanceStatus::Completed]);
+        $old = ServiceProviderBill::query()->where('maintenance_request_id', $legacy->id)->sole();
+        $old->forceFill(['amount' => 70_000.6])->save();
+        $this->postJson("/api/service-provider-bills/{$old->id}/validate")->assertOk();
+        $this->postJson("/api/service-provider-bills/{$old->id}/pay", ['payment_method' => 'cash'])
+            ->assertCreated()->assertJsonPath('data.net_amount', 70001);
+    }
 }

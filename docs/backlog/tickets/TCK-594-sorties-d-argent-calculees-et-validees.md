@@ -552,6 +552,9 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **m-2** — `AgencyResource` ne rend `payout_approval_threshold` et
   `pending_payout_threshold_change` qu'aux détenteurs de `payouts.approve` ou `payouts.create` de
   l'agence (`rib_pro` relève de TCK-601, non touché).
+- [x] **m-3** — la facture d'intervention naît à l'unité de la devise (`MaintenanceRequestObserver`,
+  `Currency::decimalPlacesOf`, demi vers le haut), et `createForBill` arrondit de même le montant
+  d'une facture antérieure : le prestataire reçoit ce que le bailleur paie.
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -763,6 +766,10 @@ rend **403** avec une clé i18n, jamais une phrase.
   l'agence, puis par l'administrateur d'une autre agence : ni `payout_approval_threshold` ni
   `pending_payout_threshold_change` dans la réponse. Par l'administrateur de l'agence : 250 000.
   **Preuve** : `PayoutBypassTest::test_m2_the_threshold_is_not_shown_to_a_landlord` (rouge sur 9923b16c). Ablation V-m2 : rouge.
+- [x] **AC-m3 — 60 000,6 XOF font 60 001 des deux côtés.** Un coût réel de 60 000,6 : facture à
+  60 001, paiement au prestataire net 60 001, reversement au bailleur frais 60 001 (net 139 999 sur
+  200 000). Une facture qui garde 70 000,6 en base est payée 70 001.
+  **Preuve** : `ServiceProviderBillTest::test_m3_an_xof_bill_is_rounded_to_the_unit_on_both_sides` (rouge sur 9923b16c). Ablations V-m3a (observateur) et V-m3b (`createForBill`) : rouges.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -1106,3 +1113,8 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   appelle `toArray()` sans `resolve()`, et la clé restait présente — le premier essai l'a montré
   rouge. L'écran des réglages est déjà gardé par `useCan('payouts.approve')` ; le type front porte
   l'absence.
+- **m-3 — les décimales de la facture d'intervention.** Arrondi aux deux bouts, parce que l'un ne
+  couvre pas l'autre : l'observateur fixe les factures neuves, `createForBill` celles qu'une base
+  aurait gardées avec leurs décimales (aucune en production : la table n'a pas quitté la branche ;
+  le test les fabrique par `forceFill`). Le reversement au bailleur lisait déjà les frais arrondis
+  par `PayoutCalculator` : il n'est pas touché.
