@@ -226,7 +226,8 @@
         "health": "Santé",
         "failedJobs": "Jobs échoués",
         "maintenance": "Maintenance",
-        "scheduler": "Planificateur"
+        "scheduler": "Planificateur",
+        "privacyRequests": "Demandes de droits"
       }
     },
     "notifications": {
@@ -4321,7 +4322,8 @@
         "name": "Nom",
         "email": "Email",
         "status": "Statut",
-        "actions": "Actions"
+        "actions": "Actions",
+        "identifiers": "Identifiants"
       },
       "actions": {
         "resend": "Renvoyer l'invitation",
@@ -4463,6 +4465,15 @@
         "body": "Votre profil propriétaire est actif."
       },
       "metaTitle": "Onboarding propriétaire"
+    },
+    "sensitive": {
+      "notice": "Le RIB, le NINEA et le numéro de pièce sont masqués. « Afficher » révèle la valeur complète et enregistre la consultation dans le journal de l'agence.",
+      "rib": "RIB",
+      "tax_id": "NINEA",
+      "id_document_number": "Pièce",
+      "reveal": "Afficher",
+      "hide": "Masquer",
+      "error_title": "Impossible d'afficher ces identifiants"
     }
   },
   "ownerWelcome": {
@@ -5386,7 +5397,14 @@
         "lease": "Bail",
         "invoice": "Facture",
         "customer": "Client",
-        "user": "Utilisateur"
+        "user": "Utilisateur",
+        "agency": "Agence",
+        "agencyRole": "Rôle d'agence",
+        "integration": "Intégration",
+        "agentProfile": "Profil d'agent",
+        "agencyAdminProfile": "Profil d'administrateur",
+        "ownerProfile": "Profil de bailleur",
+        "privacyRequest": "Demande de droits"
       },
       "filters": {
         "anyAction": "Toutes les actions",
@@ -5399,7 +5417,10 @@
         "subjectAria": "Filtrer par type d'objet",
         "search": "Recherche",
         "searchPlaceholder": "Description…",
-        "searchAria": "Rechercher dans le journal"
+        "searchAria": "Rechercher dans le journal",
+        "member": "Membre",
+        "memberAria": "Filtrer par membre",
+        "anyMember": "Tous les membres"
       },
       "export": {
         "label": "Exporter",
@@ -5416,7 +5437,24 @@
         "description": "Description"
       },
       "tableCaption": "Journal d'audit de l'agence",
-      "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}"
+      "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}",
+      "system": "Système",
+      "deletedCauser": "Compte supprimé",
+      "events": {
+        "created": "Création",
+        "updated": "Modification",
+        "deleted": "Suppression",
+        "exported": "Export",
+        "agent_suspended": "Agent suspendu",
+        "agent_removed": "Agent retiré",
+        "agent_reactivated": "Agent réactivé",
+        "role_capabilities_changed": "Droits d'un rôle modifiés",
+        "role_created": "Rôle créé",
+        "role_assigned": "Rôle attribué",
+        "personal_data_viewed": "Données personnelles consultées",
+        "kyc_expired": "Pièce KYC expirée",
+        "data_exported": "Données exportées"
+      }
     },
     "roles": {
       "page": {
@@ -6910,7 +6948,18 @@
       "pagination": "Page {current} sur {last} · {total} entrées",
       "tableCaption": "Journal d'audit cross-tenant",
       "eventAria": "Filtrer par événement",
-      "causerAria": "Filtrer par identifiant d'auteur"
+      "causerAria": "Filtrer par identifiant d'auteur",
+      "presets": {
+        "aria": "Préréglage du journal",
+        "all": "Tout le journal",
+        "sensitive": "Gestes sensibles",
+        "sensitiveHint": "Consultations de données personnelles, registre des droits, sécurité, support, KYC, rôles, intégrations et exports."
+      },
+      "export": {
+        "label": "Exporter (CSV)",
+        "ready": "{count, plural, =0 {Export prêt : aucune entrée} =1 {Export prêt : 1 entrée} other {Export prêt : # entrées}}",
+        "error": "L'export du journal a échoué"
+      }
     },
     "announcements": {
       "empty_title": "Aucune annonce pour le moment",
@@ -7562,6 +7611,11 @@
           "rejected": "Rejetée",
           "revoked": "Révoquée"
         }
+      },
+      "privacyRequests": {
+        "metaTitle": "Demandes de droits — Console Takussan",
+        "title": "Demandes de droits",
+        "subtitle": "Le registre des demandes d'accès, de rectification, d'opposition, d'effacement et de portabilité, suivies jusqu'à leur échéance."
       }
     },
     "featureFlags": {
@@ -7839,6 +7893,88 @@
       "emptyDescription": "Les actions cross-agences apparaîtront ici dès leur journalisation.",
       "unknownEvent": "Événement sans libellé",
       "systemCauser": "Système"
+    },
+    "privacyRequests": {
+      "tableCaption": "Registre des demandes de droits, par échéance",
+      "error": "Impossible de charger le registre des demandes de droits.",
+      "empty_title": "Aucune demande de droits",
+      "empty_description": "Les demandes faites depuis l'application s'inscrivent ici d'elles-mêmes ; celles reçues autrement s'enregistrent à la main.",
+      "emptyFiltered_title": "Aucune demande pour ces filtres",
+      "emptyFiltered_description": "Retirez un filtre pour voir les autres demandes.",
+      "overdue": "En retard",
+      "overdueSummary": "{count, plural, =1 {1 demande a dépassé son échéance} other {# demandes ont dépassé leur échéance}}",
+      "filters": {
+        "anyStatus": "Tous les statuts",
+        "anyType": "Tous les types",
+        "statusAria": "Filtrer par statut",
+        "typeAria": "Filtrer par type de demande",
+        "overdueOnly": "En retard seulement",
+        "showOverdue": "Voir les demandes en retard"
+      },
+      "columns": {
+        "due": "Échéance",
+        "type": "Type",
+        "requester": "Demandeur",
+        "received": "Reçue le",
+        "status": "Statut",
+        "proof": "Preuve de réponse",
+        "actions": "Actions"
+      },
+      "type": {
+        "access": "Accès",
+        "rectification": "Rectification",
+        "opposition": "Opposition",
+        "erasure": "Effacement",
+        "portability": "Portabilité"
+      },
+      "channel": {
+        "in_app": "Depuis l'application",
+        "email": "Courriel",
+        "postal": "Courrier",
+        "phone": "Téléphone",
+        "in_person": "En personne"
+      },
+      "status": {
+        "received": "Reçue",
+        "in_progress": "En cours",
+        "answered": "Répondue",
+        "rejected": "Rejetée",
+        "withdrawn": "Retirée"
+      },
+      "export": {
+        "label": "Exporter le registre",
+        "error": "L'export du registre a échoué"
+      },
+      "create": {
+        "open": "Enregistrer une demande",
+        "title": "Enregistrer une demande reçue",
+        "description": "Pour une demande arrivée par courriel, courrier, téléphone ou en personne. L'échéance est calculée à partir de la date de réception.",
+        "submit": "Enregistrer la demande",
+        "success": "Demande enregistrée",
+        "error": "La demande n'a pas pu être enregistrée"
+      },
+      "update": {
+        "open": "Mettre à jour",
+        "openAria": "Mettre à jour la demande de {name}",
+        "title": "Demande de {name}",
+        "description": "Demande de type « {type} ». Passer au statut « Répondue » date la réponse.",
+        "success": "Demande mise à jour",
+        "error": "La demande n'a pas pu être mise à jour"
+      },
+      "fields": {
+        "type": "Type de demande",
+        "channel": "Reçue par",
+        "requesterName": "Nom du demandeur",
+        "requesterContact": "Contact du demandeur",
+        "requesterContactHint": "Courriel, téléphone ou adresse : de quoi lui répondre.",
+        "receivedAt": "Reçue le",
+        "userId": "Identifiant du compte (facultatif)",
+        "status": "Statut",
+        "responseSummary": "Résumé de la réponse",
+        "proof": "Preuve de réponse",
+        "proofHint": "PDF ou image (JPG, PNG, WebP, HEIC).",
+        "proofReplace": "Une preuve est déjà déposée ({name}) : un nouveau fichier la remplace."
+      }
     }
   },
   "adminSettings": {
@@ -9024,6 +9160,22 @@
     },
     "errors": {
       "generic": "Réessayez dans quelques instants."
+    },
+    "expiry": {
+      "expiredBadge": "Expirée",
+      "expiredOn": "Échue le {date} — à renouveler",
+      "soonBadge": "Expire bientôt",
+      "expiresOn": "Expire le {date}",
+      "dossierValidUntil": "Vérification valable jusqu'au {date}",
+      "fieldLabel": "Date d'expiration de la pièce",
+      "fieldAria": "Date d'expiration : {document}",
+      "fieldHint": "Obligatoire pour la pièce du dirigeant : la date de fin de validité inscrite sur la pièce."
+    },
+    "sharedIdentifiers": {
+      "ninea": "NINEA",
+      "rib_pro": "RIB professionnel",
+      "alreadyHeldBy": "identifiant déjà porté par :",
+      "hint": "Un signal pour la revue, pas un motif de refus à lui seul."
     }
   },
   "publicProfile": {
@@ -9484,7 +9636,33 @@
           "body": "Votre demande concernant « {about} » a bien été transmise. Vous recevrez une réponse au plus vite, par téléphone ou par e-mail."
         }
       },
+      "governance": {
+        "role_capabilities_changed": {
+          "title": "Droits d'un rôle modifiés",
+          "body": "Les droits du rôle {role} ont été modifiés par {actor}."
+        },
+        "admin_added": {
+          "title": "Nouvel administrateur",
+          "body": "Un accès administrateur a été donné à {member} par {actor}."
+        },
+        "data_exported": {
+          "title": "Export de données",
+          "body": "Un export de données clients a été effectué par {actor}."
+        },
+        "integration_changed": {
+          "title": "Intégration modifiée",
+          "body": "L'intégration {provider} a été modifiée par {actor}."
+        },
+        "approval_threshold_changed": {
+          "title": "Seuil d'approbation modifié",
+          "body": "Le seuil d'approbation des reversements a été modifié par {actor}."
+        }
+      },
       "kyc": {
+        "expiring_soon": {
+          "title": "Pièce KYC bientôt expirée",
+          "body": "La pièce d'identité du dirigeant expire le {expires_at}. Déposez-en une nouvelle pour garder l'agence vérifiée."
+        },
         "submitted": {
           "title": "KYC d'agence à instruire",
           "body": "Le dossier KYC de {agency} a été soumis."

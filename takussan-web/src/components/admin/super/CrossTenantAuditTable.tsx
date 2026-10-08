@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { ScrollText } from 'lucide-react';
+import { Download, Loader2, ScrollText, ShieldAlert } from 'lucide-react';
 import {
   DataState,
   DataTable,
@@ -13,9 +13,13 @@ import {
   type DataTableColumn,
 } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
-import { fetchAuditLog } from '@/lib/queries/super-admin';
+import { useToast } from '@/components/ui/toast';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { exportAuditLog, fetchAuditLog, type AuditLogExport } from '@/lib/queries/super-admin';
 import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -30,25 +34,50 @@ export function CrossTenantAuditTable() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [causerId, setCauserId] = useState('');
+  const [sensitive, setSensitive] = useState(false);
   const [page, setPage] = useState(1);
+  const toast = useToast();
+  const garde = useGardeDoubleFacteur();
 
-  const params = {
+  const filtres = {
     event: event || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     causerId: causerId ? Number(causerId) : undefined,
-    page,
-    perPage: 25,
+    sensitive: sensitive || undefined,
   };
+  const params = { ...filtres, page, perPage: 25 };
 
-  const filtresPoses = event !== '' || causerId !== '' || dateFrom !== '' || dateTo !== '';
+  const filtresPoses =
+    event !== '' || causerId !== '' || dateFrom !== '' || dateTo !== '' || sensitive;
   const reinitialiser = () => {
     setEvent('');
     setCauserId('');
     setDateFrom('');
     setDateTo('');
+    setSensitive(false);
     setPage(1);
   };
+
+  /**
+   * TCK-601 — l'export reprend EXACTEMENT les filtres affichés (préréglage compris) : exporter
+   * autre chose que ce qu'on regarde serait une surprise. L'API rend un lien signé, ouvert ici.
+   */
+  const exportMutation = useMutation<AuditLogExport, ApiError>({
+    mutationFn: () => avecGardeDoubleFacteur(() => exportAuditLog(filtres), garde),
+    onSuccess: (resultat) => {
+      const a = document.createElement('a');
+      a.href = resultat.url;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.add({ title: t('export.ready', { count: resultat.count }), type: 'success' });
+    },
+    onError: (err) => {
+      toast.add({ title: t('export.error'), description: messageErreur(err), type: 'error' });
+    },
+  });
 
   const { data, isLoading, isFetching, isError, error } = useQuery<AuditLogResponse, ApiError>({
     queryKey: ['super-admin', 'audit', params],
@@ -87,6 +116,47 @@ export function CrossTenantAuditTable() {
 
   return (
     <div className="space-y-4">
+      {/* TCK-601 — le préréglage et l'export, au-dessus des filtres : le premier change CE QU'ON
+          regarde, le second l'emporte. L'export reste `outline` — un geste secondaire. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="group" aria-label={t('presets.aria')} className="inline-flex rounded-lg border border-border p-0.5">
+          <Button
+            type="button"
+            size="sm"
+            variant={sensitive ? 'ghost' : 'secondary'}
+            aria-pressed={!sensitive}
+            onClick={() => { setSensitive(false); setPage(1); }}
+          >
+            {t('presets.all')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={sensitive ? 'secondary' : 'ghost'}
+            aria-pressed={sensitive}
+            onClick={() => { setSensitive(true); setPage(1); }}
+          >
+            <ShieldAlert className="size-3.5" aria-hidden="true" />
+            {t('presets.sensitive')}
+          </Button>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 gap-1.5"
+          disabled={exportMutation.isPending}
+          onClick={() => exportMutation.mutate()}
+        >
+          {exportMutation.isPending
+            ? <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            : <Download className="size-4" aria-hidden="true" />}
+          {t('export.label')}
+        </Button>
+      </div>
+      {sensitive ? (
+        <p className="text-sm text-pretty text-muted-foreground">{t('presets.sensitiveHint')}</p>
+      ) : null}
+
       {/* `xl` pour quatre colonnes : à 1024 la coque laisse 720 px, et le placeholder de
           l'événement se coupait. Les champs n'avaient que leur placeholder pour nom. */}
       <FilterBar

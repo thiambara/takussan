@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'The cancellation window has expired.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Too many rows to export: narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
     ],
     'agency' => [
@@ -374,6 +375,9 @@ return [
         'agency_unverified' => 'An unverified agency cannot be paid.',
         'already_exists' => 'A payout already exists for this period.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
+    ],
+    'privacy' => [
+        'request_closed' => 'This request is closed: record a new one.',
     ],
     'profile' => [
         'not_accessible' => 'This profile is not accessible to you.',

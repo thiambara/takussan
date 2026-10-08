@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasPaymentAttributes;
+use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Support\LogOptions;
 
-class LeasePayment extends AbstractModel
+class LeasePayment extends AbstractModel implements HasAuditAgency
 {
     use Auditable, HasFactory, HasPaymentAttributes, SoftDeletes;
 
@@ -108,6 +109,14 @@ class LeasePayment extends AbstractModel
     public function scopeWhereNotReconciled(Builder $query): Builder
     {
         return $query->whereNull('bank_reconciled_at');
+    }
+
+    /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle du bail. */
+    public function auditAgencyId(): ?int
+    {
+        $agencyId = $this->lease()->value('agency_id');
+
+        return $agencyId !== null ? (int) $agencyId : null;
     }
 
     /**

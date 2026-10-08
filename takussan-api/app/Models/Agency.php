@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
@@ -24,7 +26,19 @@ class Agency extends AbstractModel implements HasMedia
 {
     // TCK-079: Lemon Squeezy `Billable` makes Agency the scope used to
     // create checkouts (`$agency->checkout(...)->withCustomPrice(...)`).
-    use HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
+    use Auditable, HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
+
+    /**
+     * TCK-601 — liste blanche du journal : jamais `metadata` (dont `legal_info`), ni les coordonnées.
+     * Raccord TCK-594 : ses mentions légales y sont (le NINEA d'une agence est public, décision du
+     * 2026-10-08). Le seuil d'approbation n'y est pas : son service écrit lui-même
+     * `agency_payout_threshold_changed`, avec l'ancienne et la nouvelle valeur.
+     */
+    public const AUDIT_ONLY = [
+        'commission_rate', 'status', 'kind', 'is_verified',
+        'moderation_required', 'bank_csv_mapping', 'primary_admin_id',
+        'legal_name', 'ninea', 'rccm', 'legal_address', 'default_tax_rate',
+    ];
 
     protected $fillable = [
         'name', 'slug', 'kind', 'license_number', 'description',
@@ -91,6 +105,25 @@ class Agency extends AbstractModel implements HasMedia
     public function collectsLateFeesOnline(): bool
     {
         return (bool) data_get($this->settings, 'late_fee_online_collection', false);
+    }
+
+    /**
+     * TCK-601 — jamais `legal_info.rib_pro`, quel que soit le chemin : `include=agency` (dont
+     * `GET /api/owners`) rend l'agence par `toArray()`, sans passer par `AgencyResource`.
+     * La migration l'a retiré et le flip ne le recopie plus ; ceci couvre une donnée qui leur serait
+     * antérieure. Le NINEA reste : c'est une mention légale publique (décision du 2026-10-08, TCK-594).
+     *
+     * @return array<string,mixed>
+     */
+    public function attributesToArray(): array
+    {
+        $attributes = parent::attributesToArray();
+
+        if (is_array($attributes['metadata'] ?? null)) {
+            Arr::forget($attributes['metadata'], 'legal_info.rib_pro');
+        }
+
+        return $attributes;
     }
 
     protected static function booted(): void

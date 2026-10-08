@@ -216,7 +216,8 @@
         "health": "Wér-gi-yaram",
         "failedJobs": "Jobs yi ñàkk",
         "maintenance": "Defar",
-        "scheduler": "Arminaatkat"
+        "scheduler": "Arminaatkat",
+        "privacyRequests": "Laaj ci sañ-sañ"
       }
     },
     "notifications": {
@@ -2804,7 +2805,8 @@
         "name": "Tur",
         "email": "Email",
         "status": "Aada",
-        "actions": "Jëf"
+        "actions": "Jëf",
+        "identifiers": "Xibaar yu sutura"
       },
       "actions": {
         "resend": "Yónni invitation bi",
@@ -2946,6 +2948,15 @@
         "body": "Sa profil borom kër aktiv na."
       },
       "metaTitle": "Onboarding borom kër"
+    },
+    "sensitive": {
+      "notice": "RIB bi, NINEA bi ak nimero kayit bi dañu nëbbu. « Wone » dina wone lépp, te dañuy bind ni nga ko xoolee ci téereb ajaas bi.",
+      "rib": "RIB",
+      "tax_id": "NINEA",
+      "id_document_number": "Kayit",
+      "reveal": "Wone",
+      "hide": "Nëbb",
+      "error_title": "Mënuñu wone xibaar yii"
     }
   },
   "ownerWelcome": {
@@ -3869,7 +3880,14 @@
         "lease": "Luwé",
         "invoice": "Faktiir",
         "customer": "Kliyaan",
-        "user": "Jëfandikukat"
+        "user": "Jëfandikukat",
+        "agency": "Ajaas",
+        "agencyRole": "Rolu ajaas",
+        "integration": "Integration",
+        "agentProfile": "Profilu ndaw",
+        "agencyAdminProfile": "Profilu njiit",
+        "ownerProfile": "Profilu borom kër",
+        "privacyRequest": "Laaj ci sañ-sañ"
       },
       "filters": {
         "anyAction": "Jëf yépp",
@@ -3882,7 +3900,10 @@
         "subjectAria": "Filtrer ci type objet bi",
         "search": "Seet",
         "searchPlaceholder": "Description…",
-        "searchAria": "Wut ci téere bi"
+        "searchAria": "Wut ci téere bi",
+        "member": "Ku bokk",
+        "memberAria": "Filtrer ci ku bokk",
+        "anyMember": "Ñi bokk ñépp"
       },
       "export": {
         "label": "Génne",
@@ -3899,7 +3920,24 @@
         "description": "Leeral"
       },
       "tableCaption": "Sàqu jëf yi ci agence bi",
-      "entries": "{count, plural, =1 {{total} ligne} other {{total} ligne}}"
+      "entries": "{count, plural, =1 {{total} ligne} other {{total} ligne}}",
+      "system": "Sistem",
+      "deletedCauser": "Kont bu ñu far",
+      "events": {
+        "created": "Sos",
+        "updated": "Soppi",
+        "deleted": "Far",
+        "exported": "Génne",
+        "agent_suspended": "Ndaw li, bañ nañu ko",
+        "agent_removed": "Ndaw li, dindi nañu ko",
+        "agent_reactivated": "Ndaw li, delloo nañu ko",
+        "role_capabilities_changed": "Sañ-sañu rol bi soppiku na",
+        "role_created": "Rol bu bees",
+        "role_assigned": "Jox nañu rol",
+        "personal_data_viewed": "Xool nañu xibaar yu sutura",
+        "kyc_expired": "Kayitu KYC bi jeex na",
+        "data_exported": "Génne nañu xibaar yi"
+      }
     },
     "roles": {
       "page": {
@@ -6299,7 +6337,18 @@
       "pagination": "Xët {current} ci {last} · {total} mbind",
       "tableCaption": "Journal audit ci agence yépp",
       "eventAria": "Tànn ci xew-xew",
-      "causerAria": "Tànn ci ID ki ko def"
+      "causerAria": "Tànn ci ID ki ko def",
+      "presets": {
+        "aria": "Tànneefu téere bi",
+        "all": "Téere bi yépp",
+        "sensitive": "Jëf yu am solo",
+        "sensitiveHint": "Xool xibaar yu sutura, téereb sañ-sañ yi, kaarange, ndimbal, KYC, rol yi, jokkoo yi ak génne yi."
+      },
+      "export": {
+        "label": "Génne (CSV)",
+        "ready": "{count, plural, =0 {Export bi pare na : amul dara} other {Export bi pare na : # ligne}}",
+        "error": "Export bu téere bi antuwul"
+      }
     },
     "announcements": {
       "empty_title": "Amul benn yégle ba tey",
@@ -6951,6 +7000,11 @@
           "rejected": "Bañ nañu ko",
           "revoked": "Dindi nañu ko"
         }
+      },
+      "privacyRequests": {
+        "metaTitle": "Laaj ci sañ-sañ — Konsol Takussan",
+        "title": "Laaj ci sañ-sañ",
+        "subtitle": "Téereb laaj yi ngir xool, defar, bañ, far walla jël sa xibaar, ñu topp leen ba seen àpp."
       }
     },
     "featureFlags": {
@@ -7228,6 +7282,88 @@
       "emptyDescription": "Jëf yu ajaans yépp dinañu feeñ fii su ñu leen bindee.",
       "unknownEvent": "Jëf bu amul tur",
       "systemCauser": "Sistem"
+    },
+    "privacyRequests": {
+      "tableCaption": "Téereb laaj ci sañ-sañ yi, ci seen àpp",
+      "error": "Mënuñu yeb téereb laaj ci sañ-sañ yi.",
+      "empty_title": "Amul benn laaj ci sañ-sañ",
+      "empty_description": "Laaj yi ñu def ci app bi dañuy bindu fii ci seen bopp ; yi ñu jot ci yeneen yoon, dañu leen di bind ak loxo.",
+      "emptyFiltered_title": "Amul benn laaj ci tànneef yii",
+      "emptyFiltered_description": "Dindil benn tànneef ngir gis yeneen laaj yi.",
+      "overdue": "Mu yàgg",
+      "overdueSummary": "{count, plural, =1 {1 laaj weesu na àppam} other {# laaj weesu nañu seen àpp}}",
+      "filters": {
+        "anyStatus": "Statut yépp",
+        "anyType": "Type yépp",
+        "statusAria": "Filtrer ci statut bi",
+        "typeAria": "Filtrer ci type laaj bi",
+        "overdueOnly": "Yi yàgg rekk",
+        "showOverdue": "Wone laaj yi yàgg"
+      },
+      "columns": {
+        "due": "Àpp",
+        "type": "Type",
+        "requester": "Ki laaj",
+        "received": "Jot nañu ko",
+        "status": "Statut",
+        "proof": "Firndeg tontu",
+        "actions": "Jëf"
+      },
+      "type": {
+        "access": "Xool",
+        "rectification": "Defar",
+        "opposition": "Bañ",
+        "erasure": "Far",
+        "portability": "Jël sa xibaar"
+      },
+      "channel": {
+        "in_app": "Ci app bi",
+        "email": "Email",
+        "postal": "Bataaxal",
+        "phone": "Telefon",
+        "in_person": "Ci kanam"
+      },
+      "status": {
+        "received": "Jot nañu ko",
+        "in_progress": "Mu ngi dox",
+        "answered": "Tontu nañu",
+        "rejected": "Bañ nañu ko",
+        "withdrawn": "Dindi nañu ko"
+      },
+      "export": {
+        "label": "Génne téere bi",
+        "error": "Export bu téere bi antuwul"
+      },
+      "create": {
+        "open": "Bind benn laaj",
+        "title": "Bind benn laaj bu ñu jot",
+        "description": "Ngir laaj bu ñëw ci email, bataaxal, telefon walla ci kanam. Àpp bi dañu koy waññ ci bésu jot bi.",
+        "submit": "Bind laaj bi",
+        "success": "Bind nañu laaj bi",
+        "error": "Mënuñu bind laaj bi"
+      },
+      "update": {
+        "open": "Yeesal",
+        "openAria": "Yeesal laaju {name}",
+        "title": "Laaju {name}",
+        "description": "Laaj bu type « {type} ». Def ko « Tontu nañu » dina bind bésu tontu bi.",
+        "success": "Yeesal nañu laaj bi",
+        "error": "Mënuñu yeesal laaj bi"
+      },
+      "fields": {
+        "type": "Type laaj bi",
+        "channel": "Jot nañu ko ci",
+        "requesterName": "Turu ki laaj",
+        "requesterContact": "Ni ñuy jokkoo ak ki laaj",
+        "requesterContactHint": "Email, telefon walla adrees : lu ñu mën a tontoo.",
+        "receivedAt": "Bésu jot bi",
+        "userId": "Nimero kont bi (du war)",
+        "status": "Statut",
+        "responseSummary": "Tënk tontu bi",
+        "proof": "Firndeg tontu",
+        "proofHint": "PDF walla nataal (JPG, PNG, WebP, HEIC).",
+        "proofReplace": "Am na firnde bu ñu fi denc ba noppi ({name}) : fichier bu bees dina ko wuutu."
+      }
     }
   },
   "adminSettings": {
@@ -9024,6 +9160,22 @@
     },
     "errors": {
       "generic": "Jéematal ci ab saa."
+    },
+    "expiry": {
+      "expiredBadge": "Jeex na",
+      "expiredOn": "Jeex na ci {date} — war nañu ko yeesal",
+      "soonBadge": "Dina jeex léegi",
+      "expiresOn": "Dina jeex ci {date}",
+      "dossierValidUntil": "Wóoral bi baax na ba {date}",
+      "fieldLabel": "Bésu jeexug kayit bi",
+      "fieldAria": "Bésu jeex : {document}",
+      "fieldHint": "War na ngir kayitu njiit li : bés bi ñu bind ci kayit bi ni muy jeexe."
+    },
+    "sharedIdentifiers": {
+      "ninea": "NINEA",
+      "rib_pro": "RIB bu liggéey",
+      "alreadyHeldBy": "beneen ajaas am na xibaar bii :",
+      "hint": "Ab xamle ngir saytu bi, du ab tax ngir bañ ko."
     }
   },
   "publicProfile": {
@@ -9484,7 +9636,33 @@
           "body": "Sa laaj ci « {about} » yónne nañu ko. Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail."
         }
       },
+      "governance": {
+        "role_capabilities_changed": {
+          "title": "Sañ-sañu ab warugar soppiku na",
+          "body": "Sañ-sañu warugar {role} soppiku na, {actor} moo ko def."
+        },
+        "admin_added": {
+          "title": "Saytukat bu bees",
+          "body": "Jox nañu {member} sañ-sañu saytukat, {actor} moo ko def."
+        },
+        "data_exported": {
+          "title": "Génne ay xibaar",
+          "body": "Génne nañu xibaari kiliyaan yi, {actor} moo ko def."
+        },
+        "integration_changed": {
+          "title": "Jokkoo bi soppiku na",
+          "body": "Jokkoo {provider} soppiku na, {actor} moo ko def."
+        },
+        "approval_threshold_changed": {
+          "title": "Dayob nangu bi soppiku na",
+          "body": "Dayob nangu yónnee xaalis yi soppiku na, {actor} moo ko def."
+        }
+      },
       "kyc": {
+        "expiring_soon": {
+          "title": "Kayitu KYC bi dina jeex",
+          "body": "Kayitu dénkaane bu njiit li dina jeex ci {expires_at}. Yónneel beneen ngir ajãs bi des ci wóor."
+        },
         "submitted": {
           "title": "KYC agence bu ñu war a seet",
           "body": "Dossier KYC bu {agency} yónne nañu ko."

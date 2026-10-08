@@ -17,12 +17,16 @@ export type AgencyKind = 'standard' | 'individual';
  * `legal_info.*` is backfilled by the agency-upgrade flow when a
  * super-admin approves the request; `welcome.standard_unlocked_at` is
  * stamped at the same moment so the agency-admin welcome modale fires once.
+ *
+ * TCK-601 (A2) — `legal_info.rib_pro` n'existe plus : le flip ne le recopie plus, la migration
+ * l'a retiré des données et `AgencyResource` ne le rend jamais. La seule source du RIB pro est la
+ * demande de passage (`types/agency-upgrade.ts`), chiffrée en base et lisible du seul admin de
+ * l'agence et du super-admin. Ne pas le rajouter ici : ce type est celui que tout membre lit.
  */
 export interface AgencyMetadata {
   legal_info?: {
     rc?: string | null;
     ninea?: string | null;
-    rib_pro?: string | null;
     company_legal_name?: string | null;
     address_fiscale?: string | null;
     [key: string]: unknown;

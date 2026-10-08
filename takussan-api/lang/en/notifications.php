@@ -413,7 +413,39 @@ return [
                 'sms' => 'Takussan: your request about :about has been sent.',
             ],
         ],
+        'governance' => [
+            'role_capabilities_changed' => [
+                'title' => 'Role permissions changed',
+                'body' => 'The permissions of the role :role were changed by :actor.',
+                'sms' => 'Takussan: role :role permissions changed by :actor.',
+            ],
+            'admin_added' => [
+                'title' => 'New administrator',
+                'body' => 'Administrator access was given to :member by :actor.',
+                'sms' => 'Takussan: :member is now an administrator (by :actor).',
+            ],
+            'data_exported' => [
+                'title' => 'Data export',
+                'body' => 'A customer data export was made by :actor.',
+                'sms' => 'Takussan: customer data exported by :actor.',
+            ],
+            'integration_changed' => [
+                'title' => 'Integration changed',
+                'body' => 'The :provider integration was changed by :actor.',
+                'sms' => 'Takussan: :provider integration changed by :actor.',
+            ],
+            'approval_threshold_changed' => [
+                'title' => 'Approval threshold changed',
+                'body' => 'The payout approval threshold was changed by :actor.',
+                'sms' => 'Takussan: approval threshold changed by :actor.',
+            ],
+        ],
         'kyc' => [
+            'expiring_soon' => [
+                'title' => 'KYC document expiring soon',
+                'body' => 'The director\'s ID document expires on :expires_at. Upload a new one to keep the agency verified.',
+                'sms' => 'Takussan: the director\'s KYC document expires on :expires_at.',
+            ],
             'submitted' => [
                 'title' => 'Agency KYC to review',
                 'body' => 'The KYC file of :agency has been submitted.',

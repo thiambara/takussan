@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\PayoutMethodKind;
+use App\Support\Masking;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,16 +50,12 @@ class PayoutMethod extends AbstractModel
 
     /**
      * TCK-594 — la seule forme d'un identifiant que l'agence lit : les quatre derniers caractères.
-     *
-     * ⚠ Masqueur PROVISOIRE : TCK-601 le remplace par le sien. Toute forme masquée du dépôt passe par
-     * ici, pour que le remplacement tienne en un fichier.
+     * TCK-601 — par le masqueur commun, {@see Masking::tail()}. Un identifiant de quatre caractères
+     * ou moins ne se montre plus en entier.
      */
     public static function mask(string $identifier): string
     {
-        $compact = preg_replace('/\s+/', '', $identifier) ?? '';
-        $tail = mb_substr($compact, -4);
-
-        return '•••• '.$tail;
+        return Masking::tail($identifier);
     }
 
     /**

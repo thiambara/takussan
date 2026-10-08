@@ -14,6 +14,7 @@ use App\Http\Resources\MediaResource;
 use App\Http\Resources\Messaging\GroupContextLeaseResource;
 use App\Http\Resources\Messaging\GroupContextPropertyResource;
 use App\Http\Resources\Messaging\MessagingContactResource;
+use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Models\Agency;
@@ -106,6 +107,11 @@ final class ResourceInventory
                 .'(`slug`, `updated_at`) — même écart de nommage que la GeoJSON juste au-dessus : '
                 .'le suffixe décrit le FORMAT DE SORTIE, pas le modèle. Ajoutée par TCK-431 et '
                 .'oubliée ici ; la garde de registre est le seul mécanisme qui l\'ait dit.',
+        ],
+        OwnerProfileResource::class => [
+            'modeles' => [OwnerProfile::class],
+            'raison' => 'Le profil de bailleur tel que le carnet de l\'agence le lit, identifiants masqués (TCK-601) — '
+                .'le modèle vit sous `Profiles\\`, la convention ne le trouve pas.',
         ],
         ProfileResource::class => [
             'modeles' => [

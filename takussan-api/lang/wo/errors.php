@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'Waxtu wu nga manon a baña la, jeexna.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
     ],
     'agency' => [
@@ -374,6 +375,9 @@ return [
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
+    ],
+    'privacy' => [
+        'request_closed' => 'Laaj bii tëju na : bindal beneen.',
     ],
     'profile' => [
         'not_accessible' => 'Profil bii, sañuloo ko jëfandikoo.',

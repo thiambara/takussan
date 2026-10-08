@@ -3,11 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Jobs\Audit\ExportActivityLogJob;
+use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Spatie\Activitylog\Models\Activity;
 use Tests\ApiTestCase;
 
 /**
@@ -22,14 +22,18 @@ class ActivityLogExporterTest extends ApiTestCase
 
     // ─── helpers ───────────────────────────────────────────────────────────────
 
-    private function makeLog(User $causer, string $event = 'created'): Activity
+    /**
+     * TCK-601 — le journal d'une agence est celui de ses SUJETS : une ligne sur un `User` n'est
+     * rattachée à aucune agence. `$agency` donne à la ligne un sujet de l'agence voulue.
+     */
+    private function makeLog(User $causer, string $event = 'created', ?Agency $agency = null): Activity
     {
         return Activity::create([
             'log_name' => 'default',
             'description' => $event,
             'event' => $event,
-            'subject_type' => User::class,
-            'subject_id' => $causer->id,
+            'subject_type' => $agency !== null ? Agency::class : User::class,
+            'subject_id' => $agency !== null ? $agency->id : $causer->id,
             'causer_type' => User::class,
             'causer_id' => $causer->id,
         ]);
@@ -100,10 +104,10 @@ class ActivityLogExporterTest extends ApiTestCase
         ]);
 
         // Log by agencyA user.
-        $this->makeLog($adminA);
+        $this->makeLog($adminA, 'created', $agencyA);
 
         // Log by agencyB user — must NOT be visible to adminA.
-        $this->makeLog($userB);
+        $this->makeLog($userB, 'created', $agencyB);
 
         $body = $this->apiGet('/api/activity-logs/export?format=csv')
             ->assertOk()
@@ -155,6 +159,8 @@ class ActivityLogExporterTest extends ApiTestCase
                 'causer_type' => User::class,
                 'causer_id' => $admin->id,
                 'properties' => '{}',
+                // TCK-601 — insertion brute : le rattachement que le modèle aurait résolu.
+                'agency_id' => $agency->id,
                 'created_at' => $nowTs,
                 'updated_at' => $nowTs,
             ];
@@ -201,8 +207,8 @@ class ActivityLogExporterTest extends ApiTestCase
             'log_name' => 'default',
             'description' => 'Value with, comma and "quotes"',
             'event' => 'created',
-            'subject_type' => User::class,
-            'subject_id' => $admin->id,
+            'subject_type' => Agency::class,
+            'subject_id' => $agency->id,
             'causer_type' => User::class,
             'causer_id' => $admin->id,
         ]);

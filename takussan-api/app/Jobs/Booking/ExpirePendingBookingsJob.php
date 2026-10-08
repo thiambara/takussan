@@ -3,6 +3,7 @@
 namespace App\Jobs\Booking;
 
 use App\Services\Booking\BookingExpirationService;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -50,9 +51,7 @@ class ExpirePendingBookingsJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error('ExpirePendingBookingsJob: Job failed', [
-            'exception' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString(),
-        ]);
+        // TCK-601 (ADR-0044 §2) — ni le message ni `getTraceAsString()` (arguments compris).
+        Log::error('ExpirePendingBookingsJob: Job failed', SafeExceptionContext::of($exception));
     }
 }

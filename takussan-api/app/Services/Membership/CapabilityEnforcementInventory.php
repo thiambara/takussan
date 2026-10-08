@@ -28,7 +28,6 @@ final class CapabilityEnforcementInventory
      * @var array<string, string>
      */
     public const AWAITING = [
-        'agency.update_kyc' => 'TCK-601',
         'properties.moderate' => 'réservée plateforme',
         'reports.view_global' => 'réservée plateforme',
         'agency.update' => 'D-69',

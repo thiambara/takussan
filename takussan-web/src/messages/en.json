@@ -226,7 +226,8 @@
         "health": "Health",
         "failedJobs": "Failed jobs",
         "maintenance": "Maintenance",
-        "scheduler": "Scheduler"
+        "scheduler": "Scheduler",
+        "privacyRequests": "Rights requests"
       }
     },
     "notifications": {
@@ -4321,7 +4322,8 @@
         "name": "Name",
         "email": "Email",
         "status": "Status",
-        "actions": "Actions"
+        "actions": "Actions",
+        "identifiers": "Identifiers"
       },
       "actions": {
         "resend": "Resend invitation",
@@ -4463,6 +4465,15 @@
         "body": "Your owner profile is active."
       },
       "metaTitle": "Owner onboarding"
+    },
+    "sensitive": {
+      "notice": "Bank details, NINEA and ID number are masked. “Show” reveals the full value and records the access in the agency audit trail.",
+      "rib": "Bank (RIB)",
+      "tax_id": "NINEA",
+      "id_document_number": "ID",
+      "reveal": "Show",
+      "hide": "Hide",
+      "error_title": "These identifiers could not be shown"
     }
   },
   "ownerWelcome": {
@@ -5386,7 +5397,14 @@
         "lease": "Lease",
         "invoice": "Invoice",
         "customer": "Customer",
-        "user": "User"
+        "user": "User",
+        "agency": "Agency",
+        "agencyRole": "Agency role",
+        "integration": "Integration",
+        "agentProfile": "Agent profile",
+        "agencyAdminProfile": "Admin profile",
+        "ownerProfile": "Landlord profile",
+        "privacyRequest": "Rights request"
       },
       "filters": {
         "anyAction": "All actions",
@@ -5399,7 +5417,10 @@
         "subjectAria": "Filter by object type",
         "search": "Search",
         "searchPlaceholder": "Description…",
-        "searchAria": "Search the audit trail"
+        "searchAria": "Search the audit trail",
+        "member": "Member",
+        "memberAria": "Filter by member",
+        "anyMember": "All members"
       },
       "export": {
         "label": "Export",
@@ -5416,7 +5437,24 @@
         "description": "Description"
       },
       "tableCaption": "Agency audit trail",
-      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}"
+      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
+      "system": "System",
+      "deletedCauser": "Deleted account",
+      "events": {
+        "created": "Created",
+        "updated": "Updated",
+        "deleted": "Deleted",
+        "exported": "Exported",
+        "agent_suspended": "Agent suspended",
+        "agent_removed": "Agent removed",
+        "agent_reactivated": "Agent reactivated",
+        "role_capabilities_changed": "Role permissions changed",
+        "role_created": "Role created",
+        "role_assigned": "Role assigned",
+        "personal_data_viewed": "Personal data viewed",
+        "kyc_expired": "KYC document expired",
+        "data_exported": "Data exported"
+      }
     },
     "roles": {
       "page": {
@@ -6910,7 +6948,18 @@
       "pagination": "Page {current} of {last} · {total} entries",
       "tableCaption": "Cross-tenant audit log",
       "eventAria": "Filter by event",
-      "causerAria": "Filter by causer ID"
+      "causerAria": "Filter by causer ID",
+      "presets": {
+        "aria": "Audit log preset",
+        "all": "Whole log",
+        "sensitive": "Sensitive actions",
+        "sensitiveHint": "Personal data views, rights register, security, support, KYC, roles, integrations and exports."
+      },
+      "export": {
+        "label": "Export (CSV)",
+        "ready": "{count, plural, =0 {Export ready: no entry} =1 {Export ready: 1 entry} other {Export ready: # entries}}",
+        "error": "The audit log export failed"
+      }
     },
     "announcements": {
       "empty_title": "No announcement yet",
@@ -7562,6 +7611,11 @@
           "rejected": "Rejected",
           "revoked": "Revoked"
         }
+      },
+      "privacyRequests": {
+        "metaTitle": "Rights requests — Takussan Console",
+        "title": "Rights requests",
+        "subtitle": "The register of access, rectification, objection, erasure and portability requests, tracked until their deadline."
       }
     },
     "featureFlags": {
@@ -7839,6 +7893,88 @@
       "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
       "unknownEvent": "Unlabelled event",
       "systemCauser": "System"
+    },
+    "privacyRequests": {
+      "tableCaption": "Rights requests register, by deadline",
+      "error": "The rights requests register could not be loaded.",
+      "empty_title": "No rights request",
+      "empty_description": "Requests made from the app are recorded here automatically; those received otherwise are entered by hand.",
+      "emptyFiltered_title": "No request for these filters",
+      "emptyFiltered_description": "Remove a filter to see the other requests.",
+      "overdue": "Overdue",
+      "overdueSummary": "{count, plural, =1 {1 request is past its deadline} other {# requests are past their deadline}}",
+      "filters": {
+        "anyStatus": "All statuses",
+        "anyType": "All types",
+        "statusAria": "Filter by status",
+        "typeAria": "Filter by request type",
+        "overdueOnly": "Overdue only",
+        "showOverdue": "Show overdue requests"
+      },
+      "columns": {
+        "due": "Deadline",
+        "type": "Type",
+        "requester": "Requester",
+        "received": "Received",
+        "status": "Status",
+        "proof": "Proof of response",
+        "actions": "Actions"
+      },
+      "type": {
+        "access": "Access",
+        "rectification": "Rectification",
+        "opposition": "Objection",
+        "erasure": "Erasure",
+        "portability": "Portability"
+      },
+      "channel": {
+        "in_app": "From the app",
+        "email": "Email",
+        "postal": "Post",
+        "phone": "Phone",
+        "in_person": "In person"
+      },
+      "status": {
+        "received": "Received",
+        "in_progress": "In progress",
+        "answered": "Answered",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn"
+      },
+      "export": {
+        "label": "Export the register",
+        "error": "The register export failed"
+      },
+      "create": {
+        "open": "Record a request",
+        "title": "Record a received request",
+        "description": "For a request received by email, post, phone or in person. The deadline is computed from the date of receipt.",
+        "submit": "Record the request",
+        "success": "Request recorded",
+        "error": "The request could not be recorded"
+      },
+      "update": {
+        "open": "Update",
+        "openAria": "Update the request from {name}",
+        "title": "Request from {name}",
+        "description": "“{type}” request. Moving it to “Answered” dates the response.",
+        "success": "Request updated",
+        "error": "The request could not be updated"
+      },
+      "fields": {
+        "type": "Request type",
+        "channel": "Received by",
+        "requesterName": "Requester name",
+        "requesterContact": "Requester contact",
+        "requesterContactHint": "Email, phone or address: whatever is needed to reply.",
+        "receivedAt": "Received on",
+        "userId": "Account ID (optional)",
+        "status": "Status",
+        "responseSummary": "Response summary",
+        "proof": "Proof of response",
+        "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
+        "proofReplace": "A proof is already on file ({name}): a new file replaces it."
+      }
     }
   },
   "adminSettings": {
@@ -9024,6 +9160,22 @@
     },
     "errors": {
       "generic": "Try again in a few moments."
+    },
+    "expiry": {
+      "expiredBadge": "Expired",
+      "expiredOn": "Expired on {date} — to renew",
+      "soonBadge": "Expires soon",
+      "expiresOn": "Expires on {date}",
+      "dossierValidUntil": "Verification valid until {date}",
+      "fieldLabel": "Document expiry date",
+      "fieldAria": "Expiry date: {document}",
+      "fieldHint": "Required for the director's ID: the end-of-validity date printed on the document."
+    },
+    "sharedIdentifiers": {
+      "ninea": "NINEA",
+      "rib_pro": "Business bank details (RIB)",
+      "alreadyHeldBy": "identifier already held by:",
+      "hint": "A signal for the review, not a reason to reject on its own."
     }
   },
   "publicProfile": {
@@ -9484,7 +9636,33 @@
           "body": "Your request about “{about}” has been sent. You will hear back shortly, by phone or by email."
         }
       },
+      "governance": {
+        "role_capabilities_changed": {
+          "title": "Role permissions changed",
+          "body": "The permissions of the role {role} were changed by {actor}."
+        },
+        "admin_added": {
+          "title": "New administrator",
+          "body": "Administrator access was given to {member} by {actor}."
+        },
+        "data_exported": {
+          "title": "Data export",
+          "body": "A customer data export was made by {actor}."
+        },
+        "integration_changed": {
+          "title": "Integration changed",
+          "body": "The {provider} integration was changed by {actor}."
+        },
+        "approval_threshold_changed": {
+          "title": "Approval threshold changed",
+          "body": "The payout approval threshold was changed by {actor}."
+        }
+      },
       "kyc": {
+        "expiring_soon": {
+          "title": "KYC document expiring soon",
+          "body": "The director's ID document expires on {expires_at}. Upload a new one to keep the agency verified."
+        },
         "submitted": {
           "title": "Agency KYC to review",
           "body": "The KYC file of {agency} has been submitted."

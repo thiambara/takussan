@@ -12,11 +12,15 @@ use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
+use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -120,4 +124,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return null;
         });
+
+        // TCK-601 (ADR-0044 §2) — le rapport par défaut d'une `QueryException` écrit son message,
+        // qui porte les valeurs liées et le `DETAIL` PostgreSQL : tout échec SQL de toute route ou
+        // job journalisait ainsi ce que l'utilisateur avait saisi. Il est REMPLACÉ (`stop()`) par
+        // la forme sûre : SQLSTATE, SQL à placeholders, nombre de valeurs, `fichier:ligne`.
+        $exceptions->report(function (QueryException $e): void {
+            Log::error('query_exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]);
+        })->stop();
     })->create();

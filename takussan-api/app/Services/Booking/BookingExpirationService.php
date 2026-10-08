@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\User;
 use App\Notifications\BookingExpiredNotification;
+use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -139,8 +140,16 @@ class BookingExpirationService
                         }
                         $remaining--;
                     } catch (\Exception $e) {
-                        $errors[] = "Failed to expire booking {$booking->id}: {$e->getMessage()}";
-                        Log::error('Booking expiration failed', ['booking_id' => $booking->id, 'error' => $e->getMessage()]);
+                        // TCK-601 (ADR-0044 §2) — la chaîne poussée dans `$errors` est journalisée
+                        // par le job : elle porte la classe et le SQLSTATE, jamais le message.
+                        $safe = SafeExceptionContext::of($e);
+                        $errors[] = sprintf(
+                            'Failed to expire booking %d: %s%s',
+                            $booking->id,
+                            $safe['exception'],
+                            isset($safe['sqlstate']) ? ' (SQLSTATE '.$safe['sqlstate'].')' : '',
+                        );
+                        Log::error('Booking expiration failed', ['booking_id' => $booking->id] + $safe);
                     }
                 }
             }
