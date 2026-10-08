@@ -326,6 +326,27 @@ class PublicSearchAlertTest extends TestCase
         $this->assertSame([202, 202, 202, 202, 202, 429], $statuts);
     }
 
+    /**
+     * verif-599 m2 — les en-têtes du limiteur ne disent rien du contact : depuis une adresse IP
+     * neuve, viser un contact qu'une autre personne vient de viser rend les MÊMES en-têtes que
+     * viser un contact vierge.
+     */
+    public function test_les_en_tetes_du_limiteur_ne_trahissent_pas_le_contact(): void
+    {
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.9'])
+            ->postJson('/api/public/search-alerts', $this->demande())->assertStatus(202);
+
+        $connu = $this->withServerVariables(['REMOTE_ADDR' => '10.0.3.1'])
+            ->postJson('/api/public/search-alerts', $this->demande(['name' => 'Sonde']));
+        $vierge = $this->withServerVariables(['REMOTE_ADDR' => '10.0.3.2'])
+            ->postJson('/api/public/search-alerts', $this->demande(['name' => 'Sonde', 'email' => 'vierge@exemple.sn']));
+
+        foreach (['X-RateLimit-Limit', 'X-RateLimit-Remaining'] as $entete) {
+            $this->assertNotNull($connu->headers->get($entete), $entete);
+            $this->assertSame($vierge->headers->get($entete), $connu->headers->get($entete), $entete);
+        }
+    }
+
     /** **AC17** — le limiteur rend 429 au-delà de sa borne (par visiteur). */
     public function test_le_limiteur_rend_429(): void
     {
