@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Kyc\UploadKycDocumentRequest;
 use App\Http\Resources\KycDossierResource;
 use App\Models\Agency;
+use App\Policies\AgencyPolicy;
 use App\Services\Kyc\KycWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,13 +26,15 @@ class KycController extends Controller
 
     public function upload(UploadKycDocumentRequest $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAgencyAdmin($request, $agency);
+        // TCK-601 (C) — par la capacité `agency.update_kyc` ({@see AgencyPolicy::updateKyc()}).
+        $this->authorize('updateKyc', $agency);
 
         $dossier = $this->kyc->dossierForAgency($agency);
         $this->kyc->upload(
             $dossier,
             $request->file('document'),
             $request->string('document_type')->toString(),
+            $request->validated('expires_at'),
         );
 
         return $this->json([
@@ -41,7 +44,8 @@ class KycController extends Controller
 
     public function submit(Request $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAgencyAdmin($request, $agency);
+        // TCK-601 (C) — par la capacité `agency.update_kyc` ({@see AgencyPolicy::updateKyc()}).
+        $this->authorize('updateKyc', $agency);
 
         $dossier = $this->kyc->submit($this->kyc->dossierForAgency($agency), $request->user());
 

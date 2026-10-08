@@ -5,6 +5,7 @@ namespace App\Services\Property;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -88,8 +89,20 @@ class PropertyDuplicationService
             if ($copyCollaborators) {
                 foreach ($source->collaborators as $collab) {
                     $clone->collaborators()->create($collab->only([
-                        'user_id', 'role', 'commission_share', 'metadata',
+                        'user_id', 'role', 'commission_share', 'invited_at', 'metadata',
                     ]));
+                }
+
+                // TCK-504 (vérification adverse m4) — le clone répond par le même agent que la
+                // source : la marque d'agent principal suit la ligne du même titulaire, et
+                // `invited_at` recopié garde le repli identique. Écrite par le constructeur de
+                // requêtes : le bien est neuf, aucune autre marque ne peut s'y trouver (ADR-0053 §1).
+                $marque = $source->collaborators->first(fn (PropertyCollaborator $c) => $c->is_primary === true);
+                if ($marque !== null) {
+                    DB::table('property_collaborators')
+                        ->where('property_id', $clone->id)
+                        ->where('user_id', $marque->user_id)
+                        ->update(['is_primary' => true]);
                 }
             }
 

@@ -56,6 +56,8 @@ export interface PropertyListItem {
     id: number;
     user_id: number;
     role: string | null;
+    /** TCK-504 — la marque d'agent principal (ADR-0053). */
+    is_primary?: boolean;
     commission_share: number | null;
     user: {
       id: number;

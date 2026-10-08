@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { AuditTrail } from '../AuditTrail';
+import type { ActivityLogEntry } from '@/lib/queries/audit-logs';
 
 /**
  * TCK-376 — le journal d'audit : recherche temporisée, objet cliquable, menu d'export accessible.
@@ -17,15 +18,43 @@ import { AuditTrail } from '../AuditTrail';
  */
 
 const mockFetchLogs = vi.fn();
+/** Le VRAI `fetchAuditLogs`, gardé pour AC18b : il faut voir la requête qui part, pas l'objet. */
+const vrai = vi.hoisted(() => ({
+  fetchAuditLogs: null as null | ((...args: unknown[]) => Promise<unknown>),
+}));
 
 vi.mock('@/lib/queries/audit-logs', async (importOriginal) => {
   const reel = await importOriginal<typeof import('@/lib/queries/audit-logs')>();
+  vrai.fetchAuditLogs = reel.fetchAuditLogs as (...args: unknown[]) => Promise<unknown>;
   return { ...reel, fetchAuditLogs: (...args: unknown[]) => mockFetchLogs(...args) };
 });
 
-vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: null, token: 'fake-token', isLoading: false }),
+/**
+ * TCK-601 — `apiRequest` simulé : la liste des membres (`GET /api/agencies/{id}/members`) et,
+ * pour AC18b, le journal lui-même quand le test rend la main au vrai `fetchAuditLogs`.
+ */
+const apiRequestMock = vi.fn();
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiRequest: (...args: unknown[]) => apiRequestMock(...args),
 }));
+
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, agency_id: 7, roles: ['agency_admin'] },
+    token: 'fake-token',
+    isLoading: false,
+  }),
+}));
+
+const MEMBRES = {
+  data: [
+    { id: 42, first_name: 'Moussa', last_name: 'Ndiaye', email: 'moussa@example.test' },
+    { id: 43, first_name: 'Awa', last_name: 'Diop', email: 'awa@example.test' },
+  ],
+  meta: { total: 2, current_page: 1, last_page: 1, per_page: 100 },
+  links: { first: null, last: null, prev: null, next: null },
+};
 
 const toastAdd = vi.fn();
 vi.mock('@/components/ui/toast', () => ({
@@ -59,7 +88,7 @@ function makeLog(overrides: Partial<{
   };
 }
 
-function reponse(data = [makeLog()]) {
+function reponse(data: ActivityLogEntry[] = [makeLog()]) {
   return {
     data,
     meta: { total: data.length, current_page: 1, last_page: 1, per_page: 50 },
@@ -97,6 +126,8 @@ describe('<AuditTrail> (TCK-376)', () => {
     mockFetchLogs.mockReset();
     toastAdd.mockReset();
     mockFetchLogs.mockResolvedValue(reponse());
+    apiRequestMock.mockReset();
+    apiRequestMock.mockResolvedValue(MEMBRES);
   });
 
   // ─── AC3 — dix caractères, au plus deux requêtes ───────────────────────────────────────────
@@ -299,5 +330,111 @@ describe('<AuditTrail> (TCK-376)', () => {
     expect(etats).not.toHaveLength(0); // le fichier a bien des états : l'extraction marche
     expect(etats.filter((n) => /open|ouvert|show|menu|visible|expanded/i.test(n))).toEqual([]);
     expect(source).toContain('DropdownMenuTrigger');
+  });
+});
+
+/**
+ * TCK-601 · AC18b — le journal de l'agence se filtre par membre, et une ligne sans acteur se lit.
+ *
+ * Mesuré sur le code d'avant (2026-10-08) : aucun choix de membre — l'API acceptait
+ * `filter[causer_id]` et `fetchAuditLogs` savait l'envoyer, mais rien à l'écran ne le posait —, et
+ * une ligne au `causer` nul rendait le littéral anglais `system`, dans les trois langues.
+ */
+describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => {
+  beforeEach(() => {
+    mockFetchLogs.mockReset();
+    toastAdd.mockReset();
+    apiRequestMock.mockReset();
+  });
+
+  /** Les URL réellement demandées à l'API par le journal (pas la liste des membres). */
+  function urlsDuJournal(): URL[] {
+    return apiRequestMock.mock.calls
+      .map(([chemin]) => String(chemin))
+      .filter((chemin) => chemin.startsWith('/api/activity-log'))
+      .map((chemin) => new URL(chemin, 'http://api.test'));
+  }
+
+  it('le choix d’un membre part au serveur en filter[causer_id], et revient à la page 1', async () => {
+    // Le vrai `fetchAuditLogs` : c'est la requête qui part qu'on juge, pas l'objet de filtres.
+    mockFetchLogs.mockImplementation((...args: unknown[]) => vrai.fetchAuditLogs!(...args));
+    apiRequestMock.mockImplementation(async (chemin: string) => (
+      chemin.startsWith('/api/agencies/7/members') ? MEMBRES : reponse()
+    ));
+
+    render(wrap(<AuditTrail />));
+    await waitFor(() => expect(urlsDuJournal().length).toBeGreaterThan(0));
+    expect(urlsDuJournal().at(-1)!.searchParams.has('filter[causer_id]')).toBe(false);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Filtrer par membre' }));
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'Tous les membres', 'Moussa Ndiaye', 'Awa Diop',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Moussa Ndiaye' }));
+
+    await waitFor(() => expect(urlsDuJournal().at(-1)!.searchParams.get('filter[causer_id]')).toBe('42'));
+    expect(urlsDuJournal().at(-1)!.searchParams.get('page')).toBe('1');
+
+    // La liste des membres est lue en sparse fieldsets, sur l'agence de l'utilisateur.
+    const appelMembres = apiRequestMock.mock.calls
+      .map(([chemin]) => String(chemin))
+      .find((chemin) => chemin.startsWith('/api/agencies/7/members'));
+    expect(appelMembres).toBeDefined();
+    expect(new URL(appelMembres!, 'http://api.test').searchParams.get('fields[users]'))
+      .toBe('id,first_name,last_name,email');
+  });
+
+  it('« Tous les membres » retire le filtre', async () => {
+    mockFetchLogs.mockResolvedValue(reponse());
+    apiRequestMock.mockResolvedValue(MEMBRES);
+    render(wrap(<AuditTrail />));
+    await waitFor(() => expect(mockFetchLogs).toHaveBeenCalled());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Filtrer par membre' }));
+    await user.click(await screen.findByRole('option', { name: 'Awa Diop' }));
+    await waitFor(() => expect(derniersFiltres().causer_id).toBe(43));
+
+    await user.click(screen.getByRole('combobox', { name: 'Filtrer par membre' }));
+    await user.click(await screen.findByRole('option', { name: 'Tous les membres' }));
+    await waitFor(() => expect(derniersFiltres().causer_id).toBeUndefined());
+  });
+
+  it.each([
+    ['fr', 'Système'],
+    ['en', 'System'],
+    ['wo', 'Sistem'],
+  ] as const)('une ligne sans acteur se lit « %s » → %s', async (locale, attendu) => {
+    mockFetchLogs.mockResolvedValue(reponse([
+      { ...makeLog(), causer: null, causer_id: null, causer_type: null },
+    ]));
+    apiRequestMock.mockResolvedValue(MEMBRES);
+    render(withIntl(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AuditTrail />
+      </QueryClientProvider>,
+      locale,
+    ));
+
+    const lignes = await screen.findAllByRole('row');
+    // Colonnes : Date, Utilisateur, Action, Objet, Description.
+    const acteur = within(lignes[1]).getAllByRole('cell')[1];
+    expect(acteur).toHaveTextContent(attendu);
+    expect(acteur.textContent).not.toBe('system');
+  });
+
+  it('un événement métier porte son libellé, un événement inconnu reste lisible', async () => {
+    mockFetchLogs.mockResolvedValue(reponse([
+      makeLog({ id: 1, event: 'agent_suspended' }),
+      makeLog({ id: 2, event: 'evenement_de_demain' }),
+    ]));
+    apiRequestMock.mockResolvedValue(MEMBRES);
+    render(wrap(<AuditTrail />));
+
+    const lignes = await screen.findAllByRole('row');
+    expect(within(lignes[1]).getAllByRole('cell')[2]).toHaveTextContent('Agent suspendu');
+    expect(within(lignes[2]).getAllByRole('cell')[2]).toHaveTextContent('evenement_de_demain');
   });
 });

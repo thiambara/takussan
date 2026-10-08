@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'Le délai d\'annulation a expiré.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
         'export_link_invalid' => 'Lien expiré ou invalide.',
     ],
     'agency' => [
@@ -169,6 +170,7 @@ return [
         'user_required' => 'Indiquez l\'utilisateur à emprunter.',
     ],
     'integration' => [
+        'not_payment' => 'Seule une intégration de paiement a une adresse de notification.',
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les intégrations de votre agence.',
     ],
     'inventory' => [
@@ -300,6 +302,7 @@ return [
         'refund_amount_invalid' => 'Le montant remboursé doit être compris entre 0 et le montant du paiement.',
         'status_transition_invalid' => 'Ce changement de statut du paiement n\'est pas autorisé.',
         'type_unknown' => 'Type de paiement inconnu.',
+        'webhook_endpoint_missing' => 'L\'intégration de paiement n\'a pas d\'adresse de notification : régénérez-la.',
     ],
     'payout' => [
         'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',
@@ -347,6 +350,9 @@ return [
         'already_exists' => 'Un reversement existe déjà pour cette période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',
     ],
+    'privacy' => [
+        'request_closed' => 'Cette demande est close : enregistrez-en une nouvelle.',
+    ],
     'profile' => [
         'not_accessible' => 'Ce profil ne vous est pas accessible.',
     ],
@@ -354,8 +360,11 @@ return [
         'cannot_publish' => 'Les biens vendus ou loués ne peuvent pas être publiés.',
         'cannot_unpublish' => 'Seuls les biens disponibles peuvent être dépubliés.',
         'collaborator_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
+        'collaborator_not_found' => 'Ce collaborateur ne fait pas partie de ce bien.',
         'not_found' => 'Bien introuvable.',
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
+        'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
+        'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
         'resubmit_not_rejected' => 'Seul un bien refusé peut être resoumis.',
     ],
     'quota' => [
@@ -466,6 +475,8 @@ return [
         'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',
     ],
     'webhook' => [
+        'endpoint_gone' => 'Cette adresse de notification n\'est plus en service : chaque intégration a désormais la sienne.',
+        'endpoint_unknown' => 'Adresse de notification inconnue.',
         'ip_allowlist_not_configured' => 'La liste des adresses autorisées n\'est pas configurée.',
         'ip_not_allowed' => 'Adresse d\'origine non autorisée.',
         'signature_invalid' => 'Signature invalide.',

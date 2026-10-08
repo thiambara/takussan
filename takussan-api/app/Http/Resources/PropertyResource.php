@@ -187,6 +187,8 @@ class PropertyResource extends BaseResource
                     'id' => $collaborator->id,
                     'user_id' => $collaborator->user_id,
                     'role' => $collaborator->role?->value,
+                    // TCK-504 — la marque d'agent principal (ADR-0053), telle qu'en base.
+                    'is_primary' => (bool) $collaborator->is_primary,
                     'commission_share' => $collaborator->commission_share !== null
                         ? (float) $collaborator->commission_share
                         : null,

@@ -10,6 +10,7 @@ use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\Enums\BankStatementStatus;
 use App\Services\Accounting\StatementParser\CsvDriver;
+use App\Support\Masking;
 use Illuminate\Http\Request;
 
 class BankStatementController extends Controller
@@ -42,9 +43,9 @@ class BankStatementController extends Controller
         // ferait d'un mapping erroné une impasse.
         $previous->each->delete();
 
-        // Mask IBAN if provided
+        // Mask IBAN if provided — TCK-601 : le masqueur unique du dépôt (ADR-0044 §1).
         $iban = $request->input('account_iban');
-        $maskedIban = $iban ? $this->maskIban($iban) : null;
+        $maskedIban = $iban ? Masking::iban($iban) : null;
 
         $statement = BankStatement::create([
             'agency_id' => $agency->id,
@@ -80,14 +81,5 @@ class BankStatementController extends Controller
         ));
 
         return BankStatementResource::make($statement);
-    }
-
-    private function maskIban(string $iban): string
-    {
-        $clean = str_replace(' ', '', strtoupper($iban));
-        $prefix = substr($clean, 0, 4);
-        $suffix = substr($clean, -2);
-
-        return $prefix.' '.str_repeat('**** ', max(0, (int) ((strlen($clean) - 6) / 4))).'**'.$suffix;
     }
 }

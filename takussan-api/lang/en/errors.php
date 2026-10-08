@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'The cancellation window has expired.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Too many rows to export: narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
     ],
     'agency' => [
@@ -169,6 +170,7 @@ return [
         'user_required' => 'Specify the user to impersonate.',
     ],
     'integration' => [
+        'not_payment' => 'Only a payment integration has a notification address.',
         'other_agency_forbidden' => 'You can only manage your own agency\'s integrations.',
     ],
     'inventory' => [
@@ -300,6 +302,7 @@ return [
         'refund_amount_invalid' => 'The refund amount must be between 0 and the payment amount.',
         'status_transition_invalid' => 'This payment status change is not allowed.',
         'type_unknown' => 'Unknown payment type.',
+        'webhook_endpoint_missing' => 'The payment integration has no notification address: regenerate it.',
     ],
     'payout' => [
         'agency_required' => 'A payout is issued on behalf of an agency.',
@@ -347,6 +350,9 @@ return [
         'already_exists' => 'A payout already exists for this period.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
     ],
+    'privacy' => [
+        'request_closed' => 'This request is closed: record a new one.',
+    ],
     'profile' => [
         'not_accessible' => 'This profile is not accessible to you.',
     ],
@@ -354,8 +360,11 @@ return [
         'cannot_publish' => 'Sold or rented properties cannot be published.',
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
+        'collaborator_not_found' => 'This collaborator is not part of this property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
+        'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
+        'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'resubmit_not_rejected' => 'Only a rejected property can be resubmitted.',
     ],
     'quota' => [
@@ -466,6 +475,8 @@ return [
         'staff_only' => 'Only the staff of the property\'s agency can confirm, complete, cancel or move this visit.',
     ],
     'webhook' => [
+        'endpoint_gone' => 'This notification address is no longer in service: each integration now has its own.',
+        'endpoint_unknown' => 'Unknown notification address.',
         'ip_allowlist_not_configured' => 'The allowed address list is not configured.',
         'ip_not_allowed' => 'Source address not allowed.',
         'signature_invalid' => 'Invalid signature.',

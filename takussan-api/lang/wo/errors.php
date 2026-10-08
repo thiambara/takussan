@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'Waxtu wu nga manon a baña la, jeexna.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
     ],
     'agency' => [
@@ -169,6 +170,7 @@ return [
         'user_required' => 'Waxal jëfandikukat bi ngay jël.',
     ],
     'integration' => [
+        'not_payment' => 'Intégration fay rekk moo am adrees notification.',
         'other_agency_forbidden' => 'Intégration yu sa agence rekk nga mën a toppatoo.',
     ],
     'inventory' => [
@@ -300,6 +302,7 @@ return [
         'refund_amount_invalid' => 'Xaalis bi ñuy delloo war na nekk diggante 0 ak xaalisu fay bi.',
         'status_transition_invalid' => 'Soppi statut fay bii nangouñu ko.',
         'type_unknown' => 'Xeetu fay bii xamuñu ko.',
+        'webhook_endpoint_missing' => 'Intégration fay bi amul adrees notification : defaraatal ko.',
     ],
     'payout' => [
         'agency_required' => 'Reversement dañu koy def ci turu agence.',
@@ -347,6 +350,9 @@ return [
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
     ],
+    'privacy' => [
+        'request_closed' => 'Laaj bii tëju na : bindal beneen.',
+    ],
     'profile' => [
         'not_accessible' => 'Profil bii, sañuloo ko jëfandikoo.',
     ],
@@ -354,8 +360,11 @@ return [
         'cannot_publish' => 'Mbaar yi ñu jaay walla ñu luwé du ñu mën a siiwal.',
         'cannot_unpublish' => 'Mbaar yi ñu mën a jël rekk la ñu mën a xëccu.',
         'collaborator_exists' => 'Jàngalekat bi ci mbaar mi nekk na.',
+        'collaborator_not_found' => 'Jàngalekat bii bokkul ci kër gii.',
         'not_found' => 'Kër gi gisuñu ko.',
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
+        'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
+        'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
         'resubmit_not_rejected' => 'Kër gu ñu bañ rekk lañu mën a yónniwaat.',
     ],
     'quota' => [
@@ -466,6 +475,8 @@ return [
         'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a dëggal, jeexal, neenal walla toxal seetaan bii.',
     ],
     'webhook' => [
+        'endpoint_gone' => 'Adrees bii dootul liggéey : intégration bu nekk am na sa adrees.',
+        'endpoint_unknown' => 'Adrees bii xamuñu ko.',
         'ip_allowlist_not_configured' => 'Liste adrees yu ñu nangu configurerouñu ko.',
         'ip_not_allowed' => 'Adrees bi mu jóge nangouñu ko.',
         'signature_invalid' => 'Signature bi baaxul.',

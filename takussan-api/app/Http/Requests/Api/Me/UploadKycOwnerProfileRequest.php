@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\Me;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
 use App\Models\Enums\DocumentType;
+use App\Support\Uploads\AcceptedUploads;
 use Illuminate\Validation\Rule;
 
 /**
@@ -54,7 +55,7 @@ class UploadKycOwnerProfileRequest extends BaseFormRequest
     {
         return [
             // 8 MB max — phone captures (heic, webp), scans, PDFs.
-            'file' => ['required', 'file', 'max:8192'],
+            'file' => ['required', 'file', ...AcceptedUploads::kyc(8192)],
             'kind' => ['required', 'string', Rule::in(array_keys(self::KYC_KIND_TO_TYPE))],
         ];
     }

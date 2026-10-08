@@ -14,7 +14,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Mail, Ban, UserRound } from 'lucide-react';
+import { Plus, Mail, Ban, UserRound, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -31,11 +31,15 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest, ApiError, buildQueryString } from '@/lib/api';
 import {
   fetchOwners,
+  fetchOwnerSensitive,
   resendInvitation,
   revokeInvitation,
   type OwnerProfileSummary,
   type OwnerProfileStatus,
+  type OwnerSensitiveData,
 } from '@/lib/queries/owners';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import type { PaginatedResponse } from '@/types/api';
 import { InviteOwnerSheet } from './InviteOwnerSheet';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -44,6 +48,12 @@ type Props = {
   readonly agencyId: number;
   readonly canInvite: boolean;
   readonly initialData: PaginatedResponse<OwnerProfileSummary>;
+  /**
+   * TCK-601 — l'admin de l'agence (ou le super-admin) a le geste « Afficher » ; l'agent ne l'a
+   * pas. L'API tranche de toute façon (`OwnerProfilePolicy::viewSensitive`, 403 sinon) : ce
+   * drapeau n'évite que de proposer un geste voué au refus.
+   */
+  readonly canRevealSensitive?: boolean;
 };
 
 /**
@@ -57,7 +67,7 @@ const STATUS_TONE: Record<OwnerProfileStatus, StatusTone> = {
   blocked: 'danger',
 };
 
-export function OwnersList({ agencyId, canInvite, initialData }: Props) {
+export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitive = false }: Props) {
   const tErr = useTranslations('errors');
   const t = useTranslations('owners');
   const tInvite = useTranslations('owners.invite');
@@ -67,6 +77,39 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
   const queryClient = useQueryClient();
   const { token } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const garde = useGardeDoubleFacteur();
+  /**
+   * TCK-601 — les valeurs révélées vivent ICI, dans l'état du composant, et nulle part ailleurs :
+   * ni cache React Query (partagé, et persisté par certains écrans), ni `localStorage`. Quitter la
+   * page ou « Masquer » les efface.
+   */
+  const [revealed, setRevealed] = useState<Readonly<Record<number, OwnerSensitiveData>>>({});
+  const [revealingId, setRevealingId] = useState<number | null>(null);
+
+  async function reveal(owner: OwnerProfileSummary) {
+    if (!token) return;
+    setRevealingId(owner.id);
+    try {
+      const res = await avecGardeDoubleFacteur(() => fetchOwnerSensitive(token, owner.id), garde);
+      setRevealed((prev) => ({ ...prev, [owner.id]: res.data }));
+    } catch (error) {
+      toast.add({
+        title: t('sensitive.error_title'),
+        description: messageErreur(error),
+        type: 'error',
+      });
+    } finally {
+      setRevealingId(null);
+    }
+  }
+
+  function hide(ownerId: number) {
+    setRevealed((prev) => {
+      const next = { ...prev };
+      delete next[ownerId];
+      return next;
+    });
+  }
 
   const ownersQuery = useQuery({
     queryKey: ['owners', agencyId],
@@ -138,6 +181,20 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
       cell: (owner) => owner.user?.email ?? owner.metadata?.email ?? '—',
     },
     {
+      id: 'identifiers',
+      header: t('page.columns.identifiers'),
+      cell: (owner) => (
+        <OwnerIdentifiersCell
+          owner={owner}
+          revealed={revealed[owner.id] ?? null}
+          canReveal={canRevealSensitive}
+          revealing={revealingId === owner.id}
+          onReveal={() => reveal(owner)}
+          onHide={() => hide(owner.id)}
+        />
+      ),
+    },
+    {
       id: 'status',
       header: t('page.columns.status'),
       cell: (owner) => (
@@ -195,6 +252,12 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
         }
       />
 
+      {canRevealSensitive && owners.length > 0 ? (
+        <p id="owners-sensitive-notice" className="text-sm text-pretty text-muted-foreground">
+          {t('sensitive.notice')}
+        </p>
+      ) : null}
+
       {owners.length === 0 ? (
         <EmptyState
           icon={<UserRound className="size-8" aria-hidden="true" />}
@@ -224,6 +287,79 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
           onOpenChange={setSheetOpen}
           agencyId={agencyId}
         />
+      ) : null}
+    </div>
+  );
+}
+
+interface OwnerIdentifiersCellProps {
+  readonly owner: OwnerProfileSummary;
+  readonly revealed: OwnerSensitiveData | null;
+  readonly canReveal: boolean;
+  readonly revealing: boolean;
+  readonly onReveal: () => void;
+  readonly onHide: () => void;
+}
+
+/**
+ * TCK-601 — RIB, NINEA et numéro de pièce : masqués par défaut (la valeur que l'API rend), en
+ * clair après le geste « Afficher » de l'admin. Un bailleur sans aucun identifiant rend un tiret
+ * et aucun bouton : il n'y a rien à consulter, donc rien à journaliser.
+ */
+function OwnerIdentifiersCell({
+  owner,
+  revealed,
+  canReveal,
+  revealing,
+  onReveal,
+  onHide,
+}: OwnerIdentifiersCellProps) {
+  const t = useTranslations('owners.sensitive');
+  const lignes = [
+    { key: 'rib', label: t('rib'), masked: owner.rib_masked, clear: revealed?.rib },
+    { key: 'tax_id', label: t('tax_id'), masked: owner.tax_id_masked, clear: revealed?.tax_id },
+    {
+      key: 'id_document_number',
+      label: t('id_document_number'),
+      masked: owner.id_document_number_masked,
+      clear: revealed?.id_document_number,
+    },
+  ].filter((l) => l.masked || l.clear);
+
+  if (lignes.length === 0) return <span className="text-muted-foreground">—</span>;
+
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
+        {lignes.map((l) => (
+          <div key={l.key} className="contents">
+            <dt className="text-muted-foreground">{l.label}</dt>
+            <dd className="font-mono tabular-nums text-foreground break-all">
+              {revealed ? (l.clear ?? '—') : l.masked}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {canReveal ? (
+        revealed ? (
+          <Button size="sm" variant="ghost" onClick={onHide}>
+            <EyeOff className="size-3.5" aria-hidden="true" />
+            {t('hide')}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={revealing}
+            onClick={onReveal}
+            aria-describedby="owners-sensitive-notice"
+          >
+            {revealing
+              ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              : <Eye className="size-3.5" aria-hidden="true" />}
+            {t('reveal')}
+          </Button>
+        )
       ) : null}
     </div>
   );

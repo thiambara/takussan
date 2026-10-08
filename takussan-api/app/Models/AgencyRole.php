@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -40,7 +41,13 @@ use Illuminate\Support\Collection;
 class AgencyRole extends AbstractModel
 {
     /** @use HasFactory<AgencyRoleFactory> */
-    use HasFactory;
+    use Auditable, HasFactory;
+
+    /** TCK-601 — liste blanche du journal. La création s'écrit `role_created` par le service. */
+    public const AUDIT_ONLY = ['name', 'description', 'base_profile_type'];
+
+    /** @var list<string> */
+    protected static array $doNotRecordEvents = ['created'];
 
     protected $fillable = [
         'agency_id', 'name', 'base_profile_type', 'description',

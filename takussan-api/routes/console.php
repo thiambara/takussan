@@ -64,6 +64,8 @@ Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();
 // TCK-225 — RGPD portability archives expire after 7 days.
 Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
+// TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
+Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();
 

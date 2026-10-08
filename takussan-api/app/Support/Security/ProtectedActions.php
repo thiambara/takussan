@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
+use App\Http\Controllers\Api\OwnerProfileController;
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
@@ -132,6 +133,8 @@ final class ProtectedActions
         IntegrationController::class.'@update',
         IntegrationController::class.'@test',
         IntegrationController::class.'@destroy',
+        // TCK-293 (ADR-0046 §7) — régénérer l'URL de webhook coupe les notifications de paiement.
+        IntegrationController::class.'@rotateWebhookEndpoint',
 
         RoleController::class.'@store',
         RoleController::class.'@update',
@@ -239,6 +242,11 @@ final class ProtectedActions
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',
         TwoFactorController::class.'@regenerateRecoveryCodes',
+
+        // TCK-601 (ADR-0044 §1) — la valeur COMPLÈTE du RIB, du NINEA et de la pièce d'un bailleur :
+        // une lecture de secret, comme les codes de secours. Une session volée ne la révèle pas
+        // sans le TOTP ; la consultation est en outre journalisée (`PersonalDataAccessLogger`).
+        OwnerProfileController::class.'@sensitive',
     ];
 
     /**

@@ -5,6 +5,7 @@ namespace App\Jobs\Audit;
 use App\Models\User;
 use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
+use App\Support\Export\CsvCell;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,12 +25,14 @@ class ExportActivityLogJob implements ShouldQueue
     public function __construct(
         public readonly User $user,
         public readonly array $filters,
+        // TCK-601 — l'agence du profil actif AU MOMENT de la demande : le worker n'a pas de requête.
+        public readonly ?int $agencyId = null,
     ) {}
 
     public function handle(ActivityLogExporter $exporter): void
     {
         $format = $this->filters['format'] ?? 'csv';
-        $payload = $exporter->buildPayload($this->user, $this->filters);
+        $payload = $exporter->buildPayload($this->user, $this->filters, $this->agencyId);
         $rowCount = count($payload['rows']);
 
         $filename = $payload['filename'].'.'.$format;
@@ -59,8 +62,9 @@ class ExportActivityLogJob implements ShouldQueue
             // brittle in a queue worker (no active SAPI buffer), so use
             // PhpSpreadsheet's raw() exporter instead.
             $columns = $payload['columns'];
+            // TCK-601 (verif-601 n2) — PhpSpreadsheet type en formule toute chaîne qui commence par `=`.
             $rows = array_map(
-                fn ($row) => array_map(fn ($col) => $row[$col] ?? '', $columns),
+                fn ($row) => CsvCell::line(array_map(fn ($col) => $row[$col] ?? '', $columns)),
                 $payload['rows']
             );
             $sheet = new class($columns, $rows) implements FromArray, WithHeadings
@@ -95,7 +99,7 @@ class ExportActivityLogJob implements ShouldQueue
             foreach ($columns as $col) {
                 $line[] = $row[$col] ?? '';
             }
-            fputcsv($handle, $line);
+            fputcsv($handle, CsvCell::line($line));
         }
         rewind($handle);
         $content = (string) stream_get_contents($handle);
