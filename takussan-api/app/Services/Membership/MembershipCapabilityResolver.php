@@ -5,8 +5,10 @@ namespace App\Services\Membership;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
@@ -181,8 +183,34 @@ class MembershipCapabilityResolver
             return false;
         }
 
+        if ($this->lockedBySuspension($capability, $agency)) {
+            return false;
+        }
+
         return $this->resolveAgencyScoped($user, $capability, $agency);
     }
+
+    /**
+     * TCK-600 (ADR-0048 §4) — dans une agence `suspended`, aucune capacité d'écriture ; la lecture
+     * et l'export restent. C'est le SECOND chemin du verrou : `EnsureAgencyWritable` ne voit que
+     * le profil actif de la requête, et un membre de deux agences qui agirait sur la suspendue
+     * depuis le profil de l'autre (ou sans profil actif) est refusé ici. La délégation passe par
+     * `resolveDirect()` sur le délégant : elle est refusée du même coup.
+     */
+    private function lockedBySuspension(Capability $capability, Agency $agency): bool
+    {
+        return $agency->status === AgencyStatus::Suspended
+            && ! in_array($capability, self::KEPT_WHEN_SUSPENDED, true);
+    }
+
+    /** TCK-600 (ADR-0048 §4) — ce qu'un membre d'une agence suspendue garde : lire et exporter. */
+    private const KEPT_WHEN_SUSPENDED = [
+        Capability::CrmViewAll,
+        Capability::CrmExport,
+        Capability::PaymentsExport,
+        Capability::ReportsViewGlobal,
+        Capability::ReportsExport,
+    ];
 
     /**
      * Branche délégation — TCK-395.
@@ -338,35 +366,19 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * Branche PlatformProfile. `super_admin` court-circuite tout ; `support`
-     * et `viewer` ont une liste blanche restreinte. Non concernée par
+     * Branche PlatformProfile. `super_admin` court-circuite tout. Non concernée par
      * TCK-279 : un `PlatformProfile` n'a pas d'`AgencyRole` (pas d'agence
      * à scoper — cf. Règle 6, dernier point).
+     *
+     * TCK-600 (ADR-0047 §3) — `support` et `viewer` n'ont plus AUCUNE capacité d'agence. Leurs
+     * listes blanches (`crm.view_all`, `crm.export`, `payments.export`… sur n'importe quelle
+     * agence) ouvraient les données d'agence par les routes d'agence, hors de la console et de
+     * son journal. Un opérateur de ces niveaux agit par `/api/admin` et ses gestes
+     * ({@see PlatformAbility}), jamais par une capacité d'agence.
      */
     private function resolvePlatform(User $user, Capability $capability): bool
     {
-        $profile = $user->relationLoaded('platformProfile')
-            ? $user->platformProfile
-            : $user->platformProfile()->active()->first();
-
-        if ($profile === null || ! $profile->isActive()) {
-            return false;
-        }
-
-        return match ($profile->level) {
-            PlatformProfileLevel::SuperAdmin => true,
-            PlatformProfileLevel::Support => in_array($capability, [
-                Capability::CrmViewAll,
-                Capability::CrmExport,
-                Capability::PaymentsExport,
-                Capability::ReportsViewGlobal,
-                Capability::ReportsExport,
-                Capability::MessagingArchive,
-            ], true),
-            PlatformProfileLevel::Viewer => in_array($capability, [
-                Capability::ReportsViewGlobal,
-            ], true),
-        };
+        return $user->activePlatformLevel() === PlatformProfileLevel::SuperAdmin;
     }
 
     /**

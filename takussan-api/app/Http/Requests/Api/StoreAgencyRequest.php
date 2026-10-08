@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
@@ -38,7 +39,8 @@ class StoreAgencyRequest extends BaseFormRequest
             'phone' => ['nullable', 'string'],
             'website' => ['nullable', 'url'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
+            // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.
+            'currency' => ['nullable', Rule::enum(Currency::class), Rule::in(AgencyUpdateRequest::supportedCurrencies())],
             'status' => ['nullable', Rule::enum(AgencyStatus::class)],
         ];
     }

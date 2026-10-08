@@ -758,7 +758,9 @@ class PublicProfileIndexTest extends TestCase
         $lignes = collect($this->getJson('/api/public/agents')->assertOk()->json('data'))
             ->keyBy('slug');
 
-        $this->assertNull($lignes['sous-suspendue']['agency']);
+        // TCK-600 (ADR-0048) — les biens d'une agence suspendue ne sont plus publics : l'agent dont
+        // c'est le seul portefeuille quitte l'annuaire, au lieu d'y figurer sans enseigne.
+        $this->assertArrayNotHasKey('sous-suspendue', $lignes->all());
         $this->assertSame('active', $lignes['sous-active']['agency']['slug']);
 
         // …et l'agence suspendue reste absente de son propre index, faute de quoi les deux

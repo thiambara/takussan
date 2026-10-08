@@ -3,6 +3,7 @@
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type ReviewStatus = 'pending' | 'approved' | 'reported' | 'rejected';
 
@@ -150,13 +151,13 @@ export function reviewStorePath(opportunity: ReviewOpportunity): string {
   const id = opportunity.subject.id;
   switch (opportunity.type) {
     case 'property':
-      return `/api/properties/${id}/reviews`;
+      return cheminApi`/api/properties/${id}/reviews`;
     case 'agent':
-      return `/api/agents/${id}/reviews`;
+      return cheminApi`/api/agents/${id}/reviews`;
     case 'agency':
-      return `/api/agencies/${id}/reviews`;
+      return cheminApi`/api/agencies/${id}/reviews`;
     case 'service_provider':
-      return `/api/service-providers/${id}/reviews`;
+      return cheminApi`/api/service-providers/${id}/reviews`;
   }
 }
 
@@ -180,7 +181,7 @@ export function usePostReview() {
 export function useReplyReview() {
   return useApiMutation<ApiResponse<Review>, { reviewId: number; reply_content: string }>(
     {
-      path: ({ reviewId }) => `/api/reviews/${reviewId}/reply`,
+      path: ({ reviewId }) => cheminApi`/api/reviews/${reviewId}/reply`,
       method: 'POST',
       body: ({ reply_content }) => ({ reply_content }),
     },

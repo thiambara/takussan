@@ -10,10 +10,10 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Services\Payments\PaymentGatewayService;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -121,7 +121,7 @@ class LeaseRenewalService
                 'late_fee_grace_days' => $data['late_fee_grace_days'] ?? $parent->late_fee_grace_days,
                 // VERIF-596 passe 3 (N1', ADR-0042 §1) — les termes d'exécution figés avec le contrat
                 // du parent passent à l'enfant comme les autres termes imprimés. Sans eux, un enfant
-                // né `active` (sans signature) exécutait le réglage global relu au jour J, à l'encontre
+                // né `active` (sans signature) exécutait le réglage (de l'agence, sinon global) relu au jour J, à l'encontre
                 // du contrat signé. Un parent antérieur (colonnes nulles) donne un enfant nul.
                 'early_termination_penalty_months' => $data['early_termination_penalty_months'] ?? $parent->early_termination_penalty_months,
                 'rent_review_max_pct' => $data['rent_review_max_pct'] ?? $parent->rent_review_max_pct,
@@ -135,7 +135,7 @@ class LeaseRenewalService
             // renouvellement à J+1 portait le loyer à +50 % (ou l'indemnité à 12 mois) dès le
             // lendemain, sans le locataire. Sans changement de terme, ou sur un parent antérieur,
             // le réglage décide comme avant.
-            $requireSignature = $this->requireSignatureFlag()
+            $requireSignature = $this->requireSignatureFlag($parent->agency_id) // TCK-600 (verif-600 H1)
                 || ($this->isFrozen($parent) && $this->changesSignedTerms($parent, $child));
             $childStatus = $requireSignature ? LeaseStatus::PendingSignature : LeaseStatus::Active;
             // VERIF-596 passe 5 (M-E) — une échéance du parent déjà réglée dans le chevauchement
@@ -462,9 +462,9 @@ class LeaseRenewalService
         return false;
     }
 
-    protected function requireSignatureFlag(): bool
+    protected function requireSignatureFlag(?int $agencyId = null): bool
     {
-        $row = Setting::query()->where('key', 'lease.require_signature')->first();
+        $row = ScopedSetting::row('lease.require_signature', $agencyId); // TCK-600 (verif-600 H1)
         if ($row === null) {
             return false;
         }

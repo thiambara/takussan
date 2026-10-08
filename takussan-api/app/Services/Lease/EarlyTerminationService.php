@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\ReferenceNumberGenerator;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -275,7 +276,8 @@ class EarlyTerminationService
 
     /**
      * VERIF-596 passe 2 (N1, ADR-0042 §1) — l'indemnité que CE bail exécute : celle figée avec son
-     * contrat, imprimée et signée. Le réglage global, relu au jour de la résiliation, ne vaut que
+     * contrat, imprimée et signée. Le réglage de l'agence du bail, sinon le global (TCK-600, verif-600
+     * H1), relu au jour de la résiliation, ne vaut que
      * pour un bail antérieur dont la colonne est nulle : sinon un changement de réglage changeait
      * l'indemnité de tous les baux déjà signés, à l'encontre du PDF.
      */
@@ -283,12 +285,13 @@ class EarlyTerminationService
     {
         return $lease->early_termination_penalty_months !== null
             ? (int) $lease->early_termination_penalty_months
-            : $this->resolvePenaltyMonths();
+            : $this->resolvePenaltyMonths($lease->agency_id); // TCK-600 (verif-600 H1)
     }
 
-    public function resolvePenaltyMonths(): int
+    public function resolvePenaltyMonths(?int $agencyId = null): int
     {
-        $row = Setting::query()->where('key', self::SETTING_KEY)->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
         if ($row === null) {
             return self::SETTING_DEFAULT_MONTHS;
         }

@@ -6,11 +6,9 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\UpdateUserRoleRequest;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
-use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
-use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +20,8 @@ use Illuminate\Support\Facades\DB;
  * `PUT /api/users/{user}/role  { "role": "agent" }`.
  *
  * Sémantique du PUT :
- *   - super_admin → crée/active un PlatformProfile super_admin (cross-tenant).
+ *   - super_admin → refusé (422) : TCK-600 (ADR-0047 §4), la cooptation est le seul
+ *     chemin d'octroi d'un PlatformProfile.
  *   - agency_admin / agent / owner → dans l'agence du user, supprime les
  *     profils agence-scopés concurrents et matérialise le profil cible.
  *   - tenant / customer / service_provider → rôles dérivés en P1 ; le PUT
@@ -32,7 +31,6 @@ use Illuminate\Support\Facades\DB;
  * Rules :
  *   - Only `agency_admin` (within the target user's agency) or
  *     `super_admin` may change roles.
- *   - Only a `super_admin` may assign the `super_admin` role.
  */
 class UserRoleController extends Controller
 {
@@ -44,10 +42,6 @@ class UserRoleController extends Controller
         $actorAgencyId = $request->activeProfile()?->agency_id ?? $actor->agency_id;
 
         $data = $request->validated();
-
-        if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
-            abort_code(403, 'role.super_admin_grant_forbidden');
-        }
 
         // Agency admins can only manage users within their own agency. The
         // actor's scope is driven by the active profile; the target must
@@ -64,11 +58,9 @@ class UserRoleController extends Controller
         }
 
         // Pour les rôles agence-scopés, déterminer l'agence cible.
-        $targetAgencyId = $data['role'] === 'super_admin'
-            ? null
-            : ($actor->isSuperAdmin() ? $user->agency_id : $actorAgencyId);
+        $targetAgencyId = $actor->isSuperAdmin() ? $user->agency_id : $actorAgencyId;
 
-        if ($targetAgencyId === null && $data['role'] !== 'super_admin') {
+        if ($targetAgencyId === null) {
             abort_code(422, 'user.no_active_agency');
         }
 
@@ -96,18 +88,6 @@ class UserRoleController extends Controller
      */
     private function mutateProfileForRole(User $user, string $role, ?int $agencyId): void
     {
-        if ($role === 'super_admin') {
-            $profile = PlatformProfile::query()->firstOrNew(['user_id' => $user->id]);
-            $profile->level = PlatformProfileLevel::SuperAdmin;
-            $profile->revoked_at = null;
-            if (! $profile->exists) {
-                $profile->granted_at = now();
-            }
-            $profile->save();
-
-            return;
-        }
-
         if ($agencyId === null) {
             return;
         }

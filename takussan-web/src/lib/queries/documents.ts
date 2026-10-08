@@ -10,6 +10,7 @@ import type {
   DocumentVersion,
   DocumentWithVersions,
 } from '@/types/document';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * React Query hooks for the Document resource — TCK-062.
@@ -90,7 +91,7 @@ export function useDocument(id: number | null | undefined) {
 
   return useApiQuery<ApiResponse<Document>>(
     documentsQueryKeys.detail(id),
-    `/api/documents/${id ?? ''}`,
+    cheminApi`/api/documents/${id ?? 0}`,
     { params: spatieParams, enabled: Boolean(id) },
   );
 }
@@ -130,7 +131,7 @@ export function useUploadDocument() {
 export function useDeleteDocument() {
   return useApiMutation<void, { id: number }>(
     {
-      path: ({ id }) => `/api/documents/${id}`,
+      path: ({ id }) => cheminApi`/api/documents/${id}`,
       method: 'DELETE',
       body: () => undefined,
     },
@@ -151,7 +152,7 @@ export type CreateShareLinkPayload = {
 
 export function useCreateShareLink() {
   return useApiMutation<ApiResponse<DocumentShareLink>, CreateShareLinkPayload>({
-    path: ({ document_id }) => `/api/documents/${document_id}/share`,
+    path: ({ document_id }) => cheminApi`/api/documents/${document_id}/share`,
     method: 'POST',
     body: ({ expires_at, max_downloads, password }) => ({
       expires_at,
@@ -164,7 +165,7 @@ export function useCreateShareLink() {
 export function useRevokeShareLink() {
   return useApiMutation<void, { document_id: number; link_id: number }>({
     path: ({ document_id, link_id }) =>
-      `/api/documents/${document_id}/share/${link_id}`,
+      cheminApi`/api/documents/${document_id}/share/${link_id}`,
     method: 'DELETE',
     body: () => undefined,
   });
@@ -207,7 +208,7 @@ export const documentVersionsQueryKeys = {
 export function useDocumentWithVersions(id: number | null | undefined) {
   return useApiQuery<ApiResponse<DocumentWithVersions>>(
     documentVersionsQueryKeys.detail(id),
-    `/api/documents/${id ?? ''}`,
+    cheminApi`/api/documents/${id ?? 0}`,
     {
       params: { include: 'versions' },
       enabled: Boolean(id),
@@ -221,7 +222,7 @@ export function useDocumentWithVersions(id: number | null | undefined) {
 export function useDocumentVersions(documentId: number | null | undefined) {
   return useApiQuery<ApiResponse<DocumentVersion[]>>(
     documentVersionsQueryKeys.list(documentId),
-    `/api/documents/${documentId ?? ''}/versions`,
+    cheminApi`/api/documents/${documentId ?? 0}/versions`,
     { enabled: Boolean(documentId) },
   );
 }
@@ -235,7 +236,7 @@ export type UploadVersionPayload = {
 export function useUploadDocumentVersion() {
   return useApiMutation<ApiResponse<DocumentVersion>, UploadVersionPayload>(
     {
-      path: ({ document_id }) => `/api/documents/${document_id}/versions`,
+      path: ({ document_id }) => cheminApi`/api/documents/${document_id}/versions`,
       method: 'POST',
       formData: true,
       body: (variables) => {
@@ -263,7 +264,7 @@ export function useRestoreDocumentVersion() {
   return useApiMutation<ApiResponse<DocumentVersion>, RestoreVersionPayload>(
     {
       path: ({ document_id, version_id }) =>
-        `/api/documents/${document_id}/versions/${version_id}/restore`,
+        cheminApi`/api/documents/${document_id}/versions/${version_id}/restore`,
       method: 'POST',
       body: () => ({}),
     },

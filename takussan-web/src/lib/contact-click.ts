@@ -1,5 +1,6 @@
 import { apiFetch } from '@/lib/api';
 import { arrivee } from '@/lib/attribution';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type CanalDeContact = 'whatsapp' | 'call';
 
@@ -11,7 +12,7 @@ export type CanalDeContact = 'whatsapp' | 'call';
  * visiteur — d'où l'absence d'`await` chez l'appelant et l'erreur avalée ici.
  */
 export function signalerClic(slug: string, channel: CanalDeContact): void {
-  void apiFetch(`/public/properties/${encodeURIComponent(slug)}/contact-click`, {
+  void apiFetch(cheminApi`/public/properties/${slug}/contact-click`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ channel, ...arrivee() }),

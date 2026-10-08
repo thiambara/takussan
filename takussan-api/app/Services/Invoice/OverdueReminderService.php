@@ -4,8 +4,8 @@ namespace App\Services\Invoice;
 
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
-use App\Models\Setting;
 use App\Notifications\InvoiceOverdueReminderNotification;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,9 +51,10 @@ class OverdueReminderService
     /**
      * @return list<int>
      */
-    public function offsets(): array
+    public function offsets(?int $agencyId = null): array
     {
-        $row = Setting::query()->where('key', self::SETTING_KEY)->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence, sinon le global, sinon le défaut.
+        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
         if ($row === null) {
             return self::DEFAULT_OFFSETS;
         }
@@ -86,7 +87,7 @@ class OverdueReminderService
     public function sendForAgency(?int $agencyId, ?CarbonInterface $now = null): int
     {
         $now = $now ? Carbon::instance($now) : now();
-        $offsets = $this->offsets();
+        $offsets = $this->offsets($agencyId);
         $sent = 0;
 
         $this->candidateQuery($agencyId, $offsets, $now)
@@ -221,7 +222,13 @@ class OverdueReminderService
     public function agenciesWithRemindableInvoices(?CarbonInterface $now = null): array
     {
         $now = $now ? Carbon::instance($now) : now();
+        // TCK-600 (verif-600 H1) — balayage de TOUTES les agences : chaque échéance que l'une
+        // d'elles retient compte, sans quoi une agence aux échéances propres n'y figurerait jamais.
         $offsets = $this->offsets();
+        foreach (ScopedSetting::agencyRows(self::SETTING_KEY) as $ligne) {
+            $offsets = array_merge($offsets, $this->offsets((int) $ligne->scope_id));
+        }
+        $offsets = array_values(array_unique($offsets));
 
         return $this->candidateQuery(null, $offsets, $now, withAgencyFilter: false)
             ->reorder()

@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-588 (ADR-0032) — où mène une notification. `path` est un chemin du front, calculé par l'API
@@ -60,7 +61,7 @@ export async function fetchNotifications(
   const search = new URLSearchParams({ page: String(page), per_page: String(perPage) });
   if (unread) search.set('filter[unread]', '1');
 
-  return apiRequest<NotificationsResponse>(`/api/notifications?${search.toString()}`, {
+  return apiRequest<NotificationsResponse>(cheminApi`/api/notifications?${search.toString()}`, {
     token,
   });
 }
@@ -70,7 +71,7 @@ export async function markNotificationRead(
   notificationId: number,
 ): Promise<{ data: AppNotification }> {
   return apiRequest<{ data: AppNotification }>(
-    `/api/notifications/${notificationId}/read`,
+    cheminApi`/api/notifications/${notificationId}/read`,
     { method: 'POST', token },
   );
 }
@@ -80,7 +81,7 @@ export async function markNotificationUnread(
   notificationId: number,
 ): Promise<{ data: AppNotification }> {
   return apiRequest<{ data: AppNotification }>(
-    `/api/notifications/${notificationId}/unread`,
+    cheminApi`/api/notifications/${notificationId}/unread`,
     { method: 'POST', token },
   );
 }

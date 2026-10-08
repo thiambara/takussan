@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-504 — les collaborateurs d'un bien et son agent principal. Module sans directive : appelable
@@ -55,7 +56,7 @@ export function fetchPropertyCollaborators(
   token: string,
   propertyId: number,
 ): Promise<PropertyCollaboratorsPayload> {
-  return apiRequest<PropertyCollaboratorsPayload>(`/api/properties/${propertyId}/collaborators`, { token });
+  return apiRequest<PropertyCollaboratorsPayload>(cheminApi`/api/properties/${propertyId}/collaborators`, { token });
 }
 
 /** Désigne l'agent principal. Le serveur refuse tout rôle autre qu'`agent` et tout agent inactif. */
@@ -65,7 +66,7 @@ export function designatePrimaryCollaborator(
   collaboratorId: number,
 ): Promise<PropertyCollaboratorsPayload> {
   return apiRequest<PropertyCollaboratorsPayload>(
-    `/api/properties/${propertyId}/collaborators/${collaboratorId}/primary`,
+    cheminApi`/api/properties/${propertyId}/collaborators/${collaboratorId}/primary`,
     { method: 'PUT', token },
   );
 }

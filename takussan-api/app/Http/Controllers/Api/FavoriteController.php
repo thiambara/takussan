@@ -8,6 +8,7 @@ use App\Http\Resources\FavoriteResource;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Favorite;
 use App\Models\Property;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,15 @@ class FavoriteController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $favorites = Favorite::where('user_id', $request->user()->id)
+        $user = $request->user();
+        $agenceDuPersonnel = $user->staffAgencyId();
+
+        // TCK-600 (ADR-0048 §1, verif-600 m3) — le favori d'un bien dont l'agence est hors ligne est
+        // MASQUÉ, pas supprimé : il revient à la levée. Le personnel de cette agence le garde.
+        $favorites = Favorite::where('user_id', $user->id)
+            ->whereHas('property', fn (Builder $bien) => $bien->where(fn (Builder $q) => $q
+                ->ofPublicAgency()
+                ->when($agenceDuPersonnel !== null, fn (Builder $q) => $q->orWhere('properties.agency_id', $agenceDuPersonnel))))
             ->with('property.address')
             ->latest()
             ->paginate((int) $request->input('per_page', 20));
@@ -30,7 +39,8 @@ class FavoriteController extends Controller
         $user = $request->user();
         $property = Property::findOrFail($data['property_id']);
         $canSee = $property->visibility === PropertyVisibility::Public
-            && $property->published_at !== null;
+            && $property->published_at !== null
+            && $property->agencyIsPublic();
         $isStaff = $user->isSuperAdmin()
             || $property->user_id === $user->id
             || ($user->agency_id && $user->agency_id === $property->agency_id);

@@ -2,12 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Activity, Database, HardDrive, Mail, Wifi } from 'lucide-react';
+import { Activity, Cloud, Cpu, Database, HardDrive, Images, ListChecks, Mail, Search, Wifi } from 'lucide-react';
 import { StatCard, StatusBadge } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { fetchPlatformHealth } from '@/lib/queries/super-admin';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import type { HealthcheckStatus } from '@/types/super-admin';
+import type { HealthcheckStatus, HealthLevel } from '@/types/super-admin';
 
 /**
  * TCK-364 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.systemHealth.checks.*`),
@@ -18,13 +18,27 @@ import type { HealthcheckStatus } from '@/types/super-admin';
  * d'entre eux (`Cache`, `Mail`, `SMS`) sont identiques en `fr` et en `en`, ce qui est exactement
  * la raison pour laquelle personne ne les voyait.
  */
-const CHECKS: Array<{ key: 'db' | 'cache' | 'storage' | 'mail' | 'sms'; icon: typeof Database }> = [
+type CheckKey = 'db' | 'cache' | 'storage' | 'media_storage' | 'mail' | 'sms' | 'search' | 'queue' | 'workers' | 'cdn';
+
+/** TCK-600 — médias (R2), recherche, files, workers et CDN rejoignent les cinq sondes d'origine. */
+const CHECKS: Array<{ key: CheckKey; icon: typeof Database }> = [
   { key: 'db', icon: Database },
   { key: 'cache', icon: Activity },
   { key: 'storage', icon: HardDrive },
+  { key: 'media_storage', icon: Images },
   { key: 'mail', icon: Mail },
   { key: 'sms', icon: Wifi },
+  { key: 'search', icon: Search },
+  { key: 'queue', icon: ListChecks },
+  { key: 'workers', icon: Cpu },
+  { key: 'cdn', icon: Cloud },
 ];
+
+const TONE: Record<HealthLevel, 'success' | 'attention' | 'danger'> = {
+  ok: 'success',
+  degraded: 'attention',
+  failed: 'danger',
+};
 
 export function HealthDashboard() {
   const t = useTranslations('superAdmin.systemHealth');
@@ -48,15 +62,26 @@ export function HealthDashboard() {
     );
   }
 
+  const global = health.data?.data.status;
+
   return (
     <div className="space-y-6">
+      {global ? (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {t('global')}
+          <StatusBadge tone={TONE[global]} label={t(`status.${global}`)} />
+        </p>
+      ) : null}
       {/*
-        Cinq tuiles : la rangée unique n'a sa place qu'en `xl` — à 768 la coque laisse ~460 px,
-        soit 80 px par tuile, où « Base de données » cassait sur deux lignes (TCK-505).
+        Dix tuiles, cinq par rangée en `xl` seulement — à 768 la coque laisse ~460 px, soit 80 px
+        par tuile, où « Base de données » cassait sur deux lignes (TCK-505).
       */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {CHECKS.map((check) => {
-          const status = health.data?.data[check.key];
+          const sonde = health.data?.data[check.key];
+          // `queue` porte ses comptes à côté de son statut : sans statut, ce n'est pas une sonde.
+          const status = sonde && 'status' in sonde && sonde.status ? (sonde as HealthcheckStatus) : undefined;
+          if (!health.isLoading && !status) return null;
           return (
             <HealthTile
               key={check.key}
@@ -69,9 +94,10 @@ export function HealthDashboard() {
         })}
       </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <QueueMetric label={t('queuePending')} value={queue?.pending ?? 0} loading={health.isLoading} />
         <QueueMetric label={t('queueProcessing')} value={queue?.processing ?? 0} loading={health.isLoading} />
+        <QueueMetric label={t('queueOldestSeconds')} value={queue?.oldest_pending_seconds ?? 0} loading={health.isLoading} />
         <QueueMetric
           label={t('queueFailed24h')}
           value={echecs}
@@ -98,18 +124,21 @@ function HealthTile({
 }) {
   const t = useTranslations('superAdmin.systemHealth');
   const fmt = useFormatteurs();
-  // ⚠️ L'API émet `ok` | `failed` (`HealthcheckService::check()`), PAS `ok` | `error` : `error`
-  //    est le CHAMP voisin qui porte le message. Une sonde sans statut n'est pas une panne : elle
-  //    reste neutre — la teinter `danger` annonçait cinq pannes pendant chaque chargement.
-  const tone = !status ? 'neutral' : status.status === 'ok' ? 'success' : 'danger';
+  // ⚠️ L'API émet `ok` | `degraded` | `failed` (`HealthcheckService::check()`), PAS `error` :
+  //    `error` est le CHAMP voisin qui porte le message. Une sonde sans statut n'est pas une
+  //    panne : elle reste neutre — la teinter `danger` annonçait cinq pannes à chaque chargement.
+  const tone = !status ? 'neutral' : TONE[status.status];
   const libelleStatut = status ? t(`status.${status.status}`) : t('status.loading');
+  const indiceSonde = status ? indice(status, t, fmt.nombre) : undefined;
+  // TCK-600 — chaque sonde est datée : un « OK » d'il y a une heure n'est pas un « OK ».
+  const sondeA = status?.checked_at ? t('hint.checkedAt', { time: fmt.dateTime(status.checked_at, { timeStyle: 'medium' }) }) : null;
   return (
     <StatCard
       label={label}
       icon={<Icon className="size-4" aria-hidden="true" />}
       loading={loading}
       value={<StatusBadge tone={tone} label={libelleStatut} />}
-      hint={loading ? undefined : indice(status, t, fmt.nombre)}
+      hint={loading ? undefined : [indiceSonde, sondeA].filter(Boolean).join(' · ')}
     />
   );
 }
@@ -141,6 +170,7 @@ function indice(
   nombre: (value: number | null | undefined) => string,
 ): string {
   if (status?.error) return t('hint.error', { message: status.error });
+  if (status?.reason) return t(`hint.reason.${status.reason}`);
   if (status?.driver) return t('hint.driver', { driver: status.driver });
   if (status?.value) return t('hint.value', { value: status.value });
   return t('hint.latency', { ms: nombre(status?.latency_ms ?? 0) });

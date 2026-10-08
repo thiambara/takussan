@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'Suufeel bi ëpp na, jaarewul.',
         'grace_expired' => 'Waxtu wu nga manon a baña la, jeexna.',
+        'has_obligations' => 'Kont bii am na ay liggéey yu des (bay, fey, faktiir walla resërwaasiyon) : war nañu leen jeexal balaa ñu koy far.',
     ],
     'activity_log' => [
         'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
@@ -29,8 +30,11 @@ return [
         'individual_no_owner_invites' => 'Ajance ind doxoo mën inviter borom kër.',
         'individual_no_team' => 'Ajance ind amul kuréel mu mën a toppatoo.',
         'kyc_not_verified' => 'KYC agence bi war nañu ko dëggal balaa ñuy dëggal agence bi.',
+        'not_suspended' => 'Ajaans bii taxawaluñu ko.',
+        'reinstate_first' => 'Ajaans bii dañu ko taxawal : neddi taxawal bi ci kanam, ak ab lay.',
         'staff_only' => 'Xibaar yii, liggéeykati ajaans bi rekk ñoo ko moom.',
         'standard_only' => 'Fonctionnalité bii, agence standard yi rekk ñoo ko am.',
+        'suspended' => 'Ajaans bii dañu ko taxawal : sa bataaxal yi mën nañu leen jàng ak génne, waaye dara mënul soppiku.',
     ],
     'agency_member' => [
         'already_in_other_agency' => 'Jàngalekat bi nekk na ci beneen agence.',
@@ -174,9 +178,12 @@ return [
         'unsupported_media_type' => 'Xeetu fichier bii nangouñu ko.',
     ],
     'impersonation' => [
-        'self' => 'Mënuloo jël sa bopp ni beneen.',
-        'target_not_found' => 'Jëfandikukat bi gisuñu ko.',
-        'user_required' => 'Waxal jëfandikukat bi ngay jël.',
+        'no_session' => 'Amul jël-bopp bu ubbeeku.',
+        'query_refused' => 'Ubbi walla tëj ab impersonation du jël benn paramètre ci adrees bi.',
+        'read_only' => 'Jàng rekk ci jël-bopp bi : mënuloo soppi dara.',
+        'target_inactive' => 'Kont bii doxul : mënuloo ko jël ni sa bopp.',
+        'target_operator' => 'Mënuloo jël ni sa bopp ab liggéeykatu platform bi.',
+        'target_self' => 'Mënuloo jël sa bopp ni beneen.',
     ],
     'integration' => [
         'not_payment' => 'Intégration fay rekk moo am adrees notification.',
@@ -371,6 +378,14 @@ return [
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',
     ],
+    'platform' => [
+        'ability_missing' => 'Sa daraja operatëer mayu la nga def lii.',
+        'last_super_admin' => 'Mënuñu dindi super-administratëer bu mujj bi.',
+        'operator_not_found' => 'Kont bii du operatëer bu dox.',
+        'operator_self_revoke' => 'Mënuloo dindi sa bopp.',
+        'revoke_operator_first' => 'Kont bii ab operatëer la : dindi ko ci operatëer yi njëkk.',
+        'target_is_operator' => 'Super-administratëer rekk mën a def dara ci kontu operatëer.',
+    ],
     'platform_payout' => [
         'agency_frozen' => 'Bii agence du active : reversement yi dañu leen taxawal.',
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
@@ -437,6 +452,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Administrateur plateforme yi rekk ñoo yor paramètre global yi.',
+        'managed_by_catalogue' => 'Paramètre bii, katalog bi moo koy saytu : soppil ko ci console platform bi.',
         'other_agency_forbidden' => 'Paramètre yu sa agence rekk nga mën a toppatoo.',
     ],
     'share_link' => [
@@ -482,10 +498,10 @@ return [
         'overlaps_booking' => 'Réservation bu ñu dëggal jël na bis yii ba noppi.',
     ],
     'user' => [
-        'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
         'cannot_block_self' => 'Mën nga téqale sa bopp.',
-        'cannot_delete_self' => 'Mën nga far sa bopp ci yoon wii.',
+        'cannot_erase_self' => 'Mënoo far sa kont ci konsol bi : jaaral ci sa bopp.',
         'no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
+        'not_blocked' => 'Kont bii tëjuñu ko.',
         'not_in_active_agency' => 'Jàngalekat bi tànn nga ñoom du ci sa agence bi nga di liggéeyal.',
     ],
     'visit' => [

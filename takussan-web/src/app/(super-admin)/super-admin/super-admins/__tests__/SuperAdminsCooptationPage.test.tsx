@@ -8,6 +8,7 @@ import { withIntl } from '@/test/intl';
 import {
   fetchSuperAdminListing,
   resendSuperAdminInvitation,
+  revokePlatformOperator,
   revokeSuperAdminInvitation,
   type SuperAdminCooptationListing,
   type SuperAdminPendingInvitation,
@@ -19,6 +20,7 @@ vi.mock('@/lib/queries/super-admin', () => ({
   inviteSuperAdmin: vi.fn(),
   resendSuperAdminInvitation: vi.fn(),
   revokeSuperAdminInvitation: vi.fn(),
+  revokePlatformOperator: vi.fn(),
 }));
 
 function invitation(overrides: Partial<SuperAdminPendingInvitation> = {}): SuperAdminPendingInvitation {
@@ -42,6 +44,7 @@ function listing(overrides: Partial<SuperAdminCooptationListing> = {}): SuperAdm
     super_admins: [
       {
         id: 1,
+        level: 'super_admin',
         first_name: 'Awa',
         last_name: 'Diop',
         email: 'awa@takussan.app',
@@ -73,6 +76,42 @@ function renderPage() {
   );
 }
 
+describe('<SuperAdminsCooptationPage> — niveaux et retrait (TCK-600)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('affiche le niveau de chaque opérateur', async () => {
+    vi.mocked(fetchSuperAdminListing).mockResolvedValue(
+      listing({
+        super_admins: [
+          { ...listing().super_admins[0] },
+          { ...listing().super_admins[0], id: 2, level: 'viewer', email: 'lecteur@takussan.app' },
+        ],
+      }),
+    );
+    renderPage();
+
+    expect(within(await screen.findByTestId('operator-1')).getByText('Super-admin')).toBeInTheDocument();
+    expect(within(screen.getByTestId('operator-2')).getByText('Lecture')).toBeInTheDocument();
+  });
+
+  it('retirer un opérateur exige un motif et l’envoie', async () => {
+    vi.mocked(fetchSuperAdminListing).mockResolvedValue(listing());
+    vi.mocked(revokePlatformOperator).mockResolvedValue({});
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(within(await screen.findByTestId('operator-1')).getByRole('button', { name: 'Retirer' }));
+    await user.type(screen.getByTestId('confirm-action-input'), 'RETIRER');
+    expect(screen.getByTestId('confirm-action-submit')).toBeDisabled();
+    await user.type(screen.getByTestId('confirm-action-reason'), 'Départ de l’équipe.');
+    await user.click(screen.getByTestId('confirm-action-submit'));
+
+    await waitFor(() => expect(revokePlatformOperator).toHaveBeenCalledWith(1, 'Départ de l’équipe.'));
+  });
+});
+
 describe('<SuperAdminsCooptationPage> — TCK-367', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -95,6 +134,7 @@ describe('<SuperAdminsCooptationPage> — TCK-367', () => {
         super_admins: [
           {
             id: 1,
+            level: 'super_admin',
             first_name: 'Awa',
             last_name: 'Diop',
             email: 'awa@takussan.app',

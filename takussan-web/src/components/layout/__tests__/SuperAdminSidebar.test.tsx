@@ -11,6 +11,7 @@ import {
 } from '@/lib/queries/super-admin';
 import { SuperAdminSidebar } from '../SuperAdminSidebar';
 import { withIntl } from '@/test/intl';
+import { avecGestes } from '@/test/habilitations';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/super-admin' }));
 
@@ -25,7 +26,7 @@ const paginated = (total: number) => ({ data: [], meta: { total, current_page: 1
 
 function renderSidebar(node: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(withIntl(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>));
+  render(withIntl(<QueryClientProvider client={queryClient}>{avecGestes(node)}</QueryClientProvider>));
 }
 
 describe('SuperAdminSidebar — badges de file (TCK-360)', () => {

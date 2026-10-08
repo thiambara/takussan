@@ -5,6 +5,7 @@ import type {
   ApiResponse,
   SpatieQueryParams,
 } from '@/types/api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Review moderation queries — TCK-067. Admin queue uses sparse fieldsets
@@ -101,7 +102,7 @@ export async function fetchModerationQueue(
 ): Promise<ModerationQueueResponse> {
   const qs = buildQueryString(buildQueueParams(params));
   return apiRequest<ModerationQueueResponse>(
-    `/api/reviews${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/reviews${requete(qs)}`,
     { token },
   );
 }
@@ -124,7 +125,7 @@ export async function moderateReview(
   payload: ModeratePayload,
   token: string,
 ): Promise<ModerateResponse> {
-  return apiRequest(`/api/reviews/${reviewId}/moderate`, {
+  return apiRequest(cheminApi`/api/reviews/${reviewId}/moderate`, {
     method: 'PATCH',
     body: payload,
     token,
@@ -142,5 +143,5 @@ export async function fetchReviewReports(
   reviewId: number,
   token: string,
 ): Promise<ApiResponse<ReviewReport[]> & { meta: { total: number } }> {
-  return apiRequest(`/api/reviews/${reviewId}/reports`, { token });
+  return apiRequest(cheminApi`/api/reviews/${reviewId}/reports`, { token });
 }

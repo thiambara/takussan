@@ -51,11 +51,13 @@ export default function SuperAdminAlertsPage() {
           />
         }
       >
-        <AlertRuleTable rules={query.data?.data ?? []} catalogue={query.data?.catalogue ?? {}} />
+        <AlertRuleTable rules={query.data?.data ?? []} catalogue={query.data?.catalogue ?? []} />
       </DataState>
+      {/* Remonté à chaque ouverture : l'événement par défaut se lit dans le catalogue chargé. */}
       <AlertRuleDialog
+        key={dialogOpen ? 'ouvert' : 'ferme'}
         rule={null}
-        catalogue={query.data?.catalogue ?? {}}
+        catalogue={query.data?.catalogue ?? []}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
       />

@@ -152,7 +152,8 @@ class CalendarFeedTest extends ApiTestCase
         $root = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
         $this->materializeRoleProfile($root, 'super_admin');
         $this->actingAsWithStepUp($root);
-        $this->apiPost("/api/users/{$this->agent->id}/block")->assertOk();
+        // TCK-600 — le blocage de compte n'a plus qu'un chemin : la console, avec un motif.
+        $this->apiPost("/api/admin/users/{$this->agent->id}/block", ['reason' => 'Fraude signalée par trois locataires.'])->assertOk();
         $this->app['auth']->forgetGuards();
 
         $this->assertNotNull(CalendarFeed::query()->where('user_id', $this->agent->id)->sole()->revoked_at);

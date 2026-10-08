@@ -23,6 +23,7 @@ import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 export interface FavoriteItem {
   id: number;
@@ -72,7 +73,7 @@ export function useAddFavoriteMutation() {
 export function useRemoveFavoriteMutation() {
   return useApiMutation<unknown, { property_id: number }>(
     {
-      path: ({ property_id }) => `/api/favorites/${property_id}`,
+      path: ({ property_id }) => cheminApi`/api/favorites/${property_id}`,
       method: 'DELETE',
       body: () => undefined,
     },
@@ -151,7 +152,7 @@ export function usePropertiesByIdsChunkedQuery(ids: readonly number[]) {
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const qs = buildQueryString({ extra: { ids: chunkIds.join(',') } });
         return apiRequest<PropertiesByIdsResponse>(
-          `/api/public/properties/by-ids${qs ? `?${qs}` : ''}`,
+          cheminApi`/api/public/properties/by-ids${requete(qs)}`,
           { token: token ?? undefined, locale, signal },
         );
       },

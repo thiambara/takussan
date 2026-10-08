@@ -11,6 +11,7 @@ import type {
   ReportPayload,
   VisitRequestPayload,
 } from '@/types/visit';
+import { cheminApi } from '@/lib/chemin-api';
 
 type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -72,7 +73,7 @@ export async function submitPropertyReport(
   if (segment === null) return bienIntrouvable();
   const token = await getToken();
   try {
-    await apiRequest(`/api/public/properties/${segment}/report`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/report`, {
       method: 'POST',
       body: payload,
       token,
@@ -95,7 +96,7 @@ export async function submitReviewReport(
   if (!Number.isSafeInteger(reviewId) || reviewId <= 0) return bienIntrouvable();
   const token = await getToken();
   try {
-    await apiRequest(`/api/public/reviews/${reviewId}/report`, {
+    await apiRequest(cheminApi`/api/public/reviews/${reviewId}/report`, {
       method: 'POST',
       body: payload,
       token,
@@ -114,7 +115,7 @@ export async function submitVisitRequest(
   if (segment === null) return bienIntrouvable();
   const token = await getToken();
   try {
-    await apiRequest(`/api/public/properties/${segment}/visit-request`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/visit-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -134,7 +135,7 @@ export async function submitBookingRequest(
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/public/properties/${segment}/booking-request`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/booking-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -158,7 +159,7 @@ export async function getReviewEligibility(
   try {
     const res = await apiRequest<{
       data: { eligible: boolean; reason: string; already_reviewed: boolean };
-    }>(`/api/public/properties/${encodeURIComponent(slug)}/review-eligibility`, {
+    }>(cheminApi`/api/public/properties/${slug}/review-eligibility`, {
       token,
     });
     return {
@@ -184,7 +185,7 @@ export async function submitPurchaseOffer(
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/public/properties/${segment}/booking-request`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/booking-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -205,7 +206,7 @@ export async function submitContactMessage(
   if (!token) return authRequise();
   try {
     const res = await apiRequest<{ data: { conversation_id: number; redirect_to: string } }>(
-      `/api/public/properties/${segment}/contact-message`,
+      cheminApi`/api/public/properties/${segment}/contact-message`,
       { method: 'POST', body: { message }, token },
     );
     return { ok: true, data: res.data };
@@ -226,7 +227,7 @@ export async function submitContactLead(
   const segment = segmentDeSlug(slug);
   if (segment === null) return bienIntrouvable();
   try {
-    await apiRequest(`/api/public/properties/${segment}/contact-lead`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/contact-lead`, {
       method: 'POST',
       body: payload,
     });
@@ -256,7 +257,7 @@ export async function submitAgentContactLead(
   payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
   try {
-    await apiRequest(`/api/public/agents/${encodeURIComponent(slug)}/contact-lead`, {
+    await apiRequest(cheminApi`/api/public/agents/${slug}/contact-lead`, {
       method: 'POST',
       body: payload,
     });
@@ -273,7 +274,7 @@ export async function submitReview(
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/properties/${propertyId}/reviews`, {
+    await apiRequest(cheminApi`/api/properties/${propertyId}/reviews`, {
       method: 'POST',
       body: payload,
       token,
@@ -296,7 +297,7 @@ export async function submitReviewReply(
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/reviews/${reviewId}/reply`, {
+    await apiRequest(cheminApi`/api/reviews/${reviewId}/reply`, {
       method: 'POST',
       body: { reply_content: replyContent },
       token,
@@ -315,7 +316,7 @@ export async function toggleFavoriteAction(
   if (!token) return authRequise();
   try {
     if (currentFavoriteId) {
-      await apiRequest(`/api/favorites/${currentFavoriteId}`, { method: 'DELETE', token });
+      await apiRequest(cheminApi`/api/favorites/${currentFavoriteId}`, { method: 'DELETE', token });
       return { ok: true, data: { favorite_id: null } };
     }
     const res = await apiRequest<{ data: { id: number } }>(`/api/favorites`, {

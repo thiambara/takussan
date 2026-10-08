@@ -43,7 +43,7 @@ abstract class AlertRuleRequest extends BaseFormRequest
         $required = $this->presence();
 
         return [
-            'event' => [$required, 'string', Rule::in(array_keys(AlertableEvents::all()))],
+            'event' => [$required, 'string', Rule::in(AlertableEvents::keys())],
             'channels' => [$required, 'array', 'min:1'],
             'channels.*' => ['string', Rule::in(['email', 'slack', 'discord'])],
             'recipients' => [$required, 'array'],
