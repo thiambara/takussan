@@ -237,9 +237,13 @@ détient `payouts.create`, jamais au titulaire, et elle **vaut pour l'agence de 
 vérification globale laissait une agence complaisante ouvrir la destination à toutes les autres) ;
 une destination modifiée perd toutes ses vérifications. **Rien n'est vérifié d'office** — pas même un numéro
 égal au téléphone vérifié du titulaire (décision du 2026-10-08, après la vérification adverse
-VERIF-594 B-1) : ce téléphone se change et se revérifie en libre-service, sans date ni avis, si bien
-qu'après une prise de compte la vérification d'office appartenait à l'attaquant et retirait la seule
-défense de cette section. Un reversement mobile money ou virement ne se marque payé que vers une
+VERIF-594 B-1) : ce téléphone se change et se revérifie en libre-service. Depuis TCK-589, remplacer
+un numéro vérifié exige une preuve (`PhoneChangeGuard` : code envoyé à l'ancien numéro, mot de passe
+ou step-up récent) et l'ancien numéro en reçoit l'avis par SMS (`account.phone_changed`) ; mais une
+session prise avec son step-up fournit cette preuve, et l'avis part après coup. Après une prise de
+compte, la vérification d'office appartiendrait donc toujours à l'attaquant, et retirerait la seule
+défense de cette section (VERIF-594 passe 4, P4-8 : la raison écrite datait d'avant 589 ; la
+décision ne change pas). Un reversement mobile money ou virement ne se marque payé que vers une
 destination **du bénéficiaire**, vérifiée **par l'agence du reversement** — et pas par la main
 qui paie : le membre qui a vérifié une destination ne la paie pas dans les **24 h** qui suivent,
 approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse. **La même règle
