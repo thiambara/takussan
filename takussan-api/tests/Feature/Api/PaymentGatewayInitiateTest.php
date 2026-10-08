@@ -149,7 +149,7 @@ class PaymentGatewayInitiateTest extends TestCase
             'provider' => 'lemon_squeezy',
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(422)->assertJsonPath('code', 'payment.xof_requires_local_provider');
         $this->assertStringContainsString('Lemon Squeezy', (string) $response->json('message'));
     }
 

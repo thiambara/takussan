@@ -31,8 +31,10 @@ class SessionTokenIssuer
      */
     public function issue(User $user, string $name, bool $twoFactorJustVerified = false): array
     {
+        // Chaque appelant refuse avant (`AuthRefusal`, code `account_blocked` lu par le front) :
+        // ce refus-ci est l'invariant de l'émetteur, rendu par le mécanisme d'ADR-0032.
         if (! $user->canOpenSession()) {
-            AuthRefusal::abort(403, 'account_blocked', 'auth.account.blocked');
+            abort_code(403, 'auth.account_blocked');
         }
 
         $superAdmin = $user->isSuperAdmin();

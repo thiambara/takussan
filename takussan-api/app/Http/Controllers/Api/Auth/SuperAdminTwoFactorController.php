@@ -99,16 +99,16 @@ class SuperAdminTwoFactorController extends Controller
         // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $user = $request->user();
 
-        abort_unless(
+        abort_code_unless(
             $user->two_factor_secret !== null,
             422,
-            __('super_admins.cooptation.errors.enroll_first'),
+            'super_admin.enroll_first',
         );
 
-        abort_unless(
+        abort_code_unless(
             $this->twoFactor->verifyCodeForUser($user, $user->two_factor_secret, $request->input('code')),
             422,
-            __('super_admins.cooptation.errors.invalid_code'),
+            'super_admin.code_invalid',
         );
 
         DB::transaction(function () use ($user): void {
@@ -184,10 +184,10 @@ class SuperAdminTwoFactorController extends Controller
     protected function assertCooptedSuperAdmin($user): void
     {
         abort_if($user === null, 401);
-        abort_unless(
+        abort_code_unless(
             (bool) $user->force_2fa_at_first_login,
             403,
-            __('super_admins.cooptation.errors.not_pending'),
+            'super_admin.not_pending',
         );
     }
 }

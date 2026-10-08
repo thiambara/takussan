@@ -264,7 +264,7 @@ class InvitationService
             if ($authenticated === null || $authenticated->id !== $existingUser->id) {
                 // Surface the email back so the UI can pre-fill the login
                 // form and the wizard can resume on the right account.
-                abort(401, __('invitations.errors.requires_login'), [
+                abort_code(401, 'invitation.requires_login', [], [
                     'X-Invitation-Email' => $invitation->email,
                     'X-Invitation-Requires-Login' => '1',
                 ]);
@@ -289,10 +289,10 @@ class InvitationService
         // a VÉRIFIÉ ce numéro.
         if ($invitation->email === null) {
             if ($user->phone !== $invitation->phone || $user->phone_verified_at === null) {
-                abort(403, __('invitations.errors.phone_mismatch'));
+                abort_code(403, 'invitation.phone_mismatch');
             }
         } elseif (CaseInsensitive::fold(trim((string) $user->email)) !== $invitation->email) {
-            abort(403, __('invitations.errors.email_mismatch'));
+            abort_code(403, 'invitation.email_mismatch');
         }
 
         return $this->acceptForUser($invitation, $user);
@@ -490,15 +490,20 @@ class InvitationService
         /** @var Invitation|null $invitation */
         $invitation = Invitation::query()->where('token', $token)->first();
         if ($invitation === null) {
-            abort(404, __('invitations.errors.token_not_found'));
+            abort_code(404, 'invitation.token_not_found');
         }
 
         if ($invitation->status !== InvitationStatus::Sent) {
-            abort(410, __('invitations.errors.token_'.$invitation->status->value));
+            match ($invitation->status) {
+                InvitationStatus::Accepted => abort_code(410, 'invitation.token_accepted'),
+                InvitationStatus::Revoked => abort_code(410, 'invitation.token_revoked'),
+                InvitationStatus::Expired => abort_code(410, 'invitation.token_expired'),
+                InvitationStatus::Sent => abort_code(410, 'invitation.token_sent'),
+            };
         }
 
         if ($invitation->expires_at !== null && $invitation->expires_at->isPast()) {
-            abort(410, __('invitations.errors.token_expired'));
+            abort_code(410, 'invitation.token_expired');
         }
 
         return $invitation;

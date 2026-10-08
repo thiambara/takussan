@@ -32,7 +32,7 @@ class FeatureFlagController extends Controller
 
     public function update(UpdateFeatureFlagRequest $request, string $key): JsonResponse
     {
-        abort_unless(Flag::tryFrom($key), 404, 'Unknown feature flag.');
+        abort_code_unless(Flag::tryFrom($key), 404, 'feature_flag.unknown');
         $data = $request->validated();
         $catalogue = Flag::from($key);
         $flag = FeatureFlag::updateOrCreate(

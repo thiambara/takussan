@@ -131,7 +131,7 @@ class PhoneVerificationService
 
     /**
      * Pose `phone_verified_at` — après avoir vérifié qu'aucun autre compte n'a
-     * déjà vérifié ce numéro (409 `phone_taken`). On TESTE avant d'écrire : la
+     * déjà vérifié ce numéro (409 `phone.taken`). On TESTE avant d'écrire : la
      * violation de `users_phone_verified_unique` abandonnerait la transaction
      * entière sous PostgreSQL (piège n° 1), l'index n'est que le dernier recours.
      */
@@ -142,7 +142,7 @@ class PhoneVerificationService
         }
 
         if ($this->isVerifiedElsewhere($phone, $user)) {
-            AuthRefusal::abort(409, 'phone_taken', 'auth.phone.taken');
+            abort_code(409, 'phone.taken');
         }
 
         $user->forceFill(['phone' => $phone, 'phone_verified_at' => now()])->save();

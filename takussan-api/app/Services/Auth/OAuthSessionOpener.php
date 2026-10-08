@@ -92,6 +92,11 @@ final class OAuthSessionOpener
             return AuthRefusal::response(422, 'oauth_challenge_invalid', 'auth.oauth.challenge_invalid');
         }
 
+        // Bloqué entre le rappel et le défi : le même refus que partout ailleurs.
+        if (! $user->canOpenSession()) {
+            return AuthRefusal::response(403, 'account_blocked', 'auth.account.blocked');
+        }
+
         $this->lock->clear($user);
 
         return $this->issue($user, (string) $pending['token_name'], true, $request);
@@ -99,8 +104,8 @@ final class OAuthSessionOpener
 
     private function issue(User $user, string $tokenName, bool $twoFactorJustVerified, Request $request): JsonResponse
     {
-        // Émis par le seul émetteur : borné, et refusé (403 `account_blocked`) à un compte
-        // bloqué entre le rappel et le défi.
+        // Émis par le seul émetteur, borné. Le blocage est refusé avant, par chaque chemin
+        // (`account_blocked`) ; l'émetteur le refuse encore, en dernier recours.
         $issued = $this->tokens->issue($user, $tokenName, twoFactorJustVerified: $twoFactorJustVerified);
 
         return new JsonResponse(['data' => [

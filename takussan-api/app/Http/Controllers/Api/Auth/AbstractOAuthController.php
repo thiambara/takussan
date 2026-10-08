@@ -58,7 +58,7 @@ abstract class AbstractOAuthController extends Controller
 
     public function redirect(): JsonResponse
     {
-        abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($this->provider()), 422, 'auth.oauth_not_configured');
 
         $this->prepareDriver();
 
@@ -80,13 +80,13 @@ abstract class AbstractOAuthController extends Controller
 
     public function callback(OAuthCallbackRequest $request): JsonResponse
     {
-        abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($this->provider()), 422, 'auth.oauth_not_configured');
 
         $cached = Cache::pull('oauth_state:'.$request->input('state'));
-        abort_unless(
+        abort_code_unless(
             $cached && ($cached['provider'] ?? null) === $this->provider(),
             422,
-            'Invalid or expired OAuth state.',
+            'auth.oauth_state_invalid',
         );
 
         $this->prepareDriver();

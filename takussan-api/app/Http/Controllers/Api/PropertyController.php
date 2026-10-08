@@ -181,10 +181,10 @@ class PropertyController extends Controller
     public function publish(Request $request, Property $property): JsonResponse
     {
         $this->authorize('publish', $property);
-        abort_if(
+        abort_code_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
-            __('messages.property_cannot_publish')
+            'property.cannot_publish'
         );
         $property->update([
             'status' => PropertyStatus::Available,
@@ -200,10 +200,10 @@ class PropertyController extends Controller
     public function unpublish(Request $request, Property $property): JsonResponse
     {
         $this->authorize('publish', $property);
-        abort_unless(
+        abort_code_unless(
             in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
-            __('messages.property_cannot_unpublish')
+            'property.cannot_unpublish'
         );
         $property->update([
             'status' => PropertyStatus::Draft,
@@ -266,10 +266,10 @@ class PropertyController extends Controller
             // TCK-587 — la cible doit être du PERSONNEL actif de l'agence du bien. Le test
             // `$target->agency_id === $agencyId` laissait passer un bailleur, qui devenait
             // `properties.user_id` du bien d'un autre bailleur.
-            abort_unless(
+            abort_code_unless(
                 app(MembershipCapabilityResolver::class)->isStaffAt($target, (int) $agencyId),
                 422,
-                __('messages.target_user_not_in_active_agency')
+                'user.not_in_active_agency'
             );
         }
 

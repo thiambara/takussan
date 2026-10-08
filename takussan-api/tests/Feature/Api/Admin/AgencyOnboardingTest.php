@@ -62,7 +62,7 @@ class AgencyOnboardingTest extends TestCase
 
         $this->postJson('/api/admin/agencies', $this->payload())
             ->assertStatus(409)
-            ->assertJsonPath('message', 'An account already exists with this admin email.');
+            ->assertJsonPath('code', 'agency.admin_email_taken');
     }
 
     public function test_validation_failure_returns_422(): void

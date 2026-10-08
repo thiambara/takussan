@@ -69,10 +69,10 @@ class TwoFactorController extends Controller
     {
         $user = $request->user();
         $pending = $user->two_factor_enabled ? $this->pendingRenewal($user) : null;
-        abort_unless(
+        abort_code_unless(
             $pending !== null || ($user->two_factor_secret !== null && ! $user->two_factor_enabled),
             422,
-            'Two-factor authentication is not in a setup state.',
+            'two_factor.not_in_setup',
         );
 
         $svg = $this->service->qrCodeSvg($user, $pending ?? $user->two_factor_secret);
@@ -89,12 +89,12 @@ class TwoFactorController extends Controller
         if ($user->two_factor_enabled) {
             return $this->confirmRenewal($user, (string) $request->input('code'));
         }
-        abort_unless($user->two_factor_secret !== null, 422, 'Please call /two-factor/enable first.');
+        abort_code_unless($user->two_factor_secret !== null, 422, 'two_factor.enable_first');
 
-        abort_unless(
+        abort_code_unless(
             $this->service->verifyCodeForUser($user, $user->two_factor_secret, $request->input('code')),
             422,
-            'Invalid TOTP code.',
+            'two_factor.code_invalid',
         );
 
         $recoveryCodes = $this->service->generateRecoveryCodes();
@@ -122,7 +122,7 @@ class TwoFactorController extends Controller
     public function disable(DisableTwoFactorRequest $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->two_factor_enabled, 422, 'Two-factor authentication is not enabled.');
+        abort_code_unless($user->two_factor_enabled, 422, 'two_factor.not_enabled');
 
         // TCK-589 — contrainte 10 : la 2FA exigée ne se désactive pas, ni par le mot
         // de passe ni par un code. Elle se renouvelle (`enable` sous step-up).
@@ -141,7 +141,7 @@ class TwoFactorController extends Controller
                 $request->input('code'),
             );
         }
-        abort_unless($authorized, 422, 'Invalid password or code.');
+        abort_code_unless($authorized, 422, 'two_factor.password_or_code_invalid');
 
         $user->forceFill([
             'two_factor_enabled' => false,
@@ -187,7 +187,7 @@ class TwoFactorController extends Controller
     public function recoveryCodes(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->two_factor_enabled, 422, 'Two-factor authentication is not enabled.');
+        abort_code_unless($user->two_factor_enabled, 422, 'two_factor.not_enabled');
 
         return $this->json(['data' => ['recovery_codes' => $this->service->recoveryCodes($user)]]);
     }
@@ -195,7 +195,7 @@ class TwoFactorController extends Controller
     public function regenerateRecoveryCodes(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->two_factor_enabled, 422, 'Two-factor authentication is not enabled.');
+        abort_code_unless($user->two_factor_enabled, 422, 'two_factor.not_enabled');
 
         $codes = $this->service->generateRecoveryCodes();
         $user->forceFill(['two_factor_recovery_codes' => json_encode($codes)])->save();
@@ -214,7 +214,7 @@ class TwoFactorController extends Controller
             return AuthRefusal::response(422, 'two_factor_renewal_missing', 'auth.two_factor.renewal_missing');
         }
 
-        abort_unless($this->service->verifyCodeForUser($user, $pending, $code), 422, 'Invalid TOTP code.');
+        abort_code_unless($this->service->verifyCodeForUser($user, $pending, $code), 422, 'two_factor.code_invalid');
 
         $recoveryCodes = $this->service->generateRecoveryCodes();
         $user->forceFill([

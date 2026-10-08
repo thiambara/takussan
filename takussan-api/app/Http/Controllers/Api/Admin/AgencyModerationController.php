@@ -164,10 +164,10 @@ class AgencyModerationController extends Controller
 
     public function verify(Request $request, Agency $agency): JsonResponse
     {
-        abort_unless(
+        abort_code_unless(
             $agency->kycDossier?->status === KycDossierStatus::Verified,
             422,
-            'Agency KYC must be verified before agency verification.',
+            'agency.kyc_not_verified',
         );
 
         return $this->transition($request, $agency, AgencyStatus::Active, 'super_admin_agency_verified', [

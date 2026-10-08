@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AgencyProvisioningService
 {
@@ -26,10 +25,10 @@ class AgencyProvisioningService
     public function provision(array $payload, User $actor): array
     {
         $adminEmail = CaseInsensitive::fold((string) data_get($payload, 'admin.email'));
-        abort_if(
+        abort_code_if(
             User::query()->where('email', $adminEmail)->exists(),
             409,
-            'An account already exists with this admin email.'
+            'agency.admin_email_taken'
         );
 
         return DB::transaction(function () use ($payload, $actor, $adminEmail): array {
@@ -111,7 +110,7 @@ class AgencyProvisioningService
         $status = Password::broker()->sendResetLink(['email' => $admin->email]);
 
         if ($status !== Password::RESET_LINK_SENT) {
-            throw new HttpException(502, 'Invitation email could not be sent.');
+            abort_code(502, 'mail.invitation_not_sent');
         }
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\StoreMaintenanceRequestRequest;
@@ -12,7 +14,6 @@ use App\Http\Resources\MaintenanceRequestResource;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
@@ -116,13 +117,10 @@ class MaintenanceRequestController extends Controller
         }
 
         if ($owner && $owner->id !== $user->id) {
-            $this->notifications->notify(
-                $owner,
-                NotificationType::Maintenance,
-                'Nouvelle demande de maintenance',
-                'Une demande de maintenance a été soumise pour '.$property->title.'.',
-                ['maintenance_request_id' => $mr->id],
-            );
+            $this->notifications->send($owner, NotificationCode::MaintenanceCreated, [
+                'property' => $property->title,
+                'reference' => '#'.$mr->id,
+            ], NotificationTarget::of('maintenance', $mr->id));
         }
 
         return $this->json([
@@ -188,7 +186,7 @@ class MaintenanceRequestController extends Controller
         // Reject ambiguous payloads rather than silently preferring one field.
         if (array_key_exists('cost', $data) && array_key_exists('actual_cost', $data)
             && $data['cost'] !== null && $data['actual_cost'] !== null) {
-            abort(422, 'Provide either `cost` or `actual_cost`, not both.');
+            abort_code(422, 'maintenance.cost_ambiguous');
         }
 
         $photos = $request->file('photos', []) ?? [];
@@ -206,7 +204,7 @@ class MaintenanceRequestController extends Controller
         // should not accept new photos (prevents abuse and keeps the audit
         // log on media consistent with the work actually performed).
         if (in_array($maintenanceRequest->status, [MaintenanceStatus::Closed, MaintenanceStatus::Cancelled], true)) {
-            abort(422, 'Cannot upload photos to a closed or cancelled maintenance request.');
+            abort_code(422, 'maintenance.photos_closed');
         }
 
         $data = $request->validated();

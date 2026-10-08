@@ -15,7 +15,7 @@ use Tests\TestCase;
 /**
  * TCK-589 AC16 — un numéro n'est VÉRIFIÉ que sur un compte (contrainte 5 ter).
  * A l'a vérifié ; B, qui porte le même numéro, ne peut plus le vérifier — ni par le
- * profil ni par l'onboarding bailleur : 409 `phone_taken`, pas 500, pas 200.
+ * profil ni par l'onboarding bailleur : 409 `phone.taken` (`abort_code`, TCK-588), pas 500, pas 200.
  *
  * Rouge sur `5f872f1f` : 200, le numéro finissait vérifié sur les deux comptes.
  * Ablation : sans le test préalable de `markVerified`, l'index partiel
@@ -44,7 +44,7 @@ class PhoneNumberUniquenessTest extends TestCase
 
         $this->postJson('/api/auth/phone/verify-otp', ['code' => $code])
             ->assertStatus(409)
-            ->assertJsonPath('code', 'phone_taken');
+            ->assertJsonPath('code', 'phone.taken');
 
         $this->assertNull($this->b->fresh()->phone_verified_at);
     }
@@ -73,7 +73,7 @@ class PhoneNumberUniquenessTest extends TestCase
         $this->postJson('/api/owner/onboard/complete', [
             'owner_profile_id' => $owner->id,
             'phone_otp' => ['code' => $code],
-        ])->assertStatus(409)->assertJsonPath('code', 'phone_taken');
+        ])->assertStatus(409)->assertJsonPath('code', 'phone.taken');
 
         $this->assertNull($this->b->fresh()->phone_verified_at);
         $this->assertSame(OwnerProfileStatus::Draft, $owner->fresh()->status);

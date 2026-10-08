@@ -18,10 +18,10 @@ class PropertyModerationService
      */
     public function approve(Property $property, User $admin): Property
     {
-        abort_unless(
+        abort_code_unless(
             $property->status === PropertyStatus::PendingReview,
             422,
-            'Le bien n\'est pas en attente de modération.'
+            'property.not_pending_moderation'
         );
 
         DB::transaction(function () use ($property, $admin) {
@@ -56,10 +56,10 @@ class PropertyModerationService
      */
     public function reject(Property $property, User $admin, string $rejectionReason): Property
     {
-        abort_unless(
+        abort_code_unless(
             $property->status === PropertyStatus::PendingReview,
             422,
-            'Le bien n\'est pas en attente de modération.'
+            'property.not_pending_moderation'
         );
 
         DB::transaction(function () use ($property, $admin, $rejectionReason) {
@@ -98,10 +98,10 @@ class PropertyModerationService
      */
     public function resubmit(Property $property, User $actor): Property
     {
-        abort_unless(
+        abort_code_unless(
             $property->status === PropertyStatus::Rejected,
             422,
-            'Seul un bien refusé peut être resoumis.'
+            'property.resubmit_not_rejected'
         );
 
         DB::transaction(function () use ($property, $actor) {

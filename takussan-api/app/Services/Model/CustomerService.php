@@ -50,10 +50,10 @@ class CustomerService
 
     public function updatePipelineStage(Customer $customer, string $stage): Customer
     {
-        abort_unless(
+        abort_code_unless(
             CustomerPipelineStage::tryFrom($stage) !== null,
             422,
-            'Invalid pipeline stage.'
+            'customer.pipeline_stage_invalid'
         );
 
         $customer->update(['pipeline_stage' => $stage]);

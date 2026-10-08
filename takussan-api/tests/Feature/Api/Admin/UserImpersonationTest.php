@@ -53,7 +53,7 @@ class UserImpersonationTest extends TestCase
 
         $this->postJson("/api/admin/users/{$actor->id}/impersonate")
             ->assertStatus(422)
-            ->assertJsonPath('message', 'You cannot impersonate yourself.');
+            ->assertJsonPath('code', 'impersonation.self');
     }
 
     public function test_stop_revokes_all_impersonation_tokens_for_target(): void

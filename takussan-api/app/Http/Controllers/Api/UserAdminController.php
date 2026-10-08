@@ -75,8 +75,8 @@ class UserAdminController extends Controller
     public function block(Request $request, User $user): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor->isSuperAdmin(), 403, __('errors.account_block_reserved'));
-        abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
+        abort_code_unless($actor->isSuperAdmin(), 403, 'user.account_block_reserved');
+        abort_code_if($user->id === $actor->id, 422, 'user.cannot_block_self');
 
         $user->update(['status' => UserStatus::Blocked]);
         $user->tokens()->delete();
@@ -86,7 +86,7 @@ class UserAdminController extends Controller
 
     public function activate(Request $request, User $user): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin(), 403, __('errors.account_block_reserved'));
+        abort_code_unless($request->user()->isSuperAdmin(), 403, 'user.account_block_reserved');
 
         $user->update(['status' => UserStatus::Active]);
 
@@ -96,7 +96,7 @@ class UserAdminController extends Controller
     public function destroy(Request $request, User $user): JsonResponse
     {
         abort_unless($request->user()->isSuperAdmin(), 403);
-        abort_if($user->id === $request->user()->id, 422, __('messages.cannot_delete_self'));
+        abort_code_if($user->id === $request->user()->id, 422, 'user.cannot_delete_self');
 
         $this->anonymize($user);
 

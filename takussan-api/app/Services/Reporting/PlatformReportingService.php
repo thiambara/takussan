@@ -409,11 +409,10 @@ class PlatformReportingService
         $champ = str_contains($window['range'], '..') ? 'ends_at' : 'granularity';
 
         throw ValidationException::withMessages([
-            $champ => [sprintf(
-                'La plage demandée dépasse le plafond de %d intervalles « %s ». Réduisez la plage ou élargissez la granularité.',
-                self::MAX_BUCKETS,
-                $granularity,
-            )],
+            $champ => [__('errors.reporting.range_too_wide', [
+                'max' => self::MAX_BUCKETS,
+                'granularity' => $granularity,
+            ])],
         ]);
     }
 

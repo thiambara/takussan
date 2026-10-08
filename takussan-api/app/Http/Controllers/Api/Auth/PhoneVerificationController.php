@@ -17,16 +17,16 @@ class PhoneVerificationController extends Controller
     {
 
         $user = $request->user();
-        abort_if($user->phone_verified_at !== null, 422, __('auth.phone.already_verified'));
-        abort_unless($user->phone !== null, 422, __('auth.phone.missing'));
+        abort_code_if($user->phone_verified_at !== null, 422, 'phone.already_verified');
+        abort_code_unless($user->phone !== null, 422, 'phone.missing');
 
-        abort_unless(
+        abort_code_unless(
             $this->service->verifyOtp($user, $request->input('code')),
             422,
-            __('auth.phone.code_invalid'),
+            'phone.code_invalid',
         );
 
-        // TCK-589 — le seul écrivain de `phone_verified_at` : 409 `phone_taken`
+        // TCK-589 — le seul écrivain de `phone_verified_at` : 409 `phone.taken`
         // si un autre compte a déjà vérifié ce numéro.
         $this->service->markVerified($user, (string) $user->phone);
 
@@ -59,8 +59,8 @@ class PhoneVerificationController extends Controller
             }
         }
 
-        abort_if($user->phone_verified_at !== null, 422, __('auth.phone.already_verified'));
-        abort_unless($user->phone !== null, 422, __('auth.phone.missing'));
+        abort_code_if($user->phone_verified_at !== null, 422, 'phone.already_verified');
+        abort_code_unless($user->phone !== null, 422, 'phone.missing');
 
         // TCK-589 — refuser AVANT de dépenser un SMS un numéro qu'un autre
         // compte a déjà vérifié : le code reçu ne pourrait rien vérifier.
@@ -68,10 +68,10 @@ class PhoneVerificationController extends Controller
             return AuthRefusal::response(409, 'phone_taken', 'auth.phone.taken');
         }
 
-        abort_unless(
+        abort_code_unless(
             $this->service->canResend($user),
             429,
-            __('auth.phone.resend_wait'),
+            'phone.resend_too_soon',
         );
 
         if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {

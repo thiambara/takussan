@@ -2,7 +2,6 @@
 
 namespace App\Services\Auth;
 
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -11,10 +10,11 @@ use Illuminate\Http\JsonResponse;
  * `phone_taken`, `account_blocked`, `account_locked`, `two_factor_required`,
  * `two_factor_step_up_required`, `two_factor_mandatory`.
  *
- * Le gestionnaire d'exceptions de `bootstrap/app.php` ne rend que `message` pour
- * un `abort()` : un code s'y perdrait. D'où une réponse construite ici, levée par
- * {@see self::abort()} depuis un service. TCK-588 généralise le mécanisme
- * (`abort_code()`) ; ces appels s'y convertiront.
+ * Une réponse RENDUE, jamais levée : depuis TCK-588 (ADR-0032), un refus levé depuis un
+ * service passe par `abort_code()` (`phone.taken`, `auth.account_blocked`). Les codes plats
+ * ci-dessus restent le contrat que le front lit (`double-facteur.ts`,
+ * `ConnexionParTelephone`) ; leur conversion à la forme `<domaine>.<code>` est à faire d'un
+ * bloc, front compris.
  */
 final class AuthRefusal
 {
@@ -24,10 +24,5 @@ final class AuthRefusal
     public static function response(int $status, string $code, string $messageKey, array $extra = []): JsonResponse
     {
         return new JsonResponse(['message' => __($messageKey), 'code' => $code] + $extra, $status);
-    }
-
-    public static function abort(int $status, string $code, string $messageKey): never
-    {
-        throw new HttpResponseException(self::response($status, $code, $messageKey));
     }
 }

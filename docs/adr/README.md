@@ -44,7 +44,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0016](0016-role-agence-du-prestataire-porte-par-la-collaboration.md) | Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil | Accepté |
 | [0017](0017-deploiement-du-front-pilote-par-vercel.md) | Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde | Remplacé par ADR-0028 — effectif à la bascule du front de production |
 | [0018](0018-format-des-dates-sur-le-fil.md) | L'API émet deux types de date : instant `…T12:34:56+00:00`, date calendaire `YYYY-MM-DD` | Accepté |
-| [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté |
+| [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté — étendu à l'API par ADR-0032 |
 | [0020](0020-postgresql-sur-tous-les-environnements.md) | PostgreSQL 17 sur tous les environnements, base de test comprise — SQLite et MySQL retirés | Accepté |
 | [0021](0021-sparse-fieldsets-au-niveau-ressource.md) | `fields[]` désigne des colonnes ; une ressource n'invente pas ce qu'elle n'a pas lu | Proposé |
 | [0022](0022-le-dictionnaire-i18n-est-decoupe-par-groupe-de-routes.md) | Le dictionnaire i18n est découpé par groupe de routes, et une clé manquante lève | Accepté |
@@ -57,6 +57,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) | Les médias vivent dans R2, deux seaux par environnement ; les images publiques sont servies par Cloudflare Transformations | Accepté — amendé le 2026-10-04 : les photos de biens sont servies en WebP depuis leurs conversions, sans Transformations (TCK-585) |
 | [0030](0030-le-courtier-quitte-le-code-et-la-base.md) | Le courtier quitte le code et la base | Accepté |
 | [0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) | Le périmètre d'une agence appartient à son personnel actif ; le bailleur n'a que ses ressources ; un profil non actif ne confère rien ; toute capacité est jugée ou inventoriée | Accepté |
+| [0032](0032-l-api-n-ecrit-plus-de-prose.md) | L'API n'écrit plus de prose : une notification est un code rendu par surface dans la langue du destinataire, une erreur est un code et un message localisé ; un contact sans compte reçoit le transactionnel par WhatsApp ou SMS | Accepté — étend ADR-0019 à l'API |
 | [0033](0033-le-telephone-verifie-est-un-identifiant-de-connexion.md) | Le numéro de téléphone vérifié est un identifiant de connexion, à côté de l'e-mail ; derrière un drapeau, allumé par environnement après un envoi réel | Accepté |
 
 ## Décisions recensées, pas encore rédigées

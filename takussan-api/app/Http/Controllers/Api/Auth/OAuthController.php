@@ -36,7 +36,7 @@ class OAuthController extends Controller
     public function redirect(string $provider): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
-        abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($provider), 422, 'auth.oauth_not_configured');
 
         $state = Str::random(40);
         Cache::put('oauth_state:'.$state, ['provider' => $provider], now()->addMinutes(10));
@@ -53,10 +53,10 @@ class OAuthController extends Controller
     public function callback(string $provider, CallbackOAuthRequest $request): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
-        abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($provider), 422, 'auth.oauth_not_configured');
 
         $cached = Cache::pull('oauth_state:'.$request->input('state'));
-        abort_unless($cached && $cached['provider'] === $provider, 422, 'Invalid or expired OAuth state.');
+        abort_code_unless($cached && $cached['provider'] === $provider, 422, 'auth.oauth_state_invalid');
 
         /** @var SocialiteUser $socialUser */
         $socialUser = Socialite::driver($provider)->stateless()->user();
