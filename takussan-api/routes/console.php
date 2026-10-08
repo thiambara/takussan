@@ -76,6 +76,9 @@ Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlap
 //    and notifies the inviter.
 //  - `invitations:remind` emails a J+2 reminder to invitees who haven't
 //    accepted yet, using `last_reminded_at` for dedup.
+// TCK-592 (P10) — clôture contradictoire : `completed` depuis 7 jours sans confirmation ni
+// contestation du demandeur → `closed`, acteur nul. Idempotente.
+Schedule::command('maintenance:auto-close')->dailyAt('04:00')->withoutOverlapping();
 Schedule::command('invitations:expire')->hourly()->withoutOverlapping();
 Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
 

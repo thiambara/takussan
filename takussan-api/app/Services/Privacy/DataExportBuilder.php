@@ -5,7 +5,6 @@ namespace App\Services\Privacy;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
-use App\Models\ConversationParticipant;
 use App\Models\Customer;
 use App\Models\DataExport;
 use App\Models\Document;
@@ -16,6 +15,7 @@ use App\Models\Message;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Messaging\ConversationAccess;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use ZipArchive;
@@ -75,7 +75,9 @@ class DataExportBuilder
     public function payloads(User $user): array
     {
         $customerIds = Customer::query()->where('user_id', $user->id)->pluck('id');
-        $conversationIds = ConversationParticipant::query()->where('user_id', $user->id)->pluck('conversation_id');
+        // TCK-592 (passe 2, N1) — ses propres messages toujours ; ceux des autres, seulement dans
+        // les fils que la garde de conversation lui ouvre encore.
+        $conversationIds = app(ConversationAccess::class)->participatingQuery($user, activeOnly: false)->pluck('conversations.id');
 
         return [
             'profile.json' => [

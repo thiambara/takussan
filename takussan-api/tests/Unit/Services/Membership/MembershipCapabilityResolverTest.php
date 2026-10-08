@@ -3,11 +3,15 @@
 namespace Tests\Unit\Services\Membership;
 
 use App\Models\Agency;
+use App\Models\AgencyRole;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -378,5 +382,42 @@ class MembershipCapabilityResolverTest extends TestCase
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
         $this->assertCount(45, Capability::cases());
+    }
+
+    /**
+     * TCK-592 — AC6 (B13) : seule une collaboration ACTIVE porte un rôle qui agit. Le rôle accorde la
+     * capacité dans les trois cas ; seul le statut de la collaboration change le verdict.
+     *
+     * @return array<string, array{string, bool}>
+     */
+    public static function collaborationStatuses(): array
+    {
+        return [
+            'active (témoin)' => ['active', true],
+            'paused' => ['paused', false],
+            'ended' => ['ended', false],
+        ];
+    }
+
+    #[DataProvider('collaborationStatuses')]
+    public function test_provider_role_acts_only_through_an_active_collaboration(string $status, bool $expected): void
+    {
+        $agency = Agency::factory()->create();
+        $role = AgencyRole::factory()
+            ->ofType(AgencyRoleBaseType::ServiceProvider)
+            ->withCapabilities([Capability::MaintenanceClose])
+            ->create(['agency_id' => $agency->id]);
+        $user = User::factory()->create();
+        $profile = ServiceProviderProfile::factory()->create(['user_id' => $user->id]);
+        ServiceProviderAgencyCollaboration::query()->create([
+            'service_provider_profile_id' => $profile->id,
+            'agency_id' => $agency->id,
+            'status' => $status,
+            'started_at' => now()->subMonth(),
+            'agency_role_id' => $role->id,
+        ]);
+
+        $this->assertSame($expected, $this->resolver->allows($user, Capability::MaintenanceClose, $agency));
+        $this->assertSame($expected, $user->isProviderAt($agency->id));
     }
 }

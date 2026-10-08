@@ -4,7 +4,8 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenancePriority;
-use App\Models\Enums\MaintenanceStatus;
+use App\Rules\AssignableProvider;
+use App\Services\Maintenance\CurrencyUnit;
 use Illuminate\Validation\Rule;
 
 /**
@@ -36,7 +37,22 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
      * dans `rules()` — une règle de validation rendrait 422, et un `unset()` en contrôleur
      * rendrait 200 sur un geste refusé.
      */
-    public const PRINCIPAL_FIELDS = ['assigned_to', 'priority'];
+    public const PRINCIPAL_FIELDS = ['assigned_to', 'priority', 'estimated_cost', 'actual_cost', 'access_instructions'];
+
+    /**
+     * TCK-592 — le créneau : au donneur d'ordre, et au prestataire qui a ACCEPTÉ. Un prestataire
+     * assigné qui n'a pas encore dit oui ne fixe pas de rendez-vous chez le locataire.
+     */
+    public const SCHEDULING_FIELDS = ['scheduled_at'];
+
+    /**
+     * TCK-592 — les colonnes d'ÉTAT. Elles ne s'écrivent que par la machine d'état
+     * (`PUT …/status`, `…/complete`, `…/accept`…), jamais par `fill()` : `PATCH {status: approved}`
+     * laissait le prestataire approuver son propre devis, `{status: closed}` clore depuis `open`.
+     * `prohibited` rend un 422 qui NOMME le champ ; le contrôleur les retire en plus du corps validé,
+     * parce que `prohibited` laisse passer une valeur vide — et `{status: null}` écrirait `null`.
+     */
+    public const STATE_FIELDS = ['status', 'started_at', 'completed_at'];
 
     public function authorize(): bool
     {
@@ -50,11 +66,20 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
         // La PRÉSENCE du champ suffit à exiger le droit, même si la valeur postée est celle
         // déjà en base : comparer les valeurs ferait dépendre le droit de l'état courant, et
         // un prestataire pourrait sonder ce qu'il n'a pas le droit d'écrire.
-        if (! $this->hasAny(self::PRINCIPAL_FIELDS)) {
+        $principal = null;
+        if ($this->hasAny(self::PRINCIPAL_FIELDS)) {
+            $principal = $user->can('actAsPrincipal', $maintenanceRequest) === true;
+            if (! $principal) {
+                return false;
+            }
+        }
+
+        if (! $this->hasAny(self::SCHEDULING_FIELDS)) {
             return true;
         }
 
-        return $user->can('actAsPrincipal', $maintenanceRequest) === true;
+        return ($principal ?? $user->can('actAsPrincipal', $maintenanceRequest) === true)
+            || ($maintenanceRequest->accepted_at !== null && $user->can('actAsProvider', $maintenanceRequest) === true);
     }
 
     /**
@@ -83,14 +108,18 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'assigned_to' => ['sometimes', 'nullable', 'exists:users,id'],
+            // TCK-592 — un compte assignable AU BIEN, plus « un compte qui existe ».
+            'assigned_to' => ['sometimes', 'nullable', 'integer', new AssignableProvider($this->route('maintenanceRequest')?->property)],
+            'access_instructions' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
-            'status' => ['sometimes', Rule::enum(MaintenanceStatus::class)],
-            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'status' => ['prohibited'],
+            // verif-592 passe 3 (N10) — au-delà de la colonne `decimal(14,2)` : 500.
+            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN],
+            // verif-592 passe 2 (N5) — `numeric` admet `5e5`, que bcmath refuse (500).
+            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],
-            'started_at' => ['sometimes', 'nullable', 'date'],
-            'completed_at' => ['sometimes', 'nullable', 'date'],
+            'started_at' => ['prohibited'],
+            'completed_at' => ['prohibited'],
             'resolution_notes' => ['sometimes', 'nullable', 'string'],
             'resolution_report' => ['prohibited'],
         ];

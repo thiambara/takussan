@@ -32,11 +32,15 @@ class SystemMessageFactory
 
     public const EVENT_RENAMED = 'renamed';
 
+    /** TCK-592 — une étape de l'intervention que porte la conversation (`maintenance_request_id`). */
+    public const EVENT_MAINTENANCE = 'maintenance';
+
     public const EVENTS = [
         self::EVENT_PARTICIPANT_ADDED,
         self::EVENT_PARTICIPANT_REMOVED,
         self::EVENT_ROLE_CHANGED,
         self::EVENT_RENAMED,
+        self::EVENT_MAINTENANCE,
     ];
 
     public function participantAdded(Conversation $conversation, User $actor, User $target): Message
@@ -83,6 +87,21 @@ class SystemMessageFactory
     }
 
     /**
+     * TCK-592 — l'avis d'étape du fil d'une intervention. Le CODE (`cause`, `status`) est la donnée ;
+     * le front rend le texte dans la langue du lecteur. `content` est la repli, en clé
+     * `maintenance.system.*` dans la langue par défaut.
+     *
+     * @param  array<string, mixed>  $metadata  `cause`, `status`, `from`, `provider_name`…
+     */
+    public function maintenance(Conversation $conversation, ?User $actor, array $metadata): Message
+    {
+        return $this->emit($conversation, self::EVENT_MAINTENANCE, array_merge([
+            'actor_id' => $actor?->id,
+            'actor_name' => $actor ? $this->displayName($actor) : null,
+        ], $metadata));
+    }
+
+    /**
      * @param  array<string, mixed>  $metadata
      */
     protected function emit(Conversation $conversation, string $event, array $metadata): Message
@@ -125,6 +144,9 @@ class SystemMessageFactory
                 $m['actor_name'] ?? '—',
                 $m['new_subject'] ?? '—',
             ),
+            self::EVENT_MAINTENANCE => in_array($m['cause'] ?? null, ['assigned', 'unassigned', 'accepted', 'declined'], true)
+                ? __('maintenance.system.'.$m['cause'], ['provider' => $m['provider_name'] ?? '—'])
+                : __('maintenance.system.status', ['status' => __('maintenance.status.'.($m['status'] ?? 'open'))]),
             default => $event,
         };
     }

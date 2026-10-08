@@ -15,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAuth } from '@/context/AuthContext';
 import { formatDate } from '@/lib/format';
+import { getPrimaryRole } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
 import {
   useMaintenanceRequests,
@@ -36,6 +38,10 @@ import {
 /**
  * Dashboard list view for maintenance requests. Server-side filtering is
  * enforced (CLAUDE.md rule #2 — never filter client-side on a fetched list).
+ *
+ * TCK-592 (P14, P17) — « Mes interventions » du prestataire : triée par créneau (côté serveur),
+ * avec le quartier et l'agence du bien. « Nouvelle demande » ne s'affiche que si l'API dit qu'elle
+ * mène quelque part (`meta.abilities.can_create`) : le prestataire prenait un 403 en la suivant.
  */
 export function MaintenanceList() {
   const locale = useLocale() as Locale;
@@ -43,6 +49,9 @@ export function MaintenanceList() {
   const tStatus = useTranslations('maintenance.status');
   const tPriority = useTranslations('maintenance.priority');
   const tCategory = useTranslations('maintenance.category');
+  const tIntervention = useTranslations('maintenance.intervention.list');
+  const { user } = useAuth();
+  const isProvider = user ? getPrimaryRole(user.roles) === 'service_provider' : false;
   const [status, setStatus] = useState<'' | MaintenanceStatus>('');
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
   // La liste annonçait « Page 1 / N » sans aucun moyen d'atteindre la page 2.
@@ -51,8 +60,9 @@ export function MaintenanceList() {
   const params = useMemo<MaintenanceListParams>(() => ({
     ...(status ? { status } : {}),
     ...(priority ? { priority } : {}),
+    ...(isProvider ? { sort: 'scheduled_at' } : {}),
     page,
-  }), [status, priority, page]);
+  }), [status, priority, page, isProvider]);
 
   const query = useMaintenanceRequests(params);
 
@@ -111,14 +121,16 @@ export function MaintenanceList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full sm:ml-auto sm:w-auto">
-          <Link
-            href="/app/maintenance/new"
-            className={buttonVariants({ variant: 'default', className: 'h-9 w-full sm:w-auto' })}
-          >
-            {t('new_request')}
-          </Link>
-        </div>
+        {query.data?.meta.abilities?.can_create ? (
+          <div className="w-full sm:ml-auto sm:w-auto">
+            <Link
+              href="/app/maintenance/new"
+              className={buttonVariants({ variant: 'default', className: 'h-9 w-full sm:w-auto' })}
+            >
+              {t('new_request')}
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <QueryBoundary query={query}>
@@ -130,9 +142,11 @@ export function MaintenanceList() {
                 title={t('empty_title')}
                 description={t('empty_description')}
                 action={
-                  <Link href="/app/maintenance/new" className={buttonVariants()}>
-                    {t('empty_cta')}
-                  </Link>
+                  data.meta.abilities?.can_create ? (
+                    <Link href="/app/maintenance/new" className={buttonVariants()}>
+                      {t('empty_cta')}
+                    </Link>
+                  ) : undefined
                 }
               />
             );
@@ -164,6 +178,19 @@ export function MaintenanceList() {
                             })}`
                           : null}
                       </p>
+                      {request.property ? (
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {[
+                            request.property.title,
+                            request.property.location?.quarter,
+                            request.property.agency?.name
+                              ? tIntervention('agency', { name: request.property.agency.name })
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <MaintenancePriorityBadge priority={request.priority} />

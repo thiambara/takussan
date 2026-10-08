@@ -497,6 +497,96 @@ return [
                 'body' => 'Ñu yónne na laaj ngir defar (:reference) ci :property.',
                 'sms' => 'Takussan : laaj ngir defar :reference (:property).',
             ],
+            'assigned' => [
+                'title' => 'Liggéey bu bees : :request',
+                'body' => 'Jox nañu la benn liggéey ci :property. Nangu ko walla bañ ko ci xëtam.',
+                'sms' => 'Takussan : Liggéey bu bees : :request',
+            ],
+            'unassigned' => [
+                'title' => 'Liggéey bi jële nañu ko : :request',
+                'body' => 'Liggéey bi « :request » jotatuloo ko.',
+                'sms' => 'Takussan : Liggéey bi jële nañu ko : :request',
+            ],
+            'accepted' => [
+                'title' => 'Liggéey bi nangu nañu ko : :request',
+                'body' => ':provider nangu na liggéey bi « :request ».',
+                'sms' => 'Takussan : Liggéey bi nangu nañu ko : :request',
+            ],
+            'declined' => [
+                'title' => 'Liggéey bi bañ nañu ko : :request',
+                'body' => ':provider bañ na liggéey bi « :request ». Lu tax : :reason',
+                'sms' => 'Takussan : Liggéey bi bañ nañu ko : :request',
+            ],
+            'completed' => [
+                'title' => 'Liggéey bi jeex na : :request',
+                'body' => 'Prestataire bi jeexal na liggéey bi « :request ». Ki laaj war na wóoral ne defar nañu ko.',
+                'sms' => 'Takussan : Liggéey bi jeex na : :request',
+            ],
+            'confirmed' => [
+                'title' => 'Defar bi wóor na : :request',
+                'body' => 'Ki laaj wóoral na defar bi : liggéey bi « :request » tëj nañu ko.',
+                'sms' => 'Takussan : Defar bi wóor na : :request',
+            ],
+            'contested' => [
+                'title' => 'Defar bi ñu ngi koy weddi : :request',
+                'body' => 'Jafe-jafe bi des na ci « :request ». Kàddu : :comment',
+                'sms' => 'Takussan : Defar bi ñu ngi koy weddi : :request',
+            ],
+            'auto_closed' => [
+                'title' => 'Liggéey bi tëj nañu ko : :request',
+                'body' => 'Ndax tontu amul ci :days fan, liggéey bi « :request » tëju na ci boppam.',
+                'sms' => 'Takussan : Liggéey bi tëj nañu ko : :request',
+            ],
+            'cancelled' => [
+                'title' => 'Liggéey bi neenal nañu ko : :request',
+                'body' => 'Liggéey bi « :request » neenal nañu ko.',
+                'sms' => 'Takussan : Liggéey bi neenal nañu ko : :request',
+            ],
+            'step_acknowledged' => [
+                'title' => 'Sa laaj « :request » : jot nañu ko',
+                'body' => 'Sa laaj liggéey léegi mungi : jot nañu ko.',
+                'sms' => 'Takussan : Sa laaj « :request » : jot nañu ko',
+            ],
+            'step_assigned' => [
+                'title' => 'Sa laaj « :request » : jox nañu ko ku koy def',
+                'body' => 'Sa laaj liggéey léegi mungi : jox nañu ko ku koy def.',
+                'sms' => 'Takussan : Sa laaj « :request » : jox nañu ko ku koy def',
+            ],
+            'step_in_progress' => [
+                'title' => 'Sa laaj « :request » : liggéey bi dafa ndeyi',
+                'body' => 'Sa laaj liggéey léegi mungi : liggéey bi dafa ndeyi.',
+                'sms' => 'Takussan : Sa laaj « :request » : liggéey bi dafa ndeyi',
+            ],
+            'step_completed' => [
+                'title' => 'Sa laaj « :request » : liggéey bi jeex na',
+                'body' => 'Sa laaj liggéey léegi mungi : liggéey bi jeex na.',
+                'sms' => 'Takussan : Sa laaj « :request » : liggéey bi jeex na',
+            ],
+            'step_closed' => [
+                'title' => 'Sa laaj « :request » : tëj nañu ko',
+                'body' => 'Sa laaj liggéey léegi mungi : tëj nañu ko.',
+                'sms' => 'Takussan : Sa laaj « :request » : tëj nañu ko',
+            ],
+            'step_cancelled' => [
+                'title' => 'Sa laaj « :request » : neenal nañu ko',
+                'body' => 'Sa laaj liggéey léegi mungi : neenal nañu ko.',
+                'sms' => 'Takussan : Sa laaj « :request » : neenal nañu ko',
+            ],
+            'step_acknowledged_scheduled' => [
+                'title' => 'Sa laaj « :request » : jot nañu ko',
+                'body' => 'Sa laaj liggéey léegi mungi : jot nañu ko. Prestataire bi dina ñëw ci :scheduled_at.',
+                'sms' => 'Takussan : Sa laaj « :request » : jot nañu ko',
+            ],
+            'step_assigned_scheduled' => [
+                'title' => 'Sa laaj « :request » : jox nañu ko ku koy def',
+                'body' => 'Sa laaj liggéey léegi mungi : jox nañu ko ku koy def. Prestataire bi dina ñëw ci :scheduled_at.',
+                'sms' => 'Takussan : Sa laaj « :request » : jox nañu ko ku koy def',
+            ],
+            'step_in_progress_scheduled' => [
+                'title' => 'Sa laaj « :request » : liggéey bi dafa ndeyi',
+                'body' => 'Sa laaj liggéey léegi mungi : liggéey bi dafa ndeyi. Prestataire bi dina ñëw ci :scheduled_at.',
+                'sms' => 'Takussan : Sa laaj « :request » : liggéey bi dafa ndeyi',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -516,8 +606,13 @@ return [
             ],
             'rejected' => [
                 'title' => 'Devis bi gàntu nañu ko : :request',
-                'body' => 'Sa devis ngir liggéey bi « :request » gàntu nañu ko.',
+                'body' => 'Sa devis ngir liggéey bi « :request » gàntu nañu ko. Lu tax : :reason',
                 'sms' => 'Takussan : devis ngir « :request » gàntu nañu ko.',
+            ],
+            'awaiting_owner' => [
+                'title' => 'Sa ndigal la ñuy xaar : :request',
+                'body' => 'Benn devis bu :amount ngir « :request » ëpp na plafond bi nga déggoo ak sa agence. Nangu ko walla bañ ko.',
+                'sms' => 'Takussan : Sa ndigal la ñuy xaar : :request',
             ],
         ],
         'prospect_match' => [

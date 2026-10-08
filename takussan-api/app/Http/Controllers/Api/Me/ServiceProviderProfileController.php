@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\ShowServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateAvailabilityServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
@@ -110,6 +111,28 @@ class ServiceProviderProfileController extends Controller
     }
 
     /**
+     * GET /api/me/profiles/{sp_profile}
+     *
+     * TCK-592 (P16) — ce que la section prestataire du profil édite : métiers, zones, tarifs,
+     * disponibilités. `metadata.availability` n'avait aucun lecteur.
+     */
+    public function show(ShowServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
+    {
+        $metadata = $sp_profile->metadata ?? [];
+
+        return $this->json([
+            'data' => [
+                'id' => $sp_profile->id,
+                'trades' => $sp_profile->specialties ?? [],
+                'intervention_zones' => $sp_profile->service_areas ?? [],
+                'hourly_rate' => $sp_profile->hourly_rate_min,
+                'visit_fee' => $metadata['visit_fee'] ?? null,
+                'available_slots' => $metadata['availability'] ?? [],
+            ],
+        ]);
+    }
+
+    /**
      * PATCH /api/me/profiles/{sp_profile}/trades
      *
      * Body : `{trades: string[], intervention_zones: string[], hourly_rate, visit_fee}`.
@@ -119,8 +142,15 @@ class ServiceProviderProfileController extends Controller
 
         $validated = $request->validated();
 
-        $trades = $this->normaliseStringList($validated['trades'] ?? []);
-        $zones = $this->normaliseStringList($validated['intervention_zones'] ?? []);
+        // TCK-592 (P16) — la section du profil édite un réglage à la fois : une clé ABSENTE garde la
+        // valeur en base. Elle était lue comme une liste vide, et effaçait les métiers à chaque
+        // édition des zones.
+        $trades = array_key_exists('trades', $validated)
+            ? $this->normaliseStringList($validated['trades'] ?? [])
+            : ($sp_profile->specialties ?? []);
+        $zones = array_key_exists('intervention_zones', $validated)
+            ? $this->normaliseStringList($validated['intervention_zones'] ?? [])
+            : ($sp_profile->service_areas ?? []);
 
         $metadata = $sp_profile->metadata ?? [];
         if (array_key_exists('visit_fee', $validated)) {

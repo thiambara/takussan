@@ -28,7 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('conversations/{conversation}/mute', [ConversationController::class, 'toggleMute'])->name('conversations.mute');
 
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'messages'])->name('conversations.messages.index');
-    Route::post('conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])->name('conversations.messages.store');
+    // TCK-592 — limiteur nommé par utilisateur (verif-592, mineur 9).
+    Route::post('conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])
+        ->middleware('throttle:conversation-message')
+        ->name('conversations.messages.store');
     Route::put('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
     Route::put('conversations/{conversation}/archive', [ConversationController::class, 'archive'])->name('conversations.archive');
     Route::put('conversations/{conversation}/unarchive', [ConversationController::class, 'unarchive'])->name('conversations.unarchive');

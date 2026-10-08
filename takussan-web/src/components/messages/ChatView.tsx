@@ -31,6 +31,7 @@ import { SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { MessageDateSeparator } from './MessageDateSeparator';
 import { ChatComposerShell } from './ChatComposerShell';
+import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
@@ -431,6 +432,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         sendDisabled={sendMessage.isPending || uploading}
         sendAriaLabel={t('chat.sendAria')}
         leading={
+          <>
           <label
             htmlFor="chat-file"
             className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-ring sm:size-9"
@@ -446,6 +448,9 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
               onChange={handleFilePicked}
             />
           </label>
+          {/* TCK-592 (ADR-0038) — la note vocale, à côté de la pièce jointe. */}
+          <VoiceNoteRecorder conversationId={conversationId} />
+          </>
         }
       >
         <Textarea
@@ -489,8 +494,12 @@ function MessageBubble({
             {message.sender.full_name}
           </p>
         )}
-        <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
-        {message.attachments && message.attachments.length > 0 && (
+        {message.type === 'audio' && message.attachments?.[0] ? (
+          <VoiceNotePlayer message={message} />
+        ) : (
+          <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
+        )}
+        {message.type !== 'audio' && message.attachments && message.attachments.length > 0 && (
           <ul className="mt-2 space-y-1">
             {message.attachments.map((a) => (
               <li key={a.id}>
@@ -520,5 +529,21 @@ function MessageBubble({
         </p>
       </div>
     </li>
+  );
+}
+
+/** TCK-592 (ADR-0038) — une note vocale : le lecteur, et la durée déclarée par l'émetteur. */
+function VoiceNotePlayer({ message }: { message: Message }) {
+  const t = useTranslations('messaging.voiceNote');
+  const attachment = message.attachments[0];
+  const duration = message.metadata?.duration;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <audio src={attachment.url} controls preload="none" className="h-9 w-56 max-w-full" aria-label={t('label')} />
+      {duration ? (
+        <span className="text-[11px] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
+      ) : null}
+    </div>
   );
 }
