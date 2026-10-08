@@ -23,11 +23,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * TCK-088 — Caution refund at lease end.
  *
- * Single-shot operation: a lease's deposit is refunded once (totally or
- * partially). Any retained portion is captured via `reason` + (optionally)
- * an Invoice line item; the cash actually returned to the tenant flows
- * through a `Payout` outflow. Once `deposit_refunded_at` is set and
- * `deposit_remaining` is zero, the operation is locked (idempotency).
+ * Single-shot operation: a lease's deposit is settled once — refunded in full,
+ * or refunded in part with the rest retained. The retained portion is captured
+ * via `reason` + a retention Invoice; the cash actually returned to the tenant
+ * flows through a `Payout` outflow. `deposit_remaining` deducts both what was
+ * refunded and the live retention (VERIF-594 passe 4, P4-1/P4-2), so a partial
+ * refund leaves nothing to refund: a second refund is refused
+ * (`deposit_refund.already_refunded`). It reopens only when a refund is refused
+ * or fails (its retention invoice falls with it) or when the agency cancels the
+ * retention invoice itself — then what is refundable is exactly that amount.
  *
  * The legacy `deposit_refund` LeasePayment row created by the previous
  * implementation is preserved to keep TCK-027 receipts/journal coherent.
@@ -229,8 +233,11 @@ class DepositRefundService
         $refunded = (float) ($lease->deposit_refunded_amount ?? 0);
         $remaining = (float) $lease->deposit_remaining;
 
+        // VERIF-594 passe 4 — `full` dit que toute la caution est rendue, `partial` qu'une part l'est
+        // (le reste retenu) : une restitution partielle solde la caution (`deposit_remaining` à 0)
+        // sans être pour autant intégrale.
         $state = 'none';
-        if ($refunded > 0 && $remaining <= 0.001) {
+        if ($refunded > 0 && $refunded + 0.001 >= $deposit) {
             $state = 'full';
         } elseif ($refunded > 0) {
             $state = 'partial';

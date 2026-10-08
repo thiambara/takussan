@@ -601,7 +601,8 @@ class PayoutBypassTest extends TestCase
     /**
      * VERIF-594 passe 2, N-2 — le même défaut sur l'échec du virement, sans seuil ; et un reversement
      * échoué PUIS annulé ne rend pas la caution deux fois. Une restitution partielle garde le reste
-     * exact.
+     * exact. (Passe 4 : la retenue de la première est annulée par l'agence, sans quoi la caution est
+     * soldée et la seconde restitution refusée — P4-2.)
      */
     public function test_n2_a_failed_deposit_refund_is_released_once(): void
     {
@@ -611,7 +612,9 @@ class PayoutBypassTest extends TestCase
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
         $this->actingWithStepUp($this->agencyAdmin($agency));
 
-        $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated()->json('data.payout_id');
+        $partial = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated();
+        $first = $partial->json('data.payout_id');
+        $this->postJson("/api/invoices/{$partial->json('data.invoice_id')}/cancel")->assertOk();
         $second = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000])->assertCreated()->json('data.payout_id');
         $this->postJson("/api/payouts/{$second}/mark-failed", ['failed_reason' => 'numéro erroné'])->assertOk();
         $this->postJson("/api/payouts/{$second}/cancel")->assertOk();
@@ -780,7 +783,8 @@ class PayoutBypassTest extends TestCase
     /**
      * VERIF-594 passe 3, P3-2 — la ligne `deposit_refund` d'une restitution se retrouve par son lien,
      * jamais par son montant : deux restitutions de 100 000, on annule la première, c'est SA ligne qui
-     * échoue ; la seconde payée, sa ligne passe `paid`.
+     * échoue ; la seconde payée, sa ligne passe `paid`. (Passe 4 : la retenue de la première est
+     * annulée par l'agence, sans quoi la caution est soldée — P4-2.)
      */
     public function test_p3_2_the_deposit_refund_line_is_found_by_its_link(): void
     {
@@ -789,6 +793,7 @@ class PayoutBypassTest extends TestCase
         $this->actingWithStepUp($admin);
 
         $p1 = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'x'])->assertCreated();
+        $this->postJson("/api/invoices/{$p1->json('data.invoice_id')}/cancel")->assertOk();
         $p2 = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'x'])->assertCreated();
 
         $this->postJson("/api/payouts/{$p1->json('data.payout_id')}/cancel")->assertOk();
@@ -830,5 +835,107 @@ class PayoutBypassTest extends TestCase
 
         $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $byThird->id])->assertOk()
             ->assertJsonPath('data.payout_method_id', $byThird->id);
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-1 — la facture de retenue PAYÉE survit à l'échec de la restitution : elle
+     * est déduite du restituable. La restitution suivante rend ce qui reste, sans seconde facture.
+     */
+    public function test_p4_1_a_paid_retention_is_deducted_from_what_is_refunded_next(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+
+        $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $invoiceId = $first->json('data.invoice_id');
+        $this->postJson("/api/invoices/{$invoiceId}/send")->assertOk();
+        $this->postJson("/api/invoices/{$invoiceId}/mark-paid", ['payment_method' => 'cash'])->assertOk();
+        $this->postJson("/api/payouts/{$first->json('data.payout_id')}/mark-failed", ['failed_reason' => 'numéro erroné'])->assertOk();
+        $this->assertSame(InvoiceStatus::Paid, Invoice::query()->findOrFail($invoiceId)->status);
+
+        $this->assertEquals(300000, $this->getJson("/api/leases/{$lease->id}/deposit-refund")->json('data.deposit_remaining'));
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])
+            ->assertUnprocessable()->assertJsonPath('code', 'deposit_refund.exceeds_remaining');
+
+        $second = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000])->assertCreated();
+        $this->assertNull($second->json('data.invoice_id'));
+        $this->assertSame([$invoiceId], $this->liveRetentionInvoices($lease)->pluck('id')->all(), 'une seule facture de retenue vivante');
+        $this->assertSame([300000, 100000], $this->depositLedger($lease));
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-2 — une restitution partielle retient le reste : la caution est soldée. Une
+     * seconde restitution partielle ne facture pas une retenue de plus, qui dépasserait la caution.
+     */
+    public function test_p4_2_a_partial_refund_retains_the_rest_and_closes_the_deposit(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated()
+            ->assertJsonPath('data.state.state', 'partial');
+        $this->assertEquals(0, $this->getJson("/api/leases/{$lease->id}/deposit-refund")->json('data.deposit_remaining'));
+
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 200_000, 'reason' => 'clés'])
+            ->assertUnprocessable()->assertJsonPath('code', 'deposit_refund.already_refunded');
+        $this->assertSame([100000, 300000], $this->depositLedger($lease));
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-2 — refuser la première restitution rend toute la caution restituable, et
+     * la restitution du reste tombe juste : ce qui sort plus ce qui est retenu vaut la caution.
+     */
+    public function test_p4_2_refusing_the_first_refund_then_refunding_the_rest_matches_the_deposit(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+
+        $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated();
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 200_000, 'reason' => 'clés']);
+        $this->postJson("/api/payouts/{$first->json('data.payout_id')}/cancel")->assertOk();
+
+        $rest = $this->getJson("/api/leases/{$lease->id}/deposit-refund")->json('data.deposit_remaining');
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => $rest])->assertCreated();
+
+        [$out, $retained] = $this->depositLedger($lease);
+        $this->assertSame(400000, $out + $retained, 'sorti + retenu = la caution');
+        $this->assertEquals(0, $lease->fresh()->deposit_remaining);
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-1/P4-2 — seule la retenue posée par une restitution se déduit : une autre
+     * facture du bail (un loyer facturé, par exemple) ne réduit pas la caution à rendre.
+     */
+    public function test_p4_2_only_the_retention_invoices_are_deducted(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        Invoice::factory()->sent()->create([
+            'invoiceable_type' => Lease::class, 'invoiceable_id' => $lease->id, 'agency_id' => $lease->agency_id,
+            'subtotal' => 50_000, 'total_amount' => 50_000,
+        ]);
+        $this->actingWithStepUp($admin);
+
+        $this->assertEquals(400000, $this->getJson("/api/leases/{$lease->id}/deposit-refund")->json('data.deposit_remaining'));
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $this->assertEquals(0, $lease->fresh()->deposit_remaining);
+        $this->assertEquals(100000, $lease->fresh()->liveDepositRetention());
+    }
+
+    /**
+     * Le grand livre d'une caution : ce qui sort vers le locataire (restitutions ni refusées ni
+     * échouées), et ce qui est retenu (factures de retenue vivantes).
+     *
+     * @return array{0: int, 1: int}
+     */
+    private function depositLedger(Lease $lease): array
+    {
+        $out = Payout::query()->where('lease_id', $lease->id)->where('payee_role', 'tenant')
+            ->whereNotIn('status', [PayoutStatus::Cancelled->value, PayoutStatus::Failed->value])->sum('net_amount');
+
+        return [(int) $out, (int) $this->liveRetentionInvoices($lease)->sum(fn (Invoice $i) => (float) $i->total_amount)];
     }
 }

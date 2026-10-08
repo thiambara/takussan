@@ -134,7 +134,21 @@ deux agences ne font pas deux personnes.
   une seconde, et la retenue se facturait deux fois) : la restitution porte `metadata.invoice_id` et
   `metadata.lease_payment_id`, et le refus ou l'échec annule la facture par le chemin de toute facture
   (`InvoiceService::cancel`) — un brouillon s'annule, une facture émise se contrepasse par un avoir ;
-  payée, elle reste. **La ligne `deposit_refund` se retrouve par ce lien, jamais par son montant**
+  payée, elle reste. **La retenue vivante est déduite du restituable** (VERIF-594 passe 4, P4-1 et
+  P4-2) : `deposit_remaining` vaut `deposit_amount − deposit_refunded_amount −` la somme des factures
+  de retenue vivantes du bail — liées par le `metadata.invoice_id` d'une restitution, de type
+  `invoice`, `draft`, `sent`, `overdue` ou `paid` (`Lease::liveDepositRetention`), jamais une autre
+  facture du bail. `refund`, `GET deposit-refund` et l'écran lisent cette seule valeur. Une
+  restitution partielle retient le reste et **solde la caution** : une seconde restitution est
+  refusée (`deposit_refund.already_refunded`) — elle facturait une retenue de plus, jusqu'à dépasser la
+  caution. Une retenue **payée** survit à l'échec de sa restitution, et la suivante rend la caution
+  moins cette retenue, sans seconde facture. La caution ne se rouvre que si la restitution est
+  refusée ou échoue (sa facture tombe), ou si l'agence annule elle-même la facture de retenue — elle
+  renonce à retenir, et ce montant redevient restituable. `state` dit `full` quand toute la caution
+  est rendue, `partial` quand une part l'est ; le bouton de l'écran suit `deposit_remaining`, jamais
+  l'état. La restitution lit la retenue sous le verrou du bail, que le refus et l'échec prennent
+  aussi avant de toucher la facture ; une annulation à la main concurrente ne peut qu'agrandir le
+  restituable après coup. **La ligne `deposit_refund` se retrouve par ce lien, jamais par son montant**
   (VERIF-594 passe 3, P3-2) : elle passe `failed` au refus ou à l'échec, `paid` (avec `paid_at`) au
   paiement ; payée, elle reste une sortie, et la clôture plateforme (`PlatformPayoutService`) ne la
   compte pas parmi les encaissements reversés à l'agence. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
