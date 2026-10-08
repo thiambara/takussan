@@ -219,6 +219,8 @@ return [
     ],
     'lease_payment' => [
         'cannot_mark_paid' => 'Échéance buy xaar walla bu yéex rekk lañu mën a màndargaal ni lu ñu fay.',
+        'late_fee_not_due' => 'Amul penalité bu des ci fey bii.',
+        'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
     ],
     'mail' => [
         'invitation_not_sent' => 'E-mail invitation bi mënuñu ko yónni.',
@@ -255,6 +257,7 @@ return [
         'amount_not_positive' => 'Xaalis bi ñuy fay war na ëpp tus.',
         'amount_short' => 'Xaalis bi ñu jot moo gën a tuuti xaalis bi ñu xaaroon.',
         'amount_unresolved' => 'Xaalis bi ñuy fay, mënuñu ko xam.',
+        'checkout_in_progress' => 'Fey ci internet mungi dox ci bii échéance : jéemaatal ci ay simili.',
         'currency_unsupported' => 'Prestataire :provider nanguwul xaalisu :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy nanguwul XOF : jëfandikoo Wave walla Orange Money ngir fey ci XOF.',
         'filter_entity_invalid' => 'Filtre xeetu mbir bi baaxul.',
@@ -262,6 +265,7 @@ return [
         'integration_agency_missing' => 'Intégration fay bi méngoowul ak benn agence.',
         'integration_credential_missing' => 'Intégration fay bi matul: benn identifiant amul.',
         'integration_missing' => 'Amul benn intégration fay buy dox ci prestataire bii.',
+        'not_payable' => 'Fey bii mënatul a fey ci internet : fey nañ ko ba noppi, delloo nañ ko, walla amul dara lu ñu war a fey.',
         'paid_amount_invalid' => 'Xaalis bi ñu fay mënul a nekk ci suufu tus.',
         'provider_failed' => 'Prestataire fay :provider mënul def laaj bi.',
         'provider_invalid_response' => 'Prestataire fay bi delloo na tontu bu baaxul.',

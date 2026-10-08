@@ -37,6 +37,10 @@ enum NotificationCode: string
     case LeasePaymentRecorded = 'lease_payment.recorded';
     case LeasePaymentReceivedLandlord = 'lease_payment.received_landlord';
 
+    // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
+    case PaymentDuplicate = 'payment.duplicate';
+    case PaymentDuplicateLateFee = 'payment.duplicate_late_fee';
+
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
 
@@ -113,7 +117,8 @@ enum NotificationCode: string
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
-            self::LeasePaymentReceivedLandlord => NotificationType::Payment,
+            self::LeasePaymentReceivedLandlord, self::PaymentDuplicate,
+            self::PaymentDuplicateLateFee => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder => NotificationType::Visit,
@@ -158,7 +163,9 @@ enum NotificationCode: string
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
-            self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted => null,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
+            // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
+            self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
         };
     }
 
@@ -177,6 +184,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest => ['count' => self::PARAM_COUNT, 'total' => self::PARAM_MONEY],
             self::LeasePaymentRecorded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::LeasePaymentReceivedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_TEXT],
+            self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],

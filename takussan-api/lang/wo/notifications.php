@@ -91,6 +91,9 @@ return [
         'greeting' => 'Salaam,',
         'intro' => 'Penalité di yengul bu :amount, ñu ko teg ci paye :reference.',
         'details' => 'Ñu ko jeem ci :percent % bi des ci montant bi (:base).',
+        // TCK-593 — ce que dit la notification est ce que dit l'écran (`late_fee_payable_online`).
+        'pay_online' => 'Dinañu ko yokk ci xaalis bi ngay fey ci internet.',
+        'pay_at_agency' => 'Ci sa ajaans nga koy fey ; duñu ko laaj bu ngay fey ci internet.',
     ],
 
     'account_deletion_requested' => [
@@ -284,6 +287,19 @@ return [
                 'title' => 'Pey kër bi agsi na : :property',
                 'body' => ':tenant fey na :amount ngir :property.',
                 'sms' => 'Takussan : :tenant fey na :amount (:property).',
+            ],
+        ],
+        // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
+        'payment' => [
+            'duplicate' => [
+                'title' => 'Fey bi ñu ko jot ñaari yoon',
+                'body' => 'Fey ci internet bu :amount agsi na ngir :reference, te fey nañu ko ba noppi. Delloo ko ki fey walla jox ko beneen.',
+                'sms' => 'Takussan : fey bu :amount agsi na ñaari yoon ngir :reference. Delloo ko walla jox ko beneen.',
+            ],
+            'duplicate_late_fee' => [
+                'title' => 'Pénalité bi ñu ko jot ñaari yoon',
+                'body' => 'Pénalité bu :amount ngir :reference, bu ñu fey ba noppi ci agence bi, ñu jot na ko itam ci internet. Delloo ko ki fey walla jox ko beneen.',
+                'sms' => 'Takussan : pénalité bu :amount agsi na ñaari yoon ngir :reference. Delloo ko walla jox ko beneen.',
             ],
         ],
         'booking' => [

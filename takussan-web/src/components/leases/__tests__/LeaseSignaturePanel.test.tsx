@@ -108,7 +108,7 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
   it('le gestionnaire fige un brouillon : seule la demande et la voie papier sont offertes', async () => {
     rendre(bail({ status: 'draft', contract_sha256: null, can_request_signature: true }));
 
-    expect(screen.queryByRole('link', { name: 'Lire le contrat à signer' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lire le contrat à signer' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Recevoir mon code' })).not.toBeInTheDocument();
 
     await act(async () => {
@@ -120,10 +120,9 @@ describe('LeaseSignaturePanel (TCK-596 §4B)', () => {
   it('le locataire lit le contrat figé, reçoit son code et signe pour son seul rôle', async () => {
     rendre(bail({ can_sign_as: ['tenant'] }));
 
-    expect(screen.getByRole('link', { name: 'Lire le contrat à signer' })).toHaveAttribute(
-      'href',
-      '/api/leases/1/contract/pdf',
-    );
+    // Un bouton de téléchargement authentifié (TCK-593), jamais un lien nu vers `/api`.
+    expect(screen.getByRole('button', { name: 'Lire le contrat à signer' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Lire le contrat à signer' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Demander la signature' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)')).not.toBeInTheDocument();
     // Un seul bouton : celui du rôle locataire.

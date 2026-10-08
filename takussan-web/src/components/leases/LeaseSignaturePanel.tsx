@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
@@ -80,14 +81,13 @@ export function LeaseSignaturePanel({ lease }: LeaseSignaturePanelProps) {
           </p>
         </div>
         {frozen && (
-          <a
-            href={`/api/leases/${lease.id}/contract/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ variant: 'outline' })}
+          // TCK-593 — un document protégé ne s'ouvre pas par un lien nu : le jeton n'y voyage pas.
+          <BoutonTelechargement
+            chemin={`/api/leases/${lease.id}/contract/pdf`}
+            nomFichier={`bail-${lease.reference_number ?? lease.id}-a-signer.pdf`}
           >
             {t('readContract')}
-          </a>
+          </BoutonTelechargement>
         )}
       </header>
 

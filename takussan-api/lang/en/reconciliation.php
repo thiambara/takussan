@@ -18,6 +18,10 @@ return [
         'cross_agency' => 'The target payment does not belong to this agency.',
         'already_reconciled' => 'This payment is already reconciled to another line.',
         'statement_closed' => 'This statement is finalized, no modification allowed.',
+        'direction_mismatch' => 'A credit is reconciled with a collection, a debit with a payout.',
+        'csv_column' => 'A column is designated by its header name or by its position.',
+        'payout_not_completed' => 'Only a completed payout can be reconciled with a debit.',
+        'file_not_utf8' => 'The file is not UTF-8 encoded: export it again as UTF-8 from your bank or spreadsheet.',
     ],
 
     'status' => [
@@ -26,6 +30,7 @@ return [
         'partially_reconciled' => 'Partially reconciled',
         'reconciled' => 'Reconciled',
         'archived' => 'Archived',
+        'failed' => 'Analysis failed',
     ],
 
     'line_status' => [

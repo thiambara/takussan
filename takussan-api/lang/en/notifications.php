@@ -104,6 +104,9 @@ return [
         'greeting' => 'Hello,',
         'intro' => 'A late fee of :amount has been applied to payment :reference.',
         'details' => 'Computed at :percent% of the remaining balance (:base).',
+        // TCK-593 — ce que dit la notification est ce que dit l'écran (`late_fee_payable_online`).
+        'pay_online' => 'It will be added to the amount of your online payment.',
+        'pay_at_agency' => 'It is to be settled with your agency; it will not be requested with the online payment.',
     ],
 
     'account_deletion_requested' => [
@@ -299,6 +302,19 @@ return [
                 'title' => 'Rent received: :property',
                 'body' => ':tenant paid :amount for :property.',
                 'sms' => 'Takussan: :tenant paid :amount (:property).',
+            ],
+        ],
+        // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
+        'payment' => [
+            'duplicate' => [
+                'title' => 'Payment collected twice',
+                'body' => 'An online payment of :amount was received for :reference, which was already settled. Refund the payer or allocate the amount.',
+                'sms' => 'Takussan: payment of :amount received twice for :reference. Refund or allocate it.',
+            ],
+            'duplicate_late_fee' => [
+                'title' => 'Late fee collected twice',
+                'body' => 'The late fee of :amount for :reference, already settled at the agency, was also collected online. Refund the payer or allocate the amount.',
+                'sms' => 'Takussan: late fee of :amount collected twice for :reference. Refund or allocate it.',
             ],
         ],
         'booking' => [

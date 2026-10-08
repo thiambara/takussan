@@ -4,8 +4,11 @@ namespace App\Services\Accounting;
 
 use App\Models\Agency;
 use App\Models\BookingPayment;
+use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use Illuminate\Support\Collection;
 
 class PaymentSearchService
@@ -14,20 +17,30 @@ class PaymentSearchService
         BookingPayment::class => 'booking_payment',
         LeasePayment::class => 'lease_payment',
         Invoice::class => 'invoice',
+        Payout::class => 'payout',
     ];
 
     /**
      * Search non-reconciled payments matching query + optional amount hint.
      *
+     * TCK-593 — `direction` est celle de la ligne à rapprocher : un débit ne cherche que les
+     * reversements, un crédit que les encaissements. Sans direction, les deux.
+     *
      * @return Collection<int, MatchCandidate>
      */
-    public function search(Agency $agency, string $query, ?float $amountHint, int $limit = 20): Collection
+    public function search(Agency $agency, string $query, ?float $amountHint, int $limit = 20, ?BankStatementLineDirection $direction = null): Collection
     {
         $candidates = collect();
 
-        $candidates = $candidates->merge($this->searchBookingPayments($agency, $query, $amountHint));
-        $candidates = $candidates->merge($this->searchLeasePayments($agency, $query, $amountHint));
-        $candidates = $candidates->merge($this->searchInvoices($agency, $query, $amountHint));
+        if ($direction !== BankStatementLineDirection::Debit) {
+            $candidates = $candidates->merge($this->searchBookingPayments($agency, $query, $amountHint));
+            $candidates = $candidates->merge($this->searchLeasePayments($agency, $query, $amountHint));
+            $candidates = $candidates->merge($this->searchInvoices($agency, $query, $amountHint));
+        }
+
+        if ($direction !== BankStatementLineDirection::Credit) {
+            $candidates = $candidates->merge($this->searchPayouts($agency, $query, $amountHint));
+        }
 
         // Sort by relevance (amount match first, then date proximity)
         if ($amountHint !== null) {
@@ -106,6 +119,37 @@ class PaymentSearchService
             reference: $p->reference_number,
             paidAt: $p->issue_date?->toDateString(),
             payerName: $p->customer?->full_name,
+        ));
+    }
+
+    /** @return Collection<int, MatchCandidate> */
+    private function searchPayouts(Agency $agency, string $query, ?float $amountHint): Collection
+    {
+        $base = Payout::query()
+            ->whereNull('bank_reconciled_at')
+            ->where('status', PayoutStatus::Completed)
+            ->where('agency_id', $agency->id);
+
+        if ($query !== '') {
+            $base->where(function ($q) use ($query) {
+                $q->where('reference_number', 'like', "%{$query}%")
+                    ->orWhere('notes', 'like', "%{$query}%");
+            });
+        }
+
+        if ($amountHint !== null) {
+            $base->whereRaw('ABS(net_amount - ?) < 1', [$amountHint]);
+        }
+
+        return $base->with('landlord')->limit(10)->get()->map(fn (Payout $p) => new MatchCandidate(
+            id: $p->id,
+            type: 'payout',
+            label: "Payout {$p->reference_number}",
+            amount: (string) $p->net_amount,
+            currency: $p->currency instanceof \BackedEnum ? $p->currency->value : (string) $p->currency,
+            reference: $p->reference_number,
+            paidAt: $p->processed_at?->toDateString(),
+            payerName: $p->landlord?->full_name,
         ));
     }
 

@@ -15,7 +15,7 @@ class MatchBankStatementLineRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_type' => ['required', Rule::in(['booking_payment', 'lease_payment', 'invoice'])],
+            'payment_type' => ['required', Rule::in(['booking_payment', 'lease_payment', 'invoice', 'payout'])],
             'payment_id' => ['required', 'integer'],
         ];
     }

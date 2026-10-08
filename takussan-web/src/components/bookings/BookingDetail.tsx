@@ -39,6 +39,7 @@ import {
 import { BookingPaymentDialog } from './BookingPaymentDialog';
 import { BookingRefundPanel } from './BookingRefundPanel';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
+import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
@@ -362,12 +363,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                     />
                   )}
                   {p.status === 'paid' && (
-                    <a
-                      href={`/api/booking-payments/${p.id}/receipt`}
-                      className="inline-flex min-h-10 items-center text-xs font-medium text-primary underline-offset-4 hover:underline sm:min-h-0"
+                    <BoutonTelechargement
+                      chemin={`/api/booking-payments/${p.id}/receipt`}
+                      nomFichier={`recu-acompte-${p.id}.pdf`}
+                      variant="link"
+                      size="sm"
                     >
                       {t('receipt')}
-                    </a>
+                    </BoutonTelechargement>
                   )}
                 </span>
               </li>

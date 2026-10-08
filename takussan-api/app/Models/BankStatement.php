@@ -22,6 +22,7 @@ class BankStatement extends AbstractModel implements HasMedia
         'bank_name', 'account_iban_masked',
         'period_start', 'period_end', 'lines_count',
         'status', 'finalized_at', 'finalized_by',
+        'csv_mapping', 'skipped_lines_count',
     ];
 
     protected $casts = [
@@ -30,6 +31,8 @@ class BankStatement extends AbstractModel implements HasMedia
         'period_start' => 'date',
         'period_end' => 'date',
         'finalized_at' => 'datetime',
+        'csv_mapping' => 'array',
+        'skipped_lines_count' => 'integer',
     ];
 
     protected static array $requestFilterable = ['status', 'source_format', 'agency_id'];
@@ -38,7 +41,7 @@ class BankStatement extends AbstractModel implements HasMedia
 
     protected static array $queryFields = [
         'id', 'agency_id', 'source_format', 'status', 'bank_name', 'account_iban_masked',
-        'period_start', 'period_end', 'lines_count', 'finalized_at', 'created_at', 'updated_at',
+        'period_start', 'period_end', 'lines_count', 'skipped_lines_count', 'finalized_at', 'created_at', 'updated_at',
     ];
 
     protected static array $requestLoadable = ['uploadedBy', 'finalizedBy', 'agency'];

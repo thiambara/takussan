@@ -40,15 +40,23 @@ class OfxDriver implements StatementParserInterface
 
             try {
                 $parsed = $this->parseBlock($block, $defaultCurrency);
-
-                if ($parsed !== null) {
-                    yield $parsed;
-                }
             } catch (\Throwable $e) {
-                Log::warning("OfxDriver: skipping transaction #{$lineNumber}", [
-                    'error' => $e->getMessage(),
+                // TCK-593 — même règle que `CsvDriver` : aucune valeur du relevé dans le journal (le
+                // message de « Invalid OFX date » recopiait la date), et la transaction est comptée.
+                Log::warning('bank_statement_line_skipped', [
+                    'line' => $lineNumber,
+                    'exception' => $e::class,
                 ]);
+                $parsed = null;
             }
+
+            if ($parsed === null) {
+                $context->tally->skip();
+
+                continue;
+            }
+
+            yield $parsed;
         }
     }
 

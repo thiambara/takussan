@@ -59,6 +59,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('leases/{lease}/payments', [LeasePaymentController::class, 'store'])->name('leases.payments.store');
     Route::post('lease-payments/{payment}/mark-paid', [LeasePaymentController::class, 'markPaid'])
         ->name('lease-payments.mark-paid');
+    // TCK-593 — la pénalité de retard réglée à l'agence (le loyer garde son statut).
+    Route::post('lease-payments/{payment}/late-fee/mark-paid', [LeasePaymentController::class, 'markLateFeePaid'])
+        ->name('lease-payments.late-fee.mark-paid');
 
     // Nested guarantors (many-to-many, max 3 per lease)
     Route::get('leases/{lease}/guarantors', [LeaseController::class, 'listGuarantors'])->name('leases.guarantors.index');

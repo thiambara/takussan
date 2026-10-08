@@ -65,6 +65,10 @@ class DateInventoryByValueTest extends TestCase
             .'jamais une date.',
         'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
             .'(TCK-596) : un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\LeaseResource::can_request_signature' => '`when()` sur un lecteur posé par `forViewer()`, '
+            .'que seuls `LeaseController::show` et `LeaseSignatureController` appellent (TCK-596 §4B) : un booléen, jamais une date.',
+        'App\Http\Resources\LeaseResource::can_sign_as' => '`when()` sur le même lecteur (TCK-596 §4B) : une liste de rôles '
+            .'(`tenant`, `landlord`), jamais une date.',
         'App\Http\Resources\LeaseResource::renewals_count' => "`whenCounted('renewals')` — même forme, même absence de date.",
     ];
 

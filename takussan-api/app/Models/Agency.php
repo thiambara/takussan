@@ -69,6 +69,18 @@ class Agency extends AbstractModel implements HasMedia
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
     ];
 
+    /**
+     * TCK-593 — l'agence encaisse-t-elle la pénalité de retard avec le paiement en ligne ?
+     *
+     * Interrupteur de comportement porté par `settings` (même motif que `watermark_enabled` ou
+     * `tenant_onboarding_enabled`). **Absent = `false`** : une agence neuve ne l'a pas, et la
+     * pénalité se règle alors auprès d'elle, jamais dans le checkout.
+     */
+    public function collectsLateFeesOnline(): bool
+    {
+        return (bool) data_get($this->settings, 'late_fee_online_collection', false);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (self $m) {

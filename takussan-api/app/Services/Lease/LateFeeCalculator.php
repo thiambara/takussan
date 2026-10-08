@@ -3,6 +3,7 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeasePaymentLateFeeApplied;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -50,9 +51,18 @@ class LateFeeCalculator
             return 0.0;
         }
 
-        $fee = round($base * $percent / 100, 2);
+        // TCK-593 — arrondie à l'UNITÉ de la devise, au plus proche, la moitié vers le haut : une
+        // devise sans sous-unité (XOF) se compte en unités entières. Une pénalité de 7 500,05
+        // était transmise au fournisseur, qui encaissait 7 500, puis le webhook était refusé pour
+        // sous-paiement — le locataire, débité, voyait encore « Payer ».
+        $fee = round($base * $percent / 100, $this->decimalPlaces($payment), PHP_ROUND_HALF_UP);
 
         return $this->applyCap($payment, $fee);
+    }
+
+    protected function decimalPlaces(LeasePayment $payment): int
+    {
+        return Currency::decimalPlacesOf($payment->currency ?? $payment->lease?->currency);
     }
 
     /**
@@ -170,7 +180,7 @@ class LateFeeCalculator
             return $fee;
         }
 
-        $ceiling = round(((float) $payment->amount) * $cap / 100, 2);
+        $ceiling = round(((float) $payment->amount) * $cap / 100, $this->decimalPlaces($payment), PHP_ROUND_HALF_UP);
 
         return min($fee, $ceiling);
     }
