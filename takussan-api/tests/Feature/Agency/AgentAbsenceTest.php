@@ -157,6 +157,28 @@ class AgentAbsenceTest extends ApiTestCase
         );
     }
 
+    /**
+     * verif-591 m3 — le motif d'une absence (une donnée de santé, souvent) ne va qu'à l'absent, à
+     * l'auteur de la déclaration et au titulaire de `team.delegate_role` ; un collègue voit qui
+     * couvre qui, sans le pourquoi.
+     */
+    public function test_the_absence_reason_is_read_only_by_the_absent_the_author_and_the_delegator(): void
+    {
+        $this->declare($this->admin, ['reason' => 'Hospitalisation'])->assertCreated();
+        $uri = "/api/agencies/{$this->agency->id}/absences";
+        $reasonFor = function (User $as) use ($uri) {
+            $row = $this->actingAsApi($as)->apiGet($uri)->assertOk()->json('data.0');
+            $this->app['auth']->forgetGuards();
+
+            return [$row['absent']['id'], $row['reason']];
+        };
+
+        $this->assertSame([$this->absent->id, 'Hospitalisation'], $reasonFor($this->absent));
+        $this->assertSame([$this->absent->id, 'Hospitalisation'], $reasonFor($this->admin));
+        $this->assertSame([$this->absent->id, null], $reasonFor($this->member('agent')));
+        $this->assertSame([$this->absent->id, null], $reasonFor($this->substitute));
+    }
+
     public function test_the_substitute_does_not_cover_the_tasks_of_another_agency(): void
     {
         $otherAgency = Agency::factory()->create();
