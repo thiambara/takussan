@@ -398,7 +398,39 @@ return [
                 'sms' => 'Takussan : sa laaj ci :about yónne nañu ko.',
             ],
         ],
+        'governance' => [
+            'role_capabilities_changed' => [
+                'title' => 'Sañ-sañu ab warugar soppiku na',
+                'body' => 'Sañ-sañu warugar :role soppiku na, :actor moo ko def.',
+                'sms' => 'Takussan : sañ-sañu :role soppiku na (:actor).',
+            ],
+            'admin_added' => [
+                'title' => 'Saytukat bu bees',
+                'body' => 'Jox nañu :member sañ-sañu saytukat, :actor moo ko def.',
+                'sms' => 'Takussan : :member saytukat la léegi (:actor).',
+            ],
+            'data_exported' => [
+                'title' => 'Génne ay xibaar',
+                'body' => 'Génne nañu xibaari kiliyaan yi, :actor moo ko def.',
+                'sms' => 'Takussan : :actor génne na xibaari kiliyaan yi.',
+            ],
+            'integration_changed' => [
+                'title' => 'Jokkoo bi soppiku na',
+                'body' => 'Jokkoo :provider soppiku na, :actor moo ko def.',
+                'sms' => 'Takussan : jokkoo :provider soppiku na (:actor).',
+            ],
+            'approval_threshold_changed' => [
+                'title' => 'Dayob nangu bi soppiku na',
+                'body' => 'Dayob nangu yónnee xaalis yi soppiku na, :actor moo ko def.',
+                'sms' => 'Takussan : dayob nangu bi soppiku na (:actor).',
+            ],
+        ],
         'kyc' => [
+            'expiring_soon' => [
+                'title' => 'Kayitu KYC bi dina jeex',
+                'body' => 'Kayitu dénkaane bu njiit li dina jeex ci :expires_at. Yónneel beneen ngir ajãs bi des ci wóor.',
+                'sms' => 'Takussan : kayitu KYC bu njiit li dina jeex ci :expires_at.',
+            ],
             'submitted' => [
                 'title' => 'KYC agence bu ñu war a seet',
                 'body' => 'Dossier KYC bu :agency yónne nañu ko.',

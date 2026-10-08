@@ -172,7 +172,9 @@ describe('AC3 — les colonnes des tables converties', () => {
       />,
     );
 
-    expect(enTetesDe('Propriétaires')).toEqual(['Nom', 'Email', 'Statut', 'Actions']);
+    // TCK-601 — « Identifiants » (RIB, NINEA, pièce, masqués) est un AJOUT délibéré, entre
+    // l'e-mail et le statut ; les quatre colonnes relevées à `73ca883b` restent, dans leur ordre.
+    expect(enTetesDe('Propriétaires')).toEqual(['Nom', 'Email', 'Identifiants', 'Statut', 'Actions']);
   });
 
   it('ServiceProvidersList : nom · métiers · zones · statut · actions', () => {

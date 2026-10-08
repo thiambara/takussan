@@ -26,6 +26,7 @@ use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyPublication;
 use App\Services\Property\PropertyViewCounter;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,12 +115,12 @@ class PropertyController extends Controller
                 201
             );
         } catch (\Throwable $e) {
+            // TCK-601 (ADR-0044 §2) — ni la saisie (`$request->all()`), ni le message, qui la
+            // recopie pour une erreur SQL : les CLÉS de la saisie et la forme sûre de l'exception.
             Log::error('[PropertyController::store] Failed to create property', [
                 'user_id' => $request->user()?->id,
-                'payload' => $request->all(),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+                'payload_keys' => array_keys($request->all()),
+            ] + SafeExceptionContext::of($e));
             throw $e;
         }
     }

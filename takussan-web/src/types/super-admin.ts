@@ -61,7 +61,27 @@ export type KycDocument = {
   size: number;
   document_type: 'rccm' | 'ninea' | 'director_id' | string;
   signed_url: string;
+  /**
+   * ⚠ L'expiration du LIEN SIGNÉ (`signed_url`, valable quelques minutes) — PAS celle de la pièce.
+   * L'échéance de la pièce elle-même est {@link document_expires_at}.
+   */
   expires_at: string;
+  /**
+   * TCK-601 — l'échéance de la PIÈCE (`YYYY-MM-DD`), posée au dépôt ; obligatoire pour la pièce du
+   * dirigeant (`director_id`), nulle pour une pièce qui n'expire pas. Absente d'une réponse
+   * antérieure au ticket.
+   */
+  document_expires_at?: string | null;
+};
+
+/**
+ * TCK-601 — les AUTRES agences qui portent le même NINEA / RIB professionnel que ce dossier (ou
+ * cette demande de passage). Super-admin seulement : la clé est absente pour tout autre lecteur.
+ * Un signal pour la revue, jamais un refus.
+ */
+export type SharedLegalIdentifiers = {
+  ninea: Array<{ id: number; name: string }>;
+  rib_pro: Array<{ id: number; name: string }>;
 };
 
 /**
@@ -90,6 +110,14 @@ export type KycDossier = {
   rejection_reason: string | null;
   metadata: Record<string, unknown>;
   documents: KycDocument[];
+  /**
+   * TCK-601 — l'échéance du dossier vérifié (ISO 8601) : la plus proche des pièces les plus
+   * récentes de chaque type. Nulle tant que le dossier n'est pas vérifié ou qu'aucune pièce
+   * n'expire.
+   */
+  expires_at?: string | null;
+  /** TCK-601 — super-admin seulement ; voir {@link SharedLegalIdentifiers}. */
+  shared_identifiers?: SharedLegalIdentifiers;
   created_at: string | null;
   updated_at: string | null;
 };

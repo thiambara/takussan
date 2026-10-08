@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'Le délai d\'annulation a expiré.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
         'export_link_invalid' => 'Lien expiré ou invalide.',
     ],
     'agency' => [
@@ -345,6 +346,9 @@ return [
         'agency_unverified' => 'Une agence non vérifiée ne peut pas être payée.',
         'already_exists' => 'Un reversement existe déjà pour cette période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',
+    ],
+    'privacy' => [
+        'request_closed' => 'Cette demande est close : enregistrez-en une nouvelle.',
     ],
     'profile' => [
         'not_accessible' => 'Ce profil ne vous est pas accessible.',

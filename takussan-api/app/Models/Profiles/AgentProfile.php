@@ -4,6 +4,7 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Invitation;
@@ -18,7 +19,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class AgentProfile extends AbstractModel
 {
     /** @use HasFactory<AgentProfileFactory> */
-    use HasAgencyRole, HasFactory, SoftDeletes;
+    use Auditable, HasAgencyRole, HasFactory, SoftDeletes;
+
+    /** TCK-601 — liste blanche du journal. */
+    public const AUDIT_ONLY = ['status', 'agency_role_id', 'commission_rate'];
 
     protected $fillable = [
         'user_id', 'agency_id', 'agency_role_id', 'status',

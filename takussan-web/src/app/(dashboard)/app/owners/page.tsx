@@ -50,6 +50,13 @@ export default async function Page() {
     user.roles.includes('super_admin');
 
   return (
-    <OwnersList agencyId={agencyId} canInvite={canInvite} initialData={owners} />
+    <OwnersList
+      agencyId={agencyId}
+      canInvite={canInvite}
+      initialData={owners}
+      // TCK-601 — le geste « Afficher » (RIB, NINEA, pièce en clair) est celui de l'admin ;
+      // l'API le refuse à l'agent (`OwnerProfilePolicy::viewSensitive`).
+      canRevealSensitive={isAdmin(user.roles)}
+    />
   );
 }

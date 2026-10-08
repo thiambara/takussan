@@ -77,9 +77,10 @@ const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
  * 12 à la fusion de TCK-591 dans TCK-594 : chaque branche avait retiré deux lignes et baissé 16 → 14
  * de son côté ; la fusion, sans conflit textuel, gardait 14 pour un inventaire de 12. 10 à la fusion
  * de TCK-592 dans TCK-594, pour la même raison (592 lit `maintenance.*`, 594 `payouts.approve` et
- * `agency.update_billing`).
+ * `agency.update_billing`). 9 à la fusion de TCK-594 dans TCK-601 : 601 branche `agency.update_kyc`
+ * (`Agency\KycController::upload`, `submit`).
  */
-const CLIQUET = 10;
+const CLIQUET = 9;
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;

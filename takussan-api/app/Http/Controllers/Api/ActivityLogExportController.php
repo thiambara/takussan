@@ -25,15 +25,13 @@ class ActivityLogExportController extends Controller
         Gate::authorize('export', Activity::class);
 
         $user = $request->user();
-        AgencyKindGuard::ensureStandardForNonGlobal(
-            $user,
-            $request->activeProfile()?->agency_id ?? $user->agency_id,
-        );
+        $agencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+        AgencyKindGuard::ensureStandardForNonGlobal($user, $agencyId);
 
         $filters = $request->resolvedFilters();
         $format = $request->validated('format');
 
-        $count = $this->exporter->count($user, $filters);
+        $count = $this->exporter->count($user, $filters, $agencyId);
 
         // Log the export action itself (AC7).
         activity()
@@ -43,14 +41,14 @@ class ActivityLogExportController extends Controller
             ->log('Exported audit trail');
 
         if ($count > 5000) {
-            ExportActivityLogJob::dispatch($user, array_merge($filters, ['format' => $format]));
+            ExportActivityLogJob::dispatch($user, array_merge($filters, ['format' => $format]), $agencyId);
 
             return response()->json([
                 'message' => __('messages.activity_log_export_queued'),
             ], 202);
         }
 
-        $payload = $this->exporter->buildPayload($user, $filters);
+        $payload = $this->exporter->buildPayload($user, $filters, $agencyId);
 
         return $this->writer->respond($format, $payload);
     }

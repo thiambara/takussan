@@ -10,6 +10,7 @@ use App\Models\KycDossier;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Message;
+use App\Models\PrivacyRequest;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +61,8 @@ class MediaDiskCollectionsTest extends TestCase
         MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private', 'before_photos' => 'private'],
         Message::class => ['attachments' => 'private'],
         // TCK-539 (D2) — l'original d'une photo est privé, ses conversions (filigranées) publiques.
+        // TCK-601 — la preuve de réponse d'une demande de droits : document du demandeur, privé.
+        PrivacyRequest::class => ['proof' => 'private'],
         Property::class => ['photos' => 'private, conversions public', 'videos' => 'public', 'plans' => 'public'],
         User::class => ['avatar' => 'public', 'avatars' => 'public', 'photos' => 'private', 'documents' => 'private'],
     ];
@@ -140,6 +143,8 @@ class MediaDiskCollectionsTest extends TestCase
         $this->postJson("/api/agencies/{$agency->id}/kyc/documents", [
             'document_type' => 'director_id',
             'document' => UploadedFile::fake()->create('cni.pdf', 10, 'application/pdf'),
+            // TCK-601 (AC7) — la pièce du dirigeant porte son échéance.
+            'expires_at' => now()->addYear()->toDateString(),
         ])->assertCreated();
 
         $media = Media::query()->where('collection_name', 'documents')

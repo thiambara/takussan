@@ -3,6 +3,7 @@
 namespace App\Services\Accounting\StatementParser;
 
 use App\Models\Enums\BankStatementLineDirection;
+use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use League\Csv\Reader;
@@ -67,12 +68,11 @@ class CsvDriver implements StatementParserInterface
                 // TCK-593 — le journal ne porte AUCUNE valeur de la ligne bancaire : ni `record`
                 // (libellés, contreparties, montants), ni le message de l'exception, qui peut la
                 // recopier. Le numéro de ligne et le nombre de colonnes suffisent à la retrouver.
-                // Raccord TCK-601 : ce contexte devient `SafeExceptionContext::of($e)`.
+                // TCK-601 — raccord fait : la forme sûre partagée (ADR-0044 §2).
                 Log::warning('bank_statement_line_skipped', [
                     'line' => $lineNumber,
                     'columns' => count($record),
-                    'exception' => $e::class,
-                ]);
+                ] + SafeExceptionContext::of($e));
                 $parsedLine = null;
             }
 

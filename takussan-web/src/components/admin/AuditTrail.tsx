@@ -20,6 +20,8 @@ import { formatDate as formatDateIntl } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
 import { useAuth } from '@/context/AuthContext';
+import { useApiQuery } from '@/hooks/useApiQuery';
+import type { PaginatedResponse } from '@/types/api';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -47,13 +49,43 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
   : 'http://localhost:8002';
 
-const KNOWN_EVENTS = ['created', 'updated', 'deleted', 'exported'] as const;
+/**
+ * Les événements que le filtre propose ET dont la pastille porte un libellé (`admin.audit.events.*`).
+ *
+ * TCK-601 — jusqu'ici le journal ne connaissait que les quatre événements de modèle, affichés tels
+ * quels (`created`…) ; les événements métier (`agent_suspended`, `role_capabilities_changed`,
+ * `personal_data_viewed`…) arrivaient en `snake_case` brut. Un événement absent de cette liste
+ * garde son rendu d'avant — la valeur d'API, lisible — : le journal n'en cache aucun.
+ */
+const KNOWN_EVENTS = [
+  'created',
+  'updated',
+  'deleted',
+  'exported',
+  'agent_suspended',
+  'agent_removed',
+  'agent_reactivated',
+  'role_capabilities_changed',
+  'role_created',
+  'role_assigned',
+  'personal_data_viewed',
+  'kyc_expired',
+  'data_exported',
+] as const;
+type KnownEvent = (typeof KNOWN_EVENTS)[number];
+
+function isKnownEvent(event: string | null): event is KnownEvent {
+  return event !== null && (KNOWN_EVENTS as readonly string[]).includes(event);
+}
 
 /**
  * TCK-292 — la DONNÉE porte la clé, le rendu la résout : la liste des types
  * d'objet transporte le FQCN (valeur d'API) et une clé de libellé résolue sous
- * `admin.audit.subjects.*`. Les noms d'événements (`created`, `updated`, …) sont
- * des valeurs d'API affichées telles quelles — elles ne se traduisent pas.
+ * `admin.audit.subjects.*`.
+ *
+ * TCK-601 — les objets de gouvernance (rôle, agence, intégration, profils) et le registre des
+ * droits sont désormais audités : ils entrent ici. Le FQCN est celui du modèle côté API — les
+ * profils vivent sous `App\Models\Profiles\` (le dépôt ne déclare aucune `morphMap`).
  */
 const KNOWN_SUBJECT_TYPES: { key: string; value: string }[] = [
   { key: 'property', value: 'App\\Models\\Property' },
@@ -62,7 +94,33 @@ const KNOWN_SUBJECT_TYPES: { key: string; value: string }[] = [
   { key: 'invoice', value: 'App\\Models\\Invoice' },
   { key: 'customer', value: 'App\\Models\\Customer' },
   { key: 'user', value: 'App\\Models\\User' },
+  { key: 'agency', value: 'App\\Models\\Agency' },
+  { key: 'agencyRole', value: 'App\\Models\\AgencyRole' },
+  { key: 'integration', value: 'App\\Models\\Integration' },
+  { key: 'agentProfile', value: 'App\\Models\\Profiles\\AgentProfile' },
+  { key: 'agencyAdminProfile', value: 'App\\Models\\Profiles\\AgencyAdminProfile' },
+  { key: 'ownerProfile', value: 'App\\Models\\Profiles\\OwnerProfile' },
+  { key: 'privacyRequest', value: 'App\\Models\\PrivacyRequest' },
 ];
+
+/**
+ * TCK-601 — les membres proposés au filtre « Membre ». Sparse fieldsets : le nom et l'e-mail,
+ * rien d'autre. 100 par page : la plus grande équipe d'agence mesurée en est loin, et le filtre
+ * n'a pas de pagination.
+ */
+const AUDIT_MEMBER_FIELDS = ['id', 'first_name', 'last_name', 'email'] as const;
+
+interface AuditMember {
+  readonly id: number;
+  readonly first_name: string | null;
+  readonly last_name: string | null;
+  readonly email: string | null;
+}
+
+function memberLabel(member: AuditMember): string {
+  const nom = `${member.first_name ?? ''} ${member.last_name ?? ''}`.trim();
+  return nom || member.email || `#${member.id}`;
+}
 
 const ANY = '__any__';
 
@@ -90,6 +148,15 @@ function eventTone(event: string | null): StatusTone {
     case 'updated': return 'info';
     case 'deleted': return 'danger';
     case 'exported': return 'attention';
+    case 'data_exported': return 'attention';
+    case 'personal_data_viewed': return 'attention';
+    case 'agent_suspended': return 'danger';
+    case 'agent_removed': return 'danger';
+    case 'kyc_expired': return 'danger';
+    case 'agent_reactivated': return 'success';
+    case 'role_created': return 'success';
+    case 'role_capabilities_changed': return 'info';
+    case 'role_assigned': return 'info';
     default: return 'neutral';
   }
 }
@@ -112,20 +179,41 @@ export function AuditTrail() {
   const t = useTranslations('admin.audit');
   const eventOptions: ReadonlyArray<{ value: string; label: string }> = [
     { value: ANY, label: t('filters.anyAction') },
-    ...KNOWN_EVENTS.map((ev) => ({ value: ev, label: ev })),
+    ...KNOWN_EVENTS.map((ev) => ({ value: ev, label: t(`events.${ev}`) })),
   ];
   const subjectTypeOptions: ReadonlyArray<{ value: string; label: string }> = [
     { value: ANY, label: t('filters.anySubject') },
     ...KNOWN_SUBJECT_TYPES.map((st) => ({ value: st.value, label: t(`subjects.${st.key}`) })),
   ];
   const columns = useAuditColumns();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const toast = useToast();
+  const agencyId = user?.agency_id ?? null;
+
+  // TCK-601 — la liste du filtre « Membre ». `GET /agencies/{id}/members` est réservée à
+  // l'administrateur de l'agence — exactement le lecteur de cette page.
+  const membersQuery = useApiQuery<PaginatedResponse<AuditMember>>(
+    ['audit-logs', 'members', agencyId],
+    `/api/agencies/${agencyId}/members`,
+    {
+      enabled: Boolean(token) && agencyId !== null,
+      params: {
+        fields: { users: [...AUDIT_MEMBER_FIELDS] },
+        sort: 'first_name',
+        per_page: 100,
+      },
+    },
+  );
+  const memberOptions: ReadonlyArray<{ value: string; label: string }> = [
+    { value: ANY, label: t('filters.anyMember') },
+    ...(membersQuery.data?.data ?? []).map((m) => ({ value: String(m.id), label: memberLabel(m) })),
+  ];
 
   const [dateFrom, setDateFrom] = useState(thirtyDaysAgo());
   const [dateTo, setDateTo] = useState(today());
   const [event, setEvent] = useState('');
   const [subjectType, setSubjectType] = useState('');
+  const [causerId, setCauserId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [exportLoading, setExportLoading] = useState(false);
@@ -135,10 +223,11 @@ export function AuditTrail() {
     date_to: dateTo || undefined,
     event: event || undefined,
     subject_type: subjectType || undefined,
+    causer_id: causerId ?? undefined,
     search: search || undefined,
     page,
     per_page: 50,
-  }), [dateFrom, dateTo, event, subjectType, search, page]);
+  }), [dateFrom, dateTo, event, subjectType, causerId, search, page]);
 
   const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['audit-logs', filters],
@@ -164,6 +253,7 @@ export function AuditTrail() {
         date_to: dateTo || undefined,
         event: event || undefined,
         subject_type: subjectType || undefined,
+        causer_id: causerId ?? undefined,
         search: search || undefined,
       };
 
@@ -205,7 +295,7 @@ export function AuditTrail() {
     } finally {
       setExportLoading(false);
     }
-  }, [token, dateFrom, dateTo, event, subjectType, search, toast, t]);
+  }, [token, dateFrom, dateTo, event, subjectType, causerId, search, toast, t]);
 
   return (
     <div className="space-y-4">
@@ -265,6 +355,29 @@ export function AuditTrail() {
             </SelectTrigger>
             <SelectContent>
               {subjectTypeOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* TCK-601 — le filtre par membre : l'API acceptait `filter[causer_id]` et
+            `fetchAuditLogs` savait l'envoyer, mais rien à l'écran ne le posait. */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-muted-foreground">{t('filters.member')}</label>
+          <Select
+            value={causerId === null ? ANY : String(causerId)}
+            onValueChange={(next) => {
+              setCauserId(!next || next === ANY ? null : Number(next));
+              setPage(1);
+            }}
+            items={memberOptions}
+          >
+            <SelectTrigger className="h-10" aria-label={t('filters.memberAria')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {memberOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -392,21 +505,18 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
     {
       id: 'user',
       header: t('columns.user'),
-      cell: (log) => (
-        <>
-          <span className="font-medium text-foreground">
-            {log.causer?.name ?? log.causer?.email ?? 'system'}
-          </span>
-          {log.causer?.email && log.causer.name ? (
-            <p className="text-xs text-muted-foreground">{log.causer.email}</p>
-          ) : null}
-        </>
-      ),
+      cell: (log) => <AuditCauserCell log={log} />,
     },
     {
       id: 'action',
       header: t('columns.action'),
-      cell: (log) => <StatusBadge label={log.event ?? '—'} tone={eventTone(log.event)} />,
+      // TCK-601 — un événement connu porte son libellé ; un inconnu garde la valeur d'API, lisible.
+      cell: (log) => (
+        <StatusBadge
+          label={isKnownEvent(log.event) ? t(`events.${log.event}`) : (log.event ?? '—')}
+          tone={eventTone(log.event)}
+        />
+      ),
     },
     {
       id: 'subject',
@@ -428,6 +538,35 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
       ),
     },
   ];
+}
+
+/**
+ * La cellule « Utilisateur ».
+ *
+ * TCK-601 — une ligne sans acteur (tâche planifiée, webhook, expiration KYC) rendait le littéral
+ * anglais `system`, dans les trois langues. Elle se lit désormais « Système ». Un `causer_id` posé
+ * sans `causer` chargé est un compte qui n'existe plus : ce n'est PAS le système, et le dire
+ * l'imputerait à la plateforme.
+ */
+function AuditCauserCell({ log }: { readonly log: ActivityLogEntry }) {
+  const t = useTranslations('admin.audit');
+  if (!log.causer) {
+    return (
+      <span className="font-medium text-muted-foreground">
+        {log.causer_id ? `${t('deletedCauser')} #${log.causer_id}` : t('system')}
+      </span>
+    );
+  }
+  return (
+    <>
+      <span className="font-medium text-foreground">
+        {log.causer.name ?? log.causer.email ?? `#${log.causer.id}`}
+      </span>
+      {log.causer.email && log.causer.name ? (
+        <p className="text-xs text-muted-foreground">{log.causer.email}</p>
+      ) : null}
+    </>
+  );
 }
 
 /**

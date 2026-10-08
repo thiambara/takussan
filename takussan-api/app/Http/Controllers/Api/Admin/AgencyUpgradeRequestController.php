@@ -10,6 +10,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Services\Agency\AgencyUpgradeReviewService;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -68,9 +69,12 @@ class AgencyUpgradeRequestController extends Controller
         ]);
     }
 
-    public function show(Request $request, AgencyUpgradeRequest $upgradeRequest): JsonResponse
+    public function show(Request $request, AgencyUpgradeRequest $upgradeRequest, PersonalDataAccessLogger $accessLog): JsonResponse
     {
         $upgradeRequest->load(['agency', 'submitter', 'reviewer', 'documents']);
+
+        // TCK-601 (ADR-0044 §4) — le détail rend le NINEA et le RIB professionnel EN CLAIR.
+        $accessLog->record($request->user(), $upgradeRequest, PersonalDataAccessLogger::SURFACE_AGENCY_UPGRADE_REQUEST);
 
         $agency = $upgradeRequest->agency;
         $propertiesCount = $agency
@@ -83,7 +87,7 @@ class AgencyUpgradeRequestController extends Controller
 
         return $this->json([
             'data' => array_merge(
-                AgencyUpgradeRequestResource::make($upgradeRequest)->toArray($request),
+                AgencyUpgradeRequestResource::make($upgradeRequest)->withClearIdentifiers()->toArray($request),
                 [
                     'agency' => $agency ? [
                         'id' => $agency->id,

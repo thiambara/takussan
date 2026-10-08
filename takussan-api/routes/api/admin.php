@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
+use App\Http\Controllers\Api\Admin\PrivacyRequestController;
 use App\Http\Controllers\Api\Admin\ReportingController;
 use App\Http\Controllers\Api\Admin\SchedulerController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
@@ -144,6 +145,15 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // Cross-tenant audit log — no agency restriction (unlike AuditLogController).
     Route::get('audit', [CrossTenantAuditController::class, 'index'])
         ->name('admin.audit.index');
+    // TCK-601 (F) — même filtres que l'index (`filter[sensitive]=1` compris), CSV par lien signé.
+    Route::get('audit/export', [CrossTenantAuditController::class, 'export'])
+        ->name('admin.audit.export');
+
+    // TCK-601 (G, ADR-0044 §4) — registre des demandes de droits. `export` avant `{privacyRequest}`.
+    Route::get('privacy-requests', [PrivacyRequestController::class, 'index'])->name('admin.privacy-requests.index');
+    Route::post('privacy-requests', [PrivacyRequestController::class, 'store'])->name('admin.privacy-requests.store');
+    Route::get('privacy-requests/export', [PrivacyRequestController::class, 'export'])->name('admin.privacy-requests.export');
+    Route::patch('privacy-requests/{privacyRequest}', [PrivacyRequestController::class, 'update'])->name('admin.privacy-requests.update');
 
     Route::get('moderation', [ModerationQueueController::class, 'index'])
         ->name('admin.moderation.index');
