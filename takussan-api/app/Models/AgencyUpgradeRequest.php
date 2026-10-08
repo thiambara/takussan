@@ -81,9 +81,13 @@ class AgencyUpgradeRequest extends AbstractModel
 
     protected static array $requestLoadable = ['agency', 'submitter', 'reviewer', 'documents'];
 
+    /**
+     * TCK-601 (verif-601 M1) — ni `ninea` ni `rib_pro` : un `fields[]` qui les demande est refusé
+     * (400). Sans `fields[]`, `select *` les charge et la Resource les rend masqués.
+     */
     protected static array $queryFields = [
         'id', 'agency_id', 'submitted_by',
-        'rc', 'ninea', 'rib_pro', 'address_fiscale', 'company_legal_name',
+        'rc', 'address_fiscale', 'company_legal_name',
         'planned_agents_count', 'status', 'submitted_at',
         'reviewed_by', 'reviewed_at', 'review_comment',
         'created_at', 'updated_at',

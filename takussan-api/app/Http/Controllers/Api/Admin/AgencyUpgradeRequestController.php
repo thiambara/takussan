@@ -87,7 +87,7 @@ class AgencyUpgradeRequestController extends Controller
 
         return $this->json([
             'data' => array_merge(
-                AgencyUpgradeRequestResource::make($upgradeRequest)->toArray($request),
+                AgencyUpgradeRequestResource::make($upgradeRequest)->withClearIdentifiers()->toArray($request),
                 [
                     'agency' => $agency ? [
                         'id' => $agency->id,

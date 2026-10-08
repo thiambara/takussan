@@ -7,6 +7,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\Masking;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -165,5 +166,39 @@ class AgencyUpgradeRequestEncryptionTest extends ApiTestCase
             ->where('subject_id', $request->id)
             ->where('properties->surface', PersonalDataAccessLogger::SURFACE_AGENCY_UPGRADE_REQUEST)
             ->count());
+    }
+
+    /**
+     * verif-601 M1 — hors du détail tracé, le NINEA et le RIB pro ne sortent que masqués : liste de
+     * la console avec et sans `fields[]`, liste de l'agence, réponse de la soumission.
+     */
+    public function test_hors_du_detail_les_identifiants_sortent_masques(): void
+    {
+        $agency = Agency::factory()->individual()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $soumis = $this->post("/api/agencies/{$agency->id}/upgrade-requests", [
+            'rc' => 'RC-DKR-2026-001',
+            'ninea' => self::NINEA,
+            'rib_pro' => self::longRib(),
+            'company_legal_name' => 'Témoin SARL',
+            'address_fiscale' => 'Dakar',
+            'statuts_doc' => UploadedFile::fake()->create('statuts.pdf', 200, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated();
+        $agence = $this->apiGet("/api/agencies/{$agency->id}/upgrade-requests")->assertOk();
+
+        $this->apiActingAsRole('super_admin');
+        $liste = $this->apiGet('/api/admin/agency-upgrade-requests')->assertOk();
+        $champs = $this->apiGet('/api/admin/agency-upgrade-requests?fields[agency_upgrade_requests]=id,rib_pro,ninea');
+
+        foreach ([$soumis, $agence, $liste, $champs] as $reponse) {
+            $corps = $reponse->getContent();
+            $this->assertStringNotContainsString(self::NINEA, $corps);
+            $this->assertStringNotContainsString('SNTEMOIN7', $corps);
+        }
+        $champs->assertStatus(400);
+        $this->assertSame(Masking::tail(self::NINEA), $liste->json('data.0.ninea'));
+        $this->assertSame(Masking::iban(self::longRib()), $liste->json('data.0.rib_pro'));
+        // Aucune de ces lectures n'est une consultation : rien n'est tracé.
+        $this->assertSame(0, Activity::query()->where('log_name', PersonalDataAccessLogger::LOG_NAME)->count());
     }
 }
