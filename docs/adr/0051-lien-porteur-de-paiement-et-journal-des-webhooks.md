@@ -167,6 +167,27 @@ chiffre les jetons existants, donc un lien déjà envoyé reste valide. Débit :
 10/min en téléchargement, `GET` comme `POST`. **Les mots de passe faux sont comptés par lien**
 (`share-password:{id}`) : 5 par 15 minutes, puis 429 même avec le bon mot de passe.
 
+### 8. Arbitrages d'implémentation — option recommandée, réversible, à confirmer
+
+Pris pendant l'implémentation, faute de source qui tranche. Chacun tient en un endroit du code et se
+défait sans migration.
+
+- **Orange Money s'authentifie par OAuth `client_credentials`** (`client_id`, `client_secret` →
+  jeton mis en cache jusqu'à `expires_in` − 60 s, `config/payments.php`). Aucune documentation
+  marchande Orange Money n'est au dépôt : le schéma est celui de la passerelle SMS Orange déjà en
+  service. À confronter au contrat marchand avant la production.
+- **Codes d'erreur des pilotes** : `payment.provider_unavailable` (502, sans paramètre) et
+  `payment.integration_misconfigured` (500, sans nom de clé), dans le domaine `payment.` existant.
+- **Qui émet un lien** : tout détenteur de `update` sur l'échéance (`LeasePaymentPolicy`, TCK-587),
+  sans méthode nouvelle — un locataire avec compte compris.
+- **Un lien expiré ou révoqué (410) nomme l'agence**, pour que le locataire sache qui appeler.
+- **Le formulaire d'agence lit les champs d'un fournisseur de paiement** par
+  `GET /api/integrations/payment-providers` (schéma du registre), plutôt que par une copie front.
+- **Le paiement d'une réservation sans paiement en attente** (`CustomerPayCta`) ne lit pas la liste :
+  il n'existe pas encore de payable à interroger ; l'initiation refuse (422) avant tout appel sortant.
+- **Un échec de traitement** (ligne `failed`) émet `WebhookProcessingFailed`, sans écouteur :
+  l'alerte appartient à TCK-600.
+
 ## Options écartées
 
 - **Jeton haché seul, montré une fois** (ADR-0034) : le rappel de TCK-588 doit renvoyer le même
