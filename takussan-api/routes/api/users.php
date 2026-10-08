@@ -12,5 +12,4 @@ Route::middleware('auth:sanctum')->group(function () {
     // la mutation de rôle passe désormais par `PUT users/{user}/role` qui
     // matérialise les profils polymorphes (cf. UserRoleController).
     Route::put('users/{user}/role', [UserRoleController::class, 'update'])->name('users.role.update');
-    Route::delete('users/{user}', [UserAdminController::class, 'destroy'])->name('users.destroy');
 });

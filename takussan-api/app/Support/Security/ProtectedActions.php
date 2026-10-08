@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
+use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
 use App\Http\Controllers\Api\Agency\AgentAbsenceController;
 use App\Http\Controllers\Api\Agency\AgentHandoverController;
@@ -136,7 +137,6 @@ final class ProtectedActions
         AgencyController::class.'@removeAgent',
         UserAdminController::class.'@block',
         UserAdminController::class.'@activate',
-        UserAdminController::class.'@destroy',
         TeamMemberSuspensionController::class.'@suspend',
         TeamMemberSuspensionController::class.'@reactivate',
         AgentProfileController::class.'@suspend',
@@ -173,9 +173,6 @@ final class ProtectedActions
         AgencyController::class.'@store' => 'création d\'une agence',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
-        // Trouvée par l'appariement par contrôleur (M4) : `DELETE auth/account`, dans
-        // `auth.php`, sert le compte qui s'efface lui-même — aucun geste sur une équipe.
-        UserAdminController::class.'@deleteOwnAccount' => 'suppression de son propre compte',
     ];
 
     /**
@@ -199,6 +196,10 @@ final class ProtectedActions
         // TCK-600 (ADR-0047) — retirer un opérateur actif.
         SuperAdminInvitationController::class.'@revokeOperator',
         UserImpersonationController::class.'@start',
+        // TCK-600 — cycle de vie d'un compte depuis la console.
+        UserLifecycleController::class.'@block',
+        UserLifecycleController::class.'@reactivate',
+        UserLifecycleController::class.'@erase',
         // Vérification adverse B1 — lever le verrou d'un compte rouvre son accès.
         UserSupportController::class.'@unlock',
         UserSupportController::class.'@reset2fa',
@@ -218,7 +219,6 @@ final class ProtectedActions
      */
     public const STEP_UP_FOR_PLATFORM = [
         UserAdminController::class.'@block',
-        UserAdminController::class.'@destroy',
         // Vérification adverse B1 — débloquer un compte, et `PUT users/{u}/role`, qui CRÉE un
         // super-admin quand l'acteur en est un : hors `/api/admin/*`, ils échappaient aux deux
         // gardes. Un jeton volé sans step-up promouvait le compte de l'attaquant.
@@ -235,8 +235,6 @@ final class ProtectedActions
      * @var array<string, string>
      */
     public const PLATFORM_POWER_EXEMPT = [
-        // Le compte s'efface lui-même : aucun pouvoir conféré.
-        UserAdminController::class.'@deleteOwnAccount' => 'suppression de son propre compte',
         // Le coopté enrôle SA 2FA : c'est le second facteur lui-même, il n'en a pas encore.
         SuperAdminTwoFactorController::class.'@enroll' => 'enrôlement de la 2FA du coopté',
         SuperAdminTwoFactorController::class.'@confirm' => 'confirmation de la 2FA du coopté',

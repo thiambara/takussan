@@ -102,30 +102,9 @@ class UserAdminTest extends TestCase
     // `PUT /users/{user}/role` (UserRoleController), testé dans
     // UserRoleControllerTest.
 
-    public function test_admin_can_delete_user(): void
-    {
-        $admin = $this->createAdmin();
-        $user = User::factory()->create();
-
-        $this->actingAsWithStepUp($admin);
-
-        $this->deleteJson("/api/users/{$user->id}")
-            ->assertNoContent();
-
-        $this->assertSoftDeleted('users', ['id' => $user->id]);
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'first_name' => 'Deleted']);
-    }
-
-    public function test_user_can_delete_own_account(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $this->deleteJson('/api/auth/account')
-            ->assertNoContent();
-
-        $this->assertSoftDeleted('users', ['id' => $user->id]);
-    }
+    // TCK-600 — `DELETE /users/{user}` et `DELETE /auth/account` ont été retirés :
+    // `OwnAccountImmediateDeletionRemovedTest` éprouve leur absence, `AdminUserLifecycleTest`
+    // l'effacement par la console.
 
     public function test_unpublish_available_property(): void
     {

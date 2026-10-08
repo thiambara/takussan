@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'Suufeel bi ëpp na, jaarewul.',
         'grace_expired' => 'Waxtu wu nga manon a baña la, jeexna.',
+        'has_obligations' => 'Kont bii am na ay liggéey yu des (bay, fey, faktiir walla resërwaasiyon) : war nañu leen jeexal balaa ñu koy far.',
     ],
     'activity_log' => [
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
@@ -306,6 +307,7 @@ return [
         'last_super_admin' => 'Mënuñu dindi super-administratëer bu mujj bi.',
         'operator_not_found' => 'Kont bii du operatëer bu dox.',
         'operator_self_revoke' => 'Mënuloo dindi sa bopp.',
+        'revoke_operator_first' => 'Kont bii ab operatëer la : dindi ko ci operatëer yi njëkk.',
         'target_is_operator' => 'Super-administratëer rekk mën a def dara ci kontu operatëer.',
     ],
     'platform_payout' => [
@@ -396,8 +398,9 @@ return [
     'user' => [
         'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
         'cannot_block_self' => 'Mën nga téqale sa bopp.',
-        'cannot_delete_self' => 'Mën nga far sa bopp ci yoon wii.',
+        'cannot_erase_self' => 'Mënoo far sa kont ci konsol bi : jaaral ci sa bopp.',
         'no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
+        'not_blocked' => 'Kont bii tëjuñu ko.',
         'not_in_active_agency' => 'Jàngalekat bi tànn nga ñoom du ci sa agence bi nga di liggéeyal.',
     ],
     'visit' => [

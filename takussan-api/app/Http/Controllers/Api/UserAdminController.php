@@ -97,40 +97,9 @@ class UserAdminController extends Controller
         return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
     }
 
-    public function destroy(Request $request, User $user): JsonResponse
-    {
-        abort_unless($request->user()->isSuperAdmin(), 403);
-        abort_code_if($user->id === $request->user()->id, 422, 'user.cannot_delete_self');
-
-        $this->anonymize($user);
-
-        return $this->json(null, 204);
-    }
-
-    public function deleteOwnAccount(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        $user->tokens()->delete();
-        $this->anonymize($user);
-
-        return $this->json(null, 204);
-    }
-
-    protected function anonymize(User $user): void
-    {
-        $user->tokens()->delete();
-        $user->update([
-            'first_name' => 'Deleted',
-            'last_name' => 'User',
-            'email' => 'deleted-'.$user->id.'@anonymized.local',
-            'phone' => null,
-            'bio' => null,
-            'status' => UserStatus::Blocked,
-            'google_id' => null,
-            'facebook_id' => null,
-            'apple_id' => null,
-            'metadata' => null,
-        ]);
-        $user->delete();
-    }
+    // TCK-600 — `destroy`, `deleteOwnAccount` et leur copie locale d'`anonymize()` sont SUPPRIMÉS.
+    // Ils effaçaient un compte sur-le-champ, sans obligations, sans délai de grâce, sans activité,
+    // et `deleteOwnAccount` sans step-up. L'effacement n'a plus qu'un chemin :
+    // `AccountDeletionService` — demande par l'utilisateur (`me/deletion-request`) ou par un
+    // opérateur (`POST /api/admin/users/{user}/erase`).
 }

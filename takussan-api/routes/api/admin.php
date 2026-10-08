@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
+use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
@@ -150,6 +151,15 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         Route::delete('users/{user}/sessions/{tokenId}', [UserSupportController::class, 'destroySession'])
             ->name('admin.users.sessions.destroy');
     });
+    // TCK-600 — cycle de vie d'un compte : bloquer / réactiver (`support`), effacer (`super_admin`).
+    Route::middleware($geste(PlatformAbility::UsersBlock))->group(function () {
+        Route::post('users/{user}/block', [UserLifecycleController::class, 'block'])
+            ->name('admin.users.block');
+        Route::post('users/{user}/reactivate', [UserLifecycleController::class, 'reactivate'])
+            ->name('admin.users.reactivate');
+    });
+    Route::post('users/{user}/erase', [UserLifecycleController::class, 'erase'])
+        ->name('admin.users.erase');
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'start'])
         ->name('admin.users.impersonate');
     Route::post('users/{user}/data-exports', [DataExportController::class, 'store'])

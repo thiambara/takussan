@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'Deletion has already been executed.',
         'grace_expired' => 'The cancellation window has expired.',
+        'has_obligations' => 'This account still has open commitments (leases, instalments, invoices or bookings): they must be settled before erasure.',
     ],
     'activity_log' => [
         'export_link_invalid' => 'Expired or invalid link.',
@@ -306,6 +307,7 @@ return [
         'last_super_admin' => 'The last active super administrator cannot be removed.',
         'operator_not_found' => 'This account is not an active operator.',
         'operator_self_revoke' => 'You cannot remove your own access.',
+        'revoke_operator_first' => 'This account belongs to a platform operator: revoke the operator first.',
         'target_is_operator' => 'Only a super administrator can act on an operator\'s account.',
     ],
     'platform_payout' => [
@@ -396,8 +398,9 @@ return [
     'user' => [
         'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',
         'cannot_block_self' => 'You cannot block your own account.',
-        'cannot_delete_self' => 'You cannot delete your own account via this route.',
+        'cannot_erase_self' => 'You cannot erase your own account from the console: use your personal space.',
         'no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',
+        'not_blocked' => 'This account is not blocked.',
         'not_in_active_agency' => 'The target user does not belong to your active agency.',
     ],
     'visit' => [

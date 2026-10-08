@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'La suppression a déjà été exécutée.',
         'grace_expired' => 'Le délai d\'annulation a expiré.',
+        'has_obligations' => 'Ce compte a encore des engagements en cours (baux, échéances, factures ou réservations) : ils doivent être soldés avant l\'effacement.',
     ],
     'activity_log' => [
         'export_link_invalid' => 'Lien expiré ou invalide.',
@@ -306,6 +307,7 @@ return [
         'last_super_admin' => 'Le dernier super-administrateur actif ne peut pas être retiré.',
         'operator_not_found' => 'Ce compte n\'est pas un opérateur actif.',
         'operator_self_revoke' => 'Vous ne pouvez pas retirer votre propre accès.',
+        'revoke_operator_first' => 'Ce compte est celui d\'un opérateur plateforme : retirez-le d\'abord des opérateurs.',
         'target_is_operator' => 'Seul un super-administrateur peut agir sur le compte d\'un opérateur.',
     ],
     'platform_payout' => [
@@ -396,8 +398,9 @@ return [
     'user' => [
         'account_block_reserved' => 'Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d\'agence suspend un membre dans son agence.',
         'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
-        'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
+        'cannot_erase_self' => 'Vous ne pouvez pas effacer votre propre compte depuis la console : passez par votre espace personnel.',
         'no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',
+        'not_blocked' => 'Ce compte n\'est pas bloqué.',
         'not_in_active_agency' => 'L’utilisateur cible n’appartient pas à votre agence active.',
     ],
     'visit' => [
