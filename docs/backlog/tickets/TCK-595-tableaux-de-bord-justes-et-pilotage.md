@@ -381,7 +381,7 @@ faits neufs, plus graves que les rapports, sont signalés **(neuf)**.
 ## Delta à produire
 
 ### 0. Décisions
-- [ ] **ADR-00NN (prochain numéro libre) « Attribution des transactions et grand livre des commissions »**,
+- [x] **ADR-00NN (prochain numéro libre) « Attribution des transactions et grand livre des commissions »**,
       écrit et accepté avant le code. Il tranche :
   - où vit le négociateur : `leases.agent_id` → `users` ;
   - comment naît `commission_amount`. **Option retenue par défaut** : saisi explicitement, et dérivé
@@ -406,91 +406,91 @@ faits neufs, plus graves que les rapports, sont signalés **(neuf)**.
 - [ ] Livraison en trois PR, dans cet ordre (**option retenue par défaut**, un seul ticket) : (a) § 1,
       § 3 hors commissions, § 4, § 5, § 5 bis ; (b) ADR commissions, § 2, § 3 commissions, § 6 ;
       (c) § 7, § 8, et les deux blocs `payee_role` du § 1 (après la fusion de TCK-594).
-- [ ] **ADR-00NN+1 « Instantanés quotidiens des métriques plateforme »** : table, heure du job, ce qui se
+- [x] **ADR-00NN+1 « Instantanés quotidiens des métriques plateforme »** : table, heure du job, ce qui se
       rattrape (les flux) et ce qui ne se rattrape pas (les stocks).
 
 ### 1. Bailleur, hôte et agence
-- [ ] `DashboardOwnerService` réécrit sur les règles ci-dessus : occupation par jours-biens et nuitées en
+- [x] `DashboardOwnerService` réécrit sur les règles ci-dessus : occupation par jours-biens et nuitées en
       une requête groupée par mois (`generate_series` + `GREATEST/LEAST`), encaissé par une requête
       groupée `date_trunc('month', paid_at)` par table de paiement, jointure sur `leases.landlord_id` au
       lieu de `whereHas`.
-- [ ] Nouvelles clés du résumé (Contrat de données), dont `maintenance.quotes_pending`
+- [x] Nouvelles clés du résumé (Contrat de données), dont `maintenance.quotes_pending`
       (`quote_submitted` sur ses biens), `visits.to_confirm` et `reviews.unanswered` (avis approuvés sans
       `reply_content`).
-- [ ] `DashboardAgencyService` passe par les mêmes calculs, factorisés dans un service partagé
+- [x] `DashboardAgencyService` passe par les mêmes calculs, factorisés dans un service partagé
       `App\Services\Dashboard\PortfolioMetrics`.
-- [ ] `DashboardRoleResolver` : un admin d'agence `individual` → `OwnerMeMetrics`.
-- [ ] Front : `/app/overview` envoie l'agence `individual` vers la vue bailleur. Les cartes deviennent
+- [x] `DashboardRoleResolver` : un admin d'agence `individual` → `OwnerMeMetrics`.
+- [x] Front : `/app/overview` envoie l'agence `individual` vers la vue bailleur. Les cartes deviennent
       actionnables. Le tableau de bord et les versements se chargent en parallèle.
-- [ ] *(après TCK-594)* `DashboardOwnerService` et `DashboardAgencyService` : *Net reversé* filtré
+- [x] *(après TCK-594)* `DashboardOwnerService` et `DashboardAgencyService` : *Net reversé* filtré
       `payee_role = landlord`. Front : la carte « Prochains versements » ne montre que les versements
       au bailleur (`payee_role = landlord`) encore à venir (`pending`, `scheduled`, `processing`).
 
 ### 2. Commissions
-- [ ] Migration `add_agent_id_to_leases_table` : FK `leases_agent_id_fk`, index
+- [x] Migration `add_agent_id_to_leases_table` : FK `leases_agent_id_fk`, index
       `leases_agent_id_signed_at_idx (agent_id, signed_at)`.
-- [ ] `StoreLeaseRequest` / `UpdateLeaseRequest` : `agent_id` (personnel actif de l'agence du bien) et
+- [x] `StoreLeaseRequest` / `UpdateLeaseRequest` : `agent_id` (personnel actif de l'agence du bien) et
       `commission_amount` (`numeric|min:0`). `LeaseService::create` pose les valeurs par défaut (§ ADR).
       `LeaseRenewalService` recopie `agent_id` sur l'enfant.
-- [ ] Migration `create_commission_entries_table` : unique `commission_entries_lease_benef_uq`, index
+- [x] Migration `create_commission_entries_table` : unique `commission_entries_lease_benef_uq`, index
       `commission_entries_agency_benef_idx (agency_id, beneficiary_id, earned_at)`. Modèle
       `CommissionEntry`, enum `CommissionEntryStatus`, factory.
-- [ ] Service `App\Services\Commission\CommissionLedgerService::generateFor(Lease)` + écouteur
+- [x] Service `App\Services\Commission\CommissionLedgerService::generateFor(Lease)` + écouteur
       `App\Listeners\Lease\GenerateCommissionEntries` sur `LeaseActivated`. Les collaborateurs servis
       sont `role = agent` dont le `user_id` passe le prédicat d'éligibilité de TCK-586 §5 à l'agence
       du bien, évalué à l'activation ; **aucune clause sur `accepted_at`** (ni `whereNotNull`, ni
       repli sur `invited_at`).
-- [ ] `CommissionEntryController` (`index`, `markPaid`, `cancel`), `CommissionEntryPolicy`,
+- [x] `CommissionEntryController` (`index`, `markPaid`, `cancel`), `CommissionEntryPolicy`,
       `CommissionEntryResource`, `routes/api/commissions.php`. Chaque geste d'écriture est journalisé
       (`activity()`).
-- [ ] `DashboardAgentService`, `DashboardAgencyService` et `AgencyStatsController` lisent les commissions
+- [x] `DashboardAgentService`, `DashboardAgencyService` et `AgencyStatsController` lisent les commissions
       dans `commission_entries` (agent : ses lignes ; agence : Σ `leases.commission_amount` des baux
       activés).
-- [ ] Front : relevé des commissions pour l'agent (les siennes) et pour l'admin (toutes, avec « marquer
+- [x] Front : relevé des commissions pour l'agent (les siennes) et pour l'admin (toutes, avec « marquer
       payée » et « annuler »).
 
 ### 3. Vue agent
-- [ ] `DashboardAgentService::summary(User, scope)` :
+- [x] `DashboardAgentService::summary(User, scope)` :
   - `mine` = biens dont il est `user_id` ou collaborateur `agent|manager` (sans condition
     d'`accepted_at`, jamais écrit — Contexte § 2) ; réservations en
     attente sur ces seuls biens ; clients `added_by_id` = lui (ou le champ d'assignation de TCK-591
     s'il existe à la fusion) ; baux à signer dont il est `agent_id` ;
   - `agency` = le calcul actuel, sous `reports.view_agency`.
-- [ ] Visites : `upcoming_7d` compte `scheduled|confirmed` ; `today` et `today_items` excluent
+- [x] Visites : `upcoming_7d` compte `scheduled|confirmed` ; `today` et `today_items` excluent
       `cancelled` et `no_show`.
-- [ ] `monthlyTimeseries` en une requête groupée par mois sur le grand livre et sur `leases.signed_at`.
-- [ ] Front : « Mes chiffres » / « Agence » ; libellés honnêtes.
+- [x] `monthlyTimeseries` en une requête groupée par mois sur le grand livre et sur `leases.signed_at`.
+- [x] Front : « Mes chiffres » / « Agence » ; libellés honnêtes.
 
 ### 4. Liste des biens (A14)
-- [ ] `PropertyController::index` : eager-loading de `media`, `agency`, `owner.media`, et des profils
+- [x] `PropertyController::index` : eager-loading de `media`, `agency`, `owner.media`, et des profils
       agent nécessaires à `actsAsAgent`. **Seulement l'eager-loading** : la clause `where` appartient à
       TCK-587.
-- [ ] `PropertyResource::actsAsAgent` lit des profils préchargés au lieu d'une requête par ligne. Ce
+- [x] `PropertyResource::actsAsAgent` lit des profils préchargés au lieu d'une requête par ligne. Ce
       calcul par lot vient par-dessus le retrait de la branche courtier (TCK-586).
 
 ### 5. Accueil client (C14)
-- [ ] `DashboardTenantService` agrège sur **toutes** les lignes `Customer` de l'utilisateur
+- [x] `DashboardTenantService` agrège sur **toutes** les lignes `Customer` de l'utilisateur
       (`whereIn('tenant_id' | 'payer_id' | 'customer_id', $customerIds)`), et exclut
       `payment_type = deposit_refund` de `next_due`, `upcoming_30d` et des impayés. Sans aucune
       ligne, il rend des zéros et `has_customer_profile:false` au lieu de court-circuiter. Nouvelles clés
       `visits.upcoming` (5 prochaines, `customer.user_id` = moi) et `maintenance.open` (déjà calculée).
-- [ ] `DashboardRoleResolver` : un compte sans autre rôle → `TenantMeMetrics`, jamais `null`.
-- [ ] Front : accueil « ce qui m'attend » (§ Direction UX). La rangée « biens à {ville} pour
+- [x] `DashboardRoleResolver` : un compte sans autre rôle → `TenantMeMetrics`, jamais `null`.
+- [x] Front : accueil « ce qui m'attend » (§ Direction UX). La rangée « biens à {ville} pour
       {louer|acheter} » consomme la recherche publique existante, filtrée par `city` / `search_intent`.
 
 ### 5 bis. Accès et effectif du tableau de bord d'agence (passe de correction)
-- [ ] `Capability::ReportsViewAgency = 'reports.view_agency'` (bloc `reports.*`), absent de
+- [x] `Capability::ReportsViewAgency = 'reports.view_agency'` (bloc `reports.*`), absent de
       `platformReserved()`. Libellé de la capacité dans les trois langues (bloc de clés du ticket).
-- [ ] `DashboardAgencyController::show` : l'accès exige le super-admin ou
+- [x] `DashboardAgencyController::show` : l'accès exige le super-admin ou
       `canActAt(Capability::ReportsViewAgency, $agency)` ; la branche `isAgentAt` (l.42) disparaît, et
       `primary_admin_id` ne suffit plus seul (l'admin principal porte la capacité par son rôle).
       `AgencyStatsController::show` prend la même garde.
-- [ ] `DashboardAgencyService::summary` et `AgencyStatsController` : `members_count` = utilisateurs
+- [x] `DashboardAgencyService::summary` et `AgencyStatsController` : `members_count` = utilisateurs
       distincts ayant un profil agent **ou** admin d'agence **actif** dans l'agence, jamais un bailleur.
-- [ ] Test `tests/Feature/Dashboard/DashboardAgencyAccessTest.php`.
+- [x] Test `tests/Feature/Dashboard/DashboardAgencyAccessTest.php`.
 
 ### 6. Performance d'équipe (AD16)
-- [ ] `TeamPerformanceController@show` + `TeamPerformanceService` + `ShowTeamPerformanceRequest`
+- [x] `TeamPerformanceController@show` + `TeamPerformanceService` + `ShowTeamPerformanceRequest`
       (`period` = `Y-m`, défaut le mois courant), route `agencies/{agency}/team-performance`. Une ligne
       par agent actif de l'agence :
   - `leases_signed` et `sales_signed` (`agent_id`, `signed_at` dans la période, hors `draft` et
@@ -499,57 +499,57 @@ faits neufs, plus graves que les rapports, sont signalés **(neuf)**.
   - `customers_added` (`added_by_id`) ;
   - `commissions_earned` (Σ du grand livre, `earned_at` dans la période) ;
   - `properties_managed` et `tasks_overdue` (à date).
-- [ ] Front : onglet « Performance » sous `/admin/team` (agences `standard`).
+- [x] Front : onglet « Performance » sous `/admin/team` (agences `standard`).
 
 ### 7. Reporting financier (AD17)
-- [ ] `AgingBalanceController@show` + `AgingBalanceService` : tranches 1-30 / 31-60 / 61-90 / > 90 jours
+- [x] `AgingBalanceController@show` + `AgingBalanceService` : tranches 1-30 / 31-60 / 61-90 / > 90 jours
       de retard (montant et nombre), `group_by=tenant|landlord`, total des cautions détenues (global et
       par bailleur).
-- [ ] `ExportDataService` : méthodes `payouts`, `invoices`, `commissions`, `aging` et `deposits`, chacune
+- [x] `ExportDataService` : méthodes `payouts`, `invoices`, `commissions`, `aging` et `deposits`, chacune
       scopée à l'agence de l'acteur, plus leur branche dans `collect()`. `ExportController` : ajout des
       cinq noms à la liste.
-- [ ] `AgingBalanceService` applique la règle *Impayé* : un loyer `pending` échu y figure, qu'il soit
+- [x] `AgingBalanceService` applique la règle *Impayé* : un loyer `pending` échu y figure, qu'il soit
       passé `late` ou non.
-- [ ] Front : la balance âgée remplace la liste plate de l'onglet Impayés de `/admin/finances`, qui ne
+- [x] Front : la balance âgée remplace la liste plate de l'onglet Impayés de `/admin/finances`, qui ne
       lit plus `filter[status]=late`. Accès aux nouveaux exports.
 
 ### 8. Métriques plateforme (S17)
-- [ ] Migration `create_platform_metrics_daily_table` (unique `platform_metrics_daily_date_uq`). Modèle
+- [x] Migration `create_platform_metrics_daily_table` (unique `platform_metrics_daily_date_uq`). Modèle
       `PlatformMetricDaily`.
-- [ ] Job `App\Jobs\Reporting\SnapshotPlatformMetricsJob`, planifié `dailyAt('00:30')->withoutOverlapping()`
+- [x] Job `App\Jobs\Reporting\SnapshotPlatformMetricsJob`, planifié `dailyAt('00:30')->withoutOverlapping()`
       dans `routes/console.php`. Commande `metrics:snapshot {--date=}` pour un jour donné (flux seulement
       pour le passé).
-- [ ] `SystemMetricsController` : nouvelles clés, `trend` lu dans l'instantané J-30 (absent → pas de
+- [x] `SystemMetricsController` : nouvelles clés, `trend` lu dans l'instantané J-30 (absent → pas de
       clé). `collected_total` (et `platform_total_paid` pendant sa version de transition) suit la règle
       *Encaissé* : jamais `deposit` ni `deposit_refund`.
-- [ ] `PlatformReportingService::revenueSnapshotAt` sort du MRR, de l'ARR et du compte tout abonnement
+- [x] `PlatformReportingService::revenueSnapshotAt` sort du MRR, de l'ARR et du compte tout abonnement
       `trialing` **ou** dont `trial_ends_at` est postérieur au point mesuré, et rend le MRR d'essai à
       part. `past_due` reste dans le MRR jusqu'à la résiliation (**option retenue par défaut**). Le
       docblock « override-aware » est corrigé.
-- [ ] Front : la tuile « Revenu plateforme » devient « Flux encaissé », avec des tuiles GMV, take rate,
+- [x] Front : la tuile « Revenu plateforme » devient « Flux encaissé », avec des tuiles GMV, take rate,
       MRR et essais.
 
 ### 9. Tests (noms prescrits)
-- [ ] `tests/Feature/Dashboard/DashboardOwnerMetricsTest.php`, `DashboardOwnerQueryBudgetTest.php`,
+- [x] `tests/Feature/Dashboard/DashboardOwnerMetricsTest.php`, `DashboardOwnerQueryBudgetTest.php`,
       `DashboardAgentScopeTest.php`, `DashboardMeRoutingTest.php`, `DashboardTenantSeekerTest.php`
-- [ ] `tests/Feature/Commission/CommissionLedgerTest.php`, `CommissionEntryApiTest.php`
-- [ ] `tests/Feature/Api/PropertyIndexQueryBudgetTest.php`
-- [ ] `tests/Feature/Agency/TeamPerformanceTest.php`, `AgingBalanceTest.php`,
+- [x] `tests/Feature/Commission/CommissionLedgerTest.php`, `CommissionEntryApiTest.php`
+- [x] `tests/Feature/Api/PropertyIndexQueryBudgetTest.php`
+- [x] `tests/Feature/Agency/TeamPerformanceTest.php`, `AgingBalanceTest.php`,
       `tests/Feature/Api/ExportReportingTypesTest.php`
-- [ ] `tests/Feature/Admin/PlatformMetricsSnapshotTest.php`, `tests/Feature/Admin/PlatformRevenueMrrTest.php`
-- [ ] `tests/Feature/Dashboard/DashboardAgentVisitsTest.php`, `DashboardTenantDepositRefundTest.php`
-- [ ] Les tests existants qui posent `commission_amount` à la main sont réécrits pour passer par
+- [x] `tests/Feature/Admin/PlatformMetricsSnapshotTest.php`, `tests/Feature/Admin/PlatformRevenueMrrTest.php`
+- [x] `tests/Feature/Dashboard/DashboardAgentVisitsTest.php`, `DashboardTenantDepositRefundTest.php`
+- [x] Les tests existants qui posent `commission_amount` à la main sont réécrits pour passer par
       l'activation.
 
 ### 10. Locale des vues d'ensemble (consolidation)
-- [ ] Front : les quatre pages `app/overview/{agency,agent,owner,tenant}/page.tsx` formatent montants,
+- [x] Front : les quatre pages `app/overview/{agency,agent,owner,tenant}/page.tsx` formatent montants,
       nombres, pourcentages et dates dans la **langue active de la requête** (celle que `getTranslations`
       sert déjà, lue côté serveur par next-intl), et non plus `'fr'` ni `'fr-SN'` écrits en dur ;
       `const LOCALE` (`agent/page.tsx:24`) et les deux `Intl.DateTimeFormat('fr-SN', …)` (`:267,272`)
       disparaissent au profit des helpers de `@/lib/format`. Le fuseau reste `Africa/Dakar`.
-- [ ] Les écrans neufs de ce ticket (relevé des commissions, performance d'équipe, balance âgée,
+- [x] Les écrans neufs de ce ticket (relevé des commissions, performance d'équipe, balance âgée,
       tuiles plateforme) suivent la même règle dès leur écriture.
-- [ ] Test `takussan-web/src/app/(dashboard)/app/overview/__tests__/locale.tck-595.test.tsx`.
+- [x] Test `takussan-web/src/app/(dashboard)/app/overview/__tests__/locale.tck-595.test.tsx`.
 
 ## Critères d'acceptation
 
@@ -578,18 +578,18 @@ Paiements de juillet :
 - réservation sur H : `BookingPayment` de 80 000 payé, `refund_amount` 20 000 ;
 - un `Payout` `completed` net de 135 000, traité le 2026-07-10.
 
-- [ ] **AC1 — Occupation par chevauchement de dates.** Sur R,
+- [x] **AC1 — Occupation par chevauchement de dates.** Sur R,
       `GET /api/dashboard/owner?include=timeseries&months=7` rend `timeseries.occupancy` =
       `[66.67, 66.67, 84.95, 77.78, 66.67, 66.67, 33.33]` (janvier → juillet). Un `assertCount` seul ne
       suffit pas : le test compare le tableau entier. Sur le code actuel, janvier vaut 0. Un second bail
       `active` ajouté sur L2 du 2026-07-01 au 2026-07-31 laisse juillet à `33.33` : le code actuel compte
       deux baux, et un calcul en jours-biens sans dédoublonnage par bien rendrait `66.67` (ablation).
-- [ ] **AC2 — Dénominateur.** Toujours sur R, `occupancy.rate_percent` = `33.33` (1 bien occupé sur
+- [x] **AC2 — Dénominateur.** Toujours sur R, `occupancy.rate_percent` = `33.33` (1 bien occupé sur
       L1, L2, L3). Ajouter un 4ᵉ bien en vente, un brouillon ou un parent ne change pas la valeur.
       Ajouter un 4ᵉ lot feuille mensuel la fait passer à `25.0`.
-- [ ] **AC3 — Courte durée.** Toujours sur R, `occupancy.short_stay_percent` = `16.13` (5 nuitées / 31).
+- [x] **AC3 — Courte durée.** Toujours sur R, `occupancy.short_stay_percent` = `16.13` (5 nuitées / 31).
       La réservation annulée n'y entre pas.
-- [ ] **AC4 — Encaissé, impayés, net.** Sur R :
+- [x] **AC4 — Encaissé, impayés, net.** Sur R :
   - `finance.cashflow_month` = `210000.0` (150 000 + 80 000 − 20 000) ;
   - `finance.booking_income_month` = `60000.0` ;
   - `finance.net_paid_out_month` = `135000.0` ;
@@ -600,25 +600,25 @@ Paiements de juillet :
     `landlord_id` = B : 100 000 né de la restitution de caution (`payee_role = tenant`) et 60 000 à un
     prestataire (`payee_role = service_provider`). `net_paid_out_month` reste `135000.0` ; sans le
     filtre, il vaudrait `295000.0` (ablation).
-- [ ] **AC4 bis — Prochains versements.** Test de la vue bailleur : la requête des versements porte
+- [x] **AC4 bis — Prochains versements.** Test de la vue bailleur : la requête des versements porte
       `filter[payee_role]=landlord` et `filter[status]=pending,scheduled,processing`. Rouge sur le code
       actuel (`status: 'pending'` seul, aucun `payee_role`).
-- [ ] **AC5 — Même règle pour l'agence.** R placé dans une agence `standard` sans autre bien :
+- [x] **AC5 — Même règle pour l'agence.** R placé dans une agence `standard` sans autre bien :
       `GET /api/dashboard/agency` rend les mêmes valeurs qu'AC2 et AC4 pour l'occupation, l'encaissé et
       les impayés (`overdue_count` = 1, `overdue_amount` = `50000.0`), et `unpaid_rate_percent` se
       calcule sur ces 50 000.
-- [ ] **AC6 — Budget de requêtes, bailleur.** Le nombre de requêtes de `GET /api/dashboard/owner?include=timeseries`
+- [x] **AC6 — Budget de requêtes, bailleur.** Le nombre de requêtes de `GET /api/dashboard/owner?include=timeseries`
       est **identique** pour `months=1` et `months=36`, et pour 1 bail comme pour 20. Le test inscrit le
       plafond à la valeur mesurée à l'implémentation, qui reste strictement inférieure à 34. Même
       exigence, même forme, pour `/dashboard/agent` et `/dashboard/agency`.
-- [ ] **AC7 — Aiguillage de l'hôte.** Pour un admin d'agence `individual`, `GET /api/dashboard/me` rend
+- [x] **AC7 — Aiguillage de l'hôte.** Pour un admin d'agence `individual`, `GET /api/dashboard/me` rend
       `role: "owner"`. Le test front de l'aiguillage `/app/overview` vérifie la redirection vers
       `/app/overview/owner`, et reste `agency` pour une agence `standard`.
-- [ ] **AC8 — Cartes actionnables.** Avec 2 interventions `quote_submitted`, 1 visite à confirmer et
+- [x] **AC8 — Cartes actionnables.** Avec 2 interventions `quote_submitted`, 1 visite à confirmer et
       1 avis approuvé sans réponse sur les biens de B (et autant sur ceux d'un autre bailleur), le résumé
       rend `maintenance.quotes_pending: 2`, `visits.to_confirm: 1`, `reviews.unanswered: 1`. Le texte fixe
       `seeModule` n'est plus rendu.
-- [ ] **AC9 — Commission à l'activation.** Un bail porte `commission_amount` = 300 000 et le négociateur
+- [x] **AC9 — Commission à l'activation.** Un bail porte `commission_amount` = 300 000 et le négociateur
       A, dont `AgentProfile.commission_rate` = 30. Les collaborateurs du bien sont **tous créés par la
       route réelle** `POST /api/properties/{property}/collaborators`, jamais par factory ni `forceFill` :
   - B, agent actif de l'agence du bien, `role=agent`, `commission_share` 20 ;
@@ -633,15 +633,15 @@ Paiements de juillet :
   rouge) ; une règle qui ignore l'éligibilité rend une ligne C de 30 000 (rouge). Une seconde émission de
   `LeaseActivated` ne crée aucune ligne de plus. La résiliation du bail laisse les deux lignes `due`. Son
   renouvellement ne crée aucune ligne, et l'enfant porte `agent_id` = A.
-- [ ] **AC9 bis — La tuile d'agence n'est plus nulle.** Sur le jeu d'AC9, bail signé dans le mois :
+- [x] **AC9 bis — La tuile d'agence n'est plus nulle.** Sur le jeu d'AC9, bail signé dans le mois :
       `GET /api/dashboard/agency` rend `finance.commission_month` = `300000.0`. Sur le code actuel, un
       bail créé par l'API rend `0.0`.
-- [ ] **AC10 — Plafond de ventilation.** Les collaborateurs éligibles (créés par la route, `accepted_at`
+- [x] **AC10 — Plafond de ventilation.** Les collaborateurs éligibles (créés par la route, `accepted_at`
       nul) totalisent 80 % et le taux de A
       est 30 : la ligne de A vaut 20 % de la base, et Σ des lignes ≤ `commission_amount`.
-- [ ] **AC11 — Vente sans montant.** Un bail `type=sale`, `sale_price` 50 000 000, `commission_rate` 3,
+- [x] **AC11 — Vente sans montant.** Un bail `type=sale`, `sale_price` 50 000 000, `commission_rate` 3,
       sans `commission_amount` : il est créé avec `commission_amount` = `1500000.00`.
-- [ ] **AC12 — Vue agent personnelle.** Sur le jeu d'AC9, plus un bail d'un autre agent de la même agence
+- [x] **AC12 — Vue agent personnelle.** Sur le jeu d'AC9, plus un bail d'un autre agent de la même agence
       signé dans le mois (commission 500 000) :
   - `GET /api/dashboard/agent` pour A → `finance.commissions_month` = `90000.0` et `scope: "mine"` ;
   - pour B → `60000.0` ;
@@ -652,24 +652,24 @@ Paiements de juillet :
     `pipeline_ops.leases_to_sign` = 1 (le code actuel rend 5, 3 et 3) ;
   - `scope=agency` → **403** pour un agent (sans `reports.view_agency`), **200** pour l'admin d'agence
     du rôle système. Le 403 rougit quand on retire la garde (ablation).
-- [ ] **AC12 bis — Visites de l'agent.** `setTestNow('2026-07-15 09:00')`. A a, entre le 16 et le
+- [x] **AC12 bis — Visites de l'agent.** `setTestNow('2026-07-15 09:00')`. A a, entre le 16 et le
       21 juillet, 1 visite `scheduled`, 2 `confirmed` et 1 `cancelled` ; le 15 à 18 h, 1 `confirmed`
       et 1 `cancelled`. `visits.upcoming_7d` = 4, `visits.today` = 1, et `today_items` ne contient pas
       la visite annulée. Le code actuel rend `upcoming_7d` = 1 et `today` = 2.
-- [ ] **AC13 — Grand livre cloisonné.** `GET /api/commissions` rend à A ses seules lignes. Il rend à
+- [x] **AC13 — Grand livre cloisonné.** `GET /api/commissions` rend à A ses seules lignes. Il rend à
       l'admin toutes les lignes de son agence, et aucune d'une autre agence. `mark-paid` par A → **403**.
       Par l'admin (`payouts.approve`), il rend 200, statut `paid`, `paid_by_id` posé et une entrée
       d'activité. Sur une ligne d'une autre agence → **403**. Les deux refus rougissent quand on retire la
       policy (ablation).
-- [ ] **AC14 — Négociateur valide.** Créer un bail avec un `agent_id` bailleur, client ou d'une autre
+- [x] **AC14 — Négociateur valide.** Créer un bail avec un `agent_id` bailleur, client ou d'une autre
       agence → **422**.
-- [ ] **AC15 — Liste des biens sans N+1.** `GET /api/properties?per_page=20` fait **le même nombre** de
+- [x] **AC15 — Liste des biens sans N+1.** `GET /api/properties?per_page=20` fait **le même nombre** de
       requêtes avec 2 biens et avec 20, chacun avec photo, propriétaire avec avatar et agence. Le test
       rougit quand on retire l'eager-loading de `media`.
-- [ ] **AC16 — Client sans dossier.** Un compte neuf sans ligne `Customer` reçoit `200` et `role: "tenant"`
+- [x] **AC16 — Client sans dossier.** Un compte neuf sans ligne `Customer` reçoit `200` et `role: "tenant"`
       sur `GET /api/dashboard/me`, au lieu de 404. Avec une visite `scheduled` dans 2 jours sur son
       `Customer`, `visits.upcoming` la contient, et `maintenance.open` est affiché à l'écran.
-- [ ] **AC16 bis — Client de deux agences, caution rendue.** Un compte rattaché à deux lignes
+- [x] **AC16 bis — Client de deux agences, caution rendue.** Un compte rattaché à deux lignes
       `Customer` (agences X et Y) a un bail `active` dans chacune, un loyer de 100 000 `pending` échu
       le 2026-07-05 dans Y, un loyer de 120 000 `pending` dû le 2026-08-01 dans X, et une restitution de
       caution de 40 000 `pending` due le 2026-07-20 dans X. `GET /api/dashboard/tenant` rend
@@ -677,7 +677,7 @@ Paiements de juillet :
       `payments.next_due.amount` = `120000.0`, et aucun élément de `upcoming_30d` n'a le montant
       40 000. Le code actuel, qui ne lit que la première ligne `Customer` (X), rend `leases.active` = 1,
       0 impayé et une prochaine échéance de 40 000.
-- [ ] **AC17 — Performance d'équipe.** Dans une agence `standard`, sur juillet 2026 :
+- [x] **AC17 — Performance d'équipe.** Dans une agence `standard`, sur juillet 2026 :
   - l'agent A a 2 baux signés en juillet et 1 en juin, 3 visites `completed` et 1 `cancelled` ;
   - l'agent B a 1 visite `completed`.
 
@@ -689,14 +689,14 @@ Paiements de juillet :
   - admin d'une autre agence → **403** ;
   - admin d'agence du rôle système → **200**, sans aucune capacité ajoutée à la main (preuve que la
     garde n'est pas `reports.view_global`).
-- [ ] **AC17 bis — Le tableau de bord d'agence n'est plus ouvert aux agents.** Un agent de l'agence
+- [x] **AC17 bis — Le tableau de bord d'agence n'est plus ouvert aux agents.** Un agent de l'agence
       `standard`, profil actif dans l'agence, reçoit **403** sur `GET /api/dashboard/agency` et sur
       `GET /api/agencies/{agency}/stats` (le code actuel rend 200 au premier). L'admin d'agence du rôle
       système reçoit 200. Un rôle personnalisé auquel on ajoute `reports.view_agency` ouvre l'accès à
       son porteur. Le 403 rougit quand on retire la garde (ablation). Sur une agence comptant 1 admin,
       2 agents actifs, 1 agent dont le profil est inactif et 3 bailleurs, `members_count` = `3` (le
       code actuel rend 6).
-- [ ] **AC18 — Balance âgée.** Au 2026-07-15, quatre loyers impayés échus de 10, 40, 75 et 120 jours
+- [x] **AC18 — Balance âgée.** Au 2026-07-15, quatre loyers impayés échus de 10, 40, 75 et 120 jours
       (100 000 chacun), **au statut `pending`** sur des baux sans `late_fee_percent`, et une restitution
       de caution échue : `aging` rend une ligne de 1 × 100 000 dans chaque tranche, et ignore la
       restitution. `group_by=landlord` totalise par bailleur. `deposits_held` vaut la règle des
@@ -710,10 +710,10 @@ Paiements de juillet :
     de `400 000 F CFA` (le même total que la tuile), que sa requête vise `/finance/aging` et ne porte
     plus `filter[status]=late`. Rouge sur le code actuel (`OverduePaymentsTable.tsx:43` épingle
     `status: 'late'` et n'affiche aucune tranche).
-- [ ] **AC19 — Nouveaux exports.** `GET /api/export/payouts|invoices|commissions|aging|deposits?format=csv`
+- [x] **AC19 — Nouveaux exports.** `GET /api/export/payouts|invoices|commissions|aging|deposits?format=csv`
       rend un CSV limité à l'agence de l'acteur : une ligne d'une autre agence n'y figure jamais. Sans
       `reports.export`, la réponse est **403**.
-- [ ] **AC20 — Instantané plateforme.** Le 2026-07-14 :
+- [x] **AC20 — Instantané plateforme.** Le 2026-07-14 :
   - un loyer de 100 000 est payé avec 5 % de frais, et une réservation de 200 000 avec 10 % ;
   - deux abonnements actifs (10 000 et 25 000), un `trialing` (15 000) et un `past_due` (5 000).
 
@@ -721,7 +721,7 @@ Paiements de juillet :
   25 000, `mrr_amount` 40 000, `mrr_trialing_amount` 15 000. Une seconde exécution ne crée pas de
   doublon. `GET /api/admin/system/metrics` rend `revenue.take_rate` = `0.0833`. Sans instantané à J-30,
   `trend` n'a pas la clé correspondante.
-- [ ] **AC20 bis — Flux encaissé et MRR sans les essais.** Sur le jeu d'AC20, plus un dépôt de garantie
+- [x] **AC20 bis — Flux encaissé et MRR sans les essais.** Sur le jeu d'AC20, plus un dépôt de garantie
       de 300 000 payé et une restitution de caution de 100 000 payée :
   - `GET /api/admin/system/metrics` rend `revenue.collected_total` = `300000.0` (loyer + réservation)
     et `revenue.platform_total_paid` la même valeur ; le code actuel rend `500000.0` (loyers, dépôt et
@@ -731,7 +731,7 @@ Paiements de juillet :
   - dans un jeu séparé, un seul abonnement, aujourd'hui `active` à 10 000, `current_period_start`
     2026-04-20 et `trial_ends_at` 2026-06-20 : la ligne `rows` de mai a `mrr` = `0.0`, celle de juin
     `10000.0` (le code actuel rend `10000.0` aux deux).
-- [ ] **AC20 ter — Les vues d'ensemble suivent la langue.** Le test `locale.tck-595.test.tsx` rend la
+- [x] **AC20 ter — Les vues d'ensemble suivent la langue.** Le test `locale.tck-595.test.tsx` rend la
       page bailleur avec une réponse `GET /api/dashboard/owner` simulée (`finance.cashflow_month` =
       `150000`, `period.start` = `2026-07-01`) et la locale de requête simulée :
   - en `en`, le texte rendu contient `150,000 F CFA` et `1 Jul 2026`, et ne contient pas
@@ -928,3 +928,17 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   plus rien (`1 = 0`) au lieu de tout rendre.
 - Front : les cinq types s'offrent dans `/app/overview/exports` au personnel qui tient
   `reports.export`, jamais au bailleur, et le BFF les relaie.
+
+### Clôture de l'agent (2026-10-08)
+
+- AC1 à AC20 ter prouvés par des tests nommés, chacun rougi par ablation. **AC21 reste ouvert** : la
+  suite entière (`php artisan test`, `npm run test`) appartient à la session qui fusionne. Le statut
+  reste donc `doing`.
+- **Livraison en trois PR non suivie** : une seule branche, onze lots commités dans l'ordre (a), (b), (c).
+  Le découpage reste possible commit par commit. C'est au porteur de trancher.
+- Écarts de chemin aux noms prescrits du § 9 : `DashboardQueryBudgetTest` couvre les trois budgets
+  (bailleur, agent, agence). `TeamPerformanceTest`, `AgingBalanceTest`, `PlatformMetricsSnapshotTest`
+  et `PlatformRevenueMrrTest` vivent sous `tests/Feature/Reporting/`.
+- `DashboardAgencyTest` et `AgencyStatsTest` posent encore `commission_amount` sur le bail. C'est
+  légitime : la tuile d'agence lit la commission du bail (ADR-0049 §5), que l'API enregistre
+  désormais (AC9 bis).
