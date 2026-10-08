@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les QUINZE pages publiques déclarent leur métadonnée sur place', () => {
+  it('les DIX-SEPT pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -363,7 +363,15 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // 11 → 14 : TCK-531 ajoute `/legal/{terms,privacy,notice}`, toutes trois `jamais`.
     // 14 → 15 : TCK-587 ajoute `/share/[token]`, `jamais` — la réception d'un lien de partage, dont
     // l'URL porte le jeton d'accès (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
-    expect(ROUTES.length).toBe(15);
+    // 15 → 17 : TCK-599 ajoute deux pages STATIQUES, toutes deux `jamais` :
+    //  - `/search-alerts/confirm` — la confirmation d'une alerte sans compte, dont l'URL porte le
+    //    jeton de confirmation (`?token=`) ;
+    //  - `/search-alerts/unsubscribe` — la désinscription, dont l'URL porte le jeton de
+    //    désinscription ou la signature d'un lien de compte.
+    // Statiques (le jeton est dans la requête, pas dans le chemin) : elles n'entrent pas dans
+    // ROUTES_DYNAMIQUES_PUBLIQUES, et l'équivalence de l'AC3 les tient hors du sitemap par leur
+    // `noindex` — nommées ci-dessous.
+    expect(ROUTES.length).toBe(17);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -404,6 +412,17 @@ describe('TCK-431 · AC3 — le sitemap ⇔ les pages indexables', () => {
       intruses.map((r) => `${r.chemin} (${r.fichier})`),
       'page non indexable présente dans le sitemap',
     ).toEqual([]);
+  });
+
+  it('les deux pages d’alerte à jeton (TCK-599) ne sont ni indexables ni au sitemap', () => {
+    // Nommées pour la même raison que les écrans personnels : une page qui perdrait son
+    // `noindex` rejoindrait l'équivalence sans rougir, et un jeton finirait dans un index.
+    for (const chemin of ['/search-alerts/confirm', '/search-alerts/unsubscribe']) {
+      const route = ROUTES.find((r) => r.chemin === chemin);
+      expect(route, `route ${chemin} introuvable`).toBeDefined();
+      expect(route!.indexabilite, `${chemin} devrait déclarer robots: { index: false }`).toBe('jamais');
+      expect(declarees.has(chemin), `${chemin} présente dans le sitemap`).toBe(false);
+    }
   });
 
   it('les trois écrans personnels sont bien vus comme non indexables', () => {
