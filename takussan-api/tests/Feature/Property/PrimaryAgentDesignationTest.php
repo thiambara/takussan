@@ -229,6 +229,25 @@ class PrimaryAgentDesignationTest extends ApiTestCase
     }
 
     /**
+     * Vérification adverse m6 — LIMITE DOCUMENTÉE, épinglée pour que le texte et le code bougent
+     * ensemble : un changement de contact par l'éligibilité (compte bloqué, profil suspendu)
+     * n'écrit aucune ligne de collaboration et n'invalide pas la fiche ; il attend la revalidation
+     * de 300 s (`PropertyPublicCacheObserver`, ADR-0053 « Conséquences »). Le jour où ce cas
+     * invalidera, ce test rougira : réécrire alors le docblock et l'ADR avec lui.
+     */
+    public function test_un_changement_de_contact_par_l_eligibilite_attend_la_revalidation_limite_documentee(): void
+    {
+        $this->designer($this->ligneSecond)->assertOk();
+        Queue::fake();
+
+        $this->second->update(['status' => UserStatus::Blocked]);
+        AgentProfile::query()->where('user_id', $this->second->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        $this->assertSame($this->ancien->id, $this->contact(), 'le contact passe au repli');
+        Queue::assertNotPushed(RevalidatePublicPropertyPage::class);
+    }
+
+    /**
      * Vérification adverse m4 — dupliquer un bien avec ses collaborateurs ne change pas son contact :
      * la marque suit la ligne du même agent, et l'ordre d'invitation recopié garde le repli.
      */

@@ -323,3 +323,12 @@ suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `Prim
   invalidée. Ablation M5 (ligne `PropertyCollaborator::updated(...)` retirée) : rouge, sur les 4
   classes TCK-504 (`t504/ablations-m5.log`) — elle restait 22/22 verte avant. B8 du rapport ne
   couvrait que `created`/`deleted`.
+- **m6 — le docblock de l'observateur dit sa limite.** Seuls les changements de contact qui passent
+  par une ligne de collaboration invalident la fiche ; ceux qui passent par l'éligibilité (compte
+  bloqué ou supprimé, profil suspendu ou retiré, sortie de l'agence) attendent encore la revalidation
+  de 300 s. Écrit dans `PropertyPublicCacheObserver` et dans ADR-0053 « Conséquences » (ticket
+  d'invalidation sur `AgentProfile`/`User` à ouvrir si on la veut : non ouvert ici). La limite est
+  épinglée par `test_un_changement_de_contact_par_l_eligibilite_attend_la_revalidation_limite_documentee`,
+  qui rougira le jour où elle sera levée. Ablation sans objet pour un commentaire. ADR-0053 §4
+  décrit aussi la forme de réponse issue de m2/m3 (`can_designate`, `designated_collaborator_id`,
+  `designated_unavailable`).

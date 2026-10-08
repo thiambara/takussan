@@ -140,8 +140,13 @@ l'écrit **jamais**.
 (`properties.collaborators.primary`), sans corps. `DesignatePrimaryCollaboratorRequest::authorize()`
 **délègue** à `update` de `PropertyPolicy`, la règle qui gouverne déjà `store`, `update` et `destroy`
 des collaborateurs (contrainte 4) : aucune règle neuve en contrôleur. Réponse : la liste des
-collaborateurs et `primary_contact` (`user_id`, `collaborator_id`, `source` ∈ `designated` |
-`invitation_order` | `owner`), la même forme que `GET …/collaborators`.
+collaborateurs et `primary_contact` (`user_id`, `collaborator_id`, `designated_collaborator_id`,
+`source` ∈ `designated` | `designated_unavailable` | `invitation_order` | `owner`), plus
+`can_designate`, la même forme que `GET …/collaborators`. `collaborator_id` nomme la ligne qui répond
+réellement (le repli quand la marque ne vaut rien, `null` pour le propriétaire) ;
+`designated_collaborator_id` la ligne marquée, active ou non (`designated_unavailable`) ;
+`can_designate` est la règle de l'endpoint, `update` du bien, pour que l'écran ne propose pas un
+geste que le serveur refuse (vérification adverse m2, m3).
 
 ### 5. L'invalidation hors désignation
 
@@ -191,6 +196,12 @@ reprend : c'est le comportement d'avant, pas un état incohérent.
 - `AgentHandoverService::move('collaborations')` (591) réécrit `user_id` de la ligne du partant : la
   marque suit le repreneur. Quand le repreneur a déjà une ligne, celle du partant est supprimée et la
   marque tombe ; TCK-603 reprend ce cas par `ResponsibleAgentAssigner`.
+- **Ce que l'invalidation ne couvre pas.** Un changement de contact qui passe par l'éligibilité du
+  §2 — compte du principal bloqué ou supprimé, profil d'agent suspendu ou retiré, sortie de
+  l'agence — n'écrit aucune ligne de collaboration : la fiche publique garde l'ancien contact jusqu'à
+  la revalidation de 300 s (ADR-0052). Invalider sur `AgentProfile` et sur le statut de `User`
+  demanderait de retrouver les biens dont la personne est le contact servi ; c'est un ticket à part,
+  non ouvert ici (vérification adverse m6).
 - `docs/models-spec.md` §8 ne décrit pas la colonne : `/sync-specs` après fusion (l'écart des colonnes
   d'acceptation, relevé par le ticket, y est déjà).
 

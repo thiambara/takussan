@@ -25,10 +25,16 @@ use App\Models\PropertyCollaborator;
  * Ce que l'appel signé ne porte pas — photos, étiquettes, avis, documents, agence — attend la
  * revalidation temporelle du front (300 s).
  *
- * TCK-504 — le CONTACT ne l'attend plus : une ligne de collaboration créée, supprimée, ou dont le
- * rôle, le titulaire, la date d'invitation ou la marque de principal change peut changer qui répond
- * pour le bien (`primary_contact`), par la marque ou par le repli. La désignation elle-même écrit
- * par le constructeur de requêtes et invalide de son côté (`PrimaryAgentDesignator`), une fois.
+ * TCK-504 — un changement de CONTACT qui passe par une LIGNE DE COLLABORATION ne l'attend plus :
+ * une ligne créée, supprimée, ou dont le rôle, le titulaire, la date d'invitation ou la marque de
+ * principal change peut changer qui répond pour le bien (`primary_contact`), par la marque ou par le
+ * repli. La désignation elle-même écrit par le constructeur de requêtes et invalide de son côté
+ * (`PrimaryAgentDesignator`), une fois.
+ *
+ * ⚠ Un changement de contact qui passe par l'ÉLIGIBILITÉ l'attend encore : compte du principal
+ * bloqué ou supprimé, profil d'agent suspendu ou retiré, sortie de l'agence. Rien de tout cela
+ * n'écrit de ligne de collaboration, et le contact public passe au repli sans invalider la fiche —
+ * jusqu'à 300 s (vérification adverse m6, ADR-0053 « Conséquences »).
  */
 class PropertyPublicCacheObserver
 {
