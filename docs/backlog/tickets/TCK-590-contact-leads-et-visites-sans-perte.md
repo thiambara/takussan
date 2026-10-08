@@ -1,13 +1,13 @@
 ---
 id: TCK-590
 title: "Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre"
-status: doing
+status: done
 phase: P0
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -402,7 +402,8 @@ pas un formulaire administratif.
 - [x] **B2′** — Borne par numéro AU POINT D'ENVOI (`VisitNotifier::toVisitor`) : au plus 5 SMS de
       visite par heure et 10 par jour vers un même numéro E.164, toutes causes confondues
       (confirmation, déplacement, annulation, planification). Au-delà, le SMS est retenu
-      (`VisitNotification::retenirLeSms()`), l'e-mail et le fil partent, et `visit.sms_retenu` est
+      (`VisitNotification::retenirLeSms()` ; depuis la fusion de TCK-588, `mobileBorne: false`),
+      l'e-mail et le fil partent, et `visit.sms_retenu` est
       journalisé sous une empreinte HMAC — le numéro n'est ni dans le journal ni dans la clé du
       cache. *Preuve : `test_b2prime_*` ; ablations P01 (borne court-circuitée), P02 (drapeau
       ignoré), P03 (borne du jour retirée) → rouges.*
@@ -429,6 +430,48 @@ pas un formulaire administratif.
 - [x] **n4** — « Planifier une visite » jugé sur le profil ACTIF (agent ou admin, statut `active`,
       dans l'agence du bien), plus sur les rôles globaux. *Preuve : `PlanifierUneVisite.test.tsx` ;
       FX3, FX4 → rouges.*
+
+### 10. Ajoutés après la troisième passe de vérification (VERIF-590 passe 3)
+
+- [x] **B2″** — `confirm` et `complete` passent par `agitPourLeBien`, comme `update` et `cancel` :
+      sur un bien d'agence, seul le personnel actif (`isStaffAt`) confirme ou clôt une visite. 403
+      `visit.staff_only` et 0 SMS pour le bailleur actif, l'agent parti créateur du bien, l'agent
+      suspendu encore assigné. *Preuve : `test_b2seconde_*` (×3) ; R01 (confirm), R02 (complete) →
+      rouges.*
+- [x] **M7′** — `PropertyVisitPolicy::view` lit `property.user_id` par la définition M7
+      (`estProprietaire`) ; l'agent assigné ne lit que s'il est encore du personnel de l'agence du
+      bien. Le propriétaire reconnu lit la visite d'un bien d'agence SANS la fiche client
+      (`customer`, `customer_id` masqués par `PropertyVisitResource`), au détail comme à l'index.
+      *Preuve : `test_m7prime_*` (×4) ; S01 à S05 → rouges.*
+- [x] **R1** — Deux bornes au point d'envoi : par (numéro, émetteur) — l'agence du bien, ou le
+      particulier d'un bien sans agence — 5 par heure et 10 par jour, et un filet de 20 par jour
+      par numéro. L'action dont le SMS est retenu le dit : `sms_sent: false`, `sms_code:
+      visit_sms_capped`, `sms_message` (fr/en/wo) ; l'interface du personnel l'affiche (toast).
+      *Preuve : `test_r1_*` (×2), tests front de `VisitDetail` et `PlanifierUneVisite` ; T01 à T04,
+      U01 à U03 → rouges.*
+- [x] **R2** — Le front lit l'agence du bien par le bloc `agency` que l'API rend
+      (`agenceDuBien()`), et non `agency_id`, que `PropertyResource` n'émet pas. Test front sur la
+      forme RÉELLE capturée de l'API, test de contrat côté API, mesure au navigateur. *Preuve :
+      `PlanifierUneVisite.contrat.test.tsx`, `test_r2_la_fiche_bien_rend_l_agence_par_son_bloc_agency`
+      ; V01 → rouge ; CDP : agent `true`, bailleur `false` ; témoin 37210bac : agent `false`.*
+- [x] **n1′** — Une borne par UTILISATEUR qui agit : 20 SMS de visite par jour, tous numéros.
+      *Preuve : `test_n1prime_l_emetteur_est_borne_a_vingt_sms_par_jour` ; W01, W02 → rouges.*
+- [x] **n3′** — `agencyReaders()` compte les délégués ACTIFS (`RoleDelegation::active()`) : admin
+      délégué parmi les admins, agent délégué dans le repli `crm.view_all`. *Preuve :
+      `test_n3prime_*` (×2) ; Z01, Z02 → rouges.*
+- [x] **t1** — Le test adapté de 587 prouve le blocage par la LECTURE : bailleur bloqué dans A →
+      403 ; actif dans B → 200 sans la fiche client, index = la visite de B. *Preuve :
+      `test_un_bailleur_bloque_ne_lit_plus_la_visite_de_son_bien` ; AA1 (blocage ignoré) → rouge.
+      AA2 (branche `landlordWrites` de `update`) reste vert : branche morte pour une visite de bien
+      d'agence, l'écriture étant fermée en amont par `agitPourLeBien`.*
+- [x] **Fusion de TCK-588** — Refus par `abort_code` (codes `visit.*`, `lead.*` dans
+      `lang/*/errors.php`) ; notifications par codes et `send()` (`visit.requested`,
+      `visit.rescheduled_by_visitor`, `visit.cancelled_by_visitor`, `visit.confirmed`,
+      `visit.rescheduled`, `visit.cancelled`, `lead.received`, `lead.acknowledged`) ; une seule
+      source de vérité pour le plafond des SMS de visite (`VisitNotifier`, `mobileBorne` transmis
+      aux canaux, qui ne recomptent pas). *Preuve : `PlafondSmsDeVisiteTest` (bout en bout, vrais
+      canaux) ; C01 à C03 → rouges ; `ProseLitteraleInterditeTest`,
+      `check-notification-codes.mjs` verts.*
 
 **Tests** — `tests/Feature/Api/ContactLeadInboxTest`, `ContactLeadConvertTest`,
 `PropertyVisitAssignmentTest`, `PropertyVisitStaffCreateTest`, `PropertyVisitRescheduleTest`,
@@ -560,7 +603,7 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       n'est plus `incomplete`, vert ; ablations P12, P13 → rouges.*
 - [x] AC29 — Sans destinataire possible : 409 `contact_unavailable` (demande et visite), rien
       d'écrit, message front honnête en fr/en/wo. Demande sans agence : conversion 422 codée.
-- [x] AC30 — `VisitRequestedNotification` ne prend jamais le canal SMS ; durée ≤ 240 ; téléphone
+- [x] AC30 — La demande de visite (`visit.requested`, code non mobile) ne prend jamais le canal SMS ; durée ≤ 240 ; téléphone
       d'une fiche normalisé à la planification ; `+77 …` refusé ; un fixe ne reçoit pas de SMS.
 
 **Ajoutés après la seconde passe (VERIF-590 passe 2)** — vérifiés par
@@ -587,6 +630,32 @@ Chaque test marqué **(R)** rougit sur `e3ab4a4e` et redevient rouge quand on re
       agent sans `crm.view_all` : 409.
 - [x] AC37 — Front : un agent suspendu, un profil actif d'une autre agence, ou un bien sans agence
       n'ont pas « Planifier une visite » ; l'admin actif de l'agence du bien l'a.
+
+**Ajoutés après la troisième passe (VERIF-590 passe 3)** — vérifiés par
+`PropertyVisitVerificationAdverseTest`, `ProprietaireDuBienTest`, `TeamMemberSuspensionTest`,
+`PropertyContactLeadTest`, `PlafondSmsDeVisiteTest` et les tests front de la visite, ablation
+rejouée.
+
+- [x] AC38 **(R)** — Sur un bien d'agence, le bailleur actif, l'agent parti créateur et l'agent
+      suspendu encore assigné reçoivent 403 sur `confirm` et sur `complete`, et aucun SMS ne part.
+- [x] AC39 **(R)** — L'agent parti, créateur ou assigné, ne lit plus la visite d'un bien d'agence ;
+      le bailleur actif la lit sans `customer` ni `customer_id`, au détail et à l'index ; le
+      personnel lit la fiche client.
+- [x] AC40 **(R)** — Un particulier qui épuise sa borne vers un numéro ne coupe pas l'agence
+      légitime (SMS parti à +3 h et à +23 h) ; au-delà de 20 par jour, plus aucun émetteur. Un SMS
+      retenu est dit à l'appelant (`sms_sent: false`, code, message fr/en/wo) et affiché.
+- [x] AC41 — « Planifier une visite » apparaît pour le personnel de l'agence du bien et pas pour son
+      bailleur, mesuré au navigateur sur la réponse réelle de l'API.
+- [x] AC42 **(R)** — Un utilisateur ne fait pas partir plus de 20 SMS de visite par jour, quel que
+      soit le nombre de numéros.
+- [x] AC43 — Une agence dont le seul admin est délégué reçoit la demande publique (201) ; une
+      délégation révoquée ou échue ne compte pas.
+- [x] AC44 **(R)** — Un bailleur bloqué dans une agence ne lit plus la visite de son bien ; actif
+      dans une autre, il lit la sienne sans la fiche client.
+- [x] AC45 **(R)** — Un SMS de visite qui a passé la borne de `VisitNotifier` part même si la
+      limite générique du canal pour ce numéro est épuisée ; un SMS retenu par la borne ne part par
+      aucun canal. Les refus de 590 sont des codes (`abort_code`), ses notifications des codes
+      rendus en fr/en/wo.
 
 ## Hors périmètre
 
@@ -753,3 +822,25 @@ gardés), `INDEX.md` regénéré.
 - Exécutions : 27 classes TCK-590 et voisines + `tests/Feature/Authorization` : 400 verts, 0
   `incomplete` ; front : 35 fichiers, 265 verts ; `tsc`, lint, gardes i18n et racine vertes.
 
+**Étape 9 — troisième passe, puis fusion de TCK-588 (2026-10-08).** VERIF-590 passe 3 refusait :
+`confirm` et `complete` sans la garde de l'écart (b) (B2″), `PropertyVisitPolicy::view` qui lisait
+encore `property.user_id` (M7′), la borne globale par numéro, déni de service (R1), le bouton
+« Planifier une visite » disparu (R2), plus trois mineurs. Un commit par point, chacun prouvé par un
+test rouge sur `37210bac` et une ablation restaurée par `cp` (section 10 du Delta).
+- R2 : choix de LIRE `agency.id` côté front (`agenceDuBien()`, module à part : une page serveur ne
+  peut pas appeler une fonction d'un module client) plutôt que de faire émettre `agency_id` par
+  `PropertyResource`. Le test front consomme des réponses capturées de l'API réelle.
+- t1 : AA2 reste vert, et c'est attendu — la branche `landlordWrites` de
+  `PropertyVisitPolicy::update` est morte pour une visite de bien d'agence.
+- Fusion de `origin/dev` (TCK-588) : refus en `abort_code`, notifications en codes. Les sept classes
+  `Notification` de 590 et `HeureDeVisite` disparaissent ; l'heure est rendue par le
+  `NotificationRenderer` de 588 dans le fuseau du destinataire, suivie de ce fuseau (paramètre
+  `timezone`). `ContactSansCompte` porte un e-mail (`fromVisit`, `fromLead`) et la langue
+  enregistrée sur la visite.
+- Plafond des SMS : une seule source de vérité, `VisitNotifier::borneLeSms`. Il transmet
+  `mobileBorne` à `send()` : `true`, les canaux SMS et WhatsApp ne recomptent pas contre leur limite
+  générique par numéro (5/h) ; `false`, aucun canal mobile. Compter deux fois rendait au numéro un
+  plafond global, le défaut R1. Les autres codes gardent la limite de 588.
+- La fixture de `SendLeasePaymentRemindersTest` (588) prenait pour contact principal un
+  collaborateur sans profil dans l'agence ; la règle de 590 l'écarte. Fixture corrigée (commit à
+  part).
