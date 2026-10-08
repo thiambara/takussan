@@ -1,7 +1,7 @@
 ---
 id: TCK-592
 title: "Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -445,6 +445,16 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - [x] m9 — `manageQuotes` lit `maintenance.assign` ; limiteur `conversation-message` ; e-mail du
       demandeur après acceptation
 
+### Ajouté après la passe 2 (verif-592 passe 2, 2026-10-08)
+
+- [x] N1 — `ConversationAccess::participatingQuery()` : la recherche de messages, l'export des
+      données et les correspondants du sélecteur ne lisent plus la participation seule
+- [x] N2 — le lien profond est consommé à la première fin d'onboarding, assignation ou non
+- [x] N3 — ability `attachMedia` : `POST /api/media` n'attache rien à une intervention close
+- [x] N4 — fin de collaboration et refus remettent le devis à zéro, comme la réassignation
+- [x] N5 — `cost` et `actual_cost` en `decimal:0,2`, arrondis à l'unité de la devise (`CurrencyUnit`)
+- [x] N6 — pas de réassignation à partir de `completed`
+
 
 ## Critères d'acceptation
 
@@ -591,6 +601,34 @@ Le détail est dans les Notes, section « Corrections après vérification adver
       - l'e-mail du demandeur n'atteint le prestataire qu'après acceptation ;
       - le prestataire ne voit pas le bloc d'assignation (F1 : 2 rouges).
 
+
+
+### Ajoutés après la passe 2 (verif-592 passe 2)
+
+Chaque AC ci-dessous est rouge sur `9b6a1981` (fichiers de production remis à leur version
+`9b6a1981`, restaurés par `cp`), et rouge à chacune de ses ablations (restaurées par `cp`, md5
+contrôlé). Détail dans les Notes, section « Passe 2 ».
+
+- [x] **AC33 (N1)** — Un prestataire en pause ne retrouve rien du fil : la recherche ne rend ni le
+      texte (p03) ni la note vocale et son URL (p13) ; son export ne garde que SES messages ; le
+      locataire n'est plus son correspondant. Témoin actif : il trouve les deux.
+      `MaintenanceThreadAccessTest` (3 tests). Ablations N1a à N1d : 3, 1, 1 et 1 rouge(s).
+- [x] **AC34 (N2)** — La demande prise par un autre à la première fin d'onboarding, puis rendue par
+      son refus, ne revient pas au prestataire invité qui rejoue (p01). Ablation : 2 rouges.
+- [x] **AC35 (N3)** — `POST /api/media` sur une demande `closed` ou `cancelled` : 403 pour le
+      prestataire et le bailleur, `photos` et `documents`, 0 pièce (p04) ; témoin `in_progress` :
+      201. La suppression d'une pièce d'une demande close rend 403 (vert sur `9b6a1981` : aucune
+      colonne propriétaire ne l'ouvrait ; le test l'épingle). Ablations N3a et N3b : 1 rouge chacune.
+- [x] **AC36 (N4)** — Fin de collaboration après un devis de 200 000 approuvé par le bailleur
+      (plafond 50 000) : devis archivé, accord effacé, et l'agence qui complète B à 200 000 reçoit
+      422 `maintenance.actual_cost_needs_owner` (p06). Le refus archive de même. Ablations : 1
+      rouge chacune.
+- [x] **AC37 (N5)** — `5e5` / `6e4` au `PATCH` et à `complete` : 422 de validation, rien d'écrit
+      (p05) ; 50 000,40 s'écrit 50 000 sous un plafond de 50 000, 50 000,50 est refusé.
+      Ablations N5a à N5d : 1 rouge chacune.
+- [x] **AC38 (N6)** — `PATCH {assigned_to}` sur `completed` : 422
+      `maintenance.reassign_after_completion`, prestataire, statut et coût inchangés (p07) ; le
+      même prestataire renvoyé reste 200. Ablation : 1 rouge.
 
 ## Hors périmètre
 
@@ -1136,3 +1174,61 @@ corrigent rien.
   - ServiceProvider, Onboarding, la messagerie et le limiteur : 210 ;
   - front : lint, `tsc`, et vitest sur `notifications`, `maintenance` et `lib` (1102) ;
   - `check-notification-codes.mjs` (50 codes) et toutes les gardes racine.
+
+### Passe 2 — corrections (verif-592 passe 2 : REFUSÉ, 1 bloquant, 3 majeurs, 3 mineurs)
+
+Statut repassé à `doing` le temps de la passe, puis `done`. Un commit par point, chacun rouge sur
+`9b6a1981` et à ses ablations (scripts `abl-n1.sh` à `abl-n6.sh`, restauration par `cp`, md5
+identique avant et après).
+
+**N1 — les lecteurs de messages hors `ConversationAccess` (20f21656).** Inventaire par `grep` de
+tout ce qui part de `conversation_participants`, `Message::query()`, `->messages()` ou
+`lastMessage` :
+
+| Lecteur | Avant | Après |
+|---|---|---|
+| `GET /api/search/messages` (`MessageSearchService`) | participation seule | `participatingQuery()` |
+| export des données (`DataExportBuilder`, `messages.json`) | participation, fils quittés compris | ses messages + `participatingQuery(activeOnly: false)` |
+| correspondants (`MessagingReach`, règle 1 : sélecteur, garde de création de fil) | participation | `participatingQuery(activeOnly: false)` |
+| liste, compteur de non-lus, aperçu du dernier message (`ConversationController::index`) | déjà par `constrainListing` (B2) | — |
+| `show`, `messages`, `read`, `mute`, `archive`, participants | déjà par `ConversationAccess` (B2) | — |
+| notification de nouveau message (`NotifyNewMessageJob`) | déjà filtrée (B2) | — |
+| événement `NewMessage` | aucun émetteur dans `app/` | — |
+
+**N2 — lien profond (f11c4b5c).** `deep_link_consumed_at` est posé sous verrou de l'invitation
+avant les contrôles. `deep_link_assigned_at` reste posé en cas de succès, à titre de trace.
+
+**N3 — `POST /api/media` (651f2c50, et 038bd358 pour le test v01).**
+`MaintenanceRequestPolicy::attachMedia` rend `update` et non terminal. `MediaController` lit cette
+ability quand la policy l'expose. Le super-admin garde le contournement global, `Gate::before`.
+L'insertion de ce commit avait laissé ouvert le docblock « Sonde v01 », qui masquait ce test.
+038bd358 le referme, et un scan des 48 classes de test de la branche ne trouve aucun autre cas.
+
+**N4 — devis à la fin de collaboration et au refus (34697b8e).** Le chemin est le même
+(`resetQuoteOfPreviousProvider`), puis la demande repasse en `open` au donneur d'ordre. Le cas du
+refus est latent : soumettre un devis vaut acceptation, et on ne refuse plus après acceptation. Le
+test pose donc l'état en base.
+
+**N5 — coût décimal (9a1d3a77).**
+- `decimal:0,2` sur `cost` et `actual_cost`.
+- `CurrencyUnit::cost()` arrondit avant la comparaison et l'écriture, avec la devise du devis,
+  sinon le XOF.
+- `CurrencyUnit::round()` remplace la méthode privée `roundToUnit` du devis.
+- Conséquence voulue : la sonde p12 (`complete` à 50 000,01 sous un plafond de 50 000) rend
+  désormais 200 et écrit 50 000. En XOF, c'est le plafond exact. Elle est rouge par construction,
+  comme v06.
+
+**N6 — réassignation après `completed` (038bd358).**
+
+**N7 — URL signées de 30 min.** Ce point est accepté (ADR-0029) : un prestataire mis en pause garde
+jusqu'à 30 minutes les liens déjà reçus (`PrivateMediaAccess::SIGNED_ROUTE_TTL_MINUTES`). Il n'y a
+pas de correctif.
+
+**Sondes de la passe 2 rejouées** sur 038bd358 :
+- p01 à p11 et p13 : défaut fermé ;
+- p12 : rouge par construction (N5) ;
+- les sondes ont été retirées de l'arbre.
+
+**Fusion d'`origin/dev`** (TCK-593, c1126f41) : seul `INDEX.md` était en conflit, et il a été
+régénéré. Les fusions automatiques ont été vérifiées : 52 codes de notification, garde verte.
+
