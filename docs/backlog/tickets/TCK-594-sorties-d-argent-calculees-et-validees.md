@@ -1261,3 +1261,8 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   de la ligne agence, après l'expiration (N-4) et la séparation des tâches. Les appels existants
   (`PayoutApprovalThresholdTest::confirmedBy`, les tests M-2) envoient désormais la valeur. V-N5b
   rougit par un 500 (la clé absente est lue) : le champ facultatif ne passe pas en silence.
+  *Après la fusion de `origin/dev` (TCK-590)* : la validation de `expected_threshold` était écrite
+  dans le contrôleur, ce que `check-inline-validation` refuse (TCK-305) — la garde n'avait pas été
+  rejouée après N-5. Elle vit dans `ConfirmPayoutThresholdRequest`, dont `authorize()` délègue à
+  `AgencyPolicy::updatePayoutThreshold` (le 403 précède donc toujours la validation). V-N5b rejouée
+  sur la règle déplacée : un 200 silencieux au lieu du 422, rouge.

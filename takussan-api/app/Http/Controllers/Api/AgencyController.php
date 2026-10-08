@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\AddAgentAgencyRequest;
+use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
 use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
@@ -120,16 +121,10 @@ class AgencyController extends Controller
      * TCK-594 (ADR-0039 §4, VERIF-594 M-2) — un second détenteur de `payouts.approve` confirme le
      * relâchement du seuil qu'un autre a demandé.
      */
-    public function confirmPayoutThreshold(Request $request, Agency $agency): JsonResponse
+    public function confirmPayoutThreshold(ConfirmPayoutThresholdRequest $request, Agency $agency): JsonResponse
     {
-        abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
-        // VERIF-594 passe 2, N-5 — la confirmation porte la valeur que le confirmateur a lue (`null` :
-        // couper le seuil). Présente, même nulle : une confirmation sans elle ne dit pas ce qu'elle
-        // confirme.
-        $validated = $request->validate([
-            'expected_threshold' => ['present', 'nullable', 'numeric', 'min:0'],
-        ]);
-        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user(), $validated['expected_threshold']);
+        // VERIF-594 passe 2, N-5 — la valeur lue et confirmée (`ConfirmPayoutThresholdRequest`).
+        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user(), $request->validated('expected_threshold'));
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
     }
