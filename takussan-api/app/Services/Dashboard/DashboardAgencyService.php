@@ -14,6 +14,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -165,9 +166,15 @@ class DashboardAgencyService
      */
     public static function commissionMonth(int $agencyId): float
     {
+        return self::commissionBetween($agencyId, now()->startOfMonth(), now()->endOfMonth());
+    }
+
+    /** La même règle sur une période quelconque (vue agent `scope=agency`, cumul annuel). */
+    public static function commissionBetween(int $agencyId, CarbonInterface $from, CarbonInterface $to): float
+    {
         return round((float) Lease::query()
             ->where('agency_id', $agencyId)
-            ->whereBetween('signed_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->whereBetween('signed_at', [$from, $to])
             ->whereNotIn('status', [LeaseStatus::Draft->value, LeaseStatus::PendingSignature->value])
             ->sum('commission_amount'), 2);
     }

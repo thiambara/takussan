@@ -828,3 +828,15 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   `payouts/{payout}/mark-processed`. Le bénéficiaire ne solde pas sa propre ligne.
 - L'écouteur est en file (`ShouldQueue`), comme ses voisins sur `LeaseActivated`. La relance est sans
   effet grâce à `insertOrIgnore`.
+
+### Lot 3 — vue agent et budget de requêtes (§3, AC6)
+
+- La vue agent lisait `users.agency_id` (pont de compatibilité) et ignorait le profil actif. Elle lit
+  maintenant `staffAgencyId()`. Tâches, visites et interventions restent personnelles dans les deux
+  périmètres, seuls portefeuille, clients, réservations, baux et commissions changent avec `scope`.
+- `scope=agency` reprend la règle de la tuile d'agence (ADR-0049 §5, `commissionBetween`), pas la somme
+  du grand livre : le reliquat d'agence n'a pas de ligne.
+- Mesuré pour AC6 (plafonds inscrits) : bailleur 26, agent 25, agence 29 requêtes, identiques pour
+  `months` 1 et 36 et pour 1 et 20 baux. Le code d'origine fait 133 requêtes à 36 mois côté agence.
+- `DashboardAgentTest` passe désormais par l'activation d'un bail négocié : un `commission_amount` posé à
+  la main sur un bail actif ne crée aucune ligne.

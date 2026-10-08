@@ -100,6 +100,9 @@ return [
         'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],
+    'dashboard' => [
+        'invalid_scope' => 'Le périmètre demandé doit être « mine » ou « agency ».',
+    ],
     'data_export' => [
         'expired' => 'Cet export de données a expiré.',
     ],

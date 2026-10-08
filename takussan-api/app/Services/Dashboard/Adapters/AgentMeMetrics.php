@@ -17,7 +17,7 @@ class AgentMeMetrics implements DashboardMetrics
 
     public function metrics(User $user): array
     {
-        $s = $this->service->summary($user);
+        $s = $this->service->summary($user, DashboardAgentService::SCOPE_MINE, $user->staffAgencyId());
         $pipeline = is_array($s['pipeline'] ?? null) ? $s['pipeline'] : [];
 
         return [

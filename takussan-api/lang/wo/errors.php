@@ -100,6 +100,9 @@ return [
         'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
+    'dashboard' => [
+        'invalid_scope' => 'Wàll wi ñu laaj war na nekk « mine » walla « agency ».',
+    ],
     'data_export' => [
         'expired' => 'Export données bii jeex na.',
     ],
