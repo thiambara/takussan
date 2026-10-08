@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('properties/{property}/calendar-feeds', [PropertyCalendarFeedController::class, 'index'])
         ->name('properties.calendar-feeds.index');
     Route::post('properties/{property}/calendar-feeds', [PropertyCalendarFeedController::class, 'store'])
+        ->middleware('throttle:calendar-feed-create')
         ->name('properties.calendar-feeds.store');
     Route::post('property-calendar-feeds/{feed}/sync', [PropertyCalendarFeedController::class, 'sync'])
         ->whereNumber('feed')

@@ -8,8 +8,10 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Property;
 use App\Models\PropertyCalendarFeed;
 use App\Models\PropertyUnavailability;
+use App\Models\User;
 use App\Services\Booking\PropertyCalendarSyncService;
 use App\Support\Http\DnsResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -165,6 +167,25 @@ class SyncPropertyCalendarFeedsTest extends TestCase
         (new SyncPropertyCalendarFeedJob($id))->handle(app(PropertyCalendarSyncService::class));
 
         Http::assertNothingSent();
+    }
+
+    /** VERIF-596 m4 — dix créations par heure et par utilisateur, quel que soit le bien ; la 11ᵉ rend 429. */
+    public function test_an_eleventh_feed_creation_within_the_hour_is_throttled_per_user(): void
+    {
+        Queue::fake();
+        for ($i = 0; $i < 10; $i++) {
+            $this->register()->assertCreated();
+        }
+        $other = Property::factory()->create(['user_id' => $this->landlord->id]);
+
+        $this->postJson("/api/properties/{$other->id}/calendar-feeds", ['url' => self::URL])->assertStatus(429);
+        $this->assertSame(0, $other->calendarFeeds()->count());
+
+        // Le compteur est celui de l'utilisateur : un autre bailleur crée encore le sien.
+        $neighbour = User::factory()->create();
+        $theirs = Property::factory()->create(['user_id' => $neighbour->id]);
+        Sanctum::actingAs($neighbour);
+        $this->postJson("/api/properties/{$theirs->id}/calendar-feeds", ['url' => self::URL])->assertCreated();
     }
 
     public function test_a_resync_moves_changed_events_and_removes_vanished_and_cancelled_ones(): void
@@ -362,8 +383,9 @@ class SyncPropertyCalendarFeedsTest extends TestCase
     public function test_a_property_holds_at_most_ten_feeds(): void
     {
         Http::fake(['cal.example.com/*' => Http::response($this->ics([]))]);
+        // Posés directement : dix créations par la route épuiseraient le limiteur horaire (m4).
         for ($i = 0; $i < 10; $i++) {
-            $this->register(self::URL.'?n='.$i)->assertCreated();
+            $this->property->calendarFeeds()->create(['url' => self::URL.'?n='.$i, 'url_host' => 'cal.example.com', 'created_by_id' => $this->landlord->id]);
         }
 
         $this->register(self::URL.'?n=10')->assertStatus(422)->assertJsonPath('code', 'calendar_feed.limit_reached');

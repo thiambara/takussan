@@ -336,6 +336,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
         // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
         RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+        // VERIF-596 m4 (ADR-0041 §5) — l'enregistrement d'un flux importé déclenche une résolution DNS
+        // et un appel sortant : par utilisateur, 10 par heure, quel que soit le bien.
+        RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $request->ip())));
 
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop

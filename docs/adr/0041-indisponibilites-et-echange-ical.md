@@ -60,7 +60,9 @@ aléatoire stocké haché, et par un import horaire qui passe par une garde SSRF
    **La première synchronisation n'a pas lieu dans la requête de création** (VERIF-596 m3) :
    `POST properties/{p}/calendar-feeds` rend 201 avec le flux en `pending`, et
    `SyncPropertyCalendarFeedJob` va le chercher en file. Un appel sortant de 10 s au plus ne tient
-   plus un worker HTTP à chaque création.
+   plus un worker HTTP à chaque création. La création est bornée à **10 par heure et par
+   utilisateur**, quel que soit le bien (limiteur `calendar-feed-create`, VERIF-596 m4) : chacune
+   déclenche une résolution DNS et un appel sortant.
 6. **Conflits.** Un événement importé qui chevauche une réservation confirmée est **enregistré**,
    marqué en conflit (`conflict_booking_id`), et le bailleur et l'agent du bien sont prévenus. Un
    import **n'annule jamais** une réservation : seul un humain tranche entre deux plateformes.
