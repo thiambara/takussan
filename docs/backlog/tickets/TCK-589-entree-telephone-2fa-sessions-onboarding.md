@@ -1596,3 +1596,15 @@ partiel en **filtre**. Le test exige désormais `Index Cond`, et l'ablation le f
 
 **Exécutions** : `tests/Feature/Auth`, `Invitation`, `Onboarding`, `Support` et
 `tests/Unit/Architecture` donnent 477 verts. `tests/Feature/Database` donne 29 verts.
+
+#### m6 — `SMS_LOG_FALLBACK` gardé par l'environnement
+
+- `config/sms.php` n'ajoute le pilote `log` aux chaînes que si `SMS_LOG_FALLBACK` est vrai
+  **et** `APP_ENV` vaut `local` ou `testing`. `.env.docker` déclare `APP_ENV=local` : le
+  développement garde son repli.
+
+**Test `SmsLogFallbackTest` (6)** : le fichier de config est relu sous cinq `APP_ENV`, variable
+allumée. `log` apparaît en `local` et en `testing`, jamais en `staging`, `preview` ou
+`production`. Variable éteinte, aucune chaîne n'a `log`.
+**Rouge sur `4edffa44`** : 3 rouges (`staging`, `preview`, `production`).
+**Ablation** (garde d'environnement retirée, restaurée par `cp`) : les mêmes 3 rouges.

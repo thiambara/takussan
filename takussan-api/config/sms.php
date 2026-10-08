@@ -40,8 +40,11 @@ return [
         // SMS — et le code de vérification qu'il porte — s'écrit dans le journal au
         // lieu de se perdre. L'API ne rend plus jamais ce code (ADR-0033 §5) : c'est
         // la seule façon, en local, de franchir l'étape « code SMS ». Faux par défaut,
-        // et forcé à faux dans `phpunit.xml`.
+        // et forcé à faux dans `phpunit.xml`. Vérification adverse m6 : la variable ne
+        // suffit pas, `APP_ENV` doit être `local` ou `testing` — recopiée par erreur en
+        // préproduction ou en production, elle n'écrirait pas les codes dans le journal.
         fn (array $chain): array => filter_var(env('SMS_LOG_FALLBACK', false), FILTER_VALIDATE_BOOL)
+            && in_array(env('APP_ENV'), ['local', 'testing'], true)
             ? [...$chain, 'log']
             : $chain,
         [
