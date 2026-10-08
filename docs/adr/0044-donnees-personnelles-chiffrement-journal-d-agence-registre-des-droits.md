@@ -65,14 +65,26 @@ trace conservée cinq ans.**
 
 ### 2. Rien de sensible dans un journal
 
-- `App\Support\Logging\SafeExceptionContext::of()` est la **seule** forme d'une exception dans un
-  journal : classe, code, et pour une `QueryException` le SQLSTATE, le SQL à placeholders, la
-  connexion et le **nombre** de valeurs liées ; une trace réduite à `fichier:ligne`. Jamais
-  `getMessage()` (le message d'une exception est une donnée : bindings, adresse refusée par un
-  serveur SMTP, valeur refusée par une validation), jamais l'objet exception.
+- `App\Support\Logging\SafeExceptionContext::of()` est la forme d'une exception dans les journaux
+  que ce ticket écrit ou reprend : classe, code, et pour une `QueryException` le SQLSTATE, le SQL à
+  placeholders, la connexion et le **nombre** de valeurs liées ; une trace réduite à `fichier:ligne`.
+  Jamais `getMessage()` (le message d'une exception est une donnée : bindings, adresse refusée par
+  un serveur SMTP, valeur refusée par une validation), jamais l'objet exception.
 - `bootstrap/app.php` déclare `report(QueryException)->stop()` : le rapport par défaut de toute
   `QueryException`, quelle que soit la route ou le job, est remplacé par `query_exception` +
   `SafeExceptionContext`.
+- **Ce qui est garanti, exactement** (corrigé après verif-601, m4) : **toute `QueryException`**
+  rapportée par le framework, les `catch` repris par ce ticket (`PropertyController::store`,
+  `FlipAgencyKindOnUpgradeApproved`, `ExpirePendingBookingsJob::failed`) et `failed_jobs.exception`.
+  Une version antérieure de ce paragraphe disait « la **seule** forme d'une exception dans un
+  journal » : c'était faux.
+- **Limites connues, hors de cette décision** (ticket de suite) : toute AUTRE exception rapportée par
+  le framework (requête HTTP qui lève, job en échec) passe encore par le rapport par défaut, qui écrit
+  `getMessage()` — un refus SMTP y recopie l'adresse refusée ; les pilotes SMS et WhatsApp
+  (`OrangeSmsDriver`, `MtargetSmsDriver`, `LAfricaMobileSmsDriver`, `CloudApiWhatsappDriver`) et deux
+  commandes (`SendSavedSearchAlerts`, renvoyé à TCK-599 ; `SendProspectMatchDigest`) journalisent
+  `getMessage()`. Élargir le rapporteur global touche tout le dépôt (`dontReport`, rapporteurs
+  tiers) : c'est une décision à part, pas un correctif de ce ticket.
 - **`failed_jobs.exception`** : le fournisseur de jobs échoués (`queue.failer`) est **décoré** pour
   écrire `SafeExceptionContext` (JSON) au lieu de `(string) $e`. Écarté : une purge périodique (la
   donnée vit jusqu'au passage) et `zend.exception_ignore_args` seul (il ne retire pas les valeurs du
