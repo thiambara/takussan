@@ -215,7 +215,7 @@ function RoomCard({
       {sent.length > 0 ? (
         <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label={t('roomPhotos', { room: room.name })}>
           {sent.map((photo, i) => (
-            <li key={photo.id} className="relative overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-black/10">
+            <li key={photo.id} className="relative overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-border">
               {/* URL d'API signée, servie par Laravel : ni `next/image` ni son optimiseur n'y ont accès. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
