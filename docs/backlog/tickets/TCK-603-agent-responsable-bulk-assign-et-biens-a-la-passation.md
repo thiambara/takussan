@@ -194,3 +194,25 @@ Delta est extrait tel quel.*
   ligne de la liste affiche `owner.name` derrière le libellé « Agent : » — le propriétaire sous le nom d'agent.
 - Décisions neuves → [ADR-0059](../../adr/0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md)
   (commit `d56e443f`, avant le code).
+
+### 2026-10-08 — back livré (`a8bbe7e1`, `bc3a596a`, `85adb116`)
+
+- **Le code d'erreur** de la règle de cible est `user.not_in_active_agency` (TCK-588) — AC2 le vérifie sous ce
+  nom. La règle vit dans `ResponsibleAgentAssigner::cibleAdmise()`, seul site ; **sans agence déterminée, elle
+  refuse** (avant : aucune vérification, un particulier désignait n'importe quel compte).
+- **Deux barrières, voulues.** Remplacer l'appel de la règle par `true` (ablation A1a) laisse le lot **vert** :
+  `designate()` refuse encore, par son éligibilité (`isStaffAt` + joignable). L'unitaire rougit (le code devient
+  `property.primary_not_eligible`). La double ablation (A1b : règle ET éligibilité) fait passer le bien en
+  `updated` : rouge. *L'ablation demandée par AC1 seule ne rougit donc pas le lot — un autre mécanisme le couvre.*
+- **`primary_contact`** est rendu par `properties.index` et `properties.assigned-agent.update` en plus de la
+  forme détail, et seulement si `agency_id` et `user_id` sont chargés (sinon la règle jugerait un bien d'agence
+  comme celui d'un particulier) ; l'index charge `PrimaryPropertyContact::eagerLoads()`.
+- **Passation** : les biens sont verrouillés avant toute ligne (ADR-0059 §3). Course réelle à deux processus,
+  base jetable `takussan_t603_race`, quatre scénarios (collision ⟂ désignation, désignation tenue ⟂ passation,
+  passation tenue ⟂ désignation, deux lots croisés) : **aucun 40P01**, invariants tenus. Ablations rejouées :
+  sans le verrou préalable des biens → **40P01** (2/2) ; lot sans tri des identifiants → **40P01** (2/2).
+- **Réparation** prouvée sur base jetable **semée** (`takussan_t603_seed`, 856 biens, 579 baux) : 0 signature
+  dans le jeu des seeders (`restored=0`) ; sur deux cas fabriqués, `--dry-run` n'écrit rien, le réel rend
+  `user_id`, désigne la dernière cible, réécrit le seul brouillon, liste le bail actif ; second passage
+  `restored=0` ; seuls les deux biens fabriqués changent de (titulaire, contact).
+- Ablations back : 16 mutations, 15 rouges, A1a vert (ci-dessus) ; journal dans le rapport.
