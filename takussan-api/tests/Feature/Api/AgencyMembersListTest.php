@@ -17,7 +17,9 @@ class AgencyMembersListTest extends TestCase
     protected function createAdminWithAgency(): array
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-589 (vérification adverse B1) — un profil plateforme porte la 2FA sur toute
+        // action protégée, membres d'agence compris.
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
         $agency->update(['primary_admin_id' => $admin->id]);
 

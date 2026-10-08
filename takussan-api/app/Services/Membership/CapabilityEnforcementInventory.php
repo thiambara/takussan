@@ -28,8 +28,6 @@ final class CapabilityEnforcementInventory
      * @var array<string, string>
      */
     public const AWAITING = [
-        'maintenance.assign' => 'TCK-592',
-        'maintenance.close' => 'TCK-592',
         'payouts.approve' => 'TCK-594',
         'agency.update_billing' => 'TCK-594',
         'agency.update_kyc' => 'TCK-601',

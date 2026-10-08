@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Auth\AuthRefusal;
+use App\Support\Security\TwoFactorSession;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +33,18 @@ class EnsureSuperAdmin
 
         if (! $user->isSuperAdmin()) {
             abort_code(403, 'auth.super_admin_required');
+        }
+
+        // TCK-589 — la console plateforme exige la 2FA (ADR-0033, contrainte 7).
+        // Redondant avec `RequireTwoFactor` sur `/api/admin/*` : ce bloc tient même
+        // si la route quitte un jour ce préfixe.
+        if (! $user->two_factor_enabled) {
+            return AuthRefusal::response(403, 'two_factor_required', 'auth.two_factor.required');
+        }
+        // Vérification adverse B2 — et saisie POUR CE JETON : un jeton émis sans second
+        // facteur (OAuth) n'ouvre pas la console, même d'un compte à 2FA.
+        if (! TwoFactorSession::verified($user)) {
+            return AuthRefusal::response(403, 'two_factor_step_up_required', 'auth.two_factor.step_up_required');
         }
 
         return $next($request);

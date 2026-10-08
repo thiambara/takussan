@@ -56,6 +56,7 @@ return [
         'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
     ],
     'auth' => [
+        'account_blocked' => 'Ce compte est bloqué.',
         'insufficient_privileges' => 'Droits insuffisants.',
         'oauth_email_taken' => 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec votre mot de passe puis liez votre compte depuis vos paramètres.',
         'oauth_not_configured' => 'Cette connexion externe n\'est pas configurée.',
@@ -187,6 +188,8 @@ return [
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'Le plafond journalier d\'invitations par SMS de l\'agence est atteint. Réessayez demain, ou invitez par e-mail.',
+        'phone_mismatch' => 'Ce numéro n\'est pas celui qui a reçu l\'invitation.',
         'email_mismatch' => 'L\'email du compte connecté ne correspond pas à celui de l\'invitation.',
         'requires_login' => 'Cet email correspond à un compte existant. Veuillez vous connecter pour accepter l\'invitation.',
         'token_accepted' => 'Cette invitation a déjà été acceptée.',
@@ -247,10 +250,21 @@ return [
         'password_reset_not_sent' => 'L\'e-mail de réinitialisation du mot de passe n\'a pas pu être envoyé.',
     ],
     'maintenance' => [
+        'actual_cost_needs_owner' => 'Ce coût dépasse le plafond de travaux du bailleur et ce qu\'il a approuvé : seul le bailleur peut l\'inscrire.',
+        'already_accepted' => 'L\'intervention est déjà acceptée.',
+        'amount_too_large' => 'Ce montant, arrondi à l\'unité de la devise, dépasse le maximum enregistrable.',
+        'before_photos_requires_acceptance' => 'Les photos « avant » sont réservées au prestataire qui a accepté l\'intervention.',
+        'collaboration_transition' => 'Ce changement de statut de collaboration n\'est pas permis.',
         'cost_ambiguous' => 'Indiquez le coût ou le coût réel, pas les deux.',
+        'decline_after_accept' => 'L\'intervention a déjà été acceptée ou démarrée : elle ne se refuse plus.',
+        'dedicated_endpoint' => 'Ce changement de statut passe par son propre geste, pas par le statut générique.',
         'in_progress' => 'Maintenance en cours. Réessayez dans quelques instants.',
         'photos_closed' => 'Impossible d\'ajouter des photos à une demande clôturée ou annulée.',
+        'quote_amount_too_large' => 'Le montant total du devis dépasse le maximum enregistrable.',
+        'quote_expired' => 'Ce devis n\'est plus valable : sa date de validité est passée.',
+        'reassign_after_completion' => 'Les travaux sont terminés : l\'intervention ne se réassigne plus.',
         'status_transition_invalid' => 'Ce changement de statut de l\'intervention n\'est pas autorisé.',
+        'terminal_request' => 'Une demande clôturée ou annulée ne se modifie plus.',
     ],
     'media' => [
         'evidence_locked' => 'Ce fichier est une pièce de preuve : il ne se supprime pas.',
@@ -273,6 +287,7 @@ return [
         'checklist_not_found' => 'Aucune liste d\'étapes pour ce bail.',
         'owner_not_owner' => 'Vous n\'avez pas accès à ce profil propriétaire.',
         'service_provider_not_owner' => 'Vous ne pouvez pas modifier ce profil prestataire.',
+        'service_provider_suspended' => "Ce profil prestataire est suspendu : la fin d'inscription ne le réactive pas.",
     ],
     'payment' => [
         'amount_not_positive' => 'Le montant à payer doit être positif.',
@@ -307,10 +322,13 @@ return [
         'status_transition_invalid' => 'Ce changement de statut du reversement n\'est pas autorisé.',
     ],
     'phone' => [
+        'taken' => 'Ce numéro est déjà vérifié sur un autre compte.',
         'already_verified' => 'Ce numéro est déjà vérifié.',
         'code_invalid' => 'Code de vérification invalide ou expiré.',
         'missing' => 'Aucun numéro de téléphone n\'est enregistré.',
         'resend_too_soon' => 'Patientez avant de demander un nouveau code.',
+        'change_requires_proof' => 'Pour remplacer un numéro vérifié, confirmez d\'abord que vous le détenez : code reçu sur ce numéro, ou mot de passe.',
+        'no_verified_number' => 'Aucun numéro vérifié n\'est enregistré sur ce compte.',
     ],
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',

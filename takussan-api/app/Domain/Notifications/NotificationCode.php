@@ -91,6 +91,27 @@ enum NotificationCode: string
     case MaintenanceQuoteApproved = 'maintenance_quote.approved';
     case MaintenanceQuoteRejected = 'maintenance_quote.rejected';
 
+    // TCK-592 — le cycle de l'intervention, chacun à qui il regarde (NotifyMaintenanceParticipants).
+    case MaintenanceAssigned = 'maintenance.assigned';
+    case MaintenanceUnassigned = 'maintenance.unassigned';
+    case MaintenanceAccepted = 'maintenance.accepted';
+    case MaintenanceDeclined = 'maintenance.declined';
+    case MaintenanceCompleted = 'maintenance.completed';
+    case MaintenanceConfirmed = 'maintenance.confirmed';
+    case MaintenanceContested = 'maintenance.contested';
+    case MaintenanceAutoClosed = 'maintenance.auto_closed';
+    case MaintenanceCancelled = 'maintenance.cancelled';
+    case MaintenanceStepAcknowledged = 'maintenance.step_acknowledged';
+    case MaintenanceStepAssigned = 'maintenance.step_assigned';
+    case MaintenanceStepInProgress = 'maintenance.step_in_progress';
+    case MaintenanceStepCompleted = 'maintenance.step_completed';
+    case MaintenanceStepClosed = 'maintenance.step_closed';
+    case MaintenanceStepCancelled = 'maintenance.step_cancelled';
+    case MaintenanceStepAcknowledgedScheduled = 'maintenance.step_acknowledged_scheduled';
+    case MaintenanceStepAssignedScheduled = 'maintenance.step_assigned_scheduled';
+    case MaintenanceStepInProgressScheduled = 'maintenance.step_in_progress_scheduled';
+    case MaintenanceQuoteAwaitingOwner = 'maintenance_quote.awaiting_owner';
+
     // ─── CRM ───────────────────────────────────────────────────────────────────────────
     /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
     case ProspectMatchDigest = 'prospect_match.digest';
@@ -113,6 +134,13 @@ enum NotificationCode: string
 
     /** TCK-596 (ADR-0042 §9) — la seconde signature a activé le bail. */
     case LeaseSignatureCompleted = 'lease.signature_completed';
+
+    // ─── Invitations par SMS (TCK-589 : le destinataire n'a souvent pas de compte) ───────
+    case InvitationReceived = 'invitation.received';
+    case InvitationReminder = 'invitation.reminder';
+
+    // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
+    case AccountPhoneChanged = 'account.phone_changed';
 
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
@@ -148,8 +176,11 @@ enum NotificationCode: string
             self::BankStatementFinalized => NotificationType::BankStatementFinalized,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
@@ -181,6 +212,7 @@ enum NotificationCode: string
             self::KycSubmitted, self::KycVerified, self::KycRejected => 'kyc_status_changed',
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => 'maintenance_status_changed',
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
@@ -190,6 +222,9 @@ enum NotificationCode: string
             self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
+            self::InvitationReceived, self::InvitationReminder => null,
+            // Un avis de sécurité : on ne s'en désabonne pas.
+            self::AccountPhoneChanged => null,
         };
     }
 
@@ -236,14 +271,29 @@ enum NotificationCode: string
             self::BankStatementFinalized => ['period_start' => self::PARAM_DATE, 'period_end' => self::PARAM_DATE, 'confirmed' => self::PARAM_COUNT, 'total' => self::PARAM_COUNT],
             self::MaintenanceCreated => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT],
             self::MaintenanceQuoteRequested, self::MaintenanceQuoteApproved,
-            self::MaintenanceQuoteRejected => ['request' => self::PARAM_TEXT],
-            self::MaintenanceQuoteSubmitted => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
+            self::MaintenanceUnassigned, self::MaintenanceCompleted, self::MaintenanceConfirmed,
+            self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned,
+            self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed,
+            self::MaintenanceStepCancelled => ['request' => self::PARAM_TEXT],
+            self::MaintenanceQuoteRejected => ['request' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::MaintenanceQuoteSubmitted, self::MaintenanceQuoteAwaitingOwner => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
+            self::MaintenanceAssigned => ['request' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::MaintenanceAccepted => ['request' => self::PARAM_TEXT, 'provider' => self::PARAM_TEXT],
+            self::MaintenanceDeclined => ['request' => self::PARAM_TEXT, 'provider' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::MaintenanceContested => ['request' => self::PARAM_TEXT, 'comment' => self::PARAM_TEXT],
+            self::MaintenanceAutoClosed => ['request' => self::PARAM_TEXT, 'days' => self::PARAM_COUNT],
+            self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled,
+            self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
             self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
+            // Le nom de l'agence seul, jamais un texte de l'invitant (vérification adverse m1).
+            self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
+            self::AccountPhoneChanged => [],
             self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
@@ -284,6 +334,11 @@ enum NotificationCode: string
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            // TCK-589 — le lien d'une invitation adressée à un NUMÉRO (geste humain de l'agence,
+            // borné par numéro au point d'envoi) et l'avis à l'ancien numéro remplacé : leur
+            // destinataire est un contact sans compte qu'on ne joint que par là. Sans préférence
+            // (`preferenceEvent()` null), ils n'ouvrent aucun canal mobile vers un compte.
+            self::InvitationReceived, self::InvitationReminder, self::AccountPhoneChanged,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
             default => false,
         };
@@ -291,12 +346,15 @@ enum NotificationCode: string
 
     /**
      * Le code peut viser un contact sans compte : transactionnel seulement (exécution du bail,
-     * demande de visite). Jamais un message non transactionnel (ADR-0032 §3).
+     * demande de visite, lien d'une invitation adressée à un numéro — TCK-589). Jamais un
+     * message non transactionnel (ADR-0032 §3).
      */
     public function reachesContacts(): bool
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
             self::LeadAcknowledged => true,
             default => false,

@@ -21,6 +21,7 @@ class InvitationResource extends BaseResource
         return [
             'id' => $this->id,
             'email' => $this->email,
+            'phone' => $this->phone,
             'role' => $this->role,
             'status' => $this->status?->value,
             'agency_id' => $this->agency_id,

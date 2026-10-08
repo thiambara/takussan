@@ -3,16 +3,16 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\ReadsPhoneCodes;
 use Tests\TestCase;
 
 class PhoneVerificationTest extends TestCase
 {
-    use RefreshDatabase;
+    use ReadsPhoneCodes, RefreshDatabase;
 
     public function test_verify_fails_without_a_matching_otp_in_cache(): void
     {
@@ -30,9 +30,7 @@ class PhoneVerificationTest extends TestCase
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
-        $service = app(PhoneVerificationService::class);
-        $code = $service->sendOtp($user);
-        $this->assertNotNull($code);
+        $code = $this->issuePhoneCode($user);
 
         $this->postJson('/api/auth/verify-phone', ['code' => $code])
             ->assertOk()
@@ -59,8 +57,14 @@ class PhoneVerificationTest extends TestCase
         $this->postJson('/api/auth/verify-phone', ['code' => '123456'])->assertStatus(422);
     }
 
-    public function test_send_otp_returns_debug_code_outside_production(): void
+    /**
+     * TCK-589 — inversé : le code n'est rendu dans AUCUN environnement, `testing`
+     * compris (contrainte 3). Il était rendu hors `production`, donc à quiconque le
+     * demandait sur une préproduction publique. Le code part par SMS.
+     */
+    public function test_send_otp_ne_rend_jamais_le_code(): void
     {
+        $sms = $this->fakeSms();
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
@@ -68,7 +72,8 @@ class PhoneVerificationTest extends TestCase
             ->assertOk();
 
         $this->assertTrue($response->json('data.sent'));
-        $this->assertMatchesRegularExpression('/^\d{6}$/', $response->json('data.debug_code'));
+        $this->assertArrayNotHasKey('debug_code', $response->json('data'));
+        $this->assertStringNotContainsString($sms->lastCodeFor('+221770000000'), $response->getContent());
     }
 
     public function test_send_otp_enforces_cooldown(): void
@@ -167,6 +172,10 @@ class PhoneVerificationTest extends TestCase
     public function test_send_otp_enregistre_un_numero_e164_et_envoie_le_code(): void
     {
         Cache::flush();
+        // TCK-589 (vérification adverse M3) — les indicatifs servis sont une liste blanche
+        // (`sms.otp_allowed_country_codes`, défaut : `221`) : la diaspora s'y ajoute par
+        // configuration. Ce test éprouve la FORME du numéro, pas la liste.
+        config(['sms.otp_allowed_country_codes' => ['221', '33', '39']]);
         $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
@@ -192,6 +201,10 @@ class PhoneVerificationTest extends TestCase
     public function test_send_otp_refuse_un_zero_de_prefixe_national_apres_l_indicatif(): void
     {
         Cache::flush();
+        // TCK-589 (vérification adverse M3) — les indicatifs servis sont une liste blanche
+        // (`sms.otp_allowed_country_codes`, défaut : `221`) : la diaspora s'y ajoute par
+        // configuration. Ce test éprouve la FORME du numéro, pas la liste.
+        config(['sms.otp_allowed_country_codes' => ['221', '33', '39']]);
         $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
@@ -277,6 +290,10 @@ class PhoneVerificationTest extends TestCase
     public function test_send_otp_avec_un_numero_valide_remplace_un_enregistre_injoignable(): void
     {
         Cache::flush();
+        // TCK-589 (vérification adverse M3) — les indicatifs servis sont une liste blanche
+        // (`sms.otp_allowed_country_codes`, défaut : `221`) : la diaspora s'y ajoute par
+        // configuration. Ce test éprouve la FORME du numéro, pas la liste.
+        config(['sms.otp_allowed_country_codes' => ['221', '33', '39']]);
         $user = User::factory()->create(['phone' => '+330612345678', 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 

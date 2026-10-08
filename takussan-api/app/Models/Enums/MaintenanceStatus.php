@@ -8,6 +8,8 @@ enum MaintenanceStatus: string
     case Acknowledged = 'acknowledged';
     case QuoteRequested = 'quote_requested';
     case QuoteSubmitted = 'quote_submitted';
+    // TCK-592 — ADR-0037 : le devis dépasse le plafond du bailleur, lui seul tranche.
+    case AwaitingOwner = 'awaiting_owner';
     case Approved = 'approved';
     case Rejected = 'rejected';
     case Assigned = 'assigned';

@@ -56,6 +56,7 @@ return [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
     ],
     'auth' => [
+        'account_blocked' => 'This account is blocked.',
         'insufficient_privileges' => 'Insufficient privileges.',
         'oauth_email_taken' => 'An account already exists with this email address. Sign in with your password, then link your account from your settings.',
         'oauth_not_configured' => 'This sign-in provider is not configured.',
@@ -187,6 +188,8 @@ return [
         'tenant_not_found' => 'The lease tenant was not found.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
+        'phone_mismatch' => 'This number is not the one the invitation was sent to.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'token_accepted' => 'This invitation has already been accepted.',
@@ -247,10 +250,21 @@ return [
         'password_reset_not_sent' => 'The password reset email could not be sent.',
     ],
     'maintenance' => [
+        'actual_cost_needs_owner' => 'This cost exceeds the landlord\'s works threshold and what they approved: only the landlord can record it.',
+        'already_accepted' => 'The request is already accepted.',
+        'amount_too_large' => 'This amount, rounded to the currency unit, exceeds the largest amount that can be recorded.',
+        'before_photos_requires_acceptance' => '"Before" photos are reserved to the service provider who accepted the request.',
+        'collaboration_transition' => 'This collaboration status change is not allowed.',
         'cost_ambiguous' => 'Provide either the cost or the actual cost, not both.',
+        'decline_after_accept' => 'The request has already been accepted or started: it can no longer be declined.',
+        'dedicated_endpoint' => 'This status change goes through its own action, not through the generic status.',
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
+        'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
+        'quote_expired' => 'This quote is no longer valid: its validity date has passed.',
+        'reassign_after_completion' => 'The work is done: the job can no longer be reassigned.',
         'status_transition_invalid' => 'This maintenance status change is not allowed.',
+        'terminal_request' => 'A closed or cancelled request can no longer be changed.',
     ],
     'media' => [
         'evidence_locked' => 'This file is evidence: it cannot be deleted.',
@@ -273,6 +287,7 @@ return [
         'checklist_not_found' => 'No checklist for this lease.',
         'owner_not_owner' => 'You do not have access to this owner profile.',
         'service_provider_not_owner' => 'You cannot edit this service provider profile.',
+        'service_provider_suspended' => 'This service provider profile is suspended: completing onboarding does not reactivate it.',
     ],
     'payment' => [
         'amount_not_positive' => 'The amount to pay must be positive.',
@@ -307,10 +322,13 @@ return [
         'status_transition_invalid' => 'This payout status change is not allowed.',
     ],
     'phone' => [
+        'taken' => 'This number is already verified on another account.',
         'already_verified' => 'This phone number is already verified.',
         'code_invalid' => 'Invalid or expired verification code.',
         'missing' => 'No phone number is on file.',
         'resend_too_soon' => 'Please wait before requesting another code.',
+        'change_requires_proof' => 'To replace a verified number, first confirm you hold it: a code sent to that number, or your password.',
+        'no_verified_number' => 'No verified number is on file for this account.',
     ],
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',

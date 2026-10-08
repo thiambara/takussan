@@ -43,7 +43,10 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
     {
         $booking = $this->bookingOfClient();
         $this->payment = $this->paidDeposit($booking);
-        Sanctum::actingAs($user);
+        // TCK-589 — un compte incarné avec son jeton (step-up frais, `actingAsRole`) le garde.
+        if ($user->currentAccessToken() === null) {
+            Sanctum::actingAs($user);
+        }
 
         return $this->postJson("/api/booking-payments/{$this->payment->id}/refund", ['refund_amount' => $amount]);
     }
@@ -98,8 +101,8 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
 
     public function test_a_super_admin_can_refund(): void
     {
-        $superAdmin = User::factory()->create();
-        $this->materializeRoleProfile($superAdmin, 'super_admin');
+        // TCK-589 — la 2FA et un step-up frais sont exigés du super-admin : `actingAsRole` les porte.
+        $superAdmin = $this->actingAsRole('super_admin');
 
         $this->refundAs($superAdmin)->assertOk();
     }

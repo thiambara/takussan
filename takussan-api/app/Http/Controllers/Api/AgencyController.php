@@ -12,6 +12,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -88,7 +89,8 @@ class AgencyController extends Controller
         // TCK-593 — `settings` se FUSIONNE avec l'existant : le tableau validé remplaçait la
         // colonne, et l'écran de configuration, qui n'en envoie que trois clés, effaçait toutes les
         // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
-        // retirée, donc rendue au défaut écrit dans le code.
+        // retirée, donc rendue au défaut écrit dans le code. TCK-589 en dépend aussi : poser
+        // `require_team_two_factor` seul n'efface pas les autres réglages.
         if (array_key_exists('settings', $data)) {
             $data['settings'] = array_filter(
                 array_replace($agency->settings ?? [], $data['settings']),
@@ -316,6 +318,8 @@ class AgencyController extends Controller
                 ->where('service_provider_profiles.user_id', $user->id)
                 ->whereNull('service_provider_profiles.deleted_at')
                 ->whereNull('service_provider_agency_collaborations.deleted_at')
+                // TCK-592 (B13) — une collaboration `paused` ou `ended` n'ouvre plus l'agence.
+                ->where('service_provider_agency_collaborations.status', CollaborationStatus::Active->value)
                 ->pluck('service_provider_agency_collaborations.agency_id'));
 
         return $ids

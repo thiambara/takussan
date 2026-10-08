@@ -56,6 +56,7 @@ return [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
     ],
     'auth' => [
+        'account_blocked' => 'Kont bii dañu ko tëj.',
         'insufficient_privileges' => 'Sañ-sañ yi doyuñu.',
         'oauth_email_taken' => 'Am na compte bu am adrees e-mail bii ba noppi. Duggal ak sa baatu jàll, te nga takk sa compte ci sa paramètre yi.',
         'oauth_not_configured' => 'Connexion bii configurerouñu ko.',
@@ -187,6 +188,8 @@ return [
         'tenant_not_found' => 'Luwekat bu bail bi gisuñu ko.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'Limu woote yi ci SMS ci bés bi jot na ci agence bi. Jéemaatal ëllëg, walla woo ko ci e-mail.',
+        'phone_mismatch' => 'Nimero bii du bi ñu yónne woote bi.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',
         'token_accepted' => 'Lëkkalekaay bi nanguwoon nañu ko.',
@@ -247,10 +250,21 @@ return [
         'password_reset_not_sent' => 'E-mail soppi baatu jàll bi mënuñu ko yónni.',
     ],
     'maintenance' => [
+        'actual_cost_needs_owner' => 'Njëg jii weesu na digu liggéey bu boroom kër gi ak li mu nangu : boroom kër gi rekk mën koo bind.',
+        'already_accepted' => 'Liggéey bi nangu nañu ko ba noppi.',
+        'amount_too_large' => 'Lim bii, bu ñu ko yokk ba unité devise bi, ëpp na li ñu mëna bind.',
+        'before_photos_requires_acceptance' => 'Nataal yu « laata » yi, prestataire bi nangu liggéey bi rekk moo leen mën a yónnee.',
+        'collaboration_transition' => 'Soppi statut collaboration bii sañuñu ko.',
         'cost_ambiguous' => 'Joxeel coût bi walla coût bu dëgg bi, du ñaar yépp.',
+        'decline_after_accept' => 'Liggéey bi nangu nañu ko walla tàmbali nañu ko ba noppi : mënatul a bañ.',
+        'dedicated_endpoint' => 'Soppi statut bii am na yoonam bu ko moom, du jaar ci statut bu ñépp.',
         'in_progress' => 'Maintenance mi ngi dox. Jéemaatal ci kanam.',
         'photos_closed' => 'Mënuñu yokk nataal ci laaj bu ñu tëj walla neenal.',
+        'quote_amount_too_large' => 'Limu devis bi yépp ëpp na li ñu mëna bind.',
+        'quote_expired' => 'Devis bii amatul solo : bisu jeexitalam wees na.',
+        'reassign_after_completion' => 'Liggéey bi jeex na : liggéey bi kenn du ko jotaat.',
         'status_transition_invalid' => 'Soppi statut intervention bii nangouñu ko.',
+        'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal, kenn mënatu koo soppi.',
     ],
     'media' => [
         'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',
@@ -273,6 +287,7 @@ return [
         'checklist_not_found' => 'Amul benn liste ci bail bii.',
         'owner_not_owner' => 'Amul nga acces ci profil borom kër bii.',
         'service_provider_not_owner' => 'Mënuloo soppi profil prestataire bii.',
+        'service_provider_suspended' => 'Profil prestataire bii dañu ko taxawal : jeexal bindu bi du ko yeesal.',
     ],
     'payment' => [
         'amount_not_positive' => 'Xaalis bi ñuy fay war na ëpp tus.',
@@ -307,10 +322,13 @@ return [
         'status_transition_invalid' => 'Soppi statut reversement bii nangouñu ko.',
     ],
     'phone' => [
+        'taken' => 'Nimero bii, beneen kont la ko wóor.',
         'already_verified' => 'Nimero bii dëggal nañu ko ba noppi.',
         'code_invalid' => 'Code dëggal bi baaxul walla jeex na.',
         'missing' => 'Amuloo benn nimero telefon bu ñu bind.',
         'resend_too_soon' => 'Muñal balaa ngay laaj beneen code.',
+        'change_requires_proof' => 'Ngir soppi nimero bu ñu dëggal, wonal ci kanam ne yaa ko yor : code bi ñu yónne ci nimero boobu, walla sa baatu jàll.',
+        'no_verified_number' => 'Amul benn nimero bu ñu dëggal ci kont bii.',
     ],
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',

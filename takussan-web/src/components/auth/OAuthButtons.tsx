@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { oauthProviders, oauthRedirect, type OAuthProvider } from '@/lib/auth';
 import { useTranslations } from 'next-intl';
+import { memoriserIntentionOAuth } from './intention-oauth';
 
 type Provider = {
   id: OAuthProvider;
@@ -71,9 +72,14 @@ interface OAuthButtonsProps {
    */
   readonly separator?: 'before' | 'after';
   readonly separatorLabel?: string;
+  /**
+   * TCK-589 — la destination d'origine (`?redirect=` de la page), mémorisée dans l'onglet avant de
+   * partir chez le fournisseur : son rappel ne la transporte pas.
+   */
+  readonly redirect?: string | null;
 }
 
-export function OAuthButtons({ separator, separatorLabel }: OAuthButtonsProps = {}) {
+export function OAuthButtons({ separator, separatorLabel, redirect }: OAuthButtonsProps = {}) {
   const t = useTranslations('auth.oauth');
   const [pending, setPending] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState('');
@@ -110,6 +116,7 @@ export function OAuthButtons({ separator, separatorLabel }: OAuthButtonsProps = 
     setPending(provider);
     try {
       const { redirect_url } = await oauthRedirect(provider);
+      memoriserIntentionOAuth(redirect);
       window.location.assign(redirect_url);
     } catch {
       setError(t('startFailed'));

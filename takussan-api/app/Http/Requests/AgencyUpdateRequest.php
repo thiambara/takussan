@@ -41,6 +41,8 @@ class AgencyUpdateRequest extends BaseFormRequest
             'settings.watermark_enabled' => ['sometimes', 'boolean'],
             'settings.watermark_position' => ['sometimes', Rule::enum(WatermarkPosition::class)],
             'settings.watermark_opacity' => ['sometimes', 'integer', 'between:10,100'],
+            // TCK-589 — 2FA exigée de tout le personnel de l'agence (contrainte 7).
+            'settings.require_team_two_factor' => ['sometimes', 'boolean'],
             // TCK-593 — absent = `false` (`Agency::collectsLateFeesOnline()`).
             'settings.late_fee_online_collection' => ['sometimes', 'nullable', 'boolean'],
         ];

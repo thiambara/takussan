@@ -130,4 +130,39 @@ return [
         'reminder_days_before' => (int) env('ACCOUNT_DELETION_REMINDER_DAYS', 7),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Connexion par téléphone (TCK-589, ADR-0033)
+    |--------------------------------------------------------------------------
+    |
+    | Faux par défaut. Allumé environnement par environnement, par une
+    | personne, APRÈS un envoi réel mesuré (onglet Dokploy, ADR-0028). Éteint,
+    | `auth/phone/request-code` et `verify-code` rendent 404 et les invitations
+    | exigent l'e-mail.
+    */
+
+    'phone_login' => [
+        'enabled' => (bool) env('PHONE_LOGIN_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sessions bornées (TCK-589)
+    |--------------------------------------------------------------------------
+    |
+    | Durée absolue et expiration par inactivité de tout jeton ; la session
+    | super-admin est plus courte : `platform.session_max_minutes` (lu à
+    | l'émission du jeton) absolus et 30 min d'inactivité. La confirmation 2FA
+    | récente (step-up) vaut 10 min, sur le jeton qui l'a faite.
+    | La durée absolue de tout jeton (hérités compris, par `created_at`) est
+    | aussi `sanctum.expiration`.
+    */
+
+    'sessions' => [
+        'absolute_minutes' => 43200,          // 30 jours
+        'idle_minutes' => 10080,              // 7 jours
+        'super_admin_idle_minutes' => 30,
+        'step_up_minutes' => 10,
+    ],
+
 ];

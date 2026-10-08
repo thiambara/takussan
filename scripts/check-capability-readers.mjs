@@ -75,9 +75,10 @@ const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
 /**
  * Taille de l'inventaire. Bilatéral : il suit `AWAITING`, dans les deux sens.
  * 16 → 14 par TCK-591 (`team.remove`, `crm.assign`) et 16 → 14 par TCK-596 (`bookings.refund`,
- * `leases.sign`), chacun sur sa branche : 12 à leur fusion.
+ * `leases.sign`), chacun sur sa branche : 12 à leur fusion. 14 → 12 par TCK-592
+ * (`maintenance.assign`, `maintenance.close`) sur la sienne : 10 à la fusion de 596 avec 592.
  */
-const CLIQUET = 12;
+const CLIQUET = 10;
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;

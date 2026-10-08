@@ -6,6 +6,8 @@ import { SuperAdminShell } from '@/components/layout/SuperAdminShell';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
+import { configurationDoubleFacteurExigee } from '@/lib/double-facteur';
+import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
 
 
 /**
@@ -45,8 +47,12 @@ export default async function SuperAdminLayout({
   // intentionally not attached until /confirm flips it on. Detour to
   // the onboarding wizard rather than bouncing to /app (which would
   // round-trip through another redirect for the same reason).
-  if (user.force_2fa_at_first_login) {
-    redirect('/onboarding/super-admin');
+  //
+  // TCK-589 — et plus largement : un super-admin sans second facteur, ou dont le support l'a
+  // réinitialisé, ne voit pas la console. Le juge est partagé avec `(dashboard)`.
+  const configuration = configurationDoubleFacteurExigee(user);
+  if (configuration) {
+    redirect(configuration);
   }
   if (!isSuperAdmin(user.roles)) {
     redirect('/app');
@@ -55,10 +61,10 @@ export default async function SuperAdminLayout({
   return (
     <IntlProvider messages={await messagesPour('(super-admin)/super-admin')}>
       <ToastProvider>
-        <>
+        <GardeDoubleFacteur>
           <SuperAdminShell user={user}>{children}</SuperAdminShell>
           <Toaster />
-        </>
+        </GardeDoubleFacteur>
       </ToastProvider>
     </IntlProvider>
   );

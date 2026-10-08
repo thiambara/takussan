@@ -5,12 +5,19 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ResendPhoneVerificationRequest;
 use App\Http\Requests\Auth\VerifyPhoneVerificationRequest;
+use App\Models\User;
+use App\Services\Auth\AuthRefusal;
+use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PhoneVerificationController extends Controller
 {
-    public function __construct(private readonly PhoneVerificationService $service) {}
+    public function __construct(
+        private readonly PhoneVerificationService $service,
+        private readonly PhoneChangeGuard $phoneChange,
+    ) {}
 
     public function verify(VerifyPhoneVerificationRequest $request): JsonResponse
     {
@@ -25,7 +32,9 @@ class PhoneVerificationController extends Controller
             'phone.code_invalid',
         );
 
-        $user->forceFill(['phone_verified_at' => now()])->save();
+        // TCK-589 — le seul écrivain de `phone_verified_at` : 409 `phone.taken`
+        // si un autre compte a déjà vérifié ce numéro.
+        $this->service->markVerified($user, (string) $user->phone);
 
         return $this->json(['data' => ['verified' => true]]);
     }
@@ -44,30 +53,94 @@ class PhoneVerificationController extends Controller
             $incoming = $request->input('phone');
             $incoming = is_string($incoming) ? trim($incoming) : null;
             $incoming = $incoming === '' ? null : $incoming;
+            // Vérification adverse M3 — hors des indicatifs servis, rien n'est écrit ni envoyé.
+            if ($incoming !== null && ! PhoneVerificationService::countryAllowed($incoming)) {
+                return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
+            }
+            // Passe 2 (p2-1) — un numéro vérifié AILLEURS s'écrit aussi, non vérifié, comme par le
+            // chemin réel : sinon `GET /auth/me` relisait `phone: null` et trahissait le numéro
+            // pris. La branche neutre est jugée plus bas, sur le numéro porté.
             if ($incoming !== null && $incoming !== $user->phone) {
+                // TCK-589 p3-1 — remplacer un numéro VÉRIFIÉ exige une preuve sur le facteur en
+                // place. Jugé avant la branche neutre : le refus ne dépend que de l'appelant.
+                $remplace = null;
+                if ($this->phoneChange->replacesVerified($user, $incoming)) {
+                    $this->phoneChange->authorize($request, $user);
+                    $remplace = (string) $user->phone;
+                }
                 $user->forceFill([
                     'phone' => $incoming,
                     'phone_verified_at' => null,
                 ])->save();
+                if ($remplace !== null) {
+                    $this->phoneChange->notifyReplaced($user, $remplace);
+                }
             }
         }
 
         abort_code_if($user->phone_verified_at !== null, 422, 'phone.already_verified');
         abort_code_unless($user->phone !== null, 422, 'phone.missing');
+
+        // TCK-589 — ne pas dépenser de SMS pour un numéro qu'un autre compte a déjà
+        // vérifié : le code reçu ne pourrait rien vérifier.
+        if ($this->service->isVerifiedElsewhere((string) $user->phone, $user)) {
+            return $this->neutralSend($user);
+        }
+
         abort_code_unless(
             $this->service->canResend($user),
             429,
             'phone.resend_too_soon',
         );
 
-        $debugCode = $this->service->sendOtp($user);
-
-        $payload = ['sent' => true];
-        if ($debugCode !== null) {
-            // Only leaked outside production — useful for Feature tests & dev.
-            $payload['debug_code'] = $debugCode;
+        if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {
+            return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
         }
 
-        return $this->json(['data' => $payload]);
+        // TCK-589 — le code n'est rendu dans AUCUN environnement (`debug_code`
+        // retiré) : il part par SMS, et les tests le lisent par le faux routeur.
+        // Le délai de renvoi est jugé plus haut : un `false` ici, c'est le plafond
+        // journalier global (M3).
+        if (! $this->service->sendOtp($user)) {
+            return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
+        }
+
+        return $this->json(['data' => ['sent' => true]]);
+    }
+
+    /**
+     * TCK-589 p3-1 — la preuve (a) : un code à l'ANCIEN numéro vérifié, avant de le remplacer.
+     * Même porte que tout code (indicatif, plafond global, délai de renvoi par portée).
+     */
+    public function changeCode(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_code_unless($user->phone_verified_at !== null && $user->phone !== null, 422, 'phone.no_verified_number');
+        abort_code_unless($this->service->canSendTo(PhoneChangeGuard::SCOPE, (string) $user->phone), 429, 'phone.resend_too_soon');
+
+        if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {
+            return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
+        }
+        if (! $this->phoneChange->sendCode($user)) {
+            return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
+        }
+
+        return $this->json(['data' => ['sent' => true]]);
+    }
+
+    /**
+     * Vérification adverse m4 (décision du porteur) — un numéro vérifié par un AUTRE compte
+     * reçoit la réponse d'un envoi réel, délai de renvoi compris, sans envoi : `409 phone_taken`
+     * disait à tout compte, trois fois par minute, si un numéro est inscrit. Le numéro, lui, est
+     * ÉCRIT non vérifié par l'appelant, comme par un envoi réel (passe 2, p2-1) : le profil relu
+     * ne distingue pas les deux cas. Le refus ferme reste à la vérification (`markVerified`,
+     * 409 `phone.taken`).
+     */
+    private function neutralSend(User $user): JsonResponse
+    {
+        abort_code_unless($this->service->canResend($user), 429, 'phone.resend_too_soon');
+        $this->service->holdResendCooldown($user);
+
+        return $this->json(['data' => ['sent' => true]]);
     }
 }

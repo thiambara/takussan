@@ -5,6 +5,7 @@ namespace App\Policies\Profiles;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Capability;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
@@ -28,7 +29,10 @@ class ServiceProviderProfilePolicy
     public function viewAny(User $user, ?Agency $agency = null): bool
     {
         if ($agency !== null) {
-            return $this->canInviteIn($user, $agency);
+            // TCK-592 — qui assigne une intervention choisit dans le carnet : `maintenance.assign`
+            // ouvre la lecture du carnet de SON agence, sans ouvrir l'invitation.
+            return $this->canInviteIn($user, $agency)
+                || $user->canActAt(Capability::MaintenanceAssign, $agency);
         }
 
         $agencyId = $user->agency_id;
@@ -83,6 +87,26 @@ class ServiceProviderProfilePolicy
         }
 
         return $this->canInviteIn($user, $agency);
+    }
+
+    /**
+     * TCK-592 — mettre en pause, reprendre ou finir la collaboration d'un prestataire avec
+     * l'agence : ceux qui l'y invitent.
+     */
+    public function manageCollaboration(User $user, ServiceProviderProfile $profile, Agency $agency): bool
+    {
+        return $this->canInviteIn($user, $agency);
+    }
+
+    /**
+     * TCK-592 — le prestataire met fin à SA collaboration. Il ne la met pas en pause et ne la
+     * reprend pas : ce sont des gestes de l'agence.
+     */
+    public function endCollaboration(User $user, ServiceProviderAgencyCollaboration $collaboration): bool
+    {
+        $profile = $collaboration->serviceProviderProfile;
+
+        return $profile !== null && $profile->user_id !== null && (int) $profile->user_id === (int) $user->id;
     }
 
     protected function canInviteIn(User $user, Agency $agency): bool

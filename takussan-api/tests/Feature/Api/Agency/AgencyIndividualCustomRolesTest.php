@@ -51,7 +51,7 @@ class AgencyIndividualCustomRolesTest extends ApiTestCase
     private function agenceAvecAdmin(AgencyKind $kind): array
     {
         $agency = Agency::factory()->create(['kind' => $kind]);
-        $admin = User::factory()->create();
+        $admin = User::factory()->withTwoFactor()->create();
         AgencyAdminProfile::factory()->create([
             'user_id' => $admin->id,
             'agency_id' => $agency->id,

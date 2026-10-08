@@ -7,7 +7,8 @@ export type ConversationType = 'direct' | 'group' | 'support';
 
 export type ConversationStatus = 'active' | 'archived' | 'closed';
 
-export type MessageType = 'text' | 'image' | 'document' | 'system';
+/** TCK-592 (ADR-0038) — `audio` : une note vocale, son fichier dans `attachments`. */
+export type MessageType = 'text' | 'image' | 'document' | 'system' | 'audio';
 
 export type ConversationParticipant = {
   id: number;
@@ -29,7 +30,9 @@ export type SystemMessageEvent =
   | 'participant_added'
   | 'participant_removed'
   | 'role_changed'
-  | 'renamed';
+  | 'renamed'
+  /** TCK-592 — une étape de l'intervention que porte le fil. */
+  | 'maintenance';
 
 export type MessageMetadata = {
   event?: SystemMessageEvent;
@@ -41,6 +44,14 @@ export type MessageMetadata = {
   new_role?: 'member' | 'admin';
   old_subject?: string;
   new_subject?: string;
+  /** TCK-592 — `event: 'maintenance'` : la cause et le statut, en CODES rendus par le front. */
+  maintenance_request_id?: number;
+  cause?: string;
+  from?: string | null;
+  status?: string;
+  provider_name?: string | null;
+  /** TCK-592 (ADR-0038) — durée DÉCLARÉE d'une note vocale, en secondes : affichage seulement. */
+  duration?: number;
 };
 
 export type MessageAttachment = {

@@ -330,6 +330,27 @@ return [
                 'sms' => 'Takussan: booking :reference cancelled (:property).',
             ],
         ],
+        // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
+        'invitation' => [
+            'received' => [
+                'title' => 'Invitation from :agency',
+                'body' => ':agency invites you to join its team.',
+                'sms' => 'Takussan: :agency invites you to join its team. Accept here: :url',
+            ],
+            'reminder' => [
+                'title' => 'Reminder: invitation from :agency',
+                'body' => 'Your invitation to join :agency is waiting.',
+                'sms' => 'Takussan: reminder — your invitation to join :agency is waiting: :url',
+            ],
+        ],
+        // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
+        'account' => [
+            'phone_changed' => [
+                'title' => 'Phone number replaced',
+                'body' => 'The verified phone number on your account was replaced. If this was not you, contact support.',
+                'sms' => 'Takussan: this number is no longer the one on your account. If you did not make this change, contact support.',
+            ],
+        ],
         'visit' => [
             'reminder' => [
                 'title' => 'Visit reminder: :property',
@@ -459,6 +480,96 @@ return [
                 'body' => 'A maintenance request (:reference) was submitted for :property.',
                 'sms' => 'Takussan: maintenance request :reference (:property).',
             ],
+            'assigned' => [
+                'title' => 'New job: :request',
+                'body' => 'A job is assigned to you at :property. Accept or decline it from its page.',
+                'sms' => 'Takussan: New job: :request',
+            ],
+            'unassigned' => [
+                'title' => 'Job withdrawn: :request',
+                'body' => 'The job ":request" is no longer assigned to you.',
+                'sms' => 'Takussan: Job withdrawn: :request',
+            ],
+            'accepted' => [
+                'title' => 'Job accepted: :request',
+                'body' => ':provider accepted the job ":request".',
+                'sms' => 'Takussan: Job accepted: :request',
+            ],
+            'declined' => [
+                'title' => 'Job declined: :request',
+                'body' => ':provider declined the job ":request". Reason: :reason',
+                'sms' => 'Takussan: Job declined: :request',
+            ],
+            'completed' => [
+                'title' => 'Job completed: :request',
+                'body' => 'The service provider completed the job ":request". The requester must confirm the repair.',
+                'sms' => 'Takussan: Job completed: :request',
+            ],
+            'confirmed' => [
+                'title' => 'Repair confirmed: :request',
+                'body' => 'The requester confirmed the repair: the job ":request" is closed.',
+                'sms' => 'Takussan: Repair confirmed: :request',
+            ],
+            'contested' => [
+                'title' => 'Repair contested: :request',
+                'body' => 'The problem persists on ":request". Comment: :comment',
+                'sms' => 'Takussan: Repair contested: :request',
+            ],
+            'auto_closed' => [
+                'title' => 'Job closed: :request',
+                'body' => 'With no answer within :days days, the job ":request" was closed automatically.',
+                'sms' => 'Takussan: Job closed: :request',
+            ],
+            'cancelled' => [
+                'title' => 'Job cancelled: :request',
+                'body' => 'The job ":request" was cancelled.',
+                'sms' => 'Takussan: Job cancelled: :request',
+            ],
+            'step_acknowledged' => [
+                'title' => 'Your request ":request": acknowledged',
+                'body' => 'Your maintenance request is now: acknowledged.',
+                'sms' => 'Takussan: Your request ":request": acknowledged',
+            ],
+            'step_assigned' => [
+                'title' => 'Your request ":request": assigned',
+                'body' => 'Your maintenance request is now: assigned.',
+                'sms' => 'Takussan: Your request ":request": assigned',
+            ],
+            'step_in_progress' => [
+                'title' => 'Your request ":request": in progress',
+                'body' => 'Your maintenance request is now: in progress.',
+                'sms' => 'Takussan: Your request ":request": in progress',
+            ],
+            'step_completed' => [
+                'title' => 'Your request ":request": completed',
+                'body' => 'Your maintenance request is now: completed.',
+                'sms' => 'Takussan: Your request ":request": completed',
+            ],
+            'step_closed' => [
+                'title' => 'Your request ":request": closed',
+                'body' => 'Your maintenance request is now: closed.',
+                'sms' => 'Takussan: Your request ":request": closed',
+            ],
+            'step_cancelled' => [
+                'title' => 'Your request ":request": cancelled',
+                'body' => 'Your maintenance request is now: cancelled.',
+                'sms' => 'Takussan: Your request ":request": cancelled',
+            ],
+            'step_acknowledged_scheduled' => [
+                'title' => 'Your request ":request": acknowledged',
+                'body' => 'Your maintenance request is now: acknowledged. Visit planned on :scheduled_at.',
+                'sms' => 'Takussan: Your request ":request": acknowledged',
+            ],
+            'step_assigned_scheduled' => [
+                'title' => 'Your request ":request": assigned',
+                'body' => 'Your maintenance request is now: assigned. Visit planned on :scheduled_at.',
+                'sms' => 'Takussan: Your request ":request": assigned',
+            ],
+            'step_in_progress_scheduled' => [
+                'title' => 'Your request ":request": in progress',
+                'body' => 'Your maintenance request is now: in progress. Visit planned on :scheduled_at.',
+                'sms' => 'Takussan: Your request ":request": in progress',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -478,8 +589,13 @@ return [
             ],
             'rejected' => [
                 'title' => 'Quote rejected: :request',
-                'body' => 'Your quote for the job ":request" was rejected.',
+                'body' => 'Your quote for the job ":request" was rejected. Reason: :reason',
                 'sms' => 'Takussan: quote rejected for ":request".',
+            ],
+            'awaiting_owner' => [
+                'title' => 'Your approval is required: :request',
+                'body' => 'A quote of :amount for ":request" exceeds the works ceiling agreed with your agency. Approve or reject it.',
+                'sms' => 'Takussan: Your approval is required: :request',
             ],
         ],
         // TCK-596 (ADR-0042 §9) — signature du bail.

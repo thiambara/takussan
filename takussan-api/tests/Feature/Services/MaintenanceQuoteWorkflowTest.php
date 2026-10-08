@@ -57,15 +57,20 @@ class MaintenanceQuoteWorkflowTest extends TestCase
             'status' => MaintenanceStatus::QuoteRequested,
         ]);
 
+        // TCK-592 (P12) — le montant est calculé depuis les lignes, la devise imposée (bail, sinon
+        // agence, sinon XOF) : la devise envoyée n'est plus lue.
         $this->workflow->submitQuote($mr, [
-            'amount' => 500.00,
-            'currency' => 'EUR',
+            'lines' => [
+                ['label' => 'Main-d\'œuvre', 'kind' => 'labour', 'quantity' => 2, 'unit_price' => 150],
+                ['label' => 'Joint', 'kind' => 'supply', 'quantity' => 1, 'unit_price' => '200.00'],
+            ],
+            'valid_until' => now()->addWeek()->toDateString(),
         ]);
 
         $mr->refresh();
         $this->assertEquals(MaintenanceStatus::QuoteSubmitted, $mr->status);
         $this->assertEquals(500.00, $mr->quote_amount);
-        $this->assertEquals('EUR', $mr->quote_currency);
+        $this->assertEquals('XOF', $mr->quote_currency);
         $this->assertNotNull($mr->quote_submitted_at);
 
         $this->assertDatabaseHas('activity_log', [
@@ -127,8 +132,7 @@ class MaintenanceQuoteWorkflowTest extends TestCase
         ]);
 
         $this->workflow->submitQuote($mr, [
-            'amount' => 450.00,
-            'currency' => 'EUR',
+            'lines' => [['label' => 'Reprise', 'kind' => 'labour', 'quantity' => 1, 'unit_price' => 450]],
         ]);
 
         $this->assertEquals(MaintenanceStatus::QuoteSubmitted, $mr->fresh()->status);

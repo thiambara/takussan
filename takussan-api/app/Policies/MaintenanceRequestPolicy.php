@@ -2,9 +2,16 @@
 
 namespace App\Policies;
 
+use App\Http\Controllers\Api\MediaController;
+use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\MaintenanceStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\ProviderEligibility;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,8 +22,13 @@ use Illuminate\Database\Eloquent\Model;
 class MaintenanceRequestPolicy extends BasePolicy
 {
     /**
-     * Lire une demande : super-admin, DEMANDEUR, prestataire assigné, propriétaire du bien, ou
-     * périmètre d'agence.
+     * Lire une demande : super-admin, DEMANDEUR, prestataire assigné (collaboration et profil
+     * actifs), ou donneur d'ordre (bailleur du bien, personnel de l'agence du bien).
+     *
+     * TCK-592 — le périmètre d'agence lisait `$user->agency_id === $property->agency_id` sans
+     * regarder le type de profil : un bailleur invité porte un `OwnerProfile` de l'agence, et lisait
+     * donc les interventions des AUTRES bailleurs (O1). Et `assigned_to === $user->id` suffisait :
+     * une collaboration finie ne retirait rien.
      */
     public function view(User $user, Model $model): bool
     {
@@ -24,13 +36,10 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        $property = $model->property;
-
         return $user->isSuperAdmin()
             || $model->requester_id === $user->id
-            || $model->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || $this->isAssignedProvider($user, $model)
+            || self::isPrincipalFor($user, $model->property);
     }
 
     /**
@@ -43,12 +52,70 @@ class MaintenanceRequestPolicy extends BasePolicy
             return false;
         }
 
-        $property = $model->property;
-
         return $user->isSuperAdmin()
-            || $model->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+            || $this->isAssignedProvider($user, $model)
+            || self::isPrincipalFor($user, $model->property);
+    }
+
+    /**
+     * TCK-592 (verif-592 passe 2, N3) — joindre une pièce par le chemin générique `POST /api/media`
+     * ({@see MediaController::authorizeAttach()}) : les acteurs
+     * d'`update`, jamais sur une demande close ou annulée. `uploadPhotos` et le `PATCH` refusaient
+     * l'état terminal ; ce chemin-là déléguait à `update`, qui n'en sait rien et sert ailleurs, et
+     * réécrivait les preuves d'une intervention close.
+     */
+    public function attachMedia(User $user, MaintenanceRequest $request): bool
+    {
+        return ! app(MaintenanceStateMachine::class)->isTerminal($request->status)
+            && $this->update($user, $request);
+    }
+
+    /**
+     * TCK-592 (P14) — ouvrir une demande quelque part : les mêmes que `store()` (donneur d'ordre d'un
+     * bien, ou locataire d'un bail actif), jugés sans bien. Rendu dans `meta.abilities.can_create`
+     * de la liste : « Nouvelle demande » n'est plus proposée au prestataire, qui prenait un 403.
+     */
+    public function openRequests(User $user): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->staffAgencyId() !== null) {
+            return true;
+        }
+
+        return Property::query()->where('user_id', $user->id)->exists()
+            || Lease::query()
+                ->where('status', LeaseStatus::Active)
+                ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
+                ->exists();
+    }
+
+    /**
+     * TCK-592 — accepter ou refuser l'intervention : le prestataire assigné, et lui seul.
+     */
+    public function respondToAssignment(User $user, MaintenanceRequest $request): bool
+    {
+        return $this->isAssignedProvider($user, $request);
+    }
+
+    /**
+     * TCK-592 (P10) — confirmer ou contester la réparation, sur une demande `completed` : le
+     * DEMANDEUR ou un donneur d'ordre (contrat de données). Jamais le prestataire — il ne clôt pas
+     * seul, et ne relance pas lui-même ce qu'il a déclaré fini. La matrice (acteur, cible) porte
+     * déjà les trois verdicts ; l'équipe clôt sous `maintenance.close`.
+     */
+    public function respondToResolution(User $user, MaintenanceRequest $request, MaintenanceStatus $target): bool
+    {
+        if ($request->status !== MaintenanceStatus::Completed) {
+            return false;
+        }
+
+        $isRequester = $request->requester_id !== null && $request->requester_id === $user->id;
+
+        return ($isRequester || self::isPrincipalFor($user, $request->property))
+            && $this->transitionTo($user, $request, $target);
     }
 
     /**
@@ -58,7 +125,34 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function manageQuotes(User $user, MaintenanceRequest $request): bool
     {
-        return self::isPrincipalFor($user, $request->property);
+        // TCK-592 (verif-592, mineur 9) — ne lisait aucune capacité : un agent dont le rôle n'en
+        // porte aucune `maintenance.*` approuvait un devis. Commander le devis, c'est commander
+        // l'intervention : la même règle qu'`actAsPrincipal` (`maintenance.assign` pour l'équipe).
+        return $this->actAsPrincipal($user, $request);
+    }
+
+    /**
+     * TCK-592 (P13) — lire le devis (montant, lignes, PDF) : le prestataire assigné et les donneurs
+     * d'ordre. Jamais le demandeur qui n'est que demandeur.
+     */
+    public function viewQuote(User $user, MaintenanceRequest $request): bool
+    {
+        return $this->actAsProvider($user, $request) || self::isPrincipalFor($user, $request->property);
+    }
+
+    /**
+     * TCK-592 — ADR-0037 : approuver ou refuser le devis. Comme `manageQuotes`, sauf en
+     * `awaiting_owner` : le devis dépasse le plafond de travaux du bailleur, et lui SEUL tranche —
+     * ni l'équipe de l'agence, ni un autre bailleur de la même agence.
+     */
+    public function decideQuote(User $user, MaintenanceRequest $request): bool
+    {
+        if ($request->status === MaintenanceStatus::AwaitingOwner) {
+            return $user->isSuperAdmin()
+                || ($request->property !== null && $request->property->user_id === $user->id);
+        }
+
+        return $this->manageQuotes($user, $request);
     }
 
     /**
@@ -73,7 +167,78 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function actAsPrincipal(User $user, MaintenanceRequest $request): bool
     {
-        return self::isPrincipalFor($user, $request->property);
+        $property = $request->property;
+        if (! self::isPrincipalFor($user, $property)) {
+            return false;
+        }
+
+        // TCK-592 — la branche ÉQUIPE exige `maintenance.assign` : un rôle personnalisé qui la retire
+        // retire le geste. Le bailleur du bien commande sur SON bien sans capacité d'agence.
+        return ! self::isTeamPrincipalFor($user, $property)
+            || $user->canActAt(Capability::MaintenanceAssign, $property->agency);
+    }
+
+    /**
+     * TCK-592 — changer le statut se juge par (acteur, cible), jamais par `update` seul.
+     *
+     * Ne dit pas si la transition EXISTE (la table de {@see MaintenanceStateMachine} rend 422) : dit
+     * si cet utilisateur, dans les rôles qu'il tient sur CETTE demande, a le droit de la demander.
+     * La clôture par l'équipe exige `maintenance.close`.
+     */
+    public function transitionTo(User $user, MaintenanceRequest $request, MaintenanceStatus $target): bool
+    {
+        $machine = app(MaintenanceStateMachine::class);
+        $from = $request->status ?? MaintenanceStatus::Open;
+
+        foreach ($this->actorsOf($user, $request) as $actor) {
+            if (! $machine->actorAllows($actor, $from, $target)) {
+                continue;
+            }
+
+            if ($actor === MaintenanceStateMachine::ACTOR_PRINCIPAL
+                && $target === MaintenanceStatus::Closed
+                && self::isTeamPrincipalFor($user, $request->property)
+                && ! $user->canActAt(Capability::MaintenanceClose, $request->property->agency)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * TCK-592 — les rôles que l'utilisateur tient sur CETTE demande. Jamais exclusifs.
+     *
+     * @return list<string>
+     */
+    public function actorsOf(User $user, MaintenanceRequest $request): array
+    {
+        $actors = [];
+        if ($this->isAssignedProvider($user, $request)) {
+            $actors[] = MaintenanceStateMachine::ACTOR_PROVIDER;
+        }
+        if (self::isPrincipalFor($user, $request->property)) {
+            $actors[] = MaintenanceStateMachine::ACTOR_PRINCIPAL;
+        }
+        if ($request->requester_id === $user->id) {
+            $actors[] = MaintenanceStateMachine::ACTOR_REQUESTER;
+        }
+
+        return $actors;
+    }
+
+    /**
+     * TCK-592 — donneur d'ordre AU TITRE DE L'ÉQUIPE d'agence : ni super-admin, ni bailleur du bien.
+     * C'est la seule branche que les capacités `maintenance.*` gardent.
+     */
+    public static function isTeamPrincipalFor(User $user, ?Property $property): bool
+    {
+        return $property !== null
+            && ! $user->isSuperAdmin()
+            && $property->user_id !== $user->id
+            && self::isPrincipalFor($user, $property);
     }
 
     /**
@@ -98,9 +263,23 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public static function isPrincipalFor(User $user, ?Property $property): bool
     {
-        return $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($property === null) {
+            return false;
+        }
+
+        if ($property->user_id === $user->id) {
+            return true;
+        }
+
+        // TCK-592 — un bailleur n'est donneur d'ordre que de SES biens (ligne ci-dessus) ; le
+        // personnel (TCK-587), de ceux de l'agence de son profil actif.
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && (int) $property->agency_id === $staffAgencyId;
     }
 
     /**
@@ -109,6 +288,18 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function actAsProvider(User $user, MaintenanceRequest $request): bool
     {
-        return $user->isSuperAdmin() || $request->assigned_to === $user->id;
+        return $user->isSuperAdmin() || $this->isAssignedProvider($user, $request);
+    }
+
+    /**
+     * TCK-592 — le prestataire ASSIGNÉ, tant qu'il est assignable au bien : profil actif et
+     * collaboration active avec l'agence du bien (ou membre de son équipe). Une collaboration finie
+     * ou un profil suspendu retirent l'accès, historique compris.
+     */
+    private function isAssignedProvider(User $user, MaintenanceRequest $request): bool
+    {
+        return $request->assigned_to !== null
+            && $request->assigned_to === $user->id
+            && app(ProviderEligibility::class)->isAssignable($user, $request->property);
     }
 }

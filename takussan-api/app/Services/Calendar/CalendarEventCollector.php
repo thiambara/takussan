@@ -16,6 +16,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -101,6 +102,12 @@ class CalendarEventCollector
         }
         // Le prestataire n'est borné nulle part, sauf dans l'agenda d'une agence.
         $unboundedProvider = $isProvider && $staffAgencyId === null;
+        // TCK-592 — une intervention assignée ne s'affiche que là où l'appelant la GARDE, au sens de
+        // la policy (`ProviderEligibility`) : une collaboration en pause laisse `assigned_to` en
+        // place, et l'agenda servait encore le bien et la date au prestataire que la policy refuse.
+        $assignableAgencyIds = $unboundedProvider
+            ? app(ProviderEligibility::class)->agencyIdsWhereAssignable($user)
+            : $staffAgencyIds;
 
         $restrict = function (Builder $q, string $propertyKey = 'property_id') use ($propertyId, $propertyIds, $agencyFilter, $isAdmin, $userId, $staffAgencyId): void {
             if ($propertyId) {
@@ -132,7 +139,7 @@ class CalendarEventCollector
             $events = $events->merge($this->leaseEvents($start, $end, $restrict));
         }
         if (in_array('maintenance', $types, true)) {
-            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter, $staffAgencyIds, $unboundedProvider));
+            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter, $assignableAgencyIds));
         }
 
         return $events->sortBy('start')->values();
@@ -339,14 +346,14 @@ class CalendarEventCollector
         ?int $propertyId,
         array $propertyIds,
         ?int $agencyFilter,
-        array $staffAgencyIds = [],
-        bool $isProvider = false,
+        array $assignableAgencyIds = [],
     ): Collection {
-        // L'intervention assignée à l'appelant : au prestataire partout, au personnel dans ses agences.
-        $assigned = function (Builder $q) use ($userId, $isAdmin, $isProvider, $staffAgencyIds): void {
+        // L'intervention assignée à l'appelant, dans les agences où il la garde : celles de ses
+        // collaborations actives (prestataire), celles où il est personnel.
+        $assigned = function (Builder $q) use ($userId, $isAdmin, $assignableAgencyIds): void {
             $q->where('assigned_to', $userId);
-            if (! $isAdmin && ! $isProvider) {
-                $q->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $staffAgencyIds));
+            if (! $isAdmin) {
+                $q->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $assignableAgencyIds));
             }
         };
 

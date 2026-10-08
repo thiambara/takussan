@@ -35,6 +35,43 @@ describe('destinationInterne', () => {
     expect(destinationInterne('/\\evil.tld')).toBe('/app');
   });
 
+  /**
+   * TCK-589, vérification adverse M2 (AC5b) — le parseur d'URL retire tabulations et sauts de
+   * ligne : `/\t/evil.com` devient `//evil.com`, un autre hôte. Rouge sur `e59cb8b2` : la chaîne
+   * brute était rendue telle quelle.
+   */
+  it.each(['/\t/evil.com', '/\n/evil.com', '/\\/evil.com', '/\t\\evil.com', '/\r/evil.com', '/\u0000/evil.com'])(
+    'refuse %j, que le navigateur résoudrait hors du site',
+    (brute) => {
+      expect(destinationInterne(brute)).toBe('/app');
+    },
+  );
+
+  it('rend la destination RÉSOLUE, qui reste sur le site', () => {
+    for (const brute of ['/app/../../evil.com', '/./app', '/app?x=//evil.com#//evil.com', '/%2F%2Fevil.com']) {
+      const rendue = destinationInterne(brute);
+      expect(new URL(rendue, 'https://www.takussan.com').origin).toBe('https://www.takussan.com');
+      expect(rendue.startsWith('//')).toBe(false);
+    }
+    expect(destinationInterne('/properties/x?action=reserver#visite')).toBe('/properties/x?action=reserver#visite');
+    // Ce qui est rendu est ce qui a été jugé : la forme résolue, pas la chaîne d'entrée.
+    expect(destinationInterne('/app/./biens/../baux')).toBe('/app/baux');
+  });
+
+  /**
+   * TCK-589, passe 2 (M2bis, AC-p2a) — la résolution NORMALISE les segments `.` et `..` : le
+   * chemin rendu peut commencer par `//` alors que l'entrée se résolvait sur le site. Le juge
+   * porte donc sur la valeur RENDUE. Rouge sur `104589df` : les quatre rendaient `//evil.com`.
+   */
+  it.each(['/..//evil.com', '/.//evil.com', '/a/..//evil.com', '/%2e%2e//evil.com'])(
+    'refuse %j, que la normalisation rendrait protocole-relatif',
+    (brute) => {
+      const rendue = destinationInterne(brute);
+      expect(rendue).toBe('/app');
+      expect(new URL(rendue, 'https://www.takussan.com').origin).toBe('https://www.takussan.com');
+    },
+  );
+
   it('retombe sur le défaut quand rien n’est fourni', () => {
     expect(destinationInterne(null)).toBe('/app');
     expect(destinationInterne(undefined)).toBe('/app');

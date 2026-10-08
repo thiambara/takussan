@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\MaintenanceStatus;
+use App\Services\Maintenance\CurrencyUnit;
 
 /**
  * TCK-305 — extrait de MaintenanceRequestController::complete(), où les règles étaient écrites en ligne.
@@ -14,6 +16,9 @@ use App\Http\Requests\BaseFormRequest;
  */
 class CompleteMaintenanceRequestRequest extends BaseFormRequest
 {
+    /** Les champs de coût, réservés au donneur d'ordre. */
+    public const PRINCIPAL_FIELDS = ['cost', 'actual_cost'];
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -26,7 +31,18 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('maintenanceRequest')) === true;
+        $user = $this->user();
+        $maintenanceRequest = $this->route('maintenanceRequest');
+
+        // TCK-592 — terminer est une transition : (acteur, `completed`), pas `update`.
+        if ($user?->can('transitionTo', [$maintenanceRequest, MaintenanceStatus::Completed]) !== true) {
+            return false;
+        }
+
+        // TCK-592 (verif-592, M1) — le coût est un champ du DONNEUR D'ORDRE, ici comme au `PATCH`
+        // (AC1) : sa seule PRÉSENCE exige `actAsPrincipal`, et le prestataire prend un 403.
+        return ! $this->hasAny(self::PRINCIPAL_FIELDS)
+            || $user->can('actAsPrincipal', $maintenanceRequest) === true;
     }
 
     /** @return array<string, mixed> */
@@ -34,8 +50,10 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
     {
         return [
             'resolution_notes' => ['nullable', 'string'],
-            'cost' => ['nullable', 'numeric', 'min:0'],
-            'actual_cost' => ['nullable', 'numeric', 'min:0'],
+            // verif-592 passe 2 (N5) — `numeric` admet `6e4`, que bcmath refuse (500).
+            // verif-592 passe 3 (N10) — au-delà de la colonne `decimal(14,2)` : 500.
+            'cost' => ['nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
+            'actual_cost' => ['nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             'photos' => ['nullable', 'array'],
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ];

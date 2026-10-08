@@ -56,7 +56,9 @@ class MediaDiskCollectionsTest extends TestCase
         KycDossier::class => ['documents' => 'private'],
         // TCK-596 §4B — `signed_contract` : le contrat figé que les parties signent (ADR-0042).
         Lease::class => ['lease_deposit_refund' => 'private', 'signed_contract' => 'private'],
-        MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private'],
+        // TCK-592 — `before_photos` : l'intérieur du logement constaté avant intervention, privé comme
+        // les trois autres.
+        MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private', 'before_photos' => 'private'],
         Message::class => ['attachments' => 'private'],
         // TCK-539 (D2) — l'original d'une photo est privé, ses conversions (filigranées) publiques.
         Property::class => ['photos' => 'private, conversions public', 'videos' => 'public', 'plans' => 'public'],

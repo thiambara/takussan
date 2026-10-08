@@ -164,10 +164,13 @@ class MediaController extends Controller
             return;
         }
 
-        // Try policy-based authorization first.
+        // Try policy-based authorization first. TCK-592 (verif-592 passe 2, N3) — une policy qui
+        // expose `attachMedia` y porte la règle propre à l'ajout d'une pièce (l'état terminal d'une
+        // intervention) ; les autres restent sur `update`.
         $policy = Gate::getPolicyFor($target);
-        if ($policy !== null && method_exists($policy, 'update')) {
-            if ($user->can('update', $target)) {
+        $ability = $policy !== null && method_exists($policy, 'attachMedia') ? 'attachMedia' : 'update';
+        if ($policy !== null && method_exists($policy, $ability)) {
+            if ($user->can($ability, $target)) {
                 return;
             }
             abort(Response::HTTP_FORBIDDEN);

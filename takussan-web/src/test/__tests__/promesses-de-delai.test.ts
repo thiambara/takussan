@@ -48,9 +48,21 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 'idem — PhoneVerificationService.php:22',
   'onboarding.host.steps.identity.otp.sentBody': 'idem — PhoneVerificationService.php:22',
   'profile.contact.otpSent': 'idem — PhoneVerificationService.php:22',
+  // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
+  'auth.phoneLogin.codeSentTo':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
+  // TCK-589 (p3-1) — le code de preuve envoyé à l'ANCIEN numéro avant de le remplacer :
+  // `PhoneChangeGuard::sendCode` → `sendCodeTo('phone-change', …)` → `issue()`, même TTL, consommé
+  // par `PhoneChangeGuard::authorize`.
+  'profile.contact.changeProofCodeSent':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, posé à :207 via PhoneChangeGuard::sendCode',
   'agency.tenantOnboardingPending.emptyDescription':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
   'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
+  // TCK-592 — la clôture contradictoire : `completed_at <= subDays(7)` (:38), passe quotidienne à
+  // 04:00 (routes/console.php:79, sans `--days`) — close au premier passage après le septième jour.
+  'maintenance.intervention.resolution.body':
+    'takussan-api/app/Console/Commands/AutoCloseMaintenanceRequests.php:21 — `--days=7` par défaut',
   'superAdmin.integrations.webhooks.retention':
     'takussan-api/app/Services/Admin/IntegrationService.php:162 — purge au-delà de subDays(30)',
   'superAdmin.pages.users.impersonateDescription':
@@ -79,8 +91,10 @@ const CHIFFRE_TENU: Readonly<Record<string, number>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 5,
   'onboarding.host.steps.identity.otp.sentBody': 5,
   'profile.contact.otpSent': 5,
+  'profile.contact.changeProofCodeSent': 5,
   'agency.tenantOnboardingPending.emptyDescription': 7,
   'dashboard.onboardingPending.subtitle': 7,
+  'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': 30,
   'superAdmin.pages.users.impersonateDescription': 1,
   'privacy.dataExports.throttled': 24,

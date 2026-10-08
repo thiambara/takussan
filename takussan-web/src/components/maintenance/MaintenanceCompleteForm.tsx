@@ -14,29 +14,33 @@ import {
   maintenanceCompleteSchema,
   type MaintenanceCompleteInput,
 } from '@/lib/schemas/maintenance';
-import {
-  useCompleteMaintenanceRequest,
-  useUploadMaintenancePhotos,
-} from '@/lib/queries/maintenance';
+import { useCompleteMaintenanceRequest } from '@/lib/queries/maintenance';
 import { reduirePhotos } from '@/lib/reduire-photo';
 
 /**
  * Completion workflow — captures the resolution notes, optional actual
- * cost, and post-resolution photos. Photos travel through the dedicated
- * `/photos` endpoint (with `collection=completion_photos` in the form data)
- * after the transition.
+ * cost, and post-resolution photos.
+ *
+ * TCK-592 (P15) — les photos voyagent DANS `PUT …/complete` (`photos[]`). Elles partaient par
+ * `/photos` APRÈS la transition, et leur échec était avalé : la demande passait « terminée »
+ * sans preuve, sans que personne le voie. Désormais un échec n'écrit rien, s'affiche, et les
+ * fichiers choisis restent pour réessayer.
+ *
+ * TCK-592 (verif-592, M1) — le coût réel est un champ du DONNEUR D'ORDRE (`withCost`, lu de
+ * `abilities.can_assign`) : le prestataire qui le portait à la complétion prend un 403.
  */
 export function MaintenanceCompleteForm({
   id,
   onClose,
+  withCost = false,
 }: {
   readonly id: number;
   readonly onClose: () => void;
+  readonly withCost?: boolean;
 }) {
   const t = useTranslations('maintenance.complete');
   const tCommon = useTranslations('common');
   const complete = useCompleteMaintenanceRequest(id);
-  const uploadPhotos = useUploadMaintenancePhotos();
   const [photos, setPhotos] = useState<File[]>([]);
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
@@ -48,22 +52,13 @@ export function MaintenanceCompleteForm({
       resolution_notes: undefined,
       actual_cost: undefined,
     },
-    onSubmit: async (values) => {
-      const res = await complete.mutateAsync(values);
-      if (photos.length > 0) {
-        try {
-          await uploadPhotos.mutateAsync({
-            id,
-            // Réduites dans le navigateur avant l'envoi (TCK-542).
-            files: await reduirePhotos(photos),
-            collection: 'completion_photos',
-          });
-        } catch {
-          // Photos are non-blocking; the completion transition already stuck.
-        }
-      }
-      return res;
-    },
+    onSubmit: async (values) =>
+      complete.mutateAsync({
+        ...values,
+        actual_cost: withCost ? values.actual_cost : undefined,
+        // Réduites dans le navigateur avant l'envoi (TCK-542).
+        photos: photos.length > 0 ? await reduirePhotos(photos) : undefined,
+      }),
     onSuccess: () => {
       onClose();
     },
@@ -92,15 +87,17 @@ export function MaintenanceCompleteForm({
         rows={4}
       />
 
-      <FormInput
-        name="actual_cost"
-        control={form.control}
-        label={t('cost_label')}
-        type="number"
-        min={0}
-        step="100"
-        placeholder="0"
-      />
+      {withCost ? (
+        <FormInput
+          name="actual_cost"
+          control={form.control}
+          label={t('cost_label')}
+          type="number"
+          min={0}
+          step="100"
+          placeholder="0"
+        />
+      ) : null}
 
       <div>
         <label
@@ -113,6 +110,7 @@ export function MaintenanceCompleteForm({
           id="completion-photos"
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          capture="environment"
           multiple
           onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
           className="block w-full text-sm text-muted-foreground file:mr-3 file:h-8 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted"
