@@ -1,162 +1,51 @@
 'use client';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Flag } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useAuth } from '@/context/AuthContext';
-import { useReportProperty } from '@/hooks/useReportProperty';
-import type { ReportPayload } from '@/types/visit';
+import { ReportDialog } from '@/components/reports/ReportDialog';
+import { submitPropertyReport } from '@/app/actions/property';
 
 interface PropertyReportButtonProps {
   slug: string;
 }
 
-const REASON_KEYS: Array<{ value: ReportPayload['reason']; cle: string }> = [
-  { value: 'spam', cle: 'spam' },
-  { value: 'misleading', cle: 'misleading' },
+/** TCK-597 — « arnaque » en tête : c'est le signalement qui coûte le plus à un visiteur. */
+const REASON_KEYS: Array<{ value: string; cle: string }> = [
   { value: 'fraud', cle: 'fraud' },
+  { value: 'misleading', cle: 'misleading' },
+  { value: 'spam', cle: 'spam' },
   { value: 'inappropriate_content', cle: 'inappropriate' },
   { value: 'other', cle: 'other' },
 ];
 
+/**
+ * TCK-597 (V12) — plus de barrière de connexion : un visiteur sans compte signale une annonce.
+ * Le jeton part quand il existe (`submitPropertyReport`).
+ */
 export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
   const t = useTranslations('property.report');
-  const REASONS = REASON_KEYS.map((r) => ({ value: r.value, label: t(`reasons.${r.cle}`) }));
-  const { user } = useAuth();
+  const reasons = REASON_KEYS.map((r) => ({ value: r.value, label: t(`reasons.${r.cle}`) }));
   const [open, setOpen] = useState(false);
-  const [showAuthGate, setShowAuthGate] = useState(false);
-  const [reason, setReason] = useState<ReportPayload['reason']>('spam');
-  const [details, setDetails] = useState('');
-  const [sent, setSent] = useState(false);
-  const { submit, submitting, error } = useReportProperty(slug);
-
-  function handleClick(): void {
-    if (!user) {
-      setShowAuthGate(true);
-      return;
-    }
-    setOpen(true);
-  }
-
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
-    try {
-      await submit({ reason, details: details.trim() || undefined });
-      setSent(true);
-      setTimeout(() => {
-        setOpen(false);
-        setSent(false);
-        setDetails('');
-        setReason('spam');
-      }, 1500);
-    } catch {
-      // error already tracked by hook
-    }
-  }
 
   return (
     <>
       <button
         type="button"
-        onClick={handleClick}
+        onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <Flag className="size-3.5" aria-hidden />
         {t('trigger')}
       </button>
 
-      {/* Auth gate dialog */}
-      <Dialog open={showAuthGate} onOpenChange={setShowAuthGate}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('loginTitle')}</DialogTitle>
-            <DialogDescription>{t('loginBody')}</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setShowAuthGate(false)}>
-              {t('cancel')}
-            </Button>
-            <LienLocalise
-              href={`/auth/login?redirect=/properties/${slug}`}
-              className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
-            >
-              {t('signIn')}
-            </LienLocalise>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Report form dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('dialogTitle')}</DialogTitle>
-            <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
-          </DialogHeader>
-          {sent ? (
-            <p className="text-sm text-success bg-card border border-success/30 rounded-md px-3 py-2">
-              {t('sent')}
-            </p>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <label className="block space-y-1 text-sm">
-                <span className="text-foreground">{t('reasonLabel')}</span>
-                <Select
-                  value={reason}
-                  onValueChange={(v) => setReason((v as ReportPayload['reason']) ?? 'spam')}
-                  items={REASONS}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REASONS.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-              <label className="block space-y-1 text-sm">
-                <span className="text-foreground">{t('detailsLabel')}</span>
-                <Textarea
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  placeholder={t('detailsPlaceholder')}
-                  rows={3}
-                  maxLength={1000}
-                />
-              </label>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                  {t('cancel')}
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? t('sending') : t('submit')}
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ReportDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t('dialogTitle')}
+        description={t('dialogBodyFull')}
+        reasons={reasons}
+        onSubmit={(payload) => submitPropertyReport(slug, payload)}
+      />
     </>
   );
 }

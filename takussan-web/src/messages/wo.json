@@ -33,6 +33,17 @@
     "languageSwitcher": {
       "label": "Làkk",
       "current": "Làkk bi ngay jëfandikoo : {locale}"
+    },
+    "moderationReasons": {
+      "fraud": "Njuuj walla naxe",
+      "spam": "Spam",
+      "misleading": "Lu dul dëgg",
+      "offensive": "Wax yu ñaaw",
+      "personal_data": "Xibaar yu bopp",
+      "duplicate": "Ñaari yoon",
+      "conflict_of_interest": "Njariñ boo xam ne dafa am",
+      "off_topic": "Bokkul ci",
+      "other": "Leneen"
     }
   },
   "console": {
@@ -143,7 +154,8 @@
       "counters": {
         "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
         "pendingVisits": "{count, plural, one {# ñaan gis-gis bu di xaar} other {# ñaan gis-gis yu di xaar}}"
-      }
+      },
+      "receivedReviews": "Avis yi ñu la bind"
     },
     "admin": {
       "dashboard": "Taablo",
@@ -3671,7 +3683,8 @@
         "reportedOnly": "Yi ñu xamle rekk",
         "queued": "{count} ci file bi",
         "loading": "Mu ngi yebal file moderation bi…",
-        "loadError": "Mënunu yebal file bi."
+        "loadError": "Mënunu yebal file bi.",
+        "agencyScope": "Yaw ngay xool avis yi ñu bind ci kër yi ak agent yi sa agence. Avis bu jëm ci agence bi ci boppam, platforme bi moo koy xool."
       },
       "detail": {
         "genericError": "Am na jafe-jafe.",
@@ -3691,7 +3704,14 @@
         "confirmHide": "Nëbb avis bii ?",
         "confirmIgnore": "Bàyyi xamle yi ?",
         "reasonLabel": "Sabab (dañu koy bind ci journal audit bi)",
-        "reasonPlaceholder": "Sabab bu ñuy gis ci journal audit bi"
+        "reasonPlaceholder": "Sabab bu ñuy gis ci journal audit bi",
+        "platformOnly": "Avis ci sa agence : platforme bi moo koy xool, du agence bi.",
+        "reasonCodeLabel": "Lu tax",
+        "reasonCodePlaceholder": "Tànnal lu tax",
+        "reasonCodeRequired": "Tànnal lu tax.",
+        "reasonLabelRequired": "Leeralal lu tax (war na ci « Leneen »)",
+        "publishedPlatformOnly": "Avis bii génn na ba noppi : platform bi rekk moo ko mën a dindi. Mën nga ko tontu walla signaler ko.",
+        "platformReserved": "Avis bii, platform bi moo koy saytu, du agence bi."
       }
     },
     "finances": {
@@ -4241,7 +4261,8 @@
       },
       "moderation": {
         "label": "Modération laa war balaa ñu koy génne",
-        "hint": "Bu option bii ubbiku, kër gu bees gu agent bi yónni dina nekk ci anam « Di xaar validation » ba kera benn administrateur nangu ko, balaa ñépp koy gis."
+        "hint": "Bu option bii ubbiku, kër gu bees gu agent bi yónni dina nekk ci anam « Di xaar validation » ba kera benn administrateur nangu ko, balaa ñépp koy gis.",
+        "notSaved": "Denc nañ coppite yi, ba mu des modération bi : API bi jëlul ko. Case bi dafay wone li ñu denc ci dëgg."
       },
       "security": {
         "title": "Kaaraange ekip bi",
@@ -4737,19 +4758,19 @@
         "other": "Beneen"
       },
       "trigger": "Xamle yégle bii",
-      "loginTitle": "Fàww nga dugg",
-      "loginBody": "Duggal ngir xamle yégle bii.",
       "cancel": "Neenal",
-      "signIn": "Dugg",
       "dialogTitle": "Xamle yégle bii",
       "dialogBody": "Dimbali nu ngir platform bi wéy ci baax.",
-      "sent": "Yónnee nañu xamle bi. Jërëjëf !",
       "reasonLabel": "Sabab",
       "detailsLabel": "Leeral (soo ko bëggee)",
       "detailsPlaceholder": "Leeralal li am jafe-jafe…",
       "dialogBodyFull": "Dimbali nu ngir platform bi wéy ci baax. Sunu ekib dina seet sa xamle.",
       "sending": "Mu ngi yónnee…",
-      "submit": "Xamle"
+      "submit": "Xamle",
+      "thanks": "Jërëjëf, dinanu xool signalement bi.",
+      "thanksNotified": "Dinanu la yégal li ci génn.",
+      "close": "Tëj",
+      "honeypotLabel": "Entreprise"
     },
     "visitDialog": {
       "types": {
@@ -5095,7 +5116,8 @@
         "deleteTitle": "Ndax nu far kër gii ?",
         "deleteBodyRow": "Kër gi <b>{title}</b> dañu koy denc (soft-delete). Dinga ko man a delloo ci wàllu njiit bi.",
         "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey ajaŋ. Bind bi man nañ ko delloo ci wàllu njiit bi.",
-        "cancel": "Neenal"
+        "cancel": "Neenal",
+        "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee."
       },
       "calendar": {
         "title": "Arminaatu kër gi",
@@ -5350,6 +5372,21 @@
       "urgent_sale": "Jaay bu gaaw",
       "seasonal": "Ci jamono ji",
       "correction": "Jubbanti"
+    },
+    "reviewReport": {
+      "trigger": "Signaler",
+      "triggerAria": "Signaler avis bii",
+      "dialogTitle": "Signaler avis bii",
+      "dialogBody": "Sunu ekip dina xool avis bi. Dina des ci kaw ba ñu xool ko.",
+      "reasons": {
+        "fraud": "Avis bu dul dëgg",
+        "offensive": "Wax yu ñaaw",
+        "personal_data": "Xibaar yu bopp",
+        "conflict_of_interest": "Njariñ boo xam ne dafa am",
+        "spam": "Spam",
+        "off_topic": "Bokkul ci",
+        "other": "Leneen"
+      }
     },
     "retired": {
       "title": {
@@ -5932,8 +5969,6 @@
       "colAge": "Ay",
       "colAction": "Jëf",
       "subjectUnavailable": "Lu ko jëm amul",
-      "typeProperty": "Kër",
-      "typeReview": "Ndaje",
       "statusFlagged": "Ñu ko yégle",
       "statusPending": "Ci xaar",
       "noAgency": "Amul ajaans",
@@ -5947,7 +5982,6 @@
       "statProperties": "Kër yi",
       "statReviews": "Ndaje yi",
       "staleWarning": "{count, plural, one {# mbir} other {# mbir}} ci xët bii ñu ngi xaar lu ëpp 7 fan.",
-      "ageToday": "Tey",
       "ageOneDay": "1 fan",
       "ageDays": "{days} fan",
       "types": {
@@ -5970,7 +6004,69 @@
         "reject": "Bañ ko",
         "remove": "Far ko"
       },
-      "tableCaption": "File modérasioŋ ci agence yépp"
+      "tableCaption": "File modérasioŋ ci agence yépp",
+      "selectAll": "Tànn lépp ci xët wi",
+      "selectItem": "Tànn « {subject} »",
+      "sources": {
+        "property": "Kër gu ñuy nangu",
+        "property_report": "Signalement annonce",
+        "review": "Avis",
+        "suspected_duplicate": "Ñaari yoon (njortu)"
+      },
+      "suspicious": "Avis bu ñu sikk",
+      "suspiciousHint": "Avis bu ñu sikk : avis yu bare ci benn yoon, compte bu bees walla adres bu ñu bokk ak keneen. Lii ab firnde rekk la.",
+      "colClaim": "Ku ko jël",
+      "claimedBy": "{name} moo ko jël · {time}",
+      "claimedByYou": "Yaw nga ko jël",
+      "unclaimed": "Kenn jëlul",
+      "claim": "Jël ko",
+      "release": "Delloo ko",
+      "ageLabel": "Mi ngi ci file bi ba {age}",
+      "ageMinutes": "{minutes} min",
+      "ageHours": "{hours} h",
+      "duplicateSignal": {
+        "photo": "Benn nataal ak beneen annonce (diggante {distance})",
+        "address": "Benn adres, yaatuwaay ak njëg ak beneen annonce"
+      },
+      "duplicateOf": "Annonce bu njëkk : « {title} » ({agency})",
+      "reasonCode": "Lu tax",
+      "reasonCodePlaceholder": "Tànnal lu tax",
+      "decisionReasonRequired": "Leeralal lu tax (war na ci « Leneen »)",
+      "decisionsByType": {
+        "property": {
+          "approve": "Nangu",
+          "reject": "Bañ"
+        },
+        "property_report": {
+          "hide": "Nëbb annonce bi",
+          "remove": "Far annonce bi",
+          "reject": "Bàyyi signalement bi"
+        },
+        "review": {
+          "approve": "Nangu avis bi",
+          "hide": "Nëbb avis bi",
+          "remove": "Far avis bi"
+        },
+        "suspected_duplicate": {
+          "hide": "Nëbb annonce bi",
+          "reject": "Bàyyi : du ñaari yoon"
+        }
+      },
+      "hideListingHint": "Nëbb annonce bi dafay génne ko ci site bi te tëj ko : agence bi mënatul koo delloo, platforme bi rekk a ko mën.",
+      "batchTitle": "Defar yépp benn yoon",
+      "batchSelected": "{count, plural, one {# lu ñu tànn} other {# yu ñu tànn}}",
+      "batchClear": "Dindi tànn yi",
+      "batchNoCommonDecision": "Amul benn dogal bu yépp bokk.",
+      "batchDecision": "Dogal",
+      "batchDecisionPlaceholder": "Tànnal ab dogal",
+      "batchApply": "Def ko ci {count, plural, one {# lu ñu tànn} other {# yu ñu tànn}}",
+      "batchResult": "{ok} jeex na, {failed} antuwul.",
+      "batchErrors": {
+        "already_decided": "dogal nañ ko ba noppi",
+        "claimed_by_other": "keneen moo ko jël",
+        "concurrent_decision": "beneen modérateur moo doon def ci annonce bi",
+        "other": "bañ nañ ko"
+      }
     },
     "properties": {
       "empty_title": "Amul kër bu ñu wara wone",
@@ -7227,23 +7323,15 @@
       "opportunitiesError": "Mëneesula yebbi xalaat yi nga mën a bind.",
       "receivedTitle": "Xalaat yi nga jot",
       "loadingAria": "Mu ngi yeb",
-      "stayCompleted": "Séjour bi jeex na",
-      "leaseActive": "Bail bi ngi dox",
-      "leaseEnded": "Bail bi jeex na",
-      "details": "Lëf yi",
       "filterByProperty": "Tànn ci këru bi",
       "allProperties": "Kër yépp",
       "filterByReply": "Tànn ci tontu bi",
-      "replyFilterPlaceholder": "Tontu",
       "allReviews": "Xalaat yépp",
       "unreplied": "Amul tontu",
       "replied": "Ñu ko tontu",
       "replyPrompt": "Sa tontu bu ñépp gis",
       "replyToastTitle": "Tontu bi génn na",
       "replyToastDescription": "Sa tontu bi ñu ngi ko gis ci suufu xalaat bi.",
-      "reportPrompt": "Lu tax nga jottali",
-      "reportToastTitle": "Xalaat bi ñu ko jottali",
-      "reportToastDescription": "Modération bi mën na leegi seetlu xalaat bii.",
       "yourReply": "Sa tontu",
       "editReply": "Soppi tontu bi",
       "reply": "Tontu",
@@ -7253,7 +7341,41 @@
         "approved": "Ñu nangu ko",
         "reported": "Ñu ko jottali",
         "rejected": "Ñu ko bañ"
-      }
+      },
+      "filterByStatus": "Seddale ci statut",
+      "allStatuses": "Statut yépp",
+      "filterBySubject": "Seddale ci ku ñu bind",
+      "allSubjects": "Ñépp",
+      "subjects": {
+        "property": "Kër yi",
+        "agent": "Man (agent)",
+        "agency": "Agence bi",
+        "service_provider": "Man (prestataire)"
+      },
+      "pendingNotice": "Mungiy xaar ñu nangu ko : avis bii feeñagul.",
+      "replyRequired": "Binddal tontu bala ngay ko yónnee.",
+      "replyError": "Tontu bi mënul a feeñ.",
+      "replySubmit": "Yónnee tontu bi",
+      "replyCancel": "Bàyyi",
+      "contexts": {
+        "visit": "Ginnaaw sa wisit",
+        "lease": "Sa bail",
+        "booking": "Sa dëkkuwaay",
+        "maintenance_request": "Sa liggéey"
+      },
+      "targets": {
+        "property": "Kër gi",
+        "agent": "Agent bi",
+        "agency": "Agence bi",
+        "service_provider": "Prestataire bi"
+      },
+      "starsLabel": "{count, plural, one {# biddiiw} other {# biddiiw}}",
+      "opportunityCommentLabel": "Sa kàddu (soo bëggee)",
+      "opportunityRatingRequired": "Joxal benn not lu mu néew néew.",
+      "opportunitySubmit": "Yónnee samay avis",
+      "opportunitySentTitle": "Avis bi dem na",
+      "opportunitySentBody": "Jërëjëf ! Sa avis dina feeñ su ñu ko nanguwee.",
+      "opportunityError": "Sa avis mënul a dem."
     },
     "contact": {
       "title": "Jokkoo yi",
@@ -9358,6 +9480,34 @@
         "signature_completed": {
           "title": "Bayle {reference} xaatimu na",
           "body": "Ñaari wàll yi xaatim nañu bayle {reference} bu {property}. Leegi mu ngi dox."
+        }
+      },
+      "review": {
+        "to_moderate": {
+          "title": "Xalaat bu ñuy saytu : {subject}",
+          "body": "Xalaat bu bees ({rating}/5) ci « {subject} » mi ngi xaar sa ndigal."
+        },
+        "received": {
+          "title": "Xalaat bu bees : {subject}",
+          "body": "Xalaat ({rating}/5) ci « {subject} » génn na. Mën nga ko tontu ci sa boîte xalaat yi."
+        }
+      },
+      "moderation": {
+        "property_hidden": {
+          "title": "Yégle bi dindi nañu ko : {property}",
+          "body": "Platform bi dindi na sa yégle « {property} » ci site bi ndax ab signalement. Ngirte : {reason_code}. Platform bi rekk mën koo delloo ci internet."
+        },
+        "property_removed": {
+          "title": "Yégle bi far nañu ko : {property}",
+          "body": "Platform bi far na sa yégle « {property} » ndax ab signalement. Ngirte : {reason_code}."
+        },
+        "report_upheld": {
+          "title": "Signalement bi defar nañu ko : {property}",
+          "body": "Jërëjëf : yégle « {property} » bi nga signaler, dindi nañu ko ci site bi."
+        },
+        "report_dismissed": {
+          "title": "Signalement bi saytu nañu ko : {property}",
+          "body": "Saytu nañu sa signalement ci yégle « {property} », waaye nanguñu ko."
         }
       }
     },

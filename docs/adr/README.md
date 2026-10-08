@@ -66,7 +66,9 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 | [0041](0041-indisponibilites-et-echange-ical.md) | Une indisponibilité est une plage semi-ouverte du bien ; l'échange avec les calendriers externes passe par iCal, en jeton haché à l'export et derrière une garde SSRF à l'import | Accepté — précise ADR-0031 et ADR-0032 |
 | [0042](0042-preuve-de-consentement-a-la-signature-du-bail.md) | Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier » | Accepté — précise ADR-0031 et ADR-0032 |
+| [0043](0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md) | Un avis porte sa cible, sa preuve d'éligibilité et l'agence qui le modère ; l'admin d'agence ne modère que les biens et agents de son agence ; une annonce masquée par la plateforme tient à un verrou qu'un seul point défend et que seul un super-admin lève ; la modération d'agence tient au même point ; une décision de la file ne se joue pas deux fois | Accepté |
 | [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
+| [0054](0054-detection-des-doublons-d-annonces.md) | Un doublon d'annonce se soupçonne par le dHash de la photo originale (quatre bandes indexées, seuil 3) et par l'adresse normalisée, entre publieurs différents seulement ; il entre dans la file de la plateforme et n'est jamais masqué seul ; un avis suspect est un drapeau de tri | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

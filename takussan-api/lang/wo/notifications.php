@@ -644,6 +644,40 @@ return [
                 'sms' => 'Takussan : calendrier « :feed » mënatul a synchroniser.',
             ],
         ],
+        'review' => [
+            'to_moderate' => [
+                'title' => 'Xalaat bu ñuy saytu : :subject',
+                'body' => 'Xalaat bu bees (:rating/5) ci « :subject » mi ngi xaar sa ndigal.',
+                'sms' => 'Takussan : xalaat bu ñuy saytu ci « :subject ».',
+            ],
+            'received' => [
+                'title' => 'Xalaat bu bees : :subject',
+                'body' => 'Xalaat (:rating/5) ci « :subject » génn na. Mën nga ko tontu ci sa boîte xalaat yi.',
+                'sms' => 'Takussan : xalaat bu bees ci « :subject ».',
+            ],
+        ],
+        'moderation' => [
+            'property_hidden' => [
+                'title' => 'Yégle bi dindi nañu ko : :property',
+                'body' => 'Platform bi dindi na sa yégle « :property » ci site bi ndax ab signalement. Ngirte : :reason_code. Platform bi rekk mën koo delloo ci internet.',
+                'sms' => 'Takussan : platform bi dindi na yégle « :property ».',
+            ],
+            'property_removed' => [
+                'title' => 'Yégle bi far nañu ko : :property',
+                'body' => 'Platform bi far na sa yégle « :property » ndax ab signalement. Ngirte : :reason_code.',
+                'sms' => 'Takussan : platform bi far na yégle « :property ».',
+            ],
+            'report_upheld' => [
+                'title' => 'Signalement bi defar nañu ko : :property',
+                'body' => 'Jërëjëf : yégle « :property » bi nga signaler, dindi nañu ko ci site bi.',
+                'sms' => 'Takussan : sa signalement ci « :property » nangu nañu ko.',
+            ],
+            'report_dismissed' => [
+                'title' => 'Signalement bi saytu nañu ko : :property',
+                'body' => 'Saytu nañu sa signalement ci yégle « :property », waaye nanguñu ko.',
+                'sms' => 'Takussan : saytu nañu signalement ci « :property ».',
+            ],
+        ],
     ],
 
     // TCK-588 — les e-mails de visite partaient en ANGLAIS à un wolophone (fallback_locale = en).

@@ -5,6 +5,7 @@ namespace Tests\Feature\Public;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\User;
+use App\Support\VisitorFingerprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
@@ -35,8 +36,52 @@ class PropertyReportTest extends TestCase
             'details' => 'Listing suspicious',
         ]);
         $report = PropertyReport::firstWhere('property_id', $property->id);
-        $this->assertNotNull($report?->reporter_ip);
+        // TCK-597 — l'IP n'est plus conservée en clair : une empreinte HMAC la remplace.
+        $this->assertNull($report?->reporter_ip);
+        $this->assertSame(VisitorFingerprint::ofIp('127.0.0.1'), $report?->reporter_fingerprint);
         $this->assertNull($report?->reporter_user_id);
+    }
+
+    /** TCK-597 (AC6) — le même visiteur, deux fois en 24 h : UNE ligne. Un autre visiteur : une autre. */
+    public function test_the_same_visitor_reporting_twice_within_a_day_creates_one_row(): void
+    {
+        $property = Property::factory()->published()->create();
+        $url = "/api/public/properties/{$property->slug}/report";
+
+        $this->withHeader('X-Forwarded-For', '203.0.113.5')->postJson($url, ['reason' => 'spam'])->assertNoContent();
+        $this->withHeader('X-Forwarded-For', '203.0.113.5')->postJson($url, ['reason' => 'fraud'])->assertNoContent();
+        $this->assertSame(1, PropertyReport::where('property_id', $property->id)->count());
+
+        $this->withHeader('X-Forwarded-For', '203.0.113.6')->postJson($url, ['reason' => 'spam'])->assertNoContent();
+        $this->assertSame(2, PropertyReport::where('property_id', $property->id)->count());
+
+        $this->travel(25)->hours();
+        RateLimiter::clear('public:report:203.0.113.5');
+        $this->withHeader('X-Forwarded-For', '203.0.113.5')->postJson($url, ['reason' => 'spam'])->assertNoContent();
+        $this->assertSame(3, PropertyReport::where('property_id', $property->id)->count());
+    }
+
+    public function test_a_filled_honeypot_answers_204_and_records_nothing(): void
+    {
+        $property = Property::factory()->published()->create();
+
+        $this->postJson("/api/public/properties/{$property->slug}/report", ['reason' => 'spam', 'company' => 'Bot SARL'])
+            ->assertNoContent();
+
+        $this->assertSame(0, PropertyReport::where('property_id', $property->id)->count());
+    }
+
+    public function test_a_bearer_token_attaches_the_reporter_account(): void
+    {
+        $property = Property::factory()->published()->create();
+        $user = User::factory()->create();
+        $token = $user->createToken('test-report')->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson("/api/public/properties/{$property->slug}/report", ['reason' => 'fraud'])
+            ->assertNoContent();
+
+        $this->assertSame($user->id, PropertyReport::firstWhere('property_id', $property->id)?->reporter_user_id);
     }
 
     public function test_invalid_reason_returns_422(): void
@@ -142,6 +187,6 @@ class PropertyReportTest extends TestCase
             ->assertNoContent();
 
         $report = PropertyReport::firstWhere('property_id', $property->id);
-        $this->assertSame('198.51.100.42', $report?->reporter_ip);
+        $this->assertSame(VisitorFingerprint::ofIp('198.51.100.42'), $report?->reporter_fingerprint);
     }
 }

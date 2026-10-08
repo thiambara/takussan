@@ -1,3 +1,5 @@
+import type { ModerationReasonCode } from '@/lib/moderation-reasons';
+
 export type AdminAgency = {
   id: number;
   name: string;
@@ -342,10 +344,15 @@ export type AuditLogResponse = {
 export type ModerationItemType = 'property' | 'review';
 export type ModerationItemStatus = 'pending' | 'flagged';
 export type ModerationDecision = 'approve' | 'reject' | 'hide' | 'remove';
+/** TCK-597 — la source de l'élément, préfixe de son identifiant (`property_report:12`). */
+export type ModerationSourceType = 'property' | 'property_report' | 'review' | 'suspected_duplicate';
 
 export type AdminModerationItem = {
   id: string;
   type: ModerationItemType;
+  source_type: ModerationSourceType;
+  /** TCK-597 (ADR-0043 §4) — les seules décisions valides pour CE type, rendues par l'API. */
+  decisions: ModerationDecision[];
   status: ModerationItemStatus;
   subject_type: 'property' | 'review';
   subject_id: number;
@@ -367,8 +374,37 @@ export type AdminModerationItem = {
   } | null;
   reason: string;
   reported_count: number | null;
+  /** TCK-597 (ADR-0054 §6) — drapeau de tri d'un avis suspect, jamais une décision. */
+  suspicious: boolean;
+  /** TCK-597 (ADR-0054 §5) — le signal d'une suspicion de doublon, et l'annonce recopiée. */
+  duplicate: {
+    signal: 'photo' | 'address';
+    distance: number | null;
+    matched: { id: number; title: string; subtitle: string | null; agency: string | null } | null;
+  } | null;
+  /** TCK-597 (ADR-0043 §7) — qui tient l'élément, et jusqu'à quand. */
+  claim: {
+    by: { id: number; name: string | null };
+    claimed_at: string | null;
+    expires_at: string | null;
+  } | null;
   reported_at: string | null;
   created_at: string | null;
+  /** L'âge de l'élément dans la file, en minutes, calculé par le serveur. */
+  age_minutes: number | null;
+};
+
+export type ModerationDecisionPayload = {
+  decision: ModerationDecision;
+  reason_code?: ModerationReasonCode;
+  reason?: string;
+};
+
+export type ModerationBatchResult = {
+  id: string;
+  ok: boolean;
+  status?: number;
+  code?: string;
 };
 
 export type AdminModerationResponse = {

@@ -650,6 +650,40 @@ return [
                 'sms' => 'Takussan : le calendrier « :feed » ne se synchronise plus.',
             ],
         ],
+        'review' => [
+            'to_moderate' => [
+                'title' => 'Avis à modérer : :subject',
+                'body' => 'Un nouvel avis (:rating/5) sur « :subject » attend votre validation.',
+                'sms' => 'Takussan : avis à modérer sur « :subject ».',
+            ],
+            'received' => [
+                'title' => 'Nouvel avis : :subject',
+                'body' => 'Un avis (:rating/5) sur « :subject » vient d\'être publié. Vous pouvez y répondre depuis votre boîte des avis.',
+                'sms' => 'Takussan : nouvel avis sur « :subject ».',
+            ],
+        ],
+        'moderation' => [
+            'property_hidden' => [
+                'title' => 'Annonce retirée : :property',
+                'body' => 'Votre annonce « :property » a été retirée du site par la plateforme à la suite d\'un signalement. Motif : :reason_code. Seule la plateforme peut la remettre en ligne.',
+                'sms' => 'Takussan : annonce « :property » retirée par la plateforme.',
+            ],
+            'property_removed' => [
+                'title' => 'Annonce supprimée : :property',
+                'body' => 'Votre annonce « :property » a été supprimée par la plateforme à la suite d\'un signalement. Motif : :reason_code.',
+                'sms' => 'Takussan : annonce « :property » supprimée par la plateforme.',
+            ],
+            'report_upheld' => [
+                'title' => 'Signalement traité : :property',
+                'body' => 'Merci : l\'annonce « :property » que vous avez signalée a été retirée du site.',
+                'sms' => 'Takussan : votre signalement de « :property » a été retenu.',
+            ],
+            'report_dismissed' => [
+                'title' => 'Signalement examiné : :property',
+                'body' => 'Nous avons examiné votre signalement de l\'annonce « :property » et ne l\'avons pas retenu.',
+                'sms' => 'Takussan : signalement de « :property » examiné.',
+            ],
+        ],
     ],
 
     // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).

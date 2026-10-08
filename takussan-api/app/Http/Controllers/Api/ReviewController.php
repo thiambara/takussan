@@ -3,30 +3,56 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IndexReceivedReviewsRequest;
 use App\Http\Requests\Api\ModerateReviewRequest;
 use App\Http\Requests\Api\ReplyReviewRequest;
 use App\Http\Requests\Api\ReportReviewRequest;
 use App\Http\Requests\Api\StoreForAgencyReviewRequest;
+use App\Http\Requests\Api\StoreForAgentReviewRequest;
 use App\Http\Requests\Api\StoreForPropertyReviewRequest;
+use App\Http\Requests\Api\StoreForServiceProviderReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
 use App\Models\Enums\ReviewStatus;
+use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Review\ReceivedReviews;
+use App\Services\Review\ReviewEligibility;
+use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
+use App\Services\Review\ReviewNotifier;
+use App\Services\Review\ReviewReportService;
+use App\Support\VisitorFingerprint;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReviewController extends Controller
 {
-    public function __construct(private readonly ReviewModerationService $moderationService) {}
+    public function __construct(
+        private readonly ReviewModerationService $moderationService,
+        private readonly ReviewModerationScope $scope,
+        private readonly ReviewNotifier $notifier,
+    ) {}
+
+    /** TCK-597 — plafond de `per_page` de la file et des listes d'un sujet : un client ne tire pas toute la table. */
+    public const MAX_PER_PAGE = 100;
 
     /**
-     * Global reviews listing — used by the admin moderation queue.
-     * Supports `filter[moderation_status]=pending|flagged|approved|rejected`,
-     * `filter[reported]=1`, sort by `-reported_count`, `-created_at`.
-     * Only super_admin and admin roles can access.
+     * La file de modération des avis, et la liste « mes avis » de l'auteur.
+     *
+     * Supports `filter[moderation_status]=pending|flagged|approved|rejected`, `filter[reported]=1`,
+     * `filter[subject_type]=…`, `filter[author_id]=me`, sort by `-reported_count`, `-created_at`.
+     *
+     * TCK-597 (ADR-0043 §1) — la file est CLOISONNÉE : le super-admin voit tout, l'admin d'agence
+     * les seuls avis dont `reviews.agency_id` est l'agence de son profil actif, et `pending_count`
+     * compte le même périmètre. `filter[author_id]=me` reste ouvert à tout auteur, sur ses seuls avis.
      */
     public function index(Request $request): JsonResponse
     {
@@ -34,21 +60,23 @@ class ReviewController extends Controller
         $authorFilter = $request->query('filter.author_id')
             ?? data_get($request->query('filter', []), 'author_id');
 
-        // `filter[author_id]=me` (or `auth`) is the non-admin escape hatch:
-        // lets an author list their own reviews from the profile page
-        // without exposing the full moderation queue. Any other value keeps
-        // the admin-only lock.
         $isSelfFilter = in_array($authorFilter, ['me', 'auth', (string) $user->id], true);
-        abort_unless(
-            $isSelfFilter || $user->isSuperAdmin() || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)),
-            403,
-        );
+        if (! $isSelfFilter) {
+            $this->authorize('viewModerationQueue', Review::class);
+        }
 
-        $query = Review::query()->with(['author', 'reviewable']);
+        // verif-597 passe 2 n2 — l'avatar de l'auteur et le profil plateforme de l'acteur
+        // (`Gate::before`, deux fois par ligne pour `can_reply` / `can_moderate`) chargés une fois.
+        $user->loadMissing('platformProfile');
+        $query = Review::query()->with(['author.media', 'reviewable' => self::reviewableWithAccount(...)]);
 
-        if ($authorFilter !== null && $authorFilter !== '') {
-            $authorId = $isSelfFilter ? $user->id : (int) $authorFilter;
-            $query->where('author_id', $authorId);
+        if ($isSelfFilter) {
+            $query->where('author_id', $user->id);
+        } else {
+            $this->scope->restrict($query, $user);
+            if ($authorFilter !== null && $authorFilter !== '') {
+                $query->where('author_id', (int) $authorFilter);
+            }
         }
 
         $status = $request->query('filter.moderation_status')
@@ -93,16 +121,22 @@ class ReviewController extends Controller
             }
             if (in_array($spec, ['created_at', 'reported_count', 'rating', 'id'], true)) {
                 $query->orderBy($spec, $direction);
+            } elseif ($spec === 'pending_first') {
+                // TCK-597 — la vue d'agence montre les avis à trancher d'abord : en attente, puis
+                // signalés, puis le reste. Trié par le serveur, sur toute la file, pas par page.
+                $query->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'reported' THEN 1 ELSE 2 END");
             }
         }
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = max(1, min((int) $request->input('per_page', 20), self::MAX_PER_PAGE));
         $paginator = $query->paginate($perPage);
 
-        // Meta — include pending queue count for badge in the admin sidebar.
-        $pendingCount = Review::query()
-            ->whereIn('status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
-            ->count();
+        // Meta — le compteur de la file, dans le MÊME périmètre que la liste.
+        $pendingCount = $isSelfFilter
+            ? Review::query()->where('author_id', $user->id)
+                ->whereIn('status', [ReviewStatus::Pending->value, ReviewStatus::Reported->value])
+                ->count()
+            : $this->scope->pendingCount($user);
 
         return $this->json([
             'data' => ReviewResource::collection($paginator)->toArray($request),
@@ -116,18 +150,15 @@ class ReviewController extends Controller
      */
     public function moderate(ModerateReviewRequest $request, Review $review): JsonResponse
     {
-
         $data = $request->validated();
 
-        $decision = $data['decision'];
-        $reason = $data['reason'] ?? null;
-
-        // Reason required for anything other than approve.
-        if ($decision !== 'approve' && empty($reason)) {
-            abort_code(422, 'review.reason_required');
-        }
-
-        $result = $this->moderationService->moderate($review, $request->user(), $decision, $reason);
+        $result = $this->moderationService->moderate(
+            $review,
+            $request->user(),
+            $data['decision'],
+            $data['reason'] ?? null,
+            $data['reason_code'] ?? null,
+        );
 
         if ($result['deleted']) {
             return $this->json([
@@ -143,10 +174,12 @@ class ReviewController extends Controller
     /**
      * List the reports filed against a review — used by the admin detail
      * panel. Joins reporter user data when possible.
+     *
+     * TCK-597 — l'empreinte d'un signalant anonyme n'est jamais rendue : il est « anonyme ».
      */
     public function reports(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
+        $this->authorize('viewReports', $review);
 
         $reports = collect($review->metadata['reports'] ?? [])
             ->map(function (array $r): array {
@@ -155,6 +188,7 @@ class ReviewController extends Controller
 
                 return [
                     'user_id' => $userId,
+                    'anonymous' => $userId === null,
                     'user' => $user ? [
                         'id' => $user->id,
                         'name' => $user->full_name ?: $user->email,
@@ -175,15 +209,77 @@ class ReviewController extends Controller
 
     public function indexForProperty(Request $request, Property $property): JsonResponse
     {
-        $reviews = $property->reviews()
+        return $this->subjectReviews($request, $property->reviews(), $property);
+    }
+
+    /**
+     * verif-597 passe 4, n4 — la page des avis publiés d'un sujet (bien, agence). Les drapeaux
+     * `can_reply` / `can_moderate` relisaient, ligne à ligne, le profil plateforme de l'acteur
+     * (`Gate::before`) et la cible (`ReviewPolicy::reply`) : l'acteur est chargé une fois, la cible
+     * est le sujet lui-même, posé sur chaque avis. La page est plafonnée comme la file.
+     */
+    private function subjectReviews(Request $request, MorphMany $reviews, Model $subject): JsonResponse
+    {
+        $request->user()?->loadMissing('platformProfile');
+
+        $page = $reviews->with('author.media')
             ->where('is_approved', true)
             ->latest()
-            ->paginate((int) $request->input('per_page', 10));
+            ->paginate(max(1, min((int) $request->input('per_page', 10), self::MAX_PER_PAGE)));
+        $page->getCollection()->each->setRelation('reviewable', $subject);
 
         return $this->json([
-            'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => $this->paginationMeta($reviews),
+            'data' => ReviewResource::collection($page)->toArray($request),
+            'meta' => $this->paginationMeta($page),
         ]);
+    }
+
+    /**
+     * TCK-597 (AC7) — `GET /api/reviews/received` : la boîte des avis reçus de l'acteur (agent,
+     * bailleur publieur, prestataire, admin d'agence), filtrée côté serveur, une seule requête.
+     */
+    public function received(IndexReceivedReviewsRequest $request, ReceivedReviews $received): JsonResponse
+    {
+        $filters = $request->validated('filter', []);
+        // verif-597 passe 2 n2 — `Gate::before` relit le profil plateforme de l'acteur deux fois
+        // par ligne (`can_reply`, `can_moderate`) : chargé une fois.
+        $request->user()->loadMissing('platformProfile');
+
+        $query = $received->for($request->user())
+            ->with(['author.media', 'reviewable' => self::reviewableWithAccount(...)])
+            ->latest('reviews.created_at')
+            ->latest('reviews.id');
+
+        if (isset($filters['property_id'])) {
+            $query->where('reviews.reviewable_type', Property::class)
+                ->where('reviews.reviewable_id', (int) $filters['property_id']);
+        }
+        if (isset($filters['replied'])) {
+            $replied = filter_var($filters['replied'], FILTER_VALIDATE_BOOLEAN);
+            $replied ? $query->whereNotNull('reviews.reply_content') : $query->whereNull('reviews.reply_content');
+        }
+        if (isset($filters['status'])) {
+            $query->where('reviews.status', $filters['status']);
+        }
+        if (isset($filters['subject_type'])) {
+            $query->where('reviews.reviewable_type', IndexReceivedReviewsRequest::SUBJECT_TYPES[$filters['subject_type']]);
+        }
+
+        $paginator = $query->paginate((int) $request->validated('per_page', 20));
+
+        return $this->json([
+            'data' => ReviewResource::collection($paginator->getCollection())->toArray($request),
+            'meta' => $this->paginationMeta($paginator),
+        ]);
+    }
+
+    /**
+     * verif-597 passe 3, n3 — `ReviewResource` titre un avis de prestataire par le nom de son
+     * compte : sans ce préchargement, chaque ligne relisait `users`.
+     */
+    private static function reviewableWithAccount(MorphTo $reviewable): void
+    {
+        $reviewable->morphWith([ServiceProviderProfile::class => ['user']]);
     }
 
     public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse
@@ -194,16 +290,26 @@ class ReviewController extends Controller
         // StoreForPropertyReviewRequest::authorize(), donc AVANT la validation : un appel non
         // éligible ET mal formé doit rendre 403, pas 422. Le 422 ci-dessous reste ici — « déjà
         // noté » n'est pas un refus d'accès mais un état métier.
-        $alreadyReviewed = $property->reviews()->where('author_id', $user->id)->exists();
-        abort_code_if($alreadyReviewed, 422, 'review.property_already_reviewed');
-
         $data = $request->validated();
 
-        $review = $property->reviews()->create(array_merge($data, [
-            'author_id' => $user->id,
-            'is_approved' => false,
-            'status' => ReviewStatus::Pending,
-        ]));
+        // verif-597 M4 — le contrôle et l'écriture sous le verrou de la ligne PARENT : l'index
+        // `reviews_author_context_uniq` ne couvre pas cette voie (pas de `context_id`), et quatre
+        // envois simultanés posaient quatre avis.
+        $review = DB::transaction(function () use ($property, $user, $data, $request) {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+
+            // verif-597 M2 — un avis RETIRÉ par la plateforme compte : il interdit d'en redéposer un.
+            $alreadyReviewed = $property->reviews()->withTrashed()->where('author_id', $user->id)->exists();
+            abort_code_if($alreadyReviewed, 422, 'review.property_already_reviewed');
+
+            return $property->reviews()->create(array_merge($data, [
+                'author_id' => $user->id,
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
+        $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
@@ -216,14 +322,9 @@ class ReviewController extends Controller
      */
     public function deleteReply(Request $request, Review $review): JsonResponse
     {
-        $user = $request->user();
-        $reviewable = $review->reviewable;
-
-        $ok = $user->isSuperAdmin()
-            || ($review->replied_by_id && $review->replied_by_id === $user->id)
-            || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
-            || ($user->agency_id && $reviewable && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
-        abort_unless($ok, 403);
+        // TCK-597 — `ReviewPolicy::deleteReply` : la clause `agency_id === $user->agency_id`
+        // ouvrait le geste au bailleur de l'agence.
+        $this->authorize('deleteReply', $review);
 
         abort_code_if($review->reply_content === null, 404, 'review.no_reply');
 
@@ -239,10 +340,6 @@ class ReviewController extends Controller
     public function reply(ReplyReviewRequest $request, Review $review): JsonResponse
     {
         $user = $request->user();
-        $reviewable = $review->reviewable;
-        $ok = $user->isSuperAdmin()
-            || ($reviewable && isset($reviewable->user_id) && $reviewable->user_id === $user->id)
-            || ($user->agency_id && isset($reviewable->agency_id) && $reviewable->agency_id === $user->agency_id);
 
         // Rejected is a terminal state: no public-facing view, no reply.
         // Reply is not a ReviewStatus transition so assertTransition() does
@@ -266,7 +363,7 @@ class ReviewController extends Controller
 
     public function approve(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
+        $this->authorize('moderate', $review);
 
         $review = $this->moderationService->approve($review, $request->user());
 
@@ -275,7 +372,7 @@ class ReviewController extends Controller
 
     public function reject(Request $request, Review $review): JsonResponse
     {
-        abort_unless($request->user()->isSuperAdmin() || ($request->user()->agency_id !== null && $request->user()->isAgencyAdminAt((int) $request->user()->agency_id)), 403);
+        $this->authorize('moderate', $review);
 
         $review = $this->moderationService->reject($review, $request->user());
 
@@ -284,15 +381,7 @@ class ReviewController extends Controller
 
     public function indexForAgency(Request $request, Agency $agency): JsonResponse
     {
-        $reviews = $agency->reviews()
-            ->where('is_approved', true)
-            ->latest()
-            ->paginate((int) $request->input('per_page', 10));
-
-        return $this->json([
-            'data' => ReviewResource::collection($reviews)->toArray($request),
-            'meta' => $this->paginationMeta($reviews),
-        ]);
+        return $this->subjectReviews($request, $agency->reviews(), $agency);
     }
 
     public function storeForAgency(StoreForAgencyReviewRequest $request, Agency $agency): JsonResponse
@@ -300,66 +389,134 @@ class ReviewController extends Controller
         $user = $request->user();
 
         // TCK-305 — même raison que dans storeForProperty() ci-dessus.
-        $alreadyReviewed = $agency->reviews()->where('author_id', $user->id)->exists();
-        abort_code_if($alreadyReviewed, 422, 'review.agency_already_reviewed');
-
         $data = $request->validated();
 
-        $review = $agency->reviews()->create(array_merge($data, [
-            'author_id' => $user->id,
-            'is_approved' => false,
-            'status' => ReviewStatus::Pending,
-        ]));
+        // verif-597 M4 — même verrou parent que storeForProperty().
+        $review = DB::transaction(function () use ($agency, $user, $data, $request) {
+            Agency::query()->whereKey($agency->getKey())->lockForUpdate()->first();
+
+            $alreadyReviewed = $agency->reviews()->withTrashed()->where('author_id', $user->id)->exists();
+            abort_code_if($alreadyReviewed, 422, 'review.agency_already_reviewed');
+
+            return $agency->reviews()->create(array_merge($data, [
+                'author_id' => $user->id,
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
+        $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
     }
 
-    public function report(ReportReviewRequest $request, Review $review): JsonResponse
+    /**
+     * TCK-597 (ADR-0043 §3, AC8) — `POST /api/agents/{user}/reviews`. Une fois par auteur et par
+     * agent : la ligne de l'agent est verrouillée le temps du contrôle, deux envois simultanés ne
+     * passent pas tous les deux. L'avis porte sa preuve (`context_*`) et l'agence du bien de cette
+     * preuve, qui le modère.
+     */
+    public function storeForAgent(StoreForAgentReviewRequest $request, User $user): JsonResponse
     {
+        $author = $request->user();
+        $proof = $request->proof();
         $data = $request->validated();
 
-        $userId = (int) $request->user()->id;
+        $review = DB::transaction(function () use ($author, $user, $proof, $data, $request) {
+            User::query()->whereKey($user->id)->lockForUpdate()->first();
 
-        $metadata = $review->metadata ?? [];
-        $reports = $metadata['reports'] ?? [];
+            abort_code_if(
+                // verif-597 M2 — un avis retiré compte (ADR-0043 §3) : sinon l'index le refusait en 500.
+                $user->receivedReviews()->withTrashed()->where('author_id', $author->id)->exists(),
+                422,
+                'review.agent_already_reviewed'
+            );
 
-        // Dedupe: each user can only count as one report against a review.
-        // Without this, a single user hitting the endpoint N times would
-        // trigger the auto-report threshold and game the moderation queue.
-        $alreadyReported = collect($reports)
-            ->contains(fn ($r) => (int) ($r['user_id'] ?? 0) === $userId);
+            return $user->receivedReviews()->create(array_merge($data, [
+                'author_id' => $author->id,
+                'agency_id' => $this->proofAgency($proof),
+                'context_type' => $proof->getMorphClass(),
+                'context_id' => $proof->getKey(),
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
+        $this->notifier->toModerate($review);
 
-        if ($alreadyReported) {
-            return $this->json(['message' => __('messages.review_reported')]);
-        }
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+    }
 
-        $reports[] = [
-            'user_id' => $userId,
-            'reason' => $data['reason'],
-            'reported_at' => now()->toISOString(),
-        ];
-        $metadata['reports'] = $reports;
-        $metadata['reported'] = true;
+    /**
+     * TCK-597 (ADR-0043 §3, AC9) — `POST /api/service-providers/{serviceProviderProfile}/reviews`.
+     * Une fois par auteur et par INTERVENTION (l'index `reviews_author_context_uniq` le garde en
+     * base). Modéré par la plateforme seule.
+     */
+    public function storeForServiceProvider(StoreForServiceProviderReviewRequest $request, ServiceProviderProfile $serviceProviderProfile): JsonResponse
+    {
+        $author = $request->user();
+        $intervention = $request->intervention();
+        $data = $request->safe()->except('maintenance_request_id');
 
-        $attrs = [
-            'metadata' => $metadata,
-            'reported_count' => ($review->reported_count ?? 0) + 1,
-        ];
+        $review = DB::transaction(function () use ($author, $serviceProviderProfile, $intervention, $data, $request) {
+            MaintenanceRequest::query()->whereKey($intervention->id)->lockForUpdate()->first();
 
-        // Automatically transition to `reported` once the threshold is
-        // reached so admins see the review in their moderation queue.
-        $threshold = (int) config('takussan.reviews.report_threshold', 1);
-        $currentStatus = $review->status ?? ReviewStatus::Pending;
-        if (
-            $attrs['reported_count'] >= $threshold
-            && $currentStatus !== ReviewStatus::Rejected
-            && $currentStatus->canTransitionTo(ReviewStatus::Reported)
-        ) {
-            $attrs['status'] = ReviewStatus::Reported;
-        }
+            abort_code_if(
+                $serviceProviderProfile->reviews()->withTrashed()
+                    ->where('author_id', $author->id)
+                    ->where('context_type', $intervention->getMorphClass())
+                    ->where('context_id', $intervention->id)
+                    ->exists(),
+                422,
+                'review.intervention_already_reviewed'
+            );
 
-        $review->update($attrs);
+            return $serviceProviderProfile->reviews()->create(array_merge($data, [
+                'author_id' => $author->id,
+                'agency_id' => $this->proofAgency($intervention),
+                'context_type' => $intervention->getMorphClass(),
+                'context_id' => $intervention->id,
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
+
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+    }
+
+    /** TCK-597 — `GET /api/me/review-opportunities` : ce que l'acteur peut noter, avec la preuve. */
+    public function opportunities(Request $request, ReviewEligibility $eligibility): JsonResponse
+    {
+        return $this->json(['data' => $eligibility->opportunities($request->user())]);
+    }
+
+    /** L'agence du bien de la preuve : celle qui modère l'avis (ADR-0043 §1). */
+    private function proofAgency(Model $proof): ?int
+    {
+        $propertyId = $proof->getAttribute('property_id');
+        $agencyId = $propertyId === null ? null : Property::withTrashed()->whereKey($propertyId)->value('agency_id');
+
+        return $agencyId === null ? null : (int) $agencyId;
+    }
+
+    public function report(ReportReviewRequest $request, Review $review, ReviewReportService $reports): JsonResponse
+    {
+        // TCK-597 — la règle (dédoublonnage, seuil) vit dans `ReviewReportService`, partagée avec
+        // la route publique sans compte.
+        $reports->report($review, $request->user(), VisitorFingerprint::of($request), $request->validated('reason'));
 
         return $this->json(['message' => __('messages.review_reported')]);
+    }
+
+    /**
+     * TCK-597 (ADR-0043 §6) — l'empreinte de l'adresse d'où l'avis est déposé, jamais l'IP en
+     * clair : elle sert à repérer des avis d'auteurs différents venus de la même adresse.
+     *
+     * @return array<string, mixed>
+     */
+    private function creationMetadata(Request $request): array
+    {
+        return ['ip_hash' => VisitorFingerprint::of($request)];
     }
 }

@@ -68,19 +68,21 @@ const ATTENDU: Record<string, string[]> = {
   owner: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
+    '/app/maintenance', '/app/leases', '/app/payments', '/app/profile/reviews', '/app/messages',
+    '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
     '/app/visits', '/app/leads', '/app/calendar',
   ],
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/messages',
+    '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
     '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
@@ -88,7 +90,7 @@ const ATTENDU: Record<string, string[]> = {
   ],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
