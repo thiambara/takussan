@@ -39,6 +39,7 @@ return [
         'not_in_agency' => 'Jàngalekat bi nekkul ci agence bi.',
         'not_staff' => 'Ajaŋ walla njiitu ajaans bi rekk lañu mën a génne ci ekip bi ; boroom kër bokkul ci.',
         'portfolio_not_empty' => 'Ki nga bëgg a génne am na liggéey yu mu yor : jox ko keneen, walla nangu génne ko te kenn du ko jël.',
+        'handover_conflict' => 'Liggéey yi mu yor soppiku nañu bi ñuy jox : dara jaxasul, def ko ba ñaareel.',
         'user_not_found_by_email' => 'Ngemb bu email bi, jàngalekat amul.',
     ],
     'agency_role' => [

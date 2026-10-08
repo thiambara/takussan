@@ -14,6 +14,7 @@ use App\Services\Property\PrimaryAgentDesignator;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\ResponsibleAgentAssigner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
@@ -179,5 +180,56 @@ class PropertyBulkAssignTest extends ApiTestCase
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/properties/bulk-assign', ['property_ids' => [$this->p->id], 'user_id' => $this->y->id])
             ->assertUnauthorized();
+    }
+
+    /**
+     * verif-603 m5 (V5) — seuls les refus de CIBLE deviennent `invalid_target`, bien par bien. Toute
+     * autre erreur annule le lot entier : un défaut du service ne se déguise pas en refus motivé.
+     */
+    public function test_une_autre_erreur_que_le_refus_de_cible_annule_le_lot(): void
+    {
+        $q = $this->q;
+        DB::listen(function ($query) use ($q) {
+            if (str_starts_with($query->sql, 'insert into "property_collaborators"') && in_array($q->id, $query->bindings, true)) {
+                abort_code(404, 'property.collaborator_not_found');
+            }
+        });
+
+        // P est traité d'abord (identifiant croissant) : la marque y passe à Y… puis Q échoue.
+        $this->lot([$this->p->id, $this->q->id], $this->y)
+            ->assertNotFound()
+            ->assertJsonPath('code', 'property.collaborator_not_found');
+
+        $this->assertSame($this->x->id, $this->contactDe($this->p));
+        $this->assertSame(0, Activity::query()->where('event', ResponsibleAgentAssigner::EVENT)->count());
+    }
+
+    /** verif-603 m5 — les refus de cible, eux, sont rangés ligne à ligne, quel qu'en soit le motif. */
+    public function test_les_refus_de_cible_sont_ranges_ligne_a_ligne_quel_qu_en_soit_le_motif(): void
+    {
+        // Y est co-propriétaire de Q : refus `property.responsible_agent_co_owner`.
+        PropertyCollaborator::query()->create([
+            'property_id' => $this->q->id, 'user_id' => $this->y->id, 'role' => CollaboratorRole::CoOwner, 'invited_at' => now(),
+        ]);
+
+        $this->lot([$this->p->id, $this->q->id], $this->y)->assertOk()
+            ->assertJsonPath('updated_ids', [$this->p->id])
+            ->assertJsonPath('failed', [['id' => $this->q->id, 'reason' => 'invalid_target']]);
+        $this->assertSame($this->y->id, $this->contactDe($this->p));
+    }
+
+    /**
+     * verif-603 m5 (A1a) — sur un bien SANS agence, l'éligibilité de `designate()` admet tout compte
+     * joignable : seule la règle de cible garde le lot. Ablation de la règle → rouge ici aussi.
+     */
+    public function test_un_bien_sans_agence_refuse_la_cible_dans_le_lot(): void
+    {
+        $particulier = User::factory()->create();
+        $libre = $this->bienDe(null, $particulier);
+
+        $this->lot([$libre->id], $this->y, $particulier)->assertOk()
+            ->assertJsonPath('updated', 0)
+            ->assertJsonPath('failed', [['id' => $libre->id, 'reason' => 'invalid_target']]);
+        $this->assertDatabaseMissing('property_collaborators', ['property_id' => $libre->id]);
     }
 }

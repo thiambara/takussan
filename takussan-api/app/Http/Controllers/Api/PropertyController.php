@@ -20,6 +20,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkAssignService;
@@ -71,7 +72,21 @@ class PropertyController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
+        // TCK-603 (ADR-0059 §6, verif-603 m4) — `agency_id` demandé, chaque ligne rend `primary_contact`
+        // et le bloc `agency` (que `is_agent` charge) : sans ce préchargement, six requêtes par bien.
+        $biens = $paginator->getCollection();
+        if ($biens->isNotEmpty() && array_key_exists('agency_id', $biens->first()->getAttributes())) {
+            $biens->loadMissing(['agency' => fn ($q) => $q->with('media')->withAvg(
+                ['reviews as '.PropertyResource::AGENCY_RATING => fn ($r) => $r->where('is_approved', true)],
+                'rating',
+            )]);
+        }
+
+        return $this->paginated($paginator, MembershipCapabilityResolver::primed(
+            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')]),
+            $biens->map(fn (Property $p) => $p->getAttributes()['agency_id'] ?? null),
+            fn () => PropertyResource::collection($paginator)->toArray($request),
+        ));
     }
 
     public function store(StorePropertyRequest $request): JsonResponse

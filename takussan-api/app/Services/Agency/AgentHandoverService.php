@@ -76,7 +76,7 @@ class AgentHandoverService
             $moved = [];
             $unassigned = [];
 
-            $this->lockProperties($agency, $member, $successors);
+            $locked = $this->lockProperties($agency, $member, $successors);
 
             foreach (AgentPortfolio::TRANSFERABLE as $category) {
                 $successor = $successors[$category] ?? null;
@@ -84,7 +84,7 @@ class AgentHandoverService
                     continue;
                 }
 
-                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor);
+                [$ids, $dropped] = $this->move($category, $agency, $member, $successor, $actor, $locked);
                 if ($ids === [] && $dropped === []) {
                     continue;
                 }
@@ -121,8 +121,9 @@ class AgentHandoverService
      * et le contrôleur des collaborateurs prennent tous bien → lignes.
      *
      * @param  array<string, User>  $successors
+     * @return list<int> les biens verrouillés — l'ensemble hors duquel la passation ne verrouille rien
      */
-    private function lockProperties(Agency $agency, User $member, array $successors): void
+    private function lockProperties(Agency $agency, User $member, array $successors): array
     {
         $ids = [];
         foreach (self::PROPERTY_CATEGORIES as $category) {
@@ -132,15 +133,49 @@ class AgentHandoverService
             $query = $this->portfolio->query($category, $agency, $member);
             $ids = [...$ids, ...($category === 'collaborations' ? $query->pluck('property_id') : $query->pluck('id'))->all()];
         }
-        if ($ids !== []) {
-            Property::withTrashed()->whereIn('id', array_unique($ids))->orderBy('id')->lockForUpdate()->pluck('id');
+        if ($ids === []) {
+            return [];
         }
+
+        return Property::withTrashed()->whereIn('id', array_unique($ids))->orderBy('id')->lockForUpdate()
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
-    /** @return array{0: list<int>, 1: list<int>} [déplacés, désassignés] */
-    private function move(string $category, Agency $agency, User $member, User $successor, User $actor): array
+    /**
+     * ADR-0059 §6 (verif-603 m3) — un bien entré dans le portefeuille APRÈS le verrou (une ligne validée
+     * entre les deux) ne se verrouille pas maintenant : ce serait un bien après des lignes, et hors de
+     * l'ordre croissant de l'ensemble. La passation est refusée, sans rien avoir écrit, et se rejoue.
+     *
+     * @param  list<int>  $propertyIds
+     * @param  list<int>  $locked
+     */
+    private function refuseOutsideLocked(array $propertyIds, array $locked): void
     {
-        $ids = $this->portfolio->query($category, $agency, $member)->lockForUpdate()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        abort_code_if(array_diff($propertyIds, $locked) !== [], 409, 'agency_member.handover_conflict');
+    }
+
+    /**
+     * @param  list<int>  $locked  les biens que {@see self::lockProperties()} tient
+     * @return array{0: list<int>, 1: list<int>} [déplacés, désassignés]
+     */
+    private function move(string $category, Agency $agency, User $member, User $successor, User $actor, array $locked): array
+    {
+        $query = $this->portfolio->query($category, $agency, $member);
+        if (in_array($category, ['responsible_properties', 'held_properties'], true)) {
+            // Lus SANS verrou : chacun est déjà tenu, ou la passation s'arrête ici.
+            $ids = $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $this->refuseOutsideLocked($ids, $locked);
+        } else {
+            $ids = $query->lockForUpdate()->pluck('id')->map(fn ($id) => (int) $id)->all();
+            if ($category === 'collaborations' && $ids !== []) {
+                // Après le verrou des lignes : une ligne apparue entre-temps est vue ici, et la
+                // passation s'arrête avant de verrouiller son bien (lignes → bien, l'ordre exclu).
+                $this->refuseOutsideLocked(
+                    PropertyCollaborator::query()->whereIn('id', $ids)->pluck('property_id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
+                    $locked,
+                );
+            }
+        }
         if ($ids === []) {
             return [[], []];
         }

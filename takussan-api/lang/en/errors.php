@@ -39,6 +39,7 @@ return [
         'not_in_agency' => 'This user is not a member of this agency.',
         'not_staff' => 'Only an agent or an administrator of the agency can be removed from the team; a landlord is not part of it.',
         'portfolio_not_empty' => 'This member still holds a portfolio: hand it over, or confirm the removal without a successor.',
+        'handover_conflict' => 'This member\'s portfolio changed during the handover: nothing was transferred, run it again.',
         'user_not_found_by_email' => 'No active user was found for this email address.',
     ],
     'agency_role' => [

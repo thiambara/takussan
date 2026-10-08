@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Property;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgentProfileStatus;
@@ -134,6 +135,51 @@ class PropertyReassignmentKeepsOwnerTest extends ApiTestCase
             ->assertJsonPath('data.primary_contact.id', $this->x->id);
     }
 
+    /**
+     * verif-603 M2 — la source du contact, rendue par l'API : un agent qui a SAISI le bien et en est
+     * l'agent responsable a `owner.id = primary_contact.id`, et l'écran ne peut pas en déduire « aucun ».
+     */
+    public function test_la_source_du_contact_distingue_l_agent_titulaire_du_repli(): void
+    {
+        $saisi = $this->bienDe($this->agency, $this->x);
+        $champs = '?fields[properties]=id,user_id,agency_id,title&include=owner,collaborators';
+
+        // Sans ligne d'agent : X répond, mais par le repli sur le titulaire — il n'est pas l'agent
+        // responsable (ADR-0036 : la ligne `agent` marquée).
+        $this->actingAsApi($this->admin)->getJson("/api/properties/{$saisi->id}{$champs}")->assertOk()
+            ->assertJsonPath('data.primary_contact.id', $this->x->id)
+            ->assertJsonPath('data.primary_contact_source', 'owner');
+
+        $this->reattribuer($saisi, $this->x)->assertOk()
+            ->assertJsonPath('data.owner.id', $this->x->id)
+            ->assertJsonPath('data.primary_contact.id', $this->x->id)
+            ->assertJsonPath('data.primary_contact_source', 'designated');
+        $this->actingAsApi($this->admin)->getJson("/api/properties{$champs}&filter[user_id]={$this->x->id}")->assertOk()
+            ->assertJsonPath('data.0.id', $saisi->id)
+            ->assertJsonPath('data.0.primary_contact_source', 'designated');
+
+        // Le bien de B, marque retirée : l'ordre d'invitation désigne X.
+        $this->p->collaborators()->update(['is_primary' => false]);
+        $this->actingAsApi($this->admin)->getJson("/api/properties/{$this->p->id}{$champs}")->assertOk()
+            ->assertJsonPath('data.primary_contact.id', $this->x->id)
+            ->assertJsonPath('data.primary_contact_source', 'invitation_order');
+
+        // Plus d'agent : le bailleur répond.
+        $this->p->collaborators()->delete();
+        $this->actingAsApi($this->admin)->getJson("/api/properties/{$this->p->id}{$champs}")->assertOk()
+            ->assertJsonPath('data.primary_contact.id', $this->b->id)
+            ->assertJsonPath('data.primary_contact_source', 'owner');
+    }
+
+    /** ADR-0059 §6 — une donnée d'organisation de l'agence : jamais sur une route `public.*`. */
+    public function test_la_source_ne_sort_jamais_sur_la_fiche_publique(): void
+    {
+        $fiche = $this->getJson("/api/public/properties/{$this->p->slug}")->assertOk()->json('data');
+
+        $this->assertSame($this->x->id, $fiche['primary_contact']['id']);
+        $this->assertArrayNotHasKey('primary_contact_source', $fiche);
+    }
+
     /** AC3 — le journal du geste, qui manquait : ancien et nouveau responsable, sous `responsible_agent_changed`. */
     public function test_le_geste_est_journalise_et_n_ecrit_pas_la_signature_d_une_reattribution(): void
     {
@@ -213,5 +259,26 @@ class PropertyReassignmentKeepsOwnerTest extends ApiTestCase
         $this->reattribuer($bien, $inconnu, $particulier)->assertStatus(422)
             ->assertJsonPath('code', 'user.not_in_active_agency');
         $this->assertDatabaseMissing('property_collaborators', ['property_id' => $bien->id]);
+    }
+
+    /**
+     * verif-603 m5 (V2) — l'agence qui juge la cible est celle du BIEN, jamais celle de l'acteur : un
+     * administrateur d'une autre agence ne fait pas admettre son propre agent. Le code dit que c'est la
+     * règle de cible qui refuse, pas l'éligibilité de `designate()` derrière elle.
+     */
+    public function test_l_agence_du_bien_prime_sur_celle_de_l_acteur(): void
+    {
+        $autre = $this->agence();
+        $acteur = $this->personnel($autre, 'agency_admin');
+        $agentDeLAutre = $this->personnel($autre);
+        $this->assertSame($autre->id, $acteur->agency_id);
+
+        try {
+            app(ResponsibleAgentAssigner::class)->assign($this->p, $agentDeLAutre, $acteur);
+            $this->fail('La cible d\'une autre agence aurait dû être refusée.');
+        } catch (ApiError $e) {
+            $this->assertSame('user.not_in_active_agency', $e->errorCode);
+        }
+        $this->assertSame($this->x->id, $this->contactDe($this->p));
     }
 }

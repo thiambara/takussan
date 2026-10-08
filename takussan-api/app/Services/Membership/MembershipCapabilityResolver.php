@@ -12,6 +12,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use Closure;
 use Illuminate\Support\Collection;
 
 /**
@@ -55,6 +56,9 @@ use Illuminate\Support\Collection;
  */
 class MembershipCapabilityResolver
 {
+    /** @var array{users: array<int, true>, agencies: array<int, true>, staff: array<string, true>, agent: array<string, true>, owner: array<string, true>}|null */
+    private static ?array $amorce = null;
+
     public function __construct(
         private readonly AgencyRoleCapabilityCache $cache,
     ) {}
@@ -451,6 +455,10 @@ class MembershipCapabilityResolver
      */
     public function isStaffAt(User $user, int $agencyId): bool
     {
+        if (($amorce = self::amorce('staff', (int) $user->id, $agencyId)) !== null) {
+            return $amorce;
+        }
+
         foreach ([AgencyRoleBaseType::Agent, AgencyRoleBaseType::AgencyAdmin] as $type) {
             $class = $type->profileClass();
             if ($class !== null && $class::query()
@@ -468,6 +476,69 @@ class MembershipCapabilityResolver
             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
             ->active()
             ->exists();
+    }
+
+    /**
+     * TCK-603 (ADR-0059 §6, verif-603 m4) — juge en trois requêtes, pour une PAGE entière, ce que
+     * {@see self::isStaffAt()}, `User::isAgentAt()` et `User::isOwnerAt()` jugeraient une ligne à la
+     * fois : `primary_contact` et `is_agent` en posaient jusqu'à six par bien sur la liste.
+     *
+     * L'amorce ne vaut que pendant `$callback`, et pour les seuls couples (utilisateur, agence) des
+     * deux listes : hors d'elles, chaque jugement reste une requête. Mêmes portées (`active()`) que les
+     * jugements unitaires — une amorce qui jugerait autrement serait une seconde règle.
+     *
+     * @template T
+     *
+     * @param  iterable<int|string|null>  $userIds
+     * @param  iterable<int|string|null>  $agencyIds
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    public static function primed(iterable $userIds, iterable $agencyIds, Closure $callback): mixed
+    {
+        $users = collect($userIds)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $agencies = collect($agencyIds)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if ($users === [] || $agencies === [] || self::$amorce !== null) {
+            return $callback();
+        }
+
+        $couples = fn ($query) => $query->whereIn('user_id', $users)->whereIn('agency_id', $agencies)
+            ->get(['user_id', 'agency_id'])
+            ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
+            ->all();
+        $agent = $couples(AgencyRoleBaseType::Agent->profileClass()::query()->active());
+        $staff = $agent
+            + $couples(AgencyRoleBaseType::AgencyAdmin->profileClass()::query()->active())
+            + $couples(RoleDelegation::query()
+                ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+                ->active());
+
+        self::$amorce = [
+            'users' => array_fill_keys($users, true),
+            'agencies' => array_fill_keys($agencies, true),
+            'staff' => $staff,
+            'agent' => $agent,
+            'owner' => $couples(OwnerProfile::query()->active()),
+        ];
+        try {
+            return $callback();
+        } finally {
+            self::$amorce = null;
+        }
+    }
+
+    /**
+     * `staff`, `agent` ou `owner` du couple, tel que {@see self::primed()} l'a jugé ; `null` hors
+     * amorce — l'appelant juge alors lui-même.
+     */
+    public static function amorce(string $kind, int $userId, int $agencyId): ?bool
+    {
+        $amorce = self::$amorce;
+        if ($amorce === null || ! isset($amorce['users'][$userId], $amorce['agencies'][$agencyId])) {
+            return null;
+        }
+
+        return isset($amorce[$kind][$userId.':'.$agencyId]);
     }
 
     /**

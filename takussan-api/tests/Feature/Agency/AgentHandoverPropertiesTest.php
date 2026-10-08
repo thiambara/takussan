@@ -202,4 +202,66 @@ class AgentHandoverPropertiesTest extends ApiTestCase
         $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])->assertOk();
         $this->assertSame($marque->id, $this->contactDe($autreBien));
     }
+
+    /** verif-603 m5 (V3) — un profil bailleur SUPPRIMÉ ne fait plus du partant un bailleur : son bien saisi se transmet. */
+    public function test_un_profil_bailleur_supprime_n_exclut_pas_le_bien_saisi(): void
+    {
+        OwnerProfile::factory()->create(['user_id' => $this->leaver->id, 'agency_id' => $this->agency->id])->delete();
+
+        $this->actingAsApi($this->admin)->apiGet($this->url('portfolio'))
+            ->assertJsonPath('data.portfolio.held_properties', 1);
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])
+            ->assertOk()->assertJsonPath('data.moved.held_properties', 1);
+        $this->assertSame($this->successor->id, (int) $this->saisi->fresh()->user_id);
+    }
+
+    /**
+     * Rejoue, dans la transaction de la passation, ce qu'une autre session validerait entre le verrou
+     * des biens et leur traitement : `$apparition` s'exécute une fois, juste après ce verrou.
+     */
+    private function apresLeVerrouDesBiens(\Closure $apparition): void
+    {
+        $fait = false;
+        DB::listen(function ($query) use (&$fait, $apparition) {
+            if (! $fait && str_starts_with($query->sql, 'select "id" from "properties"') && str_contains($query->sql, 'for update')) {
+                $fait = true;
+                $apparition();
+            }
+        });
+    }
+
+    /**
+     * verif-603 m3 (ADR-0059 §6) — une ligne du partant apparue après le verrou des biens, sur un bien
+     * hors de l'ensemble : la traiter verrouillerait ce bien APRÈS des lignes (40P01 reproduit par
+     * verif-603). La passation est refusée en 409 rejouable, et rien n'a bougé.
+     */
+    public function test_une_ligne_apparue_apres_le_verrou_refuse_la_passation(): void
+    {
+        $horsEnsemble = $this->bienDe($this->agency, $this->b);
+        $leaver = $this->leaver;
+        $this->apresLeVerrouDesBiens(fn () => PropertyCollaborator::query()->create([
+            'property_id' => $horsEnsemble->id, 'user_id' => $leaver->id, 'role' => CollaboratorRole::Agent, 'invited_at' => now(),
+        ]));
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'agency_member.handover_conflict');
+
+        $this->assertSame($this->leaver->id, $this->contactDe($this->deB));
+        $this->assertSame($this->leaver->id, (int) $this->saisi->fresh()->user_id);
+        $this->assertSame(0, Activity::query()->where('log_name', 'AgentHandover')->count());
+    }
+
+    /** m3 — de même pour un bien saisi au nom du partant après le verrou. */
+    public function test_un_bien_saisi_apres_le_verrou_refuse_la_passation(): void
+    {
+        $agency = $this->agency;
+        $leaver = $this->leaver;
+        $this->apresLeVerrouDesBiens(fn () => Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $leaver->id]));
+
+        $this->actingAsApi($this->admin)->apiPost($this->url('handover'), ['successor_id' => $this->successor->id])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'agency_member.handover_conflict');
+        $this->assertSame($this->leaver->id, (int) $this->saisi->fresh()->user_id);
+    }
 }
