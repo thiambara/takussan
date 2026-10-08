@@ -5,6 +5,7 @@ namespace App\Services\Lead;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
@@ -13,6 +14,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
+use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\ContactLeadReceivedNotification;
 use App\Notifications\NewContactLeadNotification;
@@ -77,7 +79,13 @@ class ContactLeadService
      */
     public function agencyReaders(?int $agencyId): Collection
     {
-        $admins = $this->agencyAdmins($agencyId);
+        // Passe 3 (n3′) — la même résolution que `MembershipCapabilityResolver::isStaffAt` : une
+        // délégation ACTIVE du rôle compte comme le profil. L'agence dont le seul admin était
+        // délégué refusait en 409 une demande que ce délégué lit.
+        $admins = $this->agencyAdmins($agencyId)
+            ->merge($this->delegues($agencyId, AgencyRoleBaseType::AgencyAdmin))
+            ->unique('id')
+            ->values();
         $agency = $agencyId !== null ? Agency::query()->find($agencyId) : null;
         if ($admins->isNotEmpty() || $agency === null) {
             return $admins;
@@ -89,8 +97,31 @@ class ContactLeadService
             ->with('user')
             ->get()
             ->pluck('user')
+            ->merge($this->delegues($agencyId, AgencyRoleBaseType::Agent))
             ->filter(fn (?User $u) => PrimaryPropertyContact::joignable($u) && $u->canActAt(Capability::CrmViewAll, $agency))
             ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Les délégués ACTIFS (`RoleDelegation::scopeActive`, comme `isStaffAt`) d'un rôle de l'agence.
+     *
+     * @return Collection<int,User>
+     */
+    private function delegues(?int $agencyId, AgencyRoleBaseType $role): Collection
+    {
+        if ($agencyId === null) {
+            return collect();
+        }
+
+        return RoleDelegation::query()
+            ->where('agency_id', $agencyId)
+            ->where('role', $role->value)
+            ->active()
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter(fn (?User $u) => PrimaryPropertyContact::joignable($u))
             ->values();
     }
 

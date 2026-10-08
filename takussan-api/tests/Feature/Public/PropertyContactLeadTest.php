@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
+use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Notifications\ContactLeadReceivedNotification;
 use App\Notifications\NewContactLeadNotification;
@@ -390,5 +391,52 @@ class PropertyContactLeadTest extends TestCase
         Sanctum::actingAs($lecteur);
         $this->getJson("/api/contact-leads/{$lead->id}")->assertOk();
         $this->assertContains($lead->id, collect($this->getJson('/api/contact-leads')->json('data'))->pluck('id')->all());
+    }
+
+    /**
+     * Passe 3 (n3′) — les lecteurs de la boîte suivent la MÊME résolution que `isStaffAt` : une
+     * délégation active du rôle `agency_admin` compte. Agence dont le seul admin est délégué, bien
+     * sans contact éligible (sonde P3-D1) : la demande était refusée en 409 alors que le délégué
+     * lit la boîte. Elle est acceptée, et le délégué la reçoit.
+     */
+    public function test_n3prime_le_seul_admin_delegue_recoit_la_demande(): void
+    {
+        Notification::fake();
+        $agency = $this->agence();
+        AgencyAdminProfile::query()->where('agency_id', $agency->id)->delete();
+        $property = $this->bienDe($agency, User::factory()->create(['status' => 'blocked']));
+        $delegue = $this->bailleur($agency, ['phone' => '+221770000016']);
+        RoleDelegation::factory()->create([
+            'user_id' => $delegue->id, 'delegator_id' => $this->client()->id, 'agency_id' => $agency->id,
+            'role' => 'agency_admin', 'status' => 'active', 'starts_at' => now()->subDay(), 'ends_at' => now()->addDays(5),
+        ]);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771231001', 'message' => 'Disponible ce samedi ?',
+        ])->assertCreated();
+        $this->postJson("/api/public/properties/{$property->slug}/visit-request", [
+            'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771231001', 'scheduled_at' => $this->creneau(),
+        ])->assertCreated();
+
+        Notification::assertSentTo($delegue, NewContactLeadNotification::class);
+        Notification::assertSentTo($delegue, VisitRequestedNotification::class);
+    }
+
+    /** Passe 3 (n3′) — une délégation RÉVOQUÉE ou échue ne fait pas un lecteur : 409, comme avant. */
+    public function test_n3prime_une_delegation_revoquee_ou_echue_ne_compte_pas(): void
+    {
+        $agency = $this->agence();
+        AgencyAdminProfile::query()->where('agency_id', $agency->id)->delete();
+        $property = $this->bienDe($agency, User::factory()->create(['status' => 'blocked']));
+        foreach ([['status' => 'revoked', 'ends_at' => now()->addDays(5)], ['status' => 'active', 'ends_at' => now()->subMinute()]] as $d) {
+            RoleDelegation::factory()->create($d + [
+                'user_id' => $this->bailleur($agency)->id, 'delegator_id' => $this->client()->id,
+                'agency_id' => $agency->id, 'role' => 'agency_admin', 'starts_at' => now()->subDays(2),
+            ]);
+        }
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
+            'name' => 'Awa Diop', 'phone' => '+221771231002', 'message' => 'Disponible ce samedi ?',
+        ])->assertStatus(409)->assertJsonPath('code', 'contact_unavailable');
     }
 }
