@@ -41,7 +41,10 @@ interface LeaseScheduleProps {
  * Derived display status — `late` payments are computed client-side when
  * the server hasn't flagged them yet (due date in the past and status ≠ paid).
  */
-function displayStatus(p: LeasePayment): 'paid' | 'late' | 'pending' | 'other' {
+function displayStatus(p: LeasePayment): 'paid' | 'late' | 'pending' | 'cancelled' | 'other' {
+  // VERIF-596 passe 6 (m-i) — une échéance d'un bail parent que son renouvellement a reprise : plus
+  // due, ni loyer ni pénalité. Jugée AVANT l'échéance passée, qui la dirait « en retard ».
+  if (p.status === 'cancelled') return 'cancelled';
   if (p.status === 'paid') return 'paid';
   if (p.status === 'pending' && p.due_date) {
     const due = new Date(p.due_date);
@@ -90,7 +93,7 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
   const payments = useMemo(() => data?.data ?? [], [data]);
   // TCK-602 — les fournisseurs ne dépendent que de l'agence et de la devise du bail : la première
   // échéance due suffit à les lire, une requête par échéancier et non par ligne.
-  const { providers } = usePaymentProviders('lease-payments', payments.find((p) => p.amount_due > 0)?.id ?? null);
+  const { providers } = usePaymentProviders('lease-payments', payments.find((p) => p.status !== 'cancelled' && p.amount_due > 0)?.id ?? null);
 
   if (isLoading) {
     return <Skeleton className="h-40 rounded-xl" />;
@@ -178,6 +181,8 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
           const st = displayStatus(p);
           const enDevise = (valeur: number) =>
             formatCurrency(valeur, locale, { currency: p.currency });
+          const annulee = st === 'cancelled';
+          const penalite = !annulee && typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 ? p.late_fee_amount : null;
           const penaliteHorsLigne = p.late_fee_outstanding > 0 && !p.late_fee_payable_online;
           return (
             <li
@@ -199,15 +204,15 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
               </div>
 
               <div className="min-w-0 lg:flex-1">
-                <p className="font-medium text-foreground">
+                <p className={cn('font-medium text-foreground', annulee && 'text-muted-foreground line-through')}>
                   {enDevise(p.amount)}
-                  {typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 && (
+                  {penalite !== null && (
                     <span className="ml-1 text-xs text-destructive" data-testid="penalite">
-                      +{enDevise(p.late_fee_amount)}
+                      +{enDevise(penalite)}
                     </span>
                   )}
                 </p>
-                {typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 && (
+                {penalite !== null && (
                   <p className="text-xs text-muted-foreground">
                     {p.late_fee_paid_at
                       ? t('lateFee.settled')
@@ -224,7 +229,7 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
                 >
                   {tScheduleStatus(st)}
                 </Badge>
-                {p.amount_due > 0 && (
+                {!annulee && p.amount_due > 0 && (
                   <PayOnlineButton
                     paymentType="lease-payments"
                     paymentId={p.id}
@@ -242,7 +247,7 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
                     {t('receiptPdf')}
                   </BoutonTelechargement>
                 )}
-                {canManage && p.amount_due > 0 && (
+                {canManage && !annulee && p.amount_due > 0 && (
                   <Button
                     type="button"
                     variant="outline"
@@ -255,7 +260,7 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
                     {t('paymentLink.copy')}
                   </Button>
                 )}
-                {canManage && p.late_fee_outstanding > 0 && (
+                {canManage && !annulee && p.late_fee_outstanding > 0 && (
                   <Button
                     type="button"
                     variant="outline"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,18 @@ class GuarantorController extends Controller
     public function destroy(Request $request, Guarantor $guarantor): JsonResponse
     {
         $this->authorize('delete', $guarantor);
+
+        // VERIF-596 passe 5 (m-g) — un garant supprimé disparaît du contrat d'un bail en attente de
+        // signature (le rendu exclut les garants supprimés) sans rien défiger, et d'un bail en
+        // cours sans trace. On le détache d'abord par la route du bail, qui défige.
+        $open = [LeaseStatus::PendingSignature->value, LeaseStatus::Active->value];
+        abort_code_if(
+            $guarantor->leasesPivot()->whereIn('leases.status', $open)->exists()
+                || $guarantor->leases()->whereIn('status', $open)->exists(),
+            422,
+            'guarantor.attached_to_open_lease',
+        );
+
         $guarantor->delete();
 
         return $this->json(null, 204);

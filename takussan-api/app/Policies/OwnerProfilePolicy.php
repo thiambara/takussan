@@ -46,6 +46,21 @@ class OwnerProfilePolicy
     }
 
     /**
+     * TCK-601 (ADR-0044 §1) — lire le RIB, le NINEA et le numéro de pièce EN CLAIR : l'admin actif
+     * de l'agence du profil, jugé sur l'agence de son profil ACTIF (principe n° 2). Un agent lit le
+     * carnet, jamais ces valeurs. Le super-admin passe par `Gate::before`. Pas de capacité dédiée
+     * tant que les capacités de lecture ne sont pas branchées (option retenue du ticket).
+     */
+    public function viewSensitive(User $user, OwnerProfile $profile): bool
+    {
+        $agencyId = $user->agency_id;
+
+        return $agencyId !== null
+            && (int) $agencyId === (int) $profile->agency_id
+            && $user->isAgencyAdminAt((int) $agencyId);
+    }
+
+    /**
      * `invite` is intentionally agency-scoped (the controller passes the
      * Agency in via `$user->can('invite', [OwnerProfile::class, $agency])`).
      *

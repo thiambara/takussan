@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PropertyForm } from '@/components/property-form';
+import { PropertyCalendarPanel } from '@/components/property-dashboard/PropertyCalendarPanel';
+import { PropertyCollaboratorsPanel } from '@/components/property-dashboard/PropertyCollaboratorsPanel';
 import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { PropertyOverviewPanel } from '@/components/property-dashboard/PropertyOverviewPanel';
 import { PropertyPriceHistoryList } from '@/components/property-dashboard/PropertyPriceHistoryList';
@@ -12,7 +14,7 @@ import type { Tag } from '@/types/tag';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useTranslations } from 'next-intl';
 
-const TAB_VALUES = ['overview', 'edit', 'media', 'history'] as const;
+const TAB_VALUES = ['overview', 'edit', 'media', 'calendar', 'history'] as const;
 type TabKey = (typeof TAB_VALUES)[number];
 
 function isTabKey(value: string | null): value is TabKey {
@@ -34,8 +36,15 @@ export function PropertyDetailTabs({ property, tags }: Props) {
   // courant : `useStateSyncedWith` ne resynchronise que lorsque la valeur
   // externe CHANGE, donc un clic utilisateur (qui écrit l'URL par
   // `replaceState`, sans notifier le routeur) n'est pas écrasé au rendu suivant.
+  // TCK-596 §3B — le calendrier d'hôte n'a de sens que pour un séjour court (nuit ou semaine) ;
+  // un `?tab=calendar` sur un autre bien retombe sur `overview`.
+  const hasCalendar =
+    property.contract_type === 'rent' &&
+    (property.rent_period === 'daily' || property.rent_period === 'weekly');
   const urlTab = searchParams.get('tab');
-  const [tab, setTab] = useStateSyncedWith<TabKey>(isTabKey(urlTab) ? urlTab : 'overview');
+  const [tab, setTab] = useStateSyncedWith<TabKey>(
+    isTabKey(urlTab) && (urlTab !== 'calendar' || hasCalendar) ? urlTab : 'overview',
+  );
 
   // Pas de `useCallback` : le React Compiler mémoïse (ADR-0015).
   const handleChange = (value: TabKey) => {
@@ -64,13 +73,16 @@ export function PropertyDetailTabs({ property, tags }: Props) {
         <TabsTrigger value="media">
           {t('media', { count: property.photos?.length ?? 0 })}
         </TabsTrigger>
+        {hasCalendar && <TabsTrigger value="calendar">{t('calendar')}</TabsTrigger>}
         <TabsTrigger value="history">
           {t('history', { count: priceHistory.length })}
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview">
+      <TabsContent value="overview" className="space-y-6">
         <PropertyOverviewPanel property={property} onJumpTo={handleChange} />
+        {/* TCK-504 — qui répond pour le bien, et le choisir : là où l'on relit le bien. */}
+        <PropertyCollaboratorsPanel propertyId={property.id} />
       </TabsContent>
 
       <TabsContent value="edit">
@@ -80,6 +92,12 @@ export function PropertyDetailTabs({ property, tags }: Props) {
       <TabsContent value="media">
         <PropertyMediaPanel propertyId={property.id} />
       </TabsContent>
+
+      {hasCalendar && (
+        <TabsContent value="calendar">
+          <PropertyCalendarPanel propertyId={property.id} />
+        </TabsContent>
+      )}
 
       <TabsContent value="history">
         <section className="rounded-xl bg-card p-6">

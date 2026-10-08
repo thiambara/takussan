@@ -213,7 +213,6 @@
         "moderation": "Moderation",
         "plans": "Plans",
         "payouts": "Payouts",
-        "payments": "Payments",
         "tags": "Tags",
         "enums": "Enums",
         "templates": "Templates",
@@ -227,7 +226,9 @@
         "health": "Health",
         "failedJobs": "Failed jobs",
         "maintenance": "Maintenance",
-        "scheduler": "Scheduler"
+        "scheduler": "Scheduler",
+        "privacyRequests": "Rights requests",
+        "payments": "Payments"
       }
     },
     "notifications": {
@@ -957,7 +958,8 @@
         "weeklyLine": "{price} / week, prorated over {count, plural, =1 {# night} other {# nights}}",
         "deposit": "Deposit (30%)",
         "rentLine": "Rent",
-        "rentNotice": "Your application is for one rent; the lease will set the final amount."
+        "rentNotice": "Your application is for one rent; the lease will set the final amount.",
+        "occupiedHint": "Greyed-out dates are already taken."
       },
       "offerForm": {
         "invalidAmount": "Invalid amount.",
@@ -1110,7 +1112,8 @@
         "fullPriceHistory": "Full price history",
         "fullPriceHistoryHint": "All changes recorded for this property.",
         "noPriceHistory": "No price change recorded for this property.",
-        "unknownDate": "Unknown date"
+        "unknownDate": "Unknown date",
+        "calendar": "Calendar"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1227,6 +1230,70 @@
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
         "cancel": "Cancel",
         "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
+      },
+      "calendar": {
+        "title": "Property calendar",
+        "description": "Confirmed bookings, blocked dates and dates imported from other platforms, over twelve months.",
+        "legend": "Legend",
+        "legendBooked": "Booked",
+        "legendBlocked": "Blocked",
+        "legendImported": "Imported",
+        "genericError": "The operation did not go through.",
+        "blockTitle": "Block dates",
+        "blockHint": "Blocked nights can no longer be booked, here and on the platforms that read your export link.",
+        "blockFrom": "First night",
+        "blockTo": "Available again on",
+        "blockReason": "Reason (optional, only visible to you)",
+        "blockSubmit": "Block",
+        "blocksTitle": "Blocked dates",
+        "blocksEmpty": "No blocked dates in the next twelve months.",
+        "range": "From {from} to {to}",
+        "manual": "Manual block",
+        "importedFrom": "Imported from {feed}",
+        "conflict": "Conflicts with a booking",
+        "unblock": "Unblock",
+        "feedsTitle": "Imported calendars",
+        "feedsHint": "Paste the iCal link from Airbnb, Booking.com or a calendar: their taken dates are blocked here every hour. An imported date is removed at its source.",
+        "feedUrl": "iCal link (https)",
+        "feedLabel": "Name (optional)",
+        "feedAdd": "Import",
+        "feedOk": "in sync",
+        "feedFailing": "failing ({count, plural, =1 {# attempt} other {# attempts}})",
+        "feedSync": "Sync now",
+        "feedRemove": "Remove",
+        "exportTitle": "Export link",
+        "exportHint": "Give this link to other platforms so they block your Takussan bookings. It contains no name or phone number.",
+        "exportGenerate": "Generate a new link",
+        "exportUrl": "iCal export link",
+        "exportCopy": "Copy",
+        "exportCopied": "Copied",
+        "exportOnce": "This link is shown only once. Generating a new one disables the previous one.",
+        "feedPending": "first sync in progress"
+      },
+      "collaborators": {
+        "title": "Primary agent",
+        "explanation": "The primary agent is the person the property's public page names, who receives visitors' messages and requests, and whose phone number is shown.",
+        "source": {
+          "designated": "Chosen by the agency.",
+          "invitation_order": "No choice has been made: the agent first associated with the property responds.",
+          "owner": "No active agent is associated with this property: the owner responds.",
+          "designated_unavailable": "The agent chosen by the agency is no longer active: {repli, select, agent {the agent first associated with the property responds instead} other {the owner responds instead}}, until they are active again or another agent is designated."
+        },
+        "badge": {
+          "designated": "Primary agent",
+          "default": "Responds by default",
+          "unavailable": "Chosen, unavailable"
+        },
+        "roles": {
+          "agent": "Agent",
+          "manager": "Manager",
+          "co_owner": "Co-owner",
+          "viewer": "View only"
+        },
+        "designate": "Make primary",
+        "designateFor": "Make {name} the primary agent",
+        "empty": "No collaborator is associated with this property.",
+        "error": "The designation did not go through. Please try again."
       }
     },
     "visibility": {
@@ -3017,6 +3084,11 @@
           "title": "Payment failed",
           "body": "The payment did not go through. You can try again."
         },
+        "refund": {
+          "title": "Payment received, refund to follow",
+          "bodyCancelled": "Payment received on a cancelled instalment: the agency will refund you.",
+          "bodyAlreadyPaid": "This instalment was already settled: the agency will refund this payment."
+        },
         "pending": {
           "title": "Payment pending",
           "body": "We are confirming the status with the provider — this may take a few seconds."
@@ -3120,7 +3192,8 @@
       "late": "Late",
       "partially_paid": "Partially paid",
       "failed": "Failed",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
     },
     "invoiceStatus": {
       "draft": "Draft",
@@ -3450,7 +3523,8 @@
       "banner_cancel_request": "Cancel termination",
       "cancelled_toast_title": "Termination cancelled",
       "cancelled_toast_body": "The lease has been reactivated.",
-      "cancel_failed_title": "Failed to cancel"
+      "cancel_failed_title": "Failed to cancel",
+      "cta_tenant": "Give notice"
     },
     "error_generic": "Action failed.",
     "list": {
@@ -3509,7 +3583,8 @@
         "paid": "Paid",
         "late": "Overdue",
         "pending": "Upcoming",
-        "other": "Other"
+        "other": "Other",
+        "cancelled": "Cancelled"
       },
       "listLabel": "Lease instalments",
       "dueOn": "Due: {date}",
@@ -3657,6 +3732,35 @@
         "passport": "Passport",
         "driving_license": "Driving licence"
       }
+    },
+    "signature": {
+      "title": "Lease signature",
+      "notFrozenDescription": "The contract is not frozen yet. Request the signature: the contract is then locked, and each party signs it with a code received by SMS or e-mail.",
+      "frozenDescription": "The contract is frozen. Each party reads it, then signs it with their code. The second signature activates the lease. Any change to the lease cancels pending signatures.",
+      "readContract": "Read the contract to sign",
+      "roles": {
+        "tenant": "Tenant",
+        "landlord": "Landlord"
+      },
+      "signed": "Signed",
+      "awaiting": "Awaiting",
+      "signedBy": "Signed by {signer} on {date}",
+      "signedOnBehalf": "Signed by {signer} on behalf of {landlord} on {date}",
+      "sendCode": "Get my code",
+      "resendCode": "Resend the code",
+      "codeSentSms": "Code sent by SMS to {destination}. It is valid for 10 minutes.",
+      "codeSentMail": "Code sent by e-mail to {destination}. It is valid for 10 minutes.",
+      "codeLabel": "6-digit code",
+      "sign": "Sign",
+      "consent": "By entering this code, I sign the contract shown above.",
+      "request": "Request signature",
+      "requestAgain": "Freeze the contract again",
+      "requestedToast": "Signature requested: the parties have been notified.",
+      "signedToast": "Your signature is recorded.",
+      "activatedToast": "Lease signed and activated.",
+      "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
+      "paperSubmit": "Activate on paper contract",
+      "genericError": "The operation failed. Try again."
     }
   },
   "maintenance": {
@@ -4225,7 +4329,8 @@
         "name": "Name",
         "email": "Email",
         "status": "Status",
-        "actions": "Actions"
+        "actions": "Actions",
+        "identifiers": "Identifiers"
       },
       "actions": {
         "resend": "Resend invitation",
@@ -4367,6 +4472,15 @@
         "body": "Your owner profile is active."
       },
       "metaTitle": "Owner onboarding"
+    },
+    "sensitive": {
+      "notice": "Bank details, NINEA and ID number are masked. “Show” reveals the full value and records the access in the agency audit trail.",
+      "rib": "Bank (RIB)",
+      "tax_id": "NINEA",
+      "id_document_number": "ID",
+      "reveal": "Show",
+      "hide": "Hide",
+      "error_title": "These identifiers could not be shown"
     }
   },
   "ownerWelcome": {
@@ -5060,7 +5174,11 @@
       "disputeReason": "Reason for the dispute",
       "disputeReasonPlaceholder": "Explain the disputed point",
       "sendDispute": "Send the dispute",
-      "disputeFailed": "The dispute could not be sent. Please try again in a moment."
+      "disputeFailed": "The dispute could not be sent. Please try again in a moment.",
+      "roomPhotos": "Photos of the {room}",
+      "roomPhotoAlt": "Photo {index} — {room}",
+      "deleteRoomPhotoAria": "Delete photo {index} of the {room}",
+      "deleteRoomPhotoFailed": "The photo could not be deleted. Try again."
     },
     "roomEditor": {
       "empty_title": "No room",
@@ -5132,7 +5250,9 @@
       "signAs": "Sign as {role}",
       "confirmAs": "Sign as the {role}",
       "helper": "Draw your signature then confirm — the action is final.",
-      "signFailed": "Signature failed. Please try again."
+      "signFailed": "Signature failed. Please try again.",
+      "onBehalfOf": "On behalf of {name}",
+      "signedOnBehalf": "Signed by the property manager on behalf of the landlord"
     },
     "signaturePad": {
       "label": "Sign here",
@@ -5284,7 +5404,14 @@
         "lease": "Lease",
         "invoice": "Invoice",
         "customer": "Customer",
-        "user": "User"
+        "user": "User",
+        "agency": "Agency",
+        "agencyRole": "Agency role",
+        "integration": "Integration",
+        "agentProfile": "Agent profile",
+        "agencyAdminProfile": "Admin profile",
+        "ownerProfile": "Landlord profile",
+        "privacyRequest": "Rights request"
       },
       "filters": {
         "anyAction": "All actions",
@@ -5297,7 +5424,10 @@
         "subjectAria": "Filter by object type",
         "search": "Search",
         "searchPlaceholder": "Description…",
-        "searchAria": "Search the audit trail"
+        "searchAria": "Search the audit trail",
+        "member": "Member",
+        "memberAria": "Filter by member",
+        "anyMember": "All members"
       },
       "export": {
         "label": "Export",
@@ -5314,7 +5444,24 @@
         "description": "Description"
       },
       "tableCaption": "Agency audit trail",
-      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}"
+      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
+      "system": "System",
+      "deletedCauser": "Deleted account",
+      "events": {
+        "created": "Created",
+        "updated": "Updated",
+        "deleted": "Deleted",
+        "exported": "Exported",
+        "agent_suspended": "Agent suspended",
+        "agent_removed": "Agent removed",
+        "agent_reactivated": "Agent reactivated",
+        "role_capabilities_changed": "Role permissions changed",
+        "role_created": "Role created",
+        "role_assigned": "Role assigned",
+        "personal_data_viewed": "Personal data viewed",
+        "kyc_expired": "KYC document expired",
+        "data_exported": "Data exported"
+      }
     },
     "roles": {
       "page": {
@@ -6314,7 +6461,24 @@
           "submit": "Cancel the booking"
         }
       },
-      "forbidden": "This booking belongs to another agency: you don't have access to it."
+      "forbidden": "This booking belongs to another agency: you don't have access to it.",
+      "refund": {
+        "pendingTitle": "Refund in progress",
+        "pendingDescription": "Your booking will not take place: the deposit you paid will be refunded.",
+        "refundedTitle": "Refunded",
+        "refundedDescription": "The deposit paid for this booking has been refunded.",
+        "toProcessTitle": "Refund to process",
+        "toProcessDescription": "This booking is closed and holds a collected deposit. Record its refund once the money has been returned.",
+        "action": "Refund",
+        "dialogTitle": "Record a refund",
+        "dialogDescription": "Amount collected: {amount}.",
+        "fields": {
+          "amount": "Amount refunded",
+          "reason": "Reason"
+        },
+        "submit": "Record the refund",
+        "submitting": "Saving…"
+      }
     },
     "public": {
       "no_property_title": "No property selected",
@@ -6791,7 +6955,18 @@
       "pagination": "Page {current} of {last} · {total} entries",
       "tableCaption": "Cross-tenant audit log",
       "eventAria": "Filter by event",
-      "causerAria": "Filter by causer ID"
+      "causerAria": "Filter by causer ID",
+      "presets": {
+        "aria": "Audit log preset",
+        "all": "Whole log",
+        "sensitive": "Sensitive actions",
+        "sensitiveHint": "Personal data views, rights register, security, support, KYC, roles, integrations and exports."
+      },
+      "export": {
+        "label": "Export (CSV)",
+        "ready": "{count, plural, =0 {Export ready: no entry} =1 {Export ready: 1 entry} other {Export ready: # entries}}",
+        "error": "The audit log export failed"
+      }
     },
     "announcements": {
       "empty_title": "No announcement yet",
@@ -7444,6 +7619,11 @@
           "revoked": "Revoked"
         }
       },
+      "privacyRequests": {
+        "metaTitle": "Rights requests — Takussan Console",
+        "title": "Rights requests",
+        "subtitle": "The register of access, rectification, objection, erasure and portability requests, tracked until their deadline."
+      },
       "payments": {
         "title": "Payments",
         "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
@@ -7724,6 +7904,88 @@
       "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
       "unknownEvent": "Unlabelled event",
       "systemCauser": "System"
+    },
+    "privacyRequests": {
+      "tableCaption": "Rights requests register, by deadline",
+      "error": "The rights requests register could not be loaded.",
+      "empty_title": "No rights request",
+      "empty_description": "Requests made from the app are recorded here automatically; those received otherwise are entered by hand.",
+      "emptyFiltered_title": "No request for these filters",
+      "emptyFiltered_description": "Remove a filter to see the other requests.",
+      "overdue": "Overdue",
+      "overdueSummary": "{count, plural, =1 {1 request is past its deadline} other {# requests are past their deadline}}",
+      "filters": {
+        "anyStatus": "All statuses",
+        "anyType": "All types",
+        "statusAria": "Filter by status",
+        "typeAria": "Filter by request type",
+        "overdueOnly": "Overdue only",
+        "showOverdue": "Show overdue requests"
+      },
+      "columns": {
+        "due": "Deadline",
+        "type": "Type",
+        "requester": "Requester",
+        "received": "Received",
+        "status": "Status",
+        "proof": "Proof of response",
+        "actions": "Actions"
+      },
+      "type": {
+        "access": "Access",
+        "rectification": "Rectification",
+        "opposition": "Objection",
+        "erasure": "Erasure",
+        "portability": "Portability"
+      },
+      "channel": {
+        "in_app": "From the app",
+        "email": "Email",
+        "postal": "Post",
+        "phone": "Phone",
+        "in_person": "In person"
+      },
+      "status": {
+        "received": "Received",
+        "in_progress": "In progress",
+        "answered": "Answered",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn"
+      },
+      "export": {
+        "label": "Export the register",
+        "error": "The register export failed"
+      },
+      "create": {
+        "open": "Record a request",
+        "title": "Record a received request",
+        "description": "For a request received by email, post, phone or in person. The deadline is computed from the date of receipt.",
+        "submit": "Record the request",
+        "success": "Request recorded",
+        "error": "The request could not be recorded"
+      },
+      "update": {
+        "open": "Update",
+        "openAria": "Update the request from {name}",
+        "title": "Request from {name}",
+        "description": "“{type}” request. Moving it to “Answered” dates the response.",
+        "success": "Request updated",
+        "error": "The request could not be updated"
+      },
+      "fields": {
+        "type": "Request type",
+        "channel": "Received by",
+        "requesterName": "Requester name",
+        "requesterContact": "Requester contact",
+        "requesterContactHint": "Email, phone or address: whatever is needed to reply.",
+        "receivedAt": "Received on",
+        "userId": "Account ID (optional)",
+        "status": "Status",
+        "responseSummary": "Response summary",
+        "proof": "Proof of response",
+        "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
+        "proofReplace": "A proof is already on file ({name}): a new file replaces it."
+      }
     },
     "payments": {
       "all": "All",
@@ -8998,6 +9260,22 @@
     },
     "errors": {
       "generic": "Try again in a few moments."
+    },
+    "expiry": {
+      "expiredBadge": "Expired",
+      "expiredOn": "Expired on {date} — to renew",
+      "soonBadge": "Expires soon",
+      "expiresOn": "Expires on {date}",
+      "dossierValidUntil": "Verification valid until {date}",
+      "fieldLabel": "Document expiry date",
+      "fieldAria": "Expiry date: {document}",
+      "fieldHint": "Required for the director's ID: the end-of-validity date printed on the document."
+    },
+    "sharedIdentifiers": {
+      "ninea": "NINEA",
+      "rib_pro": "Business bank details (RIB)",
+      "alreadyHeldBy": "identifier already held by:",
+      "hint": "A signal for the review, not a reason to reject on its own."
     }
   },
   "publicProfile": {
@@ -9393,7 +9671,11 @@
         },
         "cancelled": {
           "title": "Booking cancelled",
-          "body": "Your booking {reference} for {property} was cancelled."
+          "body": "Booking {reference} for {property} was cancelled."
+        },
+        "requested_undated": {
+          "title": "New request",
+          "body": "Request {reference} was made for {property}."
         }
       },
       "account": {
@@ -9458,7 +9740,33 @@
           "body": "Your request about “{about}” has been sent. You will hear back shortly, by phone or by email."
         }
       },
+      "governance": {
+        "role_capabilities_changed": {
+          "title": "Role permissions changed",
+          "body": "The permissions of the role {role} were changed by {actor}."
+        },
+        "admin_added": {
+          "title": "New administrator",
+          "body": "Administrator access was given to {member} by {actor}."
+        },
+        "data_exported": {
+          "title": "Data export",
+          "body": "A customer data export was made by {actor}."
+        },
+        "integration_changed": {
+          "title": "Integration changed",
+          "body": "The {provider} integration was changed by {actor}."
+        },
+        "approval_threshold_changed": {
+          "title": "Approval threshold changed",
+          "body": "The payout approval threshold was changed by {actor}."
+        }
+      },
       "kyc": {
+        "expiring_soon": {
+          "title": "KYC document expiring soon",
+          "body": "The director's ID document expires on {expires_at}. Upload a new one to keep the agency verified."
+        },
         "submitted": {
           "title": "Agency KYC to review",
           "body": "The KYC file of {agency} has been submitted."
@@ -9622,6 +9930,28 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        },
+        "calendar_conflict": {
+          "title": "Calendar conflict: {property}",
+          "body": "Calendar \"{feed}\" blocks {property} from {start_date} to {end_date}, while a confirmed booking holds these dates. Nothing was cancelled: check both platforms."
+        },
+        "calendar_feed_failing": {
+          "title": "Imported calendar failing: {property}",
+          "body": "Calendar \"{feed}\" for {property} has failed to sync three times in a row. Check its link."
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Lease to sign: {reference}",
+          "body": "Lease {reference} for {property} is ready. Read the contract, then sign it with the code you will receive."
+        },
+        "signed_by_party": {
+          "title": "Lease {reference} signed by {signer}",
+          "body": "{signer} signed lease {reference} for {property}. It is awaiting your signature."
+        },
+        "signature_completed": {
+          "title": "Lease {reference} signed",
+          "body": "Both parties signed lease {reference} for {property}. It is now active."
         }
       },
       "payout": {

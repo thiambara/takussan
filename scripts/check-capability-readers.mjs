@@ -74,12 +74,18 @@ const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
 
 /**
  * Taille de l'inventaire. Bilatéral : il suit `AWAITING`, dans les deux sens.
+ * 16 → 14 par TCK-591 (`team.remove`, `crm.assign`) et 16 → 14 par TCK-596 (`bookings.refund`,
+ * `leases.sign`), chacun sur sa branche : 12 à leur fusion. 14 → 12 par TCK-592
+ * (`maintenance.assign`, `maintenance.close`) sur la sienne : 10 à la fusion de 596 avec 592.
  * 12 à la fusion de TCK-591 dans TCK-594 : chaque branche avait retiré deux lignes et baissé 16 → 14
  * de son côté ; la fusion, sans conflit textuel, gardait 14 pour un inventaire de 12. 10 à la fusion
  * de TCK-592 dans TCK-594, pour la même raison (592 lit `maintenance.*`, 594 `payouts.approve` et
- * `agency.update_billing`).
+ * `agency.update_billing`). 9 à la fusion de TCK-594 dans TCK-601 : 601 branche `agency.update_kyc`
+ * (`Agency\KycController::upload`, `submit`). 8 à la fusion de TCK-594 dans TCK-596 : 596 retire
+ * `bookings.refund` et `leases.sign`, 594 `payouts.approve` et `agency.update_billing`, chacun à 10
+ * de son côté. 7 à la fusion de TCK-601 dans TCK-596 : 601 retire `agency.update_kyc`, 596 ses deux.
  */
-const CLIQUET = 10;
+const CLIQUET = 7;
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;

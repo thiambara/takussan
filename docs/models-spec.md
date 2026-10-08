@@ -225,8 +225,18 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 77. [ServiceProviderBill](#77-serviceproviderbill-) 🆕
 78. [PayoutMethodVerification](#78-payoutmethodverification-) 🆕
 
+#### Données personnelles (TCK-601)
+79. [PrivacyRequest](#79-privacyrequest-) ✅
+
+#### Calendrier d'hôte 🆕 (TCK-596, ADR-0041)
+80. [PropertyUnavailability](#80-propertyunavailability-) 🆕
+81. [PropertyCalendarFeed](#81-propertycalendarfeed-) 🆕
+
+#### Signature du bail 🆕 (TCK-596, ADR-0042)
+82. [LeaseSignature](#82-leasesignature-) 🆕
+
 #### Paiement sans compte (TCK-602, ADR-0051)
-79. [LeasePaymentLink](#79-leasepaymentlink-) 🆕
+83. [LeasePaymentLink](#83-leasepaymentlink-) 🆕
 
 ### Enums
 
@@ -860,6 +870,17 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 | `changes` | `properties` (json : `old`, `attributes`) |
 | `ip_address` | à stocker dans `properties` via `tapActivity()` |
 | `user_agent` | à stocker dans `properties` via `tapActivity()` |
+
+**`App\Models\Activity` (TCK-601, ADR-0044 §3)** — étend le modèle spatie, déclaré dans
+`config/activitylog.php` (`activity_model`). Colonne ajoutée à `activity_log` :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---|---|---|---|---|
+| agency_id | FK agencies (`activity_log_agency_fk`, `nullOnDelete`) | oui | null | Agence du **sujet**, résolue à la création par `AuditAgencyResolver` (explicite → `HasAuditAgency::auditAgencyId()` → colonne `agency_id` réelle du sujet → sujet `Agency` → sans sujet : profil actif). Jamais l'acteur. `null` = visible du seul super-admin |
+
+Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log_created_idx (created_at)`.
+Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
+(`AuditScope`) ; `properties` passe par `PropertyRedactor` à la lecture.
 
 ---
 
@@ -1872,12 +1893,17 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | reviewed_at | datetime | oui | null | Décision rendue |
 | reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
 | rejection_reason | text | oui | null | Motif si `status=rejected` |
-| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) ; `expiry_reminders` (jalons de relance déjà envoyés, J-30 / J-7) et `expired_at` (TCK-601) |
+| expires_at | timestamp | oui | null | Échéance du dossier vérifié : la plus proche des échéances des pièces les plus récentes de chaque type (pièce du dirigeant). Posée par la vérification ; `kyc:expire-dossiers` remet le dossier à `pending` ce jour-là et retire `is_verified` à l'agence (TCK-601) |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
 - `(subject_type, subject_id)` — unique : un seul dossier actif par sujet
 - `(status)` — file de modération
+- `(status, expires_at)` — `kyc_dossiers_status_expires_idx`, la passe quotidienne d'expiration (TCK-601)
+
+L'échéance d'une pièce est une propriété du média (`custom_properties.expires_at`, `YYYY-MM-DD`),
+exigée pour `director_id`.
 
 **Traits :**
 - `LogsActivity` (spatie) — chaque transition de statut est journalisée
@@ -3157,7 +3183,137 @@ reversement (`imputed_payout_id`).
 
 ---
 
-### 79. LeasePaymentLink 🆕
+### 79. PrivacyRequest ✅
+
+**Table :** `privacy_requests`
+**Description :** Registre des demandes de droits (TCK-601,
+[ADR-0044 §4](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md)) :
+accès, rectification, opposition, effacement, portabilité, suivies par le super-admin jusqu'à leur
+échéance. Alimenté à la main (demande reçue par courriel ou courrier) et par l'application : un
+`DataExport` demandé par son titulaire ouvre une `portability`, une `AccountDeletionRequest` une
+`erasure` ; l'annulation de l'effacement passe l'entrée `withdrawn` sans l'effacer. Journal `Privacy`
+en liste blanche (ni nom, ni contact, ni résumé). Preuve de réponse : média privé `proof`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | ✓ | null | Demandeur s'il a un compte (`privacy_requests_user_fk`, `nullOnDelete`) |
+| requester_name | string | | | Nom du demandeur |
+| requester_contact | string | ✓ | null | Courriel, téléphone ou adresse |
+| type | PrivacyRequestType (string 20) | | | access, rectification, opposition, erasure, portability |
+| channel | PrivacyRequestChannel (string 20) | | | in_app, email, postal, phone, in_person |
+| received_at | timestamp | | | Réception |
+| due_at | timestamp | | | `received_at + config('privacy.rights_request_deadline_days')` (30 j, valeur de travail), dérivé à l'enregistrement |
+| status | PrivacyRequestStatus (string 20) | | 'received' | received, in_progress, answered, rejected, withdrawn ; une demande close ne se rouvre pas |
+| answered_at | timestamp | ✓ | null | Posé au passage `answered` |
+| response_summary | text | ✓ | null | Résumé de la réponse |
+| handled_by | FK users | ✓ | null | Dernier super-admin à l'avoir traitée (`privacy_requests_handled_by_fk`, `nullOnDelete`) |
+| data_export_id | FK data_exports | ✓ | null | `privacy_requests_data_export_fk`, `nullOnDelete` |
+| account_deletion_request_id | FK account_deletion_requests | ✓ | null | `privacy_requests_deletion_fk`, `nullOnDelete` |
+| created_at / updated_at | timestamp | | | |
+
+**Index :** `(status, due_at)` (`privacy_requests_status_due_idx`), `user_id` (`privacy_requests_user_idx`)
+
+**Relations :** `user()`, `handler()` → belongsTo User
+
+**Scopes :** `overdue()` — statut ouvert (`received`, `in_progress`) et `due_at` passé
+
+---
+
+### 80. PropertyUnavailability 🆕
+
+**Table :** `property_unavailabilities`
+**Description :** Une plage `[starts_on, ends_on)` où un bien n'est pas réservable (TCK-596,
+[ADR-0041](adr/0041-indisponibilites-et-echange-ical.md)). `ends_on` est **exclusif**, comme le jour
+de départ d'une réservation. Manuelle (posée par qui peut modifier le bien) ou importée d'un flux
+iCal ; une plage importée ne se supprime pas à la main.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| starts_on | date | | | Première nuit bloquée |
+| ends_on | date | | | Lendemain de la dernière nuit (exclusif) ; `CHECK ends_on > starts_on` |
+| reason | string(255) | ✓ | | Motif, visible de l'hôte seul |
+| source | string(20) | | `manual` | `manual` \| `ical` |
+| calendar_feed_id | FK property_calendar_feeds | ✓ | | Flux d'origine (`cascadeOnDelete`) |
+| external_uid | string(255) | ✓ | | `UID` de l'événement importé |
+| conflict_booking_id | FK bookings | ✓ | | Réservation confirmée chevauchée (`nullOnDelete`) — jamais annulée par l'import |
+| created_by_id | FK users | ✓ | | Auteur d'un blocage manuel |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :** `(calendar_feed_id, external_uid)`, partielle (flux non nul).
+**Index :** `(property_id, starts_on, ends_on)`.
+
+**Relations :** `property()`, `feed()`, `conflictBooking()` → belongsTo.
+
+### 81. PropertyCalendarFeed 🆕
+
+**Table :** `property_calendar_feeds`
+**Description :** Un calendrier iCal externe importé pour un bien, synchronisé toutes les heures
+derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). Au plus 10 par bien.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| url | text | | | **Chiffrée** (cast `encrypted`), cachée de toute sérialisation |
+| url_host | string(255) | | | Hôte de l'URL — seule partie rendue par l'API |
+| label | string(120) | ✓ | | Nom donné par l'hôte |
+| created_by_id | FK users | ✓ | | |
+| last_synced_at | timestamp | ✓ | | Dernière tentative |
+| last_status | string(20) | ✓ | | `pending` (première synchronisation en file) \| `ok` \| `failed` |
+| last_error | string(60) | ✓ | | Motif codé (`private_address`, `too_large`, `http_error`…) |
+| failing_since | timestamp | ✓ | | Premier échec de la série en cours |
+| consecutive_failures | unsigned int | | 0 | Au 3ᵉ, le bailleur est prévenu une fois |
+| created_at / updated_at | timestamp | | | |
+
+**Relations :** `property()` → belongsTo ; `unavailabilities()` → hasMany PropertyUnavailability.
+
+> Le jeton d'export du bien vit sur `properties.ical_export_token_hash` (SHA-256, unique, caché) :
+> le jeton en clair n'est rendu qu'une fois, à la régénération.
+
+---
+
+### 82. LeaseSignature 🆕
+
+**Table :** `lease_signatures`
+**Description :** La preuve de consentement d'une partie à un bail (TCK-596, ADR-0042). Une signature
+lie l'empreinte du contrat FIGÉ (`leases.contract_sha256`, PDF rangé dans la collection média privée
+`signed_contract`) ; seules comptent celles dont l'empreinte est l'empreinte courante. La seconde
+signature active le bail.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_id | FK leases | | | Bail (`cascadeOnDelete`) |
+| role | string(20) | | | `tenant` \| `landlord` |
+| method | string(20) | | | `otp` (code à usage unique) \| `paper` (contrat numérisé, voie `activate`) |
+| user_id | FK users | ✓ | | Signataire (`otp`) — `nullOnDelete` |
+| on_behalf_of_user_id | FK users | ✓ | | Bailleur pour le compte duquel le personnel de l'agence a signé |
+| recorded_by_id | FK users | ✓ | | Auteur de l'enregistrement (`paper`) |
+| document_sha256 | string(64) | | | Empreinte du contrat signé |
+| signed_at | timestamp | | | |
+| ip_address | string(45) | ✓ | | **Caché**, jamais rendu par l'API |
+| user_agent | string(512) | ✓ | | **Caché**, jamais rendu par l'API |
+| otp_channel | string(10) | ✓ | | `sms` \| `mail` |
+| otp_destination | string(120) | ✓ | | Destination **masquée** du code |
+| created_at / updated_at | timestamp | | | |
+
+**Unicité :** `(lease_id, role, document_sha256)`.
+**Relations :** `lease()` → belongsTo ; `signer()` → belongsTo User (`user_id`) ; `onBehalfOf()` →
+belongsTo User.
+
+> Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
+> timestamp nullable. VERIF-596 passe 2 (N1) : `early_termination_penalty_months` unsigned smallint
+> nullable et `rent_review_max_pct` decimal(5,2) nullable, figés avec le contrat (nuls : le réglage
+> global s'applique, bail antérieur). Un renouvellement les hérite du parent, sauf valeur renégociée
+> (VERIF-596 passe 3, N1'). Une colonne du contrat modifiée pendant `pending_signature` (hors
+> `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
+
+---
+
+### 83. LeasePaymentLink 🆕
 
 > **Entrée minimale posée par TCK-602** ; description complète par `/sync-specs`. Source :
 > ADR-0051 §1.

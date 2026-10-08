@@ -12,6 +12,7 @@ use App\Models\Invitation;
 use App\Models\KycDossier;
 use App\Models\Plan;
 use App\Models\PlatformPayout;
+use App\Models\PrivacyRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -89,6 +90,10 @@ class NamespaceAccessGuardTest extends TestCase
         // TCK-602 — même motif, sur le journal des webhooks (`webhook-logs/{webhookLog}` et son
         // rejeu) : sans ligne réelle, le repli « 1 » rendait 404 avant la garde.
         $webhookLog = IntegrationWebhookLog::query()->create(['provider' => 'wave', 'direction' => 'incoming', 'status' => 'failed', 'payload' => []]);
+        // TCK-601 — même motif : `{privacyRequest}` est lié avant la garde.
+        $privacyRequest = PrivacyRequest::query()->create([
+            'type' => 'access', 'channel' => 'email', 'requester_name' => 'Témoin', 'received_at' => now(),
+        ]);
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -113,6 +118,7 @@ class NamespaceAccessGuardTest extends TestCase
                     '{upgradeRequest}' => (string) $upgradeRequest->id,
                     '{invitation}' => (string) $invitation->id,
                     '{webhookLog}' => (string) $webhookLog->id,
+                    '{privacyRequest}' => (string) $privacyRequest->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

@@ -4,7 +4,10 @@ namespace App\Policies;
 
 use App\Models\Enums\Capability;
 use App\Models\Lease;
+use App\Models\LeaseSignature;
 use App\Models\User;
+use App\Services\Lease\LandlordSignatory;
+use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -249,5 +252,31 @@ class LeasePolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin();
+    }
+
+    /**
+     * TCK-596 §4B (ADR-0042 §1) — lancer la signature d'un bail (figer son contrat) : le
+     * gestionnaire du bail, la règle d'`update`.
+     */
+    public function requestSignature(User $user, Lease $lease): bool
+    {
+        return $this->update($user, $lease);
+    }
+
+    /**
+     * TCK-596 §4B (ADR-0042 §4) — signer un bail pour une partie : `tenant` = le locataire DU bail ;
+     * `landlord` = {@see LandlordSignatory::allows()} (le bailleur, ou le personnel de l'agence du
+     * bail titulaire de `leases.sign` pour son compte).
+     *
+     * ⚠ `Gate::before` accorde tout au super-admin avant d'arriver ici : le service revérifie le
+     * signataire ({@see LeaseSignatureService::assertSigner()}).
+     */
+    public function sign(User $user, Lease $lease, string $role): bool
+    {
+        return match ($role) {
+            LeaseSignature::ROLE_TENANT => $lease->tenant !== null && (int) $lease->tenant->user_id === (int) $user->id,
+            LeaseSignature::ROLE_LANDLORD => LandlordSignatory::allows($user, $lease),
+            default => false,
+        };
     }
 }

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Contracts\Payments\DisbursementDriverContract;
 use App\Listeners\Admin\DispatchAlerts;
+use App\Models\AccountDeletionRequest;
+use App\Models\Activity as AuditActivity;
 use App\Models\Address;
 use App\Models\Agency;
 use App\Models\AgencyRole;
@@ -12,6 +14,7 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\DataExport;
 use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Favorite;
@@ -29,6 +32,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Review;
@@ -48,6 +52,7 @@ use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
+use App\Observers\Privacy\PrivacyRegistryObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
@@ -85,6 +90,7 @@ use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
 use App\Services\Media\Cdn\CdnProviderContract;
@@ -115,6 +121,7 @@ use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
+use App\Support\Logging\SanitizingFailedJobProvider;
 use App\Support\TelephoneSaisi;
 use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -160,6 +167,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
 
+        // TCK-601 (ADR-0044 §2) — `failed_jobs.exception` reçoit la forme sûre de l'exception,
+        // jamais son message ni sa trace d'arguments.
+        $this->app->extend('queue.failer', fn ($failer) => new SanitizingFailedJobProvider($failer));
         // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
         // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
         $this->app->scoped(ReviewModerationScope::class);
@@ -400,6 +410,24 @@ class AppServiceProvider extends ServiceProvider
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
 
+        // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
+        // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
+        RateLimiter::for('lease-signature-code', function (Request $request) {
+            $key = 'user:'.($request->user()?->id ?? $request->ip());
+
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
+        });
+        // La saisie du code : le verrou à 5 essais faux est dans le service ; ceci borne les requêtes.
+        RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
+        // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
+        // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
+        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+        // VERIF-596 m4 (ADR-0041 §5) — l'enregistrement d'un flux importé déclenche une résolution DNS
+        // et un appel sortant : par utilisateur, 10 par heure, quel que soit le bien.
+        RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
         // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
         // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
@@ -467,7 +495,8 @@ class AppServiceProvider extends ServiceProvider
                 ? 'user:'.$request->user()->id
                 : 'ip:'.$request->ip();
 
-            return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
         });
 
         // TCK-592 (verif-592, mineur 9) — poster dans une conversation. La route n'avait aucun
@@ -543,6 +572,10 @@ class AppServiceProvider extends ServiceProvider
         Property::observe(PropertyPublicCacheObserver::class);
         Address::saved(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
         Address::deleted(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
+        // TCK-504 — une collaboration peut changer le contact principal que la fiche nomme.
+        PropertyCollaborator::created(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c));
+        PropertyCollaborator::updated(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c, modifiee: true));
+        PropertyCollaborator::deleted(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c));
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);
@@ -568,6 +601,14 @@ class AppServiceProvider extends ServiceProvider
         // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`
         // (cf. `PhotoConversionFormat`).
         Media::creating(fn (Media $media) => PhotoConversionFormat::markNew($media));
+
+        // TCK-601 (ADR-0044 §4) — le registre des demandes de droits se remplit par l'application.
+        $registry = PrivacyRegistryObserver::class;
+        DataExport::created(fn (DataExport $export) => app($registry)->dataExportCreated($export));
+        DataExport::updated(fn (DataExport $export) => app($registry)->dataExportUpdated($export));
+        AccountDeletionRequest::created(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestCreated($request));
+        AccountDeletionRequest::updated(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestUpdated($request));
+        AccountDeletionRequest::deleting(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestDeleting($request));
     }
 
     private function bootReportingHooks(): void
@@ -575,7 +616,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-227 — bump the reporting cache version on agency creation so
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
-        Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-601 — le modèle du journal est `App\Models\Activity` : un écouteur posé sur la classe
+        // spatie ne verrait plus aucune création (l'événement se nomme par classe).
+        AuditActivity::created(fn (AuditActivity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-601 (E) — un acte de gouvernance journalisé avertit les autres admins de l'agence.
+        AuditActivity::created(fn (AuditActivity $activity) => app(GovernanceAlertService::class)->handle($activity));
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //

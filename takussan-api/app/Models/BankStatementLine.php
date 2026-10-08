@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class BankStatementLine extends AbstractModel
+class BankStatementLine extends AbstractModel implements HasAuditAgency
 {
     use Auditable, HasFactory;
 
@@ -83,5 +84,13 @@ class BankStatementLine extends AbstractModel
     {
         return $query->where('match_status', BankStatementLineMatchStatus::Suggested)
             ->where('match_confidence', '>=', $minConfidence);
+    }
+
+    /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle du relevé. */
+    public function auditAgencyId(): ?int
+    {
+        $agencyId = $this->statement()->value('agency_id');
+
+        return $agencyId !== null ? (int) $agencyId : null;
     }
 }

@@ -45,6 +45,9 @@ enum NotificationCode: string
 
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
+
+    /** TCK-596 — une demande sans dates (offre d'achat, demande privée non datée) : « du … au … » vide sinon. */
+    case BookingRequestedUndated = 'booking.requested_undated';
     case BookingConfirmed = 'booking.confirmed';
     case BookingRejected = 'booking.rejected';
     case BookingCancelled = 'booking.cancelled';
@@ -70,6 +73,15 @@ enum NotificationCode: string
     case KycSubmitted = 'kyc.submitted';
     case KycVerified = 'kyc.verified';
     case KycRejected = 'kyc.rejected';
+    // TCK-601 — la pièce du dirigeant arrive à échéance (J-30, J-7).
+    case KycExpiringSoon = 'kyc.expiring_soon';
+
+    // ─── Gouvernance d'agence (TCK-601) : aux admins actifs, sauf l'auteur ───────────────
+    case GovernanceRoleCapabilitiesChanged = 'governance.role_capabilities_changed';
+    case GovernanceAdminAdded = 'governance.admin_added';
+    case GovernanceDataExported = 'governance.data_exported';
+    case GovernanceIntegrationChanged = 'governance.integration_changed';
+    case GovernanceApprovalThresholdChanged = 'governance.approval_threshold_changed';
 
     // ─── Délégations de rôle ────────────────────────────────────────────────────────────
     case RoleDelegationActivated = 'role_delegation.activated';
@@ -118,6 +130,21 @@ enum NotificationCode: string
     // ─── Modération des biens (envoyés par leurs classes Notification) ──────────────────
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
+
+    /** TCK-596 (ADR-0041 §6) — un événement importé chevauche une réservation confirmée. */
+    case PropertyCalendarConflict = 'property.calendar_conflict';
+
+    /** TCK-596 (ADR-0041 §5) — un flux iCal importé échoue pour la troisième fois d'affilée. */
+    case PropertyCalendarFeedFailing = 'property.calendar_feed_failing';
+
+    /** TCK-596 (ADR-0042 §9) — le contrat est figé : chaque partie a son bail à signer. */
+    case LeaseSignatureRequested = 'lease.signature_requested';
+
+    /** TCK-596 (ADR-0042 §9) — une partie a signé ; l'autre en est prévenue. */
+    case LeaseSignedByParty = 'lease.signed_by_party';
+
+    /** TCK-596 (ADR-0042 §9) — la seconde signature a activé le bail. */
+    case LeaseSignatureCompleted = 'lease.signature_completed';
 
     // ─── Sorties d'argent (TCK-594, ADR-0039) ───────────────────────────────────────────
     case PayoutAwaitingApproval = 'payout.awaiting_approval';
@@ -172,7 +199,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord, self::LeasePaymentSettledOnline, self::PaymentDuplicate,
             self::PaymentDuplicateLateFee => NotificationType::Payment,
-            self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
+            self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
@@ -186,7 +213,9 @@ enum NotificationCode: string
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
-            self::KycSubmitted, self::KycVerified, self::KycRejected,
+            self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
+            self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
+            self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected,
             self::ReviewToModerate, self::ReviewReceived,
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
@@ -194,6 +223,9 @@ enum NotificationCode: string
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty,
+            self::LeaseSignatureCompleted => NotificationType::Lease,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
@@ -213,7 +245,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest => 'lease_payment_overdue',
             self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord,
             self::LeasePaymentSettledOnline => 'lease_payment_received',
-            self::BookingCreated => 'booking_request',
+            self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
@@ -223,7 +255,10 @@ enum NotificationCode: string
             self::MessageReceived, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
-            self::KycSubmitted, self::KycVerified, self::KycRejected => 'kyc_status_changed',
+            self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
+            // Une alerte de sécurité ne se désactive pas : c'est sa raison d'être.
+            self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
+            self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => 'maintenance_status_changed',
@@ -232,6 +267,8 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
             // TCK-597 — le retrait d'une annonce et l'issue d'un signalement : non désactivables.
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
             self::ModerationReportUpheld, self::ModerationReportDismissed,
@@ -269,6 +306,7 @@ enum NotificationCode: string
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
+            self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             // TCK-590 — de quoi RÉPONDRE : le message entier et le moyen de joindre (téléphone ·
@@ -285,6 +323,11 @@ enum NotificationCode: string
             self::KycSubmitted => ['agency' => self::PARAM_TEXT],
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
+            self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
+            self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            self::GovernanceAdminAdded => ['member' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
+            self::GovernanceDataExported, self::GovernanceApprovalThresholdChanged => ['actor' => self::PARAM_TEXT],
+            self::GovernanceIntegrationChanged => ['provider' => self::PARAM_TEXT, 'actor' => self::PARAM_TEXT],
             self::RoleDelegationActivated => ['role' => self::PARAM_TEXT, 'ends_at' => self::PARAM_DATE],
             self::RoleDelegationExpired, self::RoleDelegationRevoked => ['role' => self::PARAM_TEXT],
             self::RoleDelegationActivatedDelegator, self::RoleDelegationExpiredDelegator,
@@ -308,6 +351,10 @@ enum NotificationCode: string
             self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
+            self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
+            self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
             self::PayoutAwaitingApproval, self::PayoutDue => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             // `transaction` et `destination` (forme masquée) valent « — » pour un paiement en espèces.
             self::PayoutProcessed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'transaction' => self::PARAM_TEXT, 'destination' => self::PARAM_TEXT],

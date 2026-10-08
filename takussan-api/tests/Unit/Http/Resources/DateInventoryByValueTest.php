@@ -55,11 +55,25 @@ class DateInventoryByValueTest extends TestCase
      * @var array<string,string>
      */
     private const CLES_JAMAIS_ATTEINTES = [
+        'App\Http\Resources\AgencyUpgradeRequestResource::shared_identifiers' => '`when(super-admin)` — des listes '
+            .'`{id, name}` d\'agences (TCK-601), jamais une date. Le parcours ne lit pas en super-admin.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
         'App\Http\Resources\CustomerResource::tasks_count' => "`whenCounted('tasks')` — un compteur ENTIER, jamais une date. "
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
+        'App\Http\Resources\InventoryResource::can_sign_as' => '`when()` sur un lecteur posé par `forViewer()`, '
+            .'que seul `InventoryController::show` appelle (TCK-596) : une liste de rôles (`tenant`, `landlord`), '
+            .'jamais une date.',
+        'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
+            .'(TCK-596) : un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
+        'App\Http\Resources\LeaseResource::can_activate_on_paper' => '`when()` sur le même lecteur (VERIF-596 M1) : '
+            .'un booléen, jamais une date.',
+        'App\Http\Resources\LeaseResource::can_request_signature' => '`when()` sur un lecteur posé par `forViewer()`, '
+            .'que seuls `LeaseController::show` et `LeaseSignatureController` appellent (TCK-596 §4B) : un booléen, jamais une date.',
+        'App\Http\Resources\LeaseResource::can_sign_as' => '`when()` sur le même lecteur (TCK-596 §4B) : une liste de rôles '
+            .'(`tenant`, `landlord`), jamais une date.',
         'App\Http\Resources\LeaseResource::renewals_count' => "`whenCounted('renewals')` — même forme, même absence de date.",
     ];
 

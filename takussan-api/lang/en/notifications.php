@@ -107,6 +107,15 @@ return [
     // TCK-272 — step-up code for accounts without a usable password
     // (OAuth, invitation, provisioning). No clickable link on purpose: this
     // confirms a destructive act, it does not invite one.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Your signing code for lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'Here is the code to enter to sign lease :reference:',
+        'expires' => 'This code is valid for :minutes minutes and can only be used once.',
+        'ignore' => 'If you did not ask for anything, ignore this message: without this code, nothing is signed.',
+        'sms' => 'Takussan: your signing code for lease :reference is :code (valid :minutes min). Do not share it.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Your account deletion confirmation code',
         'greeting' => 'Hello,',
@@ -305,6 +314,11 @@ return [
                 'body' => 'Booking :reference was requested for :property, from :start_date to :end_date.',
                 'sms' => 'Takussan: new booking :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'New request',
+                'body' => 'Request :reference was made for :property.',
+                'sms' => 'Takussan: new request :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Booking confirmed',
                 'body' => 'Your booking :reference for :property, from :start_date to :end_date, is confirmed.',
@@ -317,7 +331,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Booking cancelled',
-                'body' => 'Your booking :reference for :property was cancelled.',
+                'body' => 'Booking :reference for :property was cancelled.',
                 'sms' => 'Takussan: booking :reference cancelled (:property).',
             ],
         ],
@@ -404,7 +418,39 @@ return [
                 'sms' => 'Takussan: your request about :about has been sent.',
             ],
         ],
+        'governance' => [
+            'role_capabilities_changed' => [
+                'title' => 'Role permissions changed',
+                'body' => 'The permissions of the role :role were changed by :actor.',
+                'sms' => 'Takussan: role :role permissions changed by :actor.',
+            ],
+            'admin_added' => [
+                'title' => 'New administrator',
+                'body' => 'Administrator access was given to :member by :actor.',
+                'sms' => 'Takussan: :member is now an administrator (by :actor).',
+            ],
+            'data_exported' => [
+                'title' => 'Data export',
+                'body' => 'A customer data export was made by :actor.',
+                'sms' => 'Takussan: customer data exported by :actor.',
+            ],
+            'integration_changed' => [
+                'title' => 'Integration changed',
+                'body' => 'The :provider integration was changed by :actor.',
+                'sms' => 'Takussan: :provider integration changed by :actor.',
+            ],
+            'approval_threshold_changed' => [
+                'title' => 'Approval threshold changed',
+                'body' => 'The payout approval threshold was changed by :actor.',
+                'sms' => 'Takussan: approval threshold changed by :actor.',
+            ],
+        ],
         'kyc' => [
+            'expiring_soon' => [
+                'title' => 'KYC document expiring soon',
+                'body' => 'The director\'s ID document expires on :expires_at. Upload a new one to keep the agency verified.',
+                'sms' => 'Takussan: the director\'s KYC document expires on :expires_at.',
+            ],
             'submitted' => [
                 'title' => 'Agency KYC to review',
                 'body' => 'The KYC file of :agency has been submitted.',
@@ -589,6 +635,24 @@ return [
                 'sms' => 'Takussan: Your approval is required: :request',
             ],
         ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Lease to sign: :reference',
+                'body' => 'Lease :reference for :property is ready. Read the contract, then sign it with the code you will receive.',
+                'sms' => 'Takussan: lease :reference is ready to sign.',
+            ],
+            'signed_by_party' => [
+                'title' => 'Lease :reference signed by :signer',
+                'body' => ':signer signed lease :reference for :property. It is awaiting your signature.',
+                'sms' => 'Takussan: :signer signed lease :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Lease :reference signed',
+                'body' => 'Both parties signed lease :reference for :property. It is now active.',
+                'sms' => 'Takussan: lease :reference is signed and active.',
+            ],
+        ],
         'prospect_match' => [
             'digest' => [
                 'title' => 'Properties match your prospects',
@@ -606,6 +670,16 @@ return [
                 'title' => 'Property rejected: :property',
                 'body' => 'Your property ":property" was rejected. Reason: :reason. You can fix the listing and resubmit it from your workspace.',
                 'sms' => 'Takussan: listing ":property" rejected.',
+            ],
+            'calendar_conflict' => [
+                'title' => 'Calendar conflict: :property',
+                'body' => 'Calendar ":feed" blocks :property from :start_date to :end_date, while a confirmed booking holds these dates. Nothing was cancelled: check both platforms.',
+                'sms' => 'Takussan: calendar conflict on :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Imported calendar failing: :property',
+                'body' => 'Calendar ":feed" for :property has failed to sync three times in a row. Check its link.',
+                'sms' => 'Takussan: calendar ":feed" no longer syncs.',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

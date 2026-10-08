@@ -3,23 +3,30 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { DoorOpen } from 'lucide-react';
+import { DoorOpen, Loader2, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
 import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import {
+  useDeleteInventoryRoomPhoto,
   useDisputeInventory,
   useInventory,
   useSubmitInventory,
   useUploadInventoryRoomPhotos,
 } from '@/lib/queries/inventory';
-import type { Inventory } from '@/types/inventory';
+import type { Inventory, InventoryRoomPhoto } from '@/types/inventory';
+
+/**
+ * TCK-596 — le plafond de l'API (`UploadRoomPhotosInventoryRequest` : `max:5120` Ko). La zone
+ * l'affiche et réduit chaque photo jusque sous lui avant de valider : une photo de téléphone plus
+ * lourde passe, réduite, au lieu d'être refusée.
+ */
+export const INVENTORY_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 import {
   InventoryElementStateBadge,
@@ -141,6 +148,9 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
                 room={room}
                 inventoryId={inventory.id}
                 canUpload={isDraft}
+                photos={
+                  inventory.room_photos?.find((g) => g.room_name === room.name)?.photos ?? []
+                }
               />
             ))}
           </div>
@@ -154,18 +164,22 @@ function RoomCard({
   room,
   inventoryId,
   canUpload,
+  photos: sent,
 }: {
   readonly room: Inventory['rooms'][number];
   readonly inventoryId: number;
   readonly canUpload: boolean;
+  readonly photos: readonly InventoryRoomPhoto[];
 }) {
   const t = useTranslations('inventory.detail');
   const tConditions = useTranslations('inventory.conditions');
   const upload = useUploadInventoryRoomPhotos(inventoryId);
+  const remove = useDeleteInventoryRoomPhoto(inventoryId);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   return (
-    <article className="rounded-xl bg-card p-4">
+    <article className="rounded-xl bg-card p-4" data-testid={`room-card-${room.name}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="font-display text-sm font-semibold text-foreground">{room.name}</h3>
@@ -198,9 +212,56 @@ function RoomCard({
         </ul>
       ) : null}
 
+      {sent.length > 0 ? (
+        <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label={t('roomPhotos', { room: room.name })}>
+          {sent.map((photo, i) => (
+            <li key={photo.id} className="relative overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-border">
+              {/* URL d'API signée, servie par Laravel : ni `next/image` ni son optimiseur n'y ont accès. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.url}
+                alt={t('roomPhotoAlt', { index: i + 1, room: room.name })}
+                className="aspect-square w-full object-cover"
+                loading="lazy"
+              />
+              {canUpload ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setDeletingId(photo.id);
+                    try {
+                      await remove.mutateAsync(photo.id);
+                    } catch {
+                      // Surfaced via `remove.isError` below.
+                    } finally {
+                      setDeletingId(null);
+                    }
+                  }}
+                  disabled={deletingId !== null}
+                  aria-label={t('deleteRoomPhotoAria', { index: i + 1, room: room.name })}
+                  className="absolute right-1 top-1 inline-flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-60"
+                >
+                  {deletingId === photo.id ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                  )}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {remove.isError ? (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {t('deleteRoomPhotoFailed')}
+        </p>
+      ) : null}
+
       {canUpload ? (
         <div className="mt-3 space-y-3 rounded-lg border border-dashed border-border p-3">
           <MediaDropzone
+            maxSize={INVENTORY_PHOTO_MAX_BYTES}
             onChange={(next) => setPhotos((prev) => [...prev, ...next])}
             files={photos}
             onRemove={(index) =>
@@ -335,37 +396,22 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
  * Renders the two-party signature block. The canvas is only offered while
  * the inventory is actively signable (`draft` or `pending_signature`).
  *
- * The `canSignTenant` / `canSignLandlord` flags here are UX-only hints to
- * hide the canvas for users who obviously can't sign a given role (e.g. a
- * `customer` user shouldn't see a landlord canvas). The backend enforces
- * the real rule via `InventorySignatureService::authorizeRole()`.
+ * TCK-596 — le canevas s'ouvre à qui l'API laisse signer, et à lui seul : `can_sign_as` est jugé
+ * par le même prédicat que la signature (`InventorySignatureService::canSignAs`). Deviner à partir
+ * des rôles ouvrait le canevas bailleur à tout `agent|agency_admin|owner|super_admin`, puis l'API
+ * répondait 403 ; le super-admin voyait même les deux.
  */
 function SignatureSection({ inventory }: { readonly inventory: Inventory }) {
-  const { user } = useAuth();
-
   const signable =
     inventory.status === 'draft' || inventory.status === 'pending_signature';
-
-  const roles = user?.roles ?? [];
-  // TCK-492 — signer la partie locataire d'un état des lieux demande d'ÊTRE
-  // locataire. `roles.includes('customer')` est devenu vrai pour tout compte
-  // authentifié : le canevas locataire se serait ouvert au bailleur du bien.
-  const estLocataire = roles.includes('tenant');
-  const isPrivileged = roles.some((r) =>
-    ['agent', 'agency_admin', 'owner', 'super_admin'].includes(r),
-  );
-
-  // Admins see both canvases; tenants only the tenant one;
-  // privileged users only the landlord one. Absent a logged-in user we
-  // simply don't expose any canvas — the backend would 401 anyway.
-  const canSignTenant = signable && (estLocataire || roles.includes('super_admin'));
-  const canSignLandlord = signable && (isPrivileged || roles.includes('super_admin'));
+  const roles = inventory.can_sign_as ?? [];
 
   return (
     <InventorySignatures
       inventory={inventory}
-      canSignTenant={canSignTenant}
-      canSignLandlord={canSignLandlord}
+      canSignTenant={signable && roles.includes('tenant')}
+      canSignLandlord={signable && roles.includes('landlord')}
+      landlordOnBehalfOf={inventory.sign_on_behalf_of?.full_name ?? null}
     />
   );
 }

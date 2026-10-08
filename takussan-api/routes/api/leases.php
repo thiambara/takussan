@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\LeaseEarlyTerminationController;
 use App\Http\Controllers\Api\LeasePaymentController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\LeaseRentController;
+use App\Http\Controllers\Api\LeaseSignatureController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -16,6 +17,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('leases/{lease}', [LeaseController::class, 'show'])->name('leases.show');
     Route::patch('leases/{lease}', [LeaseController::class, 'update'])->name('leases.update');
     Route::post('leases/{lease}/activate', [LeaseController::class, 'activate'])->name('leases.activate');
+    // TCK-596 §4B (ADR-0042) — signature par code : figer le contrat, recevoir son code, signer.
+    Route::post('leases/{lease}/signature-request', [LeaseSignatureController::class, 'request'])->name('leases.signature.request');
+    Route::post('leases/{lease}/signature/otp', [LeaseSignatureController::class, 'sendCode'])
+        ->middleware('throttle:lease-signature-code')
+        ->name('leases.signature.otp');
+    Route::post('leases/{lease}/signature', [LeaseSignatureController::class, 'sign'])
+        ->middleware('throttle:lease-signature')
+        ->name('leases.signature.sign');
     Route::post('leases/{lease}/terminate', [LeaseController::class, 'terminate'])->name('leases.terminate');
     // TCK-089 — replaces the legacy `LeaseController@renew` (TCK-027) which
     // did not enforce no-active-child / max-chain / tenant-immutable / event.

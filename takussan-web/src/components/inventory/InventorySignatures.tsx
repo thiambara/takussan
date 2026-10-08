@@ -29,8 +29,13 @@ export interface InventorySignaturesProps {
   readonly inventory: Inventory;
   /** True when the current user matches the tenant linked to the lease. */
   readonly canSignTenant?: boolean;
-  /** True when the current user is the landlord / agency / collaborator. */
+  /** True when the API lets the current user sign as landlord (`can_sign_as`). */
   readonly canSignLandlord?: boolean;
+  /**
+   * TCK-596 — le bailleur pour le compte duquel l'utilisateur courant signe (personnel de l'agence
+   * au titre du mandat), ou `null` quand il est le bailleur.
+   */
+  readonly landlordOnBehalfOf?: string | null;
 }
 
 type CardRole = InventorySignatureRole;
@@ -39,6 +44,7 @@ export function InventorySignatures({
   inventory,
   canSignTenant = false,
   canSignLandlord = false,
+  landlordOnBehalfOf = null,
 }: InventorySignaturesProps) {
   const t = useTranslations('inventory.signatures');
   return (
@@ -76,6 +82,8 @@ export function InventorySignatures({
           signed={inventory.owner_signed}
           signedAt={inventory.owner_signed_at}
           hash={inventory.owner_signature_hash ?? null}
+          onBehalfOf={landlordOnBehalfOf}
+          signedOnBehalf={inventory.owner_signed_on_behalf_of_user_id != null}
         />
       </div>
     </section>
@@ -89,6 +97,8 @@ interface SignatureCardProps {
   readonly signed: boolean;
   readonly signedAt: string | null;
   readonly hash: string | null;
+  readonly onBehalfOf?: string | null;
+  readonly signedOnBehalf?: boolean;
 }
 
 function SignatureCard({
@@ -98,6 +108,8 @@ function SignatureCard({
   signed,
   signedAt,
   hash,
+  onBehalfOf = null,
+  signedOnBehalf = false,
 }: SignatureCardProps) {
   const t = useTranslations('inventory.signatures');
   const messageErreur = useMessageErreurApi();
@@ -124,6 +136,9 @@ function SignatureCard({
             ? t('signedOn', { date: formatDateTime(signedAt, locale) })
             : t('signed')}
         </p>
+        {signedOnBehalf ? (
+          <p className="mt-1 text-xs text-success">{t('signedOnBehalf')}</p>
+        ) : null}
         {hash ? (
           <p className="mt-2 font-mono text-xs break-all text-success">
             {t('fingerprint')}
@@ -166,6 +181,11 @@ function SignatureCard({
           {t('toSign')}
         </span>
       </div>
+      {onBehalfOf ? (
+        <p className="mb-3 text-xs text-warning" data-testid="signature-on-behalf-of">
+          {t('onBehalfOf', { name: onBehalfOf })}
+        </p>
+      ) : null}
       <SignaturePad
         label={t('signAs', { role: roleLower })}
         helperText={t('helper')}

@@ -331,6 +331,22 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('une échéance annulée par un renouvellement : « Annulée », ni paiement ni pénalité (VERIF-596 passe 6, m-i)', () => {
+    // Montants encore dus, pénalité comprise : la ressource d'avant m-h (sonde E4). Le statut seul
+    // doit suffire à retirer les gestes.
+    avecEcheances([enRetard({ status: 'cancelled' })]);
+    providers.mockReturnValue(['wave']);
+    rendre(true);
+
+    const annulee = ligne(/LP-2026-0012|150 000/);
+    expect(within(annulee).getByText(fr.lease.schedule.status.cancelled)).toBeTruthy();
+    expect(within(annulee).queryByText(fr.lease.schedule.status.other)).toBeNull();
+    expect(within(annulee).queryByText(fr.lease.schedule.status.late)).toBeNull();
+    expect(within(annulee).queryAllByRole('button')).toHaveLength(0);
+    expect(within(annulee).queryByTestId('penalite')).toBeNull();
+    expect(texte(annulee.textContent)).not.toContain(fr.lease.schedule.lateFee.atAgency);
+  });
+
   it('pas de « Pénalité réglée » pour le locataire', () => {
     avecEcheances([enRetard()]);
     rendre(false);
@@ -405,6 +421,14 @@ describe('LeaseSchedule — fournisseurs lus sur le paiement (TCK-602, AC24)', (
 
     expect(providersLus).toHaveBeenLastCalledWith('lease-payments', 12);
     expect(screen.getByRole('button', { name: /^Payer / })).toBeInTheDocument();
+  });
+
+  it('une échéance annulée ne sert pas à lire les fournisseurs (raccord TCK-596)', () => {
+    avecEcheances([enRetard({ status: 'cancelled' })]);
+    providers.mockReturnValue(['wave']);
+    rendre(false);
+
+    expect(providersLus).toHaveBeenLastCalledWith('lease-payments', null);
   });
 
   it('et ne le voit pas quand il rend []', () => {

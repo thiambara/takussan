@@ -22,6 +22,8 @@ class Inventory extends AbstractModel implements HasMedia
         'tenant_signed', 'tenant_signed_at', 'tenant_signature_data', 'tenant_signature_hash',
         'owner_signed', 'owner_signed_at', 'owner_signature_data', 'owner_signature_hash',
         'signed_at', 'metadata',
+        // TCK-596 — qui a signé pour le bailleur, pour le compte de qui, et l'empreinte figée.
+        'owner_signed_by_user_id', 'owner_signed_on_behalf_of_user_id', 'traceability_hash',
     ];
 
     /**
@@ -60,6 +62,7 @@ class Inventory extends AbstractModel implements HasMedia
         'conducted_at', 'status', 'general_condition',
         'tenant_signed', 'tenant_signed_at', 'tenant_signature_hash',
         'owner_signed', 'owner_signed_at', 'owner_signature_hash',
+        'owner_signed_by_user_id', 'owner_signed_on_behalf_of_user_id', 'traceability_hash',
         'signed_at', 'created_at', 'updated_at',
     ];
 

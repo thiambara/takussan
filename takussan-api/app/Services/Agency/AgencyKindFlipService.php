@@ -15,9 +15,9 @@ use RuntimeException;
  * Responsibilities:
  *  - Set `agency.kind = standard`.
  *  - Backfill missing legal fields from the approved request. TCK-594
- *    (ADR-0039 §7) — four of them are now first-class columns
- *    ({@see self::COLUMN_OF}), which the invoice PDF prints; `rib_pro` alone
- *    still lands in `agency.metadata.legal_info` (its removal is TCK-601).
+ *    (ADR-0039 §7) — all four are first-class columns
+ *    ({@see self::COLUMN_OF}), which the invoice PDF prints. The professional
+ *    RIB is never copied (TCK-601) : it stays on the encrypted request.
  *  - Stamp `agency.metadata.welcome.standard_unlocked_at` so the frontend
  *    can fire the "welcome to your standard agency" modale on next login.
  *  - Log the activity (`agency_kind_flipped`) with `from`/`to` properties.
@@ -45,7 +45,9 @@ class AgencyKindFlipService
     public const LEGAL_FIELDS = [
         'rc',
         'ninea',
-        'rib_pro',
+        // TCK-601 (ADR-0044 §1) — `rib_pro` n'est PLUS recopié : la copie n'avait aucun lecteur et
+        // `AgencyResource` la rendait à tout membre de l'agence. La seule source du RIB
+        // professionnel reste la demande, chiffrée. Ne pas le rajouter ici.
         'company_legal_name',
         'address_fiscale',
     ];
