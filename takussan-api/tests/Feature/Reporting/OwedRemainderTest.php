@@ -30,8 +30,13 @@ use Tests\Concerns\CreatesAgencyMembers;
  * | 2 | partially_paid  | 100 000 | 40 000 |   60 000 | 2026-06-10 |
  * | 3 | late            | 100 000 |      0 |  100 000 | 2026-06-20 |
  * | 4 | partially_paid  |  60 000 | 20 000 |   40 000 | 2026-06-25 |
+ * | 5 | partially_paid  |  50 000 | 70 000 |        0 | 2026-06-28 |
  *
- * Attendu partout : 4 échéances, 300 000. Ne comptent pas : une échéance payée, une échéance annulée
+ * L'échéance 5 est trop payée (verif-595 passe 3) : son reste dû est 0, jamais −20 000. C'est le
+ * `GREATEST(…, 0)` de `OWED_REMAINING_SQL` et le `max(0, …)` de `remaining_amount`. Elle reste
+ * une échéance ouverte, donc comptée.
+ *
+ * Attendu partout : 5 échéances, 300 000. Ne comptent pas : une échéance payée, une échéance annulée
  * (TCK-596), et une échéance de juillet non échue.
  */
 class OwedRemainderTest extends ApiTestCase
@@ -71,6 +76,7 @@ class OwedRemainderTest extends ApiTestCase
         $this->rent($lease, PaymentStatus::PartiallyPaid, 100_000, '2026-06-10', 40_000);
         $this->rent($lease, PaymentStatus::Late, 100_000, '2026-06-20');
         $this->rent($lease, PaymentStatus::PartiallyPaid, 60_000, '2026-06-25', 20_000);
+        $this->rent($lease, PaymentStatus::PartiallyPaid, 50_000, '2026-06-28', 70_000);
 
         $this->rent($lease, PaymentStatus::Paid, 100_000, '2026-06-01');
         $this->rent($lease, PaymentStatus::Cancelled, 100_000, '2026-06-15');
@@ -94,34 +100,38 @@ class OwedRemainderTest extends ApiTestCase
     public function test_every_reader_counts_the_partially_paid_remainder_like_the_landlord_statement(): void
     {
         $statement = app(OwnerStatementService::class)->statement($this->agency, $this->landlord, '2026-06')['unpaid'];
-        $this->assertSame(4, $statement['count']);
+        $this->assertSame(5, $statement['count']);
         $this->assertEquals(300000.0, $statement['amount']);
 
         $this->actingAsApi($this->admin);
         $agency = $this->getJson('/api/dashboard/agency')->assertOk()->json('data.finance');
-        $this->assertSame(4, $agency['overdue_count']);
+        $this->assertSame(5, $agency['overdue_count']);
         $this->assertEquals(300000.0, $agency['overdue_amount']);
 
+        // verif-595 passe 3 — `/api/dashboard/stats` compte ses impayés par la même règle.
+        $this->assertSame(5, $this->getJson('/api/dashboard/stats')->assertOk()->json('data.overdue_payments'));
+
         $aging = $this->getJson("/api/agencies/{$this->agency->id}/finance/aging")->assertOk()->json('data');
-        $this->assertSame(4, $aging['total']['count']);
+        $this->assertSame(5, $aging['total']['count']);
         $this->assertEquals(300000.0, $aging['total']['amount']);
-        $this->assertSame(['count' => 4, 'amount' => 300000], $aging['buckets']['1_30']);
+        $this->assertSame(['count' => 5, 'amount' => 300000], $aging['buckets']['1_30']);
 
         $csv = $this->getJson('/api/export/aging?format=csv')->assertOk()->streamedContent();
         $lines = array_values(array_filter(explode("\n", trim($csv))));
         $header = str_getcsv(array_shift($lines));
         $amounts = array_map(fn (string $line) => (float) str_getcsv($line)[array_search('amount', $header, true)], $lines);
-        $this->assertCount(4, $amounts);
+        $this->assertCount(5, $amounts);
         $this->assertEquals(300000.0, array_sum($amounts));
 
         $this->actingAsApi($this->landlord);
+        $this->assertSame(5, $this->getJson('/api/dashboard/stats')->assertOk()->json('data.overdue_payments'));
         $owner = $this->getJson('/api/dashboard/owner')->assertOk()->json('data.finance');
-        $this->assertSame(4, $owner['overdue_count']);
+        $this->assertSame(5, $owner['overdue_count']);
         $this->assertEquals(300000.0, $owner['overdue_amount']);
 
         $this->actingAsApi($this->tenantUser);
         $tenant = $this->getJson('/api/dashboard/tenant')->assertOk()->json('data.payments');
-        $this->assertSame(4, $tenant['overdue_count']);
+        $this->assertSame(5, $tenant['overdue_count']);
         $this->assertEquals(300000.0, $tenant['overdue_amount']);
     }
 }
