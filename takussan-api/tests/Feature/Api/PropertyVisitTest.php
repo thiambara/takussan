@@ -25,7 +25,7 @@ class PropertyVisitTest extends TestCase
 
         $response = $this->postJson('/api/property-visits', [
             'property_id' => $property->id,
-            'scheduled_at' => now()->addDays(2)->toDateTimeString(),
+            'scheduled_at' => now()->addDays(2)->setTime(10, 0)->toDateTimeString(),
             'duration_minutes' => 30,
         ])->assertCreated()
             ->assertJsonPath('data.status', 'scheduled');

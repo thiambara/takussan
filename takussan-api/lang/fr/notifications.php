@@ -80,20 +80,6 @@ return [
         'role_delegation_revoked' => 'Délégation révoquée',
     ],
 
-    'visit_requested' => [
-        'subject' => 'Nouvelle demande de visite pour :property',
-        'greeting' => 'Bonjour,',
-        'intro' => 'Un visiteur a demandé une visite pour :property.',
-        'schedule' => 'Créneau demandé : :datetime.',
-    ],
-
-    'visit_confirmed' => [
-        'subject' => 'Visite confirmée pour :property',
-        'greeting' => 'Bonjour,',
-        'intro' => 'Votre demande de visite pour :property est confirmée.',
-        'schedule' => 'Planifiée le : :datetime.',
-    ],
-
     'lease_late_fee_applied' => [
         'subject' => 'Pénalité de retard appliquée sur le paiement :reference',
         'greeting' => 'Bonjour,',
@@ -362,6 +348,42 @@ return [
                 'body' => 'Rappel : la visite de :property est prévue le :scheduled_at.',
                 'sms' => 'Takussan : visite de :property le :scheduled_at.',
             ],
+            'requested' => [
+                'title' => 'Demande de visite : :property',
+                'body' => 'Créneau demandé : :scheduled_at. Pour joindre le visiteur : :contact.',
+                'mail_body' => "Une demande de visite pour :property.\nCréneau demandé : :scheduled_at (fuseau :timezone).\nPour joindre le visiteur : :contact.",
+                'sms' => 'Takussan : demande de visite pour :property le :scheduled_at (:timezone).',
+            ],
+            'rescheduled_by_visitor' => [
+                'title' => 'Autre créneau proposé : :property',
+                'body' => 'Le visiteur propose le :scheduled_at. La visite attend votre confirmation.',
+                'mail_body' => "Le visiteur a proposé un autre créneau pour :property. La visite attend votre confirmation.\nCréneau proposé : :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : le visiteur propose le :scheduled_at (:timezone) pour :property.',
+            ],
+            'cancelled_by_visitor' => [
+                'title' => 'Visite annulée par le visiteur : :property',
+                'body' => 'Le visiteur a annulé la visite prévue le :scheduled_at.',
+                'mail_body' => "Le visiteur a annulé sa visite de :property.\nElle était prévue le :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : le visiteur a annulé la visite de :property du :scheduled_at (:timezone).',
+            ],
+            'confirmed' => [
+                'title' => 'Visite confirmée : :property',
+                'body' => 'Votre visite de :property est confirmée le :scheduled_at.',
+                'mail_body' => "Votre demande de visite pour :property est confirmée.\nPlanifiée le :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : votre visite de « :property » est confirmée le :scheduled_at (:timezone).',
+            ],
+            'rescheduled' => [
+                'title' => 'Votre visite de :property change d\'heure',
+                'body' => 'Nouvel horaire : :scheduled_at.',
+                'mail_body' => "L'agence a déplacé votre visite de :property.\nNouvel horaire : :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : votre visite de « :property » est déplacée au :scheduled_at (:timezone).',
+            ],
+            'cancelled' => [
+                'title' => 'Votre visite de :property est annulée',
+                'body' => 'La visite prévue le :scheduled_at est annulée.',
+                'mail_body' => "L'agence a annulé votre visite de :property.\nElle était prévue le :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : votre visite de « :property » prévue le :scheduled_at (:timezone) est annulée.',
+            ],
         ],
         'message' => [
             'received' => [
@@ -372,9 +394,14 @@ return [
         ],
         'lead' => [
             'received' => [
-                'title' => 'Nouveau contact sans compte',
-                'body' => ':name (:email) : :excerpt',
-                'sms' => 'Takussan : nouveau contact de :name.',
+                'title' => 'Nouvelle demande de :name — :contact',
+                'body' => ':name (:contact) : :message',
+                'sms' => 'Takussan : nouvelle demande de :name.',
+            ],
+            'acknowledged' => [
+                'title' => 'Votre demande a bien été transmise',
+                'body' => 'Votre demande concernant « :about » a bien été transmise. Vous recevrez une réponse au plus vite, par téléphone ou par e-mail.',
+                'sms' => 'Takussan : votre demande concernant :about a été transmise.',
             ],
         ],
         'kyc' => [

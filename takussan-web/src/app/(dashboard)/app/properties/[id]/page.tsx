@@ -13,6 +13,8 @@ import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
+import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
+import { agenceDuBien } from '@/lib/visites/agence-du-bien';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
@@ -113,7 +115,15 @@ export default async function Page({ params }: { params: Params }) {
             </span>
           </span>
         }
-        actions={<PropertyHeaderActions property={property} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <PlanifierUneVisite
+              property={{ id: property.id, libelle: property.title }}
+              agencyId={agenceDuBien(property)}
+            />
+            <PropertyHeaderActions property={property} />
+          </div>
+        }
       />
 
       <PropertyModerationBanner property={property} />

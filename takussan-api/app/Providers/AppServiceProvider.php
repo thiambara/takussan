@@ -27,6 +27,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\RoleDelegation;
@@ -69,6 +70,7 @@ use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
 use App\Policies\PayoutPolicy;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
+use App\Policies\PropertyContactLeadPolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
@@ -104,6 +106,7 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
+use App\Support\TelephoneSaisi;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -329,6 +332,35 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+        // TCK-590 — un clic WhatsApp / Appeler compté. Plus large que le contact (un visiteur
+        // hésite et reclique), assez étroit pour qu'un script ne gonfle pas les compteurs.
+        RateLimiter::for('public-contact-click', fn (Request $request) => Limit::perMinutes(10, 20)->by($this->visitorRateLimitKey($request)));
+        // TCK-590 (vérification adverse, B2) — `POST /property-visits` : une visite planifiée naît
+        // confirmée et fait partir un SMS. Deux bornes : par ÉMETTEUR (le compte, la route est
+        // authentifiée) et par DESTINATAIRE (le numéro saisi, ramené à E.164, ou la fiche client) —
+        // une agence légitime ne prévient pas dix fois le même client dans l'heure.
+        //
+        // Passe 2 (n1) — le destinataire est le NUMÉRO normalisé, d'où qu'il vienne : saisi, ou lu
+        // sur la fiche choisie (la priorité de `planForCustomer`). La clé `fiche:<id>` seule se
+        // contournait en alternant le numéro et des fiches portant ce même numéro.
+        RateLimiter::for('visit-planning', function (Request $request) {
+            $limites = [Limit::perHour(30)->by('emetteur:'.($request->user()?->id ?? $request->ip()))];
+
+            $telephone = TelephoneSaisi::normaliser($request->input('visitor_phone'));
+            if ((! is_string($telephone) || $telephone === '') && is_numeric($request->input('customer_id'))) {
+                $telephone = TelephoneSaisi::normaliser(
+                    Customer::query()->whereKey((int) $request->input('customer_id'))->value('phone'),
+                );
+            }
+            $destinataire = is_string($telephone) && $telephone !== ''
+                ? 'tel:'.$telephone
+                : (is_numeric($request->input('customer_id')) ? 'fiche:'.(int) $request->input('customer_id') : null);
+            if ($destinataire !== null) {
+                $limites[] = Limit::perHour(5)->by('destinataire:'.$destinataire);
+            }
+
+            return $limites;
+        });
 
         // Public read surface (catalogue browse / search / show). There is no
         // global `throttle:api` on the api group, so these otherwise-unbounded
@@ -599,6 +631,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MaintenanceRequest::class, MaintenanceRequestPolicy::class);
         Gate::policy(Payout::class, PayoutPolicy::class);
         Gate::policy(PropertyVisit::class, PropertyVisitPolicy::class);
+        // TCK-590 — la boîte « Demandes ». Une policy jamais liée REFUSE tout le monde, sans trace.
+        Gate::policy(PropertyContactLead::class, PropertyContactLeadPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).

@@ -157,6 +157,10 @@ export async function fetchDashboardProperties(
  */
 export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   ...DASHBOARD_PROPERTY_FIELDS,
+  // TCK-590 (passe 2, n4 ; passe 3, R2) — « Planifier une visite » se juge sur le profil actif
+  // DANS l'agence du bien. La ressource n'émet pas `agency_id` : la colonne est lue pour que le
+  // bloc `agency` de la route de détail se résolve, et la page lit `agency.id` (`agenceDuBien`).
+  'agency_id',
   'description',
   'bathrooms',
   'furnished',

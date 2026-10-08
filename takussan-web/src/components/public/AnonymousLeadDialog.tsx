@@ -12,16 +12,15 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { MentionDeConfidentialite } from '@/components/public/MentionDeConfidentialite';
+import { arrivee } from '@/lib/attribution';
+import { lireCoordonnees, retenirCoordonnees } from '@/lib/coordonnees-retenues';
+import type { AnonymousLeadPayload } from '@/types/contact-lead';
 
-export interface AnonymousLeadPayload {
-  readonly name: string;
-  readonly email: string;
-  readonly phone?: string;
-  readonly message: string;
-  readonly company?: string;
-}
+export type { AnonymousLeadPayload };
 
 export interface AnonymousLeadResult {
   readonly ok: boolean;
@@ -51,6 +50,7 @@ interface AnonymousLeadDialogProps {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TELEPHONE_RE = /^\+\d{8,15}$/;
 
 /**
  * Formulaire de contact ANONYME — le seul du site public, désormais partagé.
@@ -74,21 +74,28 @@ export function AnonymousLeadDialog({
   defaultMessage,
 }: AnonymousLeadDialogProps) {
   const t = useTranslations('publicContact');
+  const tContact = useTranslations('propertyContact.lead');
   const toast = useToast();
-  const [name, setName] = useState('');
+  // TCK-590 — nom et téléphone retenus sur cet appareil au contact précédent.
+  const [name, setName] = useState(() => lireCoordonnees().name);
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => lireCoordonnees().phone);
   // Initialiseur paresseux : le brouillon est posé au montage et JAMAIS réimposé ensuite,
   // sans quoi il écraserait ce que le visiteur vient d'écrire.
   const [message, setMessage] = useState(defaultMessage ?? '');
   const [company, setCompany] = useState(''); // honeypot
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'name' | 'email' | 'message', string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<'name' | 'email' | 'phone' | 'contact' | 'message', string>>
+  >({});
 
   function validate(): boolean {
     const next: typeof errors = {};
     if (!name.trim()) next.name = t('validation.nameRequired');
-    if (!EMAIL_RE.test(email.trim())) next.email = t('validation.emailRequired');
+    const courriel = email.trim();
+    if (!courriel && !phone) next.contact = tContact('contactRequired');
+    if (courriel && !EMAIL_RE.test(courriel)) next.email = t('validation.emailRequired');
+    if (phone && !TELEPHONE_RE.test(phone)) next.phone = tContact('phoneInvalid');
     const trimmed = message.trim();
     if (trimmed.length < 5) next.message = t('validation.messageMin');
     else if (trimmed.length > 2000) next.message = t('validation.messageMax');
@@ -102,22 +109,22 @@ export function AnonymousLeadDialog({
     setSubmitting(true);
     const res = await onSubmit({
       name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
+      phone: phone || undefined,
       message: message.trim(),
       company: company || undefined,
+      ...arrivee(),
     });
     setSubmitting(false);
     if (res.ok) {
+      retenirCoordonnees({ name: name.trim(), phone });
       toast.add({
         title: t('successTitle'),
         description: successBody ?? t('successBody'),
         type: 'success',
       });
       onOpenChange(false);
-      setName('');
       setEmail('');
-      setPhone('');
       setMessage(defaultMessage ?? '');
     } else {
       toast.add({
@@ -165,7 +172,6 @@ export function AnonymousLeadDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              required
             />
             {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
           </div>
@@ -174,15 +180,20 @@ export function AnonymousLeadDialog({
               className="mb-1 block text-xs font-semibold text-foreground"
               htmlFor={`${idPrefix}-phone`}
             >
-              {t('phone')}
+              {tContact('phone')}
             </label>
-            <Input
+            <PhoneInput
               id={`${idPrefix}-phone`}
-              type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onValueChange={setPhone}
               autoComplete="tel"
             />
+            {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone}</p>}
+            {errors.contact && (
+              <p role="alert" className="mt-1 text-xs text-destructive">
+                {errors.contact}
+              </p>
+            )}
           </div>
           <div>
             <label
@@ -217,6 +228,7 @@ export function AnonymousLeadDialog({
               onChange={(e) => setCompany(e.target.value)}
             />
           </div>
+          <MentionDeConfidentialite />
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {t('cancel')}
