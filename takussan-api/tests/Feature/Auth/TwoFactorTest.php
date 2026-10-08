@@ -70,7 +70,11 @@ class TwoFactorTest extends TestCase
         $user = User::factory()->create(['two_factor_enabled' => true]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/two-factor/enable')->assertStatus(422);
+        // TCK-589 — `enable` sur une 2FA active est le RENOUVELLEMENT de l'appareil :
+        // il exige un step-up sur le jeton (cf. `Auth\TwoFactor\TwoFactorRenewalTest`).
+        $this->postJson('/api/auth/two-factor/enable')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'two_factor_step_up_required');
     }
 
     public function test_confirm_activates_two_factor_and_returns_recovery_codes(): void
@@ -199,7 +203,8 @@ class TwoFactorTest extends TestCase
             'two_factor_secret' => (new Google2FA)->generateSecretKey(),
             'two_factor_recovery_codes' => json_encode($codes),
         ]);
-        Sanctum::actingAs($user);
+        // TCK-589 — les codes de secours exigent un step-up porté par le jeton.
+        $this->actingAsWithStepUp($user);
 
         $this->getJson('/api/auth/two-factor/recovery-codes')
             ->assertOk()
@@ -213,7 +218,8 @@ class TwoFactorTest extends TestCase
             'two_factor_secret' => (new Google2FA)->generateSecretKey(),
             'two_factor_recovery_codes' => json_encode(['OLD11-CODE1']),
         ]);
-        Sanctum::actingAs($user);
+        // TCK-589 — les codes de secours exigent un step-up porté par le jeton.
+        $this->actingAsWithStepUp($user);
 
         $response = $this->postJson('/api/auth/two-factor/recovery-codes/regenerate')
             ->assertOk();

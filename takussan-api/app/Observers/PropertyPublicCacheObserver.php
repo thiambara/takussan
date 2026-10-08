@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Observers;
+
+use App\Jobs\Property\RevalidatePublicPropertyPage;
+use App\Models\Address;
+use App\Models\Property;
+use App\Models\PropertyCollaborator;
+
+/**
+ * TCK-598 (contrainte 6, ADR-0052 §2) — invalide les données en cache de la fiche publique quand
+ * ce que la fiche sert change.
+ *
+ * ⚠ **Classe DISTINCTE de `PropertyObserver`**, enregistrée à côté de lui : celui-là appartient à
+ * d'autres tickets (modération, similaires). Celle-ci ne fait qu'une chose.
+ *
+ * Le déclencheur est « une colonne a changé » — moins une liste d'EXCLUSIONS, et non une liste de
+ * champs servis : une liste de champs servis oublierait le prochain champ ajouté à la fiche, une
+ * liste d'exclusions ne peut qu'invalider trop. Exclus : les compteurs, que la fiche peut montrer en
+ * retard (contrainte 4), et `updated_at`, qui n'est pas affiché.
+ *
+ * Une vue n'invalide rien, et pas parce qu'elle est exclue : elle ne passe pas par Éloquent
+ * (`PropertyViewCounter`, `toBase()`), donc aucun événement ne part.
+ *
+ * Ce que l'appel signé ne porte pas — photos, étiquettes, avis, documents, agence — attend la
+ * revalidation temporelle du front (300 s).
+ *
+ * TCK-504 — un changement de CONTACT qui passe par une LIGNE DE COLLABORATION ne l'attend plus :
+ * une ligne créée, supprimée, ou dont le rôle, le titulaire, la date d'invitation ou la marque de
+ * principal change peut changer qui répond pour le bien (`primary_contact`), par la marque ou par le
+ * repli. La désignation elle-même écrit par le constructeur de requêtes et invalide de son côté
+ * (`PrimaryAgentDesignator`), une fois.
+ *
+ * ⚠ Un changement de contact qui passe par l'ÉLIGIBILITÉ l'attend encore : compte du principal
+ * bloqué ou supprimé, profil d'agent suspendu ou retiré, sortie de l'agence. Rien de tout cela
+ * n'écrit de ligne de collaboration, et le contact public passe au repli sans invalider la fiche —
+ * jusqu'à 300 s (vérification adverse m6, ADR-0053 « Conséquences »).
+ */
+class PropertyPublicCacheObserver
+{
+    /** @var list<string> */
+    public const COLONNES_SANS_EFFET = ['views_count', 'favorites_count', 'updated_at'];
+
+    public function updated(Property $property): void
+    {
+        $changees = array_diff(array_keys($property->getChanges()), self::COLONNES_SANS_EFFET);
+        if ($changees === []) {
+            return;
+        }
+
+        $slugs = [(string) $property->slug];
+        // Le slug a changé : l'ANCIEN aussi, sinon son entrée resservirait l'ancienne fiche.
+        if ($property->wasChanged('slug') && filled($property->getOriginal('slug'))) {
+            $slugs[] = (string) $property->getOriginal('slug');
+        }
+
+        $this->invalider($slugs);
+    }
+
+    public function deleted(Property $property): void
+    {
+        $this->invalider([(string) $property->slug]);
+    }
+
+    public function restored(Property $property): void
+    {
+        $this->invalider([(string) $property->slug]);
+    }
+
+    /** L'adresse d'un bien est servie par la fiche (`location`), mais vit sur son propre modèle. */
+    public function adresseModifiee(Address $address): void
+    {
+        if ($address->addressable_type !== Property::class) {
+            return;
+        }
+
+        $slug = Property::withTrashed()->whereKey($address->addressable_id)->value('slug');
+        if (is_string($slug) && $slug !== '') {
+            $this->invalider([$slug]);
+        }
+    }
+
+    /** @var list<string> les colonnes d'une collaboration qui décident du contact principal */
+    public const COLONNES_DU_CONTACT = ['role', 'user_id', 'invited_at', 'is_primary', 'property_id'];
+
+    /**
+     * TCK-504 — une collaboration créée ou supprimée (`$modifiee = false`), ou modifiée sur une
+     * colonne qui décide du contact. ⚠ `wasRecentlyCreated` ne distingue pas une création d'une
+     * modification ultérieure de la même instance : d'où un évènement par cas, pas `saved`.
+     */
+    public function collaborationModifiee(PropertyCollaborator $collaborator, bool $modifiee = false): void
+    {
+        if ($modifiee && ! $collaborator->wasChanged(self::COLONNES_DU_CONTACT)) {
+            return;
+        }
+
+        $ids = array_values(array_unique(array_filter([
+            $collaborator->property_id,
+            $collaborator->wasChanged('property_id') ? $collaborator->getOriginal('property_id') : null,
+        ])));
+        $slugs = Property::withTrashed()->whereKey($ids)->pluck('slug')->filter()->map(fn ($s) => (string) $s)->all();
+
+        $this->invalider(array_values($slugs));
+    }
+
+    /** @param  list<string>  $slugs */
+    private function invalider(array $slugs): void
+    {
+        $slugs = array_values(array_unique(array_filter($slugs, fn (string $s) => $s !== '')));
+        if ($slugs !== []) {
+            RevalidatePublicPropertyPage::dispatch($slugs);
+        }
+    }
+}

@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
+use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Http\JsonResponse;
@@ -60,7 +61,7 @@ class DocumentShareLinkController extends Controller
 
     public function show(Request $request, string $token): JsonResponse
     {
-        $password = $request->input('password');
+        $password = $this->passwordFromBody($request);
         $link = $this->shareLinks->validate($token, $password);
         $document = $link->document;
 
@@ -85,11 +86,11 @@ class DocumentShareLinkController extends Controller
 
     public function download(Request $request, string $token, PrivateMediaAccess $access): StreamedResponse|JsonResponse
     {
-        $password = $request->input('password');
+        $password = $this->passwordFromBody($request);
         $link = $this->shareLinks->validate($token, $password);
 
         $media = $link->document->getFirstMedia('file');
-        abort_unless($media !== null, 404, 'No file attached to this document.');
+        abort_code_unless($media !== null, 404, 'document.file_missing');
 
         $this->shareLinks->recordDownload($link);
 
@@ -109,6 +110,24 @@ class DocumentShareLinkController extends Controller
         return $this->json(null, 204);
     }
 
+    /**
+     * TCK-587 §8 — le mot de passe d'un lien protégé se lit dans le CORPS (formulaire ou JSON),
+     * jamais dans l'URL.
+     *
+     * `input('password')` lisait aussi la query : le mot de passe voyageait dans
+     * `GET /api/share/{t}?password=…`, donc dans l'historique, les journaux d'accès et l'en-tête
+     * `Referer`. Une URL qui le porte est refusée en 400 AVANT toute validation — l'accepter en
+     * l'ignorant laisserait croire à l'appelant qu'elle fonctionne.
+     */
+    private function passwordFromBody(Request $request): ?string
+    {
+        abort_code_if($request->query->has('password'), 400, 'share_link.password_in_query');
+
+        $password = $request->post('password');
+
+        return is_string($password) ? $password : null;
+    }
+
     protected function authorizeDocument(Request $request, Document $document): void
     {
         $user = $request->user();
@@ -116,9 +135,18 @@ class DocumentShareLinkController extends Controller
         $ok = $user->isSuperAdmin()
             || $document->uploaded_by === $user->id
             || ($documentable && isset($documentable->user_id) && $documentable->user_id === $user->id)
-            || ($user->agency_id && $documentable && isset($documentable->agency_id) && $documentable->agency_id === $user->agency_id);
+            // TCK-587 — le PERSONNEL de l'agence du porteur, plus tout membre (ADR-0031) : un
+            // bailleur de l'agence partageait publiquement le document d'un autre.
+            || ($documentable && isset($documentable->agency_id) && $this->isStaffOfAgency($user, $documentable->agency_id));
 
         abort_unless($ok, 403);
+    }
+
+    private function isStaffOfAgency(User $user, mixed $agencyId): bool
+    {
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
     }
 
     private function format(DocumentShareLink $link): array

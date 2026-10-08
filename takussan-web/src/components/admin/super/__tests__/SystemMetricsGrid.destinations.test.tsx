@@ -54,7 +54,18 @@ const BASE: SystemMetrics = {
   users: { total: 400, active: 380 },
   properties: { published: 900, pending_review: 12 },
   leases: { active: 300 },
-  revenue: { platform_total_paid: 5_000_000, currency: 'XOF' },
+  // TCK-595 — le bloc complet : les cinq tuiles de pilotage financier ont chacune leur destination.
+  revenue: {
+    collected_total: 5_000_000,
+    platform_total_paid: 5_000_000,
+    gmv_30d: 300_000,
+    platform_fees_30d: 25_000,
+    take_rate: 0.0833,
+    mrr: 40_000,
+    mrr_trialing: 15_000,
+    active_subscriptions: 3,
+    currency: 'XOF',
+  },
   generated_at: '2026-08-27T10:00:00+00:00',
 };
 
@@ -86,7 +97,11 @@ const DESTINATIONS: Readonly<Record<string, string>> = {
   usersTotal: '/super-admin/users',
   publishedProperties: '/super-admin/properties?filter[status]=published',
   pendingReview: '/super-admin/properties?filter[status]=pending_review',
-  platformRevenue: '/super-admin/reports',
+  collectedTotal: '/super-admin/reports',
+  gmv: '/super-admin/payouts',
+  takeRate: '/super-admin/settings',
+  mrr: '/super-admin/reports?tab=revenue',
+  trialing: '/super-admin/plans',
 };
 
 /** Une tuile telle que le DOM la rend : sa clé (déduite du libellé) et sa destination. */

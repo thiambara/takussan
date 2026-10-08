@@ -1,6 +1,6 @@
 # ADR-0023 — La recherche géographique traite des DISTANCES, pas des géométries
 
-- **Statut** : Accepté
+- **Statut** : Accepté — **amendé par [ADR-0050](0050-alertes-de-recherche-un-seul-moteur-et-des-abonnes-sans-compte.md)** (2026-10-08) : le chemin 3 ne sert plus les alertes, qui passent par le chemin 1 ; la prémisse « critères stockés en `min_price` » ci-dessous est réfutée (aucun écrivain réel ne la produisait).
 - **Date de la décision** : 2026-08-22
 - **Tickets** : TCK-346
 - **ADR liés** : [ADR-0008](0008-meilisearch-sur-tous-les-environnements.md) (Meilisearch partout),

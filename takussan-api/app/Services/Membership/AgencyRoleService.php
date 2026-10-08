@@ -66,13 +66,13 @@ class AgencyRoleService
 
             if ($source->base_profile_type !== $type) {
                 throw ValidationException::withMessages([
-                    'clone_from' => 'Le rôle source ne cible pas le même type de profil.',
+                    'clone_from' => __('errors.agency_role.clone_type_mismatch'),
                 ]);
             }
 
             if (! $source->is_clonable) {
                 throw ValidationException::withMessages([
-                    'clone_from' => 'Ce rôle n\'est pas clonable.',
+                    'clone_from' => __('errors.agency_role.not_clonable'),
                 ]);
             }
         }
@@ -87,9 +87,23 @@ class AgencyRoleService
                 'is_clonable' => true,
             ]);
 
+            $capabilities = [];
             if ($source !== null) {
-                $this->replaceCapabilities($role, $source->capabilityEnums()->all());
+                $capabilities = $this->syncCapabilities($role, $source->capabilityEnums()->all())['added'];
             }
+
+            // TCK-601 — la création s'écrit ici, avec ce que le clone a copié : le `created` du
+            // modèle est désactivé (`AgencyRole::$doNotRecordEvents`), il dirait moins.
+            activity(class_basename(AgencyRole::class))
+                ->performedOn($role)
+                ->event('role_created')
+                ->withProperties([
+                    'name' => $role->name,
+                    'base_profile_type' => $type->value,
+                    'clone_from' => $source?->id,
+                    'capabilities' => $capabilities,
+                ])
+                ->log('role_created');
 
             return $role->fresh();
         });
@@ -103,6 +117,27 @@ class AgencyRoleService
      */
     public function replaceCapabilities(AgencyRole $role, array $capabilities): AgencyRole
     {
+        $diff = $this->syncCapabilities($role, $capabilities);
+
+        // TCK-601 — les lignes de capacités changent sans événement de modèle : le journal s'écrit
+        // ici, avec la différence exacte. Un remplacement identique n'écrit rien.
+        if ($diff['added'] !== [] || $diff['removed'] !== []) {
+            activity(class_basename(AgencyRole::class))
+                ->performedOn($role)
+                ->event('role_capabilities_changed')
+                ->withProperties($diff)
+                ->log('role_capabilities_changed');
+        }
+
+        return $role->fresh(['capabilities']);
+    }
+
+    /**
+     * @param  array<int,Capability>  $capabilities
+     * @return array{added: list<string>, removed: list<string>}
+     */
+    private function syncCapabilities(AgencyRole $role, array $capabilities): array
+    {
         // Backstop de l'invariant « ces capacités restent à la plateforme ».
         // `SyncCapabilitiesRequest` le refuse déjà en 422 sur le chemin HTTP ;
         // ici il couvre AUSSI le clonage et tout appel interne futur — c'est
@@ -115,8 +150,9 @@ class AgencyRoleService
 
         if ($reserved->isNotEmpty()) {
             throw ValidationException::withMessages([
-                'capabilities' => 'Capacité réservée à la plateforme : '.$reserved->implode(', ')
-                    .'. Aucun rôle d\'agence ne peut la porter.',
+                'capabilities' => __('errors.agency_role.platform_capability', [
+                    'capabilities' => $reserved->implode(', '),
+                ]),
             ]);
         }
 
@@ -124,6 +160,8 @@ class AgencyRoleService
             ->map(static fn (Capability $c): string => $c->value)
             ->unique()
             ->values();
+        $before = AgencyRoleCapability::query()->where('agency_role_id', $role->id)->pluck('capability')
+            ->map(static fn ($c): string => $c instanceof Capability ? $c->value : (string) $c);
 
         DB::transaction(function () use ($role, $values): void {
             AgencyRoleCapability::query()->where('agency_role_id', $role->id)->delete();
@@ -147,7 +185,10 @@ class AgencyRoleService
         // pivot — donc on purge explicitement.
         $this->cache->forget((int) $role->id);
 
-        return $role->fresh(['capabilities']);
+        return [
+            'added' => $values->diff($before)->sort()->values()->all(),
+            'removed' => $before->diff($values)->sort()->values()->all(),
+        ];
     }
 
     /**
@@ -186,14 +227,14 @@ class AgencyRoleService
     {
         if ((int) $profile->agency_id !== (int) $role->agency_id) {
             throw ValidationException::withMessages([
-                'agency_role_id' => 'Ce rôle appartient à une autre agence.',
+                'agency_role_id' => __('errors.agency_role.other_agency'),
             ]);
         }
 
         $expected = $profile::agencyRoleBaseType();
         if ($role->base_profile_type !== $expected) {
             throw ValidationException::withMessages([
-                'agency_role_id' => 'Ce rôle ne cible pas le même type de profil.',
+                'agency_role_id' => __('errors.agency_role.profile_type_mismatch'),
             ]);
         }
 
@@ -218,8 +259,24 @@ class AgencyRoleService
 
         $this->assertNotLastAdminLosingControl($profile, $role);
 
+        $previous = $profile->agency_role_id;
         $profile->agency_role_id = $role->id;
-        $profile->save();
+        // TCK-601 — l'affectation s'écrit `role_assigned`, avec les deux rôles : le `updated` du
+        // profil dirait la même chose, moins bien, et deux fois.
+        // (Une collaboration de prestataire n'est pas journalisée par modèle : `method_exists`.)
+        $audited = method_exists($profile, 'disableLogging');
+        $audited ? $profile->disableLogging()->save() : $profile->save();
+        if ($audited) {
+            $profile->enableLogging();
+        }
+
+        if ((int) $previous !== (int) $role->id) {
+            activity(class_basename($profile))
+                ->performedOn($profile)
+                ->event('role_assigned')
+                ->withProperties(['from_role_id' => $previous, 'to_role_id' => $role->id, 'role' => $role->name])
+                ->log('role_assigned');
+        }
 
         return $profile->fresh(['agencyRole']);
     }
@@ -256,8 +313,7 @@ class AgencyRoleService
 
         if ($survivors === 0) {
             throw ValidationException::withMessages([
-                'agency_role_id' => 'Dernier administrateur de l\'agence : ce rôle lui retirerait '
-                    .'la gestion des rôles, et personne ne pourrait l\'y rendre.',
+                'agency_role_id' => __('errors.agency_role.last_administrator'),
             ]);
         }
     }

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
@@ -53,104 +52,25 @@ class UserAdminController extends Controller
             ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->paginated($paginator, $paginator->items());
-    }
-
-    public function block(Request $request, User $user): JsonResponse
-    {
-        $actor = $request->user();
-        $agencyId = $request->activeProfile()?->agency_id;
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
-            403,
-        );
-        abort_if($user->id === $actor->id, 422, __('messages.cannot_block_self'));
-
-        $this->ensureTargetInActorScope($request, $user);
-
-        $user->update(['status' => UserStatus::Blocked]);
-        $user->tokens()->delete();
-
-        return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
-    }
-
-    public function activate(Request $request, User $user): JsonResponse
-    {
-        $actor = $request->user();
-        $agencyId = $request->activeProfile()?->agency_id;
-
-        abort_unless(
-            $actor->isSuperAdmin()
-                || ($agencyId !== null && $actor->isAgencyAdminAt((int) $agencyId)),
-            403,
-        );
-
-        $this->ensureTargetInActorScope($request, $user);
-
-        $user->update(['status' => UserStatus::Active]);
-
-        return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
-    }
-
-    /**
-     * TCK-147 — for non-global actors, enforce that the target holds an
-     * agent or owner profile in the actor's active agency. `super_admin`
-     * and global `admin` bypass this check (cross-tenant by design).
-     */
-    protected function ensureTargetInActorScope(Request $request, User $target): void
-    {
-        $actor = $request->user();
-        if ($actor->isSuperAdmin()) {
-            return;
+        // TCK-589 — la colonne 2FA de la console d'équipe (`/admin/team` lit cette
+        // liste) : champ calculé, jamais via `User::$queryFields` (cf. `TeamController`).
+        $items = $paginator->items();
+        $enabled = User::query()->whereKey(array_map(fn (User $u) => $u->getKey(), $items))->pluck('two_factor_enabled', 'id');
+        foreach ($items as $item) {
+            $item->setAttribute('two_factor_enabled', (bool) ($enabled[$item->getKey()] ?? false));
         }
 
-        $agencyId = $request->activeProfile()?->agency_id;
-        AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
-        if ($agencyId === null
-            || (! $target->isAgentAt($agencyId)
-                && ! $target->isOwnerAt($agencyId)
-                && ! $target->isAgencyAdminAt($agencyId))
-        ) {
-            abort(422, __('messages.target_user_not_in_active_agency'));
-        }
+        return $this->paginated($paginator, $items);
     }
 
-    public function destroy(Request $request, User $user): JsonResponse
-    {
-        abort_unless($request->user()->isSuperAdmin(), 403);
-        abort_if($user->id === $request->user()->id, 422, __('messages.cannot_delete_self'));
-
-        $this->anonymize($user);
-
-        return $this->json(null, 204);
-    }
-
-    public function deleteOwnAccount(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        $user->tokens()->delete();
-        $this->anonymize($user);
-
-        return $this->json(null, 204);
-    }
-
-    protected function anonymize(User $user): void
-    {
-        $user->tokens()->delete();
-        $user->update([
-            'first_name' => 'Deleted',
-            'last_name' => 'User',
-            'email' => 'deleted-'.$user->id.'@anonymized.local',
-            'phone' => null,
-            'bio' => null,
-            'status' => UserStatus::Blocked,
-            'google_id' => null,
-            'facebook_id' => null,
-            'apple_id' => null,
-            'metadata' => null,
-        ]);
-        $user->delete();
-    }
+    // TCK-587 (ADR-0031 §2) — bloquer un COMPTE est un geste de la plateforme seule ; l'admin
+    // d'agence suspend un membre DANS son agence (`Agency\TeamMemberSuspensionController`).
+    // TCK-600 (verif-600 m1) — `block` et `activate` sont SUPPRIMÉS d'ici : second chemin du cycle
+    // de vie, sans motif ni trace. Ils passent par `Admin\UserLifecycleController`.
+    //
+    // TCK-600 — `destroy`, `deleteOwnAccount` et leur copie locale d'`anonymize()` sont SUPPRIMÉS.
+    // Ils effaçaient un compte sur-le-champ, sans obligations, sans délai de grâce, sans activité,
+    // et `deleteOwnAccount` sans step-up. L'effacement n'a plus qu'un chemin :
+    // `AccountDeletionService` — demande par l'utilisateur (`me/deletion-request`) ou par un
+    // opérateur (`POST /api/admin/users/{user}/erase`).
 }

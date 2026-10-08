@@ -4,6 +4,7 @@ import type {
   PaginatedResponse,
   SpatieQueryParams,
 } from '@/types/api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-256 — owners query layer.
@@ -20,6 +21,12 @@ import type {
  * already shipped in TCK-249.
  */
 
+/**
+ * TCK-601 (ADR-0044 §1) — `rib`, `tax_id` et `id_document_number` ne figurent PAS ici et ne
+ * peuvent plus y figurer : l'API refuse de les servir par `fields[owner_profiles]` (400). Chaque
+ * ligne porte à la place leurs MASQUES (`*_masked`), calculés côté serveur quelle que soit la
+ * liste demandée. La valeur complète ne sort que par {@link fetchOwnerSensitive}.
+ */
 export const OWNER_PROFILE_FIELDS = [
   'id',
   'user_id',
@@ -49,6 +56,10 @@ export type OwnerProfileSummary = {
     readonly company_name?: string | null;
   } | null;
   readonly created_at: string | null;
+  /** TCK-601 — masques rendus par l'API (`SN•• •••• ••34`, `•••• 4567`), jamais la valeur. */
+  readonly rib_masked?: string | null;
+  readonly tax_id_masked?: string | null;
+  readonly id_document_number_masked?: string | null;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;
@@ -114,7 +125,33 @@ export async function fetchOwners(
 ): Promise<PaginatedResponse<OwnerProfileSummary>> {
   const qs = buildQueryString(buildParams(params));
   return apiRequest<PaginatedResponse<OwnerProfileSummary>>(
-    `/api/owners${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/owners${requete(qs)}`,
+    { token },
+  );
+}
+
+/**
+ * TCK-601 — les identifiants complets d'un bailleur (`GET /api/owners/{id}/sensitive`).
+ *
+ * Réservé à l'admin de l'agence du profil (403 pour un agent), exige une preuve récente de second
+ * facteur (403 `two_factor_step_up_required`, que l'appelant confie à la garde de TCK-589), et
+ * chaque appel est JOURNALISÉ côté serveur. ⚠ Ne pas le brancher sur une requête React Query :
+ * la valeur ne doit vivre que le temps de l'affichage, jamais dans un cache partagé ni persisté.
+ */
+export type OwnerSensitiveData = {
+  readonly id: number;
+  readonly rib: string | null;
+  readonly tax_id: string | null;
+  readonly id_document_type: string | null;
+  readonly id_document_number: string | null;
+};
+
+export async function fetchOwnerSensitive(
+  token: string,
+  ownerProfileId: number,
+): Promise<ApiResponse<OwnerSensitiveData>> {
+  return apiRequest<ApiResponse<OwnerSensitiveData>>(
+    cheminApi`/api/owners/${ownerProfileId}/sensitive`,
     { token },
   );
 }
@@ -125,7 +162,7 @@ export async function inviteOwner(
   payload: InviteOwnerPayload,
 ): Promise<ApiResponse<InvitationSummary>> {
   return apiRequest<ApiResponse<InvitationSummary>>(
-    `/api/agencies/${agencyId}/owners/invite`,
+    cheminApi`/api/agencies/${agencyId}/owners/invite`,
     { token, method: 'POST', body: payload },
   );
 }
@@ -135,7 +172,7 @@ export async function resendInvitation(
   invitationId: number,
 ): Promise<ApiResponse<InvitationSummary>> {
   return apiRequest<ApiResponse<InvitationSummary>>(
-    `/api/invitations/${invitationId}/resend`,
+    cheminApi`/api/invitations/${invitationId}/resend`,
     { token, method: 'POST' },
   );
 }
@@ -145,7 +182,7 @@ export async function revokeInvitation(
   invitationId: number,
 ): Promise<ApiResponse<InvitationSummary>> {
   return apiRequest<ApiResponse<InvitationSummary>>(
-    `/api/invitations/${invitationId}/revoke`,
+    cheminApi`/api/invitations/${invitationId}/revoke`,
     { token, method: 'POST' },
   );
 }

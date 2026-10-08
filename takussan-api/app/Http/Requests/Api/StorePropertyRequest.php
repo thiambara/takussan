@@ -11,6 +11,9 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Models\Property;
+use App\Rules\HoteDeVisiteVirtuelle;
+use App\Services\Property\CoutDEntree;
 use Illuminate\Validation\Rule;
 
 /**
@@ -24,13 +27,18 @@ use Illuminate\Validation\Rule;
 class StorePropertyRequest extends BaseFormRequest
 {
     /**
-     * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
-     * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
-     * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
+     * TCK-587 — **délégation** à `PropertyPolicy::create` : `properties.create` dans l'agence du
+     * profil actif, ou bailleur actif de cette agence (qui PROPOSE un bien, cf.
+     * `PropertyController::store`).
+     *
+     * Ce `authorize()` rendait `true` en affirmant que l'autorisation « appartient au contrôleur » —
+     * qui n'en appelait aucune : tout compte authentifié, client compris, créait un bien. La règle
+     * reste dans sa policy ; elle est invoquée ICI pour que le refus précède la validation (403 et
+     * non 422 pour un appel non autorisé et mal formé).
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('create', Property::class) === true;
     }
 
     /** @return array<string, mixed> */
@@ -71,6 +79,13 @@ class StorePropertyRequest extends BaseFormRequest
             'address.postal_code' => ['nullable', 'string', 'max:20'],
             'address.latitude' => ['nullable', 'numeric'],
             'address.longitude' => ['nullable', 'numeric'],
+            // TCK-598 — la visite virtuelle : un LIEN https vers un hôte autorisé, jamais un fichier.
+            'virtual_tour_url' => ['nullable', 'string', 'max:2048', 'url:https', new HoteDeVisiteVirtuelle],
+            // TCK-598 — le coût d'entrée, d'une location MENSUELLE seulement (422 sinon).
+            ...CoutDEntree::regles(
+                CoutDEntree::sApplique($this->input('contract_type'), $this->input('rent_period')),
+                partiel: false,
+            ),
         ];
     }
 }

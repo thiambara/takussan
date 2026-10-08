@@ -52,10 +52,20 @@ export interface PropertyListItem {
   condition?: PropertyCondition | null;
   main_photo_url: string | null;
   owner?: PropertyOwnerLite | null;
+  /**
+   * TCK-603 — l'agent responsable (TCK-502/504), à côté du propriétaire. Servie par la liste du
+   * tableau de bord seulement quand `agency_id` ET `user_id` sont demandés (sans eux la règle
+   * jugerait un bien d'agence comme celui d'un particulier) : clé ABSENTE sinon.
+   */
+  primary_contact?: PropertyOwnerLite | null;
+  /** TCK-603 (verif-603 M2) — d'où vient `primary_contact` ; absente avec lui. */
+  primary_contact_source?: PrimaryContactSource | null;
   collaborators?: {
     id: number;
     user_id: number;
     role: string | null;
+    /** TCK-504 — la marque d'agent principal (ADR-0053). */
+    is_primary?: boolean;
     commission_share: number | null;
     user: {
       id: number;
@@ -67,6 +77,9 @@ export interface PropertyListItem {
   created_at: string;
 }
 
+/** Le vocabulaire de `GET …/collaborators` (TCK-504), sans `designated_unavailable`. */
+export type PrimaryContactSource = 'designated' | 'invitation_order' | 'owner';
+
 export interface PropertyOwnerLite {
   id: number;
   name: string;
@@ -75,6 +88,30 @@ export interface PropertyOwnerLite {
   avatar_url: string | null;
   is_agent: boolean;
   member_since: string | null;
+  /**
+   * TCK-590 — le contact a-t-il un numéro ? Un booléen, jamais le numéro : celui-ci n'est révélé
+   * qu'au geste (`GET …/contact`, limité). Faux ou absent, la fiche n'offre ni WhatsApp ni Appeler.
+   */
+  has_phone?: boolean;
+  /**
+   * TCK-598 (V8) — le numéro du contact a-t-il été vérifié ? Un booléen dérivé de
+   * `phone_verified_at`, jamais la date ni le numéro. Absent d'une charge utile antérieure : lu
+   * comme faux.
+   */
+  phone_verified?: boolean;
+}
+
+/**
+ * TCK-598 (V9) — ce qu'un locataire verse pour emménager, calculé par l'API (`CoutDEntree`).
+ * `null` hors location mensuelle, et quand rien n'est renseigné : le bloc est alors ABSENT, jamais
+ * affiché à zéro. Le front n'additionne rien — `total` fait foi.
+ */
+export interface PropertyEntryCost {
+  deposit_months: number | null;
+  advance_months: number | null;
+  agency_fee_months: number | null;
+  monthly_charges: number | null;
+  total: number;
 }
 
 export interface PropertyAgencyLite {
@@ -178,6 +215,14 @@ export interface PropertyDetail extends PropertyListItem {
   description: string | null;
   photos: PropertyPhoto[];
   media_extra: PropertyMediaExtra;
+  /**
+   * TCK-598 (V19) — l'URL de la visite virtuelle ou de la vidéo, au premier niveau
+   * (`media_extra.virtual_tour_url` la reprend pour la compatibilité, puis disparaît). Optionnelle :
+   * `whenHas` côté ressource, la clé est absente quand la colonne n'est pas demandée.
+   */
+  virtual_tour_url?: string | null;
+  /** TCK-598 (V9) — cf. {@link PropertyEntryCost}. Émis sur la forme détail. */
+  entry_cost?: PropertyEntryCost | null;
   tags: PropertyTag[];
   owner: PropertyOwnerLite;
   /**
@@ -190,6 +235,12 @@ export interface PropertyDetail extends PropertyListItem {
    * nulle signale un bien sans contact.
    */
   primary_contact: PropertyOwnerLite | null;
+  /**
+   * TCK-603 (ADR-0059 §6, verif-603 M2) — d'où vient `primary_contact` : la ligne `agent` marquée
+   * (`designated`), le repli sur l'ordre d'invitation (`invitation_order`), sur le titulaire (`owner`),
+   * ou personne (`null`). Absente sur les routes publiques : optionnelle.
+   */
+  primary_contact_source?: PrimaryContactSource | null;
   agency: PropertyAgencyLite | null;
   documents: PropertyDocument[];
   price_history: PropertyPriceHistoryItem[];

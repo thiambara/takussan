@@ -5,6 +5,7 @@ import type {
   AdminUserStatusFilter,
 } from '@/types/admin-users';
 import type { UserRole } from '@/types/user';
+import { cheminApi } from '@/lib/chemin-api';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -60,26 +61,10 @@ export async function fetchAdminUsers(
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));
 
-  const res = await fetch(`/api/admin-users?${qs.toString()}`, {
+  const res = await fetch(cheminApi`/api/admin-users?${qs.toString()}`, {
     credentials: 'include',
   });
   return jsonOrThrow<AdminAgencyUsersResponse>(res);
-}
-
-/**
- * Toggle a user's status. The backend exposes two distinct endpoints
- * (`/block` and `/activate`) rather than a PATCH — block additionally
- * revokes Sanctum tokens (TCK-147 hardening).
- */
-export async function postUserAction(
-  userId: number,
-  action: 'block' | 'activate',
-): Promise<unknown> {
-  const res = await fetch(`/api/admin-users/${userId}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<unknown>(res);
 }
 
 /**
@@ -93,7 +78,7 @@ export async function putUserRole(
   userId: number,
   role: UserRole,
 ): Promise<unknown> {
-  const res = await fetch(`/api/admin-users/${userId}/role`, {
+  const res = await fetch(cheminApi`/api/admin-users/${userId}/role`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

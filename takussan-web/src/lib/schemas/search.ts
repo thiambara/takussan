@@ -52,7 +52,7 @@ export const savedSearchPayloadSchema = z.object({
   name: z.string().trim().min(1, msgValidation('search.savedSearchNameRequired')).max(100),
   criteria: z.record(z.string(), z.unknown()),
   notification_frequency: z
-    .enum(['off', 'daily', 'weekly', 'instant'])
+    .enum(['off', 'daily', 'weekly'])
     .default('off'),
 });
 

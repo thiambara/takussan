@@ -24,7 +24,18 @@ class FeatureFlagEvaluator
         }
 
         $stored = FeatureFlag::query()->where('key', $key)->first();
-        if (! $stored || ! $stored->enabled) {
+
+        return $stored !== null && $this->evaluate($stored, $user);
+    }
+
+    /**
+     * Le jugement d'une ligne stockée : activée, puis segments (rôles, agences, déploiement
+     * progressif). Séparé du catalogue pour rester éprouvable quand le catalogue est vide (TCK-600).
+     */
+    public function evaluate(FeatureFlag $stored, ?User $user = null): bool
+    {
+        $key = $stored->key;
+        if (! $stored->enabled) {
             return false;
         }
 
@@ -68,7 +79,7 @@ class FeatureFlagEvaluator
 
     public function setOverride(User $user, string $key, bool $enabled): void
     {
-        abort_unless(Flag::tryFrom($key), 404, 'Unknown feature flag.');
+        abort_code_unless(Flag::tryFrom($key), 404, 'feature_flag.unknown');
         Cache::put($this->overrideKey($user, $key), $enabled, now()->addHour());
     }
 

@@ -17,13 +17,14 @@ import {
   updatePropertyVisibility,
   uploadPropertyPhotos,
   type PropertyMediaItem,
-  assignPropertyAgent,
 } from '@/lib/queries/properties-server';
 import type {
   PropertyCreatePayload,
   PropertyUpdatePayload,
 } from '@/components/property-form/payload';
 import type { PropertyDetail } from '@/types/property';
+import { bulkPropertyArchive, bulkPropertyAssign, bulkPropertyVisibility } from '@/lib/queries/agent-crm';
+import type { BulkResult } from '@/types/agent-crm';
 
 /**
  * Dashboard Agent — server actions wrapping the property CRUD mutations
@@ -176,20 +177,50 @@ export async function updatePropertyVisibilityAction(
   }
 }
 
-export async function assignPropertyAgentAction(
-  propertyId: number,
-  userId: number,
-): Promise<ActionResult<PropertyDetail>> {
+/**
+ * TCK-591 §7 — archiver / dépublier en UN appel : l'API autorise ligne à ligne et rend un bilan
+ * (`updated`, `updated_ids`, `failed[{id, reason}]`). La boucle d'appels unitaires qu'elle remplace
+ * s'arrêtait au premier refus, ne disait que lui, et laissait la sélection entière.
+ */
+async function runBulk(
+  call: (token: string) => Promise<BulkResult>,
+): Promise<ActionResult<BulkResult>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await assignPropertyAgent(auth.token, propertyId, userId);
-    revalidatePath('/app/properties');
-    revalidatePath(`/app/properties/${propertyId}`);
+    const data = await call(auth.token);
+    if (data.updated > 0) revalidatePath('/app/properties');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }
+}
+
+export async function bulkArchivePropertiesAction(propertyIds: number[]): Promise<ActionResult<BulkResult>> {
+  return runBulk((token) => bulkPropertyArchive(token, propertyIds));
+}
+
+export async function bulkUnpublishPropertiesAction(propertyIds: number[]): Promise<ActionResult<BulkResult>> {
+  return runBulk((token) => bulkPropertyVisibility(token, propertyIds));
+}
+
+/** Un identifiant venu du client : un entier positif sûr, rien d'autre. */
+const estIdentifiant = (id: unknown): id is number => Number.isSafeInteger(id) && (id as number) > 0;
+
+/**
+ * TCK-603 — « Changer l'agent responsable » d'un lot, en UN appel (`bulk-assign`) : la cible devient
+ * l'agent principal de chaque bien, le propriétaire ne change jamais (ADR-0036). Les identifiants
+ * viennent du client : hors d'entiers positifs, rien ne part.
+ */
+export async function bulkAssignPropertiesAction(
+  propertyIds: number[],
+  userId: number,
+): Promise<ActionResult<BulkResult>> {
+  if (!Array.isArray(propertyIds) || propertyIds.length === 0 || !propertyIds.every(estIdentifiant) || !estIdentifiant(userId)) {
+    const t = await getTranslations('property.dashboard.list');
+    return { ok: false, status: 422, message: t('bulkError') };
+  }
+  return runBulk((token) => bulkPropertyAssign(token, propertyIds, userId));
 }
 
 export async function uploadPropertyPhotosAction(

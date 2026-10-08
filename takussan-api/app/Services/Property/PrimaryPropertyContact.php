@@ -3,9 +3,11 @@
 namespace App\Services\Property;
 
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\UserStatus;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 
 /**
  * TCK-502 — **qui répond pour ce bien.** Une seule définition, pour tout le monde.
@@ -45,6 +47,29 @@ use App\Models\User;
  *
  * `invited_at` + `id` est donc l'« ordre explicite » de la contrainte 1 du ticket : déterministe,
  * indépendant de l'ordre d'insertion, et sans colonne neuve à remplir.
+ *
+ * ## Qui est éligible (TCK-590)
+ *
+ * L'ordre ne dit pas tout : le premier de la liste peut ne plus être là. Un agent **bloqué**
+ * (statut seul, rien n'est supprimé) ou **retiré de l'agence** (`AgentInvitationService::remove`
+ * supprime son profil, jamais sa ligne de `property_collaborators`) restait destinataire — le lead
+ * (nom, téléphone, message), la notification, le fil authentifié et le **numéro affiché aux
+ * visiteurs** partaient chez quelqu'un hors de l'agence. Un collaborateur `agent` n'est donc
+ * retenu que s'il est joignable (ni `blocked` ni `deleted`) et, pour un bien d'agence, PERSONNEL
+ * de l'agence du bien ; le propriétaire, que s'il est joignable. L'ordre ne change pas.
+ *
+ * Le personnel se juge par `PersonnelDeLAgence::estPersonnel()`, branché sur
+ * `MembershipCapabilityResolver::isStaffAt()` depuis la fusion de TCK-587 : une seule définition,
+ * au prix d'une requête par collaborateur `agent` examiné (l'ordre s'arrête au premier éligible).
+ *
+ * ## Le choix explicite d'abord (TCK-504, ADR-0053)
+ *
+ * Déterministe n'est pas CHOISI : une agence qui confie un bien à deux agents dit lequel répond, par
+ * la marque `is_primary` de sa ligne de collaboration (unique par bien et réservée au rôle `agent`
+ * par le schéma, posée par {@see PrimaryAgentDesignator} seul). La ligne marquée passe devant
+ * l'ordre d'invitation, **à la même éligibilité** : une marque posée sur un agent bloqué, suspendu
+ * ou retiré de l'agence reste en place mais ne vaut rien tant qu'il l'est — le repli ci-dessus
+ * reprend, et le choix revient s'il est réactivé. Sans marque, rien ne change : le repli est muet.
  */
 class PrimaryPropertyContact
 {
@@ -56,7 +81,85 @@ class PrimaryPropertyContact
      */
     public static function for(Property $property): ?User
     {
-        return self::agentPrincipal($property)?->user ?? $property->owner;
+        return self::resolve($property)['contact'];
+    }
+
+    /**
+     * TCK-603 (ADR-0059 §6, verif-603 M2) — le contact ET d'où il vient, en un seul passage de la règle :
+     * `designated` (la ligne marquée), `invitation_order` (le repli sur l'ordre d'invitation), `owner`
+     * (le repli sur le titulaire), `null` (personne). Le vocabulaire de `GET …/collaborators`.
+     *
+     * L'écran ne peut pas le déduire d'une égalité d'identifiants : un agent qui a saisi un bien
+     * (`user_id` = lui) et qui en est l'agent principal donne `owner.id = primary_contact.id`.
+     *
+     * ⚠️ Même hypothèse de chargement que {@see self::for()}.
+     *
+     * @return array{contact: ?User, principal: ?PropertyCollaborator, source: ?string}
+     */
+    public static function resolve(Property $property): array
+    {
+        $principal = self::collaborateurPrincipal($property);
+        if ($principal !== null) {
+            return [
+                'contact' => $principal->user,
+                'principal' => $principal,
+                'source' => $principal->is_primary === true ? 'designated' : 'invitation_order',
+            ];
+        }
+
+        $owner = $property->owner;
+        $contact = self::estProprietaire($owner, $property) || self::eligible($owner, $property) ? $owner : null;
+
+        return ['contact' => $contact, 'principal' => null, 'source' => $contact !== null ? 'owner' : null];
+    }
+
+    /**
+     * TCK-504 — la ligne de collaboration qui répond pour le bien : la ligne MARQUÉE si elle est
+     * éligible, sinon le collaborateur `agent` éligible le plus anciennement invité ; `null` quand
+     * c'est le propriétaire qui répond, ou personne.
+     *
+     * {@see self::for()} s'écrit à partir d'elle, le backfill d'ADR-0053 et l'écran des
+     * collaborateurs la lisent : c'est la même règle, pas une seconde.
+     *
+     * ⚠️ Même hypothèse de chargement que {@see self::for()}.
+     */
+    public static function collaborateurPrincipal(Property $property): ?PropertyCollaborator
+    {
+        $agents = $property->collaborators
+            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent);
+
+        $designe = $agents->first(fn (PropertyCollaborator $c) => $c->is_primary === true);
+        if ($designe !== null && self::eligible($designe->user, $property)) {
+            return $designe;
+        }
+
+        // L'ordre d'abord, l'éligibilité ensuite, et seulement jusqu'au premier éligible : depuis
+        // TCK-587, juger le personnel est une requête (`isStaffAt`), et la fiche ne doit pas en
+        // payer une par collaborateur.
+        return $agents
+            ->reject(fn (PropertyCollaborator $c) => $c === $designe)
+            ->sort(self::ordre(...))
+            ->first(fn (PropertyCollaborator $c) => self::eligible($c->user, $property));
+    }
+
+    /**
+     * Vérification adverse (M7) — `property.user_id` est le CRÉATEUR du bien : son propriétaire
+     * pour un particulier, mais, sur un bien d'agence, aussi bien l'agent qui l'a saisi —
+     * `PropertyController::store` y pose l'appelant, `assignAgent` y met un agent. Lu tel quel
+     * comme « propriétaire », il gardait à l'agent parti le repli du contact principal (son
+     * numéro affiché au public, les demandes reçues), la boîte des demandes et le droit de
+     * prévenir le visiteur.
+     *
+     * Il ne vaut donc propriétaire que joignable, et si le bien n'a pas d'agence, ou s'il détient
+     * un profil propriétaire ACTIF dans l'agence du bien. Le personnel actif, lui, est jugé à
+     * part, par {@see PersonnelDeLAgence::estPersonnel()}.
+     */
+    public static function estProprietaire(?User $user, Property $property): bool
+    {
+        return $user !== null
+            && (int) $property->user_id === (int) $user->id
+            && self::joignable($user)
+            && ($property->agency_id === null || PersonnelDeLAgence::estBailleur($user, $property->agency_id));
     }
 
     /**
@@ -71,15 +174,36 @@ class PrimaryPropertyContact
      */
     public static function eagerLoads(): array
     {
-        return ['owner', 'collaborators.user.media'];
+        return [
+            'owner',
+            'collaborators.user.media',
+        ];
     }
 
-    private static function agentPrincipal(Property $property): ?PropertyCollaborator
+    /**
+     * Un compte qui peut encore recevoir : ni bloqué, ni supprimé. Un compte supprimé en douceur
+     * (`SoftDeletes`) n'arrive même pas jusqu'ici : la relation le rend nul.
+     */
+    public static function joignable(?User $user): bool
     {
-        return $property->collaborators
-            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent && $c->user !== null)
-            ->sort(self::ordre(...))
-            ->first();
+        return $user !== null
+            && ! in_array($user->status, [UserStatus::Blocked, UserStatus::Deleted], true);
+    }
+
+    /**
+     * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence — la définition unique
+     * de `PersonnelDeLAgence::estPersonnel()`.
+     *
+     * Publique depuis TCK-504 : {@see PrimaryAgentDesignator} refuse de marquer qui n'est pas
+     * éligible, sans quoi la marque désignerait quelqu'un que cette règle écarte aussitôt.
+     */
+    public static function eligible(?User $user, Property $property): bool
+    {
+        if (! self::joignable($user)) {
+            return false;
+        }
+
+        return $property->agency_id === null || PersonnelDeLAgence::estPersonnel($user, $property->agency_id);
     }
 
     /**

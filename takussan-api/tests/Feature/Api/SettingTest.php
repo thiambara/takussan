@@ -16,10 +16,12 @@ class SettingTest extends TestCase
     public function test_super_admin_can_manage_global_settings(): void
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-600 (raccord R1) : un réglage global s'écrit sous le second facteur de la plateforme —
+        // 2FA enrôlée et confirmée sur la session. Le refus est gardé par PlatformSettingsTwoFactorTest.
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $response = $this->postJson('/api/settings', [
             'key' => 'site_name',
@@ -66,10 +68,12 @@ class SettingTest extends TestCase
         // `fields[settings]=id,key,value,scope,...` — the `value` column
         // must be in the model's allowedFields list or spatie returns 400.
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-600 (raccord R1) : un réglage global s'écrit sous le second facteur de la plateforme —
+        // 2FA enrôlée et confirmée sur la session. Le refus est gardé par PlatformSettingsTwoFactorTest.
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->postJson('/api/settings', [
             'key' => 'site_name',

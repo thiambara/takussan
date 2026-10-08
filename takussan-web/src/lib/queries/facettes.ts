@@ -1,5 +1,7 @@
 import { apiFetch } from '@/lib/api';
+import { type DomainesDeFacette, domainesStatiques } from '@/lib/canonique';
 import { DEFAULT_LOCALE } from '@/i18n/config';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Le DOMAINE de la facette `city` — TCK-433, passe 2.
@@ -48,7 +50,9 @@ export async function villesDuCatalogue(): Promise<Map<string, string> | null> {
     const reponse = await apiFetch<ReponseVilles>(
       '/public/properties/cities',
       { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,
-      { locale: DEFAULT_LOCALE },
+      // TCK-598 — PARTAGÉ : en cache de données, la même réponse sert tous les visiteurs. Une IP
+      // dans la clé la fragmenterait, et lire les en-têtes entrants rendrait la route dynamique.
+      { locale: DEFAULT_LOCALE, partage: true },
     );
 
     if (reponse.meta?.truncated) {
@@ -73,4 +77,96 @@ export async function villesDuCatalogue(): Promise<Map<string, string> | null> {
     );
     return null;
   }
+}
+
+/**
+ * TCK-598 (V14, contrainte 12) — le SEUIL d'une page de quartier : un quartier n'est canonique
+ * d'une page (et n'entre au sitemap) que s'il compte au moins ce nombre de biens publics dans la
+ * ville de l'URL. En dessous, `?city=Dakar&location=Ngor` se replie sur `?city=Dakar` : une page
+ * indexable pour un ou deux biens serait une page mince, et une par quartier saisi à la main.
+ * *Option retenue par défaut, non tranchée par le porteur* (N = 3).
+ */
+export const SEUIL_QUARTIER_INDEXABLE = 3;
+
+type ReponseQuartiers = ReponseVilles;
+
+/** La graphie de repli d'une ville ou d'un quartier — la même que `villesDuCatalogue`. */
+export function replie(valeur: string): string {
+  return valeur.trim().toLocaleLowerCase('fr');
+}
+
+/**
+ * Les quartiers INDEXABLES d'une ville : repli de casse → graphie canonique, pour les seuls
+ * quartiers qui atteignent {@link SEUIL_QUARTIER_INDEXABLE}. `null` si le domaine est
+ * inconnaissable (API injoignable, domaine tronqué) — même contrat que `villesDuCatalogue`.
+ *
+ * L'API replie déjà les variantes de casse (« Mermoz » et « MERMOZ » : une entrée, comptée deux) :
+ * le seuil s'applique donc au quartier, pas à une graphie.
+ *
+ * Appel PARTAGÉ, en cache de données comme le domaine des villes.
+ */
+export async function quartiersDeLaVille(ville: string): Promise<Map<string, string> | null> {
+  try {
+    const reponse = await apiFetch<ReponseQuartiers>(
+      cheminApi`/public/properties/neighborhoods?city=${encodeURIComponent(ville)}`,
+      { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,
+      { locale: DEFAULT_LOCALE, partage: true },
+    );
+
+    if (reponse.meta?.truncated) {
+      console.error(
+        `[canonique] le domaine des quartiers de ${ville} est TRONQUÉ côté API : toute facette de ` +
+          `quartier s'y replie sur la page de la ville.`,
+      );
+      return null;
+    }
+
+    const domaine = new Map<string, string>();
+    for (const { value, count } of reponse.data) {
+      if (value && count >= SEUIL_QUARTIER_INDEXABLE) domaine.set(replie(value), value);
+    }
+    return domaine;
+  } catch (err) {
+    console.error(
+      `[canonique] domaine des quartiers de ${ville} indisponible — toute facette de quartier s'y ` +
+        `replie sur la page de la ville.`,
+      err,
+    );
+    return null;
+  }
+}
+
+/**
+ * Les villes du catalogue AVEC leur compte, pour le sitemap : une ville qui compte moins de
+ * {@link SEUIL_QUARTIER_INDEXABLE} biens ne peut pas avoir de quartier indexable, et ne coûte donc
+ * pas d'appel de plus. Même URL et mêmes options que `villesDuCatalogue` : une seule entrée de cache.
+ */
+export async function villesAvecComptes(): Promise<readonly { readonly value: string; readonly count: number }[]> {
+  const reponse = await apiFetch<ReponseVilles>(
+    '/public/properties/cities',
+    { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,
+    { locale: DEFAULT_LOCALE, partage: true },
+  );
+  if (reponse.meta?.truncated) {
+    throw new Error('[sitemap] domaine des villes TRONQUÉ côté API : la source des villes refuse de mentir.');
+  }
+  return reponse.data.filter((v) => v.value);
+}
+
+/**
+ * Les domaines des QUATRE facettes de la liste pour une requête donnée — TCK-598.
+ *
+ * Le domaine des quartiers n'est demandé que si l'URL porte un quartier ET une ville du catalogue :
+ * un quartier se juge dans SA ville, et la page nue ou la page de ville n'en paient aucun appel.
+ */
+export async function domainesDeLaListe(params: URLSearchParams): Promise<DomainesDeFacette> {
+  const villes = await villesDuCatalogue();
+  const ville = params.get('city');
+  const villeCanonique = ville && villes ? villes.get(replie(ville)) : undefined;
+  const quartiers =
+    villeCanonique && (params.get('location') ?? '').trim() !== ''
+      ? await quartiersDeLaVille(villeCanonique)
+      : null;
+
+  return { ...domainesStatiques(), villes, quartiers };
 }

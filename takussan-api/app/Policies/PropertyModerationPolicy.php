@@ -12,9 +12,13 @@ use App\Models\User;
  */
 class PropertyModerationPolicy
 {
+    /**
+     * TCK-597 (ADR-0043 §4) — un bien sous verrou plateforme n'est approuvé que par un super-admin
+     * (qui passe par `Gate::before`) : l'admin d'agence ne défait pas une décision plateforme.
+     */
     public function approve(User $user, Property $property): bool
     {
-        return $this->canModerate($user, $property);
+        return ! $property->isUnderPlatformHold() && $this->canModerate($user, $property);
     }
 
     public function reject(User $user, Property $property): bool
@@ -31,7 +35,10 @@ class PropertyModerationPolicy
             return true;
         }
 
-        return $user->agency_id !== null && $user->agency_id === $property->agency_id;
+        // TCK-587 — « tout membre » était aussi un autre bailleur de l'agence : le personnel seul.
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $property->agency_id;
     }
 
     private function canModerate(User $user, Property $property): bool
@@ -43,10 +50,11 @@ class PropertyModerationPolicy
         // TCK-278 — agency_admin scoped to the property's agency only.
         // The active-profile-aware `$user->agency_id` accessor enforces
         // that the admin is currently acting under the right agency.
-        if ($user->agency_id === null || $user->agency_id !== $property->agency_id) {
+        $agencyId = $user->agency_id;
+        if ($agencyId === null || $agencyId !== $property->agency_id || ! $user->isAgencyAdminAt((int) $agencyId)) {
             return false;
         }
 
-        return $user->isAgencyAdminAt((int) $user->agency_id);
+        return true;
     }
 }

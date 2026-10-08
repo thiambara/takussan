@@ -29,10 +29,10 @@ class MeProfilesController extends Controller
      * Toujours borné à l'appelant : ce point d'entrée ne liste jamais les
      * profils de quelqu'un d'autre.
      *
-     * TCK-495 — `brokerProfile` n'est plus préchargé, et `User::profiles()` ne
-     * le rend plus : un `BrokerProfile` arrivé jusqu'ici ferait lever
-     * `ProfileResource` sur `aliasFor()`. Le préchargement suit donc la liste,
-     * il ne la précède pas.
+     * Le préchargement suit la liste de `User::profiles()`, il ne la précède
+     * pas : un profil préchargé ici sans alias dans `TYPE_MAP` ferait lever
+     * `ProfileResource` sur `aliasFor()` — c'était le cas du courtier entre
+     * TCK-495 et son retrait (ADR-0030).
      */
     public function index(Request $request): JsonResponse
     {
@@ -84,7 +84,7 @@ class MeProfilesController extends Controller
 
         $profile = $this->resolver->resolve($composite, $user);
         if ($profile === null) {
-            return $this->json(['message' => 'Profile not accessible.'], 403);
+            abort_code(403, 'profile.not_accessible');
         }
 
         $cookie = Cookie::create(

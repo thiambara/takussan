@@ -32,14 +32,14 @@ class FeatureFlagController extends Controller
 
     public function update(UpdateFeatureFlagRequest $request, string $key): JsonResponse
     {
-        abort_unless(Flag::tryFrom($key), 404, 'Unknown feature flag.');
+        abort_code_unless(Flag::tryFrom($key), 404, 'feature_flag.unknown');
         $data = $request->validated();
-        $catalogue = Flag::from($key);
+        // TCK-600 — la colonne `label` reste (non nulle) ; le libellé affiché est traduit par le front.
         $flag = FeatureFlag::updateOrCreate(
             ['key' => $key],
             [
-                'label' => $catalogue->label(),
-                'description' => $catalogue->description(),
+                'label' => $key,
+                'description' => null,
                 'enabled' => $data['enabled'],
                 'segments_json' => $data['segments'] ?? [],
                 'updated_by_id' => $request->user()->id,

@@ -46,6 +46,15 @@ export interface CustomerDetail extends CustomerListItem {
   added_by_id: number | null;
   user_id: number | null;
   metadata: Record<string, unknown> | null;
+  agency_id?: number | null;
+  /** TCK-591 §5 — critères du prospect (`decimal:2` : les montants arrivent en chaîne). */
+  seeking_contract_type?: 'sale' | 'rent' | null;
+  budget_min?: string | null;
+  budget_max?: string | null;
+  seeking_property_types?: string[] | null;
+  seeking_cities?: string[] | null;
+  seeking_neighborhoods?: string[] | null;
+  min_bedrooms?: number | null;
 }
 
 export interface CustomerNote {
@@ -55,6 +64,8 @@ export interface CustomerNote {
   author_name?: string | null;
   body: string;
   pinned: boolean;
+  /** TCK-591 — nature d'une note d'étape ; le préfixe se rend côté front, dans la langue du lecteur. */
+  kind?: 'loss' | 'conversion' | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,12 +83,14 @@ export interface CustomerRelationship {
   id: number;
   user_id: number;
   customer_id: number;
-  relationship_type: 'owner_tenant' | 'agent_client' | 'broker_client' | string;
+  relationship_type: 'owner_tenant' | 'agent_client' | string;
   is_primary: boolean;
   status: 'active' | 'ended' | 'suspended' | string;
   start_date: string;
   end_date: string | null;
   notes: string | null;
+  /** Rendu par `GET /api/customers/{id}/relationships` ; le référent se nomme par lui (TCK-591). */
+  user?: { id: number; name: string; email: string | null } | null;
 }
 
 export type PaginatedCustomers = PaginatedResponse<CustomerListItem>;

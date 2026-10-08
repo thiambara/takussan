@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
 import { ORIGINE_SITE } from '@/lib/alternates';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
+import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
 import { AuthProvider } from '@/context/AuthContext';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { FeatureFlagProvider } from '@/components/providers/FeatureFlagProvider';
@@ -17,7 +18,7 @@ import { ChatDraftProvider } from '@/context/ChatDraftContext';
 import { FloatingDockProvider } from '@/components/floating-dock';
 import { IntlProviderRacine } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
-import { Analytics } from '@vercel/analytics/next';
+import { AudienceSansSecret } from '@/components/shared/AudienceSansSecret';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
@@ -64,12 +65,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  // TCK-600 (ADR-0055 §6) — pendant une session d'impersonation, la page se lit en tant que la
+  // cible, et `AuthContext` ne reçoit AUCUN jeton : les appels du navigateur passent par le relais.
+  const impersonation = cookieStore.get(IMPERSONATION_COOKIE)?.value;
+  const token = impersonation ? undefined : cookieStore.get(AUTH_COOKIE_NAME)?.value;
 
   let initialUser = null;
-  if (token) {
+  if (impersonation ?? token) {
     try {
-      initialUser = await getMe(token);
+      initialUser = await getMe((impersonation ?? token) as string);
     } catch {
       initialUser = null;
     }
@@ -105,7 +109,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <BandeauxDuSite emplacement="racine" />
                       <ChatWidget />
                       {children}
-                      <Analytics />
+                      <AudienceSansSecret />
                     </ChatDraftProvider>
                   </FloatingDockProvider>
                 </UserLocationProvider>

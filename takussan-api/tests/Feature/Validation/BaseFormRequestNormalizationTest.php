@@ -150,7 +150,8 @@ class BaseFormRequestNormalizationTest extends ApiTestCase
             'name' => 'Villa Dakar',
             'criteria' => [
                 'city' => '  Dakar  ',
-                'neighborhood' => '',
+                // TCK-599 — `location`, la clé du vocabulaire fermé (`neighborhood` rend 422).
+                'location' => '',
                 'tags' => ['  mer  ', ''],
             ],
         ])->assertCreated();
@@ -158,7 +159,7 @@ class BaseFormRequestNormalizationTest extends ApiTestCase
         $criteria = SavedSearch::where('user_id', $user->id)->sole()->criteria;
 
         $this->assertSame('Dakar', $criteria['city'], 'trim dans un tableau imbriqué');
-        $this->assertNull($criteria['neighborhood'], 'chaîne vide → null dans un tableau imbriqué');
+        $this->assertNull($criteria['location'], 'chaîne vide → null dans un tableau imbriqué');
         $this->assertSame('mer', $criteria['tags'][0], 'trim dans un tableau de tableau');
         $this->assertNull($criteria['tags'][1], 'chaîne vide → null dans un tableau de tableau');
     }

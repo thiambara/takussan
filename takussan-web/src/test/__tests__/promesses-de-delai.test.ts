@@ -34,6 +34,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'auth.forgotPassword.sentBody': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
     'takussan-api/app/Services/Account/DeletionStepUpService.php:38 — CODE_TTL_SECONDS = 300, usage unique',
+  // TCK-596 §4B (ADR-0042 §2) — le code de signature d'un bail.
+  'lease.signature.codeSentSms':
+    'takussan-api/app/Services/Lease/LeaseSignatureOtpService.php:24 — CODE_TTL_SECONDS = 600, usage unique',
+  'lease.signature.codeSentMail': 'idem — LeaseSignatureOtpService.php:24',
   // Ces cinq textes promettaient « jusqu'à 60 secondes pour arriver » : un délai de LIVRAISON du
   // SMS, que rien ne tient (le transport est un journal en dev, un fournisseur tiers en prod). Le
   // 60 était le délai avant renvoi, une autre chose. Ils annoncent désormais ce que le serveur
@@ -44,30 +48,64 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 'idem — PhoneVerificationService.php:22',
   'onboarding.host.steps.identity.otp.sentBody': 'idem — PhoneVerificationService.php:22',
   'profile.contact.otpSent': 'idem — PhoneVerificationService.php:22',
+  // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
+  'auth.phoneLogin.codeSentTo':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
+  // TCK-589 (p3-1) — le code de preuve envoyé à l'ANCIEN numéro avant de le remplacer :
+  // `PhoneChangeGuard::sendCode` → `sendCodeTo('phone-change', …)` → `issue()`, même TTL, consommé
+  // par `PhoneChangeGuard::authorize`.
+  'profile.contact.changeProofCodeSent':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, posé à :207 via PhoneChangeGuard::sendCode',
   'agency.tenantOnboardingPending.emptyDescription':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
   'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
+  // TCK-592 — la clôture contradictoire : `completed_at <= subDays(7)` (:38), passe quotidienne à
+  // 04:00 (routes/console.php:79, sans `--days`) — close au premier passage après le septième jour.
+  'maintenance.intervention.resolution.body':
+    'takussan-api/app/Console/Commands/AutoCloseMaintenanceRequests.php:21 — `--days=7` par défaut',
+  // TCK-602 (ADR-0051, décision 4) — la rétention par canal : 90 jours pour les paiements, 30 pour
+  // la messagerie. La purge d'IntegrationService (subDays(30) pour tous) a disparu avec ce ticket.
   'superAdmin.integrations.webhooks.retention':
-    'takussan-api/app/Services/Admin/IntegrationService.php:162 — purge au-delà de subDays(30)',
+    'takussan-api/config/webhooks.php:12-14 — `retention_days` payment 90, sms et whatsapp 30, appliqués par PruneWebhookLogs.php:32 (`webhooks:prune`, routes/console.php:154, chaque jour)',
+  // TCK-602 — la liste « à suivre » de la console des paiements : sans `filter[from]` (le front n'en
+  // envoie pas), la fenêtre est les 30 derniers jours. Période affichée, tenue par le serveur.
+  'superAdmin.payments.list.empty_description':
+    'takussan-api/app/Http/Controllers/Api/Admin/PaymentSupervisionController.php:24 — fenêtre par défaut `$to->subDays(30)`',
   'superAdmin.pages.users.impersonateDescription':
-    'takussan-api/app/Http/Controllers/Api/Admin/UserImpersonationController.php:30 — IMPERSONATION_TTL_MINUTES = 60',
+    'takussan-api/app/Models/ImpersonationSession.php — TTL_MINUTES = 15, non prolongeable (ADR-0055, TCK-600)',
   'privacy.dataExports.throttled':
     'takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:32 — une demande par subDay() ; la date affichée est `available_at` rendu par l\'API',
   'superAdmin.moderation.staleWarning':
     'takussan-web/src/components/admin/super/moderation.tsx:389 — compte calculé (> 7 jours), pas une promesse',
+  // TCK-599 — l'alerte sans compte : le lien de confirmation vaut 48 h (refusé au-delà par
+  // `confirmByToken`, la demande effacée par la purge horaire), le code WhatsApp 5 minutes.
+  'search.publicAlert.sentEmailBody':
+    'takussan-api/config/search_alerts.php:20 — confirmation_ttl_hours = 48, appliqué par PublicSearchAlertController::confirmByToken et search-alerts:purge-unconfirmed',
+  'search.publicAlert.codeBody':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, via sendCodeTo(\'search_alert:…\')',
   // Libellés de PÉRIODE (« ci 12 weer » = « sur 12 mois ») : la tournure wolof ressemble à un délai.
   'dashboard.tenant.upcoming30d': 'période affichée, pas une promesse',
   'dashboard.agency.chartTitle': 'période affichée, pas une promesse',
   'dashboard.agent.chartTitle': 'période affichée, pas une promesse',
   'dashboard.owner.chartTitle': 'période affichée, pas une promesse',
+  'superAdmin.metrics.gmvHint': 'période affichée (« sur 30 jours »), pas une promesse',
+  // TCK-595 — les tranches de la balance âgée : une ANCIENNETÉ de retard mesurée (« 61 à 90 jours »,
+  // « Plus de 90 jours »), bornes de `AgingBalanceService::BUCKETS`, pas un délai promis.
+  'admin.finances.aging.buckets.1_30': 'tranche d\'ancienneté affichée, pas une promesse',
+  'admin.finances.aging.buckets.31_60': 'tranche d\'ancienneté affichée, pas une promesse',
+  'admin.finances.aging.buckets.61_90': 'tranche d\'ancienneté affichée, pas une promesse',
+  'admin.finances.aging.buckets.90_plus': 'tranche d\'ancienneté affichée, pas une promesse',
 };
 
 /**
  * Le chiffre que le mécanisme tient, pour les entrées qui en dérivent d'une constante : un texte
  * qui dérive vers un autre chiffre — ou qui prête au mécanisme une promesse qu'il ne tient pas —
  * rougit ici, dans les trois langues. Les périodes affichées (« sur 12 mois ») n'y sont pas.
+ *
+ * Une LISTE quand le texte promet plusieurs délais (TCK-602 : « 90 jours pour les paiements, 30
+ * jours pour la messagerie ») : le texte doit porter exactement ces chiffres, dans cet ordre.
  */
-const CHIFFRE_TENU: Readonly<Record<string, number>> = {
+const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'auth.forgotPassword.sentBody': 60,
   'account.deletion.dialog.codeSentHint': 5,
   'owners.onboarding.steps.phone.sent.body': 5,
@@ -75,12 +113,16 @@ const CHIFFRE_TENU: Readonly<Record<string, number>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 5,
   'onboarding.host.steps.identity.otp.sentBody': 5,
   'profile.contact.otpSent': 5,
+  'profile.contact.changeProofCodeSent': 5,
   'agency.tenantOnboardingPending.emptyDescription': 7,
   'dashboard.onboardingPending.subtitle': 7,
-  'superAdmin.integrations.webhooks.retention': 30,
-  'superAdmin.pages.users.impersonateDescription': 1,
+  'maintenance.intervention.resolution.body': 7,
+  'superAdmin.integrations.webhooks.retention': [90, 30],
+  'superAdmin.pages.users.impersonateDescription': 15,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
+  'search.publicAlert.sentEmailBody': 48,
+  'search.publicAlert.codeBody': 5,
 };
 
 /**
@@ -185,7 +227,11 @@ describe('promesses de délai des dictionnaires (TCK-575)', () => {
         const chiffres = [...(valeurs.get(cle) ?? '').matchAll(new RegExp(String.raw`(\d+)\s?${UNITE}`, 'gi'))].map((m) =>
           Number(m[1]),
         );
-        return chiffres.length > 0 && chiffres.every((n) => n === attendu) ? [] : [`${cle} : ${chiffres.join(',') || 'aucun'} ≠ ${attendu}`];
+        const tenu =
+          typeof attendu === 'number'
+            ? chiffres.length > 0 && chiffres.every((n) => n === attendu)
+            : chiffres.join(',') === attendu.join(',');
+        return tenu ? [] : [`${cle} : ${chiffres.join(',') || 'aucun'} ≠ ${String(attendu)}`];
       });
 
       expect(ecarts).toEqual([]);

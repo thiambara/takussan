@@ -5,9 +5,13 @@ namespace App\Services\Review;
 use App\Models\Enums\ReviewStatus;
 use App\Models\Review;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class ReviewModerationService
 {
+    /** Le code du motif de la décision en cours, recopié dans `metadata` (ADR-0043 §7). */
+    private ?string $reasonCode = null;
+
     public function approve(Review $review, User $actor): Review
     {
         $this->assertTransition($review, ReviewStatus::Approved);
@@ -31,7 +35,7 @@ class ReviewModerationService
             'is_approved' => false,
         ];
 
-        if ($reason !== null && $reason !== '') {
+        if (($reason !== null && $reason !== '') || $this->reasonCode !== null) {
             $attributes['metadata'] = $this->moderationMetadata($review, $actor, $reason);
         }
 
@@ -41,17 +45,30 @@ class ReviewModerationService
     }
 
     /**
+     * TCK-597 — la décision se prend SOUS VERROU de la ligne, relue fraîche : deux modérateurs qui
+     * tranchent le même avis en même temps ne lisent plus tous deux « en attente ». Le second
+     * trouve l'état terminal et reçoit le 422 de transition.
+     *
      * @return array{review: Review, deleted: bool}
      */
-    public function moderate(Review $review, User $actor, string $decision, ?string $reason = null): array
+    public function moderate(Review $review, User $actor, string $decision, ?string $reason = null, ?string $reasonCode = null): array
     {
-        return match ($decision) {
-            'approve' => ['review' => $this->approve($review, $actor), 'deleted' => false],
-            'reject', 'hide' => ['review' => $this->reject($review, $actor, $reason), 'deleted' => false],
-            'delete', 'remove' => $this->remove($review, $actor, $reason),
-            'ignore' => ['review' => $this->ignore($review, $actor, $reason), 'deleted' => false],
-            default => abort(422, 'Unsupported review moderation decision.'),
-        };
+        return DB::transaction(function () use ($review, $actor, $decision, $reason, $reasonCode): array {
+            $locked = Review::query()->whereKey($review->getKey())->lockForUpdate()->firstOrFail();
+            $this->reasonCode = $reasonCode;
+
+            try {
+                return match ($decision) {
+                    'approve' => ['review' => $this->approve($locked, $actor), 'deleted' => false],
+                    'reject', 'hide' => ['review' => $this->reject($locked, $actor, $reason), 'deleted' => false],
+                    'delete', 'remove' => $this->remove($locked, $actor, $reason),
+                    'ignore' => ['review' => $this->ignore($locked, $actor, $reason), 'deleted' => false],
+                    default => abort_code(422, 'review.moderation_decision_invalid'),
+                };
+            } finally {
+                $this->reasonCode = null;
+            }
+        });
     }
 
     /**
@@ -77,6 +94,7 @@ class ReviewModerationService
         $metadata['ignored_reports_by_id'] = $actor->id;
         $metadata['ignored_reports_at'] = now()->toISOString();
         $metadata['ignored_reason'] = $reason;
+        $metadata['ignored_reason_code'] = $this->reasonCode;
 
         $review->update(['metadata' => $metadata]);
 
@@ -90,6 +108,7 @@ class ReviewModerationService
     {
         $metadata = $review->metadata ?? [];
         $metadata['moderation_reason'] = $reason;
+        $metadata['moderation_reason_code'] = $this->reasonCode;
         $metadata['moderated_by_id'] = $actor->id;
         $metadata['moderated_at'] = now()->toISOString();
 
@@ -99,10 +118,11 @@ class ReviewModerationService
     private function assertTransition(Review $review, ReviewStatus $target): void
     {
         $current = $review->status ?? ReviewStatus::Pending;
-        abort_unless(
+        abort_code_unless(
             $current->canTransitionTo($target),
             422,
-            "Cannot transition review from {$current->value} to {$target->value}."
+            'review.status_transition_invalid',
+            ['from' => $current->value, 'to' => $target->value]
         );
     }
 }

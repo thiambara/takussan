@@ -1,9 +1,11 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
+import type { ModerationReasonCode } from '@/lib/moderation-reasons';
 import type {
   PaginatedResponse,
   ApiResponse,
   SpatieQueryParams,
 } from '@/types/api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Review moderation queries — TCK-067. Admin queue uses sparse fieldsets
@@ -46,6 +48,8 @@ export interface ModerationReview {
   is_approved: boolean;
   reported_count: number;
   created_at: string;
+  /** verif-597 m1 — jugé par la policy de l'API : ce que l'acteur peut trancher. */
+  can_moderate?: boolean;
 }
 
 export interface ModerationQueueMeta {
@@ -85,7 +89,8 @@ function buildQueueParams({
   return {
     fields: { reviews: MODERATION_REVIEW_FIELDS },
     filter,
-    sort: sort ?? '-reported_count,-created_at',
+    // TCK-597 — les avis à trancher d'abord (en attente, puis signalés), trié par le serveur.
+    sort: sort ?? 'pending_first,-reported_count,-created_at',
     page: page ?? 1,
     per_page: perPage ?? 20,
   };
@@ -97,7 +102,7 @@ export async function fetchModerationQueue(
 ): Promise<ModerationQueueResponse> {
   const qs = buildQueryString(buildQueueParams(params));
   return apiRequest<ModerationQueueResponse>(
-    `/api/reviews${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/reviews${requete(qs)}`,
     { token },
   );
 }
@@ -106,6 +111,8 @@ export type ModerationDecision = 'approve' | 'hide' | 'delete' | 'ignore';
 
 export interface ModeratePayload {
   readonly decision: ModerationDecision;
+  /** Requis pour tout autre geste qu'approuver (TCK-597, ADR-0043 §7). */
+  readonly reason_code?: ModerationReasonCode;
   readonly reason?: string;
 }
 
@@ -118,7 +125,7 @@ export async function moderateReview(
   payload: ModeratePayload,
   token: string,
 ): Promise<ModerateResponse> {
-  return apiRequest(`/api/reviews/${reviewId}/moderate`, {
+  return apiRequest(cheminApi`/api/reviews/${reviewId}/moderate`, {
     method: 'PATCH',
     body: payload,
     token,
@@ -136,5 +143,5 @@ export async function fetchReviewReports(
   reviewId: number,
   token: string,
 ): Promise<ApiResponse<ReviewReport[]> & { meta: { total: number } }> {
-  return apiRequest(`/api/reviews/${reviewId}/reports`, { token });
+  return apiRequest(cheminApi`/api/reviews/${reviewId}/reports`, { token });
 }

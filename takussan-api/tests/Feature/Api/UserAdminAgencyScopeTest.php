@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
-use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -14,8 +13,9 @@ use Tests\ApiTestCase;
 
 /**
  * TCK-147 — `/api/users` opened to `agency_admin` (auto-scoped to their
- * active profile's agency) and `block`/`activate` available to
- * `agency_admin` for users in their agency.
+ * active profile's agency). `block`/`activate` were opened to `agency_admin`
+ * as well, and closed again by TCK-587: blocking an ACCOUNT is the super
+ * admin's gesture only (ADR-0031 §2).
  */
 class UserAdminAgencyScopeTest extends ApiTestCase
 {
@@ -87,68 +87,6 @@ class UserAdminAgencyScopeTest extends ApiTestCase
         $this->assertTrue($ids->contains($userB->id));
     }
 
-    public function test_agency_admin_can_block_user_in_active_agency(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
-
-        $target = User::factory()->create();
-        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agency->id]);
-
-        $this->apiPost("/api/users/{$target->id}/block")
-            ->assertOk()
-            ->assertJsonPath('data.status', UserStatus::Blocked->value);
-
-        $this->assertSame(UserStatus::Blocked, $target->fresh()->status);
-    }
-
-    public function test_agency_admin_cannot_block_user_in_other_agency(): void
-    {
-        $agencyA = Agency::factory()->create();
-        $agencyB = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agencyA]);
-
-        $target = User::factory()->create();
-        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agencyB->id]);
-
-        $this->apiPost("/api/users/{$target->id}/block")
-            ->assertStatus(422)
-            ->assertJsonPath('message', __('messages.target_user_not_in_active_agency'));
-    }
-
-    public function test_agency_admin_cannot_block_self(): void
-    {
-        $agency = Agency::factory()->create();
-        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
-
-        $this->apiPost("/api/users/{$admin->id}/block")
-            ->assertStatus(422)
-            ->assertJsonPath('message', __('messages.cannot_block_self'));
-    }
-
-    public function test_agency_admin_can_activate_user_in_active_agency(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
-
-        $target = User::factory()->create(['status' => UserStatus::Blocked->value]);
-        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agency->id]);
-
-        $this->apiPost("/api/users/{$target->id}/activate")
-            ->assertOk()
-            ->assertJsonPath('data.status', UserStatus::Active->value);
-    }
-
-    public function test_super_admin_can_block_any_user(): void
-    {
-        $this->apiActingAsRole('super_admin');
-
-        $target = User::factory()->create();
-
-        $this->apiPost("/api/users/{$target->id}/block")
-            ->assertOk();
-    }
-
     public function test_role_endpoint_returns_403_with_target_message_when_target_outside_agency(): void
     {
         $agencyA = Agency::factory()->create();
@@ -159,7 +97,8 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertForbidden()
-            ->assertJsonPath('message', __('messages.target_user_not_in_active_agency'));
+            ->assertJsonPath('code', 'user.not_in_active_agency')
+            ->assertJsonPath('message', __('errors.user.not_in_active_agency'));
     }
 
     public function test_outsider_without_admin_role_cannot_list(): void

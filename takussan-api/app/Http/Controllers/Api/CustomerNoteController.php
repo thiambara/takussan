@@ -13,7 +13,7 @@ class CustomerNoteController extends Controller
 {
     public function index(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeCustomerAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $notes = $customer->notes()
             ->with('author')
@@ -49,22 +49,14 @@ class CustomerNoteController extends Controller
         return $this->json(null, 204);
     }
 
-    protected function authorizeCustomerAccess(Request $request, Customer $customer): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $customer->added_by_id === $user->id
-            || ($user->agency_id && $customer->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
     private function format(CustomerNote $note): array
     {
         return [
             'id' => $note->id,
             'customer_id' => $note->customer_id,
             'body' => $note->body,
+            // TCK-591 — `conversion` | `loss` | null : le préfixe se rend côté front.
+            'kind' => $note->kind?->value,
             'pinned' => $note->pinned,
             'author' => $note->relationLoaded('author') && $note->author
                 ? ['id' => $note->author->id, 'name' => $note->author->getFullNameAttribute()]

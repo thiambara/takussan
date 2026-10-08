@@ -5,8 +5,10 @@ namespace App\Services\Accounting;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -30,14 +32,11 @@ class ReconciliationMatcher
     /**
      * Suggest a matching payment for a given bank statement line.
      *
-     * Only credit lines are matched — debit lines are ignored in V1.
+     * TCK-593 — un crédit s'apparie à un encaissement (BookingPayment, LeasePayment, Invoice), un
+     * débit à un reversement (`Payout` `completed`). Les deux sens ne se croisent jamais.
      */
     public function suggestFor(BankStatementLine $line): ?MatchSuggestion
     {
-        if ($line->direction === BankStatementLineDirection::Debit) {
-            return null;
-        }
-
         $statement = $line->statement;
         $agencyId = $statement->agency_id;
         $amount = (float) $line->amount;
@@ -47,7 +46,9 @@ class ReconciliationMatcher
         $windowStart = $postedAt->copy()->subDays(7);
         $windowEnd = $postedAt->copy()->addDays(7);
 
-        $candidates = $this->fetchCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd);
+        $candidates = $line->direction === BankStatementLineDirection::Debit
+            ? $this->fetchPayoutCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd)
+            : $this->fetchCandidates($agencyId, $amount, $currency, $windowStart, $windowEnd);
 
         if ($candidates->isEmpty()) {
             return null;
@@ -73,14 +74,22 @@ class ReconciliationMatcher
             // Scope by agency — each model has a different FK path.
             $query = match ($modelClass) {
                 BookingPayment::class => $query->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agencyId))),
-                LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId)),
+                // TCK-594 (P4-5) — une caution rendue sort du compte : un crédit ne s'y apparie pas.
+                LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))->exceptDepositRefunds(),
                 Invoice::class => $query->where('agency_id', $agencyId),
             };
 
             // Amount filter with small tolerance for rounding. Invoices store the
             // total in `total_amount`; booking/lease payments use `amount`.
             $amountColumn = $modelClass === Invoice::class ? 'total_amount' : 'amount';
-            $query->whereRaw("ABS({$amountColumn} - ?) < 0.01", [$amount]);
+
+            // TCK-593 — une échéance payée en ligne arrive sur le compte pour le montant FIGÉ à
+            // l'initiation (`metadata.gateway_expected_amount`), pénalité comprise quand l'agence
+            // l'encaisse en ligne : 157 500, pas 150 000. Le montant de l'échéance en repli.
+            $amountExpression = $modelClass === LeasePayment::class
+                ? "COALESCE((metadata->>'gateway_expected_amount')::numeric, amount)"
+                : $amountColumn;
+            $query->whereRaw("ABS({$amountExpression} - ?) < 0.01", [$amount]);
 
             // Date window
             $dateColumn = $modelClass === Invoice::class ? 'issue_date' : 'paid_at';
@@ -101,6 +110,32 @@ class ReconciliationMatcher
         }
 
         return $candidates;
+    }
+
+    /**
+     * TCK-593 — un débit du relevé est un reversement émis : `Payout` `completed` de l'agence, au
+     * `net_amount` exact (ce qui quitte le compte), dans la fenêtre autour de `processed_at`.
+     *
+     * @return Collection<int, object{type: string, id: int, reference_number: ?string, paid_at: ?Carbon, payer_name: ?string}>
+     */
+    private function fetchPayoutCandidates(int $agencyId, float $amount, string $currency, $windowStart, $windowEnd): Collection
+    {
+        return Payout::query()
+            ->whereNull('bank_reconciled_at')
+            ->where('status', PayoutStatus::Completed)
+            ->where('agency_id', $agencyId)
+            ->where('currency', $currency)
+            ->whereRaw('ABS(net_amount - ?) < 0.01', [$amount])
+            ->whereBetween('processed_at', [$windowStart, $windowEnd])
+            ->get(['id', 'net_amount', 'currency', 'reference_number', 'processed_at', 'landlord_id'])
+            ->map(fn (Payout $row) => (object) [
+                'type' => Payout::class,
+                'id' => $row->id,
+                'reference_number' => $row->reference_number,
+                'paid_at' => $row->processed_at,
+                'payer_name' => null,
+                'model' => $row,
+            ]);
     }
 
     private function scoreCandidates(Collection $candidates, BankStatementLine $line): ?MatchSuggestion
@@ -194,6 +229,11 @@ class ReconciliationMatcher
 
         if ($model instanceof Invoice) {
             return $model->customer?->full_name;
+        }
+
+        // Le bénéficiaire du virement sortant : le bailleur.
+        if ($model instanceof Payout) {
+            return $model->landlord?->full_name;
         }
 
         return null;

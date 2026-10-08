@@ -2,101 +2,72 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\ImpersonationSession;
 use App\Models\User;
+use App\Services\Admin\ImpersonationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
-use Spatie\Activitylog\Models\Activity;
+use Tests\Support\SessionsDImpersonation;
 use Tests\TestCase;
 
 /**
- * TCK-144 — Impersonation start/stop. Verifies the token is short-lived,
- * named correctly, and that activity log entries link actor + target.
+ * TCK-144, réécrit par TCK-600 (ADR-0055) — le CONTRAT des trois routes d'impersonation.
+ *
+ * Ce test affirmait un jeton `*` de 60 minutes rendu en clair et un `stop` qui révoquait les jetons
+ * de n'importe quel `user_id`. Le jeton reste dans la réponse de `start`, mais cette réponse n'est
+ * destinée qu'au route handler du BFF (ADR-0055 §6) ; les comportements sont gardés par les quatre
+ * classes `Impersonation*Test`.
  */
 class UserImpersonationTest extends TestCase
 {
     use RefreshDatabase;
+    use SessionsDImpersonation;
 
-    public function test_start_returns_short_lived_token_named_impersonation(): void
+    public function test_start_rend_la_forme_destinee_au_bff(): void
     {
-        $actor = $this->actingAsRole('super_admin');
-        $target = User::factory()->create();
+        $this->commeOperateur($this->operateur(PlatformProfileLevel::SuperAdmin));
+        $cible = User::factory()->create();
 
-        $response = $this->postJson("/api/admin/users/{$target->id}/impersonate")
+        $this->postJson("/api/admin/users/{$cible->id}/impersonate", ['reason' => self::MOTIF_IMPERSONATION])
+            ->assertCreated()
+            ->assertJsonStructure(['data' => ['session_id', 'token', 'expires_at', 'target' => ['id', 'name']]])
+            ->assertJsonMissingPath('data.actor_id');
+    }
+
+    public function test_stop_ignore_un_user_id_et_ne_touche_pas_aux_autres_jetons(): void
+    {
+        $etrangere = User::factory()->create();
+        $autre = $etrangere->createToken(ImpersonationService::TOKEN_NAME, [ImpersonationService::ABILITY], now()->addMinutes(5));
+        $ordinaire = $etrangere->createToken('regular-session');
+        ['operateur' => $operateur, 'session_id' => $id] = $this->ouvrirUneSession();
+
+        $this->commeOperateur($operateur)->postJson('/api/admin/impersonate/stop', ['user_id' => $etrangere->id])
             ->assertOk()
-            ->assertJsonStructure(['token', 'expires_at', 'actor_id', 'target_user_id']);
+            ->assertJsonPath('data.session_id', $id)
+            ->assertJsonStructure(['data' => ['session_id', 'ended_at']]);
 
-        $this->assertSame($actor->id, $response->json('actor_id'));
-        $this->assertSame($target->id, $response->json('target_user_id'));
-
-        $stored = PersonalAccessToken::query()
-            ->where('tokenable_id', $target->id)
-            ->where('tokenable_type', $target->getMorphClass())
-            ->where('name', 'impersonation')
-            ->first();
-
-        $this->assertNotNull($stored);
-        $this->assertNotNull($stored->expires_at);
-        $this->assertTrue($stored->expires_at->lte(now()->addMinutes(61)));
-        $this->assertTrue($stored->expires_at->gt(now()));
-
-        $this->assertTrue(
-            Activity::query()->where('event', 'super_admin_impersonation_started')
-                ->where('causer_id', $actor->id)
-                ->where('subject_id', $target->id)
-                ->exists(),
-        );
+        $this->assertNotNull(PersonalAccessToken::find($autre->accessToken->id));
+        $this->assertNotNull(PersonalAccessToken::find($ordinaire->accessToken->id));
     }
 
-    public function test_self_impersonation_is_rejected(): void
+    public function test_current_sert_la_banniere_avec_le_jeton_d_impersonation_seulement(): void
     {
-        $actor = $this->actingAsRole('super_admin');
+        ['operateur' => $operateur, 'cible' => $cible, 'jeton' => $jeton, 'session_id' => $id] = $this->ouvrirUneSession();
 
-        $this->postJson("/api/admin/users/{$actor->id}/impersonate")
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'You cannot impersonate yourself.');
-    }
-
-    public function test_stop_revokes_all_impersonation_tokens_for_target(): void
-    {
-        $actor = $this->actingAsRole('super_admin');
-        $target = User::factory()->create();
-        $target->createToken('impersonation', ['*'], now()->addHour());
-        $target->createToken('impersonation', ['*'], now()->addHour());
-        $target->createToken('regular-session', ['*'], now()->addHour());
-
-        $this->postJson('/api/admin/impersonate/stop', ['user_id' => $target->id])
+        $data = $this->avecLeJeton($jeton)->getJson('/api/impersonation/current')
             ->assertOk()
-            ->assertJsonPath('revoked_count', 2);
+            ->assertJsonPath('data.session_id', $id)
+            ->assertJsonPath('data.impersonator.id', $operateur->id)
+            ->assertJsonPath('data.target.id', $cible->id)
+            ->assertJsonPath('data.read_only', true)
+            ->json('data');
+        $this->assertArrayNotHasKey('token', $data);
+        $this->assertSame(ImpersonationSession::query()->findOrFail($id)->expires_at->toIso8601String(), $data['expires_at']);
 
-        $this->assertSame(
-            0,
-            PersonalAccessToken::query()
-                ->where('tokenable_id', $target->id)
-                ->where('name', 'impersonation')
-                ->count(),
-        );
-
-        $this->assertSame(
-            1,
-            PersonalAccessToken::query()
-                ->where('tokenable_id', $target->id)
-                ->where('name', 'regular-session')
-                ->count(),
-        );
-
-        $this->assertTrue(
-            Activity::query()->where('event', 'super_admin_impersonation_stopped')
-                ->where('causer_id', $actor->id)
-                ->where('subject_id', $target->id)
-                ->exists(),
-        );
-    }
-
-    public function test_stop_requires_user_id_param(): void
-    {
-        $this->actingAsRole('super_admin');
-
-        $this->postJson('/api/admin/impersonate/stop', [])
-            ->assertStatus(422);
+        $this->avecLeJeton($cible->createToken('mobile')->plainTextToken)->getJson('/api/impersonation/current')
+            ->assertNotFound()
+            ->assertJsonPath('code', 'impersonation.no_session');
+        $this->commeOperateur($operateur)->getJson('/api/impersonation/current')->assertNotFound();
     }
 }

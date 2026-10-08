@@ -9,9 +9,12 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as LaravelTestCase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Laravel\Sanctum\PersonalAccessToken;
 use PHPUnit\Framework\Assert;
 use Tests\Support\SearchableModels;
 use Tests\Support\TestDatabase;
@@ -175,11 +178,95 @@ abstract class TestCase extends LaravelTestCase
             $attributes['agency_id'] = Agency::factory()->create()->id;
         }
 
+        // TCK-589 — la 2FA est EXIGÉE de la plateforme et des admins d'agence
+        // (`RequireTwoFactor`) : le rôle s'incarne avec elle, sauf si le test dit
+        // le contraire. Un test qui éprouve un compte sans 2FA passe
+        // `['two_factor_enabled' => false]`.
+        if (in_array($role, ['super_admin', 'agency_admin'], true)) {
+            $attributes += ['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET];
+        }
+
         $user = User::factory()->create($attributes);
 
         $this->materializeRoleProfile($user, $role);
 
+        // TCK-589 — les actions de console exigent un step-up PORTÉ PAR LE JETON
+        // (`RequireRecentTwoFactor`) : le super-admin agit par un vrai jeton qui en
+        // porte un frais, comme après `POST /auth/two-factor/step-up`.
+        if ($role === 'super_admin' && in_array($guard, [null, 'sanctum'], true) && $user->two_factor_enabled) {
+            $this->actingAsWithStepUp($user);
+
+            return $user;
+        }
+
         $this->actingAs($user, $guard);
+
+        return $user;
+    }
+
+    /**
+     * TCK-589, vérification adverse B2 — la 2FA exigée juge le JETON
+     * (`TwoFactorSession`), plus le compte. Un compte à 2FA incarné SANS jeton est servi
+     * comme après une connexion à deux facteurs : un jeton non enregistré dont le second
+     * facteur a été saisi il y a une heure — session à deux facteurs, step-up expiré, comme
+     * avant. Un test qui éprouve un jeton sans second facteur crée un vrai jeton.
+     */
+    public function be(Authenticatable $user, $guard = null)
+    {
+        if (! $user instanceof User || ! $user->two_factor_enabled || $user->currentAccessToken() !== null) {
+            // Un compte incarné AVANT celui-ci a pu être posé sur la garde `sanctum` (plus bas) :
+            // sans cet oubli, il y resterait et la requête suivante agirait en son nom.
+            if ($guard !== 'sanctum') {
+                $this->app['auth']->guard('sanctum')->forgetUser();
+            }
+
+            return parent::be($user, $guard);
+        }
+
+        $user->withAccessToken((new PersonalAccessToken)->forceFill(['two_factor_verified_at' => now()->subHour()]));
+        parent::be($user, $guard);
+        // Sans cela, `auth:sanctum` relit l'utilisateur de la garde `web` et lui substitue un
+        // `TransientToken` : le jeton ci-dessus serait perdu.
+        $this->app['auth']->guard('sanctum')->setUser($user);
+
+        return $this;
+    }
+
+    /** TCK-589 — secret TOTP des comptes incarnés avec la 2FA (base32 valide). */
+    protected const TEST_TWO_FACTOR_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+
+    /**
+     * TCK-589 — authentifie par un vrai `PersonalAccessToken` portant un step-up
+     * frais (`two_factor_verified_at`), sur la garde `sanctum`. Le jeton factice de
+     * `Sanctum::actingAs()` n'en porte jamais (`SessionTokenIssuer::stepUpValidUntil`).
+     */
+    protected function actingAsWithStepUp(User $user): PersonalAccessToken
+    {
+        /** @var PersonalAccessToken $token */
+        $token = $user->tokens()->create([
+            'name' => 'test',
+            'token' => hash('sha256', Str::random(40)),
+            'abilities' => ['*'],
+        ]);
+        $token->forceFill(['two_factor_verified_at' => now()])->save();
+
+        $this->actingAs($user->withAccessToken($token), 'sanctum');
+
+        return $token;
+    }
+
+    /**
+     * TCK-594 × TCK-589 — les gestes d'argent sont sous step-up (`ProtectedActions::STEP_UP` :
+     * approuver, marquer payé, payer une facture d'intervention, gérer ses destinations). Le compte
+     * reçoit la 2FA s'il ne l'a pas, puis agit par un jeton qui porte un TOTP frais (10 min : un test
+     * qui voyage dans le temps rappelle ce helper après le voyage).
+     */
+    protected function actingWithStepUp(User $user): User
+    {
+        if (! $user->two_factor_enabled) {
+            $user->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        }
+        $this->actingAsWithStepUp($user);
 
         return $user;
     }

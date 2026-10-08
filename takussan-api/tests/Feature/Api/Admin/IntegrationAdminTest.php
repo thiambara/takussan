@@ -94,7 +94,11 @@ class IntegrationAdminTest extends TestCase
         $this->postJson("/api/admin/integrations/{$integration->id}/test")->assertForbidden();
     }
 
-    public function test_webhook_trail_prunes_entries_older_than_30_days(): void
+    /**
+     * TCK-602 (AC8) — lire la piste ne purge plus rien : la rétention appartient à
+     * `webhooks:prune`, jamais à une lecture.
+     */
+    public function test_reading_the_webhook_trail_never_prunes(): void
     {
         $this->actingAsRole('super_admin');
         $integration = Integration::factory()->create(['provider' => 'wave', 'agency_id' => null]);
@@ -104,7 +108,7 @@ class IntegrationAdminTest extends TestCase
             'direction' => 'incoming',
             'status' => 'processed',
             'event_type' => 'old',
-            'payload' => ['truncated' => '{}'],
+            'payload' => ['legacy' => true],
             'processed_at' => now()->subDays(31),
         ]);
         $old->forceFill([
@@ -117,15 +121,15 @@ class IntegrationAdminTest extends TestCase
             'direction' => 'incoming',
             'status' => 'processed',
             'event_type' => 'checkout.completed',
-            'payload' => ['truncated' => '{"id":"evt_1"}'],
+            'payload' => ['data' => ['id' => 'evt_1']],
             'processed_at' => now(),
         ]);
 
         $this->getJson("/api/admin/integrations/{$integration->id}/webhooks")
             ->assertOk()
-            ->assertJsonCount(1, 'data')
+            ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.event_type', 'checkout.completed');
 
-        $this->assertDatabaseMissing('integration_webhook_logs', ['id' => $old->id]);
+        $this->assertDatabaseHas('integration_webhook_logs', ['id' => $old->id]);
     }
 }

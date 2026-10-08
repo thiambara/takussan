@@ -15,7 +15,8 @@
  * mettant le front en accord avec ce que le back émettait ; ce que la ligne
  * `broker: []` de la table d'audience du menu montrait alors — un rôle qui
  * n'ouvre AUCUN écran au-delà du socle — est ce que TCK-495 a tranché
- * (ADR-0027). Le back a cessé d'émettre l'alias, le front suit.
+ * (ADR-0027). Le back a cessé d'émettre l'alias, le front suit ; le courtier a
+ * depuis quitté le code et la base (ADR-0030).
  *
  * Deux natures se cachent dans une seule union, et la nuance compte à la
  * lecture : `agency_admin`, `agent`, `owner`, `service_provider` et
@@ -91,6 +92,11 @@ export type User = {
    * onboarding wizard on this flag.
    */
   force_2fa_at_first_login?: boolean;
+  /**
+   * TCK-589 — posé quand le support réinitialise le second facteur : le compte doit en configurer
+   * un nouveau avant de retrouver son espace (`configurationDoubleFacteurExigee`).
+   */
+  force_2fa_reconfigure?: boolean;
   agency_id?: number | null;
   roles: UserRole[];
   status: UserStatus;

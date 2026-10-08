@@ -2,6 +2,7 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, SpatieQueryParams } from '@/types/api';
 import type { Agency } from '@/types/agency';
 import type { AgencyFormPayload } from '@/lib/schemas/agency';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Agency admin-config queries — TCK-015 / TCK-064. All reads pass the
@@ -22,6 +23,13 @@ export const AGENCY_ADMIN_FIELDS = [
   'status',
   // TCK-248 / TCK-256 — `kind` gates owner-invitation features in /app/owners.
   'kind',
+  // TCK-594 (ADR-0039 §4, §7) — seuil des quatre yeux, TVA par défaut et mentions légales.
+  'payout_approval_threshold',
+  'default_tax_rate',
+  'legal_name',
+  'ninea',
+  'rccm',
+  'legal_address',
 ] as const;
 
 function buildShowParams(): SpatieQueryParams {
@@ -61,7 +69,7 @@ export async function fetchAgency(
 ): Promise<Agency> {
   const qs = buildQueryString(buildShowParams());
   const res = await apiRequest<ApiResponse<Agency>>(
-    `/api/agencies/${agencyId}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}${requete(qs)}`,
     { token, activeProfileId },
   );
   return res.data;
@@ -84,9 +92,26 @@ export async function updateAgency(
   payload: AgencyFormPayload,
   activeProfileId?: string,
 ): Promise<Agency> {
-  const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}`, {
+  const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}`, {
     method: 'PATCH',
     body: payload,
+    token,
+    activeProfileId,
+  });
+  return res.data;
+}
+
+/** VERIF-594 M-2 — un second détenteur de `payouts.approve` confirme le relâchement du seuil. */
+/** VERIF-594 passe 2, N-5 — `expectedThreshold` : la valeur lue et confirmée (`null` : couper). */
+export async function confirmAgencyPayoutThreshold(
+  token: string,
+  agencyId: number,
+  expectedThreshold: number | null,
+  activeProfileId?: string,
+): Promise<Agency> {
+  const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}/payout-threshold/confirm`, {
+    method: 'POST',
+    body: { expected_threshold: expectedThreshold },
     token,
     activeProfileId,
   });
@@ -159,7 +184,7 @@ export async function regenerateAgencyWatermarks(
   activeProfileId?: string,
 ): Promise<RegenerateWatermarksResult> {
   return apiRequest<RegenerateWatermarksResult>(
-    `/api/agencies/${agencyId}/regenerate-watermarks`,
+    cheminApi`/api/agencies/${agencyId}/regenerate-watermarks`,
     { method: 'POST', token, activeProfileId },
   );
 }

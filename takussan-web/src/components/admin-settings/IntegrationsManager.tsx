@@ -22,7 +22,9 @@ import { FormError, FormGlobalError } from '@/components/forms';
 import { traduireChampsErreurs } from '@/lib/schemas/messages';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
+  hasWebhookEndpoint,
   integrationFormSchema,
+  isPaymentProvider,
   isSmsProvider,
   normaliseIntegrationForm,
   type IntegrationFormValues,
@@ -33,7 +35,8 @@ import {
   testIntegrationAction,
   updateIntegrationAction,
 } from '@/app/actions/admin-settings';
-import type { Integration, IntegrationTestResult } from '@/types/setting';
+import type { Integration, IntegrationTestResult, PaymentProviderSchema } from '@/types/setting';
+import { IntegrationWebhookEndpoint } from './IntegrationWebhookEndpoint';
 
 /**
  * Integration providers manager — TCK-068.
@@ -41,15 +44,26 @@ import type { Integration, IntegrationTestResult } from '@/types/setting';
  * Cards-per-provider layout. The create/edit dialog treats credentials as
  * write-only: on edit, an empty input keeps the existing secret intact
  * (the backend never returns secrets in clear text).
+ *
+ * TCK-293 — chaque carte de paiement porte son adresse de notification
+ * (`IntegrationWebhookEndpoint`), préchargée par la page.
  */
 
 interface IntegrationsManagerProps {
   readonly initialIntegrations: Integration[];
+  /** TCK-293 — l'adresse de notification de chaque intégration de paiement, par identifiant. */
+  readonly initialWebhookUrls?: Readonly<Record<number, string>>;
+  /**
+   * TCK-602 (ADR-0051 §3) — les champs que chaque fournisseur de paiement exige, lus sur le serveur :
+   * le formulaire présente ce que le pilote lit, et rien d'autre.
+   */
+  readonly paymentProviders?: readonly PaymentProviderSchema[];
 }
 
 const PROVIDER_SUGGESTIONS = [
   { value: 'wave', label: 'Wave' },
   { value: 'orange_money', label: 'Orange Money' },
+  { value: 'lemon_squeezy', label: 'Lemon Squeezy' },
   { value: 'stripe', label: 'Stripe' },
   { value: 'mailgun', label: 'Mailgun' },
   // TCK-102 — SMS multi-provider. `sms_free` and `sms_expresso` sont
@@ -78,10 +92,15 @@ function emptyForm(): IntegrationFormValues {
     sms_service_id: '',
     sms_accountid: '',
     sms_host: '',
+    payment_credentials: {},
   };
 }
 
-export function IntegrationsManager({ initialIntegrations }: IntegrationsManagerProps) {
+export function IntegrationsManager({
+  initialIntegrations,
+  initialWebhookUrls = {},
+  paymentProviders = [],
+}: IntegrationsManagerProps) {
   const t = useTranslations('adminSettings.integrations');
   // À la RACINE du dictionnaire : `t` est cantonné à `adminSettings.integrations` et ne peut pas
   // résoudre un `validation.setting.…`.
@@ -304,6 +323,19 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                   <FormError>{rowError.message}</FormError>
                 ) : null}
 
+                {hasWebhookEndpoint(integration.provider) ? (
+                  <IntegrationWebhookEndpoint
+                    integrationId={integration.id}
+                    provider={integration.provider}
+                    initialUrl={initialWebhookUrls[integration.id] ?? null}
+                  />
+                ) : isPaymentProvider(integration.provider) ? (
+                  // Lemon Squeezy : pas d'adresse à coller, elle ne solderait rien (TCK-293, m-1).
+                  <p className="text-xs text-pretty text-muted-foreground">
+                    {t('webhookEndpoint.unsupported')}
+                  </p>
+                ) : null}
+
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     type="button"
@@ -349,6 +381,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
           integration={dialogMode === 'create' ? undefined : dialogMode.edit}
           onCreate={handleCreate}
           onEdit={handleEdit}
+          paymentProviders={paymentProviders}
         />
       ) : null}
     </div>
@@ -367,6 +400,7 @@ interface IntegrationDialogProps {
     integration: Integration,
     values: IntegrationFormValues,
   ) => Promise<{ ok: true } | { ok: false; errors: Record<string, string[]> }>;
+  readonly paymentProviders: readonly PaymentProviderSchema[];
 }
 
 function IntegrationDialog({
@@ -376,6 +410,7 @@ function IntegrationDialog({
   integration,
   onCreate,
   onEdit,
+  paymentProviders,
 }: IntegrationDialogProps) {
   const t = useTranslations('adminSettings.integrations');
   const tCommon = useTranslations('common.actions');
@@ -406,6 +441,11 @@ function IntegrationDialog({
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setSubmitting] = useState(false);
+  // TCK-602 — un fournisseur de paiement dont le serveur a donné le schéma : ses champs remplacent
+  // les champs génériques (clé d'API / secret), qu'aucun pilote de paiement ne lisait tels quels.
+  const schemaDePaiement = isPaymentProvider(values.provider.trim())
+    ? paymentProviders.find((p) => p.key === values.provider.trim())
+    : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -469,7 +509,21 @@ function IntegrationDialog({
             errors={errors}
             onChange={(patch) => setValues((current) => ({ ...current, ...patch }))}
           />
-          {!isSmsProvider(values.provider) ? (
+          {schemaDePaiement ? (
+            <PaymentProviderFieldset
+              schema={schemaDePaiement}
+              mode={mode}
+              values={values.payment_credentials}
+              errors={errors}
+              onChange={(name, value) =>
+                setValues((current) => ({
+                  ...current,
+                  payment_credentials: { ...current.payment_credentials, [name]: value },
+                }))
+              }
+            />
+          ) : null}
+          {!isSmsProvider(values.provider) && !schemaDePaiement ? (
             <>
               <div className="grid gap-4 md:grid-cols-2">
                 <SecretInput
@@ -732,6 +786,58 @@ function SmsProviderFieldset({
         </div>
       ) : null}
     </div>
+  );
+}
+
+interface PaymentProviderFieldsetProps {
+  readonly schema: PaymentProviderSchema;
+  readonly mode: 'create' | 'edit';
+  readonly values: Readonly<Record<string, string>>;
+  readonly errors: Record<string, string[]>;
+  readonly onChange: (name: string, value: string) => void;
+}
+
+/**
+ * TCK-602 (ADR-0051 §3) — les champs du schéma d'un fournisseur de paiement, un par clé que son
+ * pilote lit ; l'erreur `credentials.<clé>` de l'API s'affiche sous le champ qu'elle nomme. Un
+ * secret reste en écriture seule : en édition, vide = inchangé (le serveur fusionne).
+ */
+function PaymentProviderFieldset({ schema, mode, values, errors, onChange }: PaymentProviderFieldsetProps) {
+  const t = useTranslations('adminSettings.integrations');
+  const libelle = (name: string) => (t.has(`paymentFields.${name}`) ? t(`paymentFields.${name}`) : name);
+  return (
+    <fieldset className="grid gap-4 md:grid-cols-2" data-testid="payment-provider-fields">
+      <legend className="mb-2 text-sm text-muted-foreground md:col-span-2">{t('paymentFields.legend')}</legend>
+      {schema.fields.map((field) => {
+        const id = `int-pay-${field.name}`;
+        const erreur = errors[`credentials.${field.name}`]?.[0];
+        return field.secret ? (
+          <SecretInput
+            key={field.name}
+            id={id}
+            label={libelle(field.name)}
+            placeholder={mode === 'edit' ? t('fields.secretUnchanged') : ''}
+            value={values[field.name] ?? ''}
+            onChange={(v) => onChange(field.name, v)}
+            error={erreur}
+          />
+        ) : (
+          <div key={field.name}>
+            <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+              {libelle(field.name)}
+            </label>
+            <Input
+              id={id}
+              value={values[field.name] ?? ''}
+              onChange={(e) => onChange(field.name, e.target.value)}
+              placeholder={mode === 'edit' ? t('fields.secretUnchanged') : ''}
+              autoComplete="off"
+            />
+            <FormError>{erreur}</FormError>
+          </div>
+        );
+      })}
+    </fieldset>
   );
 }
 

@@ -4,13 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
+import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   createIntegration,
   deleteIntegration,
   deleteSetting,
   fetchIntegrations,
+  fetchIntegrationWebhookEndpoint,
+  fetchPaymentProviderSchemas,
   fetchSettings,
+  rotateIntegrationWebhookEndpoint,
   testIntegration,
   updateIntegration,
   updateSetting,
@@ -21,6 +25,8 @@ import type { IntegrationFormPayload } from '@/lib/schemas/setting';
 import type {
   Integration,
   IntegrationTestResult,
+  IntegrationWebhookEndpoint,
+  PaymentProviderSchema,
   Setting,
   SettingScope,
 } from '@/types/setting';
@@ -45,12 +51,23 @@ import type { PaginatedResponse } from '@/types/api';
 
 type ActionResult<T = void> =
   | { ok: true; data?: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | {
+      ok: false;
+      status?: number;
+      message: string;
+      errors?: Record<string, string[]>;
+      /**
+       * TCK-293 — un refus de second facteur, rendu tel quel : une action serveur ne transmet pas
+       * d'`ApiError`, et sans ce code l'écran ne peut pas confier le refus à `GardeDoubleFacteur`.
+       */
+      code?: CodeDoubleFacteur;
+    };
 
 async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
+  code?: CodeDoubleFacteur;
 }> {
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
@@ -61,10 +78,12 @@ async function mapError(e: unknown): Promise<{
   ]);
   const repli = t('networkErrorRetry');
   if (e instanceof ApiError) {
+    const code = codeDoubleFacteur(e);
     return {
       status: e.status,
       message: messageErreurApi(e, tRacine, repli),
       errors: e.validationErrors,
+      ...(code ? { code } : {}),
     };
   }
   return { message: repli };
@@ -154,6 +173,18 @@ export async function fetchIntegrationsAction(): Promise<
   }
 }
 
+/** TCK-602 (ADR-0051 §3) — les champs que chaque fournisseur de paiement exige. */
+export async function fetchPaymentProviderSchemasAction(): Promise<ActionResult<PaymentProviderSchema[]>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const res = await fetchPaymentProviderSchemas(auth.token, await getActiveProfileId());
+    return { ok: true, data: res.data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
 export async function createIntegrationAction(
   payload: IntegrationFormPayload,
 ): Promise<ActionResult<Integration>> {
@@ -210,6 +241,45 @@ export async function deleteIntegrationAction(
     await deleteIntegration(auth.token, integrationId, await getActiveProfileId());
     revalidatePath('/admin/settings/integrations');
     return { ok: true };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+/** TCK-293 (ADR-0046) — l'adresse de notification de l'intégration, à déclarer chez le fournisseur. */
+export async function fetchIntegrationWebhookEndpointAction(
+  integrationId: number,
+): Promise<ActionResult<IntegrationWebhookEndpoint>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await fetchIntegrationWebhookEndpoint(
+      auth.token,
+      integrationId,
+      await getActiveProfileId(),
+    );
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+/**
+ * TCK-293 — régénère l'adresse. Geste protégé par le second facteur côté API : le refus revient
+ * avec son `code`, que l'écran confie à la garde avant de rejouer.
+ */
+export async function rotateIntegrationWebhookEndpointAction(
+  integrationId: number,
+): Promise<ActionResult<IntegrationWebhookEndpoint>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await rotateIntegrationWebhookEndpoint(
+      auth.token,
+      integrationId,
+      await getActiveProfileId(),
+    );
+    return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }

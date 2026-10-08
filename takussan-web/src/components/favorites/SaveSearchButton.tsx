@@ -4,7 +4,11 @@ import React, { useState } from 'react';
 import { BookmarkPlus, Check, Loader2 } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useCreateSavedSearchMutation } from '@/lib/queries/saved-searches';
+import {
+  useCreateSavedSearchMutation,
+  type SavedSearchAlertChannel,
+} from '@/lib/queries/saved-searches';
+import { PublicSearchAlertForm } from '@/components/favorites/PublicSearchAlertForm';
 import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS, type SearchFilters } from '@/types/search';
 import {
   Dialog,
@@ -23,12 +27,19 @@ import { useTraducteurValidation } from '@/hooks/useApiForm';
 import { useTranslations } from 'next-intl';
 
 /**
- * "Save this search" CTA + naming modal — Wave 3 / TCK-047.
+ * "Save this search" CTA + naming modal — Wave 3 / TCK-047, revu par TCK-599.
  *
  * Lives on the results page next to the active-filter pills. On click:
- * 1. If logged out → redirect to `/auth/login?redirect=<current>`.
+ * 1. If logged out → TCK-599 (V13) : the dialog offers « Me prévenir des nouveaux biens »
+ *    without an account ({@link PublicSearchAlertForm}), plus the login link that leads back
+ *    to saving the search.
  * 2. Otherwise → open a compact dialog to name the saved search. On
  *    submit, POST `/api/saved-searches` with the current filters.
+ *
+ * TCK-599 (C6) — l'honnêteté du libellé voulue par TCK-552 est préservée : « Sauvegarder la
+ * recherche » reste le geste, et l'alerte est une case DÉCOCHÉE. La confirmation dit exactement
+ * ce qui a été créé — une recherche seule, ou une recherche avec son alerte quotidienne et les
+ * canaux par lesquels l'API dit qu'elle arrivera (`alert_channels`), jamais une supposition.
  *
  * Kept under `components/favorites/**` since saved searches are a
  * bookmark-flavoured feature that sits next to favorites in the sidebar.
@@ -94,6 +105,7 @@ export function SaveSearchButton({
   className = '',
 }: SaveSearchButtonProps) {
   const t = useTranslations('search.saveSearch');
+  const tPublic = useTranslations('search.publicAlert');
   // À la RACINE du dictionnaire : `t` ci-dessus est cantonné à `search.saveSearch` et ne peut pas
   // résoudre un `validation.search.…`.
   const tValidation = useTraducteurValidation();
@@ -107,8 +119,12 @@ export function SaveSearchButton({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
-  const [savedId, setSavedId] = useState<number | null>(null);
+  const [alsoAlert, setAlsoAlert] = useState(false);
+  const [saved, setSaved] = useState<{ id: number; channels: SavedSearchAlertChannel[] | null } | null>(
+    null,
+  );
   const create = useCreateSavedSearchMutation();
+  const tChannels = useTranslations('search.alertChannels');
 
   const redirectHref = (() => {
     const qs = searchParams.toString();
@@ -117,13 +133,10 @@ export function SaveSearchButton({
   })();
 
   function handleOpen() {
-    if (!user) {
-      router.push(redirectHref);
-      return;
-    }
     setName(suggestName(filters, t, tContract, tTypes));
     setNameError(null);
-    setSavedId(null);
+    setSaved(null);
+    setAlsoAlert(false);
     setOpen(true);
   }
 
@@ -132,7 +145,7 @@ export function SaveSearchButton({
     const payload = {
       name: name.trim(),
       criteria: filtersToCriteria(filters),
-      notification_frequency: 'off' as const,
+      notification_frequency: alsoAlert ? ('daily' as const) : ('off' as const),
     };
     const parsed = savedSearchPayloadSchema.safeParse(payload);
     if (!parsed.success) {
@@ -147,7 +160,10 @@ export function SaveSearchButton({
     setNameError(null);
     try {
       const res = await create.mutateAsync(parsed.data);
-      setSavedId(res.data.id);
+      setSaved({
+        id: res.data.id,
+        channels: parsed.data.notification_frequency === 'off' ? null : (res.data.alert_channels ?? []),
+      });
     } catch {
       setNameError(t('error'));
     }
@@ -167,65 +183,101 @@ export function SaveSearchButton({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('dialogTitle')}</DialogTitle>
-            <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
-          </DialogHeader>
-
-          {savedId ? (
-            <div className="flex flex-col items-center text-center py-4">
-              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-3">
-                <Check className="w-5 h-5 text-success" />
-              </div>
-              <p className="text-sm text-foreground mb-4">{t('savedFull')}</p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setOpen(false);
-                  router.push('/app/saved-searches');
-                }}
-              >
-                {t('viewMine')}
-              </Button>
-            </div>
+          {!user ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{tPublic('dialogTitle')}</DialogTitle>
+                <DialogDescription>{tPublic('dialogBody')}</DialogDescription>
+              </DialogHeader>
+              <PublicSearchAlertForm
+                criteria={filtersToCriteria(filters)}
+                name={name}
+                loginHref={redirectHref}
+                onClose={() => setOpen(false)}
+              />
+            </>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="saved-search-name">{t('nameLabel')}</Label>
-                <Input
-                  id="saved-search-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t('namePlaceholder')}
-                  maxLength={100}
-                  required
-                />
-                {nameError && (
-                  <p className="text-xs text-destructive">{nameError}</p>
-                )}
-              </div>
+            <>
+              <DialogHeader>
+                <DialogTitle>{t('dialogTitle')}</DialogTitle>
+                <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
+              </DialogHeader>
 
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setOpen(false)}
-                  disabled={create.isPending}
-                >
-                  {t('cancel')}
-                </Button>
-                <Button type="submit" disabled={create.isPending}>
-                  {create.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      {t('saving')}
-                    </>
-                  ) : (
-                    t('save')
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
+              {saved ? (
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-3">
+                    <Check className="w-5 h-5 text-success" />
+                  </div>
+                  <p className="text-sm text-foreground mb-4" role="status">
+                    {saved.channels === null
+                      ? t('savedFull')
+                      : t('savedWithAlert', {
+                          channels: saved.channels.map((c) => tChannels(c)).join(', '),
+                        })}
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setOpen(false);
+                      router.push('/app/saved-searches');
+                    }}
+                  >
+                    {t('viewMine')}
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="saved-search-name">{t('nameLabel')}</Label>
+                    <Input
+                      id="saved-search-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t('namePlaceholder')}
+                      maxLength={100}
+                      required
+                    />
+                    {nameError && (
+                      <p className="text-xs text-destructive">{nameError}</p>
+                    )}
+                  </div>
+
+                  <label className="flex items-start gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={alsoAlert}
+                      onChange={(e) => setAlsoAlert(e.target.checked)}
+                      className="mt-0.5 size-4 shrink-0 accent-primary"
+                    />
+                    <span>
+                      {t('alsoAlert')}
+                      <span className="block text-xs bg-popover text-muted-foreground">{t('alsoAlertHint')}</span>
+                    </span>
+                  </label>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setOpen(false)}
+                      disabled={create.isPending}
+                    >
+                      {t('cancel')}
+                    </Button>
+                    <Button type="submit" disabled={create.isPending}>
+                      {create.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          {t('saving')}
+                        </>
+                      ) : (
+                        t('save')
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>

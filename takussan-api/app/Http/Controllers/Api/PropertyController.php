@@ -8,23 +8,34 @@ use App\Http\Requests\Api\StorePropertyRequest;
 use App\Http\Requests\Api\UpdateStatusPropertyRequest;
 use App\Http\Requests\Api\UpdateVisibilityPropertyRequest;
 use App\Http\Requests\PropertyBulkArchiveRequest;
+use App\Http\Requests\PropertyBulkAssignRequest;
+use App\Http\Requests\PropertyBulkVisibilityRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
+use App\Services\Property\PropertyBulkAssignService;
+use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
+use App\Services\Property\PropertyPublication;
+use App\Services\Property\PropertyViewCounter;
+use App\Services\Property\ResponsibleAgentAssigner;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Notification;
 
 class PropertyController extends Controller
 {
@@ -32,13 +43,24 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        $base = Property::query()->with(['address', 'owner', 'collaborators.user']);
+        // TCK-595 (§4) — ce que `PropertyResource` lit pour une ligne : la photo principale (`media`) et
+        // l'avatar du propriétaire. TCK-603 — `PrimaryPropertyContact::eagerLoads()` : la liste rend
+        // l'agent responsable (`primary_contact`) à côté du propriétaire, sans une requête d'avatar par
+        // ligne. `is_agent` se juge par l'amorce de la page (plus bas), jamais par une requête par ligne.
+        $base = Property::query()->with([
+            'address',
+            'media',
+            'owner.media',
+            ...PrimaryPropertyContact::eagerLoads(),
+        ]);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
-                if ($user->agency_id) {
-                    $q->orWhere('agency_id', $user->agency_id);
+                // TCK-587 — « Mes biens » d'un bailleur sont les siens (`user_id`) ; le parc de
+                // l'agence est celui de son PERSONNEL (ADR-0031).
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhere('agency_id', $staffAgencyId);
                 }
             });
         }
@@ -57,7 +79,21 @@ class PropertyController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
+        // TCK-603 (ADR-0059 §6, verif-603 m4) — `agency_id` demandé, chaque ligne rend `primary_contact`
+        // et le bloc `agency` (que `is_agent` charge) : sans ce préchargement, six requêtes par bien.
+        $biens = $paginator->getCollection();
+        if ($biens->isNotEmpty() && array_key_exists('agency_id', $biens->first()->getAttributes())) {
+            $biens->loadMissing(['agency' => fn ($q) => $q->with('media')->withAvg(
+                ['reviews as '.PropertyResource::AGENCY_RATING => fn ($r) => $r->where('is_approved', true)],
+                'rating',
+            )]);
+        }
+
+        return $this->paginated($paginator, MembershipCapabilityResolver::primed(
+            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')]),
+            $biens->map(fn (Property $p) => $p->getAttributes()['agency_id'] ?? null),
+            fn () => PropertyResource::collection($paginator)->toArray($request),
+        ));
     }
 
     public function store(StorePropertyRequest $request): JsonResponse
@@ -70,6 +106,15 @@ class PropertyController extends Controller
 
         if (! empty($data['agency_id'])) {
             app(QuotaResolver::class)->assertCanCreateActiveListing((int) $data['agency_id']);
+        }
+
+        // TCK-587 (ADR-0031 §2) — un bailleur sans `properties.create` PROPOSE un bien à son
+        // agence : brouillon privé imposé, quel que soit le corps ; la publication reste au
+        // personnel tenant `properties.publish`.
+        $isProposal = $request->user()->can('createsProposal', Property::class);
+        if ($isProposal) {
+            $data['status'] = PropertyStatus::Draft->value;
+            $data['visibility'] = PropertyVisibility::Private->value;
         }
 
         try {
@@ -87,17 +132,21 @@ class PropertyController extends Controller
                 return $property;
             });
 
+            if ($isProposal && $property->agency_id !== null) {
+                $this->notifyAgencyAdminsOfProposal($property);
+            }
+
             return $this->json(
                 ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
                 201
             );
         } catch (\Throwable $e) {
+            // TCK-601 (ADR-0044 §2) — ni la saisie (`$request->all()`), ni le message, qui la
+            // recopie pour une erreur SQL : les CLÉS de la saisie et la forme sûre de l'exception.
             Log::error('[PropertyController::store] Failed to create property', [
                 'user_id' => $request->user()?->id,
-                'payload' => $request->all(),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+                'payload_keys' => array_keys($request->all()),
+            ] + SafeExceptionContext::of($e));
             throw $e;
         }
     }
@@ -153,7 +202,7 @@ class PropertyController extends Controller
 
     public function destroy(Request $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
+        $this->authorize('delete', $property);
         $property->delete();
 
         return $this->json(['message' => 'deleted'], 204);
@@ -161,11 +210,11 @@ class PropertyController extends Controller
 
     public function publish(Request $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
-        abort_if(
+        $this->authorize('publish', $property);
+        abort_code_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
-            __('messages.property_cannot_publish')
+            'property.cannot_publish'
         );
         $property->update([
             'status' => PropertyStatus::Available,
@@ -180,17 +229,11 @@ class PropertyController extends Controller
 
     public function unpublish(Request $request, Property $property): JsonResponse
     {
-        $this->authorize('update', $property);
-        abort_unless(
-            in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
-            422,
-            __('messages.property_cannot_unpublish')
-        );
-        $property->update([
-            'status' => PropertyStatus::Draft,
-            'visibility' => PropertyVisibility::Private,
-            'published_at' => null,
-        ]);
+        $this->authorize('publish', $property);
+        // TCK-591 (verif-591 M3) — la règle et l'écriture partagées avec `bulk-visibility`.
+        $publication = app(PropertyPublication::class);
+        abort_code_unless($publication->canUnpublish($property), 422, 'property.cannot_unpublish');
+        $property->update($publication->unpublishedAttributes());
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
@@ -206,9 +249,8 @@ class PropertyController extends Controller
         $updates = ['status' => $status];
 
         if ($status === PropertyStatus::Archived) {
-            $updates['visibility'] = PropertyVisibility::Private;
-            $updates['published_at'] = null;
-            $updates['archived_at'] = now();
+            // TCK-591 (verif-591 M3) — l'écriture partagée avec `bulk-archive`.
+            $updates = app(PropertyPublication::class)->archivedAttributes();
         }
 
         if ($property->status === PropertyStatus::Archived && $status !== PropertyStatus::Archived) {
@@ -235,36 +277,44 @@ class PropertyController extends Controller
         return $this->unpublish($request, $property);
     }
 
-    public function assignAgent(AssignAgentPropertyRequest $request, Property $property): JsonResponse
+    /**
+     * TCK-603 (ADR-0036, ADR-0059) — « Changer l'agent responsable » : la cible devient le
+     * collaborateur `agent` principal du bien ; `properties.user_id`, le PROPRIÉTAIRE, n'est jamais
+     * réécrit. La règle de cible (personnel actif de l'agence du bien, TCK-587) et la désignation
+     * vivent dans {@see ResponsibleAgentAssigner}, que le lot et la passation appellent aussi.
+     */
+    public function assignAgent(AssignAgentPropertyRequest $request, Property $property, ResponsibleAgentAssigner $assigner): JsonResponse
     {
-
-        $data = $request->validated();
-
-        $target = User::findOrFail($data['user_id']);
-        $actor = $request->user();
-        $agencyId = $property->agency_id ?? $actor->agency_id;
-        if ($agencyId !== null) {
-            abort_unless(
-                $target->agency_id === $agencyId || $target->isAgentAt($agencyId),
-                422,
-                __('messages.target_user_not_in_active_agency')
-            );
-        }
-
-        $property->update(['user_id' => $target->id]);
+        $assigner->assign($property, User::findOrFail($request->validated('user_id')), $request->user());
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load(['address', 'owner', 'collaborators.user']))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load(['address', ...PrimaryPropertyContact::eagerLoads()]))->toArray($request),
         ]);
     }
 
-    public function recordView(Request $request, Property $property): JsonResponse
+    /**
+     * TCK-587 — chaque admin ACTIF de l'agence reçoit la proposition ; un admin suspendu n'a plus
+     * rien à y relire.
+     */
+    private function notifyAgencyAdminsOfProposal(Property $property): void
     {
-        $key = 'property-view:'.$property->id.':'.$request->ip();
-        if (! RateLimiter::tooManyAttempts($key, 3)) {
-            RateLimiter::hit($key, 3600);
-            $property->increment('views_count');
-        }
+        $admins = User::query()
+            ->whereIn('id', AgencyAdminProfile::query()
+                ->where('agency_id', $property->agency_id)
+                ->active()
+                ->select('user_id'))
+            ->get();
+
+        Notification::send($admins, new PropertyProposedNotification($property));
+    }
+
+    /**
+     * TCK-598 (contrainte 3) — même service, même clé de déduplication que
+     * `POST /public/properties/{slug}/view` : un visiteur compte une fois, quelle que soit la route.
+     */
+    public function recordView(Request $request, Property $property, PropertyViewCounter $compteur): JsonResponse
+    {
+        $compteur->record($property, (string) $request->ip());
 
         return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);
     }
@@ -311,5 +361,36 @@ class PropertyController extends Controller
             'failed' => $result['failed'],
             'archived_ids' => $result['archived_ids'],
         ]);
+    }
+
+    /**
+     * TCK-591 §7 — dépublier en lot : chaque ligne sous `publish` et la règle de statut de
+     * `unpublish` (`PropertyPublication`), motifs en codes, transaction sur le sous-ensemble autorisé.
+     */
+    public function bulkVisibility(
+        PropertyBulkVisibilityRequest $request,
+        PropertyBulkVisibilityService $service,
+    ): JsonResponse {
+        return $this->json($service->apply(
+            $request->input('property_ids'),
+            PropertyVisibility::from($request->input('visibility')),
+            $request->user(),
+        ));
+    }
+
+    /**
+     * TCK-603 (ADR-0059 §2) — changer l'agent responsable d'un lot : chaque ligne sous `update` et
+     * {@see ResponsibleAgentAssigner} (la règle et la désignation de l'unitaire), motifs en codes,
+     * une transaction, un point de sauvegarde par bien.
+     */
+    public function bulkAssign(
+        PropertyBulkAssignRequest $request,
+        PropertyBulkAssignService $service,
+    ): JsonResponse {
+        return $this->json($service->assign(
+            $request->input('property_ids'),
+            User::findOrFail($request->integer('user_id')),
+            $request->user(),
+        ));
     }
 }

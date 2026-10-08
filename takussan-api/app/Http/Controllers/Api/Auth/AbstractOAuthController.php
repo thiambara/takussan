@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Auth\OAuthCallbackRequest;
-use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
+use App\Services\Auth\OAuthSessionOpener;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -58,7 +58,7 @@ abstract class AbstractOAuthController extends Controller
 
     public function redirect(): JsonResponse
     {
-        abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($this->provider()), 422, 'auth.oauth_not_configured');
 
         $this->prepareDriver();
 
@@ -80,13 +80,13 @@ abstract class AbstractOAuthController extends Controller
 
     public function callback(OAuthCallbackRequest $request): JsonResponse
     {
-        abort_unless($this->configuration->isConfigured($this->provider()), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($this->provider()), 422, 'auth.oauth_not_configured');
 
         $cached = Cache::pull('oauth_state:'.$request->input('state'));
-        abort_unless(
+        abort_code_unless(
             $cached && ($cached['provider'] ?? null) === $this->provider(),
             422,
-            'Invalid or expired OAuth state.',
+            'auth.oauth_state_invalid',
         );
 
         $this->prepareDriver();
@@ -102,12 +102,8 @@ abstract class AbstractOAuthController extends Controller
 
         $this->maybeUpdateName($user, $request);
 
-        $token = $user->createToken($this->provider().'-oauth')->plainTextToken;
-
-        return $this->json(['data' => [
-            'token' => $token,
-            'user' => (new UserResource($user))->toArray($request),
-        ]]);
+        // TCK-589 — B2 : un compte à 2FA reçoit un défi, pas un jeton.
+        return app(OAuthSessionOpener::class)->open($user, $this->provider().'-oauth', $request);
     }
 
     /**

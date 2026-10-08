@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Auth\ConfirmSuperAdminTwoFactorRequest;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Invitation;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
+use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\SuperAdminBootstrapService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Auth\TwoFactorService;
@@ -15,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * TCK-264 — Mandatory TOTP enrollment for a freshly-coopted super-admin.
@@ -97,25 +101,37 @@ class SuperAdminTwoFactorController extends Controller
         // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $user = $request->user();
 
-        abort_unless(
+        abort_code_unless(
             $user->two_factor_secret !== null,
             422,
-            __('super_admins.cooptation.errors.enroll_first'),
+            'super_admin.enroll_first',
         );
 
-        abort_unless(
+        abort_code_unless(
             $this->twoFactor->verifyCodeForUser($user, $user->two_factor_secret, $request->input('code')),
             422,
-            __('super_admins.cooptation.errors.invalid_code'),
+            'super_admin.code_invalid',
         );
 
         DB::transaction(function () use ($user): void {
+            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support.
+            $metadata = $user->metadata ?? [];
+            unset($metadata['force_2fa_reconfigure']);
+
             $user->forceFill([
                 'two_factor_enabled' => true,
                 'force_2fa_at_first_login' => false,
+                'metadata' => $metadata,
             ])->save();
 
             $this->attachSuperAdminRole($user);
+
+            // Vérification adverse B2 — le TOTP vient d'être saisi sur CE jeton : la
+            // console s'ouvre sans redemander le code.
+            $token = $user->currentAccessToken();
+            if ($token instanceof PersonalAccessToken && $token->exists) {
+                SessionTokenIssuer::markStepUp($token);
+            }
 
             activity('User')
                 ->performedOn($user)
@@ -146,20 +162,43 @@ class SuperAdminTwoFactorController extends Controller
     }
 
     /**
-     * TCK-278 — Source de vérité unique : `PlatformProfile` super_admin.
-     * Idempotent : re-running on a user who already holds the profile is
-     * a no-op (et lève `revoked_at` si présent).
+     * TCK-278 — Source de vérité unique : `PlatformProfile`.
+     *
+     * TCK-600 (ADR-0047 §4) — la cooptation est le SEUL chemin d'octroi : le profil n'est posé que
+     * d'après l'invitation de cooptation ACCEPTÉE par ce compte, dont il prend le NIVEAU et
+     * l'inviteur (`granted_by_id`). `force_2fa_at_first_login` seul ne prouve rien — il est aussi
+     * posé par l'amorçage, et le serait par tout autre chemin demain. Un compte déjà opérateur
+     * actif (amorçage Artisan) n'est pas modifié.
      */
     protected function attachSuperAdminRole($user): void
     {
+        if ($user->hasActivePlatformProfile()) {
+            return;
+        }
+
+        $invitation = $this->acceptedCooptation($user);
+        abort_code_if($invitation === null, 403, 'super_admin.not_pending');
+
         $profile = PlatformProfile::query()
             ->firstOrNew(['user_id' => $user->id]);
-        $profile->level = PlatformProfileLevel::SuperAdmin;
+        $profile->level = PlatformProfileLevel::tryFrom((string) ($invitation->metadata['level'] ?? ''))
+            ?? PlatformProfileLevel::SuperAdmin;
         $profile->revoked_at = null;
-        if (! $profile->exists) {
-            $profile->granted_at = now();
-        }
+        $profile->granted_by_id = $invitation->invited_by;
+        $profile->granted_at = now();
         $profile->save();
+    }
+
+    /** TCK-600 — la dernière invitation de cooptation acceptée par ce compte. */
+    private function acceptedCooptation($user): ?Invitation
+    {
+        return Invitation::query()
+            ->where('role', 'super_admin')
+            ->whereNull('agency_id')
+            ->where('status', InvitationStatus::Accepted->value)
+            ->where('invited_user_id', $user->id)
+            ->latest('accepted_at')
+            ->first();
     }
 
     /**
@@ -170,10 +209,10 @@ class SuperAdminTwoFactorController extends Controller
     protected function assertCooptedSuperAdmin($user): void
     {
         abort_if($user === null, 401);
-        abort_unless(
+        abort_code_unless(
             (bool) $user->force_2fa_at_first_login,
             403,
-            __('super_admins.cooptation.errors.not_pending'),
+            'super_admin.not_pending',
         );
     }
 }

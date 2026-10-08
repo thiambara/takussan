@@ -5,7 +5,9 @@ namespace App\Services\Model;
 use App\Models\Property;
 use App\Models\SavedSearch;
 use App\Models\User;
+use App\Services\Search\PropertySearchService;
 use App\Support\DistanceHaversine;
+use App\Support\SavedSearchCriteria;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -170,35 +172,30 @@ class SearchService
     }
 
     /**
-     * Les biens que cette recherche sauvegardée capte, éventuellement bornés
-     * aux seuls biens publiés APRÈS `$publieApres`.
+     * Les biens que cette recherche sauvegardée capte, publiés dans `]$publieApres, $jusqua]`.
      *
-     * ⚠ **`$publieApres` est un ARGUMENT et jamais une clé de `criteria`**
-     * (TCK-350, décision d'étape 0). `criteria` est un tableau LIBRE — validé
-     * `['required','array']`, sans schéma de clés — et `saveSearch()` y recopie
-     * *tout* ce qu'on lui passe (`:100-106`, `name` et `notification_frequency`
-     * compris). Une clé de contrôle qui y transiterait serait donc PERSISTÉE, et
-     * le jour où l'on migrera les `criteria` vers le vocabulaire de `/search`
-     * (ADR-0023), il faudrait savoir laquelle des clés n'en était pas une.
+     * TCK-599 (ADR-0050 §1) — ce n'est plus ce service-ci qui cherche : il lisait `min_price`,
+     * `max_price`, `min_area`, `city`, quand le front écrit `price_min`, `price_max`, `area_min`,
+     * `location`, `q`… — onze clés sur vingt-deux étaient ignorées, et l'alerte prévenait de biens
+     * que la personne n'avait pas demandés. La recherche passe désormais par le moteur de
+     * `/properties` ({@see PropertySearchService::alertMatches()}), qui parle le vocabulaire écrit,
+     * sans le repli d'ADR-0024. `search()` ci-dessus n'a plus d'appelant de production.
      *
-     * Le `unset()` ci-dessous n'est pas une précaution de style : il rend cette
-     * propriété VRAIE même si une ligne portait déjà la clé. C'est lui qui fait
-     * que la borne ne peut venir que d'ici.
+     * ⚠ Les bornes restent des ARGUMENTS, jamais des clés de `criteria` (TCK-350) :
+     * `SavedSearchCriteria::toSearchParams()` ne transmet que le vocabulaire fermé, une clé de
+     * contrôle qu'une ligne porterait encore n'atteint donc jamais le moteur.
      *
-     * @return Collection<int,Property>
+     * @return array{properties: Collection<int,Property>, total: int}
      */
-    public function getMatchingProperties(SavedSearch $search, ?CarbonInterface $publieApres = null): Collection
-    {
-        $filters = $search->criteria ?? [];
-
-        unset($filters['published_after']);
-
-        if ($publieApres !== null) {
-            $filters['published_after'] = $publieApres;
-        }
-
-        $paginator = $this->search($filters);
-
-        return $paginator->getCollection();
+    public function getMatchingProperties(
+        SavedSearch $search,
+        ?CarbonInterface $publieApres = null,
+        ?CarbonInterface $jusqua = null,
+    ): array {
+        return app(PropertySearchService::class)->alertMatches(
+            SavedSearchCriteria::toSearchParams($search->criteria ?? []),
+            $publieApres,
+            $jusqua ?? now(),
+        );
     }
 }

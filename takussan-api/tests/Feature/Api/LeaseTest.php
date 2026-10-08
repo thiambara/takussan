@@ -8,6 +8,8 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -19,7 +21,9 @@ class LeaseTest extends TestCase
     {
         $landlord = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $landlord->id]);
-        $tenant = Customer::factory()->create();
+        // TCK-587 (B2) — le locataire doit être dans le périmètre du bailleur : un client de
+        // fabrique appartient à un inconnu, et `LeaseService::create` refuse de le rattacher.
+        $tenant = Customer::factory()->create(['added_by_id' => $landlord->id]);
 
         Sanctum::actingAs($landlord);
 
@@ -47,7 +51,9 @@ class LeaseTest extends TestCase
 
         Sanctum::actingAs($landlord);
 
-        $this->postJson("/api/leases/{$lease->id}/activate")
+        // TCK-596 §4B (ADR-0042 §6) — la voie papier exige le contrat numérisé.
+        Storage::fake(config('media-library.disk_name'));
+        $this->post("/api/leases/{$lease->id}/activate", ['contract' => UploadedFile::fake()->create('bail.pdf', 120, 'application/pdf')], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonPath('data.status', 'active');
 
@@ -126,8 +132,9 @@ class LeaseTest extends TestCase
 
         Sanctum::actingAs($landlord);
 
-        $this->postJson("/api/leases/{$lease->id}/activate")
-            ->assertStatus(422);
+        $this->post("/api/leases/{$lease->id}/activate", ['contract' => UploadedFile::fake()->create('bail.pdf', 120, 'application/pdf')], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'lease.not_activatable');
     }
 
     public function test_end_date_before_start_date_returns_422(): void

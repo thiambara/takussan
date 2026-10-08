@@ -69,10 +69,13 @@ export const PAGES_STATIQUES_INDEXABLES: readonly PageIndexable[] = [
  * que quelqu'un ait tranché si elle entre au sitemap. *Un `TODO` dans un commentaire n'est lu par
  * personne ; une entrée manquante dans cette table fait rougir.*
  *
- * `source: null` = délibérément absente du sitemap, avec le ticket qui la fera entrer.
+ * `source: null` = délibérément absente du sitemap, avec le ticket qui la fera entrer — ou,
+ * `exclue`, le ticket qui a décidé qu'elle n'y entrera JAMAIS, la raison écrite en commentaire au
+ * droit de l'entrée (sa page déclare alors `noindex`, et elle n'émet pas d'`alternates` :
+ * `alternates.test.ts` l'écarte).
  */
 export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
-  Record<string, { readonly source: string | null; readonly ticket?: string }>
+  Record<string, { readonly source: string | null; readonly ticket?: string; readonly exclue?: string }>
 > = {
   '/properties/[slug]': { source: 'catalogue' },
   // TCK-436 a livré `GET /api/public/agencies` et `GET /api/public/agents` — les deux
@@ -82,6 +85,18 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
   // divergerait de l'index le jour où l'une des deux bouge, et annoncerait des URL rendant 404.
   '/agencies/[slug]': { source: 'agences' },
   '/agents/[slug]': { source: 'agents' },
+  // TCK-587 §8 — la réception d'un lien de partage de document. Le jeton EST le droit d'accès :
+  // l'URL est un secret, jamais une page à annoncer.
+  '/share/[token]': {
+    source: null,
+    exclue: 'TCK-587',
+  },
+  // TCK-602 (ADR-0051 §1) — le lien de paiement d'une échéance. Même nature : un lien PORTEUR, dont
+  // le jeton autorise à lire et payer l'échéance ; la page est `noindex` et `no-referrer`.
+  '/pay/[token]': {
+    source: null,
+    exclue: 'TCK-602',
+  },
 };
 
 /**
@@ -259,9 +274,37 @@ export function partitionnerPagesLocalisables(pages: readonly PageIndexable[]): 
   return { retenues, ecartees };
 }
 
+/**
+ * TCK-598 — `&` échappé en `&amp;` dans `<loc>` et dans chaque `xhtml:link`.
+ *
+ * Next interpole les URL SANS échappement (`resolve-route-data.js` : `<loc>${item.url}</loc>`, et
+ * `href="${languages[language]}"`). Les fiches n'en souffraient pas — leur slug est encodé
+ * ({@link cheminDeFiche}). Les pages de ville et de quartier portent une requête
+ * (`/properties?city=Dakar&location=Mermoz`) : leur `&` nu rendrait le fichier ENTIER invalide.
+ * Le lecteur XML rend `&amp;` en `&` : l'URL lue est l'URL canonique, au caractère près.
+ */
+function echapperPourXml(entree: MetadataRoute.Sitemap[number]): MetadataRoute.Sitemap[number] {
+  // Tout `&` : aucune URL n'arrive ici déjà échappée — elles sortent toutes de `URLSearchParams`,
+  // qui encode le `&` d'une VALEUR en `%26`.
+  const echappe = (url: string) => url.replaceAll('&', '&amp;');
+  const languages = entree.alternates?.languages as Record<string, string> | undefined;
+  return {
+    ...entree,
+    url: echappe(entree.url),
+    ...(languages
+      ? {
+          alternates: {
+            ...entree.alternates,
+            languages: Object.fromEntries(Object.entries(languages).map(([l, u]) => [l, echappe(u)])),
+          },
+        }
+      : {}),
+  };
+}
+
 /** Le sitemap complet, une page devenant {@link LOCALES_INDEXABLES}`.length` entrées. */
 export function construireSitemap(pages: readonly PageIndexable[]): MetadataRoute.Sitemap {
-  const entrees = pages.flatMap(entreesLocalisees);
+  const entrees = pages.flatMap(entreesLocalisees).map(echapperPourXml);
 
   if (entrees.length > LIMITE_URL_PAR_SITEMAP) {
     throw new Error(

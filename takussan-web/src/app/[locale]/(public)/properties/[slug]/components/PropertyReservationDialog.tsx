@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import {
   Dialog,
@@ -14,11 +14,19 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { useBookingRequest } from '@/hooks/useBookingRequest';
+import { usePropertyAvailability } from '@/hooks/usePropertyAvailability';
+import { isNightOccupied, isStayFree } from '@/lib/occupancy';
 import { submitPurchaseOffer } from '@/app/actions/property';
 import { formatCurrency } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import { quoteBooking } from '@/lib/booking-quote';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
+import {
+  cheminIntentionReservation,
+  lireIntentionReservation,
+  sansIntentionReservation,
+  type IntentionReservation,
+} from '@/lib/property/intention-reservation';
 import { useTranslations } from 'next-intl';
 
 import type { PropertyDetail } from '@/types/property';
@@ -29,6 +37,38 @@ interface PropertyReservationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /**
+   * TCK-589 — l'intention rapportée par l'URL (`?action=reserver&debut=&fin=`) après une connexion
+   * ou une inscription : elle pré-remplit les dates du formulaire de réservation.
+   */
+  intention?: IntentionReservation | null;
+}
+
+/**
+ * TCK-589 — rouvre la boîte quand la fiche est atteinte par `?action=reserver` (retour de connexion
+ * ou d'inscription), et rend les dates rapportées. `pret` attend la fin du chargement de la
+ * session : ouverte trop tôt, la boîte afficherait « Connectez-vous » au compte qui vient de le
+ * faire. L'intention est retirée de l'URL une fois lue — un rechargement ne rouvre rien.
+ */
+export function useIntentionDeReservation(
+  pret: boolean,
+  ouvrir: () => void,
+): IntentionReservation | null {
+  const [intention, setIntention] = useState<IntentionReservation | null>(null);
+
+  useEffect(() => {
+    if (!pret) return;
+    const lue = lireIntentionReservation(window.location.search);
+    if (!lue) return;
+    window.history.replaceState(window.history.state, '', sansIntentionReservation(window.location.href));
+    // L'URL n'existe qu'au client : la lire au rendu ferait diverger l'hydratation. Lecture unique
+    // d'un système extérieur, après montage — le cas que la règle laisse passer en esprit.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIntention(lue);
+    ouvrir();
+  }, [pret, ouvrir]);
+
+  return intention;
 }
 
 function formatPrice(price: number, currency: string | null): string {
@@ -40,6 +80,7 @@ export function PropertyReservationDialog({
   open,
   onOpenChange,
   onSuccess,
+  intention = null,
 }: PropertyReservationDialogProps) {
   const t = useTranslations('property.reservation');
   const { user } = useAuth();
@@ -47,6 +88,11 @@ export function PropertyReservationDialog({
   const isOfferFlow = action === 'offer';
 
   if (!user) {
+    // TCK-589 — la connexion ET l'inscription ramènent à la fiche, boîte rouverte : sans compte, le
+    // visiteur n'avait qu'une porte, et l'inscription le perdait en route.
+    const retour = encodeURIComponent(
+      isOfferFlow ? `/properties/${property.slug}` : cheminIntentionReservation(property.slug, intention ?? {}),
+    );
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
@@ -54,13 +100,19 @@ export function PropertyReservationDialog({
             <DialogTitle>{t(`${action}.loginTitle`)}</DialogTitle>
             <DialogDescription>{t(`${action}.loginBody`)}</DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {t('cancel')}
             </Button>
             <LienLocalise
-              href={`/auth/login?redirect=/properties/${property.slug}`}
-              className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
+              href={`/auth/register?redirect=${retour}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted transition-colors sm:min-h-8"
+            >
+              {t('createAccount')}
+            </LienLocalise>
+            <LienLocalise
+              href={`/auth/login?redirect=${retour}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 text-sm font-medium hover:bg-primary/80 transition-colors sm:min-h-8"
             >
               {t('signIn')}
             </LienLocalise>
@@ -84,6 +136,7 @@ export function PropertyReservationDialog({
         ) : (
           <ReservationForm
             property={property}
+            intention={intention}
             onClose={() => onOpenChange(false)}
             onSuccess={onSuccess}
             submitLabel={t(`${action}.submit`)}
@@ -104,11 +157,24 @@ interface InnerFormProps {
   title: string;
 }
 
-function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: InnerFormProps) {
+function ReservationForm({
+  property,
+  intention,
+  onClose,
+  onSuccess,
+  submitLabel,
+  title,
+}: InnerFormProps & { intention: IntentionReservation | null }) {
   const t = useTranslations('property.reservation');
   const { submit, submitting, error } = useBookingRequest(property.slug);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // TCK-589 — dates rapportées par l'intention ; une date passée ne se pré-remplit pas.
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(() =>
+    intention && intention.debut >= aujourdhui ? intention.debut : '',
+  );
+  const [endDate, setEndDate] = useState(() =>
+    intention && intention.debut >= aujourdhui ? intention.fin : '',
+  );
   const [guests, setGuests] = useState(1);
   const [message, setMessage] = useState('');
 
@@ -127,6 +193,13 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
   // (TCK-165), enregistrée au montant d'UN loyer par l'API. La période s'affiche, jamais des nuits.
   const tPeriods = useTranslations('property.rentPeriodsShort');
   const longTermPeriod = property.rent_period === 'yearly' ? 'yearly' : 'monthly';
+
+  // TCK-596 §3B — un séjour court lit les nuits déjà prises (réservées ou bloquées) et les grise.
+  // Une arrivée tombe sur une nuit libre ; un départ ne franchit aucune nuit prise.
+  const isShortStay = property.rent_period === 'daily' || property.rent_period === 'weekly';
+  const occupied = usePropertyAvailability(property.slug, isShortStay);
+  const arrivalTaken = (day: string) => isNightOccupied(day, occupied);
+  const departureTaken = (day: string) => startDate !== '' && !isStayFree(startDate, day, occupied);
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -157,8 +230,13 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
             <DatePicker
               required
               value={startDate}
-              onValueChange={setStartDate}
+              onValueChange={(day) => {
+                setStartDate(day);
+                // Un départ choisi avant qui franchirait désormais une nuit prise est retiré.
+                if (endDate !== '' && day !== '' && !isStayFree(day, endDate, occupied)) setEndDate('');
+              }}
               min={new Date().toISOString().slice(0, 10)}
+              isDateDisabled={arrivalTaken}
               placeholder={t('booking.checkInPlaceholder')}
             />
           </label>
@@ -169,6 +247,7 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
               value={endDate}
               onValueChange={setEndDate}
               min={startDate || new Date().toISOString().slice(0, 10)}
+              isDateDisabled={departureTaken}
               placeholder={t('booking.checkOutPlaceholder')}
             />
           </label>
@@ -227,7 +306,16 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
             <p className="text-pretty text-xs text-muted-foreground">{t('booking.rentNotice')}</p>
           </div>
         )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {isShortStay && occupied.length > 0 && (
+          <p className="bg-popover text-pretty text-xs text-muted-foreground" data-testid="reservation-occupied-hint">
+            {t('booking.occupiedHint')}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t('cancel')}

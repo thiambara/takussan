@@ -9,12 +9,15 @@ const createMock = vi.fn();
 const updateMock = vi.fn();
 const testMock = vi.fn();
 const deleteMock = vi.fn();
+const fetchEndpointMock = vi.fn();
 
 vi.mock('@/app/actions/admin-settings', () => ({
   createIntegrationAction: (...args: unknown[]) => createMock(...args),
   updateIntegrationAction: (...args: unknown[]) => updateMock(...args),
   testIntegrationAction: (...args: unknown[]) => testMock(...args),
   deleteIntegrationAction: (...args: unknown[]) => deleteMock(...args),
+  fetchIntegrationWebhookEndpointAction: (...args: unknown[]) => fetchEndpointMock(...args),
+  rotateIntegrationWebhookEndpointAction: vi.fn(),
 }));
 
 const initial = [
@@ -48,8 +51,36 @@ function renderWithIntl(ui: React.ReactElement) {
 describe('<IntegrationsManager />', () => {
   it('renders the integration card with provider + status', () => {
     renderWithIntl(<IntegrationsManager initialIntegrations={initial} />);
-    expect(screen.getByText(/wave/i)).toBeInTheDocument();
+    // TCK-293 — la consigne Wave de l'adresse de notification nomme aussi le fournisseur.
+    expect(screen.getByRole('heading', { name: /wave/i })).toBeInTheDocument();
     expect(screen.getByText(/Active/)).toBeInTheDocument();
+  });
+
+  it('TCK-293 — la carte de paiement porte son adresse de notification, pas celle d’un SMS', () => {
+    const sms = { ...initial[0], id: 43, provider: 'sms_orange' };
+    renderWithIntl(
+      <IntegrationsManager
+        initialIntegrations={[...initial, sms]}
+        initialWebhookUrls={{ 42: 'https://api.takussan.test/api/webhooks/payments/wave/t' }}
+      />,
+    );
+    expect(screen.getByLabelText('Adresse de notification Wave')).toHaveValue(
+      'https://api.takussan.test/api/webhooks/payments/wave/t',
+    );
+    expect(screen.getAllByText('Adresse de notification')).toHaveLength(1);
+  });
+
+  it('TCK-293 (m-1) — Lemon Squeezy d’agence : aucune adresse à coller, une mention neutre', () => {
+    const ls = { ...initial[0], id: 44, provider: 'lemon_squeezy' };
+    renderWithIntl(<IntegrationsManager initialIntegrations={[ls]} />);
+
+    expect(
+      screen.getByText("La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Adresse de notification')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: "Afficher l'adresse" })).not.toBeInTheDocument();
+    expect(fetchEndpointMock).not.toHaveBeenCalled();
+    attendAucuneCleBrute();
   });
 
   it('runs the test action and shows a success message', async () => {
@@ -243,5 +274,52 @@ describe('<IntegrationsManager />', () => {
     expect(await screen.findByText('Sender ID ≤ 11 caractères alphanumériques.')).toBeInTheDocument();
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
+  });
+
+  describe('TCK-602 — fournisseur de paiement : les champs du schéma serveur', () => {
+    const SCHEMAS = [
+      {
+        key: 'orange_money',
+        label: 'Orange Money',
+        fields: [
+          { name: 'client_id', type: 'text', secret: false, required: true },
+          { name: 'client_secret', type: 'password', secret: true, required: true },
+          { name: 'merchant_key', type: 'text', secret: false, required: true },
+          { name: 'webhook_secret', type: 'password', secret: true, required: true },
+        ],
+      },
+    ];
+
+    it('présente les champs du schéma, envoie ces clés, et affiche l’erreur credentials.<clé> sous son champ', async () => {
+      createMock.mockResolvedValue({
+        ok: false,
+        message: 'invalide',
+        errors: { 'credentials.merchant_key': ['Le champ merchant_key est obligatoire.'] },
+      });
+      const user = userEvent.setup();
+      renderWithIntl(<IntegrationsManager initialIntegrations={[]} paymentProviders={SCHEMAS} />);
+      await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+      fireEvent.change(screen.getByLabelText(/Fournisseur/), { target: { value: 'orange_money' } });
+
+      expect(screen.getByTestId('payment-provider-fields')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Clé API/)).toBeNull();
+      await user.type(screen.getByLabelText('Identifiant client (client ID)'), 'cid');
+      await user.type(screen.getByLabelText('Secret client'), 'csec');
+      await user.type(screen.getByLabelText('Secret de webhook'), 'ws');
+      await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+      expect(createMock).toHaveBeenCalledTimes(1);
+      expect(createMock.mock.calls[0][0].credentials).toEqual({ client_id: 'cid', client_secret: 'csec', webhook_secret: 'ws' });
+      expect(await screen.findByText('Le champ merchant_key est obligatoire.')).toBeInTheDocument();
+    });
+
+    it('sans schéma (lecture échouée), retombe sur les champs génériques', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
+      await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+      fireEvent.change(screen.getByLabelText(/Fournisseur/), { target: { value: 'orange_money' } });
+
+      expect(screen.queryByTestId('payment-provider-fields')).toBeNull();
+    });
   });
 });

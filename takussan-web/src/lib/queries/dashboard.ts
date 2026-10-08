@@ -1,5 +1,6 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Server-side fetchers for the role-based dashboards (TCK-032 P1).
@@ -42,13 +43,25 @@ export type OwnerDashboard = {
     expected_monthly: number;
     overdue_count: number;
     overdue_amount: number;
+    lease_income_month?: number;
+    booking_income_month?: number;
+    net_paid_out_month?: number;
+    deposits_held?: number;
   };
-  occupancy?: { rate_percent: number };
+  occupancy?: { rate_percent: number; short_stay_percent?: number | null };
+  /** TCK-595 (AC8) — les nombres des cartes actionnables. */
+  maintenance?: { quotes_pending: number };
+  visits?: { to_confirm: number };
+  reviews?: { unanswered: number };
 };
+
+/** TCK-595 (ADR-0049 §4) — `mine` : les chiffres de l'agent ; `agency` : ceux de son agence. */
+export type AgentDashboardScope = 'mine' | 'agency';
 
 export type AgentDashboard = {
   agent_id: number;
   agency_id: number | null;
+  scope?: AgentDashboardScope;
   period: PeriodWindow;
   properties_managed?: number;
   pipeline?: Record<string, number>;
@@ -119,6 +132,15 @@ export type TenantDashboard = {
     overdue_count: number;
     overdue_amount: number;
   };
+  /** TCK-595 (AC16) — les 5 prochaines visites du client. */
+  visits?: {
+    upcoming: Array<{
+      id: number;
+      scheduled_at: string | null;
+      status: string | null;
+      property: { id: number; title: string } | null;
+    }>;
+  };
   maintenance: { open: number };
   documents: { recent: Array<{ id: number; name: string; type: string | null; created_at: string | null }> };
 };
@@ -132,35 +154,60 @@ export type DashboardEnvelope<T> = { data: T; timeseries?: TimeseriesPayload };
 type FetchOpts = {
   include?: string[];
   months?: number;
+  /** TCK-595 — n'a de sens que pour `/dashboard/agent`. */
+  scope?: AgentDashboardScope;
   signal?: AbortSignal;
 };
 
-async function call<T>(path: string, opts: FetchOpts = {}): Promise<DashboardEnvelope<T> | null> {
+async function call<T>(tableau: 'agency' | 'owner' | 'agent' | 'tenant', opts: FetchOpts = {}): Promise<DashboardEnvelope<T> | null> {
   const token = await getToken();
   if (!token) return null;
 
+  const extra: Record<string, string | number> = {};
+  if (typeof opts.months === 'number') extra.months = opts.months;
+  if (opts.scope) extra.scope = opts.scope;
   const qs = buildQueryString({
     include: opts.include,
-    extra: typeof opts.months === 'number' ? { months: opts.months } : undefined,
+    extra: Object.keys(extra).length > 0 ? extra : undefined,
   });
 
-  const url = `/api${path}${qs ? `?${qs}` : ''}`;
+  const url = cheminApi`/api/dashboard/${tableau}${requete(qs)}`;
 
   return apiRequest<DashboardEnvelope<T>>(url, { token, signal: opts.signal });
 }
 
 export function fetchAgencyDashboard(opts?: FetchOpts) {
-  return call<AgencyDashboard>('/dashboard/agency', { include: ['timeseries'], months: 12, ...opts });
+  return call<AgencyDashboard>('agency', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchOwnerDashboard(opts?: FetchOpts) {
-  return call<OwnerDashboard>('/dashboard/owner', { include: ['timeseries'], months: 12, ...opts });
+  return call<OwnerDashboard>('owner', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchAgentDashboard(opts?: FetchOpts) {
-  return call<AgentDashboard>('/dashboard/agent', { include: ['timeseries'], months: 12, ...opts });
+  return call<AgentDashboard>('agent', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchTenantDashboard(opts?: FetchOpts) {
-  return call<TenantDashboard>('/dashboard/tenant', opts);
+  return call<TenantDashboard>('tenant', opts);
+}
+
+/**
+ * TCK-595 — les capacités de l'utilisateur dans son agence active, lues côté serveur
+ * (`GET /api/me/capabilities`, le même point que `useCan`). La vue agent n'offre la bascule
+ * « Agence » qu'à qui détient `reports.view_agency` : un bouton qui mène à un 403 n'est pas une
+ * option. Une erreur rend la liste vide — la bascule disparaît, la vue personnelle reste.
+ */
+export async function fetchMyCapabilities(): Promise<readonly string[]> {
+  const token = await getToken();
+  if (!token) return [];
+  try {
+    const response = await apiRequest<{ data: { capabilities: readonly string[] } }>(
+      '/api/me/capabilities',
+      { token },
+    );
+    return response.data.capabilities ?? [];
+  } catch {
+    return [];
+  }
 }

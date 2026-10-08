@@ -21,7 +21,7 @@ interface ReasonDialogProps {
     customerId: number;
     from: CustomerPipelineStage;
     to: CustomerPipelineStage;
-    card: PipelineCustomerCard;
+    card?: PipelineCustomerCard;
   } | null;
   onCancel: () => void;
   onSubmit: (reason: string) => void;

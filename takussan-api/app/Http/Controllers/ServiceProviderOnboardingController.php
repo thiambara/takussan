@@ -41,7 +41,7 @@ class ServiceProviderOnboardingController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        abort_if($sp === null, 403, __('service_providers.onboarding.errors.not_owner'));
+        abort_code_if($sp === null, 403, 'onboarding.service_provider_not_owner');
 
         $result = $this->service->complete($sp, $user, $validated);
 

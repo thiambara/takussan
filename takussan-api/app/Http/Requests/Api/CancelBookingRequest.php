@@ -26,7 +26,9 @@ class CancelBookingRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('view', $this->route('booking')) === true;
+        // TCK-587 — `cancel` et non plus `view` : lire une réservation n'est pas pouvoir l'annuler.
+        // Tout membre de l'agence, bailleur compris, annulait celle d'un autre (`BookingPolicy`).
+        return $this->user()?->can('cancel', $this->route('booking')) === true;
     }
 
     /** @return array<string, mixed> */

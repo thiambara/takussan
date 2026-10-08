@@ -4,7 +4,6 @@ namespace Tests\Feature\Models;
 
 use App\Models\Agency;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
@@ -28,14 +27,6 @@ class HasProfilesTraitTest extends TestCase
 
         $this->assertCount(2, $user->ownerProfiles);
         $this->assertEquals(1, $other->ownerProfiles()->count());
-    }
-
-    public function test_broker_profile_is_has_one(): void
-    {
-        $user = User::factory()->create();
-        BrokerProfile::factory()->create(['user_id' => $user->id]);
-
-        $this->assertInstanceOf(BrokerProfile::class, $user->brokerProfile);
     }
 
     public function test_has_profile_with_agency_filters_correctly(): void
@@ -99,15 +90,10 @@ class HasProfilesTraitTest extends TestCase
 
         OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agencyA->id]);
         AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agencyB->id]);
-        BrokerProfile::factory()->create(['user_id' => $user->id]);
         ServiceProviderProfile::factory()->create(['user_id' => $user->id]);
 
         $profiles = $user->profiles();
 
-        // TCK-495 — `profiles()` rend les profils COMMUTABLES, et le courtier
-        // n'en est plus un. Sa ligne existe pourtant : elle vient d'être créée
-        // deux lignes plus haut, et `brokerProfile()` la rend toujours. Ce test
-        // sépare donc « la donnée est là » de « le profil est proposé au choix ».
         $this->assertCount(3, $profiles);
         $classes = $profiles->map(fn ($p) => $p::class)->unique()->sort()->values()->all();
         $this->assertEquals([
@@ -115,7 +101,6 @@ class HasProfilesTraitTest extends TestCase
             OwnerProfile::class,
             ServiceProviderProfile::class,
         ], $classes);
-        $this->assertNotNull($user->brokerProfile()->first());
     }
 
     public function test_is_professional_true_when_any_pro_profile_exists(): void
@@ -133,9 +118,5 @@ class HasProfilesTraitTest extends TestCase
             'agency_id' => Agency::factory()->create()->id,
         ]);
         $this->assertTrue($agent->isProfessional());
-
-        $broker = User::factory()->create();
-        BrokerProfile::factory()->create(['user_id' => $broker->id]);
-        $this->assertTrue($broker->isProfessional());
     }
 }

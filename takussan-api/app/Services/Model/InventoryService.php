@@ -16,7 +16,7 @@ class InventoryService
     public function create(Lease $lease, User $user, array $data): Inventory
     {
         $tenant = Customer::find($lease->tenant_id);
-        abort_if($tenant === null, 422, 'Lease tenant not found.');
+        abort_code_if($tenant === null, 422, 'inventory.tenant_not_found');
 
         return Inventory::create([
             'lease_id' => $lease->id,
@@ -38,10 +38,10 @@ class InventoryService
      */
     public function update(Inventory $inventory, array $data, array $presentKeys): Inventory
     {
-        abort_unless(
+        abort_code_unless(
             $inventory->status === InventoryStatus::Draft,
             422,
-            'Only draft inventories can be edited.'
+            'inventory.not_draft'
         );
 
         $inventory->update(array_filter(
@@ -55,10 +55,10 @@ class InventoryService
 
     public function submit(Inventory $inventory): Inventory
     {
-        abort_unless(
+        abort_code_unless(
             $inventory->status === InventoryStatus::Draft,
             422,
-            'Only draft inventories can be submitted for signature.'
+            'inventory.not_draft_submit'
         );
 
         $inventory->update(['status' => InventoryStatus::PendingSignature]);
@@ -66,50 +66,12 @@ class InventoryService
         return $inventory->refresh();
     }
 
-    public function sign(Inventory $inventory, User $user): Inventory
-    {
-        abort_unless(
-            in_array($inventory->status, [InventoryStatus::PendingSignature, InventoryStatus::Draft], true),
-            422,
-            'Inventory cannot be signed in its current state.'
-        );
-
-        $property = $inventory->property;
-        $tenant = $inventory->tenant;
-
-        $isOwner = $property && $property->user_id === $user->id;
-        $isTenant = $tenant && $tenant->user_id === $user->id;
-        $isAdmin = $user->isSuperAdmin();
-
-        abort_unless($isOwner || $isTenant || $isAdmin, 403);
-
-        $updates = [];
-        if ($isOwner || $isAdmin) {
-            $updates['owner_signed'] = true;
-            $updates['owner_signed_at'] = now();
-        }
-        if ($isTenant || $isAdmin) {
-            $updates['tenant_signed'] = true;
-            $updates['tenant_signed_at'] = now();
-        }
-
-        $inventory->fill($updates);
-
-        if ($inventory->tenant_signed && $inventory->owner_signed) {
-            $inventory->status = InventoryStatus::Signed;
-        }
-
-        $inventory->save();
-
-        return $inventory->refresh();
-    }
-
     public function dispute(Inventory $inventory, string $reason): Inventory
     {
-        abort_unless(
+        abort_code_unless(
             in_array($inventory->status, [InventoryStatus::PendingSignature, InventoryStatus::Signed], true),
             422,
-            'Inventory cannot be disputed in its current state.'
+            'inventory.cannot_dispute'
         );
 
         $inventory->update([

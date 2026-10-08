@@ -4,6 +4,7 @@ namespace App\Models\Profiles;
 
 use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
@@ -19,7 +20,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class OwnerProfile extends AbstractModel
 {
     /** @use HasFactory<OwnerProfileFactory> */
-    use HasAgencyRole, HasFactory, SoftDeletes;
+    use Auditable, HasAgencyRole, HasFactory, SoftDeletes;
+
+    /** TCK-601 — liste blanche du journal — jamais les colonnes `SENSITIVE`. */
+    public const AUDIT_ONLY = ['status', 'agency_role_id'];
 
     protected $fillable = [
         'user_id', 'agency_id', 'agency_role_id', 'status',
@@ -27,12 +31,29 @@ class OwnerProfile extends AbstractModel
         'id_document_type', 'id_document_number',
         'monthly_income', 'employer',
         'guarantor_user_id', 'metadata',
+        // TCK-592 — ADR-0037 : au-delà, l'approbation d'un devis par l'équipe attend le bailleur.
+        'works_approval_threshold',
     ];
+
+    /**
+     * TCK-601 (ADR-0044 §1) — les identifiants sensibles du bailleur : chiffrés en base (cast
+     * `encrypted`, colonnes `text`), absents de toute sérialisation par défaut (`$hidden`), hors des
+     * sparse fieldsets et de la recherche. Ils ne sortent qu'à travers
+     * `OwnerProfileResource` (masqués), `GET /api/owners/{id}/sensitive` (admin, consultation
+     * journalisée) et l'export du droit d'accès (`DataExportBuilder`, `makeVisible`).
+     */
+    public const SENSITIVE = ['rib', 'tax_id', 'id_document_number'];
+
+    protected $hidden = self::SENSITIVE;
 
     protected $casts = [
         'status' => OwnerProfileStatus::class,
+        'rib' => 'encrypted',
+        'tax_id' => 'encrypted',
+        'id_document_number' => 'encrypted',
         'id_document_type' => IdType::class,
         'monthly_income' => 'decimal:2',
+        'works_approval_threshold' => 'decimal:2',
         'metadata' => 'array',
     ];
 
@@ -48,11 +69,13 @@ class OwnerProfile extends AbstractModel
 
     protected static array $requestLoadable = ['user', 'agency', 'invitations', 'agencyRole'];
 
-    protected static array $requestSearchFields = ['rib', 'tax_id', 'employer'];
+    // TCK-601 — une colonne chiffrée n'est plus cherchable : l'IV aléatoire interdit jusqu'à
+    // l'égalité stricte (ADR-0044 §1, pas d'empreinte HMAC).
+    protected static array $requestSearchFields = ['employer'];
 
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'agency_role_id', 'status',
-        'rib', 'tax_id', 'id_document_type', 'id_document_number',
+        'id_document_type',
         'monthly_income', 'employer', 'guarantor_user_id',
         'metadata', 'created_at', 'updated_at',
     ];

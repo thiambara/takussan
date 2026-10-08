@@ -24,12 +24,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('{paymentType}/{paymentId}/verify', [PaymentGatewayController::class, 'verify'])
         ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
         ->name('payments.gateway.verify');
+
+    // TCK-602 (ADR-0051 §3) — les fournisseurs proposés au payeur, sous l'autorisation de
+    // l'initiation : le front ne lit plus `GET /api/integrations`, qui refuse le locataire.
+    Route::get('{paymentType}/{paymentId}/providers', [PaymentGatewayController::class, 'providers'])
+        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
+        ->name('payments.gateway.providers');
 });
 
 // TCK-079 — public webhook receiver. Throttled to 60 requests / minute / IP
 // to mitigate replay floods. Signature verification is performed inside
-// each driver's `handleWebhook()` (Wave / OM via HMAC-SHA256, LS via the
-// vendor package on its dedicated route).
-Route::post('webhooks/payments/{provider}', PaymentWebhookController::class)
-    ->middleware('throttle:60,1')
+// each driver's `handleWebhook()` (Wave / OM / LS via HMAC-SHA256).
+//
+// TCK-293 (ADR-0046) — une URL par intégration : `{token}` désigne l'intégration dont le secret
+// vérifie la signature, et dont l'agence borne le rapprochement. Aucune contrainte de forme sur
+// `{token}` : un jeton mal formé doit rendre le même 404 qu'un jeton inconnu, pas le 404 du routeur.
+//
+// TCK-602 (ADR-0051 §4) — le journal s'ouvre après le débit et AVANT la résolution du jeton et la
+// signature : un rejet laisse sa ligne. Le jeton n'y est jamais écrit, l'intégration qu'il résout oui.
+Route::post('webhooks/payments/{provider}/{token}', PaymentWebhookController::class)
+    ->middleware(['throttle:60,1', 'webhook.journal:payment'])
     ->name('payments.webhook');
+
+// TCK-293 (ADR-0046 §8) — l'ancienne URL sans jeton rend 410, sans rien lire ni muter.
+Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'gone'])
+    ->middleware('throttle:60,1')
+    ->name('payments.webhook.gone');

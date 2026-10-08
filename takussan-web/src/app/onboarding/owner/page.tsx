@@ -6,14 +6,16 @@ import { getMyProfilesAction } from '@/app/actions/profiles';
 import { OwnerOnboardingWizard } from '@/components/onboarding/OwnerOnboardingWizard';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { getToken } from '@/lib/session';
+import { profilAReprendre } from '@/lib/onboarding-reprise';
 
 /**
  * TCK-257 — Post-acceptance landing page for an invited Owner.
  *
  * Mirror of the SP onboarding page (TCK-261) :
  *  - Auth gate redirects to login with `?redirect=/onboarding/owner`.
- *  - Pulls the user's profiles, picks the first owner profile.
- *  - Falls back to `/app` when no owner profile is attached.
+ *  - Pulls the user's profiles, picks the one named by `?owner=` (lien de reprise), else the
+ *    first owner profile still to complete (TCK-589, `profilAReprendre`).
+ *  - Falls back to `/app` when there is none.
  *
  * The wizard itself (status flip, KYC, OTP, recap) lives in
  * `<OwnerOnboardingWizard>`.
@@ -25,7 +27,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('metaTitle') };
 }
 
-export default async function OwnerOnboardingPage() {
+export default async function OwnerOnboardingPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ owner?: string | string[] }>;
+}) {
   const t = await getTranslations('owners.onboarding');
   const token = await getToken();
   if (!token) {
@@ -37,7 +43,7 @@ export default async function OwnerOnboardingPage() {
     redirect('/app');
   }
 
-  const owner = profilesRes.data.data.find((profile) => profile.type === 'owner');
+  const owner = profilAReprendre(profilesRes.data.data, 'owner', (await searchParams).owner);
   if (!owner) {
     redirect('/app');
   }

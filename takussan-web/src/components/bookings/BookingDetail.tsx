@@ -37,7 +37,9 @@ import {
   BOOKING_STATUS_TONE,
 } from './booking-status';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
+import { BookingRefundPanel } from './BookingRefundPanel';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
+import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
@@ -98,8 +100,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const bookingQuery = useBooking(bookingId);
   const { data, isLoading, isError } = bookingQuery;
   const { user } = useAuth();
-  const agencyId = data?.data?.agency_id ?? null;
-  const { providers } = usePaymentProviders(agencyId);
+  // TCK-602 — lus sur le premier paiement en attente : agence et devise sont celles de la réservation.
+  const { providers } = usePaymentProviders(
+    'booking-payments',
+    data?.data?.booking_payments?.find((p) => p.status === 'pending')?.id ?? null,
+  );
   const cancelBooking = useCancelBooking(bookingId);
   const confirmBooking = useConfirmBooking(bookingId);
   const rejectBooking = useRejectBooking(bookingId);
@@ -315,7 +320,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         <CustomerPayCta
           bookingId={bookingId}
           booking={booking}
-          providers={providers}
+          // TCK-602 — l'appel n'existe qu'en l'absence de paiement en attente : aucun paiement
+          // dont lire les fournisseurs. « Inconnu » ; l'initiation refuse en 422 un fournisseur
+          // que l'agence n'a pas, avant tout appel sortant.
+          providers={undefined}
         />
       )}
 
@@ -361,12 +369,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                     />
                   )}
                   {p.status === 'paid' && (
-                    <a
-                      href={`/api/booking-payments/${p.id}/receipt`}
-                      className="inline-flex min-h-10 items-center text-xs font-medium text-primary underline-offset-4 hover:underline sm:min-h-0"
+                    <BoutonTelechargement
+                      chemin={`/api/booking-payments/${p.id}/receipt`}
+                      nomFichier={`recu-acompte-${p.id}.pdf`}
+                      variant="link"
+                      size="sm"
                     >
                       {t('receipt')}
-                    </a>
+                    </BoutonTelechargement>
                   )}
                 </span>
               </li>
@@ -376,6 +386,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           <p className="mt-3 text-sm text-muted-foreground">{t('noPayments')}</p>
         )}
       </section>
+
+      {/* TCK-596 — l'acompte d'une réservation fermée : bloc distinct du reçu (TCK-593). */}
+      {booking.refund_status != null && (
+        <BookingRefundPanel booking={booking} locale={locale} isCustomer={isCustomer} />
+      )}
 
       <BookingTimeline booking={booking} locale={locale} />
 

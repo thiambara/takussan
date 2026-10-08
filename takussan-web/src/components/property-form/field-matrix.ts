@@ -15,6 +15,12 @@ export type ContractTypeValue = PropertyFormValues['contract_type'];
 export type RelevanceContext = {
   readonly type: PropertyTypeValue;
   readonly contract: ContractTypeValue;
+  /**
+   * TCK-598 — la périodicité du loyer, seule à décider du coût d'entrée. Facultative : les règles
+   * antérieures n'en dépendent pas, et une location SANS période est mensuelle (l'invariant de
+   * `Property::booted()` côté API, que `CoutDEntree::sApplique()` reprend).
+   */
+  readonly rentPeriod?: string | null;
 };
 
 export type ConditionalFieldKey =
@@ -30,7 +36,11 @@ export type ConditionalFieldKey =
   | 'condition'
   | 'rent_period'
   | 'available_from'
-  | 'tag_ids';
+  | 'tag_ids'
+  | 'deposit_months'
+  | 'advance_months'
+  | 'agency_fee_months'
+  | 'monthly_charges';
 
 /** Un bien où l'on dort. Sert de base à plusieurs règles, jamais employée seule. */
 const HABITABLE = ['house', 'apartment', 'villa', 'studio', 'room', 'hotel', 'resort'] as const;
@@ -104,6 +114,14 @@ export function isFieldRelevant(cle: ConditionalFieldKey, ctx: RelevanceContext)
     case 'available_from':
       return contract === 'rent';
 
+    // TCK-598 (V9) — « un mois de caution » n'a de sens que sur un loyer MENSUEL : à la nuit ou à
+    // la semaine, l'API refuse ces champs (422), et sur une vente le mot n'a aucun sens.
+    case 'deposit_months':
+    case 'advance_months':
+    case 'agency_fee_months':
+    case 'monthly_charges':
+      return contract === 'rent' && (ctx.rentPeriod ?? 'monthly') === 'monthly';
+
     // Les tags `amenity` seedés sont domestiques (WiFi, TV, machine à laver…) : les proposer sur
     // un terrain ou un parking n'offre aucun choix pertinent.
     case 'tag_ids':
@@ -127,10 +145,12 @@ export function isFieldRelevant(cle: ConditionalFieldKey, ctx: RelevanceContext)
 export function relevanceContextOf(bien: {
   readonly type: string | null | undefined;
   readonly contract_type?: string | null;
+  readonly rent_period?: string | null;
 }): RelevanceContext {
   return {
     type: (bien.type ?? 'other') as PropertyTypeValue,
     contract: (bien.contract_type === 'rent' ? 'rent' : 'sale') as ContractTypeValue,
+    rentPeriod: bien.rent_period ?? null,
   };
 }
 
@@ -186,6 +206,12 @@ const VALEUR_D_EFFACEMENT = {
   condition: null,
   rent_period: null,
   available_from: null,
+  // TCK-598 — `null` passe le `prohibitedIf` de l'API (« absent ou vide ») et EFFACE la valeur :
+  // une caution laissée en base sur un bien passé en vente ressortirait au premier retour en location.
+  deposit_months: null,
+  advance_months: null,
+  agency_fee_months: null,
+  monthly_charges: null,
 } as const satisfies Partial<Record<ConditionalFieldKey, null | false>>;
 
 /**
@@ -217,7 +243,7 @@ export function sanitizeByType<T extends Record<string, unknown>>(
 const CLES_CONDITIONNELLES = new Set<string>([
   'area', 'bedrooms', 'bathrooms', 'furnished', 'year_built', 'parking_spaces',
   'floor_number', 'total_floors', 'title_type', 'condition', 'rent_period', 'available_from',
-  'tag_ids',
+  'tag_ids', 'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges',
 ]);
 
 function estConditionnelle(cle: string): cle is ConditionalFieldKey {

@@ -139,4 +139,30 @@ describe('<NotificationBell>', () => {
     await waitFor(() => expect(screen.getByText('0 non lue')).toBeInTheDocument());
     expect(screen.queryByText('1')).not.toBeInTheDocument();
   });
+
+  it('TCK-588 — un clic sur la ligne ouvre la cible, la marque lue et ferme la cloche', async () => {
+    const browserUser = userEvent.setup();
+    const rappel = {
+      ...response().data[0],
+      id: 9,
+      code: 'lease_payment.overdue',
+      params: { amount: { amount: '150000.00', currency: 'XOF' }, days: 1, due_date: '2026-10-05', property: 'Villa Almadies' },
+      target: { kind: 'lease', id: 12, path: '/app/leases/12' },
+    };
+    getNotificationsMock.mockResolvedValue({ ok: true, data: { ...response(), data: [rappel] } });
+    markReadMock.mockResolvedValue({ ok: true, data: { ...rappel, is_read: true, read_at: '2026-10-06T08:01:00.000000Z' } });
+
+    render(wrap(<NotificationBell />));
+    await browserUser.click(screen.getByRole('button', { name: 'Notifications' }));
+    const feed = await screen.findByRole('dialog', { name: 'Centre de notifications' });
+
+    const lien = within(feed).getByRole('link', { name: /Loyer en retard/ });
+    expect(lien).toHaveAttribute('href', '/app/leases/12');
+    expect(within(feed).getByRole('link', { name: 'Voir tout l’historique' })).toHaveAttribute('href', '/app/notifications');
+
+    await browserUser.click(lien);
+
+    await waitFor(() => expect(markReadMock).toHaveBeenCalledWith(9));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
 });

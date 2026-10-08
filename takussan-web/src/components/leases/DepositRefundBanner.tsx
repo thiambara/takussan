@@ -74,7 +74,10 @@ export function DepositRefundBanner({ lease, canRefund }: DepositRefundBannerPro
             </p>
           )}
         </div>
-        {canRefund && status !== 'full' && (
+        {/* VERIF-594 passe 4 (P4-2) — le bouton suit ce qui reste à rendre, jamais l'état : une
+            restitution partielle retient le reste et solde la caution. Il ne revient que si la
+            restitution est refusée ou échoue, ou si l'agence annule la facture de retenue. */}
+        {canRefund && state && state.deposit_remaining > 0 && (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>
             {status === 'partial' ? t('banner.continue_cta') : t('banner.cta')}
           </Button>

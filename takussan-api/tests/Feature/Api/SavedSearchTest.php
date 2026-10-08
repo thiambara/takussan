@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\NotificationPreference;
 use App\Models\SavedSearch;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,13 +20,36 @@ class SavedSearchTest extends TestCase
 
         $this->postJson('/api/saved-searches', [
             'name' => 'Appartements Almadies',
-            'criteria' => ['neighborhood' => 'Almadies', 'min_price' => 200000],
+            'criteria' => ['location' => 'Almadies', 'price_min' => 200000],
             'notification_frequency' => 'daily',
         ])->assertCreated();
 
         $this->getJson('/api/saved-searches')
             ->assertOk()
             ->assertJsonCount(1, 'data');
+    }
+
+    /**
+     * verif-599 m12 — le nom est borné à 100, comme au front. Sans borne, un nom de 255 portait le
+     * titre de la cloche au-delà de `app_notifications.title` : la cloche échouait à chaque
+     * passage et, partie en dernier (m11), l'e-mail repartait chaque matin.
+     */
+    public function test_un_nom_de_plus_de_100_caracteres_rend_422(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $nom = fn (int $n) => str_repeat('é', $n);
+
+        $this->postJson('/api/saved-searches', ['name' => $nom(101), 'criteria' => ['city' => 'Dakar']])
+            ->assertStatus(422)->assertJsonValidationErrors('name');
+        $this->postJson('/api/saved-searches', ['name' => $nom(100), 'criteria' => ['city' => 'Dakar']])
+            ->assertCreated();
+
+        $recherche = SavedSearch::where('user_id', $user->id)->sole();
+        $this->patchJson("/api/saved-searches/{$recherche->id}", ['name' => $nom(101)])
+            ->assertStatus(422)->assertJsonValidationErrors('name');
+        $this->patchJson("/api/saved-searches/{$recherche->id}", ['name' => 'a'.$nom(99)])
+            ->assertOk();
     }
 
     public function test_user_cannot_update_other_users_search(): void
@@ -154,5 +178,41 @@ class SavedSearchTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame('daily', SavedSearch::where('user_id', $user->id)->sole()->notification_frequency);
+    }
+
+    /** **AC14** — `instant` est retiré (porteur, 2026-10-06) : 422 à la création ET à la modification. */
+    public function test_instant_est_refuse_a_la_creation_comme_a_la_modification(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/saved-searches', ['name' => 'Instant', 'criteria' => ['city' => 'Dakar'], 'notification_frequency' => 'instant'])
+            ->assertUnprocessable()->assertJsonValidationErrors('notification_frequency');
+        $search = SavedSearch::factory()->create(['user_id' => $user->id]);
+        $this->patchJson("/api/saved-searches/{$search->id}", ['notification_frequency' => 'instant'])
+            ->assertUnprocessable()->assertJsonValidationErrors('notification_frequency');
+    }
+
+    /**
+     * TCK-599 — `alert_channels` dit par où l'alerte arrivera : la cloche toujours, l'e-mail selon
+     * `saved_search_match`, rien pour une alerte coupée.
+     */
+    public function test_alert_channels_suit_la_preference_et_la_frequence(): void
+    {
+        $user = User::factory()->create();
+        SavedSearch::factory()->create(['user_id' => $user->id, 'name' => 'Active', 'notification_frequency' => 'daily']);
+        SavedSearch::factory()->create(['user_id' => $user->id, 'name' => 'Coupée', 'notification_frequency' => 'off']);
+        Sanctum::actingAs($user);
+
+        $canaux = fn () => collect($this->getJson('/api/saved-searches')->assertOk()->json('data'))->pluck('alert_channels', 'name')->all();
+
+        $this->assertSame(['Active' => ['inapp', 'email'], 'Coupée' => []], $canaux());
+
+        NotificationPreference::updateOrCreate(['user_id' => $user->id, 'event_type' => 'saved_search_match', 'channel' => 'email'], ['enabled' => false]);
+        $this->assertSame(['inapp'], $canaux()['Active']);
+
+        NotificationPreference::updateOrCreate(['user_id' => $user->id, 'event_type' => 'threshold_alert', 'channel' => 'email'], ['enabled' => false]);
+        NotificationPreference::updateOrCreate(['user_id' => $user->id, 'event_type' => 'saved_search_match', 'channel' => 'email'], ['enabled' => true]);
+        $this->assertSame(['inapp', 'email'], $canaux()['Active'], 'threshold_alert ne gouverne plus');
     }
 }

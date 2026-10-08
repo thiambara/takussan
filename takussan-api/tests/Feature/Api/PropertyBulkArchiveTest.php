@@ -54,6 +54,30 @@ class PropertyBulkArchiveTest extends TestCase
         }
     }
 
+    /**
+     * TCK-591 (verif-591 M3) — archiver en lot écrit exactement ce qu'écrit `PUT …/status=archived` :
+     * la date de publication était gardée par le lot, effacée par l'unitaire.
+     */
+    public function test_bulk_archive_writes_what_the_unitary_archive_writes(): void
+    {
+        $owner = User::factory()->create();
+        [$unit, $bulk] = Property::factory()->count(2)->create([
+            'user_id' => $owner->id,
+            'status' => PropertyStatus::Available,
+            'published_at' => now(),
+        ])->all();
+
+        Sanctum::actingAs($owner);
+        $this->putJson("/api/properties/{$unit->id}/status", ['status' => 'archived'])->assertOk();
+        $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$bulk->id]])
+            ->assertOk()->assertJsonPath('archived', 1);
+
+        $state = fn (Property $p) => [$p->fresh()->status->value, $p->fresh()->visibility->value, $p->fresh()->published_at];
+        $this->assertSame(['archived', 'private', null], $state($unit));
+        $this->assertSame($state($unit), $state($bulk));
+        $this->assertNotNull($bulk->fresh()->archived_at);
+    }
+
     public function test_reports_unauthorized_in_failed_list(): void
     {
         $me = User::factory()->create();

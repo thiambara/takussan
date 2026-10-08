@@ -7,16 +7,13 @@ use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\NotificationType;
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Property;
-use App\Models\PropertyContactLead;
 use App\Models\Review;
 use App\Models\User;
-use App\Services\Model\NotificationService;
+use App\Services\Lead\ContactLeadService;
 use App\Services\Public\PublicProfileFacts;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -108,7 +105,7 @@ class PublicAgentController extends Controller
      */
     public function index(IndexPublicProfilesRequest $request): JsonResponse
     {
-        $base = User::query()
+        $base = self::sansAgenceHorsLigne(User::query())
             ->where('users.status', UserStatus::Active)
             ->whereNotNull('users.username')
             ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio())
@@ -202,7 +199,7 @@ class PublicAgentController extends Controller
 
     public function show(Request $request, string $slug): JsonResponse
     {
-        $agent = User::query()
+        $agent = self::sansAgenceHorsLigne(User::query())
             ->where('username', $slug)
             ->where('status', 'active')
             ->with(['agency', 'addresses', 'agentProfiles'])
@@ -210,10 +207,12 @@ class PublicAgentController extends Controller
 
         abort_if($agent === null, 404);
 
+        // TCK-598 (V15) — `publicPortfolio()`, le prédicat de l'index des profils : le prédicat
+        // écrit à la main ici oubliait `is_test` et `published_at`, et la page listait des biens
+        // dont la fiche rend 404.
         $portfolioBase = fn () => Property::query()
             ->where('user_id', $agent->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public);
+            ->publicPortfolio();
 
         $portfolio = $portfolioBase()
             ->with('address')
@@ -225,7 +224,10 @@ class PublicAgentController extends Controller
         $rentCount = $portfolioBase()->where('contract_type', ContractType::Rent)->count();
         $saleCount = $portfolioBase()->where('contract_type', ContractType::Sale)->count();
         $portfolioTotal = $portfolioBase()->count();
-        $citiesCount = $portfolioBase()
+        // Jointure : le portefeuille entre par sa sous-requête d'identifiants, sans quoi les
+        // colonnes nues du scope (`status`, `visibility`) deviendraient ambiguës (piège n°7).
+        $citiesCount = Property::query()
+            ->whereIn('properties.id', $portfolioBase()->select('properties.id'))
             ->join('addresses', function ($join) {
                 $join->on('addresses.addressable_id', '=', 'properties.id')
                     ->where('addresses.addressable_type', '=', Property::class);
@@ -319,12 +321,12 @@ class PublicAgentController extends Controller
      */
     public function contactLead(
         ContactLeadPublicRequest $request,
-        NotificationService $notifications,
+        ContactLeadService $leads,
         string $slug,
     ): JsonResponse {
         $data = $request->validated();
 
-        $agent = User::query()
+        $agent = self::sansAgenceHorsLigne(User::query())
             ->where('username', $slug)
             ->where('status', 'active')
             ->with('agency')
@@ -338,25 +340,9 @@ class PublicAgentController extends Controller
             return $this->json(['data' => ['accepted' => true]], 201);
         }
 
-        $lead = PropertyContactLead::create([
-            'property_id' => null,
-            'agency_id' => $agent->agency?->id,
-            'recipient_user_id' => $agent->id,
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'message' => $data['message'],
-            'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
-        ]);
-
-        $notifications->notify(
-            $agent,
-            NotificationType::Message,
-            'Nouveau lead anonyme',
-            $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
-            ['agent_id' => $agent->id, 'lead_id' => $lead->id],
-        );
+        // TCK-590 — écriture, notification (message entier, téléphone) et accusé de réception
+        // passent par le même service que le contact d'un bien.
+        $leads->forAgent($agent, $agent->agency?->id, $data, $request);
 
         return $this->json(['data' => ['accepted' => true]], 201);
     }
@@ -366,7 +352,7 @@ class PublicAgentController extends Controller
      */
     public function properties(Request $request, string $slug)
     {
-        $agent = User::query()
+        $agent = self::sansAgenceHorsLigne(User::query())
             ->where('username', $slug)
             ->where('status', 'active')
             ->first();
@@ -377,13 +363,34 @@ class PublicAgentController extends Controller
 
         $properties = Property::query()
             ->where('user_id', $agent->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public)
+            ->publicPortfolio()
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->paginate($perPage);
 
         return PropertyResource::collection($properties);
+    }
+
+    /**
+     * TCK-600 (ADR-0048 §1, verif-600 M2) — un agent rattaché, par un profil d'agent, à une
+     * agence qui n'est pas `active` (suspendue ou désactivée) n'a pas de page publique : sa fiche,
+     * son portefeuille et son contact rendent le 404 d'un agent inconnu, et l'index ne le liste pas
+     * (sinon il mènerait à ce 404). Même règle que l'annuaire des agences. Sans elle, la fiche
+     * affichait l'agence suspendue et le téléphone de l'agent, et `contactLead` déposait une
+     * demande dans une agence qui ne peut plus écrire.
+     *
+     * Un agent de deux agences dont l'une est hors ligne est masqué : la page ne choisit pas entre
+     * ses enseignes, elle s'abstient.
+     *
+     * verif-600 m-A — TOUT profil, quel que soit son statut : `show` et `contactLead` lisent l'agence
+     * par `User::agency()`, qui ne filtre pas le statut. Un masque qui ne jugeait que le profil
+     * `active` laissait la page (agence suspendue affichée) et le contact d'un agent `inactive`,
+     * `suspended` ou `draft`. Le masque et la page lisent désormais la même relation.
+     */
+    private static function sansAgenceHorsLigne(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('agentProfiles', fn (Builder $profil) => $profil
+            ->whereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', '!=', AgencyStatus::Active)));
     }
 }

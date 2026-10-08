@@ -1,10 +1,11 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
-import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
 import { PageHeader } from '@/components/console';
+import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 
 /**
@@ -43,31 +44,25 @@ export default async function Page() {
     return <NoAgencyState title={t('noAgency')} />;
   }
 
-  // TCK-370 — le taux de commission par défaut du dialogue de reversement.
-  //
-  // ⚠ Le ticket annonçait `/api/dashboard/agency` comme source ; c'est FAUX, et cette page ne
-  // monte pas cet endpoint. `DashboardAgencyService` rend `finance.commission_month`, une SOMME
-  // de `leases.commission_amount` sur le mois — jamais un taux. Le taux vit sur
-  // `agencies.commission_rate`, déjà présent dans `AGENCY_ADMIN_FIELDS` et déjà servi par
-  // `fetchAgencyAction`, celui-là même que `/admin/agency` utilise pour pré-remplir son champ
-  // « Commission ». Les deux écrans lisent donc la même colonne.
-  //
-  // Une agence illisible (403/404) ne casse pas la page : la prop reste absente et le dialogue
-  // reprend son ancien comportement.
-  const agence = await fetchAgencyAction(agencyId);
-  const defaultCommissionRate =
-    agence.ok && typeof agence.data?.commission_rate === 'number'
-      ? agence.data.commission_rate
-      : undefined;
-
+  // TCK-594 (ADR-0039 §1) — le taux de commission ne pré-remplit plus aucun champ : la commission
+  // se calcule côté serveur, ligne par ligne, depuis le taux du bail ou, à défaut, de l'agence
+  // (TCK-370 transmettait ce taux au dialogue de reversement, qui n'a plus de champ à remplir).
   return (
     <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('subtitle')} />
-      <AdminFinancesClient
-        canViewFinances
-        canEmitFinances
-        defaultCommissionRate={defaultCommissionRate}
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          // TCK-593 — le rapprochement bancaire vit sous les finances de l'agence.
+          <Link
+            href="/admin/finances/reconciliation"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('reconciliationLink')}
+          </Link>
+        }
       />
+      <AdminFinancesClient canViewFinances canEmitFinances />
     </div>
   );
 }

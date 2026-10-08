@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\ModerationReasonCode;
 use Illuminate\Validation\Rule;
 
 /**
@@ -28,9 +29,13 @@ class DecideModerationQueueRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        // TCK-597 (ADR-0043 §8) — le motif est un CODE ; le texte libre n'est exigé que pour
+        // `other`. Le couple (type d'élément, décision) se juge dans `UnifiedModerationService`,
+        // qui seul connaît le type : 422 `moderation.decision_invalid_for_type`.
         return [
             'decision' => ['required', Rule::in(['approve', 'reject', 'hide', 'remove'])],
-            'reason' => ['required', 'string', 'max:1000'],
+            'reason_code' => ['exclude_if:decision,approve', 'required', Rule::enum(ModerationReasonCode::class)],
+            'reason' => ['nullable', 'string', 'max:1000', 'required_if:reason_code,other'],
         ];
     }
 }

@@ -3,36 +3,31 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\ModerationReasonCode;
 use Illuminate\Validation\Rule;
 
 /**
  * TCK-305 — extrait de ReviewController::moderate(), où les règles étaient écrites en ligne.
  *
- * Deux conventions coexistaient pour le même geste : 120 `$request->validate()` inline contre
- * 65 FormRequest. Une contrainte métier ne pouvait pas être revue sans d'abord chercher laquelle
- * des deux l'endpoint avait retenue. `scripts/check-inline-validation.mjs` (Repo CI) casse
- * désormais sur tout `validate()` rouvert dans un contrôleur.
+ * TCK-597 (ADR-0043 §1) — l'autorisation DÉLÈGUE à `ReviewPolicy::moderate`. L'expression reprise
+ * ici ouvrait le geste à l'admin de n'importe quelle agence sur les avis de toutes les agences.
+ * Elle court avant la validation : un appel non autorisé et mal formé rend 403, pas 422.
+ *
+ * Le motif est un code (`reason_code`) pour tout autre geste qu'approuver ; le texte libre n'est
+ * exigé que pour `other` (ADR-0043 §7).
  */
 class ModerateReviewRequest extends BaseFormRequest
 {
-    /**
-     * TCK-305 — l'autorisation court ICI, avant la validation.
-     *
-     * Le contrôleur autorisait avant de valider ; un FormRequest valide avant le corps du
-     * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
-     * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
-     *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
-     */
     public function authorize(): bool
     {
-        $user = $this->user();
+        // verif-597 M3 — la décision compte : l'admin d'agence n'approuve ou ne masque qu'un avis
+        // en attente. Sans décision, la validation rend son 422.
+        $decision = $this->input('decision');
 
-        return $user !== null && ($user->isSuperAdmin()
-            || ($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id)));
+        return $this->user()?->can('moderate', [
+            $this->route('review'),
+            is_string($decision) && $decision !== '' ? $decision : null,
+        ]) === true;
     }
 
     /** @return array<string, mixed> */
@@ -40,7 +35,8 @@ class ModerateReviewRequest extends BaseFormRequest
     {
         return [
             'decision' => ['required', Rule::in(['approve', 'hide', 'delete', 'ignore'])],
-            'reason' => ['nullable', 'string', 'max:1000'],
+            'reason_code' => ['exclude_if:decision,approve', 'required', Rule::enum(ModerationReasonCode::class)],
+            'reason' => ['nullable', 'string', 'max:1000', 'required_if:reason_code,'.ModerationReasonCode::Other->value],
         ];
     }
 }

@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 
 /**
  * TCK-261 — multipart proxy for the SP onboarding KYC uploader.
@@ -18,12 +19,14 @@ type Params = Promise<{ id: string }>;
 
 export async function POST(req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(cookieStore);
   if (!token) {
     return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }
 
-  const { id } = await ctx.params;
+  const id = segmentAmont((await ctx.params).id);
+  if (id === null) return reponseSegmentInvalide();
+
   if (!/^\d+$/.test(id)) {
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }

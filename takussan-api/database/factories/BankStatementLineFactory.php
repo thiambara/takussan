@@ -20,7 +20,10 @@ class BankStatementLineFactory extends Factory
             'bank_statement_id' => BankStatement::factory(),
             'posted_at' => $this->faker->dateTimeBetween('-3 months', 'now'),
             'amount' => $amount,
-            'direction' => $this->faker->randomElement(BankStatementLineDirection::cases()),
+            // TCK-593 — un crédit par défaut, et non un sens tiré au sort : depuis la garde de sens
+            // de `ReconciliationManager`, une ligne au hasard rendait 422 une fois sur deux au
+            // rapprochement d'un encaissement. Un débit se demande explicitement.
+            'direction' => BankStatementLineDirection::Credit,
             'currency' => 'XOF',
             'label' => $this->faker->sentence(4),
             'reference' => $this->faker->boolean(70) ? $this->faker->bothify('REF-####-??') : null,

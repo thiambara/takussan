@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { isAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import type { UserRole } from '@/types/user';
 
 /**
@@ -60,6 +60,17 @@ export function assertCanReachAgentArea(roles: UserRole[]): void {
  */
 export function assertCanReachAgencyStaffArea(roles: UserRole[]): void {
   if (!(isAgent(roles) || isAdmin(roles))) {
+    redirect('/app');
+  }
+}
+
+/**
+ * TCK-591 — l'agenda, ouvert AUSSI au prestataire : le raccourci « Calendrier » de son tableau de
+ * bord (`DashboardShortcuts`) menait à une redirection vers `/app`. Il n'y demande que ses
+ * interventions (`types[]=maintenance`) ; l'API ne lui rend rien d'autre, quoi qu'il demande.
+ */
+export function assertCanReachCalendar(roles: UserRole[]): void {
+  if (!(isAgent(roles) || isOwner(roles) || isAdmin(roles) || isServiceProvider(roles))) {
     redirect('/app');
   }
 }

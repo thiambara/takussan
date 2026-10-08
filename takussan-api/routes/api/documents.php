@@ -25,5 +25,10 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Public share link routes (no auth required)
-Route::get('share/{token}', [DocumentShareLinkController::class, 'show'])->name('share.show');
-Route::get('share/{token}/download', [DocumentShareLinkController::class, 'download'])->name('share.download');
+// TCK-602 (ADR-0051 §7) — débit par IP, GET comme POST, chaque geste sous son propre compteur (le
+// préfixe : sans lui, toutes les routes `throttle:N,1` d'une IP partagent le même).
+Route::get('share/{token}', [DocumentShareLinkController::class, 'show'])->middleware('throttle:30,1,share_show')->name('share.show');
+Route::get('share/{token}/download', [DocumentShareLinkController::class, 'download'])->middleware('throttle:10,1,share_download')->name('share.download');
+// TCK-587 §8 — le mot de passe d'un lien protégé voyage dans le CORPS d'un POST, jamais dans l'URL.
+Route::post('share/{token}', [DocumentShareLinkController::class, 'show'])->middleware('throttle:30,1,share_show')->name('share.show.post');
+Route::post('share/{token}/download', [DocumentShareLinkController::class, 'download'])->middleware('throttle:10,1,share_download')->name('share.download.post');

@@ -5,9 +5,12 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
 import { apiFetch } from '@/lib/api';
+import { signalerClic } from '@/lib/contact-click';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
+import { PropertyPhoneVerifiedBadge } from './PropertyPhoneVerifiedBadge';
 
 interface PropertyAgentCardProps {
   /**
@@ -36,10 +39,17 @@ export function PropertyAgentCard({
   canMessage = true,
 }: PropertyAgentCardProps) {
   const t = useTranslations('property.detail.agent');
+  const tContact = useTranslations('propertyContact');
+  const toast = useToast();
   const [calling, setCalling] = useState(false);
+  // TCK-590 — sans numéro, ni « Appeler » ni WhatsApp : les deux menaient à une boîte d'erreur.
+  const hasPhone = contact.has_phone === true;
 
+  // TCK-590 — les erreurs passaient par une boîte d'alerte native, bloquante, hors charte
+  // par le navigateur. Un toast, comme partout ailleurs.
   async function handleCall() {
     setCalling(true);
+    signalerClic(propertySlug, 'call');
     try {
       const res = await apiFetch<{ phone: string | null }>(
         `/public/properties/${propertySlug}/contact`,
@@ -47,10 +57,10 @@ export function PropertyAgentCard({
       if (res.phone) {
         window.location.href = `tel:${res.phone.replace(/\s/g, '')}`;
       } else {
-        alert(t('phoneUnavailable'));
+        toast.add({ title: tContact('errors.title'), description: t('phoneUnavailable'), type: 'error' });
       }
     } catch {
-      alert(t('phoneError'));
+      toast.add({ title: tContact('errors.title'), description: t('phoneError'), type: 'error' });
     } finally {
       setCalling(false);
     }
@@ -84,6 +94,7 @@ export function PropertyAgentCard({
               contact.name
             )}
           </p>
+          <PropertyPhoneVerifiedBadge verified={contact.phone_verified} />
           {/* TCK-505 (#12) — c'est le LIEN de l'agence qui tronque, pas le paragraphe. `truncate`
               sur le `<p>` posait `nowrap` sur le lien, enfant flex dont la largeur minimale reste
               celle de son texte : à 360 px, la page entière s'élargissait à 369 (viewport mesuré). */}
@@ -107,27 +118,29 @@ export function PropertyAgentCard({
         </div>
       </div>
 
-      <div className={canMessage ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
+      <div className={canMessage && hasPhone ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
         {canMessage && (
           <Button type="button" variant="outline" onClick={onMessage} className="h-10 gap-2">
             <MessageCircle className="size-4" aria-hidden />
             {t('message')}
           </Button>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleCall}
-          disabled={calling}
-          className="h-10 gap-2"
-          aria-label={t('callAria')}
-        >
-          <Phone className="size-4" aria-hidden />
-          {calling ? t('calling') : t('call')}
-        </Button>
+        {hasPhone && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCall}
+            disabled={calling}
+            className="h-10 gap-2"
+            aria-label={t('callAria')}
+          >
+            <Phone className="size-4" aria-hidden />
+            {calling ? t('calling') : t('call')}
+          </Button>
+        )}
       </div>
 
-      <WhatsAppButton slug={propertySlug} title={propertyTitle} />
+      <WhatsAppButton slug={propertySlug} title={propertyTitle} hasPhone={hasPhone} />
     </div>
   );
 }

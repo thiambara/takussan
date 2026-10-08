@@ -12,7 +12,11 @@ class PropertyContactTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_phone_and_prefilled_message(): void
+    /**
+     * TCK-590 AC19 — `/contact` ne rend plus que le numéro : le message prérempli était un texte
+     * français figé, construit côté API ; il est désormais traduit par le front.
+     */
+    public function test_returns_phone_only(): void
     {
         $owner = User::factory()->create(['phone' => '+221771234567']);
         $property = Property::factory()->published()->create([
@@ -30,11 +34,8 @@ class PropertyContactTest extends TestCase
         $response = $this->getJson("/api/public/properties/{$property->slug}/contact");
 
         $response->assertOk()
-            ->assertJsonStructure(['phone', 'message'])
-            ->assertJsonPath('phone', '+221771234567');
-
-        $this->assertStringContainsString('Takussan.sn', $response->json('message'));
-        $this->assertStringContainsString('Appartement Almadies', $response->json('message'));
+            ->assertExactJson(['phone' => '+221771234567']);
+        $this->assertArrayNotHasKey('message', $response->json());
     }
 
     public function test_contact_returns_404_for_draft(): void

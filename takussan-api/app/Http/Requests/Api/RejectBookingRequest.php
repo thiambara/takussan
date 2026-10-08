@@ -26,7 +26,8 @@ class RejectBookingRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('booking')) === true;
+        // TCK-587 — `validate` : `bookings.validate` pour le personnel (`BookingPolicy`).
+        return $this->user()?->can('validate', $this->route('booking')) === true;
     }
 
     /** @return array<string, mixed> */

@@ -29,11 +29,14 @@ import {
 import { traduireMessageValidation } from '@/lib/schemas/messages';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
+  confirmPayoutThresholdAction,
   updateAgencyAction,
   uploadAgencyLogoAction,
 } from '@/app/actions/admin-agency';
 import type { Agency } from '@/types/agency';
 import { reduirePhoto } from '@/lib/reduire-photo';
+import { useCan } from '@/hooks/useCan';
+import { useAuth } from '@/context/AuthContext';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -71,7 +74,20 @@ function toDefaults(agency: Agency): AgencyFormValues {
     currency: currency.toUpperCase(),
     timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
     moderation_required: agency.moderation_required ?? false,
+    require_team_two_factor: settings.require_team_two_factor === true,
+    // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
+    late_fee_online_collection: settings.late_fee_online_collection === true,
+    default_tax_rate: agency.default_tax_rate != null ? String(agency.default_tax_rate) : '',
+    payout_approval_threshold: initialThreshold(agency),
+    legal_name: agency.legal_name ?? '',
+    ninea: agency.ninea ?? '',
+    rccm: agency.rccm ?? '',
+    legal_address: agency.legal_address ?? '',
   };
+}
+
+function initialThreshold(agency: Agency): string {
+  return agency.payout_approval_threshold != null ? String(Math.round(agency.payout_approval_threshold)) : '';
 }
 
 const CURRENCY_OPTIONS = (Object.keys(CURRENCY_METADATA) as CurrencyCode[])
@@ -94,13 +110,39 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const tValidation = useTraducteurValidation();
   const tCurrency = useTranslations('agency.currency');
   const tCommon = useTranslations('common.actions');
+  const tMoney = useTranslations('admin.agencyConfig.moneyOut');
+  // TCK-594 — le serveur décide (`AgencyPolicy::updatePayoutThreshold`) ; ceci évite seulement de
+  // proposer un champ qui rendrait 403.
+  const { can: canSetThreshold } = useCan('payouts.approve');
+  const individual = agency.kind === 'individual';
+  const { user } = useAuth();
+  const pendingThreshold = agency.pending_payout_threshold_change ?? null;
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isConfirming, startConfirmTransition] = useTransition();
+
+  function confirmThreshold() {
+    setConfirmError(null);
+    startConfirmTransition(async () => {
+      // VERIF-594 passe 2, N-5 — on confirme la valeur AFFICHÉE ; remplacée entre-temps, le serveur rend 409.
+      const result = await confirmPayoutThresholdAction(agency.id, pendingThreshold?.threshold ?? null);
+      if (!result.ok) {
+        setConfirmError(result.message);
+        return;
+      }
+      setSuccessMessage(tMoney('thresholdConfirmed'));
+      router.refresh();
+    });
+  }
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<AgencyFormValues, Agency>({
       schema: agencyFormSchema,
       defaultValues: toDefaults(agency),
       onSubmit: async (values) => {
-        const payload = normaliseAgencyForm(values);
+        const payload = normaliseAgencyForm(values, {
+          individual,
+          initialThreshold: initialThreshold(agency),
+        });
         const result = await updateAgencyAction(agency.id, payload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
@@ -110,8 +152,21 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         }
         return result.data as Agency;
       },
-      onSuccess: () => {
-        setSuccessMessage(t('successSaved'));
+      // TCK-597 (§8) — la case « modération » RELIT la valeur rendue par l'API. Elle était envoyée
+      // et ignorée en silence (`AgencyUpdateRequest` ne la validait pas) : l'écran disait
+      // « enregistré » sur une valeur que la base n'avait jamais reçue.
+      onSuccess: (saved, values) => {
+        const persisted = saved?.moderation_required ?? false;
+        form.setValue('moderation_required', persisted, { shouldDirty: false });
+        // VERIF-594 M-2 — un relâchement du seuil n'est pas appliqué : il attend un second
+        // approbateur (202). Le dire, plutôt qu'un « enregistré » qui laisserait croire le contraire.
+        const pending = saved?.pending_payout_threshold_change != null
+          && agency.pending_payout_threshold_change?.requested_at !== saved.pending_payout_threshold_change.requested_at;
+        if (persisted !== values.moderation_required) {
+          setSuccessMessage(t('moderation.notSaved'));
+        } else {
+          setSuccessMessage(pending ? tMoney('thresholdPendingSaved') : t('successSaved'));
+        }
         router.refresh();
       },
     });
@@ -363,6 +418,117 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             </label>
             <p id="moderation_required-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
               {t('moderation.hint')}
+            </p>
+          </div>
+        </div>
+
+        {/* TCK-593 — encaissement des pénalités de retard avec le paiement en ligne. */}
+        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+          <input
+            id="late_fee_online_collection"
+            type="checkbox"
+            role="switch"
+            aria-describedby="late_fee_online_collection-hint"
+            {...form.register('late_fee_online_collection')}
+            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+          />
+          <div>
+            <label
+              htmlFor="late_fee_online_collection"
+              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+            >
+              {t('lateFeeOnline.label')}
+            </label>
+            <p
+              id="late_fee_online_collection-hint"
+              className="mt-0.5 text-pretty text-xs text-muted-foreground"
+            >
+              {t('lateFeeOnline.hint')}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* TCK-594 (ADR-0039 §4, §7) — ce qui sort de l'agence : factures et reversements. */}
+      <section className="rounded-xl bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{tMoney('title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{tMoney('description')}</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FormInput
+            control={control}
+            name="default_tax_rate"
+            label={tMoney('taxRate')}
+            inputMode="decimal"
+            placeholder="18"
+          />
+          {canSetThreshold ? (
+            <div>
+              <FormInput
+                control={control}
+                name="payout_approval_threshold"
+                label={tMoney('threshold')}
+                inputMode="numeric"
+              />
+              <p className="mt-1.5 text-pretty text-xs text-muted-foreground">{tMoney('thresholdHint')}</p>
+              {pendingThreshold ? (
+                <div className="mt-3 space-y-2 rounded-xl border border-border bg-muted/40 p-3" role="status">
+                  <p className="text-pretty text-sm text-foreground">
+                    {pendingThreshold.threshold == null
+                      ? tMoney('thresholdPendingOff')
+                      : tMoney('thresholdPendingRaise', {
+                          threshold: formatCurrency(pendingThreshold.threshold, originalCurrency),
+                        })}
+                  </p>
+                  {user != null && pendingThreshold.requested_by_id === user.id ? (
+                    <p className="text-pretty text-xs text-muted-foreground">{tMoney('thresholdPendingSelf')}</p>
+                  ) : (
+                    <Button type="button" size="sm" disabled={isConfirming} onClick={confirmThreshold}>
+                      {isConfirming ? tMoney('thresholdConfirming') : tMoney('thresholdConfirm')}
+                    </Button>
+                  )}
+                  {confirmError ? <p className="text-sm text-destructive">{confirmError}</p> : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {individual ? null : (
+          <>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <FormInput control={control} name="legal_name" label={tMoney('legalName')} />
+              <FormInput control={control} name="ninea" label={tMoney('ninea')} />
+              <FormInput control={control} name="rccm" label={tMoney('rccm')} />
+            </div>
+            <FormTextarea control={control} name="legal_address" label={tMoney('legalAddress')} rows={2} />
+          </>
+        )}
+      </section>
+
+      {/* TCK-589 — sécurité de l'équipe. Même encadré cliquable que la modération. */}
+      <section className="rounded-xl bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t('security.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
+        </div>
+        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+          <input
+            id="require_team_two_factor"
+            type="checkbox"
+            aria-describedby="require_team_two_factor-hint"
+            {...form.register('require_team_two_factor')}
+            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+          />
+          <div>
+            <label
+              htmlFor="require_team_two_factor"
+              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+            >
+              {t('security.teamTwoFactorLabel')}
+            </label>
+            <p id="require_team_two_factor-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
+              {t('security.teamTwoFactorHint')}
             </p>
           </div>
         </div>

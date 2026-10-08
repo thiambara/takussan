@@ -2,6 +2,7 @@
 
 namespace App\Services\Invitation;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Mail\InvitationMailable;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
@@ -13,11 +14,18 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
+use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\ContactSansCompte;
+use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -142,7 +150,12 @@ class InvitationService
      */
     public function send(array $payload, User $inviter): Invitation
     {
-        $email = CaseInsensitive::fold(trim((string) $payload['email']));
+        // TCK-589 — le destinataire est l'e-mail, ou à défaut le NUMÉRO (lien par SMS).
+        $email = filled($payload['email'] ?? null) ? CaseInsensitive::fold(trim((string) $payload['email'])) : null;
+        $phone = filled($payload['phone'] ?? null) ? PhoneNumber::normalize((string) $payload['phone']) : null;
+        if ($email === null && $phone === null) {
+            throw new \InvalidArgumentException('Une invitation exige un e-mail ou un numéro.');
+        }
         $role = (string) $payload['role'];
         $invitableType = $payload['invitable_type'] ?? null;
         $invitableId = $payload['invitable_id'] ?? null;
@@ -166,7 +179,7 @@ class InvitationService
         // {@see self::liveSlotOccupant()} : la relance interroge le même
         // créneau avant de ressusciter une ligne périmée, et deux
         // expressions du même couple auraient divergé.
-        $existing = $this->liveSlotOccupant($email, $invitableType, $agencyId);
+        $existing = $this->liveSlotOccupant($email, $phone, $invitableType, $agencyId);
 
         if ($existing !== null) {
             // 409 Conflict (HttpException, picked up by the framework's
@@ -178,14 +191,19 @@ class InvitationService
             );
         }
 
-        $existingUser = User::query()->where('email', $email)->first();
+        $existingUser = $this->recipientAccount($email, $phone);
+
+        if ($email === null) {
+            $this->reserveAgencySms($agencyId);
+        }
 
         $invitation = DB::transaction(function () use (
-            $email, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser
+            $email, $phone, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser
         ): Invitation {
             $invitation = Invitation::query()->create([
                 'token' => $this->generateUniqueToken(),
                 'email' => $email,
+                'phone' => $phone,
                 'invited_user_id' => $existingUser?->id,
                 'invited_by' => $inviter->id,
                 'invitable_type' => $invitableType,
@@ -216,8 +234,7 @@ class InvitationService
         // invitation row (the inviter can `resend` later without losing
         // state). Queueing the mailable would push the failure surface
         // even further away from the request.
-        Mail::to($email)->locale($this->preferredLocale($existingUser, $invitation))
-            ->send(new InvitationMailable($invitation));
+        $this->deliver($invitation, $existingUser);
 
         return $invitation;
     }
@@ -249,14 +266,14 @@ class InvitationService
     public function accept(string $token, array $payload = [], ?User $authenticated = null): Invitation
     {
         $invitation = $this->lookupActiveInvitation($token);
-        $existingUser = User::query()->where('email', $invitation->email)->first();
+        $existingUser = $this->recipientAccount($invitation->email, $this->smsRecipient($invitation));
 
         if ($existingUser !== null) {
             // Branch B — caller must authenticate first.
             if ($authenticated === null || $authenticated->id !== $existingUser->id) {
                 // Surface the email back so the UI can pre-fill the login
                 // form and the wizard can resume on the right account.
-                abort(401, __('invitations.errors.requires_login'), [
+                abort_code(401, 'invitation.requires_login', [], [
                     'X-Invitation-Email' => $invitation->email,
                     'X-Invitation-Requires-Login' => '1',
                 ]);
@@ -277,8 +294,14 @@ class InvitationService
     {
         $invitation = $this->lookupActiveInvitation($token);
 
-        if (CaseInsensitive::fold(trim($user->email)) !== $invitation->email) {
-            abort(403, __('invitations.errors.email_mismatch'));
+        // TCK-589 — une invitation adressée à un numéro s'accepte par le compte qui
+        // a VÉRIFIÉ ce numéro.
+        if ($invitation->email === null) {
+            if ($user->phone !== $invitation->phone || $user->phone_verified_at === null) {
+                abort_code(403, 'invitation.phone_mismatch');
+            }
+        } elseif (CaseInsensitive::fold(trim((string) $user->email)) !== $invitation->email) {
+            abort_code(403, 'invitation.email_mismatch');
         }
 
         return $this->acceptForUser($invitation, $user);
@@ -348,6 +371,13 @@ class InvitationService
      * de la base : le destinataire le voit en 404 et l'inviteur le corrige
      * en relançant. *Le premier défaut est silencieux, le second se voit* —
      * c'est ce qui départage (TCK-367, reconduit ici).
+     *
+     * ## Le SMS, lui, part APRÈS le commit (TCK-589, vérification adverse m1)
+     *
+     * Le compromis de TCK-367 ne tient pas pour un SMS : il part en file, son
+     * échec ne défait donc rien, et un rollback survenu après sa mise en file
+     * remettrait au destinataire un jeton absent de la base. Il sort de la
+     * transaction ; le courriel y reste.
      */
     public function resend(Invitation $invitation, User $actor): Invitation
     {
@@ -357,7 +387,11 @@ class InvitationService
             ])->status(422);
         }
 
-        return DB::transaction(function () use ($invitation, $actor): Invitation {
+        if ($this->smsRecipient($invitation) !== null) {
+            $this->reserveAgencySms($invitation->agency_id);
+        }
+
+        $fraiche = DB::transaction(function () use ($invitation, $actor): Invitation {
             // Relire SOUS le verrou : le modèle vient du route-model binding,
             // donc d'avant la transaction. `lockForUpdate()` sur la ligne
             // elle-même ferme la course avec les écrivains qui ne passent pas
@@ -384,10 +418,10 @@ class InvitationService
                 'last_reminded_at' => null,
             ])->save();
 
-            $existingUser = User::query()->where('email', $fraiche->email)->first();
-            Mail::to($fraiche->email)
-                ->locale($this->preferredLocale($existingUser, $fraiche))
-                ->send(new InvitationMailable($fraiche));
+            // Le courriel part DANS la transaction (TCK-367 : un échec la défait).
+            if ($this->smsRecipient($fraiche) === null) {
+                $this->deliver($fraiche, $this->recipientAccount($fraiche->email, null));
+            }
 
             activity('Invitation')
                 ->performedOn($fraiche)
@@ -397,6 +431,37 @@ class InvitationService
 
             return $fraiche;
         });
+
+        // Le SMS part APRÈS le commit (vérification adverse m1).
+        if ($this->smsRecipient($fraiche) !== null) {
+            $this->deliver($fraiche, $this->recipientAccount(null, $this->smsRecipient($fraiche)));
+        }
+
+        return $fraiche;
+    }
+
+    /**
+     * Vérification adverse m1 — le plafond journalier des SMS d'invitation d'une agence
+     * (`sms.invitation_daily_cap_per_agency`), réservé AVANT toute écriture : un refus
+     * ne laisse ni ligne ni jeton tourné. Une invitation sans agence (plateforme) a son
+     * propre compteur.
+     */
+    protected function reserveAgencySms(?int $agencyId): void
+    {
+        $key = 'invitation-sms-day:'.($agencyId ?? 'platform').':'.now('UTC')->toDateString();
+        Cache::add($key, 0, now('UTC')->endOfDay()->addHour());
+        $sent = (int) Cache::increment($key);
+        $cap = (int) config('sms.invitation_daily_cap_per_agency');
+
+        if ($sent > $cap) {
+            if ($sent === $cap + 1) {
+                Log::warning('Plafond journalier des SMS d\'invitation atteint pour une agence.', [
+                    'agency_id' => $agencyId,
+                    'cap' => $cap,
+                ]);
+            }
+            abort_code(429, 'invitation.sms_daily_cap_reached');
+        }
     }
 
     /**
@@ -456,10 +521,11 @@ class InvitationService
             ->get();
 
         foreach ($due as $invitation) {
-            $existingUser = User::query()->where('email', $invitation->email)->first();
-            Mail::to($invitation->email)
-                ->locale($this->preferredLocale($existingUser, $invitation))
-                ->send(new InvitationMailable($invitation, isReminder: true));
+            $this->deliver(
+                $invitation,
+                $this->recipientAccount($invitation->email, $this->smsRecipient($invitation)),
+                isReminder: true,
+            );
 
             $invitation->forceFill(['last_reminded_at' => $now])->save();
         }
@@ -478,15 +544,20 @@ class InvitationService
         /** @var Invitation|null $invitation */
         $invitation = Invitation::query()->where('token', $token)->first();
         if ($invitation === null) {
-            abort(404, __('invitations.errors.token_not_found'));
+            abort_code(404, 'invitation.token_not_found');
         }
 
         if ($invitation->status !== InvitationStatus::Sent) {
-            abort(410, __('invitations.errors.token_'.$invitation->status->value));
+            match ($invitation->status) {
+                InvitationStatus::Accepted => abort_code(410, 'invitation.token_accepted'),
+                InvitationStatus::Revoked => abort_code(410, 'invitation.token_revoked'),
+                InvitationStatus::Expired => abort_code(410, 'invitation.token_expired'),
+                InvitationStatus::Sent => abort_code(410, 'invitation.token_sent'),
+            };
         }
 
         if ($invitation->expires_at !== null && $invitation->expires_at->isPast()) {
-            abort(410, __('invitations.errors.token_expired'));
+            abort_code(410, 'invitation.token_expired');
         }
 
         return $invitation;
@@ -504,6 +575,7 @@ class InvitationService
                 'first_name' => $payload['first_name'] ?? '',
                 'last_name' => $payload['last_name'] ?? '',
                 'email' => $invitation->email,
+                'phone' => $invitation->email === null ? $invitation->phone : null,
                 'password' => isset($payload['password'])
                     ? bcrypt((string) $payload['password'])
                     // No password provided → mint a random one. The user
@@ -511,8 +583,14 @@ class InvitationService
                     // password-reset email. Keeps the User row DB-valid
                     // without leaking auth-bypass semantics.
                     : bcrypt(Str::random(40)),
-                'email_verified_at' => now(),
+                'email_verified_at' => $invitation->email !== null ? now() : null,
             ]);
+
+            // TCK-589 — le lien est arrivé par SMS sur ce numéro : il est vérifié, par
+            // le seul écrivain de `phone_verified_at` (409 s'il l'est déjà ailleurs).
+            if ($invitation->email === null) {
+                app(PhoneVerificationService::class)->markVerified($user, (string) $invitation->phone);
+            }
 
             // TCK-272 — n'estampiller que la branche où l'invité a CHOISI
             // son mot de passe. Sur la branche `Str::random(40)`, le champ
@@ -756,13 +834,19 @@ class InvitationService
      * correctement, ce qu'un `= NULL` littéral n'aurait jamais fait.
      */
     protected function liveSlotOccupant(
-        string $email,
+        ?string $email,
+        ?string $phone,
         ?string $invitableType,
         int|string|null $agencyId,
         ?int $exceptId = null,
     ): ?Invitation {
+        // TCK-589 — le créneau d'une invitation par SMS est (numéro, type, agence).
         $query = Invitation::query()
-            ->where('email', CaseInsensitive::fold($email))
+            ->when(
+                $email !== null,
+                fn ($q) => $q->where('email', CaseInsensitive::fold($email)),
+                fn ($q) => $q->whereNull('email')->where('phone', $phone),
+            )
             ->where('status', InvitationStatus::Sent->value)
             ->where('invitable_type', $invitableType)
             ->where('agency_id', $agencyId);
@@ -800,7 +884,8 @@ class InvitationService
     protected function assertSlotIsFree(Invitation $invitation): void
     {
         $vivante = $this->liveSlotOccupant(
-            (string) $invitation->email,
+            $invitation->email,
+            $invitation->phone,
             $invitation->invitable_type,
             $invitation->agency_id,
             (int) $invitation->getKey(),
@@ -812,6 +897,82 @@ class InvitationService
                 __('invitations.errors.duplicate_pending', ['id' => $vivante->id]),
             );
         }
+    }
+
+    /**
+     * TCK-589 — le compte déjà titulaire du destinataire : par e-mail, ou pour une
+     * invitation par SMS, le compte qui a VÉRIFIÉ ce numéro — un numéro seulement
+     * saisi ne prouve rien (ADR-0033, contrainte 2).
+     */
+    protected function recipientAccount(?string $email, ?string $phone): ?User
+    {
+        if ($email !== null) {
+            return User::query()->where('email', $email)->first();
+        }
+
+        return User::query()
+            ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold((string) $phone)])
+            ->whereNotNull('phone_verified_at')
+            ->first();
+    }
+
+    /** Le numéro auquel part le lien : seulement quand l'invitation n'a pas d'e-mail. */
+    protected function smsRecipient(Invitation $invitation): ?string
+    {
+        return $invitation->email === null ? $invitation->phone : null;
+    }
+
+    /**
+     * TCK-589 — le seul point d'envoi d'une invitation (envoi, relance, rappel) :
+     * le courriel quand il y a un e-mail, sinon un SMS adressé AU NUMÉRO, comme à un
+     * contact sans compte (`ContactSansCompte`, TCK-588) — jamais au `User` qui le
+     * porterait (son `phone_verified_at` peut être nul, et `SmsChannel` l'abandonnerait).
+     * Le canal des contacts compte la limite PAR NUMÉRO, et n'écrit aucune ligne de cloche.
+     *
+     * Le SMS ne porte aucun texte de l'invitant — son nom, qu'il édite, faisait de
+     * l'expéditeur Takussan un relais d'hameçonnage (vérification adverse m1) : le nom
+     * de l'agence seul, filtré ({@see self::smsAgencyName()}) et tronqué au rendu.
+     *
+     * Hors transaction à l'envoi et pour tout SMS : un échec d'envoi ne défait pas
+     * l'invitation, l'invitant peut relancer. Seul le courriel d'une RELANCE part
+     * dans sa transaction ({@see self::resend()}, TCK-367).
+     */
+    protected function deliver(Invitation $invitation, ?User $existingUser, bool $isReminder = false): void
+    {
+        $locale = $this->preferredLocale($existingUser, $invitation);
+
+        if ($invitation->email !== null) {
+            Mail::to($invitation->email)->locale($locale)
+                ->send(new InvitationMailable($invitation, isReminder: $isReminder));
+
+            return;
+        }
+
+        $base = config('app.frontend_url') ?: config('app.url');
+
+        app(NotificationService::class)->send(
+            ContactSansCompte::fromInvitation($invitation, $locale),
+            $isReminder ? NotificationCode::InvitationReminder : NotificationCode::InvitationReceived,
+            [
+                'agency' => self::smsAgencyName($invitation->agency?->name),
+                // Même lien que le courriel (`InvitationMailable`).
+                'url' => rtrim((string) $base, '/').'/invitations/accept?token='.$invitation->token,
+            ],
+        );
+    }
+
+    /**
+     * Le nom d'agence tel qu'un SMS peut le porter : lettres, chiffres, espaces et
+     * ponctuation simple (`'` `-` `&` `,` `(` `)`). Ni `:`, ni `/`, ni `.` : un nom
+     * ne doit pas pouvoir former un lien ni une adresse dans le message. La troncature
+     * est celle de tout texte de SMS (`NotificationRenderer::SMS_TEXT_MAX`).
+     */
+    public static function smsAgencyName(?string $name): string
+    {
+        $filtered = preg_replace('/[^\p{L}\p{N} \'&,()-]+/u', ' ', strip_tags((string) $name)) ?? '';
+        $filtered = trim((string) preg_replace('/\s+/u', ' ', $filtered));
+
+        return $filtered !== '' ? $filtered : 'Takussan';
     }
 
     /**

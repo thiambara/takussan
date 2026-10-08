@@ -128,6 +128,12 @@ const LES_DIX: readonly (readonly [string, () => Promise<unknown>])[] = [
   ['updateIntegrationAction', () => actions.updateIntegrationAction(1, {})],
   ['testIntegrationAction', () => actions.testIntegrationAction(1)],
   ['deleteIntegrationAction', () => actions.deleteIntegrationAction(1)],
+  // TCK-293 — l'adresse de notification : la lire et la régénérer portent la même agence.
+  ['fetchIntegrationWebhookEndpointAction', () => actions.fetchIntegrationWebhookEndpointAction(1)],
+  ['rotateIntegrationWebhookEndpointAction', () => actions.rotateIntegrationWebhookEndpointAction(1)],
+  // TCK-602 (ADR-0051 §3) — les champs exigés par fournisseur : la route est sous la même garde
+  // d'intégrations que la liste, un multi-agences sans hint y prendrait le même 403.
+  ['fetchPaymentProviderSchemasAction', () => actions.fetchPaymentProviderSchemasAction()],
 ];
 
 describe('admin-settings — le contexte d’agence sur TOUTES les actions', () => {
@@ -167,5 +173,26 @@ describe('admin-settings — le contexte d’agence sur TOUTES les actions', () 
     const couvertes = LES_DIX.map(([nom]) => nom);
 
     expect([...exportees].sort()).toEqual([...couvertes].sort());
+  });
+});
+
+/**
+ * TCK-293 — une action serveur ne transmet pas d'`ApiError` : le refus de second facteur doit
+ * revenir avec son code, sans quoi l'écran ne peut pas le confier à `GardeDoubleFacteur`.
+ */
+describe('TCK-293 — le refus de second facteur garde son code', () => {
+  it('rend `code` sur un 403 de second facteur, et rien sur un autre refus', async () => {
+    const { ApiError } = await import('@/lib/api');
+    apiRequestMock.mockRejectedValueOnce(new ApiError(403, { code: 'two_factor_step_up_required' }));
+    await expect(actions.rotateIntegrationWebhookEndpointAction(1)).resolves.toMatchObject({
+      ok: false,
+      status: 403,
+      code: 'two_factor_step_up_required',
+    });
+
+    apiRequestMock.mockRejectedValueOnce(new ApiError(403, { message: 'Accès refusé.' }));
+    const autre = await actions.rotateIntegrationWebhookEndpointAction(1);
+    expect(autre).toMatchObject({ ok: false, status: 403 });
+    expect(autre).not.toHaveProperty('code');
   });
 });

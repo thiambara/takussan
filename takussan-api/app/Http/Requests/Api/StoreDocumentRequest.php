@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\DocumentType;
+use App\Support\Uploads\AcceptedUploads;
 use Illuminate\Validation\Rule;
 
 /**
@@ -36,7 +37,7 @@ class StoreDocumentRequest extends BaseFormRequest
             'type' => ['required', Rule::enum(DocumentType::class)],
             'description' => ['nullable', 'string'],
             'expiry_date' => ['nullable', 'date'],
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', ...AcceptedUploads::document(10240)],
         ];
     }
 }

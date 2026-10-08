@@ -22,6 +22,7 @@ import type {
   InventoryDisputeInput,
   InventoryUpdateInput,
 } from '@/lib/schemas/inventory';
+import { cheminApi } from '@/lib/chemin-api';
 
 export const inventoryKeys = {
   all: ['inventory'] as const,
@@ -110,7 +111,7 @@ export function useInventoriesForProperty(
 ) {
   return useApiQuery<PaginatedResponse<Inventory>>(
     inventoryKeys.byProperty(propertyId ?? 0, params),
-    `/api/properties/${propertyId}/inventories`,
+    cheminApi`/api/properties/${propertyId}/inventories`,
     {
       params: toSpatieParams(params, LIST_FIELDS, '-conducted_at'),
       enabled: propertyId !== null && propertyId > 0,
@@ -122,7 +123,7 @@ export function useInventoriesForProperty(
 export function useInventory(id: number | null) {
   return useApiQuery<ApiResponse<Inventory>>(
     inventoryKeys.detail(id ?? 0),
-    `/api/inventories/${id}`,
+    cheminApi`/api/inventories/${id}`,
     {
       params: { fields: { inventories: [...DETAIL_FIELDS] } },
       enabled: id !== null && id > 0,
@@ -141,7 +142,7 @@ export function useCreateInventory() {
 /** `PUT /api/inventories/{id}` — only allowed while status is `draft`. */
 export function useUpdateInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, InventoryUpdateInput>(
-    { path: `/api/inventories/${id}`, method: 'PUT' },
+    { path: cheminApi`/api/inventories/${id}`, method: 'PUT' },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
@@ -149,7 +150,7 @@ export function useUpdateInventory(id: number) {
 /** `POST /api/inventories/{id}/submit` — draft → pending_signature. */
 export function useSubmitInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, void>(
-    { path: `/api/inventories/${id}/submit`, method: 'POST', body: () => ({}) },
+    { path: cheminApi`/api/inventories/${id}/submit`, method: 'POST', body: () => ({}) },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
@@ -157,23 +158,21 @@ export function useSubmitInventory(id: number) {
 /**
  * `POST /api/inventories/{id}/sign` — TCK-076 role-explicit payload.
  *
- * When called without arguments (legacy behaviour used by early UIs), the
- * backend falls back to inferring the role from the caller identity and
- * skips the signature payload persistence. Prefer passing `{role,
- * signature}` to store an actual signature capture.
+ * TCK-596 — `role` et `signature` sont REQUIS : l'API rend 422 sans eux. Il n'existe plus d'appel
+ * sans tracé.
  */
 export interface InventorySignInput {
   readonly role: InventorySignatureRole;
-  /** Base64-encoded PNG/SVG payload — typically a canvas `toDataURL()`. */
+  /** Base64-encoded PNG payload — a canvas `toDataURL('image/png')`. */
   readonly signature: string;
 }
 
 export function useSignInventory(id: number) {
-  return useApiMutation<ApiResponse<Inventory>, InventorySignInput | void>(
+  return useApiMutation<ApiResponse<Inventory>, InventorySignInput>(
     {
-      path: `/api/inventories/${id}/sign`,
+      path: cheminApi`/api/inventories/${id}/sign`,
       method: 'POST',
-      body: (input) => (input ?? {}) as Record<string, unknown>,
+      body: (input) => ({ role: input.role, signature: input.signature }),
     },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
@@ -182,7 +181,7 @@ export function useSignInventory(id: number) {
 /** `POST /api/inventories/{id}/dispute`. */
 export function useDisputeInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, InventoryDisputeInput>(
-    { path: `/api/inventories/${id}/dispute`, method: 'POST' },
+    { path: cheminApi`/api/inventories/${id}/dispute`, method: 'POST' },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
@@ -199,7 +198,7 @@ export interface UploadInventoryRoomPhotosInput {
 export function useUploadInventoryRoomPhotos(id: number) {
   return useApiMutation<unknown, UploadInventoryRoomPhotosInput>(
     {
-      path: `/api/inventories/${id}/room-photos`,
+      path: cheminApi`/api/inventories/${id}/room-photos`,
       method: 'POST',
       formData: true,
       body: ({ files, roomName }) => {
@@ -208,6 +207,21 @@ export function useUploadInventoryRoomPhotos(id: number) {
         fd.append('room_name', roomName);
         return fd;
       },
+    },
+    { invalidate: [inventoryKeys.detail(id)] },
+  );
+}
+
+/**
+ * TCK-596 — `DELETE /api/inventories/{id}/room-photos/{media}` : brouillon seulement (409 signé,
+ * 422 soumis), et le média doit appartenir à cet état des lieux (404 sinon).
+ */
+export function useDeleteInventoryRoomPhoto(id: number) {
+  return useApiMutation<unknown, number>(
+    {
+      path: (mediaId) => cheminApi`/api/inventories/${id}/room-photos/${mediaId}`,
+      method: 'DELETE',
+      body: () => undefined,
     },
     { invalidate: [inventoryKeys.detail(id)] },
   );

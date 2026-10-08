@@ -1,17 +1,30 @@
 <?php
 
+use App\Exceptions\ApiError;
+use App\Exceptions\HttpErrorCode;
+use App\Http\Middleware\EnforceImpersonationReadOnly;
+use App\Http\Middleware\EnsureAgencyWritable;
+use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
+use App\Http\Middleware\JournalizeIncomingWebhook;
 use App\Http\Middleware\MaintenanceMode;
+use App\Http\Middleware\RequireRecentTwoFactor;
+use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
+use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
+use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -40,8 +53,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // qu'elle a été laissée. Toutes les autres routes restent normalisées. Le détail, et le
         // troisième mécanisme neutralisé : `UpsertWizardDraftRequest`.
         $brouillon = fn (Request $request): bool => UpsertWizardDraftRequest::estEcritureDeBrouillon($request);
-        $middleware->trimStrings(except: [$brouillon]);
-        $middleware->convertEmptyStringsToNull(except: [$brouillon]);
+        // TCK-593 — de même pour le mapping CSV : sa tabulation et son espace sont des valeurs.
+        $mappingCsv = fn (Request $request): bool => UpdateBankCsvMappingRequest::estEcritureDeMapping($request);
+        $middleware->trimStrings(except: [$brouillon, $mappingCsv]);
+        $middleware->convertEmptyStringsToNull(except: [$brouillon, $mappingCsv]);
 
         $middleware->api(prepend: [
             ForceJsonResponseMiddleware::class,
@@ -61,25 +76,59 @@ return Application::configure(basePath: dirname(__DIR__))
         // la seconde orpheline — elle décrivait donc toujours une API supprimée.
         $middleware->api(append: [
             ResolveActiveProfile::class,
+            // TCK-600 (ADR-0048) — une agence suspendue ne s'écrit plus sous son profil actif.
+            EnsureAgencyWritable::class,
+            // TCK-600 (ADR-0055) — une session d'impersonation lit, elle n'écrit jamais.
+            EnforceImpersonationReadOnly::class,
+            // TCK-589 — 2FA exigée (plateforme, admin et personnel d'agence sur les
+            // familles protégées, réinitialisation par le support), puis step-up par
+            // jeton sur les actions sensibles. Listes : `App\Support\Security\ProtectedActions`.
+            RequireTwoFactor::class,
+            RequireRecentTwoFactor::class,
         ]);
         // TCK-102 — alias the SMS webhook IP allowlist middleware.
         // TCK-144 — alias the super-admin gate for the /api/admin/* namespace.
         $middleware->alias([
             'restrict.ip' => RestrictIpMiddleware::class,
             'super-admin' => EnsureSuperAdmin::class,
+            // TCK-602 (ADR-0051 §4) — le journal des webhooks entrants, après `throttle`.
+            'webhook.journal' => JournalizeIncomingWebhook::class,
+            // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
+            'platform-can' => EnsurePlatformAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
+        // TCK-588 (ADR-0032) — une erreur est un CODE et un message localisé dans la langue
+        // négociée, jamais le message de l'exception : il exposait la classe d'un modèle
+        // introuvable (« No query results for model [App\Models\Lease] 12 »), l'anglais du
+        // framework (« This action is unauthorized. ») ou rien (« Error »). Une `ApiError`
+        // (`abort_code()`) porte son code ; toute autre `HttpException` — policy, modèle
+        // introuvable, `abort(403)` nu — devient `http.<statut>`. Une `QueryException` n'est pas
+        // une `HttpException` : elle n'est pas interceptée ici.
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            if ($e instanceof HttpExceptionInterface) {
+            if ($e instanceof ApiError) {
                 return new JsonResponse(
-                    ['message' => $e->getMessage() !== '' ? $e->getMessage() : 'Error'],
+                    array_filter([
+                        'code' => $e->errorCode,
+                        'message' => $e->localizedMessage(),
+                        'params' => $e->params,
+                    ], fn ($value) => $value !== []) + $e->extra,
+                    $e->getStatusCode(),
+                    $e->getHeaders(),
+                );
+            }
+
+            if ($e instanceof HttpExceptionInterface) {
+                $code = HttpErrorCode::for($e->getStatusCode());
+
+                return new JsonResponse(
+                    ['code' => $code, 'message' => __('errors.'.$code)],
                     $e->getStatusCode(),
                     $e->getHeaders(),
                 );
@@ -87,4 +136,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return null;
         });
+
+        // TCK-601 (ADR-0044 §2) — le rapport par défaut d'une `QueryException` écrit son message,
+        // qui porte les valeurs liées et le `DETAIL` PostgreSQL : tout échec SQL de toute route ou
+        // job journalisait ainsi ce que l'utilisateur avait saisi. Il est REMPLACÉ (`stop()`) par
+        // la forme sûre : SQLSTATE, SQL à placeholders, nombre de valeurs, `fichier:ligne`.
+        $exceptions->report(function (QueryException $e): void {
+            Log::error('query_exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]);
+        })->stop();
     })->create();

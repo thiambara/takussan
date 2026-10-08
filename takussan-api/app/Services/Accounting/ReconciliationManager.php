@@ -7,10 +7,14 @@ use App\Events\Accounting\BankStatementLineMatched;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
+use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Models\User;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +27,8 @@ class ReconciliationManager
         BookingPayment::class,
         LeasePayment::class,
         Invoice::class,
+        // TCK-593 — un reversement émis, rapproché d'un débit.
+        Payout::class,
     ];
 
     public function __construct(private readonly Dispatcher $events) {}
@@ -43,7 +49,28 @@ class ReconciliationManager
 
         // Guard: same agency
         if ($this->resolvePaymentAgencyId($payment) !== $statement->agency_id) {
-            abort(403, __('reconciliation.validation.cross_agency'));
+            abort_code(403, 'reconciliation.cross_agency');
+        }
+
+        // TCK-593 — garde de sens : un crédit est un encaissement, un débit un reversement. Sans
+        // elle, un débit de 150 000 se confirmait sur l'échéance de 150 000 qu'il ne paie pas.
+        // TCK-594 (VERIF-594 passe 5, P5-2) — la ligne d'une caution rendue décrit une SORTIE : aucun
+        // crédit ne lui correspond, et son débit se rapproche de son reversement, jamais d'elle.
+        $isPayout = $payment instanceof Payout;
+        $isDepositRefund = $payment instanceof LeasePayment && $payment->payment_type === LeasePaymentType::DepositRefund;
+        if ($isDepositRefund || $isPayout !== ($line->direction === BankStatementLineDirection::Debit)) {
+            throw ValidationException::withMessages([
+                'payment_type' => [__('reconciliation.validation.direction_mismatch')],
+            ]);
+        }
+
+        // TCK-593 (vérification adverse, R9) — un débit ne se rapproche que d'un reversement
+        // ÉMIS : un reversement en attente, échoué ou annulé recevait `bank_reconciled_at`, et un
+        // débit inexpliqué passait pour un reversement.
+        if ($isPayout && $payment->status !== PayoutStatus::Completed) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.payout_not_completed')],
+            ]);
         }
 
         // Guard: currency match
@@ -66,7 +93,7 @@ class ReconciliationManager
 
         // Guard: valid payment type
         if (! in_array(get_class($payment), self::ALLOWED_PAYMENT_TYPES, true)) {
-            abort(422, 'Unsupported payment type.');
+            abort_code(422, 'payment.type_unknown');
         }
 
         $line = DB::transaction(function () use ($line, $payment, $caller) {
@@ -261,6 +288,10 @@ class ReconciliationManager
 
         if ($payment instanceof BookingPayment) {
             return $payment->booking?->property?->agency_id;
+        }
+
+        if ($payment instanceof Payout) {
+            return $payment->agency_id;
         }
 
         return null;

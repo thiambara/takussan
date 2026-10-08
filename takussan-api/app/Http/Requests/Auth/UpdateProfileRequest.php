@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Rules\TelephoneJoignable;
+use App\Services\Auth\PhoneChangeGuard;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProfileRequest extends FormRequest
@@ -23,6 +24,8 @@ class UpdateProfileRequest extends FormRequest
             // E.164 strict — leading "+", country code [1-9], 6-14 more digits.
             // Empty string is allowed and treated as "clear" in the controller.
             'phone' => ['sometimes', 'nullable', 'string', 'regex:/^(?:\+[1-9]\d{6,14})?$/', new TelephoneJoignable],
+            // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
+            ...PhoneChangeGuard::PROOF_RULES,
         ];
     }
 

@@ -64,6 +64,31 @@ export const agencyFormSchema = z.object({
     ),
   timezone: z.string().trim().max(64, msgValidation('agency.timezoneTooLong')),
   moderation_required: z.boolean(),
+  /** TCK-589 — `settings.require_team_two_factor` : second facteur exigé de toute l'équipe. */
+  require_team_two_factor: z.boolean(),
+  /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
+  late_fee_online_collection: z.boolean(),
+  // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
+  default_tax_rate: z
+    .string()
+    .trim()
+    .refine(
+      (v) => {
+        if (v === '') return true;
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 0 && n <= 100;
+      },
+      msgValidation('agency.taxRateRange'),
+    ),
+  // TCK-594 (ADR-0039 §4) — un montant XOF entier ; vide = seuil désactivé.
+  payout_approval_threshold: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^[0-9]{1,12}$/.test(v), msgValidation('agency.thresholdInvalid')),
+  legal_name: z.string().trim().max(255, msgValidation('agency.legalNameTooLong')),
+  ninea: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
+  rccm: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
+  legal_address: z.string().trim().max(1000, msgValidation('agency.legalAddressTooLong')),
 });
 
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
@@ -81,6 +106,26 @@ export interface AgencyFormPayload {
   settings?: Record<string, unknown>;
   /** TCK-098 — whether new property publications require admin approval. */
   moderation_required?: boolean;
+  default_tax_rate?: number | null;
+  payout_approval_threshold?: number | null;
+  legal_name?: string | null;
+  ninea?: string | null;
+  rccm?: string | null;
+  legal_address?: string | null;
+}
+
+/**
+ * TCK-594 — ce que le formulaire sait de l'agence AVANT la saisie, et qui décide de ce qui part.
+ *
+ * - `individual` : l'API refuse les mentions légales d'une agence `individual` (`prohibited`) ; les
+ *   envoyer, même vides, rendrait chaque enregistrement 422.
+ * - `initialThreshold` : le seuil a sa propre capacité (`payouts.approve`) et sa règle des deux
+ *   approbateurs. Le renvoyer INCHANGÉ ferait refuser l'enregistrement du nom à un admin qui ne la
+ *   détient pas : il ne part donc que s'il a été modifié.
+ */
+export interface AgencyFormContext {
+  individual: boolean;
+  initialThreshold: string;
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -92,8 +137,16 @@ function emptyToNull(v: string | undefined): string | null {
  * Normalise the UI-friendly form values into the backend payload. Empty
  * strings become `null`; the commission rate is parsed to a number and
  * also mirrored in `settings.default_commission_rate` (spec alignment).
+ *
+ * TCK-593 — `settings` ne porte QUE les clés que cet écran gère. L'API fusionne `settings` clé par
+ * clé (`AgencyController::update`) : une clé absente est conservée, une clé à `null` est effacée.
+ * Renvoyer ici l'objet `settings` lu de l'agence réécrirait donc des réglages que l'écran ne montre
+ * pas (filigrane, accueil…) avec leur valeur du moment du chargement.
  */
-export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload {
+export function normaliseAgencyForm(
+  values: AgencyFormValues,
+  context: AgencyFormContext = { individual: false, initialThreshold: '' },
+): AgencyFormPayload {
   const commission = values.commission_rate.trim() === '' ? null : Number(values.commission_rate);
   const settings: Record<string, unknown> = {};
   if (commission !== null) settings.default_commission_rate = commission;
@@ -104,6 +157,10 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
   if (currency !== null) settings.currency = currency.toUpperCase();
   const timezone = emptyToNull(values.timezone);
   if (timezone !== null) settings.timezone = timezone;
+  // TCK-589 — toujours émis, `false` compris : décocher doit lever l'exigence, pas la laisser
+  // en place faute d'avoir été envoyé.
+  settings.require_team_two_factor = values.require_team_two_factor;
+  settings.late_fee_online_collection = values.late_fee_online_collection;
 
   return {
     name: values.name.trim(),
@@ -114,8 +171,23 @@ export function normaliseAgencyForm(values: AgencyFormValues): AgencyFormPayload
     website: emptyToNull(values.website),
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
-    ...(Object.keys(settings).length > 0 ? { settings } : {}),
+    settings,
     moderation_required: values.moderation_required,
+    default_tax_rate: values.default_tax_rate.trim() === '' ? null : Number(values.default_tax_rate),
+    ...(context.individual
+      ? {}
+      : {
+          legal_name: emptyToNull(values.legal_name),
+          ninea: emptyToNull(values.ninea),
+          rccm: emptyToNull(values.rccm),
+          legal_address: emptyToNull(values.legal_address),
+        }),
+    ...(values.payout_approval_threshold.trim() !== context.initialThreshold
+      ? {
+          payout_approval_threshold:
+            values.payout_approval_threshold.trim() === '' ? null : Number(values.payout_approval_threshold),
+        }
+      : {}),
   };
 }
 

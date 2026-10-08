@@ -10,6 +10,7 @@ use App\Models\Enums\BookingStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -73,9 +74,10 @@ class PlatformReportingService
      * *Une invalidation qui dépend d'un geste humain au bon moment n'est pas une invalidation.*
      * `bumpCacheVersion()` reste ce qu'il était : l'invalidation ÉVÉNEMENTIELLE (création d'agence).
      *
-     * Historique : 1 = forme d'origine (TCK-227) ; 2 = `days` / `partial` par ligne (TCK-388).
+     * Historique : 1 = forme d'origine (TCK-227) ; 2 = `days` / `partial` par ligne (TCK-388) ;
+     * 3 = MRR sans les essais, `mrr_trialing` par ligne et `latest_mrr_trialing` (TCK-595, ADR-0057).
      */
-    private const ROW_SCHEMA_VERSION = 2;
+    private const ROW_SCHEMA_VERSION = 3;
 
     /**
      * Bumped every time an Agency is created (see AppServiceProvider). Lets
@@ -133,9 +135,12 @@ class PlatformReportingService
     }
 
     /**
-     * MRR/ARR per bucket. `MRR(month) = Σ active subscriptions × (override
-     * ?? plan.monthly_price_xof)` evaluated at the bucket boundary.
+     * MRR/ARR per bucket, evaluated at the bucket boundary by {@see self::subscriptionRevenueAt()}.
      * `ARR = MRR × 12`.
+     *
+     * TCK-595 (ADR-0057 §2) — le docblock promettait un MRR « override-aware » : aucune colonne de prix
+     * négocié n'existe (`platform_fee_pct_override` porte la commission, pas l'abonnement), et le
+     * calcul a toujours lu `plans.monthly_price_xof`. Il ne le prétend plus.
      */
     public function revenue(
         string $period,
@@ -155,7 +160,7 @@ class PlatformReportingService
 
             foreach ($buckets as $bucket) {
                 $atMoment = $bucket['end'];
-                $row = $this->revenueSnapshotAt($atMoment);
+                $row = $this->subscriptionRevenueAt($atMoment);
                 $rows[] = array_merge([
                     'bucket' => $bucket['label'],
                     'starts_at' => $bucket['start']->toIso8601String(),
@@ -171,6 +176,7 @@ class PlatformReportingService
                 'latest_mrr' => $latest['mrr'],
                 'latest_arr' => $latest['arr'],
                 'latest_active_subscriptions' => $latest['active_subscriptions'],
+                'latest_mrr_trialing' => $latest['mrr_trialing'] ?? 0.0,
             ], $window['range'], $granularity);
         });
     }
@@ -409,11 +415,10 @@ class PlatformReportingService
         $champ = str_contains($window['range'], '..') ? 'ends_at' : 'granularity';
 
         throw ValidationException::withMessages([
-            $champ => [sprintf(
-                'La plage demandée dépasse le plafond de %d intervalles « %s ». Réduisez la plage ou élargissez la granularité.',
-                self::MAX_BUCKETS,
-                $granularity,
-            )],
+            $champ => [__('errors.reporting.range_too_wide', [
+                'max' => self::MAX_BUCKETS,
+                'granularity' => $granularity,
+            ])],
         ]);
     }
 
@@ -428,12 +433,24 @@ class PlatformReportingService
     }
 
     /**
-     * @return array{mrr: float, arr: float, active_subscriptions: int}
+     * TCK-595 (ADR-0057 §2) — le revenu récurrent au point mesuré : Σ `plans.monthly_price_xof` des
+     * abonnements `active` ou `past_due` (option retenue par défaut : un impayé d'abonnement reste
+     * dans le MRR jusqu'à la résiliation). Un abonnement EN ESSAI au point — `trialing`, ou dont
+     * `trial_ends_at` est postérieur au point — n'en est pas : il ne paie rien encore. Il est compté
+     * à part (`mrr_trialing`). Une requête, quel que soit le nombre d'abonnements.
+     *
+     * Lu par `GET /api/admin/reports/revenue` (par tranche) et par l'instantané quotidien
+     * (`PlatformMetricsSnapshotter`) : une seule règle pour les deux.
+     *
+     * @return array{mrr: float, arr: float, active_subscriptions: int, mrr_trialing: float, trialing_subscriptions: int}
      */
-    private function revenueSnapshotAt(Carbon $atMoment): array
+    public function subscriptionRevenueAt(CarbonInterface $atMoment): array
     {
-        // Single SQL row — COUNT(*) + override-aware MRR via COALESCE on the
-        // join. No PHP iteration over individual subscriptions.
+        // `COALESCE` : un `trial_ends_at` nul rendrait le prédicat NULL, et `NOT NULL` écarterait
+        // l'abonnement des DEUX sommes.
+        $trialSql = '(agency_subscriptions.status = ? OR COALESCE(agency_subscriptions.trial_ends_at > ?, FALSE))';
+        $trialBindings = [AgencySubscriptionStatus::Trialing->value, $atMoment];
+
         $row = AgencySubscription::query()
             ->join('plans', 'plans.id', '=', 'agency_subscriptions.plan_id')
             ->where(function (Builder $q) use ($atMoment): void {
@@ -446,16 +463,24 @@ class PlatformReportingService
                 AgencySubscriptionStatus::Active->value,
                 AgencySubscriptionStatus::PastDue->value,
             ])
-            ->selectRaw('COUNT(*) as active_count, COALESCE(SUM(plans.monthly_price_xof), 0) as mrr')
+            ->selectRaw(
+                "COUNT(*) FILTER (WHERE NOT {$trialSql}) AS paying_count, "
+                ."COALESCE(SUM(plans.monthly_price_xof) FILTER (WHERE NOT {$trialSql}), 0) AS mrr, "
+                ."COUNT(*) FILTER (WHERE {$trialSql}) AS trialing_count, "
+                ."COALESCE(SUM(plans.monthly_price_xof) FILTER (WHERE {$trialSql}), 0) AS mrr_trialing",
+                [...$trialBindings, ...$trialBindings, ...$trialBindings, ...$trialBindings],
+            )
+            ->toBase()
             ->first();
 
         $mrr = (float) ($row->mrr ?? 0);
-        $count = (int) ($row->active_count ?? 0);
 
         return [
             'mrr' => round($mrr, 2),
             'arr' => round($mrr * 12, 2),
-            'active_subscriptions' => $count,
+            'active_subscriptions' => (int) ($row->paying_count ?? 0),
+            'mrr_trialing' => round((float) ($row->mrr_trialing ?? 0), 2),
+            'trialing_subscriptions' => (int) ($row->trialing_count ?? 0),
         ];
     }
 

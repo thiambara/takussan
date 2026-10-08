@@ -32,7 +32,10 @@ import { getToken } from '@/lib/session';
  */
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
-  if (!isAdmin(user.roles) && !isAgent(user.roles)) redirect('/app/overview');
+  // TCK-595 (AC17 bis) — l'API refuse désormais `GET /api/dashboard/agency` à l'agent : les chiffres
+  // consolidés s'ouvrent par `reports.view_agency`, que porte le rôle d'admin d'agence. Un agent
+  // qui la détient par un rôle personnalisé les lit dans sa propre vue, bascule « Agence ».
+  if (!isAdmin(user.roles)) redirect(isAgent(user.roles) ? '/app/overview/agent' : '/app/overview');
 
   // Tableau de bord cross-équipe : agences `standard` uniquement (`docs/features.md` §1.12).
   //

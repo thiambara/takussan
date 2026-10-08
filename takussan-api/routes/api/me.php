@@ -6,11 +6,14 @@ use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
+use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
 use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\WelcomeViewController;
 use App\Http\Controllers\WizardDraftController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +36,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // 403. ⚠️ C'est de l'AFFICHAGE, jamais une autorisation : la décision
     // reste entière dans les policies côté serveur.
     Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
+    // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
+    Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
@@ -40,6 +45,13 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
+
+    // TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire. `store`, `update` et
+    // `destroy` sont sous step-up 2FA (TCK-589, `ProtectedActions::STEP_UP`).
+    Route::get('payout-methods', [MePayoutMethodController::class, 'index'])->name('me.payout-methods.index');
+    Route::post('payout-methods', [MePayoutMethodController::class, 'store'])->name('me.payout-methods.store');
+    Route::patch('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'update'])->name('me.payout-methods.update');
+    Route::delete('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'destroy'])->name('me.payout-methods.destroy');
 
     // TCK-250 — Resumable wizard drafts. `{key}` is a logical identifier owned
     // by the consumer wizard (e.g. `host-individual-wizard`,
@@ -80,6 +92,9 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         ->whereNumber('sp_profile')
         ->middleware('throttle:10,1')
         ->name('me.profiles.sp.kyc.upload');
+    Route::get('profiles/{sp_profile}', [MeServiceProviderProfileController::class, 'show'])
+        ->whereNumber('sp_profile')
+        ->name('me.profiles.sp.show');
     Route::patch('profiles/{sp_profile}/trades', [MeServiceProviderProfileController::class, 'updateTrades'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.trades');
@@ -123,6 +138,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('agent-profiles/{agent_profile}/first-lead', [MeAgentProfileController::class, 'firstLead'])
         ->whereNumber('agent_profile')
         ->name('me.agent-profiles.first-lead');
+    // TCK-589 (AC13) — la promesse du rôle, lue par le récap de l'onboarding agent.
+    Route::get('agent-profiles/{agent_profile}/role-capabilities', [MeAgentProfileController::class, 'roleCapabilities'])
+        ->whereNumber('agent_profile')
+        ->name('me.agent-profiles.role-capabilities');
 
     // TCK-262 — Multi-rattachement Service Provider. Listing cross-agences
     // des collaborations du SP authentifié + projection plate "agences".
@@ -133,4 +152,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         ->name('me.service-provider.collaborations.index');
     Route::get('service-provider/agencies', [ServiceProviderAgenciesController::class, 'agencies'])
         ->name('me.service-provider.agencies.index');
+    // TCK-592 — le prestataire met fin à sa collaboration avec une agence.
+    Route::patch('service-provider/collaborations/{collaboration}', [ServiceProviderCollaborationController::class, 'endForProvider'])
+        ->whereNumber('collaboration')
+        ->name('me.service-provider.collaborations.end');
 });

@@ -53,18 +53,19 @@ class AgencyMemberRoleController extends Controller
         // {@see AgencyKindGuard::canFormTeam()}.
         AgencyKindGuard::ensureCanFormTeam($agency);
 
-        abort_unless(
-            $user->isAgentAt($agency->id)
-                || $user->isOwnerAt($agency->id)
-                || $user->isAgencyAdminAt($agency->id),
+        abort_code_unless(
+            // TCK-587 — APPARTENANCE de la cible, pas un droit : un membre suspendu reste membre.
+            $user->hasProfileAt((int) $agency->id, AgentProfile::class)
+                || $user->hasProfileAt((int) $agency->id, OwnerProfile::class)
+                || $user->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
             422,
-            __('messages.user_not_in_agency'),
+            'agency_member.not_in_agency',
         );
 
         $data = $request->validated();
 
         if ($data['role'] === 'super_admin' && ! $actor->isSuperAdmin()) {
-            abort(403, __('messages.only_super_admin_can_grant_super_admin'));
+            abort_code(403, 'role.super_admin_grant_forbidden');
         }
 
         // Last-admin invariant : si le target est l'unique agency_admin et
@@ -74,7 +75,7 @@ class AgencyMemberRoleController extends Controller
             $locked = User::where('id', $user->id)->lockForUpdate()->first();
             if ($data['role'] !== 'agency_admin'
                 && $locked
-                && $locked->isAgencyAdminAt((int) $agency->id)) {
+                && $locked->hasProfileAt((int) $agency->id, AgencyAdminProfile::class)) {
                 $remainingAdmins = AgencyAdminProfile::query()
                     ->where('agency_id', $agency->id)
                     ->whereNull('deleted_at')
@@ -95,7 +96,7 @@ class AgencyMemberRoleController extends Controller
                     ->lockForUpdate()
                     ->get(['id'])
                     ->count();
-                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
+                abort_code_if($remainingAdmins === 0, 422, 'agency_member.cannot_remove_last_admin');
             }
 
             // Swap profile : delete concurrents, materialize target.

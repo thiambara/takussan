@@ -91,21 +91,27 @@ class PlatformPayoutTest extends TestCase
 
     public function test_full_happy_path_pending_to_paid(): void
     {
-        $actor = $this->actingAsRole('super_admin');
-        $agency = Agency::factory()->create();
-        $payout = PlatformPayout::factory()->create(['agency_id' => $agency->id]);
+        // TCK-594 (ADR-0039 §4) — deux super-admins distincts : celui qui approuve ne paie pas.
+        $closer = $this->actingAsRole('super_admin');
+        $approver = $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create(['is_verified' => true]);
+        $payout = PlatformPayout::factory()->create(['agency_id' => $agency->id, 'closed_by_id' => $closer->id]);
 
         $this->postJson("/api/admin/payouts/{$payout->id}/approve")
             ->assertOk()
             ->assertJsonPath('data.status', PlatformPayoutStatus::Approved->value)
-            ->assertJsonPath('data.approved_by', $actor->id);
+            ->assertJsonPath('data.approved_by', $approver->id);
 
+        $this->actingAs($closer);
         $this->postJson("/api/admin/payouts/{$payout->id}/mark-paid", [
             'processed_at' => '2026-05-15T12:00:00Z',
+            'payment_reference' => 'WIRE-42',
             'metadata' => ['bank_ref' => 'WIRE-42'],
         ])
             ->assertOk()
-            ->assertJsonPath('data.status', PlatformPayoutStatus::Paid->value);
+            ->assertJsonPath('data.status', PlatformPayoutStatus::Paid->value)
+            ->assertJsonPath('data.paid_by_id', $closer->id)
+            ->assertJsonPath('data.payment_reference', 'WIRE-42');
 
         $this->assertTrue(Activity::query()->where('event', 'super_admin_payout_approved')->exists());
         $this->assertTrue(Activity::query()->where('event', 'super_admin_payout_marked_paid')->exists());

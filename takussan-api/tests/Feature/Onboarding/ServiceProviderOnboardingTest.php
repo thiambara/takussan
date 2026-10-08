@@ -13,12 +13,12 @@ use App\Models\Invitation;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
-use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\ReadsPhoneCodes;
 use Tests\TestCase;
 
 /**
@@ -33,7 +33,7 @@ use Tests\TestCase;
  */
 class ServiceProviderOnboardingTest extends TestCase
 {
-    use RefreshDatabase;
+    use ReadsPhoneCodes, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -145,7 +145,7 @@ class ServiceProviderOnboardingTest extends TestCase
         $sp = ServiceProviderProfile::factory()->create(['user_id' => $user->id]);
         Sanctum::actingAs($user);
 
-        $cni = UploadedFile::fake()->image('cni.jpg');
+        $cni = UploadedFile::fake()->image('cni.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/profiles/{$sp->id}/kyc/upload", [
             'file' => $cni,
             'kind' => 'cni',
@@ -240,7 +240,7 @@ class ServiceProviderOnboardingTest extends TestCase
         Sanctum::actingAs($user);
 
         // Real OTP through the service so the prod path is exercised.
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $this->assertNotNull($code);
 
         $response = $this->postJson('/api/service-provider/onboard/complete', [

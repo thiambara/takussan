@@ -5,6 +5,7 @@ import { Menu } from 'lucide-react';
 import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { UserMenu } from './UserMenu';
+import { GlobalSearch } from '@/components/admin/super/GlobalSearch';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +65,8 @@ export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) 
         {t('superAdmin.topbarBrand')}
       </Link>
       <div className="ml-auto flex items-center gap-2">
+        {/* TCK-600 — Ctrl+K depuis toute page de la console ; absente sous le niveau `support`. */}
+        <GlobalSearch />
         <LanguageSwitcher
           variant="compact"
           className="relative bg-muted text-foreground ring-border after:absolute after:inset-x-0 after:-inset-y-2 hover:bg-foreground/15"

@@ -18,6 +18,7 @@ import type {
   MessageAttachment,
   PropertyConversationResolution,
 } from '@/types/message';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * React Query hooks for Conversations and Messages (TCK-045).
@@ -87,7 +88,7 @@ export function usePropertyConversation(slug: string | null, options: { enabled?
 
   return useApiQuery<ApiResponse<PropertyConversationResolution>>(
     propertyConversationQueryKey(slug),
-    `/api/public/properties/${slug}/conversation`,
+    cheminApi`/api/public/properties/${slug}/conversation`,
     { enabled, staleTime: 30_000 },
   );
 }
@@ -155,7 +156,7 @@ export function useConversation(id: number | null | undefined) {
 
   return useApiQuery<ApiResponse<Conversation>>(
     ['conversations', 'detail', id],
-    `/api/conversations/${id ?? ''}`,
+    cheminApi`/api/conversations/${id ?? 0}`,
     {
       params: spatieParams,
       enabled: Boolean(id),
@@ -205,7 +206,7 @@ export function useMessagesInfinite(conversationId: number | null | undefined) {
         extra: pageParam != null ? { before_id: pageParam } : undefined,
       };
       const qs = buildQueryString(params);
-      const path = `/api/conversations/${conversationId}/messages${qs ? `?${qs}` : ''}`;
+      const path = cheminApi`/api/conversations/${conversationId}/messages${requete(qs)}`;
       return apiRequest<MessagesPage>(path, {
         token: token ?? undefined,
         locale,
@@ -268,7 +269,7 @@ export function useNewMessagesPolling(
 
   const query = useApiQuery<{ data: Message[] }>(
     ['conversations', conversationId, 'messages', 'live', anchorId],
-    `/api/conversations/${conversationId ?? ''}/messages`,
+    cheminApi`/api/conversations/${conversationId ?? 0}/messages`,
     {
       enabled,
       params: {
@@ -319,7 +320,7 @@ export function useMarkConversationRead(
     const cle = `${conversationId}:${newestMessageId}`;
     if (dejaMarque.current === cle) return;
     dejaMarque.current = cle;
-    apiRequest(`/api/conversations/${conversationId}/read`, { method: 'PUT', token, locale })
+    apiRequest(cheminApi`/api/conversations/${conversationId}/read`, { method: 'PUT', token, locale })
       .then(() => queryClient.invalidateQueries({ queryKey: ['conversations', 'list'] }))
       .catch(() => {
         if (dejaMarque.current === cle) dejaMarque.current = null;
@@ -335,7 +336,7 @@ export function useSendMessage(conversationId: number) {
   const queryClient = useQueryClient();
   return useApiMutation<ApiResponse<Message>, SendMessagePayload>(
     {
-      path: `/api/conversations/${conversationId}/messages`,
+      path: cheminApi`/api/conversations/${conversationId}/messages`,
       method: 'POST',
     },
     {
@@ -356,6 +357,52 @@ export function useSendMessage(conversationId: number) {
   );
 }
 
+/**
+ * TCK-592 (ADR-0038) — une note vocale : `type=audio`, le fichier `audio` et sa durée DÉCLARÉE.
+ * Le contenu est posé par l'API (aperçu neutre pour la liste des conversations).
+ */
+export type SendVoiceNotePayload = {
+  audio: Blob;
+  duration: number;
+};
+
+export function useSendVoiceNote(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useApiMutation<ApiResponse<Message>, SendVoiceNotePayload>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/messages`,
+      method: 'POST',
+      formData: true,
+      body: ({ audio, duration }) => {
+        const fd = new FormData();
+        fd.append('type', 'audio');
+        fd.append('audio', audio, `note-vocale.${extensionAudio(audio.type)}`);
+        fd.append('duration', String(duration));
+        return fd;
+      },
+    },
+    {
+      invalidate: [
+        ['conversations', 'list'],
+        ['conversations', 'detail', conversationId],
+      ],
+      onSuccess: (response) => {
+        queryClient.setQueryData<InfiniteData<MessagesPage>>(
+          messagesInfiniteQueryKey(conversationId),
+          (cache) => mergeNewMessages(cache, [response.data]),
+        );
+      },
+    },
+  );
+}
+
+function extensionAudio(mime: string): string {
+  if (mime.includes('ogg')) return 'ogg';
+  if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'm4a';
+  if (mime.includes('mpeg')) return 'mp3';
+  return 'webm';
+}
+
 // TCK-576 — `useCreateConversation` est retiré : il n'avait aucun appelant, et son corps typé
 // (`recipient_id`, `initial_message`) ne correspondait à rien de ce que `POST /api/conversations`
 // valide (`participants`, et une seule autre personne joignable depuis TCK-565). Un premier
@@ -373,7 +420,7 @@ export type UploadAttachmentPayload = {
 export function useUploadAttachment(conversationId: number, messageId: number) {
   return useApiMutation<ApiResponse<MessageAttachment>, UploadAttachmentPayload>(
     {
-      path: `/api/conversations/${conversationId}/messages/${messageId}/attachments`,
+      path: cheminApi`/api/conversations/${conversationId}/messages/${messageId}/attachments`,
       method: 'POST',
       formData: true,
       body: (vars) => {
@@ -416,7 +463,7 @@ export type AddParticipantsPayload = {
 export function useAddParticipants(conversationId: number) {
   return useApiMutation<ApiResponse<{ added_user_ids: number[] }>, AddParticipantsPayload>(
     {
-      path: `/api/conversations/${conversationId}/participants`,
+      path: cheminApi`/api/conversations/${conversationId}/participants`,
       method: 'POST',
     },
     {
@@ -434,7 +481,7 @@ export function useRemoveParticipant(conversationId: number) {
   return useApiMutation<ApiResponse<{ removed_user_id: number }>, { user_id: number }>(
     {
       path: ({ user_id }) =>
-        `/api/conversations/${conversationId}/participants/${user_id}`,
+        cheminApi`/api/conversations/${conversationId}/participants/${user_id}`,
       method: 'DELETE',
     },
     {
@@ -458,7 +505,7 @@ export function useUpdateParticipantRole(conversationId: number) {
   return useApiMutation<ApiResponse<{ user_id: number; role: 'member' | 'admin' }>, UpdateParticipantPayload>(
     {
       path: ({ user_id }) =>
-        `/api/conversations/${conversationId}/participants/${user_id}`,
+        cheminApi`/api/conversations/${conversationId}/participants/${user_id}`,
       method: 'PATCH',
       body: ({ role }) => ({ role }),
     },
@@ -474,7 +521,7 @@ export function useUpdateParticipantRole(conversationId: number) {
 export function useRenameConversation(conversationId: number) {
   return useApiMutation<ApiResponse<Conversation>, { subject: string }>(
     {
-      path: `/api/conversations/${conversationId}`,
+      path: cheminApi`/api/conversations/${conversationId}`,
       method: 'PATCH',
     },
     {
@@ -490,7 +537,7 @@ export function useRenameConversation(conversationId: number) {
 export function useToggleMute(conversationId: number) {
   return useApiMutation<ApiResponse<{ is_muted: boolean }>, { is_muted: boolean }>(
     {
-      path: `/api/conversations/${conversationId}/mute`,
+      path: cheminApi`/api/conversations/${conversationId}/mute`,
       method: 'PUT',
     },
     {
@@ -557,7 +604,7 @@ export function useMessagingContacts(
       ? ['conversations', conversationId, 'contacts', terme]
       : ['conversations', 'contacts', terme],
     conversationId
-      ? `/api/conversations/${conversationId}/contacts`
+      ? cheminApi`/api/conversations/${conversationId}/contacts`
       : '/api/conversations/contacts',
     {
       params,

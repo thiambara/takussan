@@ -84,11 +84,11 @@ class DocumentVersionService
             ? $version
             : $this->freshVersions($document)->firstWhere('id', $version);
 
-        abort_if($media === null, 404, 'Version not found.');
-        abort_if(
+        abort_code_if($media === null, 404, 'document.version_not_found');
+        abort_code_if(
             $media->model_id !== $document->id,
             403,
-            'Version does not belong to this document.'
+            'document.version_mismatch'
         );
 
         return DB::transaction(function () use ($document, $media, $actor): Media {

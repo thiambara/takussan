@@ -212,6 +212,41 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+#### Agenda
+72. [CalendarFeed](#72-calendarfeed-) ✅
+
+#### Modération (TCK-597)
+73. [ModerationClaim](#73-moderationclaim-) 🆕
+74. [MediaFingerprint](#74-mediafingerprint-) 🆕
+75. [DuplicateSuspicion](#75-duplicatesuspicion-) 🆕
+
+#### Sorties d'argent (TCK-594, ADR-0039)
+76. [PayoutMethod](#76-payoutmethod-) 🆕
+77. [ServiceProviderBill](#77-serviceproviderbill-) 🆕
+78. [PayoutMethodVerification](#78-payoutmethodverification-) 🆕
+
+#### Données personnelles (TCK-601)
+79. [PrivacyRequest](#79-privacyrequest-) ✅
+
+#### Calendrier d'hôte 🆕 (TCK-596, ADR-0041)
+80. [PropertyUnavailability](#80-propertyunavailability-) 🆕
+81. [PropertyCalendarFeed](#81-propertycalendarfeed-) 🆕
+
+#### Signature du bail 🆕 (TCK-596, ADR-0042)
+82. [LeaseSignature](#82-leasesignature-) 🆕
+
+#### Console plateforme
+83. [ImpersonationSession](#83-impersonationsession-) 🆕
+#### Paiement sans compte (TCK-602, ADR-0051)
+84. [LeasePaymentLink](#84-leasepaymentlink-) 🆕
+
+#### Pilotage 🆕 (TCK-595, ADR-0049, ADR-0057)
+85. [CommissionEntry](#85-commissionentry-) 🆕
+86. [PlatformMetricDaily](#86-platformmetricdaily-) 🆕
+
+#### Alertes de recherche (TCK-599)
+87. [AlertSubscriber](#87-alertsubscriber-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -749,6 +784,9 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | type | NotificationType | | | Type de notification (booking, payment, lease, maintenance, visit, message, system) | ✏️ |
 | title | string | | | Titre | |
 | content | text | | | Contenu | |
+| code | string(100) | oui | null | Code du message (`lease_payment.overdue`), cas de `App\Domain\Notifications\NotificationCode` ([ADR-0032](adr/0032-l-api-n-ecrit-plus-de-prose.md)). Null pour les classes `Notification` historiques | 🆕 TCK-588 |
+| params | jsonb | oui | null | Paramètres BRUTS du code (montant `{amount, currency}`, date ISO, compte, texte saisi) — jamais une phrase | 🆕 TCK-588 |
+| target | jsonb | oui | null | Cible `{kind, id, path}` (`NotificationTarget`). Null : dérivée à la lecture de `data`/`referenceable_*` | 🆕 TCK-588 |
 | referenceable_id | bigint | oui | null | ID de l'entité liée (morphs manuel) | ✏️ ancien `reference_id` |
 | referenceable_type | string | oui | null | Type de l'entité liée (morphs manuel) | ✏️ ancien `reference_type` |
 | is_read | boolean | | false | Lue oui/non | |
@@ -766,6 +804,12 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 **Colonnes renommées :**
 - ✏️ `reference_id` → `referenceable_id` / `reference_type` → `referenceable_type` (convention standard Laravel pour les morphs)
 - ✏️ `type` et `delivery_channel` passent de `string` à enum typé
+
+**TCK-588 ([ADR-0032](adr/0032-l-api-n-ecrit-plus-de-prose.md)) — le texte n'est plus la donnée.**
+Une ligne émise par `NotificationService::send()` porte `code` + `params` + `target` ; `title` et
+`body` y sont rendus dans la langue du DESTINATAIRE à l'écriture, et **re-rendus à la lecture**
+dans la langue de la requête (`AppNotificationResource`) — ils ne servent plus que de repli pour
+les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **aucune** ligne.
 
 **Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard) — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification) pour le motif.
 
@@ -835,6 +879,17 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | `changes` | `properties` (json : `old`, `attributes`) |
 | `ip_address` | à stocker dans `properties` via `tapActivity()` |
 | `user_agent` | à stocker dans `properties` via `tapActivity()` |
+
+**`App\Models\Activity` (TCK-601, ADR-0044 §3)** — étend le modèle spatie, déclaré dans
+`config/activitylog.php` (`activity_model`). Colonne ajoutée à `activity_log` :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---|---|---|---|---|
+| agency_id | FK agencies (`activity_log_agency_fk`, `nullOnDelete`) | oui | null | Agence du **sujet**, résolue à la création par `AuditAgencyResolver` (explicite → `HasAuditAgency::auditAgencyId()` → colonne `agency_id` réelle du sujet → sujet `Agency` → sans sujet : profil actif). Jamais l'acteur. `null` = visible du seul super-admin |
+
+Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log_created_idx (created_at)`.
+Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
+(`AuditScope`) ; `properties` passe par `PropertyRedactor` à la lecture.
 
 ---
 
@@ -955,11 +1010,18 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | id | bigint PK | | auto | Identifiant unique |
 | user_id | FK users | | | Utilisateur |
 | property_id | FK properties | | | Bien sauvegardé |
-| notes | text | oui | null | Note personnelle de l'utilisateur |
+| notes | text | oui | null | Note personnelle de l'utilisateur (500 caractères, `PATCH /api/favorites/{property}` — TCK-599) |
+| alert_baseline_price | decimal(14,2) | oui | null | Prix de référence de l'alerte de baisse : posé à la mise en favori (`FavoriteObserver`), rebasé à chaque passage de `SendFavoriteChangeAlerts` (TCK-599 §5) |
+| unavailable_notified_at | timestamp | oui | null | Sortie du public déjà annoncée ; remise à `null` au retour au public (TCK-599 §5) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
 **Contrainte :** unique(user_id, property_id)
+
+**Disponibilité** (TCK-599, [ADR-0050](adr/0050-alertes-de-recherche-un-seul-moteur-et-des-abonnes-sans-compte.md)) :
+`Favorite::availabilityOf()` rend `available`, `rented`, `sold`, `unavailable` ou `removed`, jugée par
+`scopePublic()` (`withExists`), jamais par une copie de ses conditions. Seul un favori `available`
+porte la carte complète ; les autres une projection `{id, slug, title}`, `removed` aucune.
 
 **Relations :**
 - `user()` → belongsTo User
@@ -1186,10 +1248,11 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| user_id | FK users | | | Utilisateur |
+| user_id | FK users | oui | | Utilisateur — `null` pour une alerte sans compte (TCK-599) |
+| alert_subscriber_id | FK alert_subscribers | oui | null | Abonné sans compte (`saved_searches_alert_subscriber_fk`, `cascadeOnDelete`). CHECK `saved_searches_one_owner_chk` : exactement l'un des deux propriétaires (TCK-599) |
 | name | string | | | Nom donné à la recherche (ex: "3 pièces Dakar < 200k") |
-| criteria | jsonb | | | Critères de recherche (type, prix min/max, surface, localisation, etc.) |
-| notification_frequency | string | | 'daily' | Fréquence d'alerte (`instant`, `daily`, `weekly`, `off`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
+| criteria | jsonb | | | Critères dans le vocabulaire FERMÉ de `/properties` : `App\Support\SavedSearchCriteria::KEYS` (23 clés), toute autre clé → 422 (TCK-599) |
+| notification_frequency | string | | 'daily' | Fréquence d'alerte (`daily`, `weekly`, `off` — `instant` retiré par TCK-599, ramené à `daily`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
 | results_count | integer | | 0 | Nombre de résultats actuels (cache — mettre à jour via job planifié, pas à la volée) |
@@ -1199,6 +1262,9 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 **Relations :**
 - `user()` → belongsTo User
+- `alertSubscriber()` → belongsTo AlertSubscriber (TCK-599)
+
+`recipient()` rend le destinataire de l'alerte : l'utilisateur, ou l'abonné **confirmé**, sinon `null`.
 
 ---
 
@@ -1847,12 +1913,17 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | reviewed_at | datetime | oui | null | Décision rendue |
 | reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
 | rejection_reason | text | oui | null | Motif si `status=rejected` |
-| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) ; `expiry_reminders` (jalons de relance déjà envoyés, J-30 / J-7) et `expired_at` (TCK-601) |
+| expires_at | timestamp | oui | null | Échéance du dossier vérifié : la plus proche des échéances des pièces les plus récentes de chaque type (pièce du dirigeant). Posée par la vérification ; `kyc:expire-dossiers` remet le dossier à `pending` ce jour-là et retire `is_verified` à l'agence (TCK-601) |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
 - `(subject_type, subject_id)` — unique : un seul dossier actif par sujet
 - `(status)` — file de modération
+- `(status, expires_at)` — `kyc_dossiers_status_expires_idx`, la passe quotidienne d'expiration (TCK-601)
+
+L'échéance d'une pièce est une propriété du média (`custom_properties.expires_at`, `YYYY-MM-DD`),
+exigée pour `director_id`.
 
 **Traits :**
 - `LogsActivity` (spatie) — chaque transition de statut est journalisée
@@ -2920,6 +2991,513 @@ traite `key` comme un identifiant court opaque.
 > de timestamps dans la migration. Seul `seen_at` a un sens ici. Ce n'est pas un oubli : avec
 > [26. PropertyPriceHistory](#26-propertypricehistory-), ce sont les **deux seuls** modèles du dépôt
 > à couper les timestamps (mesuré le 2026-08-16).
+
+---
+
+### 72. CalendarFeed ✅
+
+**Table :** `calendar_feeds`
+**Description :** Lien d'abonnement iCalendar d'un utilisateur, en lecture seule (TCK-591,
+[ADR-0034](adr/0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md)). Le jeton n'est connu
+que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) : il est rendu une seule fois, à la
+création ou à la rotation, et jamais stocké en clair. Le lien est révoqué par l'utilisateur, à la
+rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire du lien (`calendar_feeds_user_fk`, `cascadeOnDelete`) |
+| agency_id | FK agencies | ✓ | null | Agence où le titulaire est du personnel ; `null` pour un compte qui n'est personnel d'aucune agence (prestataire) (`calendar_feeds_agency_fk`, `cascadeOnDelete`) |
+| token_hash | string(64) | | | Empreinte SHA-256 du jeton ; masquée à la sérialisation (`$hidden`) |
+| revoked_at | timestamp | ✓ | null | Révocation ; un lien révoqué rend 404 |
+| last_accessed_at | timestamp | ✓ | null | Dernière lecture du flux |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :**
+- `token_hash` (`calendar_feeds_token_hash_unique`)
+
+**Index :** `(user_id, agency_id)` (`calendar_feeds_user_agency_idx`)
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency()` → belongsTo Agency
+
+**Scopes :** `active()` — `revoked_at IS NULL`
+
+---
+
+### 73. ModerationClaim 🆕
+
+**Table :** `moderation_claims`
+**Description :** Prise en charge d'un élément de la file de modération super-admin pour
+10 minutes (`ModerationClaim::DURATION_MINUTES`, ADR-0043 §7). Tant qu'elle court, un autre
+modérateur reçoit 409 en décidant ; expirée, elle ne protège plus rien et la prise suivante la
+réécrit. Elle est supprimée avec la décision.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| item_key | string(64) | | | Identifiant de la file (`property:12`, `property_report:3`, `review:7`) |
+| claimed_by_id | FK users | | | Modérateur (`cascadeOnDelete`, `moderation_claims_claimed_by_fk`) |
+| claimed_at | timestamp | | | Début de la prise |
+| expires_at | timestamp | | | Fin de la prise |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `item_key` (`moderation_claims_item_key_uniq`)
+
+**Relations :**
+- `claimedBy()` → belongsTo User (via `claimed_by_id`)
+
+---
+
+### 74. MediaFingerprint 🆕
+
+**Table :** `media_fingerprints`
+**Description :** Empreinte dHash 64 bits de la photo **originale** d'un bien (collection `photos`),
+calculée par `ComputePhotoFingerprintJob` sur la file `media` (ADR-0054 §1-2). Sert à soupçonner
+une annonce recopiée par un autre publieur.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| media_id | FK media | | | Photo (`cascadeOnDelete`), unique (`media_fingerprints_media_uniq`) |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| agency_id | FK agencies | oui | null | Agence du bien au calcul (`nullOnDelete`) |
+| hash | bigint | | | Les 64 bits du dHash (signés) |
+| band_0 … band_3 | integer | | | Les quatre tranches de 16 bits, chacune indexée |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :** `media_fingerprints_property_idx`, `media_fingerprints_band_{0..3}_idx`.
+
+**Relations :** `media()` → belongsTo Media ; `property()` → belongsTo Property.
+
+---
+
+### 75. DuplicateSuspicion 🆕
+
+**Table :** `duplicate_suspicions`
+**Description :** Deux biens de publieurs différents soupçonnés d'être la même annonce (ADR-0054
+§5), remis à la file de modération super-admin (`suspected_duplicate`, décisions `hide` | `reject`).
+Aucune action automatique.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien soupçonné (`cascadeOnDelete`) |
+| matched_property_id | FK properties | | | Bien qu'il recopierait (`cascadeOnDelete`) |
+| signal | string(20) | | | `photo` \| `address` |
+| distance | smallint | oui | null | Distance de Hamming (signal `photo`) |
+| decision | string(20) | oui | null | `hide` \| `reject` |
+| resolved_by_id | FK users | oui | null | Modérateur (`nullOnDelete`) |
+| reason_code | string(40) | oui | null | `ModerationReasonCode` |
+| resolved_at | timestamp | oui | null | `null` = ouverte |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :** la PAIRE, quel que soit l'ordre —
+`duplicate_suspicions_pair_uniq (LEAST(property_id, matched_property_id), GREATEST(…))`.
+
+**Relations :** `property()`, `matchedProperty()` → belongsTo Property ; `resolvedBy()` →
+belongsTo User.
+
+---
+
+> **TCK-594 (VERIF-594 M-2) — trois colonnes d'`agencies`** : `pending_payout_threshold`
+> (decimal(14,2), nullable), `pending_payout_threshold_requested_by_id` (FK users, `nullOnDelete`),
+> `pending_payout_threshold_requested_at` (timestamp, le marqueur d'une demande : une demande de
+> coupure laisse la valeur à `null`). Un relâchement du seuil des quatre yeux y attend la
+> confirmation d'un second détenteur de `payouts.approve`. Description complète par `/sync-specs`.
+
+### 76. PayoutMethod 🆕
+
+> **Entrée minimale posée par TCK-594** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0039 §6.
+
+**Table :** `payout_methods`
+**Description :** Destination de paiement d'un utilisateur (bailleur, prestataire) : numéro mobile
+money ou compte bancaire. Un reversement Wave / Orange Money / Free Money / virement ne se marque
+payé que vers une destination du bénéficiaire **vérifiée par l'agence qui paie** (§78).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire (`cascadeOnDelete`, `payout_methods_user_fk`) |
+| kind | string(30) | | | `PayoutMethodKind` : `wave`, `orange_money`, `free_money`, `bank_transfer` |
+| account_identifier | text | | | Numéro ou IBAN — cast `encrypted`, `$hidden`, hors `$queryFields` et de la recherche |
+| account_holder_name | text | oui | null | Nom du titulaire — cast `encrypted`, `$hidden` |
+| masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`, `PayoutMethod::mask()`, provisoire jusqu'à TCK-601) |
+| is_default | boolean | | false | |
+| deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
+(§78). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
+`verified_by_id` ont été retirées (VERIF-594 M-6) : une vérification globale valait pour toute
+agence.
+
+---
+
+### 78. PayoutMethodVerification 🆕
+
+> **Entrée minimale posée par TCK-594** (VERIF-594 M-6) ; description complète par `/sync-specs`.
+> Source : ADR-0039 §6.
+
+**Table :** `payout_method_verifications`
+**Description :** Une destination de paiement vérifiée **par une agence**. Elle ne vaut que pour
+cette agence : un reversement d'une autre agence ne part pas vers elle. Une destination modifiée
+perd **toutes** ses vérifications.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete`, `pm_verifications_agency_fk` |
+| payout_method_id | FK payout_methods | | | `cascadeOnDelete`, indexé (`pm_verifications_method_idx`) |
+| verified_by_id | FK users | oui | null | Membre de l'agence qui a vérifié (`nullOnDelete`) |
+| verified_at | timestamp | | | Date du dernier geste de vérification |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `(agency_id, payout_method_id)` (`pm_verifications_agency_method_unique`) ;
+une vérification rejouée met à jour la ligne (`upsert`).
+
+---
+
+### 77. ServiceProviderBill 🆕
+
+> **Entrée minimale posée par TCK-594** ; description complète par `/sync-specs`. Source :
+> ADR-0039 §8.
+
+**Table :** `service_provider_bills`
+**Description :** Facture d'intervention **reçue** d'un prestataire, créée quand une demande de
+maintenance passe `completed` avec un prestataire assigné. Validée par l'agence, payée par un
+`Payout` `payee_role = service_provider` ; refacturable au bailleur, elle s'impute sur son
+reversement (`imputed_payout_id`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| maintenance_request_id | FK maintenance_requests | | | `cascadeOnDelete` |
+| agency_id | FK agencies | oui | null | `nullOnDelete` |
+| property_id | FK properties | oui | null | `nullOnDelete` |
+| provider_id | FK users | | | Prestataire (`restrictOnDelete`) |
+| reference_number | string | | | Unique |
+| provider_reference | string | oui | null | Référence de la facture du prestataire |
+| amount | decimal(14,2) | | | Coût réel, à défaut devis approuvé |
+| currency | string(3) | | 'XOF' | |
+| exceeds_quote | boolean | | false | Coût réel > devis approuvé |
+| status | string(30) | | 'pending_validation' | `ServiceProviderBillStatus` : `pending_validation`, `validated`, `rejected`, `paid`, `cancelled` |
+| validated_by_id | FK users | oui | null | |
+| validated_at | timestamp | oui | null | |
+| rejection_reason | text | oui | null | |
+| rechargeable_to_landlord | boolean | | true | |
+| imputed_payout_id | FK payouts | oui | null | Reversement bailleur qui la retient (`nullOnDelete`) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** index unique partiel `sp_bills_one_open_per_request` sur `maintenance_request_id`
+`WHERE status NOT IN ('rejected','cancelled')` — une seule facture ouverte par demande.
+
+**Relations :** `maintenanceRequest()`, `agency()`, `property()`, `provider()`, `validator()`,
+`imputedPayout()` → belongsTo ; `payouts()` → hasMany Payout (`service_provider_bill_id`).
+
+---
+
+### 79. PrivacyRequest ✅
+
+**Table :** `privacy_requests`
+**Description :** Registre des demandes de droits (TCK-601,
+[ADR-0044 §4](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md)) :
+accès, rectification, opposition, effacement, portabilité, suivies par le super-admin jusqu'à leur
+échéance. Alimenté à la main (demande reçue par courriel ou courrier) et par l'application : un
+`DataExport` demandé par son titulaire ouvre une `portability`, une `AccountDeletionRequest` une
+`erasure` ; l'annulation de l'effacement passe l'entrée `withdrawn` sans l'effacer. Journal `Privacy`
+en liste blanche (ni nom, ni contact, ni résumé). Preuve de réponse : média privé `proof`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | ✓ | null | Demandeur s'il a un compte (`privacy_requests_user_fk`, `nullOnDelete`) |
+| requester_name | string | | | Nom du demandeur |
+| requester_contact | string | ✓ | null | Courriel, téléphone ou adresse |
+| type | PrivacyRequestType (string 20) | | | access, rectification, opposition, erasure, portability |
+| channel | PrivacyRequestChannel (string 20) | | | in_app, email, postal, phone, in_person |
+| received_at | timestamp | | | Réception |
+| due_at | timestamp | | | `received_at + config('privacy.rights_request_deadline_days')` (30 j, valeur de travail), dérivé à l'enregistrement |
+| status | PrivacyRequestStatus (string 20) | | 'received' | received, in_progress, answered, rejected, withdrawn ; une demande close ne se rouvre pas |
+| answered_at | timestamp | ✓ | null | Posé au passage `answered` |
+| response_summary | text | ✓ | null | Résumé de la réponse |
+| handled_by | FK users | ✓ | null | Dernier super-admin à l'avoir traitée (`privacy_requests_handled_by_fk`, `nullOnDelete`) |
+| data_export_id | FK data_exports | ✓ | null | `privacy_requests_data_export_fk`, `nullOnDelete` |
+| account_deletion_request_id | FK account_deletion_requests | ✓ | null | `privacy_requests_deletion_fk`, `nullOnDelete` |
+| created_at / updated_at | timestamp | | | |
+
+**Index :** `(status, due_at)` (`privacy_requests_status_due_idx`), `user_id` (`privacy_requests_user_idx`)
+
+**Relations :** `user()`, `handler()` → belongsTo User
+
+**Scopes :** `overdue()` — statut ouvert (`received`, `in_progress`) et `due_at` passé
+
+---
+
+### 80. PropertyUnavailability 🆕
+
+**Table :** `property_unavailabilities`
+**Description :** Une plage `[starts_on, ends_on)` où un bien n'est pas réservable (TCK-596,
+[ADR-0041](adr/0041-indisponibilites-et-echange-ical.md)). `ends_on` est **exclusif**, comme le jour
+de départ d'une réservation. Manuelle (posée par qui peut modifier le bien) ou importée d'un flux
+iCal ; une plage importée ne se supprime pas à la main.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| starts_on | date | | | Première nuit bloquée |
+| ends_on | date | | | Lendemain de la dernière nuit (exclusif) ; `CHECK ends_on > starts_on` |
+| reason | string(255) | ✓ | | Motif, visible de l'hôte seul |
+| source | string(20) | | `manual` | `manual` \| `ical` |
+| calendar_feed_id | FK property_calendar_feeds | ✓ | | Flux d'origine (`cascadeOnDelete`) |
+| external_uid | string(255) | ✓ | | `UID` de l'événement importé |
+| conflict_booking_id | FK bookings | ✓ | | Réservation confirmée chevauchée (`nullOnDelete`) — jamais annulée par l'import |
+| created_by_id | FK users | ✓ | | Auteur d'un blocage manuel |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :** `(calendar_feed_id, external_uid)`, partielle (flux non nul).
+**Index :** `(property_id, starts_on, ends_on)`.
+
+**Relations :** `property()`, `feed()`, `conflictBooking()` → belongsTo.
+
+### 81. PropertyCalendarFeed 🆕
+
+**Table :** `property_calendar_feeds`
+**Description :** Un calendrier iCal externe importé pour un bien, synchronisé toutes les heures
+derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). Au plus 10 par bien.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| url | text | | | **Chiffrée** (cast `encrypted`), cachée de toute sérialisation |
+| url_host | string(255) | | | Hôte de l'URL — seule partie rendue par l'API |
+| label | string(120) | ✓ | | Nom donné par l'hôte |
+| created_by_id | FK users | ✓ | | |
+| last_synced_at | timestamp | ✓ | | Dernière tentative |
+| last_status | string(20) | ✓ | | `pending` (première synchronisation en file) \| `ok` \| `failed` |
+| last_error | string(60) | ✓ | | Motif codé (`private_address`, `too_large`, `http_error`…) |
+| failing_since | timestamp | ✓ | | Premier échec de la série en cours |
+| consecutive_failures | unsigned int | | 0 | Au 3ᵉ, le bailleur est prévenu une fois |
+| created_at / updated_at | timestamp | | | |
+
+**Relations :** `property()` → belongsTo ; `unavailabilities()` → hasMany PropertyUnavailability.
+
+> Le jeton d'export du bien vit sur `properties.ical_export_token_hash` (SHA-256, unique, caché) :
+> le jeton en clair n'est rendu qu'une fois, à la régénération.
+
+---
+
+### 82. LeaseSignature 🆕
+
+**Table :** `lease_signatures`
+**Description :** La preuve de consentement d'une partie à un bail (TCK-596, ADR-0042). Une signature
+lie l'empreinte du contrat FIGÉ (`leases.contract_sha256`, PDF rangé dans la collection média privée
+`signed_contract`) ; seules comptent celles dont l'empreinte est l'empreinte courante. La seconde
+signature active le bail.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_id | FK leases | | | Bail (`cascadeOnDelete`) |
+| role | string(20) | | | `tenant` \| `landlord` |
+| method | string(20) | | | `otp` (code à usage unique) \| `paper` (contrat numérisé, voie `activate`) |
+| user_id | FK users | ✓ | | Signataire (`otp`) — `nullOnDelete` |
+| on_behalf_of_user_id | FK users | ✓ | | Bailleur pour le compte duquel le personnel de l'agence a signé |
+| recorded_by_id | FK users | ✓ | | Auteur de l'enregistrement (`paper`) |
+| document_sha256 | string(64) | | | Empreinte du contrat signé |
+| signed_at | timestamp | | | |
+| ip_address | string(45) | ✓ | | **Caché**, jamais rendu par l'API |
+| user_agent | string(512) | ✓ | | **Caché**, jamais rendu par l'API |
+| otp_channel | string(10) | ✓ | | `sms` \| `mail` |
+| otp_destination | string(120) | ✓ | | Destination **masquée** du code |
+| created_at / updated_at | timestamp | | | |
+
+**Unicité :** `(lease_id, role, document_sha256)`.
+**Relations :** `lease()` → belongsTo ; `signer()` → belongsTo User (`user_id`) ; `onBehalfOf()` →
+belongsTo User.
+
+> Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
+> timestamp nullable. VERIF-596 passe 2 (N1) : `early_termination_penalty_months` unsigned smallint
+> nullable et `rent_review_max_pct` decimal(5,2) nullable, figés avec le contrat (nuls : le réglage
+> de l'agence du bail, sinon le global, s'applique — TCK-600, verif-600 H1 ; bail antérieur). Un renouvellement les hérite du parent, sauf valeur renégociée
+> (VERIF-596 passe 3, N1'). Une colonne du contrat modifiée pendant `pending_signature` (hors
+> `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
+
+---
+
+### 83. ImpersonationSession 🆕
+
+**Table :** `impersonation_sessions`
+**Description :** Une session d'impersonation (TCK-600,
+[ADR-0055](adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md)) : un opérateur `super_admin`
+lit, **en lecture seule**, ce que voit un compte, pendant 15 minutes non prolongeables
+(`ImpersonationSession::TTL_MINUTES`), avec un motif. La session porte le jeton Sanctum dédié
+(`name = impersonation`, capacité unique `impersonation:read`) ; `AccessTokenGate` ne l'accepte
+que tant que la session est ouverte, non échue, et que l'opérateur est toujours un `super_admin`
+actif. Fermée par `ImpersonationService::stop()` — idempotent, sous verrou — qui supprime le jeton
+et notifie la cible (`impersonation.ended`) une seule fois.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| impersonator_id | FK users | | | L'opérateur (`imp_sessions_impersonator_fk`, `cascadeOnDelete`) |
+| target_user_id | FK users | | | Le compte lu (`imp_sessions_target_fk`, `cascadeOnDelete`) |
+| personal_access_token_id | FK personal_access_tokens | ✓ | null | Le jeton dédié (`imp_sessions_token_fk`, `nullOnDelete` : `stop` supprime le jeton, la ligne reste) |
+| reason | text | | | Motif saisi (10..1000), repris dans l'activité de début |
+| started_at | timestamp | | | |
+| expires_at | timestamp | | | `started_at + 15 min` |
+| ended_at | timestamp | ✓ | null | Fermeture ; `null` = session non fermée |
+| end_reason | string(20) / `ImpersonationEndReason` | ✓ | null | `stopped` / `expired` / `operator_revoked` / `target_blocked` |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :** `personal_access_token_id` (`imp_sessions_token_uniq`)
+
+**Index :** `(impersonator_id, ended_at)` (`imp_sessions_open_idx`), `(ended_at, expires_at)`
+(`imp_sessions_expiry_idx`), `target_user_id` (`imp_sessions_target_idx`)
+
+**Relations :**
+- `impersonator()` → belongsTo User
+- `target()` → belongsTo User
+- `token()` → belongsTo `Laravel\Sanctum\PersonalAccessToken`
+
+**Scopes :** `open()` — `ended_at IS NULL AND expires_at > now()`
+
+**Attribution :** `activity_log.impersonator_id` (FK `users`, `activity_log_impersonator_fk`,
+`nullOnDelete`, index `activity_log_impersonator_idx`) est posé par `App\Models\Activity::creating` (TCK-601) sur toute
+activité écrite pendant une requête authentifiée par le jeton d'une session ouverte.
+
+---
+
+### 84. LeasePaymentLink 🆕
+
+> **Entrée minimale posée par TCK-602** ; description complète par `/sync-specs`. Source :
+> ADR-0051 §1.
+
+**Table :** `lease_payment_links`
+**Description :** Lien de paiement `/pay/{jeton}` d'une échéance de loyer, pour un locataire sans
+compte. Un seul lien actif par échéance ; le jeton se cherche par son empreinte et se relit chiffré.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_payment_id | FK lease_payments | | | `cascadeOnDelete` (`lpl_lease_payment_fk`) |
+| token_hash | char(64) | | | sha256 du jeton — unique (`lpl_token_hash_unique`) |
+| token | text | | | Jeton (32 octets base64url), casté `encrypted`, `$hidden` |
+| expires_at | timestamp | | | max(aujourd'hui, échéance) + 60 j ; ramené à `paid_at` + 30 j une fois payée (calculé, non écrit) |
+| revoked_at | timestamp | oui | null | Révoqué (régénération, révocation) |
+| last_accessed_at | timestamp | oui | null | Dernière lecture publique |
+| access_count | unsignedInteger | | 0 | Lectures publiques |
+| created_by_id | FK users | oui | null | `nullOnDelete` (`lpl_created_by_fk`) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** index unique partiel `lpl_one_active_per_payment_unique` sur `lease_payment_id`
+`WHERE revoked_at IS NULL` — un seul lien actif par échéance. Index `lpl_lease_payment_idx`.
+
+**Relations :** `leasePayment()` → belongsTo LeasePayment (`withTrashed`) ; `creator()` → belongsTo User.
+
+---
+
+### 85. CommissionEntry 🆕
+
+> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0049 §3. Le même ticket
+> ajoute `leases.agent_id` (FK users, `nullOnDelete`, le négociateur, ADR-0049 §1).
+
+**Table :** `commission_entries`
+**Description :** Grand livre des commissions d'agence : la part d'un bénéficiaire (négociateur du
+bail ou collaborateur `agent` du bien) sur `leases.commission_amount`, figée à l'activation du bail
+(`LeaseActivated` → `CommissionLedgerService::generateFor`). Jamais recalculée depuis un état courant.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| lease_id | FK leases | | | `cascadeOnDelete` |
+| beneficiary_id | FK users | | | `cascadeOnDelete` |
+| origin | string(20) | | | `CommissionOrigin` : `negotiator`, `collaborator` |
+| base_amount | decimal(14,2) | | | `commission_amount` du bail à l'activation |
+| share_percent | decimal(5,2) | | | Part servie |
+| amount | decimal(14,2) | | | Arrondi au centime inférieur (Σ ≤ base) |
+| currency | string(3) | | XOF | |
+| status | string(20) | | due | `CommissionEntryStatus` : `due`, `paid`, `cancelled` |
+| earned_at | timestamp | | | `signed_at` du bail |
+| paid_at / paid_by_id | timestamp / FK users | oui | null | Marquage versé (`payouts.approve`) |
+| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulation (`payouts.approve`) |
+| metadata | jsonb | oui | null | Détail des parts du négociateur également collaborateur |
+| created_at / updated_at | timestamp | | auto | |
+
+Unicité `commission_entries_lease_benef_uq (lease_id, beneficiary_id)` ; index
+`commission_entries_agency_benef_idx (agency_id, beneficiary_id, earned_at)`.
+
+**Relations :** `agency()`, `lease()`, `beneficiary()` → belongsTo. Inverse :
+`Lease.commissionEntries()`.
+
+---
+
+### 86. PlatformMetricDaily 🆕
+
+> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0057.
+
+**Table :** `platform_metrics_daily`
+**Description :** Instantané quotidien des métriques de la console plateforme, écrit à 00:30 pour la
+veille (`SnapshotPlatformMetricsJob`) ou rejoué par `metrics:snapshot --date=`. La tendance à 30 jours
+de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part ailleurs.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| date | date | | | Unique (`platform_metrics_daily_date_uq`) |
+| gmv_amount / platform_fees_amount | decimal(16,2) | | 0 | Flux du jour (`paid_at`), rattrapables |
+| collected_total_amount | decimal(16,2) | | 0 | *Encaissé* cumulé à la fin du jour, rattrapable |
+| mrr_amount / mrr_trialing_amount | decimal(16,2) | oui | null | Stock, hors essais / essais seuls ; jamais rattrapé |
+| active_subscriptions, agencies_*, users_*, properties_*, leases_active | integer | oui | null | Stocks par statut courant ; jamais rattrapés |
+| stocks_captured_at | timestamp | oui | null | Instant de mesure des stocks, `null` sur une ligne rattrapée |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** aucune.
+
+---
+
+### 87. AlertSubscriber 🆕
+
+**Table :** `alert_subscribers`
+**Description :** Le destinataire d'une alerte de recherche **sans compte** (TCK-599,
+[ADR-0050 §4](adr/0050-alertes-de-recherche-un-seul-moteur-et-des-abonnes-sans-compte.md)). Une ligne par demande,
+porteuse d'une `SavedSearch` ; rien ne part avant la confirmation (lien e-mail ou code WhatsApp), une
+demande non confirmée est purgée à 48 h (`search-alerts:purge-unconfirmed`), la désinscription efface
+toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contact est connu.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| channel | string(16) | | | `email`, `whatsapp` (ce dernier derrière `SEARCH_ALERTS_WHATSAPP_ENABLED`) |
+| contact | text | | | Adresse ou numéro E.164 normalisé, **chiffré** (cast `encrypted`) |
+| contact_hash | string(64) | | | HMAC (`app.key`) de `canal\|contact normalisé` — recherche, rattachement, désinscription |
+| mailbox_hash | string(64) | | | HMAC de la BOÎTE (`awa+x@` → `awa@`) — plafonds et limiteur par contact (verif-599 m1) ; posée à la création |
+| locale | string(8) | | 'fr' | `fr`, `en`, `wo` |
+| confirmation_token_hash | string(64) | ✓ | null | sha256 du lien de confirmation (e-mail), unique ; effacé à la confirmation (usage unique) |
+| confirmation_sent_at | timestamp | ✓ | null | Envoi de la confirmation — au plus 2 par contact sur 24 h |
+| confirmed_at | timestamp | ✓ | null | Confirmation |
+| unsubscribe_token | text | | | Jeton de désinscription, chiffré (rejoué dans chaque envoi) |
+| unsubscribe_token_hash | string(64) | | | sha256 du jeton, unique — la recherche se fait par lui |
+| consent_at / consent_source / consent_version | timestamp / string(40) / string(40) | | | Preuve du consentement (`public_search_alert`, `search-alert-2026-10-08`) |
+| created_at / updated_at | timestamp | | | |
+
+**Index :** `(contact_hash, confirmed_at)` (`alert_subscribers_contact_idx`), `created_at` (`alert_subscribers_created_idx`), `(mailbox_hash, confirmation_sent_at)` (`alert_subscribers_mailbox_idx`)
+
+**Relations :** `savedSearches()` → hasMany SavedSearch
+
+**Rattachement :** `POST /api/saved-searches/claim` déplace vers le compte les recherches des abonnés
+**confirmés** dont le contact est l'e-mail ou le téléphone **vérifié** du compte, puis supprime les abonnés.
 
 ---
 

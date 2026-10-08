@@ -22,6 +22,25 @@ export type AdminAgencyUserRow = {
   last_login_at: string | null;
   created_at: string;
   roles?: Array<UserRole | { name: UserRole }>;
+  /**
+   * TCK-589 — second facteur du membre. Optionnel : absent quand la liste ne l'a pas demandé
+   * (sparse fieldset). La colonne affiche alors « Non communiquée », jamais « Non activée » —
+   * un champ absent n'est pas un `false`.
+   */
+  two_factor_enabled?: boolean;
+  /**
+   * TCK-587 — profils chargés par `include=` : la console y lit le statut du membre DANS
+   * l'agence (suspendu ou non), que `status` — celui du compte — ne dit pas.
+   */
+  agent_profiles?: readonly AdminAgencyProfileRow[];
+  owner_profiles?: readonly AdminAgencyProfileRow[];
+  agency_admin_profiles?: readonly AdminAgencyProfileRow[];
+};
+
+/** TCK-587 — la part d'un profil dont la console a besoin. */
+export type AdminAgencyProfileRow = {
+  agency_id: number;
+  status: string;
 };
 
 export type AdminAgencyUsersResponse = {

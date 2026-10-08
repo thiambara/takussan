@@ -2,14 +2,18 @@
 
 import { resendVerificationEmailAction } from '@/app/actions/auth';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import { Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormGlobalError } from '@/components/forms';
+import { avecRedirection } from '@/lib/redirection-interne';
 import { useTranslations } from 'next-intl';
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const t = useTranslations('auth.verifyEmail');
+  // TCK-589 — relais de l'intention d'origine posée avant l'inscription.
+  const redirectBrut = useSearchParams().get('redirect');
   const [status, setStatus] = useState<'idle' | 'sent' | 'error'>('idle');
   const [loading, setLoading] = useState(false);
 
@@ -66,12 +70,20 @@ export default function VerifyEmailPage() {
             une question posée sur un seul ne mesure rien et laisse le défaut
             entier sur l'autre. */}
         <Link
-          href="/onboarding/intention"
+          href={avecRedirection('/onboarding/intention', redirectBrut)}
           className="flex min-h-11 items-center justify-center rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {t('continue')}
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

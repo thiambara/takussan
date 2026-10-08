@@ -19,7 +19,10 @@ import { PropertyAmenities } from './components/PropertyAmenities';
 import { PropertyBookingCard } from './components/PropertyBookingCard';
 import { PropertyAgentCard } from './components/PropertyAgentCard';
 import { PropertyVisitDialog } from './components/PropertyVisitDialog';
-import { PropertyReservationDialog } from './components/PropertyReservationDialog';
+import {
+  PropertyReservationDialog,
+  useIntentionDeReservation,
+} from './components/PropertyReservationDialog';
 import { PropertyShareDialog } from './components/PropertyShareDialog';
 import { PropertyContactMessageDialog } from './components/PropertyContactMessageDialog';
 import { useAuth } from '@/context/AuthContext';
@@ -35,6 +38,8 @@ import { PropertyReviews } from './components/PropertyReviews';
 import { PropertyReportButton } from './components/PropertyReportButton';
 import { PropertySimilar } from './components/PropertySimilar';
 import { PropertyRecentlyViewed } from './components/PropertyRecentlyViewed';
+import { PropertySafetyNotice } from './components/PropertySafetyNotice';
+import { PropertyVirtualTour } from './components/PropertyVirtualTour';
 
 /**
  * Le corps de la fiche — **inchangé**, seulement déplacé (TCK-335, étape 6).
@@ -72,7 +77,9 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
    * n'est demandée que pour un utilisateur connecté — la route est `auth:sanctum`, et cette page
    * est massivement vue par des anonymes.
    */
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  // TCK-589 — retour de connexion/inscription avec `?action=reserver` : la boîte se rouvre.
+  const intentionReservation = useIntentionDeReservation(!isLoading, () => setReservationOpen(true));
   const chatDraft = useChatDraft();
   const { data: resolutionResponse } = usePropertyConversation(user ? property.slug : null);
   const resolution = resolutionResponse?.data ?? null;
@@ -111,8 +118,12 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
   }, [property.id]);
 
   const photos = property.photos;
+  // TCK-590 — l'adresse de la fiche SANS sa requête : un visiteur arrivé par un lien partagé
+  // (`?utm_source=…`) ne repartage pas la source du premier.
   const pageUrl =
-    typeof window !== 'undefined' ? window.location.href : `/properties/${property.slug}`;
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`
+      : `/properties/${property.slug}`;
 
   function handleOpenLightbox(index: number): void {
     setLightboxIndex(index);
@@ -155,6 +166,14 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
               photos={photos}
               title={property.title}
               onOpenLightbox={handleOpenLightbox}
+            />
+          </div>
+          {/* TCK-598 (V19) — la visite virtuelle se range avec la galerie ; rien ne se charge avant
+              le clic, et rien ne s'affiche sans URL. */}
+          <div className="mt-3 empty:hidden">
+            <PropertyVirtualTour
+              url={property.virtual_tour_url ?? property.media_extra?.virtual_tour_url}
+              title={property.title}
             />
           </div>
         </div>
@@ -203,6 +222,8 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
               onMessage={ouvrirContact}
               canMessage={peutContacter}
             />
+            {/* TCK-598 (V8) — hors de la carte de contact (TCK-590), juste sous elle. */}
+            <PropertySafetyNotice />
           </aside>
         </div>
 
@@ -232,11 +253,12 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
         property={property}
         open={reservationOpen}
         onOpenChange={setReservationOpen}
+        intention={intentionReservation}
       />
       <PropertyShareDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
-        title={property.title}
+        property={property}
         url={pageUrl}
       />
       <PropertyContactMessageDialog

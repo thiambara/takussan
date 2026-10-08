@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Membership\AgencyRoleService;
 use App\Services\Membership\AgencySystemRoleSeeder;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Membership\SystemRoleCapabilities;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -110,8 +111,11 @@ class ServiceProviderAgencyRoleTest extends TestCase
         $agency = Agency::factory()->create();
         $this->collaborate($agency, null);
 
-        $this->assertTrue($this->resolver->allows($this->provider, Capability::MaintenanceAssign, $agency));
-        $this->assertTrue($this->resolver->allows($this->provider, Capability::MaintenanceClose, $agency));
+        // TCK-592 — le rôle système prestataire est VIDE : `maintenance.assign` et `maintenance.close`
+        // y étaient accordées sans lecteur, et clore seul contredit P10. Ce que fait un prestataire
+        // se juge par son assignation, pas par une capacité d'agence.
+        $this->assertFalse($this->resolver->allows($this->provider, Capability::MaintenanceAssign, $agency));
+        $this->assertFalse($this->resolver->allows($this->provider, Capability::MaintenanceClose, $agency));
         $this->assertFalse($this->resolver->allows($this->provider, Capability::LeasesTerminate, $agency));
     }
 
@@ -223,12 +227,16 @@ class ServiceProviderAgencyRoleTest extends TestCase
             );
         }
 
-        // Les capacités du rôle recréé sont bien celles du catalogue.
-        $this->assertTrue($this->resolver->allows(
-            $this->provider,
-            Capability::MaintenanceClose,
-            $agencyA->fresh(),
-        ));
+        // Les capacités du rôle recréé sont bien celles du catalogue — vide depuis TCK-592.
+        $recreated = DB::table('agency_roles')
+            ->where('agency_id', $agencyA->id)
+            ->where('base_profile_type', AgencyRoleBaseType::ServiceProvider->value)
+            ->where('is_system', true)
+            ->value('id');
+        $this->assertEqualsCanonicalizing(
+            app(SystemRoleCapabilities::class)->valuesFor(AgencyRoleBaseType::ServiceProvider),
+            DB::table('agency_role_capabilities')->where('agency_role_id', $recreated)->pluck('capability')->all(),
+        );
     }
 
     /**

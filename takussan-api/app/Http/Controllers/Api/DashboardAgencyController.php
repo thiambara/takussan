@@ -30,19 +30,12 @@ class DashboardAgencyController extends Controller
 
         $activeAgencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
         $agencyId = $request->integer('agency_id') ?: $activeAgencyId;
-        abort_unless($agencyId, 403, 'No agency context.');
+        abort_code_unless($agencyId, 403, 'agency.context_missing');
 
         $agency = Agency::findOrFail($agencyId);
 
-        abort_unless(
-            $user->isSuperAdmin()
-                || $agency->primary_admin_id === $user->id
-                || (
-                    $request->activeProfile()?->agency_id === $agency->id
-                    && ($user->isAgencyAdminAt((int) $agency->id) || $user->isAgentAt((int) $agency->id))
-                ),
-            403,
-        );
+        // TCK-595 (ADR-0049 §4) — `reports.view_agency` à l'agence, jamais un simple agent.
+        $this->authorize('viewReports', $agency);
 
         // Reporting cross-équipe réservé aux agences `standard` — cf.
         // features.md **§1.12** (« Agence & équipe », la liste des restrictions
@@ -51,10 +44,10 @@ class DashboardAgencyController extends Controller
         // qui ne dit rien du `kind` : corrigée par TCK-284. Les autres
         // dashboards (agent/owner/tenant) restent ouverts car ils ne sont pas
         // cross-team.
-        abort_unless(
+        abort_code_unless(
             $agency->kind === AgencyKind::Standard,
             403,
-            'Agency dashboard is reserved for standard agencies.',
+            'agency.standard_only',
         );
 
         $data = $this->service->summary($agency);

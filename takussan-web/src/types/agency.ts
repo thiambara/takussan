@@ -17,12 +17,16 @@ export type AgencyKind = 'standard' | 'individual';
  * `legal_info.*` is backfilled by the agency-upgrade flow when a
  * super-admin approves the request; `welcome.standard_unlocked_at` is
  * stamped at the same moment so the agency-admin welcome modale fires once.
+ *
+ * TCK-601 (A2) — `legal_info.rib_pro` n'existe plus : le flip ne le recopie plus, la migration
+ * l'a retiré des données et `AgencyResource` ne le rend jamais. La seule source du RIB pro est la
+ * demande de passage (`types/agency-upgrade.ts`), chiffrée en base et lisible du seul admin de
+ * l'agence et du super-admin. Ne pas le rajouter ici : ce type est celui que tout membre lit.
  */
 export interface AgencyMetadata {
   legal_info?: {
     rc?: string | null;
     ninea?: string | null;
-    rib_pro?: string | null;
     company_legal_name?: string | null;
     address_fiscale?: string | null;
     [key: string]: unknown;
@@ -40,6 +44,13 @@ export interface AgencySettings {
   default_commission_rate?: number | null;
   currency?: string | null;
   timezone?: string | null;
+  /** TCK-589 — second facteur exigé de chaque membre de l'agence. */
+  require_team_two_factor?: boolean;
+  /**
+   * TCK-593 — l'agence encaisse la pénalité de retard AVEC le loyer payé en ligne. Absente = non :
+   * une agence neuve n'encaisse que le loyer, la pénalité se règle auprès d'elle.
+   */
+  late_fee_online_collection?: boolean;
   [key: string]: unknown;
 }
 
@@ -72,6 +83,30 @@ export interface Agency {
   metadata?: AgencyMetadata | null;
   /** TCK-098 — when true, new property publications require admin approval. */
   moderation_required?: boolean;
+  /**
+   * TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé.
+   * VERIF-594 m-2 — ABSENT (avec `pending_payout_threshold_change`) pour qui ne détient ni `payouts.approve` ni
+   * `payouts.create` dans l'agence.
+   */
+  payout_approval_threshold?: number | null;
+  /**
+   * VERIF-594 M-2 — un relâchement du seuil (coupé, ou relevé) en attente d'un SECOND détenteur de
+   * `payouts.approve`. `threshold` à `null` : la demande est de couper le contrôle.
+   */
+  pending_payout_threshold_change?: {
+    threshold: number | null;
+    requested_by_id: number | null;
+    requested_at: string | null;
+    /** VERIF-594 passe 2, N-4 — la demande expire 7 jours après ; expirée, l'API ne la rend plus. */
+    expires_at?: string | null;
+  } | null;
+  /** TCK-594 (ADR-0039 §7) — TVA appliquée par défaut aux factures (un taux explicite gagne). */
+  default_tax_rate?: number | null;
+  /** TCK-594 (ADR-0039 §7) — mentions légales imprimées sur les factures ; jamais pour une agence `individual`. */
+  legal_name?: string | null;
+  ninea?: string | null;
+  rccm?: string | null;
+  legal_address?: string | null;
   primary_admin_id: number | null;
   created_at?: string;
 }

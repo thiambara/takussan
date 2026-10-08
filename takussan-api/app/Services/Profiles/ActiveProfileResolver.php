@@ -25,16 +25,16 @@ class ActiveProfileResolver
      * are stable wire identifiers — used in headers, cookies and resources.
      *
      * ⚠ **TCK-495 — cette carte est la LISTE DES PROFILS COMMUTABLES, et rien
-     * d'autre.** `broker` en a été retiré le 2026-08-31
-     * ({@see docs/adr/0027-le-courtier-sort-de-la-surface-commutable.md}) :
-     * `BrokerProfile` et `BrokerAgencyCollaboration` restent en base, avec
-     * leurs migrations, leurs factories et leurs seeders, mais l'alias n'est
-     * plus proposé au choix. Un profil sélectionnable qui n'ouvre aucun écran
-     * coûte plus cher que pas de profil du tout — c'était le cas du courtier :
-     * zéro route API, zéro page front, aucun chemin qui crée le profil.
+     * d'autre.** Le courtier en a été retiré le 2026-08-31
+     * ({@see docs/adr/0027-le-courtier-sort-de-la-surface-commutable.md}),
+     * puis du code et de la base
+     * ({@see docs/adr/0030-le-courtier-quitte-le-code-et-la-base.md}). Un
+     * profil sélectionnable qui n'ouvre aucun écran coûte plus cher que pas de
+     * profil du tout — c'était son cas : zéro route API, zéro page front,
+     * aucun chemin qui crée le profil.
      *
-     * **Y remettre `broker` ne suffira pas à le faire revenir**, et c'est
-     * délibéré : il lui faudra d'abord une porte, des capacités déclarées dans
+     * **Ajouter un alias ici ne suffit pas à ouvrir un espace**, et c'est
+     * délibéré : il lui faut d'abord une porte, des capacités déclarées dans
      * `MembershipCapabilityResolver`, et des écrans. La garde
      * `AppSidebar.audience.test.tsx` refuse tout alias de cette carte qui
      * n'ouvre rien de plus que le socle.
@@ -105,8 +105,24 @@ class ActiveProfileResolver
             $profile instanceof AgentProfile => $profile->status === AgentProfileStatus::Active ? $profile : null,
             $profile instanceof AgencyAdminProfile => $profile->status === AgencyAdminProfileStatus::Active ? $profile : null,
             $profile instanceof ServiceProviderProfile => $profile->status === ServiceProviderProfileStatus::Active ? $profile : null,
-            // BrokerProfile has no status enum — accept as-is.
+            // Unreachable today: every class of TYPE_MAP has a status enum.
             default => $profile,
         };
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §3) — un profil commutable est-il ACTIF ?
+     *
+     * La même règle que la fin de {@see self::resolve()} — qui refuse un profil non actif nommé par
+     * en-tête ou cookie —, pour les deux chemins qui choisissent un profil SANS qu'on le nomme :
+     * l'auto-bascule de `ResolveActiveProfile` et le repli de `User::getAgencyIdAttribute()`. Ils
+     * retenaient un profil quel que soit son statut : un agent suspendu de sa seule agence en gardait
+     * le périmètre. Les quatre énumérations de statut nomment leur cas actif `'active'`.
+     */
+    public static function isActiveProfile(Model $profile): bool
+    {
+        $status = $profile->getAttribute('status');
+
+        return ($status instanceof \BackedEnum ? $status->value : $status) === 'active';
     }
 }

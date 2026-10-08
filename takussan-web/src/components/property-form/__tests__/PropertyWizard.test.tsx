@@ -62,6 +62,8 @@ vi.mock('@/hooks/useWizardDraft', () => ({ useWizardDraft: () => brouillon.etat 
 const reduction = vi.hoisted(() => ({
   reduirePhoto: vi.fn(async (f: File) => f),
   reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+  // TCK-596 — la zone de dépôt réduit sous plafond avant de valider ; ici elle rend l'original.
+  reduirePhotosSousPlafond: vi.fn(async (fs: readonly File[]) => [...fs]),
 }));
 vi.mock('@/lib/reduire-photo', () => reduction);
 
@@ -740,5 +742,54 @@ describe('PropertyWizard — la soumission', () => {
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
     expect(brouillon.etat.clear).toHaveBeenCalledTimes(1);
     expect(createPropertyAction).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * TCK-587 (ADR-0031 §3, AC14 volet formulaire) — le bailleur hors personnel PROPOSE un bien à son
+ * agence. L'écran le dit, le bouton final n'annonce plus une publication qui n'aura pas lieu, et
+ * le parcours ne porte aucun contrôle de publication ni de visibilité publique : le corps part en
+ * `visibility: 'private'`, que le serveur impose de toute façon.
+ */
+describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
+  // Même brouillon complet que « la soumission » : il amène le parcours à sa dernière étape.
+  const PROPOSITION_COMPLETE = {
+    title: 'Villa à Mbour', type: 'villa', contract_type: 'sale', price: 25000000,
+    currency: 'XOF', city: 'Mbour', furnished: false, tag_ids: [],
+  };
+
+  it('annonce la relecture par l’agence et propose au lieu de publier', async () => {
+    brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
+    render(withIntl(<PropertyWizard proposition />));
+
+    await screen.findByText('Étape 6 sur 6');
+    expect(screen.getByTestId('property-proposal-notice')).toHaveTextContent(
+      'Votre agence relira ce bien avant de le publier',
+    );
+    expect(screen.getByRole('button', { name: 'Proposer à mon agence' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /publier/i })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('radio', { name: /public/i })).toHaveLength(0);
+    expect(screen.queryByLabelText(/visibilit/i)).not.toBeInTheDocument();
+  });
+
+  it('envoie un bien privé', async () => {
+    brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
+    const user = userEvent.setup();
+    render(withIntl(<PropertyWizard proposition />));
+
+    await screen.findByText('Étape 6 sur 6');
+    await user.click(screen.getByRole('button', { name: 'Proposer à mon agence' }));
+
+    await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({ visibility: 'private' });
+  });
+
+  it('le personnel garde « Publier », sans la mention', async () => {
+    brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
+    monter();
+
+    await screen.findByText('Étape 6 sur 6');
+    expect(screen.queryByTestId('property-proposal-notice')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /publier/i })).toBeInTheDocument();
   });
 });

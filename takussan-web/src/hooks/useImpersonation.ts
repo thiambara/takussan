@@ -1,67 +1,66 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import {
-  clearImpersonationSession,
-  IMPERSONATION_EVENT,
-  readImpersonationSession,
-  writeImpersonationSession,
-  type ImpersonationSession,
+  relaisImpersonationActif,
+  type ImpersonationCourante,
+  type ImpersonationDemarree,
 } from '@/lib/impersonation';
-import {
-  postImpersonate,
-  postStopImpersonation,
-} from '@/lib/queries/super-admin';
-import type { ApiError } from '@/lib/api';
 
-function subscribe(notify: () => void): () => void {
-  if (typeof window === 'undefined') return () => {};
-  window.addEventListener(IMPERSONATION_EVENT, notify);
-  window.addEventListener('storage', notify);
-  return () => {
-    window.removeEventListener(IMPERSONATION_EVENT, notify);
-    window.removeEventListener('storage', notify);
-  };
+/**
+ * TCK-600 (ADR-0055 §6) — la session d'impersonation, vue du navigateur : il ne tient JAMAIS le
+ * jeton. Il démarre et termine par les route handlers dédiés, et lit la session courante sur
+ * `GET /api/impersonation/current` (relayé avec le jeton, côté serveur).
+ */
+export const CLE_IMPERSONATION_COURANTE = ['impersonation', 'current'] as const;
+
+async function lireOuLever<T>(reponse: Response): Promise<T> {
+  const corps = await reponse.json().catch(() => null);
+  if (!reponse.ok) throw new ApiError(reponse.status, corps);
+  return corps as T;
 }
 
-export function useImpersonationSession(): ImpersonationSession | null {
-  return useSyncExternalStore(
-    subscribe,
-    () => readImpersonationSession(),
-    () => null,
-  );
-}
-
-export function useImpersonate() {
-  return useMutation<
-    ImpersonationSession,
-    ApiError,
-    { targetUserId: number; targetLabel?: string }
-  >({
-    mutationFn: async ({ targetUserId, targetLabel }) => {
-      const res = await postImpersonate(targetUserId);
-      const session: ImpersonationSession = {
-        token: res.token,
-        expires_at: res.expires_at,
-        actor_id: res.actor_id,
-        target_user_id: res.target_user_id,
-        target_label: targetLabel,
-      };
-      writeImpersonationSession(session);
-      return session;
+/** La session ouverte, ou `null`. N'interroge rien quand le témoin de session est absent. */
+export function useImpersonationCourante() {
+  return useQuery<ImpersonationCourante | null>({
+    queryKey: CLE_IMPERSONATION_COURANTE,
+    queryFn: async () => {
+      if (!relaisImpersonationActif()) return null;
+      const reponse = await fetch('/api/impersonation/current', { cache: 'no-store' });
+      if (reponse.status === 404 || reponse.status === 401) return null;
+      return (await lireOuLever<{ data: ImpersonationCourante }>(reponse)).data;
     },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 }
 
-export function useStopImpersonation() {
-  return useMutation<{ revoked_count: number }, ApiError, void>({
+/** Démarrer : motif obligatoire ; un step-up demandé par l'API ouvre la boîte de la console. */
+export function useDemarrerImpersonation() {
+  const garde = useGardeDoubleFacteur();
+  return useMutation<ImpersonationDemarree, ApiError, { userId: number; reason: string }>({
+    mutationFn: ({ userId, reason }) =>
+      avecGardeDoubleFacteur(async () => {
+        const reponse = await fetch('/api/impersonation/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, reason }),
+        });
+        return (await lireOuLever<{ data: ImpersonationDemarree }>(reponse)).data;
+      }, garde),
+  });
+}
+
+/** Quitter : le route handler ferme la session avec le jeton de l'opérateur et efface les cookies. */
+export function useQuitterImpersonation() {
+  return useMutation<void, ApiError, void>({
     mutationFn: async () => {
-      const current = readImpersonationSession();
-      if (!current) return { revoked_count: 0 };
-      const res = await postStopImpersonation(current.target_user_id);
-      clearImpersonationSession();
-      return { revoked_count: res.revoked_count };
+      // Un 404 dit « déjà fermée » (échue, retirée) : la sortie a lieu quand même.
+      await fetch('/api/impersonation/stop', { method: 'POST' }).catch(() => null);
     },
   });
 }

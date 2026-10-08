@@ -32,6 +32,7 @@ import {
 } from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
+import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import type { PropertyListItem } from '@/types/property';
 
 /**
@@ -56,13 +57,14 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
+  const { canPublish, canDelete } = useGestesDuBien();
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const runAction = (
-    fn: () => Promise<{ ok: boolean; message?: string }>,
+    fn: () => Promise<{ ok: boolean; message?: string; data?: { status?: string | null } }>,
     successMessage: string,
   ) => {
     setError(null);
@@ -73,7 +75,9 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
         setError(result.message ?? t('error'));
         return;
       }
-      setSuccess(successMessage);
+      // TCK-597 (§8) — une mise en ligne qui revient `pending_review` n'est PAS publiée : l'agence
+      // modère, et l'écran le dit au lieu d'annoncer un succès qui n'a pas eu lieu.
+      setSuccess(result.data?.status === 'pending_review' ? t('sentForReview') : successMessage);
       router.refresh();
     });
   };
@@ -144,7 +148,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
     (status) =>
       status !== property.status &&
       status !== 'draft' &&
-      status !== 'archived',
+      status !== 'archived' &&
+      (canPublish || !STATUTS_DE_PUBLICATION.has(status)),
   );
 
   return (
@@ -206,7 +211,7 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
         />
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
-          {isPublic ? (
+          {!canPublish ? null : isPublic ? (
             <DropdownMenuItem onClick={unpublish} disabled={pending}>
               {t('unpublish')}
             </DropdownMenuItem>
@@ -237,13 +242,15 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
               {t('archive')}
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem
-            onClick={() => setConfirmDelete(true)}
-            disabled={pending}
-            className="text-destructive focus:text-destructive"
-          >
-            {t('delete')}
-          </DropdownMenuItem>
+          {canDelete ? (
+            <DropdownMenuItem
+              onClick={() => setConfirmDelete(true)}
+              disabled={pending}
+              className="text-destructive focus:text-destructive"
+            >
+              {t('delete')}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 

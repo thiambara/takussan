@@ -51,6 +51,10 @@ class IntegrationController extends Controller
                 'direction' => $log->direction,
                 'event_type' => $log->event_type,
                 'payload' => $log->payload,
+                // TCK-602 — ce que le journal sait du traitement (jamais le corps ni les en-têtes).
+                'http_status' => $log->http_status,
+                'error_code' => $log->error_code,
+                'matched_count' => $log->matched_count,
                 'processed_at' => $log->processed_at?->toISOString(),
                 'created_at' => $log->created_at?->toISOString(),
             ])->all(),

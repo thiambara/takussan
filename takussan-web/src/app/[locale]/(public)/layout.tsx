@@ -7,6 +7,8 @@ import { messagesPour } from '@/i18n/messages';
 import { CompareProvider } from '@/context/CompareContext';
 import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
+import { RetenirArrivee } from '@/components/shared/RetenirArrivee';
+import { EnregistrerServiceWorker } from '@/components/shared/EnregistrerServiceWorker';
 import { isLocale } from '@/i18n/config';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdOrganisation, jsonLdSiteWeb } from '@/lib/jsonld-site';
@@ -81,6 +83,8 @@ export default async function PublicLayout({
       */}
       <DonneesStructurees donnees={jsonLdOrganisation(locale)} />
       <DonneesStructurees donnees={jsonLdSiteWeb(locale)} />
+      <RetenirArrivee />
+      <EnregistrerServiceWorker />
       <ToastProvider>
         <CompareProvider>
           {children}

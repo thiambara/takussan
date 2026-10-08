@@ -12,6 +12,9 @@ import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
 import type { Payout } from '@/types/invoice';
 import { PageHeader } from '@/components/console';
+import { getMeAction } from '@/app/actions/auth';
+import { isAdmin, isAgent } from '@/lib/roles';
+import { localeDeLaRequete } from '@/i18n/locale-serveur';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.overviewOwner');
@@ -24,7 +27,16 @@ export default async function OwnerDashboardPage() {
   // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
-  const payload = await fetchOwnerDashboard();
+  // TCK-595 — le tableau de bord et les versements partent ENSEMBLE : les versements ne dépendent
+  // que de l'utilisateur (`getMeAction`, mémoïsé par rendu, déjà lu par le layout de ce segment),
+  // pas de la réponse du tableau de bord.
+  const moi = getMeAction();
+  const [payload, { roles }, pendingPayouts, locale] = await Promise.all([
+    fetchOwnerDashboard(),
+    moi,
+    moi.then((user) => fetchUpcomingOwnerPayouts(user.id)),
+    localeDeLaRequete(),
+  ]);
   if (!payload) {
     return (
       <PageHeader title={t('title')} description={t('loadError')} />
@@ -32,22 +44,26 @@ export default async function OwnerDashboardPage() {
   }
   const data = payload.data;
   const ts = payload.timeseries;
-  const pendingPayouts = await fetchPendingOwnerPayouts(data.owner_id);
+  // TCK-587 — le bailleur hors personnel PROPOSE un bien à son agence ; il ne l'ajoute pas au
+  // catalogue.
+  const proposition = !isAgent(roles) && !isAdmin(roles);
 
   return (
     <div className="space-y-6">
       {/* Dates lisibles (« 1 sept. 2026 »), comme la vue agent — plus l'ISO brut. */}
       <PageHeader title={t('title')} description={t('subtitle', {
-            start: formatDate(data.period.start, 'fr'),
-            end: formatDate(data.period.end, 'fr'),
+            start: formatDate(data.period.start, locale),
+            end: formatDate(data.period.end, locale),
           })} />
 
       {(data.portfolio?.total ?? 0) === 0 && (
         <section className="rounded-2xl border border-dashed border-border bg-card p-6">
           <h2 className="text-base font-semibold text-foreground">{t('emptyTitle')}</h2>
-          <p className="mt-1 text-sm text-pretty text-muted-foreground">{t('emptyBodyFull')}</p>
+          <p className="mt-1 text-sm text-pretty text-muted-foreground">
+            {proposition ? t('proposalEmptyBody') : t('emptyBodyFull')}
+          </p>
           <Link href="/app/properties/new" className={buttonVariants({ className: 'mt-4' })}>
-            {t('emptyCta')}
+            {proposition ? t('proposalEmptyCta') : t('emptyCta')}
           </Link>
         </section>
       )}
@@ -55,7 +71,7 @@ export default async function OwnerDashboardPage() {
       <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('properties')}
-          value={formatNumber(data.portfolio?.total ?? 0, 'fr')}
+          value={formatNumber(data.portfolio?.total ?? 0, locale)}
           hint={t('propertiesHint', {
             rented: data.portfolio?.rented ?? 0,
             available: data.portfolio?.available ?? 0,
@@ -63,20 +79,20 @@ export default async function OwnerDashboardPage() {
         />
         <StatCard
           label={t('activeLeases')}
-          value={formatNumber(data.leases?.active ?? 0, 'fr')}
+          value={formatNumber(data.leases?.active ?? 0, locale)}
         />
         <StatCard
           label={t('cashflowMonth')}
-          value={formatCurrency(data.finance?.cashflow_month ?? 0, 'fr')}
+          value={formatCurrency(data.finance?.cashflow_month ?? 0, locale)}
           hint={t('expectedHint', {
-            amount: formatCurrency(data.finance?.expected_monthly ?? 0, 'fr'),
+            amount: formatCurrency(data.finance?.expected_monthly ?? 0, locale),
           })}
           accent="success"
         />
         <StatCard
           label={t('overdue')}
-          value={formatNumber(data.finance?.overdue_count ?? 0, 'fr')}
-          hint={formatCurrency(data.finance?.overdue_amount ?? 0, 'fr')}
+          value={formatNumber(data.finance?.overdue_count ?? 0, locale)}
+          hint={formatCurrency(data.finance?.overdue_amount ?? 0, locale)}
           accent={(data.finance?.overdue_count ?? 0) > 0 ? 'warning' : 'default'}
         />
       </div>
@@ -85,11 +101,11 @@ export default async function OwnerDashboardPage() {
         <StatCard
           label={t('occupancy')}
           // « 22,67 % » et non « 22.67% » : séparateur décimal et espace de la locale.
-          value={formatPercent((data.occupancy?.rate_percent ?? 0) / 100, 'fr')}
+          value={formatPercent((data.occupancy?.rate_percent ?? 0) / 100, locale)}
         />
         <StatCard
           label={t('pendingBookings')}
-          value={formatNumber(data.bookings?.pending ?? 0, 'fr')}
+          value={formatNumber(data.bookings?.pending ?? 0, locale)}
         />
       </div>
 
@@ -97,13 +113,13 @@ export default async function OwnerDashboardPage() {
         <section className="rounded-2xl bg-card p-5">
           <h2 className="text-base font-semibold text-foreground">{t('portfolio')}</h2>
           <dl className="mt-4 space-y-3 text-sm">
-            <DashboardLine label={t('available')} value={formatNumber(data.portfolio?.available ?? 0, 'fr')} />
-            <DashboardLine label={t('rented')} value={formatNumber(data.portfolio?.rented ?? 0, 'fr')} />
+            <DashboardLine label={t('available')} value={formatNumber(data.portfolio?.available ?? 0, locale)} />
+            <DashboardLine label={t('rented')} value={formatNumber(data.portfolio?.rented ?? 0, locale)} />
             <DashboardLine
               label={t('otherStatuses')}
               value={formatNumber(
                 Math.max((data.portfolio?.total ?? 0) - (data.portfolio?.available ?? 0) - (data.portfolio?.rented ?? 0), 0),
-                'fr',
+                locale,
               )}
             />
           </dl>
@@ -115,12 +131,23 @@ export default async function OwnerDashboardPage() {
             <DashboardLinkLine
               href="/app/bookings?status=pending"
               label={t('bookingsToHandle')}
-              value={formatNumber(data.bookings?.pending ?? 0, 'fr')}
+              value={formatNumber(data.bookings?.pending ?? 0, locale)}
             />
+            {/* TCK-595 (AC8) — chaque ligne porte son nombre : plus de « Voir le module ». */}
             <DashboardLinkLine
               href="/app/maintenance"
-              label={t('maintenanceQuotes')}
-              value={t('seeModule')}
+              label={t('quotesPending')}
+              value={formatNumber(data.maintenance?.quotes_pending ?? 0, locale)}
+            />
+            <DashboardLinkLine
+              href="/app/visits"
+              label={t('visitsToConfirm')}
+              value={formatNumber(data.visits?.to_confirm ?? 0, locale)}
+            />
+            <DashboardLinkLine
+              href="/app/profile/reviews"
+              label={t('reviewsUnanswered')}
+              value={formatNumber(data.reviews?.unanswered ?? 0, locale)}
             />
           </div>
         </section>
@@ -132,12 +159,12 @@ export default async function OwnerDashboardPage() {
               {pendingPayouts.map((payout) => (
                 <li key={payout.id} className="rounded-lg bg-muted/60 p-3">
                   <p className="font-medium text-foreground tabular-nums">
-                    {formatCurrency(payout.net_amount, 'fr', { currency: payout.currency ?? 'XOF' })}
+                    {formatCurrency(payout.net_amount, locale, { currency: payout.currency ?? 'XOF' })}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {payout.reference_number ?? t('payoutFallback', { id: payout.id })}
                     {payout.scheduled_at
-                      ? t('payoutScheduled', { date: formatDate(payout.scheduled_at, 'fr') })
+                      ? t('payoutScheduled', { date: formatDate(payout.scheduled_at, locale) })
                       : ''}
                   </p>
                 </li>
@@ -207,7 +234,13 @@ function DashboardLinkLine({
   );
 }
 
-async function fetchPendingOwnerPayouts(ownerId: number): Promise<Payout[]> {
+/**
+ * TCK-595 (AC4 bis) — les versements AU BAILLEUR encore à venir. Depuis TCK-594, `landlord_id` porte
+ * aussi les versements nés de ses baux et destinés à d'autres (restitution de caution au locataire,
+ * facture d'un prestataire) : sans `payee_role`, la carte les annonçait comme les siens. Et un
+ * versement `scheduled` ou `processing` est encore à venir, pas seulement `pending`.
+ */
+async function fetchUpcomingOwnerPayouts(ownerId: number): Promise<Payout[]> {
   const token = await getToken();
   if (!token) return [];
   const qs = buildQueryString({
@@ -223,7 +256,11 @@ async function fetchPendingOwnerPayouts(ownerId: number): Promise<Payout[]> {
         'created_at',
       ],
     },
-    filter: { landlord_id: ownerId, status: 'pending' },
+    filter: {
+      landlord_id: ownerId,
+      payee_role: 'landlord',
+      status: ['pending', 'scheduled', 'processing'],
+    },
     sort: ['scheduled_at', '-created_at'],
     per_page: 3,
   });

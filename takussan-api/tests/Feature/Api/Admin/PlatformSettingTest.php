@@ -23,7 +23,7 @@ class PlatformSettingTest extends TestCase
         $this->patchJson('/api/admin/settings', [
             'currency.default' => 'EUR',
             'currency.supported' => ['XOF', 'EUR'],
-            'transaction.platform_fee_booking' => 12.5,
+            'platform.session_max_minutes' => 240,
         ])->assertOk()
             ->assertJsonPath('data.currency.0.key', 'currency.default')
             ->assertJsonPath('data.currency.0.value', 'EUR');
@@ -34,9 +34,9 @@ class PlatformSettingTest extends TestCase
         $activity = Activity::query()->where('event', 'super_admin_setting_updated')->latest('id')->first();
         $this->assertNotNull($activity);
         $this->assertSame($actor->id, $activity->causer_id);
-        $this->assertSame('transaction.platform_fee_booking', $activity->properties['key']);
-        $this->assertSame(0, $activity->properties['old_value']);
-        $this->assertSame(12.5, $activity->properties['new_value']);
+        $this->assertSame('platform.session_max_minutes', $activity->properties['key']);
+        $this->assertSame(480, $activity->properties['old_value']);
+        $this->assertSame(240, $activity->properties['new_value']);
     }
 
     public function test_unknown_setting_key_is_rejected(): void
@@ -59,21 +59,16 @@ class PlatformSettingTest extends TestCase
             ->assertJsonValidationErrors('currency.supported');
     }
 
-    public function test_platform_fee_is_bounded_to_two_decimal_places(): void
+    /** TCK-600 — les clés sans lecteur ont quitté le catalogue : elles ne s'éditent plus. */
+    public function test_keys_without_a_reader_are_no_longer_editable(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->patchJson('/api/admin/settings', [
-            'transaction.platform_fee_booking' => 100.01,
-        ])->assertUnprocessable();
-
-        $this->patchJson('/api/admin/settings', [
-            'transaction.platform_fee_booking' => 12.345,
-        ])->assertUnprocessable();
-
-        $this->patchJson('/api/admin/settings', [
-            'transaction.platform_fee_booking' => 100.00,
-        ])->assertOk();
+        foreach (['transaction.platform_fee_booking' => 10, 'format.date' => 'yyyy-MM-dd', 'platform.max_upload_mb' => 10] as $cle => $valeur) {
+            $this->patchJson('/api/admin/settings', [$cle => $valeur])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors($cle);
+        }
     }
 
     public function test_public_settings_exclude_internal_keys(): void
@@ -84,15 +79,15 @@ class PlatformSettingTest extends TestCase
             'scope' => SettingScope::Global,
         ]);
         Setting::create([
-            'key' => 'transaction.platform_fee_booking',
-            'value' => 8,
+            'key' => 'platform.session_max_minutes',
+            'value' => 120,
             'scope' => SettingScope::Global,
         ]);
 
         $this->getJson('/api/settings/public')
             ->assertOk()
             ->assertJsonPath('data.currency.default', 'EUR')
-            ->assertJsonMissingPath('data.transaction.platform_fee_booking')
+            ->assertJsonMissingPath('data.platform.session_max_minutes')
             ->assertHeader('Cache-Control', 'max-age=300, public');
     }
 

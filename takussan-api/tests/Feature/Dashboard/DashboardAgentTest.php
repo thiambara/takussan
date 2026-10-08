@@ -8,9 +8,11 @@ use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use App\Models\Lease;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
+use App\Services\Model\LeaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 
@@ -26,7 +28,10 @@ class DashboardAgentTest extends ApiTestCase
         $agency = Agency::factory()->create();
         $agent = $this->apiActingAsRole('agent', ['agency' => $agency]);
 
-        Customer::factory()->count(2)->create(['agency_id' => $agency->id, 'pipeline_stage' => CustomerPipelineStage::Prospect]);
+        // TCK-595 — « mes » clients : ceux que l'agent a ajoutés. Un client de l'agence ajouté par
+        // un autre ne compte pas.
+        Customer::factory()->count(2)->create(['agency_id' => $agency->id, 'added_by_id' => $agent->id, 'pipeline_stage' => CustomerPipelineStage::Prospect]);
+        Customer::factory()->create(['agency_id' => $agency->id, 'added_by_id' => $agent->id, 'pipeline_stage' => CustomerPipelineStage::Qualified]);
         Customer::factory()->create(['agency_id' => $agency->id, 'pipeline_stage' => CustomerPipelineStage::Qualified]);
 
         $property = Property::factory()->create(['agency_id' => $agency->id]);
@@ -40,11 +45,16 @@ class DashboardAgentTest extends ApiTestCase
             'priority' => TaskPriority::Medium,
         ]);
 
-        Lease::factory()->active()->create([
+        // TCK-595 — la commission de l'agent vient du grand livre, né à l'activation du bail qu'il
+        // négocie (ADR-0049 §3) ; un `commission_amount` posé à la main sur un bail actif n'en crée pas.
+        AgentProfile::query()->where('user_id', $agent->id)->update(['commission_rate' => 100]);
+        $lease = Lease::factory()->create([
+            'property_id' => $property->id,
             'agency_id' => $agency->id,
-            'signed_at' => now(),
+            'agent_id' => $agent->id,
             'commission_amount' => 75_000,
         ]);
+        app(LeaseService::class)->activate($lease);
 
         $response = $this->apiGet('/api/dashboard/agent')->assertOk();
 
@@ -100,6 +110,7 @@ class DashboardAgentTest extends ApiTestCase
 
         Lease::factory()->create([
             'agency_id' => $agency->id,
+            'agent_id' => $agent->id,
             'status' => 'pending_signature',
             'commission_amount' => 120000,
         ]);

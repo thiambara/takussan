@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ShowExportRequest;
+use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Services\Export\ExportDataService;
 use App\Services\Export\ExportWriter;
 
@@ -11,7 +13,8 @@ use App\Services\Export\ExportWriter;
  * GET /api/export/{entity}?format=csv|xlsx|pdf
  *
  * TCK-032 P2 — data exports. Supported entities: payments, leases, customers,
- * properties. All outputs respect the actor's role scope (agency / owner /
+ * properties ; TCK-595 (§7) adds payouts, invoices, commissions, aging and
+ * deposits. All outputs respect the actor's role scope (agency / owner /
  * tenant) — see `ExportDataService::scopeToActor()`.
  *
  * Query params:
@@ -26,35 +29,69 @@ class ExportController extends Controller
         private readonly ExportWriter $writer,
     ) {}
 
+    /**
+     * TCK-587 (ADR-0031 §2) — capacité exigée du PERSONNEL, par entité. Le bailleur (non personnel)
+     * garde l'export de ses biens et baux, borné par `ExportDataService::scopeToActor()`.
+     */
+    private const CAPABILITY = [
+        'customers' => Capability::CrmExport,
+        'payments' => Capability::PaymentsExport,
+        'leases' => Capability::ReportsExport,
+        'properties' => Capability::ReportsExport,
+        // TCK-595 (§7) — les exports financiers de l'agence : `reports.export`, et au PERSONNEL seul.
+        'payouts' => Capability::ReportsExport,
+        'invoices' => Capability::ReportsExport,
+        'commissions' => Capability::ReportsExport,
+        'aging' => Capability::ReportsExport,
+        'deposits' => Capability::ReportsExport,
+    ];
+
+    /** TCK-595 — ni le bailleur ni le locataire n'exportent les finances d'une agence. */
+    private const STAFF_ONLY = ['payouts', 'invoices', 'commissions', 'aging', 'deposits'];
+
     public function show(ShowExportRequest $request, string $entity)
     {
         $user = $request->user();
         abort_unless($user, 401);
 
+        abort_code_unless(isset(self::CAPABILITY[$entity]), 404, 'export.entity_unknown', ['entity' => $entity]);
+
+        // TCK-587 — le contrôle se fait EN TÊTE, avant toute requête. Il ouvrait l'export à tout
+        // membre (agent comme admin) sans lire `crm.export`, `payments.export` ni `reports.export`,
+        // et le prédicat d'agence (`isAgentAt` sur `$user->agency_id`) ne distinguait pas le
+        // personnel du bailleur.
+        $staffAgencyId = $user->staffAgencyId();
+        if (! $user->isSuperAdmin()) {
+            if ($staffAgencyId !== null) {
+                abort_code_unless(
+                    $user->canActAt(self::CAPABILITY[$entity], Agency::query()->find($staffAgencyId)),
+                    403,
+                    'export.forbidden',
+                );
+            } elseif ($entity === 'customers' || in_array($entity, self::STAFF_ONLY, true)) {
+                abort_code(403, 'export.forbidden');
+            } elseif ($entity === 'properties'
+                && ! ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))) {
+                abort_code(403, 'export.forbidden');
+            }
+        }
+
         $validated = $request->validated();
-
-        $allowed = ['payments', 'leases', 'customers', 'properties'];
-        abort_unless(in_array($entity, $allowed, true), 404, "Unknown entity: {$entity}");
-
-        $agencyId = $user->agency_id;
-        $isStaff = $user->isSuperAdmin()
-            || ($agencyId !== null && (
-                $user->isAgencyAdminAt((int) $agencyId)
-                || $user->isAgentAt((int) $agencyId)
-            ));
-
-        if ($entity === 'customers' && ! $isStaff) {
-            abort(403, 'CRM export restricted to agency staff.');
-        }
-        if ($entity === 'properties'
-            && ! $isStaff
-            && ! ($agencyId !== null && $user->isOwnerAt((int) $agencyId))) {
-            abort(403, 'Properties export restricted to staff and owners.');
-        }
-
         $format = $validated['format'] ?? 'csv';
 
         $payload = $this->data->collect($entity, $user, $validated);
+
+        activity('export')
+            ->causedBy($user)
+            ->event('data_exported')
+            ->withProperties([
+                'entity' => $entity,
+                'filters' => array_intersect_key($validated, array_flip(['from', 'to', 'limit'])),
+                'row_count' => count($payload['rows']),
+                'agency_id' => $staffAgencyId ?? $user->agency_id,
+                'format' => $format,
+            ])
+            ->log('data_exported');
 
         return $this->writer->respond($format, $payload);
     }

@@ -33,7 +33,12 @@ const DESTINATIONS: Record<Exclude<EntryIntent, 'skipped'>, string> = {
   publish: '/onboarding/host',
 };
 
-export function QuestionDIntention({ apres }: { readonly apres: string }) {
+/**
+ * `retour` — TCK-589 : la destination que l'inscription a DEMANDÉE (`redirect=`), vide sinon.
+ * « Je cherche un logement » y ramène : qui venait de réserver une fiche cherche déjà, et
+ * l'envoyer sur la recherche perdait l'intention — mesuré au navigateur, fiche → inscription.
+ */
+export function QuestionDIntention({ apres, retour = '' }: { readonly apres: string; readonly retour?: string }) {
   const t = useTranslations('onboarding.intention');
   const router = useRouter();
   const { refreshUser } = useAuth();
@@ -105,7 +110,7 @@ export function QuestionDIntention({ apres }: { readonly apres: string }) {
           size="lg"
           className="h-11 px-6"
           disabled={enCours}
-          onClick={() => repondre(choix, DESTINATIONS[choix])}
+          onClick={() => repondre(choix, choix === 'search' && retour !== '' ? retour : DESTINATIONS[choix])}
         >
           {enCours ? t('submitting') : t('submit')}
         </Button>

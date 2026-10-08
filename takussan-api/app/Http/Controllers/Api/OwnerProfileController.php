@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\OwnerProfileResource;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerProfilePolicy;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\AgencyKindGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,9 +24,10 @@ use Illuminate\Http\Request;
  *  - includes (`include=user`)
  *  - sort (`sort=-created_at`)
  *
- * The listing is intentionally a *flat* JSON envelope (no resource
- * wrapper) because the model already exposes only the columns the front
- * has asked for via `fields[]`. Visibility is gated by
+ * TCK-601 (ADR-0044 §1) — la liste passe par {@see OwnerProfileResource} : elle
+ * n'expose plus que les colonnes demandées par `fields[]` et des formes MASQUÉES
+ * du RIB, du NINEA et du numéro de pièce. La valeur complète sort par
+ * {@see self::sensitive()} seulement. Visibility is gated by
  * {@see OwnerProfilePolicy::viewAny()}, puis par
  * {@see AgencyKindGuard::ensureStandardForNonGlobal()} — TCK-284.
  */
@@ -53,13 +56,42 @@ class OwnerProfileController extends Controller
         AgencyKindGuard::ensureStandardForNonGlobal($user, $user->agency_id);
 
         $base = $this->visibleScope($user, $request);
-        $paginator = OwnerProfile::buildQuery($base, $request)
-            ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
+        $query = OwnerProfile::buildQuery($base, $request)->defaultSort('-created_at');
+
+        // TCK-601 — les colonnes sensibles ne sont plus demandables par `fields[]` ; elles sont
+        // chargées ici pour que la Resource en calcule le MASQUE. Sans `fields[]`, `select *` les
+        // charge déjà.
+        if ($query->getQuery()->columns !== null) {
+            $query->addSelect(array_map(
+                static fn (string $column): string => 'owner_profiles.'.$column,
+                OwnerProfile::SENSITIVE,
+            ));
+        }
+
+        $paginator = $query->paginate((int) $request->input('per_page', 20));
+
+        return $this->paginated($paginator, OwnerProfileResource::collection($paginator)->resolve($request));
+    }
+
+    /**
+     * TCK-601 (ADR-0044 §1, §4) — le RIB, le NINEA et le numéro de pièce EN CLAIR, pour l'admin de
+     * l'agence du profil (et le super-admin, par `Gate::before`). Chaque consultation est
+     * journalisée ; l'agent n'y a pas accès.
+     */
+    public function sensitive(Request $request, OwnerProfile $ownerProfile, PersonalDataAccessLogger $accessLog): JsonResponse
+    {
+        $this->authorize('viewSensitive', $ownerProfile);
+
+        $accessLog->record($request->user(), $ownerProfile, PersonalDataAccessLogger::SURFACE_OWNER_SENSITIVE);
 
         return $this->json([
-            'data' => $paginator->items(),
-            'meta' => $this->paginationMeta($paginator),
+            'data' => [
+                'id' => $ownerProfile->id,
+                'rib' => $ownerProfile->rib,
+                'tax_id' => $ownerProfile->tax_id,
+                'id_document_type' => $ownerProfile->id_document_type?->value,
+                'id_document_number' => $ownerProfile->id_document_number,
+            ],
         ]);
     }
 

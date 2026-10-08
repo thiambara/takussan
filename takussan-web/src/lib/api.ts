@@ -1,4 +1,5 @@
 import type { SpatieQueryParams } from '@/types/api';
+import { cheminParLeRelais, relaisImpersonationActif } from '@/lib/impersonation';
 
 // Base URL without /api suffix — used by apiRequest (which includes /api in its paths)
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -8,6 +9,47 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 // API base with /api suffix — used by apiFetch
 const API_BASE = `${API_URL}/api`;
 const SUPPORTED_LOCALES = new Set(['fr', 'en', 'wo']);
+
+/**
+ * TCK-598 (ADR-0052 §5) — l'adresse par laquelle le SERVEUR Next joint l'API.
+ *
+ * `API_INTERNAL_URL` (clé serveur, jamais `NEXT_PUBLIC_*`) désigne l'API sur le réseau interne
+ * (`dokploy-network` sur preview), dont le sous-réseau est dans `TRUSTED_PROXIES` : c'est le seul
+ * chemin sur lequel Laravel honore le `X-Forwarded-For` que le serveur transmet. Par l'URL publique,
+ * l'appel traverse Traefik, qui efface tout `X-Forwarded-For` ne venant pas de Cloudflare.
+ * Absente (développement, CI, Vercel aujourd'hui), on garde l'URL publique. Dans le navigateur,
+ * toujours l'URL publique : la clé n'y existe pas.
+ */
+function baseServeur(): string | undefined {
+  if (typeof window !== 'undefined') return undefined;
+  const interne = process.env.API_INTERNAL_URL?.trim();
+  return interne ? interne.replace(/\/+$/, '').replace(/\/api$/, '') : undefined;
+}
+
+function apiUrl(): string {
+  return baseServeur() ?? API_URL;
+}
+
+/**
+ * Sur le chemin interne, l'API ne connaît pas son nom public : les URL qu'elle fabrique depuis la
+ * requête (`route()`, le lien d'un document publié) désigneraient l'hôte interne. Ces trois en-têtes,
+ * dérivés de `NEXT_PUBLIC_API_URL`, sont **identiques pour tous les visiteurs** : ils ne fragmentent
+ * aucun cache de données. Laravel les croit parce que l'appel vient d'un mandataire de confiance.
+ */
+function enTetesDuCheminInterne(): Record<string, string> {
+  if (baseServeur() === undefined) return {};
+  try {
+    const publique = new URL(API_URL);
+    const proto = publique.protocol.replace(/:$/, '');
+    return {
+      'X-Forwarded-Host': publique.hostname,
+      'X-Forwarded-Proto': proto,
+      'X-Forwarded-Port': publique.port || (proto === 'https' ? '443' : '80'),
+    };
+  } catch {
+    return {};
+  }
+}
 
 function clientLocaleCookie(): string | undefined {
   if (typeof document === 'undefined') return undefined;
@@ -26,6 +68,18 @@ export type ApiFetchOptions = {
    * automatique passe par le cookie du navigateur, qui n'existe pas en RSC.
    */
   locale?: string;
+  /**
+   * TCK-598 (ADR-0052 §5) — l'appel est PARTAGÉ entre visiteurs : mis en cache de données
+   * (`next: { revalidate, tags }`), ou exécuté dans une route revalidée (le sitemap). Il ne lit
+   * alors **pas** `next/headers` et ne porte **aucun** en-tête propre au visiteur : une IP dans la
+   * clé du cache la fragmenterait par visiteur, et lire les en-têtes entrants rendrait la route
+   * dynamique. Il est compté dans le seau du serveur front, une fois par revalidation et par URL.
+   *
+   * ⚠ Se DÉCLARE, ne se devine pas. Par défaut (absent), un appel serveur est rendu POUR le
+   * visiteur et transmet son IP : sans elle, tous les visiteurs rendus côté serveur partagent le
+   * seau de 90 requêtes par minute de `throttle:public-read`.
+   */
+  partage?: boolean;
 };
 
 /**
@@ -60,10 +114,17 @@ export async function apiFetch<T>(
   const enTetes: Record<string, string> = {
     Accept: 'application/json',
     ...(locale ? { 'Accept-Language': locale } : {}),
+    ...enTetesDuCheminInterne(),
     ...(init?.headers as Record<string, string> | undefined),
   };
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  // TCK-598 — l'IP du visiteur, établie par la chaîne de confiance, sauf sur un appel partagé.
+  if (!options.partage && !enTetes['X-Forwarded-For']) {
+    const visiteur = await resolveVisitorIp();
+    if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
+  }
+
+  const res = await fetch(`${apiUrl()}/api${path}`, {
     ...init,
     headers: enTetes,
   });
@@ -74,6 +135,37 @@ export async function apiFetch<T>(
     throw new ApiError(res.status, corps);
   }
   return res.json() as Promise<T>;
+}
+
+/**
+ * TCK-587 — l'URL absolue d'un endpoint PUBLIC, pour l'appelant qui doit lire autre chose que du
+ * JSON (un flux de fichier) et ne peut donc pas passer par {@link apiFetch}. Le préfixe `/api` est
+ * ajouté, comme dans `apiFetch`.
+ */
+export function urlApiPublique(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
+/**
+ * TCK-600 (verif-600 B1) — pour un route handler qui joint l'API par `fetch` brut, parce qu'il doit
+ * lire ce qu'`apiRequest` ne rend pas (le jeton de `start`, un statut, un corps binaire) : l'URL du
+ * chemin SERVEUR ({@link baseServeur}), préfixe `/api` ajouté comme dans `apiFetch`.
+ */
+export function urlApiServeur(path: string): string {
+  return `${apiUrl()}/api${path}`;
+}
+
+/**
+ * Les en-têtes qu'`apiFetch` et `apiRequest` ajoutent d'eux-mêmes côté serveur, pour le même
+ * appelant : ceux du chemin interne et l'IP du visiteur par la chaîne de confiance de TCK-598.
+ * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
+ * journal d'impersonation, pour tous les opérateurs.
+ */
+export async function enTetesServeurAmont(): Promise<Record<string, string>> {
+  const enTetes: Record<string, string> = { ...enTetesDuCheminInterne() };
+  const visiteur = await resolveVisitorIp();
+  if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
+  return enTetes;
 }
 
 export type RequestOptions = {
@@ -120,6 +212,10 @@ export const CODES_ERREUR_BFF = [
   'profile_id_required',
   'unknown_entity',
   'server_error',
+  // TCK-600 — le proxy de la console refuse les chemins d'impersonation sans appeler l'API.
+  'not_found',
+  // TCK-600 (verif-600 B1) — un segment de route dynamique qui réécrirait l'URL de l'API.
+  'invalid_path',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -132,6 +228,8 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   profile_id_required: 'errors.api.profileIdRequired',
   unknown_entity: 'errors.api.unknownEntity',
   server_error: 'errors.api.serverError',
+  not_found: 'errors.notFound',
+  invalid_path: 'errors.notFound',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */
@@ -432,30 +530,51 @@ export function messageCorpsErreurBff(
 }
 
 /**
- * When `apiRequest` runs server-side (RSC, server actions, route handlers),
- * the outgoing fetch originates from the Next.js process — not the visitor's
- * browser — so Laravel sees a single shared origin IP. Without forwarding,
- * per-IP rate limiters and `Request::ip()` collapse onto one bucket for all
- * visitors. We read the inbound visitor IP from `next/headers` and propagate
- * it via `X-Forwarded-For`, paired with `TrustProxies` configured on the API.
+ * TCK-598 (ADR-0052 §5) — le nombre de mandataires de confiance devant le serveur Next, qui ont
+ * chacun AJOUTÉ une entrée à droite de `X-Forwarded-For`. Clé serveur `VISITOR_IP_TRUSTED_HOPS`,
+ * défaut 1 (Vercel remplace l'en-tête par l'IP du client) ; 2 sur preview (Cloudflare, puis
+ * Traefik). Une valeur illisible retombe sur 1.
+ */
+export function sautsDeConfiance(): number {
+  const brut = Number.parseInt(process.env.VISITOR_IP_TRUSTED_HOPS ?? '', 10);
+  return Number.isInteger(brut) && brut >= 1 ? brut : 1;
+}
+
+/**
+ * L'IP du visiteur dans un `X-Forwarded-For` : l'entrée de rang `n − sauts` (n entrées), c'est-à-
+ * dire la plus à gauche de celles que les mandataires de confiance ont écrites. **Jamais l'entrée
+ * la plus à gauche** : celle-là, le client l'écrit lui-même, et Cloudflare AJOUTE à un en-tête reçu
+ * au lieu de le remplacer — la retenir laissait chaque visiteur choisir son seau du limiteur.
+ * Chaîne plus courte que `sauts` (client qui joint l'origine sans Cloudflare : Traefik a effacé son
+ * en-tête et écrit sa vraie IP) → la plus à gauche, qui est alors la seule.
+ */
+export function ipDuVisiteur(xff: string | null | undefined, sauts: number): string | undefined {
+  const entrees = (xff ?? '').split(',').map((e) => e.trim()).filter((e) => e.length > 0);
+  if (entrees.length === 0) return undefined;
+  return entrees[Math.max(0, entrees.length - sauts)];
+}
+
+/**
+ * L'IP du visiteur de la requête en cours, côté serveur (RSC, actions, route handlers), pour
+ * `X-Forwarded-For` — établie **une seule fois** ici, pour `apiFetch` comme pour `apiRequest`.
  *
- * Returns `undefined` when there is no resolvable visitor (client-side calls,
- * out-of-request execution like build-time, or no upstream proxy header).
+ * Sans elle, les appels serveur partent de l'IP du serveur Next et tous les visiteurs partagent les
+ * seaux des limiteurs par IP. ⚠ La transmettre ne SUFFIT pas : Laravel ne la croit que d'un
+ * mandataire listé dans `TRUSTED_PROXIES`, d'où le chemin interne ({@link baseServeur}). Par l'URL
+ * publique, Traefik l'efface — inféré, à mesurer sur preview (ADR-0052 §6, AC22 de TCK-598).
+ *
+ * Plus de repli sur `X-Real-IP` : hors de la chaîne, rien ne dit qui l'a écrit. Next écrit
+ * `X-Forwarded-For` lui-même quand il manque (l'adresse de la socket), donc une requête réelle en
+ * porte toujours un.
+ *
+ * Rend `undefined` dans le navigateur et hors requête (build, script).
  */
 async function resolveVisitorIp(): Promise<string | undefined> {
   if (typeof window !== 'undefined') return undefined;
   try {
     const { headers } = await import('next/headers');
     const incoming = await headers();
-    const xff = incoming.get('x-forwarded-for');
-    if (xff) {
-      // XFF is a comma-separated list — the left-most entry is the original
-      // client. Trim whitespace which is permitted by RFC 7239-style proxies.
-      const first = xff.split(',')[0]?.trim();
-      if (first) return first;
-    }
-    const xri = incoming.get('x-real-ip')?.trim();
-    return xri && xri.length > 0 ? xri : undefined;
+    return ipDuVisiteur(incoming.get('x-forwarded-for'), sautsDeConfiance());
   } catch {
     return undefined;
   }
@@ -493,6 +612,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const requestHeaders: Record<string, string> = {
     Accept: 'application/json',
+    ...enTetesDuCheminInterne(),
     ...headers,
   };
 
@@ -520,7 +640,16 @@ export async function apiRequest<T>(
     }
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  // TCK-600 (ADR-0055 §6) — pendant une session d'impersonation, le navigateur n'a AUCUN jeton :
+  // l'appel part au relais same-origin, qui ajoute le jeton d'impersonation côté serveur. Le profil
+  // actif de l'opérateur ne l'accompagne jamais (invariant 11).
+  const relais = !token && relaisImpersonationActif() ? cheminParLeRelais(path) : null;
+  if (relais) {
+    delete requestHeaders['X-Active-Profile-Hint'];
+    delete requestHeaders['X-Profile-Id'];
+  }
+
+  const response = await fetch(relais ?? `${apiUrl()}${path}`, {
     method,
     headers: requestHeaders,
     body: body !== undefined

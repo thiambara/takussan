@@ -50,7 +50,10 @@ return [
     |
     */
 
-    'expiration' => null,
+    // TCK-589 — durée absolue de TOUT jeton, calculée sur `created_at` : couvre
+    // aussi les jetons émis avant le ticket, sans `expires_at`. Était `null`
+    // (jetons sans fin). Même valeur que `auth.sessions.absolute_minutes`.
+    'expiration' => 43200,
 
     /*
     |--------------------------------------------------------------------------

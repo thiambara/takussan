@@ -5,11 +5,16 @@ namespace App\Services\Membership;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use Closure;
 use Illuminate\Support\Collection;
 
 /**
@@ -53,6 +58,9 @@ use Illuminate\Support\Collection;
  */
 class MembershipCapabilityResolver
 {
+    /** @var array{users: array<int, true>, agencies: array<int, true>, staff: array<string, true>, agent: array<string, true>, owner: array<string, true>}|null */
+    private static ?array $amorce = null;
+
     public function __construct(
         private readonly AgencyRoleCapabilityCache $cache,
     ) {}
@@ -175,8 +183,34 @@ class MembershipCapabilityResolver
             return false;
         }
 
+        if ($this->lockedBySuspension($capability, $agency)) {
+            return false;
+        }
+
         return $this->resolveAgencyScoped($user, $capability, $agency);
     }
+
+    /**
+     * TCK-600 (ADR-0048 §4) — dans une agence `suspended`, aucune capacité d'écriture ; la lecture
+     * et l'export restent. C'est le SECOND chemin du verrou : `EnsureAgencyWritable` ne voit que
+     * le profil actif de la requête, et un membre de deux agences qui agirait sur la suspendue
+     * depuis le profil de l'autre (ou sans profil actif) est refusé ici. La délégation passe par
+     * `resolveDirect()` sur le délégant : elle est refusée du même coup.
+     */
+    private function lockedBySuspension(Capability $capability, Agency $agency): bool
+    {
+        return $agency->status === AgencyStatus::Suspended
+            && ! in_array($capability, self::KEPT_WHEN_SUSPENDED, true);
+    }
+
+    /** TCK-600 (ADR-0048 §4) — ce qu'un membre d'une agence suspendue garde : lire et exporter. */
+    private const KEPT_WHEN_SUSPENDED = [
+        Capability::CrmViewAll,
+        Capability::CrmExport,
+        Capability::PaymentsExport,
+        Capability::ReportsViewGlobal,
+        Capability::ReportsExport,
+    ];
 
     /**
      * Branche délégation — TCK-395.
@@ -332,35 +366,19 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * Branche PlatformProfile. `super_admin` court-circuite tout ; `support`
-     * et `viewer` ont une liste blanche restreinte. Non concernée par
+     * Branche PlatformProfile. `super_admin` court-circuite tout. Non concernée par
      * TCK-279 : un `PlatformProfile` n'a pas d'`AgencyRole` (pas d'agence
      * à scoper — cf. Règle 6, dernier point).
+     *
+     * TCK-600 (ADR-0047 §3) — `support` et `viewer` n'ont plus AUCUNE capacité d'agence. Leurs
+     * listes blanches (`crm.view_all`, `crm.export`, `payments.export`… sur n'importe quelle
+     * agence) ouvraient les données d'agence par les routes d'agence, hors de la console et de
+     * son journal. Un opérateur de ces niveaux agit par `/api/admin` et ses gestes
+     * ({@see PlatformAbility}), jamais par une capacité d'agence.
      */
     private function resolvePlatform(User $user, Capability $capability): bool
     {
-        $profile = $user->relationLoaded('platformProfile')
-            ? $user->platformProfile
-            : $user->platformProfile()->active()->first();
-
-        if ($profile === null || ! $profile->isActive()) {
-            return false;
-        }
-
-        return match ($profile->level) {
-            PlatformProfileLevel::SuperAdmin => true,
-            PlatformProfileLevel::Support => in_array($capability, [
-                Capability::CrmViewAll,
-                Capability::CrmExport,
-                Capability::PaymentsExport,
-                Capability::ReportsViewGlobal,
-                Capability::ReportsExport,
-                Capability::MessagingArchive,
-            ], true),
-            PlatformProfileLevel::Viewer => in_array($capability, [
-                Capability::ReportsViewGlobal,
-            ], true),
-        };
+        return $user->activePlatformLevel() === PlatformProfileLevel::SuperAdmin;
     }
 
     /**
@@ -401,6 +419,8 @@ class MembershipCapabilityResolver
     {
         $roleIds = ServiceProviderAgencyCollaboration::query()
             ->where('agency_id', $agencyId)
+            // TCK-592 (B13) — seule une collaboration ACTIVE porte un rôle qui agit.
+            ->where('status', CollaborationStatus::Active->value)
             ->whereNotNull('agency_role_id')
             ->whereHas('serviceProviderProfile', fn ($query) => $query->where('user_id', $user->id))
             ->pluck('agency_role_id');
@@ -415,8 +435,180 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * Le user a-t-il, dans cette agence, un profil du type donné dont le
+     * TCK-587 (ADR-0031 §1) — l'agence du profil actif si l'utilisateur y est PERSONNEL, sinon `null`.
+     *
+     * C'est le seul prédicat de périmètre d'agence du dépôt : toute clause qui ouvrait une ressource
+     * sur `$user->agency_id === $model->agency_id` le lit désormais. Cette comparaison-là était vraie
+     * pour un BAILLEUR de l'agence — `getAgencyIdAttribute()` rend l'agence du profil actif quel que
+     * soit son type —, si bien que chaque bailleur lisait et modifiait les baux, loyers et versements
+     * de tous les autres. `scripts/check-agency-scope-clause.mjs` refuse qu'on la réécrive.
+     *
+     * L'agence est celle du profil actif (contrat TCK-146) ; le profil actif n'a pas besoin d'être
+     * lui-même un profil de personnel : un bailleur qui est aussi agent de la même agence est
+     * personnel quel que soit celui des deux que l'auto-bascule a retenu.
+     */
+    public function staffAgencyId(User $user): ?int
+    {
+        $agencyId = $user->agency_id;
+        if ($agencyId === null) {
+            return null;
+        }
+
+        return $this->isStaffAt($user, (int) $agencyId) ? (int) $agencyId : null;
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §1) — l'utilisateur est-il personnel de cette agence : un `AgentProfile` ou un
+     * `AgencyAdminProfile` ACTIF, ou une `RoleDelegation` active de rôle `agent` / `agency_admin` ?
+     *
+     * La délégation compte : sans elle, déléguer `agent` conférerait des capacités (TCK-395) que le
+     * périmètre rendrait inutilisables. Exposée pour juger un TIERS — la cible d'une affectation
+     * (`PropertyController::assignAgent`) — là où {@see self::staffAgencyId()} juge l'appelant.
+     */
+    public function isStaffAt(User $user, int $agencyId): bool
+    {
+        if (($amorce = self::amorce('staff', (int) $user->id, $agencyId)) !== null) {
+            return $amorce;
+        }
+
+        foreach ([AgencyRoleBaseType::Agent, AgencyRoleBaseType::AgencyAdmin] as $type) {
+            $class = $type->profileClass();
+            if ($class !== null && $class::query()
+                ->where('user_id', $user->id)
+                ->where('agency_id', $agencyId)
+                ->active()
+                ->exists()) {
+                return true;
+            }
+        }
+
+        return RoleDelegation::query()
+            ->where('user_id', $user->id)
+            ->where('agency_id', $agencyId)
+            ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+            ->active()
+            ->exists();
+    }
+
+    /**
+     * TCK-603 (ADR-0059 §6, verif-603 m4) — juge en trois requêtes, pour une PAGE entière, ce que
+     * {@see self::isStaffAt()}, `User::isAgentAt()` et `User::isOwnerAt()` jugeraient une ligne à la
+     * fois : `primary_contact` et `is_agent` en posaient jusqu'à six par bien sur la liste.
+     *
+     * L'amorce ne vaut que pendant `$callback`, et pour les seuls couples (utilisateur, agence) des
+     * deux listes : hors d'elles, chaque jugement reste une requête. Mêmes portées (`active()`) que les
+     * jugements unitaires — une amorce qui jugerait autrement serait une seconde règle.
+     *
+     * @template T
+     *
+     * @param  iterable<int|string|null>  $userIds
+     * @param  iterable<int|string|null>  $agencyIds
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    public static function primed(iterable $userIds, iterable $agencyIds, Closure $callback): mixed
+    {
+        $users = collect($userIds)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $agencies = collect($agencyIds)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if ($users === [] || $agencies === [] || self::$amorce !== null) {
+            return $callback();
+        }
+
+        $couples = fn ($query) => $query->whereIn('user_id', $users)->whereIn('agency_id', $agencies)
+            ->get(['user_id', 'agency_id'])
+            ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
+            ->all();
+        $agent = $couples(AgencyRoleBaseType::Agent->profileClass()::query()->active());
+        $staff = $agent
+            + $couples(AgencyRoleBaseType::AgencyAdmin->profileClass()::query()->active())
+            + $couples(RoleDelegation::query()
+                ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+                ->active());
+
+        self::$amorce = [
+            'users' => array_fill_keys($users, true),
+            'agencies' => array_fill_keys($agencies, true),
+            'staff' => $staff,
+            'agent' => $agent,
+            'owner' => $couples(OwnerProfile::query()->active()),
+        ];
+        try {
+            return $callback();
+        } finally {
+            self::$amorce = null;
+        }
+    }
+
+    /**
+     * `staff`, `agent` ou `owner` du couple, tel que {@see self::primed()} l'a jugé ; `null` hors
+     * amorce — l'appelant juge alors lui-même.
+     */
+    public static function amorce(string $kind, int $userId, int $agencyId): ?bool
+    {
+        $amorce = self::$amorce;
+        if ($amorce === null || ! isset($amorce['users'][$userId], $amorce['agencies'][$agencyId])) {
+            return null;
+        }
+
+        return isset($amorce[$kind][$userId.':'.$agencyId]);
+    }
+
+    /**
+     * TCK-591 (verif-591 B1) — toutes les agences où l'utilisateur est PERSONNEL, au sens de
+     * {@see self::isStaffAt()} : la forme SQL du même prédicat, pour borner une liste (tâches,
+     * agenda) là où `isStaffAt()` juge une ligne.
+     *
+     * @return list<int>
+     */
+    public function staffAgencyIds(User $user): array
+    {
+        $ids = collect();
+        foreach ([AgencyRoleBaseType::Agent, AgencyRoleBaseType::AgencyAdmin] as $type) {
+            $class = $type->profileClass();
+            if ($class !== null) {
+                $ids = $ids->merge($class::query()->where('user_id', $user->id)->active()->pluck('agency_id'));
+            }
+        }
+        $ids = $ids->merge(RoleDelegation::query()
+            ->where('user_id', $user->id)
+            ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+            ->active()
+            ->pluck('agency_id'));
+
+        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * TCK-591 (verif-591 M1) — l'utilisateur est-il MEMBRE actif de cette agence : personnel
+     * ({@see self::isStaffAt()}) ou bailleur à profil actif. C'est la condition de la clause
+     * « auteur » : on garde ce qu'on a ajouté tant qu'on est de l'agence, pas au-delà.
+     */
+    public function isMemberAt(User $user, int $agencyId): bool
+    {
+        return $this->isStaffAt($user, $agencyId)
+            || OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agencyId)->active()->exists();
+    }
+
+    /**
+     * Forme SQL de {@see self::isMemberAt()}.
+     *
+     * @return list<int>
+     */
+    public function memberAgencyIds(User $user): array
+    {
+        return collect($this->staffAgencyIds($user))
+            ->merge(OwnerProfile::query()->where('user_id', $user->id)->active()->pluck('agency_id'))
+            ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * Le user a-t-il, dans cette agence, un profil ACTIF du type donné dont le
      * rôle accorde la capacité ?
+     *
+     * ⚠ TCK-587 (ADR-0031 §3) — le filtre `->active()` manquait, alors que les docblocks de
+     * {@see self::allows()} et de {@see self::resolveAgencyScoped()} annonçaient déjà « les profils
+     * actifs » : un agent `suspended`, un admin `suspended`, un bailleur `blocked` gardaient chaque
+     * capacité de leur rôle, et suspendre un membre ne lui retirait rien.
      */
     private function roleAllows(User $user, int $agencyId, AgencyRoleBaseType $type, Capability $capability): bool
     {
@@ -428,6 +620,7 @@ class MembershipCapabilityResolver
         $roleIds = $class::query()
             ->where('user_id', $user->id)
             ->where('agency_id', $agencyId)
+            ->active()
             ->whereNotNull('agency_role_id')
             ->pluck('agency_role_id');
 

@@ -36,7 +36,9 @@ class SavedSearchSeeder extends Seeder
                             'criteria' => [
                                 'price_max' => $this->ctx->faker()->numberBetween(300_000, 2_000_000),
                                 'bedrooms' => $this->ctx->faker()->numberBetween(1, 4),
-                                'neighborhoods' => [$this->ctx->faker()->dakarNeighborhood()],
+                                // TCK-599 — le vocabulaire de `/properties` (`SavedSearchCriteria::KEYS`) : le
+                                // quartier est `location`, une valeur, plus `neighborhoods`.
+                                'location' => $this->ctx->faker()->dakarNeighborhood(),
                             ],
                             'notification_frequency' => $this->ctx->faker()->randomElement(['daily', 'weekly']),
                             'is_active' => true,

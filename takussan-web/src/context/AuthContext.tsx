@@ -17,8 +17,7 @@ import {
   clear as clearLocalFavorites,
   replace as replaceLocalFavorites,
 } from '@/lib/favoritesStore';
-import { favoritesQueryKeys, type FavoriteItem } from '@/lib/queries/favorites';
-import type { PaginatedResponse } from '@/types/api';
+import { favoritesQueryKeys, fetchAllFavoritePropertyIds } from '@/lib/queries/favorites';
 
 type AuthContextValue = {
   user: User | null;
@@ -57,7 +56,7 @@ type AuthContextValue = {
    * aucun — mesuré au navigateur le 2026-09-10, c'était le cas des trois écrans d'entrée. Gardé
    * par `__tests__/AuthContext.chemin-unique.test.ts`.
    */
-  openSession: (token: string, user: User) => Promise<void>;
+  openSession: (token: string, user: User, expiresAt?: string) => Promise<void>;
   /**
    * Revoke the backend token, clear the auth cookies, and drop everything the session left on the
    * client — token, user, React Query cache, local favorites store (TCK-509). Does not navigate —
@@ -121,12 +120,9 @@ export function AuthProvider({
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiRequest<PaginatedResponse<FavoriteItem>>(
-          '/api/favorites?per_page=100',
-          { token },
-        );
+        const ids = await fetchAllFavoritePropertyIds(token);
         if (cancelled) return;
-        replaceLocalFavorites(res.data.map((f) => f.property_id));
+        replaceLocalFavorites(ids);
         void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
       } catch {
         // Best-effort — leave the store as-is on failure.
@@ -211,17 +207,18 @@ export function AuthProvider({
     }
   }, []);
 
-  const persistToken = useCallback(async (next: string) => {
+  // TCK-589 — `expires_at` voyage avec le jeton : le cookie ne lui survit jamais.
+  const persistToken = useCallback(async (next: string, expiresAt?: string) => {
     await fetch('/api/auth/set-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: next }),
+      body: JSON.stringify({ token: next, expires_at: expiresAt }),
     });
   }, []);
 
   const openSession = useCallback(
-    async (next: string, nextUser: User) => {
-      await persistToken(next);
+    async (next: string, nextUser: User, expiresAt?: string) => {
+      await persistToken(next, expiresAt);
       // Push anon favourites BEFORE seeding so the seed effect sees them.
       await syncLocalFavorites(next);
       // Rien de ce qui a été lu sous l'identité précédente — ou sans identité — ne sert la
@@ -243,7 +240,7 @@ export function AuthProvider({
         // will re-invoke login() with `two_factor_code` or `recovery_code`.
         return res;
       }
-      await openSession(res.token, res.user);
+      await openSession(res.token, res.user, res.expires_at);
       return res;
     },
     [openSession],
@@ -251,8 +248,8 @@ export function AuthProvider({
 
   const register = useCallback(
     async (payload: RegisterPayload) => {
-      const { token: next, user: u } = await apiRegister(payload);
-      await openSession(next, u);
+      const { token: next, user: u, expires_at: expiresAt } = await apiRegister(payload);
+      await openSession(next, u, expiresAt);
       return u;
     },
     [openSession],

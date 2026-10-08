@@ -73,20 +73,18 @@ class CataloguePublicCacheTest extends ApiTestCase
     }
 
     /**
-     * LA mesure du ticket. Elle ASSERTE LA DIVERGENCE, et c'est délibéré.
+     * LA mesure de TCK-341 — qui assertait la DIVERGENCE, et le disait : « si ce test rougit parce
+     * que les deux corps sont devenus identiques, c'est une bonne nouvelle, et la décision doit
+     * alors être RELUE ». **C'est arrivé avec TCK-598, et elle a été relue** (ADR-0052 §1,
+     * commentaire de la route dans `routes/api/public.php`).
      *
-     * `actingAs()` ne prouverait rien ici : il pose l'utilisateur sur le garde,
-     * ce qui rend la variance trivialement vraie. On envoie donc un jeton
-     * Sanctum réel sur une route SANS `auth:sanctum` — exactement ce qu'un
-     * navigateur connecté fait en visitant une fiche publique.
-     *
-     * ⚠ SI CE TEST ROUGIT PARCE QUE LES DEUX CORPS SONT DEVENUS IDENTIQUES,
-     * c'est une bonne nouvelle et non une régression : cela voudra dire que
-     * `PropertyResource` ne dépend plus de l'appelant, et la décision de
-     * TCK-341 (« ni `public` ni ETag sur `{slug}` ») doit alors être RELUE,
-     * pas contournée.
+     * Le test garde sa forme — un jeton Sanctum RÉEL, sur une route sans `auth:sanctum` — et
+     * asserte désormais l'IDENTITÉ : `ResolveActiveProfile` propage toujours le porteur au garde
+     * par défaut (TCK-179), mais `PropertyResource` ne lit plus l'appelant sur une route
+     * `public.*`. Le cas du jeton du PROPRIÉTAIRE (qui ouvre `viewRaw`) est dans
+     * `PropertyCollaboratorsNotExposedTest`.
      */
-    public function test_la_fiche_publique_repond_un_corps_different_a_un_porteur_de_jeton(): void
+    public function test_la_fiche_publique_rend_le_meme_corps_a_un_porteur_de_jeton(): void
     {
         $bien = $this->bienPublie();
         $user = User::factory()->create();
@@ -94,19 +92,10 @@ class CataloguePublicCacheTest extends ApiTestCase
         $anonyme = $this->getJson("/api/public/properties/{$bien->slug}")->assertOk();
         $porteur = $this->getJson("/api/public/properties/{$bien->slug}", $this->porteur($user))->assertOk();
 
-        $clesAnonymes = array_keys((array) $anonyme->json('data'));
-        $clesPorteur = array_keys((array) $porteur->json('data'));
-
-        $this->assertSame(
-            self::CHAMPS_AUTHENTIFIES,
-            array_values(array_diff($clesPorteur, $clesAnonymes)),
-            'Un JETON SANCTUM RÉEL suffit à changer le corps de `/public/properties/{slug}`, alors que '
-            .'la route ne porte pas `auth:sanctum` : `ResolveActiveProfile` propage le porteur au garde '
-            .'par défaut (TCK-179). Tant que cette divergence existe, la route ne peut pas devenir '
-            .'`Cache-Control: public` — un cache partagé resservirait la variante authentifiée.',
-        );
-
-        $this->assertNotSame($anonyme->getContent(), $porteur->getContent());
+        foreach (self::CHAMPS_AUTHENTIFIES as $champ) {
+            $porteur->assertJsonMissingPath("data.{$champ}");
+        }
+        $this->assertSame($anonyme->getContent(), $porteur->getContent());
     }
 
     /**
@@ -130,21 +119,20 @@ class CataloguePublicCacheTest extends ApiTestCase
     }
 
     /**
-     * `show()` ÉCRIT — elle incrémente `views_count`, que la même ressource
-     * émet. Deux appels anonymes identiques ne rendent donc pas le même corps.
-     * C'est la seconde raison, indépendante de la première, pour laquelle un
-     * ETag n'aurait rien à garantir ici.
+     * `show()` écrivait — elle incrémentait `views_count`, que la même ressource émet, et deux
+     * appels identiques ne rendaient pas le même corps. TCK-598 a sorti le comptage de la lecture
+     * (`POST …/view`, `PropertyViewCounter`) : deux appels identiques rendent désormais le même
+     * corps, ce dont dépend le cache de données de la fiche côté front (ADR-0052).
      */
-    public function test_deux_appels_anonymes_identiques_sur_la_fiche_ne_rendent_pas_le_meme_corps(): void
+    public function test_deux_appels_anonymes_identiques_sur_la_fiche_rendent_le_meme_corps(): void
     {
         $bien = $this->bienPublie();
 
         $premier = $this->getJson("/api/public/properties/{$bien->slug}")->assertOk();
         $second = $this->getJson("/api/public/properties/{$bien->slug}")->assertOk();
 
-        $this->assertSame(1, $premier->json('data.views_count'));
-        $this->assertSame(2, $second->json('data.views_count'), 'show() incrémente views_count et le sérialise.');
-        $this->assertNotSame($premier->getContent(), $second->getContent());
+        $this->assertSame(0, $premier->json('data.views_count'));
+        $this->assertSame($premier->getContent(), $second->getContent(), 'show() ne doit plus rien écrire.');
     }
 
     // ── AC1 — la revalidation ────────────────────────────────────────────────

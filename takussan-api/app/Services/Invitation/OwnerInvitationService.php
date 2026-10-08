@@ -60,7 +60,9 @@ class OwnerInvitationService
         $this->assertAgencyCanInvite($agency);
         $this->assertInviterCanInvite($inviter, $agency);
 
-        $email = CaseInsensitive::fold(trim((string) $data['email']));
+        // TCK-589 — e-mail facultatif quand un numéro est donné (drapeau
+        // `auth.phone_login.enabled`) : l'invitation part alors par SMS.
+        $email = filled($data['email'] ?? null) ? CaseInsensitive::fold(trim((string) $data['email'])) : null;
         $ownerType = (string) ($data['owner_type'] ?? 'individual');
 
         if ($ownerType === 'company' && empty(trim((string) ($data['company_name'] ?? '')))) {
@@ -69,7 +71,9 @@ class OwnerInvitationService
             ])->status(422);
         }
 
-        $this->assertNoActiveOwnerInAgency($agency, $email);
+        if ($email !== null) {
+            $this->assertNoActiveOwnerInAgency($agency, $email);
+        }
 
         return DB::transaction(function () use ($agency, $inviter, $email, $ownerType, $data): Invitation {
             $profile = OwnerProfile::query()->create([
@@ -91,6 +95,7 @@ class OwnerInvitationService
 
             $invitation = $this->invitations->send([
                 'email' => $email,
+                'phone' => $this->cleanString($data['phone'] ?? null),
                 'role' => 'owner',
                 'invitable_type' => OwnerProfile::class,
                 'invitable_id' => $profile->id,
@@ -128,7 +133,7 @@ class OwnerInvitationService
         // TCK-449 (AC5) — même règle que l'invitation d'agents et que le
         // rattachement direct, lue au même endroit. Seul le LIBELLÉ diffère :
         // ici on parle de portefeuille de propriétaires, pas d'équipe.
-        AgencyKindGuard::ensureCanFormTeam($agency, 'owners.invite.errors.individual_agency');
+        AgencyKindGuard::ensureCanFormTeam($agency, owners: true);
     }
 
     /**

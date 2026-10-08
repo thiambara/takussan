@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\Capability;
+use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
+use Closure;
 
 /**
  * TCK-305 — extrait de CustomerController::setPrimaryContact(), où les règles étaient écrites en ligne.
@@ -26,14 +30,37 @@ class SetPrimaryContactCustomerRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('view', $this->route('customer')) === true;
+        $customer = $this->route('customer');
+        $user = $this->user();
+
+        // TCK-591 — désigner le référent est un geste gardé par `crm.assign` dans l'agence du
+        // client : la capacité n'avait aucun lecteur, et tout lecteur de la fiche le désignait.
+        return $user?->can('view', $customer) === true
+            && $user->can(Capability::CrmAssign->value, $customer);
     }
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'exists:users,id'],
+            'user_id' => [
+                'required',
+                'integer',
+                'exists:users,id',
+                // TCK-591 — le référent est du PERSONNEL de l'agence du client (agent, admin
+                // d'agence). `exists:users,id` acceptait n'importe quel compte de la plateforme,
+                // un agent d'une autre agence ou un bailleur compris.
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    $agencyId = $this->route('customer')?->agency_id;
+                    $target = User::find((int) $value);
+                    // TCK-587 — la cible est PERSONNEL actif de l'agence de la fiche.
+                    $isStaff = $agencyId !== null && $target !== null
+                        && app(MembershipCapabilityResolver::class)->isStaffAt($target, (int) $agencyId);
+                    if (! $isStaff) {
+                        $fail(__('crm.customers.primary_contact_not_staff'));
+                    }
+                },
+            ],
         ];
     }
 }

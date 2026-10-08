@@ -63,32 +63,40 @@ const ATTENDU: Record<string, string[]> = {
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
+  // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
+  // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
   owner: [
-    '/app', '/app/properties', '/app/favorites', '/app/saved-searches', '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
+    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
+    '/app/bookings',
+    '/app/maintenance', '/app/leases', '/app/payments', '/app/profile/reviews', '/app/messages',
+    '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/calendar',
+    '/app/visits', '/app/leads', '/app/calendar',
   ],
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
-    '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
-    '/app/inventories', '/app/visits', '/app/calendar', '/app/leases/onboarding-pending',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
+    '/app/messages', '/app/documents',
+    // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
+    '/app/overview', '/app/overview/exports', '/app/customers',
+    '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
+    '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin',
   ],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
+    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
+    '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin',
   ],
   // Son métier, et rien d'autre : interventions, messagerie, documents (§1.8 de features.md).
@@ -123,8 +131,9 @@ const SOCLE = ['/app', '/app/messages', '/app/documents'];
  * quelque part » —, pas une preuve de justesse. La table `ATTENDU` ci-dessus est
  * ce qui juge du détail.
  *
- * Vérifié par ablation : remettre `'broker' => BrokerProfile::class` dans
- * `TYPE_MAP` fait rougir ce test en nommant `broker`.
+ * Vérifié par ablation (TCK-495) : remettre l'alias `broker` dans `TYPE_MAP`
+ * faisait rougir ce test en le nommant. Le courtier a depuis quitté le code
+ * (ADR-0030) ; un alias sans écran ajouté demain rougirait de même.
  */
 const RESOLVER_PHP = join(
   dirname(fileURLToPath(import.meta.url)),

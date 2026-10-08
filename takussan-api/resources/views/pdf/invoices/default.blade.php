@@ -15,9 +15,25 @@
     ]];
 @endphp
 
+@php
+    // TCK-594 (ADR-0039 §7) — un avoir se dit tel, avec la facture qu'il annule ; les mentions
+    // légales de l'agence s'impriment quand elles existent, jamais un libellé vide.
+    $isCreditNote = ($invoice->kind?->value ?? $invoice->kind) === 'credit_note';
+    $credited = $isCreditNote ? $invoice->creditedInvoice : null;
+    $legal = array_filter([
+        'Raison sociale' => $agency?->legal_name,
+        'NINEA' => $agency?->ninea,
+        'RCCM' => $agency?->rccm,
+        'Adresse' => $agency?->legal_address,
+    ], static fn ($value): bool => is_string($value) && trim($value) !== '');
+@endphp
+
 @section('content')
-    <h1>Facture</h1>
+    <h1>{{ $isCreditNote ? 'Avoir' : 'Facture' }}</h1>
     <p class="muted">N° {{ $invoice->reference_number ?? 'INV-'.$invoice->id }}</p>
+    @if ($credited)
+        <p class="muted">Annule la facture n° {{ $credited->reference_number }}</p>
+    @endif
 
     <table class="kv">
         <tr>
@@ -107,5 +123,13 @@
     @if ($invoice->notes)
         <h2>Notes</h2>
         <p>{{ $invoice->notes }}</p>
+    @endif
+
+    @if ($legal !== [])
+        <p class="muted legal-mentions">
+            @foreach ($legal as $label => $value)
+                {{ $label }} : {{ $value }}@if (! $loop->last) — @endif
+            @endforeach
+        </p>
     @endif
 @endsection

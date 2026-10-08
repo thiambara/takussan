@@ -4,11 +4,13 @@ namespace App\Models\Concerns;
 
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -54,11 +56,6 @@ trait HasProfiles
         return $this->hasMany(AgencyAdminProfile::class);
     }
 
-    public function brokerProfile(): HasOne
-    {
-        return $this->hasOne(BrokerProfile::class);
-    }
-
     public function serviceProviderProfile(): HasOne
     {
         return $this->hasOne(ServiceProviderProfile::class);
@@ -79,21 +76,8 @@ trait HasProfiles
      * Eloquent : précharger via `$user->load(['ownerProfiles', 'agentProfiles',
      * 'agencyAdminProfiles', 'serviceProviderProfile'])` en amont si besoin.
      *
-     * ⚠ **TCK-495 — `brokerProfile` a été RETIRÉ d'ici, et ce n'était pas
-     * optionnel.** Les trois appelants de cette méthode — le sélecteur
-     * (`MeProfilesController`), l'auto-bascule (`ResolveActiveProfile`) et
-     * `User::getAgencyIdAttribute()` — traitent tous son résultat comme « un
-     * profil qu'on peut rendre actif ». Or `ProfileResource` appelle
-     * `ActiveProfileResolver::aliasFor()`, qui **lève une
-     * `InvalidArgumentException` pour une classe absente de `TYPE_MAP`.
-     * Retirer l'alias sans retirer le profil d'ici aurait donc rendu **500** sur
-     * `GET /api/me/profiles` à tout compte portant un `BrokerProfile` — et les
-     * seeders en créent un (`UserSeeder`, `TestSeeder`). Le ticket ne
-     * l'anticipait pas ; `ProfilesEndpointTest` l'épingle maintenant.
-     *
-     * La relation `brokerProfile()` reste, et les lectures de modèle aussi
-     * (admin, export RGPD, `PropertyResource`) : ce qui disparaît est la
-     * COMMUTATION, pas la donnée.
+     * TCK-495 a retiré le courtier de cette liste (ADR-0027), et ADR-0030 l'a
+     * retiré du code et de la base : les profils polymorphes sont cinq.
      */
     public function profiles(): Collection
     {
@@ -125,8 +109,8 @@ trait HasProfiles
     /**
      * Whether the user holds a profile of the given concrete class. When
      * `$agencyId` is given, restrict the check to that agency for profile
-     * classes that are agency-scoped (Owner, Agent). Broker/ServiceProvider
-     * are user-scoped and ignore `$agencyId`.
+     * classes that are agency-scoped (Owner, Agent, AgencyAdmin).
+     * ServiceProvider is user-scoped and ignores `$agencyId`.
      */
     public function hasProfile(string $class, ?int $agencyId = null): bool
     {
@@ -140,17 +124,37 @@ trait HasProfiles
             AgencyAdminProfile::class => $agencyId === null
                 ? $this->agencyAdminProfiles()->exists()
                 : $this->agencyAdminProfiles()->where('agency_id', $agencyId)->exists(),
-            BrokerProfile::class => $this->brokerProfile()->exists(),
             ServiceProviderProfile::class => $this->serviceProviderProfile()->exists(),
             default => false,
         };
     }
 
+    /**
+     * TCK-587 (ADR-0031 §3) — `isOwnerAt`, `isAgentAt` et `isAgencyAdminAt` jugent un DROIT : ils ne
+     * comptent que les profils ACTIFS. Ils ne filtraient que `deleted_at` (redondant : les trois
+     * modèles sont `SoftDeletes`), si bien qu'un co-admin suspendu suspendait encore les autres
+     * (`AgentInvitationService::suspend`). Un site qui teste une APPARTENANCE — doublon
+     * d'invitation, réactivation, liste d'équipe — emploie {@see self::hasProfileAt()}, sans filtre
+     * de statut.
+     */
     public function isOwnerAt(int $agencyId): bool
     {
         return $this->ownerProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
+            ->exists();
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §2, vérification adverse m3) — bailleur SUSPENDU dans cette agence
+     * (`blocked`, par `POST /api/agencies/{a}/team/{u}/suspend`). Il reste partie à ses baux et en
+     * garde la lecture ; il en perd les écritures dans cette agence.
+     */
+    public function isBlockedOwnerAt(int $agencyId): bool
+    {
+        return $this->ownerProfiles()
+            ->where('agency_id', $agencyId)
+            ->where('status', OwnerProfileStatus::Blocked->value)
             ->exists();
     }
 
@@ -158,7 +162,7 @@ trait HasProfiles
     {
         return $this->agentProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 
@@ -166,21 +170,25 @@ trait HasProfiles
     {
         return $this->agencyAdminProfiles()
             ->where('agency_id', $agencyId)
-            ->whereNull('deleted_at')
+            ->active()
             ->exists();
     }
 
+    /**
+     * TCK-592 (B13) — une collaboration `paused` ou `ended` ne fait plus un prestataire de l'agence.
+     */
     public function isProviderAt(int $agencyId): bool
     {
         return $this->serviceProviderProfile()
-            ->whereHas('agencyCollaborations', fn ($q) => $q->where('agency_id', $agencyId))
+            ->whereHas('agencyCollaborations', fn ($q) => $q
+                ->where('agency_id', $agencyId)
+                ->where('status', CollaborationStatus::Active->value))
             ->exists();
     }
 
     public function isProfessional(): bool
     {
         return $this->agentProfiles()->exists()
-            || $this->brokerProfile()->exists()
             || $this->serviceProviderProfile()->exists();
     }
 
@@ -233,12 +241,8 @@ trait HasProfiles
         if ($this->ownerProfiles()->exists()) {
             $types->push('owner');
         }
-        // TCK-495 — `broker` était poussé ici. Il ne l'est plus : le courtier
-        // sort de la surface commutable (ADR-0027). La ligne de base survit,
-        // l'alias non — et ce `roles` est ce que le front lit pour bâtir son
-        // menu. Émettre un rôle auquel `buildNavItems` n'associe aucune entrée
-        // rend une barre latérale au socle nu ; le laisser sortir d'ici est ce
-        // qui empêche ce cas d'exister.
+        // Le courtier n'est plus un profil (ADR-0030) : `roles` ne nomme que
+        // ce à quoi `buildNavItems` côté front associe une entrée de menu.
         if ($this->serviceProviderProfile()->exists()) {
             $types->push('service_provider');
         }
@@ -307,13 +311,34 @@ trait HasProfiles
      */
     public function hasActiveSuperAdminProfile(): bool
     {
+        return $this->activePlatformLevel() === PlatformProfileLevel::SuperAdmin;
+    }
+
+    /**
+     * TCK-600 (ADR-0047) — un `PlatformProfile` ACTIF, de quelque niveau que ce soit : la
+     * condition d'entrée dans la console, et ce qui interdit d'impersonner un compte.
+     */
+    public function hasActivePlatformProfile(): bool
+    {
+        return $this->activePlatformLevel() !== null;
+    }
+
+    /** TCK-600 — le niveau du profil plateforme ACTIF, ou `null`. */
+    public function activePlatformLevel(): ?PlatformProfileLevel
+    {
         $profile = $this->relationLoaded('platformProfile')
             ? $this->platformProfile
             : $this->platformProfile()->active()->first();
 
-        return $profile !== null
-            && $profile->isActive()
-            && $profile->level === PlatformProfileLevel::SuperAdmin;
+        return $profile !== null && $profile->isActive() ? $profile->level : null;
+    }
+
+    /** TCK-600 (ADR-0047) — l'opérateur détient-il ce geste de la console ? */
+    public function hasPlatformAbility(PlatformAbility $ability): bool
+    {
+        $level = $this->activePlatformLevel();
+
+        return $level !== null && $ability->grantedTo($level);
     }
 
     /**

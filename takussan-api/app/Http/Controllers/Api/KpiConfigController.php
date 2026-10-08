@@ -21,11 +21,13 @@ class KpiConfigController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->agency_id || $user->isSuperAdmin(), 403);
+        // TCK-587 — configuration de l'agence : son PERSONNEL (ADR-0031), plus tout membre.
+        $staffAgencyId = $user->staffAgencyId();
+        abort_code_unless($staffAgencyId !== null || $user->isSuperAdmin(), 403, 'agency.staff_only');
 
         $base = KpiConfig::query();
         if (! $user->isSuperAdmin()) {
-            $base->where('agency_id', $user->agency_id);
+            $base->where('agency_id', $staffAgencyId);
         }
 
         $paginator = KpiConfig::buildQuery($base, $request)
@@ -42,7 +44,7 @@ class KpiConfigController extends Controller
         $validated = $request->validated();
 
         $agencyId = $validated['agency_id'] ?? $user->agency_id;
-        abort_unless($agencyId, 422, 'agency_id is required.');
+        abort_code_unless($agencyId, 422, 'agency.id_required');
 
         if (! $user->isSuperAdmin()) {
             abort_unless((int) $agencyId === (int) $user->agency_id, 403);

@@ -2,15 +2,19 @@
 
 namespace App\Services\Model;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Events\Booking\BookingClosed;
+use App\Events\Booking\BookingRequested;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
+use App\Services\Booking\PropertyAvailabilityService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +25,7 @@ class BookingService
         protected NotificationService $notifications,
         protected BookingQuote $quotes,
         protected CustomerService $customers,
+        protected PropertyAvailabilityService $availability,
     ) {}
 
     /** @var array<int,PropertyStatus> */
@@ -49,28 +54,31 @@ class BookingService
      */
     public function create(Property $property, User $user, array $data): Booking
     {
-        abort_if(
+        abort_code_if(
             in_array($property->status, self::UNBOOKABLE_STATUSES, true),
             422,
-            'This property is not available for booking.'
+            'booking.property_unavailable'
         );
 
         // Owners cannot book their own property (admins can still act on their behalf).
-        abort_if(
+        abort_code_if(
             $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
-            'You cannot book your own property.'
+            'booking.own_property'
         );
 
+        // TCK-587 (ADR-0031) — le PERSONNEL de l'agence du bien. La clause « même agence » valait
+        // pour un autre bailleur de l'agence : il réservait un bien privé ou non publié, sans
+        // client. Il suit désormais le chemin du client. Le disjoint `$property->user_id ===
+        // $user->id` était mort : le propriétaire est refusé plus haut.
         $isStaff = $user->isSuperAdmin()
-            || ($user->agency_id && $property->agency_id && $user->agency_id === $property->agency_id)
-            || $property->user_id === $user->id;
+            || ($property->agency_id !== null && $user->staffAgencyId() === (int) $property->agency_id);
 
         if (! $isStaff) {
-            abort_unless(
+            abort_code_unless(
                 Property::query()->where('id', $property->id)->public()->exists(),
                 403,
-                'This property is not available for booking.'
+                'booking.property_unavailable'
             );
         }
 
@@ -96,30 +104,25 @@ class BookingService
         // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
         $data = array_merge($data, $this->pricedAmounts($property, $data));
 
-        $booking = Booking::create(array_merge($data, [
-            'reference_number' => ReferenceNumberGenerator::booking(),
-            'created_by_id' => $user->id,
-            'agency_id' => $property->agency_id,
-            'status' => BookingStatus::Pending->value,
-            'expires_at' => $data['expires_at'] ?? now()->addDays(7),
-        ]));
+        // TCK-596 — une demande sur des nuits déjà confirmées est refusée dès la demande, sous le
+        // verrou de la ligne du bien que `confirm` prend aussi.
+        $booking = DB::transaction(function () use ($property, $user, $data): Booking {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+            $this->availability->assertAvailable($property, $data['start_date'] ?? null, $data['end_date'] ?? null);
 
-        // Notify the landlord (property owner)
-        $recipients = collect();
-        $owner = $property->owner;
-        if ($owner) {
-            $recipients->push($owner);
-        }
+            return Booking::create(array_merge($data, [
+                'reference_number' => ReferenceNumberGenerator::booking(),
+                'created_by_id' => $user->id,
+                'agency_id' => $property->agency_id,
+                'status' => BookingStatus::Pending->value,
+                'expires_at' => $data['expires_at'] ?? now()->addDays(7),
+            ]));
+        });
 
-        $this->notifications->notifyMany(
-            $recipients,
-            NotificationType::Booking,
-            'Nouvelle réservation',
-            'Une réservation a été créée pour '.$property->title.'.',
-            ['booking_id' => $booking->id],
-            referenceableType: 'booking',
-            referenceableId: $booking->id,
-        );
+        // TCK-596 — prévenir qui doit traiter la demande (bailleur, personnel, agent du bien) est
+        // le rôle de `NotifyOnBookingRequested`, partagé avec la demande publique : ici, le seul
+        // bailleur l'était, et jamais l'agent du bien.
+        BookingRequested::dispatch($booking, $user->id);
 
         return $booking;
     }
@@ -162,10 +165,10 @@ class BookingService
 
     public function confirm(Booking $booking): Booking
     {
-        abort_unless(
+        abort_code_unless(
             $booking->status === BookingStatus::Pending,
             422,
-            'Only pending bookings can be confirmed.'
+            'booking.not_pending_confirm'
         );
 
         // Serialize confirmations on the same property: without a lock two
@@ -175,12 +178,16 @@ class BookingService
         // re-assert state under the lock.
         $booking = DB::transaction(function () use ($booking) {
             Property::query()->whereKey($booking->property_id)->lockForUpdate()->first();
+            // TCK-596 — la ligne de la réservation aussi : l'expiration la verrouille
+            // (`BookingExpirationService::expire`), et une confirmation relue avant qu'une
+            // expiration ne valide écrasait `expired` par `confirmed`.
+            Booking::query()->whereKey($booking->getKey())->lockForUpdate()->first();
 
             $booking->refresh();
-            abort_unless(
+            abort_code_unless(
                 $booking->status === BookingStatus::Pending,
                 422,
-                'Only pending bookings can be confirmed.'
+                'booking.not_pending_confirm'
             );
 
             $this->assertNoOverlap($booking);
@@ -195,44 +202,41 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation confirmée',
-                'Votre réservation '.$booking->reference_number.' a été confirmée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingConfirmed, $booking);
         }
 
         return $booking;
     }
 
-    public function reject(Booking $booking, ?string $reason = null): Booking
+    public function reject(Booking $booking, ?string $reason = null, ?User $by = null): Booking
     {
-        abort_unless(
-            $booking->status === BookingStatus::Pending,
-            422,
-            'Only pending bookings can be rejected.'
-        );
+        // VERIF-596 m2 (même défaut que `cancel`) — sous le verrou de la ligne, relue : un refus lu
+        // avant qu'une expiration ne valide écrasait `expired` et fermait la réservation deux fois.
+        $booking = DB::transaction(function () use ($booking, $reason): Booking {
+            /** @var Booking $locked */
+            $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            abort_code_unless(
+                $locked->status === BookingStatus::Pending,
+                422,
+                'booking.not_pending_reject'
+            );
 
-        $booking->update([
-            'status' => BookingStatus::Rejected,
-            'cancelled_at' => now(),
-            'cancellation_reason' => $reason,
-        ]);
+            $locked->update([
+                'status' => BookingStatus::Rejected,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $reason,
+            ]);
 
-        $booking->refresh();
+            return $locked->refresh();
+        });
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation refusée',
-                'Votre réservation '.$booking->reference_number.' a été refusée.',
-                ['booking_id' => $booking->id],
-            );
+            $this->notifyBooking($customer, NotificationCode::BookingRejected, $booking);
         }
+
+        // TCK-596 — un acompte encaissé sur une demande refusée devient une tâche.
+        BookingClosed::dispatch($booking, BookingClosed::REASON_REJECTED, $by?->id);
 
         return $booking;
     }
@@ -241,69 +245,59 @@ class BookingService
      * Reject the confirmation if another confirmed booking already
      * overlaps the target booking's date range on the same property.
      * Bookings without dates are skipped (open-ended reservations).
+     *
+     * TCK-596 — délègue à `PropertyAvailabilityService`, en semi-ouvert : les bornes fermées
+     * refusaient un séjour qui arrive le jour du départ d'un autre.
      */
     protected function assertNoOverlap(Booking $booking): void
     {
-        if (! $booking->start_date || ! $booking->end_date) {
-            return;
-        }
-
-        $overlap = Booking::query()
-            ->where('property_id', $booking->property_id)
-            ->where('id', '!=', $booking->id)
-            ->where('status', BookingStatus::Confirmed)
-            ->whereNotNull('start_date')
-            ->whereNotNull('end_date')
-            ->where(function ($q) use ($booking) {
-                $q->where('start_date', '<=', $booking->end_date)
-                    ->where('end_date', '>=', $booking->start_date);
-            })
-            ->exists();
-
-        abort_if(
-            $overlap,
-            422,
-            'Another confirmed booking already overlaps these dates on this property.'
-        );
+        $this->availability->assertAvailable($booking->property_id, $booking->start_date, $booking->end_date, $booking);
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
     {
-        abort_if(
-            in_array($booking->status, self::TERMINAL_CANCEL_STATUSES, true),
-            422,
-            'Booking cannot be cancelled in its current state.'
-        );
-
-        $property = $booking->property;
-        if ($user->id === $booking->customer?->user_id) {
-            $by = CancellationBy::Customer;
-        } elseif ($property && $property->user_id === $user->id) {
-            $by = CancellationBy::Owner;
-        } else {
-            $by = CancellationBy::Agent;
-        }
-
-        $booking->update([
-            'status' => BookingStatus::Cancelled,
-            'cancelled_at' => now(),
-            'cancellation_by' => $by,
-            'cancellation_reason' => $reason,
-        ]);
-
-        $booking->refresh();
-
-        $customer = $booking->customer?->user;
-        if ($customer) {
-            $this->notifications->notify(
-                $customer,
-                NotificationType::Booking,
-                'Réservation annulée',
-                'Votre réservation '.$booking->reference_number.' a été annulée.',
-                ['booking_id' => $booking->id],
+        // VERIF-596 m2 — le contrôle terminal se fait sous le verrou de la ligne, relue : une
+        // annulation lue avant qu'une expiration ne valide écrasait `expired` par `cancelled`, et la
+        // réservation était fermée deux fois (`BookingClosed` expiré PUIS annulé, deux avis).
+        $booking = DB::transaction(function () use ($booking, $user, $reason): Booking {
+            /** @var Booking $locked */
+            $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            abort_code_if(
+                in_array($locked->status, self::TERMINAL_CANCEL_STATUSES, true),
+                422,
+                'booking.cannot_cancel'
             );
-        }
+
+            $property = $locked->property;
+            if ($user->id === $locked->customer?->user_id) {
+                $by = CancellationBy::Customer;
+            } elseif ($property && $property->user_id === $user->id) {
+                $by = CancellationBy::Owner;
+            } else {
+                $by = CancellationBy::Agent;
+            }
+
+            $locked->update([
+                'status' => BookingStatus::Cancelled,
+                'cancelled_at' => now(),
+                'cancellation_by' => $by,
+                'cancellation_reason' => $reason,
+            ]);
+
+            return $locked->refresh();
+        });
+
+        // TCK-596 — l'annulation prévient toutes les parties prenantes MOINS son auteur
+        // (`NotifyOnBookingCancelled`), et un acompte encaissé ouvre une tâche
+        // (`OpenBookingRefundTask`). Seul le client était prévenu, même quand il annulait lui-même.
+        BookingClosed::dispatch($booking, BookingClosed::REASON_CANCELLED, $user->id);
 
         return $booking;
+    }
+
+    /** TCK-588 (ADR-0032) — une notification de réservation, rendue dans la langue de son destinataire. */
+    private function notifyBooking(User $to, NotificationCode $code, Booking $booking): void
+    {
+        $this->notifications->send($to, $code, BookingNotificationParams::for($booking, $code), BookingNotificationParams::target($booking));
     }
 }

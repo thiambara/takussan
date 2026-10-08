@@ -1,18 +1,23 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
+use App\Http\Controllers\Api\Agency\AgingBalanceController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
+use App\Http\Controllers\Api\Agency\TeamPerformanceController;
 use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
 use App\Http\Controllers\Api\AgencyController;
 use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgencyStatsController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\Api\ServiceProviderProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +28,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     Route::delete('agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
+    // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
+    // TCK-589 — 2FA exigée (`ProtectedActions::AGENCY_TWO_FACTOR`), pas de step-up : l'écran
+    // confirme par une server action, qui ne sait pas rejouer après la saisie d'un TOTP.
+    Route::post('agencies/{agency}/payout-threshold/confirm', [AgencyController::class, 'confirmPayoutThreshold'])
+        ->name('agencies.payout-threshold.confirm');
 
     // Agent management (legacy aliases kept — /members is the TCK-015 canonical path).
     Route::post('agencies/{agency}/agents', [AgencyController::class, 'addAgent'])->name('agencies.agents.store');
@@ -36,11 +46,22 @@ Route::middleware('auth:sanctum')->group(function () {
     // Agency-scoped member role assignment.
     Route::put('agencies/{agency}/members/{user}/role', [AgencyMemberRoleController::class, 'update'])->name('agencies.members.role.update');
 
+    // TCK-587 — suspendre / réactiver un membre DANS l'agence (ADR-0031 §2).
+    Route::post('agencies/{agency}/team/{user}/suspend', [TeamMemberSuspensionController::class, 'suspend'])->name('agencies.team.suspend');
+    Route::post('agencies/{agency}/team/{user}/reactivate', [TeamMemberSuspensionController::class, 'reactivate'])->name('agencies.team.reactivate');
+
     // TCK-106 — bulk regenerate watermarks for all property photos in an agency.
     Route::post('agencies/{agency}/regenerate-watermarks', RegenerateWatermarksController::class)->name('agencies.regenerate-watermarks');
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
+
+    // TCK-595 (§6, §7) — pilotage : performance d'équipe (agences `standard`) et balance âgée.
+    Route::get('agencies/{agency}/team-performance', [TeamPerformanceController::class, 'show'])->name('agencies.team-performance');
+    Route::get('agencies/{agency}/finance/aging', [AgingBalanceController::class, 'show'])->name('agencies.finance.aging');
+
+    // TCK-589 §7 — mise en service : sept étapes lues sur l'état réel.
+    Route::get('agencies/{agency}/setup-status', AgencySetupStatusController::class)->name('agencies.setup-status');
 
     // Agency KYC dossier.
     Route::get('agencies/{agency}/kyc', [KycController::class, 'show'])->name('agencies.kyc.show');
@@ -61,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Resend / revoke réutilisent les routes génériques /api/invitations/{id}/*
     // exposées par TCK-249 (InvitationController).
     Route::post('agencies/{agency}/owners/invite', OwnerInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.owners.invite');
 
     // TCK-258 — équipe : listing membres + invitation agent. Resend / revoke
@@ -69,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
         ->name('agencies.team.index');
     Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.agents.invite');
 
     // TCK-266 — Console agence : queue locataires avec onboarding bloqué
@@ -84,7 +107,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/service-providers', [ServiceProviderProfileController::class, 'index'])
         ->name('agencies.serviceProviders.index');
     Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.serviceProviders.invite');
+    // TCK-592 — pause, reprise, fin de la collaboration (jamais `delete()`).
+    Route::patch('agencies/{agency}/service-providers/{sp_profile}/collaboration', [ServiceProviderCollaborationController::class, 'updateForAgency'])
+        ->whereNumber('sp_profile')
+        ->name('agencies.serviceProviders.collaboration.update');
 
     // TCK-267 — agency-side upgrade request flow (`individual → standard`).
     // Submission is multipart (statuts_doc upload). Revoke is reachable

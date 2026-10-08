@@ -25,6 +25,9 @@ import {
   BookmarkCheck,
   ClipboardList,
   ClipboardCheck,
+  MessageSquareQuote,
+  Inbox,
+  HandCoins,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -38,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
+import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 
 /**
  * Une entrée porte une CLÉ de libellé, pas un libellé.
@@ -89,7 +93,7 @@ export const SECTION_LABEL_KEYS: Record<NavSection, string | null> = {
 };
 
 /** Clé du compteur porté par une entrée. Le rendu la résout, la donnée ne connaît aucun nombre. */
-export type NavCounterKey = 'unreadMessages' | 'pendingVisits';
+export type NavCounterKey = 'unreadMessages' | 'pendingVisits' | 'unhandledLeads';
 
 export interface NavItem {
   href: string;
@@ -161,6 +165,17 @@ export function buildNavItems(user: User): NavItem[] {
       section: 'catalog',
       emphasized: true,
     });
+  } else if (isOwner(roles)) {
+    // TCK-587 (ADR-0031) — le bailleur hors personnel ne publie pas : il PROPOSE un bien à son
+    // agence, qui le relit et le publie (`PropertyController::store` impose brouillon + privé).
+    // L'hôte d'une agence individuelle est son administrateur : il garde « Publier un bien ».
+    items.push({
+      href: '/app/properties/new',
+      labelKey: 'proposeProperty',
+      icon: PlusCircle,
+      section: 'catalog',
+      emphasized: true,
+    });
   }
 
   // Discovery shortcuts (Wave 3 / TCK-047).
@@ -205,6 +220,19 @@ export function buildNavItems(user: User): NavItem[] {
 
   if (isAgent(roles) || isAdmin(roles) || isServiceProvider(roles)) {
     items.push({ href: '/app/maintenance', labelKey: isServiceProvider(roles) ? 'interventions' : 'maintenance', icon: Wrench, section: 'requests' });
+  }
+
+  // TCK-597 (A15) — la boîte des avis reçus : bailleur, agent, admin d'agence. Elle vit sur la
+  // page des avis du profil. Le prestataire y a aussi sa boîte, sans entrée de menu : ses quatre
+  // entrées tiennent sans césure, et une cinquième en imposerait une.
+  if (!isCustomerOnly(roles) && (isOwner(roles) || isAgent(roles) || isAdmin(roles))) {
+    items.push({ href: '/app/profile/reviews', labelKey: 'receivedReviews', icon: MessageSquareQuote, section: 'engagements' });
+  }
+
+  // TCK-595 (ADR-0049 §3) — le grand livre des commissions : l'agent y lit ses lignes, l'admin
+  // d'agence toutes celles de l'agence (avec « marquer payée » et « annuler »).
+  if (isAgent(roles) || isAdmin(roles)) {
+    items.push({ href: '/app/commissions', labelKey: 'commissions', icon: HandCoins, section: 'engagements' });
   }
 
   // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global
@@ -253,7 +281,12 @@ export function buildNavItems(user: User): NavItem[] {
   // servis ici — `isProRouteLocked` inclut `agent` depuis TCK-284, sans quoi
   // un agent d'agence `individual` cliquait une entrée d'apparence normale
   // pour se faire renvoyer en silence.
-  if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
+  //
+  // TCK-595 (AC17 bis) — plus pour l'agent : les chiffres consolidés s'ouvrent par
+  // `reports.view_agency` (rôle d'admin d'agence), l'API rend 403 à l'agent et le layout de la page
+  // le renvoie sur sa vue. L'agent qui détient la capacité par un rôle personnalisé lit l'agence
+  // par la bascule « Agence » de sa propre vue.
+  if (roles.includes('agency_admin') || isAdmin(roles)) {
     items.push({ href: '/app/overview/agency', labelKey: 'agencyView', icon: BarChart3, section: 'manage' });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
@@ -307,6 +340,12 @@ export function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/bookings', labelKey: isCustomerOnly(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'requests' });
     // TCK-075 visits — customers see their requests, agents see what to manage.
     items.push({ href: '/app/visits', labelKey: isCustomerOnly(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'requests', counterKey: 'pendingVisits' });
+  }
+  // TCK-590 — la boîte « Demandes » : les messages laissés sur le site public, avec le nombre de
+  // non traitées. Même audience que l'agenda : le bailleur est destinataire des demandes de ses
+  // biens quand aucun agent n'en est le contact.
+  if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
+    items.push({ href: '/app/leads', labelKey: 'leads', icon: Inbox, section: 'requests', counterKey: 'unhandledLeads' });
   }
   // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
   if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
@@ -542,12 +581,14 @@ export function AppSidebar({
   const counted = countersToPoll(navItems);
   const unreadMessages = useUnreadCount({ enabled: counted.has('unreadMessages') });
   const pendingVisits = usePendingVisitsCount({ enabled: counted.has('pendingVisits') });
+  const unhandledLeads = useUnhandledLeadsCount({ enabled: counted.has('unhandledLeads') });
   // Une requête en échec rend `data === undefined` : le compteur vaut 0, et 0 ne s'affiche pas.
   // C'est la même branche que « rien en attente » — délibérément : le menu n'est pas l'endroit
   // où l'on apprend qu'un endpoint est tombé.
   const counters: Record<NavCounterKey, number> = {
     unreadMessages,
     pendingVisits: pendingVisits.data?.meta.total ?? 0,
+    unhandledLeads: unhandledLeads.data?.meta?.total ?? 0,
   };
 
   const activeHref = resolveActiveHref(

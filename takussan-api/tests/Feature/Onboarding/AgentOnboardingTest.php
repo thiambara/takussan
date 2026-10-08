@@ -11,12 +11,12 @@ use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
-use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\ReadsPhoneCodes;
 use Tests\TestCase;
 
 /**
@@ -34,7 +34,7 @@ use Tests\TestCase;
  */
 class AgentOnboardingTest extends TestCase
 {
-    use RefreshDatabase;
+    use ReadsPhoneCodes, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -90,7 +90,7 @@ class AgentOnboardingTest extends TestCase
         $agent = AgentProfile::factory()->create(['user_id' => $user->id]);
         Sanctum::actingAs($user);
 
-        $license = UploadedFile::fake()->image('license.jpg');
+        $license = UploadedFile::fake()->image('license.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/agent-profiles/{$agent->id}/kyc/upload", [
             'file' => $license,
             'kind' => 'license',
@@ -105,7 +105,7 @@ class AgentOnboardingTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.type', DocumentType::IdCard->value);
 
-        $photo = UploadedFile::fake()->image('photo.jpg');
+        $photo = UploadedFile::fake()->image('photo.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/agent-profiles/{$agent->id}/kyc/upload", [
             'file' => $photo,
             'kind' => 'photo',
@@ -238,7 +238,7 @@ class AgentOnboardingTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $this->assertNotNull($code);
 
         $response = $this->postJson('/api/agent/onboard/complete', [

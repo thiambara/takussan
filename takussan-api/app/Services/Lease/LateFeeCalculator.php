@@ -3,10 +3,12 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeasePaymentLateFeeApplied;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +24,8 @@ use Illuminate\Support\Facades\DB;
  * The basis is the **remaining amount** (`amount - paid_amount`) — partial
  * payments only attract a penalty on what is still owed.
  *
- * A global cap can be set via `Setting('late_fees.cap_percent')` (treated
+ * A cap can be set via `Setting('late_fees.cap_percent')` — the lease's agency row, else the
+ * global one (TCK-600, verif-600 H1) — (treated
  * as % of `amount`) — applied as an upper clamp on the computed fee.
  *
  * Idempotency: once `late_fee_applied_at` is set on a `LeasePayment`,
@@ -50,9 +53,18 @@ class LateFeeCalculator
             return 0.0;
         }
 
-        $fee = round($base * $percent / 100, 2);
+        // TCK-593 — arrondie à l'UNITÉ de la devise, au plus proche, la moitié vers le haut : une
+        // devise sans sous-unité (XOF) se compte en unités entières. Une pénalité de 7 500,05
+        // était transmise au fournisseur, qui encaissait 7 500, puis le webhook était refusé pour
+        // sous-paiement — le locataire, débité, voyait encore « Payer ».
+        $fee = round($base * $percent / 100, $this->decimalPlaces($payment), PHP_ROUND_HALF_UP);
 
         return $this->applyCap($payment, $fee);
+    }
+
+    protected function decimalPlaces(LeasePayment $payment): int
+    {
+        return Currency::decimalPlacesOf($payment->currency ?? $payment->lease?->currency);
     }
 
     /**
@@ -123,7 +135,10 @@ class LateFeeCalculator
                 ->lockForUpdate()
                 ->first();
 
-            if ($locked === null || $locked->late_fee_applied_at !== null) {
+            // VERIF-596 passe 6 (m-h) — rejugé sous verrou : une échéance réglée ou annulée (par un
+            // renouvellement) depuis la sélection du job ne prend pas de pénalité.
+            if ($locked === null || $locked->late_fee_applied_at !== null
+                || ! in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::PartiallyPaid, PaymentStatus::Late], true)) {
                 return 0.0;
             }
 
@@ -160,26 +175,26 @@ class LateFeeCalculator
     }
 
     /**
-     * Optional global cap from `Setting('late_fees.cap_percent')` —
+     * Optional cap from `Setting('late_fees.cap_percent')` — the lease's agency row, else the global
+     * one (TCK-600, verif-600 H1) —
      * treated as a % of `amount` (the original due, not the remaining).
      */
     protected function applyCap(LeasePayment $payment, float $fee): float
     {
-        $cap = $this->capPercent();
+        $cap = $this->capPercent($payment->lease?->agency_id);
         if ($cap === null) {
             return $fee;
         }
 
-        $ceiling = round(((float) $payment->amount) * $cap / 100, 2);
+        $ceiling = round(((float) $payment->amount) * $cap / 100, $this->decimalPlaces($payment), PHP_ROUND_HALF_UP);
 
         return min($fee, $ceiling);
     }
 
-    protected function capPercent(): ?float
+    protected function capPercent(?int $agencyId = null): ?float
     {
-        $row = Setting::query()
-            ->where('key', 'late_fees.cap_percent')
-            ->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row('late_fees.cap_percent', $agencyId);
 
         if ($row === null) {
             return null;

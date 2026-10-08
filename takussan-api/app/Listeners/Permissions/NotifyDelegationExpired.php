@@ -2,12 +2,16 @@
 
 namespace App\Listeners\Permissions;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Events\Permissions\RoleDelegationExpired;
-use App\Models\Enums\NotificationChannel;
-use App\Models\Enums\NotificationType;
-use App\Models\RoleDelegation;
 use App\Services\Model\NotificationService;
 
+/**
+ * TCK-588 (ADR-0032) — le bénéficiaire et le délégant reçoivent chacun le code de leur côté,
+ * rendu dans LEUR langue : `__()` rendait les deux dans la langue du processus, c'est-à-dire
+ * de l'acteur.
+ */
 class NotifyDelegationExpired
 {
     public function __construct(
@@ -17,44 +21,25 @@ class NotifyDelegationExpired
     public function handle(RoleDelegationExpired $event): void
     {
         $delegation = $event->delegation;
+        // TCK-591 (ADR-0035) — une absence n'est pas une délégation de rôle : ce texte annonce un
+        // rôle accordé, et l'absence n'en accorde aucun.
+        if ($delegation->isAbsence()) {
+            return;
+        }
         $user = $delegation->user;
         $delegator = $delegation->delegator;
         $role = $delegation->role;
+        $target = NotificationTarget::of('team');
 
         // Notify beneficiary
-        $this->notificationService->notify(
-            user: $user,
-            type: NotificationType::RoleDelegationExpired,
-            title: __('role_delegations.notifications.expired.title', ['role' => $role]),
-            body: __('role_delegations.notifications.expired.body_beneficiary', ['role' => $role]),
-            data: [
-                'role' => $role,
-                'agency_id' => $delegation->agency_id,
-                'is_critical' => false,
-            ],
-            channel: NotificationChannel::App,
-            referenceableType: RoleDelegation::class,
-            referenceableId: $delegation->id,
-        );
+        $this->notificationService->send($user, NotificationCode::RoleDelegationExpired, ['role' => $role], $target);
 
         // Notify delegator
-        $this->notificationService->notify(
-            user: $delegator,
-            type: NotificationType::RoleDelegationExpired,
-            title: __('role_delegations.notifications.expired.title', ['role' => $role]),
-            body: __('role_delegations.notifications.expired.body_delegator', [
-                'beneficiary' => $user->first_name.' '.$user->last_name,
+        if ($delegator) {
+            $this->notificationService->send($delegator, NotificationCode::RoleDelegationExpiredDelegator, [
                 'role' => $role,
-            ]),
-            data: [
-                'role' => $role,
-                'agency_id' => $delegation->agency_id,
-                'beneficiary_id' => $user->id,
-                'is_critical' => false,
-            ],
-            channel: NotificationChannel::App,
-            referenceableType: RoleDelegation::class,
-            referenceableId: $delegation->id,
-        );
+                'beneficiary' => trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
+            ], $target);
+        }
     }
 }

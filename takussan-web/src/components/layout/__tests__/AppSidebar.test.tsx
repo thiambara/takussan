@@ -23,6 +23,7 @@ import {
   groupBySection,
   withSectionHeadings,
   SECTION_ORDER,
+  type NavCounterKey,
   type NavItem,
 } from '../AppSidebar';
 import { AdminSidebar } from '../AdminSidebar';
@@ -46,6 +47,12 @@ vi.mock('@/components/chat-widget/useUnreadCount', () => ({
 const pendingVisitsMock = vi.fn<(options: OptionsDeSondage) => ReponseCompteur>(() => ({}));
 vi.mock('@/lib/queries/visits', () => ({
   usePendingVisitsCount: (options: OptionsDeSondage = {}) => pendingVisitsMock(options),
+}));
+
+// TCK-590 — le troisième compteur : les demandes de contact non traitées.
+const unhandledLeadsMock = vi.fn<(options: OptionsDeSondage) => ReponseCompteur>(() => ({}));
+vi.mock('@/lib/queries/contact-leads', () => ({
+  useUnhandledLeadsCount: (options: OptionsDeSondage = {}) => unhandledLeadsMock(options),
 }));
 
 // `AdminSidebar` sonde deux files de modération ; on ne teste ici que son `aria-current`.
@@ -100,6 +107,8 @@ beforeEach(() => {
   unreadMock.mockReturnValue(0);
   pendingVisitsMock.mockReset();
   pendingVisitsMock.mockReturnValue({ data: undefined });
+  unhandledLeadsMock.mockReset();
+  unhandledLeadsMock.mockReturnValue({ data: undefined });
 });
 
 /**
@@ -147,22 +156,27 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
-    '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
-    '/app/inventories', '/app/visits', '/app/calendar', '/app/leases/onboarding-pending',
+    // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
+    '/app/overview', '/app/overview/exports', '/app/customers',
+    '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
+    '/app/profile/reviews', '/app/commissions',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
+    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
   ],
+  // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
+  // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
   owner: [
-    '/app', '/app/properties', '/app/favorites', '/app/saved-searches', '/app/bookings',
+    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
+    '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/calendar',
+    '/app/visits', '/app/leads', '/app/calendar', '/app/profile/reviews',
   ],
   // TCK-379 — ce relevé figeait le comportement d'AVANT : le prestataire recevait
   // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
@@ -171,7 +185,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   // TCK-494 avait ajouté ici une ligne `broker: ['/app', '/app/messages',
   // '/app/documents']` — le socle nu, c'est-à-dire un rôle qui n'ouvre RIEN.
   // TCK-495 a tranché ce constat : le courtier sort de la surface commutable
-  // (ADR-0027) et n'est plus émis par `profileTypes()`, donc plus un `UserRole`.
+  // (ADR-0027), puis quitte le code (ADR-0030) : il n'est plus un `UserRole`.
   // La ligne n'est pas devenue fausse, elle n'a plus de sujet.
   service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
   super_admin: [
@@ -179,15 +193,16 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
+    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
   ],
 };
 
 const ROLES = Object.keys(HREFS_PAR_ROLE) as UserRole[];
 
 /**
- * Les DEUX seules entrées comptées, et le compteur que chacune porte — **écrit ici, à la main**.
+ * Les TROIS seules entrées comptées (la troisième, `/app/leads`, depuis TCK-590), et le compteur
+ * que chacune porte — **écrit ici, à la main**.
  *
  * C'est la seconde moitié de l'indépendance de l'AC6. Le jeu sondé attendu se dérive de
  * {@link HREFS_PAR_ROLE} et de cette correspondance ; il ne se dérive PAS de `item.counterKey`,
@@ -195,14 +210,15 @@ const ROLES = Object.keys(HREFS_PAR_ROLE) as UserRole[];
  * `countersToPoll` ne pourrait plus rougir sur une erreur de ce prédicat — c'est exactement ce
  * qu'il faisait avant, et il a survécu à la mutation qui armait les deux compteurs en dur.
  */
-const COMPTEUR_PAR_HREF: Record<string, 'unreadMessages' | 'pendingVisits'> = {
+const COMPTEUR_PAR_HREF: Record<string, NavCounterKey> = {
   '/app/messages': 'unreadMessages',
   '/app/visits': 'pendingVisits',
+  '/app/leads': 'unhandledLeads',
 };
 
 /** Ce qu'un rôle DOIT sonder, déduit de sa ligne de la table et de rien d'autre. */
-function sondesAttendues(role: UserRole): Set<'unreadMessages' | 'pendingVisits'> {
-  const cles = new Set<'unreadMessages' | 'pendingVisits'>();
+function sondesAttendues(role: UserRole): Set<NavCounterKey> {
+  const cles = new Set<NavCounterKey>();
   for (const href of HREFS_PAR_ROLE[role]) {
     const cle = COMPTEUR_PAR_HREF[href];
     if (cle) cles.add(cle);
@@ -317,13 +333,16 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
     },
   );
 
-  it('les 23 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  // TCK-590 — 23 → 24 : la boîte « Demandes de contact » (`/app/leads`).
+  // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
+  // TCK-595 — 25 → 26 : le grand livre des commissions (`/app/commissions`).
+  it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(23);
+    expect(items).toHaveLength(26);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(23);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(26);
   });
 
   it('un rôle sans catalogue ne voit aucune césure vide', () => {
@@ -336,8 +355,10 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
     renderSidebar(['agency_admin'], '/app');
     for (const libelle of ['CATALOGUE', 'DÉCOUVRIR', 'DEMANDES', 'ENGAGEMENTS', 'PILOTAGE']) {
       // Les en-têtes sont mis en capitales par CSS (`uppercase`) : on cherche le texte SOURCE.
+      // TCK-590 — correspondance EXACTE : l'entrée « Demandes de contact » contient « Demandes »,
+      // et une recherche partielle trouvait deux éléments.
       expect(
-        screen.getByText(libelle.charAt(0) + libelle.slice(1).toLowerCase(), { exact: false }),
+        screen.getByText(libelle.charAt(0) + libelle.slice(1).toLowerCase(), { exact: true }),
       ).toBeInTheDocument();
     }
   });
@@ -521,7 +542,7 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
     const jamaisSondees = ROLES.filter((role) => !sondesAttendues(role).has('pendingVisits'));
     // TCK-494 avait ajouté `broker` à cette liste — un courtier ne sondait aucune visite parce
     // qu'il n'avait AUCUNE entrée de menu au-delà du socle. La ligne disait le défaut au lieu de
-    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus. Le prestataire reste
+    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus (ADR-0030). Le prestataire reste
     // seul, et pour une raison qui, elle, est voulue : ses visites ne le concernent pas.
     expect(jamaisSondees).toEqual(['service_provider']);
   });

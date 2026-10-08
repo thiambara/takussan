@@ -2,11 +2,16 @@
 
 namespace App\Services\Model;
 
-use App\Models\Enums\NotificationType;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payments\PaymentGatewayService;
+use Illuminate\Support\Facades\DB;
 
 class LeasePaymentService
 {
@@ -32,46 +37,83 @@ class LeasePaymentService
     /**
      * @param  array<string,mixed>  $data
      */
-    public function markPaid(LeasePayment $payment, array $data = []): LeasePayment
+    public function markPaid(LeasePayment $payment, array $data = [], ?User $by = null): LeasePayment
     {
-        abort_unless(
-            in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
-            422,
-            'Only pending or late payments can be marked paid.'
-        );
+        // VERIF-596 passe 6 (M-G) — relue SOUS VERROU et jugée sur la ligne, comme
+        // `LateFeeSettlement::markPaid`. Sur l'instance liée par la route, une échéance qu'un
+        // renouvellement venait d'annuler (`cancelled`) était réécrite `paid` : l'`UPDATE` attendait
+        // le verrou du renouvellement puis passait, la matrice jugeant sur l'original `pending`.
+        $payment = DB::transaction(function () use ($payment, $data, $by): LeasePayment {
+            /** @var LeasePayment $locked */
+            $locked = LeasePayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
-        $payment->update([
-            'status' => PaymentStatus::Paid,
-            'paid_at' => $data['paid_at'] ?? now(),
-            'payment_method' => $data['payment_method'] ?? $payment->payment_method,
-            'transaction_id' => $data['transaction_id'] ?? $payment->transaction_id,
-        ]);
+            // TCK-594 (VERIF-594 passe 4, P4-7) — la ligne d'une caution rendue se règle par son
+            // reversement (`PayoutService::markProcessed`), jamais à la main : marquée payée, le refus
+            // de la restitution la laissait `paid`, et la restitution suivante en créait une seconde.
+            abort_code_if(
+                $locked->payment_type === LeasePaymentType::DepositRefund,
+                422,
+                'lease_payment.deposit_refund_paid_by_payout'
+            );
 
-        $payment->refresh();
+            abort_code_if($locked->status === PaymentStatus::Cancelled, 409, 'lease_payment.cancelled');
+            abort_code_unless(
+                in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
+                422,
+                'lease_payment.cannot_mark_paid'
+            );
 
-        // Notify tenant and landlord
+            // TCK-593 (vérification adverse, V3) — un règlement manuel pendant qu'un checkout est
+            // ouvert ferait encaisser l'échéance deux fois : refusé tant que le checkout vit.
+            $gateway = app(PaymentGatewayService::class);
+            // Passe 2, M5 — le personnel peut passer outre, motif à l'appui (la requête en réserve le
+            // droit au personnel de l'agence) : le checkout écarté, payé quand même, sera un doublon
+            // signalé (V3).
+            $overridden = null;
+            if (! empty($data['override_open_checkout'])) {
+                $overridden = $gateway->supersedeOpenCheckout($locked, (string) ($data['override_reason'] ?? ''));
+            } else {
+                $gateway->assertNoOpenCheckout($locked);
+            }
+            $gateway->markManualSettlement($locked);
+
+            $locked->update([
+                'status' => PaymentStatus::Paid,
+                'paid_at' => $data['paid_at'] ?? now(),
+                'payment_method' => $data['payment_method'] ?? $locked->payment_method,
+                'transaction_id' => $data['transaction_id'] ?? $locked->transaction_id,
+            ]);
+
+            $locked->refresh();
+
+            if ($overridden !== null) {
+                $gateway->logCheckoutOverride($locked, $by, $overridden, 'mark_paid');
+            }
+
+            return $locked;
+        });
+
+        // Notify tenant and landlord — TCK-588 : le reçu du bailleur nomme le bien et le locataire.
         $lease = $payment->lease;
         if ($lease) {
+            $lease->loadMissing(['property', 'tenant.user', 'landlord']);
             $tenantUser = $lease->tenant?->user;
             $landlord = $lease->landlord;
+            $amount = NotificationRenderer::money($payment->amount, $payment->currency);
+            $target = NotificationTarget::of('lease', $lease->id);
 
             if ($tenantUser) {
-                $this->notifications->notify(
-                    $tenantUser,
-                    NotificationType::Payment,
-                    'Paiement enregistré',
-                    'Votre paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
-                    ['lease_payment_id' => $payment->id],
-                );
+                $this->notifications->send($tenantUser, NotificationCode::LeasePaymentRecorded, [
+                    'amount' => $amount,
+                    'property' => $lease->property?->title,
+                ], $target);
             }
             if ($landlord) {
-                $this->notifications->notify(
-                    $landlord,
-                    NotificationType::Payment,
-                    'Paiement reçu',
-                    'Un paiement de '.$payment->amount.' '.$payment->currency?->value.' a été enregistré.',
-                    ['lease_payment_id' => $payment->id],
-                );
+                $this->notifications->send($landlord, NotificationCode::LeasePaymentReceivedLandlord, [
+                    'amount' => $amount,
+                    'property' => $lease->property?->title,
+                    'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
+                ], $target);
             }
         }
 

@@ -2,6 +2,7 @@
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type { CalendarResponse, CalendarEventType } from '@/types/calendar';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-072 — React Query hook pour `/api/calendar`.
@@ -24,6 +25,8 @@ export type UseCalendarParams = {
   property_id?: number | null;
   /** Si vide ou absent → les deux types sont retournés côté back. */
   types?: readonly CalendarEventType[];
+  /** TCK-591 — « Mes rendez-vous » : ce qui m'est assigné, à moi seul. */
+  mine?: boolean;
   /** Désactive la requête (utile le temps que le range soit calculé). */
   enabled?: boolean;
 };
@@ -33,10 +36,11 @@ function buildCalendarPath(params: UseCalendarParams): string {
   qs.set('start_date', params.start_date);
   qs.set('end_date', params.end_date);
   if (params.property_id) qs.set('property_id', String(params.property_id));
+  if (params.mine) qs.set('mine', '1');
   if (params.types && params.types.length > 0) {
     for (const t of params.types) qs.append('types[]', t);
   }
-  return `/api/calendar?${qs.toString()}`;
+  return cheminApi`/api/calendar?${qs.toString()}`;
 }
 
 export const calendarQueryKeys = {

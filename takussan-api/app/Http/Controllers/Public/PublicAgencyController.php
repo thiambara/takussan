@@ -9,12 +9,9 @@ use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
@@ -206,18 +203,22 @@ class PublicAgencyController extends Controller
 
     public function show(Request $request, string $slug): JsonResponse
     {
+        // TCK-600 (ADR-0048) — une agence suspendue ou désactivée quitte le site : la fiche suit
+        // l'annuaire (`index`), qui ne liste que les agences `active`.
         $agency = Agency::query()
             ->where('slug', $slug)
+            ->where('status', AgencyStatus::Active)
             ->with('addresses')
             ->first();
 
         abort_if($agency === null, 404);
 
         // Base query (non limitée) — sert aux stats globales.
+        // TCK-598 (V15) — `publicPortfolio()`, le prédicat de l'index des profils (même motif que
+        // `PublicAgentController::show()`), ici et aux trois requêtes suivantes.
         $portfolioBase = fn () => Property::query()
             ->where('agency_id', $agency->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public);
+            ->publicPortfolio();
 
         $portfolio = $portfolioBase()
             ->with('address')
@@ -229,7 +230,10 @@ class PublicAgencyController extends Controller
         $rentCount = $portfolioBase()->where('contract_type', ContractType::Rent)->count();
         $saleCount = $portfolioBase()->where('contract_type', ContractType::Sale)->count();
         $portfolioTotal = $portfolioBase()->count();
-        $citiesCount = $portfolioBase()
+        // Jointure : le portefeuille entre par sa sous-requête d'identifiants, sans quoi les
+        // colonnes nues du scope (`status`, `visibility`) deviendraient ambiguës (piège n°7).
+        $citiesCount = Property::query()
+            ->whereIn('properties.id', $portfolioBase()->select('properties.id'))
             ->join('addresses', function ($join) {
                 $join->on('addresses.addressable_id', '=', 'properties.id')
                     ->where('addresses.addressable_type', '=', Property::class);
@@ -254,8 +258,7 @@ class PublicAgencyController extends Controller
 
         $publisherUserIds = Property::query()
             ->where('agency_id', $agency->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public)
+            ->publicPortfolio()
             ->distinct()
             ->pluck('user_id');
 
@@ -270,8 +273,7 @@ class PublicAgencyController extends Controller
             ? collect()
             : Property::query()
                 ->where('agency_id', $agency->id)
-                ->where('status', PropertyStatus::Available)
-                ->where('visibility', PropertyVisibility::Public)
+                ->publicPortfolio()
                 ->whereIn('user_id', $teamUserIds)
                 ->selectRaw('user_id, COUNT(*) as cnt')
                 ->groupBy('user_id')
@@ -285,12 +287,12 @@ class PublicAgencyController extends Controller
         // 2026-09-24). `rolesPublics()` ne connaît aucune agence : un agent ou un admin actif de
         // l'agence B qui publie ici, en bailleur, un bien sous l'enseigne A y était présenté en
         // agent, et compté dans `stats.agents`. Le rôle retenu est la CONJONCTION : la règle
-        // publique, et un profil actif ici (ou un courtier, qui n'appartient à aucune agence).
+        // publique, et un profil actif ici. (Un courtier était compté ici sans appartenir à
+        // aucune agence ; le courtier a quitté le code, ADR-0030.)
         $professionnelsIci = $teamUserIds->isEmpty()
             ? collect()
             : AgentProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id')
                 ->merge(AgencyAdminProfile::query()->active()->where('agency_id', $agency->id)->whereIn('user_id', $teamUserIds)->pluck('user_id'))
-                ->merge(BrokerProfile::query()->whereIn('user_id', $teamUserIds)->pluck('user_id'))
                 ->map(fn ($id) => (int) $id)
                 ->flip();
 
@@ -374,7 +376,7 @@ class PublicAgencyController extends Controller
      */
     public function properties(Request $request, string $slug)
     {
-        $agency = Agency::query()->where('slug', $slug)->first();
+        $agency = Agency::query()->where('slug', $slug)->where('status', AgencyStatus::Active)->first();
 
         abort_if($agency === null, 404);
 
@@ -382,8 +384,7 @@ class PublicAgencyController extends Controller
 
         $properties = Property::query()
             ->where('agency_id', $agency->id)
-            ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public)
+            ->publicPortfolio()
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

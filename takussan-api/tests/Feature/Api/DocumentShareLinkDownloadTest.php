@@ -178,7 +178,8 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
         // La garde compare la VALEUR du mot de passe, pas sa seule présence.
         $link = $this->link(['password_hash' => bcrypt('secret1234')]);
 
-        $this->get("/api/share/{$link->token}/download?password=pas-le-bon")
+        // TCK-587 §8 — dans le corps d'un POST, jamais dans l'URL.
+        $this->post("/api/share/{$link->token}/download", ['password' => 'pas-le-bon'])
             ->assertStatus(401);
         $this->assertSame(0, $link->refresh()->downloads_count);
     }
@@ -187,7 +188,7 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
     {
         $link = $this->link(['password_hash' => bcrypt('secret1234')]);
 
-        $this->get("/api/share/{$link->token}/download?password=secret1234")
+        $this->post("/api/share/{$link->token}/download", ['password' => 'secret1234'])
             ->assertOk();
         $this->assertSame(1, $link->refresh()->downloads_count);
     }

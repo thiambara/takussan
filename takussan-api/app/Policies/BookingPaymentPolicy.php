@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class BookingPaymentPolicy extends BasePolicy
 {
-    /** Périmètre d'agence de la réservation, propriétaire du bien, ou client. */
+    /** Personnel de l'agence de la réservation, propriétaire du bien, ou client. */
     public function update(User $user, Model $model): bool
     {
         if (! $model instanceof BookingPayment) {
@@ -34,7 +34,9 @@ class BookingPaymentPolicy extends BasePolicy
             return false;
         }
 
-        return ($user->agency_id && $user->agency_id === $booking->agency_id)
+        // TCK-587 — le personnel de l'agence, plus tout membre : un bailleur de l'agence gérait les
+        // paiements des réservations des autres (ADR-0031).
+        return $this->isStaffOf($user, $booking->agency_id)
             || ($booking->property?->user_id === $user->id)
             || ($booking->customer?->user_id === $user->id);
     }

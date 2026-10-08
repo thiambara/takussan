@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
@@ -24,7 +26,19 @@ class Agency extends AbstractModel implements HasMedia
 {
     // TCK-079: Lemon Squeezy `Billable` makes Agency the scope used to
     // create checkouts (`$agency->checkout(...)->withCustomPrice(...)`).
-    use HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
+    use Auditable, HasFactory, InteractsWithMedia, LemonSqueezyBillable, Searchable, SoftDeletes;
+
+    /**
+     * TCK-601 — liste blanche du journal : jamais `metadata` (dont `legal_info`), ni les coordonnées.
+     * Raccord TCK-594 : ses mentions légales y sont (le NINEA d'une agence est public, décision du
+     * 2026-10-08). Le seuil d'approbation n'y est pas : son service écrit lui-même
+     * `agency_payout_threshold_changed`, avec l'ancienne et la nouvelle valeur.
+     */
+    public const AUDIT_ONLY = [
+        'commission_rate', 'status', 'kind', 'is_verified',
+        'moderation_required', 'bank_csv_mapping', 'primary_admin_id',
+        'legal_name', 'ninea', 'rccm', 'legal_address', 'default_tax_rate',
+    ];
 
     protected $fillable = [
         'name', 'slug', 'kind', 'license_number', 'description',
@@ -32,6 +46,11 @@ class Agency extends AbstractModel implements HasMedia
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
         'moderation_required', 'bank_csv_mapping',
+        // TCK-594 (ADR-0039 §5, §7) — TVA par défaut et mentions légales (personne morale :
+        // imprimées sur chaque facture). Le seuil d'approbation n'est PAS ici : il ne s'écrit que
+        // par `PayoutApprovalThreshold` (capacité, deux approbateurs, trace).
+        'default_tax_rate',
+        'legal_name', 'ninea', 'rccm', 'legal_address',
     ];
 
     protected $casts = [
@@ -47,6 +66,11 @@ class Agency extends AbstractModel implements HasMedia
         'settings' => 'array',
         'moderation_required' => 'boolean',
         'bank_csv_mapping' => 'array',
+        'payout_approval_threshold' => 'decimal:2',
+        'default_tax_rate' => 'decimal:2',
+        // VERIF-594 M-2 — un relâchement du seuil en attente d'un second détenteur.
+        'pending_payout_threshold' => 'decimal:2',
+        'pending_payout_threshold_requested_at' => 'datetime',
     ];
 
     protected $attributes = [
@@ -67,7 +91,40 @@ class Agency extends AbstractModel implements HasMedia
         'id', 'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
+        // TCK-594 (ADR-0039 §4, §7) — l'écran des réglages les relit ; `AgencyResource` les rend déjà.
+        'payout_approval_threshold', 'default_tax_rate', 'legal_name', 'ninea', 'rccm', 'legal_address',
     ];
+
+    /**
+     * TCK-593 — l'agence encaisse-t-elle la pénalité de retard avec le paiement en ligne ?
+     *
+     * Interrupteur de comportement porté par `settings` (même motif que `watermark_enabled` ou
+     * `tenant_onboarding_enabled`). **Absent = `false`** : une agence neuve ne l'a pas, et la
+     * pénalité se règle alors auprès d'elle, jamais dans le checkout.
+     */
+    public function collectsLateFeesOnline(): bool
+    {
+        return (bool) data_get($this->settings, 'late_fee_online_collection', false);
+    }
+
+    /**
+     * TCK-601 — jamais `legal_info.rib_pro`, quel que soit le chemin : `include=agency` (dont
+     * `GET /api/owners`) rend l'agence par `toArray()`, sans passer par `AgencyResource`.
+     * La migration l'a retiré et le flip ne le recopie plus ; ceci couvre une donnée qui leur serait
+     * antérieure. Le NINEA reste : c'est une mention légale publique (décision du 2026-10-08, TCK-594).
+     *
+     * @return array<string,mixed>
+     */
+    public function attributesToArray(): array
+    {
+        $attributes = parent::attributesToArray();
+
+        if (is_array($attributes['metadata'] ?? null)) {
+            Arr::forget($attributes['metadata'], 'legal_info.rib_pro');
+        }
+
+        return $attributes;
+    }
 
     protected static function booted(): void
     {

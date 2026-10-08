@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\AddAgentAgencyRequest;
+use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
 use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
@@ -12,11 +13,15 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Payout\PayoutApprovalThreshold;
 use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -43,10 +48,10 @@ class AgencyController extends Controller
         $user = $request->user();
 
         $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
-        abort_if(
+        abort_code_if(
             $alreadyOwns && ! ($user->isSuperAdmin()),
             422,
-            'You already administer an agency.'
+            'agency.already_administered'
         );
 
         $data = $request->validated();
@@ -83,7 +88,45 @@ class AgencyController extends Controller
 
         $data = $request->validated();
 
+        // TCK-594 (ADR-0039 §4) — le seuil ne passe jamais par `fill()` : il a sa propre capacité,
+        // sa règle des deux approbateurs et sa trace. Jugé AVANT l'écriture du reste : un 422 sur le
+        // seuil n'enregistre rien.
+        // VERIF-594 M-2 — un relâchement attend un second détenteur : 202, le reste enregistré.
+        $thresholdOutcome = null;
+        if (array_key_exists('payout_approval_threshold', $data)) {
+            abort_unless($request->user()->can('updatePayoutThreshold', $agency), 403);
+            $thresholdOutcome = app(PayoutApprovalThreshold::class)->change($agency, $request->user(), $data['payout_approval_threshold']);
+            unset($data['payout_approval_threshold']);
+        }
+
+        // TCK-593 — `settings` se FUSIONNE avec l'existant : le tableau validé remplaçait la
+        // colonne, et l'écran de configuration, qui n'en envoie que trois clés, effaçait toutes les
+        // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
+        // retirée, donc rendue au défaut écrit dans le code. TCK-589 en dépend aussi : poser
+        // `require_team_two_factor` seul n'efface pas les autres réglages.
+        if (array_key_exists('settings', $data)) {
+            $data['settings'] = array_filter(
+                array_replace($agency->settings ?? [], $data['settings']),
+                fn ($value) => $value !== null,
+            );
+        }
+
         $agency->fill($data)->save();
+
+        return $this->json(
+            ['data' => AgencyResource::make($agency->refresh())->toArray($request)],
+            $thresholdOutcome === PayoutApprovalThreshold::PENDING ? 202 : 200,
+        );
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4, VERIF-594 M-2) — un second détenteur de `payouts.approve` confirme le
+     * relâchement du seuil qu'un autre a demandé.
+     */
+    public function confirmPayoutThreshold(ConfirmPayoutThresholdRequest $request, Agency $agency): JsonResponse
+    {
+        // VERIF-594 passe 2, N-5 — la valeur lue et confirmée (`ConfirmPayoutThresholdRequest`).
+        app(PayoutApprovalThreshold::class)->confirm($agency, $request->user(), $request->validated('expected_threshold'));
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
     }
@@ -185,7 +228,7 @@ class AgencyController extends Controller
             ? User::findOrFail($data['user_id'])
             : User::where('email', $data['email'])->first();
 
-        abort_if($target === null, 422, __('messages.user_not_found_by_email'));
+        abort_code_if($target === null, 422, 'agency_member.user_not_found_by_email');
 
         // TCK-142 — agency attachment is now profile-driven. Block if the
         // user already has an active agent profile at a different agency,
@@ -193,7 +236,7 @@ class AgencyController extends Controller
         $existingElsewhere = $target->agentProfiles()
             ->where('agency_id', '!=', $agency->id)
             ->exists();
-        abort_if($existingElsewhere, 422, __('messages.user_already_in_agency'));
+        abort_code_if($existingElsewhere, 422, 'agency_member.already_in_other_agency');
 
         // TCK-278 — Rôle = présence d'un profil polymorphe. On crée toujours
         // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
@@ -222,47 +265,18 @@ class AgencyController extends Controller
         ]);
     }
 
-    public function removeAgent(Request $request, Agency $agency, User $user): JsonResponse
+    /**
+     * TCK-591 §8 — le retrait passe par {@see AgencyMemberRemovalService}, seul chemin (gardes,
+     * journal, portefeuille, flux) ; il s'autorise par `team.remove` dans l'agence de la route.
+     * `leave_unassigned=true` assume de laisser un portefeuille sans repreneur.
+     */
+    public function removeAgent(Request $request, Agency $agency, User $user, AgencyMemberRemovalService $removal): JsonResponse
     {
-        $this->authorizeAdmin($request, $agency);
-        $belongsToAgency = $user->agentProfiles()->where('agency_id', $agency->id)->exists();
-        abort_if(! $belongsToAgency, 422, __('messages.user_not_in_agency'));
-        abort_if($user->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
+        $this->authorize('removeMember', $agency);
 
-        // TCK-278 — Last-admin guard : maintenant que le rôle est porté par
-        // `AgencyAdminProfile`, on compte les profils admin restants (et non
-        // plus les users avec rôle spatie `agency_admin` + agent profile).
-        DB::transaction(function () use ($user, $agency) {
-            $locked = User::where('id', $user->id)->lockForUpdate()->first();
-            if ($locked && $locked->isAgencyAdminAt((int) $agency->id)) {
-                $remainingAdmins = AgencyAdminProfile::query()
-                    ->where('agency_id', $agency->id)
-                    ->whereNull('deleted_at')
-                    ->where('user_id', '!=', $user->id)
-                    // ⚠ `->get(…)->count()` et non `->count()` : PostgreSQL refuse
-                    // `FOR UPDATE` sur un agrégat (« FOR UPDATE is not allowed with
-                    // aggregate functions »), parce que les lignes à verrouiller y sont
-                    // ambiguës. On rapatrie donc les lignes — elles sont verrouillées,
-                    // ce qui est tout l'objet — et on les compte en PHP.
-                    //
-                    // L'invariant est préservé : ce sont EXACTEMENT les mêmes lignes qui
-                    // sont verrouillées, et c'est le `delete()` plus bas qui entre en
-                    // conflit avec le verrou de l'écrivain concurrent. Le compte n'a
-                    // jamais eu besoin d'être calculé côté serveur.
-                    //
-                    // Le volume est borné par le nombre d'administrateurs d'une agence :
-                    // rapatrier ces identifiants ne coûte rien.
-                    ->lockForUpdate()
-                    ->get(['id'])
-                    ->count();
-                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
-            }
+        $removed = $removal->remove($agency, $user, $request->user(), $request->boolean('leave_unassigned'));
 
-            $user->agentProfiles()->where('agency_id', $agency->id)->delete();
-            $user->agencyAdminProfiles()->where('agency_id', $agency->id)->delete();
-        });
-
-        return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
+        return $this->json(['data' => ['user_id' => $user->id, 'removed' => true, 'removed_profiles' => $removed]]);
     }
 
     /**
@@ -310,7 +324,7 @@ class AgencyController extends Controller
             ->merge($user->ownerProfiles()->pluck('agency_id'))
             // `agencyAdminProfiles` manquait, et c'est le profil qui donne le plus de droits.
             //
-            // La liste couvrait agent, owner, broker et service_provider — mais pas l'admin
+            // La liste couvrait agent, owner et service_provider — mais pas l'admin
             // d'agence. Tant que `user.agency_id` résolvait, l'agence entrait par la première
             // ligne ; pour un compte MULTI-AGENCES, `ResolveActiveProfile` refuse la bascule
             // automatique, `agency_id` vaut `null`, et l'agence dont l'utilisateur est
@@ -319,27 +333,21 @@ class AgencyController extends Controller
             // *Une liste de profils qui omet le plus privilégié ne se voit pas tant que l'autre
             // chemin fonctionne.*
             //
-            // ⚠ PAS de filtre sur `status`, et c'est une décision, pas un oubli. La colonne
-            // existe (`active`/`suspended`/`archived`), mais `HasProfiles::isAgencyAdminAt()` —
-            // qui accorde les DROITS d'admin — ne la filtre pas non plus. Filtrer ici seulement
-            // produirait l'état le plus déroutant qui soit : un administrateur suspendu qui peut
-            // agir sur l'agence sans pouvoir la lire. Les deux se décideront ensemble, dans
-            // TCK-278 (RBAC), pas à moitié dans un correctif de visibilité.
-            //
-            // *Resserrer une moitié d'une paire incohérente ne la rend pas cohérente ; cela
-            // déplace l'incohérence là où personne ne l'attend.*
+            // ⚠ PAS de filtre sur `status`, et c'est une décision, pas un oubli. La VISIBILITÉ
+            // reste une question d'appartenance : un membre suspendu voit l'agence. Ce qu'il y
+            // perd, ce sont les DROITS — et ceux-là sont filtrés depuis TCK-587 (ADR-0031 §3) :
+            // `HasProfiles::isAgencyAdminAt()`, le résolveur de capacités et le prédicat de
+            // personnel ne comptent plus que les profils actifs. Ce commentaire renvoyait la
+            // décision à TCK-278, clos sans l'avoir prise ; un administrateur suspendu agissait
+            // donc sur l'agence. La paire est désormais cohérente : lire sans agir.
             ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
-            ->merge(DB::table('broker_profiles')
-                ->join('broker_agency_collaborations', 'broker_agency_collaborations.broker_profile_id', '=', 'broker_profiles.id')
-                ->where('broker_profiles.user_id', $user->id)
-                ->whereNull('broker_profiles.deleted_at')
-                ->whereNull('broker_agency_collaborations.deleted_at')
-                ->pluck('broker_agency_collaborations.agency_id'))
             ->merge(DB::table('service_provider_profiles')
                 ->join('service_provider_agency_collaborations', 'service_provider_agency_collaborations.service_provider_profile_id', '=', 'service_provider_profiles.id')
                 ->where('service_provider_profiles.user_id', $user->id)
                 ->whereNull('service_provider_profiles.deleted_at')
                 ->whereNull('service_provider_agency_collaborations.deleted_at')
+                // TCK-592 (B13) — une collaboration `paused` ou `ended` n'ouvre plus l'agence.
+                ->where('service_provider_agency_collaborations.status', CollaborationStatus::Active->value)
                 ->pluck('service_provider_agency_collaborations.agency_id'));
 
         return $ids

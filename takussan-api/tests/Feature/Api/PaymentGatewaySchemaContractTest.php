@@ -126,7 +126,7 @@ class PaymentGatewaySchemaContractTest extends TestCase
 
         $resolve = new \ReflectionMethod(
             PaymentGatewayService::class,
-            'paymentAmount',
+            'amountDue',
         );
 
         $gateway = app(PaymentGatewayService::class);

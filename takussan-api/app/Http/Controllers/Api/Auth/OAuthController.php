@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\CallbackOAuthRequest;
-use App\Http\Resources\UserResource;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
+use App\Services\Auth\OAuthSessionOpener;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -36,7 +36,7 @@ class OAuthController extends Controller
     public function redirect(string $provider): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
-        abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($provider), 422, 'auth.oauth_not_configured');
 
         $state = Str::random(40);
         Cache::put('oauth_state:'.$state, ['provider' => $provider], now()->addMinutes(10));
@@ -53,21 +53,18 @@ class OAuthController extends Controller
     public function callback(string $provider, CallbackOAuthRequest $request): JsonResponse
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS, true), 404);
-        abort_unless($this->configuration->isConfigured($provider), 422, 'OAuth provider is not configured.');
+        abort_code_unless($this->configuration->isConfigured($provider), 422, 'auth.oauth_not_configured');
 
         $cached = Cache::pull('oauth_state:'.$request->input('state'));
-        abort_unless($cached && $cached['provider'] === $provider, 422, 'Invalid or expired OAuth state.');
+        abort_code_unless($cached && $cached['provider'] === $provider, 422, 'auth.oauth_state_invalid');
 
         /** @var SocialiteUser $socialUser */
         $socialUser = Socialite::driver($provider)->stateless()->user();
 
         // Google asserts email verification via its OIDC contract; mark verified.
         $user = $this->provisioning->provision($provider, $socialUser, markEmailVerified: true);
-        $token = $user->createToken($provider.'-oauth')->plainTextToken;
 
-        return $this->json(['data' => [
-            'token' => $token,
-            'user' => (new UserResource($user))->toArray($request),
-        ]]);
+        // TCK-589 — B2 : un compte à 2FA reçoit un défi, pas un jeton.
+        return app(OAuthSessionOpener::class)->open($user, $provider.'-oauth', $request);
     }
 }

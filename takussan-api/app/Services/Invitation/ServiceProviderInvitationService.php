@@ -71,9 +71,13 @@ class ServiceProviderInvitationService
         $this->assertAgencyCanInvite($agency);
         $this->assertInviterCanInvite($inviter, $agency);
 
-        $email = CaseInsensitive::fold(trim((string) $data['email']));
+        // TCK-589 — e-mail facultatif quand un numéro est donné (drapeau
+        // `auth.phone_login.enabled`) : l'invitation part alors par SMS.
+        $email = filled($data['email'] ?? null) ? CaseInsensitive::fold(trim((string) $data['email'])) : null;
 
-        $this->assertNoActiveServiceProviderInAgency($agency, $email);
+        if ($email !== null) {
+            $this->assertNoActiveServiceProviderInAgency($agency, $email);
+        }
 
         // TCK-262 — détection en amont : si un User existe déjà avec un
         // ServiceProviderProfile attaché (≠ draft anonyme), on **réutilise**
@@ -81,7 +85,7 @@ class ServiceProviderInvitationService
         // nouvelle agence sera créée à l'acceptation. Ça évite les
         // doublons SP profile et préserve KYC/métiers/zones/tarifs déjà
         // renseignés sur le profil maître.
-        $existingProfile = $this->lookupExistingServiceProviderForEmail($email);
+        $existingProfile = $email !== null ? $this->lookupExistingServiceProviderForEmail($email) : null;
         $existingOtherAgency = $existingProfile !== null;
 
         $trades = $this->normaliseStringList($data['trades'] ?? []);
@@ -146,6 +150,7 @@ class ServiceProviderInvitationService
 
             $invitation = $this->invitations->send([
                 'email' => $email,
+                'phone' => $this->cleanString($data['phone'] ?? null),
                 'role' => 'service_provider',
                 'invitable_type' => ServiceProviderProfile::class,
                 'invitable_id' => $profile->id,
@@ -181,7 +186,7 @@ class ServiceProviderInvitationService
     /**
      * Throws 403 if the agency is neither `standard` nor `individual`. In
      * the current data model the enum only has those two values, so this
-     * is a defensive guard against future kinds (`broker`, `community`…).
+     * is a defensive guard against future kinds.
      */
     protected function assertAgencyCanInvite(Agency $agency): void
     {

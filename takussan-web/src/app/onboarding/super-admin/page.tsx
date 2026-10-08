@@ -4,6 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { SuperAdminOnboardingWizard } from '@/components/super-admin/SuperAdminOnboardingWizard';
 import { isSuperAdmin } from '@/lib/roles';
 import { getToken } from '@/lib/session';
+import { ENROLEMENT_SUPER_ADMIN_COOPTE, configurationDoubleFacteurExigee } from '@/lib/double-facteur';
 
 /**
  * TCK-264 — Mandatory landing page for a freshly-coopted super-admin.
@@ -34,8 +35,12 @@ export default async function SuperAdminOnboardingPage() {
   // history). The 2FA flag is the source of truth for "still in
   // pending state" — once /confirm flips it, the wizard has no work
   // left to do.
-  if (isSuperAdmin(user.roles) && !user.force_2fa_at_first_login) {
-    redirect('/super-admin');
+  // TCK-589 — un super-admin confirmé sans second facteur (ou réinitialisé) n'a rien à faire dans
+  // CE parcours, réservé à la cooptation : il va à l'enrôlement ordinaire. Sans ça, la console le
+  // renverrait ici et ici vers la console — une boucle.
+  const configuration = configurationDoubleFacteurExigee(user);
+  if (isSuperAdmin(user.roles) && configuration !== ENROLEMENT_SUPER_ADMIN_COOPTE) {
+    redirect(configuration ?? '/super-admin');
   }
 
   return <SuperAdminOnboardingWizard firstName={user.first_name} />;

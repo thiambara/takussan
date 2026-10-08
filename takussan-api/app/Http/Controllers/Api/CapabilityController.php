@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\Capability;
+use App\Services\Membership\CapabilityEnforcementInventory;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -46,6 +47,10 @@ class CapabilityController extends Controller
                     static fn (Capability $c): string => $c->value,
                     Capability::platformReserved(),
                 ),
+                // TCK-587 (ADR-0031 §4) — les capacités qu'aucun geste ne juge encore, avec le
+                // ticket qui les branchera. Elles restent cochables (on prépare un rôle) ; l'éditeur
+                // dit qu'elles sont « sans effet pour l'instant ».
+                'not_enforced' => CapabilityEnforcementInventory::notEnforced(),
             ],
         ]);
     }

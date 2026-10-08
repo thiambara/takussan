@@ -35,7 +35,7 @@ class LastAdminGuardTest extends ApiTestCase
         parent::setUp();
 
         $this->agency = Agency::factory()->create();
-        $this->admin = User::factory()->create();
+        $this->admin = User::factory()->withTwoFactor()->create();
         $this->adminProfile = AgencyAdminProfile::factory()->create([
             'user_id' => $this->admin->id,
             'agency_id' => $this->agency->id,
@@ -63,8 +63,9 @@ class LastAdminGuardTest extends ApiTestCase
         ]);
 
         $response->assertStatus(422)->assertJsonValidationErrors('agency_role_id');
-        $this->assertStringContainsString(
-            'Dernier administrateur',
+        // TCK-588 — le message suit la langue de la requête ; il n'est plus du français en dur.
+        $this->assertSame(
+            __('errors.agency_role.last_administrator'),
             $response->json('errors.agency_role_id.0'),
         );
         $this->assertSame($before, $this->adminProfile->fresh()->agency_role_id);

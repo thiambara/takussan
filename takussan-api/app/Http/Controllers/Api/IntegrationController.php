@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Integrations\Providers\IntegrationProviderRegistry;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\IntegrationWebhookEndpointRequest;
 use App\Http\Requests\Api\StoreIntegrationRequest;
 use App\Http\Requests\Api\UpdateIntegrationRequest;
 use App\Http\Resources\IntegrationResource;
@@ -20,7 +22,8 @@ class IntegrationController extends Controller
 
         if (! $user->isSuperAdmin()) {
             abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
-            $base->where('agency_id', $user->agency_id);
+            // TCK-587 — un admin actif est personnel : le prédicat unique (ADR-0031 §1).
+            $base->where('agency_id', $user->staffAgencyId());
         }
 
         $paginator = Integration::buildQuery($base, $request)
@@ -28,6 +31,38 @@ class IntegrationController extends Controller
             ->paginate();
 
         return $this->paginated($paginator, IntegrationResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * TCK-602 (ADR-0051 §3) — les fournisseurs de PAIEMENT et les champs de leur schéma : le
+     * formulaire de l'agence présente exactement ce que le pilote lit, et ce que `store` exige.
+     * Même garde que la liste ; rien de secret (des noms de champs).
+     */
+    public function paymentProviders(Request $request, IntegrationProviderRegistry $registry): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user->isSuperAdmin()) {
+            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
+        }
+
+        $providers = [];
+        foreach ($registry->all() as $provider) {
+            if ($provider->category() !== 'payments') {
+                continue;
+            }
+            $providers[] = [
+                'key' => $provider->key(),
+                'label' => $provider->label(),
+                'fields' => array_map(static fn (array $field): array => [
+                    'name' => $field['name'],
+                    'type' => $field['type'],
+                    'secret' => (bool) $field['secret'],
+                    'required' => (bool) $field['required'],
+                ], $provider->schema()),
+            ];
+        }
+
+        return $this->json(['data' => $providers]);
     }
 
     public function store(StoreIntegrationRequest $request): JsonResponse
@@ -38,10 +73,10 @@ class IntegrationController extends Controller
 
         $agencyId = $data['agency_id'] ?? $user->agency_id;
 
-        abort_unless(
+        abort_code_unless(
             $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->isAgencyAdminAt((int) $agencyId)),
             403,
-            'You can only manage your own agency integrations.'
+            'integration.other_agency_forbidden'
         );
 
         // TCK-078: the Integration model casts `credentials` as
@@ -81,9 +116,58 @@ class IntegrationController extends Controller
             $data['metadata'] = [];
         }
 
+        // TCK-602 — les identifiants envoyés recouvrent les enregistrés, comme dans la console
+        // (`IntegrationService::update`) : un formulaire qui ne renvoie pas un secret masqué ne
+        // l'efface plus.
+        if (array_key_exists('credentials', $data)) {
+            $data['credentials'] = $request->mergedCredentials();
+        }
+
         $integration->fill($data)->save();
 
         return $this->json(['data' => IntegrationResource::make($integration->refresh())->toArray($request)]);
+    }
+
+    /**
+     * TCK-293 (ADR-0046 §7) — l'URL de webhook de l'intégration, à coller chez Wave (Orange Money
+     * la reçoit à chaque paiement). Elle ne passe par aucune ressource ni `fields[]` : le jeton ne
+     * sort que d'ici, pour qui peut modifier l'intégration.
+     */
+    public function webhookEndpoint(IntegrationWebhookEndpointRequest $request, Integration $integration): JsonResponse
+    {
+        abort_code_unless($integration->isPaymentIntegration(), 422, 'integration.not_payment');
+
+        return $this->json(['data' => $this->webhookEndpointPayload($integration)]);
+    }
+
+    /**
+     * TCK-293 (ADR-0046 §7) — un jeton neuf ; l'ancien ne résout plus rien dès cette écriture.
+     * Journalisé sans le jeton.
+     */
+    public function rotateWebhookEndpoint(IntegrationWebhookEndpointRequest $request, Integration $integration): JsonResponse
+    {
+        abort_code_unless($integration->isPaymentIntegration(), 422, 'integration.not_payment');
+
+        $integration->rotateWebhookToken();
+
+        activity('Integration')
+            ->causedBy($request->user())
+            ->performedOn($integration)
+            ->withProperties(['provider' => $integration->provider, 'agency_id' => $integration->agency_id])
+            ->event('webhook_token_rotated')
+            ->log('integration.webhook_token_rotated');
+
+        return $this->json(['data' => $this->webhookEndpointPayload($integration)]);
+    }
+
+    /** @return array{integration_id: int, provider: string, url: ?string} */
+    private function webhookEndpointPayload(Integration $integration): array
+    {
+        return [
+            'integration_id' => (int) $integration->id,
+            'provider' => (string) $integration->provider,
+            'url' => $integration->webhookUrl(),
+        ];
     }
 
     public function destroy(Request $request, Integration $integration): JsonResponse

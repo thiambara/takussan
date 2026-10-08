@@ -15,6 +15,9 @@ export interface VisitRequestPayload {
   visitor_email?: string;
   visitor_phone?: string;
   notes?: string;
+  /** TCK-590 — la source d'arrivée retenue pour la session (`lib/attribution.ts`). */
+  source?: string;
+  medium?: string;
 }
 
 /**
@@ -88,6 +91,9 @@ export interface OfferRequestPayload {
 }
 
 export interface ReportPayload {
-  reason: 'spam' | 'misleading' | 'fraud' | 'inappropriate_content' | 'other';
+  /** Un code : celui d'une annonce (`ReportPublicPropertyRequest`) ou d'un avis (`ReviewReportReason`). */
+  reason: string;
   details?: string;
+  /** Pot de miel : vide pour un humain (TCK-597). */
+  company?: string;
 }

@@ -7,7 +7,7 @@ import { XIcon } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { parseServerDate } from '@/lib/calendar-date';
-import { paletteFor, typeLabelKey } from './event-colors';
+import { paletteFor, typeLabelPath } from './event-colors';
 import { useDatesCalendrier } from './dates';
 import type { CalendarEvent } from '@/types/calendar';
 
@@ -78,14 +78,20 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
 
 function EventDetailBody({ event }: { event: CalendarEvent }) {
   const t = useTranslations('calendar');
+  const tRoot = useTranslations();
+  const tCrm = useTranslations('agentCrm.calendar');
   const dates = useDatesCalendrier();
   const palette = paletteFor(event);
   const openLabel =
     event.type === 'booking'
       ? t('detail.resource.booking')
-      : event.type === 'lease'
+      : event.type === 'lease' || event.type === 'lease_event'
         ? t('detail.resource.lease')
-        : t('detail.resource.visit');
+        : event.type === 'task'
+          ? tCrm('open.task')
+          : event.type === 'maintenance'
+            ? tCrm('open.maintenance')
+            : t('detail.resource.visit');
 
   return (
     <div className="flex h-full flex-col">
@@ -97,9 +103,13 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
               palette.pill,
             )}
           >
-            {t(typeLabelKey(event.type))}
+            {tRoot(typeLabelPath(event.type))}
           </span>
-          <span className="text-xs text-muted-foreground">{t(palette.labelKey)}</span>
+          <span className="text-xs text-muted-foreground">
+            {event.type === 'lease_event' && (event.kind === 'end' || event.kind === 'renewal')
+              ? tCrm(`leaseKind.${event.kind}`)
+              : t(palette.labelKey)}
+          </span>
         </div>
         <h2 className="pr-10 font-display text-lg font-semibold tracking-tight text-balance text-foreground">{event.title}</h2>
         <p className="mt-1 text-sm text-muted-foreground first-letter:uppercase">{formatRange(event, t, dates)}</p>

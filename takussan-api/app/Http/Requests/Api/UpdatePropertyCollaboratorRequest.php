@@ -4,6 +4,8 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\CollaboratorRole;
+use App\Rules\CollaboratorEligibleForProperty;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 /**
@@ -38,5 +40,24 @@ class UpdatePropertyCollaboratorRequest extends BaseFormRequest
             'role' => ['sometimes', Rule::enum(CollaboratorRole::class)],
             'commission_share' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
         ];
+    }
+
+    /**
+     * TCK-586 — changer le rôle rejuge l'éligibilité du collaborateur EXISTANT : un bailleur
+     * ajouté en `viewer` ne devient pas `agent` (et contact public du bien) par un `PUT`.
+     * La requête ne porte pas de `user_id` ; l'erreur se lit donc sur `role`.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if (! $this->has('role') || $validator->errors()->has('role')) {
+                return;
+            }
+
+            (new CollaboratorEligibleForProperty($this->route('property'), $this->input('role')))
+                ->validate('role', $this->route('collaborator')->user_id, function (string $message) use ($validator): void {
+                    $validator->errors()->add('role', $message);
+                });
+        });
     }
 }

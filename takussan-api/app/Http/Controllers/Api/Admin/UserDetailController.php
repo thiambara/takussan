@@ -7,6 +7,8 @@ use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
+use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,11 +29,13 @@ class UserDetailController extends Controller
                     $q->orWhere('id', (int) $search);
                 }
 
-                $q->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                // TCK-600 — `like` nu est sensible à la casse sur PostgreSQL : « diop » ne
+                // trouvait pas « Diop » (piège n°9 du CLAUDE.md).
+                $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';
+                foreach (['first_name', 'last_name', 'email', 'username'] as $colonne) {
+                    $q->orWhereRaw(CaseInsensitive::sql($colonne).' like ?', [$motif]);
+                }
+                $q->orWhere('phone', 'like', '%'.addcslashes($search, '\\%_').'%');
             });
         }
 
@@ -49,7 +53,6 @@ class UserDetailController extends Controller
                 'agency_admin' => $query->whereHas('agencyAdminProfiles'),
                 'agent' => $query->whereHas('agentProfiles'),
                 'owner' => $query->whereHas('ownerProfiles'),
-                'broker' => $query->whereHas('brokerProfile'),
                 'service_provider' => $query->whereHas('serviceProviderProfile'),
                 default => $query->whereRaw('1 = 0'),
             };
@@ -83,7 +86,6 @@ class UserDetailController extends Controller
             'agentProfiles.agency',
             'ownerProfiles.agency',
             'agencyAdminProfiles.agency',
-            'brokerProfile',
             'serviceProviderProfile',
             'platformProfile',
         ]);
@@ -92,13 +94,14 @@ class UserDetailController extends Controller
         return $this->paginated($paginator, UserListResource::collection($users)->resolve($request));
     }
 
-    public function show(Request $request, User $user): JsonResponse
+    public function show(Request $request, User $user, PersonalDataAccessLogger $accessLog): JsonResponse
     {
+        // TCK-601 (ADR-0044 §4) — ouvrir une fiche est une consultation de données personnelles.
+        $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_DETAIL);
         $user->load([
             'agentProfiles.agency',
             'ownerProfiles.agency',
             'agencyAdminProfiles.agency',
-            'brokerProfile',
             'serviceProviderProfile',
             'platformProfile',
         ]);
@@ -109,8 +112,9 @@ class UserDetailController extends Controller
         ]);
     }
 
-    public function sessions(Request $request, User $user): JsonResponse
+    public function sessions(Request $request, User $user, PersonalDataAccessLogger $accessLog): JsonResponse
     {
+        $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_SESSIONS);
         $tokens = $user->tokens()
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->orderByDesc('last_used_at')
@@ -131,7 +135,7 @@ class UserDetailController extends Controller
         ]);
     }
 
-    public function activity(Request $request, User $user): JsonResponse
+    public function activity(Request $request, User $user, PersonalDataAccessLogger $accessLog): JsonResponse
     {
         $query = QueryBuilder::for(Activity::query(), $request)
             ->where(function ($q) use ($user): void {
@@ -151,6 +155,16 @@ class UserDetailController extends Controller
             ->defaultSort('-created_at');
 
         $activity = $query->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
+        // Tracé APRÈS la lecture : la page rendue montre le journal tel qu'il était à l'ouverture,
+        // la trace de cette consultation-ci paraît à la suivante.
+        $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_ACTIVITY);
+
+        // TCK-600 (ADR-0055 §5) — « via impersonation par X » : l'opérateur qui lisait en tant que
+        // la cible quand l'activité s'est écrite. Une requête pour la page, pas une par entrée.
+        $operateurs = User::withTrashed()
+            ->whereIn('id', $activity->getCollection()->pluck('impersonator_id')->filter()->unique()->values())
+            ->get(['id', 'first_name', 'last_name'])
+            ->keyBy('id');
 
         return $this->json([
             'data' => $activity->getCollection()->map(fn (Activity $log) => [
@@ -163,6 +177,10 @@ class UserDetailController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => $log->properties?->toArray(),
+                'impersonator' => $log->impersonator_id === null ? null : [
+                    'id' => (int) $log->impersonator_id,
+                    'name' => $operateurs->get($log->impersonator_id)?->full_name,
+                ],
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->values()->all(),
             'meta' => $this->paginationMeta($activity),
@@ -172,8 +190,8 @@ class UserDetailController extends Controller
     /**
      * TCK-278 — Reconstruit la liste `(role, team_id)` à partir des profils
      * polymorphes (cf. Règle 5). `team_id` = `agency_id` du profil ; null
-     * pour `super_admin` (PlatformProfile global) et pour broker /
-     * service_provider (rattachement user-scoped).
+     * pour `super_admin` (PlatformProfile global) et pour service_provider
+     * (rattachement user-scoped).
      */
     private function attachRoleRows($users): void
     {
@@ -192,9 +210,6 @@ class UserDetailController extends Controller
             }
             foreach ($user->ownerProfiles ?? [] as $profile) {
                 $rows[] = ['name' => 'owner', 'team_id' => $profile->agency_id];
-            }
-            if ($user->brokerProfile) {
-                $rows[] = ['name' => 'broker', 'team_id' => null];
             }
             if ($user->serviceProviderProfile) {
                 $rows[] = ['name' => 'service_provider', 'team_id' => null];

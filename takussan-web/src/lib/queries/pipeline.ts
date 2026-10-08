@@ -5,6 +5,7 @@ import type {
   CustomerPipelineStage,
 } from '@/types/customer';
 import type { PipelineCustomerCard, PipelineStats, Task } from '@/types/pipeline';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-083 — CRM pipeline queries.
@@ -19,6 +20,8 @@ export const PIPELINE_CARD_FIELDS = [
   'id',
   'first_name',
   'last_name',
+  // TCK-591 — « Appeler » / « WhatsApp » sur la carte.
+  'phone',
   'pipeline_stage',
   'updated_at',
   'created_at',
@@ -40,14 +43,19 @@ export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
   'lost',
 ];
 
+export const PIPELINE_COLUMN_PAGE_SIZE = 50;
+
 export interface FetchPipelineColumnParams {
   readonly stage: CustomerPipelineStage;
   readonly perPage?: number;
+  /** TCK-591 — « Charger plus » : la colonne s'arrêtait à ses 50 premières cartes, sans le dire. */
+  readonly page?: number;
 }
 
 export function buildPipelineColumnParams({
   stage,
-  perPage = 50,
+  perPage = PIPELINE_COLUMN_PAGE_SIZE,
+  page,
 }: FetchPipelineColumnParams): SpatieQueryParams {
   return {
     fields: {
@@ -58,6 +66,7 @@ export function buildPipelineColumnParams({
     include: ['addedBy', 'tasksCount'],
     sort: '-updated_at',
     per_page: perPage,
+    ...(page && page > 1 ? { page } : {}),
   };
 }
 
@@ -67,7 +76,7 @@ export async function fetchPipelineColumn(
 ): Promise<PipelineCustomerCard[]> {
   const qs = buildQueryString(buildPipelineColumnParams(params));
   const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: unknown }>(
-    `/api/customers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers${requete(qs)}`,
     { token },
   );
   return res.data;
@@ -90,7 +99,7 @@ export async function patchCustomerPipelineStage(
   reason?: string,
 ): Promise<CustomerListItem> {
   const res = await apiRequest<ApiResponse<CustomerListItem>>(
-    `/api/customers/${customerId}/pipeline-stage`,
+    cheminApi`/api/customers/${customerId}/pipeline-stage`,
     {
       method: 'PATCH',
       body: { pipeline_stage: stage, ...(reason ? { reason } : {}) },
@@ -113,7 +122,7 @@ export async function fetchCustomerTasks(
     sort: 'due_at',
     per_page: 50,
   });
-  const res = await apiRequest<{ data: Task[] }>(`/api/tasks${qs ? `?${qs}` : ''}`, {
+  const res = await apiRequest<{ data: Task[] }>(cheminApi`/api/tasks${requete(qs)}`, {
     token,
   });
   return res.data;
@@ -153,7 +162,7 @@ export async function updateTask(
     due_at: string | null;
   }>,
 ): Promise<Task> {
-  const res = await apiRequest<ApiResponse<Task>>(`/api/tasks/${taskId}`, {
+  const res = await apiRequest<ApiResponse<Task>>(cheminApi`/api/tasks/${taskId}`, {
     method: 'PATCH',
     body: payload,
     token,

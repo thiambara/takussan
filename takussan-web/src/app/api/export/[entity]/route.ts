@@ -1,17 +1,30 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
-const ALLOWED_ENTITIES = new Set(['payments', 'leases', 'customers', 'properties']);
+const ALLOWED_ENTITIES = new Set([
+  'payments',
+  'leases',
+  'customers',
+  'properties',
+  // TCK-595 (§7) — les exports financiers de l'agence.
+  'payouts',
+  'invoices',
+  'commissions',
+  'aging',
+  'deposits',
+]);
 const FORWARD_PARAMS = ['format', 'from', 'to', 'limit'] as const;
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ entity: string }> },
 ): Promise<NextResponse> {
-  const { entity } = await params;
+  const entity = segmentAmont((await params).entity);
+  if (entity === null) return reponseSegmentInvalide();
 
   if (!ALLOWED_ENTITIES.has(entity)) {
     console.error('[BFF] export : entité inconnue', entity);
@@ -19,7 +32,7 @@ export async function GET(
   }
 
   const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(cookieStore);
   if (!token) {
     return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }

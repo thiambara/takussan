@@ -22,7 +22,7 @@ class IntegrationMetadataEditTest extends TestCase
 
     private function agencyAdmin(Agency $agency): User
     {
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'agency_admin', $agency);
 
         return $admin;

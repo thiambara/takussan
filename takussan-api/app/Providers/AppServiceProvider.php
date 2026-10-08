@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Contracts\Payments\DisbursementDriverContract;
 use App\Listeners\Admin\DispatchAlerts;
+use App\Models\AccountDeletionRequest;
+use App\Models\Activity as AuditActivity;
+use App\Models\Address;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
@@ -10,6 +14,7 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\DataExport;
 use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Favorite;
@@ -27,6 +32,8 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\RoleDelegation;
@@ -40,11 +47,14 @@ use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
+use App\Observers\MaintenanceRequestObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
+use App\Observers\Privacy\PrivacyRegistryObserver;
 use App\Observers\PropertyObserver;
+use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
@@ -67,15 +77,20 @@ use App\Policies\LeasePolicy;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
+use App\Policies\OwnerStatementPolicy;
 use App\Policies\PayoutPolicy;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
+use App\Policies\PropertyContactLeadPolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
+use App\Policies\ReviewPolicy;
 use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
+use App\Services\Auth\AccessTokenGate;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
 use App\Services\Media\Cdn\CdnProviderContract;
@@ -94,6 +109,7 @@ use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\OrangeDailyCapTracker;
 use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
+use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsRouterDriver;
@@ -101,7 +117,14 @@ use App\Services\Notifications\Whatsapp\CloudApiWhatsappDriver;
 use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
+use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
+use App\Services\Review\ReviewModerationScope;
+use App\Services\Webhooks\WebhookJournal;
+use App\Support\ImpersonationContext;
+use App\Support\Logging\SanitizingFailedJobProvider;
+use App\Support\TelephoneSaisi;
+use App\Support\VisitorFingerprint;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -114,12 +137,23 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
+use LemonSqueezy\Laravel\LemonSqueezy;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** Vérification adverse M1 (c) — codes SMS vérifiables par numéro et par 15 min. */
+    public const PHONE_VERIFY_PER_WINDOW = 4;
+
+    /** Vérification adverse m1 — bornes des invitations (un SMS sous l'expéditeur Takussan). */
+    public const INVITATIONS_PER_INVITER_PER_HOUR = 20;
+
+    public const INVITATIONS_PER_NUMBER_PER_DAY = 3;
+
+    public const INVITATION_RESEND_MINUTES = 10;
+
     public function register(): void
     {
         $this->registerCurrencyFormatter();
@@ -130,12 +164,38 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-600 (ADR-0055 §5) — la session d'impersonation de la requête courante.
+        $this->app->scoped(ImpersonationContext::class);
+
+        // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
+        $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
+
+        // TCK-601 (ADR-0044 §2) — `failed_jobs.exception` reçoit la forme sûre de l'exception,
+        // jamais son message ni sa trace d'arguments.
+        $this->app->extend('queue.failer', fn ($failer) => new SanitizingFailedJobProvider($failer));
+        // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
+        // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
+        $this->app->scoped(ReviewModerationScope::class);
+
+        // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
+        // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
+        $this->app->scoped(WebhookJournal::class);
+
+        // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
+        // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.
+        LemonSqueezy::ignoreRoutes();
     }
 
     public function boot(Dispatcher $events): void
     {
+        $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootRequestMacros();
         $this->bootRateLimiters();
+        // TCK-589 — le rappel UNIQUE de Sanctum (statut du compte + bornes de session).
+        // Un second `authenticateAccessTokensUsing` écraserait celui-ci : TCK-600 ajoute
+        // sa clause DANS `AccessTokenGate`, pas ici.
+        AccessTokenGate::register();
         $this->bootObservers();
         $this->bootReportingHooks();
         $this->bootGatesAndPolicies();
@@ -313,6 +373,40 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+        // TCK-599 (ADR-0050 §4) — l'alerte sans compte, par VISITEUR. La borne par CONTACT vit
+        // dans `PublicSearchAlertController::store()` (verif-599 m2) : posée ici, ses en-têtes
+        // `X-RateLimit-*` sortaient — `ThrottleRequests` garde le plus petit « remaining » de
+        // toutes les limites, et un tiers lisait qu'une autre personne avait visé ce contact.
+        RateLimiter::for('public-search-alert', fn (Request $request) => Limit::perMinutes(10, 10)->by('visitor:'.$this->visitorRateLimitKey($request)));
+        // TCK-590 — un clic WhatsApp / Appeler compté. Plus large que le contact (un visiteur
+        // hésite et reclique), assez étroit pour qu'un script ne gonfle pas les compteurs.
+        RateLimiter::for('public-contact-click', fn (Request $request) => Limit::perMinutes(10, 20)->by($this->visitorRateLimitKey($request)));
+        // TCK-590 (vérification adverse, B2) — `POST /property-visits` : une visite planifiée naît
+        // confirmée et fait partir un SMS. Deux bornes : par ÉMETTEUR (le compte, la route est
+        // authentifiée) et par DESTINATAIRE (le numéro saisi, ramené à E.164, ou la fiche client) —
+        // une agence légitime ne prévient pas dix fois le même client dans l'heure.
+        //
+        // Passe 2 (n1) — le destinataire est le NUMÉRO normalisé, d'où qu'il vienne : saisi, ou lu
+        // sur la fiche choisie (la priorité de `planForCustomer`). La clé `fiche:<id>` seule se
+        // contournait en alternant le numéro et des fiches portant ce même numéro.
+        RateLimiter::for('visit-planning', function (Request $request) {
+            $limites = [Limit::perHour(30)->by('emetteur:'.($request->user()?->id ?? $request->ip()))];
+
+            $telephone = TelephoneSaisi::normaliser($request->input('visitor_phone'));
+            if ((! is_string($telephone) || $telephone === '') && is_numeric($request->input('customer_id'))) {
+                $telephone = TelephoneSaisi::normaliser(
+                    Customer::query()->whereKey((int) $request->input('customer_id'))->value('phone'),
+                );
+            }
+            $destinataire = is_string($telephone) && $telephone !== ''
+                ? 'tel:'.$telephone
+                : (is_numeric($request->input('customer_id')) ? 'fiche:'.(int) $request->input('customer_id') : null);
+            if ($destinataire !== null) {
+                $limites[] = Limit::perHour(5)->by('destinataire:'.$destinataire);
+            }
+
+            return $limites;
+        });
 
         // Public read surface (catalogue browse / search / show). There is no
         // global `throttle:api` on the api group, so these otherwise-unbounded
@@ -321,6 +415,32 @@ class AppServiceProvider extends ServiceProvider
         // logged-in browser keeps a stable bucket and shared-NAT visitors are
         // not collapsed once authenticated.
         RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
+        // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
+        // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
+        RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+
+        // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
+        // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
+        RateLimiter::for('lease-signature-code', function (Request $request) {
+            $key = 'user:'.($request->user()?->id ?? $request->ip());
+
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
+        });
+        // La saisie du code : le verrou à 5 essais faux est dans le service ; ceci borne les requêtes.
+        RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
+        // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
+        // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
+        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+        // VERIF-596 m4 (ADR-0041 §5) — l'enregistrement d'un flux importé déclenche une résolution DNS
+        // et un appel sortant : par utilisateur, 10 par heure, quel que soit le bien.
+        RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
+        // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
+        // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
+        // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
+        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
 
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
@@ -328,6 +448,49 @@ class AppServiceProvider extends ServiceProvider
         // reset-token brute force. Keyed by IP (no authenticated user yet).
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
         RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
+
+        // TCK-589 (ADR-0033 §6) — entrée par téléphone. L'envoi d'un code coûte un SMS
+        // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange
+        // est de 3/jour/MSISDN) ET par IP (20/h). La vérification est bornée par
+        // numéro seul (10/15 min) : changer d'IP ne rouvre pas la force brute.
+        RateLimiter::for('auth-phone-send', fn (Request $request) => [
+            Limit::perMinutes(15, 3)->by('phone:'.$this->phoneRateLimitKey($request)),
+            Limit::perDay(5)->by('phone-day:'.$this->phoneRateLimitKey($request)),
+            Limit::perHour(20)->by('ip:'.$request->ip()),
+        ]);
+        // Vérification adverse M1 (c) — sous la MOITIÉ du seuil du verrou
+        // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
+        // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,
+        // un tiers verrouillait le numéro à chaque échéance.
+        // TCK-589, vérification adverse m1 — une invitation par SMS dépense un SMS sous
+        // l'expéditeur Takussan. Par invitant (toute invitation), par numéro destinataire
+        // (seulement quand le lien part par SMS), et une relance par fenêtre et par
+        // invitation. Le throttle passe AVANT la liaison de route : `{invitation}` peut
+        // n'être encore que l'identifiant.
+        RateLimiter::for('invitations-send', function (Request $request): array {
+            $limits = [Limit::perHour(self::INVITATIONS_PER_INVITER_PER_HOUR)
+                ->by('inviter:'.($request->user()?->getAuthIdentifier() ?? $request->ip()))];
+
+            $bound = $request->route('invitation');
+            if ($bound !== null) {
+                $invitation = $bound instanceof Invitation ? $bound : Invitation::query()->find($bound);
+                $limits[] = Limit::perMinutes(self::INVITATION_RESEND_MINUTES, 1)
+                    ->by('invitation:'.($invitation?->getKey() ?? (string) $bound));
+                $numero = $invitation !== null && $invitation->email === null ? $invitation->phone : null;
+            } else {
+                $numero = filled($request->input('email')) ? null : $request->input('phone');
+            }
+
+            if (is_string($numero) && trim($numero) !== '') {
+                $limits[] = Limit::perDay(self::INVITATIONS_PER_NUMBER_PER_DAY)
+                    ->by('invitation-number:'.$this->normalizedPhone($numero));
+            }
+
+            return $limits;
+        });
+
+        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, self::PHONE_VERIFY_PER_WINDOW)
+            ->by('phone:'.$this->phoneRateLimitKey($request)));
 
         // TCK-272 — émission du code e-mail de step-up pour la suppression
         // de compte. Route authentifiée : la clé est l'utilisateur, pas
@@ -341,8 +504,43 @@ class AppServiceProvider extends ServiceProvider
                 ? 'user:'.$request->user()->id
                 : 'ip:'.$request->ip();
 
-            return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
         });
+
+        // TCK-592 (verif-592, mineur 9) — poster dans une conversation. La route n'avait aucun
+        // limiteur, et chaque note vocale pèse jusqu'à 2 Mo (ADR-0038). Route authentifiée : la clé
+        // est l'utilisateur déjà authentifié par `auth:sanctum` (le throttle passe après dans la
+        // priorité des middlewares).
+        RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
+            ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
+    }
+
+    /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
+    /**
+     * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
+     * sans corps vise le numéro déjà enregistré, et une clé vide aurait mis tous ces envois
+     * dans un même seau.
+     */
+    private function phoneRateLimitKey(Request $request): string
+    {
+        // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
+        // `phone` glissé dans le corps aurait ouvert un seau neuf à chaque appel.
+        $phone = $request->routeIs('auth.phone.change-code') ? '' : (string) $request->input('phone');
+        if ($phone === '') {
+            $phone = (string) ($request->user()?->phone ?? '');
+        }
+
+        return preg_replace('/\s+/', '', $phone) ?? '';
+    }
+
+    private function normalizedPhone(string $phone): string
+    {
+        try {
+            return PhoneNumber::normalize($phone);
+        } catch (\InvalidArgumentException) {
+            return preg_replace('/\s+/', '', $phone) ?? $phone;
+        }
     }
 
     private function visitorRateLimitKey(Request $request): string
@@ -363,7 +561,11 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        return 'ip:'.$request->ip();
+        // verif-597 m6 — le /64 d'une IPv6, comme l'empreinte visiteur : sinon une adresse neuve
+        // du même abonné repart avec un compteur neuf.
+        $ip = $request->ip();
+
+        return 'ip:'.($ip === null ? '' : VisitorFingerprint::network($ip));
     }
 
     private function bootObservers(): void
@@ -373,11 +575,23 @@ class AppServiceProvider extends ServiceProvider
         // dans cette agence : `agency_role_id` est NOT NULL.
         Agency::observe(AgencyObserver::class);
         Property::observe(PropertyObserver::class);
+        // TCK-598 (ADR-0052 §2) — l'invalidation du cache de la fiche publique, À CÔTÉ de
+        // `PropertyObserver` et non dedans : une classe, une responsabilité, et pas de conflit de
+        // lignes avec les tickets qui réécrivent l'autre. L'adresse vit sur son propre modèle.
+        Property::observe(PropertyPublicCacheObserver::class);
+        Address::saved(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
+        Address::deleted(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
+        // TCK-504 — une collaboration peut changer le contact principal que la fiche nomme.
+        PropertyCollaborator::created(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c));
+        PropertyCollaborator::updated(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c, modifiee: true));
+        PropertyCollaborator::deleted(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c));
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
+        // TCK-594 (ADR-0039 §8) — l'intervention terminée produit sa facture d'intervention.
+        MaintenanceRequest::observe(MaintenanceRequestObserver::class);
         User::observe(UserObserver::class);
         PlatformProfile::observe(PlatformProfileObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
@@ -396,6 +610,14 @@ class AppServiceProvider extends ServiceProvider
         // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`
         // (cf. `PhotoConversionFormat`).
         Media::creating(fn (Media $media) => PhotoConversionFormat::markNew($media));
+
+        // TCK-601 (ADR-0044 §4) — le registre des demandes de droits se remplit par l'application.
+        $registry = PrivacyRegistryObserver::class;
+        DataExport::created(fn (DataExport $export) => app($registry)->dataExportCreated($export));
+        DataExport::updated(fn (DataExport $export) => app($registry)->dataExportUpdated($export));
+        AccountDeletionRequest::created(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestCreated($request));
+        AccountDeletionRequest::updated(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestUpdated($request));
+        AccountDeletionRequest::deleting(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestDeleting($request));
     }
 
     private function bootReportingHooks(): void
@@ -403,7 +625,20 @@ class AppServiceProvider extends ServiceProvider
         // TCK-227 — bump the reporting cache version on agency creation so
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
-        Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-601 — le modèle du journal est `App\Models\Activity` : un écouteur posé sur la classe
+        // spatie ne verrait plus aucune création (l'événement se nomme par classe).
+        AuditActivity::created(fn (AuditActivity $activity) => app(DispatchAlerts::class)->handle($activity));
+        // TCK-601 (E) — un acte de gouvernance journalisé avertit les autres admins de l'agence.
+        AuditActivity::created(fn (AuditActivity $activity) => app(GovernanceAlertService::class)->handle($activity));
+        // TCK-600 (ADR-0055 §5) — toute activité écrite pendant une session d'impersonation
+        // porte l'opérateur, en plus de son `causer` (la cible). Sur `AuditActivity` (TCK-601) :
+        // posé sur la classe spatie, l'écouteur ne verrait plus aucune création.
+        AuditActivity::creating(function (AuditActivity $activity): void {
+            $context = app(ImpersonationContext::class);
+            if ($context->active()) {
+                $activity->setAttribute('impersonator_id', $context->impersonatorId());
+            }
+        });
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //
@@ -508,10 +743,18 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MaintenanceRequest::class, MaintenanceRequestPolicy::class);
         Gate::policy(Payout::class, PayoutPolicy::class);
         Gate::policy(PropertyVisit::class, PropertyVisitPolicy::class);
+        // TCK-590 — la boîte « Demandes ». Une policy jamais liée REFUSE tout le monde, sans trace.
+        Gate::policy(PropertyContactLead::class, PropertyContactLeadPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+
+        // TCK-597 (ADR-0043 §1) — modérer, lire les signalements, répondre : la règle était
+        // recopiée dans six méthodes, et aucune copie ne comparait l'agence de l'avis.
+        Gate::policy(Review::class, ReviewPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.
+        // TCK-594 (ADR-0039 §3) — le relevé de gérance n'est pas un modèle.
+        Gate::define('viewOwnerStatement', [OwnerStatementPolicy::class, 'view']);
         Gate::define('approve-property', [PropertyModerationPolicy::class, 'approve']);
         Gate::define('reject-property', [PropertyModerationPolicy::class, 'reject']);
         Gate::define('resubmit-property', [PropertyModerationPolicy::class, 'resubmit']);

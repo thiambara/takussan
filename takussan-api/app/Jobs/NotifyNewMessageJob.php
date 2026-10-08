@@ -2,8 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Models\Enums\NotificationType;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Message;
+use App\Services\Messaging\ConversationAccess;
 use App\Services\Model\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,25 +43,27 @@ class NotifyNewMessageJob implements ShouldQueue
             ->when($message->sender_id !== null, fn ($q) => $q->where('users.id', '!=', $message->sender_id))
             ->wherePivot('is_muted', false)
             ->wherePivotNull('left_at')
-            ->get();
+            ->get()
+            // TCK-592 (verif-592, B2) — l'aperçu du message ne part pas à qui n'a plus accès au fil
+            // (prestataire en pause, en fin de collaboration, suspendu).
+            ->filter(fn ($recipient) => app(ConversationAccess::class)->maintenanceAllows($recipient, $message->conversation))
+            ->values();
 
         if ($recipients->isEmpty()) {
             return;
         }
 
+        // TCK-588 — un expéditeur sans nom rend « — » dans la langue du destinataire, plutôt
+        // qu'un « Un contact » français écrit ici.
         $senderName = $sender
-            ? trim(($sender->first_name ?? '').' '.($sender->last_name ?? '')) ?: ($sender->email ?? 'Un contact')
-            : 'Un contact';
+            ? trim(($sender->first_name ?? '').' '.($sender->last_name ?? '')) ?: $sender->email
+            : null;
 
-        $notifications->notifyMany(
-            $recipients,
-            NotificationType::Message,
-            'Nouveau message',
-            $senderName.': '.mb_strimwidth((string) $message->content, 0, 80, '…'),
-            [
-                'conversation_id' => $message->conversation_id,
-                'message_id' => $message->id,
-            ],
-        );
+        foreach ($recipients as $recipient) {
+            $notifications->send($recipient, NotificationCode::MessageReceived, [
+                'sender' => $senderName,
+                'excerpt' => mb_strimwidth((string) $message->content, 0, 80, '…'),
+            ], NotificationTarget::of('conversation', $message->conversation_id));
+        }
     }
 }

@@ -15,6 +15,13 @@ class RoleDelegation extends AbstractModel
 {
     use Auditable, HasFactory;
 
+    /**
+     * TCK-591 (ADR-0035) — le rôle d'une ABSENCE : il n'est dans aucun catalogue
+     * (`AgencyRoleBaseType::tryFrom()` → null), si bien que le résolveur ne prête rien au
+     * remplaçant et que le prédicat « personnel de l'agence » ne le compte pas.
+     */
+    public const ABSENCE_ROLE = 'absence_cover';
+
     protected $fillable = [
         'user_id',
         'delegator_id',
@@ -29,6 +36,7 @@ class RoleDelegation extends AbstractModel
         'expired_at',
         'revoked_at',
         'revoked_by',
+        'replaces_user_id',
     ];
 
     protected $casts = [
@@ -54,6 +62,29 @@ class RoleDelegation extends AbstractModel
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /** TCK-591 (ADR-0035) — l'absent qu'une ligne d'absence nomme ; null pour une délégation de rôle. */
+    public function replaces(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'replaces_user_id');
+    }
+
+    public function isAbsence(): bool
+    {
+        return $this->replaces_user_id !== null;
+    }
+
+    /** TCK-591 (ADR-0035) — les absences seules. */
+    public function scopeAbsences(Builder $query): Builder
+    {
+        return $query->whereNotNull('replaces_user_id');
+    }
+
+    /** TCK-591 (ADR-0035) — les délégations de rôle seules, absences exclues. */
+    public function scopeRoleDelegations(Builder $query): Builder
+    {
+        return $query->whereNull('replaces_user_id');
     }
 
     public function revokedBy(): BelongsTo

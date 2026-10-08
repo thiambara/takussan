@@ -27,9 +27,27 @@ export type LeasePaymentType =
   | 'regularization'
   | 'penalty';
 
-export type LeasePaymentStatus = 'pending' | 'paid' | 'late' | 'partial' | 'cancelled' | 'refunded';
+// TCK-593 — les valeurs de `PaymentStatus` côté API, à l'identique (`partial` n'y a jamais
+// existé ; `partially_paid` et `failed`, si). VERIF-596 passe 5 (M-E) — `cancelled` : une échéance
+// d'un bail parent que son renouvellement a remplacée.
+export type LeasePaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'late'
+  | 'partially_paid'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
 
-export type LeasePaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';
+export type LeasePaymentMethod =
+  | 'cash'
+  | 'bank_transfer'
+  | 'mobile_money'
+  | 'wave'
+  | 'orange_money'
+  | 'free_money'
+  | 'check'
+  | 'card';
 
 export type Lease = {
   id: number;
@@ -71,16 +89,54 @@ export type Lease = {
   early_termination_reason?: string | null;
   early_termination_invoice_id?: number | null;
   notice_period_days?: number | null;
+  // TCK-596 §4B (ADR-0042) — le contrat figé et les preuves de consentement. Rendus par le détail.
+  contract_sha256?: string | null;
+  signature_requested_at?: string | null;
+  signatures?: readonly LeaseSignature[];
+  /** Les rôles pour lesquels l'utilisateur courant peut signer — jugés par l'API. */
+  can_sign_as?: readonly LeaseSignatureRole[];
+  /** L'utilisateur courant peut figer le contrat et lancer la signature (gestionnaire du bail). */
+  can_request_signature?: boolean;
+  /** La voie papier : gestionnaire ET signataire possible pour le bailleur (`leases.sign`). */
+  can_activate_on_paper?: boolean;
   created_at: string;
   updated_at: string;
 };
 
+export type LeaseSignatureRole = 'tenant' | 'landlord';
+
+/**
+ * TCK-596 §4B (ADR-0042 §3) — une preuve de consentement. Jamais l'IP ni l'agent utilisateur :
+ * l'API ne les rend pas. `current` : la preuve porte sur le contrat figé en vigueur.
+ */
+export type LeaseSignature = {
+  id: number;
+  role: LeaseSignatureRole;
+  method: 'otp' | 'paper';
+  signed_at: string | null;
+  document_sha256: string;
+  current: boolean;
+  signer_name: string | null;
+  on_behalf_of_name: string | null;
+  otp_channel: 'sms' | 'mail' | null;
+};
+
+/**
+ * TCK-593 — aligné CLÉ PAR CLÉ sur `LeasePaymentResource` (`takussan-api`,
+ * `LeasePaymentResourceContractTest::KEYS`). Le type déclarait `late_fee` là où l'API envoie
+ * `late_fee_amount` : le « +X FCFA » de l'échéancier ne s'affichait jamais. Il déclarait aussi
+ * `transaction_id` et `updated_at`, que la ressource n'envoie pas.
+ *
+ * Les montants dus sont calculés UNE fois, par l'API : `amount_due` est exactement ce que la
+ * passerelle demandera, pénalité comprise si `late_fee_payable_online`. Aucun écran ne refait
+ * l'addition.
+ */
 export type LeasePayment = {
   id: number;
+  reference_number: string | null;
   lease_id: number;
   payer_id: number;
   collector_id: number | null;
-  reference_number: string | null;
   amount: number;
   currency: Currency;
   payment_method: LeasePaymentMethod | null;
@@ -90,11 +146,20 @@ export type LeasePayment = {
   due_date: string | null;
   paid_at: string | null;
   status: LeasePaymentStatus;
-  late_fee: number | null;
-  transaction_id: string | null;
+  paid_amount: number;
+  remaining_amount: number;
+  late_fee_amount: number | null;
+  late_fee_applied_at: string | null;
+  late_fee_paid_at: string | null;
+  /** Pénalité restant due (0 si aucune, ou réglée). Ne se lit jamais dans `status`. */
+  late_fee_outstanding: number;
+  /** La pénalité restant due est INCLUSE dans `amount_due`. */
+  late_fee_payable_online: boolean;
+  /** Ce que le paiement en ligne demandera ; 0 si l'échéance n'est pas payable. */
+  amount_due: number;
+  receipt_available: boolean;
   notes: string | null;
   created_at: string;
-  updated_at: string;
 };
 
 export type Guarantor = {

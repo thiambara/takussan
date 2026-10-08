@@ -2,6 +2,7 @@ import { cache } from 'react';
 
 import { apiFetch } from '@/lib/api';
 import type { SearchResult } from '@/types/search';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * La recherche publique **exécutée par le serveur** — TCK-432.
@@ -48,7 +49,7 @@ export const rechercherBiensPublics = cache(
   async (requete: string, locale: string): Promise<SearchResult | null> => {
     try {
       return await apiFetch<SearchResult>(
-        `/public/properties/search?${requete}`,
+        cheminApi`/public/properties/search?${requete}`,
         undefined,
         { locale },
       );

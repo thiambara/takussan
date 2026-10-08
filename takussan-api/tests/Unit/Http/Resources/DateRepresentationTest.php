@@ -242,7 +242,14 @@ class DateRepresentationTest extends TestCase
         // Le format reste comparé à la chaîne exacte : la garde n'est pas
         // relâchée, c'est l'appelant simulé qui est rendu représentatif.
         $requete = Request::create('/', 'GET');
-        $requete->setUserResolver(fn () => new User);
+        $appelant = new User;
+        // TCK-592 — même raisonnement : `MaintenanceRequestResource` ne rend les `quote_*` qu'au
+        // prestataire assigné et aux donneurs d'ordre. L'appelant représentatif est le prestataire.
+        if ($model instanceof MaintenanceRequest) {
+            $appelant = User::factory()->create();
+            $model->setAttribute('assigned_to', $appelant->id);
+        }
+        $requete->setUserResolver(fn () => $appelant);
 
         $sortie = (new $resourceClass($model))->toArray($requete);
 
@@ -338,6 +345,7 @@ class DateRepresentationTest extends TestCase
     {
         $ligne = [
             'id' => 'property:1',
+            'source_type' => 'property',
             'type' => 'property',
             'status' => 'pending',
             'subject_type' => 'property',
@@ -375,7 +383,7 @@ class DateRepresentationTest extends TestCase
     public function test_une_colonne_nulle_du_selectraw_reste_nulle(): void
     {
         $ligne = [
-            'id' => 'property:1', 'type' => 'property', 'status' => 'pending',
+            'id' => 'property:1', 'source_type' => 'property', 'type' => 'property', 'status' => 'pending',
             'subject_type' => 'property', 'subject_id' => 1, 'subject' => null,
             'reporter' => null, 'agency' => null, 'reason' => '', 'reported_count' => 0,
             'reported_at' => null,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\UpdateWhatsappDeliveryStatusJob;
+use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,15 +28,31 @@ use Illuminate\Support\Facades\Log;
  */
 class WhatsappStatusController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, WebhookJournal $journal): JsonResponse
     {
         $token = (string) config('whatsapp.webhook_url_token', '');
         if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
             abort(404);
         }
 
-        $this->verifySignature($request);
+        return $this->process($request, $journal);
+    }
 
+    /**
+     * TCK-602 (ADR-0051 §5) — signature puis traitement, partagés avec le rejeu : une ligne rejouée
+     * repasse par la MÊME vérification `X-Hub-Signature-256`.
+     */
+    public function process(Request $request, WebhookJournal $journal): JsonResponse
+    {
+        $this->verifySignature($request);
+        // TCK-602 — un secret non configuré hors production laisse passer sans signature : la ligne
+        // n'est alors pas « authentifiée », donc jamais rejouable.
+        if ((string) config('whatsapp.webhook_app_secret', '') !== '') {
+            $journal->authenticated();
+        }
+
+        $dispatched = 0;
+        $firstId = null;
         foreach ($this->extractStatuses($request) as $status) {
             $messageId = (string) ($status['id'] ?? '');
             $metaStatus = (string) ($status['status'] ?? '');
@@ -48,7 +65,11 @@ class WhatsappStatusController extends Controller
                 failureReason: $this->failureReason($status),
                 timestamp: isset($status['timestamp']) ? (int) $status['timestamp'] : null,
             );
+            $dispatched++;
+            $firstId ??= $messageId;
         }
+        // TCK-602 — l'appariement est fait par la file : le compte est celui des statuts remis.
+        $journal->annotate(['external_id' => $firstId, 'matched_count' => $dispatched]);
 
         // 200 immediately — Meta retries on any non-2xx.
         return new JsonResponse(['ok' => true]);
@@ -67,7 +88,7 @@ class WhatsappStatusController extends Controller
         if ($secret === '') {
             if (app()->isProduction()) {
                 Log::error('[whatsapp.webhook] app secret not configured in production — rejecting unsigned status webhook');
-                abort(403, 'Webhook signature verification not configured');
+                abort_code(403, 'webhook.signature_not_configured');
             }
 
             return;
@@ -75,7 +96,7 @@ class WhatsappStatusController extends Controller
         $header = (string) $request->header('X-Hub-Signature-256', '');
         $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $secret);
         if ($header === '' || ! hash_equals($expected, $header)) {
-            abort(403, 'Invalid signature');
+            abort_code(403, 'webhook.signature_invalid');
         }
     }
 

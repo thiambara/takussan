@@ -9,6 +9,7 @@ use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Property;
+use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Model\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,8 +29,10 @@ class BookingController extends Controller
                 $q->where('created_by_id', $user->id)
                     ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-                if ($user->agency_id) {
-                    $q->orWhere('agency_id', $user->agency_id);
+                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
+                // listait les ressources de tous les autres.
+                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                    $q->orWhere('agency_id', $staffAgencyId);
                 }
             });
         }
@@ -57,14 +60,17 @@ class BookingController extends Controller
     {
         $this->authorize('view', $booking);
 
-        return $this->json([
-            'data' => BookingResource::make($booking->load(['property.address', 'customer', 'agency']))->toArray($request),
-        ]);
+        $data = BookingResource::make($booking->load(['property.address', 'customer', 'agency', 'payments']))->toArray($request);
+        // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
+        $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
+
+        return $this->json(['data' => $data]);
     }
 
     public function confirm(Request $request, Booking $booking): JsonResponse
     {
-        $this->authorize('update', $booking);
+        // TCK-587 — `validate` : `bookings.validate` pour le personnel (`BookingPolicy`).
+        $this->authorize('validate', $booking);
         $booking = $this->bookings->confirm($booking);
 
         return $this->json([
@@ -89,7 +95,7 @@ class BookingController extends Controller
 
         $data = $request->validated();
 
-        $booking = $this->bookings->reject($booking, $data['reason'] ?? null);
+        $booking = $this->bookings->reject($booking, $data['reason'] ?? null, $request->user());
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),

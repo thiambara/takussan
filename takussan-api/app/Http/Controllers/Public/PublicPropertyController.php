@@ -2,18 +2,24 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
+use App\Events\Booking\BookingRequested;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
 use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
 use App\Http\Requests\Public\ByIdsPublicPropertyRequest;
 use App\Http\Requests\Public\ComparePublicPropertyRequest;
+use App\Http\Requests\Public\ContactClickPublicRequest;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Requests\Public\MapPublicPropertyRequest;
+use App\Http\Requests\Public\NeighborhoodsPublicPropertyRequest;
 use App\Http\Requests\Public\ReportPublicPropertyRequest;
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
+use App\Http\Requests\Public\VisitSlotsPublicPropertyRequest;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
@@ -21,37 +27,46 @@ use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\MessageType;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Lease;
 use App\Models\Property;
-use App\Models\PropertyContactLead;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
+use App\Services\Booking\PropertyAvailabilityService;
+use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
+use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
+use App\Services\Visit\VisitNotifier;
+use App\Services\Visit\VisitSchedulingService;
+use App\Support\CaseInsensitive;
 use App\Support\DistanceHaversine;
+use App\Support\VisitorFingerprint;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 class PublicPropertyController extends Controller
@@ -82,6 +97,18 @@ class PublicPropertyController extends Controller
     public const SITEMAP_MAX_PER_PAGE = 1000;
 
     /**
+     * TCK-598 (V16) — plafonds de `index()` et `reviews()`, deux routes anonymes qui acceptaient
+     * n'importe quel `per_page`. Repli (*clamp*) et non 422, comme `sitemap()` : une valeur hors
+     * bornes est ramenée, jamais refusée — le front n'a pas à connaître le plafond pour paginer.
+     */
+    public const INDEX_MAX_PER_PAGE = 48;
+
+    public const REVIEWS_MAX_PER_PAGE = 50;
+
+    /** Repli du plafond de `neighborhoods()`, si la configuration disparaissait (même patron que `cities`). */
+    public const NEIGHBORHOODS_MAX_DEFAUT = 300;
+
+    /**
      * Repli du plafond de `GET /public/properties/cities`, si la configuration disparaissait.
      *
      * La valeur qui fait foi vit dans `config/catalogue.php` — pas ici — pour que son BORD soit
@@ -95,6 +122,18 @@ class PublicPropertyController extends Controller
     public static function citiesMax(): int
     {
         return (int) config('catalogue.cities_max', self::CITIES_MAX_DEFAUT);
+    }
+
+    /** Le plafond effectif du domaine des quartiers, par ville. */
+    public static function neighborhoodsMax(): int
+    {
+        return (int) config('catalogue.neighborhoods_max', self::NEIGHBORHOODS_MAX_DEFAUT);
+    }
+
+    /** `per_page` ramené dans `1..$max`, `$defaut` s'il est absent. */
+    private static function parPage(Request $request, int $defaut, int $max): int
+    {
+        return max(1, min((int) $request->input('per_page', $defaut), $max));
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -114,7 +153,7 @@ class PublicPropertyController extends Controller
             $query->orderByDesc('featured')->orderByDesc('published_at');
         }
 
-        $properties = $query->paginate((int) $request->input('per_page', 20));
+        $properties = $query->paginate(self::parPage($request, 20, self::INDEX_MAX_PER_PAGE));
 
         return PropertyResource::collection($properties);
     }
@@ -132,10 +171,9 @@ class PublicPropertyController extends Controller
      *    sitemap. `index()` ci-dessus y ajoute `whereNot(status, Draft)` — redondant, `public()`
      *    exclut déjà `Draft` avec sept autres statuts.
      *
-     * 2. **`per_page` est PLAFONNÉ, ici et pas ailleurs.** `index()` accepte n'importe quelle
-     *    valeur (`paginate((int) $request->input('per_page', 20))`) ; sur une route anonyme qui
-     *    énumère tout le catalogue, ce serait une invitation à demander le catalogue entier d'un
-     *    coup. Le plafond est aussi un contrat avec le front, qui pagine dessus
+     * 2. **`per_page` est PLAFONNÉ.** Sur une route anonyme qui énumère tout le catalogue, une
+     *    valeur libre serait une invitation à demander le catalogue entier d'un coup. Le plafond
+     *    est aussi un contrat avec le front, qui pagine dessus
      *    (`takussan-web/src/lib/queries/sitemap-catalogue.ts`).
      *
      * 3. **`orderBy('id')` — un ordre TOTAL et STABLE.** `index()` trie par `featured` puis
@@ -209,6 +247,53 @@ class PublicPropertyController extends Controller
             // ⚠ Un domaine tronqué n'est PAS un domaine. L'appelant doit pouvoir refuser de s'en
             // servir plutôt que de rejeter en silence les villes qui n'ont pas tenu.
             'meta' => ['truncated' => $tronque],
+        ]);
+    }
+
+    /**
+     * Les QUARTIERS d'une ville du catalogue public — le domaine de la clé canonique `location`
+     * (TCK-598, V14, contrainte 12). Jumeau de `cities()`, borné par ville.
+     *
+     * GET /api/public/properties/neighborhoods?city=Dakar
+     *
+     * ⚠ **Le quartier est saisi à la main, et ses variantes de casse se fondent** : « Mermoz » et
+     * « MERMOZ » sont UNE entrée, comptée deux. Le repli passe par `CaseInsensitive` (piège n°9 du
+     * `CLAUDE.md`) : `lower()` nu laisserait « MÉDINA » et « Médina » séparés. La ville se compare
+     * de la même façon. La graphie rendue est la plus fréquente (`mode()`), à égalité la première
+     * dans l'ordre de la collation.
+     *
+     * Le domaine sert à décider qu'une page de quartier est canonique : il ne contient donc que ce
+     * que `->public()` laisse atteindre, comme `cities()`.
+     */
+    public function neighborhoods(NeighborhoodsPublicPropertyRequest $request): JsonResponse
+    {
+        $replie = CaseInsensitive::sql('addresses.neighborhood');
+        $max = self::neighborhoodsMax();
+
+        $lignes = Property::query()
+            ->public()
+            ->join('addresses', function ($jointure) {
+                $jointure->on('addresses.addressable_id', '=', 'properties.id')
+                    ->where('addresses.addressable_type', '=', Property::class);
+            })
+            ->whereRaw(CaseInsensitive::sql('addresses.city').' = ?', [CaseInsensitive::fold($request->city())])
+            ->whereNotNull('addresses.neighborhood')
+            ->whereRaw("trim(addresses.neighborhood) != ''")
+            ->groupByRaw($replie)
+            ->orderByDesc(DB::raw('count(*)'))
+            ->orderByRaw($replie)
+            ->limit($max + 1)
+            ->get([
+                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.neighborhood) as valeur'),
+                DB::raw('count(*) as compte'),
+            ]);
+
+        return $this->json([
+            'data' => $lignes->take($max)
+                ->map(fn ($l) => ['value' => trim((string) $l->valeur), 'count' => (int) $l->compte])
+                ->values()
+                ->all(),
+            'meta' => ['truncated' => $lignes->count() > $max],
         ]);
     }
 
@@ -316,7 +401,8 @@ class PublicPropertyController extends Controller
             // route est `$isDetail` pour `PropertyResource` : sans eux, `owner` et
             // `primary_contact` partaient en chargement paresseux, soit deux requêtes par bien
             // comparé. C'était déjà vrai d'`owner` avant ce ticket.
-            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media'])
+            // TCK-590 — les profils du collaborateur : l'éligibilité du contact se juge sur eux.
+            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media', 'collaborators.user.agentProfiles', 'collaborators.user.agencyAdminProfiles'])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereIn('id', $ids)
@@ -502,6 +588,9 @@ class PublicPropertyController extends Controller
                 // TCK-502 — `.media` en plus : la fiche nomme désormais le CONTACT PRINCIPAL,
                 // qui peut être un collaborateur, et sa carte porte son avatar.
                 'collaborators.user.media',
+                // TCK-590 — l'éligibilité du contact principal se juge sur ses profils chargés.
+                'collaborators.user.agentProfiles',
+                'collaborators.user.agencyAdminProfiles',
                 'documents.media',
                 'priceHistory',
                 'reviews' => fn ($q) => $q->where('is_approved', true),
@@ -511,13 +600,73 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $key = 'views:'.$property->id.':'.$request->ip();
-        if (! RateLimiter::tooManyAttempts($key, 3)) {
-            RateLimiter::hit($key, 3600);
-            $property->increment('views_count');
+        // TCK-598 (contrainte 3, ADR-0052 §1) — la lecture n'écrit plus. Elle incrémentait
+        // `views_count` par `$property->increment()`, donc rajeunissait `updated_at` et vidait le
+        // cache des biens similaires de TOUS les biens à chaque vue ; elle ne pouvait pas non plus
+        // entrer dans un cache, puisque son corps changeait à chaque appel. La vue se compte par
+        // `view()` ci-dessous, appelée par le navigateur.
+        return new PropertyResource($property);
+    }
+
+    /**
+     * TCK-598 — compte une vue de la fiche. `POST /api/public/properties/{slug}/view` → 204.
+     *
+     * Ne rend JAMAIS d'erreur visible : un slug inconnu, ou un bien qui n'est pas public, rend
+     * aussi 204, sans écriture — un compteur n'a rien à apprendre à son appelant, et surtout pas
+     * l'existence d'un bien retiré. L'appel part du NAVIGATEUR, directement : l'API y voit l'IP du
+     * visiteur par sa propre chaîne de mandataires, sans transit par le serveur Next.
+     */
+    public function view(Request $request, PropertyViewCounter $compteur, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->first();
+
+        if ($property !== null) {
+            $compteur->record($property, (string) $request->ip());
         }
 
-        return new PropertyResource($property);
+        return $this->json(null, 204);
+    }
+
+    /**
+     * TCK-598 (V10, contraintes 10 et 11) — ce qu'est devenu un bien dont la fiche rend 404.
+     *
+     * GET /api/public/properties/{slug}/status → `{ state, contract_type, type, location, similar }`.
+     *
+     * 404 — **le même que pour un slug inconnu**, même corps — pour un brouillon, un bien en
+     * attente de modération ou refusé, privé, de test, jamais publié ou supprimé : l'existence d'un
+     * bien non public ne fuit pas. Le prédicat est dans `EtatPublicDuBien`, qui COMPOSE
+     * `scopePublic()` au lieu de le recopier.
+     *
+     * `similar` passe par `findSimilar()`, puis par `->public()` une seconde fois : la liste
+     * d'identifiants y est mise en cache, et un bien retiré depuis y resterait jusqu'à expiration.
+     */
+    public function status(Request $request, EtatPublicDuBien $etats, SimilarPropertiesService $service, string $slug): JsonResponse
+    {
+        $etat = $etats->pour($slug);
+        abort_if($etat === null, 404);
+
+        $property = $etat['property'];
+        $similaires = $service->findSimilar($property, EtatPublicDuBien::MAX_SIMILAIRES);
+        $publics = Property::query()->public()->whereIn('id', $similaires->pluck('id'))->pluck('id')->flip();
+
+        return $this->json([
+            'data' => [
+                'state' => $etat['state'],
+                'contract_type' => $property->contract_type?->value,
+                'type' => $property->type?->value,
+                'location' => [
+                    'city' => $property->address?->city,
+                    'quarter' => $property->address?->neighborhood,
+                ],
+                'similar' => PropertyResource::collection(
+                    $similaires->filter(fn (Property $p) => $publics->has($p->id))->values()
+                )->resolve($request),
+            ],
+        ]);
     }
 
     public function similar(ListSimilarPropertiesRequest $request, SimilarPropertiesService $service, string $slug): AnonymousResourceCollection
@@ -544,7 +693,7 @@ class PublicPropertyController extends Controller
             ->where('is_approved', true)
             ->with('author.media')
             ->latest()
-            ->paginate((int) $request->input('per_page', 10));
+            ->paginate(self::parPage($request, 10, self::REVIEWS_MAX_PER_PAGE));
 
         $approved = $property->reviews()->where('is_approved', true);
         $avg = round((float) ($approved->avg('rating') ?? 0), 2);
@@ -582,40 +731,123 @@ class PublicPropertyController extends Controller
 
         $data = $request->validated();
 
-        PropertyReport::create([
-            'property_id' => $property->id,
-            'reporter_user_id' => $request->user()?->id,
-            'reporter_ip' => $request->ip(),
-            'reason' => $data['reason'],
-            'details' => $data['details'] ?? null,
-        ]);
+        // TCK-597 — un piège rempli rend la même réponse qu'un succès, sans rien enregistrer.
+        if (! empty($data['company'])) {
+            return $this->json(null, 204);
+        }
+
+        // TCK-597 (ADR-0043 §7) — l'IP n'est plus conservée en clair : une empreinte HMAC. Le même
+        // visiteur (compte, sinon empreinte) qui signale deux fois le même bien en 24 h crée UNE
+        // ligne. Verrou sur la ligne parent : deux envois simultanés ne passent pas tous les deux.
+        $userId = $request->user()?->id;
+        $fingerprint = VisitorFingerprint::of($request);
+
+        DB::transaction(function () use ($property, $userId, $fingerprint, $data) {
+            Property::query()->whereKey($property->id)->lockForUpdate()->first();
+
+            $already = PropertyReport::query()
+                ->where('property_id', $property->id)
+                ->where('created_at', '>=', now()->subDay())
+                ->when(
+                    $userId !== null,
+                    fn ($q) => $q->where('reporter_user_id', $userId),
+                    fn ($q) => $q->whereNull('reporter_user_id')->where('reporter_fingerprint', $fingerprint),
+                )
+                ->exists();
+
+            if ($already) {
+                return;
+            }
+
+            PropertyReport::create([
+                'property_id' => $property->id,
+                'reporter_user_id' => $userId,
+                'reporter_fingerprint' => $fingerprint,
+                'reason' => $data['reason'],
+                'details' => $data['details'] ?? null,
+            ]);
+        });
 
         return $this->json(null, 204);
     }
 
-    public function visitRequest(VisitRequestPublicPropertyRequest $request, string $slug): JsonResponse
+    /**
+     * Demande de visite depuis la fiche publique — avec ou sans compte.
+     *
+     * TCK-590 — elle faisait un `PropertyVisit::create` direct : **ni `agent_id`, ni
+     * notification, ni quota**, alors que c'est le chemin que TOUS les clients empruntent. Elle
+     * passe désormais par les mêmes garde-fous que le chemin authentifié :
+     *
+     *   · le quota de visites actives (`VisitSchedulingService::createOrFail`) ;
+     *   · `agent_id` = le contact principal **s'il est personnel de l'agence du bien**, sinon la
+     *     visite est « non attribuée » (contrainte 2) ;
+     *   · `customer_id` = la fiche du visiteur DANS l'agence du bien, ou rien — `$user->customer`
+     *     était un `hasOne` sans unicité, qui rattachait une fiche arbitraire, d'une autre agence ;
+     *   · l'agence est prévenue (`VisitNotifier`), avec le repli vers ses admins ; sans
+     *     destinataire ni agence, 409 avant toute écriture (contrainte 1) ;
+     *   · le dépôt n'envoie AUCUN SMS au visiteur (contrainte 4).
+     */
+    public function visitRequest(VisitRequestPublicPropertyRequest $request, VisitSchedulingService $scheduling, VisitNotifier $notifier, ContactLeadService $leads, string $slug): JsonResponse
     {
-        $property = $request->property();
+        $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
         $user = $request->user();
         $data = $request->validated();
 
-        $visit = PropertyVisit::create([
+        if ($leads->recipientsFor($property)->isEmpty()) {
+            $leads->refuseUnavailable();
+        }
+
+        $primary = PrimaryPropertyContact::for($property);
+        $agentId = PersonnelDeLAgence::estPersonnel($primary, $property->agency_id) ? $primary->id : null;
+
+        $customerId = ($user !== null && $property->agency_id !== null)
+            ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
+            : null;
+
+        $visit = $scheduling->createOrFail($property, $user, [
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
-            'customer_id' => $user?->customer?->id,
+            'customer_id' => $customerId,
+            'agent_id' => $agentId,
             'scheduled_at' => $data['scheduled_at'],
             'type' => $data['type'] ?? VisitType::InPerson->value,
-            'duration_minutes' => $data['duration_minutes'] ?? 30,
+            'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,
             'status' => VisitStatus::Scheduled->value,
             'visitor_name' => $data['visitor_name'] ?? trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')) ?: null,
             'visitor_email' => $data['visitor_email'] ?? $user?->email,
             'visitor_phone' => $data['visitor_phone'] ?? $user?->phone,
             'notes' => $data['notes'] ?? null,
+            'source' => $data['source'] ?? null,
+            'medium' => $data['medium'] ?? null,
+            'locale' => app()->getLocale(),
         ]);
+
+        $notifier->requested($visit->fresh(['property', 'agent']));
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->toArray($request),
         ], 201);
+    }
+
+    /**
+     * TCK-590 — les créneaux d'une journée, à Dakar : `{date, timezone, slots: [{start, label,
+     * available}]}`. Rien sur les visites qui occupent un créneau.
+     */
+    public function visitSlots(VisitSlotsPublicPropertyRequest $request, VisitSchedulingService $scheduling, string $slug): JsonResponse
+    {
+        $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
+        $date = CarbonImmutable::createFromFormat('Y-m-d', $request->validated('date'), VisitSchedulingService::TIMEZONE)->startOfDay();
+
+        $primary = PrimaryPropertyContact::for($property);
+        $agent = PersonnelDeLAgence::estPersonnel($primary, $property->agency_id) ? $primary : null;
+
+        return $this->json([
+            'data' => [
+                'date' => $date->format('Y-m-d'),
+                'timezone' => VisitSchedulingService::TIMEZONE,
+                'slots' => $scheduling->availableSlots($property, $date, $agent),
+            ],
+        ]);
     }
 
     /**
@@ -677,7 +909,7 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, BookingQuote $quotes, string $slug): JsonResponse
+    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, BookingQuote $quotes, PropertyAvailabilityService $availability, string $slug): JsonResponse
     {
         $property = $request->property();
 
@@ -696,10 +928,10 @@ class PublicPropertyController extends Controller
         // Vérification adverse de TCK-535 — même règle que `BookingService::create()` : le
         // propriétaire ne réserve pas (et ne fait pas d'offre sur) son propre bien. Avant tout
         // calcul et toute écriture, pour ne pas lui créer de fiche client.
-        abort_if(
+        abort_code_if(
             $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
-            'You cannot book your own property.'
+            'booking.own_property'
         );
 
         // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
@@ -741,27 +973,40 @@ class PublicPropertyController extends Controller
                 ],
             ]);
 
+            // TCK-596 — l'offre prévient qui doit la traiter : elle ne prévenait personne.
+            BookingRequested::dispatch($booking, $user->id);
+
             return $this->json([
                 'data' => BookingResource::make($booking)->toArray($request),
             ], 201);
         }
 
-        $booking = Booking::create([
-            'property_id' => $property->id,
-            'customer_id' => $customer->id,
-            'created_by_id' => $user->id,
-            'agency_id' => $property->agency_id,
-            'start_date' => $data['start_date'],
-            'end_date' => $data['end_date'],
-            // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à
-            // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
-            'total_amount' => $amounts['total_amount'],
-            'deposit_amount' => $amounts['deposit_amount'],
-            'currency' => $property->currency,
-            'status' => BookingStatus::Pending->value,
-            'notes' => $data['message'] ?? null,
-            'metadata' => ['guests' => $data['guests']],
-        ]);
+        // TCK-596 — un séjour daté sur des nuits déjà confirmées est refusé, sous le verrou de la
+        // ligne du bien que `BookingService::confirm` prend aussi. L'offre d'achat n'a pas de nuits.
+        $booking = DB::transaction(function () use ($availability, $property, $customer, $user, $data, $amounts): Booking {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+            $availability->assertAvailable($property, $data['start_date'], $data['end_date']);
+
+            return Booking::create([
+                'property_id' => $property->id,
+                'customer_id' => $customer->id,
+                'created_by_id' => $user->id,
+                'agency_id' => $property->agency_id,
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'],
+                // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à
+                // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
+                'total_amount' => $amounts['total_amount'],
+                'deposit_amount' => $amounts['deposit_amount'],
+                'currency' => $property->currency,
+                'status' => BookingStatus::Pending->value,
+                'notes' => $data['message'] ?? null,
+                'metadata' => ['guests' => $data['guests']],
+            ]);
+        });
+
+        // TCK-596 — la demande publique prévient qui doit la traiter : elle ne prévenait personne.
+        BookingRequested::dispatch($booking, $user->id);
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),
@@ -832,8 +1077,8 @@ class PublicPropertyController extends Controller
 
         $primaryAgent = $resolver->recipientFor($property);
 
-        abort_if($primaryAgent === null, 422, 'No recipient available.');
-        abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
+        abort_code_if($primaryAgent === null, 422, 'message.no_recipient');
+        abort_code_if($primaryAgent->id === $user->id, 422, 'message.self');
 
         $conversation = $resolver->firstOrCreate($property, $user, $primaryAgent);
 
@@ -849,13 +1094,10 @@ class PublicPropertyController extends Controller
             'last_message_at' => now(),
         ]);
 
-        $notifications->notify(
-            $primaryAgent,
-            NotificationType::Message,
-            'Nouveau message',
-            $this->displayName($user).': '.mb_strimwidth($data['message'], 0, 80, '…'),
-            ['conversation_id' => $conversation->id, 'message_id' => $message->id],
-        );
+        $notifications->send($primaryAgent, NotificationCode::MessageReceived, [
+            'sender' => $this->displayName($user),
+            'excerpt' => mb_strimwidth($data['message'], 0, 80, '…'),
+        ], NotificationTarget::of('conversation', $conversation->id));
 
         return $this->json([
             'data' => [
@@ -885,18 +1127,21 @@ class PublicPropertyController extends Controller
     /** Le nom affiché d'un utilisateur, avec les mêmes replis que la notification d'origine. */
     private function displayName(User $user): string
     {
-        return trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: ($user->username ?? 'Utilisateur');
+        return trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: (string) ($user->username ?? $user->email);
     }
 
     /**
      * Anonymous lead capture endpoint (TCK-161). Lets a non-authenticated
      * visitor send a one-shot contact message to the property's primary
-     * agent (or owner) without creating an account. Persists the lead for
-     * moderation/anti-spam follow-up and pings the recipient via the
-     * existing notification channel. A filled honeypot returns 201 silently
-     * — bots get a normal-looking success without polluting the database.
+     * agent (or owner) without creating an account. A filled honeypot returns
+     * 201 silently — bots get a normal-looking success without polluting the
+     * database.
+     *
+     * TCK-590 — la piste, son destinataire, le repli vers les admins de l'agence, le 409 sans
+     * destinataire ni agence et l'accusé de réception vivent dans `ContactLeadService`, partagé
+     * avec le contact d'un agent.
      */
-    public function contactLead(ContactLeadPublicRequest $request, NotificationService $notifications, PropertyConversationResolver $resolver, string $slug): JsonResponse
+    public function contactLead(ContactLeadPublicRequest $request, ContactLeadService $leads, PropertyConversationResolver $resolver, string $slug): JsonResponse
     {
         $data = $request->validated();
 
@@ -906,34 +1151,30 @@ class PublicPropertyController extends Controller
 
         $property = $this->publicPropertyForContact($slug, $resolver);
 
-        // TCK-500 — ce calcul était écrit ici À L'IDENTIQUE une troisième fois. Le service ne
-        // vaut que s'il est le seul à savoir : une copie oubliée finit toujours par diverger,
-        // et un lead anonyme livré à un autre agent que le message authentifié serait un défaut
-        // qu'aucun des deux endpoints ne montrerait seul.
-        $primaryAgent = $resolver->recipientFor($property);
-
-        $lead = PropertyContactLead::create([
-            'property_id' => $property->id,
-            'recipient_user_id' => $primaryAgent?->id,
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'message' => $data['message'],
-            'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
-        ]);
-
-        if ($primaryAgent !== null) {
-            $notifications->notify(
-                $primaryAgent,
-                NotificationType::Message,
-                'Nouveau lead anonyme',
-                $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
-                ['property_id' => $property->id, 'lead_id' => $lead->id],
-            );
-        }
+        $leads->forProperty($property, $data, $request);
 
         return $this->json(['data' => ['accepted' => true]], 201);
+    }
+
+    /**
+     * TCK-590 — un clic WhatsApp / Appeler est compté : une piste de canal `whatsapp` / `call`,
+     * sans identité, hors de la file « à traiter ». Limiteur dédié : un compteur n'a pas à
+     * consommer le crédit des demandes de contact.
+     */
+    public function contactClick(ContactClickPublicRequest $request, ContactLeadService $leads, string $slug): JsonResponse
+    {
+        $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
+        $data = $request->validated();
+
+        $leads->recordClick(
+            $property,
+            ContactLeadChannel::from($data['channel']),
+            $data['source'] ?? null,
+            $data['medium'] ?? null,
+            $request,
+        );
+
+        return $this->json(null, 204);
     }
 
     /**
@@ -946,25 +1187,17 @@ class PublicPropertyController extends Controller
     public function contact(string $slug): JsonResponse
     {
         $property = Property::query()
-            ->with([...PrimaryPropertyContact::eagerLoads(), 'address'])
+            ->with(PrimaryPropertyContact::eagerLoads())
             ->public()
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $address = $property->address;
-        $location = $address
-            ? trim(($address->neighborhood ? $address->neighborhood.', ' : '').$address->city)
-            : '';
-
-        $message = "Bonjour, je suis intéressé(e) par votre bien :\n"
-            ."{$property->title}\n"
-            .number_format((float) $property->price, 0, ',', ' ').' FCFA'
-            .($location ? " - {$location}" : '')."\n"
-            .'Vu sur Takussan.sn';
-
+        // TCK-590 — le message prérempli (« Bonjour, je suis intéressé(e)… Vu sur Takussan.sn »)
+        // était écrit ICI, en français quelle que soit la langue du visiteur : le front le
+        // construit désormais (principe n°5). L'endpoint ne rend plus que ce que le front ne peut
+        // pas savoir — le numéro, révélé au geste et sous limiteur (contrainte 7).
         return $this->json([
             'phone' => PrimaryPropertyContact::for($property)?->phone,
-            'message' => $message,
         ]);
     }
 }

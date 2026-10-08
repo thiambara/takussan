@@ -5,7 +5,6 @@ namespace App\Services\Privacy;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
-use App\Models\ConversationParticipant;
 use App\Models\Customer;
 use App\Models\DataExport;
 use App\Models\Document;
@@ -13,8 +12,10 @@ use App\Models\Enums\DataExportStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Message;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Messaging\ConversationAccess;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use ZipArchive;
@@ -74,15 +75,19 @@ class DataExportBuilder
     public function payloads(User $user): array
     {
         $customerIds = Customer::query()->where('user_id', $user->id)->pluck('id');
-        $conversationIds = ConversationParticipant::query()->where('user_id', $user->id)->pluck('conversation_id');
+        // TCK-592 (passe 2, N1) — ses propres messages toujours ; ceux des autres, seulement dans
+        // les fils que la garde de conversation lui ouvre encore.
+        $conversationIds = app(ConversationAccess::class)->participatingQuery($user, activeOnly: false)->pluck('conversations.id');
 
         return [
             'profile.json' => [
                 'user' => $user->makeHidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])->toArray(),
                 'profiles' => [
-                    'owners' => $user->ownerProfiles()->get()->toArray(),
+                    // TCK-601 — le droit d'accès reste entier : le titulaire reçoit ses identifiants
+                    // sensibles EN CLAIR, que `$hidden` retire de toute autre sérialisation.
+                    'owners' => $user->ownerProfiles()->get()->each->makeVisible(OwnerProfile::SENSITIVE)->toArray(),
                     'agents' => $user->agentProfiles()->get()->toArray(),
-                    'broker' => $user->brokerProfile()->first()?->toArray(),
+                    'agency_admins' => $user->agencyAdminProfiles()->get()->toArray(),
                     'service_provider' => $user->serviceProviderProfile()->first()?->toArray(),
                 ],
             ],

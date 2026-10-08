@@ -28,6 +28,7 @@ import type {
   PropertyCreatePayload,
   PropertyUpdatePayload,
 } from '@/components/property-form/payload';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Colonnes que la liste CRUD agent rend réellement — la garder étroite.
@@ -55,6 +56,10 @@ import type {
 export const DASHBOARD_PROPERTY_FIELDS = [
   'id',
   'user_id',
+  // TCK-603 — `PropertyResource` ne sert `primary_contact` sur l'index que si `agency_id` et
+  // `user_id` sont chargés : la liste distingue propriétaire et agent responsable. TCK-590 lit
+  // aussi `agency_id` sur la route de détail (`agenceDuBien`), qui l'hérite d'ici.
+  'agency_id',
   'reference_number',
   'title',
   'slug',
@@ -131,7 +136,7 @@ export async function fetchDashboardProperties(
 ): Promise<PaginatedResponse<PropertyListItem>> {
   const qs = buildQueryString(buildListParams(params));
   return apiRequest<PaginatedResponse<PropertyListItem>>(
-    `/api/properties${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/properties${requete(qs)}`,
     { token },
   );
 }
@@ -156,6 +161,10 @@ export async function fetchDashboardProperties(
  * l'exemption nommément, pour qu'elle soit un choix et non un oubli.
  */
 export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
+  // TCK-590 (passe 2, n4 ; passe 3, R2) — « Planifier une visite » se juge sur le profil actif
+  // DANS l'agence du bien. La ressource n'émet pas `agency_id` : la colonne est lue pour que le
+  // bloc `agency` de la route de détail se résolve, et la page lit `agency.id` (`agenceDuBien`).
+  // Elle vient du spread ci-dessous depuis TCK-603 : la répéter ici l'enverrait deux fois.
   ...DASHBOARD_PROPERTY_FIELDS,
   'description',
   'bathrooms',
@@ -167,6 +176,13 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'available_from',
   'year_built',
   'parking_spaces',
+  // TCK-598 — la page d'édition relit le coût d'entrée (`entry_cost`, calculé depuis ces quatre
+  // colonnes : non demandées, le bloc sort nul) et la visite virtuelle.
+  'deposit_months',
+  'advance_months',
+  'agency_fee_months',
+  'monthly_charges',
+  'virtual_tour_url',
 ] as const;
 
 export async function fetchDashboardProperty(
@@ -177,7 +193,7 @@ export async function fetchDashboardProperty(
     fields: { properties: DASHBOARD_PROPERTY_DETAIL_FIELDS },
   });
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${idOrSlug}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/properties/${idOrSlug}${requete(qs)}`,
     { token },
   );
   return res.data;
@@ -201,7 +217,7 @@ export async function updateProperty(
   payload: PropertyUpdatePayload,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}`,
+    cheminApi`/api/properties/${propertyId}`,
     {
       method: 'PUT',
       body: payload,
@@ -215,7 +231,7 @@ export async function deleteProperty(
   token: string,
   propertyId: number,
 ): Promise<void> {
-  await apiRequest<void>(`/api/properties/${propertyId}`, {
+  await apiRequest<void>(cheminApi`/api/properties/${propertyId}`, {
     method: 'DELETE',
     token,
   });
@@ -226,7 +242,7 @@ export async function duplicateProperty(
   propertyId: number,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}/duplicate`,
+    cheminApi`/api/properties/${propertyId}/duplicate`,
     {
       method: 'POST',
       body: {},
@@ -242,7 +258,7 @@ export async function updatePropertyStatus(
   status: string,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}/status`,
+    cheminApi`/api/properties/${propertyId}/status`,
     {
       method: 'PUT',
       body: { status },
@@ -258,7 +274,7 @@ export async function updatePropertyVisibility(
   visibility: 'public' | 'private',
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}/visibility`,
+    cheminApi`/api/properties/${propertyId}/visibility`,
     {
       method: 'PUT',
       body: { visibility },
@@ -274,7 +290,7 @@ export async function assignPropertyAgent(
   userId: number,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    `/api/properties/${propertyId}/assigned-agent`,
+    cheminApi`/api/properties/${propertyId}/assigned-agent`,
     {
       method: 'PUT',
       body: { user_id: userId },
@@ -298,7 +314,7 @@ export async function uploadPropertyPhotos(
   for (const file of files) {
     form.append('photos[]', file);
   }
-  await apiRequest<void>(`/api/properties/${propertyId}/media`, {
+  await apiRequest<void>(cheminApi`/api/properties/${propertyId}/media`, {
     method: 'POST',
     body: form,
     token,
@@ -327,7 +343,7 @@ export async function fetchPropertyMedia(
   propertyId: number,
 ): Promise<PropertyMediaItem[]> {
   const res = await apiRequest<ApiResponse<PropertyMediaItem[]>>(
-    `/api/properties/${propertyId}/media`,
+    cheminApi`/api/properties/${propertyId}/media`,
     { token },
   );
   return res.data;
@@ -342,7 +358,7 @@ export async function deletePropertyMedia(
   propertyId: number,
   mediaId: number,
 ): Promise<void> {
-  await apiRequest<void>(`/api/properties/${propertyId}/media/${mediaId}`, {
+  await apiRequest<void>(cheminApi`/api/properties/${propertyId}/media/${mediaId}`, {
     method: 'DELETE',
     token,
   });
@@ -359,7 +375,7 @@ export async function reorderPropertyMedia(
   propertyId: number,
   mediaIds: number[],
 ): Promise<void> {
-  await apiRequest<void>(`/api/properties/${propertyId}/media/reorder`, {
+  await apiRequest<void>(cheminApi`/api/properties/${propertyId}/media/reorder`, {
     method: 'PUT',
     body: { order: mediaIds },
     token,
@@ -371,7 +387,7 @@ export async function setPropertyTags(
   propertyId: number,
   tagIds: number[],
 ): Promise<void> {
-  await apiRequest<unknown>(`/api/properties/${propertyId}/tags`, {
+  await apiRequest<unknown>(cheminApi`/api/properties/${propertyId}/tags`, {
     method: 'POST',
     body: { tag_ids: tagIds },
     token,
@@ -383,7 +399,7 @@ export async function fetchPropertyPriceHistory(
   propertyId: number,
 ): Promise<PropertyPriceHistoryItem[]> {
   const res = await apiRequest<ApiResponse<PropertyPriceHistoryItem[]>>(
-    `/api/properties/${propertyId}/price-history`,
+    cheminApi`/api/properties/${propertyId}/price-history`,
     { token },
   );
   return res.data;

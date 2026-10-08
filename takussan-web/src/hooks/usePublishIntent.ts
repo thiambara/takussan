@@ -63,7 +63,8 @@ const PROFILE_PICKER_TARGET = '/app?selectProfile=true&next=/publish';
  *
  * `service_provider` profiles are intentionally excluded: per §1.12, only
  * agency_admin/agent profiles host listings. (`broker` figurait ici jusqu'au
- * 2026-08-31 ; il n'est plus un `ProfileType` — TCK-495, ADR-0027.)
+ * 2026-08-31 ; il n'est plus un `ProfileType` — TCK-495, ADR-0027 — et a
+ * quitté le code depuis, ADR-0030.)
  */
 function collectAgencyIds(user: User | null, profiles: Profile[] | undefined): number[] {
   const ids = new Set<number>();

@@ -14,10 +14,10 @@ use RuntimeException;
  *
  * Responsibilities:
  *  - Set `agency.kind = standard`.
- *  - Backfill missing legal fields from the approved request. Real Agency
- *    columns are preferred when present (currently none of the legal
- *    fields are first-class on Agency), otherwise the value lands in
- *    `agency.metadata.legal_info.{field}` so the data is still queryable.
+ *  - Backfill missing legal fields from the approved request. TCK-594
+ *    (ADR-0039 §7) — all four are first-class columns
+ *    ({@see self::COLUMN_OF}), which the invoice PDF prints. The professional
+ *    RIB is never copied (TCK-601) : it stays on the encrypted request.
  *  - Stamp `agency.metadata.welcome.standard_unlocked_at` so the frontend
  *    can fire the "welcome to your standard agency" modale on next login.
  *  - Log the activity (`agency_kind_flipped`) with `from`/`to` properties.
@@ -45,9 +45,25 @@ class AgencyKindFlipService
     public const LEGAL_FIELDS = [
         'rc',
         'ninea',
-        'rib_pro',
+        // TCK-601 (ADR-0044 §1) — `rib_pro` n'est PLUS recopié : la copie n'avait aucun lecteur et
+        // `AgencyResource` la rendait à tout membre de l'agence. La seule source du RIB
+        // professionnel reste la demande, chiffrée. Ne pas le rajouter ici.
         'company_legal_name',
         'address_fiscale',
+    ];
+
+    /**
+     * TCK-594 (ADR-0039 §7) — champ de la demande → colonne d'`agencies`. Une valeur déjà posée à
+     * la main (colonne, ou à défaut `metadata.legal_info` d'avant la migration) n'est jamais
+     * écrasée : la demande amorce, elle ne fait pas foi.
+     *
+     * @var array<string,string>
+     */
+    public const COLUMN_OF = [
+        'rc' => 'rccm',
+        'ninea' => 'ninea',
+        'company_legal_name' => 'legal_name',
+        'address_fiscale' => 'legal_address',
     ];
 
     public function flip(AgencyUpgradeRequest $request): Agency
@@ -82,9 +98,11 @@ class AgencyKindFlipService
                     continue;
                 }
 
-                if (in_array($field, $agency->getFillable(), true) && array_key_exists($field, $agency->getAttributes())) {
-                    if ($agency->{$field} === null || $agency->{$field} === '') {
-                        $agency->{$field} = $value;
+                $column = self::COLUMN_OF[$field] ?? null;
+                if ($column !== null) {
+                    if ($agency->{$column} === null || $agency->{$column} === '') {
+                        $curated = $legalInfo[$field] ?? null;
+                        $agency->{$column} = $curated !== null && $curated !== '' ? $curated : $value;
                     }
 
                     continue;

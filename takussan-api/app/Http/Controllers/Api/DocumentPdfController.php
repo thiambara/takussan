@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -29,10 +31,25 @@ class DocumentPdfController extends Controller
     {
         abort_unless($payment->lease_id === $lease->id, 404);
         $this->authorizeReceipt($request, $lease);
+        // TCK-593 — une quittance atteste un paiement : en délivrer une pour un impayé créerait une
+        // preuve contre le bailleur. Même règle que le reçu de réservation.
+        abort_code_unless($payment->status === PaymentStatus::Paid, 422, 'lease_payment.receipt_unpaid');
+        // TCK-594 (VERIF-594 passe 5, P5-3) — une caution rendue est l'argent de l'agence vers le
+        // locataire : une « Quittance de loyer » attesterait l'inverse.
+        abort_code_if($payment->payment_type === LeasePaymentType::DepositRefund, 422, 'lease_payment.receipt_not_a_payment');
 
+        return self::streamRentReceipt($this->pdf, $lease, $payment);
+    }
+
+    /**
+     * Le rendu de la quittance de TCK-593 — UN gabarit, servi aussi par le lien de paiement
+     * public (TCK-602, `PublicPaymentLinkController::receipt`), qui ne crée pas le sien.
+     */
+    public static function streamRentReceipt(DocumentPdfService $pdf, Lease $lease, LeasePayment $payment): Response
+    {
         $lease->loadMissing(['property.address', 'tenant', 'agency']);
 
-        return $this->pdf->stream('pdf.receipts.rent', [
+        return $pdf->stream('pdf.receipts.rent', [
             'title' => 'Quittance de loyer',
             'document_label' => 'Quittance',
             'lease' => $lease,
@@ -46,13 +63,15 @@ class DocumentPdfController extends Controller
 
     public function invoice(Request $request, Invoice $invoice): Response
     {
-        $this->authorizeInvoice($request, $invoice);
+        // TCK-587 — la règle de `InvoicePolicy::view`, que l'ancien helper recopiait à l'identique.
+        $this->authorize('view', $invoice);
 
-        $invoice->loadMissing(['customer', 'agency']);
+        $invoice->loadMissing(['customer', 'agency', 'creditedInvoice']);
+        $label = ($invoice->kind?->value ?? 'invoice') === 'credit_note' ? 'Avoir' : 'Facture';
 
         return $this->pdf->stream('pdf.invoices.default', [
-            'title' => 'Facture '.($invoice->reference_number ?? $invoice->id),
-            'document_label' => 'Facture',
+            'title' => $label.' '.($invoice->reference_number ?? $invoice->id),
+            'document_label' => $label,
             'invoice' => $invoice,
             'customer' => $invoice->customer,
             'agency' => $invoice->agency,
@@ -62,7 +81,25 @@ class DocumentPdfController extends Controller
 
     public function leaseContract(Request $request, Lease $lease): Response
     {
-        $this->authorizeLease($request, $lease);
+        // TCK-587 — la règle de `LeasePolicy::view`, que l'ancien helper recopiait à l'identique.
+        $this->authorize('view', $lease);
+
+        // TCK-596 §4B (ADR-0042 §1) — dès qu'un contrat est figé (signature demandée, ou scan de
+        // la voie papier), c'est LUI qui est servi, octet pour octet : c'est son empreinte que les
+        // parties signent. Le rendu à la volée ne reste que pour un contrat NON figé (brouillon, ou
+        // défigé par une modification). Et l'on FERME À L'ÉCHEC : un contrat figé introuvable, ou
+        // dont les octets n'ont plus l'empreinte enregistrée, n'est jamais remplacé par un rendu.
+        if ($lease->contract_sha256 !== null) {
+            $bytes = $lease->frozenContractBytes();
+            abort_code_if($bytes === null, 409, 'lease_signature.contract_missing');
+            $frozen = $lease->getFirstMedia('signed_contract');
+
+            return new Response($bytes, 200, [
+                'Content-Type' => $frozen?->mime_type ?: 'application/pdf',
+                'Content-Disposition' => sprintf('inline; filename="%s"', $frozen?->file_name ?? 'bail.pdf'),
+                'Cache-Control' => 'private, max-age=0, no-cache',
+            ]);
+        }
 
         $lease->loadMissing(['property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
@@ -90,7 +127,10 @@ class DocumentPdfController extends Controller
 
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
         $isLandlord = $lease->landlord_id === $user->id;
-        $isAgency = $user->agency_id && $user->agency_id === $lease->agency_id;
+        // TCK-587 — le PERSONNEL de l'agence du bail (ADR-0031) : un autre bailleur de l'agence
+        // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
+        $staffAgencyId = $user->staffAgencyId();
+        $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
         $isCollab = (bool) $lease->property?->collaborators()
             ->where('user_id', $user->id)
             ->whereNotNull('accepted_at')
@@ -98,37 +138,5 @@ class DocumentPdfController extends Controller
         $isAdmin = $user->isSuperAdmin();
 
         abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);
-    }
-
-    /**
-     * Facture : destinataire (customer.user_id) + émetteur + agence + admin.
-     */
-    protected function authorizeInvoice(Request $request, Invoice $invoice): void
-    {
-        $user = $request->user();
-        abort_unless($user, 401);
-
-        $isRecipient = $invoice->customer && $invoice->customer->user_id === $user->id;
-        $isIssuer = $invoice->issued_by_id === $user->id;
-        $isAgency = $user->agency_id && $user->agency_id === $invoice->agency_id;
-        $isAdmin = $user->isSuperAdmin();
-
-        abort_unless($isAdmin || $isRecipient || $isIssuer || $isAgency, 403);
-    }
-
-    /**
-     * Bail : parties (bailleur, locataire), agence propriétaire et admin.
-     */
-    protected function authorizeLease(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        abort_unless($user, 401);
-
-        $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
-        $isLandlord = $lease->landlord_id === $user->id;
-        $isAgency = $user->agency_id && $user->agency_id === $lease->agency_id;
-        $isAdmin = $user->isSuperAdmin();
-
-        abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency, 403);
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Resources\BookingPaymentResource;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Payments\PaymentReceiptPdf;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,8 @@ class BookingPaymentController extends Controller
 
     public function index(Request $request, Booking $booking): JsonResponse
     {
-        $this->authorizeBookingAccess($request, $booking);
+        // TCK-587 — la règle de `BookingPolicy::view`, à l'identique : l'ancien helper la recopiait.
+        $this->authorize('view', $booking);
 
         $payments = $booking->payments()
             ->latest()
@@ -40,13 +42,9 @@ class BookingPaymentController extends Controller
         // ignore any client-provided shortcut to `paid`.
         $user = $request->user();
         $isCustomer = $booking->customer && $booking->customer->user_id === $user->id;
-        $bookingAgencyId = $booking->agency_id ?? $booking->property?->agency_id;
-        $isStaff = $user->isSuperAdmin()
-            || ($bookingAgencyId !== null && (
-                $user->isAgencyAdminAt((int) $bookingAgencyId)
-                || $user->isAgentAt((int) $bookingAgencyId)
-                || $user->isOwnerAt((int) $bookingAgencyId)
-            ));
+        // TCK-596 — « bailleur direct du bien », plus `isOwnerAt(agence)` : tout bailleur de
+        // l'agence comptait comme encaisseur. Même règle que l'autorisation (`BookingMoneyAccess`).
+        $isStaff = BookingMoneyAccess::canRecordAsCollector($user, $booking);
         if ($isCustomer && ! $isStaff) {
             $data['status'] = PaymentStatus::Pending->value;
             $data['paid_at'] = null;
@@ -69,11 +67,11 @@ class BookingPaymentController extends Controller
     {
         $payment->loadMissing('booking');
         abort_unless($payment->booking, 404);
-        $this->authorizeBookingAccess($request, $payment->booking);
-        abort_unless(
+        $this->authorize('view', $payment->booking);
+        abort_code_unless(
             $payment->status === PaymentStatus::Paid,
             422,
-            'La quittance est disponible uniquement pour un paiement acquitté.'
+            'booking_payment.receipt_unpaid'
         );
 
         $body = $pdf->forBookingPayment($payment);
@@ -97,18 +95,5 @@ class BookingPaymentController extends Controller
         return $this->json([
             'data' => BookingPaymentResource::make($payment)->toArray($request),
         ]);
-    }
-
-    protected function authorizeBookingAccess(Request $request, Booking $booking): void
-    {
-        $user = $request->user();
-        $property = $booking->property;
-        $ok = $user->isSuperAdmin()
-            || $booking->created_by_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
-            || ($booking->customer && $booking->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
     }
 }

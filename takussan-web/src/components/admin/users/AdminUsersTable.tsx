@@ -22,8 +22,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDate as formatDateIntl } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
+import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
+import { isAgencyStaffRow } from './isAgencyStaffRow';
 
 /**
  * TCK-292 — la donnée ne porte plus que ce qu'elle sait : le TON du badge.
@@ -93,7 +95,15 @@ interface AdminUsersTableProps {
    */
   assignmentsByUser?: ReadonlyMap<number, readonly AgencyRoleAssignment[]>;
   onSelect: (user: AdminAgencyUserRow) => void;
-  onQuickAction: (user: AdminAgencyUserRow, action: 'block' | 'activate') => void;
+  /**
+   * TCK-587 — le geste de suspension DANS l'agence proposé pour une ligne, ou `null`.
+   *
+   * Remplace « Bloquer » / « Réactiver » le COMPTE : ce blocage coupait le membre de toutes ses
+   * agences à la fois, et il est réservé au super-admin depuis ce ticket (`UserAdminController`).
+   * Absent = la console ne propose aucune suspension (pas de `team.suspend`).
+   */
+  suspensionFor?: (user: AdminAgencyUserRow) => TeamSuspensionAction | null;
+  onSuspension?: (user: AdminAgencyUserRow, action: TeamSuspensionAction) => void;
   onRemove?: (user: AdminAgencyUserRow) => void;
 }
 
@@ -103,10 +113,12 @@ export function AdminUsersTable({
   currentUserId,
   assignmentsByUser,
   onSelect,
-  onQuickAction,
+  suspensionFor,
+  onSuspension,
   onRemove,
 }: AdminUsersTableProps) {
   const t = useTranslations('admin.users');
+  const tSuspension = useTranslations('admin.team.suspension');
   const locale = useLocale() as Locale;
   const roleLabel = (name: string) => (ROLE_KEYS.has(name) ? t(`roles.${name}`) : name);
   const router = useRouter();
@@ -209,11 +221,31 @@ export function AdminUsersTable({
       header: t('table.status'),
       className: 'align-middle',
       cell: (row) => (
-        <StatusBadge
-          tone={STATUS_TONES[row.status] ?? 'neutral'}
-          label={STATUS_TONES[row.status] !== undefined ? t(`status.${row.status}`) : row.status}
-        />
+        <span className="flex flex-wrap gap-1">
+          <StatusBadge
+            tone={STATUS_TONES[row.status] ?? 'neutral'}
+            label={STATUS_TONES[row.status] !== undefined ? t(`status.${row.status}`) : row.status}
+          />
+          {suspensionFor?.(row) === 'reactivate' ? (
+            <StatusBadge tone="attention" label={tSuspension('suspendedBadge')} />
+          ) : null}
+        </span>
       ),
+    },
+    {
+      // TCK-589 — l'administrateur voit qui, dans son équipe, n'a pas de second facteur.
+      id: 'twoFactor',
+      header: t('table.twoFactor'),
+      className: 'align-middle whitespace-nowrap',
+      cell: (row) =>
+        row.two_factor_enabled === undefined ? (
+          <span className="text-xs text-muted-foreground">{t('table.twoFactorUnknown')}</span>
+        ) : (
+          <StatusBadge
+            tone={row.two_factor_enabled ? 'success' : 'attention'}
+            label={row.two_factor_enabled ? t('table.twoFactorOn') : t('table.twoFactorOff')}
+          />
+        ),
     },
     {
       id: 'lastLogin',
@@ -239,7 +271,7 @@ export function AdminUsersTable({
       className: 'align-middle',
       cell: (row) => {
         const isSelf = row.id === currentUserId;
-        const isBlocked = row.status === 'banned';
+        const suspension = onSuspension ? (suspensionFor?.(row) ?? null) : null;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -259,21 +291,20 @@ export function AdminUsersTable({
               <DropdownMenuItem onClick={() => onSelect(row)}>
                 {t('table.viewDetail')}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {isBlocked ? (
-                <DropdownMenuItem disabled={isSelf} onClick={() => onQuickAction(row, 'activate')}>
-                  {t('table.reactivate')}
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem
-                  disabled={isSelf}
-                  onClick={() => onQuickAction(row, 'block')}
-                  className="text-destructive"
-                >
-                  {t('table.block')}
-                </DropdownMenuItem>
-              )}
-              {onRemove ? (
+              {suspension && onSuspension ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onSuspension(row, suspension)}
+                    className={suspension === 'suspend' ? 'text-destructive' : undefined}
+                  >
+                    {suspension === 'suspend'
+                      ? tSuspension('suspend')
+                      : tSuspension('reactivate')}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+              {onRemove && isAgencyStaffRow(row, assignmentsByUser?.get(row.id)) ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

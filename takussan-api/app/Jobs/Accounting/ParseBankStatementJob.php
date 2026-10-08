@@ -9,7 +9,9 @@ use App\Models\Enums\BankStatementStatus;
 use App\Services\Accounting\StatementParser\ParserContext;
 use App\Services\Accounting\StatementParser\StatementParserFactory;
 use App\Services\Media\PrivateMediaAccess;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -50,10 +52,12 @@ class ParseBankStatementJob implements ShouldQueue
         }
 
         try {
+            // TCK-593 — le mapping FIGÉ sur le relevé à l'import ; celui de l'agence en repli, pour
+            // un relevé importé avant que l'instantané existe.
             $context = new ParserContext(
                 agency: $statement->agency,
                 format: $statement->source_format,
-                csvMapping: $statement->agency->bank_csv_mapping,
+                csvMapping: $statement->csv_mapping ?? $statement->agency->bank_csv_mapping,
             );
 
             $parser = $factory->for($statement->source_format);
@@ -85,16 +89,32 @@ class ParseBankStatementJob implements ShouldQueue
                 }
             });
 
+            $skipped = $context->tally->skipped;
+
+            // TCK-593 — un fichier dont des lignes ont été sautées et AUCUNE lue n'est pas un relevé
+            // vide à vérifier : c'est un mapping qui ne correspond pas au fichier. `failed`, avec le
+            // compte, au lieu de `ready_for_review` à zéro ligne.
+            if ($lines === [] && $skipped > 0) {
+                $statement->update([
+                    'lines_count' => 0,
+                    'skipped_lines_count' => $skipped,
+                    'status' => BankStatementStatus::Failed,
+                ]);
+
+                return;
+            }
+
             // Line inserts + status flip must commit together: a crash between
             // them previously left lines present but status stuck on Processing,
             // which the old `lines()->exists()` guard then made unrecoverable.
-            DB::transaction(function () use ($lines, $dates, $statement): void {
+            DB::transaction(function () use ($lines, $dates, $statement, $skipped): void {
                 foreach (array_chunk($lines, 500) as $chunk) {
                     BankStatementLine::insert($chunk);
                 }
 
                 $statement->update([
                     'lines_count' => count($lines),
+                    'skipped_lines_count' => $skipped,
                     'period_start' => ! empty($dates) ? min($dates)->toDateString() : null,
                     'period_end' => ! empty($dates) ? max($dates)->toDateString() : null,
                     'status' => BankStatementStatus::ReadyForReview,
@@ -105,13 +125,34 @@ class ParseBankStatementJob implements ShouldQueue
             MatchBankStatementJob::dispatch($this->statementId);
             event(new BankStatementImported($statement->refresh()));
         } catch (\Throwable $e) {
-            Log::error("ParseBankStatementJob: failed for statement #{$this->statementId}", [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            // TCK-593 — ni `getMessage()` ni la trace : le message d'une `QueryException` sur
+            // l'insertion par paquets porte le SQL AVEC SES VALEURS LIÉES — libellés, contreparties,
+            // références et montants de toutes les lignes du paquet. La classe, le SQLSTATE et le
+            // point de levée suffisent au diagnostic.
+            // TCK-601 — raccord fait : la forme sûre partagée (ADR-0044 §2).
+            Log::error('bank_statement_parse_failed', [
+                'statement_id' => $this->statementId,
+            ] + SafeExceptionContext::of($e));
 
-            // Leave status as 'processing' to indicate failure
-            throw $e;
+            // TCK-593 — un relevé dont l'analyse échoue ne reste plus `processing` à vie. Seulement
+            // s'il l'est encore : une levée APRÈS la validation des lignes (enchaînement, écouteur)
+            // ne fait pas d'un relevé lu un relevé en échec — et un `failed` n'a ainsi jamais de
+            // ligne, ce qui permet de le remplacer au ré-import.
+            if ($statement->refresh()->status === BankStatementStatus::Processing) {
+                $statement->update(['status' => BankStatementStatus::Failed]);
+            }
+
+            // TCK-593 (vérification adverse, R8) — relancer `$e` le confiait au rapporteur du
+            // worker et à `failed_jobs.exception`, qui en écrivent le message : le SQL et ses
+            // valeurs liées, soit le relevé. On relance une exception ASSAINIE — classe d'origine
+            // et SQLSTATE, sans `previous` — pour que le job reste en échec sans rien recopier.
+            // Le rapporteur global de TCK-601 ne change rien à ce choix.
+            throw new \RuntimeException(sprintf(
+                'Bank statement #%d parse failed (%s, sqlstate %s).',
+                $this->statementId,
+                $e::class,
+                $e instanceof QueryException ? ($e->errorInfo[0] ?? 'n/a') : 'n/a',
+            ));
         }
     }
 }

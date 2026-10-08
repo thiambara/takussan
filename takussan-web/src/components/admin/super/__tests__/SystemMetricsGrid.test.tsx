@@ -32,7 +32,7 @@ describe('SystemMetricsGrid (TCK-360)', () => {
         trend: {
           period_days: 30,
           since: '2026-07-28T10:00:00+00:00',
-          previous: { agencies_total: 100, users_total: 500, revenue_platform_total_paid: 4_000_000 },
+          previous: { agencies_total: 100, users_total: 500, revenue_collected_total: 4_000_000 },
         },
       },
     });
@@ -129,5 +129,47 @@ describe('SystemMetricsGrid (TCK-360)', () => {
     expect([...liens].map((a) => a.getAttribute('href'))).toContain(
       '/super-admin/properties?filter[status]=pending_review',
     );
+  });
+
+  /**
+   * TCK-595 (AC20, AC20 bis côté écran) — « Flux encaissé » remplace « Revenu plateforme », et les
+   * tuiles GMV, take rate, MRR et essais lisent le bloc `revenue` de l'API.
+   */
+  it('rend le flux encaissé et les tuiles de pilotage financier', async () => {
+    vi.mocked(fetchSystemMetrics).mockResolvedValue({
+      data: {
+        ...BASE,
+        revenue: {
+          collected_total: 300_000,
+          platform_total_paid: 300_000,
+          gmv_30d: 300_000,
+          platform_fees_30d: 25_000,
+          take_rate: 0.0833,
+          mrr: 40_000,
+          mrr_trialing: 15_000,
+          active_subscriptions: 3,
+          currency: 'XOF',
+        },
+        trend: {
+          period_days: 30,
+          since: '2026-06-15T10:00:00+00:00',
+          previous: { revenue_collected_total: 240_000, revenue_mrr: 40_000 },
+        },
+      },
+    });
+
+    renderGrid(<SystemMetricsGrid />);
+
+    const grille = await screen.findByTestId('system-metrics-grid');
+    const texte = grille.textContent ?? '';
+    expect(texte).toContain('Flux encaissé');
+    expect(texte).not.toContain('Revenu plateforme');
+    expect(texte).toContain('300\u202F000\u00A0F\u00A0CFA');
+    expect(texte).toContain('8,33\u00A0%');
+    expect(texte).toContain('40\u202F000\u00A0F\u00A0CFA');
+    expect(texte).toContain('15\u202F000\u00A0F\u00A0CFA');
+    expect(texte).toContain('3 abonnements payants');
+    // 300 000 depuis 240 000 → +25 % : la tendance du flux encaissé lit `revenue_collected_total`.
+    expect(screen.getByText('+25 % sur 30 jours')).toBeInTheDocument();
   });
 });

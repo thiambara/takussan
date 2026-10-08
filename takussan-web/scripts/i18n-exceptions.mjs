@@ -113,7 +113,10 @@ const R_JOURNAL_DOMAINE =
   + "seule trace d'une dégradation volontaire — toute facette de ville se replie alors sur la page "
   + "nue —, et c'est justement ce qui interdit de le traduire : rendu dans la langue du visiteur, "
   + "il ne serait plus lisible par celui qui doit agir. Suivi jusqu'à sa sortie : `villesDuCatalogue` "
-  + "n'a qu'un appelant, la `generateMetadata` de la liste, qui n'en affiche rien.";
+  + "n'a qu'un appelant, la `generateMetadata` de la liste, qui n'en affiche rien. TCK-598 y ajoute "
+  + "le domaine des QUARTIERS d'une ville (`quartiersDeLaVille`), même contrat : ses appelants sont "
+  + "`domainesDeLaListe` (métadonnée et `<h1>` de la liste, qui n'affichent que la graphie du "
+  + "catalogue) et la source « quartiers-et-villes » du sitemap, qui ne rendent rien de ce message.";
 
 const R_ERREUR_SITEMAP =
   "Fragment d'un message d'`Error` levée pendant la GÉNÉRATION de `/sitemap.xml`, `/robots.txt` ou "
@@ -289,13 +292,14 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
   {
     fichier: 'src/components/admin-settings/IntegrationsManager.tsx',
-    motif: /^(Orange Money|SMS — Orange Sénégal)$/,
+    motif: /^(Orange Money|Lemon Squeezy|SMS — Orange Sénégal)$/,
     famille: 'NOM-PROPRE',
     raison:
       "Noms commerciaux de fournisseurs de paiement et de SMS, dans la table `PROVIDER_SUGGESTIONS`"
-      + " qui alimente un `<datalist>`. Ils ne se traduisent pas. ⚠ La table en porte sept ; le "
-      + "scanner n'en voit que DEUX (les seules à accentuer ou à former deux mots séparés d'une "
-      + "espace) — le compte de cette famille est un PLANCHER, pas un inventaire.",
+      + " qui alimente un `<datalist>`. Ils ne se traduisent pas. ⚠ La table en porte huit (Lemon "
+      + "Squeezy ajouté par TCK-602) ; le scanner n'en voit que TROIS (les seules à accentuer ou à "
+      + "former deux mots séparés d'une espace) — le compte de cette famille est un PLANCHER, pas un "
+      + "inventaire.",
   },
   { fichier: 'src/components/admin-settings/IntegrationsManager.tsx', motif: /^placeholder="(TAKUSSAN|Takussan)"$/, famille: 'NOM-PROPRE', raison: R_MARQUE_TAKUSSAN },
   {
@@ -367,6 +371,8 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/lib/sitemap.ts', motif: /^muet sur ce qu'il laisse dehors\.$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/queries/sitemap-catalogue.ts', motif: /^sitemap peut porter/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/queries/facettes.ts', motif: /^\[canonique\] /, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
+  { fichier: 'src/lib/queries/facettes.ts', motif: /^(quartier s'y replie|replie) sur la page de la ville\.$/, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
+  { fichier: 'src/lib/queries/facettes.ts', motif: /^\[sitemap\] domaine des villes TRONQUÉ côté API/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/queries/facettes.ts', motif: /^sur la page nue plut\u00f4t que de rejeter/, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
 
   // ── TECHNIQUE — journal serveur des requêtes du catalogue public (TCK-432) ────────────────────

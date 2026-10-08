@@ -4,7 +4,7 @@ import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getMe, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
-import { getActiveProfileId, getToken } from '@/lib/session';
+import { getActiveProfileId, getOperatorActiveProfileId, getOperatorToken, getToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { User } from '@/types/user';
@@ -59,6 +59,11 @@ export async function updateProfileAction(
     const raw = formData.get('phone');
     payload.phone = typeof raw === 'string' ? raw : null;
   }
+  // TCK-589 p3-1 — la preuve du remplacement d'un numéro vérifié, relayée telle quelle.
+  for (const champ of ['current_password', 'phone_change_code'] as const) {
+    const valeur = formData.get(champ);
+    if (typeof valeur === 'string' && valeur !== '') payload[champ] = valeur;
+  }
 
   const avatarFile = formData.get('avatar') as File | null;
   if (avatarFile && avatarFile.size > 0) {
@@ -109,4 +114,23 @@ const cachedGetMe = cache(async () => {
 
 export async function getMeAction() {
   return cachedGetMe();
+}
+
+// TCK-600 (ADR-0055 §6) — l'OPÉRATEUR, impersonation ou non : la console lit avec son propre jeton.
+const cachedGetMeOperateur = cache(async () => {
+  const token = await getOperatorToken();
+  if (!token) redirect('/auth/login');
+
+  try {
+    return await getMe(token, await getOperatorActiveProfileId());
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      redirect('/api/auth/session-expired');
+    }
+    throw err;
+  }
+});
+
+export async function getMeOperateurAction() {
+  return cachedGetMeOperateur();
 }

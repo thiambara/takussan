@@ -59,8 +59,27 @@ describe('<InviteSuperAdminModal>', () => {
         email: 'new@takussan.app',
         first_name: 'Awa',
         last_name: 'Ndiaye',
+        level: 'viewer',
       }),
     );
     await waitFor(() => expect(onInvited).toHaveBeenCalledTimes(1));
+  });
+
+  // TCK-600 (ADR-0047) — le niveau se choisit à l'invitation ; le moindre est proposé d'office.
+  it('porte le niveau choisi', async () => {
+    vi.mocked(inviteSuperAdmin).mockResolvedValue({} as never);
+    renderModal({});
+    const user = userEvent.setup();
+
+    expect(screen.getByRole('radio', { name: /Lecture/ })).toBeChecked();
+    await user.type(screen.getByLabelText(/email/i), 'support@takussan.app');
+    await user.type(screen.getByLabelText(/prénom/i), 'Moussa');
+    await user.type(screen.getByLabelText(/^Nom$/i), 'Sarr');
+    await user.click(screen.getByRole('radio', { name: /Support/ }));
+    await user.click(screen.getByRole('button', { name: /envoyer l’invitation/i }));
+
+    await waitFor(() =>
+      expect(inviteSuperAdmin).toHaveBeenCalledWith(expect.objectContaining({ level: 'support' })),
+    );
   });
 });

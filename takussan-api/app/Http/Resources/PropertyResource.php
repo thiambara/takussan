@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
-use App\Models\Profiles\BrokerProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +22,12 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyResource extends BaseResource
 {
+    /** La moyenne des avis approuvés de l'agence, quand l'appelant l'a préchargée (`withAvg`). */
+    public const AGENCY_RATING = 'approved_reviews_avg_rating';
+
+    /** @var array{contact: ?User, principal: mixed, source: ?string}|null */
+    private ?array $contactResolu = null;
+
     private ?bool $watermarkRequired = null;
 
     /**
@@ -39,6 +47,19 @@ class PropertyResource extends BaseResource
         $isDetail = $request->routeIs('public.properties.show')
             || $request->routeIs('properties.show')
             || $request->routeIs('public.properties.compare');
+        // TCK-598 (contraintes 1 et 2, ADR-0052 §1) — sur une route `public.*`, le corps ne
+        // dépend PAS de l'appelant. `ResolveActiveProfile` propage un porteur Bearer au garde par
+        // défaut sur tout `api/*` (TCK-179) : sans cette règle, le jeton du propriétaire ajoutait
+        // les champs de modération, l'e-mail des collaborateurs et l'original signé des photos —
+        // et la fiche ne pouvait pas entrer dans un cache partagé.
+        $surfacePublique = $request->routeIs('public.*');
+        $appelantConnu = $request->user() !== null && ! $surfacePublique;
+        // TCK-603 — la liste pro et la réponse de « Changer l'agent responsable » rendent le contact
+        // principal à côté de `owner`, seulement si `agency_id` et `user_id` sont chargés : sans eux, la
+        // règle jugerait un bien d'agence comme celui d'un particulier.
+        $contactRendu = $isDetail || ($request->routeIs('properties.index', 'properties.assigned-agent.update')
+            && array_key_exists('agency_id', $this->resource->getAttributes())
+            && array_key_exists('user_id', $this->resource->getAttributes()));
         $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [
@@ -57,7 +78,7 @@ class PropertyResource extends BaseResource
             // SELECTIONNEE qui vaut `null` reste donc émise à `null` — la distinction porte sur
             // « lue ou pas », jamais sur « nulle ou pas ». Même règle que
             // `UserResource::has_usable_password` (TCK-272) et que
-            // `PaymentGatewayService::paymentAmount()` (ardoise D-51).
+            // `PaymentGatewayService::amountDue()` (ardoise D-51).
             //
             // ⚠ Les clés DÉRIVÉES restent inconditionnelles, et ce n'est pas un oubli :
             // `location`, `main_photo_url`, les cinq `*_label`, `photos`, `tags`,
@@ -132,11 +153,20 @@ class PropertyResource extends BaseResource
                         'order' => $media->order_column ?? ($index + 1),
                     ])->filter(fn (array $photo) => $photo['full'] !== null)->values()->all()
             ),
+            // TCK-598 (V19) — la visite virtuelle a sa colonne, et sort au premier niveau.
+            // `media_extra.virtual_tour_url` la REPREND pour la compatibilité : il lisait
+            // `metadata.virtual_tour_url`, qu'aucune route n'écrivait. Il disparaît une fois le
+            // front migré (« Pour la session » du ticket).
+            'virtual_tour_url' => $this->when($isDetail, fn () => $this->whenHas('virtual_tour_url')),
             'media_extra' => $this->when($isDetail, fn () => [
                 'videos' => $this->getMedia('videos')->map(fn (Media $m) => $m->getUrl())->values()->all(),
                 'plans' => $this->getMedia('plans')->map(fn (Media $m) => $m->getUrl())->values()->all(),
-                'virtual_tour_url' => data_get($this->metadata, 'virtual_tour_url'),
+                'virtual_tour_url' => $this->resource->getAttribute('virtual_tour_url'),
             ]),
+            // TCK-598 (V9) — ce qu'il faut verser pour emménager, d'une location mensuelle
+            // seulement ; `null` sinon, et `null` si rien n'est renseigné. Le calcul :
+            // `CoutDEntree`.
+            'entry_cost' => $this->when($isDetail, fn () => CoutDEntree::pour($this->resource)),
             'tags' => $this->when($isDetail, fn () => $this->resource->tags->map(fn (Tag $tag) => [
                 'id' => $tag->id,
                 'name' => $tag->name,
@@ -157,13 +187,34 @@ class PropertyResource extends BaseResource
             // et six surfaces le lisent pour ça (duplication, tableau de bord, politiques).
             // Redéfinir une clé existante aurait corrigé la fiche en cassant tout le reste en
             // silence. La clé neuve, elle, ne ment nulle part : là où elle manque, elle manque.
-            'primary_contact' => $this->when($isDetail, fn () => $this->buildPrimaryContact()),
+            //
+            // TCK-603 (ADR-0036) — la liste pro et la réponse de « Changer l'agent responsable »
+            // le rendent aussi, à côté de `owner` : l'écran distingue le propriétaire de l'agent
+            // responsable. Seulement si `agency_id` et `user_id` sont chargés — sans eux, la règle
+            // jugerait un bien d'agence comme celui d'un particulier.
+            'primary_contact' => $this->when($contactRendu, fn () => $this->buildPrimaryContact()),
+            // TCK-603 (ADR-0059 §6, verif-603 M2) — d'où vient ce contact : `designated`,
+            // `invitation_order`, `owner` ou `null`. L'écran distingue l'agent responsable du
+            // propriétaire par ce champ, jamais par `owner.id === primary_contact.id` — un agent qui a
+            // saisi le bien et en est responsable a les deux. Jamais sur `public.*` : c'est une donnée
+            // d'organisation de l'agence.
+            'primary_contact_source' => $this->when(
+                $contactRendu && ! $surfacePublique,
+                fn () => $this->contactResolu()['source']
+            ),
+            // TCK-598 (B1) — JAMAIS sur une route `public.*`, quel que soit l'appelant : la part de
+            // commission et le rôle d'un collaborateur sont des données d'agence. `show()` et
+            // `compare()` chargent pourtant la relation, parce que `PrimaryPropertyContact` en a
+            // besoin : c'est la sérialisation qui se conditionne, pas le chargement (le retirer
+            // ferait un N+1 sans rien fermer). Qui peut la lire ailleurs relève de TCK-587.
             'collaborators' => $this->when(
-                $this->resource->relationLoaded('collaborators'),
+                ! $surfacePublique && $this->resource->relationLoaded('collaborators'),
                 fn () => $this->resource->collaborators->map(fn ($collaborator) => [
                     'id' => $collaborator->id,
                     'user_id' => $collaborator->user_id,
                     'role' => $collaborator->role?->value,
+                    // TCK-504 — la marque d'agent principal (ADR-0053), telle qu'en base.
+                    'is_primary' => (bool) $collaborator->is_primary,
                     'commission_share' => $collaborator->commission_share !== null
                         ? (float) $collaborator->commission_share
                         : null,
@@ -175,7 +226,7 @@ class PropertyResource extends BaseResource
                             // Collaborator email is private team data — only surface it to
                             // authenticated viewers (agent dashboard), never on the public
                             // property page which eager-loads `collaborators.user`.
-                            'email' => $request->user() ? $collaborator->user->email : null,
+                            'email' => $appelantConnu ? $collaborator->user->email : null,
                         ]
                         : null,
                 ])->values()->all()
@@ -199,20 +250,24 @@ class PropertyResource extends BaseResource
             // `NON_PUBLIC_STATUSES`) — 8.5% of the search payload, and a needless
             // disclosure of the moderation machinery. Absent, not null: a missing
             // key gets noticed, a null one gets believed.
+            //
+            // TCK-598 — `$appelantConnu` et non plus `$request->user() !== null` : sur une route
+            // `public.*`, ils ne sortent pour personne. Le tableau de bord les lit sur
+            // `properties.show`, authentifiée.
             'rejection_reason' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('rejection_reason'),
             ),
             'submitted_at' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('submitted_at', fn ($valeur) => $this->iso($valeur)),
             ),
             'approved_at' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('approved_at', fn ($valeur) => $this->iso($valeur)),
             ),
             'rejected_at' => $this->when(
-                $request->user() !== null,
+                $appelantConnu,
                 fn () => $this->whenHas('rejected_at', fn ($valeur) => $this->iso($valeur)),
             ),
         ];
@@ -268,20 +323,24 @@ class PropertyResource extends BaseResource
     /**
      * TCK-142 — `is_agent` used to derive from a now-dropped column. "Agent"
      * here means the user holds a professional profile that can list
-     * properties on behalf of the property's agency: an active AgentProfile
-     * in that agency, or a BrokerProfile collaborating with it.
+     * properties on behalf of the property's agency: an AgentProfile in that
+     * agency. Un profil hors de toute agence ne suffit pas — c'est ce qui
+     * présentait le courtier en agent sur n'importe quelle fiche (ADR-0030).
      *
      * TCK-502 — la méthode ne prend plus « le propriétaire » mais « un utilisateur » : le contact
      * principal peut être un collaborateur, et la question posée est la même pour lui.
      */
     private function actsAsAgent(User $user): bool
     {
-        $agency = $this->resource->agency;
-        if ($agency !== null && $user->isAgentAt($agency->id)) {
-            return true;
+        // TCK-595 (§4) — l'identifiant suffit : charger `agency` coûtait une requête par ligne.
+        $agencyId = $this->resource->getAttribute('agency_id');
+        if ($agencyId === null) {
+            return false;
         }
 
-        return $user->hasProfile(BrokerProfile::class);
+        // TCK-603 (verif-603 m4) — sur la liste, l'amorce de la page a déjà jugé le couple.
+        return MembershipCapabilityResolver::amorce('agent', (int) $user->id, (int) $agencyId)
+            ?? $user->isAgentAt((int) $agencyId);
     }
 
     /**
@@ -301,11 +360,27 @@ class PropertyResource extends BaseResource
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * La règle du contact, jugée une fois par ressource : `primary_contact` et
+     * `primary_contact_source` la lisent tous deux.
+     *
+     * @return array{contact: ?User, principal: mixed, source: ?string}
+     */
+    private function contactResolu(): array
+    {
+        return $this->contactResolu ??= PrimaryPropertyContact::resolve($this->resource);
+    }
+
     private function buildPrimaryContact(): ?array
     {
-        $contact = PrimaryPropertyContact::for($this->resource);
+        $contact = $this->contactResolu()['contact'];
 
-        return $contact === null ? null : $this->buildUserLite($contact);
+        // TCK-590 — la fiche sait si le contact a un numéro, sans le révéler : sans numéro, ni
+        // WhatsApp ni Appeler (qui menaient à une erreur). Le numéro lui-même ne sort qu'au geste
+        // (`GET …/contact`, sous limiteur), jamais ici — contrainte 7.
+        return $contact === null ? null : $this->buildUserLite($contact) + [
+            'has_phone' => is_string($contact->phone) && $contact->phone !== '',
+        ];
     }
 
     /**
@@ -321,6 +396,10 @@ class PropertyResource extends BaseResource
             'avatar_url' => $user->getFirstMediaUrl('avatar') ?: null,
             'is_agent' => $this->actsAsAgent($user),
             'member_since' => $this->iso($user->created_at),
+            // TCK-598 (V8, contrainte 9) — un BOOLÉEN dérivé, jamais la date ni le numéro. Il ne
+            // dépend pas de l'appelant (contrainte 2). Aucun « identité vérifiée » de personne :
+            // le modèle n'en porte pas (le KYC est celui de l'agence, `agency.verified`).
+            'phone_verified' => $user->phone_verified_at !== null,
         ];
     }
 
@@ -335,11 +414,14 @@ class PropertyResource extends BaseResource
             return null;
         }
 
-        $agencyRating = Review::query()
-            ->where('reviewable_type', Agency::class)
-            ->where('reviewable_id', $agency->id)
-            ->where('is_approved', true)
-            ->avg('rating');
+        // TCK-603 (verif-603 m4) — la liste précharge la moyenne (`PropertyController::index`).
+        $agencyRating = array_key_exists(self::AGENCY_RATING, $agency->getAttributes())
+            ? $agency->getAttribute(self::AGENCY_RATING)
+            : Review::query()
+                ->where('reviewable_type', Agency::class)
+                ->where('reviewable_id', $agency->id)
+                ->where('is_approved', true)
+                ->avg('rating');
 
         return [
             'id' => $agency->id,
@@ -390,7 +472,7 @@ class PropertyResource extends BaseResource
      */
     private function urlFor(Media $media, string $conversion): ?string
     {
-        if (request()->boolean('raw') && Gate::allows('viewRaw', $media)) {
+        if (request()->boolean('raw') && ! request()->routeIs('public.*') && Gate::allows('viewRaw', $media)) {
             return app(PrivateMediaAccess::class)->signedUrl($media);
         }
 
@@ -408,7 +490,9 @@ class PropertyResource extends BaseResource
      */
     private function originalUrlFor(Media $media): ?string
     {
-        if (Gate::allows('viewRaw', $media)) {
+        // TCK-598 (contrainte 2) — jamais sur une route `public.*` : le propriétaire y reçoit la
+        // même conversion filigranée que n'importe qui, sinon la fiche dépend de l'appelant.
+        if (! request()->routeIs('public.*') && Gate::allows('viewRaw', $media)) {
             // TCK-539 (D2) — l'original est sur le disque PRIVÉ : `getUrl()` n'y est servie par
             // personne. Il sort par l'URL d'API signée, émise ici après la décision `viewRaw`.
             return app(PrivateMediaAccess::class)->signedUrl($media);

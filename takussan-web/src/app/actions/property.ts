@@ -2,13 +2,16 @@
 
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { segmentDeSlug } from '@/lib/slug-de-bien';
 import { getTranslations } from 'next-intl/server';
+import type { AnonymousLeadPayload } from '@/types/contact-lead';
 import type {
   BookingRequestPayload,
   OfferRequestPayload,
   ReportPayload,
   VisitRequestPayload,
 } from '@/types/visit';
+import { cheminApi } from '@/lib/chemin-api';
 
 type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -22,7 +25,13 @@ async function errorFromApi(
     getTranslations('serverActions.properties'),
   ]);
   if (e instanceof ApiError) {
-    const data = (e.data ?? {}) as { message?: string; errors?: Record<string, string[]> };
+    const data = (e.data ?? {}) as { code?: string; message?: string; errors?: Record<string, string[]> };
+    // TCK-590 — personne ne lirait la demande (bien sans contact joignable, agence sans admin
+    // actif) : l'API refuse AVANT d'écrire, et le visiteur l'apprend dans sa langue, sans
+    // croire qu'on le rappellera.
+    if (e.status === 409 && data.code === 'lead.contact_unavailable') {
+      return { status: 409, message: tRacine('publicLeadErrors.contactUnavailable') };
+    }
     return {
       status: e.status,
       // ⚠️ C'était `data.message ?? t('apiError', …)`, et `data.message` relayait TEL QUEL le
@@ -36,20 +45,61 @@ async function errorFromApi(
   return { message: t('networkError') };
 }
 
+/**
+ * TCK-598, après verif-598 (m5) — le slug est un ARGUMENT DU CLIENT : interpolé brut, il faisait
+ * poster le serveur Next sur n'importe quel chemin de l'hôte de l'API. Hors de la forme d'un slug
+ * de bien (`lib/slug-de-bien.ts`), rien ne part, et l'appelant reçoit le 404 d'un bien inconnu.
+ */
+async function bienIntrouvable(): Promise<ActionResult<never>> {
+  return { ok: false, ...(await errorFromApi(new ApiError(404, null))) };
+}
+
 /** Le jeton manque : aucune requête n'est partie. */
 async function authRequise(): Promise<ActionResult<never>> {
   const t = await getTranslations('serverActions.shared');
   return { ok: false, status: 401, message: t('authRequired') };
 }
 
+/**
+ * TCK-597 (V12) — signaler ne demande pas de compte. Le jeton part QUAND il existe : il
+ * rattache le signalement au compte, qui sera prévenu de l'issue. Sans lui, l'API retient une
+ * empreinte de l'adresse, jamais l'adresse. `company` est le pot de miel (cf. `submitContactLead`).
+ */
 export async function submitPropertyReport(
   slug: string,
   payload: ReportPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
+  const token = await getToken();
   try {
-    await apiRequest(`/api/public/properties/${slug}/report`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/report`, {
       method: 'POST',
       body: payload,
+      token,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...(await errorFromApi(e)) };
+  }
+}
+
+/**
+ * TCK-597 (V12) — la jumelle pour un avis public : même régime, sans compte, jeton si connecté.
+ * Raccord TCK-598 (m5) : l'identifiant vient du client comme le slug ; hors d'un entier positif,
+ * rien ne part, et l'appelant reçoit le 404 d'un élément inconnu.
+ */
+export async function submitReviewReport(
+  reviewId: number,
+  payload: ReportPayload,
+): Promise<ActionResult> {
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0) return bienIntrouvable();
+  const token = await getToken();
+  try {
+    await apiRequest(cheminApi`/api/public/reviews/${reviewId}/report`, {
+      method: 'POST',
+      body: payload,
+      token,
     });
     return { ok: true };
   } catch (e) {
@@ -61,9 +111,11 @@ export async function submitVisitRequest(
   slug: string,
   payload: VisitRequestPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   try {
-    await apiRequest(`/api/public/properties/${slug}/visit-request`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/visit-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -78,10 +130,12 @@ export async function submitBookingRequest(
   slug: string,
   payload: BookingRequestPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/public/properties/${slug}/booking-request`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/booking-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -105,7 +159,7 @@ export async function getReviewEligibility(
   try {
     const res = await apiRequest<{
       data: { eligible: boolean; reason: string; already_reviewed: boolean };
-    }>(`/api/public/properties/${encodeURIComponent(slug)}/review-eligibility`, {
+    }>(cheminApi`/api/public/properties/${slug}/review-eligibility`, {
       token,
     });
     return {
@@ -126,10 +180,12 @@ export async function submitPurchaseOffer(
   slug: string,
   payload: OfferRequestPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/public/properties/${slug}/booking-request`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/booking-request`, {
       method: 'POST',
       body: payload,
       token,
@@ -144,11 +200,13 @@ export async function submitContactMessage(
   slug: string,
   message: string,
 ): Promise<ActionResult<{ conversation_id: number; redirect_to: string }>> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   const token = await getToken();
   if (!token) return authRequise();
   try {
     const res = await apiRequest<{ data: { conversation_id: number; redirect_to: string } }>(
-      `/api/public/properties/${slug}/contact-message`,
+      cheminApi`/api/public/properties/${segment}/contact-message`,
       { method: 'POST', body: { message }, token },
     );
     return { ok: true, data: res.data };
@@ -164,10 +222,12 @@ export async function submitContactMessage(
  */
 export async function submitContactLead(
   slug: string,
-  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+  payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
+  const segment = segmentDeSlug(slug);
+  if (segment === null) return bienIntrouvable();
   try {
-    await apiRequest(`/api/public/properties/${slug}/contact-lead`, {
+    await apiRequest(cheminApi`/api/public/properties/${segment}/contact-lead`, {
       method: 'POST',
       body: payload,
     });
@@ -194,10 +254,10 @@ export async function submitContactLead(
  */
 export async function submitAgentContactLead(
   slug: string,
-  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+  payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
   try {
-    await apiRequest(`/api/public/agents/${encodeURIComponent(slug)}/contact-lead`, {
+    await apiRequest(cheminApi`/api/public/agents/${slug}/contact-lead`, {
       method: 'POST',
       body: payload,
     });
@@ -214,27 +274,9 @@ export async function submitReview(
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/properties/${propertyId}/reviews`, {
+    await apiRequest(cheminApi`/api/properties/${propertyId}/reviews`, {
       method: 'POST',
       body: payload,
-      token,
-    });
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await errorFromApi(e)) };
-  }
-}
-
-export async function reportReview(
-  reviewId: number,
-  reason: string,
-): Promise<ActionResult> {
-  const token = await getToken();
-  if (!token) return authRequise();
-  try {
-    await apiRequest(`/api/reviews/${reviewId}/report`, {
-      method: 'POST',
-      body: { reason },
       token,
     });
     return { ok: true };
@@ -255,34 +297,12 @@ export async function submitReviewReply(
   const token = await getToken();
   if (!token) return authRequise();
   try {
-    await apiRequest(`/api/reviews/${reviewId}/reply`, {
+    await apiRequest(cheminApi`/api/reviews/${reviewId}/reply`, {
       method: 'POST',
       body: { reply_content: replyContent },
       token,
     });
     return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await errorFromApi(e)) };
-  }
-}
-
-export async function toggleFavoriteAction(
-  propertyId: number,
-  currentFavoriteId: number | null,
-): Promise<ActionResult<{ favorite_id: number | null }>> {
-  const token = await getToken();
-  if (!token) return authRequise();
-  try {
-    if (currentFavoriteId) {
-      await apiRequest(`/api/favorites/${currentFavoriteId}`, { method: 'DELETE', token });
-      return { ok: true, data: { favorite_id: null } };
-    }
-    const res = await apiRequest<{ data: { id: number } }>(`/api/favorites`, {
-      method: 'POST',
-      body: { property_id: propertyId },
-      token,
-    });
-    return { ok: true, data: { favorite_id: res.data.id } };
   } catch (e) {
     return { ok: false, ...(await errorFromApi(e)) };
   }

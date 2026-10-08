@@ -32,6 +32,7 @@ import {
 } from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
+import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import type { PropertyDetail } from '@/types/property';
 import {
   Dialog,
@@ -52,13 +53,14 @@ export function PropertyHeaderActions({ property }: Props) {
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
+  const { canPublish, canDelete } = useGestesDuBien();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const runAction = (
-    fn: () => Promise<{ ok: boolean; message?: string }>,
+    fn: () => Promise<{ ok: boolean; message?: string; data?: { status?: string | null } }>,
     successMessage: string,
   ) => {
     setError(null);
@@ -69,7 +71,9 @@ export function PropertyHeaderActions({ property }: Props) {
         setError(result.message ?? t('error'));
         return;
       }
-      setSuccess(successMessage);
+      // TCK-597 (§8) — une mise en ligne qui revient `pending_review` n'est PAS publiée : l'agence
+      // modère, et l'écran le dit au lieu d'annoncer un succès qui n'a pas eu lieu.
+      setSuccess(result.data?.status === 'pending_review' ? t('sentForReview') : successMessage);
       router.refresh();
     });
   };
@@ -146,7 +150,8 @@ export function PropertyHeaderActions({ property }: Props) {
     (status) =>
       status !== property.status &&
       status !== 'draft' &&
-      status !== 'archived',
+      status !== 'archived' &&
+      (canPublish || !STATUTS_DE_PUBLICATION.has(status)),
   );
 
   return (
@@ -203,7 +208,7 @@ export function PropertyHeaderActions({ property }: Props) {
               navigateur le 2026-09-16 (le même clic sur le menu de ligne ouvrait bien le dialogue). */}
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
-            {isPublic ? (
+            {!canPublish ? null : isPublic ? (
               <DropdownMenuItem onClick={unpublish} disabled={pending}>
                 {t('unpublish')}
               </DropdownMenuItem>
@@ -234,14 +239,16 @@ export function PropertyHeaderActions({ property }: Props) {
                 {t('archive')}
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem
-              onClick={() => setConfirmDelete(true)}
-              disabled={pending}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-              {t('delete')}
-            </DropdownMenuItem>
+            {canDelete ? (
+              <DropdownMenuItem
+                onClick={() => setConfirmDelete(true)}
+                disabled={pending}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                {t('delete')}
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

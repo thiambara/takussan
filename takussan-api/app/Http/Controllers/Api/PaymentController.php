@@ -14,6 +14,7 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Model\LeasePaymentService;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class PaymentController extends Controller
     public function __construct(
         protected BookingPaymentService $bookingPayments,
         protected LeasePaymentService $leasePayments,
+        protected PaymentGatewayService $gateway,
     ) {}
 
     public function store(PaymentStoreRequest $request): JsonResponse
@@ -40,7 +42,7 @@ class PaymentController extends Controller
         if ($data['payable_type'] === 'booking') {
             /** @var Booking|null $booking */
             $booking = Booking::find($data['payable_id']);
-            abort_unless($booking, 404, 'Booking not found.');
+            abort_code_unless($booking, 404, 'booking.not_found');
             $this->authorizeBookingManage($user, $booking);
 
             $payment = $this->bookingPayments->create($booking, $user, [
@@ -63,7 +65,7 @@ class PaymentController extends Controller
         // Lease
         /** @var Lease|null $lease */
         $lease = Lease::find($data['payable_id']);
-        abort_unless($lease, 404, 'Lease not found.');
+        abort_code_unless($lease, 404, 'lease.not_found');
         $this->authorizeLeaseManage($user, $lease);
 
         $leaseData = [
@@ -114,8 +116,9 @@ class PaymentController extends Controller
                     $bq->where(function ($inner) use ($user): void {
                         $inner->where('created_by_id', $user->id)
                             ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id));
-                        if ($user->agency_id) {
-                            $inner->orWhere('agency_id', $user->agency_id);
+                        // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
+                        if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                            $inner->orWhere('agency_id', $staffAgencyId);
                         }
                         $inner->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
                     });
@@ -123,13 +126,13 @@ class PaymentController extends Controller
             });
 
         $leaseQuery = LeasePayment::query()
-            ->with('lease.property')
+            ->with(['lease.property', 'lease.agency'])
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
                         $inner->where('landlord_id', $user->id);
-                        if ($user->agency_id) {
-                            $inner->orWhere('agency_id', $user->agency_id);
+                        if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                            $inner->orWhere('agency_id', $staffAgencyId);
                         }
                         $inner->orWhereHas('tenant', fn ($c) => $c->where('user_id', $user->id));
                     });
@@ -144,15 +147,18 @@ class PaymentController extends Controller
             $this->applyEntityFilter($bookingQuery, $leaseQuery, $entityType, (int) $entityId);
         }
 
-        // Status filter
+        // Status filter — TCK-593 : une liste séparée par des virgules (`pending,late,failed`), pour
+        // que le locataire obtienne « ce que je dois » sans filtrer côté client.
         if (! empty($filters['status'])) {
-            $status = PaymentStatus::tryFrom((string) $filters['status']);
-            if ($status !== null) {
-                $bookingQuery->where('status', $status);
-                $leaseQuery->where('status', $status);
-            } else {
-                abort(422, 'Invalid filter[status].');
+            $statuses = array_map(
+                fn (string $value) => PaymentStatus::tryFrom(trim($value)),
+                explode(',', (string) $filters['status']),
+            );
+            if (in_array(null, $statuses, true)) {
+                abort_code(422, 'payment.filter_status_invalid');
             }
+            $bookingQuery->whereIn('status', $statuses);
+            $leaseQuery->whereIn('status', $statuses);
         }
 
         // Date range — use paid_at for booking payments and paid_at/due_date/period_start for lease payments.
@@ -255,13 +261,13 @@ class PaymentController extends Controller
                 break;
 
             case 'property':
-                abort_unless(Property::whereKey($entityId)->exists(), 404, 'Property not found.');
+                abort_code_unless(Property::whereKey($entityId)->exists(), 404, 'property.not_found');
                 $bookingQuery->whereHas('booking', fn ($q) => $q->where('property_id', $entityId));
                 $leaseQuery->whereHas('lease', fn ($q) => $q->where('property_id', $entityId));
                 break;
 
             default:
-                abort(422, 'Invalid filter[entity_type].');
+                abort_code(422, 'payment.filter_entity_invalid');
         }
     }
 
@@ -311,6 +317,11 @@ class PaymentController extends Controller
             'status' => $p->status?->value,
             'paid_amount' => (float) $p->paid_amount,
             'remaining_amount' => (float) $p->remaining_amount,
+            // TCK-593 — la même lecture que `LeasePaymentResource` : l'historique ne refait aucun calcul.
+            'late_fee_amount' => $p->late_fee_amount !== null ? (float) $p->late_fee_amount : null,
+            'late_fee_outstanding' => $p->lateFeeOutstanding(),
+            'late_fee_payable_online' => $this->gateway->lateFeeIncluded($p),
+            'amount_due' => (float) ($this->gateway->amountDue($p) ?? 0),
             'date' => ($p->paid_at ?? $p->period_start?->startOfDay() ?? $p->created_at)?->toISOString(),
             'paid_at' => $p->paid_at?->toISOString(),
             'period_start' => $p->period_start?->toDateString(),
@@ -349,7 +360,8 @@ class PaymentController extends Controller
         $customer = $booking->customer;
         $ok = $user->isSuperAdmin()
             || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
+            // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
+            || ($booking->agency_id !== null && $user->staffAgencyId() === (int) $booking->agency_id)
             // TCK-172 — the customer themselves can create their own pending payment
             // (deposit / balance) so the gateway checkout flow can be initiated.
             || ($customer && $customer->user_id === $user->id);
@@ -362,7 +374,7 @@ class PaymentController extends Controller
         $tenant = $lease->tenant;
         $ok = $user->isSuperAdmin()
             || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id)
+            || ($lease->agency_id !== null && $user->staffAgencyId() === (int) $lease->agency_id)
             // TCK-172 — tenant can create their own pending lease payment.
             || ($tenant && $tenant->user_id === $user->id);
 

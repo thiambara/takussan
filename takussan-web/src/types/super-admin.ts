@@ -1,3 +1,5 @@
+import type { ModerationReasonCode } from '@/lib/moderation-reasons';
+
 export type AdminAgency = {
   id: number;
   name: string;
@@ -27,6 +29,8 @@ export type AdminAgenciesResponse = {
 };
 
 export type AdminAgencyDetail = AdminAgency & {
+  /** TCK-600 — motif et date de la dernière suspension ; `null` hors suspension. */
+  suspension?: { reason: string | null; suspended_at: string | null } | null;
   website: string | null;
   description: string | null;
   commission_rate: number | null;
@@ -59,7 +63,27 @@ export type KycDocument = {
   size: number;
   document_type: 'rccm' | 'ninea' | 'director_id' | string;
   signed_url: string;
+  /**
+   * ⚠ L'expiration du LIEN SIGNÉ (`signed_url`, valable quelques minutes) — PAS celle de la pièce.
+   * L'échéance de la pièce elle-même est {@link document_expires_at}.
+   */
   expires_at: string;
+  /**
+   * TCK-601 — l'échéance de la PIÈCE (`YYYY-MM-DD`), posée au dépôt ; obligatoire pour la pièce du
+   * dirigeant (`director_id`), nulle pour une pièce qui n'expire pas. Absente d'une réponse
+   * antérieure au ticket.
+   */
+  document_expires_at?: string | null;
+};
+
+/**
+ * TCK-601 — les AUTRES agences qui portent le même NINEA / RIB professionnel que ce dossier (ou
+ * cette demande de passage). Super-admin seulement : la clé est absente pour tout autre lecteur.
+ * Un signal pour la revue, jamais un refus.
+ */
+export type SharedLegalIdentifiers = {
+  ninea: Array<{ id: number; name: string }>;
+  rib_pro: Array<{ id: number; name: string }>;
 };
 
 /**
@@ -88,6 +112,14 @@ export type KycDossier = {
   rejection_reason: string | null;
   metadata: Record<string, unknown>;
   documents: KycDocument[];
+  /**
+   * TCK-601 — l'échéance du dossier vérifié (ISO 8601) : la plus proche des pièces les plus
+   * récentes de chaque type. Nulle tant que le dossier n'est pas vérifié ou qu'aucune pièce
+   * n'expire.
+   */
+  expires_at?: string | null;
+  /** TCK-601 — super-admin seulement ; voir {@link SharedLegalIdentifiers}. */
+  shared_identifiers?: SharedLegalIdentifiers;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -230,7 +262,6 @@ export type AdminUserDetail = {
   profiles: {
     agent: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null; license_number: string | null }>;
     owner: Array<{ id: number; agency_id: number; agency_name: string | null; status: string | null }>;
-    broker: { id: number; status: string | null } | null;
     service_provider: { id: number; status: string | null } | null;
   };
   agencies: Array<{ id: number; name: string; slug: string }>;
@@ -278,7 +309,23 @@ export type SystemMetrics = {
     active: number;
   };
   revenue: {
+    /**
+     * TCK-595 (ADR-0057) — le FLUX ENCAISSÉ : loyers et réservations payés, jamais une caution ni sa
+     * restitution. Optionnel : une API antérieure ne le rend pas, et la tuile retombe alors sur
+     * `platform_total_paid` (même valeur pendant la transition).
+     */
+    collected_total?: number;
+    /** @deprecated TCK-595 — remplacé par `collected_total`, gardé le temps de la transition. */
     platform_total_paid: number;
+    /** Volume d'affaires des 30 derniers jours (loyers et réservations payés). */
+    gmv_30d?: number;
+    platform_fees_30d?: number;
+    /** Frais plateforme ÷ volume d'affaires, en fraction (`0.0833`), `null` sans volume. */
+    take_rate?: number | null;
+    /** Abonnements payants seulement : les essais en sont sortis (ADR-0057 §3). */
+    mrr?: number;
+    mrr_trialing?: number;
+    active_subscriptions?: number;
     currency: string;
   };
   /**
@@ -294,28 +341,21 @@ export type SystemMetrics = {
   trend?: {
     period_days: number;
     since: string;
+    /**
+     * TCK-595 (ADR-0057 §4) — lu dans l'instantané quotidien de J-30. `revenue_collected_total` et
+     * `revenue_mrr` remplacent `revenue_platform_total_paid`, qui n'est plus émis.
+     */
     previous: {
       agencies_total?: number;
       users_total?: number;
-      revenue_platform_total_paid?: number;
+      revenue_collected_total?: number;
+      revenue_mrr?: number;
     };
   };
   generated_at: string;
 };
 
 export type SystemMetricsResponse = { data: SystemMetrics };
-
-export type ImpersonationStartResponse = {
-  token: string;
-  expires_at: string;
-  actor_id: number;
-  target_user_id: number;
-};
-
-export type ImpersonationStopResponse = {
-  message: string;
-  revoked_count: number;
-};
 
 export type AuditLogEntry = {
   id: number;
@@ -327,6 +367,8 @@ export type AuditLogEntry = {
   subject_type: string | null;
   subject_id: number | null;
   properties: Record<string, unknown> | null;
+  /** TCK-600 (ADR-0055) — l'opérateur, quand l'entrée s'est écrite pendant une impersonation. */
+  impersonator?: { id: number; name: string | null } | null;
   created_at: string | null;
 };
 
@@ -343,10 +385,15 @@ export type AuditLogResponse = {
 export type ModerationItemType = 'property' | 'review';
 export type ModerationItemStatus = 'pending' | 'flagged';
 export type ModerationDecision = 'approve' | 'reject' | 'hide' | 'remove';
+/** TCK-597 — la source de l'élément, préfixe de son identifiant (`property_report:12`). */
+export type ModerationSourceType = 'property' | 'property_report' | 'review' | 'suspected_duplicate';
 
 export type AdminModerationItem = {
   id: string;
   type: ModerationItemType;
+  source_type: ModerationSourceType;
+  /** TCK-597 (ADR-0043 §4) — les seules décisions valides pour CE type, rendues par l'API. */
+  decisions: ModerationDecision[];
   status: ModerationItemStatus;
   subject_type: 'property' | 'review';
   subject_id: number;
@@ -368,8 +415,37 @@ export type AdminModerationItem = {
   } | null;
   reason: string;
   reported_count: number | null;
+  /** TCK-597 (ADR-0054 §6) — drapeau de tri d'un avis suspect, jamais une décision. */
+  suspicious: boolean;
+  /** TCK-597 (ADR-0054 §5) — le signal d'une suspicion de doublon, et l'annonce recopiée. */
+  duplicate: {
+    signal: 'photo' | 'address';
+    distance: number | null;
+    matched: { id: number; title: string; subtitle: string | null; agency: string | null } | null;
+  } | null;
+  /** TCK-597 (ADR-0043 §7) — qui tient l'élément, et jusqu'à quand. */
+  claim: {
+    by: { id: number; name: string | null };
+    claimed_at: string | null;
+    expires_at: string | null;
+  } | null;
   reported_at: string | null;
   created_at: string | null;
+  /** L'âge de l'élément dans la file, en minutes, calculé par le serveur. */
+  age_minutes: number | null;
+};
+
+export type ModerationDecisionPayload = {
+  decision: ModerationDecision;
+  reason_code?: ModerationReasonCode;
+  reason?: string;
+};
+
+export type ModerationBatchResult = {
+  id: string;
+  ok: boolean;
+  status?: number;
+  code?: string;
 };
 
 export type AdminModerationResponse = {
@@ -430,14 +506,14 @@ export type NotificationTemplatePreviewResponse = {
   };
 };
 
-export type PlatformSettingCategory = 'currency' | 'format' | 'transaction' | 'limits';
-export type PlatformSettingType = 'select' | 'multi_select' | 'percentage' | 'integer';
+/** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
+export type PlatformSettingCategory = 'currency' | 'limits';
+export type PlatformSettingType = 'select' | 'multi_select' | 'integer';
 
 export type PlatformSetting = {
   key: string;
   category: PlatformSettingCategory;
-  label: string;
-  description: string;
+  /** TCK-600 — ni libellé ni description servis par l'API : traduits par clé (`superAdmin.platformSettings.keys`). */
   type: PlatformSettingType;
   value: string | number | string[];
   default_value: string | number | string[];
@@ -495,7 +571,11 @@ export type IntegrationWebhookLog = {
   status: string;
   direction: string;
   event_type: string | null;
-  payload: { truncated: string };
+  /** TCK-602 (ADR-0051 §4) — la vue EXPURGÉE du corps reçu, jamais le corps lui-même. */
+  payload: Record<string, unknown>;
+  http_status?: number | null;
+  error_code?: string | null;
+  matched_count?: number | null;
   processed_at: string | null;
   created_at: string | null;
 };
@@ -534,8 +614,6 @@ export type MaintenanceStatusResponse = { data: MaintenanceStatus };
 
 export type AdminFeatureFlag = {
   key: string;
-  label: string;
-  description: string;
   client_visible: boolean;
   enabled: boolean;
   segments: {
@@ -549,10 +627,10 @@ export type AdminFeatureFlag = {
 export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };
 export type FeatureFlagsMeResponse = { data: Record<string, boolean> };
 
+/** TCK-600 — servie par clé : le libellé de l'événement se traduit (`superAdmin.alerts.events`). */
 export type AlertRule = {
   id: number;
   event: string;
-  label: string;
   channels: string[];
   recipients: { emails?: string[]; webhooks?: string[] };
   is_active: boolean;
@@ -562,7 +640,8 @@ export type AlertRule = {
 
 export type AlertRulesResponse = {
   data: AlertRule[];
-  catalogue: Record<string, string>;
+  /** Les clés des événements alertables (`AlertableEvents::keys()`). */
+  catalogue: string[];
 };
 export type AlertRuleResponse = { data: AlertRule };
 
@@ -640,11 +719,19 @@ export type DataExportsResponse = {
   };
 };
 
+/** TCK-600 — `degraded` distingue « marche mal » de « en panne » ; chaque sonde est datée. */
+export type HealthLevel = 'ok' | 'degraded' | 'failed';
+
+/** Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit. */
+export type HealthReason = 'no_delivery' | 'unreachable' | 'not_meilisearch';
+
 export type HealthcheckStatus = {
-  status: 'ok' | 'failed';
+  status: HealthLevel;
+  checked_at?: string;
   latency_ms?: number;
   driver?: string;
   value?: string;
+  reason?: HealthReason;
   error?: string;
 };
 
@@ -652,10 +739,22 @@ export type PlatformHealth = {
   db: HealthcheckStatus;
   cache: HealthcheckStatus;
   storage: HealthcheckStatus;
+  media_storage?: HealthcheckStatus & { disks?: string[]; disk?: string };
   mail: HealthcheckStatus;
-  sms: HealthcheckStatus;
-  queue: { pending: number; processing: number; failed_24h: number };
+  sms: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
+  search?: HealthcheckStatus & { documents?: number; expected?: number; gap?: number };
+  queue: Partial<HealthcheckStatus> & {
+    pending: number;
+    processing: number;
+    failed_24h: number;
+    oldest_pending_seconds?: number;
+  };
+  workers?: HealthcheckStatus & {
+    queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
+  };
+  cdn?: HealthcheckStatus;
   scheduler: { last_run_at: string | null };
+  status?: HealthLevel;
   generated_at: string;
 };
 
@@ -780,6 +879,11 @@ export type PlatformPayout = {
   currency: string;
   status: PlatformPayoutStatus;
   approved_by: number | null;
+  /** TCK-594 (ADR-0039 §4) — les trois mains : qui a clôturé, approuvé, payé, et la preuve du virement. */
+  closed_by_id?: number | null;
+  approved_at?: string | null;
+  paid_by_id?: number | null;
+  payment_reference?: string | null;
   processed_at: string | null;
   failure_reason: string | null;
   metadata: Record<string, unknown> | null;
@@ -799,7 +903,16 @@ export type PlatformPayoutsResponse = {
 };
 
 export type PlatformPayoutResponse = { data: PlatformPayout };
-export type PlatformPayoutClosePeriodResponse = { data: PlatformPayout[] };
+/** TCK-594 — une agence écartée de la clôture, et pourquoi : un code, le libellé est au front. */
+export type PlatformPayoutExclusion = {
+  agency_id: number;
+  reason: 'agency_not_active' | 'already_closed';
+};
+
+export type PlatformPayoutClosePeriodResponse = {
+  data: PlatformPayout[];
+  excluded?: PlatformPayoutExclusion[];
+};
 
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the
@@ -837,4 +950,54 @@ export type AdminPropertiesResponse = {
     last_page: number;
     per_page: number;
   };
+};
+
+/** TCK-602 — la console « Paiements » : une échéance ou un acompte en échec ou en retard. */
+export type PaymentSupervisionRow = {
+  type: 'lease_payment' | 'booking_payment';
+  reason: 'failed' | 'late';
+  id: number;
+  reference_number: string | null;
+  status: string;
+  provider: string | null;
+  amount: number | null;
+  currency: string | null;
+  agency_id: number | null;
+  event_at: string | null;
+  due_date: string | null;
+};
+
+export type PaymentSupervisionResponse = {
+  data: PaymentSupervisionRow[];
+  meta: { total: number; current_page: number; last_page: number; per_page: number };
+};
+
+export type PaymentProviderCounts = { failed: number; late: number; unmatched: number };
+
+export type PaymentSummaryResponse = {
+  data: Record<'last_7_days' | 'last_30_days', Record<string, PaymentProviderCounts>>;
+};
+
+/** TCK-602 (ADR-0051 §4) — une ligne du journal des webhooks entrants, tous canaux. */
+export type WebhookLog = {
+  id: number;
+  channel: 'payment' | 'sms' | 'whatsapp' | string;
+  provider: string;
+  status: 'received' | 'processed' | 'rejected' | 'failed' | string;
+  event_type?: string | null;
+  http_status?: number | null;
+  error_code?: string | null;
+  external_id?: string | null;
+  matched_count?: number | null;
+  attempts?: number;
+  authenticated_at?: string | null;
+  body_truncated?: boolean;
+  replayed_at?: string | null;
+  created_at?: string | null;
+  replayable?: boolean;
+};
+
+export type WebhookLogsResponse = {
+  data: WebhookLog[];
+  meta: { total: number; current_page: number; last_page: number; per_page: number };
 };

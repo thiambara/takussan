@@ -130,6 +130,29 @@ class AgencyTest extends ApiTestCase
             ->assertJsonPath('data.name', 'New Name');
     }
 
+    /** TCK-597 (AC14) — la case « modérer les annonces » se persiste ; la clé était jetée. */
+    public function test_agency_admin_persists_moderation_required(): void
+    {
+        $agency = Agency::factory()->create(['moderation_required' => false]);
+        $admin = User::factory()->withTwoFactor()->create();
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+        $agent = User::factory()->create();
+        $this->materializeRoleProfile($agent, 'agent', $agency);
+
+        $this->actingAsApi($agent);
+        $this->patchJson("/api/agencies/{$agency->id}", ['moderation_required' => true])->assertForbidden();
+        $this->assertFalse($agency->refresh()->moderation_required);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/agencies/{$agency->id}", ['moderation_required' => 'oui'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('moderation_required');
+        $this->patchJson("/api/agencies/{$agency->id}", ['moderation_required' => true])
+            ->assertOk()
+            ->assertJsonPath('data.moderation_required', true);
+        $this->assertTrue($agency->refresh()->moderation_required);
+    }
+
     public function test_primary_admin_can_show_agency(): void
     {
         $admin = User::factory()->create();

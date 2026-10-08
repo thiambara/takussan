@@ -56,6 +56,7 @@ import { AGENCY_MEMBER_FIELDS } from '@/lib/queries/agency-members';
 import type { PaginatedResponse, ApiResponse } from '@/types/api';
 import type { User } from '@/types/user';
 import type { CreateRoleDelegationInput, RoleDelegation } from '@/types/role-delegation';
+import { cheminApi } from '@/lib/chemin-api';
 
 export const roleDelegationKeys = {
   all: ['role-delegations'] as const,
@@ -82,7 +83,7 @@ const ME_CAPABILITY_KEY = ['me', 'capabilities'] as const;
 export function useRoleDelegations(agencyId: number, enabled = true) {
   return useApiQuery<PaginatedResponse<RoleDelegation>>(
     roleDelegationKeys.list(agencyId),
-    `/api/agencies/${agencyId}/role-delegations`,
+    cheminApi`/api/agencies/${agencyId}/role-delegations`,
     {
       enabled: enabled && Number.isFinite(agencyId) && agencyId > 0,
       // Pas de `filter[status]` : l'écran montre l'HISTORIQUE autant que
@@ -105,7 +106,7 @@ export function useRoleDelegations(agencyId: number, enabled = true) {
  */
 export function useCreateRoleDelegation(agencyId: number) {
   return useApiMutation<ApiResponse<RoleDelegation>, CreateRoleDelegationInput>(
-    { path: `/api/agencies/${agencyId}/role-delegations`, method: 'POST' },
+    { path: cheminApi`/api/agencies/${agencyId}/role-delegations`, method: 'POST' },
     { invalidate: [roleDelegationKeys.list(agencyId), ME_CAPABILITY_KEY] },
   );
 }
@@ -127,7 +128,7 @@ export function useCreateRoleDelegation(agencyId: number) {
 export function useRevokeRoleDelegation(agencyId: number) {
   return useApiMutation<ApiResponse<RoleDelegation>, number>(
     {
-      path: (delegationId) => `/api/agencies/${agencyId}/role-delegations/${delegationId}`,
+      path: (delegationId) => cheminApi`/api/agencies/${agencyId}/role-delegations/${delegationId}`,
       method: 'DELETE',
     },
     { invalidate: [roleDelegationKeys.list(agencyId), ME_CAPABILITY_KEY] },
@@ -153,7 +154,7 @@ export function useRevokeRoleDelegation(agencyId: number) {
 export function useDelegationCandidates(agencyId: number, enabled = true) {
   return useApiQuery<PaginatedResponse<User>>(
     roleDelegationKeys.candidates(agencyId),
-    `/api/agencies/${agencyId}/members`,
+    cheminApi`/api/agencies/${agencyId}/members`,
     {
       enabled: enabled && Number.isFinite(agencyId) && agencyId > 0,
       params: {

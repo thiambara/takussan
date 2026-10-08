@@ -1,5 +1,6 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
@@ -8,10 +9,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
-  const { id } = await ctx.params;
+  const id = segmentAmont((await ctx.params).id);
+  if (id === null) return reponseSegmentInvalide();
+
   const upstream = await fetch(`${API_URL}/api/data-exports/${id}/download`, {
     headers: {
       Accept: 'application/zip,application/json',

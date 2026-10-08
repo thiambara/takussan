@@ -156,20 +156,22 @@ class PropertyCrudTest extends TestCase
 
         Sanctum::actingAs($owner);
 
+        // TCK-603 (ADR-0036) — la cible devient l'agent responsable ; le propriétaire ne change pas.
         $this->putJson("/api/properties/{$property->id}/assigned-agent", [
             'user_id' => $target->id,
         ])->assertOk()
-            ->assertJsonPath('data.owner.id', $target->id);
+            ->assertJsonPath('data.owner.id', $owner->id)
+            ->assertJsonPath('data.primary_contact.id', $target->id);
 
         $this->assertDatabaseHas('properties', [
             'id' => $property->id,
-            'user_id' => $target->id,
+            'user_id' => $owner->id,
         ]);
     }
 
     public function test_creates_property_with_address(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/properties', [
@@ -202,7 +204,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_rent_period_defaults_to_monthly_when_contract_is_rent(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/properties', [
@@ -372,7 +374,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_negative_price_returns_422(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/properties', [
@@ -386,7 +388,7 @@ class PropertyCrudTest extends TestCase
 
     public function test_negative_bedrooms_returns_422(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/properties', [

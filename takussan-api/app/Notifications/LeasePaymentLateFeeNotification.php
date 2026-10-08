@@ -2,13 +2,16 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\Currency;
 use App\Models\LeasePayment;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Number;
 
 /**
  * TCK-087 — Sent to the tenant when a late fee is applied on one of
@@ -26,6 +29,9 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
         public float $amount,
         public float $percent,
         public float $base,
+        // TCK-593 — la pénalité est-elle incluse dans le paiement en ligne ? Lu sur l'agence du bail
+        // à l'envoi, par la même méthode que `LeasePaymentResource::late_fee_payable_online`.
+        public bool $lateFeePayableOnline = false,
     ) {}
 
     /**
@@ -52,21 +58,19 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->payment->reference_number ?? '#'.$this->payment->id;
-        $currency = $this->payment->currency?->value ?? '';
 
         return (new MailMessage)
             ->subject(__('notifications.lease_late_fee_applied.subject', ['reference' => $reference]))
             ->greeting(__('notifications.lease_late_fee_applied.greeting'))
             ->line(__('notifications.lease_late_fee_applied.intro', [
                 'reference' => $reference,
-                'amount' => number_format($this->amount, 2),
-                'currency' => $currency,
+                'amount' => app(CurrencyFormatter::class)->format($this->amount, $this->payment->currency ?? Currency::XOF, app()->getLocale()),
             ]))
             ->line(__('notifications.lease_late_fee_applied.details', [
-                'percent' => rtrim(rtrim(number_format($this->percent, 2), '0'), '.'),
-                'base' => number_format($this->base, 2),
-                'currency' => $currency,
+                'percent' => Number::format($this->percent, maxPrecision: 2, locale: app()->getLocale()),
+                'base' => app(CurrencyFormatter::class)->format($this->base, $this->payment->currency ?? Currency::XOF, app()->getLocale()),
             ]))
+            ->line($this->settlementLine())
             ->salutation(__('notifications.salutation'));
     }
 
@@ -82,10 +86,20 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
             'percent' => $this->percent,
             'base' => $this->base,
             'currency' => $this->payment->currency?->value,
+            'late_fee_payable_online' => $this->lateFeePayableOnline,
+            'settlement' => $this->settlementLine(),
             'title' => __('notifications.lease_late_fee_applied.subject', [
                 'reference' => $this->payment->reference_number ?? '#'.$this->payment->id,
             ]),
         ];
+    }
+
+    /** TCK-593 — où et comment régler la pénalité : l'une des deux phrases, jamais les deux. */
+    private function settlementLine(): string
+    {
+        return $this->lateFeePayableOnline
+            ? __('notifications.lease_late_fee_applied.pay_online')
+            : __('notifications.lease_late_fee_applied.pay_at_agency');
     }
 
     public function toBroadcast(object $notifiable): BroadcastMessage

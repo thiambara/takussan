@@ -28,8 +28,11 @@ class StoreFavoriteRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'property_id' => ['required', 'exists:properties,id'],
-            'notes' => ['nullable', 'string'],
+            // TCK-599 (contrainte 11) — plus de `exists:properties,id` : un 422 pour un identifiant
+            // inexistant contre un 403 pour un bien privé faisait de l'ajout un ORACLE d'existence.
+            // L'inexistence se juge dans le contrôleur, avec la même réponse que l'invisibilité.
+            'property_id' => ['required', 'integer'],
+            'notes' => ['nullable', 'string', 'max:'.UpdateFavoriteRequest::NOTES_MAX],
         ];
     }
 }

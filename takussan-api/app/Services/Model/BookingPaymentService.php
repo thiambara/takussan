@@ -4,11 +4,16 @@ namespace App\Services\Model;
 
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\User;
+use App\Services\Booking\BookingRefundTaskService;
+use Illuminate\Support\Facades\DB;
 
 class BookingPaymentService
 {
+    public function __construct(private readonly BookingRefundTaskService $refundTasks) {}
+
     /**
      * @param  array<string,mixed>  $data
      */
@@ -39,28 +44,51 @@ class BookingPaymentService
     }
 
     /**
+     * TCK-596 — la ligne du paiement est verrouillée puis relue : deux remboursements concurrents
+     * du même acompte ne passent pas tous deux le contrôle `paid`. Le dernier paiement remboursé
+     * clôt la tâche « remboursement à traiter ».
+     *
      * @param  array<string,mixed>  $data
      */
     public function refund(BookingPayment $payment, array $data): BookingPayment
     {
-        abort_unless(
-            $payment->status === PaymentStatus::Paid,
-            422,
-            'Only paid payments can be refunded.'
-        );
+        $payment = DB::transaction(function () use ($payment, $data): BookingPayment {
+            $payment = BookingPayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
-        abort_if(
-            (float) $data['refund_amount'] > (float) $payment->amount,
-            422,
-            'Refund amount cannot exceed the paid amount.'
-        );
+            abort_code_unless(
+                $payment->status === PaymentStatus::Paid,
+                422,
+                'booking_payment.refund_unpaid'
+            );
 
-        $payment->update([
-            'status' => PaymentStatus::Refunded->value,
-            'refund_amount' => $data['refund_amount'],
-            'refund_reason' => $data['refund_reason'] ?? null,
-        ]);
+            abort_code_if(
+                (float) $data['refund_amount'] > (float) $payment->amount,
+                422,
+                'booking_payment.refund_exceeds_paid'
+            );
 
-        return $payment->refresh();
+            // TCK-596 — une devise sans sous-unité (XOF) ne rembourse pas 1 000,50.
+            $currency = $payment->currency instanceof Currency ? $payment->currency : Currency::XOF;
+            abort_code_if(
+                $currency->decimalPlaces() === 0 && preg_match('/^\d+(\.0+)?$/', (string) $data['refund_amount']) !== 1,
+                422,
+                'booking_payment.refund_fractional'
+            );
+
+            $payment->update([
+                'status' => PaymentStatus::Refunded->value,
+                'refund_amount' => $data['refund_amount'],
+                'refund_reason' => $data['refund_reason'] ?? null,
+            ]);
+
+            return $payment->refresh();
+        });
+
+        $payment->loadMissing('booking');
+        if ($payment->booking !== null) {
+            $this->refundTasks->closeIfSettled($payment->booking);
+        }
+
+        return $payment;
     }
 }

@@ -14,10 +14,14 @@ import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
 import { AdminUsersTable } from '@/components/admin/users/AdminUsersTable';
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
-import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
+import { HandoverWizard } from '@/components/crm/HandoverWizard';
+import { AgentAbsencesSection } from '@/components/crm/AgentAbsencesSection';
+import { ConfirmSuspendDialog } from '@/components/admin/ConfirmSuspendDialog';
+import { suspensionOffer } from '@/components/admin/users/team-suspension';
 import { PendingInvitationsSection } from '@/components/admin/PendingInvitationsSection';
-import { fetchAdminUsers, postUserAction } from '@/lib/queries/admin-users';
-import { removeAgencyMember } from '@/lib/queries/agency-members';
+import { TeamPerformanceTable } from '@/components/admin/team/TeamPerformanceTable';
+import { fetchAdminUsers } from '@/lib/queries/admin-users';
+import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
@@ -32,15 +36,22 @@ import type {
 } from '@/types/admin-users';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const TAB_VALUES = ['tous', 'agents', 'admins', 'proprietaires'] as const;
+const TAB_VALUES = ['tous', 'agents', 'admins', 'proprietaires', 'performance'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
-const TAB_TO_ROLE: Record<TabValue, AdminUserRoleFilter | ''> = {
+const TAB_TO_ROLE: Record<Exclude<TabValue, 'performance'>, AdminUserRoleFilter | ''> = {
   tous: '',
   agents: 'agent',
   admins: 'agency_admin',
   proprietaires: 'owner',
 };
+
+/**
+ * TCK-595 (AD16) — l'onglet « Performance » n'est pas un filtre de rôle : il remplace la liste des
+ * membres par le tableau comparatif des agents. Il vit dans `?vue=performance`, à côté de
+ * `filter[role]` qu'il efface.
+ */
+const VUE_PERFORMANCE = 'performance';
 
 const ROLE_TO_TAB: Record<string, TabValue> = {
   agent: 'agents',
@@ -58,6 +69,11 @@ interface TeamConsoleProps {
    * plutôt que d'annoncer « aucune invitation » sans avoir su demander.
    */
   readonly agencyKind?: string | null;
+  /**
+   * TCK-587 — l'administrateur principal de l'agence : la console ne lui propose jamais
+   * « Suspendre de l'agence » (l'API le refuse en 422). `null` quand l'agence n'a pas pu être lue.
+   */
+  readonly primaryAdminId?: number | null;
 }
 
 /**
@@ -71,7 +87,12 @@ interface TeamConsoleProps {
  * intentionally hidden from `AdminUsersFilters` to avoid two controls
  * targeting the same query param.
  */
-export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: TeamConsoleProps) {
+export function TeamConsole({
+  agencyId,
+  currentUserId,
+  agencyKind = null,
+  primaryAdminId = null,
+}: TeamConsoleProps) {
   const t = useTranslations('team.page');
   const tConsole = useTranslations('admin.team.console');
   const tCommon = useTranslations('common');
@@ -82,11 +103,19 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
   const { token } = useAuth();
 
   const currentRole = searchParams.get('filter[role]') ?? '';
-  const tab: TabValue = ROLE_TO_TAB[currentRole] ?? 'tous';
+  // TCK-595 — la performance d'équipe : agences `standard`, et `reports.view_agency` (la même garde
+  // que l'API). Sans la capacité, un `?vue=performance` retombe sur la liste.
+  const { can: canViewPerformance } = useCan('reports.view_agency', agencyId);
+  const performanceOffered = canViewPerformance && agencyKind === 'standard';
+  const performance = performanceOffered && searchParams.get('vue') === VUE_PERFORMANCE;
+  const tab: TabValue = performance ? 'performance' : (ROLE_TO_TAB[currentRole] ?? 'tous');
 
   const [drawerUser, setDrawerUser] = useState<AdminAgencyUserRow | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removing, setRemoving] = useState<AdminAgencyUserRow | null>(null);
+  const [suspending, setSuspending] = useState<
+    { member: AdminAgencyUserRow; action: TeamSuspensionAction } | null
+  >(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const params = useMemo(
@@ -125,6 +154,7 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
     queryKey: ['admin-users', 'list', params],
     queryFn: () => fetchAdminUsers(params),
     staleTime: 15_000,
+    enabled: !performance,
   });
 
   // TCK-279 (AC11) — le rôle d'agence de chaque ligne affichée.
@@ -170,6 +200,16 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
   // celui qui n'invente aucune autorisation.
   const { can: canManageInvitations } = useCan('team.invite', agencyId);
 
+  // TCK-587 (ADR-0031 §2) — la console ne bloque plus le COMPTE d'un membre : ce blocage le
+  // coupait de toutes ses agences, et il est réservé au super-admin. Elle le suspend DANS
+  // l'agence, geste jugé côté serveur par `team.suspend` (`SuspendTeamMemberRequest`).
+  const { can: canSuspend } = useCan('team.suspend', agencyId);
+  const suspensionFor = useCallback(
+    (row: AdminAgencyUserRow) =>
+      canSuspend ? suspensionOffer(row, agencyId, currentUserId, primaryAdminId) : null,
+    [canSuspend, agencyId, currentUserId, primaryAdminId],
+  );
+
   // TCK-368 — l'invalidation porte des DEUX côtés. Une invitation acceptée fait
   // apparaître un membre et disparaître une invitation ; ne rafraîchir qu'une des
   // deux listes laisse l'écran se contredire lui-même jusqu'au prochain
@@ -182,26 +222,19 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
     [queryClient],
   );
 
-  const quickActionMutation = useMutation({
-    mutationFn: ({ id, action }: { id: number; action: 'block' | 'activate' }) =>
-      postUserAction(id, action),
+  const suspensionMutation = useMutation({
+    mutationFn: ({ member, action }: { member: AdminAgencyUserRow; action: TeamSuspensionAction }) =>
+      postTeamSuspension(agencyId, member.id, action, token ?? ''),
     onSuccess: () => {
       setActionError(null);
-      invalidateList();
-    },
-    onError: (err: ApiError) => setActionError(messageErreur(err)),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (userId: number) => removeAgencyMember(agencyId, userId, token ?? ''),
-    onSuccess: () => {
-      setActionError(null);
-      setRemoving(null);
+      setSuspending(null);
       setDrawerUser(null);
       invalidateList();
     },
-    onError: (err) =>
-      setActionError(messageErreur(err, tConsole('genericError'))),
+    onError: (err) => {
+      setSuspending(null);
+      setActionError(messageErreur(err, tConsole('genericError')));
+    },
   });
 
   const setTab = useCallback(
@@ -209,11 +242,17 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
       const value = (TAB_VALUES as readonly string[]).includes(next)
         ? (next as TabValue)
         : 'tous';
-      const nextRole = TAB_TO_ROLE[value];
       const qs = new URLSearchParams(searchParams.toString());
-      if (nextRole) qs.set('filter[role]', nextRole);
-      else qs.delete('filter[role]');
       qs.delete('page');
+      if (value === 'performance') {
+        qs.delete('filter[role]');
+        qs.set('vue', VUE_PERFORMANCE);
+      } else {
+        const nextRole = TAB_TO_ROLE[value];
+        if (nextRole) qs.set('filter[role]', nextRole);
+        else qs.delete('filter[role]');
+        qs.delete('vue');
+      }
       const str = qs.toString();
       router.replace(str ? `?${str}` : '?');
     },
@@ -230,70 +269,86 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
 
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>
-            <TabsTrigger value="agents">{tConsole('tabs.agents')}</TabsTrigger>
-            <TabsTrigger value="admins">{tConsole('tabs.admins')}</TabsTrigger>
-            <TabsTrigger value="proprietaires">{tConsole('tabs.owners')}</TabsTrigger>
-          </TabsList>
+          {/* TCK-595 — un cinquième onglet ne tient plus à 360 px : le ruban défile dans son
+              conteneur plutôt que de pousser la page (même forme que `/admin/finances`). */}
+          <div className="-mx-1 max-w-full overflow-x-auto px-1">
+            <TabsList>
+              <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>
+              <TabsTrigger value="agents">{tConsole('tabs.agents')}</TabsTrigger>
+              <TabsTrigger value="admins">{tConsole('tabs.admins')}</TabsTrigger>
+              <TabsTrigger value="proprietaires">{tConsole('tabs.owners')}</TabsTrigger>
+              {performanceOffered ? (
+                <TabsTrigger value="performance">{tConsole('tabs.performance')}</TabsTrigger>
+              ) : null}
+            </TabsList>
+          </div>
         </div>
       </Tabs>
 
-      <AdminUsersFilters hideRoleFilter />
+      {performance ? (
+        <TeamPerformanceTable agencyId={agencyId} />
+      ) : (
+        <>
+          <AgentAbsencesSection agencyId={agencyId} currentUserId={currentUserId} />
 
-      {actionError ? <ErrorState message={actionError} /> : null}
+          <AdminUsersFilters hideRoleFilter />
 
-      <DataState
-        data-testid="team-console-loading"
-        loading={usersQuery.isLoading}
-        error={usersQuery.isError ? messageErreur(usersQuery.error, t('error')) : null}
-        onRetry={() => void usersQuery.refetch()}
-        retryLabel={tCommon('actions.retry')}
-        skeletonRows={6}
-        skeletonRowClassName="h-12"
-        isEmpty={!usersQuery.data || usersQuery.data.data.length === 0}
-        emptyState={(
-          // `team.*` était un namespace ORPHELIN : ses clés existaient dans les trois locales et
-          // aucun fichier ne les consommait. Elles portent exactement la copie « encouragement +
-          // CTA » que `design-guidelines.md:83` exige, là où l'écran affichait en dur « Aucun
-          // membre ne correspond aux filtres courants. » — un constat, pas un encouragement.
-          <EmptyState
-            data-testid="team-console-empty"
-            icon={<Users className="size-8" aria-hidden="true" />}
-            title={hasActiveFilters ? t('empty_filtered_title') : t('empty_title')}
-            description={
-              hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
-            }
-            action={
-              hasActiveFilters ? undefined : (
-                <Button onClick={() => setInviteOpen(true)}>
-                  <UserPlus className="mr-1 size-4" aria-hidden="true" />
-                  {t('add')}
-                </Button>
-              )
-            }
-          />
-        )}
-      >
-        {usersQuery.data ? (
-          <div className="space-y-4">
-            <AdminUsersTable
-              rows={usersQuery.data.data}
-              total={usersQuery.data.meta.total}
-              currentUserId={currentUserId}
-              assignmentsByUser={assignmentsByUser}
-              onSelect={(u) => setDrawerUser(u)}
-              onQuickAction={(u, action) => quickActionMutation.mutate({ id: u.id, action })}
-              onRemove={(u) => setRemoving(u)}
-            />
-            <Pagination
-              page={usersQuery.data.meta.current_page}
-              lastPage={usersQuery.data.meta.last_page ?? usersQuery.data.meta.current_page}
-              onChange={goToPage}
-            />
-          </div>
-        ) : null}
-      </DataState>
+          {actionError ? <ErrorState message={actionError} /> : null}
+
+          <DataState
+            data-testid="team-console-loading"
+            loading={usersQuery.isLoading}
+            error={usersQuery.isError ? messageErreur(usersQuery.error, t('error')) : null}
+            onRetry={() => void usersQuery.refetch()}
+            retryLabel={tCommon('actions.retry')}
+            skeletonRows={6}
+            skeletonRowClassName="h-12"
+            isEmpty={!usersQuery.data || usersQuery.data.data.length === 0}
+            emptyState={(
+              // `team.*` était un namespace ORPHELIN : ses clés existaient dans les trois locales et
+              // aucun fichier ne les consommait. Elles portent exactement la copie « encouragement +
+              // CTA » que `design-guidelines.md:83` exige, là où l'écran affichait en dur « Aucun
+              // membre ne correspond aux filtres courants. » — un constat, pas un encouragement.
+              <EmptyState
+                data-testid="team-console-empty"
+                icon={<Users className="size-8" aria-hidden="true" />}
+                title={hasActiveFilters ? t('empty_filtered_title') : t('empty_title')}
+                description={
+                  hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
+                }
+                action={
+                  hasActiveFilters ? undefined : (
+                    <Button onClick={() => setInviteOpen(true)}>
+                      <UserPlus className="mr-1 size-4" aria-hidden="true" />
+                      {t('add')}
+                    </Button>
+                  )
+                }
+              />
+            )}
+          >
+            {usersQuery.data ? (
+              <div className="space-y-4">
+                <AdminUsersTable
+                  rows={usersQuery.data.data}
+                  total={usersQuery.data.meta.total}
+                  currentUserId={currentUserId}
+                  assignmentsByUser={assignmentsByUser}
+                  onSelect={(u) => setDrawerUser(u)}
+                  suspensionFor={suspensionFor}
+                  onSuspension={(member, action) => setSuspending({ member, action })}
+                  onRemove={(u) => setRemoving(u)}
+                />
+                <Pagination
+                  page={usersQuery.data.meta.current_page}
+                  lastPage={usersQuery.data.meta.last_page ?? usersQuery.data.meta.current_page}
+                  onChange={goToPage}
+                />
+              </div>
+            ) : null}
+          </DataState>
+        </>
+      )}
 
       <UserDetailDrawer
         user={drawerUser}
@@ -301,9 +356,11 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
         agencyId={agencyId}
         assignments={drawerUser ? (assignmentsByUser.get(drawerUser.id) ?? []) : []}
         canAssignRole={canAssignRole}
+        suspension={drawerUser ? suspensionFor(drawerUser) : null}
+        onSuspension={(member, action) => setSuspending({ member, action })}
         onOpenChange={(open) => !open && setDrawerUser(null)}
         onRemove={(u) => setRemoving(u)}
-        isRemoving={removeMutation.isPending}
+        isRemoving={removing !== null}
       />
 
       <InviteMemberDialog
@@ -313,11 +370,24 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
         onSuccess={invalidateList}
       />
 
-      <ConfirmRemoveDialog
+      <ConfirmSuspendDialog
+        target={suspending}
+        onCancel={() => setSuspending(null)}
+        onConfirm={(member, action) => suspensionMutation.mutate({ member, action })}
+        isPending={suspensionMutation.isPending}
+      />
+
+      {/* TCK-591 §8 — « Retirer » ouvre la passation du portefeuille, puis retire. */}
+      <HandoverWizard
+        agencyId={agencyId}
         member={removing}
-        onCancel={() => setRemoving(null)}
-        onConfirm={(member) => removeMutation.mutate(member.id)}
-        isPending={removeMutation.isPending}
+        onClose={() => setRemoving(null)}
+        onDone={() => {
+          setActionError(null);
+          setRemoving(null);
+          setDrawerUser(null);
+          invalidateList();
+        }}
       />
     </div>
   );

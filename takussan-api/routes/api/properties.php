@@ -18,6 +18,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
     // TCK-074 — bulk actions (must be declared before the `{property}` route).
     Route::post('properties/bulk-archive', [PropertyController::class, 'bulkArchive'])->name('properties.bulk-archive');
+    // TCK-591 — dépublier en lot (jamais publier : la modération est unitaire).
+    Route::post('properties/bulk-visibility', [PropertyController::class, 'bulkVisibility'])->name('properties.bulk-visibility');
+    // TCK-603 — changer l'agent responsable en lot (jamais le propriétaire, ADR-0036).
+    Route::post('properties/bulk-assign', [PropertyController::class, 'bulkAssign'])->name('properties.bulk-assign');
 
     // TCK-098 — moderation queue (admin-scoped: agency_admin sees own queue,
     // super_admin sees all). Lives outside /api/admin/* (which is super-admin
@@ -57,6 +61,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Collaborators
     Route::get('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'index'])->name('properties.collaborators.index');
     Route::post('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'store'])->name('properties.collaborators.store');
+    // TCK-504 — littérale après `{collaborator}` : aucun conflit d'ordre avec `update`.
+    Route::put('properties/{property}/collaborators/{collaborator}/primary', [PropertyCollaboratorController::class, 'designatePrimary'])->name('properties.collaborators.primary');
     Route::put('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'update'])->name('properties.collaborators.update');
     Route::delete('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy');
 
@@ -70,11 +76,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Favorites
     Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');
     Route::post('favorites', [FavoriteController::class, 'store'])->name('favorites.store');
-    Route::delete('favorites/{property}', [FavoriteController::class, 'destroy'])->name('favorites.destroy');
+    // TCK-599 — liés `withTrashed()` : le favori d'un bien supprimé se retire et s'annote encore.
+    Route::patch('favorites/{property}', [FavoriteController::class, 'update'])->withTrashed()->name('favorites.update');
+    Route::delete('favorites/{property}', [FavoriteController::class, 'destroy'])->withTrashed()->name('favorites.destroy');
 
     // Reviews (nested under property)
     Route::get('properties/{property}/reviews', [ReviewController::class, 'indexForProperty'])->name('properties.reviews.index');
     Route::post('properties/{property}/reviews', [ReviewController::class, 'storeForProperty'])->name('properties.reviews.store');
+    // TCK-597 — noter un agent, un prestataire (sur une intervention).
+    Route::post('agents/{user}/reviews', [ReviewController::class, 'storeForAgent'])->name('agents.reviews.store');
+    Route::post('service-providers/{serviceProviderProfile}/reviews', [ReviewController::class, 'storeForServiceProvider'])->name('service-providers.reviews.store');
     Route::post('reviews/{review}/reply', [ReviewController::class, 'reply'])->name('reviews.reply');
     // TCK-078 — owner/agency can retract their reply (or admin can moderate it away)
     Route::delete('reviews/{review}/reply', [ReviewController::class, 'deleteReply'])->name('reviews.reply.destroy');
@@ -84,6 +95,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Global reviews (admin moderation queue)
     Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    // TCK-597 — la boîte des avis reçus (agent, bailleur, prestataire, admin d'agence).
+    Route::get('reviews/received', [ReviewController::class, 'received'])->name('reviews.received');
     Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
     Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
 });

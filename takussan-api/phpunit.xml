@@ -131,6 +131,8 @@
 
              *Une suite qui dépend du `.env` ne mesure pas le code : elle mesure la machine.* Même
              raison que `DB_CONNECTION`, `CACHE_STORE` ou `SCOUT_DRIVER` ci-dessus. -->
+        <!-- TCK-589 — aucun pilote `log` en fin de chaîne SMS en test, quel que soit le `.env` local. -->
+        <env name="SMS_LOG_FALLBACK" value="false"/>
         <env name="SMS_ORANGE_OAUTH_URL" value="https://api.orange.com/oauth/v3/token"/>
         <env name="SMS_ORANGE_SEND_URL" value="https://api.orange.com/smsmessaging/v1/outbound/{senderAddress}/requests"/>
         <env name="SMS_MTARGET_SEND_URL" value="https://api-public-2.mtarget.fr/messages"/>

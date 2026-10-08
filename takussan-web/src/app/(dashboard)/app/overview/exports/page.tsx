@@ -21,12 +21,14 @@ export default async function ExportsPage() {
   // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
-  const canExportCustomers = isAdmin(user.roles) || isAgent(user.roles);
+  // TCK-587 — le personnel voit les exports dont il tient la capacité (lue par `ExportForm`) ; le
+  // bailleur, ceux de ses propres données.
+  const staff = isAdmin(user.roles) || isAgent(user.roles);
 
   return (
     <div className="space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
-      <ExportForm canExportCustomers={canExportCustomers} />
+      <ExportForm staff={staff} />
     </div>
   );
 }

@@ -5,28 +5,44 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PayoutStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payout extends AbstractModel
 {
     use Auditable, HasFactory, SoftDeletes;
 
+    /**
+     * TCK-594 (ADR-0039 §2) — `landlord_id` est l'UTILISATEUR bénéficiaire pour `payee_role`
+     * `landlord` et `service_provider` (le prestataire) ; pour `tenant`, il désigne le bailleur du
+     * bail, le locataire étant un `Customer`. Le nom est historique.
+     */
     protected $fillable = [
-        'lease_id', 'booking_id', 'agency_id', 'landlord_id', 'issued_by_id',
+        'lease_id', 'booking_id', 'service_provider_bill_id', 'agency_id', 'landlord_id', 'payee_role',
+        'issued_by_id', 'approved_by_id', 'approved_at', 'processed_by_id',
         'reference_number', 'status',
         'period_start', 'period_end',
         'gross_amount', 'commission_amount', 'fees_amount', 'net_amount',
-        'currency', 'payment_method', 'transaction_id',
+        'currency', 'payment_method', 'payout_method_id', 'transaction_id',
         'scheduled_at', 'processed_at', 'failed_reason', 'notes', 'metadata',
+        // TCK-593 — rapprochement bancaire (un débit du relevé).
+        'bank_reconciled_at', 'bank_statement_line_id',
+    ];
+
+    /** TCK-594 — le défaut de la colonne, lisible avant le premier `refresh()`. */
+    protected $attributes = [
+        'payee_role' => 'landlord',
     ];
 
     protected $casts = [
         'status' => PayoutStatus::class,
+        'payee_role' => PayeeRole::class,
         'currency' => Currency::class,
         'payment_method' => PaymentMethod::class,
         'period_start' => 'date',
@@ -37,22 +53,25 @@ class Payout extends AbstractModel
         'net_amount' => 'decimal:2',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
+        'approved_at' => 'datetime',
         'metadata' => 'array',
+        'bank_reconciled_at' => 'datetime',
     ];
 
-    protected static array $requestFilterable = ['lease_id', 'booking_id', 'agency_id', 'landlord_id', 'issued_by_id', 'status', 'currency', 'payment_method'];
+    protected static array $requestFilterable = ['lease_id', 'booking_id', 'agency_id', 'landlord_id', 'payee_role', 'issued_by_id', 'approved_by_id', 'service_provider_bill_id', 'status', 'currency', 'payment_method'];
 
     protected static array $requestSortable = ['id', 'created_at', 'period_start', 'period_end', 'net_amount', 'scheduled_at', 'processed_at'];
 
-    protected static array $requestLoadable = ['lease', 'booking', 'agency', 'landlord'];
+    protected static array $requestLoadable = ['lease', 'booking', 'agency', 'landlord', 'issuer', 'approver', 'processor'];
 
     protected static array $requestRangeFilters = ['net_amount', 'gross_amount'];
 
     protected static array $queryFields = [
-        'id', 'lease_id', 'booking_id', 'agency_id', 'landlord_id', 'issued_by_id',
+        'id', 'lease_id', 'booking_id', 'service_provider_bill_id', 'agency_id', 'landlord_id', 'payee_role',
+        'issued_by_id', 'approved_by_id', 'approved_at', 'processed_by_id',
         'reference_number', 'status', 'period_start', 'period_end',
         'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency',
-        'payment_method', 'transaction_id', 'scheduled_at', 'processed_at',
+        'payment_method', 'payout_method_id', 'transaction_id', 'scheduled_at', 'processed_at',
         'failed_reason', 'notes', 'created_at', 'updated_at',
     ];
 
@@ -76,18 +95,14 @@ class Payout extends AbstractModel
                 return;
             }
 
-            // A completed payout cannot revert to pending/scheduled/processing.
-            $open = [
-                PayoutStatus::Pending,
-                PayoutStatus::Scheduled,
-                PayoutStatus::Processing,
-            ];
-            if ($originalEnum === PayoutStatus::Completed && in_array($newEnum, $open, true)) {
-                abort(422, sprintf(
-                    'Invalid payout status transition: %s → %s.',
-                    $originalEnum->value,
-                    $newEnum->value,
-                ));
+            // VERIF-594 M-5 — on ne sort JAMAIS de `completed` : ni vers un état ouvert, ni vers
+            // `failed` ou `cancelled`, qui détacheraient les pièces d'un argent déjà parti. C'est la
+            // garde de dernier recours, quel que soit le chemin d'écriture.
+            if ($originalEnum === PayoutStatus::Completed && $newEnum !== PayoutStatus::Completed) {
+                abort_code(422, 'payout.status_transition_invalid', [
+                    'from' => $originalEnum->value,
+                    'to' => $newEnum->value,
+                ]);
             }
         });
     }
@@ -115,6 +130,48 @@ class Payout extends AbstractModel
     public function issuer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'issued_by_id');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_id');
+    }
+
+    public function processor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'processed_by_id');
+    }
+
+    public function payoutMethod(): BelongsTo
+    {
+        return $this->belongsTo(PayoutMethod::class)->withTrashed();
+    }
+
+    public function serviceProviderBill(): BelongsTo
+    {
+        return $this->belongsTo(ServiceProviderBill::class);
+    }
+
+    /** Les factures d'intervention retenues en FRAIS de ce reversement au bailleur. */
+    public function imputedBills(): HasMany
+    {
+        return $this->hasMany(ServiceProviderBill::class, 'imputed_payout_id');
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4) — l'utilisateur qui reçoit l'argent, quand il en existe un : il ne tient
+     * aucun des trois gestes. Le locataire d'une caution rendue est un `Customer`, rattaché ou non à
+     * un compte.
+     */
+    public function beneficiaryUserId(): ?int
+    {
+        if ($this->payee_role === PayeeRole::Tenant) {
+            $userId = $this->lease?->tenant?->user_id;
+
+            return $userId !== null ? (int) $userId : null;
+        }
+
+        return $this->landlord_id !== null ? (int) $this->landlord_id : null;
     }
 
     public function leasePayments(): BelongsToMany

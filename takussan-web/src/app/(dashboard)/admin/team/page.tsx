@@ -70,6 +70,7 @@ export default async function TeamPage() {
         agencyId={user.agency_id}
         currentUserId={user.id}
         agencyKind={agency?.kind ?? null}
+        primaryAdminId={agency?.primary_admin_id ?? null}
       />
     </div>
   );

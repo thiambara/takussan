@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/console';
-import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
+import type { InvoiceStatus, PayoutMethodKind, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
 
 /**
  * Variantes de badge et helpers purs des vues « paiements » (TCK-063). À garder
@@ -22,7 +22,7 @@ import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
 
 /**
  * Must stay aligned with `App\Models\Enums\PaymentStatus` (pending, paid,
- * late, partially_paid, failed, refunded). The backend rejects any other
+ * late, partially_paid, failed, refunded, cancelled). The backend rejects any other
  * value with HTTP 422 on `GET /api/payments/history?filter[status]=...`.
  */
 export type PaymentStatus =
@@ -31,7 +31,8 @@ export type PaymentStatus =
   | 'late'
   | 'partially_paid'
   | 'failed'
-  | 'refunded';
+  | 'refunded'
+  | 'cancelled';
 
 /** Ordre d'affichage du filtre de statut — l'ordre EST la donnée, pas un détail. */
 export const PAYMENT_STATUS_VALUES: readonly PaymentStatus[] = [
@@ -41,6 +42,7 @@ export const PAYMENT_STATUS_VALUES: readonly PaymentStatus[] = [
   'partially_paid',
   'failed',
   'refunded',
+  'cancelled',
 ];
 
 /*
@@ -62,6 +64,7 @@ export const PAYMENT_STATUS_TONE: Record<PaymentStatus, StatusTone> = {
   partially_paid: 'info',
   failed: 'danger',
   refunded: 'neutral',
+  cancelled: 'neutral',
 };
 
 export const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
@@ -74,11 +77,22 @@ export const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
 };
 
 export const PAYOUT_STATUS_TONE: Record<PayoutStatus, StatusTone> = {
+  // TCK-594 — le reversement au-dessus du seuil de l'agence attend un second membre.
+  awaiting_approval: 'attention',
   pending: 'attention',
   scheduled: 'info',
   processing: 'info',
   completed: 'success',
   failed: 'danger',
+  cancelled: 'neutral',
+};
+
+/** TCK-594 (ADR-0039 §8) — la facture d'intervention attend la validation de l'agence. */
+export const SERVICE_PROVIDER_BILL_STATUS_TONE: Record<ServiceProviderBillStatus, StatusTone> = {
+  pending_validation: 'attention',
+  validated: 'info',
+  rejected: 'danger',
+  paid: 'success',
   cancelled: 'neutral',
 };
 
@@ -108,30 +122,23 @@ export const PAYMENT_METHOD_VALUES = [
 
 export type PaymentMethod = (typeof PAYMENT_METHOD_VALUES)[number];
 
-/**
- * Compute the net amount of a payout given gross, commission and fees.
- * Exposed (and pure) so it can be unit-tested separately.
+/*
+ * TCK-594 (ADR-0039 §1) — `computePayoutNet` et `commissionFromRate` ont été SUPPRIMÉS : le brut, la
+ * commission et le net d'un reversement se calculent côté serveur, depuis les pièces citées et le
+ * taux du bail ou de l'agence. Un calcul de commission côté client était précisément la saisie que
+ * l'ADR retire.
  */
-export function computePayoutNet({
-  gross,
-  commission = 0,
-  fees = 0,
-}: {
-  readonly gross: number;
-  readonly commission?: number;
-  readonly fees?: number;
-}): number {
-  const net = Number(gross) - Number(commission) - Number(fees);
-  return Number.isFinite(net) ? net : 0;
-}
 
 /**
- * Helper — derive the commission amount from a percentage applied on the
- * gross amount. Matches the convention used by `Agency.commission_rate`
- * (stored as a 2-decimal number between 0 and 100).
+ * TCK-594 (ADR-0039 §6) — les moyens de paiement qui partent vers une destination déclarée, et les
+ * natures de destination que chacun accepte. Recopie de `PayoutService::DESTINATION_KINDS` : le
+ * serveur juge, l'écran ne propose que ce qu'il accepterait.
  */
-export function commissionFromRate(gross: number, ratePercent: number): number {
-  if (!Number.isFinite(gross) || !Number.isFinite(ratePercent)) return 0;
-  const rate = Math.max(0, Math.min(100, ratePercent));
-  return Math.round(gross * rate) / 100;
-}
+export const DESTINATION_KINDS_BY_METHOD: Partial<Record<(typeof PAYMENT_METHOD_VALUES)[number], readonly PayoutMethodKind[]>> = {
+  wave: ['wave'],
+  orange_money: ['orange_money'],
+  free_money: ['free_money'],
+  mobile_money: ['wave', 'orange_money', 'free_money'],
+  bank_transfer: ['bank_transfer'],
+};
+

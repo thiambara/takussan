@@ -12,6 +12,10 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Auth\AccessTokenGate;
+use App\Services\Auth\SessionTokenIssuer;
+use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Profiles\ActiveProfileResolver;
 use App\Support\CaseInsensitive;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -159,7 +163,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                     'agency_admin' => $q->whereHas('agencyAdminProfiles'),
                     'owner' => $q->whereHas('ownerProfiles'),
                     'service_provider' => $q->whereHas('serviceProviderProfile'),
-                    'broker' => $q->whereHas('brokerProfile'),
                     'super_admin' => $q->whereHas('platformProfile', fn (Builder $pp) => $pp
                         ->whereNull('revoked_at')
                         ->where('level', PlatformProfileLevel::SuperAdmin->value)),
@@ -240,7 +243,11 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         // TCK-278 — Tolérer plusieurs profils dans la **même** agence
         // (ex. AgentProfile + OwnerProfile materialisés ensemble par les
         // fixtures de coexistence). Multi-agences reste null par sécurité.
-        $profiles = $this->profiles();
+        //
+        // TCK-587 (ADR-0031 §3) — profils ACTIFS seulement, même règle que l'auto-bascule du
+        // middleware : un profil suspendu ne donne plus d'agence, donc plus de périmètre.
+        $profiles = $this->profiles()
+            ->filter(fn ($p) => ActiveProfileResolver::isActiveProfile($p));
         $agencyIds = $profiles
             ->map(fn ($p) => isset($p->agency_id) ? (int) $p->agency_id : null)
             ->filter()
@@ -248,6 +255,18 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ->values();
 
         return $agencyIds->count() === 1 ? (int) $agencyIds->first() : null;
+    }
+
+    /**
+     * TCK-587 (ADR-0031 §1) — l'agence du profil actif si l'utilisateur y est PERSONNEL (agent ou
+     * admin actif, ou délégation active de ces rôles), sinon `null`. Relais de
+     * {@see MembershipCapabilityResolver::staffAgencyId()} : c'est ce prédicat, et non
+     * `$this->agency_id`, que lit toute clause qui ouvre le périmètre d'une agence — `agency_id`
+     * est aussi celui d'un bailleur.
+     */
+    public function staffAgencyId(): ?int
+    {
+        return app(MembershipCapabilityResolver::class)->staffAgencyId($this);
     }
 
     /**
@@ -518,6 +537,18 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     public function hasPendingDeletionRequest(): bool
     {
         return $this->deletion_requested_at !== null;
+    }
+
+    /**
+     * TCK-589 — un compte `blocked` ou `deleted` (ou supprimé en douceur) n'ouvre
+     * aucune session, par aucun chemin : lu à l'émission du jeton
+     * ({@see SessionTokenIssuer}) ET à chaque requête ({@see AccessTokenGate}).
+     * `inactive` n'est pas un refus : c'est un compte qui n'a pas encore servi.
+     */
+    public function canOpenSession(): bool
+    {
+        return ! $this->trashed()
+            && ! in_array($this->status, [UserStatus::Blocked, UserStatus::Deleted], true);
     }
 
     /**

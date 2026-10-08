@@ -2,6 +2,7 @@
 
 use App\Jobs\Billing\ProcessTrialExpirations;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
+use App\Jobs\Crm\SendProspectMatchDigest;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
@@ -10,10 +11,14 @@ use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
+use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\RefreshNewBuildSearchLabel;
+use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
+use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
+use App\Jobs\SyncPropertyCalendarFeedsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -27,6 +32,8 @@ Artisan::command('inspire', function () {
 // handles the legacy `expires_at` deadline set at booking creation.
 Schedule::job(new ExpirePendingBookingsJob)->everyFifteenMinutes()->withoutOverlapping();
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
+// TCK-596 (ADR-0041 §5) — import horaire des calendriers externes des biens.
+Schedule::job(new SyncPropertyCalendarFeedsJob)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
@@ -34,7 +41,18 @@ Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping
 // silently and reprocessed on the next sweep.
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
-Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
+// TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
+// `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue
+// s'il échoue (verif-599 M1).
+Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00')->withoutOverlapping();
+// TCK-599 — une alerte sans compte non confirmée à 48 h est effacée. Idempotent.
+Schedule::command('search-alerts:purge-unconfirmed')->hourly()->withoutOverlapping();
+// TCK-599 §5 — favoris : baisses de prix et sorties du public, une notification groupée par
+// personne. Idempotent par la base de prix et `unavailable_notified_at`.
+Schedule::job(new SendFavoriteChangeAlerts)->dailyAt('09:15')->withoutOverlapping();
+// TCK-591 — rapprochement prospects ↔ biens arrivés ou repris en prix depuis 24 h : une
+// notification par référent, jamais vide. Idempotent par jour (`data.digest_date`).
+Schedule::job(new SendProspectMatchDigest)->dailyAt('08:30')->withoutOverlapping();
 // TCK-092 — Per-offset overdue invoice reminders (default J+3, J+7, J+15).
 // Replaces the legacy `SendOverdueInvoiceReminders` (single-shot mark-and-
 // notify). Idempotent on `reminders_sent_count`; agency-scoped queries.
@@ -59,6 +77,8 @@ Schedule::command('tasks:send-due-reminders')->hourly()->withoutOverlapping();
 Schedule::command('account:execute-deletions')->hourly()->withoutOverlapping();
 // TCK-225 — RGPD portability archives expire after 7 days.
 Schedule::job(new PurgeExpiredDataExports)->dailyAt('02:30')->withoutOverlapping();
+// TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
+Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping();
 
@@ -70,8 +90,29 @@ Schedule::job(new ProcessRoleDelegationsJob)->everyFiveMinutes()->withoutOverlap
 //    and notifies the inviter.
 //  - `invitations:remind` emails a J+2 reminder to invitees who haven't
 //    accepted yet, using `last_reminded_at` for dedup.
+// TCK-592 (P10) — clôture contradictoire : `completed` depuis 7 jours sans confirmation ni
+// contestation du demandeur → `closed`, acteur nul. Idempotente.
+Schedule::command('maintenance:auto-close')->dailyAt('04:00')->withoutOverlapping();
 Schedule::command('invitations:expire')->hourly()->withoutOverlapping();
 Schedule::command('invitations:remind')->hourly()->withoutOverlapping();
+
+// TCK-589 — les jetons expirés (durée absolue ou `expires_at`) sont purgés chaque jour ;
+// 24 h de grâce pour qu'un jeton tout juste échu reste lisible dans la liste des sessions.
+Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlapping();
+// TCK-589 (vérification adverse m7) — et les jetons morts d'INACTIVITÉ, que la purge de
+// Sanctum ne voit pas : même règle que `AccessTokenGate`, même grâce de 24 h.
+Schedule::command('sessions:prune-idle --hours=24')->daily()->withoutOverlapping();
+// TCK-600 (ADR-0055) — une session d'impersonation échue se ferme, et sa cible en est prévenue.
+Schedule::command('impersonation:close-expired')->everyMinute()->withoutOverlapping();
+
+// TCK-600 (S15) — la santé : un battement par file (exécuté seulement si un worker la consomme),
+// puis l'instantané des sondes, que la route publique `/api/health` lit en cache.
+foreach (RecordQueueHeartbeat::QUEUES as $file) {
+    Schedule::job(new RecordQueueHeartbeat($file), $file)->everyMinute();
+}
+Schedule::command('health:probe')->everyMinute()->withoutOverlapping();
+// TCK-600 (S16) — alertes d'exploitation, écrites à leur transition seulement.
+Schedule::command('alerts:evaluate')->everyFiveMinutes()->withoutOverlapping();
 
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();
@@ -108,3 +149,21 @@ Schedule::command('tenant-onboarding:remind')->hourly()->withoutOverlapping();
 // `withoutOverlapping()` keeps two drains off the same queue; the run is
 // a no-op while `sms.dlr_pulling.enabled` is false (its default).
 Schedule::command('sms:pull-mtarget-dlr')->everyFiveMinutes()->withoutOverlapping();
+
+// TCK-594 (AC20) — rappel des reversements programmés échus. Idempotent par
+// `payouts.metadata.due_reminded_at`, posé avant l'envoi : une exécution rejouée ne renvoie rien.
+// Elle ne décaisse rien (décaissement manuel, ADR-0039 §1).
+Schedule::command('payouts:remind-due')->dailyAt('07:30')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-594 (ADR-0039 §3) — le 1er du mois, avis du relevé de gérance du mois précédent.
+Schedule::command('payouts:send-owner-statements')->monthlyOn(1, '08:00')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-595 (ADR-0057 §3) — l'instantané quotidien des métriques plateforme, pour la veille : ses flux
+// et les stocks mesurés à l'exécution. Rejoué, il réécrit la même ligne (`upsert` sur `date`). La
+// tendance à 30 jours de la console se lit dans ces lignes, et nulle part ailleurs.
+Schedule::job(new SnapshotPlatformMetricsJob)->dailyAt('00:30')->withoutOverlapping();
+
+// TCK-602 (ADR-0051 §6) — rétention du journal des webhooks par canal (`config/webhooks.php`).
+// Idempotente : une suppression par date, qu'une seconde exécution trouve vide. La lecture de la
+// console ne purge plus rien.
+Schedule::command('webhooks:prune')->dailyAt('03:45')->timezone('Africa/Dakar')->withoutOverlapping();

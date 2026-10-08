@@ -1,6 +1,7 @@
 import { apiRequest } from './api';
 import type { User as CanonicalUser } from '@/types/user';
 import type { Locale } from '@/i18n/config';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
 
@@ -15,6 +16,8 @@ export type User = CanonicalUser;
 export type AuthResponse = {
   token: string;
   user: User;
+  /** TCK-589 — fin de validité du jeton (ISO 8601) : le cookie n'y survit pas. */
+  expires_at?: string;
 };
 
 /**
@@ -64,6 +67,13 @@ export type UpdateProfilePayload = {
    * server-side.
    */
   phone?: string | null;
+  /**
+   * TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro VÉRIFIÉ : le mot de passe
+   * actuel, ou le code reçu sur l'ancien numéro. Sans elle, l'API rend 403
+   * `phone.change_requires_proof`.
+   */
+  current_password?: string;
+  phone_change_code?: string;
 };
 
 export async function register(payload: RegisterPayload): Promise<AuthResponse & { message: string }> {
@@ -91,6 +101,8 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
   if (payload.avatar) formData.append('avatar', payload.avatar);
   if (payload.avatar_remove) formData.append('avatar_remove', '1');
   if (payload.phone !== undefined) formData.append('phone', payload.phone ?? '');
+  if (payload.current_password) formData.append('current_password', payload.current_password);
+  if (payload.phone_change_code) formData.append('phone_change_code', payload.phone_change_code);
 
   return apiRequest('/api/auth/profile', {
     method: 'POST',
@@ -121,7 +133,7 @@ export async function oauthRedirect(
   provider: OAuthProvider,
 ): Promise<{ redirect_url: string }> {
   const res = await apiRequest<{ data: { redirect_url: string } }>(
-    `/api/auth/oauth/${provider}/redirect`,
+    cheminApi`/api/auth/oauth/${provider}/redirect`,
   );
   return res.data;
 }
@@ -133,13 +145,43 @@ export async function oauthProviders(): Promise<OAuthProviderAvailability[]> {
   return res.data.providers;
 }
 
+/**
+ * TCK-589, vérification adverse B2 — le rappel OAuth d'un compte à 2FA ne rend pas de jeton
+ * mais un défi, court et à usage unique, que `oauthSecondFactor` solde avec le TOTP ou un code
+ * de récupération.
+ */
+export type OAuthTwoFactorChallenge = {
+  requires_2fa: true;
+  challenge: string;
+  message?: string;
+};
+
+export type OAuthCallbackResponse = AuthResponse | OAuthTwoFactorChallenge;
+
+export function isOAuthTwoFactorChallenge(
+  res: OAuthCallbackResponse,
+): res is OAuthTwoFactorChallenge {
+  return (res as OAuthTwoFactorChallenge).requires_2fa === true;
+}
+
 export async function oauthCallback(
   provider: OAuthProvider,
   code: string,
   state: string,
-): Promise<AuthResponse> {
-  const res = await apiRequest<{ data: AuthResponse }>(
-    `/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+): Promise<OAuthCallbackResponse> {
+  const res = await apiRequest<{ data: OAuthCallbackResponse }>(
+    cheminApi`/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
   );
+  return res.data;
+}
+
+export async function oauthSecondFactor(
+  challenge: string,
+  proof: { two_factor_code: string } | { recovery_code: string },
+): Promise<AuthResponse> {
+  const res = await apiRequest<{ data: AuthResponse }>('/api/auth/oauth/2fa', {
+    method: 'POST',
+    body: { challenge, ...proof },
+  });
   return res.data;
 }
