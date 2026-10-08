@@ -7,7 +7,7 @@ family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
