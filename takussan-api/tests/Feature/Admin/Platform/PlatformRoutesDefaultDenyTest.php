@@ -61,6 +61,8 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.users.block',
         'admin.users.reactivate',
         'admin.moderation.index',
+        // Sous-partie 8 — recherche globale (`platform.search.global`).
+        'admin.search',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\DataExportController;
 use App\Http\Controllers\Api\Admin\FailedJobController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
+use App\Http\Controllers\Api\Admin\GlobalSearchController;
 use App\Http\Controllers\Api\Admin\HealthcheckController;
 use App\Http\Controllers\Api\Admin\IntegrationController;
 use App\Http\Controllers\Api\Admin\KycController;
@@ -127,6 +128,11 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // se révoquait). Step-up : `ProtectedActions::STEP_UP`.
     Route::post('super-admins/{user}/revoke', [SuperAdminInvitationController::class, 'revokeOperator'])
         ->name('admin.superAdmins.revoke');
+
+    // TCK-600 (S19) — recherche globale de la console, par la base (`support` et au-dessus).
+    Route::get('search', GlobalSearchController::class)
+        ->middleware($geste(PlatformAbility::SearchGlobal))
+        ->name('admin.search');
 
     // User support — cross-tenant list/detail (TCK-600 : `support` et au-dessus).
     Route::middleware($geste(PlatformAbility::UsersView))->group(function () {

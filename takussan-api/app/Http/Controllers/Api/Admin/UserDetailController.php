@@ -7,6 +7,7 @@ use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,11 +28,13 @@ class UserDetailController extends Controller
                     $q->orWhere('id', (int) $search);
                 }
 
-                $q->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                // TCK-600 — `like` nu est sensible à la casse sur PostgreSQL : « diop » ne
+                // trouvait pas « Diop » (piège n°9 du CLAUDE.md).
+                $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';
+                foreach (['first_name', 'last_name', 'email', 'username'] as $colonne) {
+                    $q->orWhereRaw(CaseInsensitive::sql($colonne).' like ?', [$motif]);
+                }
+                $q->orWhere('phone', 'like', '%'.addcslashes($search, '\\%_').'%');
             });
         }
 

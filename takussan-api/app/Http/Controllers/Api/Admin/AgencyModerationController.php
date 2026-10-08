@@ -12,6 +12,7 @@ use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Services\Lead\ContactLeadService;
 use App\Services\Model\NotificationService;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -66,9 +67,12 @@ class AgencyModerationController extends Controller
 
         if ($search = $request->string('filter.search')->trim()->value()) {
             $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                // TCK-600 — insensible à la casse ET aux majuscules accentuées : « keur » trouve
+                // « Keur Immo », « café » trouve « CAFÉ IMMO » (`CaseInsensitive`, ADR-0025).
+                $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';
+                $q->whereRaw(CaseInsensitive::sql('name').' like ?', [$motif])
+                    ->orWhereRaw(CaseInsensitive::sql('slug').' like ?', [$motif])
+                    ->orWhereRaw(CaseInsensitive::sql('email').' like ?', [$motif]);
             });
         }
 

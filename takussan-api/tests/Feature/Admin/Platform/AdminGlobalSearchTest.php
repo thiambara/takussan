@@ -1,0 +1,127 @@
+<?php
+
+namespace Tests\Feature\Admin\Platform;
+
+use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\PropertyVisibility;
+use App\Models\Property;
+use App\Models\User;
+use App\Services\Admin\AdminGlobalSearchService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\OperateursPlateforme;
+use Tests\TestCase;
+
+/**
+ * TCK-600 — AC19 : la recherche globale de la console, par la base.
+ */
+class AdminGlobalSearchTest extends TestCase
+{
+    use OperateursPlateforme;
+    use RefreshDatabase;
+
+    private function chercher(string $q): array
+    {
+        return $this->getJson('/api/admin/search?q='.urlencode($q))->assertOk()->json('data');
+    }
+
+    public function test_la_reference_d_un_brouillon_prive_rend_ce_bien_en_premier(): void
+    {
+        $agence = Agency::factory()->create(['name' => 'Keur Immo']);
+        $bien = Property::factory()->draft()->create([
+            'agency_id' => $agence->id,
+            'visibility' => PropertyVisibility::Private,
+            'reference_number' => 'TKS-2026-0042',
+        ]);
+        // Du bruit qui contient la référence en texte libre : il doit venir APRÈS.
+        Property::factory()->create(['title' => 'Villa TKS-2026-0042 bis']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $resultats = $this->chercher('tks-2026-0042');
+
+        $this->assertSame(['type' => 'property', 'id' => $bien->id], ['type' => $resultats[0]['type'], 'id' => $resultats[0]['id']]);
+        $this->assertSame(['id' => $agence->id, 'name' => 'Keur Immo'], $resultats[0]['agency']);
+        $this->assertSame('TKS-2026-0042', $resultats[0]['sublabel']);
+    }
+
+    public function test_diop_trouve_diop_et_le_telephone_se_normalise(): void
+    {
+        $fatou = User::factory()->create(['first_name' => 'Fatou', 'last_name' => 'Diop', 'phone' => '+221771234567']);
+        User::factory()->create(['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'phone' => '+221781234567']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->assertContains($fatou->id, $this->ids($this->chercher('diop'), 'user'));
+        $this->assertContains($fatou->id, $this->ids($this->chercher('fatou DIOP'), 'user'));
+        $this->assertSame([$fatou->id], $this->ids($this->chercher('77 123 45 67'), 'user'));
+        $this->assertSame([$fatou->id], $this->ids($this->chercher('+221 77 123 45 67'), 'user'));
+        $this->assertSame([$fatou->id], $this->ids($this->chercher(strtoupper($fatou->email)), 'user'));
+    }
+
+    /** Second chemin de l'e-mail : l'agence n'est cherchée en texte libre que par nom et slug. */
+    public function test_l_e_mail_d_une_agence_se_trouve_quelle_que_soit_la_casse(): void
+    {
+        $agence = Agency::factory()->create(['email' => 'contact@keur-immo.sn']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->assertSame([$agence->id], $this->ids($this->chercher('CONTACT@Keur-Immo.SN'), 'agency'));
+    }
+
+    public function test_un_identifiant_de_transaction_rend_le_paiement_avec_son_agence(): void
+    {
+        $agence = Agency::factory()->create(['name' => 'Dakar Habitat']);
+        $paiement = BookingPayment::factory()->create([
+            'booking_id' => Booking::factory()->create(['agency_id' => $agence->id])->id,
+            'transaction_id' => 'WAVE-TX-88231',
+        ]);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $resultats = collect($this->chercher('WAVE-TX-88231'))->where('type', 'payment')->values();
+
+        $this->assertCount(1, $resultats);
+        $this->assertSame($paiement->id, $resultats[0]['id']);
+        $this->assertSame(['id' => $agence->id, 'name' => 'Dakar Habitat'], $resultats[0]['agency']);
+    }
+
+    /** NINEA : par l'agence (en clair), jamais par la demande de passage (chiffrée par TCK-601). */
+    public function test_le_ninea_se_cherche_dans_l_agence_jamais_dans_la_demande(): void
+    {
+        $agence = Agency::factory()->create(['metadata' => ['legal_info' => ['ninea' => '005012345']]]);
+        AgencyUpgradeRequest::factory()->create(['ninea' => '009876543']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->assertSame([$agence->id], $this->ids($this->chercher('005012345'), 'agency'));
+        $this->assertSame([], $this->chercher('009876543'));
+    }
+
+    public function test_cinq_resultats_au_plus_par_type_et_les_jokers_sont_litteraux(): void
+    {
+        User::factory()->count(7)->create(['last_name' => 'Sarr']);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->assertCount(AdminGlobalSearchService::PER_TYPE, $this->ids($this->chercher('sarr'), 'user'));
+        $this->assertSame([], $this->ids($this->chercher('%%%'), 'user'));
+        $this->assertSame([], $this->ids($this->chercher('s_r'), 'user'));
+    }
+
+    public function test_un_admin_d_agence_et_un_viewer_sont_refuses_et_q_est_borne(): void
+    {
+        $this->actingAsRole('agency_admin');
+        $this->getJson('/api/admin/search?q=diop')->assertForbidden();
+
+        $this->agirEnOperateur(PlatformProfileLevel::Viewer);
+        $this->getJson('/api/admin/search?q=diop')->assertForbidden();
+
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->getJson('/api/admin/search?q=d')->assertUnprocessable();
+        $this->getJson('/api/admin/search?q='.str_repeat('a', 101))->assertUnprocessable();
+    }
+
+    /** @return list<int> */
+    private function ids(array $resultats, string $type): array
+    {
+        return collect($resultats)->where('type', $type)->pluck('id')->values()->all();
+    }
+}
