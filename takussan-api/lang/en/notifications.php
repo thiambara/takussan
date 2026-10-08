@@ -468,12 +468,12 @@ return [
         'moderation' => [
             'property_hidden' => [
                 'title' => 'Listing taken down: :property',
-                'body' => 'Your listing “:property” was taken down by the platform following a report. Reason: :reason. Only the platform can put it back online.',
+                'body' => 'Your listing “:property” was taken down by the platform following a report. Reason: :reason_code. Only the platform can put it back online.',
                 'sms' => 'Takussan: listing “:property” taken down by the platform.',
             ],
             'property_removed' => [
                 'title' => 'Listing removed: :property',
-                'body' => 'Your listing “:property” was removed by the platform following a report. Reason: :reason.',
+                'body' => 'Your listing “:property” was removed by the platform following a report. Reason: :reason_code.',
                 'sms' => 'Takussan: listing “:property” removed by the platform.',
             ],
             'report_upheld' => [

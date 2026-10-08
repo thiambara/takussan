@@ -4,12 +4,14 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
+use App\Models\AppNotification;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\User;
 use App\Notifications\CodedNotification;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -121,6 +123,42 @@ class PropertyReportDecisionTest extends ApiTestCase
         Notification::assertSentTo($reporter, CodedNotification::class,
             fn (CodedNotification $n) => $n->code === NotificationCode::ModerationReportUpheld);
         Notification::assertCount(2);
+    }
+
+    /**
+     * verif-597 m5 — le motif part CODÉ et se lit traduit : aucune notification ne porte
+     * `personal_data` en clair. Avant, le propriétaire lisait « Motif : personal_data. » dans ses
+     * trois langues, par courriel et dans l'application.
+     */
+    public function test_the_owner_reads_a_translated_reason_never_the_raw_code(): void
+    {
+        Notification::fake();
+        $this->actingAsApi($this->super);
+        $this->postJson("/api/admin/moderation/property_report:{$this->report(null, str_repeat('e', 64))->id}/decide", [
+            'decision' => 'hide', 'reason_code' => 'personal_data',
+        ])->assertOk();
+
+        $stored = AppNotification::query()->where('user_id', $this->owner->id)
+            ->where('code', NotificationCode::ModerationPropertyHidden->value)->firstOrFail();
+        $this->assertSame('personal_data', $stored->params['reason_code']);
+        $this->assertStringNotContainsString('personal_data', $stored->title.' '.$stored->body);
+        $this->assertStringContainsString('Motif : Données personnelles.', (string) $stored->body);
+
+        $renderer = app(NotificationRenderer::class);
+        $this->assertStringContainsString('Reason: Personal data.',
+            $renderer->render(NotificationCode::ModerationPropertyHidden, $stored->params, 'en', 'UTC', 'body', null));
+        foreach (['fr', 'en', 'wo'] as $locale) {
+            foreach (['title', 'body', 'sms'] as $surface) {
+                $this->assertStringNotContainsString('personal_data',
+                    $renderer->render(NotificationCode::ModerationPropertyHidden, $stored->params, $locale, 'UTC', $surface, null));
+            }
+        }
+        // Le complément libre suit le libellé, il ne le remplace pas.
+        $this->assertStringContainsString('Données personnelles (numéro visible)', $renderer->render(
+            NotificationCode::ModerationPropertyHidden,
+            ['reason_code' => 'personal_data', 'reason' => 'numéro visible'] + $stored->params,
+            'fr', 'UTC', 'body', null,
+        ));
     }
 
     /** Le second chemin : chaque voie de republication bute sur le verrou. */

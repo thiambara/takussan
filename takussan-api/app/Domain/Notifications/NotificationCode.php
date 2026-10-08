@@ -102,6 +102,12 @@ enum NotificationCode: string
     /** Un lien : jamais tronqué, contrairement à un texte dans un SMS. */
     public const PARAM_URL = 'url';
 
+    /**
+     * TCK-597 (verif-597 m5) — un motif de modération CODÉ (`ModerationReasonCode`), traduit au
+     * rendu sous `moderation.reasons.<code>`, suivi du texte libre `reason` s'il y en a un.
+     */
+    public const PARAM_REASON_CODE = 'reason_code';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -198,7 +204,7 @@ enum NotificationCode: string
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
-            self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
             self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],
         };
     }

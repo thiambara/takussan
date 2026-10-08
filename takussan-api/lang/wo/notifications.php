@@ -453,12 +453,12 @@ return [
         'moderation' => [
             'property_hidden' => [
                 'title' => 'Yégle bi dindi nañu ko : :property',
-                'body' => 'Platform bi dindi na sa yégle « :property » ci site bi ndax ab signalement. Ngirte : :reason. Platform bi rekk mën koo delloo ci internet.',
+                'body' => 'Platform bi dindi na sa yégle « :property » ci site bi ndax ab signalement. Ngirte : :reason_code. Platform bi rekk mën koo delloo ci internet.',
                 'sms' => 'Takussan : platform bi dindi na yégle « :property ».',
             ],
             'property_removed' => [
                 'title' => 'Yégle bi far nañu ko : :property',
-                'body' => 'Platform bi far na sa yégle « :property » ndax ab signalement. Ngirte : :reason.',
+                'body' => 'Platform bi far na sa yégle « :property » ndax ab signalement. Ngirte : :reason_code.',
                 'sms' => 'Takussan : platform bi far na yégle « :property ».',
             ],
             'report_upheld' => [

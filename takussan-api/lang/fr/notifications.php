@@ -473,12 +473,12 @@ return [
         'moderation' => [
             'property_hidden' => [
                 'title' => 'Annonce retirée : :property',
-                'body' => 'Votre annonce « :property » a été retirée du site par la plateforme à la suite d\'un signalement. Motif : :reason. Seule la plateforme peut la remettre en ligne.',
+                'body' => 'Votre annonce « :property » a été retirée du site par la plateforme à la suite d\'un signalement. Motif : :reason_code. Seule la plateforme peut la remettre en ligne.',
                 'sms' => 'Takussan : annonce « :property » retirée par la plateforme.',
             ],
             'property_removed' => [
                 'title' => 'Annonce supprimée : :property',
-                'body' => 'Votre annonce « :property » a été supprimée par la plateforme à la suite d\'un signalement. Motif : :reason.',
+                'body' => 'Votre annonce « :property » a été supprimée par la plateforme à la suite d\'un signalement. Motif : :reason_code.',
                 'sms' => 'Takussan : annonce « :property » supprimée par la plateforme.',
             ],
             'report_upheld' => [

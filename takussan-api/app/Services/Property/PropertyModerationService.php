@@ -209,7 +209,7 @@ class PropertyModerationService
             return [$property, $reports];
         });
 
-        $this->notifyOutcome($property, $closed, $decision, $motif);
+        $this->notifyOutcome($property, $closed, $decision, $reasonCode, $reason);
 
         return $report->refresh();
     }
@@ -241,7 +241,7 @@ class PropertyModerationService
         });
 
         if ($decision === 'hide') {
-            $this->notifyOutcome($property, collect(), 'hide', $motif);
+            $this->notifyOutcome($property, collect(), 'hide', $reasonCode, $reason);
         }
 
         return $property;
@@ -266,14 +266,19 @@ class PropertyModerationService
     /**
      * @param  Collection<int, PropertyReport>  $closed
      */
-    private function notifyOutcome(Property $property, Collection $closed, string $decision, ?string $motif): void
+    /**
+     * verif-597 m5 — le motif part CODÉ (`reason_code`), traduit au rendu dans la langue du
+     * destinataire ; `reason` ne porte que le texte libre. Avant, le code tenait lieu de texte et
+     * le propriétaire lisait « Motif : personal_data. » en français, en anglais et en wolof.
+     */
+    private function notifyOutcome(Property $property, Collection $closed, string $decision, ?string $reasonCode, ?string $reason): void
     {
         $owner = $property->owner;
         if ($owner !== null && in_array($decision, ['hide', 'remove'], true)) {
             $this->notifications->send(
                 $owner,
                 $decision === 'hide' ? NotificationCode::ModerationPropertyHidden : NotificationCode::ModerationPropertyRemoved,
-                ['property' => $property->title, 'reason' => $motif],
+                ['property' => $property->title, 'reason_code' => $reasonCode, 'reason' => $reason !== '' ? $reason : null],
                 $decision === 'hide' ? NotificationTarget::of('property', $property->id) : null,
             );
         }
