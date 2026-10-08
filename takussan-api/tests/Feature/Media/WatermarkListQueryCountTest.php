@@ -93,6 +93,17 @@ class WatermarkListQueryCountTest extends TestCase
         return $biens;
     }
 
+    /**
+     * TCK-600 (ADR-0048 §1) — la liste publique FILTRE désormais par le statut de l'agence, par un
+     * `EXISTS (select * from "agencies" …)` dans la requête de la liste et dans celle du compte. Ce
+     * filtre ne lit aucune ligne d'agence pour la réponse, et son coût ne dépend pas du nombre de
+     * biens (le contrôle relatif le dit). Seule une lecture (jointure, `from "agencies"`) compte.
+     */
+    private static function sansFiltreExists(string $sql): string
+    {
+        return (string) preg_replace('/\bexists\s*(\((?:[^()]++|(?1))*\))/i', '', $sql);
+    }
+
     /** @return array{int, int, array<int, array<string, mixed>>} requêtes, lectures d'`agencies`, éléments */
     private function mesurer(string $uri, string $cle): array
     {
@@ -104,7 +115,7 @@ class WatermarkListQueryCountTest extends TestCase
 
         return [
             count($log),
-            collect($log)->filter(fn (array $q) => str_contains($q['query'], '"agencies"'))->count(),
+            collect($log)->filter(fn (array $q) => str_contains(self::sansFiltreExists($q['query']), '"agencies"'))->count(),
             $elements,
         ];
     }
