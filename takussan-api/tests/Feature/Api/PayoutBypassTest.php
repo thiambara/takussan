@@ -800,4 +800,28 @@ class PayoutBypassTest extends TestCase
         $this->assertSame([], $closed['created']);
         $this->assertNull($line->fresh()->platform_payout_id);
     }
+
+    /**
+     * VERIF-594 passe 3, P3-3 — l'approbateur qui vient de vérifier un numéro ne le fixe pas en
+     * approuvant : la destination qu'il fixe ne passerait sous les yeux de personne d'autre que le
+     * payeur. Une destination vérifiée par un tiers, il la fixe.
+     */
+    public function test_p3_3_the_approver_does_not_set_a_destination_they_just_verified(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
+        $fresh = PayoutMethod::factory()->create(['user_id' => $landlord->id, 'is_default' => false]);
+        $byThird = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subHour())
+            ->create(['user_id' => $landlord->id, 'is_default' => false]);
+
+        Sanctum::actingAs($approver);
+        $this->postJson("/api/payout-methods/{$fresh->id}/verify")->assertOk();
+        $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $fresh->id])
+            ->assertForbidden()->assertJsonPath('code', 'payout.approver_verified_destination_recently');
+        $this->assertSame(PayoutStatus::AwaitingApproval, Payout::query()->findOrFail($id)->status);
+
+        $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $byThird->id])->assertOk()
+            ->assertJsonPath('data.payout_method_id', $byThird->id);
+    }
 }

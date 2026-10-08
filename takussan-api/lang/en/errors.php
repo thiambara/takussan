@@ -281,6 +281,7 @@ return [
         'amount_changed_since_approval' => 'The amount changed since it was approved: have it approved again.',
         'destination_changed_since_approval' => 'The destination is no longer the one that was approved: have this payout approved again.',
         'verifier_cannot_pay_yet' => 'You verified this destination less than 24 hours ago: another member must make this payment.',
+        'approver_verified_destination_recently' => 'You verified this destination less than 24 hours ago: another approver must set it, or approve without citing it.',
         'threshold_needs_second_approver' => 'The threshold can only be relaxed with a second approver: your agency has only one.',
         'no_pending_threshold_change' => 'No threshold change is awaiting confirmation.',
         'threshold_request_expired' => 'The request to relax the threshold has expired: it must be made again.',

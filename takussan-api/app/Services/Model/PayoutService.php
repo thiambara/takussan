@@ -217,9 +217,19 @@ class PayoutService
             // sans elle, un reversement approuvé ne se payait plus qu'en espèces ou par chèque. Il ne
             // cite qu'une destination du bénéficiaire vérifiée pour l'agence ; elle entre dans
             // l'empreinte figée.
-            $destination = $payoutMethodId !== null && $payoutMethodId !== ''
+            $cited = $payoutMethodId !== null && $payoutMethodId !== '';
+            $destination = $cited
                 ? $this->approvableDestination($locked, (int) $payoutMethodId)
                 : ($locked->payout_method_id !== null ? PayoutMethod::withTrashed()->find($locked->payout_method_id) : null);
+
+            // VERIF-594 passe 3, P3-3 — l'approbateur qui FIXE une destination ne l'a pas vérifiée
+            // lui-même dans les 24 h : sinon il vérifie un numéro neuf, le fixe, et plus personne ne le
+            // revoit avant le payeur. La même règle que pour le payeur (M-4), appliquée au second geste.
+            abort_code_if(
+                $cited && $this->freshlyVerifiedBy($locked, $destination, $actor),
+                403,
+                'payout.approver_verified_destination_recently',
+            );
 
             $locked->update([
                 'payout_method_id' => $destination?->id,
@@ -655,16 +665,18 @@ class PayoutService
      */
     private function assertNotFreshlyVerifiedBy(Payout $payout, ?PayoutMethod $destination, User $actor): void
     {
+        abort_code_if($this->freshlyVerifiedBy($payout, $destination, $actor), 403, 'payout.verifier_cannot_pay_yet');
+    }
+
+    /** `$actor` a-t-il vérifié `$destination` pour l'agence du reversement il y a moins de 24 h ? */
+    private function freshlyVerifiedBy(Payout $payout, ?PayoutMethod $destination, User $actor): bool
+    {
         $verification = $destination?->verificationFor((int) $payout->agency_id);
 
-        abort_code_if(
-            $verification !== null
-                && (int) $verification->verified_by_id === (int) $actor->id
-                && $verification->verified_at !== null
-                && $verification->verified_at->gt(now()->subHours(self::VERIFIER_PAY_DELAY_HOURS)),
-            403,
-            'payout.verifier_cannot_pay_yet',
-        );
+        return $verification !== null
+            && (int) $verification->verified_by_id === (int) $actor->id
+            && $verification->verified_at !== null
+            && $verification->verified_at->gt(now()->subHours(self::VERIFIER_PAY_DELAY_HOURS));
     }
 
     /**

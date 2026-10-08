@@ -207,7 +207,12 @@ qu'après une prise de compte la vérification d'office appartenait à l'attaqua
 défense de cette section. Un reversement mobile money ou virement ne se marque payé que vers une
 destination **du bénéficiaire**, vérifiée **par l'agence du reversement** — et pas par la main
 qui paie : le membre qui a vérifié une destination ne la paie pas dans les **24 h** qui suivent,
-approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse. Le `rib` du profil bailleur reste une pièce KYC.
+approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse. **La même règle
+vaut pour l'approbateur qui fixe une destination** (VERIF-594 passe 3, P3-3) : s'il l'a vérifiée
+lui-même il y a moins de 24 h, il ne la cite pas en approuvant (403
+`payout.approver_verified_destination_recently`) — sinon il vérifie un numéro neuf, le fixe, et plus
+personne ne le revoit avant le payeur. Une destination vérifiée par un tiers, il la fixe ; approuver
+sans en citer reste permis. Le `rib` du profil bailleur reste une pièce KYC.
 
 ### 7. Factures : numéro à l'émission, unicité par agence, avoir
 
