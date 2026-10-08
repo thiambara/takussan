@@ -857,3 +857,15 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   `current_date`, pour que `setTestNow` et le fuseau de l'application décident ensemble.
 - **Exports (AC19) en attente de TCK-601**, non fusionné sur `origin/dev` au 2026-10-08 (dernier
   relevé `0e3c9027`). Ils viendront en dernier, sans test rouge laissé sur la branche d'ici là.
+
+### Lot 6 — métriques plateforme (§8, ADR-0057)
+
+- Le prédicat « en essai » s'écrit `status = trialing OR COALESCE(trial_ends_at > point, FALSE)`. Sans
+  le `COALESCE`, un `trial_ends_at` nul rendait le prédicat NULL, et `FILTER (WHERE NOT …)` écartait
+  l'abonnement des deux sommes (MRR mesuré à 0 avant correction).
+- `ROW_SCHEMA_VERSION` passe à 3 : les lignes de `GET /api/admin/reports/revenue` changent de sens
+  (essais exclus) et gagnent `mrr_trialing`. Une enveloppe mise en cache par l'ancien code n'est plus servie.
+- `revenue.collected_total` compte tous les paiements payés, y compris sans `paid_at`. L'instantané,
+  daté, ne compte que ceux qui en ont un. L'écart éventuel se lit dans la tendance : il est nommé ici.
+- `trend.previous` change de clés : `revenue_collected_total` et `revenue_mrr` remplacent
+  `revenue_platform_total_paid`. Le front suit dans le lot front.

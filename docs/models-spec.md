@@ -3191,6 +3191,31 @@ Unicité `commission_entries_lease_benef_uq (lease_id, beneficiary_id)` ; index
 
 ---
 
+### 80. PlatformMetricDaily 🆕
+
+> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0057.
+
+**Table :** `platform_metrics_daily`
+**Description :** Instantané quotidien des métriques de la console plateforme, écrit à 00:30 pour la
+veille (`SnapshotPlatformMetricsJob`) ou rejoué par `metrics:snapshot --date=`. La tendance à 30 jours
+de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part ailleurs.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| date | date | | | Unique (`platform_metrics_daily_date_uq`) |
+| gmv_amount / platform_fees_amount | decimal(16,2) | | 0 | Flux du jour (`paid_at`), rattrapables |
+| collected_total_amount | decimal(16,2) | | 0 | *Encaissé* cumulé à la fin du jour, rattrapable |
+| mrr_amount / mrr_trialing_amount | decimal(16,2) | oui | null | Stock, hors essais / essais seuls ; jamais rattrapé |
+| active_subscriptions, agencies_*, users_*, properties_*, leases_active | integer | oui | null | Stocks par statut courant ; jamais rattrapés |
+| stocks_captured_at | timestamp | oui | null | Instant de mesure des stocks, `null` sur une ligne rattrapée |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** aucune.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
