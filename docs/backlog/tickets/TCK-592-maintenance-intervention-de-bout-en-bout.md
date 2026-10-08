@@ -455,6 +455,12 @@ Sous-parties livrables en commits successifs, **A et B d'abord**.
 - [x] N5 — `cost` et `actual_cost` en `decimal:0,2`, arrondis à l'unité de la devise (`CurrencyUnit`)
 - [x] N6 — pas de réassignation à partir de `completed`
 
+### Ajouté après la passe 3 (verif-592 passe 3, 2026-10-08)
+
+- [x] N8 — seul un devis APPROUVÉ par le bailleur vaut accord pour le coût réel (un refus, non)
+- [x] N9 — la remise à zéro archive et vide `actual_cost` ; la fin des travaux rejuge le coût inscrit
+- [x] N10 — montants bornés à la colonne `decimal(14,2)` ; total de devis au-delà → 422 codé
+
 
 ## Critères d'acceptation
 
@@ -629,6 +635,25 @@ contrôlé). Détail dans les Notes, section « Passe 2 ».
 - [x] **AC38 (N6)** — `PATCH {assigned_to}` sur `completed` : 422
       `maintenance.reassign_after_completion`, prestataire, statut et coût inchangés (p07) ; le
       même prestataire renvoyé reste 200. Ablation : 1 rouge.
+
+
+### Ajoutés après la passe 3 (verif-592 passe 3)
+
+Chaque AC est rouge sur `9dd28f16` (fichiers de production remis à cette version, restaurés par
+`cp`) et à chacune de ses ablations (md5 contrôlé). Détail dans les Notes, section « Passe 3 ».
+
+- [x] **AC39 (N8)** — Le bailleur refuse un devis de 200 000 (plafond 50 000) : l'agent qui inscrit
+      ensuite `actual_cost` 200 000 reçoit 422 `maintenance.actual_cost_needs_owner` (q01).
+      Ablation (refus compté comme accord) : 1 rouge.
+- [x] **AC40 (N9)** — Après réassignation, le `actual_cost` inscrit sous l'accord donné à A est
+      archivé dans `previous_quotes` et vidé ; B termine sans coût, rien ne se fige (q07). Sans coût
+      fourni, la fin des travaux rejuge un coût déjà inscrit (422) ; témoin : le coût que le
+      bailleur a inscrit lui-même passe. Ablations N9a (remise à zéro), N9b (rejugement), N9c
+      (accord du bailleur non tracé) : 1 rouge chacune.
+- [x] **AC41 (N10)** — `1e12` au `PATCH` (`actual_cost`, `estimated_cost`), `1e20` à `complete`
+      (`actual_cost`, `cost`) : 422 de validation ; la borne 999 999 999 999 s'écrit ; un devis de
+      100 000 × 1 000 000 000 : 422 `maintenance.quote_amount_too_large`, rien d'écrit
+      (q04b à q04d). Ablations N10a à N10e : 1 rouge chacune.
 
 ## Hors périmètre
 
@@ -1231,4 +1256,28 @@ pas de correctif.
 
 **Fusion d'`origin/dev`** (TCK-593, c1126f41) : seul `INDEX.md` était en conflit, et il a été
 régénéré. Les fusions automatiques ont été vérifiées : 52 codes de notification, garde verte.
+
+### Passe 3 — corrections (verif-592 passe 3 : REFUSÉ, 0 bloquant, 2 majeurs, 1 mineur)
+
+Un commit par point, rouge sur `9dd28f16` et à ses ablations (`abl-n8.sh`, `abl-n9.sh`,
+`abl-n10.sh`, restauration par `cp`, md5 identique avant et après).
+
+- **N8 (efd6c404).** `assertActualCostAgreed` exige `quote_decision_at` posé et
+  `quote_rejection_reason` nul : `rejectQuote()` posait aussi `quote_decision_by_id`.
+- **N9 (b3815ab3).**
+  - `resetQuoteOfPreviousProvider()` archive `actual_cost` dans l'entrée de `previous_quotes`, puis
+    le vide. Elle s'applique aussi quand seul un coût réel existe.
+  - `complete()` sans coût fourni rejuge le `actual_cost` déjà inscrit.
+  - Pour ne pas refuser le coût que le bailleur a inscrit lui-même, cet accord est tracé
+    (`metadata.owner_agreed_actual_cost`, effacé avec le devis) et reconnu par la garde.
+  - Sans cette trace, le prestataire qui termine après un coût de 750 000 inscrit par le bailleur
+    prenait un 422 : c'est le témoin `test_a_cost_the_landlord_inscribed_survives_the_rejudgement`.
+- **N10 (adff1284).**
+  - `CurrencyUnit::MAX_COLUMN` vaut `999999999999.99`, la plus grande valeur de `decimal(14,2)`.
+    Il sert de `max` aux coûts et de borne au total du devis.
+  - Nouvelle clé `maintenance.quote_amount_too_large` (fr/en/wo).
+- **Sondes q01 à q07 rejouées** sur adff1284 : 10 vertes. q01 : `PATCH` → 422, rien d'inscrit.
+  q04b à q04d → 422. q07 : `actual_cost` vidé à la réassignation, fin sans coût figé. Les sondes
+  ont été retirées.
+- **v06 et p12** restent rouges par construction (arrondi de N5), comme l'a noté la session.
 
