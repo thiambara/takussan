@@ -1,7 +1,7 @@
 ---
 id: TCK-591
 title: "Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -612,6 +612,20 @@ téléphone tenu d'une main, entre deux visites**.
 - [x] m3 — `reason` d'une absence rendu à l'absent, à l'auteur et au titulaire de
       `team.delegate_role` seulement.
 
+**12. Ajoutés après la passe 2 de vérification adverse (verif-591 passe 2, 2026-10-08 — N1 à N4)**
+- [x] N1 — `Task::parentAgencyId()` lit le parent supprimés compris (`withTrashed` pour tout parent
+      `SoftDeletes`) ; un parent attendu mais introuvable est un **refus** dans `TaskPolicy::view`,
+      `update` et `delete`, jamais un « hors agence ». Le remplacement lit la même agence.
+- [x] N2 — un flux ne sert qu'une agence (ADR-0034) : quand une agence est donnée (lien, ou profil
+      actif de la console), `CalendarEventCollector` borne les tâches (assignées et créées) et les
+      interventions assignées à cette agence. « Toutes mes agences » reste `GET /api/tasks`.
+- [x] N3 — le lien sans agence est celui du seul prestataire (ADR-0034 §2) : `mayHoldAgencylessFeed()`
+      n'admet plus le super-admin ; l'écran d'agenda ne lui propose plus le lien.
+- [x] N4 — les critères appartiennent au personnel en écriture comme en lecture :
+      `Customer::criteriaBelongTo()`, partagée par `CustomerResource` et `UpdateCustomerRequest`, qui
+      ignore les clés de critères d'un autre appelant. Front : une fiche lue sans critères n'en
+      montre pas la section et ne les renvoie pas.
+
 ## Critères d'acceptation
 
 - [x] AC1 — `POST /api/customers` avec `phone="77 123 45 67"` enregistre `+221771234567` ;
@@ -797,6 +811,29 @@ défaut) rougit après correctif.
       délégant. Preuve :
       `AgentAbsenceTest::test_the_absence_reason_is_read_only_by_the_absent_the_author_and_the_delegator`
       (`95dbf59b`). Ablation → rouge.
+
+**Ajoutés après la passe 2** (verif-591 passe 2, 2026-10-08). Chaque test est rouge sur `97726369`,
+chaque ablation est rejouée et restaurée par `cp`, et les sondes de la passe 2 rendent le
+comportement attendu (Q6, qui assertait le défaut, rougit).
+
+- [x] AC40 (N1) — l'agent retiré ne relit, ne réécrit ni ne supprime une tâche dont le client parent
+      a été supprimé (403/403/403), le personnel la garde ; un parent effacé pour de bon rend 403.
+      Preuve : `AgencyMemberRemovalTest::test_a_deleted_parent_does_not_give_the_task_back_to_the_removed_agent`,
+      `::test_a_task_whose_parent_is_gone_is_refused` (`b8ff79ab`). Ablations → rouge : `withTrashed`,
+      refus du parent introuvable dans `view`, dans `delete`.
+- [x] AC41 (N2) — le lien de A d'un agent de A et de B ne sert ni la tâche ni l'intervention de B ;
+      le lien de B les sert. Preuve : `CalendarFeedTest::test_a_feed_never_aggregates_two_agencies`
+      (`1e6d0054`). Ablations → rouge : la borne entière, la borne des seules interventions.
+- [x] AC42 (N3) — le super-admin reçoit 403 `calendar.feed_not_staff`, et un lien sans agence qu'il
+      tiendrait déjà n'est pas servi (404) ; l'écran ne lui propose pas le lien. Preuve :
+      `AgencyMemberRemovalTest::test_the_super_admin_holds_no_agencyless_feed`, vitest
+      `calendar/__tests__/abonnement.test.tsx` (`e51d1fc1`). Ablation (super-admin réadmis) → rouge.
+- [x] AC43 (N4) — le bailleur auteur enregistre sa fiche avec des critères vides : les critères de
+      l'agent restent intacts, le reste est écrit ; le personnel les écrit toujours. Le formulaire
+      d'une fiche lue sans critères ne les montre ni ne les envoie. Preuve :
+      `CustomerScopeTest::test_a_landlord_saving_his_customer_does_not_wipe_the_agent_criteria`,
+      vitest `CustomerForm.doublon.test.tsx` (`a503da59`). Ablations → rouge : filtre de la requête,
+      règle « fiche hors agence », garde du formulaire.
 
 ## Hors périmètre
 
@@ -1064,3 +1101,22 @@ défaut) rougit après correctif.
   touchées (262) : tous verts. `ProseLitteraleInterditeTest`, `LangGroupParityTest`,
   `check-notification-codes` (32 codes) verts. Pint, lint, `tsc --noEmit`, `check:i18n`,
   `check:i18n-namespaces`, vitest des écrans touchés (83), toutes les gardes racine : verts.
+
+### 2026-10-08 — passe 2 de verif-591 (REFUSÉ : 0 bloquant, 1 majeur, 3 mineurs)
+
+- Les neuf points de la passe 1 sont fermés ; B1 restait partiel sur un chemin (N1). Un commit par
+  point, de `b8ff79ab` à `a503da59` ; preuves au Delta §12 et en AC40 à AC43.
+- **N2 va un peu au-delà de la décision écrite** : elle borne la branche « assigné » ; la branche
+  « créées » de la console est bornée de même, puisqu'un flux n'agrège jamais deux agences
+  (ADR-0034). Le prestataire n'échappe à la borne que hors agence (lien sans agence, console sans
+  profil d'agence).
+- **N3 touche aussi le front** : `isAdmin()` compte le super-admin, et la page d'agenda lui proposait
+  le lien que l'API refuse désormais. Le lien n'est proposé qu'à l'agent et à l'admin d'agence.
+- **N4, front fait** (c'était simple) : la présence des clés de critères dans la fiche lue est le
+  signal ; sans elles, la section est masquée et `sansCriteres()` les retire du corps.
+- Sondes de la passe 2 rejouées (copiées puis retirées) : Q2 `[403,403,null,403]`, flux de A
+  `["task:tâche de A"]`, Q3 super-admin `[403,0,false]`, Q6 critères intacts (`300000.00`, `Dakar`).
+- **Vérifié au premier plan** : `tests/Unit` (536), `Feature/{Agency,Calendar,Notifications}` (191),
+  `Feature/Crm` + `Feature/Authorization` en entier (204), autres classes clientes, tâches et agenda
+  (98 + 34) : verts. Pint, lint, `tsc --noEmit`, `check:i18n`, `check:i18n-namespaces`, vitest des
+  écrans touchés (57), toutes les gardes racine : verts.
