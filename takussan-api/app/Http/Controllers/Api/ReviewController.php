@@ -8,21 +8,28 @@ use App\Http\Requests\Api\ModerateReviewRequest;
 use App\Http\Requests\Api\ReplyReviewRequest;
 use App\Http\Requests\Api\ReportReviewRequest;
 use App\Http\Requests\Api\StoreForAgencyReviewRequest;
+use App\Http\Requests\Api\StoreForAgentReviewRequest;
 use App\Http\Requests\Api\StoreForPropertyReviewRequest;
+use App\Http\Requests\Api\StoreForServiceProviderReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
 use App\Models\Enums\ReviewStatus;
+use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Review\ReceivedReviews;
+use App\Services\Review\ReviewEligibility;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
 use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
 use App\Support\VisitorFingerprint;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReviewController extends Controller
 {
@@ -361,6 +368,95 @@ class ReviewController extends Controller
         $this->notifier->toModerate($review);
 
         return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+    }
+
+    /**
+     * TCK-597 (ADR-0043 §3, AC8) — `POST /api/agents/{user}/reviews`. Une fois par auteur et par
+     * agent : la ligne de l'agent est verrouillée le temps du contrôle, deux envois simultanés ne
+     * passent pas tous les deux. L'avis porte sa preuve (`context_*`) et l'agence du bien de cette
+     * preuve, qui le modère.
+     */
+    public function storeForAgent(StoreForAgentReviewRequest $request, User $user): JsonResponse
+    {
+        $author = $request->user();
+        $proof = $request->proof();
+        $data = $request->validated();
+
+        $review = DB::transaction(function () use ($author, $user, $proof, $data, $request) {
+            User::query()->whereKey($user->id)->lockForUpdate()->first();
+
+            abort_code_if(
+                $user->receivedReviews()->where('author_id', $author->id)->exists(),
+                422,
+                'review.agent_already_reviewed'
+            );
+
+            return $user->receivedReviews()->create(array_merge($data, [
+                'author_id' => $author->id,
+                'agency_id' => $this->proofAgency($proof),
+                'context_type' => $proof->getMorphClass(),
+                'context_id' => $proof->getKey(),
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
+        $this->notifier->toModerate($review);
+
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+    }
+
+    /**
+     * TCK-597 (ADR-0043 §3, AC9) — `POST /api/service-providers/{serviceProviderProfile}/reviews`.
+     * Une fois par auteur et par INTERVENTION (l'index `reviews_author_context_uniq` le garde en
+     * base). Modéré par la plateforme seule.
+     */
+    public function storeForServiceProvider(StoreForServiceProviderReviewRequest $request, ServiceProviderProfile $serviceProviderProfile): JsonResponse
+    {
+        $author = $request->user();
+        $intervention = $request->intervention();
+        $data = $request->safe()->except('maintenance_request_id');
+
+        $review = DB::transaction(function () use ($author, $serviceProviderProfile, $intervention, $data, $request) {
+            MaintenanceRequest::query()->whereKey($intervention->id)->lockForUpdate()->first();
+
+            abort_code_if(
+                $serviceProviderProfile->reviews()
+                    ->where('author_id', $author->id)
+                    ->where('context_type', $intervention->getMorphClass())
+                    ->where('context_id', $intervention->id)
+                    ->exists(),
+                422,
+                'review.intervention_already_reviewed'
+            );
+
+            return $serviceProviderProfile->reviews()->create(array_merge($data, [
+                'author_id' => $author->id,
+                'agency_id' => $this->proofAgency($intervention),
+                'context_type' => $intervention->getMorphClass(),
+                'context_id' => $intervention->id,
+                'is_approved' => false,
+                'status' => ReviewStatus::Pending,
+                'metadata' => $this->creationMetadata($request),
+            ]));
+        });
+
+        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+    }
+
+    /** TCK-597 — `GET /api/me/review-opportunities` : ce que l'acteur peut noter, avec la preuve. */
+    public function opportunities(Request $request, ReviewEligibility $eligibility): JsonResponse
+    {
+        return $this->json(['data' => $eligibility->opportunities($request->user())]);
+    }
+
+    /** L'agence du bien de la preuve : celle qui modère l'avis (ADR-0043 §1). */
+    private function proofAgency(Model $proof): ?int
+    {
+        $propertyId = $proof->getAttribute('property_id');
+        $agencyId = $propertyId === null ? null : Property::withTrashed()->whereKey($propertyId)->value('agency_id');
+
+        return $agencyId === null ? null : (int) $agencyId;
     }
 
     public function report(ReportReviewRequest $request, Review $review, ReviewReportService $reports): JsonResponse

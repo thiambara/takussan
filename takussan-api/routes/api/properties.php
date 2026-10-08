@@ -75,6 +75,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Reviews (nested under property)
     Route::get('properties/{property}/reviews', [ReviewController::class, 'indexForProperty'])->name('properties.reviews.index');
     Route::post('properties/{property}/reviews', [ReviewController::class, 'storeForProperty'])->name('properties.reviews.store');
+    // TCK-597 — noter un agent, un prestataire (sur une intervention).
+    Route::post('agents/{user}/reviews', [ReviewController::class, 'storeForAgent'])->name('agents.reviews.store');
+    Route::post('service-providers/{serviceProviderProfile}/reviews', [ReviewController::class, 'storeForServiceProvider'])->name('service-providers.reviews.store');
     Route::post('reviews/{review}/reply', [ReviewController::class, 'reply'])->name('reviews.reply');
     // TCK-078 — owner/agency can retract their reply (or admin can moderate it away)
     Route::delete('reviews/{review}/reply', [ReviewController::class, 'deleteReply'])->name('reviews.reply.destroy');

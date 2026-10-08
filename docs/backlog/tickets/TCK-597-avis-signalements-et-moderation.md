@@ -688,3 +688,22 @@ Sans recopier la spec, voici ce qui change.
 - Ablations (restaurées par `cp`) : sans `updated` → 1 rouge (AC12) ; `syncCounts` sans filtre
   `is_approved` → 1 rouge ; sans notification « reçu » → 2 rouges ; sans « à modérer » → 1 rouge ;
   biens de toute l'agence au lieu des siens → 1 rouge ; avis non publiés dans la boîte → 1 rouge.
+
+### §5 — noter un agent, un prestataire ; invitations
+
+- `ReviewEligibility` écrit les quatre règles une fois (bien et agence reprises telles quelles, les
+  deux FormRequest existants y délèguent) et calcule `GET /api/me/review-opportunities`.
+- `POST /api/agents/{user}/reviews` : preuve (visite `completed` menée, ou bail / réservation
+  honorés sur un bien publié), jamais soi-même ; `context_*` et `agency_id` (agence du bien de la
+  preuve) posés ; une fois par auteur et par agent, sous verrou de la ligne de l'agent (422).
+- `POST /api/service-providers/{serviceProviderProfile}/reviews` : intervention
+  `completed`/`closed` assignée au prestataire, par son demandeur ou le personnel de l'agence ;
+  une fois par intervention (422, l'index partiel en filet). `ServiceProviderProfile::reviews()` ;
+  carnet de l'agence : `average_rating` et `reviews_count` des seuls avis approuvés (`withAvg`).
+- `ReviewResource` rend la cible `service_provider`.
+- Preuves : `AgentReviewTest` 4, `ServiceProviderReviewTest` 3, `ReviewOpportunitiesTest` 2 ; lot
+  `*Review*` / `*ServiceProvider*` / profils publics : 204 verts.
+- Ablations (restaurées par `cp`) : sans refus de soi-même → 1 rouge ; visite de n'importe quel
+  agent → 1 rouge ; agent sans contrôle de doublon → 1 rouge ; prestataire sans contrôle du statut
+  → 1 rouge ; moyenne du carnet sur tous les avis → 1 rouge ; prestataire sans contrôle de doublon
+  → 1 rouge (l'index rend 500 au lieu de 422).

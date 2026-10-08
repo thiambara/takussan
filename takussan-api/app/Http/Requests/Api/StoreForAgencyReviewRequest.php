@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Services\Review\ReviewEligibility;
 
 /**
  * TCK-305 — extrait de ReviewController::storeForAgency(), où les règles étaient écrites en ligne.
@@ -34,10 +35,9 @@ class StoreForAgencyReviewRequest extends BaseFormRequest
             return false;
         }
 
+        // TCK-597 — la règle vit dans `ReviewEligibility`, inchangée.
         return $user->isSuperAdmin()
-            || $agency->leases()
-                ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
-                ->exists();
+            || app(ReviewEligibility::class)->forAgency($user, $agency) !== null;
     }
 
     /** @return array<string, mixed> */

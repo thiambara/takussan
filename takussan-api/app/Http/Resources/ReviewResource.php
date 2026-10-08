@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -66,6 +67,17 @@ class ReviewResource extends BaseResource
                 'id' => $target->id,
                 'title' => $target->name,
                 'slug' => $target->slug,
+                'subtitle' => null,
+            ];
+        }
+
+        // TCK-597 — le prestataire est noté sur son profil (ADR-0043 §2).
+        if ($target instanceof ServiceProviderProfile) {
+            return [
+                'type' => 'service_provider',
+                'id' => $target->id,
+                'title' => $target->user?->full_name,
+                'slug' => null,
                 'subtitle' => null,
             ];
         }
