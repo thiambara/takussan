@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Commission;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\CommissionEntry;
 use App\Models\Enums\CommissionEntryStatus;
@@ -10,6 +11,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Commission\CommissionLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -212,5 +214,27 @@ class CommissionEntryApiTest extends ApiTestCase
 
         $this->assertNotEmpty($locks, 'aucune lecture verrouillée de la ligne');
         $this->assertGreaterThan($baseline, max($locks), 'le verrou doit être pris dans la transaction du geste');
+    }
+
+    /**
+     * verif-595 passe 2 (MINEUR 1) — l'état se juge sur la ligne RELUE sous verrou, jamais sur
+     * l'instance chargée avant le geste : un geste concurrent a pu la solder entre-temps. Juger
+     * `$entry` laisse passer les deux gestes d'une course : verif-595 a mesuré deux 200, l'un écrasant
+     * l'autre. Ce test rejoue la course sans concurrence.
+     */
+    public function test_m2bis_settling_judges_the_row_read_under_the_lock(): void
+    {
+        $entry = CommissionEntry::query()->findOrFail($this->lineA->id);
+        $this->assertSame(CommissionEntryStatus::Due, $entry->status);
+        CommissionEntry::query()->whereKey($entry->id)->update(['status' => CommissionEntryStatus::Paid->value, 'paid_at' => now()]);
+
+        try {
+            app(CommissionLedgerService::class)->cancel($entry, $this->admin);
+            $this->fail('une ligne déjà soldée a été annulée');
+        } catch (ApiError $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('commission.not_due', $e->errorCode);
+        }
+        $this->assertSame(CommissionEntryStatus::Paid, $entry->fresh()->status);
     }
 }
