@@ -10,6 +10,7 @@ import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
 import { apiFetch } from '@/lib/api';
 import { signalerClic } from '@/lib/contact-click';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
+import { PropertyPhoneVerifiedBadge } from './PropertyPhoneVerifiedBadge';
 
 interface PropertyAgentCardProps {
   /**
@@ -93,6 +94,7 @@ export function PropertyAgentCard({
               contact.name
             )}
           </p>
+          <PropertyPhoneVerifiedBadge verified={contact.phone_verified} />
           {/* TCK-505 (#12) — c'est le LIEN de l'agence qui tronque, pas le paragraphe. `truncate`
               sur le `<p>` posait `nowrap` sur le lien, enfant flex dont la largeur minimale reste
               celle de son texte : à 360 px, la page entière s'élargissait à 369 (viewport mesuré). */}

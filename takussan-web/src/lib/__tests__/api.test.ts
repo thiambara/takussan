@@ -35,9 +35,13 @@ describe('apiRequest — visitor IP forwarding', () => {
     headersMock.mockReset();
   });
 
-  it('forwards the visitor IP from x-forwarded-for to the backend', async () => {
+  // TCK-598 — ces deux cas affirmaient l'ancien comportement : l'entrée la plus à GAUCHE de
+  // `X-Forwarded-For` (celle que le client écrit), puis `X-Real-IP` en repli. Ils affirment
+  // désormais la chaîne de confiance (un saut par défaut) — le détail vit dans
+  // `api.ip-du-visiteur.test.ts`.
+  it('forwards the entry written by the trusted proxy, not the left-most one', async () => {
     headersMock.mockResolvedValue(
-      makeIncomingHeaders({ 'x-forwarded-for': '203.0.113.10, 10.0.0.1' }) as Awaited<
+      makeIncomingHeaders({ 'x-forwarded-for': '198.51.100.9, 203.0.113.10' }) as Awaited<
         ReturnType<typeof headers>
       >,
     );
@@ -50,7 +54,7 @@ describe('apiRequest — visitor IP forwarding', () => {
     expect(sentHeaders['X-Forwarded-For']).toBe('203.0.113.10');
   });
 
-  it('falls back to x-real-ip when x-forwarded-for is absent', async () => {
+  it('no longer falls back to x-real-ip, which nothing in the trusted chain vouches for', async () => {
     headersMock.mockResolvedValue(
       makeIncomingHeaders({ 'x-real-ip': '198.51.100.7' }) as Awaited<
         ReturnType<typeof headers>
@@ -61,7 +65,7 @@ describe('apiRequest — visitor IP forwarding', () => {
 
     const init = fetchSpy.mock.calls[0]![1] as RequestInit;
     const sentHeaders = init.headers as Record<string, string>;
-    expect(sentHeaders['X-Forwarded-For']).toBe('198.51.100.7');
+    expect(sentHeaders['X-Forwarded-For']).toBeUndefined();
   });
 
   it('does not override a caller-provided X-Forwarded-For header', async () => {

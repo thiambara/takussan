@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\Admin\DispatchAlerts;
+use App\Models\Address;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
@@ -46,6 +47,7 @@ use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
 use App\Observers\PropertyObserver;
+use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
@@ -369,6 +371,9 @@ class AppServiceProvider extends ServiceProvider
         // logged-in browser keeps a stable bucket and shared-NAT visitors are
         // not collapsed once authenticated.
         RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
+        // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
+        // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
+        RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
 
         // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
@@ -503,6 +508,12 @@ class AppServiceProvider extends ServiceProvider
         // dans cette agence : `agency_role_id` est NOT NULL.
         Agency::observe(AgencyObserver::class);
         Property::observe(PropertyObserver::class);
+        // TCK-598 (ADR-0052 §2) — l'invalidation du cache de la fiche publique, À CÔTÉ de
+        // `PropertyObserver` et non dedans : une classe, une responsabilité, et pas de conflit de
+        // lignes avec les tickets qui réécrivent l'autre. L'adresse vit sur son propre modèle.
+        Property::observe(PropertyPublicCacheObserver::class);
+        Address::saved(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
+        Address::deleted(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);

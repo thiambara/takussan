@@ -93,12 +93,32 @@ class PropertyModerationFieldsTest extends ApiTestCase
         }
     }
 
-    public function test_un_utilisateur_authentifie_recoit_les_quatre_champs_de_moderation(): void
+    /**
+     * TCK-598 (contrainte 2) — même authentifié, l'appelant ne reçoit RIEN de plus sur une route
+     * `public.*` : le corps de la fiche ne dépend pas de lui (ADR-0052 §1). La bannière de statut
+     * du tableau de bord (TCK-098) lit ces champs sur la route AUTHENTIFIÉE `properties.show`,
+     * épinglée par le test suivant.
+     */
+    public function test_un_utilisateur_authentifie_ne_recoit_aucun_champ_de_moderation_sur_la_fiche_publique(): void
     {
         $property = $this->proprieteAvecTraceDeModeration();
 
         $response = $this->actingAsApi(User::factory()->create())
             ->getJson("/api/public/properties/{$property->slug}");
+
+        $response->assertOk();
+
+        foreach (self::MODERATION_KEYS as $key) {
+            $response->assertJsonMissingPath("data.{$key}");
+        }
+    }
+
+    public function test_le_tableau_de_bord_recoit_les_quatre_champs_de_moderation(): void
+    {
+        $property = $this->proprieteAvecTraceDeModeration();
+
+        $response = $this->actingAsApi($property->owner)
+            ->getJson("/api/properties/{$property->id}");
 
         $response->assertOk();
 

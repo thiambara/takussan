@@ -81,6 +81,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Plages Cloudflare dans `traefik.yml` | 15 plages v4 et 7 v6 du 2026-09-14, sous `web` **et** `websecure` | 2026-09-14 | `curl -s https://www.cloudflare.com/ips-v4` puis comparer au fichier |
 | Sous-réseau de `dokploy-network` | `10.0.1.0/24` (overlay) — tête de `TRUSTED_PROXIES` | 2026-09-14 | `docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` |
 | IP du client jusqu'à Laravel | prouvée par ablation sur `preview.api.takussan.com` (DNS seul) : liste = `203.0.113.7` → `403 Source IP not allowed` avec **et** sans `X-Forwarded-For: 203.0.113.7` ; liste = IP du poste → le filtre laisse passer. La clé est ensuite retirée | 2026-09-14 | plan, tâche D5, étape 4 |
+| IP du visiteur sur le chemin serveur Next → API | **non mesurée** — inférée par ADR-0052 §5 (`VISITOR_IP_TRUSTED_HOPS=2` sur `preview`). À relever par le porteur AVANT puis APRÈS avoir posé `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS` (AC22 de TCK-598) | — | ADR-0052 §6 (commande `RateLimiter::attempts` dans le conteneur `api`) |
 | Port 3000 | fermé à tous : `000` depuis le poste, `200` depuis le serveur ; `:8080` non publié | 2026-09-14 | plan, tâche A3, étape 6 |
 | Zones Cloudflare | `takussan.com`, `checkprintplus.com` : SSL Full (strict), *Always Use HTTPS* désactivé | 2026-09-14 | `GET /zones/<id>/settings/ssl` |
 | *Bot Fight Mode* | **désactivé** dans les deux zones ; *Browser Integrity Check* actif (il ne gêne ni la preuve `curl` d'`images.yml`, ni les API en DNS seul). Le jeton ne lit pas ce réglage (erreur `10000`) : vérifié au tableau de bord par le porteur | 2026-09-14 | Security → Settings → *Bot traffic* |
@@ -161,6 +162,17 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
 `QUEUE_CONNECTION`, `MAIL_MAILER`, …) tels que Dokploy les déclare, **régénéré depuis ce relevé le
 2026-09-14** (TCK-527) — il décrivait jusque-là les `.env` de l'ancien serveur, `MAIL_MAILER=resend`
 en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeurs secrètes nulle part.
+
+**À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portent au 2026-10-08) :
+
+- `takussan-api-preview` : `PUBLIC_CACHE_REVALIDATE_URL`
+  (`https://preview.takussan.com/api/revalidation/fiche`) et `PUBLIC_CACHE_REVALIDATE_SECRET`. Vides,
+  aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
+- `takussan-web-preview` (variables d'**exécution**, lues par le serveur Next, jamais inlinées) :
+  `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),
+  `API_INTERNAL_URL` (`http://api:8080`, le service `api` sur `dokploy-network`) et
+  `VISITOR_IP_TRUSTED_HOPS` (`2` : Cloudflare puis Traefik — inféré, à confirmer par la mesure
+  ci-dessus). Sur Vercel (`www`), `VISITOR_IP_TRUSTED_HOPS=1` et pas d'`API_INTERNAL_URL`.
 
 **`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
 authentification basique (Traefik, onglet *Security* de l'Application) à **trois comptes** depuis le

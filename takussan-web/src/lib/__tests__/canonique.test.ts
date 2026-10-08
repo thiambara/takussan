@@ -41,8 +41,8 @@ describe('la partition des 24 clés est TOTALE', () => {
     expect(CLES_CANONIQUES.length + CLES_ECARTEES.length).toBe(CLES_DE_RECHERCHE.length);
   });
 
-  it('retient trois clés, et ces trois-là', () => {
-    expect([...CLES_CANONIQUES]).toEqual(['contract_type', 'type', 'city']);
+  it('retient quatre clés, et ces quatre-là — `location` depuis TCK-598', () => {
+    expect([...CLES_CANONIQUES]).toEqual(['contract_type', 'type', 'city', 'location']);
   });
 
   it('écarte les trois contrôles', () => {
@@ -230,5 +230,56 @@ describe('TCK-433 · AC5 — cohérence avec le sitemap de TCK-431', () => {
     // annonce.
     expect(PAGES_STATIQUES_INDEXABLES.map((p) => p.chemin)).toContain(CHEMIN_LISTE);
     expect(PAGES_STATIQUES_INDEXABLES.filter((p) => p.chemin.includes('?'))).toEqual([]);
+  });
+});
+
+/**
+ * TCK-598 · AC11 (V14, contrainte 12) — **le quartier devient la QUATRIÈME facette canonique, et
+ * il est borné deux fois** : par la ville présente dans l'URL (un quartier se juge dans SA ville),
+ * et par le seuil `SEUIL_QUARTIER_INDEXABLE` — déjà appliqué au domaine que `quartiersDeLaVille`
+ * rend, et éprouvé là (`queries/__tests__/facettes.test.ts`).
+ */
+describe('TCK-598 · AC11 — le quartier, borné par sa ville et par son domaine', () => {
+  /** Le domaine des quartiers INDEXABLES de Dakar : « Mermoz » a passé le seuil, « Ouakam » non. */
+  const AVEC_QUARTIERS: DomainesDeFacette = { ...DOMAINES, quartiers: new Map([['mermoz', 'Mermoz']]) };
+
+  it('un quartier du domaine est canonique avec sa ville, dans l’ordre de la règle', () => {
+    expect(canonique('location=Mermoz&city=Dakar', AVEC_QUARTIERS)).toBe(
+      '/properties?city=Dakar&location=Mermoz',
+    );
+    expect(canonique('city=Dakar&location=Mermoz&type=villa&page=2', AVEC_QUARTIERS)).toBe(
+      '/properties?type=villa&city=Dakar&location=Mermoz',
+    );
+  });
+
+  it('la casse du quartier se replie sur celle du catalogue', () => {
+    expect(canonique('city=dakar&location=MERMOZ', AVEC_QUARTIERS)).toBe(
+      '/properties?city=Dakar&location=Mermoz',
+    );
+  });
+
+  it('`?city=Dakar&location=Inventé` → `?city=Dakar` : un quartier inventé se replie sur la ville', () => {
+    expect(canonique('city=Dakar&location=Invent%C3%A9', AVEC_QUARTIERS)).toBe('/properties?city=Dakar');
+  });
+
+  it('un quartier SOUS le seuil (absent du domaine) se replie sur la ville', () => {
+    expect(canonique('city=Dakar&location=Ouakam', AVEC_QUARTIERS)).toBe('/properties?city=Dakar');
+  });
+
+  it('sans ville retenue, un quartier ne désigne rien — même s’il est dans le domaine', () => {
+    expect(canonique('location=Mermoz', AVEC_QUARTIERS)).toBe(CHEMIN_LISTE);
+    expect(canonique('city=Zzzinventee&location=Mermoz', AVEC_QUARTIERS)).toBe(CHEMIN_LISTE);
+  });
+
+  it('un domaine de quartiers inconnaissable (`null`) ou absent replie le quartier', () => {
+    expect(canonique('city=Dakar&location=Mermoz', { ...DOMAINES, quartiers: null })).toBe(
+      '/properties?city=Dakar',
+    );
+    expect(canonique('city=Dakar&location=Mermoz', DOMAINES)).toBe('/properties?city=Dakar');
+  });
+
+  it('un `&` dans un quartier est encodé, jamais une seconde clé', () => {
+    const domaines: DomainesDeFacette = { ...DOMAINES, quartiers: new Map([['a&b', 'A&B']]) };
+    expect(canonique('city=Dakar&location=A%26B', domaines)).toBe('/properties?city=Dakar&location=A%26B');
   });
 });
