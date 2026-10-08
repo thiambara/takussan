@@ -90,7 +90,7 @@ class AgentOnboardingTest extends TestCase
         $agent = AgentProfile::factory()->create(['user_id' => $user->id]);
         Sanctum::actingAs($user);
 
-        $license = UploadedFile::fake()->image('license.jpg');
+        $license = UploadedFile::fake()->image('license.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/agent-profiles/{$agent->id}/kyc/upload", [
             'file' => $license,
             'kind' => 'license',
@@ -105,7 +105,7 @@ class AgentOnboardingTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.type', DocumentType::IdCard->value);
 
-        $photo = UploadedFile::fake()->image('photo.jpg');
+        $photo = UploadedFile::fake()->image('photo.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/agent-profiles/{$agent->id}/kyc/upload", [
             'file' => $photo,
             'kind' => 'photo',

@@ -145,7 +145,7 @@ class ServiceProviderOnboardingTest extends TestCase
         $sp = ServiceProviderProfile::factory()->create(['user_id' => $user->id]);
         Sanctum::actingAs($user);
 
-        $cni = UploadedFile::fake()->image('cni.jpg');
+        $cni = UploadedFile::fake()->image('cni.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/profiles/{$sp->id}/kyc/upload", [
             'file' => $cni,
             'kind' => 'cni',

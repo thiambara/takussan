@@ -88,7 +88,7 @@ class OwnerOnboardingTest extends TestCase
         $owner = OwnerProfile::factory()->create(['user_id' => $user->id]);
         Sanctum::actingAs($user);
 
-        $cni = UploadedFile::fake()->image('cni.jpg');
+        $cni = UploadedFile::fake()->image('cni.jpg')->size(200); // TCK-601 — `min:1` (Ko) : une image factice de 10×10 pèse moins d'1 Ko.
         $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/upload", [
             'file' => $cni,
             'kind' => 'cni',

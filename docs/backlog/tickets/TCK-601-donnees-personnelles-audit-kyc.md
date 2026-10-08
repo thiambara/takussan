@@ -633,3 +633,20 @@ Et autour :
   Ablations : cast retiré → 2 rouges ; `rib_pro` remis au flip → rouge ; `Arr::except` retiré → rouge ;
   journalisation du `show` retirée → rouge.
 
+### B — pièces, documents et journaux
+
+- Les listes vivent dans `App\Support\Uploads\AcceptedUploads` (`kyc()`, `document()`), lues par les six
+  requêtes. `min:1` (Ko) refuse le fichier vide, mais aussi une image factice 10×10 : trois tests
+  d'onboarding passent désormais `->size(200)` à `UploadedFile::fake()->image()`.
+- `failed_jobs.exception` (contrainte 2, fuite relevée par la vague) : tranché par l'ADR-0044 §2 —
+  décorateur `SanitizingFailedJobProvider` de `queue.failer`, qui écrit la forme sûre ; le `payload`
+  reste (rejeu).
+- Raccords de 593 faits (`ParseBankStatementJob`, `CsvDriver`) ; `test_le_journal_ne_porte_aucune_valeur_du_releve`
+  rejoué, vert ; case de TCK-593 cochée.
+- Tests : `KycUploadMimeTest` 8/8, `DocumentUploadMimeTest` 2/2, `PropertyStoreFailureLogTest` 1/1
+  (contrainte `CHECK` posée dans la transaction du test : le `DETAIL` cite la ligne entière),
+  `SafeExceptionLoggingTest` 5/5 ; 15 classes d'upload existantes 230/230 ; réservations, flip,
+  comptabilité, prose 70/70. Ablations : `mimes` retirés (bailleur, dépôt, version) → rouges ;
+  `->stop()` retiré → 3 rouges ; `getMessage()` remis au `catch` → rouge ; branche `message` remise
+  hors SQL → 5 rouges ; décorateur retiré → rouge.
+

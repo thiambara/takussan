@@ -9,6 +9,7 @@ use App\Models\Enums\BankStatementStatus;
 use App\Services\Accounting\StatementParser\ParserContext;
 use App\Services\Accounting\StatementParser\StatementParserFactory;
 use App\Services\Media\PrivateMediaAccess;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Queue\Queueable;
@@ -128,13 +129,10 @@ class ParseBankStatementJob implements ShouldQueue
             // l'insertion par paquets porte le SQL AVEC SES VALEURS LIÉES — libellés, contreparties,
             // références et montants de toutes les lignes du paquet. La classe, le SQLSTATE et le
             // point de levée suffisent au diagnostic.
-            // Raccord TCK-601 : ce contexte devient `SafeExceptionContext::of($e)`.
+            // TCK-601 — raccord fait : la forme sûre partagée (ADR-0044 §2).
             Log::error('bank_statement_parse_failed', [
                 'statement_id' => $this->statementId,
-                'exception' => $e::class,
-                'sqlstate' => $e instanceof QueryException ? ($e->errorInfo[0] ?? null) : null,
-                'at' => basename($e->getFile()).':'.$e->getLine(),
-            ]);
+            ] + SafeExceptionContext::of($e));
 
             // TCK-593 — un relevé dont l'analyse échoue ne reste plus `processing` à vie. Seulement
             // s'il l'est encore : une levée APRÈS la validation des lignes (enchaînement, écouteur)
