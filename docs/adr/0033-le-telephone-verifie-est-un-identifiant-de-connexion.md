@@ -247,6 +247,11 @@ décision symétrique de la console n'en demande pas. `PLATFORM_TWO_FACTOR_EXEMP
 raison, les autres actions mutantes de ces contrôleurs, et `ProtectedActionsCoverageTest` casse sur
 toute action qui n'est rangée dans aucune des deux listes.
 
+Une exemption ne dit pas que la plateforme n'y passe pas. `reply` et `deleteReply` sont exemptés comme
+réponse du sujet de l'avis, mais `Gate::before` les ouvre encore au super-admin sans 2FA. Ce pouvoir
+est antérieur à 597 et renvoyé au ticket de suite, et le motif de l'exemption le dit, pour que ce
+ticket les trouve en partant de la liste.
+
 ## Alternatives écartées
 
 - **Rattacher la connexion par téléphone au compte qui porte le numéro, même non vérifié.** Le numéro

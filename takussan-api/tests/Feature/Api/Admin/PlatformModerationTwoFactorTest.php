@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Http\Controllers\Api\ReviewController;
 use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
@@ -10,6 +11,7 @@ use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\Review;
 use App\Models\User;
+use App\Support\Security\ProtectedActions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -168,6 +170,28 @@ class PlatformModerationTwoFactorTest extends ApiTestCase
         $review = $this->review(ReviewStatus::Approved);
         $this->patchJson("/api/reviews/{$review->id}/moderate", ['decision' => 'delete', 'reason_code' => 'spam'])->assertOk();
         $this->assertFalse(Review::query()->whereKey($review->id)->exists());
+    }
+
+    /**
+     * verif-597 passe 4, n5 — `reply` et `deleteReply` sont exemptés, mais un super-admin sans 2FA
+     * réécrit ou efface encore la réponse d'une agence (`Gate::before`, pouvoir antérieur à 597).
+     * Le motif doit le dire, pour que le ticket de suite les trouve en partant de la liste ; si le
+     * geste passe un jour sous 2FA, ce test tombe et le motif se réécrit avec lui.
+     */
+    public function test_the_reply_exemption_names_the_platform_path_it_leaves_open(): void
+    {
+        $review = $this->review(ReviewStatus::Approved);
+        $review->forceFill(['reply_content' => "Réponse de l'agence", 'replied_at' => now()])->saveQuietly();
+        $this->superAdmin(false);
+
+        $this->deleteJson("/api/reviews/{$review->id}/reply")->assertOk();
+        $this->assertNull($review->refresh()->reply_content);
+
+        foreach (['reply', 'deleteReply'] as $method) {
+            $reason = ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT[ReviewController::class.'@'.$method];
+            $this->assertStringContainsString('Gate::before', $reason, "Motif de @{$method}");
+            $this->assertStringContainsString('ticket de suite', $reason, "Motif de @{$method}");
+        }
     }
 
     /** Témoin : la liste ne vaut que pour la plateforme ; l'admin d'agence sans 2FA garde ses gestes. */

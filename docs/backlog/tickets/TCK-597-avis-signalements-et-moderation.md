@@ -877,7 +877,11 @@ Ablations dans un seul script, restaurées par `cp` avec contrôle md5 (`scratch
 - **Le plafond de `per_page` sur `public/properties/{slug}/reviews`** : TCK-598 (V16).
 - **L'auto-masquage d'une annonce après N signalements** : refusé par ADR B (contournable).
 - **`featured` et les autres pouvoirs plateforme hors `/api/admin` qui ne sont pas de 597** (verif-597
-  passe 3) : la 2FA ne couvre ici que la modération de 597. Ticket de suite côté session.
+  passe 3) : la 2FA ne couvre ici que la modération de 597. Ticket de suite côté session. En font
+  partie **`ReviewController@reply` et `@deleteReply`** (verif-597 passe 4, n5) : exemptés comme
+  réponse du sujet, ils restent ouverts au super-admin sans 2FA par `Gate::before` (réécrire ou
+  effacer la réponse d'une agence), pouvoir antérieur à 597 ; leur motif dans
+  `PLATFORM_TWO_FACTOR_EXEMPT` le dit.
 - **Le bien en ligne avant la modération, puis rendu privé, réécrit et rendu public** (observation de
   la passe 3) : ticket de suite côté session.
 

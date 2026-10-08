@@ -270,8 +270,9 @@ final class ProtectedActions
         ReviewController::class.'@storeForAgency' => "dépôt d'un avis par son auteur",
         ReviewController::class.'@storeForAgent' => "dépôt d'un avis par son auteur",
         ReviewController::class.'@storeForServiceProvider' => "dépôt d'un avis par son auteur",
-        ReviewController::class.'@reply' => "réponse du sujet de l'avis, pas un geste de modération",
-        ReviewController::class.'@deleteReply' => "réponse du sujet de l'avis, pas un geste de modération",
+        // verif-597 passe 4, n5 — le super-admin y passe encore sans 2FA : à reprendre là-bas.
+        ReviewController::class.'@reply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
+        ReviewController::class.'@deleteReply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
         ReviewController::class.'@report' => 'un signalement range, il ne tranche rien (ADR-0043 §6)',
     ];
 
