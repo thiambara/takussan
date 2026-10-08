@@ -238,4 +238,41 @@ class PropertyModerationGateTest extends ApiTestCase
         $this->postJson("/api/properties/{$cloneId}/publish")->assertOk();
         $this->assertQueuedNotPublic($clone);
     }
+
+    /**
+     * Raccord TCK-591 × verif-597 B1 — l'archivage EN LOT fournit le statut intermédiaire du
+     * contournement : un bien jamais approuvé, archivé en lot puis désarchivé, va dans la file.
+     */
+    public function test_a_never_approved_listing_archived_in_bulk_then_restored_goes_to_the_queue(): void
+    {
+        $property = $this->draft(PropertyStatus::PendingReview, ['submitted_at' => now()]);
+
+        $this->actingAsApi($this->agent);
+        $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$property->id]])
+            ->assertOk()->assertJsonPath('archived', 1);
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk();
+
+        $this->assertQueuedNotPublic($property);
+    }
+
+    /**
+     * Raccord TCK-591 — `PropertyPublication` écrit par l'observateur : dépublier EN LOT annule
+     * l'approbation comme l'unitaire, et republier repasse par la file.
+     */
+    public function test_unpublishing_in_bulk_cancels_the_approval_like_the_single_endpoint(): void
+    {
+        $property = $this->draft();
+        $this->actingAsApi($this->agent);
+        $this->postJson("/api/properties/{$property->id}/publish")->assertOk();
+        $this->actingAsApi($this->admin);
+        $this->postJson("/api/properties/{$property->id}/approve")->assertOk();
+
+        $this->actingAsApi($this->agent);
+        $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$property->id], 'visibility' => 'private'])
+            ->assertOk()->assertJsonPath('updated', 1);
+        $this->assertNull($property->refresh()->approved_at);
+        $this->postJson("/api/properties/{$property->id}/publish")->assertOk();
+
+        $this->assertQueuedNotPublic($property);
+    }
 }

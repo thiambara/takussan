@@ -227,6 +227,35 @@ class PropertyReportDecisionTest extends ApiTestCase
             ->assertStatus(422)->assertJsonPath('code', 'moderation.platform_hold');
     }
 
+    /**
+     * Raccord TCK-591 — aucune action de lot ne remet en ligne un bien masqué : `bulk-visibility`
+     * ne publie pas (`public` refusé à la validation), dépublier un bien `rejected` est
+     * `invalid_status`, et archiver est permis sans lever le verrou — la sortie d'archive bute.
+     */
+    public function test_bulk_actions_never_put_a_hidden_listing_back_online(): void
+    {
+        Notification::fake();
+        $this->decide($this->report(null, str_repeat('f', 64)), 'hide')->assertOk();
+        $id = $this->property->id;
+        $this->actingAsApi($this->adminA);
+
+        $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$id], 'visibility' => 'public'])
+            ->assertStatus(422)->assertJsonValidationErrors('visibility');
+        $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$id], 'visibility' => 'private'])
+            ->assertOk()->assertJsonPath('updated', 0)->assertJsonPath('failed.0.reason', 'invalid_status');
+
+        $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$id]])
+            ->assertOk()->assertJsonPath('archived', 1);
+        $this->putJson("/api/properties/{$id}/status", ['status' => 'available'])
+            ->assertStatus(422)->assertJsonPath('code', 'moderation.platform_hold');
+
+        $property = $this->property->refresh();
+        $this->assertNotNull($property->platform_hold_at);
+        $this->assertSame(PropertyStatus::Archived, $property->status);
+        $this->assertSame(PropertyVisibility::Private, $property->visibility);
+        $this->assertNull($property->published_at);
+    }
+
     // ─── AC4 : remove, reject, couples invalides ────────────────────────────────────────
 
     public function test_remove_soft_deletes_the_listing(): void
