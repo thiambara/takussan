@@ -36,6 +36,8 @@ return [
         'cannot_remove_last_admin' => 'Cannot remove the last agency admin of the agency.',
         'cannot_remove_primary_admin' => 'Cannot remove the primary admin of the agency.',
         'not_in_agency' => 'This user is not a member of this agency.',
+        'not_staff' => 'Only an agent or an administrator of the agency can be removed from the team; a landlord is not part of it.',
+        'portfolio_not_empty' => 'This member still holds a portfolio: hand it over, or confirm the removal without a successor.',
         'user_not_found_by_email' => 'No active user was found for this email address.',
     ],
     'agency_role' => [
@@ -46,6 +48,12 @@ return [
         'other_agency' => 'This role belongs to another agency.',
         'platform_capability' => 'Capability reserved for the platform: :capabilities. No agency role can hold it.',
         'profile_type_mismatch' => 'This role does not target the same profile type.',
+    ],
+    'agent_absence' => [
+        'overlaps' => 'An absence of this member is already scheduled or ongoing over this period.',
+    ],
+    'agent_handover' => [
+        'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
     ],
     'auth' => [
         'insufficient_privileges' => 'Insufficient privileges.',
@@ -79,6 +87,7 @@ return [
         'value_not_found' => 'Value not found.',
     ],
     'calendar' => [
+        'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
     ],
     'calendar_feed' => [
@@ -91,6 +100,7 @@ return [
         'participant_required' => 'At least one other participant is required.',
     ],
     'customer' => [
+        'duplicate' => 'A customer of your agency already has this phone number or email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
     'dashboard' => [
@@ -364,6 +374,7 @@ return [
         'two_factor_already_disabled' => 'Two-factor authentication is already disabled.',
     ],
     'task' => [
+        'assignee_not_staff' => 'The assignee must be yourself or a staff member of the agency.',
         'assignee_other_agency' => 'The assignee must belong to your agency.',
     ],
     'team' => [

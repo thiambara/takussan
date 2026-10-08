@@ -981,6 +981,306 @@
       "filterAria": "Xool kiliyaan yi am tag {tag}"
     }
   },
+  "agentCrm": {
+    "contact": {
+      "call": "Woo",
+      "whatsapp": "WhatsApp",
+      "callAria": "Woo {name}",
+      "whatsappAria": "Bindal {name} ci WhatsApp",
+      "whatsappMessage": "Asalaa maalekum {firstName}, sa ajaŋ Takussan la.",
+      "noPhone": "Amul nimero bu ñu bind.",
+      "unreachable": "Nimero bii mënul a jot ni ñu ko binde : {phone}"
+    },
+    "notes": {
+      "kind": {
+        "loss": "Ñàkk : {reason}",
+        "conversion": "Soppiku : {reason}"
+      }
+    },
+    "activity": {
+      "loadFailed": "Mënuñu a yeb li kiliyaan bii def.",
+      "retry": "Jéemaat",
+      "empty": "Amagul dara ba leegi.",
+      "loadMore": "Gis yeneen",
+      "someone": "Kenn",
+      "customer": {
+        "created": "{actor} sos na fiise bi",
+        "deleted": "{actor} far na fiise bi",
+        "restored": "{actor} delloo na fiise bi",
+        "stage": "{actor} jële na kiliyaan bi ci « {from} » yóbbu ko ci « {to} »",
+        "fields": "{actor} soppi na : {fields}",
+        "updated": "{actor} soppi na fiise bi"
+      },
+      "note": {
+        "created": "{actor} yokk na ab bind",
+        "deleted": "{actor} far na ab bind",
+        "pinned": "{actor} téye na ab bind",
+        "updated": "{actor} soppi na ab bind"
+      },
+      "task": {
+        "created": "{actor} sos na liggéey bi « {title} »",
+        "done": "{actor} matal na liggéey bi « {title} »",
+        "deleted": "{actor} far na liggéey bi « {title} »",
+        "updated": "{actor} soppi na liggéey bi « {title} »"
+      },
+      "generic": "{actor} soppi na fiise bi",
+      "fields": {
+        "first_name": "tur",
+        "last_name": "sant",
+        "email": "imeel",
+        "phone": "telefon",
+        "occupation": "liggéey",
+        "emergency_contact_name": "ku ñuy woo bu jafe-jafe amee",
+        "emergency_contact_phone": "telefonu jafe-jafe",
+        "status": "nekkin",
+        "pipeline_stage": "tolluwaay"
+      }
+    },
+    "form": {
+      "duplicate": {
+        "title": "Kiliyaan bii mel na ni dafa am ba noppi ci ajaas bi.",
+        "hidden": "Fiise boo mënul a ubbi",
+        "matchedOn": {
+          "phone": "benn telefon",
+          "email": "benn e-mail"
+        },
+        "open": "Ubbi fiiseem",
+        "createAnyway": "Sos ko rekk",
+        "saveAnyway": "Denc ko rekk"
+      },
+      "criteria": {
+        "title": "Li kiliyaan bi di seet",
+        "contractType": "Jënd walla luwe",
+        "any": "Benn bu nekk",
+        "minBedrooms": "Néeg (lu gën a tuuti)",
+        "budgetMin": "Xaalis bu gën a tuuti (FCFA)",
+        "budgetMax": "Xaalis bu gën a bare (FCFA)",
+        "propertyTypes": "Xeeti kër",
+        "cities": "Dëkk yi",
+        "citiesPlaceholder": "Dakar, Thiès",
+        "neighborhoods": "Gox yi",
+        "neighborhoodsPlaceholder": "Almadies, Mermoz",
+        "help": "Xàjjale dëkk yi ak gox yi ak ay virgule. Bërëb bu amul dara dafay far critère bi."
+      }
+    },
+    "tabs": {
+      "tasks": "Liggéey yi",
+      "activity": "Jëf yi",
+      "visits": "Seetlu yi",
+      "bookings": "Reserwaasiyoŋ yi",
+      "leases": "Kontaraa yi",
+      "matches": "Kër yi méngoo"
+    },
+    "tasks": {
+      "loadFailed": "Liggéeyu kiliyaan bii yebuwul.",
+      "retry": "Jéemaat",
+      "empty": "Amul benn liggéey ci kiliyaan bii.",
+      "toggle": "Bind ne « {title} » jeex na",
+      "saveFailed": "Liggéey bi dencuwul."
+    },
+    "linked": {
+      "loadFailed": "Lim bii yebuwul.",
+      "retry": "Jéemaat",
+      "empty": {
+        "visits": "Amul benn seetlu ci kiliyaan bii.",
+        "bookings": "Amul benn reserwaasiyoŋ ci kiliyaan bii.",
+        "leases": "Amul benn kontaraa ci kiliyaan bii."
+      },
+      "untitled": "Amul tur",
+      "unknownStatus": "Beneen nekkin"
+    },
+    "matches": {
+      "loadFailed": "Kër yi méngoo yebuwuñu.",
+      "retry": "Jéemaat",
+      "empty": "Amagul benn këru ajaas bu méngoo.",
+      "emptyHint": "Bindal li kiliyaan bi di seet ci tënk bi : xaalis, xeetu kër, dëkk.",
+      "count": "{count, plural, one {# kër moo méngoo} other {# kër ñoo méngoo}} ak li mu soxla.",
+      "select": "Tànn « {title} » ngir yónne ko",
+      "notShareable": "« {title} » du ci kaw : mënuñu ko yónne",
+      "private": "du ci kaw",
+      "shareIntro": "Asalaa maalekum {firstName}, men naa la won kër yii méngoo ak li ngay seet :",
+      "share": "{count, plural, =0 {Tànnal kër yi ngay yónne} one {Yónne # kër ci WhatsApp} other {Yónne # kër ci WhatsApp}}",
+      "noWhatsapp": "Bu amul nimero bu ñu mën a jot, mënuñu yónne tànn bi ci WhatsApp."
+    },
+    "referent": {
+      "title": "Ki ko yor",
+      "someone": "Benn ci ajaas bi",
+      "none": "Kenn yorul kiliyaan bii.",
+      "me": "Man maa koy yor",
+      "pick": "Tànnal ab ajaŋ",
+      "designate": "Tànn",
+      "failed": "Tànnu ki ko yor antuwul."
+    },
+    "pipeline": {
+      "stageSelect": "Tolluwaayu {name}",
+      "loadMore": "Yeb yeneen ({shown} ci {total})",
+      "dnd": {
+        "instructions": "Ngir randal ab kart, bësal Espace, soppi kolon ak fleks yi, bësaat Espace ngir teg ko walla Échap ngir bàyyi. Entrée dafay ubbi fiise bi.",
+        "start": "{name} jël nañu ko.",
+        "over": "{name} nekk na ci kaw tolluwaay {stage}.",
+        "overNone": "{name} nekkul ci benn tolluwaay.",
+        "end": "{name} teg nañu ko ci tolluwaay {stage}.",
+        "endNone": "{name} delloo nañu ko ci béreb bi.",
+        "cancel": "Randalug {name} bàyyi nañu ko."
+      },
+      "stageFailed": "Soppi tolluwaay bi antuwul."
+    },
+    "myTasks": {
+      "metaTitle": "Samay liggéey",
+      "title": "Samay liggéey",
+      "description": "Li nga war a def, kiliyaan ak kiliyaan, kër ak kër.",
+      "filterLabel": "Àpp",
+      "filter": {
+        "all": "Yépp",
+        "overdue": "Yi yéex",
+        "today": "Tey",
+        "upcoming": "Yi di ñëw",
+        "none": "Yi amul àpp"
+      },
+      "empty": {
+        "all": "Amul benn liggéey.",
+        "overdue": "Amul liggéey bu yéex.",
+        "today": "Amul dara tey.",
+        "upcoming": "Amul liggéey bu di ñëw.",
+        "none": "Amul liggéey bu amul àpp."
+      },
+      "loadFailed": "Sa liggéey yi yebuwuñu.",
+      "retry": "Jéemaat",
+      "loadMore": "Gis yeneen",
+      "toggle": "Bind ne « {title} » jeex na",
+      "toggleFailed": "Liggéey bi soppiwul.",
+      "noDue": "Amul àpp",
+      "hidden": {
+        "customer": "Ab kiliyaan",
+        "property": "Ab kër"
+      },
+      "create": {
+        "title": "Liggéey bu bees",
+        "taskTitle": "Lan mooy war a def ?",
+        "attachTo": "Takk ko ak",
+        "type": {
+          "customer": "Ab kiliyaan",
+          "property": "Ab kër"
+        },
+        "search": {
+          "customer": "Seet ab kiliyaan ci turam",
+          "property": "Seet ab kër ci turam"
+        },
+        "change": "Soppi",
+        "submit": "Sos liggéey bi",
+        "failed": "Liggéey bi sosuwul."
+      }
+    },
+    "calendar": {
+      "mine": "Samay ndaje",
+      "types": {
+        "task": "Liggéey yi",
+        "lease_event": "Àppu kontaraa yi",
+        "maintenance": "Defaraat yi"
+      },
+      "eventType": {
+        "task": "Liggéey",
+        "lease_event": "Àppu kontaraa",
+        "maintenance": "Defaraat"
+      },
+      "helper": {
+        "task": "Sa liggéey yi, ci seen àpp",
+        "lease_event": "Jeexitalu ak yeesalu kontaraa yi",
+        "maintenance": "Defaraat yi ñu jagleel bés"
+      },
+      "leaseKind": {
+        "end": "Jeexitalu kontaraa",
+        "renewal": "Yeesal"
+      },
+      "open": {
+        "task": "Gis samay liggéey",
+        "maintenance": "Ubbi defaraat bi"
+      },
+      "feed": {
+        "title": "Bokk ci beneen arminaat",
+        "intro": "Sa ndaje yi ci Google Agenda walla ci arminaatu sa telefon, ñuy yeesal ko. Lëkkalekaay bi yaw rekk la : bul ko séddoo.",
+        "onceOnly": "Duppil lëkkalekaay bii léegi : dootuñu ko wone.",
+        "linkLabel": "Lëkkalekaayu bokk",
+        "copy": "Duppi",
+        "copied": "Duppi na",
+        "google": "Yokk ko ci Google Agenda",
+        "apple": "Yokk ko ci arminaatu telefon bi",
+        "activeSince": "Am na lëkkalekaay bu dox dale ko {date}.",
+        "lastAccess": "Mujjantal jàng : {date}.",
+        "create": "Sos lëkkalekaayu bokk",
+        "rotate": "Sos lëkkalekaay bu bees",
+        "rotateHint": "Sos bu bees dafay fey bi njëkk.",
+        "revoke": "Fey lëkkalekaay bi",
+        "failed": "Lii antuwul."
+      }
+    },
+    "bulk": {
+      "summary": {
+        "archive": "{updated, plural, =0 {Benn kër dencuñu ko} other {# kër lañu denc}}{failed, plural, =0 {.} other { — # lañu gàntu :}}",
+        "unpublish": "{updated, plural, =0 {Benn kër génnewuñu ko} other {# kër lañu génne}}{failed, plural, =0 {.} other { — # lañu gàntu :}}"
+      },
+      "failure": "{title} : {reason}",
+      "reason": {
+        "not_found": "gisuñu ko",
+        "forbidden": "amoo sañ-sañu soppi ko",
+        "unchanged": "noppi na ci nekkin boobu",
+        "already_archived": "dencees na ko ba noppi",
+        "invalid_target": "ki ñu tànn bokkul ci liggéeykati ajaas bi",
+        "invalid_status": "du ci jaay, du ci wone : amul lu ñuy far",
+        "other": "gàntu nañu ko"
+      }
+    },
+    "handover": {
+      "title": "Génne {name} ci ajaas bi",
+      "intro": "Li {name} yor ba leegi, kenn war koo jël, walla nga bàyyi ko te xam ko.",
+      "emptyPortfolio": "Dara desul ci loxoom : génne ko du bàyyi dara.",
+      "loadFailed": "Mënunu woon a jàng li mu yor.",
+      "category": {
+        "tasks": "Liggéey yu ubbeeku",
+        "visits": "Seetlu yi di ñëw",
+        "maintenance": "Defar yi nekk ci yoon",
+        "collaborations": "Ndimbalante ci kër yi",
+        "customers": "Kiliyaan yi mu yor",
+        "held_properties": "Kër yi mu yor"
+      },
+      "notTransferable": "jotul a jàll",
+      "successor": "Ki koy jël",
+      "noSuccessor": "Kenn — génne ko te jàllaleewul",
+      "leaveAll": "Dama koy génne te bàyyi li mu yor, kenn du ko yor.",
+      "leavePending": "{count, plural, one {# lu jotul a jàll dina des, kenn du ko yor.} other {# lu jotul a jàll dinañu des, kenn du leen yor.}}",
+      "next": "Xoolaat",
+      "back": "Dellu",
+      "cancel": "Neenal",
+      "reviewIntro": "{successor} dina jël li {name} yor, ginnaaw loolu {name} dina génn ci ajaas bi :",
+      "reviewLine": "{count} × {category}",
+      "reviewPending": "{count, plural, one {# lu des, kenn du ko yor.} other {# lu des, kenn du leen yor.}}",
+      "confirm": "Jàllale te génne",
+      "removeOnly": "Génne ci ajaas bi",
+      "failed": "Génne gi antuwul."
+    },
+    "absences": {
+      "title": "Ñi nekkul ak ñi leen wuutu",
+      "declare": "Yégle ne dinga nekkul",
+      "none": "Kenn nekkul ci ndàgg leegi.",
+      "loadFailed": "Mënunu woon a jàng ñi nekkul.",
+      "row": "{substitute} mooy wuutu {absent} ba {until}",
+      "revoke": "Taxawal",
+      "absent": "Kan mooy nekkul",
+      "me": "Man",
+      "substitute": "Ki koy wuutu",
+      "chooseSubstitute": "Tànnal ab nawle",
+      "until": "Ba",
+      "reason": "Lu tax (bu soxlawul)",
+      "submit": "Yégle",
+      "cancel": "Neenal",
+      "declareFailed": "Yégle gi antuwul."
+    },
+    "propertyMatches": {
+      "count": "{count, plural, one {# kiliyaan mu ngi ko sàkku} other {# kiliyaan ñu ngi ko sàkku}}",
+      "hidden": "Kiliyaan bu ab nawle yor",
+      "more": "{count, plural, one {ak # leneen} other {ak # yeneen}}"
+    }
+  },
   "account": {
     "deletion": {
       "section": {
@@ -7804,6 +8104,12 @@
     }
   },
   "validation": {
+    "agentCrm": {
+      "criteriaInvalid": "Lii xamuñu ko.",
+      "budgetInvalid": "Bindal xaalis bi ak ay siifar.",
+      "budgetRange": "Xaalis bu gën a bare war na tollu walla ëpp bu gën a tuuti.",
+      "bedroomsInvalid": "Bindal ab siifar diggante 0 ak 50."
+    },
     "common": {
       "required": "Palanteer bii fàww la.",
       "emailRequired": "Adresu email bi fàww la.",
@@ -8480,6 +8786,12 @@
         "rejected": {
           "title": "Devis bi gàntu nañu ko : {request}",
           "body": "Sa devis ngir liggéey bi « {request} » gàntu nañu ko."
+        }
+      },
+      "prospect_match": {
+        "digest": {
+          "title": "Ay kër dëppoo nañu ak say kiliyaan",
+          "body": "{properties} kër yu bees walla yu seen njëg soppiku dëppoo nañu ak {prospects} ci say kiliyaan."
         }
       },
       "property": {

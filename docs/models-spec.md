@@ -212,12 +212,15 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+#### Agenda
+72. [CalendarFeed](#72-calendarfeed-) ✅
+
 #### Calendrier d'hôte 🆕 (TCK-596, ADR-0041)
-72. [PropertyUnavailability](#72-propertyunavailability-) 🆕
-73. [PropertyCalendarFeed](#73-propertycalendarfeed-) 🆕
+73. [PropertyUnavailability](#73-propertyunavailability-) 🆕
+74. [PropertyCalendarFeed](#74-propertycalendarfeed-) 🆕
 
 #### Signature du bail 🆕 (TCK-596, ADR-0042)
-74. [LeaseSignature](#74-leasesignature-) 🆕
+75. [LeaseSignature](#75-leasesignature-) 🆕
 
 ### Enums
 
@@ -2939,7 +2942,40 @@ traite `key` comme un identifiant court opaque.
 
 ---
 
-### 72. PropertyUnavailability 🆕
+### 72. CalendarFeed ✅
+
+**Table :** `calendar_feeds`
+**Description :** Lien d'abonnement iCalendar d'un utilisateur, en lecture seule (TCK-591,
+[ADR-0034](adr/0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md)). Le jeton n'est connu
+que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) : il est rendu une seule fois, à la
+création ou à la rotation, et jamais stocké en clair. Le lien est révoqué par l'utilisateur, à la
+rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire du lien (`calendar_feeds_user_fk`, `cascadeOnDelete`) |
+| agency_id | FK agencies | ✓ | null | Agence où le titulaire est du personnel ; `null` pour un compte qui n'est personnel d'aucune agence (prestataire) (`calendar_feeds_agency_fk`, `cascadeOnDelete`) |
+| token_hash | string(64) | | | Empreinte SHA-256 du jeton ; masquée à la sérialisation (`$hidden`) |
+| revoked_at | timestamp | ✓ | null | Révocation ; un lien révoqué rend 404 |
+| last_accessed_at | timestamp | ✓ | null | Dernière lecture du flux |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :**
+- `token_hash` (`calendar_feeds_token_hash_unique`)
+
+**Index :** `(user_id, agency_id)` (`calendar_feeds_user_agency_idx`)
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency()` → belongsTo Agency
+
+**Scopes :** `active()` — `revoked_at IS NULL`
+
+
+---
+
+### 73. PropertyUnavailability 🆕
 
 **Table :** `property_unavailabilities`
 **Description :** Une plage `[starts_on, ends_on)` où un bien n'est pas réservable (TCK-596,
@@ -2966,7 +3002,7 @@ iCal ; une plage importée ne se supprime pas à la main.
 
 **Relations :** `property()`, `feed()`, `conflictBooking()` → belongsTo.
 
-### 73. PropertyCalendarFeed 🆕
+### 74. PropertyCalendarFeed 🆕
 
 **Table :** `property_calendar_feeds`
 **Description :** Un calendrier iCal externe importé pour un bien, synchronisé toutes les heures
@@ -2981,7 +3017,7 @@ derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). 
 | label | string(120) | ✓ | | Nom donné par l'hôte |
 | created_by_id | FK users | ✓ | | |
 | last_synced_at | timestamp | ✓ | | Dernière tentative |
-| last_status | string(20) | ✓ | | `ok` \| `failed` |
+| last_status | string(20) | ✓ | | `pending` (première synchronisation en file) \| `ok` \| `failed` |
 | last_error | string(60) | ✓ | | Motif codé (`private_address`, `too_large`, `http_error`…) |
 | failing_since | timestamp | ✓ | | Premier échec de la série en cours |
 | consecutive_failures | unsigned int | | 0 | Au 3ᵉ, le bailleur est prévenu une fois |
@@ -2994,7 +3030,7 @@ derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). 
 
 ---
 
-### 74. LeaseSignature 🆕
+### 75. LeaseSignature 🆕
 
 **Table :** `lease_signatures`
 **Description :** La preuve de consentement d'une partie à un bail (TCK-596, ADR-0042). Une signature

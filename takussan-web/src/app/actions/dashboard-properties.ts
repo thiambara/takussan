@@ -24,6 +24,8 @@ import type {
   PropertyUpdatePayload,
 } from '@/components/property-form/payload';
 import type { PropertyDetail } from '@/types/property';
+import { bulkPropertyArchive, bulkPropertyVisibility } from '@/lib/queries/agent-crm';
+import type { BulkResult } from '@/types/agent-crm';
 
 /**
  * Dashboard Agent — server actions wrapping the property CRUD mutations
@@ -174,6 +176,33 @@ export async function updatePropertyVisibilityAction(
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }
+}
+
+/**
+ * TCK-591 §7 — archiver / dépublier en UN appel : l'API autorise ligne à ligne et rend un bilan
+ * (`updated`, `updated_ids`, `failed[{id, reason}]`). La boucle d'appels unitaires qu'elle remplace
+ * s'arrêtait au premier refus, ne disait que lui, et laissait la sélection entière.
+ */
+async function runBulk(
+  call: (token: string) => Promise<BulkResult>,
+): Promise<ActionResult<BulkResult>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await call(auth.token);
+    if (data.updated > 0) revalidatePath('/app/properties');
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+export async function bulkArchivePropertiesAction(propertyIds: number[]): Promise<ActionResult<BulkResult>> {
+  return runBulk((token) => bulkPropertyArchive(token, propertyIds));
+}
+
+export async function bulkUnpublishPropertiesAction(propertyIds: number[]): Promise<ActionResult<BulkResult>> {
+  return runBulk((token) => bulkPropertyVisibility(token, propertyIds));
 }
 
 export async function assignPropertyAgentAction(

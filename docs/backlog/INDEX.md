@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**546 tickets** — 41 ouverts, 503 livrés.
+**547 tickets** — 41 ouverts, 504 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 503 |
+| ✅ Done | 504 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -62,7 +62,6 @@
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
 - [TCK-589](tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md) — Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai `XL · P1 · full`
 - [TCK-590](tickets/TCK-590-contact-leads-et-visites-sans-perte.md) — Contact, leads et visites : une demande déposée sur le site public arrive chez quelqu'un, qui peut la lire, la prendre en charge et répondre `XL · P0 · full`
-- [TCK-591](tickets/TCK-591-crm-agenda-agent-et-passation.md) — Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent `XL · P1 · full`
 - [TCK-592](tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md) — Une intervention de bout en bout : le prestataire ne contourne plus la machine d'état, n'est assigné que s'il collabore, et ne clôt plus seul `XL · P1 · full`
 - [TCK-594](tickets/TCK-594-sorties-d-argent-calculees-et-validees.md) — Les sorties d'argent ne sont ni calculées, ni contrôlées, ni tracées : le brut d'un reversement se saisit à la main, une seule personne crée, approuve et paie, et la facture porte un numéro aléatoire `XL · P1 · full`
 - [TCK-595](tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md) — Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté `XL · P1 · full`
@@ -72,6 +71,7 @@
 - [TCK-600](tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md) — Console plateforme : la suspension d'agence ne suspend rien, l'impersonation n'impersonne pas, un compte bloqué se reconnecte, tout opérateur est super-admin, et paramètres, drapeaux, santé et alertes ne pilotent ni ne mesurent rien `XL · P0 · full`
 - [TCK-601](tickets/TCK-601-donnees-personnelles-audit-kyc.md) — Données personnelles et audit : RIB et pièces en clair, journal d'agence qui montre les actes d'une autre agence et cache ceux des admins, consultations non tracées, aucun registre des demandes de droits `XL · P1 · full`
 - [TCK-602](tickets/TCK-602-paiement-sans-compte-journal-webhooks.md) — Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable `XL · P1 · full`
+- [TCK-603](tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md) — Changer l'agent responsable sans déposséder le bailleur : bulk-assign, réattribution unitaire, réparation des biens réattribués, biens du partant à la passation (complément de TCK-591, après TCK-504) `L · P1 · full`
 
 ## 🚧 Doing
 
@@ -87,14 +87,15 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 503
+## ✅ Done — 504
 
 <details>
-<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 5 tickets</summary>
+<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 6 tickets</summary>
 
 - [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
 - [TCK-587](tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md) — Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste `XL · P0 · full`
 - [TCK-588](tickets/TCK-588-api-sans-prose-notifications-multicanal.md) — L'API n'écrit plus de prose : une notification est un code rendu dans la langue du destinataire, part sur WhatsApp ou SMS y compris vers un contact sans compte, et une erreur métier porte un code `XL · P1 · full`
+- [TCK-591](tickets/TCK-591-crm-agenda-agent-et-passation.md) — Le CRM de l'agent ne tient pas au téléphone : numéro libre, pipeline sans geste mobile, tâches sans page, fiche éclatée, agenda partiel et ouvert au bailleur, actions en masse muettes, portefeuille orphelin au départ d'un agent `XL · P1 · full`
 - [TCK-593](tickets/TCK-593-encaissements-locataire-et-rapprochement.md) — Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris `XL · P1 · full`
 - [TCK-596](tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) — Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce `XL · P1 · full`
 

@@ -458,6 +458,13 @@ return [
                 'sms' => 'Takussan : bayle :reference xaatimu na te mu ngi dox.',
             ],
         ],
+        'prospect_match' => [
+            'digest' => [
+                'title' => 'Ay kër dëppoo nañu ak say kiliyaan',
+                'body' => ':properties kër yu bees walla yu seen njëg soppiku dëppoo nañu ak :prospects ci say kiliyaan.',
+                'sms' => 'Takussan : :properties kër dëppoo nañu ak :prospects ci say kiliyaan.',
+            ],
+        ],
         'property' => [
             'approved' => [
                 'title' => 'Yégle bi nangu nañu ko : :property',

@@ -79,6 +79,10 @@ enum NotificationCode: string
     case MaintenanceQuoteApproved = 'maintenance_quote.approved';
     case MaintenanceQuoteRejected = 'maintenance_quote.rejected';
 
+    // ─── CRM ───────────────────────────────────────────────────────────────────────────
+    /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
+    case ProspectMatchDigest = 'prospect_match.digest';
+
     // ─── Modération des biens (envoyés par leurs classes Notification) ──────────────────
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
@@ -132,6 +136,7 @@ enum NotificationCode: string
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
+            self::ProspectMatchDigest => NotificationType::System,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
             self::LeaseSignatureCompleted => NotificationType::Lease,
@@ -161,7 +166,7 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
             self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
@@ -210,6 +215,7 @@ enum NotificationCode: string
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
             self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
+            self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
 

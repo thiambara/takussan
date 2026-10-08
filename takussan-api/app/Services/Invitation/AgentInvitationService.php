@@ -9,6 +9,7 @@ use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Agency\AgencyMemberRemovalService;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
@@ -160,12 +161,21 @@ class AgentInvitationService
      * The user account itself is left untouched — only the membership in
      * this agency is archived.
      */
-    public function remove(AgentProfile $profile, User $actor): void
+    public function remove(AgentProfile $profile, User $actor, bool $leaveUnassigned = false): void
     {
         $agency = $profile->agency;
         if ($agency !== null) {
             $this->assertAgencyCanInvite($agency);
             $this->assertInviterCanManageTeam($actor, $agency);
+        }
+
+        // TCK-591 §8 — un membre rattaché à un compte se retire par LE chemin de retrait (gardes,
+        // journal `Membership`, portefeuille, flux). Seule une invitation jamais acceptée (profil
+        // sans compte) garde la suppression directe ci-dessous : elle n'a rien laissé derrière elle.
+        if ($agency !== null && $profile->user !== null) {
+            app(AgencyMemberRemovalService::class)->remove($agency, $profile->user, $actor, $leaveUnassigned);
+
+            return;
         }
 
         DB::transaction(function () use ($profile, $actor): void {
