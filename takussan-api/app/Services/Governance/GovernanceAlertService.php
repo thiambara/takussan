@@ -48,11 +48,16 @@ class GovernanceAlertService
 
     public function handle(Activity $activity): void
     {
+        // Le code d'abord : il se lit sans requête, et presque aucune ligne du journal n'en a.
         $code = $this->codeFor($activity);
-        $author = $activity->causer;
+        if ($code === null || $activity->agency_id === null) {
+            return;
+        }
+
         // Un acte de gouvernance a un AUTEUR : une écriture sans acteur (seeder, commande, migration)
         // n'est pas le geste d'un membre, et n'avertit personne.
-        if ($code === null || $activity->agency_id === null || ! $author instanceof User) {
+        $author = $activity->causer;
+        if (! $author instanceof User) {
             return;
         }
 
