@@ -658,6 +658,29 @@ Direction « Ancrage Local Contemporain » (`docs/design-guidelines.md`). Mobile
   les favoris de compte (TCK-599) ; le filtre « agence active » (TCK-600) ; le retrait du
   courtier (TCK-586) ; l'API de production absente (TCK-332).
 
+### Suites relevées par verif-598 (notées, non corrigées ici)
+
+- **Slug vide à la génération** : `Property::booted()` fait `Str::slug($titre).'-'.Str::random(6)`, et
+  `Str::slug` rend `''` pour un titre en émojis, en CJK ou fait de `---` (mesuré) : le slug devient
+  `-XXXXXX`. Le front l'accepte désormais partout (`lib/slug-de-bien.ts`, handler de revalidation) ;
+  l'empêcher à la source (repli sur `bien-XXXXXX`) relève d'un ticket de suite.
+- **m7, quartiers et espaces** : ` Mermoz ` (espaces) fait une seconde entrée « Mermoz », de compte 1,
+  à côté de celle de compte 4 — elle fractionne le compte jugé au seuil. En cas d'égalité de
+  graphies, la collation C retient la majuscule (`MÉDINA`), affichée ensuite dans les titres.
+  `TrimStrings` nettoie la saisie par l'API : seuls seeders et imports le produisent. Correctif
+  proposé : grouper sur `LOWER(trim(col) COLLATE "und-x-icu")`, préférer une graphie non capitale.
+- **m8, invalidation hors Éloquent** : `Property::query()->update(['is_test' => true])`
+  (`PropertiesFlagTestCommand`) ne met aucun job en file. **Raccord TCK-600** : le filtre « agence
+  active » ne change pas la ligne du bien non plus — la fiche d'une agence suspendue reste servie
+  jusqu'à 300 s. Soit la suspension de 600 envoie `RevalidatePublicPropertyPage` pour les slugs de
+  l'agence, soit 600 accepte explicitement le plancher de 300 s (ADR-0052 l'accepte déjà).
+- **IPv6** : `2001:db8::1` et `2001:DB8:0:0:0:0:0:1` comptent pour deux visiteurs, et un client peut
+  tourner dans son /64 pour gonfler les vues. Antérieur au ticket (la déduplication par IP l'avait
+  déjà) ; théorique derrière un mandataire qui écrit la forme canonique.
+- **`POST /api/properties/{id}/view`** : tout utilisateur authentifié peut l'appeler sur n'importe
+  quel bien, privé compris, et lire `views_count`. Antérieur, réponse gardée telle quelle à dessein
+  (AC16) — relève de TCK-587.
+
 ## Notes d'implémentation
 
 Relevés et décisions non évidentes, au fil de l'eau (2026-10-08, branche `feat/tck-598-site-public`
@@ -780,3 +803,17 @@ tiennent tous, relus un par un.
   ne correspond pas au conteneur (dette D-48). Reste une question pour la session.
 - **AC21** : la route éprouvée est désormais `/api/public/properties`, celle que l'AC nomme ; G1 → 2
   rouges, G2 → 1 rouge, rejouées sur cette route.
+
+- **Corrections après verif-598 (accepté, 0 bloquant, 0 majeur, 9 mineurs)** — chaque correctif a son
+  test rouge sur `a2a7175a` et son ablation (V1–V8, W1–W4, toutes rouges, restaurées par copie, md5
+  identique) :
+  - m2 + m5 : `lib/slug-de-bien.ts` (`^[A-Za-z0-9_-]{1,255}$`). Hors forme, aucun appel et « introuvable »
+    dans `/bookings`, `getProperty`, `getEtatDuBien` et les SIX server actions de `actions/property.ts`
+    qui interpolaient le slug brut (les quatre nommées, plus `submitPurchaseOffer` et
+    `submitContactMessage`, même défaut) ;
+  - m3 : le handler accepte le tiret initial et IGNORE un slug invalide (`ignored` dans la réponse) ;
+  - m6 : corps borné à 8 Kio, annoncé ou lu, refusé en 413 AVANT le HMAC ;
+  - m1 : `RateLimiter::hit() > MAX` — la décision porte sur le compte incrémenté ;
+  - m9 : identifiants d'URL refusés dans `HoteDeVisiteVirtuelle` ;
+  - m4 : N3 (bien loué, privé, de test dans le test AC5) et N16 (`afterCommit` éprouvé par la file
+    `sync` réelle : `Queue::fake()` l'ignore).
