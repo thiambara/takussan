@@ -1000,7 +1000,7 @@ export async function fetchScheduler(): Promise<SchedulerResponse> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PLATFORM_PAYOUT_FIELDS =
-  'id,agency_id,period_start,period_end,gross_amount,platform_fee_amount,net_amount,currency,status,approved_by,processed_at,failure_reason,metadata,created_at,updated_at';
+  'id,agency_id,period_start,period_end,gross_amount,platform_fee_amount,net_amount,currency,status,closed_by_id,approved_by,approved_at,paid_by_id,payment_reference,processed_at,failure_reason,metadata,created_at,updated_at';
 
 export async function fetchAdminPlatformPayouts(params: {
   agencyId?: number | null;
@@ -1049,7 +1049,8 @@ export async function approveAdminPlatformPayout(payoutId: number): Promise<Plat
 
 export async function markAdminPlatformPayoutPaid(
   payoutId: number,
-  payload: { processed_at: string; metadata?: { bank_ref?: string; batch_id?: string } },
+  // TCK-594 (ADR-0039 §4) — l'argent parti se prouve : `payment_reference` est exigé par l'API.
+  payload: { processed_at: string; payment_reference: string; metadata?: { bank_ref?: string; batch_id?: string } },
 ): Promise<PlatformPayoutResponse> {
   const res = await fetch(`/api/super-admin/payouts/${payoutId}/mark-paid`, {
     method: 'POST',

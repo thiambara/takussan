@@ -12,6 +12,8 @@ vi.mock('@/app/actions/admin-agency', () => ({
   updateAgencyAction,
   uploadAgencyLogoAction: vi.fn(),
 }));
+// Le formulaire lit `useCan('payouts.approve')` depuis TCK-594 (seuil des quatre yeux).
+vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: false, isLoading: false }) }));
 
 import { AgencyConfigForm } from '../AgencyConfigForm';
 

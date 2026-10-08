@@ -83,6 +83,30 @@ export interface Agency {
   metadata?: AgencyMetadata | null;
   /** TCK-098 — when true, new property publications require admin approval. */
   moderation_required?: boolean;
+  /**
+   * TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé.
+   * VERIF-594 m-2 — ABSENT (avec `pending_payout_threshold_change`) pour qui ne détient ni `payouts.approve` ni
+   * `payouts.create` dans l'agence.
+   */
+  payout_approval_threshold?: number | null;
+  /**
+   * VERIF-594 M-2 — un relâchement du seuil (coupé, ou relevé) en attente d'un SECOND détenteur de
+   * `payouts.approve`. `threshold` à `null` : la demande est de couper le contrôle.
+   */
+  pending_payout_threshold_change?: {
+    threshold: number | null;
+    requested_by_id: number | null;
+    requested_at: string | null;
+    /** VERIF-594 passe 2, N-4 — la demande expire 7 jours après ; expirée, l'API ne la rend plus. */
+    expires_at?: string | null;
+  } | null;
+  /** TCK-594 (ADR-0039 §7) — TVA appliquée par défaut aux factures (un taux explicite gagne). */
+  default_tax_rate?: number | null;
+  /** TCK-594 (ADR-0039 §7) — mentions légales imprimées sur les factures ; jamais pour une agence `individual`. */
+  legal_name?: string | null;
+  ninea?: string | null;
+  rccm?: string | null;
+  legal_address?: string | null;
   primary_admin_id: number | null;
   created_at?: string;
 }

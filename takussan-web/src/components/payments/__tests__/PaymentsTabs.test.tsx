@@ -15,10 +15,15 @@ import { PaymentsTabs } from '../PaymentsTabs';
 
 vi.mock('@/hooks/useCan', () => ({ useCan: vi.fn() }));
 
+const ONGLET = vi.hoisted(() => ({ current: '' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(''),
+  useSearchParams: () => new URLSearchParams(ONGLET.current),
 }));
+const AUTH = vi.hoisted(() => ({ current: { user: { id: 9, roles: ['agent'] as string[] } } }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH.current }));
+vi.mock('../OwnerStatementPanel', () => ({ OwnerStatementPanel: () => <p>relevé de gérance</p> }));
+vi.mock('../ServiceProviderBillsTable', () => ({ ServiceProviderBillsTable: () => null }));
 
 // Les tables et les dialogues ont leurs propres tests ; ils tireraient ici leurs requêtes.
 vi.mock('../PaymentsHistoryFilters', () => ({ PaymentsHistoryFilters: () => null }));
@@ -41,20 +46,56 @@ function accorder(accordees: readonly string[], isLoading = false) {
 }
 
 function rendre() {
-  render(withIntl(<PaymentsTabs />));
+  return render(withIntl(<PaymentsTabs />));
 }
 
 describe('PaymentsTabs — boutons de création gardés par capacité (TCK-528)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ONGLET.current = '';
+    AUTH.current = { user: { id: 9, roles: ['agent'] } };
   });
 
-  it('lit exactement invoices.create et payouts.create', () => {
+  it('ne montre les factures des prestataires qu’à qui tient payouts.create (TCK-594)', () => {
+    accorder(['payouts.approve']);
+    const { unmount } = rendre();
+    expect(screen.queryByRole('tab', { name: fr.payments.tabs.bills })).not.toBeInTheDocument();
+    unmount();
+
+    accorder(['payouts.create']);
+    rendre();
+    expect(screen.getByRole('tab', { name: fr.payments.tabs.bills })).toBeInTheDocument();
+  });
+
+  it('montre le relevé de gérance au bailleur, à côté de ses versements (TCK-594)', () => {
+    ONGLET.current = 'tab=payouts';
+    accorder([]);
+    const { unmount } = rendre();
+    expect(screen.queryByText('relevé de gérance')).not.toBeInTheDocument();
+    unmount();
+
+    AUTH.current = { user: { id: 42, roles: ['owner'] } };
+    rendre();
+    expect(screen.getByText('relevé de gérance')).toBeInTheDocument();
+  });
+
+  it('lit exactement invoices.create, payouts.create et payouts.approve (TCK-594)', () => {
     accorder([]);
     rendre();
 
     const lues = vi.mocked(useCan).mock.calls.map(([capability]) => capability);
-    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create']));
+    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create', 'payouts.approve']));
+  });
+
+  it('ne montre la file « À approuver » qu’à qui tient payouts.approve (TCK-594)', () => {
+    accorder(['payouts.create']);
+    const { unmount } = rendre();
+    expect(screen.queryByRole('tab', { name: fr.payments.tabs.approvals })).not.toBeInTheDocument();
+    unmount();
+
+    accorder(['payouts.approve']);
+    rendre();
+    expect(screen.getByRole('tab', { name: fr.payments.tabs.approvals })).toBeInTheDocument();
   });
 
   it('propose les deux gestes à qui porte les deux capacités (agent, admin d’agence)', () => {

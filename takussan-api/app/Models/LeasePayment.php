@@ -111,4 +111,13 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
 
         return $agencyId !== null ? (int) $agencyId : null;
     }
+
+    /**
+     * TCK-594 (VERIF-594 passe 4, P4-5 et P4-7) — sans les lignes `deposit_refund` : une caution rendue
+     * est une SORTIE vers le locataire, ni un encaissement, ni une échéance qu'il doit.
+     */
+    public function scopeExceptDepositRefunds(Builder $query): Builder
+    {
+        return $query->where($query->qualifyColumn('payment_type'), '!=', LeasePaymentType::DepositRefund->value);
+    }
 }

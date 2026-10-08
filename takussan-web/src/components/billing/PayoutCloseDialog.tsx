@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 
 import { closeAdminPlatformPayoutPeriod } from '@/lib/queries/super-admin';
+import type { PlatformPayoutExclusion } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
@@ -25,6 +26,8 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
   const queryClient = useQueryClient();
   const [periodEnd, setPeriodEnd] = useState(() => new Date().toISOString().slice(0, 10));
   const [agencyId, setAgencyId] = useState(defaultAgencyId ? String(defaultAgencyId) : '');
+  // TCK-594 — une agence écartée se dit, avec son motif : sinon « 0 créé » se lit « rien à payer ».
+  const [excluded, setExcluded] = useState<readonly PlatformPayoutExclusion[]>([]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -34,6 +37,7 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
       }),
     onSuccess: async (result) => {
       const count = result.data.length;
+      setExcluded(result.excluded ?? []);
       toast.add({
         // `total` part en CHAÎNE : ICU formaterait 1234 en « 1 234 », là où le gabarit d'origine
         // rendait le nombre brut. `count` reste un nombre — il ne sert qu'au pluriel.
@@ -78,6 +82,18 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
           {t('submit')}
         </Button>
+        {excluded.length > 0 ? (
+          <div className="lg:col-span-3" role="status">
+            <p className="text-sm font-medium text-foreground">{t('excludedTitle', { count: excluded.length })}</p>
+            <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+              {excluded.map((row) => (
+                <li key={row.agency_id}>
+                  {t('excludedRow', { agency: String(row.agency_id), reason: t(`excludedReason.${row.reason}`) })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

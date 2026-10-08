@@ -194,6 +194,7 @@ return [
     'invoice' => [
         'cannot_cancel' => 'Cette facture ne peut pas être annulée dans son état actuel.',
         'cannot_mark_paid' => 'Cette facture ne peut pas être marquée payée dans son état actuel.',
+        'foreign_target' => 'Ce bail ou cette réservation ne relève pas de l\'agence de la facture.',
         'not_draft_send' => 'Seule une facture en brouillon peut être envoyée.',
         'status_transition_invalid' => 'Ce changement de statut de la facture n\'est pas autorisé.',
         'target_not_found' => 'L\'objet à facturer est introuvable.',
@@ -222,7 +223,9 @@ return [
     ],
     'lease_payment' => [
         'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
+        'deposit_refund_paid_by_payout' => 'Une caution rendue se règle par son reversement, jamais à la main.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
+        'receipt_not_a_payment' => 'Une caution rendue n\'est pas un paiement du locataire : elle n\'a pas de quittance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',
     ],
     'mail' => [
@@ -297,14 +300,32 @@ return [
         'type_unknown' => 'Type de paiement inconnu.',
     ],
     'payout' => [
+        'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',
+        'already_paid_out' => 'Une des pièces citées est déjà reversée.',
+        'amount_changed_since_approval' => 'Le montant a changé depuis l\'approbation : faites-le approuver à nouveau.',
+        'destination_changed_since_approval' => 'La destination n\'est plus celle qui a été approuvée : faites approuver à nouveau ce reversement.',
+        'verifier_cannot_pay_yet' => 'Vous avez vérifié cette destination il y a moins de 24 heures : un autre membre doit effectuer ce paiement.',
+        'approver_verified_destination_recently' => 'Vous avez vérifié cette destination il y a moins de 24 heures : un autre approbateur doit la fixer, ou approuvez sans la citer.',
+        'threshold_needs_second_approver' => 'Le seuil ne s\'assouplit qu\'avec un second approbateur : votre agence n\'en a qu\'un.',
+        'no_pending_threshold_change' => 'Aucune modification du seuil n\'attend de confirmation.',
+        'threshold_request_expired' => 'La demande de relâchement du seuil a expiré : elle doit être refaite.',
+        'threshold_request_changed' => 'La demande de relâchement a changé depuis votre lecture : relisez-la avant de confirmer.',
+        'awaiting_approval' => 'Ce reversement attend son approbation.',
         'cannot_cancel' => 'Ce reversement ne peut pas être annulé dans son état actuel.',
         'cannot_fail' => 'Ce reversement ne peut pas être marqué en échec dans son état actuel.',
         'cannot_process' => 'Ce reversement ne peut pas être marqué effectué dans son état actuel.',
         'failure_reason_required' => 'Indiquez le motif de l\'échec.',
         'issuer_forbidden' => 'Seuls les membres de l\'agence ou les administrateurs peuvent émettre un reversement.',
         'landlord_not_in_agency' => 'Ce bailleur n\'appartient pas à votre agence.',
+        'individual_third_party' => 'Une agence individuelle ne reverse qu\'à son hôte : un tiers est payé par la plateforme.',
+        'mixed_currencies' => 'Un reversement ne mélange pas deux devises.',
         'net_negative' => 'Le montant net ne peut pas être négatif.',
+        'not_awaiting_approval' => 'Ce reversement n\'attend pas d\'approbation.',
+        'payment_method_required' => 'Indiquez le moyen de paiement.',
+        'reference_required' => 'La référence de la transaction est obligatoire hors espèces.',
         'status_transition_invalid' => 'Ce changement de statut du reversement n\'est pas autorisé.',
+        'threshold_needs_two_approvers' => 'Le seuil d\'approbation exige au moins deux membres actifs habilités à approuver.',
+        'unverified_destination' => 'Ce reversement ne part que vers une destination vérifiée du bénéficiaire, du moyen choisi.',
     ],
     'phone' => [
         'taken' => 'Ce numéro est déjà vérifié sur un autre compte.',
@@ -319,6 +340,8 @@ return [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
     ],
     'platform_payout' => [
+        'agency_frozen' => 'Cette agence n\'est pas active : ses reversements sont gelés.',
+        'agency_unverified' => 'Une agence non vérifiée ne peut pas être payée.',
         'already_exists' => 'Un reversement existe déjà pour cette période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',
     ],
@@ -361,6 +384,16 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
+    ],
+    'segregation' => [
+        'approve' => 'Vous avez préparé ce reversement, ou en êtes le bénéficiaire : un autre membre doit l\'approuver.',
+        'pay' => 'Vous avez approuvé ce reversement, ou en êtes le bénéficiaire : un autre membre doit le marquer payé.',
+        'prepare' => 'Le bénéficiaire d\'un reversement ne peut pas le préparer.',
+    ],
+    'service_provider_bill' => [
+        'already_in_payout' => 'Cette facture d\'intervention est déjà dans un reversement en cours.',
+        'not_payable' => 'Seule une facture d\'intervention validée se paie.',
+        'not_pending' => 'Cette facture d\'intervention n\'attend plus de validation.',
     ],
     'session' => [
         'cannot_revoke_current' => 'Impossible de révoquer la session en cours : déconnectez-vous.',

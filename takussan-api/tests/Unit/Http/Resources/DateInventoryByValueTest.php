@@ -138,7 +138,7 @@ class DateInventoryByValueTest extends TestCase
         $detail->setRouteResolver(fn () => $routeQuiDitOui);
 
         foreach (ResourceInventory::enumerables() as $resource) {
-            foreach (ResourceSubjects::pour($resource) as $etiquette => $sujet) {
+            foreach (ResourceSubjects::pour($resource, $utilisateur) as $etiquette => $sujet) {
                 foreach (['liste' => $requete, 'détail' => $detail] as $variante => $appelant) {
                     $this->activerLAppelant($appelant, $utilisateur);
 

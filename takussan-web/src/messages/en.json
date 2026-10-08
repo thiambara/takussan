@@ -3136,7 +3136,8 @@
       "processing": "In progress",
       "completed": "Completed",
       "failed": "Failed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaiting_approval": "To approve"
     },
     "methods": {
       "cash": "Cash",
@@ -3152,7 +3153,9 @@
     "tabs": {
       "history": "History",
       "invoices": "Invoices",
-      "payouts": "Payouts"
+      "payouts": "Payouts",
+      "approvals": "To approve",
+      "bills": "Repairs"
     },
     "actions": {
       "createInvoice": "Generate an invoice",
@@ -3203,33 +3206,56 @@
       "working": "…",
       "markPaid": "Mark as paid",
       "cancelInvoice": "Cancel the invoice",
-      "close": "Close"
+      "close": "Close",
+      "creditNoteTitle": "Credit note {reference}",
+      "credits": "Cancels invoice #{id}",
+      "creditNotes": "Credit notes issued against this invoice",
+      "actionFailed": "The invoice action failed."
     },
     "payoutDialog": {
-      "title": "Create a payout",
-      "description": "Automatically computes the net amount owed to the landlord after commission.",
-      "landlordId": "Landlord ID",
-      "currency": "Currency",
-      "leaseId": "Lease ID (optional)",
-      "bookingId": "Booking ID (optional)",
+      "title": "Prepare a payout",
+      "description": "Choose the landlord and the period: the calculation is read, not typed.",
       "periodStart": "Period start",
       "periodEnd": "Period end",
-      "grossAmount": "Gross amount",
-      "commissionRate": "Commission rate (%)",
       "commission": "Commission",
       "fees": "Fees",
-      "method": "Method",
-      "scheduledAt": "Scheduled for",
+      "method": "Payment method",
+      "scheduledAt": "Scheduled on",
       "notes": "Notes",
       "gross": "Gross",
       "net": "Net",
       "cancel": "Cancel",
       "creating": "Creating…",
-      "submit": "Create the payout"
+      "submit": "Create the payout",
+      "landlord": "Landlord",
+      "landlordPlaceholder": "Choose a landlord",
+      "chooseFirst": "Choose a landlord and a period to read the calculation.",
+      "preparationFailed": "The calculation could not be prepared.",
+      "calculation": "Payout calculation",
+      "nothingToPay": "No collected payment to pay out over this period.",
+      "colItem": "Item",
+      "colDate": "Collected on",
+      "colAmount": "Amount",
+      "colCommission": "Commission",
+      "leaseLine": "Rent — lease {reference}",
+      "bookingLine": "Booking {reference}",
+      "billLine": "Job {reference}",
+      "rateFromLease": "({rate}% from the lease)",
+      "rateFromAgency": "({rate}% from the agency)",
+      "requiresApproval": "This net, added to the unapproved payouts to this landlord over the last {days} days, reaches the agency's approval threshold ({threshold}): another member must approve it before payment.",
+      "destination": "Destination",
+      "destinationNone": "No destination on file",
+      "destinationOption": "{kind} {masked} — {state}",
+      "verified": "verified",
+      "unverified": "awaiting verification",
+      "createFailed": "The payout could not be created.",
+      "unverifiedHint": "This destination has not been verified by the agency yet.",
+      "verifyDestination": "Verify this destination",
+      "verifyFailed": "Verification failed."
     },
     "payoutDetail": {
       "title": "Payout {reference}",
-      "description": "Payout status transitions.",
+      "description": "Preparation, approval and payment of the payout.",
       "notFound": "Payout not found.",
       "createdOn": "Created on {date}",
       "landlord": "Landlord",
@@ -3241,14 +3267,34 @@
       "method": "Method",
       "processedOn": "Processed on",
       "failedReason": "Failure reason",
-      "transactionId": "Transaction reference (optional)",
+      "transactionId": "Transaction reference",
       "transactionIdPlaceholder": "Eg: TX-2025-0001",
       "working": "…",
       "markProcessed": "Mark as processed",
       "failedReasonPlaceholder": "Eg: Invalid bank account",
       "markFailed": "Mark as failed",
       "cancel": "Cancel",
-      "close": "Close"
+      "close": "Close",
+      "preparedBy": "Prepared by",
+      "approvedOn": "Approved on",
+      "destination": "Destination",
+      "reference": "Transaction reference",
+      "approve": "Approve",
+      "approveSelfRefused": "You prepared this payout: another member must approve it.",
+      "paySelfRefused": "You approved this payout: another member must mark it paid.",
+      "transactionIdOptional": "Transaction reference (optional for cash)",
+      "cashNote": "Proof of the cash payment",
+      "actionFailed": "The action did not go through.",
+      "payDestination": "Payment destination",
+      "noVerifiedDestination": "This beneficiary has no verified destination for this method: verify one before paying.",
+      "plannedDestination": "Planned destination",
+      "approvedDestination": "Approved destination",
+      "approveWithoutDestination": "No destination is planned: once approved, this payout can only be paid in cash or by check.",
+      "approvedDestinationOnly": "This payout can only go to the approved destination, and it is not verified for this method. Pay in cash or by check, or have it prepared again.",
+      "approveDestination": "Payment destination",
+      "approveKeepDestination": "Keep the planned destination ({masked})",
+      "approveNoDestination": "No destination (cash or check)",
+      "approveDestinationOption": "{kind} · {masked} (verified)"
     },
     "customer": {
       "nextTitle": "Next payment",
@@ -3268,6 +3314,56 @@
       "previous": "Previous",
       "next": "Next",
       "pageOf": "Page {page} of {total}"
+    },
+    "payoutMethodKinds": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "bank_transfer": "Bank transfer"
+    },
+    "ownerStatement": {
+      "title": "Owner statement",
+      "description": "What was collected for you, what the agency withheld, and what was paid out to you.",
+      "month": "Month",
+      "annual": "Whole year (annual certificate)",
+      "gross": "Collected",
+      "commission": "Commission",
+      "fees": "Repairs",
+      "net": "Net",
+      "paidOut": "Already paid out",
+      "downloadPdf": "Download PDF",
+      "downloadCsv": "Download CSV",
+      "downloadFailed": "The statement download failed.",
+      "unavailable": "The statement is not available."
+    },
+    "serviceProviderBills": {
+      "providerTitle": "My repair invoices",
+      "agencyTitle": "Service provider invoices",
+      "emptyTitle": "No repair invoice",
+      "emptyProvider": "Your invoices will appear here once your jobs are completed.",
+      "emptyAgency": "Service provider invoices to validate will appear here.",
+      "reference": "Reference",
+      "intervention": "Job",
+      "amount": "Amount",
+      "statusLabel": "Status",
+      "actions": "Actions",
+      "exceedsQuote": "Exceeds the approved quote",
+      "rechargeable": "Recharge to the landlord",
+      "rechargedToLandlord": "Charged to the landlord's payout",
+      "validate": "Validate",
+      "reject": "Reject",
+      "confirmReject": "Confirm rejection",
+      "cancel": "Cancel",
+      "rejectionReason": "Rejection reason",
+      "pay": "Pay the provider",
+      "actionFailed": "The invoice action failed.",
+      "status": {
+        "pending_validation": "To validate",
+        "validated": "Validated",
+        "rejected": "Rejected",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "lease": {
@@ -5171,7 +5267,8 @@
         "payouts": "Payouts",
         "overdue": "Overdue",
         "newInvoice": "Generate an invoice",
-        "newPayout": "Create a payout"
+        "newPayout": "Create a payout",
+        "toApprove": "To approve"
       },
       "kpis": {
         "collections30d": "Collections (30 d)",
@@ -5728,6 +5825,24 @@
       "lateFeeOnline": {
         "label": "Collect late fees with online payment",
         "hint": "On: the tenant pays the rent and the late fee together online. Off: only the rent is paid online, and the late fee is settled with the agency."
+      },
+      "moneyOut": {
+        "title": "Legal details and payments",
+        "description": "Printed on your invoices; the threshold decides when a payout waits for a second person.",
+        "taxRate": "Default invoice VAT (%)",
+        "threshold": "Payout approval threshold (CFA F)",
+        "thresholdHint": "Above this net amount, a payout must be approved by someone other than the person who prepared it. Leave empty to disable. At least two people allowed to approve are required.",
+        "legalName": "Registered company name",
+        "ninea": "NINEA",
+        "rccm": "RCCM",
+        "legalAddress": "Registered office address",
+        "thresholdPendingOff": "A request to turn off the threshold is awaiting a second approver's confirmation. Until then, the current threshold applies.",
+        "thresholdPendingRaise": "A request to raise the threshold to {threshold} is awaiting a second approver's confirmation. Until then, the current threshold applies.",
+        "thresholdPendingSelf": "You made this request: another approver of the agency must confirm it.",
+        "thresholdConfirm": "Confirm",
+        "thresholdConfirming": "Confirming…",
+        "thresholdConfirmed": "The new threshold now applies.",
+        "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
       }
     },
     "inviteMember": {
@@ -8277,6 +8392,24 @@
         "channelUnavailable": "No message of this kind is sent on this channel."
       }
     },
+    "payoutMethods": {
+      "title": "Where to receive your payouts",
+      "subtitle": "Your number is no longer shown in full once saved. The agency paying you verifies it before the first payout.",
+      "empty": "No destination saved.",
+      "verified": "Verified",
+      "pending": "Awaiting verification",
+      "default": "Default",
+      "makeDefault": "Use as default",
+      "remove": "Remove",
+      "removeAria": "Remove destination {masked}",
+      "kind": "Method",
+      "phone": "Phone number",
+      "iban": "IBAN or account number",
+      "holder": "Account holder (optional)",
+      "add": "Add",
+      "saveFailed": "The destination could not be saved.",
+      "removeFailed": "The destination could not be removed."
+    },
     "serviceProvider": {
       "title": "My provider activity",
       "subtitle": "What the agencies you work with see. Each setting is saved separately.",
@@ -8405,7 +8538,13 @@
         "submit": "Close",
         "toastNone": "No eligible payment",
         "toastCreated": "{total} {count, plural, one {payout created} other {payouts created}}",
-        "toastFailed": "Closing failed"
+        "toastFailed": "Closing failed",
+        "excludedTitle": "{count, plural, one {# agency excluded} other {# agencies excluded}} from the closing",
+        "excludedRow": "Agency #{agency} — {reason}",
+        "excludedReason": {
+          "agency_not_active": "agency suspended or not active",
+          "already_closed": "period already closed"
+        }
       },
       "detail": {
         "notFound": "Payout not found.",
@@ -8422,7 +8561,6 @@
         "breakdownLine": "<count>{count}</count> payments · <gross>{gross}</gross> gross · <fees>-{fees}</fees> comm.",
         "approve": "Approve",
         "processedAtAria": "Processing date",
-        "bankRefPlaceholder": "Bank reference (optional)",
         "markPaid": "Mark as paid",
         "cancelReasonPlaceholder": "Cancellation reason",
         "cancel": "Cancel",
@@ -8434,7 +8572,13 @@
           "cancelled": "Payout cancelled",
           "cancelFailed": "Cancellation failed"
         },
-        "breakdownRow": "<qty>{count}</qty> payments · <amount>{gross}</amount> gross · <fee>-{fees}</fee> comm."
+        "breakdownRow": "<qty>{count}</qty> payments · <amount>{gross}</amount> gross · <fee>-{fees}</fee> comm.",
+        "approvedAt": "Approved on",
+        "paymentReference": "Transfer reference",
+        "paymentReferenceLabel": "Transfer reference",
+        "paymentReferencePlaceholder": "Transfer reference (required)",
+        "approveSelfRefused": "You closed this period: someone else must approve the payout.",
+        "paySelfRefused": "You approved this payout: someone else must mark it paid."
       }
     }
   },
@@ -8560,7 +8704,12 @@
       "currencyInvalid": "Invalid currency code (e.g. XOF, EUR).",
       "timezoneTooLong": "Time zone too long.",
       "logoTooLarge": "The logo exceeds 2 MB.",
-      "logoUnsupportedFormat": "Unsupported format. Use JPG, PNG or WEBP."
+      "logoUnsupportedFormat": "Unsupported format. Use JPG, PNG or WEBP.",
+      "taxRateRange": "VAT must be between 0 and 100.",
+      "thresholdInvalid": "The threshold is a positive whole amount, without decimals.",
+      "legalNameTooLong": "The company name must not exceed 255 characters.",
+      "legalIdTooLong": "This number must not exceed 30 characters.",
+      "legalAddressTooLong": "The address must not exceed 1000 characters."
     },
     "booking": {
       "guestsRequired": "The number of guests is required.",
@@ -8636,15 +8785,7 @@
       "taxMin": "VAT must be ≥ 0.",
       "taxMax": "VAT must be ≤ 100.",
       "invoiceableBoth": "Provide both the entity type and its identifier, or neither.",
-      "dueDateAfterIssue": "The due date must be on or after the issue date.",
-      "landlordRequired": "A landlord is required.",
-      "grossRequired": "The gross amount is required.",
-      "grossPositive": "The gross amount must be greater than 0.",
-      "commissionMin": "The commission must be ≥ 0.",
-      "commissionMax": "The commission must be ≤ 100.",
-      "feesMin": "The fees must be ≥ 0.",
-      "periodEndAfterStart": "The end of the period must be later than its start.",
-      "netPositive": "The net amount must be greater than 0."
+      "dueDateAfterIssue": "The due date must be on or after the issue date."
     },
     "property": {
       "titleRequired": "The title is required.",
@@ -9537,6 +9678,50 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        }
+      },
+      "payout": {
+        "awaiting_approval": {
+          "title": "Payout {reference} to approve",
+          "body": "Payout {reference} of {amount} is awaiting your approval."
+        },
+        "due": {
+          "title": "Payout {reference} is due",
+          "body": "Payout {reference} of {amount} is due: send it, then enter its reference."
+        },
+        "processed": {
+          "title": "Payout {reference} sent",
+          "body": "A payout of {amount} has been sent to you. Transaction reference: {transaction}. Destination: {destination}."
+        },
+        "failed": {
+          "title": "Payout {reference} failed",
+          "body": "Payout {reference} of {amount} did not go through. Reason: {reason}."
+        }
+      },
+      "payout_method": {
+        "added": {
+          "title": "Payment destination added",
+          "body": "Payment destination {destination} was added to your account. If you did not make this change, contact your agency immediately."
+        },
+        "updated": {
+          "title": "Payment destination updated",
+          "body": "Payment destination {destination} was updated on your account. If you did not make this change, contact your agency immediately."
+        },
+        "removed": {
+          "title": "Payment destination removed",
+          "body": "Payment destination {destination} was removed from your account. If you did not make this change, contact your agency immediately."
+        }
+      },
+      "owner_statement": {
+        "available": {
+          "title": "Your {period} management statement is available",
+          "body": "Your management statement for {period} is available in your space."
+        }
+      },
+      "payout_threshold": {
+        "relax_requested": {
+          "title": "Payout threshold relaxation to confirm",
+          "body": "A member of {agency} asks to relax the payout approval threshold. Nothing changes until a second approver confirms it from the agency settings."
         }
       },
       "review": {

@@ -635,6 +635,60 @@ return [
                 'sms' => 'Takussan: listing ":property" rejected.',
             ],
         ],
+        // TCK-594 (ADR-0039) — les sorties d'argent.
+        'payout' => [
+            'awaiting_approval' => [
+                'title' => 'Payout :reference to approve',
+                'body' => 'Payout :reference of :amount is awaiting your approval.',
+                'sms' => 'Takussan: payout :reference of :amount to approve.',
+            ],
+            'due' => [
+                'title' => 'Payout :reference is due',
+                'body' => 'Payout :reference of :amount is due: send it, then enter its reference.',
+                'sms' => 'Takussan: payout :reference is due.',
+            ],
+            'processed' => [
+                'title' => 'Payout :reference sent',
+                'body' => 'A payout of :amount has been sent to you. Transaction reference: :transaction. Destination: :destination.',
+                'sms' => 'Takussan: payout of :amount sent.',
+            ],
+            'failed' => [
+                'title' => 'Payout :reference failed',
+                'body' => 'Payout :reference of :amount did not go through. Reason: :reason.',
+                'sms' => 'Takussan: payout :reference failed.',
+            ],
+        ],
+        'payout_method' => [
+            'added' => [
+                'title' => 'Payment destination added',
+                'body' => 'Payment destination :destination was added to your account. If you did not make this change, contact your agency immediately.',
+                'sms' => 'Takussan: destination :destination added to your account.',
+            ],
+            'updated' => [
+                'title' => 'Payment destination updated',
+                'body' => 'Payment destination :destination was updated on your account. If you did not make this change, contact your agency immediately.',
+                'sms' => 'Takussan: destination :destination updated on your account.',
+            ],
+            'removed' => [
+                'title' => 'Payment destination removed',
+                'body' => 'Payment destination :destination was removed from your account. If you did not make this change, contact your agency immediately.',
+                'sms' => 'Takussan: destination :destination removed from your account.',
+            ],
+        ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Payout threshold relaxation to confirm',
+                'body' => 'A member of :agency asks to relax the payout approval threshold. Nothing changes until a second approver confirms it from the agency settings.',
+                'sms' => 'Takussan: payout threshold relaxation at :agency to confirm.',
+            ],
+        ],
+        'owner_statement' => [
+            'available' => [
+                'title' => 'Your :period management statement is available',
+                'body' => 'Your management statement for :period is available in your space.',
+                'sms' => 'Takussan: :period management statement available.',
+            ],
+        ],
         'review' => [
             'to_moderate' => [
                 'title' => 'Review to moderate: :subject',

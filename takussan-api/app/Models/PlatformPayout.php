@@ -23,8 +23,12 @@ class PlatformPayout extends AbstractModel
         'net_amount',
         'currency',
         'status',
+        'closed_by_id',
         'approved_by',
+        'approved_at',
+        'paid_by_id',
         'processed_at',
+        'payment_reference',
         'failure_reason',
         'metadata',
     ];
@@ -37,6 +41,7 @@ class PlatformPayout extends AbstractModel
         'net_amount' => 'decimal:2',
         'status' => PlatformPayoutStatus::class,
         'processed_at' => 'datetime',
+        'approved_at' => 'datetime',
         'metadata' => 'array',
     ];
 
@@ -46,7 +51,7 @@ class PlatformPayout extends AbstractModel
 
     protected static array $requestSortable = ['period_end', 'period_start', 'created_at', 'net_amount'];
 
-    protected static array $requestLoadable = ['agency', 'approver'];
+    protected static array $requestLoadable = ['agency', 'approver', 'closer', 'payer'];
 
     protected static array $queryFields = [
         'id',
@@ -58,8 +63,12 @@ class PlatformPayout extends AbstractModel
         'net_amount',
         'currency',
         'status',
+        'closed_by_id',
         'approved_by',
+        'approved_at',
+        'paid_by_id',
         'processed_at',
+        'payment_reference',
         'failure_reason',
         'metadata',
         'created_at',
@@ -74,6 +83,16 @@ class PlatformPayout extends AbstractModel
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by_id');
+    }
+
+    public function payer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paid_by_id');
     }
 
     public function bookingPayments(): HasMany

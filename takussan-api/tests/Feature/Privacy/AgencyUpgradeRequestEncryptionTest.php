@@ -89,8 +89,10 @@ class AgencyUpgradeRequestEncryptionTest extends ApiTestCase
         $rawMetadata = (string) DB::table('agencies')->where('id', $agency->id)->value('metadata');
         $this->assertStringNotContainsString('SNTEMOIN', $rawMetadata);
         $this->assertStringNotContainsString('rib_pro', $rawMetadata);
-        // Les autres champs légaux sont toujours amorcés.
-        $this->assertNotNull($agency->fresh()->metadata['legal_info']['company_legal_name'] ?? null);
+        // Les autres champs légaux sont toujours amorcés, dans leurs colonnes depuis TCK-594 ; le
+        // NINEA d'agence, public, compris (décision du 2026-10-08).
+        $this->assertSame('Témoin SARL', $agency->fresh()->legal_name);
+        $this->assertSame(self::NINEA, $agency->fresh()->ninea);
 
         foreach (['owner', 'agent', 'agency_admin'] as $role) {
             $this->apiActingAsRole($role, ['agency' => $agency]);
