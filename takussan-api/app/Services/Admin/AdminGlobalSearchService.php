@@ -12,6 +12,7 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -31,12 +32,14 @@ use Illuminate\Support\Collection;
  * `agency_upgrade_requests.ninea` (chiffrée par 601). Le NINEA se cherche dans
  * `agencies.metadata->legal_info`, en clair.
  *
- * Raccord TCK-601 : quand `PersonalDataAccessLogger` sera fusionné, chaque compte rendu ici se
- * trace par `record($operateur, $user, PersonalDataAccessLogger::SURFACE_GLOBAL_SEARCH)` — celui des
- * deux tickets qui fusionne en second ajoute l'appel (voir `search()`).
+ * Raccord TCK-601 (ADR-0044 §4) : chaque compte RENDU se trace par
+ * `PersonalDataAccessLogger::record($operateur, $compte, SURFACE_GLOBAL_SEARCH)` — après le tri et
+ * la coupe à cinq, jamais un compte lu puis écarté : ce qui n'est pas rendu n'est pas consulté.
  */
 class AdminGlobalSearchService
 {
+    public function __construct(private readonly PersonalDataAccessLogger $consultations) {}
+
     public const PER_TYPE = 5;
 
     public const FREE_TEXT_MIN = 3;
@@ -44,7 +47,7 @@ class AdminGlobalSearchService
     /**
      * @return list<array{type:string,id:int,label:string,sublabel:?string,agency:?array{id:int,name:string},url:?string}>
      */
-    public function search(string $q): array
+    public function search(string $q, User $operateur): array
     {
         $q = trim($q);
         $exact = collect()
@@ -55,13 +58,22 @@ class AdminGlobalSearchService
         $free = mb_strlen($q) >= self::FREE_TEXT_MIN ? $this->byFreeText($q) : collect();
 
         // Les correspondances exactes d'abord ; un même objet n'apparaît qu'une fois.
-        return $exact->concat($free)
+        $rendus = $exact->concat($free)
             ->unique(fn (array $hit) => $hit['type'].':'.$hit['id'])
             ->groupBy('type')
             ->flatMap(fn (Collection $hits) => $hits->take(self::PER_TYPE))
             ->sortBy(fn (array $hit) => $exact->contains(fn (array $e) => $e['type'] === $hit['type'] && $e['id'] === $hit['id']) ? 0 : 1)
             ->values()
             ->all();
+
+        $comptes = collect($rendus)->where('type', 'user')->pluck('id');
+        if ($comptes->isNotEmpty()) {
+            User::query()->whereKey($comptes)->get(['id'])->each(
+                fn (User $compte) => $this->consultations->record($operateur, $compte, PersonalDataAccessLogger::SURFACE_GLOBAL_SEARCH),
+            );
+        }
+
+        return $rendus;
     }
 
     /** @return Collection<int,array<string,mixed>> */

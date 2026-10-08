@@ -17,6 +17,6 @@ class GlobalSearchController extends Controller
 
     public function __invoke(GlobalSearchRequest $request): JsonResponse
     {
-        return $this->json(['data' => $this->search->search((string) $request->validated('q'))]);
+        return $this->json(['data' => $this->search->search((string) $request->validated('q'), $request->user())]);
     }
 }

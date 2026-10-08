@@ -11,7 +11,9 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Admin\AdminGlobalSearchService;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
 
@@ -117,6 +119,66 @@ class AdminGlobalSearchTest extends TestCase
         $this->agirEnOperateur(PlatformProfileLevel::Support);
         $this->getJson('/api/admin/search?q=d')->assertUnprocessable();
         $this->getJson('/api/admin/search?q='.str_repeat('a', 101))->assertUnprocessable();
+    }
+
+    /**
+     * Raccord TCK-601 (ADR-0044 §4) — un compte RENDU par la recherche est une consultation tracée,
+     * au nom de l'opérateur ; un compte écarté (non trouvé, ou au-delà des cinq) ne l'est pas, une
+     * recherche refusée n'écrit rien, et un rafraîchissement dans la fenêtre ne double pas la trace.
+     */
+    public function test_chaque_compte_rendu_est_une_consultation_tracee(): void
+    {
+        $fatou = User::factory()->create(['first_name' => 'Fatou', 'last_name' => 'Diop']);
+        $awa = User::factory()->create(['first_name' => 'Awa', 'last_name' => 'Ndiaye']);
+        $diops = User::factory()->count(AdminGlobalSearchService::PER_TYPE + 1)->create(['last_name' => 'Diopsy']);
+
+        $this->actingAsRole('agency_admin');
+        $this->getJson('/api/admin/search?q=diop')->assertForbidden();
+        $this->assertSame([], $this->consultations());
+
+        $operateur = $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $rendus = $this->ids($this->chercher('diop'), 'user');
+        $this->chercher('diop');
+
+        $this->assertCount(AdminGlobalSearchService::PER_TYPE, $rendus);
+        $this->assertEqualsCanonicalizing($rendus, $this->consultations(), 'un compte rendu = une trace, une seule');
+        $this->assertNotContains($awa->id, $this->consultations());
+        $ecartes = collect([$fatou, ...$diops])->pluck('id')->diff($rendus);
+        $this->assertNotEmpty($ecartes);
+        $this->assertSame([], $ecartes->intersect($this->consultations())->values()->all(), 'un compte écarté n\'est pas consulté');
+
+        $trace = Activity::query()->where('log_name', PersonalDataAccessLogger::LOG_NAME)->firstOrFail();
+        $this->assertSame($operateur->id, (int) $trace->causer_id);
+        $this->assertSame(PersonalDataAccessLogger::SURFACE_GLOBAL_SEARCH, $trace->properties['surface']);
+    }
+
+    /**
+     * La trace suit la COUPE, pas les requêtes : l'égalité (téléphone) et le texte libre rendent
+     * ensemble six comptes, la recherche en garde cinq — le sixième, lu puis écarté, n'est pas tracé.
+     */
+    public function test_le_compte_ecarte_par_la_coupe_n_est_pas_trace(): void
+    {
+        $parTelephone = User::factory()->create(['phone' => '+221771234567']);
+        $parTexte = collect(range(1, AdminGlobalSearchService::PER_TYPE))
+            ->map(fn (int $n) => User::factory()->create(['username' => "+221771234567-{$n}"]));
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $rendus = $this->ids($this->chercher('+221771234567'), 'user');
+
+        $this->assertCount(AdminGlobalSearchService::PER_TYPE, $rendus);
+        $this->assertSame($parTelephone->id, $rendus[0], 'l\'égalité passe en tête');
+        $ecartes = $parTexte->pluck('id')->diff($rendus)->values()->all();
+        $this->assertCount(1, $ecartes);
+        $this->assertEqualsCanonicalizing($rendus, $this->consultations());
+    }
+
+    /** @return list<int> */
+    private function consultations(): array
+    {
+        return Activity::query()
+            ->where('log_name', PersonalDataAccessLogger::LOG_NAME)
+            ->where('subject_type', (new User)->getMorphClass())
+            ->pluck('subject_id')->map(fn ($id) => (int) $id)->all();
     }
 
     /** @return list<int> */
