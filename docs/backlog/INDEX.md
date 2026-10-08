@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 36 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 35 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 507 |
@@ -34,7 +34,6 @@
 ## 📋 Todo
 
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
 - [TCK-342](tickets/TCK-342-libelles-wolof-divergents-back-front.md) — Le même bien porte deux mots wolof différents selon l'écran `M · P3 · applicatif`
@@ -72,6 +71,7 @@
 
 ## 🚧 Doing
 
+- [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 
 ## 👀 Review

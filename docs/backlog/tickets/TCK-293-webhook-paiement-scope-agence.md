@@ -1,13 +1,13 @@
 ---
 id: TCK-293
 title: "Webhook de paiement — le secret de n'importe quelle agence valide celui des autres"
-status: todo
+status: doing
 phase: P0
 family: bug
 estimate: M
-wave: null
+wave: 73
 created: 2026-08-16
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: []
 blocks: [TCK-602]
 spec_refs:
