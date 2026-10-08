@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Webhooks;
 
+use App\Domain\Alerts\AlertableEvents;
+use App\Events\Webhooks\WebhookProcessingFailed;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
@@ -14,6 +16,7 @@ use App\Models\IntegrationWebhookLog;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
@@ -87,6 +90,41 @@ class WebhookReplayTest extends TestCase
         $this->assertSame(PaymentStatus::Paid, $after->status);
         $this->assertSame($events, $after->metadata['gateway_events']);
         $this->assertSame(1, $log->refresh()->attempts);
+    }
+
+    /**
+     * Raccord TCK-600 — une ligne fermée sur `failed` émet `WebhookProcessingFailed`, sans corps ni
+     * en-tête ; un rejet et un traitement réussi (rejeu compris) n'émettent rien. L'événement n'a
+     * AUCUN écouteur et n'est pas une règle d'alerte : 600 l'y abonnera.
+     */
+    public function test_a_failed_row_emits_webhook_processing_failed_without_any_subscriber(): void
+    {
+        $this->assertFalse(Event::hasListeners(WebhookProcessingFailed::class), 'Aucun écouteur : l\'abonnement appartient à TCK-600.');
+        $this->assertSame([], array_filter(array_keys(AlertableEvents::all()), fn (string $key): bool => str_contains($key, 'webhook')));
+
+        [$payment, $integration] = $this->arrange();
+        Event::fake([WebhookProcessingFailed::class]);
+
+        $this->postWave($integration, $this->waveBody($payment->transaction_id), 'mauvais')->assertStatus(401);
+        Event::assertNotDispatched(WebhookProcessingFailed::class);
+
+        self::$explode = true;
+        $this->postWave($integration, $this->waveBody($payment->transaction_id))->assertStatus(500);
+        self::$explode = false;
+
+        $failed = IntegrationWebhookLog::query()->where('status', IntegrationWebhookLog::STATUS_FAILED)->sole();
+        Event::assertDispatchedTimes(WebhookProcessingFailed::class, 1);
+        Event::assertDispatched(WebhookProcessingFailed::class, fn (WebhookProcessingFailed $event): bool => $event->webhookLogId === $failed->id
+            && $event->channel === 'payment'
+            && $event->provider === 'wave'
+            && $event->agencyId === $integration->agency_id
+            && $event->errorCode === 'exception');
+
+        $this->actingAsRole('super_admin');
+        $this->postJson("/api/admin/webhook-logs/{$failed->id}/replay")
+            ->assertOk()
+            ->assertJsonPath('data.status', IntegrationWebhookLog::STATUS_PROCESSED);
+        Event::assertDispatchedTimes(WebhookProcessingFailed::class, 1);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Services\Webhooks;
 
+use App\Events\Webhooks\WebhookProcessingFailed;
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
 use App\Models\Integration;
@@ -128,7 +129,10 @@ class WebhookJournal
         $this->unmatchedResponse = true;
     }
 
-    /** Ferme la ligne sur `processed`, `rejected` ou `failed` — jamais `received`. */
+    /**
+     * Ferme la ligne sur `processed`, `rejected` ou `failed` — jamais `received`. Un `failed` émet
+     * {@see WebhookProcessingFailed}.
+     */
     public function close(?Response $response, ?Throwable $error = null): void
     {
         if ($this->log === null) {
@@ -154,6 +158,16 @@ class WebhookJournal
             'error_message' => $status >= 400 && $error !== null ? class_basename($error) : null,
             'processed_at' => now(),
         ])->save();
+
+        if ($outcome === IntegrationWebhookLog::STATUS_FAILED) {
+            WebhookProcessingFailed::dispatch(
+                (int) $this->log->getKey(),
+                (string) $this->log->channel,
+                (string) $this->log->provider,
+                $this->log->agency_id !== null ? (int) $this->log->agency_id : null,
+                $this->log->error_code,
+            );
+        }
 
         $this->log = null;
     }
