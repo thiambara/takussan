@@ -441,12 +441,12 @@ du Delta et un critère qui rougit sur le code actuel.
         `POST bookings/{id}/payments` par un autre bailleur de la même agence → 403, aucune ligne créée.
 
 ### 3A. Chevauchement des réservations (défaut, sans ADR)
-- [ ] `App\Services\Booking\PropertyAvailabilityService::assertAvailable(Property, start, end,
+- [x] `App\Services\Booking\PropertyAvailabilityService::assertAvailable(Property, start, end,
       ?Booking $ignore)`, première version : réservations `confirmed` du bien en intervalle semi-ouvert
       (`start_date < :end AND end_date > :start`). `BookingService::assertNoOverlap` délègue au service.
-- [ ] Appels : `BookingService::create`, `BookingService::confirm` (sous le verrou existant, l.177) et
+- [x] Appels : `BookingService::create`, `BookingService::confirm` (sous le verrou existant, l.177) et
       `PublicPropertyController::bookingRequest` (séjours datés uniquement, pas l'offre d'achat).
-- [ ] Test `BookingAvailabilityTest` : demande privée et publique sur des nuits d'une réservation
+- [x] Test `BookingAvailabilityTest` : demande privée et publique sur des nuits d'une réservation
       confirmée → 422 ; séjour qui arrive le jour du départ d'un autre → accepté à la demande **et** à
       la confirmation.
 
@@ -800,3 +800,14 @@ A2.2 → 1, A2.3 → 1, A2.4 → 1, A2.5 → 1, A2.6 → 2, A2.7 → 5, A2.8 →
 A2.11 → 1, A2.12 → 1, A2.13 → 1, A2.14 → 2, A2.15 → 1, A2.16 → 1 (après ajout du test « agent d'une
 autre agence » : la première passe l'avait laissée verte), A2.17 → 1, A2.18 → 1, A2.19 → 1, A2.20 → 1 ;
 F2.1 → 4, F2.2 → 1, F2.3 → 1, F2.4 → 1.
+
+**§3A — chevauchement.** Re-mesuré : `assertNoOverlap` en bornes fermées (`<=`/`>=`), appelé par `confirm`
+seul. `PropertyAvailabilityService::assertAvailable` (semi-ouvert, réservations `confirmed`) est appelé
+par `create`, `confirm` et la demande publique datée, **chacun sous le verrou de la ligne `properties`**
+(la demande prend le même verrou que `confirm`). **Ajout** : `confirm` verrouille aussi la ligne de la
+réservation, que `expire()` verrouille — une confirmation relue avant qu'une expiration ne valide
+écrasait `expired` par `confirmed` (non éprouvé par un test : course entre deux connexions).
+Preuve : `BookingAvailabilityTest` 7/7 + 4 classes voisines → 39 verts. Ablations (restaurées par
+`cp`) : A3.1 bornes fermées (le code d'origine) → 2 rouges ; A3.2 `create` sans vérification → 1 ;
+A3.3 demande publique sans vérification → 2 ; A3.4 statut ignoré → 2 ; A3.5 `confirm` sans
+vérification → 1.

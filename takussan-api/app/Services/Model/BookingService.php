@@ -14,6 +14,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
+use App\Services\Booking\PropertyAvailabilityService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +25,7 @@ class BookingService
         protected NotificationService $notifications,
         protected BookingQuote $quotes,
         protected CustomerService $customers,
+        protected PropertyAvailabilityService $availability,
     ) {}
 
     /** @var array<int,PropertyStatus> */
@@ -102,13 +104,20 @@ class BookingService
         // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
         $data = array_merge($data, $this->pricedAmounts($property, $data));
 
-        $booking = Booking::create(array_merge($data, [
-            'reference_number' => ReferenceNumberGenerator::booking(),
-            'created_by_id' => $user->id,
-            'agency_id' => $property->agency_id,
-            'status' => BookingStatus::Pending->value,
-            'expires_at' => $data['expires_at'] ?? now()->addDays(7),
-        ]));
+        // TCK-596 — une demande sur des nuits déjà confirmées est refusée dès la demande, sous le
+        // verrou de la ligne du bien que `confirm` prend aussi.
+        $booking = DB::transaction(function () use ($property, $user, $data): Booking {
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+            $this->availability->assertAvailable($property, $data['start_date'] ?? null, $data['end_date'] ?? null);
+
+            return Booking::create(array_merge($data, [
+                'reference_number' => ReferenceNumberGenerator::booking(),
+                'created_by_id' => $user->id,
+                'agency_id' => $property->agency_id,
+                'status' => BookingStatus::Pending->value,
+                'expires_at' => $data['expires_at'] ?? now()->addDays(7),
+            ]));
+        });
 
         // TCK-596 — prévenir qui doit traiter la demande (bailleur, personnel, agent du bien) est
         // le rôle de `NotifyOnBookingRequested`, partagé avec la demande publique : ici, le seul
@@ -169,6 +178,10 @@ class BookingService
         // re-assert state under the lock.
         $booking = DB::transaction(function () use ($booking) {
             Property::query()->whereKey($booking->property_id)->lockForUpdate()->first();
+            // TCK-596 — la ligne de la réservation aussi : l'expiration la verrouille
+            // (`BookingExpirationService::expire`), et une confirmation relue avant qu'une
+            // expiration ne valide écrasait `expired` par `confirmed`.
+            Booking::query()->whereKey($booking->getKey())->lockForUpdate()->first();
 
             $booking->refresh();
             abort_code_unless(
@@ -226,30 +239,13 @@ class BookingService
      * Reject the confirmation if another confirmed booking already
      * overlaps the target booking's date range on the same property.
      * Bookings without dates are skipped (open-ended reservations).
+     *
+     * TCK-596 — délègue à `PropertyAvailabilityService`, en semi-ouvert : les bornes fermées
+     * refusaient un séjour qui arrive le jour du départ d'un autre.
      */
     protected function assertNoOverlap(Booking $booking): void
     {
-        if (! $booking->start_date || ! $booking->end_date) {
-            return;
-        }
-
-        $overlap = Booking::query()
-            ->where('property_id', $booking->property_id)
-            ->where('id', '!=', $booking->id)
-            ->where('status', BookingStatus::Confirmed)
-            ->whereNotNull('start_date')
-            ->whereNotNull('end_date')
-            ->where(function ($q) use ($booking) {
-                $q->where('start_date', '<=', $booking->end_date)
-                    ->where('end_date', '>=', $booking->start_date);
-            })
-            ->exists();
-
-        abort_code_if(
-            $overlap,
-            422,
-            'booking.dates_overlap'
-        );
+        $this->availability->assertAvailable($booking->property_id, $booking->start_date, $booking->end_date, $booking);
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking
