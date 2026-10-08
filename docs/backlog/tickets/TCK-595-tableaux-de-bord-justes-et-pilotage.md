@@ -1012,3 +1012,25 @@ restaurées par `cp` + md5).
   README des ADR garde l'union (0047, 0048, 0049, 0052 à 0055, 0057), et INDEX.md est régénéré.
 - AC21 est prouvé par la CI de #344 sur `ca51d0e8`. Le ticket passe à `done`, puisque toutes les cases
   sont cochées. La livraison en trois PR n'a pas été suivie : une seule PR.
+
+### Lot 15 — passe 2 de la contre-vérification (verif-595 : 1 majeur, 1 mineur)
+
+- **MAJEUR 1 : *Impayé* compte `partially_paid`, au reste dû** (`8230523f`).
+  - Le § 2 ci-dessus écrivait `pending|late`. Or le reste du dépôt compte `partially_paid` comme dû :
+    `scopeOverdue`, les relances, les pénalités, le blocage de suppression et le relevé du bailleur.
+  - La règle est désormais `pending | partially_paid | late` échus, comptés au reste dû
+    (`amount − metadata.paid_amount`, l'assiette de `LateFeeCalculator`). Elle vaut pour les tuiles de
+    l'agence, du bailleur et du locataire, la balance âgée, l'export `aging` (dont la colonne `amount`
+    est le reste dû) et le relevé du bailleur.
+  - Test : `OwedRemainderTest`, un jeu calculé à la main qui donne 4 échéances pour 300 000 sur chaque
+    lecteur. Six ablations rouges.
+- **MINEUR 1 : solder une ligne juge l'état relu sous verrou** (`83d8b44c`).
+  - Test : `CommissionEntryApiTest::test_m2bis_settling_judges_the_row_read_under_the_lock`. La
+    mutation `$entry->status` le fait rougir.
+- **En suite, hors de ce ticket :**
+  - le repli sur `commission_amount` pour un bail sans ligne ;
+  - un bail dont toutes les lignes sont annulées garde sa base pleine dans la tuile : la commission
+    signée, pas la commission versée. La tuile n'a pas d'aide où l'écrire : son chiffre est l'indice
+    « Commissions : … » de la tuile Revenus ;
+  - les chiffres non financiers de `/dashboard/me` sans `view_agency`.
+
