@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Http\Request;
 
 class AgencyResource extends BaseResource
@@ -33,11 +34,14 @@ class AgencyResource extends BaseResource
             ...($seesMoneyOut ? [
                 'payout_approval_threshold' => $this->payout_approval_threshold !== null ? (float) $this->payout_approval_threshold : null,
                 // VERIF-594 M-2 — un relâchement en attente d'un second détenteur de `payouts.approve`.
-                'pending_payout_threshold_change' => $this->pending_payout_threshold_requested_at !== null ? [
-                    'threshold' => $this->pending_payout_threshold !== null ? (float) $this->pending_payout_threshold : null,
-                    'requested_by_id' => $this->pending_payout_threshold_requested_by_id,
-                    'requested_at' => $this->iso($this->pending_payout_threshold_requested_at),
-                ] : null,
+                // VERIF-594 passe 2, N-4 — une demande expirée ne se montre plus : elle ne se confirme plus.
+                'pending_payout_threshold_change' => $this->pending_payout_threshold_requested_at !== null
+                    && ! PayoutApprovalThreshold::isExpired($this->pending_payout_threshold_requested_at) ? [
+                        'threshold' => $this->pending_payout_threshold !== null ? (float) $this->pending_payout_threshold : null,
+                        'requested_by_id' => $this->pending_payout_threshold_requested_by_id,
+                        'requested_at' => $this->iso($this->pending_payout_threshold_requested_at),
+                        'expires_at' => $this->iso($this->pending_payout_threshold_requested_at->copy()->addDays(PayoutApprovalThreshold::REQUEST_TTL_DAYS)),
+                    ] : null,
             ] : []),
             'default_tax_rate' => $this->default_tax_rate !== null ? (float) $this->default_tax_rate : null,
             'legal_name' => $this->legal_name,

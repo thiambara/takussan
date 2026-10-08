@@ -578,6 +578,10 @@ rend **403** avec une clé i18n, jamais une phrase.
   trace.
 - [x] **N-3** — la fenêtre du cumul passe à 27 jours glissants (`PayoutApprovalRule::WINDOW_DAYS`,
   seule valeur ; la préparation la rend en `approval_window_days`, que le bandeau de l'écran affiche).
+- [x] **N-4** — une demande de relâchement du seuil expire au bout de 7 jours
+  (`PayoutApprovalThreshold::REQUEST_TTL_DAYS`) : confirmée après, 422
+  `payout.threshold_request_expired`, demande effacée et tracée ; `AgencyResource` ne la rend plus, et
+  rend `expires_at` pour une demande en cours.
 
 ### Front (intentionnel)
 
@@ -831,6 +835,12 @@ rend **403** avec une clé i18n, jamais une phrase.
   `awaiting_approval`. La préparation rend `approval_window_days = 27`, et le bandeau dit
   « depuis 27 jours ».
   **Preuve** : `PayoutBypassTest::test_n3_a_monthly_cadence_does_not_add_up_but_a_split_within_the_month_does` (rouge sur 38495c16) ; front `CreatePayoutDialog.test.tsx`. Ablations V-N3 (30 jours), V-N3b (9 jours), W-N3 (30 en dur dans l'écran) : rouges.
+- [x] **AC-N4 — une demande de relâchement expire.** A coupe le seuil (202). Huit jours plus tard, B
+  ne lit plus de demande en attente, et sa confirmation rend 422 `payout.threshold_request_expired` ;
+  le seuil reste 100 000, la demande est effacée (une seconde confirmation : 422
+  `payout.no_pending_threshold_change`). Une nouvelle demande, confirmée six jours après : 200, et
+  `expires_at` = demande + 7 jours.
+  **Preuve** : `PayoutBypassTest::test_n4_a_relax_request_expires_after_seven_days` (rouge sur 38495c16). Ablations V-N4a (jamais expirée), V-N4b (refus levé dans la transaction, qui annule l'effacement), V-N4c (expirée encore montrée) : rouges.
 
 ## Hors périmètre
 
@@ -1228,3 +1238,8 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   30 jours » en dur ; il lit maintenant la valeur du serveur (`{days}` dans les trois langues), et le
   test d'ablation W-N3 rougit si l'écran l'écrit en dur. Décision réversible : changer la constante
   suffit, l'écran suit.
+- **N-4 — la demande qui n'expirait pas.** L'effacement d'une demande expirée se fait dans la
+  transaction, et le refus (422) est levé APRÈS elle : levé dedans, il annulerait l'effacement (c'est
+  l'ablation V-N4b). L'expiration se juge à la lecture (`isExpired`), sans tâche planifiée : une
+  demande expirée et jamais confirmée reste en base jusqu'au prochain changement ou à la prochaine
+  confirmation, mais l'API ne la montre plus. Le front ne fait que typer `expires_at`.

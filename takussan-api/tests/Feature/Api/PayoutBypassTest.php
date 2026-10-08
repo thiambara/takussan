@@ -634,4 +634,38 @@ class PayoutBypassTest extends TestCase
             ->assertOk()->assertJsonPath('data.approval_window_days', PayoutApprovalRule::WINDOW_DAYS);
         $this->assertSame(27, PayoutApprovalRule::WINDOW_DAYS);
     }
+
+    /**
+     * VERIF-594 passe 2, N-4 — une demande de relâchement se confirmait 90 jours plus tard. Elle
+     * expire au bout de 7 jours : confirmée après, 422 `payout.threshold_request_expired`, et la
+     * demande est effacée ; dans le délai, elle se confirme.
+     */
+    public function test_n4_a_relax_request_expires_after_seven_days(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        [$a, $b] = [$this->agencyAdmin($agency), $this->agencyAdmin($agency)];
+        $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
+
+        Sanctum::actingAs($a);
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
+        $this->travel(8)->days();
+        Sanctum::actingAs($b);
+        $this->getJson("/api/agencies/{$agency->id}")->assertJsonPath('data.pending_payout_threshold_change', null);
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.threshold_request_expired');
+        $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
+        $this->assertNull($agency->fresh()->pending_payout_threshold_requested_at);
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.no_pending_threshold_change');
+
+        Sanctum::actingAs($a);
+        $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
+        $this->travel(6)->days();
+        Sanctum::actingAs($b);
+        $this->getJson("/api/agencies/{$agency->id}")->assertJsonPath('data.pending_payout_threshold_change.threshold', null)
+            ->assertJsonPath('data.pending_payout_threshold_change.expires_at', $agency->fresh()->pending_payout_threshold_requested_at->addDays(7)->toIso8601String());
+        $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])->assertOk();
+        $this->assertNull($agency->fresh()->payout_approval_threshold);
+    }
 }

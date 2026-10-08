@@ -277,6 +277,7 @@ return [
         'verifier_cannot_pay_yet' => 'Yaa seetlu fi ñuy yónne xaalis bi, 24 waxtu jotul : keneen ci mbootaay bi war na fey.',
         'threshold_needs_second_approver' => 'Seuil bi du woyofu fii ak approbateur bu ñaareel : agence bi benn rekk la am.',
         'no_pending_threshold_change' => 'Amul benn coppite ci seuil bi buy xaar ñu dëggal ko.',
+        'threshold_request_expired' => 'Laaj bi ngir yolomal seuil bi jeex na : war nañu ko defaat.',
         'awaiting_approval' => 'Bii reversement mi ngi xaar ñu nangu ko.',
         'cannot_cancel' => 'Reversement bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',

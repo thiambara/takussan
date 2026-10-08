@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Support\SegregationOfDuties;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,6 +35,12 @@ final class PayoutApprovalThreshold
     public const PENDING = 'pending';
 
     public const UNCHANGED = 'unchanged';
+
+    /**
+     * VERIF-594 passe 2, N-4 — une demande de relâchement expire au bout de 7 jours : confirmée
+     * 90 jours plus tard, elle relâchait un contrôle sur une décision que plus personne ne portait.
+     */
+    public const REQUEST_TTL_DAYS = 7;
 
     public function __construct(private readonly PayoutApprovers $approvers) {}
 
@@ -106,11 +113,29 @@ final class PayoutApprovalThreshold
      */
     public function confirm(Agency $agency, User $actor): void
     {
-        DB::transaction(function () use ($agency, $actor): void {
+        $expired = DB::transaction(function () use ($agency, $actor): bool {
             /** @var Agency $locked */
             $locked = Agency::query()->whereKey($agency->id)->lockForUpdate()->firstOrFail();
 
             abort_code_if($locked->pending_payout_threshold_requested_at === null, 422, 'payout.no_pending_threshold_change');
+
+            // N-4 — expirée, la demande est effacée (et l'effacement tracé) AVANT le refus : un
+            // refus levé dans la transaction annulerait l'effacement.
+            if (self::isExpired($locked->pending_payout_threshold_requested_at)) {
+                activity()
+                    ->causedBy($actor)
+                    ->performedOn($locked)
+                    ->event('agency_payout_threshold_relax_expired')
+                    ->withProperties([
+                        'requested_by' => $locked->pending_payout_threshold_requested_by_id,
+                        'requested_at' => $locked->pending_payout_threshold_requested_at?->toIso8601String(),
+                    ])
+                    ->log('agency_payout_threshold_relax_expired');
+                $locked->forceFill($this->noPending())->save();
+
+                return true;
+            }
+
             SegregationOfDuties::assertDistinct(
                 $actor,
                 [$locked->pending_payout_threshold_requested_by_id],
@@ -123,9 +148,18 @@ final class PayoutApprovalThreshold
 
             $locked->forceFill(['payout_approval_threshold' => $new] + $this->noPending())->save();
             $this->trace($locked, $actor, $old, $new, $requestedBy);
+
+            return false;
         });
 
         $agency->refresh();
+        abort_code_if($expired, 422, 'payout.threshold_request_expired');
+    }
+
+    /** N-4 — une demande plus vieille que {@see self::REQUEST_TTL_DAYS} jours ne se confirme plus. */
+    public static function isExpired(?CarbonInterface $requestedAt): bool
+    {
+        return $requestedAt !== null && $requestedAt->lt(now()->subDays(self::REQUEST_TTL_DAYS));
     }
 
     /** @return array<string, null> */

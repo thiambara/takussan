@@ -91,6 +91,8 @@ export interface Agency {
     threshold: number | null;
     requested_by_id: number | null;
     requested_at: string | null;
+    /** VERIF-594 passe 2, N-4 — la demande expire 7 jours après ; expirée, l'API ne la rend plus. */
+    expires_at?: string | null;
   } | null;
   /** TCK-594 (ADR-0039 §7) — TVA appliquée par défaut aux factures (un taux explicite gagne). */
   default_tax_rate?: number | null;
