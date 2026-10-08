@@ -3,8 +3,12 @@
 namespace Tests\Feature\Maintenance;
 
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\MaintenanceRequest;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Support\MaintenanceActors;
@@ -22,7 +26,62 @@ class MaintenanceTerminalRequestTest extends TestCase
 {
     use MaintenanceActors, RefreshDatabase;
 
-    /** Sonde v01. */
+    /**
+     * Passe 2 (N3, sonde p04) — `POST /api/media`, le chemin générique, déléguait à `update` : le
+     * prestataire comme le bailleur ajoutaient des photos à une intervention close.
+     */
+    public function test_no_media_is_attached_to_a_closed_or_cancelled_request(): void
+    {
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake('private');
+
+        foreach ([MaintenanceStatus::Closed, MaintenanceStatus::Cancelled] as $status) {
+            ['mr' => $mr, 'provider' => $provider, 'landlord' => $landlord] = $this->maintenanceScenario($status, ['accepted_at' => now()]);
+
+            foreach ([$provider, $landlord] as $actor) {
+                Sanctum::actingAs($actor);
+                foreach (['photos', 'documents'] as $collection) {
+                    $this->attach($mr, $collection)->assertForbidden();
+                }
+            }
+            $this->assertCount(0, $mr->refresh()->getMedia('photos'));
+            $this->assertCount(0, $mr->getMedia('documents'));
+        }
+
+        // Témoin : en cours, le bailleur joint toujours sa photo.
+        ['mr' => $open, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now()]);
+        Sanctum::actingAs($landlord);
+        $this->attach($open, 'photos')->assertCreated();
+    }
+
+    /** Passe 2 (N3) — la suppression d'une pièce d'une intervention close est refusée de même. */
+    public function test_no_media_is_deleted_from_a_closed_request(): void
+    {
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake('private');
+        ['mr' => $mr, 'provider' => $provider, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::Closed, ['accepted_at' => now()]);
+        $media = $mr->addMedia(UploadedFile::fake()->image('preuve.jpg'))->toMediaCollection('photos');
+
+        foreach ([$provider, $landlord] as $actor) {
+            Sanctum::actingAs($actor);
+            $this->deleteJson("/api/media/{$media->id}")->assertForbidden();
+        }
+        $this->assertCount(1, $mr->refresh()->getMedia('photos'));
+    }
+
+    private function attach(MaintenanceRequest $mr, string $collection): TestResponse
+    {
+        return $this->post('/api/media', [
+            'file' => $collection === 'documents'
+                ? UploadedFile::fake()->create('devis.pdf', 20, 'application/pdf')
+                : UploadedFile::fake()->image('p.jpg'),
+            'collection' => $collection,
+            'model_type' => MaintenanceRequest::class,
+            'model_id' => $mr->id,
+        ], ['Accept' => 'application/json']);
+    }
+
+    /** Sonde v01.
     public function test_the_provider_cannot_rewrite_a_closed_request(): void
     {
         ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Closed, ['accepted_at' => now(), 'resolution_notes' => 'orig']);

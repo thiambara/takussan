@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Http\Controllers\Api\MediaController;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
@@ -54,6 +55,19 @@ class MaintenanceRequestPolicy extends BasePolicy
         return $user->isSuperAdmin()
             || $this->isAssignedProvider($user, $model)
             || self::isPrincipalFor($user, $model->property);
+    }
+
+    /**
+     * TCK-592 (verif-592 passe 2, N3) — joindre une pièce par le chemin générique `POST /api/media`
+     * ({@see MediaController::authorizeAttach()}) : les acteurs
+     * d'`update`, jamais sur une demande close ou annulée. `uploadPhotos` et le `PATCH` refusaient
+     * l'état terminal ; ce chemin-là déléguait à `update`, qui n'en sait rien et sert ailleurs, et
+     * réécrivait les preuves d'une intervention close.
+     */
+    public function attachMedia(User $user, MaintenanceRequest $request): bool
+    {
+        return ! app(MaintenanceStateMachine::class)->isTerminal($request->status)
+            && $this->update($user, $request);
     }
 
     /**
