@@ -34,13 +34,17 @@ class PropertyVisitPolicy extends BasePolicy
         // a créé le bien ne lit plus la visite. L'agent assigné, de même, ne la lit sur un bien
         // d'agence que tant qu'il en est du personnel. La fiche client reste au seul personnel
         // ({@see PropertyVisitResource}).
+        //
+        // Passe 4 (X1) — le personnel est jugé par LA définition du ticket,
+        // `PersonnelDeLAgence::estPersonnel` (compte joignable, puis `isStaffAt`) : par
+        // `isStaffOf`, un compte BLOQUÉ de l'agence lisait encore la visite et sa fiche.
         return $user->isSuperAdmin()
             || $model->visitor_id === $user->id
             || ($model->agent_id === $user->id
                 && ($property === null || $property->agency_id === null
                     || PersonnelDeLAgence::estPersonnel($user, $property->agency_id)))
             || ($property && PrimaryPropertyContact::estProprietaire($user, $property))
-            || ($property && $this->isStaffOf($user, $property->agency_id))
+            || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id))
             || ($model->customer && $model->customer->user_id === $user->id);
     }
 
@@ -61,10 +65,11 @@ class PropertyVisitPolicy extends BasePolicy
         // bailleur, actif ou bloqué, n'écrit plus une visite — `update`, `confirm`, `complete` et
         // `cancel` passent par `PropertyVisitController::agitPourLeBien`, réservé au personnel.
         // La branche `landlordWrites` ne décide donc plus que pour un bien sans agence.
+        // Passe 4 (X1) — le personnel, comme dans `view` : `estPersonnel`.
         return $user->isSuperAdmin()
             || $model->agent_id === $user->id
             || ($property && $this->landlordWrites($user, $property->user_id, $property->agency_id))
-            || ($property && $this->isStaffOf($user, $property->agency_id));
+            || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
     }
 
     /**

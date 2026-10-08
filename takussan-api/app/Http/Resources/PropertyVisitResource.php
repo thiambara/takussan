@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Rules\PersonnelDeLAgence;
 use Illuminate\Http\Request;
 
 class PropertyVisitResource extends BaseResource
@@ -71,8 +72,12 @@ class PropertyVisitResource extends BaseResource
      * comme le non-personnel qui planifie pour lui-même (B1). Le visiteur garde l'identifiant de
      * sa propre fiche. Un bien sans agence n'a pas de CRM d'agence : rien à masquer.
      *
-     * L'agence du personnel est lue une fois par requête, et l'index pose l'agence de chaque bien
-     * de la page (`visits.property_agencies`) : rien n'est relu ligne par ligne.
+     * L'index pose l'agence de chaque bien de la page (`visits.property_agencies`) et les agences
+     * où le lecteur est personnel (`visits.staff_agencies`) : rien n'est relu ligne par ligne.
+     * Ailleurs, le verdict est retenu par agence pour la requête.
+     *
+     * Passe 4 (X1) — le personnel est jugé par `PersonnelDeLAgence::estPersonnel` (compte
+     * joignable, puis `isStaffAt`), la définition de `PropertyVisitPolicy::view`.
      */
     private function ficheClientLisible(Request $request): bool
     {
@@ -102,10 +107,17 @@ class PropertyVisitResource extends BaseResource
             return true;
         }
 
-        if (! $request->attributes->has('visits.staff_agency_id')) {
-            $request->attributes->set('visits.staff_agency_id', $user->staffAgencyId());
+        $agences = $request->attributes->get('visits.staff_agencies');
+        if (is_array($agences)) {
+            return in_array((int) $agencyId, $agences, true);
         }
 
-        return $request->attributes->get('visits.staff_agency_id') === (int) $agencyId;
+        $verdicts = $request->attributes->get('visits.staff_of', []);
+        if (! array_key_exists((int) $agencyId, $verdicts)) {
+            $verdicts[(int) $agencyId] = PersonnelDeLAgence::estPersonnel($user, $agencyId);
+            $request->attributes->set('visits.staff_of', $verdicts);
+        }
+
+        return $verdicts[(int) $agencyId];
     }
 }

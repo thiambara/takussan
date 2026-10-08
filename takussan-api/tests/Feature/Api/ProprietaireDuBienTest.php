@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -273,5 +274,26 @@ class ProprietaireDuBienTest extends ApiTestCase
             $this->assertStringNotContainsString('fiche@example.com', $reponse->getContent());
             $this->assertStringNotContainsString('Secrete', $reponse->getContent());
         }
+    }
+
+    /**
+     * Passe 4 (X1) — une seule définition du personnel, pour la lecture aussi : un membre du
+     * personnel dont le COMPTE est bloqué ne lit plus la visite ni ne la liste, et ne l'écrit pas.
+     * Profil retiré ou suspendu, c'était déjà le cas ; compte bloqué, il lisait encore la fiche.
+     */
+    public function test_x1_un_compte_de_personnel_bloque_ne_lit_plus_les_visites(): void
+    {
+        $agent = $this->personnel($this->x);
+        $visite = $this->visitePourUneFiche($this->bienDe($this->x));
+
+        Sanctum::actingAs($agent);
+        $this->getJson("/api/property-visits/{$visite->id}")->assertOk();
+
+        $agent->update(['status' => UserStatus::Blocked]);
+        Sanctum::actingAs($agent->fresh());
+        $this->getJson("/api/property-visits/{$visite->id}")->assertForbidden();
+        $this->assertSame([], $this->getJson('/api/property-visits?include=customer')->assertOk()->json('data'));
+        $this->patchJson("/api/property-visits/{$visite->id}", ['notes' => 'x'])->assertForbidden();
+        $this->assertFalse($agent->fresh()->can('update', $visite->fresh()));
     }
 }

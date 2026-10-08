@@ -46,15 +46,18 @@ class PropertyVisitController extends Controller
         $base = PropertyVisit::query();
 
         if (! $user->isSuperAdmin()) {
-            $staffAgencyId = $user->staffAgencyId();
             // Vérification adverse (M7) — le créateur d'un bien d'agence n'en est le propriétaire
             // que s'il y est bailleur actif (`PrimaryPropertyContact::estProprietaire`).
             $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
             // Passe 3 (M7′) — l'agent assigné ne lit la visite d'un bien d'agence que tant qu'il
             // est du personnel de cette agence : parti ou suspendu, il la perd, comme dans `view`.
+            // Passe 4 (X1) — et le personnel lit les visites des biens de SES agences par la même
+            // définition (`estPersonnel` : compte joignable) ; `staffAgencyId()` ignorait le
+            // compte bloqué.
             $personnelDe = PersonnelDeLAgence::agencesOuPersonnel($user);
+            $request->attributes->set('visits.staff_agencies', $personnelDe);
 
-            $base->where(function ($q) use ($user, $staffAgencyId, $bailleurDe, $personnelDe) {
+            $base->where(function ($q) use ($user, $bailleurDe, $personnelDe) {
                 $q->where('visitor_id', $user->id)
                     ->orWhere(fn ($a) => $a->where('agent_id', $user->id)
                         ->whereHas('property', fn ($p) => $p->whereNull('agency_id')->orWhereIn('agency_id', $personnelDe)))
@@ -62,8 +65,8 @@ class PropertyVisitController extends Controller
                         ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $bailleurDe)))
                     ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
 
-                if ($staffAgencyId !== null) {
-                    $q->orWhereHas('property', fn ($p) => $p->where('agency_id', $staffAgencyId));
+                if ($personnelDe !== []) {
+                    $q->orWhereHas('property', fn ($p) => $p->whereIn('agency_id', $personnelDe));
                 }
             });
         }
