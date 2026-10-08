@@ -61,6 +61,15 @@ use App\Rules\PersonnelDeLAgence;
  * Le personnel se juge par `PersonnelDeLAgence::estPersonnel()`, branché sur
  * `MembershipCapabilityResolver::isStaffAt()` depuis la fusion de TCK-587 : une seule définition,
  * au prix d'une requête par collaborateur `agent` examiné (l'ordre s'arrête au premier éligible).
+ *
+ * ## Le choix explicite d'abord (TCK-504, ADR-0053)
+ *
+ * Déterministe n'est pas CHOISI : une agence qui confie un bien à deux agents dit lequel répond, par
+ * la marque `is_primary` de sa ligne de collaboration (unique par bien et réservée au rôle `agent`
+ * par le schéma, posée par {@see PrimaryAgentDesignator} seul). La ligne marquée passe devant
+ * l'ordre d'invitation, **à la même éligibilité** : une marque posée sur un agent bloqué, suspendu
+ * ou retiré de l'agence reste en place mais ne vaut rien tant qu'il l'est — le repli ci-dessus
+ * reprend, et le choix revient s'il est réactivé. Sans marque, rien ne change : le repli est muet.
  */
 class PrimaryPropertyContact
 {
@@ -74,8 +83,37 @@ class PrimaryPropertyContact
     {
         $owner = $property->owner;
 
-        return self::agentPrincipal($property)?->user
+        return self::collaborateurPrincipal($property)?->user
             ?? (self::estProprietaire($owner, $property) || self::eligible($owner, $property) ? $owner : null);
+    }
+
+    /**
+     * TCK-504 — la ligne de collaboration qui répond pour le bien : la ligne MARQUÉE si elle est
+     * éligible, sinon le collaborateur `agent` éligible le plus anciennement invité ; `null` quand
+     * c'est le propriétaire qui répond, ou personne.
+     *
+     * {@see self::for()} s'écrit à partir d'elle, le backfill d'ADR-0053 et l'écran des
+     * collaborateurs la lisent : c'est la même règle, pas une seconde.
+     *
+     * ⚠️ Même hypothèse de chargement que {@see self::for()}.
+     */
+    public static function collaborateurPrincipal(Property $property): ?PropertyCollaborator
+    {
+        $agents = $property->collaborators
+            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent);
+
+        $designe = $agents->first(fn (PropertyCollaborator $c) => $c->is_primary === true);
+        if ($designe !== null && self::eligible($designe->user, $property)) {
+            return $designe;
+        }
+
+        // L'ordre d'abord, l'éligibilité ensuite, et seulement jusqu'au premier éligible : depuis
+        // TCK-587, juger le personnel est une requête (`isStaffAt`), et la fiche ne doit pas en
+        // payer une par collaborateur.
+        return $agents
+            ->reject(fn (PropertyCollaborator $c) => $c === $designe)
+            ->sort(self::ordre(...))
+            ->first(fn (PropertyCollaborator $c) => self::eligible($c->user, $property));
     }
 
     /**
@@ -126,22 +164,14 @@ class PrimaryPropertyContact
             && ! in_array($user->status, [UserStatus::Blocked, UserStatus::Deleted], true);
     }
 
-    private static function agentPrincipal(Property $property): ?PropertyCollaborator
-    {
-        // L'ordre d'abord, l'éligibilité ensuite, et seulement jusqu'au premier éligible : depuis
-        // TCK-587, juger le personnel est une requête (`isStaffAt`), et la fiche ne doit pas en
-        // payer une par collaborateur.
-        return $property->collaborators
-            ->filter(fn (PropertyCollaborator $c) => $c->role === CollaboratorRole::Agent)
-            ->sort(self::ordre(...))
-            ->first(fn (PropertyCollaborator $c) => self::eligible($c->user, $property));
-    }
-
     /**
      * Joignable et, pour un bien d'agence, personnel ACTIF de cette agence — la définition unique
      * de `PersonnelDeLAgence::estPersonnel()`.
+     *
+     * Publique depuis TCK-504 : {@see PrimaryAgentDesignator} refuse de marquer qui n'est pas
+     * éligible, sans quoi la marque désignerait quelqu'un que cette règle écarte aussitôt.
      */
-    private static function eligible(?User $user, Property $property): bool
+    public static function eligible(?User $user, Property $property): bool
     {
         if (! self::joignable($user)) {
             return false;

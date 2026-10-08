@@ -1267,6 +1267,31 @@
         "exportCopied": "Copied",
         "exportOnce": "This link is shown only once. Generating a new one disables the previous one.",
         "feedPending": "first sync in progress"
+      },
+      "collaborators": {
+        "title": "Primary agent",
+        "explanation": "The primary agent is the person the property's public page names, who receives visitors' messages and requests, and whose phone number is shown.",
+        "source": {
+          "designated": "Chosen by the agency.",
+          "invitation_order": "No choice has been made: the agent first associated with the property responds.",
+          "owner": "No active agent is associated with this property: the owner responds.",
+          "designated_unavailable": "The agent chosen by the agency is no longer active: {repli, select, agent {the agent first associated with the property responds instead} other {the owner responds instead}}, until they are active again or another agent is designated."
+        },
+        "badge": {
+          "designated": "Primary agent",
+          "default": "Responds by default",
+          "unavailable": "Chosen, unavailable"
+        },
+        "roles": {
+          "agent": "Agent",
+          "manager": "Manager",
+          "co_owner": "Co-owner",
+          "viewer": "View only"
+        },
+        "designate": "Make primary",
+        "designateFor": "Make {name} the primary agent",
+        "empty": "No collaborator is associated with this property.",
+        "error": "The designation did not go through. Please try again."
       }
     },
     "visibility": {

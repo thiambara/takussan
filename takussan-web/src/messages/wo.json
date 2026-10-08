@@ -5273,6 +5273,31 @@
         "exportCopied": "Duppi nañu ko",
         "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba.",
         "feedPending": "njëkk dëppale mi ngi dox"
+      },
+      "collaborators": {
+        "title": "Ajaa bu njëkk",
+        "explanation": "Ajaa bu njëkk bi mooy ki xët wu siiwu wu kër gi di tudd, di jot bataaxal yi ak laaj yi, te ñu wone nimeroom.",
+        "source": {
+          "designated": "Ajaas bi moo ko tànn.",
+          "invitation_order": "Kenn tànnaguñu ko : ajaa bi ñu njëkk a boole ak kër gi moo tontu.",
+          "owner": "Amul ajaa buy dox bu ñu boole ak kër gii : boroom kër gi moo tontu.",
+          "designated_unavailable": "Ajaa bi ajaas bi tànn doxatul : {repli, select, agent {ajaa bi ñu njëkk a boole ak kër gi moo koy wuutu} other {boroom kër gi moo koy wuutu}}, ba mu dellusi dox walla ñu tànn beneen ajaa."
+        },
+        "badge": {
+          "designated": "Ajaa bu njëkk",
+          "default": "Moo tontu ci boppam",
+          "unavailable": "Tànnees na, doxul"
+        },
+        "roles": {
+          "agent": "Ajaa",
+          "manager": "Saytukat",
+          "co_owner": "Boroom kër bu bokk",
+          "viewer": "Xool rekk"
+        },
+        "designate": "Def ko ajaa bu njëkk",
+        "designateFor": "Def {name} ajaa bu njëkk",
+        "empty": "Amul benn jàngalekat bu ñu boole ak kër gii.",
+        "error": "Tànn gi antuwul. Jéemaatal."
       }
     },
     "status": {

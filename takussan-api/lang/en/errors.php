@@ -382,8 +382,11 @@ return [
         'cannot_publish' => 'Sold or rented properties cannot be published.',
         'cannot_unpublish' => 'Only available properties can be unpublished.',
         'collaborator_exists' => 'This collaborator is already added to this property.',
+        'collaborator_not_found' => 'This collaborator is not part of this property.',
         'not_found' => 'Property not found.',
         'not_pending_moderation' => 'The property is not awaiting moderation.',
+        'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
+        'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
         'resubmit_not_rejected' => 'Only a rejected property can be resubmitted.',
     ],
     'quota' => [

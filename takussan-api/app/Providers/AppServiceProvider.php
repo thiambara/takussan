@@ -29,6 +29,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Review;
@@ -551,6 +552,10 @@ class AppServiceProvider extends ServiceProvider
         Property::observe(PropertyPublicCacheObserver::class);
         Address::saved(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
         Address::deleted(fn (Address $address) => app(PropertyPublicCacheObserver::class)->adresseModifiee($address));
+        // TCK-504 — une collaboration peut changer le contact principal que la fiche nomme.
+        PropertyCollaborator::created(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c));
+        PropertyCollaborator::updated(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c, modifiee: true));
+        PropertyCollaborator::deleted(fn (PropertyCollaborator $c) => app(PropertyPublicCacheObserver::class)->collaborationModifiee($c));
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);
