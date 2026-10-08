@@ -147,7 +147,7 @@ const APPELANTS: readonly Appelant[] = [
     // `primary_contact` (TCK-603) : servie sur l'index dès que `agency_id` et `user_id` sont
     // demandés — les deux le sont, et `takussan-api` l'éprouve
     // (`PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`).
-    inconditionnelles: ['location', 'main_photo_url', 'owner', 'collaborators', 'primary_contact'],
+    inconditionnelles: ['location', 'main_photo_url', 'owner', 'collaborators', 'primary_contact', 'primary_contact_source'],
     horsQueryFields: [],
     minColonnesLues: 13,
   },
@@ -183,6 +183,7 @@ const APPELANTS: readonly Appelant[] = [
       // `PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`.
       'owner',
       'primary_contact',
+      'primary_contact_source',
     ],
     horsQueryFields: ['description'],
     minColonnesLues: 20,
