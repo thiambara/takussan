@@ -1,7 +1,7 @@
 ---
 id: TCK-602
 title: "Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -520,21 +520,25 @@ explicitement.
       `share.download`.
 - [x] Tests : `DocumentShareLinkTokenStorageTest`, `DocumentShareLinkThrottleTest`.
 
-### 6. Pilote Free Money — livré en dernier, prérequis : documentation marchande
-- [ ] Verser la documentation marchande du fournisseur au dépôt (`docs/infra/paiements/free-money.md` :
+### 6. Pilote Free Money — livré en dernier, prérequis : documentation marchande → TCK-604
+
+> **→ [TCK-604](TCK-604-free-money-quand-la-documentation-marchande-est-versee.md)** (décision de
+> session du 2026-10-08) : rien de cette sous-partie n'est livré ici.
+
+- [ ] → TCK-604 — Verser la documentation marchande du fournisseur au dépôt (`docs/infra/paiements/free-money.md` :
       endpoints, authentification, signature, statuts, bac à sable, date du relevé et source).
-- [ ] `PaymentProvider::FreeMoney` (`supportedCurrencies` = `['XOF']`, `paymentMethod()` =
+- [ ] → TCK-604 — `PaymentProvider::FreeMoney` (`supportedCurrencies` = `['XOF']`, `paymentMethod()` =
       `PaymentMethod::FreeMoney`).
-- [ ] `App\Services\Payments\Drivers\FreeMoneyDriver` (`initiate`, `verify`, `handleWebhook`,
+- [ ] → TCK-604 — `App\Services\Payments\Drivers\FreeMoneyDriver` (`initiate`, `verify`, `handleWebhook`,
       `CREDENTIAL_KEYS`), selon les Contraintes.
-- [ ] `PaymentGatewayService::driverFor` et `extractProvider` : bras `free_money`.
-- [ ] `App\Domain\Integrations\Providers\FreeMoneyProvider` (catégorie `payments`, schéma = les
+- [ ] → TCK-604 — `PaymentGatewayService::driverFor` et `extractProvider` : bras `free_money`.
+- [ ] → TCK-604 — `App\Domain\Integrations\Providers\FreeMoneyProvider` (catégorie `payments`, schéma = les
       clés du pilote), enregistré dans `IntegrationProviderRegistry`.
-- [ ] `WebhookPayloadRedactor` : liste blanche `payment/free_money`.
-- [ ] Front : Free Money dans la sélection du fournisseur (page authentifiée et page publique),
+- [ ] → TCK-604 — `WebhookPayloadRedactor` : liste blanche `payment/free_money`.
+- [ ] → TCK-604 — Front : Free Money dans la sélection du fournisseur (page authentifiée et page publique),
       affiché seulement quand la liste du serveur le contient ; Free Money proposé dans le
       formulaire d'intégration de l'agence ; libellés fr/en/wo.
-- [ ] Tests : `FreeMoneyDriverTest` (réponses simulées `Http::fake`), `PaymentGatewayFreeMoneyTest`.
+- [ ] → TCK-604 — Tests : `FreeMoneyDriverTest` (réponses simulées `Http::fake`), `PaymentGatewayFreeMoneyTest`.
 
 ## Critères d'acceptation
 
@@ -679,18 +683,18 @@ explicitement.
       puis 200) ; redevient rouge si le compteur est indexé par IP au lieu du lien.*
 
 **Free Money**
-- [ ] **AC31** — `FreeMoneyDriverTest` (`Http::fake`) : l'initiation d'une échéance de 15 000 XOF
+- [ ] → TCK-604 — **AC31** — `FreeMoneyDriverTest` (`Http::fake`) : l'initiation d'une échéance de 15 000 XOF
       envoie le montant **15000** (pas 1 500 000) et l'URL de retour reçue dans `$meta`, puis rend
       `checkout_url` et l'identifiant de transaction lus dans la réponse documentée. Un webhook à
       la signature juste rend un `PaymentEvent` du type attendu pour **chaque** statut de la
       documentation. Un octet altéré du corps rend 401, et un identifiant absent 422.
-- [ ] **AC32** — Avec une intégration `free_money` active pour l'agence A : `providers` liste
+- [ ] → TCK-604 — **AC32** — Avec une intégration `free_money` active pour l'agence A : `providers` liste
       `free_money`, `initiate` rend un `checkout_url`, et le webhook `paid` signé passe l'échéance
       à `paid` avec une entrée `gateway_events`. Sans intégration active, `free_money` est absent
       de `providers` et `initiate` rend 422. *Rougit sur le code actuel :
       `POST /api/webhooks/payments/free_money` rend 404 et `initiate` refuse `free_money` (422 de
       validation).*
-- [ ] **AC33** — Front : la sélection du fournisseur affiche Free Money si et seulement si la
+- [ ] → TCK-604 — **AC33** — Front : la sélection du fournisseur affiche Free Money si et seulement si la
       liste du serveur le contient ; le formulaire de reversement garde son mode `free_money`.
 
 ## Hors périmètre
@@ -746,10 +750,13 @@ explicitement.
 
 ### Livraison partielle (2026-10-08, branche `feat/tck-602-paiement-sans-compte`)
 
-**§0 à §5 livrés, §6 (Free Money) NON livré** : le dépôt ne contient aucune documentation marchande
+**§0 à §5 livrés, §6 (Free Money) NON livré — sorti vers [TCK-604](TCK-604-free-money-quand-la-documentation-marchande-est-versee.md)** : le dépôt ne contient aucune documentation marchande
 Free Money (`grep -rniE "free_?money" docs` ne rend que le mode de versement de TCK-594). Le
-premier point du §6 est un prérequis, et rien ne s'écrit sur un contrat d'API supposé. AC31, AC32
-et AC33 restent ouverts ; le ticket reste `doing`.
+premier point du §6 est un prérequis, et rien ne s'écrit sur un contrat d'API supposé.
+
+**Clôture (2026-10-08, décision de session, réversible)** : le §6 et AC31 à AC33 sortent vers
+TCK-604, qui attend la documentation marchande versée par le porteur ; TCK-602 passe `done` sur
+§0 à §5, 32 AC sur 32 restants prouvés (test nommé + ablation).
 
 Écarts relevés en cours de route :
 
