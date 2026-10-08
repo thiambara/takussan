@@ -9643,7 +9643,7 @@
         },
         "settled_online": {
           "title": "Fey bi agsi na : {property}",
-          "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas : {receipt_url}"
+          "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas mi ngi ci sa bérab."
         }
       },
       "payment": {

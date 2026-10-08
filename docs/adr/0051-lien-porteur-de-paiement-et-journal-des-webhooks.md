@@ -216,10 +216,13 @@ défait sans migration.
 - Le journal coûte une écriture par webhook **avant** traitement, y compris pour un webhook rejeté :
   c'est pour cela que le middleware vient après `throttle`.
 - **Limite connue d'ADR-0046 (M-1)** : le chemin `custom_data` du paquet Lemon Squeezy, sous
-  autorité de la plateforme, n'apparie plus un payable dont le checkout courant a été ouvert chez
-  **un autre fournisseur** (garde ajoutée ici, AC dédié) — ce qui couvre toute échéance initiée par
-  un lien (Wave ou Orange Money). Un payable **jamais initié** reste atteignable : c'est la limite
-  M-1 elle-même, inchangée, renvoyée à son ticket de suite.
+  autorité de la plateforme, n'apparie plus un payable dont le checkout **courant**
+  (`metadata.gateway.provider`) est ouvert chez **un autre fournisseur** (garde ajoutée ici, AC
+  dédié). La garde ne protège que ce cas. **Sans checkout ouvert, le `custom_data` passe** : une
+  échéance dont le lien est émis mais jamais initié — ou qui n'a jamais eu de lien — est soldée
+  par ce chemin (mesuré par la contre-vérification : `order_created` à 1 USD → `paid`). C'est la
+  limite M-1 elle-même, inchangée, renvoyée à son ticket de suite. Le lien ne l'élargit pas : la
+  page publique ne rend pas l'identifiant de l'échéance.
 - La rétention de 90 jours garde des corps chiffrés de paiement plus longtemps que les 30 jours
   d'avant : c'est le prix du rejeu et de l'enquête de rapprochement.
 

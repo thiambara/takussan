@@ -9643,7 +9643,7 @@
         },
         "settled_online": {
           "title": "Paiement reçu : {property}",
-          "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance : {receipt_url}"
+          "body": "Votre paiement de {amount} pour {property} a bien été reçu. Votre quittance est disponible dans votre espace."
         }
       },
       "payment": {

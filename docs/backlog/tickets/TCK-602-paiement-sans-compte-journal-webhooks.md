@@ -773,3 +773,27 @@ TCK-604, qui attend la documentation marchande versée par le porteur ; TCK-602 
 - **AC21** : l'en-tête `Referrer-Policy` est prouvé sur `next.config.ts` et la métadonnée de page ;
   il n'a pas été relevé sur un `next start` réel.
 
+
+### Passe 1 — contre-vérification `verif-602` (REFUSÉ sur 1d83f463 : 0 bloquant, 4 majeurs, 4 mineurs)
+
+Chaque point a un test nommé et une ablation qui le fait rougir.
+
+- **M1** — `verify` concurrent au webhook : déjà fermé par TCK-596 (relecture sous verrou). Gardé par
+  `RentReceiptAfterOnlinePaymentTest::test_verify_racing_the_webhook_sends_a_single_receipt_and_keeps_the_webhook_event`
+  (le `FOR UPDATE` est lu à un niveau de transaction supérieur à celui du test).
+- **M2** — le jeton n'est plus persisté en clair : la cloche d'un compte ne porte jamais un lien
+  porteur (`NotificationCode::bearerParams()`, retirés par `NotificationService::send()`), et
+  `CodedNotification` est `ShouldBeEncrypted`. `BearerLinkAtRestTest` balaie toutes les colonnes
+  texte et JSON de la base.
+- **M3** — la mesure d'audience Vercel n'envoie plus `/pay/<jeton>` (`beforeSend`,
+  `src/lib/analytics-sans-secret.ts`).
+- **M4** — une requête non authentifiée n'écrit ni corps, ni en-têtes, ni charge : la ligne
+  rejetée d'un corps de 250 Ko pèse moins de 2 Ko.
+- **m1** — les essais de mot de passe d'un lien de partage sont comptés AVANT d'être évalués,
+  par l'incrément atomique du limiteur.
+- **m2** — `body_sha256` est un HMAC sous `APP_KEY`, et il ne sort plus de l'API.
+- **m3** — mutations survivantes S1, S3, S4, S5, S6 et S9 : un test chacune.
+- **m4** (limiteur par jeton) : suite, hors de ce ticket.
+- **M-1** : la formule d'ADR-0051 est corrigée — la garde ne protège qu'un checkout courant ouvert
+  chez un AUTRE fournisseur ; sans checkout, `custom_data` passe (limite inchangée, suite de
+  TCK-293).
