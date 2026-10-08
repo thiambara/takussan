@@ -123,7 +123,7 @@ export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaborators
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="shrink-0"
+                        className="min-h-11 shrink-0 sm:min-h-0"
                         disabled={designation.isPending}
                         onClick={() => designation.mutate(row.id)}
                         aria-label={t('designateFor', { name: collaboratorName(row) })}
