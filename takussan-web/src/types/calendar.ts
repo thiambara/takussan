@@ -8,7 +8,12 @@
  * quand l'agrégateur expose ce type.
  */
 
-export type CalendarEventType = 'booking' | 'visit' | 'lease';
+/**
+ * TCK-591 — `task` (tâches personnelles, à leur échéance), `lease_event` (fin et renouvellement de
+ * bail, journée entière) et `maintenance` (interventions planifiées). `lease` reste lu : c'est la
+ * forme qu'exposait l'ancien calendrier.
+ */
+export type CalendarEventType = 'booking' | 'visit' | 'lease' | 'task' | 'lease_event' | 'maintenance';
 
 /**
  * `booking` — `status` ∈ {pending, confirmed} côté back. Le front affiche
@@ -36,6 +41,8 @@ export interface CalendarEvent {
   duration_minutes?: number | null;
   property_id?: number | null;
   property_slug?: string | null;
+  /** `lease_event` : `end` (fin de bail) ou `renewal` (renouvellement). */
+  kind?: 'end' | 'renewal' | null;
   /** Deeplink vers la page détail (`/app/bookings/{id}` ou `/app/visits/{id}`). */
   resource_url: string;
 }

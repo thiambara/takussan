@@ -4,9 +4,12 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Services\Crm\CustomerPhoneNormalizer;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +24,12 @@ use Spatie\QueryBuilder\AllowedFilter;
 class Customer extends AbstractModel
 {
     use Auditable, HasFactory, Searchable, SoftDeletes;
+
+    /** TCK-591 — les critères de recherche du prospect : ils appartiennent au personnel de l'agence. */
+    public const CRITERIA_FIELDS = [
+        'seeking_contract_type', 'budget_min', 'budget_max', 'seeking_property_types',
+        'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
+    ];
 
     /**
      * Override the default Auditable whitelist to exclude the `id_number`
@@ -49,6 +58,9 @@ class Customer extends AbstractModel
         'id_type', 'id_number', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone',
         'status', 'pipeline_stage', 'notes', 'metadata',
+        // TCK-591 — critères de recherche du prospect.
+        'seeking_contract_type', 'budget_min', 'budget_max',
+        'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
     ];
 
     protected $casts = [
@@ -56,7 +68,27 @@ class Customer extends AbstractModel
         'status' => CustomerStatus::class,
         'pipeline_stage' => CustomerPipelineStage::class,
         'metadata' => 'array',
+        'budget_min' => 'decimal:2',
+        'budget_max' => 'decimal:2',
+        'seeking_property_types' => 'array',
+        'seeking_cities' => 'array',
+        'seeking_neighborhoods' => 'array',
+        'min_bedrooms' => 'integer',
     ];
+
+    /**
+     * TCK-591 — tout chemin d'écriture normalise le téléphone (formulaire, `findOrCreateFromUser`,
+     * conversion de lead) : la règle vit sur l'attribut, pas dans chaque appelant.
+     */
+    public function setPhoneAttribute(?string $value): void
+    {
+        $this->attributes['phone'] = CustomerPhoneNormalizer::normalize($value);
+    }
+
+    public function setEmergencyContactPhoneAttribute(?string $value): void
+    {
+        $this->attributes['emergency_contact_phone'] = CustomerPhoneNormalizer::normalize($value);
+    }
 
     protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
@@ -74,6 +106,8 @@ class Customer extends AbstractModel
         'id_type', 'id_number', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone',
         'status', 'pipeline_stage', 'metadata',
+        'seeking_contract_type', 'budget_min', 'budget_max',
+        'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
         'created_at', 'updated_at',
     ];
 
@@ -100,6 +134,65 @@ class Customer extends AbstractModel
         });
 
         return $filters;
+    }
+
+    /**
+     * TCK-591 (verif-591 m2, passe 2 N4) — qui lit et écrit les critères : super-admin, personnel de
+     * l'agence de la fiche, ou — fiche hors agence — son auteur. Le bailleur auteur d'une fiche
+     * d'agence garde la fiche (§9), pas les critères qu'y pose l'agent.
+     *
+     * @param  list<int>|null  $staffAgencyIds  les agences du personnel, si l'appelant les a déjà lues
+     */
+    public function criteriaBelongTo(User $user, ?array $staffAgencyIds = null): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        if ($this->agency_id === null) {
+            return $this->added_by_id === $user->id;
+        }
+
+        return in_array(
+            (int) $this->agency_id,
+            $staffAgencyIds ?? app(MembershipCapabilityResolver::class)->staffAgencyIds($user),
+            true,
+        );
+    }
+
+    /**
+     * TCK-591 §9 — les fiches qu'un utilisateur peut LIRE, en une requête : exactement la règle de
+     * `CustomerPolicy::view` (TCK-587). Super-admin → tout ; personnel de l'agence de son profil
+     * actif tenant `crm.view_all` → l'agence, plus ses propres ajouts ; tout autre compte (personnel
+     * sans la capacité, bailleur, client) → ses seuls ajouts.
+     *
+     * TCK-591 (verif-591 M1) — « ses ajouts » : ceux d'une agence dont il est encore MEMBRE actif,
+     * ou hors agence (`CustomerPolicy::view`, même décision).
+     *
+     * Partagée par `CustomerController::index` et `PipelineStatsService` : le kanban et ses
+     * compteurs ne peuvent plus diverger de la fiche. `$user->agency_id` n'y entre pas — c'est
+     * l'agence du profil actif QUEL QU'IL SOIT, et un bailleur y lisait tout le CRM.
+     *
+     * @param  Builder<Customer>  $query
+     * @return Builder<Customer>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+        $ownAdds = fn (Builder $q) => $q->where('added_by_id', $user->id)
+            ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
+
+        $staffAgencyId = $user->staffAgencyId();
+        if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
+            return $query->where(function (Builder $inner) use ($staffAgencyId, $ownAdds) {
+                $inner->where('agency_id', $staffAgencyId)->orWhere($ownAdds);
+            });
+        }
+
+        return $query->where($ownAdds);
     }
 
     public function getFullNameAttribute(): string
@@ -159,6 +252,12 @@ class Customer extends AbstractModel
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class, 'tenant_id');
+    }
+
+    /** TCK-591 — les visites rattachées au client (`property_visits.customer_id`). */
+    public function visits(): HasMany
+    {
+        return $this->hasMany(PropertyVisit::class);
     }
 
     public function leasePayments(): HasMany

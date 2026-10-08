@@ -36,6 +36,8 @@ return [
         'cannot_remove_last_admin' => 'Impossible de retirer le dernier administrateur de l\'agence.',
         'cannot_remove_primary_admin' => 'Impossible de retirer l\'administrateur principal de l\'agence.',
         'not_in_agency' => 'Cet utilisateur ne fait pas partie de cette agence.',
+        'not_staff' => "Seuls un agent ou un administrateur de l'agence se retirent de l'équipe ; un bailleur n'en fait pas partie.",
+        'portfolio_not_empty' => 'Ce membre porte encore un portefeuille : faites la passation, ou confirmez le retrait sans repreneur.',
         'user_not_found_by_email' => 'Aucun utilisateur actif n\'a été trouvé pour cet email.',
     ],
     'agency_role' => [
@@ -46,6 +48,12 @@ return [
         'other_agency' => 'Ce rôle appartient à une autre agence.',
         'platform_capability' => 'Capacité réservée à la plateforme : :capabilities. Aucun rôle d\'agence ne peut la porter.',
         'profile_type_mismatch' => 'Ce rôle ne cible pas le même type de profil.',
+    ],
+    'agent_absence' => [
+        'overlaps' => 'Une absence de ce membre est déjà prévue ou en cours sur cette période.',
+    ],
+    'agent_handover' => [
+        'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
     ],
     'auth' => [
         'insufficient_privileges' => 'Droits insuffisants.',
@@ -77,6 +85,7 @@ return [
         'value_not_found' => 'Valeur introuvable.',
     ],
     'calendar' => [
+        'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',
     ],
     'conversation' => [
@@ -84,6 +93,7 @@ return [
         'participant_required' => 'Il faut au moins un autre participant.',
     ],
     'customer' => [
+        'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],
     'dashboard' => [
@@ -372,6 +382,7 @@ return [
         'two_factor_already_disabled' => 'La double authentification est déjà désactivée.',
     ],
     'task' => [
+        'assignee_not_staff' => 'La personne assignée doit être vous-même ou un membre du personnel de l\'agence.',
         'assignee_other_agency' => 'La personne assignée doit appartenir à votre agence.',
     ],
     'team' => [

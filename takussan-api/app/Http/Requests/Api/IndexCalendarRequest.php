@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Services\Calendar\CalendarEventCollector;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * TCK-305 — extrait de CalendarController::index(), où les règles étaient écrites en ligne.
@@ -37,7 +41,32 @@ class IndexCalendarRequest extends BaseFormRequest
             // TCK-078 — admin-only cross-agency view.
             'agency_id' => ['sometimes', 'integer', 'exists:agencies,id'],
             'types' => ['sometimes', 'array'],
-            'types.*' => ['string', 'in:booking,visit'],
+            // TCK-591 — tâches, échéances de bail et interventions s'ajoutent aux deux types d'origine.
+            'types.*' => ['string', Rule::in(CalendarEventCollector::TYPES)],
+            // TCK-591 — « Mes rendez-vous » : ce qui m'est assigné (visite, tâche, intervention).
+            'mine' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /**
+     * TCK-591 — une fenêtre de plus de {@see self::MAX_WINDOW_DAYS} jours est refusée : six mois
+     * d'agenda suffisent à un écran comme à un abonnement, et la requête n'a pas de pagination.
+     */
+    public const MAX_WINDOW_DAYS = 186;
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->hasAny(['start_date', 'end_date'])) {
+                    return;
+                }
+                $start = Carbon::parse((string) $this->input('start_date'));
+                $end = Carbon::parse((string) $this->input('end_date'));
+                if ($start->diffInDays($end) > self::MAX_WINDOW_DAYS) {
+                    $validator->errors()->add('end_date', __('calendar.errors.window_too_long', ['days' => self::MAX_WINDOW_DAYS]));
+                }
+            },
         ];
     }
 }

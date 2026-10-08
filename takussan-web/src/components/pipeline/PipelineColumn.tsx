@@ -1,8 +1,10 @@
 'use client';
 
 import { useDroppable } from '@dnd-kit/core';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -16,6 +18,14 @@ interface PipelineColumnProps {
   stage: CustomerPipelineStage;
   customers: PipelineCustomerCard[];
   onSelect: (id: number) => void;
+  onStageChange?: (customer: PipelineCustomerCard, to: CustomerPipelineStage) => void;
+  /**
+   * TCK-591 — le compte de l'étape, tiré de `stage_counts` : la longueur de la liste chargée
+   * plafonnait à 50 et se lisait comme le total. À défaut (statistiques absentes), la longueur.
+   */
+  total?: number;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
   /** When the user is dragging from another column, highlight us as a target. */
   isDropTarget?: boolean;
   /**
@@ -33,6 +43,10 @@ export function PipelineColumn({
   stage,
   customers,
   onSelect,
+  onStageChange,
+  total: totalFromStats,
+  onLoadMore,
+  isLoadingMore,
   isDropTarget,
   isLoading,
   isError,
@@ -41,7 +55,9 @@ export function PipelineColumn({
 }: PipelineColumnProps) {
   const t = useTranslations('crm.pipeline');
   const { setNodeRef, isOver } = useDroppable({ id: stage });
-  const total = customers.length;
+  const t591 = useTranslations('agentCrm.pipeline');
+  const total = Math.max(totalFromStats ?? 0, customers.length);
+  const hasMore = total > customers.length;
   const settled = !isLoading && !isError;
 
   return (
@@ -98,13 +114,28 @@ export function PipelineColumn({
             {t('emptyColumn')}
           </p>
         ) : (
-          customers.map((customer) => (
-            <PipelineCard
-              key={customer.id}
-              customer={customer}
-              onSelect={onSelect}
-            />
-          ))
+          <>
+            {customers.map((customer) => (
+              <PipelineCard
+                key={customer.id}
+                customer={customer}
+                onSelect={onSelect}
+                onStageChange={onStageChange}
+              />
+            ))}
+            {hasMore && onLoadMore ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 w-full"
+                disabled={isLoadingMore}
+                onClick={onLoadMore}
+              >
+                {isLoadingMore ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                {t591('loadMore', { shown: customers.length, total })}
+              </Button>
+            ) : null}
+          </>
         )}
       </div>
     </div>

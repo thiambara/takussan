@@ -212,10 +212,13 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+#### Agenda
+72. [CalendarFeed](#72-calendarfeed-) ✅
+
 #### Sorties d'argent (TCK-594, ADR-0039)
-72. [PayoutMethod](#72-payoutmethod-) 🆕
-73. [ServiceProviderBill](#73-serviceproviderbill-) 🆕
-74. [PayoutMethodVerification](#74-payoutmethodverification-) 🆕
+73. [PayoutMethod](#73-payoutmethod-) 🆕
+74. [ServiceProviderBill](#74-serviceproviderbill-) 🆕
+75. [PayoutMethodVerification](#75-payoutmethodverification-) 🆕
 
 ### Enums
 
@@ -2937,13 +2940,45 @@ traite `key` comme un identifiant court opaque.
 
 ---
 
+### 72. CalendarFeed ✅
+
+**Table :** `calendar_feeds`
+**Description :** Lien d'abonnement iCalendar d'un utilisateur, en lecture seule (TCK-591,
+[ADR-0034](adr/0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md)). Le jeton n'est connu
+que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) : il est rendu une seule fois, à la
+création ou à la rotation, et jamais stocké en clair. Le lien est révoqué par l'utilisateur, à la
+rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire du lien (`calendar_feeds_user_fk`, `cascadeOnDelete`) |
+| agency_id | FK agencies | ✓ | null | Agence où le titulaire est du personnel ; `null` pour un compte qui n'est personnel d'aucune agence (prestataire) (`calendar_feeds_agency_fk`, `cascadeOnDelete`) |
+| token_hash | string(64) | | | Empreinte SHA-256 du jeton ; masquée à la sérialisation (`$hidden`) |
+| revoked_at | timestamp | ✓ | null | Révocation ; un lien révoqué rend 404 |
+| last_accessed_at | timestamp | ✓ | null | Dernière lecture du flux |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :**
+- `token_hash` (`calendar_feeds_token_hash_unique`)
+
+**Index :** `(user_id, agency_id)` (`calendar_feeds_user_agency_idx`)
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency()` → belongsTo Agency
+
+**Scopes :** `active()` — `revoked_at IS NULL`
+
+---
+
 > **TCK-594 (VERIF-594 M-2) — trois colonnes d'`agencies`** : `pending_payout_threshold`
 > (decimal(14,2), nullable), `pending_payout_threshold_requested_by_id` (FK users, `nullOnDelete`),
 > `pending_payout_threshold_requested_at` (timestamp, le marqueur d'une demande : une demande de
 > coupure laisse la valeur à `null`). Un relâchement du seuil des quatre yeux y attend la
 > confirmation d'un second détenteur de `payouts.approve`. Description complète par `/sync-specs`.
 
-### 72. PayoutMethod 🆕
+### 73. PayoutMethod 🆕
 
 > **Entrée minimale posée par TCK-594** pour que `check-models-spec` voie le modèle ; la
 > description complète passe par `/sync-specs` après fusion. Source : ADR-0039 §6.
@@ -2951,7 +2986,7 @@ traite `key` comme un identifiant court opaque.
 **Table :** `payout_methods`
 **Description :** Destination de paiement d'un utilisateur (bailleur, prestataire) : numéro mobile
 money ou compte bancaire. Un reversement Wave / Orange Money / Free Money / virement ne se marque
-payé que vers une destination du bénéficiaire **vérifiée par l'agence qui paie** (§74).
+payé que vers une destination du bénéficiaire **vérifiée par l'agence qui paie** (§75).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -2966,13 +3001,13 @@ payé que vers une destination du bénéficiaire **vérifiée par l'agence qui p
 | created_at / updated_at | timestamp | | auto | |
 
 **Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
-(§74). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
+(§75). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
 `verified_by_id` ont été retirées (VERIF-594 M-6) : une vérification globale valait pour toute
 agence.
 
 ---
 
-### 74. PayoutMethodVerification 🆕
+### 75. PayoutMethodVerification 🆕
 
 > **Entrée minimale posée par TCK-594** (VERIF-594 M-6) ; description complète par `/sync-specs`.
 > Source : ADR-0039 §6.
@@ -2996,7 +3031,7 @@ une vérification rejouée met à jour la ligne (`upsert`).
 
 ---
 
-### 73. ServiceProviderBill 🆕
+### 74. ServiceProviderBill 🆕
 
 > **Entrée minimale posée par TCK-594** ; description complète par `/sync-specs`. Source :
 > ADR-0039 §8.

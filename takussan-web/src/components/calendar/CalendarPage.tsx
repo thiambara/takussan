@@ -25,7 +25,7 @@ import {
 } from '@/lib/calendar-date';
 import { useCalendar } from '@/lib/queries/calendar';
 import type { CalendarEvent, CalendarEventType, CalendarView } from '@/types/calendar';
-import { paletteEnAttente, paletteFor, paletteForType } from './event-colors';
+import { paletteEnAttente, paletteFor, paletteForType, typeLegendPaths } from './event-colors';
 import { MonthView } from './MonthView';
 import { useDatesCalendrier } from './dates';
 import { WeekView } from './WeekView';
@@ -40,10 +40,17 @@ import { EventDetailSheet } from './EventDetailSheet';
  */
 const VIEWS: readonly CalendarView[] = ['month', 'week', 'day', 'list'];
 
-const TYPE_OPTIONS: { value: CalendarEventType; labelKey: string }[] = [
-  { value: 'booking', labelKey: 'types.booking' },
-  { value: 'visit', labelKey: 'types.visit' },
-];
+/**
+ * TCK-591 — qui regarde l'agenda décide de ce qu'il peut y demander. Le prestataire n'a aucun bien :
+ * il ne demande que ses interventions, et aucun autre type ne lui serait rendu (AC27).
+ */
+export type CalendarAudience = 'staff' | 'landlord' | 'provider';
+
+const TYPES_BY_AUDIENCE: Record<CalendarAudience, readonly CalendarEventType[]> = {
+  staff: ['booking', 'visit', 'task', 'lease_event', 'maintenance'],
+  landlord: ['booking', 'visit', 'task', 'lease_event', 'maintenance'],
+  provider: ['maintenance'],
+};
 
 /**
  * La légende ne porte plus AUCUNE couleur — TCK-484.
@@ -57,30 +64,25 @@ const TYPE_OPTIONS: { value: CalendarEventType; labelKey: string }[] = [
  * Ce tableau ne transporte donc plus que des CLÉS ; la teinte se demande à `paletteForType()` au
  * rendu. La divergence n'est pas corrigée, elle n'a plus d'endroit où naître.
  */
-const LEGEND_ITEMS: {
-  type: CalendarEventType;
-  labelKey: string;
-  helperKey: string;
-}[] = [
-  { type: 'booking', labelKey: 'types.booking', helperKey: 'legend.helper.booking' },
-  { type: 'visit', labelKey: 'types.visit', helperKey: 'legend.helper.visit' },
-  { type: 'lease', labelKey: 'types.lease', helperKey: 'legend.helper.lease' },
-];
-
 export interface CalendarPageProps {
   /** Date initiale focus (défaut = aujourd'hui). */
   initialFocus?: Date;
+  /** TCK-591 — décidé par la page serveur depuis les rôles (défaut : le personnel). */
+  audience?: CalendarAudience;
+  /** TCK-591 — « Mes rendez-vous » coché d'emblée (l'agent). */
+  defaultMine?: boolean;
 }
 
-export function CalendarPage({ initialFocus }: CalendarPageProps) {
+export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = false }: CalendarPageProps) {
   const t = useTranslations('calendar');
+  const tRoot = useTranslations();
+  const tCrm = useTranslations('agentCrm.calendar');
   const tCommon = useTranslations('common');
+  const TYPE_OPTIONS = TYPES_BY_AUDIENCE[audience].map((value) => ({ value, labelPath: typeLegendPaths(value).label }));
+  const [mine, setMine] = useState(defaultMine);
   const [view, setView] = useState<CalendarView>('month');
   const [focus, setFocus] = useState<Date>(() => startOfDay(initialFocus ?? new Date()));
-  const [selectedTypes, setSelectedTypes] = useState<readonly CalendarEventType[]>([
-    'booking',
-    'visit',
-  ]);
+  const [selectedTypes, setSelectedTypes] = useState<readonly CalendarEventType[]>(TYPES_BY_AUDIENCE[audience]);
   const [propertyId, setPropertyId] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date>(() => startOfDay(initialFocus ?? new Date()));
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -92,6 +94,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
     end_date: formatISODate(range.end),
     property_id: propertyId ?? undefined,
     types: selectedTypes.length > 0 ? selectedTypes : undefined,
+    mine: audience === 'staff' && mine,
   });
 
   const events = useMemo(() => query.data?.data ?? [], [query.data]);
@@ -230,7 +233,24 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
             ))}
           </div>
 
+          {/* TCK-591 — « Mes rendez-vous » : ce qui m'est assigné (visites, tâches, interventions). */}
+          {audience === 'staff' ? (
+            <button
+              type="button"
+              aria-pressed={mine}
+              data-testid="calendar-mine-toggle"
+              onClick={() => setMine((v) => !v)}
+              className={cn(
+                'min-h-10 rounded-lg border border-border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8',
+                mine ? 'bg-foreground text-background' : 'bg-card text-muted-foreground hover:bg-muted/50',
+              )}
+            >
+              {tCrm('mine')}
+            </button>
+          ) : null}
+
           {/* Segmented control types */}
+          {TYPE_OPTIONS.length > 1 ? (
           <div
             role="group"
             aria-label={t('typeFilterAria')}
@@ -256,11 +276,12 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                       : 'text-muted-foreground hover:bg-muted/50',
                   )}
                 >
-                  {t(opt.labelKey)}
+                  {tRoot(opt.labelPath)}
                 </button>
               );
             })}
           </div>
+          ) : null}
 
           {/* Filtre bien — visible seulement s'il y a des biens à afficher */}
           {propertyOptions.length > 0 && (
@@ -283,7 +304,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
         </div>
       </header>
 
-      <CalendarLegend />
+      <CalendarLegend types={TYPES_BY_AUDIENCE[audience]} />
 
       {(propertyId || selectedTypes.length < TYPE_OPTIONS.length) && (
         <div
@@ -306,7 +327,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
             <span className="rounded-md bg-card px-2 py-1 shadow-sm">
               {t('activeFilters.types', {
                 list: TYPE_OPTIONS.filter((type) => selectedTypes.includes(type.value))
-                  .map((type) => t(type.labelKey))
+                  .map((type) => tRoot(type.labelPath))
                   .join(', '),
               })}
             </span>
@@ -367,8 +388,9 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
   );
 }
 
-function CalendarLegend() {
+function CalendarLegend({ types }: { readonly types: readonly CalendarEventType[] }) {
   const t = useTranslations('calendar');
+  const tRoot = useTranslations();
   return (
     <section
       aria-label={t('legend.aria')}
@@ -377,7 +399,7 @@ function CalendarLegend() {
       className="flex flex-wrap gap-x-4 gap-y-2 rounded-xl border border-border bg-card p-3 sm:grid sm:grid-cols-3"
       data-testid="calendar-legend"
     >
-      {LEGEND_ITEMS.map((item) => (
+      {types.map((type) => ({ type, ...typeLegendPaths(type) })).map((item) => (
         <div key={item.type} className="flex items-start gap-2">
           {/*
             L'ACCENT plein, et non l'aplat de la puce : à 10 % d'opacité, le point de légende ne
@@ -388,8 +410,8 @@ function CalendarLegend() {
             aria-hidden="true"
           />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">{t(item.labelKey)}</p>
-            <p className="hidden text-xs text-muted-foreground sm:block">{t(item.helperKey)}</p>
+            <p className="text-sm font-medium text-foreground">{tRoot(item.label)}</p>
+            <p className="hidden text-xs text-muted-foreground sm:block">{tRoot(item.helper)}</p>
           </div>
         </div>
       ))}

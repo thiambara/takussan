@@ -2342,6 +2342,306 @@
       "filterAria": "Voir les clients tagués {tag}"
     }
   },
+  "agentCrm": {
+    "contact": {
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "callAria": "Appeler {name}",
+      "whatsappAria": "Écrire à {name} sur WhatsApp",
+      "whatsappMessage": "Bonjour {firstName}, c'est votre agent Takussan.",
+      "noPhone": "Aucun numéro enregistré.",
+      "unreachable": "Numéro non joignable tel qu'enregistré : {phone}"
+    },
+    "notes": {
+      "kind": {
+        "loss": "Perte : {reason}",
+        "conversion": "Conversion : {reason}"
+      }
+    },
+    "activity": {
+      "loadFailed": "Le journal de ce client n'a pas pu être chargé.",
+      "retry": "Réessayer",
+      "empty": "Aucune activité pour l'instant.",
+      "loadMore": "Voir plus",
+      "someone": "Quelqu'un",
+      "customer": {
+        "created": "{actor} a créé la fiche",
+        "deleted": "{actor} a supprimé la fiche",
+        "restored": "{actor} a restauré la fiche",
+        "stage": "{actor} a fait passer le client de « {from} » à « {to} »",
+        "fields": "{actor} a modifié : {fields}",
+        "updated": "{actor} a modifié la fiche"
+      },
+      "note": {
+        "created": "{actor} a ajouté une note",
+        "deleted": "{actor} a supprimé une note",
+        "pinned": "{actor} a épinglé une note",
+        "updated": "{actor} a modifié une note"
+      },
+      "task": {
+        "created": "{actor} a créé la tâche « {title} »",
+        "done": "{actor} a terminé la tâche « {title} »",
+        "deleted": "{actor} a supprimé la tâche « {title} »",
+        "updated": "{actor} a modifié la tâche « {title} »"
+      },
+      "generic": "{actor} a modifié la fiche",
+      "fields": {
+        "first_name": "prénom",
+        "last_name": "nom",
+        "email": "e-mail",
+        "phone": "téléphone",
+        "occupation": "profession",
+        "emergency_contact_name": "contact d'urgence",
+        "emergency_contact_phone": "téléphone d'urgence",
+        "status": "statut",
+        "pipeline_stage": "étape"
+      }
+    },
+    "form": {
+      "duplicate": {
+        "title": "Ce client semble déjà exister dans l'agence.",
+        "hidden": "Une fiche que vous ne pouvez pas ouvrir",
+        "matchedOn": {
+          "phone": "même téléphone",
+          "email": "même e-mail"
+        },
+        "open": "Ouvrir sa fiche",
+        "createAnyway": "Créer quand même",
+        "saveAnyway": "Enregistrer quand même"
+      },
+      "criteria": {
+        "title": "Ce que le prospect recherche",
+        "contractType": "Achat ou location",
+        "any": "Indifférent",
+        "minBedrooms": "Chambres (minimum)",
+        "budgetMin": "Budget minimum (FCFA)",
+        "budgetMax": "Budget maximum (FCFA)",
+        "propertyTypes": "Types de bien",
+        "cities": "Villes",
+        "citiesPlaceholder": "Dakar, Thiès",
+        "neighborhoods": "Quartiers",
+        "neighborhoodsPlaceholder": "Almadies, Mermoz",
+        "help": "Séparez les villes et les quartiers par des virgules. Un champ vide efface le critère."
+      }
+    },
+    "tabs": {
+      "tasks": "Tâches",
+      "activity": "Activité",
+      "visits": "Visites",
+      "bookings": "Réservations",
+      "leases": "Baux",
+      "matches": "Biens correspondants"
+    },
+    "tasks": {
+      "loadFailed": "Les tâches de ce client n'ont pas pu être chargées.",
+      "retry": "Réessayer",
+      "empty": "Aucune tâche pour ce client.",
+      "toggle": "Marquer « {title} » comme faite",
+      "saveFailed": "La tâche n'a pas pu être enregistrée."
+    },
+    "linked": {
+      "loadFailed": "Cette liste n'a pas pu être chargée.",
+      "retry": "Réessayer",
+      "empty": {
+        "visits": "Aucune visite pour ce client.",
+        "bookings": "Aucune réservation pour ce client.",
+        "leases": "Aucun bail pour ce client."
+      },
+      "untitled": "Sans titre",
+      "unknownStatus": "Autre statut"
+    },
+    "matches": {
+      "loadFailed": "Les biens correspondants n'ont pas pu être chargés.",
+      "retry": "Réessayer",
+      "empty": "Aucun bien de l'agence ne correspond pour l'instant.",
+      "emptyHint": "Renseignez ce que le prospect recherche dans l'aperçu : budget, type de bien, ville.",
+      "count": "{count, plural, one {# bien correspond} other {# biens correspondent}} aux critères.",
+      "select": "Choisir « {title} » pour l'envoi",
+      "notShareable": "« {title} » n'est pas public : il ne peut pas être envoyé",
+      "private": "non public",
+      "shareIntro": "Bonjour {firstName}, voici des biens qui correspondent à votre recherche :",
+      "share": "{count, plural, =0 {Choisissez des biens à envoyer} one {Envoyer # bien sur WhatsApp} other {Envoyer # biens sur WhatsApp}}",
+      "noWhatsapp": "Sans numéro joignable, la sélection ne peut pas être envoyée par WhatsApp."
+    },
+    "referent": {
+      "title": "Référent",
+      "someone": "Un membre de l'agence",
+      "none": "Aucun référent désigné.",
+      "me": "Me désigner",
+      "pick": "Choisir un agent",
+      "designate": "Désigner",
+      "failed": "Le référent n'a pas pu être désigné."
+    },
+    "pipeline": {
+      "stageSelect": "Étape de {name}",
+      "loadMore": "Charger plus ({shown} sur {total})",
+      "dnd": {
+        "instructions": "Pour déplacer une carte, appuyez sur Espace, changez de colonne avec les flèches, puis appuyez sur Espace pour la reposer ou sur Échap pour annuler. Entrée ouvre la fiche.",
+        "start": "{name} saisi.",
+        "over": "{name} au-dessus de l'étape {stage}.",
+        "overNone": "{name} hors de toute étape.",
+        "end": "{name} déposé dans l'étape {stage}.",
+        "endNone": "{name} reposé à sa place.",
+        "cancel": "Déplacement de {name} annulé."
+      },
+      "stageFailed": "L'étape n'a pas pu être changée."
+    },
+    "myTasks": {
+      "metaTitle": "Mes tâches",
+      "title": "Mes tâches",
+      "description": "Ce que vous avez à faire, client par client et bien par bien.",
+      "filterLabel": "Échéance",
+      "filter": {
+        "all": "Toutes",
+        "overdue": "En retard",
+        "today": "Aujourd'hui",
+        "upcoming": "À venir",
+        "none": "Sans échéance"
+      },
+      "empty": {
+        "all": "Aucune tâche.",
+        "overdue": "Aucune tâche en retard.",
+        "today": "Rien de prévu aujourd'hui.",
+        "upcoming": "Aucune tâche à venir.",
+        "none": "Aucune tâche sans échéance."
+      },
+      "loadFailed": "Vos tâches n'ont pas pu être chargées.",
+      "retry": "Réessayer",
+      "loadMore": "Voir plus",
+      "toggle": "Marquer « {title} » comme faite",
+      "toggleFailed": "La tâche n'a pas pu être mise à jour.",
+      "noDue": "Sans échéance",
+      "hidden": {
+        "customer": "Un client",
+        "property": "Un bien"
+      },
+      "create": {
+        "title": "Nouvelle tâche",
+        "taskTitle": "Que faut-il faire ?",
+        "attachTo": "Rattacher à",
+        "type": {
+          "customer": "Un client",
+          "property": "Un bien"
+        },
+        "search": {
+          "customer": "Chercher un client par son nom",
+          "property": "Chercher un bien par son titre"
+        },
+        "change": "Changer",
+        "submit": "Créer la tâche",
+        "failed": "La tâche n'a pas pu être créée."
+      }
+    },
+    "calendar": {
+      "mine": "Mes rendez-vous",
+      "types": {
+        "task": "Tâches",
+        "lease_event": "Échéances de bail",
+        "maintenance": "Interventions"
+      },
+      "eventType": {
+        "task": "Tâche",
+        "lease_event": "Échéance de bail",
+        "maintenance": "Intervention"
+      },
+      "helper": {
+        "task": "Vos tâches, à leur échéance",
+        "lease_event": "Fins et renouvellements de baux",
+        "maintenance": "Interventions planifiées"
+      },
+      "leaseKind": {
+        "end": "Fin de bail",
+        "renewal": "Renouvellement"
+      },
+      "open": {
+        "task": "Voir mes tâches",
+        "maintenance": "Ouvrir l'intervention"
+      },
+      "feed": {
+        "title": "S'abonner depuis un autre agenda",
+        "intro": "Vos rendez-vous dans Google Agenda ou le calendrier de votre téléphone, mis à jour automatiquement. Le lien est personnel : ne le partagez pas.",
+        "onceOnly": "Copiez ce lien maintenant : il ne sera plus affiché.",
+        "linkLabel": "Lien d'abonnement",
+        "copy": "Copier",
+        "copied": "Copié",
+        "google": "Ajouter à Google Agenda",
+        "apple": "Ajouter au calendrier du téléphone",
+        "activeSince": "Un lien est actif depuis le {date}.",
+        "lastAccess": "Dernière lecture : {date}.",
+        "create": "Créer un lien d'abonnement",
+        "rotate": "Générer un nouveau lien",
+        "rotateHint": "Générer un nouveau lien éteint l'ancien.",
+        "revoke": "Désactiver le lien",
+        "failed": "L'opération n'a pas abouti."
+      }
+    },
+    "bulk": {
+      "summary": {
+        "archive": "{updated, plural, =0 {Aucun bien archivé} one {# bien archivé} other {# biens archivés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}",
+        "unpublish": "{updated, plural, =0 {Aucun bien dépublié} one {# bien dépublié} other {# biens dépubliés}}{failed, plural, =0 {.} one { — # refusé :} other { — # refusés :}}"
+      },
+      "failure": "{title} : {reason}",
+      "reason": {
+        "not_found": "introuvable",
+        "forbidden": "vous n'avez pas le droit de le modifier",
+        "unchanged": "déjà dans cet état",
+        "already_archived": "déjà archivé",
+        "invalid_target": "la cible n'est pas du personnel actif de l'agence",
+        "invalid_status": "il n’est ni disponible ni publié : rien à dépublier",
+        "other": "refusé"
+      }
+    },
+    "handover": {
+      "title": "Retirer {name} de l'agence",
+      "intro": "Ce que {name} porte encore doit être repris par quelqu'un, ou laissé sans responsable en connaissance de cause.",
+      "emptyPortfolio": "Son portefeuille est vide : le retrait ne laisse rien en suspens.",
+      "loadFailed": "Impossible de lire son portefeuille.",
+      "category": {
+        "tasks": "Tâches ouvertes",
+        "visits": "Visites à venir",
+        "maintenance": "Interventions en cours",
+        "collaborations": "Collaborations sur des biens",
+        "customers": "Clients dont il est le référent",
+        "held_properties": "Biens détenus"
+      },
+      "notTransferable": "pas encore transmissible",
+      "successor": "Repreneur",
+      "noSuccessor": "Aucun — retirer sans passation",
+      "leaveAll": "Je retire ce membre et laisse son portefeuille sans responsable.",
+      "leavePending": "{count, plural, one {# élément ne peut pas encore être transmis et restera sans responsable.} other {# éléments ne peuvent pas encore être transmis et resteront sans responsable.}}",
+      "next": "Relire",
+      "back": "Retour",
+      "cancel": "Annuler",
+      "reviewIntro": "{successor} reprendra ce que {name} porte, puis {name} sera retiré de l'agence :",
+      "reviewLine": "{count} × {category}",
+      "reviewPending": "{count, plural, one {# élément restera sans responsable.} other {# éléments resteront sans responsable.}}",
+      "confirm": "Transmettre et retirer",
+      "removeOnly": "Retirer de l'agence",
+      "failed": "Le retrait n'a pas abouti."
+    },
+    "absences": {
+      "title": "Absences et remplacements",
+      "declare": "Déclarer une absence",
+      "none": "Aucune absence en cours.",
+      "loadFailed": "Impossible de lire les absences.",
+      "row": "{absent} est remplacé par {substitute} jusqu'au {until}",
+      "revoke": "Mettre fin",
+      "absent": "Qui est absent",
+      "me": "Moi",
+      "substitute": "Remplacé par",
+      "chooseSubstitute": "Choisir un collègue",
+      "until": "Jusqu'au",
+      "reason": "Motif (facultatif)",
+      "submit": "Déclarer",
+      "cancel": "Annuler",
+      "declareFailed": "L'absence n'a pas pu être déclarée."
+    },
+    "propertyMatches": {
+      "count": "{count, plural, one {# prospect correspond} other {# prospects correspondent}}",
+      "hidden": "Un prospect suivi par un collègue",
+      "more": "{count, plural, one {et # autre} other {et # autres}}"
+    }
+  },
   "account": {
     "deletion": {
       "section": {
@@ -7850,6 +8150,12 @@
     }
   },
   "validation": {
+    "agentCrm": {
+      "criteriaInvalid": "Valeur non reconnue.",
+      "budgetInvalid": "Saisissez un montant en chiffres.",
+      "budgetRange": "Le budget maximum doit être supérieur ou égal au minimum.",
+      "bedroomsInvalid": "Saisissez un nombre entre 0 et 50."
+    },
     "agency": {
       "nameRequired": "Le nom est requis.",
       "nameTooLong": "Le nom est trop long.",
@@ -8519,6 +8825,12 @@
         "rejected": {
           "title": "Devis rejeté : {request}",
           "body": "Votre devis pour l'intervention « {request} » a été rejeté."
+        }
+      },
+      "prospect_match": {
+        "digest": {
+          "title": "Des biens correspondent à vos prospects",
+          "body": "{properties} bien(s) récent(s) ou dont le prix a changé correspondent à {prospects} de vos prospects."
         }
       },
       "property": {

@@ -76,6 +76,10 @@ enum NotificationCode: string
     case MaintenanceQuoteApproved = 'maintenance_quote.approved';
     case MaintenanceQuoteRejected = 'maintenance_quote.rejected';
 
+    // ─── CRM ───────────────────────────────────────────────────────────────────────────
+    /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
+    case ProspectMatchDigest = 'prospect_match.digest';
+
     // ─── Modération des biens (envoyés par leurs classes Notification) ──────────────────
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
@@ -124,7 +128,8 @@ enum NotificationCode: string
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
-            self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PropertyApproved, self::PropertyRejected,
+            self::ProspectMatchDigest => NotificationType::System,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
@@ -154,7 +159,7 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
@@ -209,6 +214,7 @@ enum NotificationCode: string
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
             self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
             self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
+            self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
 
