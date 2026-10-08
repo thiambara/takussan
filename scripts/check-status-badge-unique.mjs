@@ -133,6 +133,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
   ['takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx',
     "bandeau d'annonce PLEIN, quatre sévérités sur toute la largeur : un message qui remplit "
     + 'sa surface, pas une pastille — `StatusBadge` ne rend que des fonds teintés (`bg-success/10`…)'],
+  // TCK-596 §3B (ADR-0041) — le calendrier d'hôte d'un bien.
+  ['takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx',
+    "trois ORIGINES d'une nuit prise (réservée, bloquée, importée) peintes sur les CASES d'un "
+    + "calendrier `react-day-picker` par `modifiersClassNames` : ni statut ni pastille, et la case "
+    + 'ne porte que son numéro de jour — la teinte y est le seul canal, doublé par la légende'],
 ]);
 
 /** Les lignes de MESSAGE qui tombent dans la forme du contrôle B sans être des statuts. */

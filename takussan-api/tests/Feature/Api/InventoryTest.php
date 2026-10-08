@@ -18,6 +18,8 @@ class InventoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAvMBAOeufn4AAAAASUVORK5CYII=';
+
     public function test_landlord_can_create_move_in_inventory(): void
     {
         $owner = User::factory()->create();
@@ -121,13 +123,23 @@ class InventoryTest extends TestCase
         ])->assertStatus(409);
     }
 
+    /**
+     * TCK-596 — l'appel sans corps n'existe plus : chaque partie signe avec `{role, signature}`, et
+     * l'état des lieux porte son bail (le bailleur du BAIL signe, pas celui d'un bail de fabrique).
+     */
     public function test_owner_signs_then_tenant_signs_marks_signed(): void
     {
         $owner = User::factory()->create();
         $tenantUser = User::factory()->create();
         $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
         $property = Property::factory()->create(['user_id' => $owner->id]);
+        $lease = Lease::factory()->create([
+            'property_id' => $property->id,
+            'landlord_id' => $owner->id,
+            'tenant_id' => $tenant->id,
+        ]);
         $inventory = Inventory::factory()->create([
+            'lease_id' => $lease->id,
             'property_id' => $property->id,
             'tenant_id' => $tenant->id,
             'conducted_by' => $owner->id,
@@ -135,13 +147,13 @@ class InventoryTest extends TestCase
         ]);
 
         Sanctum::actingAs($owner);
-        $this->postJson("/api/inventories/{$inventory->id}/sign")
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'landlord', 'signature' => self::SIGNATURE])
             ->assertOk()
             ->assertJsonPath('data.owner_signed', true)
             ->assertJsonPath('data.status', InventoryStatus::PendingSignature->value);
 
         Sanctum::actingAs($tenantUser);
-        $this->postJson("/api/inventories/{$inventory->id}/sign")
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'tenant', 'signature' => self::SIGNATURE])
             ->assertOk()
             ->assertJsonPath('data.tenant_signed', true)
             ->assertJsonPath('data.status', InventoryStatus::Signed->value);
@@ -161,7 +173,8 @@ class InventoryTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create());
 
-        $this->postJson("/api/inventories/{$inventory->id}/sign")->assertForbidden();
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'landlord', 'signature' => self::SIGNATURE])
+            ->assertForbidden();
     }
 
     public function test_tenant_can_dispute_pending_inventory(): void

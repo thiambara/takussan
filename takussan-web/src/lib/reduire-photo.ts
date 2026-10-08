@@ -145,3 +145,66 @@ export async function reduirePhotos(
   }
   return reduites;
 }
+
+/** Nombre de réencodages tentés au plus pour passer sous un plafond d'octets. */
+export const ESSAIS_SOUS_PLAFOND = 4;
+
+/**
+ * TCK-596 — réduit une photo jusqu'à ce qu'elle tienne sous `plafondOctets`, quand l'API en impose
+ * un plus bas que ce que `reduirePhoto` garantit (l'état des lieux accepte 5 Mo par photo).
+ *
+ * `reduirePhoto` ne touche pas une image déjà sous 2 560 px : une photo de téléphone de 7 Mo en
+ * 2 400 px partirait telle quelle, et l'API la refuserait. Abaisser seulement la limite affichée
+ * l'aurait refusée côté client — même échec, plus tôt. Ici, on rétrécit les dimensions d'un ratio
+ * tiré du poids (le poids d'un JPEG suit à peu près le nombre de pixels), jusqu'à quatre fois, et on
+ * garde le meilleur résultat. Mêmes règles que `reduirePhoto` : le format ne change jamais, et tout
+ * échec rend ce qu'on avait — la validation de l'appelant dira alors « trop lourd », honnêtement.
+ */
+export async function reduirePhotoSousPlafond(
+  fichier: File,
+  plafondOctets: number,
+  outils: OutilsImage = outilsNavigateur,
+): Promise<File> {
+  const premiere = await reduirePhoto(fichier, outils);
+  if (premiere.size <= plafondOctets || !TYPES_REDUITS.has(fichier.type)) return premiere;
+
+  let image: ImageDecodee | null = null;
+  try {
+    image = await outils.decoder(premiere);
+    let meilleure = premiere;
+    let largeur = image.width;
+    let hauteur = image.height;
+    for (let essai = 0; essai < ESSAIS_SOUS_PLAFOND && meilleure.size > plafondOctets; essai++) {
+      const ratio = Math.min(0.9, Math.sqrt(plafondOctets / meilleure.size) * 0.95);
+      largeur = Math.max(1, Math.round(largeur * ratio));
+      hauteur = Math.max(1, Math.round(hauteur * ratio));
+      const blob = await outils.encoder(image, largeur, hauteur, fichier.type, QUALITE);
+      if (!blob || blob.type !== fichier.type) break;
+      if (blob.size < meilleure.size) {
+        meilleure = new File([blob], fichier.name, {
+          type: fichier.type,
+          lastModified: fichier.lastModified,
+        });
+      }
+    }
+    return meilleure;
+  } catch {
+    return premiere;
+  } finally {
+    image?.close();
+  }
+}
+
+/** Un lot sous plafond, une photo à la fois, comme {@link reduirePhotos}. */
+export async function reduirePhotosSousPlafond(
+  fichiers: readonly File[],
+  plafondOctets: number,
+  outils: OutilsImage = outilsNavigateur,
+): Promise<File[]> {
+  const reduites: File[] = [];
+  for (const fichier of fichiers) {
+    reduites.push(await reduirePhotoSousPlafond(fichier, plafondOctets, outils));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return reduites;
+}

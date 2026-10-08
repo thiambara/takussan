@@ -17,6 +17,8 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\LeaseRenewalService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -82,14 +84,34 @@ class LeaseService
             'lease.not_draft_activate'
         );
 
-        $lease->update([
-            'status' => LeaseStatus::Active,
-            'signed_at' => now(),
-        ]);
+        return $this->completeActivation($lease);
+    }
 
-        $fresh = $lease->refresh();
+    /**
+     * TCK-596 §4B (ADR-0042 §6, §8) — ce que fait toute activation, quelle qu'en soit la voie
+     * (service interne, seconde signature par code, signature papier) : `active`, `signed_at`,
+     * échéancier, `LeaseActivated`. L'appelant a jugé l'état de départ ; sous transaction, il tient
+     * le verrou de la ligne du bail.
+     */
+    public function completeActivation(Lease $lease): Lease
+    {
+        // VERIF-596 passe 5 (M-E) — un renouvellement né `pending_signature` relève son parent ICI
+        // et non à sa création : coupure de la fin, annulation des échéances du chevauchement,
+        // `renewed`. Une échéance réglée entre-temps refuse l'activation (409), transaction annulée.
+        $fresh = DB::transaction(function () use ($lease) {
+            app(LeaseRenewalService::class)->completeHandOver($lease);
 
-        GenerateLeasePaymentSchedule::dispatch($fresh);
+            $lease->update([
+                'status' => LeaseStatus::Active,
+                'signed_at' => now(),
+            ]);
+
+            return $lease->refresh();
+        });
+
+        // `afterCommit` : une activation dans la transaction d'une signature n'émet l'échéancier
+        // qu'une fois la ligne validée (sans transaction, l'émission est immédiate).
+        GenerateLeasePaymentSchedule::dispatch($fresh)->afterCommit();
 
         // TCK-265 — fan out the welcome notification to the tenant.
         // The event is `ShouldDispatchAfterCommit`, so even if the caller
@@ -102,27 +124,53 @@ class LeaseService
 
     public function generateSchedule(Lease $lease): int
     {
-        abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
+        return $this->scheduleUnderLock($lease, failIfExists: true);
+    }
 
-        $existing = $lease->payments()->count();
-        abort_code_if($existing > 0, 422, 'lease.schedule_exists');
+    /**
+     * La même génération, muette quand l'échéancier existe déjà : pour la tâche de file
+     * (`GenerateLeasePaymentSchedule`), qu'une génération manuelle concurrente a pu devancer.
+     */
+    public function generateScheduleIfMissing(Lease $lease): int
+    {
+        return $this->scheduleUnderLock($lease, failIfExists: false);
+    }
 
-        $start = Carbon::parse($lease->start_date);
-        $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;
-        $frequency = $lease->payment_frequency ?? PaymentFrequency::Monthly;
-        $amount = (float) ($lease->monthly_rent ?? 0);
-        $paymentDay = $lease->payment_day ?? 1;
+    /**
+     * VERIF-596 (hors diff, fermé ici) — le contrôle « aucune échéance » se fait sous le verrou de
+     * la ligne `leases`, sur le bail relu. Il se faisait avant la transaction : un clic sur
+     * `generate-schedule` concurrent de la tâche de renouvellement (ou de l'activation) lisait
+     * tous deux zéro échéance, et l'échéancier était créé deux fois.
+     *
+     * The whole schedule is one transaction: a mid-loop failure must not leave a partial schedule,
+     * which the `$existing > 0` guard would then make permanently unrecoverable on retry.
+     */
+    private function scheduleUnderLock(Lease $lease, bool $failIfExists): int
+    {
+        return DB::transaction(function () use ($lease, $failIfExists): int {
+            /** @var Lease $lease */
+            $lease = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            $existing = $lease->payments()->count();
+            // L'ordre des contrôles de chaque appelant est conservé : la tâche se tait d'abord sur un
+            // échéancier existant, la route refuse d'abord un bail inactif.
+            if ($existing > 0 && ! $failIfExists) {
+                return 0;
+            }
+            abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
+            abort_code_if($existing > 0, 422, 'lease.schedule_exists');
 
-        $current = $start->copy()->day(min($paymentDay, $start->daysInMonth));
+            $start = Carbon::parse($lease->start_date);
+            $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;
+            $frequency = $lease->payment_frequency ?? PaymentFrequency::Monthly;
+            $amount = (float) ($lease->monthly_rent ?? 0);
+            $paymentDay = $lease->payment_day ?? 1;
 
-        if ($current->lt($start)) {
-            $current = $this->advancePeriod($current, $frequency);
-        }
+            $current = $start->copy()->day(min($paymentDay, $start->daysInMonth));
 
-        // Wrap the whole schedule in a transaction: a mid-loop failure must not
-        // leave a partial schedule, which the `$existing > 0` guard above would
-        // then make permanently unrecoverable on retry.
-        return DB::transaction(function () use ($lease, $current, $end, $frequency, $amount): int {
+            if ($current->lt($start)) {
+                $current = $this->advancePeriod($current, $frequency);
+            }
+
             $count = 0;
 
             while ($end === null || $current->lte($end)) {
@@ -163,46 +211,53 @@ class LeaseService
 
     public function terminate(Lease $lease, User $user, ?string $reason = null): Lease
     {
-        abort_code_unless(
-            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
-            422,
-            'lease.cannot_terminate'
-        );
-
-        $penaltyAmount = null;
-        if ($lease->status === LeaseStatus::Active && $lease->end_date && $lease->end_date->isFuture()) {
-            $remainingMonths = (int) now()->diffInMonths($lease->end_date);
-            $penaltyAmount = min($remainingMonths, 3) * ($lease->monthly_rent ?? 0);
-        }
-
         // The status flip and the penalty charge must commit together: if the
         // penalty insert failed after the status update, the lease would be
         // Terminated with no penalty and the charge could never be re-applied
         // (it's no longer Active).
-        DB::transaction(function () use ($lease, $user, $reason, $penaltyAmount): void {
-            $lease->update([
+        return DB::transaction(function () use ($lease, $user, $reason): Lease {
+            // VERIF-596 passe 4 (m-c) — statut et indemnité se jugent sur la ligne VERROUILLÉE : sur
+            // l'instance liée, une activation validée entre-temps laissait résilier un bail actif
+            // sans indemnité.
+            /** @var Lease $locked */
+            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            abort_code_unless(
+                in_array($locked->status, [LeaseStatus::Active, LeaseStatus::PendingSignature], true),
+                422,
+                'lease.cannot_terminate'
+            );
+
+            // VERIF-596 passe 4 (M-T, ADR-0042 §1) — l'indemnité est celle que le contrat imprime :
+            // même règle que la voie formelle (`computePenalty`), le terme figé borné aux mois
+            // restants. Avant : `min(mois restants, 3)` loyers en dur, quel que soit le contrat
+            // signé. Un bail en attente de signature n'est pas en vigueur : aucune indemnité.
+            $penaltyAmount = $locked->status === LeaseStatus::Active
+                ? app(EarlyTerminationService::class)->computePenalty($locked, now())
+                : 0.0;
+
+            $locked->update([
                 'status' => LeaseStatus::Terminated,
                 'terminated_at' => now(),
                 'terminated_by_id' => $user->id,
                 'termination_reason' => $reason,
             ]);
 
-            if ($penaltyAmount && $penaltyAmount > 0) {
+            if ($penaltyAmount > 0) {
                 LeasePayment::create([
-                    'lease_id' => $lease->id,
+                    'lease_id' => $locked->id,
                     'reference_number' => ReferenceNumberGenerator::leasePayment(),
-                    'payer_id' => $lease->tenant_id,
+                    'payer_id' => $locked->tenant_id,
                     'payment_type' => LeasePaymentType::Penalty->value,
                     'amount' => $penaltyAmount,
-                    'currency' => $lease->currency?->value ?? 'XOF',
+                    'currency' => $locked->currency?->value ?? 'XOF',
                     'status' => PaymentStatus::Pending,
                     'due_date' => now()->addDays(30)->toDateString(),
                     'period_start' => now()->toDateString(),
                     'period_end' => now()->addDays(30)->toDateString(),
                 ]);
             }
-        });
 
-        return $lease->refresh();
+            return $locked->refresh();
+        });
     }
 }

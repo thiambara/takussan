@@ -9,6 +9,7 @@ use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Property;
+use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Model\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,9 +60,11 @@ class BookingController extends Controller
     {
         $this->authorize('view', $booking);
 
-        return $this->json([
-            'data' => BookingResource::make($booking->load(['property.address', 'customer', 'agency']))->toArray($request),
-        ]);
+        $data = BookingResource::make($booking->load(['property.address', 'customer', 'agency', 'payments']))->toArray($request);
+        // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
+        $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
+
+        return $this->json(['data' => $data]);
     }
 
     public function confirm(Request $request, Booking $booking): JsonResponse
@@ -92,7 +95,7 @@ class BookingController extends Controller
 
         $data = $request->validated();
 
-        $booking = $this->bookings->reject($booking, $data['reason'] ?? null);
+        $booking = $this->bookings->reject($booking, $data['reason'] ?? null, $request->user());
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),

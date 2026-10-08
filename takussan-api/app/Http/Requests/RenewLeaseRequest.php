@@ -34,6 +34,10 @@ class RenewLeaseRequest extends BaseFormRequest
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'late_fee_percent' => ['sometimes', 'nullable', 'numeric', 'between:0,50'],
             'late_fee_grace_days' => ['sometimes', 'nullable', 'integer', 'between:0,30'],
+            // VERIF-596 passe 3 (N1') — renégocier les termes figés au renouvellement est légitime ;
+            // mêmes bornes que `UpdateLeaseRequest`. Absents, ils sont hérités du parent.
+            'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', 'between:0,12'],
+            'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             'terms' => ['sometimes', 'nullable', 'string'],
             'special_conditions' => ['sometimes', 'nullable', 'string'],
             // Immutables côté avenant — pour changer de locataire / bien

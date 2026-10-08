@@ -958,7 +958,8 @@
         "weeklyLine": "{price} / week, prorated over {count, plural, =1 {# night} other {# nights}}",
         "deposit": "Deposit (30%)",
         "rentLine": "Rent",
-        "rentNotice": "Your application is for one rent; the lease will set the final amount."
+        "rentNotice": "Your application is for one rent; the lease will set the final amount.",
+        "occupiedHint": "Greyed-out dates are already taken."
       },
       "offerForm": {
         "invalidAmount": "Invalid amount.",
@@ -1111,7 +1112,8 @@
         "fullPriceHistory": "Full price history",
         "fullPriceHistoryHint": "All changes recorded for this property.",
         "noPriceHistory": "No price change recorded for this property.",
-        "unknownDate": "Unknown date"
+        "unknownDate": "Unknown date",
+        "calendar": "Calendar"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1228,6 +1230,45 @@
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
         "cancel": "Cancel",
         "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
+      },
+      "calendar": {
+        "title": "Property calendar",
+        "description": "Confirmed bookings, blocked dates and dates imported from other platforms, over twelve months.",
+        "legend": "Legend",
+        "legendBooked": "Booked",
+        "legendBlocked": "Blocked",
+        "legendImported": "Imported",
+        "genericError": "The operation did not go through.",
+        "blockTitle": "Block dates",
+        "blockHint": "Blocked nights can no longer be booked, here and on the platforms that read your export link.",
+        "blockFrom": "First night",
+        "blockTo": "Available again on",
+        "blockReason": "Reason (optional, only visible to you)",
+        "blockSubmit": "Block",
+        "blocksTitle": "Blocked dates",
+        "blocksEmpty": "No blocked dates in the next twelve months.",
+        "range": "From {from} to {to}",
+        "manual": "Manual block",
+        "importedFrom": "Imported from {feed}",
+        "conflict": "Conflicts with a booking",
+        "unblock": "Unblock",
+        "feedsTitle": "Imported calendars",
+        "feedsHint": "Paste the iCal link from Airbnb, Booking.com or a calendar: their taken dates are blocked here every hour. An imported date is removed at its source.",
+        "feedUrl": "iCal link (https)",
+        "feedLabel": "Name (optional)",
+        "feedAdd": "Import",
+        "feedOk": "in sync",
+        "feedFailing": "failing ({count, plural, =1 {# attempt} other {# attempts}})",
+        "feedSync": "Sync now",
+        "feedRemove": "Remove",
+        "exportTitle": "Export link",
+        "exportHint": "Give this link to other platforms so they block your Takussan bookings. It contains no name or phone number.",
+        "exportGenerate": "Generate a new link",
+        "exportUrl": "iCal export link",
+        "exportCopy": "Copy",
+        "exportCopied": "Copied",
+        "exportOnce": "This link is shown only once. Generating a new one disables the previous one.",
+        "feedPending": "first sync in progress"
       },
       "collaborators": {
         "title": "Primary agent",
@@ -3071,6 +3112,11 @@
           "title": "Payment failed",
           "body": "The payment did not go through. You can try again."
         },
+        "refund": {
+          "title": "Payment received, refund to follow",
+          "bodyCancelled": "Payment received on a cancelled instalment: the agency will refund you.",
+          "bodyAlreadyPaid": "This instalment was already settled: the agency will refund this payment."
+        },
         "pending": {
           "title": "Payment pending",
           "body": "We are confirming the status with the provider — this may take a few seconds."
@@ -3174,7 +3220,8 @@
       "late": "Late",
       "partially_paid": "Partially paid",
       "failed": "Failed",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
     },
     "invoiceStatus": {
       "draft": "Draft",
@@ -3504,7 +3551,8 @@
       "banner_cancel_request": "Cancel termination",
       "cancelled_toast_title": "Termination cancelled",
       "cancelled_toast_body": "The lease has been reactivated.",
-      "cancel_failed_title": "Failed to cancel"
+      "cancel_failed_title": "Failed to cancel",
+      "cta_tenant": "Give notice"
     },
     "error_generic": "Action failed.",
     "list": {
@@ -3563,7 +3611,8 @@
         "paid": "Paid",
         "late": "Overdue",
         "pending": "Upcoming",
-        "other": "Other"
+        "other": "Other",
+        "cancelled": "Cancelled"
       },
       "listLabel": "Lease instalments",
       "dueOn": "Due: {date}",
@@ -3705,6 +3754,35 @@
         "passport": "Passport",
         "driving_license": "Driving licence"
       }
+    },
+    "signature": {
+      "title": "Lease signature",
+      "notFrozenDescription": "The contract is not frozen yet. Request the signature: the contract is then locked, and each party signs it with a code received by SMS or e-mail.",
+      "frozenDescription": "The contract is frozen. Each party reads it, then signs it with their code. The second signature activates the lease. Any change to the lease cancels pending signatures.",
+      "readContract": "Read the contract to sign",
+      "roles": {
+        "tenant": "Tenant",
+        "landlord": "Landlord"
+      },
+      "signed": "Signed",
+      "awaiting": "Awaiting",
+      "signedBy": "Signed by {signer} on {date}",
+      "signedOnBehalf": "Signed by {signer} on behalf of {landlord} on {date}",
+      "sendCode": "Get my code",
+      "resendCode": "Resend the code",
+      "codeSentSms": "Code sent by SMS to {destination}. It is valid for 10 minutes.",
+      "codeSentMail": "Code sent by e-mail to {destination}. It is valid for 10 minutes.",
+      "codeLabel": "6-digit code",
+      "sign": "Sign",
+      "consent": "By entering this code, I sign the contract shown above.",
+      "request": "Request signature",
+      "requestAgain": "Freeze the contract again",
+      "requestedToast": "Signature requested: the parties have been notified.",
+      "signedToast": "Your signature is recorded.",
+      "activatedToast": "Lease signed and activated.",
+      "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
+      "paperSubmit": "Activate on paper contract",
+      "genericError": "The operation failed. Try again."
     }
   },
   "maintenance": {
@@ -5137,7 +5215,11 @@
       "disputeReason": "Reason for the dispute",
       "disputeReasonPlaceholder": "Explain the disputed point",
       "sendDispute": "Send the dispute",
-      "disputeFailed": "The dispute could not be sent. Please try again in a moment."
+      "disputeFailed": "The dispute could not be sent. Please try again in a moment.",
+      "roomPhotos": "Photos of the {room}",
+      "roomPhotoAlt": "Photo {index} — {room}",
+      "deleteRoomPhotoAria": "Delete photo {index} of the {room}",
+      "deleteRoomPhotoFailed": "The photo could not be deleted. Try again."
     },
     "roomEditor": {
       "empty_title": "No room",
@@ -5209,7 +5291,9 @@
       "signAs": "Sign as {role}",
       "confirmAs": "Sign as the {role}",
       "helper": "Draw your signature then confirm — the action is final.",
-      "signFailed": "Signature failed. Please try again."
+      "signFailed": "Signature failed. Please try again.",
+      "onBehalfOf": "On behalf of {name}",
+      "signedOnBehalf": "Signed by the property manager on behalf of the landlord"
     },
     "signaturePad": {
       "label": "Sign here",
@@ -6447,7 +6531,24 @@
           "submit": "Cancel the booking"
         }
       },
-      "forbidden": "This booking belongs to another agency: you don't have access to it."
+      "forbidden": "This booking belongs to another agency: you don't have access to it.",
+      "refund": {
+        "pendingTitle": "Refund in progress",
+        "pendingDescription": "Your booking will not take place: the deposit you paid will be refunded.",
+        "refundedTitle": "Refunded",
+        "refundedDescription": "The deposit paid for this booking has been refunded.",
+        "toProcessTitle": "Refund to process",
+        "toProcessDescription": "This booking is closed and holds a collected deposit. Record its refund once the money has been returned.",
+        "action": "Refund",
+        "dialogTitle": "Record a refund",
+        "dialogDescription": "Amount collected: {amount}.",
+        "fields": {
+          "amount": "Amount refunded",
+          "reason": "Reason"
+        },
+        "submit": "Record the refund",
+        "submitting": "Saving…"
+      }
     },
     "public": {
       "no_property_title": "No property selected",
@@ -9553,7 +9654,11 @@
         },
         "cancelled": {
           "title": "Booking cancelled",
-          "body": "Your booking {reference} for {property} was cancelled."
+          "body": "Booking {reference} for {property} was cancelled."
+        },
+        "requested_undated": {
+          "title": "New request",
+          "body": "Request {reference} was made for {property}."
         }
       },
       "account": {
@@ -9808,6 +9913,28 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        },
+        "calendar_conflict": {
+          "title": "Calendar conflict: {property}",
+          "body": "Calendar \"{feed}\" blocks {property} from {start_date} to {end_date}, while a confirmed booking holds these dates. Nothing was cancelled: check both platforms."
+        },
+        "calendar_feed_failing": {
+          "title": "Imported calendar failing: {property}",
+          "body": "Calendar \"{feed}\" for {property} has failed to sync three times in a row. Check its link."
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Lease to sign: {reference}",
+          "body": "Lease {reference} for {property} is ready. Read the contract, then sign it with the code you will receive."
+        },
+        "signed_by_party": {
+          "title": "Lease {reference} signed by {signer}",
+          "body": "{signer} signed lease {reference} for {property}. It is awaiting your signature."
+        },
+        "signature_completed": {
+          "title": "Lease {reference} signed",
+          "body": "Both parties signed lease {reference} for {property}. It is now active."
         }
       },
       "payout": {

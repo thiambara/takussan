@@ -19,6 +19,7 @@ vi.mock('@/lib/queries/bookings', () => ({
   useConfirmBooking: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRejectBooking: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateBookingPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRefundBookingPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 const BOOKING = {

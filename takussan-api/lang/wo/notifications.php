@@ -106,6 +106,15 @@ return [
     ],
 
     // TCK-272 — kod bu step-up ngir kont yu amul baatu jubaale bu baax.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Sa koodu xaatim bu bayle :reference',
+        'greeting' => 'Asalaa maalekum,',
+        'intro' => 'Kood bii nga wara bind ngir xaatim bayle :reference :',
+        'expires' => 'Kood bii :minutes simili lay dox, benn yoon rekk lañu koy jëfandikoo.',
+        'ignore' => 'Soo laajul dara, bul ko faale : bu amul kood bii, dara du xaatimu.',
+        'sms' => 'Takussan : sa koodu xaatim bu bayle :reference mooy :code (:minutes simili). Bul ko wax kenn.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Sa kod bu dëggal suufeelu kont bi',
         'greeting' => 'Salaam,',
@@ -299,6 +308,11 @@ return [
                 'body' => 'Ñu laaj na réservation :reference ngir :property, li dale :start_date ba :end_date.',
                 'sms' => 'Takussan : réservation bu bees :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'Laaj bu bees',
+                'body' => 'Ñu def na laaj :reference ngir :property.',
+                'sms' => 'Takussan : laaj bu bees :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Réservation bi dëggal nañu ko',
                 'body' => 'Sa réservation :reference ngir :property, li dale :start_date ba :end_date, dëggal nañu ko.',
@@ -311,7 +325,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Réservation bi neenal nañu ko',
-                'body' => 'Sa réservation :reference ngir :property, neenal nañu ko.',
+                'body' => 'Réservation :reference ngir :property, neenal nañu ko.',
                 'sms' => 'Takussan : réservation :reference neenal nañu ko (:property).',
             ],
         ],
@@ -615,6 +629,24 @@ return [
                 'sms' => 'Takussan : Sa ndigal la ñuy xaar : :request',
             ],
         ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Bayle bu ñuy xaatimal : :reference',
+                'body' => 'Bayle :reference bu :property pare na. Jàngal kontraa bi, te xaatimal ko ak kood bi ngay jot.',
+                'sms' => 'Takussan : bayle :reference pare na ngir xaatim.',
+            ],
+            'signed_by_party' => [
+                'title' => ':signer xaatim na bayle :reference',
+                'body' => ':signer xaatim na bayle :reference bu :property. Sa xaatim lañuy xaar.',
+                'sms' => 'Takussan : :signer xaatim na bayle :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Bayle :reference xaatimu na',
+                'body' => 'Ñaari wàll yi xaatim nañu bayle :reference bu :property. Leegi mu ngi dox.',
+                'sms' => 'Takussan : bayle :reference xaatimu na te mu ngi dox.',
+            ],
+        ],
         'prospect_match' => [
             'digest' => [
                 'title' => 'Ay kër dëppoo nañu ak say kiliyaan',
@@ -632,6 +664,16 @@ return [
                 'title' => 'Yégle bi gàntu nañu ko : :property',
                 'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',
                 'sms' => 'Takussan : yégle « :property » gàntu nañu ko.',
+            ],
+            'calendar_conflict' => [
+                'title' => 'Calendrier yi dañuy xeex : :property',
+                'body' => 'Calendrier « :feed » dafa tëj :property li dale :start_date ba :end_date, fekk réservation bu ñu dëggal moo jël bis yooyu. Dara neenalu ci : xoolal ñaari plateforme yi.',
+                'sms' => 'Takussan : calendrier yi dañuy xeex ci :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Calendrier bi ñu jële du dox : :property',
+                'body' => 'Calendrier « :feed » bu :property mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi.',
+                'sms' => 'Takussan : calendrier « :feed » mënatul a synchroniser.',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

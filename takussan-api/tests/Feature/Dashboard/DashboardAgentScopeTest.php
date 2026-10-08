@@ -13,7 +13,9 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -112,7 +114,10 @@ class DashboardAgentScopeTest extends ApiTestCase
             'commission_amount' => $commission,
             'agent_id' => $negotiator->id,
         ])->assertCreated()->json('data.id');
-        $this->postJson("/api/leases/{$id}/activate")->assertOk();
+        // TCK-596 (ADR-0042 §6) — la voie papier exige le contrat numérisé.
+        Storage::fake(config('media-library.disk_name'));
+        $this->post("/api/leases/{$id}/activate", ['contract' => UploadedFile::fake()->create('bail.pdf', 120, 'application/pdf')], ['Accept' => 'application/json'])
+            ->assertOk();
     }
 
     public function test_ac12_the_negotiator_reads_his_own_figures(): void

@@ -10,8 +10,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * TCK-087 — `PATCH /api/leases/{lease}` payload validator.
  *
- * Editable here: the late-fee config and, since TCK-595 (ADR-0049), the
- * negotiator (`agent_id`) and the agency commission (`commission_amount`);
+ * Editable here: the late-fee config, the early-termination and rent-review terms frozen
+ * with the contract (VERIF-596 N1), and, since TCK-595 (ADR-0049), the negotiator
+ * (`agent_id`) and the agency commission (`commission_amount`);
  * lifecycle changes (status, dates, monthly_rent…) flow through their
  * dedicated actions on `LeaseController` (activate, terminate, renew) or
  * dedicated endpoints (`PATCH /leases/{lease}/rent` for rent reviews —
@@ -32,6 +33,10 @@ class UpdateLeaseRequest extends BaseFormRequest
         return [
             'late_fee_percent' => ['sometimes', 'nullable', 'numeric', 'between:0,50'],
             'late_fee_grace_days' => ['sometimes', 'nullable', 'integer', 'between:0,30'],
+            // VERIF-596 passe 2 (N1) — termes imprimés et figés avec le contrat : modifiables tant
+            // que le bail n'est pas signé, refusés ensuite (`lease.terms_locked`).
+            'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', 'between:0,12'],
+            'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             // TCK-595 (ADR-0049 §1, §2) — modifiables, mais le grand livre est figé à l'activation : une
             // correction après coup ne régénère aucune ligne, l'admin annule la ligne fausse.
             'commission_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],

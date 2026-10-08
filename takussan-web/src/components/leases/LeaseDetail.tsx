@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
-  useActivateLease,
   useGenerateSchedule,
   useLease,
   useLeasePayments,
@@ -26,6 +25,7 @@ import { LeaseRenewalDialog } from './LeaseRenewalDialog';
 import { LeaseChainTimeline } from './LeaseChainTimeline';
 import { EarlyTerminationDialog } from './EarlyTerminationDialog';
 import { EarlyTerminationBanner } from './EarlyTerminationBanner';
+import { LeaseSignaturePanel } from './LeaseSignaturePanel';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
@@ -63,7 +63,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const { data, isLoading, isError } = leaseQuery;
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
-  const activateLease = useActivateLease(leaseId);
   const reviewRent = useReviewLeaseRent(leaseId);
   const toast = useToast();
 
@@ -86,11 +85,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   // TCK-089 — same role gate as refund_deposit (server checks `leases.renew`).
   const canRenew = canRefundDeposit;
 
-  // TCK-090 — Same role gate; the API additionally allows a tenant on
-  // their own lease, but tenants don't reach this dashboard surface — they
-  // hit the public/tenant flow. Status-eligibility is checked just before
-  // rendering the button.
-  const canRequestTermination = canRefundDeposit;
 
   const latePaymentsCount = useMemo(() => {
     const list = paymentsData?.data ?? [];
@@ -123,16 +117,13 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }
 
   const lease = data.data;
+  // TCK-596 — le préavis s'ouvre au gestionnaire (TCK-090) ET au locataire de CE bail
+  // (`LeasePolicy::requestEarlyTermination`), jamais à « tout client ». Le statut éligible
+  // est vérifié juste avant le rendu du bouton.
+  const isLeaseTenant =
+    user != null && lease.tenant?.user_id != null && lease.tenant.user_id === user.id;
+  const canRequestTermination = canRefundDeposit || isLeaseTenant;
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
-
-  async function handleActivate() {
-    await activateLease.mutateAsync();
-    toast.add({
-      title: t('activatedToastTitle'),
-      description: t('activatedToastBody'),
-      type: 'success',
-    });
-  }
 
   async function handleRentReview() {
     const rawRent = window.prompt(t('rentPromptAmount'), String(lease.monthly_rent ?? ''))?.trim();
@@ -192,15 +183,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               >
                 {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
               </Button>
-              {lease.status === 'draft' && (
-                <Button
-                  type="button"
-                  onClick={handleActivate}
-                  disabled={activateLease.isPending}
-                >
-                  {activateLease.isPending ? t('activating') : t('activate')}
-                </Button>
-              )}
               {lease.status === 'active' && lease.type !== 'sale' && (
                 <Button
                   type="button"
@@ -241,13 +223,16 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
                 className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => setEarlyTerminationOpen(true)}
               >
-                {tTermination('cta')}
+                {isAgentSurface ? tTermination('cta') : tTermination('cta_tenant')}
               </Button>
             )}
         </div>
       </div>
 
       <LeaseChainTimeline leaseId={leaseId} currentId={leaseId} />
+
+      {/* TCK-596 §4B (ADR-0042) — la signature par code remplace l'« Activer » sans preuve. */}
+      <LeaseSignaturePanel lease={lease} />
 
       <EarlyTerminationBanner lease={lease} canCancel={canRequestTermination} />
 
