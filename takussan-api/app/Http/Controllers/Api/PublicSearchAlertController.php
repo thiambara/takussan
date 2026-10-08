@@ -11,11 +11,9 @@ use App\Models\AlertSubscriber;
 use App\Models\WhatsappContact;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Notifications\Sms\PhoneNumber;
-use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 use InvalidArgumentException;
 
 /**
@@ -34,8 +32,6 @@ use InvalidArgumentException;
  */
 class PublicSearchAlertController extends Controller
 {
-    private const PAR_CONTACT_PAR_HEURE = 5;
-
     public function __construct(private readonly PhoneVerificationService $codes) {}
 
     public function capabilities(): JsonResponse
@@ -57,16 +53,9 @@ class PublicSearchAlertController extends Controller
         $channel = (string) $data['channel'];
         $contact = AlertSubscriber::normalizeContact($channel, $request->contact());
 
-        // La borne par CONTACT (sa boîte : `awa+x@` compte pour `awa@`), qu'un script qui tourne
-        // ses adresses IP ne contourne pas. Ici et non dans le limiteur de la route : celui-ci
-        // publierait son compteur dans les en-têtes `X-RateLimit-*` (verif-599 m2). Le 429 lui-même
-        // est inhérent à une borne par contact ; il vaut que le contact soit connu ou non.
-        $cle = 'public-search-alert:contact:'.AlertSubscriber::mailboxHash($channel, $contact);
-        if (RateLimiter::tooManyAttempts($cle, self::PAR_CONTACT_PAR_HEURE)) {
-            throw new ThrottleRequestsException('Too Many Attempts.', null, ['Retry-After' => RateLimiter::availableIn($cle)]);
-        }
-        RateLimiter::hit($cle, 3600);
-
+        // La borne par CONTACT se compte dans le job, pas ici : un 429 propre au contact, et son
+        // `Retry-After`, disaient qu'on avait visé cette boîte dans l'heure (verif-599 m2). Une
+        // borne atteinte se tait, comme les autres.
         RecordPublicSearchAlert::dispatch(
             Arr::only($data, ['criteria', 'frequency', 'locale', 'name']),
             $channel,

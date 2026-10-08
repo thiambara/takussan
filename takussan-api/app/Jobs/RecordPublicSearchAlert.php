@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
 /**
@@ -37,6 +38,9 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
 
     public int $tries = 1;
 
+    /** Demandes par boîte et par heure, toutes adresses IP confondues. */
+    public const PAR_CONTACT_PAR_HEURE = 5;
+
     /**
      * @param  array<string, mixed>  $data  la demande validée (`criteria`, `frequency`, `locale`, `name`)
      */
@@ -52,6 +56,15 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
             $hash = AlertSubscriber::contactHash($this->channel, $this->contact);
             // Les plafonds se comptent par BOÎTE : `awa+1@`, `awa+2@`… arrivent chez `awa@`.
             $boite = AlertSubscriber::mailboxHash($this->channel, $this->contact);
+
+            // La borne par CONTACT (sa boîte), qu'un script qui tourne ses adresses IP ne contourne
+            // pas. Ici, hors de la requête : atteinte, elle se tait (verif-599 m2) — un 429 propre
+            // au contact, et son `Retry-After`, auraient daté la première demande visant la boîte.
+            $cle = 'public-search-alert:contact:'.$boite;
+            if (RateLimiter::tooManyAttempts($cle, self::PAR_CONTACT_PAR_HEURE)) {
+                return;
+            }
+            RateLimiter::hit($cle, 3600);
 
             $open = AlertSubscriber::query()->where('mailbox_hash', $boite)->count();
             if ($open < (int) config('search_alerts.max_open_per_contact', 5)) {

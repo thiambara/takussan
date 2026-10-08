@@ -373,13 +373,16 @@ class PublicSearchAlertTest extends TestCase
 
     public function test_le_limiteur_par_contact_compte_les_alias_ensemble(): void
     {
+        // Le plafond d'alertes OUVERTES relevé : seule la borne par contact peut retenir la sixième.
+        config(['search_alerts.max_open_per_contact' => 50]);
         $statuts = [];
         foreach (range(1, 6) as $i) {
             $statuts[] = $this->withServerVariables(['REMOTE_ADDR' => "10.0.2.{$i}"])
                 ->postJson('/api/public/search-alerts', $this->demande(['name' => "N{$i}", 'email' => "awa+{$i}@exemple.sn"]))->getStatusCode();
         }
 
-        $this->assertSame([202, 202, 202, 202, 202, 429], $statuts);
+        $this->assertSame(array_fill(0, 6, 202), $statuts, 'une borne atteinte se tait');
+        $this->assertSame(5, AlertSubscriber::count());
     }
 
     /**
@@ -415,16 +418,45 @@ class PublicSearchAlertTest extends TestCase
         $this->assertSame(429, $statuts[10]);
     }
 
-    /** **AC17** — le limiteur compte aussi par CONTACT : changer d'adresse IP ne martèle pas une boîte. */
+    /**
+     * **AC17** — la borne compte aussi par CONTACT : changer d'adresse IP ne martèle pas une boîte.
+     * Atteinte, elle se tait (verif-599 m2) : la sixième demande rend 202 et n'écrit rien.
+     */
     public function test_le_limiteur_compte_par_contact_quelle_que_soit_l_adresse_ip(): void
     {
+        config(['search_alerts.max_open_per_contact' => 50]);
         $statuts = [];
         foreach (range(1, 6) as $i) {
             $statuts[] = $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.{$i}"])
                 ->postJson('/api/public/search-alerts', $this->demande(['name' => "N{$i}"]))->getStatusCode();
         }
 
-        $this->assertSame([202, 202, 202, 202, 202, 429], $statuts);
+        $this->assertSame(array_fill(0, 6, 202), $statuts);
+        $this->assertSame(5, AlertSubscriber::count());
+    }
+
+    /**
+     * verif-599 m2 — une boîte à sa borne horaire rend EXACTEMENT ce que rend une boîte vierge :
+     * même statut, même corps, mêmes en-têtes. Ni 429 propre au contact, ni `Retry-After` qui
+     * daterait la première demande.
+     */
+    public function test_une_borne_par_contact_atteinte_repond_comme_un_contact_vierge(): void
+    {
+        foreach (range(1, 5) as $i) {
+            $this->withServerVariables(['REMOTE_ADDR' => "10.0.4.{$i}"])
+                ->postJson('/api/public/search-alerts', $this->demande(['name' => "N{$i}"]))->assertStatus(202);
+        }
+
+        $aSaBorne = $this->withServerVariables(['REMOTE_ADDR' => '10.0.5.1'])
+            ->postJson('/api/public/search-alerts', $this->demande(['name' => 'Sonde']));
+        $vierge = $this->withServerVariables(['REMOTE_ADDR' => '10.0.5.2'])
+            ->postJson('/api/public/search-alerts', $this->demande(['name' => 'Sonde', 'email' => 'vierge@exemple.sn']));
+
+        $this->assertSame($vierge->getStatusCode(), $aSaBorne->getStatusCode());
+        $this->assertSame($vierge->json(), $aSaBorne->json());
+        $entetes = fn ($r) => collect($r->headers->all())->except(['date', 'set-cookie'])->all();
+        $this->assertSame($entetes($vierge), $entetes($aSaBorne));
+        $this->assertNull($aSaBorne->headers->get('Retry-After'));
     }
 
     /** **AC17** — une demande non confirmée a disparu après 48 h, avec sa recherche. */

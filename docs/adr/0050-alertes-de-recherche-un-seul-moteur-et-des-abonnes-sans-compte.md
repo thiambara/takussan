@@ -219,9 +219,12 @@ Ajoutées après la contre-vérification (verif-599), même règle :
     fournisseur, et la manquer coûte une confirmation de plus, pas une fuite.
 17. **La borne par contact n'est pas un limiteur de route.** `ThrottleRequests` publie dans
     `X-RateLimit-Remaining` le plus petit reste de toutes ses limites. Le compteur d'un contact
-    devenait donc lisible par un tiers, quel que soit l'ordre des limites. La borne (5 par heure)
-    est appliquée dans `PublicSearchAlertController::store()` : le 429 porte `Retry-After`,
-    jamais `X-RateLimit-*`. La route garde la seule borne par visiteur.
+    devenait donc lisible par un tiers, quel que soit l'ordre des limites. La route garde la seule
+    borne par visiteur. La borne par contact (5 par heure, par boîte) est comptée dans
+    `RecordPublicSearchAlert`, hors de la requête. Atteinte, elle **se tait** (verif-599, passe 2) :
+    un 429 propre au contact se distinguait encore du 429 par visiteur, et son `Retry-After`
+    datait la première demande visant la boîte. La réponse est le même 202 que dans tous les
+    autres cas, et le contrôleur ne lit plus rien qui dépende du contact.
 18. **La désinscription WhatsApp retire le consentement que l'alerte avait posé, et celui-là
     seul.** Confirmer par code inscrit le numéro `opted_in` dans `whatsapp_contacts`, source
     `search_alert`, sauf s'il l'était déjà. À la désinscription, une ligne posée par l'alerte, sans
