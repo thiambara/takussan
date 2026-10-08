@@ -33,9 +33,41 @@ l'export des données — continue.**
    l'agence ; la levée appelle `searchable()` (seuls les biens indexables y entrent, par
    `shouldBeSearchable`).
 3. **Verrou d'écriture.** `EnsureAgencyWritable` (groupe `api`, après `ResolveActiveProfile`) : une
-   méthode non sûre sous un profil actif d'une agence `suspended` → **423 `agency_suspended`**. Liste
-   blanche nommée : `api/auth/*`, `api/me/*` (son propre compte, ses exports, sa demande
-   d'effacement), les exports de données. Les lectures passent.
+   méthode non sûre sous un profil actif d'une agence `suspended` → **423 `agency.suspended`** (le
+   code que rend `abort_code`, et qu'éprouvent les tests). Liste blanche nommée : `api/auth/*`,
+   `api/me/*` (son propre compte, ses exports, sa demande d'effacement), les exports de données. Les
+   lectures passent.
+
+   **Une agence suspendue ne reçoit plus de travail** (verif-600 O2, décision de session). Le
+   prestataire assigné ne porte aucun profil d'agence, et le verrou ci-dessus ne le voyait pas : il
+   acceptait une intervention dont le bailleur, lui, ne pouvait plus approuver le devis. Le même
+   middleware juge donc aussi l'agence de l'**intervention** visée, quand l'écrivain en est le
+   prestataire assigné (`MaintenanceRequest::lockedForProvider()`). Toute écriture rend 423
+   `agency.suspended` :
+   - accepter, refuser ;
+   - soumettre un devis ;
+   - changer le statut, démarrer, terminer ;
+   - joindre les photos « avant » ;
+   - modifier la demande ;
+   - poster un message sur son fil ;
+   - joindre une pièce par `POST /api/media`, jugé dans `MediaController::authorizeAttach()`
+     puisque la cible est dans le corps.
+
+   Retirer une pièce d'intervention ne lui est ouvert dans aucun état (`MediaPolicy::delete`). La
+   lecture reste ouverte : fiche, devis, fil.
+
+   Écritures qui restent ouvertes, nommées :
+   - **Marquer le fil lu, le mettre en sourdine, l'archiver.** Ces gestes portent sur l'état de la
+     personne, pas sur un travail pour l'agence.
+   - **Aucun geste de l'intervention elle-même**, y compris « refuser » et « terminer ». Les deux
+     ont été pesés :
+     - refuser rendrait la demande à un donneur d'ordre qui ne peut plus la réassigner ;
+     - terminer déclencherait la confirmation du demandeur et ce que TCK-594 en lit.
+
+     Ils attendent la levée, qui ne perd rien : la suspension est réversible et les données restent
+     en place.
+   - Comme pour les membres, le verrou ne vaut que pour `suspended` : une agence `inactive` reçoit
+     encore.
 4. **Second chemin.** `MembershipCapabilityResolver` refuse toute capacité d'**écriture** dans une
    agence `suspended` — par profil comme par délégation — et garde les capacités d'**export**
    (`crm.export`, `payments.export`, `reports.export`, et la lecture `crm.view_all`). Un membre
@@ -75,4 +107,4 @@ l'export des données — continue.**
   `app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php`, `app/Http/Middleware/EnsureAgencyWritable.php`,
   `app/Services/Membership/MembershipCapabilityResolver.php`,
   `app/Http/Controllers/Api/Admin/AgencyModerationController.php`.
-- Tests : `AgencySuspensionTest`, `AgencySuspensionSearchIndexTest`, `AgencySuspendedWriteLockTest`.
+- Tests : `AgencySuspensionTest`, `AgencySuspensionSearchIndexTest`, `AgencySuspendedWriteLockTest`, `AgencySuspensionProviderLockTest` (O2).

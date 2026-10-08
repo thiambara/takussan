@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
@@ -167,6 +169,24 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
+    }
+
+    /**
+     * TCK-600 (ADR-0048 §3, verif-600 O2) — une agence suspendue ne reçoit plus de travail : le
+     * prestataire ASSIGNÉ n'écrit plus sur une intervention d'un bien de cette agence. Il ne porte
+     * aucun profil d'agence, et le verrou des membres ({@see EnsureAgencyWritable}) ne le voyait
+     * pas : il acceptait l'intervention dont le bailleur, lui, ne pouvait plus approuver le devis.
+     */
+    public function lockedForProvider(User $user): bool
+    {
+        if ($this->assigned_to === null || (int) $this->assigned_to !== (int) $user->getKey()) {
+            return false;
+        }
+
+        $agencyId = $this->property?->agency_id;
+
+        return $agencyId !== null
+            && Agency::query()->whereKey($agencyId)->where('status', AgencyStatus::Suspended)->exists();
     }
 
     public function lease(): BelongsTo
