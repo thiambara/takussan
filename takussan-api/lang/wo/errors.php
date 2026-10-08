@@ -166,6 +166,7 @@ return [
     ],
     'impersonation' => [
         'no_session' => 'Amul jël-bopp bu ubbeeku.',
+        'query_refused' => 'Ubbi walla tëj ab impersonation du jël benn paramètre ci adrees bi.',
         'read_only' => 'Jàng rekk ci jël-bopp bi : mënuloo soppi dara.',
         'target_inactive' => 'Kont bii doxul : mënuloo ko jël ni sa bopp.',
         'target_operator' => 'Mënuloo jël ni sa bopp ab liggéeykatu platform bi.',

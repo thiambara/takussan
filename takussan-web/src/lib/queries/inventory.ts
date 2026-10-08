@@ -22,6 +22,7 @@ import type {
   InventoryDisputeInput,
   InventoryUpdateInput,
 } from '@/lib/schemas/inventory';
+import { cheminApi } from '@/lib/chemin-api';
 
 export const inventoryKeys = {
   all: ['inventory'] as const,
@@ -110,7 +111,7 @@ export function useInventoriesForProperty(
 ) {
   return useApiQuery<PaginatedResponse<Inventory>>(
     inventoryKeys.byProperty(propertyId ?? 0, params),
-    `/api/properties/${propertyId}/inventories`,
+    cheminApi`/api/properties/${propertyId}/inventories`,
     {
       params: toSpatieParams(params, LIST_FIELDS, '-conducted_at'),
       enabled: propertyId !== null && propertyId > 0,
@@ -122,7 +123,7 @@ export function useInventoriesForProperty(
 export function useInventory(id: number | null) {
   return useApiQuery<ApiResponse<Inventory>>(
     inventoryKeys.detail(id ?? 0),
-    `/api/inventories/${id}`,
+    cheminApi`/api/inventories/${id}`,
     {
       params: { fields: { inventories: [...DETAIL_FIELDS] } },
       enabled: id !== null && id > 0,
@@ -141,7 +142,7 @@ export function useCreateInventory() {
 /** `PUT /api/inventories/{id}` — only allowed while status is `draft`. */
 export function useUpdateInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, InventoryUpdateInput>(
-    { path: `/api/inventories/${id}`, method: 'PUT' },
+    { path: cheminApi`/api/inventories/${id}`, method: 'PUT' },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
@@ -149,7 +150,7 @@ export function useUpdateInventory(id: number) {
 /** `POST /api/inventories/{id}/submit` — draft → pending_signature. */
 export function useSubmitInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, void>(
-    { path: `/api/inventories/${id}/submit`, method: 'POST', body: () => ({}) },
+    { path: cheminApi`/api/inventories/${id}/submit`, method: 'POST', body: () => ({}) },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
@@ -171,7 +172,7 @@ export interface InventorySignInput {
 export function useSignInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, InventorySignInput | void>(
     {
-      path: `/api/inventories/${id}/sign`,
+      path: cheminApi`/api/inventories/${id}/sign`,
       method: 'POST',
       body: (input) => (input ?? {}) as Record<string, unknown>,
     },
@@ -182,7 +183,7 @@ export function useSignInventory(id: number) {
 /** `POST /api/inventories/{id}/dispute`. */
 export function useDisputeInventory(id: number) {
   return useApiMutation<ApiResponse<Inventory>, InventoryDisputeInput>(
-    { path: `/api/inventories/${id}/dispute`, method: 'POST' },
+    { path: cheminApi`/api/inventories/${id}/dispute`, method: 'POST' },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
@@ -199,7 +200,7 @@ export interface UploadInventoryRoomPhotosInput {
 export function useUploadInventoryRoomPhotos(id: number) {
   return useApiMutation<unknown, UploadInventoryRoomPhotosInput>(
     {
-      path: `/api/inventories/${id}/room-photos`,
+      path: cheminApi`/api/inventories/${id}/room-photos`,
       method: 'POST',
       formData: true,
       body: ({ files, roomName }) => {

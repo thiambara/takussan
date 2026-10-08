@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api';
 import type { ApiResponse } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-587 (ADR-0031 §2) — suspendre un membre DANS l'agence, jamais sur son compte.
@@ -22,7 +23,7 @@ export async function postTeamSuspension(
   action: TeamSuspensionAction,
   token: string,
 ): Promise<ApiResponse<TeamSuspensionResult>> {
-  return apiRequest(`/api/agencies/${agencyId}/team/${userId}/${action}`, {
+  return apiRequest(cheminApi`/api/agencies/${agencyId}/team/${userId}/${action}`, {
     method: 'POST',
     token,
   });

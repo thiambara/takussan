@@ -16,19 +16,9 @@ import { NextResponse } from 'next/server';
  * dynamique qui construirait son URL sans passer par ici.
  */
 
-const INTERDITS = /[/?#\\]/;
-
-/** Le segment ré-encodé, ou `null` s'il doit être refusé. */
-export function segmentAmont(segment: string): string | null {
-  if (segment === '.' || segment === '..' || INTERDITS.test(segment)) return null;
-  return encodeURIComponent(segment);
-}
-
-/** Les segments d'un catch-all, ré-encodés et joints par `/`, ou `null` si l'un est refusé. */
-export function cheminAmont(segments: readonly string[]): string | null {
-  const encodes = segments.map(segmentAmont);
-  return encodes.some((s) => s === null) ? null : encodes.join('/');
-}
+// Une seule définition du segment admis : `@/lib/chemin-api`, que lisent aussi `src/lib/queries` et
+// les server actions (B1-bis).
+export { cheminAmont, segmentAmont } from '@/lib/chemin-api';
 
 export function reponseSegmentInvalide(): NextResponse {
   return NextResponse.json({ code: 'invalid_path' }, { status: 400 });

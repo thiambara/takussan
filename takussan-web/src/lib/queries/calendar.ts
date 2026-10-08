@@ -2,6 +2,7 @@
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type { CalendarResponse, CalendarEventType } from '@/types/calendar';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-072 — React Query hook pour `/api/calendar`.
@@ -39,7 +40,7 @@ function buildCalendarPath(params: UseCalendarParams): string {
   if (params.types && params.types.length > 0) {
     for (const t of params.types) qs.append('types[]', t);
   }
-  return `/api/calendar?${qs.toString()}`;
+  return cheminApi`/api/calendar?${qs.toString()}`;
 }
 
 export const calendarQueryKeys = {

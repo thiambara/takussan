@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { ApiError, apiFetch } from '@/lib/api';
 import { segmentDeSlug } from '@/lib/slug-de-bien';
 import type { PropertyDetail, PropertyListItem } from '@/types/property';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-598 (ADR-0052 §1) — la durée de vie des données de la fiche dans le cache de Next : le retard
@@ -83,7 +84,7 @@ export const getProperty = cache(
       // le navigateur (`CompteurDeVue`). Seules les réponses 200 entrent au cache : un 404 n'y
       // reste pas.
       const res = await apiFetch<{ data: PropertyDetail }>(
-        `/public/properties/${segment}`,
+        cheminApi`/public/properties/${segment}`,
         { next: { revalidate: FRAICHEUR_FICHE_SECONDES, tags: [etiquetteDeFiche(slug)] } } as RequestInit,
         { locale, partage: true },
       );
@@ -123,7 +124,7 @@ export const getEtatDuBien = cache(
     if (segment === null) return null;
     try {
       const res = await apiFetch<{ data: EtatPublicDuBien }>(
-        `/public/properties/${segment}/status`,
+        cheminApi`/public/properties/${segment}/status`,
         undefined,
         { locale },
       );

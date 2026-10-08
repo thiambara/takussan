@@ -15,6 +15,7 @@ import type {
   MemberPortfolio,
   PortfolioCategory,
 } from '@/types/agent-crm';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-591 — requêtes du CRM de l'agent. Module sans directive : appelable depuis un composant
@@ -106,14 +107,14 @@ export async function fetchAgencyAgents(token: string, agencyId: number): Promis
     per_page: 100,
   });
   const res = await apiRequest<PaginatedResponse<{ id: number; first_name: string | null; last_name: string | null }>>(
-    `/api/agencies/${agencyId}/members?${qs}`,
+    cheminApi`/api/agencies/${agencyId}/members?${qs}`,
     { token },
   );
   return res.data.map((u) => ({ id: u.id, name: [u.first_name, u.last_name].filter(Boolean).join(' ') }));
 }
 
 export async function setCustomerPrimaryContact(token: string, customerId: number, userId: number): Promise<void> {
-  await apiRequest<unknown>(`/api/customers/${customerId}/primary-contact`, {
+  await apiRequest<unknown>(cheminApi`/api/customers/${customerId}/primary-contact`, {
     method: 'POST',
     body: { user_id: userId },
     token,
@@ -127,7 +128,7 @@ export async function fetchCustomerActivity(
 ): Promise<PaginatedResponse<CustomerActivityEntry>> {
   const qs = buildQueryString({ page, per_page: 20 });
   return apiRequest<PaginatedResponse<CustomerActivityEntry>>(
-    `/api/customers/${customerId}/activity${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers/${customerId}/activity${qs ? `?${qs}` : ''}`,
     { token },
   );
 }
@@ -137,7 +138,7 @@ export async function fetchMatchingProperties(
   customerId: number,
 ): Promise<PaginatedResponse<MatchingProperty>> {
   return apiRequest<PaginatedResponse<MatchingProperty>>(
-    `/api/customers/${customerId}/matching-properties?per_page=20`,
+    cheminApi`/api/customers/${customerId}/matching-properties?per_page=20`,
     { token },
   );
 }
@@ -147,7 +148,7 @@ export async function fetchMatchingCustomers(
   propertyId: number,
 ): Promise<PaginatedResponse<MatchingCustomer>> {
   return apiRequest<PaginatedResponse<MatchingCustomer>>(
-    `/api/properties/${propertyId}/matching-customers?per_page=20`,
+    cheminApi`/api/properties/${propertyId}/matching-customers?per_page=20`,
     { token },
   );
 }
@@ -192,7 +193,7 @@ export async function fetchMemberPortfolio(
   userId: number,
 ): Promise<MemberPortfolio> {
   const res = await apiRequest<ApiResponse<MemberPortfolio>>(
-    `/api/agencies/${agencyId}/members/${userId}/portfolio`,
+    cheminApi`/api/agencies/${agencyId}/members/${userId}/portfolio`,
     { token },
   );
   return res.data;
@@ -212,7 +213,7 @@ export async function handOverPortfolio(
   payload: HandoverPayload,
 ): Promise<{ moved: Record<string, number>; unassigned: Record<string, number>; removed: boolean }> {
   const res = await apiRequest<ApiResponse<{ moved: Record<string, number>; unassigned: Record<string, number>; removed: boolean }>>(
-    `/api/agencies/${agencyId}/members/${userId}/handover`,
+    cheminApi`/api/agencies/${agencyId}/members/${userId}/handover`,
     { method: 'POST', body: payload, token },
   );
   return res.data;
@@ -220,7 +221,7 @@ export async function handOverPortfolio(
 
 export async function fetchAbsences(token: string, agencyId: number): Promise<AgentAbsence[]> {
   const res = await apiRequest<PaginatedResponse<AgentAbsence>>(
-    `/api/agencies/${agencyId}/absences?current=1&per_page=50`,
+    cheminApi`/api/agencies/${agencyId}/absences?current=1&per_page=50`,
     { token },
   );
   return res.data;
@@ -231,7 +232,7 @@ export async function declareAbsence(
   agencyId: number,
   payload: { user_id: number; substitute_id: number; starts_at?: string | null; ends_at: string; reason?: string | null },
 ): Promise<AgentAbsence> {
-  const res = await apiRequest<ApiResponse<AgentAbsence>>(`/api/agencies/${agencyId}/absences`, {
+  const res = await apiRequest<ApiResponse<AgentAbsence>>(cheminApi`/api/agencies/${agencyId}/absences`, {
     method: 'POST',
     body: payload,
     token,
@@ -240,7 +241,7 @@ export async function declareAbsence(
 }
 
 export async function revokeAbsence(token: string, agencyId: number, absenceId: number): Promise<void> {
-  await apiRequest<unknown>(`/api/agencies/${agencyId}/absences/${absenceId}`, { method: 'DELETE', token });
+  await apiRequest<unknown>(cheminApi`/api/agencies/${agencyId}/absences/${absenceId}`, { method: 'DELETE', token });
 }
 
 /**
@@ -264,7 +265,7 @@ export async function fetchMyTasks(
     page,
     per_page: 30,
   });
-  return apiRequest<PaginatedResponse<AgentTask>>(`/api/tasks?${qs}`, { token });
+  return apiRequest<PaginatedResponse<AgentTask>>(cheminApi`/api/tasks?${qs}`, { token });
 }
 
 /** Le modèle Laravel attendu par `StoreTaskRequest::TASKABLE_TYPES`. */
@@ -288,7 +289,7 @@ export async function createTask(
 }
 
 export async function setTaskDone(token: string, taskId: number, done: boolean): Promise<void> {
-  await apiRequest<unknown>(`/api/tasks/${taskId}`, {
+  await apiRequest<unknown>(cheminApi`/api/tasks/${taskId}`, {
     method: 'PATCH',
     body: { status: done ? 'done' : 'open' },
     token,
@@ -308,13 +309,13 @@ export async function searchTaskables(
       per_page: 8,
     });
     const res = await apiRequest<PaginatedResponse<{ id: number; first_name: string; last_name: string }>>(
-      `/api/customers?${qs}`,
+      cheminApi`/api/customers?${qs}`,
       { token },
     );
     return res.data.map((c) => ({ id: c.id, label: `${c.first_name} ${c.last_name}` }));
   }
   const qs = buildQueryString({ filter: { search }, fields: { properties: ['id', 'title'] }, per_page: 8 });
-  const res = await apiRequest<PaginatedResponse<{ id: number; title: string }>>(`/api/properties?${qs}`, { token });
+  const res = await apiRequest<PaginatedResponse<{ id: number; title: string }>>(cheminApi`/api/properties?${qs}`, { token });
   return res.data.map((p) => ({ id: p.id, label: p.title }));
 }
 
@@ -328,7 +329,7 @@ export async function removeMember(
   userId: number,
   leaveUnassigned: boolean,
 ): Promise<void> {
-  await apiRequest<unknown>(`/api/agencies/${agencyId}/members/${userId}`, {
+  await apiRequest<unknown>(cheminApi`/api/agencies/${agencyId}/members/${userId}`, {
     method: 'DELETE',
     body: leaveUnassigned ? { leave_unassigned: true } : undefined,
     token,

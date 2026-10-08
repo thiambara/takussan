@@ -8,6 +8,7 @@ import type {
   AgencyUpgradeRequest,
   AgencyUpgradeRequestFormFields,
 } from '@/types/agency-upgrade';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-267 — query layer for the agency upgrade-request flow
@@ -51,7 +52,7 @@ export async function fetchAgencyUpgradeRequests(
 ): Promise<PaginatedResponse<AgencyUpgradeRequest>> {
   const qs = buildQueryString(buildIndexParams());
   return apiRequest<PaginatedResponse<AgencyUpgradeRequest>>(
-    `/api/agencies/${agencyId}/upgrade-requests${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}/upgrade-requests${qs ? `?${qs}` : ''}`,
     { token },
   );
 }
@@ -78,7 +79,7 @@ export async function submitAgencyUpgradeRequest(
   form.append('statuts_doc', statutsDoc);
 
   return apiRequest<ApiResponse<AgencyUpgradeRequest>>(
-    `/api/agencies/${agencyId}/upgrade-requests`,
+    cheminApi`/api/agencies/${agencyId}/upgrade-requests`,
     { token, method: 'POST', body: form, formData: true },
   );
 }
@@ -89,7 +90,7 @@ export async function revokeAgencyUpgradeRequest(
   requestId: number,
 ): Promise<ApiResponse<AgencyUpgradeRequest>> {
   return apiRequest<ApiResponse<AgencyUpgradeRequest>>(
-    `/api/agencies/${agencyId}/upgrade-requests/${requestId}`,
+    cheminApi`/api/agencies/${agencyId}/upgrade-requests/${requestId}`,
     { token, method: 'DELETE' },
   );
 }

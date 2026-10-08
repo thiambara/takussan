@@ -166,6 +166,7 @@ return [
     ],
     'impersonation' => [
         'no_session' => 'No impersonation session is open.',
+        'query_refused' => 'Starting or ending an impersonation takes no parameter in the address.',
         'read_only' => 'Read-only during impersonation: no change is possible.',
         'target_inactive' => 'This account is not active: it cannot be viewed through impersonation.',
         'target_operator' => 'A platform operator cannot be viewed through impersonation.',

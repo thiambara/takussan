@@ -1,5 +1,6 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Server-side fetchers for the role-based dashboards (TCK-032 P1).
@@ -135,7 +136,7 @@ type FetchOpts = {
   signal?: AbortSignal;
 };
 
-async function call<T>(path: string, opts: FetchOpts = {}): Promise<DashboardEnvelope<T> | null> {
+async function call<T>(tableau: 'agency' | 'owner' | 'agent' | 'tenant', opts: FetchOpts = {}): Promise<DashboardEnvelope<T> | null> {
   const token = await getToken();
   if (!token) return null;
 
@@ -144,23 +145,23 @@ async function call<T>(path: string, opts: FetchOpts = {}): Promise<DashboardEnv
     extra: typeof opts.months === 'number' ? { months: opts.months } : undefined,
   });
 
-  const url = `/api${path}${qs ? `?${qs}` : ''}`;
+  const url = cheminApi`/api/dashboard/${tableau}${qs ? `?${qs}` : ''}`;
 
   return apiRequest<DashboardEnvelope<T>>(url, { token, signal: opts.signal });
 }
 
 export function fetchAgencyDashboard(opts?: FetchOpts) {
-  return call<AgencyDashboard>('/dashboard/agency', { include: ['timeseries'], months: 12, ...opts });
+  return call<AgencyDashboard>('agency', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchOwnerDashboard(opts?: FetchOpts) {
-  return call<OwnerDashboard>('/dashboard/owner', { include: ['timeseries'], months: 12, ...opts });
+  return call<OwnerDashboard>('owner', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchAgentDashboard(opts?: FetchOpts) {
-  return call<AgentDashboard>('/dashboard/agent', { include: ['timeseries'], months: 12, ...opts });
+  return call<AgentDashboard>('agent', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchTenantDashboard(opts?: FetchOpts) {
-  return call<TenantDashboard>('/dashboard/tenant', opts);
+  return call<TenantDashboard>('tenant', opts);
 }

@@ -27,6 +27,7 @@ import type {
   MaintenanceStatusInput,
   MaintenanceUpdateInput,
 } from '@/lib/schemas/maintenance';
+import { cheminApi } from '@/lib/chemin-api';
 
 /** Keys used as TanStack Query cache keys — centralise for invalidation. */
 export const maintenanceKeys = {
@@ -139,7 +140,7 @@ export function useMaintenanceHistoryForProperty(
 ) {
   return useApiQuery<PaginatedResponse<MaintenanceRequest>>(
     maintenanceKeys.byProperty(propertyId ?? 0, params),
-    `/api/properties/${propertyId}/maintenance-requests`,
+    cheminApi`/api/properties/${propertyId}/maintenance-requests`,
     {
       params: toSpatieParams(params, LIST_FIELDS),
       enabled: propertyId !== null && propertyId > 0,
@@ -151,7 +152,7 @@ export function useMaintenanceHistoryForProperty(
 export function useMaintenanceRequest(id: number | null) {
   return useApiQuery<ApiResponse<MaintenanceRequest>>(
     maintenanceKeys.detail(id ?? 0),
-    `/api/maintenance-requests/${id}`,
+    cheminApi`/api/maintenance-requests/${id}`,
     {
       params: {
         fields: {
@@ -180,7 +181,7 @@ export function useCreateMaintenanceRequest() {
  */
 export function useUpdateMaintenanceRequest(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, Partial<MaintenanceUpdateInput>>(
-    { path: `/api/maintenance-requests/${id}`, method: 'PATCH' },
+    { path: cheminApi`/api/maintenance-requests/${id}`, method: 'PATCH' },
     {
       invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)],
     },
@@ -190,7 +191,7 @@ export function useUpdateMaintenanceRequest(id: number) {
 /** `PUT /api/maintenance-requests/{id}/status` — validated transition. */
 export function useTransitionMaintenanceStatus(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, MaintenanceStatusInput>(
-    { path: `/api/maintenance-requests/${id}/status`, method: 'PUT' },
+    { path: cheminApi`/api/maintenance-requests/${id}/status`, method: 'PUT' },
     {
       invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)],
     },
@@ -211,7 +212,7 @@ export type MaintenanceCompleteVariables = MaintenanceCompleteInput & {
 export function useCompleteMaintenanceRequest(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, MaintenanceCompleteVariables>(
     {
-      path: `/api/maintenance-requests/${id}/complete`,
+      path: cheminApi`/api/maintenance-requests/${id}/complete`,
       method: 'POST',
       formData: true,
       body: ({ resolution_notes, actual_cost, photos }) => {
@@ -232,7 +233,7 @@ export function useCompleteMaintenanceRequest(id: number) {
 /** TCK-592 — le prestataire assigné accepte l'intervention. */
 export function useAcceptMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
-    { path: `/api/maintenance-requests/${id}/accept`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/accept`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
@@ -240,7 +241,7 @@ export function useAcceptMaintenance(id: number) {
 /** TCK-592 — … ou la refuse, motif à l'appui : elle revient au donneur d'ordre. */
 export function useDeclineMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
-    { path: `/api/maintenance-requests/${id}/decline`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/decline`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
@@ -248,7 +249,7 @@ export function useDeclineMaintenance(id: number) {
 /** TCK-592 (P10) — « C'est réparé ». */
 export function useConfirmMaintenanceResolution(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
-    { path: `/api/maintenance-requests/${id}/confirm-resolution`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/confirm-resolution`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
@@ -260,7 +261,7 @@ export function useContestMaintenanceResolution(id: number) {
     { comment: string; photos?: readonly File[] }
   >(
     {
-      path: `/api/maintenance-requests/${id}/contest-resolution`,
+      path: cheminApi`/api/maintenance-requests/${id}/contest-resolution`,
       method: 'POST',
       formData: true,
       body: ({ comment, photos }) => {
@@ -282,7 +283,7 @@ export function useContestMaintenanceResolution(id: number) {
 export function useAssignableProviders(agencyId: number | null, specialty?: string) {
   return useApiQuery<PaginatedResponse<ServiceProviderProfileSummary>>(
     ['maintenance', 'assignable-providers', agencyId ?? 0, specialty ?? ''],
-    `/api/agencies/${agencyId}/service-providers`,
+    cheminApi`/api/agencies/${agencyId}/service-providers`,
     {
       params: {
         fields: { service_provider_profiles: [...SERVICE_PROVIDER_PROFILE_FIELDS] },
@@ -318,7 +319,7 @@ export interface UploadMaintenancePhotosInput {
 export function useUploadMaintenancePhotos() {
   return useApiMutation<unknown, UploadMaintenancePhotosInput>(
     {
-      path: ({ id }) => `/api/maintenance-requests/${id}/photos`,
+      path: ({ id }) => cheminApi`/api/maintenance-requests/${id}/photos`,
       method: 'POST',
       formData: true,
       body: ({ files, collection }) => {
@@ -336,7 +337,7 @@ export function useUploadMaintenancePhotos() {
 
 export function useRequestMaintenanceQuote(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
-    { path: `/api/maintenance-requests/${id}/quote/request`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/quote/request`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
@@ -362,7 +363,7 @@ export interface SubmitMaintenanceQuoteInput {
 export function useSubmitMaintenanceQuote(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, SubmitMaintenanceQuoteInput>(
     {
-      path: `/api/maintenance-requests/${id}/quote/submit`,
+      path: cheminApi`/api/maintenance-requests/${id}/quote/submit`,
       method: 'POST',
       formData: true,
       body: (vars) => {
@@ -387,21 +388,21 @@ export function useSubmitMaintenanceQuote(id: number) {
 
 export function useApproveMaintenanceQuote(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
-    { path: `/api/maintenance-requests/${id}/quote/approve`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/quote/approve`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 
 export function useRejectMaintenanceQuote(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
-    { path: `/api/maintenance-requests/${id}/quote/reject`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/quote/reject`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 
 export function useStartMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
-    { path: `/api/maintenance-requests/${id}/start`, method: 'POST' },
+    { path: cheminApi`/api/maintenance-requests/${id}/start`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }

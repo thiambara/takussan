@@ -4,6 +4,7 @@ import type {
   PaginatedResponse,
   SpatieQueryParams,
 } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-256 — owners query layer.
@@ -114,7 +115,7 @@ export async function fetchOwners(
 ): Promise<PaginatedResponse<OwnerProfileSummary>> {
   const qs = buildQueryString(buildParams(params));
   return apiRequest<PaginatedResponse<OwnerProfileSummary>>(
-    `/api/owners${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/owners${qs ? `?${qs}` : ''}`,
     { token },
   );
 }
@@ -125,7 +126,7 @@ export async function inviteOwner(
   payload: InviteOwnerPayload,
 ): Promise<ApiResponse<InvitationSummary>> {
   return apiRequest<ApiResponse<InvitationSummary>>(
-    `/api/agencies/${agencyId}/owners/invite`,
+    cheminApi`/api/agencies/${agencyId}/owners/invite`,
     { token, method: 'POST', body: payload },
   );
 }
@@ -135,7 +136,7 @@ export async function resendInvitation(
   invitationId: number,
 ): Promise<ApiResponse<InvitationSummary>> {
   return apiRequest<ApiResponse<InvitationSummary>>(
-    `/api/invitations/${invitationId}/resend`,
+    cheminApi`/api/invitations/${invitationId}/resend`,
     { token, method: 'POST' },
   );
 }
@@ -145,7 +146,7 @@ export async function revokeInvitation(
   invitationId: number,
 ): Promise<ApiResponse<InvitationSummary>> {
   return apiRequest<ApiResponse<InvitationSummary>>(
-    `/api/invitations/${invitationId}/revoke`,
+    cheminApi`/api/invitations/${invitationId}/revoke`,
     { token, method: 'POST' },
   );
 }

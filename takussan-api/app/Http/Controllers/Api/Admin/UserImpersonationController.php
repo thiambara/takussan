@@ -28,6 +28,7 @@ class UserImpersonationController extends Controller
 
     public function start(StartImpersonationRequest $request, User $user): JsonResponse
     {
+        self::refuserUneRequete($request);
         ['session' => $session, 'token' => $token] = $this->impersonation->start(
             $request->user(),
             $user,
@@ -44,6 +45,7 @@ class UserImpersonationController extends Controller
 
     public function stop(Request $request): JsonResponse
     {
+        self::refuserUneRequete($request);
         $session = ImpersonationSession::query()
             ->where('impersonator_id', $request->user()->id)
             ->whereNull('ended_at')
@@ -58,6 +60,16 @@ class UserImpersonationController extends Controller
             'session_id' => $session->id,
             'ended_at' => $session->ended_at?->toIso8601String(),
         ]]);
+    }
+
+    /**
+     * verif-600 B1-bis — ouvrir et fermer ne prennent rien dans l'adresse. Une query sur ces deux
+     * gestes est la signature d'une URL réécrite (`…/impersonate?reason=…&x=/notes`) : refusée, sans
+     * rien ouvrir ni fermer.
+     */
+    private static function refuserUneRequete(Request $request): void
+    {
+        abort_code_if($request->query->count() > 0, 422, 'impersonation.query_refused');
     }
 
     public function current(Request $request): JsonResponse

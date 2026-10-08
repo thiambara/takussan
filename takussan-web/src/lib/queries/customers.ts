@@ -13,6 +13,7 @@ import type {
 } from '@/types/customer';
 import type { Tag } from '@/types/tag';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Customer (CRM) queries — TCK-042. All reads use spatie query params
@@ -99,7 +100,7 @@ export async function fetchDashboardCustomers(
 ): Promise<PaginatedResponse<CustomerListItem>> {
   const qs = buildQueryString(buildListParams(params));
   return apiRequest<PaginatedResponse<CustomerListItem>>(
-    `/api/customers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers${qs ? `?${qs}` : ''}`,
     { token },
   );
 }
@@ -113,7 +114,7 @@ export async function fetchDashboardCustomer(
     include: ['notes', 'documents', 'tags'],
   });
   const res = await apiRequest<ApiResponse<CustomerDetail>>(
-    `/api/customers/${customerId}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers/${customerId}${qs ? `?${qs}` : ''}`,
     { token },
   );
   return res.data;
@@ -137,7 +138,7 @@ export async function updateCustomer(
   payload: CustomerFormPayload,
 ): Promise<CustomerDetail> {
   const res = await apiRequest<ApiResponse<CustomerDetail>>(
-    `/api/customers/${customerId}`,
+    cheminApi`/api/customers/${customerId}`,
     {
       method: 'PUT',
       body: payload,
@@ -153,7 +154,7 @@ export async function createCustomerNote(
   body: string,
 ): Promise<CustomerNote> {
   const res = await apiRequest<ApiResponse<CustomerNote>>(
-    `/api/customers/${customerId}/notes`,
+    cheminApi`/api/customers/${customerId}/notes`,
     {
       method: 'POST',
       body: { body },
@@ -169,7 +170,7 @@ export async function fetchCustomerNotes(
 ): Promise<CustomerNote[]> {
   const qs = buildQueryString({ sort: '-created_at' });
   const res = await apiRequest<ApiResponse<CustomerNote[]>>(
-    `/api/customers/${customerId}/notes${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers/${customerId}/notes${qs ? `?${qs}` : ''}`,
     { token },
   );
   return res.data;
@@ -183,7 +184,7 @@ export async function uploadCustomerDocument(
   const form = new FormData();
   form.append('file', file);
   const res = await apiRequest<ApiResponse<CustomerDocument>>(
-    `/api/customers/${customerId}/documents`,
+    cheminApi`/api/customers/${customerId}/documents`,
     {
       method: 'POST',
       body: form,
@@ -199,7 +200,7 @@ export async function fetchCustomerRelationships(
   customerId: number,
 ): Promise<CustomerRelationship[]> {
   const res = await apiRequest<ApiResponse<CustomerRelationship[]>>(
-    `/api/customers/${customerId}/relationships`,
+    cheminApi`/api/customers/${customerId}/relationships`,
     { token },
   );
   return res.data;
@@ -211,7 +212,7 @@ export async function attachCustomerTags(
   tags: string[],
 ): Promise<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]> {
   const res = await apiRequest<ApiResponse<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]>>(
-    `/api/customers/${customerId}/tags`,
+    cheminApi`/api/customers/${customerId}/tags`,
     { method: 'POST', body: { tags }, token },
   );
   return res.data;
@@ -222,7 +223,7 @@ export async function detachCustomerTag(
   customerId: number,
   tagId: number,
 ): Promise<void> {
-  await apiRequest<void>(`/api/customers/${customerId}/tags/${tagId}`, {
+  await apiRequest<void>(cheminApi`/api/customers/${customerId}/tags/${tagId}`, {
     method: 'DELETE',
     token,
   });
@@ -238,7 +239,7 @@ export async function fetchCrmTags(
     per_page: 50,
   });
   const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'color'>[] }>(
-    `/api/tags${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/tags${qs ? `?${qs}` : ''}`,
     { token },
   );
   return res.data;

@@ -16,6 +16,18 @@ class StartImpersonationRequest extends BaseFormRequest
         return $this->user()?->hasPlatformAbility(PlatformAbility::UsersImpersonate) === true;
     }
 
+    /**
+     * verif-600 B1-bis — le motif se lit dans le CORPS seul. `all()` fusionne la query : une URL
+     * réécrite (`…/impersonate?reason=…&x=/notes`, sous le corps d'une autre requête) ouvrait une
+     * session avec un motif que personne n'avait saisi dans le formulaire.
+     *
+     * @return array<string, mixed>
+     */
+    public function validationData(): array
+    {
+        return $this->getInputSource()->all();
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

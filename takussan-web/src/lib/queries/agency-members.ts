@@ -5,6 +5,7 @@ import type {
   SpatieQueryParams,
 } from '@/types/api';
 import type { User } from '@/types/user';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Agency member queries — TCK-065. All reads use spatie query params
@@ -62,7 +63,7 @@ export async function fetchAgencyMembers(
 ): Promise<PaginatedResponse<User>> {
   const qs = buildQueryString(buildMembersParams(params));
   return apiRequest<PaginatedResponse<User>>(
-    `/api/agencies/${agencyId}/members${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}/members${qs ? `?${qs}` : ''}`,
     { token },
   );
 }
@@ -86,7 +87,7 @@ export async function addAgencyMember(
   token: string,
 ): Promise<ApiResponse<AddAgencyMemberResponse>> {
   return apiRequest<ApiResponse<AddAgencyMemberResponse>>(
-    `/api/agencies/${agencyId}/members`,
+    cheminApi`/api/agencies/${agencyId}/members`,
     {
       method: 'POST',
       body: payload,
@@ -102,7 +103,7 @@ export async function updateAgencyMemberRole(
   token: string,
 ): Promise<ApiResponse<{ user_id: number; role: string; roles: string[] }>> {
   return apiRequest(
-    `/api/agencies/${agencyId}/members/${userId}/role`,
+    cheminApi`/api/agencies/${agencyId}/members/${userId}/role`,
     {
       method: 'PUT',
       body: { role },
@@ -117,7 +118,7 @@ export async function removeAgencyMember(
   token: string,
 ): Promise<ApiResponse<{ user_id: number; removed: boolean }>> {
   return apiRequest(
-    `/api/agencies/${agencyId}/members/${userId}`,
+    cheminApi`/api/agencies/${agencyId}/members/${userId}`,
     {
       method: 'DELETE',
       token,

@@ -4,6 +4,7 @@ import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { Booking, BookingPayment } from '@/types/booking';
 import type { SpatieQueryParams } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * React Query hooks for the Booking resource.
@@ -80,7 +81,7 @@ export function useBooking(id: number | null | undefined) {
 
   return useApiQuery<ApiResponse<Booking>>(
     ['bookings', 'detail', id],
-    `/api/bookings/${id ?? ''}`,
+    cheminApi`/api/bookings/${id ?? 0}`,
     {
       params: spatieParams,
       enabled: Boolean(id),
@@ -115,7 +116,7 @@ export type CreateBookingPaymentPayload = {
 
 export function useCancelBooking(bookingId: number) {
   return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
-    { path: `/api/bookings/${bookingId}/cancel`, method: 'POST' },
+    { path: cheminApi`/api/bookings/${bookingId}/cancel`, method: 'POST' },
     {
       invalidate: [
         ['bookings', 'detail', bookingId],
@@ -127,7 +128,7 @@ export function useCancelBooking(bookingId: number) {
 
 export function useConfirmBooking(bookingId: number) {
   return useApiMutation<ApiResponse<Booking>, void>(
-    { path: `/api/bookings/${bookingId}/confirm`, method: 'POST' },
+    { path: cheminApi`/api/bookings/${bookingId}/confirm`, method: 'POST' },
     {
       invalidate: [
         ['bookings', 'detail', bookingId],
@@ -139,7 +140,7 @@ export function useConfirmBooking(bookingId: number) {
 
 export function useRejectBooking(bookingId: number) {
   return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
-    { path: `/api/bookings/${bookingId}/reject`, method: 'POST' },
+    { path: cheminApi`/api/bookings/${bookingId}/reject`, method: 'POST' },
     {
       invalidate: [
         ['bookings', 'detail', bookingId],
@@ -151,7 +152,7 @@ export function useRejectBooking(bookingId: number) {
 
 export function useCreateBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, CreateBookingPaymentPayload>(
-    { path: `/api/bookings/${bookingId}/payments`, method: 'POST' },
+    { path: cheminApi`/api/bookings/${bookingId}/payments`, method: 'POST' },
     {
       invalidate: [
         ['bookings', 'detail', bookingId],

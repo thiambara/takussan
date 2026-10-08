@@ -17,6 +17,7 @@
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { SavedSearchPayload } from '@/lib/schemas/search';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type SavedSearchNotificationFrequency =
   | 'off'
@@ -78,7 +79,7 @@ export type UpdateSavedSearchPayload = {
 export function useUpdateSavedSearchMutation() {
   return useApiMutation<{ data: SavedSearch }, UpdateSavedSearchPayload>(
     {
-      path: ({ id }) => `/api/saved-searches/${id}`,
+      path: ({ id }) => cheminApi`/api/saved-searches/${id}`,
       method: 'PATCH',
       body: ({ id: _id, ...rest }) => rest,
     },
@@ -89,7 +90,7 @@ export function useUpdateSavedSearchMutation() {
 export function useDeleteSavedSearchMutation() {
   return useApiMutation<unknown, { id: number }>(
     {
-      path: ({ id }) => `/api/saved-searches/${id}`,
+      path: ({ id }) => cheminApi`/api/saved-searches/${id}`,
       method: 'DELETE',
       body: () => undefined,
     },

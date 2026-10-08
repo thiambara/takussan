@@ -5,6 +5,7 @@ import type {
   CustomerPipelineStage,
 } from '@/types/customer';
 import type { PipelineCustomerCard, PipelineStats, Task } from '@/types/pipeline';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-083 — CRM pipeline queries.
@@ -75,7 +76,7 @@ export async function fetchPipelineColumn(
 ): Promise<PipelineCustomerCard[]> {
   const qs = buildQueryString(buildPipelineColumnParams(params));
   const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: unknown }>(
-    `/api/customers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers${qs ? `?${qs}` : ''}`,
     { token },
   );
   return res.data;
@@ -98,7 +99,7 @@ export async function patchCustomerPipelineStage(
   reason?: string,
 ): Promise<CustomerListItem> {
   const res = await apiRequest<ApiResponse<CustomerListItem>>(
-    `/api/customers/${customerId}/pipeline-stage`,
+    cheminApi`/api/customers/${customerId}/pipeline-stage`,
     {
       method: 'PATCH',
       body: { pipeline_stage: stage, ...(reason ? { reason } : {}) },
@@ -121,7 +122,7 @@ export async function fetchCustomerTasks(
     sort: 'due_at',
     per_page: 50,
   });
-  const res = await apiRequest<{ data: Task[] }>(`/api/tasks${qs ? `?${qs}` : ''}`, {
+  const res = await apiRequest<{ data: Task[] }>(cheminApi`/api/tasks${qs ? `?${qs}` : ''}`, {
     token,
   });
   return res.data;
@@ -161,7 +162,7 @@ export async function updateTask(
     due_at: string | null;
   }>,
 ): Promise<Task> {
-  const res = await apiRequest<ApiResponse<Task>>(`/api/tasks/${taskId}`, {
+  const res = await apiRequest<ApiResponse<Task>>(cheminApi`/api/tasks/${taskId}`, {
     method: 'PATCH',
     body: payload,
     token,

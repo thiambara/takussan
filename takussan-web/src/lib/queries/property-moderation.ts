@@ -1,5 +1,6 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type { PaginatedResponse, ApiResponse } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Property moderation queries — TCK-098.
@@ -140,7 +141,7 @@ export async function fetchPropertyModerationQueue(
     ...(params.perPage ? { per_page: params.perPage } : {}),
   });
   return apiRequest<ModerationPropertyQueueResponse>(
-    `/api/properties/moderation${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/properties/moderation${qs ? `?${qs}` : ''}`,
     { token },
   );
 }
@@ -154,7 +155,7 @@ export async function approveProperty(
   token: string,
 ): Promise<PropertyModerationResponse> {
   return apiRequest<PropertyModerationResponse>(
-    `/api/properties/${propertyId}/approve`,
+    cheminApi`/api/properties/${propertyId}/approve`,
     { method: 'POST', token },
   );
 }
@@ -165,7 +166,7 @@ export async function rejectProperty(
   token: string,
 ): Promise<PropertyModerationResponse> {
   return apiRequest<PropertyModerationResponse>(
-    `/api/properties/${propertyId}/reject`,
+    cheminApi`/api/properties/${propertyId}/reject`,
     { method: 'POST', body: { rejection_reason: rejectionReason }, token },
   );
 }
@@ -175,7 +176,7 @@ export async function resubmitProperty(
   token: string,
 ): Promise<ApiResponse<unknown>> {
   return apiRequest<ApiResponse<unknown>>(
-    `/api/properties/${propertyId}/resubmit`,
+    cheminApi`/api/properties/${propertyId}/resubmit`,
     { method: 'POST', token },
   );
 }

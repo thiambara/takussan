@@ -1,6 +1,7 @@
 'use server';
 
 import { apiRequest } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import { revalidatePath } from 'next/cache';
@@ -38,7 +39,7 @@ export async function deleteThresholdAlertAction(id: number): Promise<{ ok: bool
   if (!token) return { ok: false };
 
   try {
-    await apiRequest('/api/threshold-alerts/' + id, { token, method: 'DELETE' });
+    await apiRequest(cheminApi`/api/threshold-alerts/${id}`, { token, method: 'DELETE' });
     revalidatePath('/app/overview/alerts');
     return { ok: true };
   } catch {

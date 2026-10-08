@@ -2,6 +2,7 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, SpatieQueryParams } from '@/types/api';
 import type { Agency } from '@/types/agency';
 import type { AgencyFormPayload } from '@/lib/schemas/agency';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Agency admin-config queries — TCK-015 / TCK-064. All reads pass the
@@ -68,7 +69,7 @@ export async function fetchAgency(
 ): Promise<Agency> {
   const qs = buildQueryString(buildShowParams());
   const res = await apiRequest<ApiResponse<Agency>>(
-    `/api/agencies/${agencyId}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}${qs ? `?${qs}` : ''}`,
     { token, activeProfileId },
   );
   return res.data;
@@ -91,7 +92,7 @@ export async function updateAgency(
   payload: AgencyFormPayload,
   activeProfileId?: string,
 ): Promise<Agency> {
-  const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}`, {
+  const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}`, {
     method: 'PATCH',
     body: payload,
     token,
@@ -108,7 +109,7 @@ export async function confirmAgencyPayoutThreshold(
   expectedThreshold: number | null,
   activeProfileId?: string,
 ): Promise<Agency> {
-  const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}/payout-threshold/confirm`, {
+  const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}/payout-threshold/confirm`, {
     method: 'POST',
     body: { expected_threshold: expectedThreshold },
     token,
@@ -183,7 +184,7 @@ export async function regenerateAgencyWatermarks(
   activeProfileId?: string,
 ): Promise<RegenerateWatermarksResult> {
   return apiRequest<RegenerateWatermarksResult>(
-    `/api/agencies/${agencyId}/regenerate-watermarks`,
+    cheminApi`/api/agencies/${agencyId}/regenerate-watermarks`,
     { method: 'POST', token, activeProfileId },
   );
 }
