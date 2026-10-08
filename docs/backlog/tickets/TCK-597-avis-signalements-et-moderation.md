@@ -517,6 +517,25 @@ Rapport du vérificateur : REFUSÉ, 1 bloquant, 4 majeurs, 6 mineurs. Décisions
 - [x] **Raccord 591** — fusion d'`origin/dev` (`383fa6f8`), puis tests des actions de lot
   (`441d8f74`) : archivage en lot, dépublication en lot, verrou plateforme.
 
+### 10. Ajoutés après la passe 2 de vérification adverse (verif-597 passe 2, 2026-10-08)
+
+Rapport du vérificateur : REFUSÉ, 1 bloquant (B1 partiel), 0 majeur, 2 mineurs. Décisions de session
+suivies ; l'approbation qui survit à une réécriture du contenu est conservée (conforme à ADR-0043 §5,
+ticket de suite côté session).
+
+- [x] **B1′** — `PropertyObserver::creating` réécrit tout statut affichable, `pending` compris, en
+  `pending_review` sous `moderation_required`. Dans `updating`, un départ affichable n'est plus
+  exempté que pour un bien déjà publié (`published_at` d'origine non nul) ou portant une approbation
+  debout ; l'activation se juge sur toute sauvegarde qui rapproche le bien de l'affichage (statut
+  affichable, `visibility` publique ou `published_at` posé). ADR-0043 §5.
+- [x] **n1** — `VisitorFingerprint::network` déballe une IPv4-mappée (`::ffff:0:0/96`) avant la
+  troncature au /64. ADR-0043 §6.
+- [x] **n2** — `ReviewModerationScope` (désormais `scoped`) mémorise par requête les prédicats de
+  l'acteur ; `ReviewPolicy` les emprunte ; `index` et `received` chargent une fois le profil
+  plateforme de l'acteur, `index` précharge `author.media`.
+- [x] **Fusion d'`origin/dev`** avec 589 et 592 (`bbbe65d2`) : les admins créés à la main par les tests
+  portent la 2FA exigée par 589.
+
 ## Critères d'acceptation
 
 - [x] **AC1 (cloisonnement, rouge sur le code actuel).** Prenons deux agences A et B, et un admin
@@ -753,6 +772,45 @@ par `cp` avec contrôle md5. Chaque ablation est restaurée de même.
   `PropertyReportDecisionTest::test_bulk_actions_never_put_a_hidden_listing_back_online`. Les routes
   de lot n'existent pas sur 31968d11 : la preuve de rouge est l'observateur de 31968d11 sous le code
   fusionné (2 rouges) ; ablation : `guardPlatformHold` retiré → 1 rouge.
+
+### Ajoutés après la passe 2 de vérification adverse (verif-597 passe 2, 2026-10-08)
+
+« Rouge sur 1b338f2e » : le test écrit d'abord, joué sur les sources de 1b338f2e, avant le
+correctif. Chaque ablation est restaurée par `cp` avec contrôle md5 (`scratchpad/t597/ablate.sh`).
+
+- [x] **AC27 (B1′).** Sous `moderation_required`, un bien n'est jamais affichable sans approbation :
+  `POST {status: pending}` → `pending_review` ; `POST` en `pending` puis `publish` →
+  `pending_review` ; `POST` en `pending` puis `PUT …/status available` → `pending_review` ; un bien
+  créé `pending` n'est pas indexé (`shouldBeSearchable()` faux). Un bien `pending` ou `available`
+  privé, jamais approuvé ni publié (agence qui active la modération), va dans la file par `publish`,
+  `PUT …/status available` ou `PUT {visibility: public}`. Témoins : un bien déjà publié garde ses
+  changements de statut ; modifier le texte d'un bien jamais publié ne l'envoie pas dans la file.
+
+  **Preuve :** `PropertyModerationGateTest` — `createdPendingThen` × 3,
+  `test_a_listing_created_as_pending_is_not_searchable`, `neverOnline` × 4 et les deux témoins.
+  Rouge sur 1b338f2e : 8 tests. Ablations : `creating` remis à `available`/`published` → 2 rouges
+  (les variantes `publish` et `status` sont aussi rattrapées par la règle d'`updating`) ; « déjà en
+  ligne » sans `published_at` → 4 rouges ; exemption « déjà en ligne » retirée → 1 rouge (témoin) ;
+  condition « rapproche de l'affichage » retirée → 1 rouge (témoin).
+
+- [x] **AC28 (n1).** Deux IPv4-mappées distinctes donnent deux empreintes et deux clés de limiteur, et
+  comptent deux signalements ; une IPv4-mappée et son IPv4 nue donnent la même empreinte et la même
+  clé.
+
+  **Preuve :** `PublicReportTest::test_ipv4_mapped_addresses_are_ipv4_visitors`. Rouge sur
+  1b338f2e : 1 test. Ablation : déballage retiré → 1 rouge.
+
+- [x] **AC29 (n2).** Les drapeaux `can_reply` et `can_moderate` coûtent le même nombre de requêtes
+  pour 5 et pour 25 avis, à 2 près, sur la file d'agence et sur la boîte des avis reçus (admin et
+  agent) ; la mémoire ne survit pas à la requête (un agent suspendu entre deux appels perd
+  `can_reply`).
+
+  **Preuve :** `ReviewFlagsQueryCountTest` (3 cas + `test_the_memory_does_not_outlive_the_request`).
+  Rouge sur 1b338f2e : 3 tests (66 → 246, 52 → 212 et 33 → 103 requêtes ; après : 18 → 15, 17 → 15,
+  16 → 14). Ablations : mémoire retirée → 3 rouges ; profil plateforme non préchargé dans `index` →
+  1 rouge, dans `received` → 2 rouges ; `author.media` retiré d'`index` → 1 rouge ; `isStaffOf` de la
+  policy sans la mémoire → 2 rouges ; mémoire rangée sous l'application → 1 rouge
+  (`test_the_memory_does_not_outlive_the_request`).
 
 ## Hors périmètre
 
