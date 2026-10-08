@@ -174,6 +174,14 @@ deux agences ne font pas deux personnes.
 - **Chaîne plateforme → agence** : approbation **toujours** exigée, sans seuil. `closed_by_id`,
   `approved_by`, `paid_by_id` sont des colonnes ; `payment_reference` est obligatoire au paiement.
   Un second super-admin doit être coopté (`SuperAdminCooptationService`) avant la mise en service.
+- **Le second facteur (TCK-589, ADR-0033)** : ce qui décide qu'un argent sort, et vers où, exige un
+  TOTP saisi sur le jeton il y a moins de 10 min (`ProtectedActions::STEP_UP`) — approuver, marquer
+  payé, payer une facture d'intervention, ajouter, modifier ou retirer une destination (le
+  titulaire, bailleur ou prestataire, configure donc un second facteur avant sa première
+  destination), et les gestes plateforme. Préparer, refuser, marquer en échec, vérifier une
+  destination et confirmer un relâchement du seuil exigent la 2FA de l'agence
+  (`AGENCY_TWO_FACTOR`), sans step-up : la confirmation passe par une server action, qui ne sait
+  pas rejouer après la saisie d'un code.
 
 *Écarté* : un seuil par défaut (décision du porteur) ; une règle stricte « préparateur ≠ payeur »
 (trois personnes) — elle rendrait la chaîne agence inapplicable dans une agence de deux.

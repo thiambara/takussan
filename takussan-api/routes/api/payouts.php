@@ -11,8 +11,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-594 — littérale, donc AVANT `payouts/{payout}`.
     Route::get('payouts/preparation', [PayoutPreparationController::class, 'show'])->name('payouts.preparation');
     Route::get('payouts/{payout}', [PayoutController::class, 'show'])->name('payouts.show');
-    // TCK-594 (ADR-0039 §4) — point de raccord TCK-589 : le step-up 2FA s'ajoute sur `approve` et
-    // `mark-processed` par `->middleware(...)`, une ligne chacune.
+    // TCK-594 (ADR-0039 §4) × TCK-589 — `approve` et `mark-processed` sont sous step-up 2FA :
+    // `ProtectedActions::STEP_UP`, lue par `RequireRecentTwoFactor` (middleware du groupe `api`).
     Route::post('payouts/{payout}/approve', [PayoutController::class, 'approve'])->name('payouts.approve');
     Route::post('payouts/{payout}/mark-processed', [PayoutController::class, 'markProcessed'])
         ->name('payouts.mark-processed');

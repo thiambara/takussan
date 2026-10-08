@@ -28,7 +28,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
-use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\Support\FakeSmsRouter;
@@ -63,7 +62,7 @@ class PayoutBypassTest extends TestCase
 
         // TCK-589 — la réponse de `send-otp` est neutre (plus de `debug_code`) : le code se lit au SMS.
         $sms = FakeSmsRouter::install();
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
         $this->postJson('/api/auth/phone/send-otp', ['phone' => '+221778887766'])->assertOk();
         $this->postJson('/api/auth/phone/verify-otp', ['code' => $sms->lastCodeFor('+221778887766')])->assertOk();
         $this->assertNotNull($landlord->fresh()->phone_verified_at);
@@ -73,7 +72,7 @@ class PayoutBypassTest extends TestCase
             ->assertJsonPath('data.verified', false)
             ->json('data.id');
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 300_000);
         $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])
             ->assertCreated()->json('data.id');
@@ -83,9 +82,9 @@ class PayoutBypassTest extends TestCase
         ])->assertStatus(422)->assertJsonPath('code', 'payout.unverified_destination');
 
         // Un membre de l'agence vérifie : le paiement passe.
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $this->postJson("/api/payout-methods/{$methodId}/verify")->assertOk();
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", [
             'payment_method' => 'wave', 'transaction_id' => 'W-9', 'payout_method_id' => $methodId,
         ])->assertOk()->assertJsonPath('data.status', 'completed');
@@ -103,7 +102,7 @@ class PayoutBypassTest extends TestCase
         Notification::fake();
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 100_000);
         $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])
             ->assertCreated()->json('data.id');
@@ -161,7 +160,7 @@ class PayoutBypassTest extends TestCase
         $other = $this->landlordOf($agency);
         $issuer = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
 
         $first = $this->createFor($agency, $landlord, 60_000)->assertJsonPath('data.status', 'pending')->json('data.id');
         $this->postJson("/api/payouts/{$first}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'])->assertOk();
@@ -179,9 +178,9 @@ class PayoutBypassTest extends TestCase
         $this->createFor($agency, $other, 60_000)->assertJsonPath('data.status', 'pending');
 
         // Approuvé, le second ne compte plus : le suivant repart de 60 000 non approuvés.
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$second}/approve")->assertOk();
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->createFor($agency, $landlord, 30_000)->assertJsonPath('data.status', 'pending');
 
         // Hors de la fenêtre de 30 jours, un reversement non approuvé ne compte plus. Sans fenêtre, 60 000 + 30 000 + 15 000 dépasseraient le seuil.
@@ -210,7 +209,7 @@ class PayoutBypassTest extends TestCase
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 1_500_000])->save();
         $admin = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
-        Sanctum::actingAs($admin);
+        $this->actingWithStepUp($admin);
 
         $id = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 1_500_000])
             ->assertCreated()->json('data.payout_id');
@@ -220,9 +219,9 @@ class PayoutBypassTest extends TestCase
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-7'])
             ->assertStatus(422)->assertJsonPath('code', 'payout.awaiting_approval');
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
-        Sanctum::actingAs($admin);
+        $this->actingWithStepUp($admin);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-7'])
             ->assertOk()->assertJsonPath('data.status', 'completed');
     }
@@ -240,11 +239,11 @@ class PayoutBypassTest extends TestCase
         OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $b->id]);
         $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
 
-        Sanctum::actingAs($this->agencyAgent($a));
+        $this->actingWithStepUp($this->agencyAgent($a));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk()->assertJsonPath('data.verified', true);
 
         $payerB = $this->agencyAdmin($b);
-        Sanctum::actingAs($payerB);
+        $this->actingWithStepUp($payerB);
         // L'agence B la lit non vérifiée, partout où elle la lit.
         $this->getJson("/api/payout-methods?filter[user_id]={$landlord->id}")->assertOk()->assertJsonPath('data.0.verified', false);
         $rent = $this->leasePayment($this->leaseOf($b, $landlord, 0), 100_000);
@@ -258,9 +257,9 @@ class PayoutBypassTest extends TestCase
             ->assertStatus(422)->assertJsonPath('code', 'payout.unverified_destination');
 
         // Vérifiée par un membre de B, elle sert depuis B.
-        Sanctum::actingAs($this->agencyAgent($b));
+        $this->actingWithStepUp($this->agencyAgent($b));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk();
-        Sanctum::actingAs($payerB);
+        $this->actingWithStepUp($payerB);
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk();
         $this->assertSame(2, $method->verifications()->count());
     }
@@ -279,17 +278,17 @@ class PayoutBypassTest extends TestCase
         $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
 
         // L'approbateur voit la destination qu'il approuve, masquée.
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->getJson("/api/payouts/{$id}")->assertOk()->assertJsonPath('data.payout_method_masked', '•••• 1111');
         $this->postJson("/api/payouts/{$id}/approve")->assertOk()->assertJsonPath('data.approved_destination_masked', '•••• 1111');
 
         // Le compte du bailleur change le numéro de la MÊME destination ; un tiers la revérifie.
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
         $this->patchJson("/api/me/payout-methods/{$m1->id}", ['account_identifier' => '+221779999999'])->assertOk();
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
         $this->postJson("/api/payout-methods/{$m1->id}/verify")->assertOk();
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-1'])
             ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
         $this->assertSame(PayoutStatus::Pending, Payout::query()->findOrFail($id)->status);
@@ -303,10 +302,10 @@ class PayoutBypassTest extends TestCase
         $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
         $m2 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id, 'is_default' => false]);
         $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-2', 'payout_method_id' => $m2->id])
             ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-2', 'payout_method_id' => $m1->id])
@@ -321,10 +320,10 @@ class PayoutBypassTest extends TestCase
         // Pas la destination par défaut : sinon la préparation la prend (VERIF-594 N-1).
         $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id, 'is_default' => false]);
         $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-3', 'payout_method_id' => $m1->id])
             ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
         // Un chèque ne part vers aucune destination : il reste permis.
@@ -342,7 +341,7 @@ class PayoutBypassTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $payer = $this->agencyAdmin($agency);
         $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
-        Sanctum::actingAs($payer);
+        $this->actingWithStepUp($payer);
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 50_000);
         $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id], 'payout_method_id' => $method->id])
             ->assertCreated()->assertJsonPath('data.status', 'pending')->json('data.id');
@@ -350,10 +349,12 @@ class PayoutBypassTest extends TestCase
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk();
         $body = ['payment_method' => 'wave', 'transaction_id' => 'W-4'];
         $this->travel(1)->hours();
+        $this->actingWithStepUp($payer);
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)
             ->assertForbidden()->assertJsonPath('code', 'payout.verifier_cannot_pay_yet');
 
         $this->travel(24)->hours();
+        $this->actingWithStepUp($payer);
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk();
     }
 
@@ -368,7 +369,7 @@ class PayoutBypassTest extends TestCase
 
     private function awaitingPayoutTo(Agency $agency, User $landlord, User $issuer, ?PayoutMethod $method): int
     {
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 150_000);
 
         return $this->postJson('/api/payouts', array_filter([
@@ -391,7 +392,7 @@ class PayoutBypassTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $a = $this->agencyAdmin($agency);
         $b = $this->agencyAdmin($agency);
-        Sanctum::actingAs($a);
+        $this->actingWithStepUp($a);
 
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 100_000])->assertOk();
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])
@@ -415,7 +416,7 @@ class PayoutBypassTest extends TestCase
         // Relevé (une hausse relâche aussi), puis confirmé par le second : il prend effet.
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 400_000])->assertStatus(202);
         $this->assertEquals(50000, (float) $agency->fresh()->payout_approval_threshold);
-        Sanctum::actingAs($b);
+        $this->actingWithStepUp($b);
         $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => 400_000])
             ->assertOk()
             ->assertJsonPath('data.payout_approval_threshold', 400000)
@@ -430,7 +431,7 @@ class PayoutBypassTest extends TestCase
         $agency = $this->moneyAgency();
         $admin = $this->agencyAdmin($agency);
         $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
-        Sanctum::actingAs($admin);
+        $this->actingWithStepUp($admin);
 
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])
             ->assertForbidden()->assertJsonPath('code', 'payout.threshold_needs_second_approver');
@@ -447,7 +448,7 @@ class PayoutBypassTest extends TestCase
         $agency = $this->moneyAgency(['kind' => AgencyKind::Individual, 'commission_rate' => 0]);
         $host = $this->agencyAdmin($agency);
         $third = $this->landlordOf($agency);
-        Sanctum::actingAs($host);
+        $this->actingWithStepUp($host);
         $rent = $this->leasePayment($this->leaseOf($agency, $third, 0), 80_000);
 
         $this->postJson('/api/payouts', ['landlord_id' => $third->id, 'lease_payment_ids' => [$rent->id]])
@@ -472,16 +473,16 @@ class PayoutBypassTest extends TestCase
         $agency->forceFill(['payout_approval_threshold' => 250_000])->save();
         $other = $this->moneyAgency();
 
-        Sanctum::actingAs($this->landlordOf($agency));
+        $this->actingWithStepUp($this->landlordOf($agency));
         $this->getJson("/api/agencies/{$agency->id}")->assertOk()
             ->assertJsonMissingPath('data.payout_approval_threshold')
             ->assertJsonMissingPath('data.pending_payout_threshold_change');
 
         // L'administrateur d'une AUTRE agence ne le lit pas davantage.
-        Sanctum::actingAs($this->agencyAdmin($other));
+        $this->actingWithStepUp($this->agencyAdmin($other));
         $this->getJson("/api/agencies/{$agency->id}")->assertJsonMissingPath('data.payout_approval_threshold');
 
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
         $this->getJson("/api/agencies/{$agency->id}")->assertOk()
             ->assertJsonPath('data.payout_approval_threshold', 250000)
             ->assertJsonPath('data.pending_payout_threshold_change', null);
@@ -502,12 +503,12 @@ class PayoutBypassTest extends TestCase
         $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
         $this->assertNull(Payout::query()->findOrFail($id)->payout_method_id);
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $verified->id])->assertOk()
             ->assertJsonPath('data.payout_method_id', $verified->id)
             ->assertJsonPath('data.approved_destination_masked', $verified->masked_identifier);
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-N1b', 'payout_method_id' => $verified->id])
             ->assertOk()->assertJsonPath('data.status', 'completed');
     }
@@ -525,7 +526,7 @@ class PayoutBypassTest extends TestCase
         $foreign = PayoutMethod::factory()->verifiedFor($agency, null, now()->subDays(3))->create();
         $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         foreach ([$elsewhere, $foreign] as $method) {
             $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $method->id])
                 ->assertStatus(422)->assertJsonPath('code', 'payout.unverified_destination');
@@ -563,7 +564,7 @@ class PayoutBypassTest extends TestCase
         $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
         $approver = $this->adminWithout($agency, Capability::PayoutsCreate);
         $this->assertTrue($approver->canActAt(Capability::PayoutsApprove, $agency));
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
 
         $this->getJson('/api/payout-methods?filter[user_id]='.$landlord->id)->assertOk()
             ->assertJsonPath('data.0.id', $method->id)
@@ -583,7 +584,7 @@ class PayoutBypassTest extends TestCase
         $agency->forceFill(['payout_approval_threshold' => 0])->save();
         $lease = $this->leaseOf($agency, $this->landlordOf($agency));
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
 
         $id = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated()->json('data.payout_id');
         $this->postJson("/api/payouts/{$id}/cancel")->assertOk()->assertJsonPath('data.status', 'cancelled');
@@ -608,7 +609,7 @@ class PayoutBypassTest extends TestCase
         $agency = $this->moneyAgency();
         $lease = $this->leaseOf($agency, $this->landlordOf($agency));
         $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => 400_000])->save();
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
 
         $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'peinture'])->assertCreated()->json('data.payout_id');
         $second = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000])->assertCreated()->json('data.payout_id');
@@ -632,7 +633,7 @@ class PayoutBypassTest extends TestCase
     {
         Notification::fake();
         [$agency, $landlord, $issuer] = $this->fourEyesAgency();
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
 
         $this->travelTo('2027-01-31 10:00:00');
         $this->createFor($agency, $landlord, 60_000)->assertJsonPath('data.status', 'pending');
@@ -659,10 +660,10 @@ class PayoutBypassTest extends TestCase
         [$a, $b] = [$this->agencyAdmin($agency), $this->agencyAdmin($agency)];
         $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
 
-        Sanctum::actingAs($a);
+        $this->actingWithStepUp($a);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
         $this->travel(8)->days();
-        Sanctum::actingAs($b);
+        $this->actingWithStepUp($b);
         $this->getJson("/api/agencies/{$agency->id}")->assertJsonPath('data.pending_payout_threshold_change', null);
         $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])
             ->assertStatus(422)->assertJsonPath('code', 'payout.threshold_request_expired');
@@ -671,10 +672,10 @@ class PayoutBypassTest extends TestCase
         $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])
             ->assertStatus(422)->assertJsonPath('code', 'payout.no_pending_threshold_change');
 
-        Sanctum::actingAs($a);
+        $this->actingWithStepUp($a);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
         $this->travel(6)->days();
-        Sanctum::actingAs($b);
+        $this->actingWithStepUp($b);
         $this->getJson("/api/agencies/{$agency->id}")->assertJsonPath('data.pending_payout_threshold_change.threshold', null)
             ->assertJsonPath('data.pending_payout_threshold_change.expires_at', $agency->fresh()->pending_payout_threshold_requested_at->addDays(7)->toIso8601String());
         $this->postJson("/api/agencies/{$agency->id}/payout-threshold/confirm", ['expected_threshold' => null])->assertOk();
@@ -694,15 +695,15 @@ class PayoutBypassTest extends TestCase
         $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
         $confirm = "/api/agencies/{$agency->id}/payout-threshold/confirm";
 
-        Sanctum::actingAs($a);
+        $this->actingWithStepUp($a);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 150_000])->assertStatus(202);
-        Sanctum::actingAs($b);
+        $this->actingWithStepUp($b);
         $read = $this->getJson("/api/agencies/{$agency->id}")->json('data.pending_payout_threshold_change.threshold');
         $this->assertEquals(150000, $read);
-        Sanctum::actingAs($a);
+        $this->actingWithStepUp($a);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => null])->assertStatus(202);
 
-        Sanctum::actingAs($b);
+        $this->actingWithStepUp($b);
         $this->postJson($confirm, ['expected_threshold' => $read])
             ->assertStatus(409)->assertJsonPath('code', 'payout.threshold_request_changed');
         $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
@@ -721,7 +722,7 @@ class PayoutBypassTest extends TestCase
     {
         Notification::fake();
         [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
-        Sanctum::actingAs($admin);
+        $this->actingWithStepUp($admin);
 
         $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
         $this->postJson("/api/payouts/{$first->json('data.payout_id')}/cancel")->assertOk();
@@ -740,7 +741,7 @@ class PayoutBypassTest extends TestCase
     {
         Notification::fake();
         [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
-        Sanctum::actingAs($admin);
+        $this->actingWithStepUp($admin);
 
         $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
         $invoiceId = $first->json('data.invoice_id');
@@ -785,7 +786,7 @@ class PayoutBypassTest extends TestCase
     {
         Notification::fake();
         [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
-        Sanctum::actingAs($admin);
+        $this->actingWithStepUp($admin);
 
         $p1 = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'x'])->assertCreated();
         $p2 = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'x'])->assertCreated();
@@ -821,7 +822,7 @@ class PayoutBypassTest extends TestCase
         $byThird = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subHour())
             ->create(['user_id' => $landlord->id, 'is_default' => false]);
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payout-methods/{$fresh->id}/verify")->assertOk();
         $this->postJson("/api/payouts/{$id}/approve", ['payout_method_id' => $fresh->id])
             ->assertForbidden()->assertJsonPath('code', 'payout.approver_verified_destination_recently');

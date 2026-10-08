@@ -8,7 +8,6 @@ use App\Models\Payout;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -29,7 +28,7 @@ class PayoutTest extends TestCase
         // TCK-594 — le brut se lit sur les loyers encaissés : 1 000 000 au taux du bail (10 %).
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 10), 1_000_000);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
@@ -49,7 +48,7 @@ class PayoutTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 500_000);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
@@ -64,7 +63,7 @@ class PayoutTest extends TestCase
         $user = User::factory()->create(['agency_id' => null]);
         $landlord = User::factory()->create();
 
-        Sanctum::actingAs($user);
+        $this->actingWithStepUp($user);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
@@ -79,7 +78,7 @@ class PayoutTest extends TestCase
         $agent = User::factory()->withAgentProfile($agency1)->create();
         $landlord = User::factory()->create(['agency_id' => $agency2->id]);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
@@ -102,7 +101,7 @@ class PayoutTest extends TestCase
             'amount' => 200_000,
         ]);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id,
@@ -118,7 +117,7 @@ class PayoutTest extends TestCase
         $landlord = User::factory()->create();
         $payout = Payout::factory()->create(['landlord_id' => $landlord->id]);
 
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $this->getJson("/api/payouts/{$payout->id}")
             ->assertOk()
@@ -130,7 +129,7 @@ class PayoutTest extends TestCase
         $landlord = User::factory()->create();
         $payout = Payout::factory()->create(['landlord_id' => $landlord->id]);
 
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $this->postJson("/api/payouts/{$payout->id}/mark-processed")
             ->assertForbidden();
@@ -164,7 +163,7 @@ class PayoutTest extends TestCase
             'issued_by_id' => $this->agencyAdmin($agency)->id,
         ]);
 
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $this->postJson("/api/payouts/{$payout->id}/{$transition}", $body)->assertForbidden();
         $this->assertSame('pending', $payout->fresh()->status->value);
@@ -187,7 +186,7 @@ class PayoutTest extends TestCase
             'issued_by_id' => $host->id,
         ]);
 
-        Sanctum::actingAs($host);
+        $this->actingWithStepUp($host);
 
         $this->postJson("/api/payouts/{$payout->id}/{$transition}", $body)->assertForbidden();
     }
@@ -202,10 +201,10 @@ class PayoutTest extends TestCase
             'issued_by_id' => $this->agencyAdmin($agency)->id,
         ]);
 
-        Sanctum::actingAs($this->agentWithout($agency, Capability::PayoutsCreate));
+        $this->actingWithStepUp($this->agentWithout($agency, Capability::PayoutsCreate));
         $this->postJson("/api/payouts/{$payout->id}/{$transition}", $body)->assertForbidden();
 
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $this->postJson("/api/payouts/{$payout->id}/{$transition}", $body)->assertOk();
     }
 
@@ -218,7 +217,7 @@ class PayoutTest extends TestCase
             'agency_id' => $agency->id,
         ]);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson("/api/payouts/{$payout->id}/mark-processed", [
             'transaction_id' => 'TX-123',
@@ -237,7 +236,7 @@ class PayoutTest extends TestCase
             'agency_id' => $agency->id,
         ]);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson("/api/payouts/{$payout->id}/mark-processed")
             ->assertStatus(422);
@@ -252,7 +251,7 @@ class PayoutTest extends TestCase
             'agency_id' => $agency->id,
         ]);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson("/api/payouts/{$payout->id}/mark-failed", [
             'failed_reason' => 'Bank rejected',
@@ -270,7 +269,7 @@ class PayoutTest extends TestCase
             'agency_id' => $agency->id,
         ]);
 
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
 
         $this->postJson("/api/payouts/{$payout->id}/cancel")
             ->assertStatus(422);
@@ -282,7 +281,7 @@ class PayoutTest extends TestCase
         Payout::factory()->count(3)->create(['landlord_id' => $landlord->id]);
         Payout::factory()->count(2)->create();
 
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $this->getJson('/api/payouts')
             ->assertOk()

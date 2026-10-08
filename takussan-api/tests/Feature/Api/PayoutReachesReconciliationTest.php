@@ -13,7 +13,6 @@ use App\Models\Payout;
 use App\Services\Accounting\ReconciliationMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
@@ -41,7 +40,7 @@ class PayoutReachesReconciliationTest extends TestCase
         $issuer = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 100_000])->assertOk();
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 0), 150_000);
         $id = $this->postJson('/api/payouts', [
@@ -56,10 +55,10 @@ class PayoutReachesReconciliationTest extends TestCase
         (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
         $this->assertNull($line->refresh()->matched_payment_id);
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", [
             'payment_method' => 'check',
             'transaction_id' => 'CHQ-0042',

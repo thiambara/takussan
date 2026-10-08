@@ -3,8 +3,8 @@
 use App\Http\Controllers\Api\ServiceProviderBillController;
 use Illuminate\Support\Facades\Route;
 
-// TCK-594 (ADR-0039 §8) — les factures d'intervention. Point de raccord TCK-589 : le step-up 2FA
-// s'ajoute sur `pay` par `->middleware(...)`.
+// TCK-594 (ADR-0039 §8) — les factures d'intervention. `pay` est sous step-up 2FA (TCK-589,
+// `ProtectedActions::STEP_UP`).
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('service-provider-bills', [ServiceProviderBillController::class, 'index'])->name('service-provider-bills.index');
     Route::get('service-provider-bills/{bill}', [ServiceProviderBillController::class, 'show'])

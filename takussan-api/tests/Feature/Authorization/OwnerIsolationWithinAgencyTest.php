@@ -227,8 +227,10 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
     #[DataProvider('gestes')]
     public function test_un_autre_bailleur_de_l_agence_est_refuse(string $method, string $template, array $body, string $staff): void
     {
-        $this->actingAsApi($this->b2)
-            ->json($method, $this->uri($template), $body)
+        // Le step-up de TCK-589 (marquer payé, TCK-594) est fourni : le refus est celui de la
+        // policy, jamais celui du second facteur.
+        $this->actingWithStepUp($this->b2);
+        $this->json($method, $this->uri($template), $body)
             ->assertForbidden();
     }
 
@@ -247,8 +249,8 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
     #[DataProvider('gestes')]
     public function test_le_personnel_de_l_agence_est_admis(string $method, string $template, array $body, string $staff): void
     {
-        $this->actingAsApi($staff === 'admin' ? $this->admin : $this->agent)
-            ->json($method, $this->uri($template), $body)
+        $this->actingWithStepUp($staff === 'admin' ? $this->admin : $this->agent);
+        $this->json($method, $this->uri($template), $body)
             ->assertSuccessful();
     }
 

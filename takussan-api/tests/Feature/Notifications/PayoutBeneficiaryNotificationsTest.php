@@ -11,7 +11,6 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
@@ -32,7 +31,8 @@ class PayoutBeneficiaryNotificationsTest extends TestCase
     {
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
-        Sanctum::actingAs($this->agencyAgent($agency));
+        // Marquer payé est sous step-up (TCK-594 × TCK-589).
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord, 10), 200_000);
         $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])
             ->assertCreated()->json('data.id');

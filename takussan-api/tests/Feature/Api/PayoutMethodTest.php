@@ -13,7 +13,6 @@ use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -35,7 +34,7 @@ class PayoutMethodTest extends TestCase
     {
         Notification::fake();
         $landlord = $this->landlordOf($this->moneyAgency());
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $id = $this->postJson('/api/me/payout-methods', [
             'kind' => 'wave', 'account_identifier' => self::NUMBER, 'account_holder_name' => 'Awa Diop',
@@ -65,17 +64,17 @@ class PayoutMethodTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $method = PayoutMethod::factory()->create(['user_id' => $landlord->id, 'account_identifier' => self::NUMBER, 'masked_identifier' => PayoutMethod::mask(self::NUMBER)]);
 
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $row = $this->getJson("/api/payout-methods?filter[user_id]={$landlord->id}")->assertOk()->json('data.0');
         $this->assertSame('•••• 4567', $row['masked_identifier']);
         $this->assertArrayNotHasKey('account_identifier', $row);
         $this->assertArrayNotHasKey('account_holder_name', $row);
 
         // Une autre agence ne lit rien.
-        Sanctum::actingAs($this->agencyAgent($this->moneyAgency()));
+        $this->actingWithStepUp($this->agencyAgent($this->moneyAgency()));
         $this->getJson("/api/payout-methods?filter[user_id]={$landlord->id}")->assertForbidden();
 
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
         $this->getJson('/api/me/payout-methods')->assertOk()
             ->assertJsonPath('data.0.id', $method->id)
             ->assertJsonPath('data.0.account_identifier', self::NUMBER);
@@ -88,7 +87,7 @@ class PayoutMethodTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
         $agent = $this->agencyAgent($agency);
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 100_000);
         $id = $this->postJson('/api/payouts', [
             'landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id], 'payout_method_id' => $method->id,
@@ -101,9 +100,9 @@ class PayoutMethodTest extends TestCase
 
         // Vérifiée par l'agence, elle sert ; la destination masquée est recopiée sur le reversement.
         // Vérifiée par un AUTRE membre : son vérificateur ne la paie pas dans les 24 h (VERIF-594 M-4).
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk()->assertJsonPath('data.verified', true);
-        Sanctum::actingAs($agent);
+        $this->actingWithStepUp($agent);
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)->assertOk()
             ->assertJsonPath('data.destination_masked', $method->masked_identifier);
     }
@@ -114,7 +113,7 @@ class PayoutMethodTest extends TestCase
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
         $foreign = PayoutMethod::factory()->verifiedFor($agency)->create();
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 100_000);
         $id = $this->postJson('/api/payouts', ['landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id]])
             ->assertCreated()->json('data.id');
@@ -135,7 +134,7 @@ class PayoutMethodTest extends TestCase
                 ['enabled' => false],
             );
         }
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $this->postJson('/api/me/payout-methods', [
             'kind' => 'wave', 'account_identifier' => '+221 77 123 45 67', 'account_holder_name' => 'Awa Ndiaye',
@@ -155,7 +154,7 @@ class PayoutMethodTest extends TestCase
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
         $method = PayoutMethod::factory()->verifiedFor($agency)->verifiedFor($this->moneyAgency())->create(['user_id' => $landlord->id]);
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
 
         $this->patchJson("/api/me/payout-methods/{$method->id}", ['account_identifier' => '+221 78 000 11 22'])
             ->assertOk()
@@ -180,7 +179,7 @@ class PayoutMethodTest extends TestCase
     {
         Notification::fake();
         $holder = User::factory()->create(['phone' => '+221771234567', 'phone_verified_at' => now()]);
-        Sanctum::actingAs($holder);
+        $this->actingWithStepUp($holder);
 
         $this->postJson('/api/me/payout-methods', ['kind' => 'orange_money', 'account_identifier' => self::NUMBER])
             ->assertCreated()->assertJsonPath('data.verified', false);
@@ -196,17 +195,17 @@ class PayoutMethodTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
 
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $this->patchJson("/api/me/payout-methods/{$method->id}", ['account_identifier' => '+221 78 000 11 22'])->assertForbidden();
         $this->deleteJson("/api/me/payout-methods/{$method->id}")->assertForbidden();
 
-        Sanctum::actingAs($landlord);
+        $this->actingWithStepUp($landlord);
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden();
 
         // Un agent d'une autre agence, ou sans `payouts.create`, ne vérifie pas.
-        Sanctum::actingAs($this->agencyAgent($this->moneyAgency()));
+        $this->actingWithStepUp($this->agencyAgent($this->moneyAgency()));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden();
-        Sanctum::actingAs($this->agentWithout($agency, Capability::PayoutsCreate));
+        $this->actingWithStepUp($this->agentWithout($agency, Capability::PayoutsCreate));
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden();
 
         $this->assertSame(0, $method->verifications()->count());

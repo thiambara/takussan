@@ -15,7 +15,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
@@ -107,7 +106,7 @@ class ServiceProviderBillTest extends TestCase
         $issuer = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/service-provider-bills/{$bill->id}/pay")->assertStatus(422);
         $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk()->assertJsonPath('data.status', 'validated');
         $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertStatus(422);
@@ -120,9 +119,9 @@ class ServiceProviderBillTest extends TestCase
         $this->postJson("/api/service-provider-bills/{$bill->id}/pay")->assertStatus(409);
 
         $this->postJson("/api/payouts/{$payoutId}/approve")->assertForbidden();
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$payoutId}/approve")->assertOk();
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$payoutId}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-5'])
             ->assertOk();
 
@@ -139,7 +138,7 @@ class ServiceProviderBillTest extends TestCase
         $this->request($agency, $this->provider($agency))->update(['status' => MaintenanceStatus::Completed]);
         [$mine, $theirs] = ServiceProviderBill::query()->orderBy('id')->get()->all();
 
-        Sanctum::actingAs($provider);
+        $this->actingWithStepUp($provider);
         $this->getJson('/api/service-provider-bills')->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', $mine->id);
@@ -149,7 +148,7 @@ class ServiceProviderBillTest extends TestCase
         // Le prestataire ne valide pas sa propre facture.
         $this->postJson("/api/service-provider-bills/{$mine->id}/validate")->assertForbidden();
         // Un agent d'une autre agence ne la lit pas.
-        Sanctum::actingAs($this->agencyAgent($this->moneyAgency()));
+        $this->actingWithStepUp($this->agencyAgent($this->moneyAgency()));
         $this->getJson("/api/service-provider-bills/{$mine->id}")->assertNotFound();
     }
 
@@ -171,7 +170,7 @@ class ServiceProviderBillTest extends TestCase
         $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
         $this->assertEquals(60001, (float) $bill->amount);
 
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
         $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk();
         $this->postJson("/api/service-provider-bills/{$bill->id}/pay", ['payment_method' => 'cash'])
             ->assertCreated()->assertJsonPath('data.net_amount', 60001);
@@ -210,15 +209,15 @@ class ServiceProviderBillTest extends TestCase
         $request->update(['status' => MaintenanceStatus::Completed]);
         $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk();
         $id = $this->postJson("/api/service-provider-bills/{$bill->id}/pay", [])
             ->assertCreated()->assertJsonPath('data.status', 'awaiting_approval')
             ->assertJsonPath('data.payout_method_id', $destination->id)->json('data.id');
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-N1', 'payout_method_id' => $destination->id])
             ->assertOk()->assertJsonPath('data.status', 'completed');
     }

@@ -42,8 +42,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
 
-    // TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire. Point de raccord TCK-589 :
-    // le step-up 2FA s'ajoute sur `store`, `update` et `destroy` par `->middleware(...)`.
+    // TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire. `store`, `update` et
+    // `destroy` sont sous step-up 2FA (TCK-589, `ProtectedActions::STEP_UP`).
     Route::get('payout-methods', [MePayoutMethodController::class, 'index'])->name('me.payout-methods.index');
     Route::post('payout-methods', [MePayoutMethodController::class, 'store'])->name('me.payout-methods.store');
     Route::patch('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'update'])->name('me.payout-methods.update');

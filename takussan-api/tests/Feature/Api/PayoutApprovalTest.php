@@ -15,7 +15,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
-use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
@@ -57,7 +56,7 @@ class PayoutApprovalTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $issuer = $this->agencyAdmin($agency);
         $this->agencyAdmin($agency);
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
 
         $id = $this->createPayout($agency, $landlord, 150_000);
         $this->assertSame(PayoutStatus::Pending, Payout::find($id)->status);
@@ -94,7 +93,7 @@ class PayoutApprovalTest extends TestCase
         $issuer = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $id = $this->createPayout($agency, $landlord, 150_000);
         $this->assertSame(PayoutStatus::AwaitingApproval, Payout::find($id)->status);
         Notification::assertSentTo($approver, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutAwaitingApproval);
@@ -104,7 +103,7 @@ class PayoutApprovalTest extends TestCase
         $this->postJson("/api/payouts/{$id}/approve")->assertForbidden();
         $this->assertSame(PayoutStatus::AwaitingApproval, Payout::find($id)->status);
 
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk()
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.approved_by_id', $approver->id);
@@ -112,7 +111,7 @@ class PayoutApprovalTest extends TestCase
         $this->postJson("/api/payouts/{$id}/approve")->assertStatus(422)->assertJsonPath('code', 'payout.not_awaiting_approval');
         $this->pay($id)->assertForbidden()->assertJsonPath('code', 'segregation.pay');
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->pay($id, ['transaction_id' => null])->assertStatus(422);
         $this->pay($id)->assertOk()
             ->assertJsonPath('data.status', 'completed')
@@ -134,7 +133,7 @@ class PayoutApprovalTest extends TestCase
         $this->agencyAdmin($agency);
         $here = AgencyAdminProfile::query()->where('user_id', $issuer->id)->firstOrFail();
         $elsewhere = AgencyAdminProfile::factory()->create(['user_id' => $issuer->id, 'agency_id' => $this->moneyAgency()->id]);
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
 
         $id = $this->withHeaders(['X-Profile-Id' => "agency_admin:{$here->id}"])
             ->createPayout($agency, $landlord, 150_000);
@@ -171,14 +170,14 @@ class PayoutApprovalTest extends TestCase
         $landlord = $this->landlordOf($agency);
         $issuer = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $id = $this->createPayout($agency, $landlord, 150_000);
-        Sanctum::actingAs($approver);
+        $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")->assertOk();
 
         Payout::find($id)->forceFill(['net_amount' => 900_000])->saveQuietly();
 
-        Sanctum::actingAs($issuer);
+        $this->actingWithStepUp($issuer);
         $this->pay($id)->assertStatus(422);
         $this->assertSame(PayoutStatus::Pending, Payout::find($id)->status);
     }
@@ -188,14 +187,14 @@ class PayoutApprovalTest extends TestCase
         $agency = $this->moneyAgency();
         $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
         $landlord = $this->landlordOf($agency);
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
         $id = $this->createPayout($agency, $landlord, 150_000);
 
-        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->actingWithStepUp($this->agencyAgent($agency));
         $this->postJson("/api/payouts/{$id}/approve")->assertForbidden();
 
         // Un admin d'une AUTRE agence non plus.
-        Sanctum::actingAs($this->agencyAdmin($this->moneyAgency()));
+        $this->actingWithStepUp($this->agencyAdmin($this->moneyAgency()));
         $this->postJson("/api/payouts/{$id}/approve")->assertForbidden();
     }
 
@@ -205,10 +204,10 @@ class PayoutApprovalTest extends TestCase
         $agency->forceFill(['payout_approval_threshold' => 100_000])->save();
         $landlordAdmin = $this->agencyAdmin($agency);
         OwnerProfile::factory()->create(['user_id' => $landlordAdmin->id, 'agency_id' => $agency->id]);
-        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->actingWithStepUp($this->agencyAdmin($agency));
         $id = $this->createPayout($agency, $landlordAdmin, 150_000);
 
-        Sanctum::actingAs($landlordAdmin);
+        $this->actingWithStepUp($landlordAdmin);
         $this->assertTrue($landlordAdmin->canActAt(Capability::PayoutsApprove, $agency));
         $this->postJson("/api/payouts/{$id}/approve")->assertForbidden();
         $this->assertSame(PayoutStatus::AwaitingApproval, Payout::find($id)->status);

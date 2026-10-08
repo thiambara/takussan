@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Auth\TwoFactor;
 
+use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
+use App\Http\Controllers\Api\PayoutController;
+use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Support\Security\ProtectedActions;
@@ -125,6 +129,28 @@ class ProtectedActionsCoverageTest extends TestCase
         }
 
         $this->assertSame([], $oubliees, "Action qui confère un pouvoir plateforme sans step-up :\n".implode("\n", $oubliees));
+    }
+
+    /**
+     * TCK-594 — le raccord du step-up sur les sorties d'argent : ce qui décide qu'un argent sort et
+     * vers où (le second geste des quatre yeux, le marquage payé, le paiement d'une facture
+     * d'intervention, les destinations du titulaire, les gestes plateforme). Une entrée retirée de
+     * `STEP_UP` rougit ici ; `PayoutStepUpTest` en éprouve l'effet.
+     */
+    public function test_les_sorties_d_argent_exigent_le_step_up(): void
+    {
+        foreach ([
+            PayoutController::class.'@approve',
+            PayoutController::class.'@markProcessed',
+            ServiceProviderBillController::class.'@pay',
+            MePayoutMethodController::class.'@store',
+            MePayoutMethodController::class.'@update',
+            MePayoutMethodController::class.'@destroy',
+            PlatformPayoutController::class.'@approve',
+            PlatformPayoutController::class.'@markPaid',
+        ] as $action) {
+            $this->assertTrue(ProtectedActions::requiresStepUp($action), "{$action} sans step-up");
+        }
     }
 
     public function test_les_alias_sans_nom_sont_couverts(): void
