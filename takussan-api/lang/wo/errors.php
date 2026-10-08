@@ -410,6 +410,7 @@ return [
         'password_in_query' => 'Baatu jàll bu lien bi, ci biir laaj bi lañu koy yónnee, du ci URL bi.',
         'password_invalid' => 'Baatu jàll bi baaxul.',
         'revoked' => 'Lënku séddoo bii dindi nañu ko.',
+        'too_many_attempts' => 'Baatu jàll yu baaxul bari na ci lien bii. Jéemaatal ci ay simili.',
     ],
     'super_admin' => [
         'code_invalid' => 'Kodu TOTP du baax.',

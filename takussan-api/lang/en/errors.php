@@ -410,6 +410,7 @@ return [
         'password_in_query' => 'A share link password is sent in the request body, never in the URL.',
         'password_invalid' => 'Invalid password.',
         'revoked' => 'This share link has been revoked.',
+        'too_many_attempts' => 'Too many incorrect passwords for this link. Please try again in a few minutes.',
     ],
     'super_admin' => [
         'code_invalid' => 'Invalid TOTP code.',

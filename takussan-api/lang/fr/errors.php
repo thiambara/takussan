@@ -410,6 +410,7 @@ return [
         'password_in_query' => 'Le mot de passe d\'un lien de partage s\'envoie dans le corps de la requête, jamais dans l\'URL.',
         'password_invalid' => 'Mot de passe invalide.',
         'revoked' => 'Ce lien de partage a été révoqué.',
+        'too_many_attempts' => 'Trop de mots de passe incorrects pour ce lien. Réessayez dans quelques minutes.',
     ],
     'super_admin' => [
         'code_invalid' => 'Code TOTP invalide.',
