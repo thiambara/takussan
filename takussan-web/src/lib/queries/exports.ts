@@ -1,3 +1,5 @@
+import { cheminApi } from '@/lib/chemin-api';
+
 /**
  * Client-side helpers for triggering CSV/XLSX/PDF downloads (TCK-032 P2).
  *
@@ -34,5 +36,5 @@ export function buildExportUrl(options: ExportOptions): string {
   if (options.from) qs.set('from', options.from);
   if (options.to) qs.set('to', options.to);
   if (options.limit) qs.set('limit', String(options.limit));
-  return `/api/export/${options.entity}?${qs.toString()}`;
+  return cheminApi`/api/export/${options.entity}?${qs.toString()}`;
 }

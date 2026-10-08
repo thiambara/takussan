@@ -259,7 +259,8 @@ class LeaseSignatureService
     /**
      * VERIF-596 passe 2 (N1, ADR-0042 §1) — l'indemnité de départ anticipé et le plafond de révision
      * que le contrat imprime, figés sur le bail : la valeur négociée sur le bail si elle existe,
-     * sinon le réglage global AU MOMENT où le contrat est figé. `late_fees.cap_percent` ne l'est
+     * sinon le réglage de l'agence du bail, à défaut le global (TCK-600, verif-600 H1), AU MOMENT où
+     * le contrat est figé. `late_fees.cap_percent` ne l'est
      * pas : il ne peut que baisser la pénalité imprimée.
      *
      * @return array{early_termination_penalty_months: int, rent_review_max_pct: float}

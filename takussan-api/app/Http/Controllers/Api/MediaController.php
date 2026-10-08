@@ -9,6 +9,7 @@ use App\Http\Resources\MediaResource;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\MaintenanceRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -163,6 +164,10 @@ class MediaController extends Controller
         if ($user->isSuperAdmin()) {
             return;
         }
+
+        // TCK-600 (ADR-0048 §3, verif-600 O2) — le second chemin d'une pièce d'intervention : le
+        // prestataire assigné n'en joint plus à une intervention d'une agence suspendue.
+        abort_code_if($target instanceof MaintenanceRequest && $target->lockedForProvider($user), 423, 'agency.suspended');
 
         // Try policy-based authorization first. TCK-592 (verif-592 passe 2, N3) — une policy qui
         // expose `attachMedia` y porte la règle propre à l'ajout d'une pièce (l'état terminal d'une

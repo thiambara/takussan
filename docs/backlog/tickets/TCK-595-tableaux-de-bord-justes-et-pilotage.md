@@ -1,7 +1,7 @@
 ---
 id: TCK-595
 title: "Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -403,7 +403,8 @@ faits neufs, plus graves que les rapports, sont signalés **(neuf)**.
   - la capacité qui ouvre les chiffres consolidés d'une agence. **Option retenue par défaut** : un cas
     neuf `reports.view_agency`, assignable à un rôle d'agence ; `reports.view_global` reste à la
     plateforme.
-- [ ] Livraison en trois PR, dans cet ordre (**option retenue par défaut**, un seul ticket) : (a) § 1,
+- [x] ~~Livraison en trois PR~~ — **non suivie** : une seule PR (#344), que la session fusionne ; le
+      découpage reste lisible commit par commit. Prescription d'origine : livraison en trois PR, dans cet ordre (**option retenue par défaut**, un seul ticket) : (a) § 1,
       § 3 hors commissions, § 4, § 5, § 5 bis ; (b) ADR commissions, § 2, § 3 commissions, § 6 ;
       (c) § 7, § 8, et les deux blocs `payee_role` du § 1 (après la fusion de TCK-594).
 - [x] **ADR-00NN+1 « Instantanés quotidiens des métriques plateforme »** : table, heure du job, ce qui se
@@ -746,8 +747,10 @@ Paiements de juillet :
   seul appel de `formatCurrency` rougit le cas `en`. En complément, une assertion sur la SOURCE des
   quatre pages refuse tout `'fr'` ou `'fr-SN'` passé comme argument de locale — elle seule ne suffirait
   pas : un helper qui ignorerait son argument la passerait aussi.
-- [ ] **AC21 — Pas de régression silencieuse.** `php artisan test` vert. Pint, `npm run lint`,
+- [x] **AC21 — Pas de régression silencieuse.** `php artisan test` vert. Pint, `npm run lint`,
       `npx tsc --noEmit` et `npm run test` propres. Les libellés nouveaux existent en `fr`, `en` et `wo`.
+      *Prouvé par la CI de #344 sur `ca51d0e8`* : 10 checks sur 10 verts, dont `lint-and-test` (Pint et
+      la suite entière de l'API) et `Web (ESLint + tsc + Vitest + build)`.
 
 ## Hors périmètre
 
@@ -1001,3 +1004,11 @@ restaurées par `cp` + md5).
     registre de la garde.
   - `NoLegacyUserTypeTest` : le docblock de `DashboardAgentController` est reformulé sans le littéral.
   - Le motif et la garde ne sont pas touchés.
+
+### Lot 14 — fusion de `dev` (TCK-600) et clôture
+
+- Fusion d'`origin/dev` `bcade3bc`. TCK-600 prend le § 83 de `models-spec.md` (ImpersonationSession) :
+  CommissionEntry et PlatformMetricDaily passent aux § 84 et 85, avec leur entrée au sommaire. Le
+  README des ADR garde l'union (0047, 0048, 0049, 0052 à 0055, 0057), et INDEX.md est régénéré.
+- AC21 est prouvé par la CI de #344 sur `ca51d0e8`. Le ticket passe à `done`, puisque toutes les cases
+  sont cochées. La livraison en trois PR n'a pas été suivie : une seule PR.

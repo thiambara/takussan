@@ -125,19 +125,21 @@ If you run Spatie's `media-library:clean` command in bulk, the observer fires fo
 GET /api/health
 ```
 
-Public, no auth required, always returns HTTP 200. Monitor the body:
+Public, no auth required, always returns HTTP 200. **Since TCK-600 it probes nothing itself**: it
+returns the aggregate status that `health:probe` (scheduled every minute) left in the cache, with no
+detail and no outbound call — it used to call the CDN on every anonymous request.
 
 ```json
 {
-  "status": "ok",
-  "checks": {
-    "cdn":   "ok | degraded | disabled",
-    "queue": "ok | degraded"
-  }
+  "status": "ok | degraded | failed | unknown",
+  "checked_at": "2026-10-08T10:00:00.000000Z"
 }
 ```
 
-Use `status = degraded` as the alert trigger in your uptime monitor.
+`unknown` means no probe ran in the last ten minutes (scheduler down). The CDN is now probed by the
+console snapshot, `GET /api/admin/health` → `data.cdn` (`ok | degraded | disabled`).
+
+Use `status != ok` as the alert trigger in your uptime monitor.
 
 ---
 

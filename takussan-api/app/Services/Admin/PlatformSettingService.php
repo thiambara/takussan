@@ -115,8 +115,6 @@ class PlatformSettingService
         return [
             'key' => $key,
             'category' => $definition['category'],
-            'label' => $definition['label'],
-            'description' => $definition['description'],
             'type' => $definition['type'],
             'value' => $stored['value'] ?? $definition['default'],
             'default_value' => $definition['default'],
@@ -146,28 +144,11 @@ class PlatformSettingService
             if ($key === 'currency.supported' && is_array($value) && ! in_array('XOF', array_map('strtoupper', $value), true)) {
                 $validator->errors()->add('value', 'xof_required');
             }
-            if (str_starts_with($key, 'transaction.platform_fee_') && ! $this->isValidPercentage($value)) {
-                $validator->errors()->add('value', 'percentage_must_be_between_0_and_100_with_2_decimals');
-            }
         });
 
         if ($validator->fails()) {
             throw ValidationException::withMessages([$key => $validator->errors()->all()]);
         }
-    }
-
-    private function isValidPercentage(mixed $value): bool
-    {
-        if (! is_numeric($value)) {
-            return false;
-        }
-        $string = (string) $value;
-        if (! preg_match('/^\d+(\.\d{1,2})?$/', $string)) {
-            return false;
-        }
-        $number = (float) $value;
-
-        return $number >= 0 && $number <= 100;
     }
 
     private function normalise(string $key, mixed $value): mixed
@@ -179,8 +160,7 @@ class PlatformSettingService
                 ->unique()
                 ->values()
                 ->all(),
-            'transaction.platform_fee_booking', 'transaction.platform_fee_lease' => round((float) $value, 2),
-            'platform.max_upload_mb', 'platform.session_max_minutes' => (int) $value,
+            'platform.session_max_minutes' => (int) $value,
             default => $value,
         };
     }

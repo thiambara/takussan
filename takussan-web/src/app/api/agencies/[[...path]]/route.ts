@@ -1,23 +1,25 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
-import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif, profilActifEspaceApplicatif } from '@/lib/impersonation';
+import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
   : 'http://localhost:8002';
 
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const chemin = cheminAmont(segments);
+  if (chemin === null) return reponseSegmentInvalide();
+  const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
-  const suffix = segments.length > 0 ? `/${segments.join('/')}` : '';
+  const suffix = chemin !== '' ? `/${chemin}` : '';
   const url = `${API_URL}/api/agencies${suffix}${request.nextUrl.search}`;
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
-  const activeProfileId = request.cookies.get(ACTIVE_PROFILE_COOKIE)?.value;
+  const activeProfileId = profilActifEspaceApplicatif(request.cookies);
   if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
   const contentType = request.headers.get('content-type');
   if (contentType) headers['Content-Type'] = contentType;

@@ -73,7 +73,11 @@ class PropertyPolicy extends BasePolicy
      */
     public function viewMedia(User $user, Property $property): bool
     {
-        if ($property->visibility === PropertyVisibility::Public && $property->published_at !== null) {
+        // TCK-600 (ADR-0048 §1, verif-600 m3) — le bien d'une agence hors ligne a quitté le site :
+        // ses médias ne sont plus lisibles par n'importe quel connecté. Ses membres y gardent accès
+        // par `view` / `update`.
+        if ($property->visibility === PropertyVisibility::Public && $property->published_at !== null
+            && $property->agencyIsPublic()) {
             return true;
         }
 

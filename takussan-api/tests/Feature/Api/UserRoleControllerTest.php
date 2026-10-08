@@ -91,19 +91,22 @@ class UserRoleControllerTest extends ApiTestCase
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
         $target = User::factory()->create(['agency_id' => $agency->id]);
 
+        // TCK-600 (ADR-0047 §4) — `super_admin` n'est plus un rôle de cette route, pour personne.
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'super_admin'])
-            ->assertForbidden();
+            ->assertStatus(422);
+        $this->assertFalse($target->fresh()->isSuperAdmin());
     }
 
-    public function test_super_admin_can_grant_super_admin(): void
+    /** TCK-600 (ADR-0047 §4) — la cooptation est le seul chemin d'octroi (`SuperAdminGrantOnlyByCooptationTest`). */
+    public function test_super_admin_cannot_grant_super_admin_through_this_route(): void
     {
         $this->apiActingAsRole('super_admin');
         $target = User::factory()->create();
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'super_admin'])
-            ->assertOk();
+            ->assertStatus(422);
 
-        $this->assertTrue($target->fresh()->isSuperAdmin());
+        $this->assertFalse($target->fresh()->isSuperAdmin());
     }
 
     public function test_replacing_role_removes_previous_roles(): void
@@ -182,20 +185,5 @@ class UserRoleControllerTest extends ApiTestCase
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertStatus(422);
-    }
-
-    public function test_super_admin_assignment_creates_global_platform_profile(): void
-    {
-        // TCK-278 — super_admin n'est plus team-scopé : la matérialisation
-        // crée un PlatformProfile global pour le target.
-        $this->apiActingAsRole('super_admin');
-
-        $agency = Agency::factory()->create();
-        $target = User::factory()->create(['agency_id' => $agency->id]);
-
-        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'super_admin'])
-            ->assertOk();
-
-        $this->assertTrue($target->fresh()->isSuperAdmin());
     }
 }

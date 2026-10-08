@@ -168,7 +168,7 @@ class AgencyModerationTest extends TestCase
             'verified_at' => now(),
         ]);
 
-        $this->postJson("/api/admin/agencies/{$agency->id}/suspend")
+        $this->postJson("/api/admin/agencies/{$agency->id}/suspend", ['reason' => 'Enquête en cours (TCK-600 : motif requis).'])
             ->assertOk()
             ->assertJsonPath('data.status', 'suspended')
             ->assertJsonPath('data.is_verified', true);

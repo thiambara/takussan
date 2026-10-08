@@ -38,61 +38,12 @@ class RoleAccessTest extends ApiTestCase
         $this->apiGet('/api/users')->assertForbidden();
     }
 
-    public function test_admin_can_block_user(): void
-    {
-        $this->apiActingAsRole('super_admin');
-        $target = User::factory()->create();
+    // TCK-600 (verif-600 m1) — `POST /users/{user}/block|activate` ont été retirés, pour tous les
+    // rôles : `AccountBlockSingleRouteTest` ; bloquer et réactiver passent par la console.
 
-        $this->apiPost("/api/users/{$target->id}/block")->assertOk();
-    }
-
-    public function test_agent_cannot_block_user(): void
-    {
-        $this->apiActingAsRole('agent');
-        $target = User::factory()->create();
-
-        $this->apiPost("/api/users/{$target->id}/block")->assertForbidden();
-    }
-
-    public function test_customer_cannot_block_user(): void
-    {
-        $this->apiActingAsRole('customer');
-        $target = User::factory()->create();
-
-        $this->apiPost("/api/users/{$target->id}/block")->assertForbidden();
-    }
-
-    public function test_admin_can_activate_user(): void
-    {
-        $this->apiActingAsRole('super_admin');
-        $target = User::factory()->create();
-
-        $this->apiPost("/api/users/{$target->id}/activate")->assertOk();
-    }
-
-    public function test_agent_cannot_activate_user(): void
-    {
-        $this->apiActingAsRole('agent');
-        $target = User::factory()->create();
-
-        $this->apiPost("/api/users/{$target->id}/activate")->assertForbidden();
-    }
-
-    public function test_admin_can_delete_user(): void
-    {
-        $this->apiActingAsRole('super_admin');
-        $target = User::factory()->create();
-
-        $this->apiDelete("/api/users/{$target->id}")->assertNoContent();
-    }
-
-    public function test_customer_cannot_delete_user(): void
-    {
-        $this->apiActingAsRole('customer');
-        $target = User::factory()->create();
-
-        $this->apiDelete("/api/users/{$target->id}")->assertForbidden();
-    }
+    // TCK-600 — `DELETE /api/users/{user}` (effacement immédiat) est retiré, pour tous les rôles :
+    // `OwnAccountImmediateDeletionRemovedTest` ; l'effacement passe par la console
+    // (`AdminUserLifecycleTest`).
 
     public function test_super_admin_can_set_user_role(): void
     {

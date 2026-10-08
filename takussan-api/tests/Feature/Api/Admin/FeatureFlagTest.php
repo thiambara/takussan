@@ -2,13 +2,18 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Domain\Features\Flag;
 use App\Models\FeatureFlag;
 use App\Models\User;
 use App\Services\Features\FeatureFlagEvaluator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
+/**
+ * Drapeaux de fonctionnalité. TCK-600 : le catalogue est VIDE — ses trois entrées n'avaient aucun
+ * lecteur. Le mécanisme (segments, déploiement progressif) reste éprouvé sur une ligne stockée,
+ * par `FeatureFlagEvaluator::evaluate()`.
+ */
 class FeatureFlagTest extends TestCase
 {
     use RefreshDatabase;
@@ -16,6 +21,7 @@ class FeatureFlagTest extends TestCase
     public function test_unknown_flag_is_fail_closed(): void
     {
         $user = User::factory()->create();
+        FeatureFlag::create(['key' => 'unknown_flag', 'label' => 'x', 'enabled' => true, 'segments_json' => []]);
 
         $this->assertFalse(app(FeatureFlagEvaluator::class)->isEnabled('unknown_flag', $user));
     }
@@ -23,66 +29,44 @@ class FeatureFlagTest extends TestCase
     public function test_segments_and_rollout_are_stable(): void
     {
         $agencyAdmin = $this->actingAsRole('agency_admin');
-        FeatureFlag::create([
-            'key' => 'advanced_search',
-            'label' => 'Advanced search',
-            'description' => 'x',
-            'enabled' => true,
-            'segments_json' => ['roles' => ['agency_admin']],
-        ]);
-        FeatureFlag::create([
-            'key' => 'property_compare',
-            'label' => 'Compare',
-            'description' => 'x',
-            'enabled' => true,
-            'segments_json' => ['rollout_percentage' => 50],
-        ]);
         $evaluator = app(FeatureFlagEvaluator::class);
+        $parRole = new FeatureFlag(['key' => 'k_role', 'enabled' => true, 'segments_json' => ['roles' => ['agency_admin']]]);
+        $progressif = new FeatureFlag(['key' => 'k_rollout', 'enabled' => true, 'segments_json' => ['rollout_percentage' => 50]]);
+        $eteint = new FeatureFlag(['key' => 'k_off', 'enabled' => false, 'segments_json' => []]);
 
-        $this->assertTrue($evaluator->isEnabled('advanced_search', $agencyAdmin));
-        $this->assertSame(
-            $evaluator->isEnabled('property_compare', $agencyAdmin),
-            $evaluator->isEnabled('property_compare', $agencyAdmin),
-        );
+        $this->assertTrue($evaluator->evaluate($parRole, $agencyAdmin));
+        $this->assertFalse($evaluator->evaluate($parRole, User::factory()->create()));
+        $this->assertSame($evaluator->evaluate($progressif, $agencyAdmin), $evaluator->evaluate($progressif, $agencyAdmin));
+        $this->assertSame($evaluator->bucket('k_rollout', $agencyAdmin->id) < 50, $evaluator->evaluate($progressif, $agencyAdmin));
+        $this->assertFalse($evaluator->evaluate($eteint, $agencyAdmin));
+        $this->assertFalse($evaluator->evaluate($parRole, null));
     }
 
-    public function test_me_endpoint_exposes_only_client_visible_values_and_override_is_isolated(): void
+    /** AC15 — le catalogue est vide et ne sert ni libellé ni description. */
+    public function test_the_catalogue_is_empty_and_carries_no_label(): void
     {
-        $superAdmin = $this->actingAsRole('super_admin');
-        $other = User::factory()->create();
-        FeatureFlag::create([
-            'key' => 'property_compare',
-            'label' => 'Compare',
-            'description' => 'Internal description',
-            'enabled' => false,
-            'segments_json' => [],
-        ]);
+        $this->assertSame([], Flag::cases());
+        $this->actingAsRole('super_admin');
 
-        $this->postJson('/api/admin/feature-flags/property_compare/override', ['enabled' => true])
-            ->assertOk()
-            ->assertJsonPath('data.enabled', true);
-
-        $this->getJson('/api/feature-flags/me')
-            ->assertOk()
-            ->assertJsonPath('data.property_compare', true)
-            ->assertJsonMissing(['Internal description']);
-
-        $this->assertFalse(app(FeatureFlagEvaluator::class)->isEnabled('property_compare', $other));
-        $this->assertTrue(app(FeatureFlagEvaluator::class)->isEnabled('property_compare', $superAdmin));
+        $this->getJson('/api/admin/feature-flags')->assertOk()->assertExactJson(['data' => []]);
+        $this->getJson('/api/feature-flags/me')->assertOk()->assertJsonPath('data', []);
     }
 
-    public function test_agency_admin_is_forbidden_and_mutation_is_audited(): void
+    public function test_any_key_is_unknown_to_the_console(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->patchJson('/api/admin/feature-flags/property_compare', ['enabled' => true])
+            ->assertNotFound()
+            ->assertJsonPath('code', 'feature_flag.unknown');
+        $this->postJson('/api/admin/feature-flags/property_compare/override', ['enabled' => true])
+            ->assertNotFound();
+        $this->assertSame(0, FeatureFlag::query()->count());
+    }
+
+    public function test_agency_admin_is_forbidden(): void
     {
         $this->actingAsRole('agency_admin');
         $this->patchJson('/api/admin/feature-flags/property_compare', ['enabled' => true])->assertForbidden();
-
-        $this->actingAsRole('super_admin');
-        $this->patchJson('/api/admin/feature-flags/property_compare', [
-            'enabled' => true,
-            'segments' => ['rollout_percentage' => 25],
-        ])->assertOk()
-            ->assertJsonPath('data.0.key', 'property_compare');
-
-        $this->assertTrue(Activity::query()->where('event', 'super_admin_feature_flag_updated')->exists());
     }
 }

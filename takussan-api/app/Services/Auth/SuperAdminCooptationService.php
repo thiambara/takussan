@@ -2,12 +2,17 @@
 
 namespace App\Services\Auth;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Models\Enums\ImpersonationEndReason;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Invitation;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use App\Notifications\SuperAdminInvitedBroadcast;
+use App\Services\Admin\ImpersonationService;
 use App\Services\Invitation\InvitationService;
+use App\Services\Model\NotificationService;
 use App\Support\CaseInsensitive;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
@@ -49,8 +54,9 @@ class SuperAdminCooptationService
 
         $email = CaseInsensitive::fold(trim((string) $data['email']));
         $this->assertTargetIsNotAlreadySuperAdmin($email);
+        $level = PlatformProfileLevel::tryFrom((string) ($data['level'] ?? '')) ?? PlatformProfileLevel::SuperAdmin;
 
-        $invitation = DB::transaction(function () use ($inviter, $data, $email): Invitation {
+        $invitation = DB::transaction(function () use ($inviter, $data, $email, $level): Invitation {
             // Le garde-fou de dédup de `send()` est un « lire puis insérer »
             // sans verrou : deux invitations simultanées pour le même
             // destinataire ne se voient pas. Toutes les écritures de CETTE
@@ -66,6 +72,9 @@ class SuperAdminCooptationService
                 'agency_id' => null,
                 'metadata' => [
                     'requires_2fa' => true,
+                    // TCK-600 (ADR-0047) — lu à la confirmation de la 2FA du coopté
+                    // (`SuperAdminTwoFactorController::attachSuperAdminRole`).
+                    'level' => $level->value,
                     'first_name' => trim((string) ($data['first_name'] ?? '')),
                     'last_name' => trim((string) ($data['last_name'] ?? '')),
                 ],
@@ -77,6 +86,7 @@ class SuperAdminCooptationService
                 ->withProperties([
                     'inviter_id' => $inviter->id,
                     'target_email' => $email,
+                    'level' => $level->value,
                     'first_name' => trim((string) ($data['first_name'] ?? '')),
                     'last_name' => trim((string) ($data['last_name'] ?? '')),
                 ])
@@ -225,6 +235,92 @@ class SuperAdminCooptationService
     }
 
     /**
+     * TCK-600 (ADR-0047 §5) — retirer un opérateur plateforme ACTIF, de tout niveau.
+     *
+     * `revoked_at` posé (le profil reste, pour l'audit), jetons supprimés — la porte
+     * (`AccessTokenGate`) refuserait de toute façon un jeton d'impersonation dont l'opérateur
+     * n'est plus `super_admin`, mais la session se FERME ici, avec sa cause —, activité, et
+     * avis aux autres `super_admin`.
+     *
+     * ⚠ Jamais le dernier `super_admin` actif, et la course compte : deux super-admins qui se
+     * retirent l'un l'autre au même instant liraient chacun « il en reste deux ». Les lignes
+     * `super_admin` actives sont VERROUILLÉES puis comptées en PHP — jamais
+     * `lockForUpdate()->count()`, que PostgreSQL refuse sur un agrégat (piège n° 2 du `CLAUDE.md`).
+     * Le second retrait attend le premier, relit, et ne trouve plus qu'une ligne.
+     */
+    public function revokeOperator(User $actor, User $target, string $reason): PlatformProfile
+    {
+        abort_code_if((int) $actor->id === (int) $target->id, 422, 'platform.operator_self_revoke');
+
+        $profile = DB::transaction(function () use ($target, $reason, $actor): PlatformProfile {
+            $actifs = PlatformProfile::query()
+                ->active()
+                ->where('level', PlatformProfileLevel::SuperAdmin->value)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            /** @var PlatformProfile|null $profile */
+            $profile = PlatformProfile::query()
+                ->where('user_id', $target->id)
+                ->lockForUpdate()
+                ->first();
+            abort_code_if($profile === null || ! $profile->isActive(), 404, 'platform.operator_not_found');
+
+            abort_code_if(
+                $profile->level === PlatformProfileLevel::SuperAdmin && $actifs->count() <= 1,
+                422,
+                'platform.last_super_admin',
+            );
+            // L'acteur a pu être retiré entre le middleware et ce verrou (retrait croisé) : il
+            // n'agit que s'il est encore, sous verrou, un `super_admin` actif.
+            abort_code_unless($actifs->contains('user_id', $actor->id), 403, 'platform.ability_missing');
+
+            $profile->forceFill(['revoked_at' => now()])->save();
+            $target->tokens()->delete();
+
+            activity('User')
+                ->performedOn($target)
+                ->causedBy($actor)
+                ->withProperties([
+                    'reason' => $reason,
+                    'level' => $profile->level->value,
+                ])
+                ->event('super_admin_operator_revoked')
+                ->log('super_admin_operator_revoked');
+
+            return $profile;
+        });
+
+        // ADR-0055 §4 — ses sessions d'impersonation se ferment, et leurs cibles en sont prévenues.
+        // Le jeton était déjà refusé par `AccessTokenGate` dès la ligne `revoked_at`.
+        app(ImpersonationService::class)->closeForOperator($target, ImpersonationEndReason::OperatorRevoked);
+
+        $operateur = trim($target->first_name.' '.$target->last_name) ?: (string) $target->email;
+        foreach ($this->otherSuperAdmins($actor) as $pair) {
+            app(NotificationService::class)->send($pair, NotificationCode::PlatformOperatorRevoked, [
+                'operator' => $operateur,
+                'reason' => $reason,
+            ]);
+        }
+
+        return $profile;
+    }
+
+    /**
+     * TCK-600 — les opérateurs ACTIFS, tout niveau : ce que la console liste et peut retirer.
+     *
+     * @return Collection<int, User>
+     */
+    public function operators(): Collection
+    {
+        return User::query()
+            ->with(['platformProfile' => fn ($q) => $q->whereNull('revoked_at')])
+            ->whereHas('platformProfile', fn ($q) => $q->whereNull('revoked_at'))
+            ->get();
+    }
+
+    /**
      * La surface de cooptation n'agit QUE sur ses propres invitations.
      *
      * Un 404 plutôt qu'un 403 : une invitation d'agence n'a rien à faire
@@ -322,9 +418,10 @@ class SuperAdminCooptationService
     }
 
     /**
-     * Throws 409 if the target email already maps to a User holding the
-     * `super_admin` role globally. A user that is *invited but not yet
-     * confirmed* is fine — they'll accept under the same flow.
+     * Throws 409 if the target email already maps to a User holding an ACTIVE
+     * platform profile, of any level (TCK-600 : changer le niveau d'un opérateur
+     * actif = le retirer puis le recoopter, ADR-0047). A user that is *invited
+     * but not yet confirmed* is fine — they'll accept under the same flow.
      */
     protected function assertTargetIsNotAlreadySuperAdmin(string $email): void
     {
@@ -333,7 +430,7 @@ class SuperAdminCooptationService
             return;
         }
 
-        if ($existing->isSuperAdmin()) {
+        if ($existing->hasActivePlatformProfile()) {
             throw new HttpException(
                 409,
                 __('super_admins.cooptation.errors.already_super_admin', ['email' => $email]),

@@ -66,7 +66,7 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'superAdmin.integrations.webhooks.retention':
     'takussan-api/app/Services/Admin/IntegrationService.php:162 — purge au-delà de subDays(30)',
   'superAdmin.pages.users.impersonateDescription':
-    'takussan-api/app/Http/Controllers/Api/Admin/UserImpersonationController.php:30 — IMPERSONATION_TTL_MINUTES = 60',
+    'takussan-api/app/Models/ImpersonationSession.php — TTL_MINUTES = 15, non prolongeable (ADR-0055, TCK-600)',
   'privacy.dataExports.throttled':
     'takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:32 — une demande par subDay() ; la date affichée est `available_at` rendu par l\'API',
   'superAdmin.moderation.staleWarning':
@@ -103,7 +103,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number>> = {
   'dashboard.onboardingPending.subtitle': 7,
   'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': 30,
-  'superAdmin.pages.users.impersonateDescription': 1,
+  'superAdmin.pages.users.impersonateDescription': 15,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
 };

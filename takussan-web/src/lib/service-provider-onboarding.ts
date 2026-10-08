@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-261 — wire types & helpers for the post-acceptance Service Provider
@@ -81,7 +82,7 @@ export async function patchSpTrades(
   spProfileId: number,
   payload: TradesPayload,
 ): Promise<TradesResponse> {
-  return apiRequest<TradesResponse>(`/api/me/profiles/${spProfileId}/trades`, {
+  return apiRequest<TradesResponse>(cheminApi`/api/me/profiles/${spProfileId}/trades`, {
     method: 'PATCH',
     token,
     body: payload,
@@ -94,7 +95,7 @@ export async function patchSpAvailability(
   payload: { available_slots: AvailabilitySlot[] },
 ): Promise<AvailabilityResponse> {
   return apiRequest<AvailabilityResponse>(
-    `/api/me/profiles/${spProfileId}/availability`,
+    cheminApi`/api/me/profiles/${spProfileId}/availability`,
     { method: 'PATCH', token, body: payload },
   );
 }
@@ -110,7 +111,7 @@ export async function uploadSpKyc(
   formData.append('kind', kind);
 
   return apiRequest<KycUploadResponse>(
-    `/api/me/profiles/${spProfileId}/kyc/upload`,
+    cheminApi`/api/me/profiles/${spProfileId}/kyc/upload`,
     { method: 'POST', token, body: formData, formData: true },
   );
 }

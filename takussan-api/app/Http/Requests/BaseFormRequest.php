@@ -20,7 +20,7 @@ abstract class BaseFormRequest extends FormRequest
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    private function normalize(array $input): array
+    protected function normalize(array $input): array
     {
         foreach ($input as $key => $value) {
             if (is_array($value)) {

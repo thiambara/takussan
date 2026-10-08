@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
-use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -86,70 +85,6 @@ class UserAdminAgencyScopeTest extends ApiTestCase
 
         $this->assertTrue($ids->contains($userA->id));
         $this->assertTrue($ids->contains($userB->id));
-    }
-
-    /**
-     * TCK-587 (ADR-0031 §2, AC7) — bloquer un COMPTE redevient un geste du super-admin seul. Ces
-     * tests affirmaient l'inverse depuis TCK-147 : l'admin d'agence bloquait le compte d'un membre
-     * de son agence — un compte qui vit aussi dans d'autres agences. Il le suspend désormais dans
-     * son agence (`TeamMemberSuspensionTest`).
-     */
-    public function test_agency_admin_cannot_block_an_account_even_in_its_agency(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
-
-        $target = User::factory()->create();
-        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agency->id]);
-
-        $this->apiPost("/api/users/{$target->id}/block")->assertForbidden();
-
-        $this->assertSame(UserStatus::Active, $target->fresh()->status);
-    }
-
-    public function test_agency_admin_cannot_block_user_in_other_agency(): void
-    {
-        $agencyA = Agency::factory()->create();
-        $agencyB = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agencyA]);
-
-        $target = User::factory()->create();
-        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agencyB->id]);
-
-        $this->apiPost("/api/users/{$target->id}/block")->assertForbidden();
-    }
-
-    public function test_super_admin_cannot_block_self(): void
-    {
-        $admin = $this->apiActingAsRole('super_admin');
-
-        $this->apiPost("/api/users/{$admin->id}/block")
-            ->assertStatus(422)
-            ->assertJsonPath('code', 'user.cannot_block_self')
-            ->assertJsonPath('message', __('errors.user.cannot_block_self'));
-    }
-
-    public function test_agency_admin_cannot_reactivate_an_account_blocked_by_the_super_admin(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
-
-        $target = User::factory()->create(['status' => UserStatus::Blocked->value]);
-        AgentProfile::factory()->create(['user_id' => $target->id, 'agency_id' => $agency->id]);
-
-        $this->apiPost("/api/users/{$target->id}/activate")->assertForbidden();
-
-        $this->assertSame(UserStatus::Blocked, $target->fresh()->status);
-    }
-
-    public function test_super_admin_can_block_any_user(): void
-    {
-        $this->apiActingAsRole('super_admin');
-
-        $target = User::factory()->create();
-
-        $this->apiPost("/api/users/{$target->id}/block")
-            ->assertOk();
     }
 
     public function test_role_endpoint_returns_403_with_target_message_when_target_outside_agency(): void

@@ -4,6 +4,7 @@ import type {
   PaginatedResponse,
   SpatieQueryParams,
 } from '@/types/api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-260 — service providers (carnet) query layer.
@@ -125,7 +126,7 @@ export async function fetchServiceProviders(
 ): Promise<PaginatedResponse<ServiceProviderProfileSummary>> {
   const qs = buildQueryString(buildParams(params));
   return apiRequest<PaginatedResponse<ServiceProviderProfileSummary>>(
-    `/api/agencies/${params.agencyId}/service-providers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${params.agencyId}/service-providers${requete(qs)}`,
     { token },
   );
 }
@@ -136,7 +137,7 @@ export async function inviteServiceProvider(
   payload: InviteServiceProviderPayload,
 ): Promise<InviteServiceProviderResponse> {
   return apiRequest<InviteServiceProviderResponse>(
-    `/api/agencies/${agencyId}/service-providers/invite`,
+    cheminApi`/api/agencies/${agencyId}/service-providers/invite`,
     { token, method: 'POST', body: payload },
   );
 }
@@ -146,7 +147,7 @@ export async function resendInvitation(
   invitationId: number,
 ): Promise<ApiResponse<ServiceProviderInvitationSummary>> {
   return apiRequest<ApiResponse<ServiceProviderInvitationSummary>>(
-    `/api/invitations/${invitationId}/resend`,
+    cheminApi`/api/invitations/${invitationId}/resend`,
     { token, method: 'POST' },
   );
 }
@@ -156,7 +157,7 @@ export async function revokeInvitation(
   invitationId: number,
 ): Promise<ApiResponse<ServiceProviderInvitationSummary>> {
   return apiRequest<ApiResponse<ServiceProviderInvitationSummary>>(
-    `/api/invitations/${invitationId}/revoke`,
+    cheminApi`/api/invitations/${invitationId}/revoke`,
     { token, method: 'POST' },
   );
 }

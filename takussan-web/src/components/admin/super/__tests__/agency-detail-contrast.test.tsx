@@ -48,6 +48,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { Button } from '@/components/ui/button';
 import { withIntl } from '@/test/intl';
+import { avecGestes } from '@/test/habilitations';
 import {
   JETONS_CLAIR,
   JETONS_SOMBRE,
@@ -98,7 +99,7 @@ function enveloppe(enfant: React.ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(withIntl(<QueryClientProvider client={queryClient}>{enfant}</QueryClientProvider>));
+  return render(withIntl(<QueryClientProvider client={queryClient}>{avecGestes(enfant)}</QueryClientProvider>));
 }
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────

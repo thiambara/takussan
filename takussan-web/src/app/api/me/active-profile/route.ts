@@ -1,12 +1,12 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { ACTIVE_PROFILE_COOKIE, patchActiveProfile } from '@/lib/profiles';
 import { ApiError } from '@/lib/api';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json(null, { status: 401 });
 
   let payload: { profile_id?: unknown };

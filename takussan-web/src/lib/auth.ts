@@ -1,6 +1,7 @@
 import { apiRequest } from './api';
 import type { User as CanonicalUser } from '@/types/user';
 import type { Locale } from '@/i18n/config';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type OAuthProvider = 'google' | 'facebook' | 'apple';
 
@@ -132,7 +133,7 @@ export async function oauthRedirect(
   provider: OAuthProvider,
 ): Promise<{ redirect_url: string }> {
   const res = await apiRequest<{ data: { redirect_url: string } }>(
-    `/api/auth/oauth/${provider}/redirect`,
+    cheminApi`/api/auth/oauth/${provider}/redirect`,
   );
   return res.data;
 }
@@ -169,7 +170,7 @@ export async function oauthCallback(
   state: string,
 ): Promise<OAuthCallbackResponse> {
   const res = await apiRequest<{ data: OAuthCallbackResponse }>(
-    `/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+    cheminApi`/api/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
   );
   return res.data;
 }

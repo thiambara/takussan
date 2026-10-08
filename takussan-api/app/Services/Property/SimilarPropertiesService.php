@@ -28,8 +28,12 @@ class SimilarPropertiesService
 
         $orderIndex = array_flip($ids);
 
+        // TCK-600 (ADR-0048 §2) — la liste est en cache une heure : un bien qui a quitté le site
+        // depuis (agence suspendue, sans qu'aucune ligne de `properties` change ni vide ce cache)
+        // y resterait. Le prédicat public se rejuge donc à chaque lecture.
         return Property::query()
             ->with(['address', 'tags'])
+            ->public()
             ->whereIn('id', $ids)
             ->get()
             ->sortBy(fn (Property $p) => $orderIndex[$p->id] ?? PHP_INT_MAX)

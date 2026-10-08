@@ -67,6 +67,10 @@ class AccountDeletionService
      * `password` (historical) or `email_code` (accounts whose stored hash is
      * a machine value and who could not delete their account at all before).
      *
+     * TCK-600 — un OPÉRATEUR (`super_admin`) peut la demander pour le compte : même service, mêmes
+     * obligations, même délai de grâce — `$operator` devient le causeur de l'activité et le step-up
+     * est le sien (`operator`). L'effacement opérateur n'a pas d'autre chemin.
+     *
      * @param  string  $stepUp  mode de step-up déjà vérifié par l'appelant
      *
      * @throws ValidationException 422 with `obligations` payload listing
@@ -77,6 +81,7 @@ class AccountDeletionService
         ?string $reason = null,
         ?string $reasonCode = null,
         string $stepUp = 'password',
+        ?User $operator = null,
     ): AccountDeletionRequest {
         $obligations = $this->collectOpenObligations($user);
         if ($obligations !== []) {
@@ -85,7 +90,7 @@ class AccountDeletionService
             ])->status(422);
         }
 
-        return DB::transaction(function () use ($user, $reason, $reasonCode, $stepUp) {
+        return DB::transaction(function () use ($user, $reason, $reasonCode, $stepUp, $operator) {
             $now = now();
             $scheduledFor = $now->copy()->addDays($this->graceDays());
 
@@ -109,7 +114,7 @@ class AccountDeletionService
 
             activity('Account')
                 ->performedOn($request)
-                ->causedBy($user)
+                ->causedBy($operator ?? $user)
                 ->withProperties([
                     'scheduled_for' => $scheduledFor->toIso8601String(),
                     'reason_code' => $reasonCode,
@@ -181,13 +186,15 @@ class AccountDeletionService
         }
 
         DB::transaction(function () use ($user, $request) {
-            $this->anonymize($user);
+            $depublies = $this->anonymize($user);
 
             $request->forceFill(['executed_at' => now()])->save();
 
             activity('Account')
                 ->performedOn($request)
                 ->causedBy($user)
+                // TCK-600 — les biens retirés du site faute de contact (`ErasedAccountListings`).
+                ->withProperties(['unpublished_property_ids' => $depublies])
                 ->event('account.deletion.executed')
                 ->log('account.deletion.executed');
         });
@@ -205,8 +212,10 @@ class AccountDeletionService
     /**
      * Anonymize a user IN PLACE. Public so admin tooling can call it
      * directly via a separate audited route (out of scope here).
+     *
+     * @return list<int> TCK-600 — les biens dépubliés faute de contact
      */
-    public function anonymize(User $user): void
+    public function anonymize(User $user): array
     {
         $originalEmail = $user->email;
 
@@ -255,6 +264,10 @@ class AccountDeletionService
         $user->delete();
 
         unset($originalEmail);
+
+        // TCK-600 — APRÈS le `delete()` : avant, `owner` et `collaborators.user` résolvent encore
+        // le compte, qui resterait le contact de ses biens (`ErasedAccountListings`).
+        return app(ErasedAccountListings::class)->handle($user);
     }
 
     /**

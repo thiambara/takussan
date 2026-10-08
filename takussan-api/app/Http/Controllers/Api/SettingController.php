@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreSettingRequest;
 use App\Http\Requests\Api\UpdateSettingRequest;
@@ -95,6 +96,13 @@ class SettingController extends Controller
                 403
             );
         }
+
+        // TCK-600 — supprimer une ligne de catalogue la remettait à son défaut sans règle ni trace.
+        abort_code_if(
+            $setting->scope === SettingScope::Global && EditablePlatformSettings::managedByCatalogue($setting->key),
+            422,
+            'setting.managed_by_catalogue',
+        );
 
         $setting->delete();
 

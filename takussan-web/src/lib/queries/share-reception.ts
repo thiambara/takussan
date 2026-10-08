@@ -1,4 +1,5 @@
 import { ApiError, apiFetch, urlApiPublique } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-587 §8 — la réception d'un lien de partage, côté destinataire (sans compte).
@@ -21,8 +22,8 @@ export interface SharedDocument {
   readonly max_downloads: number | null;
 }
 
-function chemin(token: string, suffixe = ''): string {
-  return `/share/${encodeURIComponent(token)}${suffixe}`;
+function chemin(token: string, telechargement = false): string {
+  return telechargement ? cheminApi`/share/${token}/download` : cheminApi`/share/${token}`;
 }
 
 function corps(password: string): RequestInit {
@@ -47,7 +48,7 @@ export async function fetchSharedDocument(
 /** Le fichier du lien, en flux ; chaque appel compte un téléchargement côté API. */
 export async function downloadSharedDocument(token: string, password?: string): Promise<Blob> {
   const res = await fetch(
-    urlApiPublique(chemin(token, '/download')),
+    urlApiPublique(chemin(token, true)),
     password === undefined ? { method: 'GET' } : corps(password),
   );
   if (!res.ok) {

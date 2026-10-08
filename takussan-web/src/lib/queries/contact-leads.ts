@@ -2,6 +2,7 @@
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-590 — la boîte « Demandes » : `/api/contact-leads`.
@@ -108,14 +109,14 @@ const INVALIDER = { invalidate: [['contact-leads']] };
 
 export function useHandleLead() {
   return useApiMutation<ApiResponse<ContactLead>, { id: number }>(
-    { path: ({ id }) => `/api/contact-leads/${id}/handle`, method: 'POST', body: () => ({}) },
+    { path: ({ id }) => cheminApi`/api/contact-leads/${id}/handle`, method: 'POST', body: () => ({}) },
     INVALIDER,
   );
 }
 
 export function useConvertLead() {
   return useApiMutation<ApiResponse<ContactLead> & { customer: { id: number } }, { id: number }>(
-    { path: ({ id }) => `/api/contact-leads/${id}/convert`, method: 'POST', body: () => ({}) },
+    { path: ({ id }) => cheminApi`/api/contact-leads/${id}/convert`, method: 'POST', body: () => ({}) },
     INVALIDER,
   );
 }
@@ -123,7 +124,7 @@ export function useConvertLead() {
 export function useAssignLead() {
   return useApiMutation<ApiResponse<ContactLead>, { id: number; user_id: number }>(
     {
-      path: ({ id }) => `/api/contact-leads/${id}/assign`,
+      path: ({ id }) => cheminApi`/api/contact-leads/${id}/assign`,
       method: 'POST',
       body: ({ user_id }) => ({ user_id }),
     },

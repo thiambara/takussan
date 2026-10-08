@@ -52,7 +52,7 @@ class CrossTenantAuditTest extends TestCase
         $other = User::factory()->create();
         $agency = Agency::factory()->create();
 
-        $this->postJson("/api/admin/agencies/{$agency->id}/suspend")->assertOk();
+        $this->postJson("/api/admin/agencies/{$agency->id}/suspend", ['reason' => 'Enquête en cours (TCK-600 : motif requis).'])->assertOk();
 
         $this->getJson("/api/admin/audit?filter[causer_id]={$actor->id}&filter[event]=super_admin_agency_suspended")
             ->assertOk()

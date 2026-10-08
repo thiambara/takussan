@@ -56,7 +56,7 @@ class StepUpTwoFactorTest extends TestCase
 
         $this->stepUp($jeton)->assertOk()->assertJsonStructure(['data' => ['valid_until']]);
 
-        $this->impersonate($jeton)->assertOk();
+        $this->impersonate($jeton)->assertCreated();
         $this->codesDeSecours($jeton)->assertOk()->assertJsonPath('data.recovery_codes', ['AAAAA-BBBBB']);
 
         // Une autre session du même compte ne l'hérite pas.
@@ -97,7 +97,7 @@ class StepUpTwoFactorTest extends TestCase
             'two_factor_code' => (new Google2FA)->getCurrentOtp(self::TEST_TWO_FACTOR_SECRET),
         ])->assertOk()->json('token');
 
-        $this->impersonate($jeton)->assertOk();
+        $this->impersonate($jeton)->assertCreated();
     }
 
     private function jeton(): string
@@ -116,7 +116,8 @@ class StepUpTwoFactorTest extends TestCase
 
     private function impersonate(string $jeton): TestResponse
     {
-        return $this->appel($jeton)->postJson("/api/admin/users/{$this->cible->id}/impersonate");
+        // TCK-600 (ADR-0055) — le motif est obligatoire ; la réponse est un 201.
+        return $this->appel($jeton)->postJson("/api/admin/users/{$this->cible->id}/impersonate", ['reason' => 'Ticket support 4821 : relecture.']);
     }
 
     private function codesDeSecours(string $jeton): TestResponse
