@@ -18,7 +18,7 @@ return [
         'mail' => [
             'subject' => 'Dëggël sa alerte Takussan',
             'greeting' => 'Asalaa Maalekum,',
-            'intro' => 'Laaj nga ñu xamal la kër yu bees yu mengoo ak « :name ». Dunañu la yónne dara balaa nga koy dëggël.',
+            'intro' => 'Laaj nga ñu xamal la kër yu bees yu mengoo ak sa seet. Dunañu la yónne dara balaa nga koy dëggël.',
             'action' => 'Dëggël sama alerte',
             'expire' => 'Lënk bii dafay jeex ci :hours waxtu.',
             'ignore' => 'Soo laajul lii, bul ko xool : dinañu ko far.',

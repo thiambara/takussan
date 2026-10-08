@@ -19,10 +19,7 @@ class SearchAlertConfirmationNotification extends Notification
     /** Les langues de la surface publique (ADR-0026). */
     private const PUBLIC_LOCALES = ['fr', 'en', 'wo'];
 
-    public function __construct(
-        private readonly string $token,
-        private readonly string $searchName,
-    ) {}
+    public function __construct(private readonly string $token) {}
 
     /** @return list<string> */
     public function via(object $notifiable): array
@@ -41,7 +38,10 @@ class SearchAlertConfirmationNotification extends Notification
         return (new MailMessage)
             ->subject(__('saved_search_alerts.confirm.mail.subject'))
             ->greeting(__('saved_search_alerts.confirm.mail.greeting'))
-            ->line(__('saved_search_alerts.confirm.mail.intro', ['name' => $this->searchName]))
+            // verif-599 B1 — AUCUNE saisie du demandeur avant consentement : ce message part vers
+            // une adresse que personne n'a encore confirmée, il ne doit rien porter qu'un tiers
+            // ait choisi (un nom d'alerte rendait un lien Markdown arbitraire).
+            ->line(__('saved_search_alerts.confirm.mail.intro'))
             ->action(__('saved_search_alerts.confirm.mail.action'), $url)
             ->line(__('saved_search_alerts.confirm.mail.expire', ['hours' => (int) config('search_alerts.confirmation_ttl_hours', 48)]))
             ->line(__('saved_search_alerts.confirm.mail.ignore'))

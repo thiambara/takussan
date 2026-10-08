@@ -102,10 +102,7 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
         }
 
         if ($token !== null) {
-            $subscriber->notify(new SearchAlertConfirmationNotification(
-                $token,
-                (string) $subscriber->savedSearches()->value('name'),
-            ));
+            $subscriber->notify(new SearchAlertConfirmationNotification($token));
             $delivered = true;
         } else {
             $delivered = $codes->sendCodeTo(self::SCOPE.$subscriber->id, $this->contact, $subscriber->locale);

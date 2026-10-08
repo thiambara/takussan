@@ -14,6 +14,7 @@ use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Support\MarkdownText;
 use App\Support\SavedSearchCriteria;
 use Illuminate\Bus\Queueable;
 use Illuminate\Database\Eloquent\Collection;
@@ -91,7 +92,8 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
         return (new MailMessage)
             ->subject(__('saved_search_alerts.title', ['name' => $this->name()]))
             ->markdown('emails.alerts.saved-search-matches', [
-                'name' => $this->name(),
+                // verif-599 B1 — le nom est une saisie : il reste du texte dans le Markdown.
+                'name' => MarkdownText::escape($this->name()),
                 'total' => $this->total,
                 'cards' => $this->cards($locale),
                 'seeAllUrl' => $this->seeAllUrl($locale),
@@ -224,8 +226,8 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
             $media = $property->getFirstMedia('photos');
 
             return [
-                // Un titre est une saisie libre : ses crochets fermeraient le lien Markdown.
-                'title' => str_replace(['[', ']'], ['(', ')'], (string) $property->title),
+                // Un titre est une saisie libre : il reste du texte dans le lien Markdown.
+                'title' => MarkdownText::escape((string) $property->title),
                 'url' => $this->frontend('/'.$locale.'/properties/'.rawurlencode((string) $property->slug)),
                 'price' => $formatter->format((float) $property->price, $property->currency, $locale),
                 'place' => $address?->neighborhood ?: $address?->city,

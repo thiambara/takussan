@@ -9,6 +9,7 @@ use App\Models\Favorite;
 use App\Models\User;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -106,13 +107,19 @@ class FavoriteChangesNotification extends Notification
         return trans_choice("favorite_alerts.{$this->kind}.body", $count, ['count' => $count]);
     }
 
-    /** @return list<string> */
+    /**
+     * Les lignes de l'e-mail. Un titre est une saisie de l'agence : il reste du texte dans le
+     * Markdown (verif-599 B1, observation 4).
+     *
+     * @return list<string>
+     */
     private function lines(): array
     {
         $locale = app()->getLocale();
         $formatter = app(CurrencyFormatter::class);
 
         return array_map(function (array $item) use ($locale, $formatter): string {
+            $item['title'] = MarkdownText::escape($item['title']);
             if ($this->kind === self::KIND_PRICE_DROP) {
                 $currency = $item['currency'] ?? Currency::XOF;
 

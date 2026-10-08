@@ -18,7 +18,7 @@ return [
         'mail' => [
             'subject' => 'Confirmez votre alerte Takussan',
             'greeting' => 'Bonjour,',
-            'intro' => 'Vous avez demandé à être prévenu des nouveaux biens qui correspondent à « :name ». Rien ne vous sera envoyé tant que vous n’aurez pas confirmé.',
+            'intro' => 'Vous avez demandé à être prévenu des nouveaux biens qui correspondent à votre recherche. Rien ne vous sera envoyé tant que vous n’aurez pas confirmé.',
             'action' => 'Confirmer mon alerte',
             'expire' => 'Ce lien expire dans :hours heures.',
             'ignore' => 'Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail : elle sera effacée.',

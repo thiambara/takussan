@@ -18,7 +18,7 @@ return [
         'mail' => [
             'subject' => 'Confirm your Takussan alert',
             'greeting' => 'Hello,',
-            'intro' => 'You asked to be told about new listings matching “:name”. Nothing will be sent until you confirm.',
+            'intro' => 'You asked to be told about new listings matching your search. Nothing will be sent until you confirm.',
             'action' => 'Confirm my alert',
             'expire' => 'This link expires in :hours hours.',
             'ignore' => 'If you did not make this request, ignore this email: it will be erased.',
