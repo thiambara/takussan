@@ -13,6 +13,7 @@ use App\Models\WhatsappContact;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Model\SearchService;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
@@ -288,7 +289,17 @@ class PublicSearchAlertTest extends TestCase
             'confirme@exemple.sn' => $this->demande(['email' => 'confirme@exemple.sn']),
             self::PHONE => $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => self::PHONE]),
         ];
+        // verif-599 m7 — l'affirmation qui tient : AUCUNE requête SQL de la requête HTTP ne lit ni
+        // n'écrit les tables du contact. Un compte (`forContact()->count()`) ou une écriture
+        // réservée au contact connu ne change ni le corps, ni la file, ni le nombre de lignes ;
+        // ils se voient ici.
+        $requetes = [];
+        DB::listen(function (QueryExecuted $q) use (&$requetes): void {
+            $requetes[] = $q->sql;
+        });
         $reponses = array_map(fn (array $demande) => $this->postJson('/api/public/search-alerts', $demande), $cas);
+        $touchees = array_values(array_filter($requetes, fn (string $sql) => preg_match('/\b(alert_subscribers|saved_searches)\b/', $sql) === 1));
+        $this->assertSame([], $touchees, 'la requête HTTP ne touche pas les tables du contact');
 
         $premiere = reset($reponses);
         foreach ($reponses as $contact => $reponse) {
