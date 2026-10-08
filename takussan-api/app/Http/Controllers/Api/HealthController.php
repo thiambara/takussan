@@ -3,47 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Services\Media\Cdn\CdnProviderContract;
+use App\Services\Admin\HealthcheckService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Queue;
 
+/**
+ * Route publique de santé : le statut agrégé, LU DANS LE CACHE que `health:probe` remplit chaque
+ * minute, sans détail ni appel sortant (TCK-600). Elle appelait le CDN à chaque requête anonyme.
+ */
 class HealthController extends Controller
 {
-    public function __invoke(CdnProviderContract $cdn): JsonResponse
+    public function __invoke(HealthcheckService $health): JsonResponse
     {
-        $cdnStatus = $this->checkCdn($cdn);
-        $queueStatus = $this->checkQueue();
-
-        return $this->json([
-            'status' => $cdnStatus === 'ok' && $queueStatus === 'ok' ? 'ok' : 'degraded',
-            'checks' => [
-                'cdn' => $cdnStatus,
-                'queue' => $queueStatus,
-            ],
-        ]);
-    }
-
-    private function checkCdn(CdnProviderContract $cdn): string
-    {
-        if (! config('cdn.enabled')) {
-            return 'disabled';
-        }
-
-        try {
-            return $cdn->healthCheck() ? 'ok' : 'degraded';
-        } catch (\Throwable) {
-            return 'degraded';
-        }
-    }
-
-    private function checkQueue(): string
-    {
-        try {
-            Queue::size();
-
-            return 'ok';
-        } catch (\Throwable) {
-            return 'degraded';
-        }
+        return $this->json($health->publicStatus());
     }
 }
