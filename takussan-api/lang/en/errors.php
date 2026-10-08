@@ -145,6 +145,9 @@ return [
     'filter' => [
         'identifier_invalid' => 'The :filter filter expects a numeric identifier.',
     ],
+    'guarantor' => [
+        'attached_to_open_lease' => 'This guarantor is attached to a lease awaiting signature or in force: detach them from the lease first.',
+    ],
     'http' => [
         'bad_gateway' => 'A partner service did not respond correctly.',
         'bad_request' => 'The request is invalid.',
@@ -227,10 +230,10 @@ return [
         'not_draft_activate' => 'Only a draft lease can be activated.',
         'not_found' => 'Lease not found.',
         'rent_review_above_contract_cap' => 'The signed contract caps the rent review at :max %: this cap cannot be forced. Use a renewal or a signed amendment.',
+        'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it or start the renewal after it.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
     ],
-        'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it or start the renewal after it.',
     'lease_signature' => [
         'already_signed' => 'You have already signed this contract.',
         'code_locked' => 'Too many wrong codes: signing is blocked for 15 minutes.',

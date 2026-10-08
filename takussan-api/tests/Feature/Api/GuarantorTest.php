@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
+use App\Models\Lease;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -91,6 +93,39 @@ class GuarantorTest extends TestCase
 
         $this->deleteJson("/api/guarantors/{$guarantor->id}")->assertNoContent();
         $this->assertSoftDeleted('guarantors', ['id' => $guarantor->id]);
+    }
+
+    /**
+     * VERIF-596 passe 5 (m-g) — un garant rattaché à un bail en attente de signature ou en cours ne
+     * se supprime pas : il disparaîtrait du contrat sans rien défiger. Rattaché par le pivot comme
+     * par l'ancienne colonne ; un bail clos ou en brouillon ne retient rien.
+     */
+    public function test_a_guarantor_of_an_open_lease_cannot_be_deleted(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        foreach ([LeaseStatus::PendingSignature, LeaseStatus::Active] as $status) {
+            foreach (['pivot', 'colonne'] as $link) {
+                $guarantor = Guarantor::factory()->create(['added_by_id' => $user->id]);
+                $lease = Lease::factory()->create(['status' => $status]);
+                $link === 'pivot'
+                    ? $lease->guarantors()->attach($guarantor->id)
+                    : $lease->forceFill(['guarantor_id' => $guarantor->id])->saveQuietly();
+
+                $this->deleteJson("/api/guarantors/{$guarantor->id}")
+                    ->assertStatus(422)
+                    ->assertJsonPath('code', 'guarantor.attached_to_open_lease');
+                $this->assertNotSoftDeleted('guarantors', ['id' => $guarantor->id]);
+            }
+        }
+
+        foreach ([LeaseStatus::Draft, LeaseStatus::Terminated] as $status) {
+            $guarantor = Guarantor::factory()->create(['added_by_id' => $user->id]);
+            Lease::factory()->create(['status' => $status])->guarantors()->attach($guarantor->id);
+
+            $this->deleteJson("/api/guarantors/{$guarantor->id}")->assertNoContent();
+        }
     }
 
     public function test_create_requires_first_and_last_name(): void

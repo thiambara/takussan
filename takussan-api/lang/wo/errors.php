@@ -145,6 +145,9 @@ return [
     'filter' => [
         'identifier_invalid' => 'Filtre :filter dafay xaar identifiant bu nekk nimero.',
     ],
+    'guarantor' => [
+        'attached_to_open_lease' => 'Garant bii dafa lëkkaloo ak ab bayle buy xaar xaatim walla bu ngi dox : nangeel ko jëlee ci bayle bi njëkk.',
+    ],
     'http' => [
         'bad_gateway' => 'Benn service bu nu bokk tontuwul ni mu waroon.',
         'bad_request' => 'Laaj bi baaxul.',
@@ -227,10 +230,10 @@ return [
         'not_draft_activate' => 'Bail bu nekk brouillon rekk lañu mën a doxal.',
         'not_found' => 'Bail bi gisuñu ko.',
         'rent_review_above_contract_cap' => 'Kontra bi ñu xaatim dafa tëj soppi lowe bi ci :max % : mënuñu ko forcer. Jaaral ci yeesal bayle bi walla ab yokk bu ñu xaatim.',
+        'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko walla nga tàmbali yeesal bi ginnaaw ko.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
     ],
-        'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko walla nga tàmbali yeesal bi ginnaaw ko.',
     'lease_signature' => [
         'already_signed' => 'Xaatim nga kontraa bii ba noppi.',
         'code_locked' => 'Kood yu baaxul bari nañu : xaatim bi tëju na diirub 15 simili.',

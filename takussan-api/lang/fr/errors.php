@@ -145,6 +145,9 @@ return [
     'filter' => [
         'identifier_invalid' => 'Le filtre :filter attend un identifiant numérique.',
     ],
+    'guarantor' => [
+        'attached_to_open_lease' => 'Ce garant est rattaché à un bail en attente de signature ou en cours : détachez-le d\'abord du bail.',
+    ],
     'http' => [
         'bad_gateway' => 'Un service partenaire n\'a pas répondu correctement.',
         'bad_request' => 'La requête est invalide.',
@@ -227,10 +230,10 @@ return [
         'not_draft_activate' => 'Seul un bail en brouillon peut être activé.',
         'not_found' => 'Bail introuvable.',
         'rent_review_above_contract_cap' => 'Le contrat signé plafonne la révision du loyer à :max % : ce plafond ne se force pas. Passez par un renouvellement ou un avenant signé.',
+        'renewal_overlaps_paid_schedule' => 'Une échéance du bail en cours, dans la période que le renouvellement reprend, est déjà réglée ou en cours de règlement : le renouvellement ne l\'annule pas. Remboursez-la ou faites commencer le renouvellement après elle.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
         'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
     ],
-        'renewal_overlaps_paid_schedule' => 'Une échéance du bail en cours, dans la période que le renouvellement reprend, est déjà réglée ou en cours de règlement : le renouvellement ne l\'annule pas. Remboursez-la ou faites commencer le renouvellement après elle.',
     'lease_signature' => [
         'already_signed' => 'Vous avez déjà signé ce contrat.',
         'code_locked' => 'Trop de codes faux : la signature est bloquée pendant 15 minutes.',
