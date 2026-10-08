@@ -24,6 +24,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('{paymentType}/{paymentId}/verify', [PaymentGatewayController::class, 'verify'])
         ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
         ->name('payments.gateway.verify');
+
+    // TCK-602 (ADR-0051 §3) — les fournisseurs proposés au payeur, sous l'autorisation de
+    // l'initiation : le front ne lit plus `GET /api/integrations`, qui refuse le locataire.
+    Route::get('{paymentType}/{paymentId}/providers', [PaymentGatewayController::class, 'providers'])
+        ->where(['paymentType' => 'booking-payments|lease-payments|invoices', 'paymentId' => '\d+'])
+        ->name('payments.gateway.providers');
 });
 
 // TCK-079 — public webhook receiver. Throttled to 60 requests / minute / IP

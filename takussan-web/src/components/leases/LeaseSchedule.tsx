@@ -70,7 +70,6 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
   const toast = useToast();
   const paymentsQuery = useLeasePayments(leaseId);
   const { data, isLoading, isError } = paymentsQuery;
-  const { providers } = usePaymentProviders(agencyId ?? null);
   const markLateFeePaid = useMarkLateFeePaid(leaseId);
   const issuePaymentLink = useIssuePaymentLink();
   const { user } = useAuth();
@@ -89,6 +88,9 @@ export function LeaseSchedule({ leaseId, agencyId, landlordId, canManage = false
   } | null>(null);
 
   const payments = useMemo(() => data?.data ?? [], [data]);
+  // TCK-602 — les fournisseurs ne dépendent que de l'agence et de la devise du bail : la première
+  // échéance due suffit à les lire, une requête par échéancier et non par ligne.
+  const { providers } = usePaymentProviders('lease-payments', payments.find((p) => p.amount_due > 0)?.id ?? null);
 
   if (isLoading) {
     return <Skeleton className="h-40 rounded-xl" />;

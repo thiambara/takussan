@@ -65,6 +65,28 @@ class PaymentGatewayController extends Controller
         ]);
     }
 
+    /**
+     * TCK-602 (ADR-0051 §3) — les fournisseurs que CE paiement peut utiliser : une intégration active
+     * couvre son agence (repli global compris), un pilote la sert, ses identifiants sont remplis, et
+     * le fournisseur accepte la devise. Même autorisation que l'initiation : le locataire qui paie la
+     * lit, sans accès à `GET /api/integrations` (réservé à l'admin d'agence). Aucun appel sortant.
+     */
+    public function providers(Request $request, string $paymentType, int $paymentId): JsonResponse
+    {
+        $payment = $this->resolvePayment($paymentType, $paymentId);
+        abort_if($request->user() === null, 401);
+        $this->authorize('update', $payment);
+
+        return $this->json([
+            'data' => [
+                'providers' => array_map(
+                    static fn (PaymentProvider $provider): string => $provider->value,
+                    $this->gateway->availableProviders($payment),
+                ),
+            ],
+        ]);
+    }
+
     protected function resolvePayment(string $type, int $id): Model
     {
         $model = match ($type) {
