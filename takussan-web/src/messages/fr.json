@@ -1202,6 +1202,31 @@
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
         "cancel": "Annuler",
         "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
+      },
+      "collaborators": {
+        "title": "Agent principal",
+        "explanation": "L'agent principal est la personne que la fiche publique du bien nomme, qui reçoit les messages et les demandes des visiteurs, et dont le numéro s'affiche.",
+        "source": {
+          "designated": "Choisi par l'agence.",
+          "invitation_order": "Aucun choix n'est posé : l'agent associé au bien le premier répond.",
+          "owner": "Aucun agent actif n'est associé à ce bien : le propriétaire répond.",
+          "designated_unavailable": "L'agent choisi par l'agence n'est plus actif : {repli, select, agent {l'agent associé au bien le premier répond à sa place} other {le propriétaire répond à sa place}}, jusqu'à ce qu'il le redevienne ou qu'un autre agent soit désigné."
+        },
+        "badge": {
+          "designated": "Agent principal",
+          "default": "Répond par défaut",
+          "unavailable": "Choisi, indisponible"
+        },
+        "roles": {
+          "agent": "Agent",
+          "manager": "Gestionnaire",
+          "co_owner": "Copropriétaire",
+          "viewer": "Lecture seule"
+        },
+        "designate": "Désigner comme principal",
+        "designateFor": "Désigner {name} comme agent principal",
+        "empty": "Aucun collaborateur n'est associé à ce bien.",
+        "error": "La désignation n'a pas abouti. Réessayez."
       }
     },
     "visibility": {

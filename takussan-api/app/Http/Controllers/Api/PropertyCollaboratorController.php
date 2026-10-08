@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\DesignatePrimaryCollaboratorRequest;
 use App\Http\Requests\Api\StorePropertyCollaboratorRequest;
 use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
+use App\Models\User;
+use App\Services\Property\PrimaryAgentDesignator;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +22,21 @@ class PropertyCollaboratorController extends Controller
     {
         $this->authorize('view', $property);
 
-        $collaborators = $property->collaborators()->with('user')->get();
+        return $this->json($this->collaboratorsPayload($property, $request->user()));
+    }
 
-        return $this->json(['data' => $collaborators]);
+    /**
+     * TCK-504 (ADR-0053 §4) — désigne l'agent principal du bien. L'autorisation est celle de la
+     * gestion des collaborateurs (`DesignatePrimaryCollaboratorRequest`), le reste — rôle,
+     * éligibilité, verrou, journal, invalidation de la fiche — vit dans le service.
+     */
+    public function designatePrimary(DesignatePrimaryCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator, PrimaryAgentDesignator $designator): JsonResponse
+    {
+        abort_if($collaborator->property_id !== $property->id, 404);
+
+        $designator->designate($property, $collaborator, $request->user());
+
+        return $this->json($this->collaboratorsPayload($property, $request->user()));
     }
 
     public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
@@ -51,7 +67,9 @@ class PropertyCollaboratorController extends Controller
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($property, $collaborator, $data) {
+        $collaborator = DB::transaction(function () use ($property, $collaborator, $data) {
+            $collaborator = $this->relireSousLeVerrouDuBien($property, $collaborator);
+
             if (array_key_exists('commission_share', $data)) {
                 $this->assertCommissionWithinCapLocked(
                     $property,
@@ -61,6 +79,8 @@ class PropertyCollaboratorController extends Controller
             }
 
             $collaborator->fill($data)->save();
+
+            return $collaborator;
         });
 
         return $this->json(['data' => $collaborator->refresh()->load('user')]);
@@ -71,9 +91,70 @@ class PropertyCollaboratorController extends Controller
         $this->authorize('update', $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
-        $collaborator->delete();
+        DB::transaction(fn () => $this->relireSousLeVerrouDuBien($property, $collaborator)->delete());
 
         return $this->json(null, 204);
+    }
+
+    /**
+     * TCK-504 (ADR-0053 §3, vérification adverse m1) — changer le rôle d'une collaboration ou la
+     * supprimer se sérialise avec la désignation sur le MÊME point : la ligne du bien, prise
+     * avant la ligne de collaboration (ordre bien → ligne, celui de `PrimaryAgentDesignator`,
+     * donc sans interblocage). La ligne est relue sous ce verrou : l'instance liée par la route
+     * peut précéder une désignation validée entre-temps. À appeler dans une transaction.
+     */
+    private function relireSousLeVerrouDuBien(Property $property, PropertyCollaborator $collaborator): PropertyCollaborator
+    {
+        Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
+        $courante = $property->collaborators()->whereKey($collaborator->getKey())->first();
+        abort_code_if($courante === null, 404, 'property.collaborator_not_found');
+
+        return $courante;
+    }
+
+    /**
+     * TCK-504 — les collaborateurs, et qui répond pour le bien : la ligne marquée
+     * (`designated`), la ligne que l'ordre d'invitation désigne à défaut (`invitation_order`), ou
+     * le propriétaire (`owner`). Une seule lecture, `PrimaryPropertyContact` : l'écran ne
+     * recalcule rien.
+     *
+     * Une marque posée sur un agent devenu inéligible (compte bloqué, profil suspendu ou retiré)
+     * reste en place et ne vaut rien (ADR-0053 §2) : `designated_unavailable` le dit, avec la
+     * ligne marquée (`designated_collaborator_id`), pendant que `collaborator_id` nomme le repli
+     * réellement servi — ou `null` si c'est le propriétaire (vérification adverse m3).
+     *
+     * `can_designate` dit si l'appelant peut désigner (vérification adverse m2) : la même règle que
+     * l'endpoint, `update` du bien. Un agent qui lit la liste sans tenir `update` ne voit pas un
+     * geste que le serveur lui refuserait.
+     *
+     * @return array{data: mixed, primary_contact: array{user_id: int|null, collaborator_id: int|null, designated_collaborator_id: int|null, source: string|null}, can_designate: bool}
+     */
+    private function collaboratorsPayload(Property $property, ?User $viewer): array
+    {
+        $property->load(PrimaryPropertyContact::eagerLoads());
+
+        $principal = PrimaryPropertyContact::collaborateurPrincipal($property);
+        $contact = PrimaryPropertyContact::for($property);
+        $marque = $property->collaborators->first(fn (PropertyCollaborator $c) => $c->is_primary === true);
+
+        return [
+            // La forme d'avant (`with('user')`, sans les médias que le contact principal charge).
+            'data' => $property->collaborators()->with('user')->orderBy('id')->get(),
+            'primary_contact' => [
+                'user_id' => $contact?->id,
+                'collaborator_id' => $principal?->id,
+                'designated_collaborator_id' => $marque?->id,
+                'source' => match (true) {
+                    $principal?->is_primary === true => 'designated',
+                    $marque !== null => 'designated_unavailable',
+                    $principal !== null => 'invitation_order',
+                    $contact !== null => 'owner',
+                    default => null,
+                },
+            ],
+            'can_designate' => $viewer?->can('update', $property) === true,
+        ];
     }
 
     /**

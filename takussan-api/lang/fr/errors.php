@@ -357,8 +357,11 @@ return [
         'cannot_publish' => 'Les biens vendus ou loués ne peuvent pas être publiés.',
         'cannot_unpublish' => 'Seuls les biens disponibles peuvent être dépubliés.',
         'collaborator_exists' => 'Ce collaborateur est déjà ajouté à ce bien.',
+        'collaborator_not_found' => 'Ce collaborateur ne fait pas partie de ce bien.',
         'not_found' => 'Bien introuvable.',
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
+        'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
+        'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
         'resubmit_not_rejected' => 'Seul un bien refusé peut être resoumis.',
     ],
     'quota' => [

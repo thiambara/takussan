@@ -59,6 +59,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Collaborators
     Route::get('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'index'])->name('properties.collaborators.index');
     Route::post('properties/{property}/collaborators', [PropertyCollaboratorController::class, 'store'])->name('properties.collaborators.store');
+    // TCK-504 — littérale après `{collaborator}` : aucun conflit d'ordre avec `update`.
+    Route::put('properties/{property}/collaborators/{collaborator}/primary', [PropertyCollaboratorController::class, 'designatePrimary'])->name('properties.collaborators.primary');
     Route::put('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'update'])->name('properties.collaborators.update');
     Route::delete('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy');
 

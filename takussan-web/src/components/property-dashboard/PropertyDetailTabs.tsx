@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PropertyForm } from '@/components/property-form';
+import { PropertyCollaboratorsPanel } from '@/components/property-dashboard/PropertyCollaboratorsPanel';
 import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { PropertyOverviewPanel } from '@/components/property-dashboard/PropertyOverviewPanel';
 import { PropertyPriceHistoryList } from '@/components/property-dashboard/PropertyPriceHistoryList';
@@ -69,8 +70,10 @@ export function PropertyDetailTabs({ property, tags }: Props) {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview">
+      <TabsContent value="overview" className="space-y-6">
         <PropertyOverviewPanel property={property} onJumpTo={handleChange} />
+        {/* TCK-504 — qui répond pour le bien, et le choisir : là où l'on relit le bien. */}
+        <PropertyCollaboratorsPanel propertyId={property.id} />
       </TabsContent>
 
       <TabsContent value="edit">
