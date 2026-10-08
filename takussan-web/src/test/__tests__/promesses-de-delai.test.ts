@@ -63,8 +63,14 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // 04:00 (routes/console.php:79, sans `--days`) — close au premier passage après le septième jour.
   'maintenance.intervention.resolution.body':
     'takussan-api/app/Console/Commands/AutoCloseMaintenanceRequests.php:21 — `--days=7` par défaut',
+  // TCK-602 (ADR-0051, décision 4) — la rétention par canal : 90 jours pour les paiements, 30 pour
+  // la messagerie. La purge d'IntegrationService (subDays(30) pour tous) a disparu avec ce ticket.
   'superAdmin.integrations.webhooks.retention':
-    'takussan-api/app/Services/Admin/IntegrationService.php:162 — purge au-delà de subDays(30)',
+    'takussan-api/config/webhooks.php:12-14 — `retention_days` payment 90, sms et whatsapp 30, appliqués par PruneWebhookLogs.php:32 (`webhooks:prune`, routes/console.php:142, chaque jour)',
+  // TCK-602 — la liste « à suivre » de la console des paiements : sans `filter[from]` (le front n'en
+  // envoie pas), la fenêtre est les 30 derniers jours. Période affichée, tenue par le serveur.
+  'superAdmin.payments.list.empty_description':
+    'takussan-api/app/Http/Controllers/Api/Admin/PaymentSupervisionController.php:24 — fenêtre par défaut `$to->subDays(30)`',
   'superAdmin.pages.users.impersonateDescription':
     'takussan-api/app/Http/Controllers/Api/Admin/UserImpersonationController.php:30 — IMPERSONATION_TTL_MINUTES = 60',
   'privacy.dataExports.throttled':
@@ -82,8 +88,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
  * Le chiffre que le mécanisme tient, pour les entrées qui en dérivent d'une constante : un texte
  * qui dérive vers un autre chiffre — ou qui prête au mécanisme une promesse qu'il ne tient pas —
  * rougit ici, dans les trois langues. Les périodes affichées (« sur 12 mois ») n'y sont pas.
+ *
+ * Une LISTE quand le texte promet plusieurs délais (TCK-602 : « 90 jours pour les paiements, 30
+ * jours pour la messagerie ») : le texte doit porter exactement ces chiffres, dans cet ordre.
  */
-const CHIFFRE_TENU: Readonly<Record<string, number>> = {
+const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'auth.forgotPassword.sentBody': 60,
   'account.deletion.dialog.codeSentHint': 5,
   'owners.onboarding.steps.phone.sent.body': 5,
@@ -95,7 +104,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number>> = {
   'agency.tenantOnboardingPending.emptyDescription': 7,
   'dashboard.onboardingPending.subtitle': 7,
   'maintenance.intervention.resolution.body': 7,
-  'superAdmin.integrations.webhooks.retention': 30,
+  'superAdmin.integrations.webhooks.retention': [90, 30],
   'superAdmin.pages.users.impersonateDescription': 1,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
@@ -203,7 +212,11 @@ describe('promesses de délai des dictionnaires (TCK-575)', () => {
         const chiffres = [...(valeurs.get(cle) ?? '').matchAll(new RegExp(String.raw`(\d+)\s?${UNITE}`, 'gi'))].map((m) =>
           Number(m[1]),
         );
-        return chiffres.length > 0 && chiffres.every((n) => n === attendu) ? [] : [`${cle} : ${chiffres.join(',') || 'aucun'} ≠ ${attendu}`];
+        const tenu =
+          typeof attendu === 'number'
+            ? chiffres.length > 0 && chiffres.every((n) => n === attendu)
+            : chiffres.join(',') === attendu.join(',');
+        return tenu ? [] : [`${cle} : ${chiffres.join(',') || 'aucun'} ≠ ${String(attendu)}`];
       });
 
       expect(ecarts).toEqual([]);
