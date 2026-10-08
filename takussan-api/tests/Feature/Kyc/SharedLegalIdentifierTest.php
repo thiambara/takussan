@@ -91,6 +91,23 @@ class SharedLegalIdentifierTest extends ApiTestCase
         $this->assertSame([$a->id], array_column($this->apiGet("/api/admin/kyc/{$dossier->id}")->assertOk()->json('data.shared_identifiers.ninea'), 'id'));
     }
 
+    /** Raccord TCK-594 — le NINEA posé dans `agencies.ninea`, sans demande de passage, est une source. */
+    public function test_le_ninea_de_la_colonne_d_agence_est_compare(): void
+    {
+        $a = Agency::factory()->create(['ninea' => '00999999X1']);
+        $b = Agency::factory()->individual()->create();
+        $requestB = $this->submit($b, '00999999 x1', 'SN5555555555');
+
+        $this->apiActingAsRole('super_admin');
+        $shared = $this->apiGet("/api/admin/agency-upgrade-requests/{$requestB}")->assertOk()->json('data.shared_identifiers');
+        $this->assertSame([$a->id], array_column($shared['ninea'], 'id'));
+        $this->assertSame([], $shared['rib_pro']);
+
+        // Le dossier de A, sans aucune demande : son NINEA est celui de la colonne.
+        $dossier = KycDossier::query()->create(['subject_type' => Agency::class, 'subject_id' => $a->id, 'status' => KycDossierStatus::Submitted]);
+        $this->assertSame([$b->id], array_column($this->apiGet("/api/admin/kyc/{$dossier->id}")->assertOk()->json('data.shared_identifiers.ninea'), 'id'));
+    }
+
     /** D-68 — aucun contrôle de forme : un NINEA `ABC` est accepté. */
     public function test_aucun_controle_de_forme(): void
     {

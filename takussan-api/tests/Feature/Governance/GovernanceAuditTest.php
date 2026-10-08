@@ -126,6 +126,25 @@ class GovernanceAuditTest extends ApiTestCase
         $this->assertSame($agency->id, $entry->agency_id);
     }
 
+    /** Raccord TCK-594 — ses mentions légales entrent au journal ; `metadata` jamais. */
+    public function test_les_mentions_legales_de_l_agence_se_lisent_au_journal(): void
+    {
+        $agency = Agency::factory()->create()->refresh();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $agency->update([
+            'legal_name' => 'Témoin SARL', 'ninea' => '00777777A1', 'rccm' => 'SN-DKR-2026-B-1',
+            'legal_address' => 'Dakar', 'default_tax_rate' => 18, 'metadata' => ['legal_info' => ['rib_pro' => 'SNTEMOIN']],
+        ]);
+
+        $entry = Activity::query()->where('subject_type', Agency::class)->where('subject_id', $agency->id)->where('event', 'updated')->sole();
+        $this->assertEqualsCanonicalizing(
+            ['legal_name', 'ninea', 'rccm', 'legal_address', 'default_tax_rate'],
+            array_keys($entry->attribute_changes['attributes']),
+        );
+        $this->assertSame('00777777A1', $entry->attribute_changes['attributes']['ninea']);
+    }
+
     public function test_les_identifiants_d_une_integration_se_lisent_par_un_drapeau(): void
     {
         $agency = Agency::factory()->create();

@@ -30,12 +30,14 @@ class Agency extends AbstractModel implements HasMedia
 
     /**
      * TCK-601 — liste blanche du journal : jamais `metadata` (dont `legal_info`), ni les coordonnées.
-     * Raccord TCK-594 : `ninea`, `rccm` et `payout_approval_threshold` y entreront avec leurs
-     * colonnes (le seuil s'écrit aussi `agency_payout_threshold_changed` par son service).
+     * Raccord TCK-594 : ses mentions légales y sont (le NINEA d'une agence est public, décision du
+     * 2026-10-08). Le seuil d'approbation n'y est pas : son service écrit lui-même
+     * `agency_payout_threshold_changed`, avec l'ancienne et la nouvelle valeur.
      */
     public const AUDIT_ONLY = [
         'commission_rate', 'status', 'kind', 'is_verified',
         'moderation_required', 'bank_csv_mapping', 'primary_admin_id',
+        'legal_name', 'ninea', 'rccm', 'legal_address', 'default_tax_rate',
     ];
 
     protected $fillable = [

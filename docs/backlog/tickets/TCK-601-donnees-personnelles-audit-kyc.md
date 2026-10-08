@@ -880,3 +880,24 @@ Et autour :
 - **Ablations** : toutes rouges.
   - n1 : normalisation snake retirée (7 rouges) ; décodage JSON retiré.
   - n2 : `ExportWriter::xlsx` ; branche XLSX du job.
+
+### Raccords TCK-594 (fusion de `4da78b10`, 2026-10-08)
+
+- **Liste blanche d'audit d'`Agency`** : `legal_name`, `ninea`, `rccm`, `legal_address` et
+  `default_tax_rate` y entrent. Le NINEA d'agence est public (décision du porteur). Le seuil
+  d'approbation n'y est pas : `PayoutApprovalThreshold` écrit lui-même `agency_payout_threshold_changed`,
+  avec l'ancienne et la nouvelle valeur. L'alerte de gouvernance se tire maintenant de ce **vrai**
+  écrivain, et non plus d'une écriture simulée.
+- **NINEA partagé** : `SharedLegalIdentifierDetector` compare aussi `agencies.ninea`. Pour l'agence
+  elle-même, la colonne fait foi quand elle est posée. Le RIB pro reste lu sur la demande : il n'existe
+  pas de colonne RIB d'agence.
+- **Masqueur** : `PayoutMethod::mask()` délègue à `Masking::tail()`, ce qu'annonçait son commentaire
+  « provisoire ». Un identifiant de quatre caractères ou moins ne se montre plus en entier.
+- **`AgencyKindFlipService`** : les quatre champs légaux vont aux colonnes de 594, et `rib_pro` n'est
+  toujours pas recopié. Le test A2 lit désormais `legal_name` et `ninea` dans leurs colonnes.
+- **Cliquet de `check-capability-readers`** : 10 → 9, puisque 601 branche `agency.update_kyc`.
+- **models-spec** : 594 garde les numéros 76 à 78, et `PrivacyRequest` devient le 79.
+- **Ablations** : toutes rouges.
+  - Retrait des colonnes de la liste blanche.
+  - `agencies.ninea` retiré des sources du détecteur, puis de l'agence elle-même.
+  - Code d'alerte du seuil retiré.

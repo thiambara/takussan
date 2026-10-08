@@ -11,6 +11,7 @@ use App\Models\Integration;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Membership\AgencyRoleService;
+use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\ApiTestCase;
@@ -129,12 +130,13 @@ class GovernanceAlertTest extends ApiTestCase
         $this->assertSame(0, AppNotification::query()->count());
     }
 
-    /** Raccord TCK-594 : l'événement de son service, écrit sur l'agence. */
+    /** Raccord TCK-594 : l'événement écrit par son service, `PayoutApprovalThreshold`. */
     public function test_un_seuil_d_approbation_modifie_avertit(): void
     {
-        activity()->causedBy($this->auteur)->performedOn($this->agency)
-            ->event('agency_payout_threshold_changed')->withProperties(['old' => 100000, 'new' => 500000])
-            ->log('agency_payout_threshold_changed');
+        $this->assertSame(
+            PayoutApprovalThreshold::APPLIED,
+            app(PayoutApprovalThreshold::class)->change($this->agency, $this->auteur, 500000),
+        );
 
         $this->seulLeCollegue(NotificationCode::GovernanceApprovalThresholdChanged);
     }
