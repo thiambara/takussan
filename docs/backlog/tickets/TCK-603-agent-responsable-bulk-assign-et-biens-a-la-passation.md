@@ -52,7 +52,7 @@ Ce que TCK-591 a déjà livré et que ce ticket consomme :
   refus restent sélectionnés, rafraîchissement dès qu'un bien a changé) pour archiver et dépublier ;
   « Changer l'agent responsable » y reste **unitaire** ;
 - `AgentPortfolio` / `AgentHandoverService` : la catégorie `held_properties` est **comptée**
-  (inventaire, garde `portfolio_not_empty`), **pas transmise** ; `responsible_properties`
+  (inventaire, garde `agency_member.portfolio_not_empty`), **pas transmise** ; `responsible_properties`
   n'existe pas encore ;
 - l'assistant de passation front (`HandoverWizard`) affiche une catégorie non transmissible
   (`pending`) et exige l'aveu `leave_unassigned` pour elle.
