@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Admin\UnifiedModerationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -31,6 +32,10 @@ class ModerationItemResource extends BaseResource
         return [
             'id' => $this->resource['id'],
             'type' => $this->resource['type'],
+            'source_type' => $this->resource['source_type'],
+            // TCK-597 (ADR-0043 §4) — les seules décisions valides pour CE type d'élément : le
+            // front n'en propose pas d'autre, et n'en tient pas de copie.
+            'decisions' => UnifiedModerationService::DECISIONS[$this->resource['source_type']] ?? [],
             'status' => $this->resource['status'],
             'subject_type' => $this->resource['subject_type'],
             'subject_id' => $this->resource['subject_id'],

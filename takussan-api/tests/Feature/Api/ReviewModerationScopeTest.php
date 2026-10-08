@@ -115,6 +115,18 @@ class ReviewModerationScopeTest extends ApiTestCase
         $this->assertSame(3, $response->json('meta.pending_count'));
     }
 
+    public function test_pending_first_sort_puts_reviews_to_decide_on_top(): void
+    {
+        $approved = $this->reviewOn($this->propertyA, ReviewStatus::Approved, ['created_at' => now()]);
+        $reported = $this->reviewOn($this->propertyA, ReviewStatus::Reported, ['created_at' => now()->subDay()]);
+        $pending = $this->reviewOn($this->propertyA, ReviewStatus::Pending, ['created_at' => now()->subDays(2)]);
+
+        $this->actingAsApi($this->adminA);
+
+        $ids = collect($this->getJson('/api/reviews?sort=pending_first,-created_at')->assertOk()->json('data'))->pluck('id')->all();
+        $this->assertSame([$pending->id, $reported->id, $approved->id], $ids);
+    }
+
     public function test_per_page_is_capped_at_100(): void
     {
         $this->actingAsApi($this->adminA);

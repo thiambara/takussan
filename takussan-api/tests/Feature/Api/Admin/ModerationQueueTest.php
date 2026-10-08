@@ -48,6 +48,12 @@ class ModerationQueueTest extends TestCase
         $this->assertSame(2, $response->json('meta.total'));
         $this->assertContains('property', array_column($response->json('data'), 'type'));
         $this->assertContains('review', array_column($response->json('data'), 'type'));
+
+        // TCK-597 — chaque élément porte les décisions valides pour SON type : le front n'en
+        // propose pas d'autre et n'en tient pas de copie.
+        $decisions = collect($response->json('data'))->pluck('decisions', 'source_type')->all();
+        $this->assertSame(['approve', 'reject'], $decisions['property']);
+        $this->assertSame(['approve', 'hide', 'remove'], $decisions['review']);
     }
 
     public function test_agency_admin_is_forbidden(): void

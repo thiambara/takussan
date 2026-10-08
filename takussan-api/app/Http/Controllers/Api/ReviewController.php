@@ -116,6 +116,10 @@ class ReviewController extends Controller
             }
             if (in_array($spec, ['created_at', 'reported_count', 'rating', 'id'], true)) {
                 $query->orderBy($spec, $direction);
+            } elseif ($spec === 'pending_first') {
+                // TCK-597 — la vue d'agence montre les avis à trancher d'abord : en attente, puis
+                // signalés, puis le reste. Trié par le serveur, sur toute la file, pas par page.
+                $query->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'reported' THEN 1 ELSE 2 END");
             }
         }
 
