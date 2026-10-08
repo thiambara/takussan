@@ -184,8 +184,15 @@ class LeaseRenewalService
      * VERIF-596 passe 5 (M-E) — à l'activation d'un enfant né `pending_signature`, la relève que
      * `renew` a reportée. L'appelant tient le verrou de la ligne de l'enfant ; le parent est
      * verrouillé ici (enfant puis parent : aucune voie ne prend l'ordre inverse, `renew` refusant
-     * un second enfant ouvert). Un parent qui n'est plus `active` ni `expired` (résilié entre-temps,
-     * ou déjà relevé par un enfant antérieur à cette règle) n'est pas touché.
+     * un second enfant ouvert).
+     *
+     * VERIF-596 passe 6 (M-F) — un parent qui n'est plus relevable (en préavis, résilié) REFUSE
+     * l'activation : 409 `lease.renewal_parent_not_renewable`, la règle même de `renew`. L'activer
+     * quand même faisait facturer chaque mois restant deux fois, par le parent et par l'enfant. Le
+     * recours est de résilier ce renouvellement, puis d'en créer un autre si besoin ; le préavis et
+     * la résiliation du parent restent ouverts (le locataire doit pouvoir partir). Seul un parent
+     * déjà `renewed` passe sans relève : il l'a été par cet enfant lui-même, à sa création, avant
+     * cette règle (`renew` refuse un second enfant ouvert).
      */
     public function completeHandOver(Lease $child): void
     {
@@ -193,10 +200,15 @@ class LeaseRenewalService
             return;
         }
 
-        $parent = Lease::query()->whereKey($child->renewed_from_lease_id)->lockForUpdate()->first();
-        if ($parent === null || ! in_array($parent->status, self::RENEWABLE_PARENT_STATUSES, true)) {
+        $parent = Lease::query()->whereKey($child->renewed_from_lease_id)->lockForUpdate()->firstOrFail();
+        if ($parent->status === LeaseStatus::Renewed) {
             return;
         }
+        abort_code_unless(
+            in_array($parent->status, self::RENEWABLE_PARENT_STATUSES, true),
+            409,
+            'lease.renewal_parent_not_renewable',
+        );
 
         $this->assertNoSettledOverlap($parent, Carbon::parse($child->start_date));
         $this->handOver($parent, $child, null);

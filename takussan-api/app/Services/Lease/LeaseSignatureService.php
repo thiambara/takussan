@@ -210,7 +210,6 @@ class LeaseSignatureService
                 'lease.not_activatable'
             );
 
-            $locked->addMedia($contract)->toMediaCollection('signed_contract');
             $locked->forceFill($this->executionTerms($locked) + ['contract_sha256' => $sha])->save();
 
             foreach (LeaseSignature::ROLES as $role) {
@@ -220,7 +219,14 @@ class LeaseSignatureService
                 );
             }
 
-            return $this->leases->completeActivation($locked);
+            $activated = $this->leases->completeActivation($locked);
+
+            // VERIF-596 passe 6 (M-F) — le fichier s'écrit APRÈS l'activation, dernière étape qui
+            // peut refuser (409 d'un renouvellement) : la transaction annule la ligne `media`, jamais
+            // le fichier déjà copié sur le disque.
+            $activated->addMedia($contract)->toMediaCollection('signed_contract');
+
+            return $activated;
         });
     }
 

@@ -234,6 +234,58 @@ class LeaseRenewalOverlapTest extends TestCase
         $this->assertSame(0, $this->cancelledCount($parent));
     }
 
+    /**
+     * VERIF-596 passe 6 (M-F, sonde E6) — pendant que l'avenant attend sa signature, le parent part
+     * en préavis ou est résilié. L'activation de l'enfant ne le relevait pas et passait quand même :
+     * huit mois facturés deux fois. Elle rend 409, comme `renew` sur un tel parent ; le contrat signé
+     * n'est pas écrit sur le disque, l'enfant n'a pas d'échéancier, le parent reste tel quel.
+     */
+    public function test_a_renewal_whose_parent_is_leaving_cannot_take_effect(): void
+    {
+        foreach ([
+            'préavis' => [LeaseStatus::Terminating, fn (Lease $p) => $this->postJson("/api/leases/{$p->id}/early-termination", [
+                'effective_date' => now()->addDays(45)->toDateString(), 'reason' => 'Départ',
+            ])->assertCreated()],
+            'résilié' => [LeaseStatus::Terminated, fn (Lease $p) => $this->postJson("/api/leases/{$p->id}/terminate", [])->assertOk()],
+        ] as $label => [$status, $leave]) {
+            $parent = $this->parent(['early_termination_penalty_months' => 2]);
+            $start = now()->addDay();
+            $this->renew($parent, ['start_date' => $start->toDateString(), 'end_date' => $start->copy()->addYear()->toDateString(), 'monthly_rent' => 150_000])
+                ->assertCreated();
+            $child = $this->child($parent);
+            $leave($parent);
+
+            $this->post("/api/leases/{$child->id}/activate", ['contract' => UploadedFile::fake()->create('avenant.pdf', 20, 'application/pdf')], ['Accept' => 'application/json'])
+                ->assertStatus(409)
+                ->assertJsonPath('code', 'lease.renewal_parent_not_renewable');
+
+            $this->assertSame(LeaseStatus::PendingSignature, $child->fresh()->status, $label);
+            $this->assertNull($child->fresh()->contract_sha256, $label);
+            $this->assertSame($status, $parent->fresh()->status, $label);
+            $this->assertSame(0, $this->cancelledCount($parent), $label);
+            $this->assertSame([], $this->openRentByMonth($child), $label);
+            Bus::assertNotDispatched(GenerateLeasePaymentSchedule::class, fn ($job) => $job->lease->id === $child->id);
+            $this->assertSame([], Storage::disk(config('media-library.disk_name'))->allFiles(), "{$label} : contrat laissé sur le disque");
+        }
+    }
+
+    /**
+     * Un enfant en attente né avant la passe 5 a déjà relevé son parent (`renewed`) à sa création :
+     * son activation passe, sans seconde relève.
+     */
+    public function test_a_pending_child_whose_parent_was_already_renewed_activates(): void
+    {
+        $parent = $this->parent(['early_termination_penalty_months' => 2]);
+        $this->renew($parent, ['monthly_rent' => 150_000])->assertCreated();
+        $child = $this->child($parent);
+        $parent->forceFill(['status' => LeaseStatus::Renewed])->saveQuietly();
+
+        app(LeaseSignatureService::class)->signOnPaper($child, UploadedFile::fake()->create('avenant.pdf', 20, 'application/pdf'), $child->landlord);
+
+        $this->assertSame(LeaseStatus::Active, $child->fresh()->status);
+        $this->assertSame(0, $this->cancelledCount($parent));
+    }
+
     /** À terme (fin + 1) : rien à annuler, rien ne change. */
     public function test_a_renewal_at_term_is_unchanged(): void
     {

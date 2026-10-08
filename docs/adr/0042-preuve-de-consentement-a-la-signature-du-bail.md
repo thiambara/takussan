@@ -82,7 +82,10 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    déjà engagée (réglée, en partie, pénalité payée, ou paiement en ligne ouvert) n'est jamais
    annulée en silence : 409 `lease.renewal_overlaps_paid_schedule` avec les échéances en cause, au
    renouvellement comme à l'activation. Un paiement en ligne confirmé sur une échéance annulée est
-   marqué double encaissement, à rembourser ; on n'en ouvre plus sur elle.
+   marqué double encaissement, à rembourser ; on n'en ouvre plus sur elle. Un parent parti entre-temps
+   (préavis, résiliation) refuse l'activation de l'enfant : 409 `lease.renewal_parent_not_renewable`,
+   la règle même de `renew` (amendé après VERIF-596 passe 6, M-F) ; le recours est de résilier ce
+   renouvellement, le préavis et la résiliation du parent restant ouverts.
    **Toutes les voies de résiliation lisent le terme figé** (amendé après VERIF-596 passe 4, M-T) : la
    résiliation anticipée formelle (`EarlyTerminationService`) comme la résiliation immédiate
    (`POST leases/{id}/terminate`, `LeaseService::terminate`) facturent
