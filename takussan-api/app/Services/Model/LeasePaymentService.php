@@ -9,6 +9,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payments\PaymentGatewayService;
 
 class LeasePaymentService
 {
@@ -34,13 +35,27 @@ class LeasePaymentService
     /**
      * @param  array<string,mixed>  $data
      */
-    public function markPaid(LeasePayment $payment, array $data = []): LeasePayment
+    public function markPaid(LeasePayment $payment, array $data = [], ?User $by = null): LeasePayment
     {
         abort_code_unless(
             in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
             422,
             'lease_payment.cannot_mark_paid'
         );
+
+        // TCK-593 (vérification adverse, V3) — un règlement manuel pendant qu'un checkout est
+        // ouvert ferait encaisser l'échéance deux fois : refusé tant que le checkout vit.
+        $gateway = app(PaymentGatewayService::class);
+        // Passe 2, M5 — le personnel peut passer outre, motif à l'appui (la requête en réserve le
+        // droit au personnel de l'agence) : le checkout écarté, payé quand même, sera un doublon
+        // signalé (V3).
+        $overridden = null;
+        if (! empty($data['override_open_checkout'])) {
+            $overridden = $gateway->supersedeOpenCheckout($payment, (string) ($data['override_reason'] ?? ''));
+        } else {
+            $gateway->assertNoOpenCheckout($payment);
+        }
+        $gateway->markManualSettlement($payment);
 
         $payment->update([
             'status' => PaymentStatus::Paid,
@@ -50,6 +65,10 @@ class LeasePaymentService
         ]);
 
         $payment->refresh();
+
+        if ($overridden !== null) {
+            $gateway->logCheckoutOverride($payment, $by, $overridden, 'mark_paid');
+        }
 
         // Notify tenant and landlord — TCK-588 : le reçu du bailleur nomme le bien et le locataire.
         $lease = $payment->lease;

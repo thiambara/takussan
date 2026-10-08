@@ -14,6 +14,7 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Model\LeasePaymentService;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class PaymentController extends Controller
     public function __construct(
         protected BookingPaymentService $bookingPayments,
         protected LeasePaymentService $leasePayments,
+        protected PaymentGatewayService $gateway,
     ) {}
 
     public function store(PaymentStoreRequest $request): JsonResponse
@@ -124,7 +126,7 @@ class PaymentController extends Controller
             });
 
         $leaseQuery = LeasePayment::query()
-            ->with('lease.property')
+            ->with(['lease.property', 'lease.agency'])
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
@@ -145,15 +147,18 @@ class PaymentController extends Controller
             $this->applyEntityFilter($bookingQuery, $leaseQuery, $entityType, (int) $entityId);
         }
 
-        // Status filter
+        // Status filter — TCK-593 : une liste séparée par des virgules (`pending,late,failed`), pour
+        // que le locataire obtienne « ce que je dois » sans filtrer côté client.
         if (! empty($filters['status'])) {
-            $status = PaymentStatus::tryFrom((string) $filters['status']);
-            if ($status !== null) {
-                $bookingQuery->where('status', $status);
-                $leaseQuery->where('status', $status);
-            } else {
+            $statuses = array_map(
+                fn (string $value) => PaymentStatus::tryFrom(trim($value)),
+                explode(',', (string) $filters['status']),
+            );
+            if (in_array(null, $statuses, true)) {
                 abort_code(422, 'payment.filter_status_invalid');
             }
+            $bookingQuery->whereIn('status', $statuses);
+            $leaseQuery->whereIn('status', $statuses);
         }
 
         // Date range — use paid_at for booking payments and paid_at/due_date/period_start for lease payments.
@@ -312,6 +317,11 @@ class PaymentController extends Controller
             'status' => $p->status?->value,
             'paid_amount' => (float) $p->paid_amount,
             'remaining_amount' => (float) $p->remaining_amount,
+            // TCK-593 — la même lecture que `LeasePaymentResource` : l'historique ne refait aucun calcul.
+            'late_fee_amount' => $p->late_fee_amount !== null ? (float) $p->late_fee_amount : null,
+            'late_fee_outstanding' => $p->lateFeeOutstanding(),
+            'late_fee_payable_online' => $this->gateway->lateFeeIncluded($p),
+            'amount_due' => (float) ($this->gateway->amountDue($p) ?? 0),
             'date' => ($p->paid_at ?? $p->period_start?->startOfDay() ?? $p->created_at)?->toISOString(),
             'paid_at' => $p->paid_at?->toISOString(),
             'period_start' => $p->period_start?->toDateString(),

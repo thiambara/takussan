@@ -197,7 +197,15 @@ export function useLeasePayments(leaseId: number | null | undefined) {
         'due_date',
         'paid_at',
         'status',
-        'late_fee',
+        'paid_amount',
+        'remaining_amount',
+        'late_fee_amount',
+        'late_fee_applied_at',
+        'late_fee_paid_at',
+        'late_fee_outstanding',
+        'late_fee_payable_online',
+        'amount_due',
+        'receipt_available',
         'reference_number',
         'notes',
       ],
@@ -305,6 +313,38 @@ export function useCreateLeasePayment(leaseId: number) {
         ['leases', 'detail', leaseId],
         ['leases', 'payments', leaseId],
         ['leases', 'list'],
+      ],
+    },
+  );
+}
+
+/**
+ * TCK-593 — le gestionnaire constate qu'une pénalité de retard a été réglée hors ligne (à l'agence).
+ * 409 si rien n'est dû ; le locataire n'y a pas droit (403).
+ */
+export type MarkLateFeePaidPayload = {
+  paymentId: number;
+  paid_at?: string;
+  payment_method?: string;
+  /**
+   * Passe 2 (M5) — un checkout en ligne qui inclut la pénalité est ouvert : le personnel passe
+   * outre, motif obligatoire. Le checkout écarté, payé quand même, sera signalé en double.
+   */
+  override_open_checkout?: boolean;
+  override_reason?: string;
+};
+
+export function useMarkLateFeePaid(leaseId: number) {
+  return useApiMutation<ApiResponse<LeasePayment>, MarkLateFeePaidPayload>(
+    {
+      path: ({ paymentId }) => `/api/lease-payments/${paymentId}/late-fee/mark-paid`,
+      method: 'POST',
+      body: ({ paymentId: _paymentId, ...rest }) => rest,
+    },
+    {
+      invalidate: [
+        ['leases', 'payments', leaseId],
+        ['leases', 'detail', leaseId],
       ],
     },
   );

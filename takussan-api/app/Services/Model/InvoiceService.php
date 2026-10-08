@@ -8,6 +8,7 @@ use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\User;
+use App\Services\Payments\PaymentGatewayService;
 
 class InvoiceService
 {
@@ -84,6 +85,9 @@ class InvoiceService
             'invoice.cannot_mark_paid'
         );
 
+        // TCK-593 (passe 2, N4) — un règlement manuel le dit : un checkout payé ensuite reste un
+        // double encaissement, pas le règlement de la facture.
+        app(PaymentGatewayService::class)->markManualSettlement($invoice);
         $invoice->update(['status' => InvoiceStatus::Paid]);
 
         return $invoice->refresh();

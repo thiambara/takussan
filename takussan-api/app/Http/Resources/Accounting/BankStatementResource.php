@@ -20,6 +20,8 @@ class BankStatementResource extends BaseResource
             'period_start' => $this->calendarDate($this->period_start),
             'period_end' => $this->calendarDate($this->period_end),
             'lines_count' => $this->lines_count,
+            // TCK-593 — les lignes du fichier que l'analyse n'a pas pu lire : jamais perdues en silence.
+            'skipped_lines_count' => $this->skipped_lines_count,
             'status' => $this->status?->value,
             'status_label' => $this->status ? __("reconciliation.status.{$this->status->value}") : null,
             'finalized_at' => $this->iso($this->finalized_at),

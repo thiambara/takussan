@@ -84,6 +84,17 @@ class AgencyController extends Controller
 
         $data = $request->validated();
 
+        // TCK-593 — `settings` se FUSIONNE avec l'existant : le tableau validé remplaçait la
+        // colonne, et l'écran de configuration, qui n'en envoie que trois clés, effaçait toutes les
+        // autres (un filigrane désactivé revenait à son défaut). Une clé envoyée à `null` est
+        // retirée, donc rendue au défaut écrit dans le code.
+        if (array_key_exists('settings', $data)) {
+            $data['settings'] = array_filter(
+                array_replace($agency->settings ?? [], $data['settings']),
+                fn ($value) => $value !== null,
+            );
+        }
+
         $agency->fill($data)->save();
 
         return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
