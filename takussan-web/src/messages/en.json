@@ -213,6 +213,7 @@
         "moderation": "Moderation",
         "plans": "Plans",
         "payouts": "Payouts",
+        "payments": "Payments",
         "tags": "Tags",
         "enums": "Enums",
         "templates": "Templates",
@@ -6925,7 +6926,7 @@
         "empty_title": "No recent webhook",
         "empty_description": "Calls received from this provider will show up here.",
         "title": "Webhooks {label}",
-        "retention": "Trail kept for 30 days.",
+        "retention": "Log kept 90 days for payments, 30 days for messaging.",
         "closeAria": "Close the webhooks",
         "colEvent": "Event",
         "colStatus": "Status",
@@ -7436,6 +7437,10 @@
           "rejected": "Rejected",
           "revoked": "Revoked"
         }
+      },
+      "payments": {
+        "title": "Payments",
+        "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
       }
     },
     "featureFlags": {
@@ -7713,6 +7718,83 @@
       "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
       "unknownEvent": "Unlabelled event",
       "systemCauser": "System"
+    },
+    "payments": {
+      "all": "All",
+      "loadError": "Could not load payments.",
+      "providers": {
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "lemon_squeezy": "Card (Lemon Squeezy)",
+        "unknown": "Unknown provider"
+      },
+      "summary": {
+        "title": "By provider",
+        "windowLabel": "Period",
+        "last7": "Last 7 days",
+        "last30": "Last 30 days",
+        "caption": "Failed and late payments and unmatched webhooks, by provider",
+        "colProvider": "Provider",
+        "colFailed": "Failed",
+        "colLate": "Late",
+        "colUnmatched": "Unmatched webhooks"
+      },
+      "list": {
+        "title": "Payments to follow up",
+        "reasonLabel": "Reason",
+        "providerLabel": "Provider",
+        "caption": "Failed or late payments over the period",
+        "colReason": "Reason",
+        "colType": "Type",
+        "colReference": "Reference",
+        "colStatus": "Status",
+        "colProvider": "Provider",
+        "colAmount": "Amount",
+        "colAt": "Date",
+        "reasons": {
+          "failed": "Failed",
+          "late": "Late"
+        },
+        "types": {
+          "lease_payment": "Rent instalment",
+          "booking_payment": "Booking payment"
+        },
+        "empty_title": "Nothing to follow up",
+        "empty_description": "No failed or late payment over the last 30 days."
+      },
+      "journal": {
+        "title": "Webhook log",
+        "retention": "Kept 90 days for payments, 30 days for messaging. Phone numbers and addresses are masked.",
+        "channelLabel": "Channel",
+        "onlyUnmatched": "Unmatched only",
+        "caption": "Webhooks received from providers",
+        "colReceived": "Received",
+        "colSource": "Source",
+        "colStatus": "Status",
+        "colHttp": "HTTP",
+        "colError": "Error",
+        "colExternal": "Provider ID",
+        "colActions": "Actions",
+        "channels": {
+          "payment": "Payment",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "statuses": {
+          "received": "Received",
+          "processed": "Processed",
+          "rejected": "Rejected",
+          "failed": "Failed"
+        },
+        "unmatched": "Unmatched",
+        "replay": "Replay",
+        "confirmTitle": "Replay this webhook",
+        "confirmDescription": "The {source} webhook will be processed again exactly as received, with its signature re-verified. A payment already settled is never settled twice.",
+        "replayOutcome": "Webhook replayed: {status}.",
+        "replayError": "The replay failed.",
+        "empty_title": "No webhook",
+        "empty_description": "Calls received from providers will appear here."
+      }
     }
   },
   "adminSettings": {

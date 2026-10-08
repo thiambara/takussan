@@ -120,7 +120,12 @@ class IntegrationWebhookLog extends AbstractModel
      */
     public function isReplayable(): bool
     {
-        if ($this->authenticated_at === null || $this->body_truncated || $this->body === null) {
+        if ($this->authenticated_at === null || $this->body_truncated) {
+            return false;
+        }
+        // `body` n'est lu que par le rejeu : une liste à `fields[]` ne le charge pas (il est hors des
+        // champs permis), et juge alors sur `body_truncated`, qui le dit aussi.
+        if (array_key_exists('body', $this->getAttributes()) && $this->getAttributes()['body'] === null) {
             return false;
         }
 

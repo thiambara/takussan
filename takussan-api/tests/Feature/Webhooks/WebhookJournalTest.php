@@ -75,6 +75,13 @@ class WebhookJournalTest extends TestCase
             ->assertJsonPath('data.0.id', $unmatched->id)
             ->assertJsonPath('data.0.matched_count', 0)
             ->assertJsonPath('data.0.replayable', true);
+
+        // La console lit en champs clairsemés : `replayable` s'y juge sans `body`, qui n'est pas lisible.
+        $this->getJson('/api/admin/webhook-logs?filter[unmatched]=1&fields[integration_webhook_logs]=id,status,authenticated_at,body_truncated,matched_count')
+            ->assertOk()
+            ->assertJsonPath('data.0.replayable', true)
+            ->assertJsonMissingPath('data.0.payload');
+        $this->getJson('/api/admin/webhook-logs?fields[integration_webhook_logs]=id,body')->assertStatus(400);
     }
 
     /**

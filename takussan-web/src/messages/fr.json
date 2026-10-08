@@ -213,6 +213,7 @@
         "moderation": "Modération",
         "plans": "Plans",
         "payouts": "Reversements",
+        "payments": "Paiements",
         "tags": "Tags",
         "enums": "Enums",
         "templates": "Templates",
@@ -6925,7 +6926,7 @@
         "empty_title": "Aucun webhook récent",
         "empty_description": "Les appels reçus de ce provider apparaîtront ici.",
         "title": "Webhooks {label}",
-        "retention": "Trail conservé 30 jours.",
+        "retention": "Journal conservé 90 jours pour les paiements, 30 jours pour la messagerie.",
         "closeAria": "Fermer les webhooks",
         "colEvent": "Événement",
         "colStatus": "Statut",
@@ -7436,6 +7437,10 @@
           "rejected": "Rejetée",
           "revoked": "Révoquée"
         }
+      },
+      "payments": {
+        "title": "Paiements",
+        "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
       }
     },
     "featureFlags": {
@@ -7713,6 +7718,83 @@
       "emptyDescription": "Les actions cross-agences apparaîtront ici dès leur journalisation.",
       "unknownEvent": "Événement sans libellé",
       "systemCauser": "Système"
+    },
+    "payments": {
+      "all": "Tous",
+      "loadError": "Impossible de charger les paiements.",
+      "providers": {
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "lemon_squeezy": "Carte (Lemon Squeezy)",
+        "unknown": "Fournisseur inconnu"
+      },
+      "summary": {
+        "title": "Par fournisseur",
+        "windowLabel": "Période",
+        "last7": "7 derniers jours",
+        "last30": "30 derniers jours",
+        "caption": "Paiements en échec, en retard et webhooks non appariés, par fournisseur",
+        "colProvider": "Fournisseur",
+        "colFailed": "En échec",
+        "colLate": "En retard",
+        "colUnmatched": "Webhooks non appariés"
+      },
+      "list": {
+        "title": "Paiements à suivre",
+        "reasonLabel": "Motif",
+        "providerLabel": "Fournisseur",
+        "caption": "Paiements en échec ou en retard sur la période",
+        "colReason": "Motif",
+        "colType": "Type",
+        "colReference": "Référence",
+        "colStatus": "Statut",
+        "colProvider": "Fournisseur",
+        "colAmount": "Montant",
+        "colAt": "Date",
+        "reasons": {
+          "failed": "En échec",
+          "late": "En retard"
+        },
+        "types": {
+          "lease_payment": "Échéance de loyer",
+          "booking_payment": "Paiement de réservation"
+        },
+        "empty_title": "Rien à suivre",
+        "empty_description": "Aucun paiement en échec ni en retard sur les 30 derniers jours."
+      },
+      "journal": {
+        "title": "Journal des webhooks",
+        "retention": "Conservé 90 jours pour les paiements, 30 jours pour la messagerie. Les numéros et adresses y sont masqués.",
+        "channelLabel": "Canal",
+        "onlyUnmatched": "Non appariés seulement",
+        "caption": "Webhooks reçus des fournisseurs",
+        "colReceived": "Reçu",
+        "colSource": "Source",
+        "colStatus": "Statut",
+        "colHttp": "HTTP",
+        "colError": "Erreur",
+        "colExternal": "Identifiant fournisseur",
+        "colActions": "Actions",
+        "channels": {
+          "payment": "Paiement",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "statuses": {
+          "received": "Reçu",
+          "processed": "Traité",
+          "rejected": "Rejeté",
+          "failed": "En échec"
+        },
+        "unmatched": "Non apparié",
+        "replay": "Rejouer",
+        "confirmTitle": "Rejouer ce webhook",
+        "confirmDescription": "Le webhook {source} sera retraité tel qu'il a été reçu, signature revérifiée. Un paiement déjà réglé ne l'est pas deux fois.",
+        "replayOutcome": "Webhook rejoué : {status}.",
+        "replayError": "Le rejeu a échoué.",
+        "empty_title": "Aucun webhook",
+        "empty_description": "Les appels reçus des fournisseurs apparaîtront ici."
+      }
     }
   },
   "adminSettings": {

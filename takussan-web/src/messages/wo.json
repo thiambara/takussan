@@ -203,6 +203,7 @@
         "moderation": "Toppatoo",
         "plans": "Plaan yi",
         "payouts": "Delloo xaalis",
+        "payments": "Fey yi",
         "tags": "Taag yi",
         "enums": "Enum yi",
         "templates": "Modelu bataaxal",
@@ -6314,7 +6315,7 @@
         "empty_title": "Amul webhook bu yees",
         "empty_description": "Woote yi ñu jot ci jottalikat bi dinañu feeñ fii.",
         "title": "Webhook yu {label}",
-        "retention": "Mbind mi day des 30 fan.",
+        "retention": "Mbind mi day des 90 fan ngir fey yi, 30 fan ngir bataaxal yi.",
         "closeAria": "Tëj webhook yi",
         "colEvent": "Xew-xew",
         "colStatus": "Nekkin",
@@ -6825,6 +6826,10 @@
           "rejected": "Bañ nañu ko",
           "revoked": "Dindi nañu ko"
         }
+      },
+      "payments": {
+        "title": "Fey yi",
+        "subtitle": "Xaalis bi agsiwul : fey yu ñàkk walla yu yéex, ak webhook yu jottalikat yi."
       }
     },
     "featureFlags": {
@@ -7102,6 +7107,83 @@
       "emptyDescription": "Jëf yu ajaans yépp dinañu feeñ fii su ñu leen bindee.",
       "unknownEvent": "Jëf bu amul tur",
       "systemCauser": "Sistem"
+    },
+    "payments": {
+      "all": "Yépp",
+      "loadError": "Njumte ci yeb fey yi.",
+      "providers": {
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "lemon_squeezy": "Kart (Lemon Squeezy)",
+        "unknown": "Jottalikat bu ñu xamul"
+      },
+      "summary": {
+        "title": "Ci jottalikat bu nekk",
+        "windowLabel": "Diir",
+        "last7": "7 fan yii weesu",
+        "last30": "30 fan yii weesu",
+        "caption": "Fey yu ñàkk, yu yéex ak webhook yu ñu mënul jokkale, ci jottalikat bu nekk",
+        "colProvider": "Jottalikat",
+        "colFailed": "Ñàkk",
+        "colLate": "Yéex",
+        "colUnmatched": "Webhook yu ñu mënul jokkale"
+      },
+      "list": {
+        "title": "Fey yi war a topp",
+        "reasonLabel": "Lu tax",
+        "providerLabel": "Jottalikat",
+        "caption": "Fey yu ñàkk walla yu yéex ci diir bi",
+        "colReason": "Lu tax",
+        "colType": "Xeet",
+        "colReference": "Référence",
+        "colStatus": "Nekkin",
+        "colProvider": "Jottalikat",
+        "colAmount": "Limu xaalis",
+        "colAt": "Bés",
+        "reasons": {
+          "failed": "Ñàkk",
+          "late": "Yéex"
+        },
+        "types": {
+          "lease_payment": "Fey kër",
+          "booking_payment": "Fey reservation"
+        },
+        "empty_title": "Dara warul a topp",
+        "empty_description": "Amul fey bu ñàkk walla bu yéex ci 30 fan yii weesu."
+      },
+      "journal": {
+        "title": "Journal webhook yi",
+        "retention": "Day des 90 fan ngir fey yi, 30 fan ngir bataaxal yi. Nimero yi ak adres yi dañu leen nëbb.",
+        "channelLabel": "Yoon",
+        "onlyUnmatched": "Yu ñu mënul jokkale rekk",
+        "caption": "Webhook yi jottalikat yi yónne",
+        "colReceived": "Jot",
+        "colSource": "Fu mu jóge",
+        "colStatus": "Nekkin",
+        "colHttp": "HTTP",
+        "colError": "Njumte",
+        "colExternal": "ID jottalikat",
+        "colActions": "Jëf yi",
+        "channels": {
+          "payment": "Fey",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "statuses": {
+          "received": "Jot",
+          "processed": "Jëfe nañu ko",
+          "rejected": "Bañ nañu ko",
+          "failed": "Ñàkk"
+        },
+        "unmatched": "Mënuñu ko jokkale",
+        "replay": "Dellu jëfe",
+        "confirmTitle": "Dellu jëfe webhook bii",
+        "confirmDescription": "Webhook {source} dinañu ko dellu jëfe ni ñu ko jotee, xool signature bi ci kanam. Fey bu ñu feyoon duñu ko fey ñaari yoon.",
+        "replayOutcome": "Webhook bi dellu nañu ko jëfe : {status}.",
+        "replayError": "Dellu jëfe bi ñàkk na.",
+        "empty_title": "Amul webhook",
+        "empty_description": "Woote yi ñu jot ci jottalikat yi dinañu feeñ fii."
+      }
     }
   },
   "adminSettings": {

@@ -41,9 +41,9 @@ class IntegrationWebhookLogResource extends BaseResource
             'replayed_by_id' => $this->whenHas('replayed_by_id'),
             'processed_at' => $this->whenHas('processed_at', fn () => $this->iso($this->processed_at)),
             'created_at' => $this->whenHas('created_at', fn () => $this->iso($this->created_at)),
-            // Lu sur la ligne entière seulement : `body` est chiffré et masqué, jamais émis.
+            // Jugé sur les colonnes qui le décident : `fields[]` peut les demander, jamais `body`.
             'replayable' => $this->when(
-                array_key_exists('status', $this->resource->getAttributes()) && array_key_exists('body', $this->resource->getAttributes()),
+                array_diff(['status', 'authenticated_at', 'body_truncated', 'matched_count'], array_keys($this->resource->getAttributes())) === [],
                 fn () => $this->resource->isReplayable(),
             ),
         ];

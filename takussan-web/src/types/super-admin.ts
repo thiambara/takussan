@@ -530,7 +530,11 @@ export type IntegrationWebhookLog = {
   status: string;
   direction: string;
   event_type: string | null;
-  payload: { truncated: string };
+  /** TCK-602 (ADR-0051 §4) — la vue EXPURGÉE du corps reçu, jamais le corps lui-même. */
+  payload: Record<string, unknown>;
+  http_status?: number | null;
+  error_code?: string | null;
+  matched_count?: number | null;
   processed_at: string | null;
   created_at: string | null;
 };
@@ -886,4 +890,54 @@ export type AdminPropertiesResponse = {
     last_page: number;
     per_page: number;
   };
+};
+
+/** TCK-602 — la console « Paiements » : une échéance ou un acompte en échec ou en retard. */
+export type PaymentSupervisionRow = {
+  type: 'lease_payment' | 'booking_payment';
+  reason: 'failed' | 'late';
+  id: number;
+  reference_number: string | null;
+  status: string;
+  provider: string | null;
+  amount: number | null;
+  currency: string | null;
+  agency_id: number | null;
+  event_at: string | null;
+  due_date: string | null;
+};
+
+export type PaymentSupervisionResponse = {
+  data: PaymentSupervisionRow[];
+  meta: { total: number; current_page: number; last_page: number; per_page: number };
+};
+
+export type PaymentProviderCounts = { failed: number; late: number; unmatched: number };
+
+export type PaymentSummaryResponse = {
+  data: Record<'last_7_days' | 'last_30_days', Record<string, PaymentProviderCounts>>;
+};
+
+/** TCK-602 (ADR-0051 §4) — une ligne du journal des webhooks entrants, tous canaux. */
+export type WebhookLog = {
+  id: number;
+  channel: 'payment' | 'sms' | 'whatsapp' | string;
+  provider: string;
+  status: 'received' | 'processed' | 'rejected' | 'failed' | string;
+  event_type?: string | null;
+  http_status?: number | null;
+  error_code?: string | null;
+  external_id?: string | null;
+  matched_count?: number | null;
+  attempts?: number;
+  authenticated_at?: string | null;
+  body_truncated?: boolean;
+  replayed_at?: string | null;
+  created_at?: string | null;
+  replayable?: boolean;
+};
+
+export type WebhookLogsResponse = {
+  data: WebhookLog[];
+  meta: { total: number; current_page: number; last_page: number; per_page: number };
 };
