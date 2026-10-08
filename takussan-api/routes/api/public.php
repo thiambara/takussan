@@ -71,6 +71,11 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/cities', [PublicPropertyController::class, 'cities'])
         ->name('properties.cities');
 
+    // TCK-598 (V14) — le DOMAINE de la clé `location`, borné par ville. Segment littéral :
+    // au-dessus de `properties/{slug}`.
+    Route::get('properties/neighborhoods', [PublicPropertyController::class, 'neighborhoods'])
+        ->name('properties.neighborhoods');
+
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
         ->middleware('throttle:30,1')
         ->name('properties.compare');
@@ -117,6 +122,11 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::post('properties/{slug}/view', [PublicPropertyController::class, 'view'])
         ->middleware('throttle:public-view')
         ->name('properties.view');
+
+    // TCK-598 (V10) — l'état d'un bien dont la fiche rend 404 : loué, vendu, retiré. 404
+    // indiscernable d'un slug inconnu pour tout bien qui n'a jamais été une annonce publique.
+    Route::get('properties/{slug}/status', [PublicPropertyController::class, 'status'])
+        ->name('properties.status');
 
     Route::get('properties/{slug}/similar', [PublicPropertyController::class, 'similar'])
         ->name('properties.similar');

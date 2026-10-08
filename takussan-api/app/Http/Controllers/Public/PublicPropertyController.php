@@ -14,6 +14,7 @@ use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Requests\Public\MapPublicPropertyRequest;
+use App\Http\Requests\Public\NeighborhoodsPublicPropertyRequest;
 use App\Http\Requests\Public\ReportPublicPropertyRequest;
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
@@ -46,6 +47,7 @@ use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
+use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyViewCounter;
@@ -53,6 +55,7 @@ use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
+use App\Support\CaseInsensitive;
 use App\Support\DistanceHaversine;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -91,6 +94,18 @@ class PublicPropertyController extends Controller
     public const SITEMAP_MAX_PER_PAGE = 1000;
 
     /**
+     * TCK-598 (V16) — plafonds de `index()` et `reviews()`, deux routes anonymes qui acceptaient
+     * n'importe quel `per_page`. Repli (*clamp*) et non 422, comme `sitemap()` : une valeur hors
+     * bornes est ramenée, jamais refusée — le front n'a pas à connaître le plafond pour paginer.
+     */
+    public const INDEX_MAX_PER_PAGE = 48;
+
+    public const REVIEWS_MAX_PER_PAGE = 50;
+
+    /** Repli du plafond de `neighborhoods()`, si la configuration disparaissait (même patron que `cities`). */
+    public const NEIGHBORHOODS_MAX_DEFAUT = 300;
+
+    /**
      * Repli du plafond de `GET /public/properties/cities`, si la configuration disparaissait.
      *
      * La valeur qui fait foi vit dans `config/catalogue.php` — pas ici — pour que son BORD soit
@@ -104,6 +119,18 @@ class PublicPropertyController extends Controller
     public static function citiesMax(): int
     {
         return (int) config('catalogue.cities_max', self::CITIES_MAX_DEFAUT);
+    }
+
+    /** Le plafond effectif du domaine des quartiers, par ville. */
+    public static function neighborhoodsMax(): int
+    {
+        return (int) config('catalogue.neighborhoods_max', self::NEIGHBORHOODS_MAX_DEFAUT);
+    }
+
+    /** `per_page` ramené dans `1..$max`, `$defaut` s'il est absent. */
+    private static function parPage(Request $request, int $defaut, int $max): int
+    {
+        return max(1, min((int) $request->input('per_page', $defaut), $max));
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -123,7 +150,7 @@ class PublicPropertyController extends Controller
             $query->orderByDesc('featured')->orderByDesc('published_at');
         }
 
-        $properties = $query->paginate((int) $request->input('per_page', 20));
+        $properties = $query->paginate(self::parPage($request, 20, self::INDEX_MAX_PER_PAGE));
 
         return PropertyResource::collection($properties);
     }
@@ -141,10 +168,9 @@ class PublicPropertyController extends Controller
      *    sitemap. `index()` ci-dessus y ajoute `whereNot(status, Draft)` — redondant, `public()`
      *    exclut déjà `Draft` avec sept autres statuts.
      *
-     * 2. **`per_page` est PLAFONNÉ, ici et pas ailleurs.** `index()` accepte n'importe quelle
-     *    valeur (`paginate((int) $request->input('per_page', 20))`) ; sur une route anonyme qui
-     *    énumère tout le catalogue, ce serait une invitation à demander le catalogue entier d'un
-     *    coup. Le plafond est aussi un contrat avec le front, qui pagine dessus
+     * 2. **`per_page` est PLAFONNÉ.** Sur une route anonyme qui énumère tout le catalogue, une
+     *    valeur libre serait une invitation à demander le catalogue entier d'un coup. Le plafond
+     *    est aussi un contrat avec le front, qui pagine dessus
      *    (`takussan-web/src/lib/queries/sitemap-catalogue.ts`).
      *
      * 3. **`orderBy('id')` — un ordre TOTAL et STABLE.** `index()` trie par `featured` puis
@@ -218,6 +244,53 @@ class PublicPropertyController extends Controller
             // ⚠ Un domaine tronqué n'est PAS un domaine. L'appelant doit pouvoir refuser de s'en
             // servir plutôt que de rejeter en silence les villes qui n'ont pas tenu.
             'meta' => ['truncated' => $tronque],
+        ]);
+    }
+
+    /**
+     * Les QUARTIERS d'une ville du catalogue public — le domaine de la clé canonique `location`
+     * (TCK-598, V14, contrainte 12). Jumeau de `cities()`, borné par ville.
+     *
+     * GET /api/public/properties/neighborhoods?city=Dakar
+     *
+     * ⚠ **Le quartier est saisi à la main, et ses variantes de casse se fondent** : « Mermoz » et
+     * « MERMOZ » sont UNE entrée, comptée deux. Le repli passe par `CaseInsensitive` (piège n°9 du
+     * `CLAUDE.md`) : `lower()` nu laisserait « MÉDINA » et « Médina » séparés. La ville se compare
+     * de la même façon. La graphie rendue est la plus fréquente (`mode()`), à égalité la première
+     * dans l'ordre de la collation.
+     *
+     * Le domaine sert à décider qu'une page de quartier est canonique : il ne contient donc que ce
+     * que `->public()` laisse atteindre, comme `cities()`.
+     */
+    public function neighborhoods(NeighborhoodsPublicPropertyRequest $request): JsonResponse
+    {
+        $replie = CaseInsensitive::sql('addresses.neighborhood');
+        $max = self::neighborhoodsMax();
+
+        $lignes = Property::query()
+            ->public()
+            ->join('addresses', function ($jointure) {
+                $jointure->on('addresses.addressable_id', '=', 'properties.id')
+                    ->where('addresses.addressable_type', '=', Property::class);
+            })
+            ->whereRaw(CaseInsensitive::sql('addresses.city').' = ?', [CaseInsensitive::fold($request->city())])
+            ->whereNotNull('addresses.neighborhood')
+            ->whereRaw("trim(addresses.neighborhood) != ''")
+            ->groupByRaw($replie)
+            ->orderByDesc(DB::raw('count(*)'))
+            ->orderByRaw($replie)
+            ->limit($max + 1)
+            ->get([
+                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.neighborhood) as valeur'),
+                DB::raw('count(*) as compte'),
+            ]);
+
+        return $this->json([
+            'data' => $lignes->take($max)
+                ->map(fn ($l) => ['value' => trim((string) $l->valeur), 'count' => (int) $l->compte])
+                ->values()
+                ->all(),
+            'meta' => ['truncated' => $lignes->count() > $max],
         ]);
     }
 
@@ -555,6 +628,44 @@ class PublicPropertyController extends Controller
         return $this->json(null, 204);
     }
 
+    /**
+     * TCK-598 (V10, contraintes 10 et 11) — ce qu'est devenu un bien dont la fiche rend 404.
+     *
+     * GET /api/public/properties/{slug}/status → `{ state, contract_type, type, location, similar }`.
+     *
+     * 404 — **le même que pour un slug inconnu**, même corps — pour un brouillon, un bien en
+     * attente de modération ou refusé, privé, de test, jamais publié ou supprimé : l'existence d'un
+     * bien non public ne fuit pas. Le prédicat est dans `EtatPublicDuBien`, qui COMPOSE
+     * `scopePublic()` au lieu de le recopier.
+     *
+     * `similar` passe par `findSimilar()`, puis par `->public()` une seconde fois : la liste
+     * d'identifiants y est mise en cache, et un bien retiré depuis y resterait jusqu'à expiration.
+     */
+    public function status(Request $request, EtatPublicDuBien $etats, SimilarPropertiesService $service, string $slug): JsonResponse
+    {
+        $etat = $etats->pour($slug);
+        abort_if($etat === null, 404);
+
+        $property = $etat['property'];
+        $similaires = $service->findSimilar($property, EtatPublicDuBien::MAX_SIMILAIRES);
+        $publics = Property::query()->public()->whereIn('id', $similaires->pluck('id'))->pluck('id')->flip();
+
+        return $this->json([
+            'data' => [
+                'state' => $etat['state'],
+                'contract_type' => $property->contract_type?->value,
+                'type' => $property->type?->value,
+                'location' => [
+                    'city' => $property->address?->city,
+                    'quarter' => $property->address?->neighborhood,
+                ],
+                'similar' => PropertyResource::collection(
+                    $similaires->filter(fn (Property $p) => $publics->has($p->id))->values()
+                )->resolve($request),
+            ],
+        ]);
+    }
+
     public function similar(ListSimilarPropertiesRequest $request, SimilarPropertiesService $service, string $slug): AnonymousResourceCollection
     {
         $property = Property::query()
@@ -579,7 +690,7 @@ class PublicPropertyController extends Controller
             ->where('is_approved', true)
             ->with('author.media')
             ->latest()
-            ->paginate((int) $request->input('per_page', 10));
+            ->paginate(self::parPage($request, 10, self::REVIEWS_MAX_PER_PAGE));
 
         $approved = $property->reviews()->where('is_approved', true);
         $avg = round((float) ($approved->avg('rating') ?? 0), 2);

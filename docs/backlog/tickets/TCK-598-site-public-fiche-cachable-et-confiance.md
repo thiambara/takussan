@@ -704,3 +704,27 @@ tiennent tous, relus un par un.
 - **Ablations C1–C5** (`ablations-b3.log`) : `prohibitedIf(false)` → 2 rouges ; hôte par suffixe → 1 ;
   `url` sans `:https` → 1 ; total sans arrondi → 1 ; la modification juge `true` → 1. Toutes
   restaurées par copie, md5 identique.
+- **Bien retiré (Delta 5)** : `App\Services\Property\EtatPublicDuBien`. Le prédicat d'éligibilité
+  **applique `scopePublic()` tel quel** à une copie de la ligne dont seul le statut est remplacé
+  (`jsonb_populate_record(NULL::properties, to_jsonb(p) || '{"status":"available"}')`, sous l'alias
+  `properties`) : aucun critère recopié, et le filtre « agence active » de TCK-600 sera hérité sans
+  une ligne. **Preuve par ablation** : D7 ajoute un critère à `scopePublic()` et un test qui l'éprouve
+  sur `/status` → vert (hérité) ; D8 fait la même chose avec un prédicat RECOPIÉ → rouge. Brouillon,
+  `pending_review`, `rejected` sont écartés par statut avant (la mécanique de modération ne fuit pas) ;
+  le 404 est comparé **octet pour octet** à celui d'un slug inconnu, sur sept cas (les six de l'AC +
+  supprimé à part). `similar` repasse par `->public()` : `findSimilar()` met en cache des
+  identifiants, et un bien retiré entre-temps y resterait (le même défaut vit dans `similar()`,
+  hors périmètre, noté).
+- **Quartiers (Delta 6, API)** : `neighborhoods()` replie quartier ET ville par `CaseInsensitive`
+  (`MÉDINA`/`Médina` fondus — D4, `lower()` nu, rougit), rend la graphie la plus fréquente
+  (`mode() WITHIN GROUP`), plafond `catalogue.neighborhoods_max` (300) avec `truncated`.
+  ⚠ La recherche filtre le quartier par égalité Meilisearch (`PropertySearchService:373`) : la
+  page `location=Mermoz` trouve-t-elle les biens saisis `MERMOZ` ? **Non mesuré** — noté pour la
+  session.
+- **Portefeuilles (Delta 7)** : les six prédicats passent par `publicPortfolio()` ; les deux
+  `citiesCount` (jointure sur `addresses`) par la sous-requête d'identifiants. Ablations F1–F6 :
+  chaque site rendu seul à l'ancien prédicat rougit `PublicPortfolioPredicateTest` ; E1 (les deux
+  contrôleurs de `06a0f7f0`) → 3 rouges sur 3.
+- **Bornes (Delta 8)** : `parPage()` ramène dans `1..48` / `1..50` ; D6 (sans plafond) → 2 rouges.
+- **AC21** : `PublicReadLimiterPerVisitorTest`, trois tests. G1 (`trustProxies('*')`) → 2 rouges ;
+  G2 (seau unique) → 1 rouge.
