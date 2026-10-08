@@ -29,6 +29,8 @@ return new class extends Migration
 
             $table->unique('media_id', 'media_fingerprints_media_uniq');
             $table->index('property_id', 'media_fingerprints_property_idx');
+            // TCK-343 — toute colonne `agency_id` porte un index : PostgreSQL n'en pose aucun sous une FK.
+            $table->index('agency_id', 'media_fingerprints_agency_idx');
             $table->index('band_0', 'media_fingerprints_band_0_idx');
             $table->index('band_1', 'media_fingerprints_band_1_idx');
             $table->index('band_2', 'media_fingerprints_band_2_idx');
