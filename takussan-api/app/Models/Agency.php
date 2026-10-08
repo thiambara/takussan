@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
@@ -90,6 +91,25 @@ class Agency extends AbstractModel implements HasMedia
     public function collectsLateFeesOnline(): bool
     {
         return (bool) data_get($this->settings, 'late_fee_online_collection', false);
+    }
+
+    /**
+     * TCK-601 — jamais `legal_info.rib_pro`, quel que soit le chemin : `include=agency` (dont
+     * `GET /api/owners`) rend l'agence par `toArray()`, sans passer par `AgencyResource`.
+     * La migration l'a retiré et le flip ne le recopie plus ; ceci couvre une donnée qui leur serait
+     * antérieure. Le NINEA reste : c'est une mention légale publique (décision du 2026-10-08, TCK-594).
+     *
+     * @return array<string,mixed>
+     */
+    public function attributesToArray(): array
+    {
+        $attributes = parent::attributesToArray();
+
+        if (is_array($attributes['metadata'] ?? null)) {
+            Arr::forget($attributes['metadata'], 'legal_info.rib_pro');
+        }
+
+        return $attributes;
     }
 
     protected static function booted(): void

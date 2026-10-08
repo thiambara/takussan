@@ -5,6 +5,7 @@ namespace Tests\Feature\Privacy;
 use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\Masking;
@@ -117,6 +118,30 @@ class AgencyUpgradeRequestEncryptionTest extends ApiTestCase
         $this->assertArrayNotHasKey('rib_pro', $metadata['legal_info']);
         $this->assertSame('RC-1', $metadata['legal_info']['rc']);
         $this->assertSame(['x' => 1], $metadata['welcome']);
+    }
+
+    /**
+     * AC4c — le second chemin : `include=agency` rend l'Agency par `toArray()`, sans passer par sa
+     * Resource. Une copie antérieure n'y passe pas davantage ; le NINEA, public (décision du
+     * porteur du 2026-10-08 : mention légale, TCK-594), y reste.
+     */
+    public function test_une_copie_anterieure_ne_passe_pas_par_l_agence_incluse(): void
+    {
+        $agency = Agency::factory()->create([
+            'metadata' => ['legal_info' => ['rib_pro' => 'SNTEMOIN-ANCIEN', 'ninea' => self::NINEA]],
+        ]);
+        OwnerProfile::factory()->create(['agency_id' => $agency->id]);
+
+        foreach (['agent', 'agency_admin'] as $role) {
+            $this->apiActingAsRole($role, ['agency' => $agency]);
+            $response = $this->apiGet('/api/owners?include=agency')->assertOk();
+
+            $this->assertStringNotContainsString('SNTEMOIN', $response->getContent(), "$role lit le RIB pro");
+            $this->assertSame(self::NINEA, $response->json('data.0.agency.metadata.legal_info.ninea'));
+        }
+
+        // La donnée n'est pas réécrite : seule la sérialisation la retire.
+        $this->assertSame('SNTEMOIN-ANCIEN', $agency->fresh()->metadata['legal_info']['rib_pro']);
     }
 
     /** Contrainte 7 — le `down()` déchiffre et restitue la copie ; `up()` revient sans perte. */

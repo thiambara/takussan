@@ -33,8 +33,14 @@ tags: [back, front, sécurité, données-personnelles, audit, kyc, conformité, 
 - **Admin d'agence** : son journal d'audit montre tout ce qui s'est passé **dans son agence**, y compris
   les actes des autres admins et du système, et rien de ce qui s'est passé ailleurs. Il filtre par
   membre et il est prévenu quand quelqu'un touche aux rôles ou aux intégrations. Le RIB professionnel
-  et le NINEA déposés pour passer en agence `standard` ne sont lisibles ni en base, ni des bailleurs et
-  agents de l'agence.
+  déposé pour passer en agence `standard` n'est lisible ni en base, ni des bailleurs et agents de
+  l'agence.
+
+  > **Note du 2026-10-08, décision du porteur :** le NINEA **d'une agence** est public. C'est une
+  > mention légale de l'entreprise, que TCK-594 imprime sur ses factures et ses relevés. Il reste donc
+  > dans `AgencyKindFlipService::LEGAL_FIELDS` et lisible des membres par `AgencyResource`. La pièce
+  > de dossier `agency_upgrade_requests.ninea`, avant approbation, reste chiffrée et masquée hors du
+  > détail de la console (M1).
 - **Tout utilisateur** : ce qu'il saisit ne se retrouve pas dans les journaux techniques quand une
   écriture échoue.
 - **Super-admin** : chaque consultation de données personnelles depuis la console laisse une trace. Il
@@ -835,3 +841,18 @@ Et autour :
   - m3 : `ExportWriter`, `csvContent`, le job, l'exception numérique, les déclencheurs.
   - Deux mutations m3 étaient d'abord **vertes**, avant l'ajout de leurs tests : `csvContent` et le job.
 - Hors de ce passage : M2 (NINEA) attend l'arbitrage du porteur ; m2 part dans un ticket de suite.
+
+### M2 — arbitrage du porteur (2026-10-08)
+
+- **NINEA d'agence public** (mention légale, TCK-594) : rien ne change dans son flux. L'Objectif ne vise
+  plus que le RIB professionnel.
+- **Le second chemin était ouvert à une donnée antérieure.**
+  - `GET /api/owners?include=agency` rend l'agence par `toArray()`, sans passer par `AgencyResource`.
+  - Mesuré : une `metadata.legal_info.rib_pro` antérieure y sortait en clair. Le rouge a été mesuré sur l'agent, le premier rôle du test.
+  - Aucun écrivain ne la recrée : `AgencyUpdateRequest` n'accepte pas `metadata`, et le flip ne la
+    recopie plus. La donnée reste possible si une ligne échappe à la migration, ou après son `down()`.
+- **Défense** : `Agency::attributesToArray()` retire `legal_info.rib_pro`. Elle couvre tout
+  `include=agency` et toute sérialisation brute ; la base n'est pas réécrite.
+  - Test : `test_une_copie_anterieure_ne_passe_pas_par_l_agence_incluse`, pour l'agent et l'admin. Le
+    NINEA, lui, reste lu.
+  - Ablation : `Arr::forget` retiré → rouge.
