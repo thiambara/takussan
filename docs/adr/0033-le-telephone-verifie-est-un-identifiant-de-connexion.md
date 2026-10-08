@@ -118,6 +118,7 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
 | `auth-phone-verify` — par numéro | **4** / 15 min (sous la moitié du seuil, M1) | limiteur nommé |
 | Échecs sur un même code | 5 → code invalidé | service |
 | Échecs avant verrou, **par canal** | **10** | mot de passe : `metadata.failed_login_attempts` ; téléphone : cache, par numéro, fenêtre fixe de 15 min |
+| E-mail sans compte (m3) | **10**, même 423 | compteur **leurre** en cache, par adresse (empreinte sha256), échecs consécutifs comme un compte |
 | Durée du verrou | **15 min**, calculée depuis `metadata.locked_at` | lu avant toute vérification |
 
 - **Le plafond Orange de 3 SMS / jour / MSISDN** (`SmsRouterDriver.php:127-138`) est compté : la borne
@@ -133,6 +134,8 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
     secret : le bon secret n'y échappe pas.
   - Le verrou **expire seul** au bout de 15 min. Un succès sur un canal ne solde pas l'autre.
   - Le geste « Déverrouiller » de la console (`UserSupportService::unlock`) lève les deux.
+  - **Une adresse inconnue a son leurre** (vérification adverse m3) : sans lui, `connu@` rendait
+    423 au 11ᵉ essai et `inconnu@` 401 sans fin, ce qui énumérait les adresses inscrites.
 - **Ce que M1 a corrigé.** Les deux canaux partageaient le verrou du compte. Un tiers qui
   connaissait le numéro vérifié saisissait dix codes faux sans qu'aucun code ait été demandé (le
   limiteur valait 10 / 15 min, exactement le seuil). Il fermait ainsi la porte du **mot de passe**

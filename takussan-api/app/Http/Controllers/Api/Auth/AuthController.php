@@ -65,14 +65,17 @@ class AuthController extends Controller
 
         // TCK-589 (contrainte 5 bis) — le verrou se lit AVANT le mot de passe :
         // le bon mot de passe n'y échappe pas.
-        if ($user && $this->lock->isLocked($user)) {
+        // Vérification adverse m3 — une adresse inconnue a son compteur leurre : même seuil,
+        // même 423. Le verrou ne dit plus si une adresse est inscrite.
+        $email = (string) $request->input('email');
+        if ($user ? $this->lock->isLocked($user) : $this->lock->isUnknownEmailLocked($email)) {
             return AuthRefusal::response(423, 'account_locked', 'auth.account.locked');
         }
 
         if (! $user || ! Hash::check($request->input('password'), $user->password)) {
-            if ($user) {
-                $this->lock->recordFailure($user);
-            }
+            $user
+                ? $this->lock->recordFailure($user)
+                : $this->lock->recordUnknownEmailFailure($email);
 
             return $this->json(['message' => __('auth.failed')], 401);
         }

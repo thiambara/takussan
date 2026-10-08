@@ -17,6 +17,9 @@ use Illuminate\Support\Carbon;
  *  - **téléphone** : sur le NUMÉRO, en cache, qu'un compte l'ait vérifié ou non — le 423
  *    tombe au même seuil dans les deux cas, et ne dit donc rien de l'existence d'un compte.
  *    Les échecs se comptent dans une fenêtre FIXE de 15 min ouverte par le premier.
+ *  - **e-mail inconnu** (vérification adverse m3) : un compteur LEURRE en cache, par adresse,
+ *    au même seuil et avec le même 423 que le compte. Sans lui, `connu@` se verrouillait au
+ *    11ᵉ essai et `inconnu@` jamais : le verrou énumérait les adresses inscrites.
  *
  * Avant M1, les deux canaux partageaient le verrou du compte : un tiers qui connaissait le
  * numéro vérifié fermait la porte du mot de passe, à chaque échéance, depuis une IP et sans
@@ -103,6 +106,33 @@ class LoginLock
         $this->cache->forget($this->numberLockKey($phone));
     }
 
+    // -----------------------------------------------------------------
+    // E-mail sans compte — le leurre (vérification adverse m3)
+    // -----------------------------------------------------------------
+
+    public function isUnknownEmailLocked(string $email): bool
+    {
+        $lockedAt = $this->cache->get($this->emailLockKey($email));
+
+        return is_int($lockedAt) && $this->stillRunning(Carbon::createFromTimestamp($lockedAt));
+    }
+
+    /**
+     * Comme le compteur d'un compte : des échecs CONSÉCUTIFS, sans fenêtre (la clé ne vit
+     * que pour borner le cache), remis à zéro quand le verrou tombe.
+     */
+    public function recordUnknownEmailFailure(string $email): void
+    {
+        $key = $this->emailFailuresKey($email);
+        $this->cache->add($key, 0, now()->addDay());
+        $failures = (int) $this->cache->increment($key);
+
+        if ($failures >= self::MAX_FAILURES) {
+            $this->cache->put($this->emailLockKey($email), now()->getTimestamp(), now()->addMinutes(self::LOCK_MINUTES));
+            $this->cache->forget($key);
+        }
+    }
+
     private function stillRunning(Carbon $lockedAt): bool
     {
         return $lockedAt->copy()->addMinutes(self::LOCK_MINUTES)->isFuture();
@@ -116,5 +146,15 @@ class LoginLock
     private function numberLockKey(string $phone): string
     {
         return "login-lock:{$phone}";
+    }
+
+    private function emailFailuresKey(string $email): string
+    {
+        return 'login-lock-failures:email:'.hash('sha256', $email);
+    }
+
+    private function emailLockKey(string $email): string
+    {
+        return 'login-lock:email:'.hash('sha256', $email);
     }
 }

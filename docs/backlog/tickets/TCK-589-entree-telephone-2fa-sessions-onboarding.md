@@ -1493,3 +1493,28 @@ second est vert : il garde contre une révocation trop large, et son ablation le
 - sans `$token->delete()` → 1 rouge ;
 - compteur jamais remis à zéro → 1 rouge ;
 - front sans la branche 401 → 1 rouge.
+
+#### m3 — le verrou n'énumère plus les e-mails
+
+- Une adresse sans compte a son **compteur leurre** : `LoginLock::recordUnknownEmailFailure` et
+  `isUnknownEmailLocked`, en cache, par empreinte sha256 de l'adresse déjà repliée par
+  `LoginRequest`.
+- Le leurre suit le compteur d'un compte : échecs **consécutifs**, sans fenêtre (la clé vit 24 h
+  pour borner le cache), verrou de 15 min, puis la série repart. Le seuil est le même, et la
+  réponse est le même 423 `account_locked`, lu avant le mot de passe.
+- Le croisement e-mail ↔ numéro était déjà fermé par les verrous par canal (M1).
+- ADR-0033 §6 : une ligne au tableau, et un tiret sous « un verrou par canal ».
+
+**Test `UnknownEmailDecoyLockTest` (2)** :
+- 11 essais sur `connu@` puis sur `inconnu@` donnent les **mêmes statuts** (401 ×10, puis 423)
+  et le **même corps** au dernier ;
+- le leurre ne touche que son adresse (repliée : `INCONNU@… ` est verrouillée aussi) et tombe au
+  bout de 15 min.
+
+**Rouge sur `d03d5729`** : 2 rouges (`inconnu@` → 401 ×11).
+**Ablations, restaurées par `cp`** :
+- leurre jamais compté → 2 rouges ;
+- leurre jamais lu → 2 rouges.
+
+**Exécutions** : `tests/Feature/Auth/Session`, `AuthLoginTest` et
+`AuthLoginCaseInsensitiveTest` donnent 52 verts.
