@@ -17,13 +17,16 @@ use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Lease\RentReviewService;
 use App\Services\Pdf\DocumentPdfService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 /**
@@ -337,6 +340,11 @@ class LeaseContractTermsTest extends TestCase
         $child = $this->renew($parent, ['early_termination_penalty_months' => 3, 'rent_review_max_pct' => 8]);
 
         $this->assertSame([3, 8.0], [$child->early_termination_penalty_months, (float) $child->rent_review_max_pct]);
+        // VERIF-596 passe 4 (m-e, P4-N1p.e) — le journal et l'avis de renouvellement nomment les
+        // termes renégociés : le locataire ne les apprend pas au contrat seulement.
+        $changes = Activity::query()->where('event', 'lease_renewed')->where('subject_id', $parent->id)->sole()->properties['changes'];
+        $this->assertEquals(['from' => 1, 'to' => 3], $changes['early_termination_penalty_months']);
+        $this->assertEquals(['from' => '5.00', 'to' => '8.00'], $changes['rent_review_max_pct']);
     }
 
     /** Un enfant `pending_signature` hérite de la valeur négociée, que la demande fige et imprime. */
@@ -689,5 +697,53 @@ class LeaseContractTermsTest extends TestCase
         $child = $this->renew($parent, ['monthly_rent' => 150_000]);
 
         $this->assertSame(LeaseStatus::Active, $child->status);
+    }
+
+    // ── VERIF-596 passe 4 (m-e) — ce que les tests de m-a ne gardaient pas ───────────────────────
+
+    /** P4-ma.b — le `PATCH` relit la ligne SOUS verrou : sans `FOR UPDATE`, la course réelle gagne 6 fois sur 6. */
+    public function test_the_patch_reads_the_lease_for_update(): void
+    {
+        $lease = $this->lease(['late_fee_percent' => 5]);
+        Sanctum::actingAs($lease->landlord);
+        $locks = [];
+        DB::listen(function (QueryExecuted $query) use (&$locks): void {
+            if (preg_match('/from "leases" .*for update/i', $query->sql)) {
+                $locks[] = $query->sql;
+            }
+        });
+
+        $this->patchJson("/api/leases/{$lease->id}", ['late_fee_percent' => 7])->assertOk();
+
+        $this->assertNotEmpty($locks, 'aucun select … from "leases" … for update pendant le PATCH');
+    }
+
+    /**
+     * P4-ma.c — l'ordre inverse de m-a : la liaison lit un brouillon, une demande de signature fige
+     * avant le verrou. L'écriture doit porter sur la ligne verrouillée, dont la garde du modèle voit
+     * `pending_signature` et défige ; sur l'instance liée (`draft`), le contrat resterait figé sur
+     * un terme qui n'est plus celui du bail.
+     */
+    public function test_a_patch_racing_a_signature_request_unfreezes_the_contract(): void
+    {
+        $lease = $this->signableLease(['late_fee_percent' => 5]);
+        app(LeaseSignatureService::class)->request($lease, $lease->landlord);
+        $this->assertNotNull($lease->fresh()->contract_sha256);
+        Lease::query()->whereKey($lease->id)->update(['status' => LeaseStatus::Draft->value]);
+        $requested = false;
+        Lease::retrieved(function (Lease $model) use ($lease, &$requested): void {
+            if (! $requested && $model->id === $lease->id && $model->status === LeaseStatus::Draft) {
+                $requested = true;
+                Lease::query()->whereKey($lease->id)->update(['status' => LeaseStatus::PendingSignature->value]);
+            }
+        });
+        Sanctum::actingAs($lease->landlord);
+
+        $this->patchJson("/api/leases/{$lease->id}", ['late_fee_percent' => 40])->assertOk();
+
+        $this->assertTrue($requested);
+        $fresh = $lease->fresh();
+        $this->assertEquals(40, (float) $fresh->late_fee_percent);
+        $this->assertNull($fresh->contract_sha256, 'le contrat figé imprime encore 5 %');
     }
 }
