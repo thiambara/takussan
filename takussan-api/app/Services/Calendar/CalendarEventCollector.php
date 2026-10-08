@@ -11,12 +11,14 @@ use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -47,6 +49,23 @@ class CalendarEventCollector
 
     /** Les types que la console demande quand l'appel n'en nomme aucun (contrat d'origine). */
     public const DEFAULT_TYPES = ['booking', 'visit'];
+
+    /**
+     * L'agence de l'agenda (console et lien) : celle du PROFIL ACTIF. Sous un profil prestataire,
+     * aucune — l'agenda du prestataire, et son lien sans agence (ADR-0034 §2).
+     *
+     * TCK-591 (verif-591 passe 3, P3-1) — `staffAgencyId()` retombe sur l'agence où l'on est
+     * personnel même sous le profil prestataire, qui n'a pas d'agence : un compte agent de A et
+     * prestataire perdait de la console ET du lien sa prestation hors de A.
+     */
+    public static function agencyOf(Request $request): ?int
+    {
+        if ($request->activeProfile() instanceof ServiceProviderProfile) {
+            return null;
+        }
+
+        return $request->user()?->staffAgencyId();
+    }
 
     /**
      * @param  list<string>  $types

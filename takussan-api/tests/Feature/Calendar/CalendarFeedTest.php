@@ -10,6 +10,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
@@ -196,5 +197,50 @@ class CalendarFeedTest extends ApiTestCase
         $this->assertContains('Tâche de B', $ofB);
         $this->assertContains('Intervention de B', $ofB);
         $this->assertNotContains('Tâche de A', $ofB);
+    }
+
+    /**
+     * verif-591 passe 3 (P3-1) — la console et le lien jugent le PROFIL ACTIF. Un compte agent de A
+     * et prestataire retrouve, sous son profil prestataire, l'intervention qu'il assure hors de A,
+     * avec un lien sans agence ; sous son profil agent, l'agenda reste celui de A.
+     */
+    public function test_the_provider_profile_of_an_agent_has_its_own_agenda_and_link(): void
+    {
+        $provider = ServiceProviderProfile::factory()->create(['user_id' => $this->agent->id]);
+        $agent = AgentProfile::query()->where('user_id', $this->agent->id)->value('id');
+        $elsewhere = Property::factory()->create(['agency_id' => Agency::factory()->create()->id, 'title' => 'Bien C']);
+        $here = Property::factory()->create(['agency_id' => $this->agency->id, 'title' => 'Bien A']);
+        foreach ([$elsewhere, $here] as $property) {
+            MaintenanceRequest::factory()->create([
+                'property_id' => $property->id,
+                'assigned_to' => $this->agent->id,
+                'status' => MaintenanceStatus::Assigned,
+                'scheduled_at' => now()->addDays(2),
+            ]);
+        }
+        $uri = '/api/calendar?types[]=maintenance&start_date='.now()->toDateString().'&end_date='.now()->addDays(10)->toDateString();
+
+        $agenda = function (string $profile) use ($uri): array {
+            $headers = ['X-Profile-Id' => $profile];
+            $console = collect($this->actingAsApi($this->agent)->getJson($uri, $headers)->assertOk()->json('data'))
+                ->pluck('title')->sort()->values()->all();
+            $url = $this->actingAsApi($this->agent)->postJson('/api/me/calendar-feed', [], $headers)
+                ->assertCreated()->json('data.url');
+            $this->app['auth']->forgetGuards();
+            $feed = (string) $this->get((string) parse_url($url, PHP_URL_PATH))->assertOk()->getContent();
+
+            return [$console, $feed];
+        };
+
+        [$console, $feed] = $agenda("service_provider:{$provider->id}");
+        $this->assertSame(['Bien A', 'Bien C'], $console);
+        $this->assertStringContainsString('Bien C', $feed);
+        $this->assertTrue(CalendarFeed::query()->active()->where('user_id', $this->agent->id)->whereNull('agency_id')->exists());
+
+        [$console, $feed] = $agenda("agent:{$agent}");
+        $this->assertSame(['Bien A'], $console);
+        $this->assertStringNotContainsString('Bien C', $feed);
+        $this->assertStringContainsString('Bien A', $feed);
+        $this->assertTrue(CalendarFeed::query()->active()->where('user_id', $this->agent->id)->where('agency_id', $this->agency->id)->exists());
     }
 }

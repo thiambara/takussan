@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\CalendarFeed;
+use App\Services\Calendar\CalendarEventCollector;
 use App\Services\Calendar\CalendarFeedService;
 use App\Services\Calendar\IcsCalendarRenderer;
 use Illuminate\Http\JsonResponse;
@@ -23,11 +24,11 @@ class CalendarFeedController extends Controller
         private readonly IcsCalendarRenderer $renderer,
     ) {}
 
-    /** L'état du lien de l'appelant dans l'agence courante — jamais le jeton. */
+    /** L'état du lien de l'appelant pour son profil actif (agence, ou prestataire) — jamais le jeton. */
     public function current(Request $request): JsonResponse
     {
         $user = $request->user();
-        $agencyId = $user->staffAgencyId();
+        $agencyId = CalendarEventCollector::agencyOf($request);
 
         $feed = CalendarFeed::query()
             ->active()
@@ -46,7 +47,7 @@ class CalendarFeedController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $agencyId = $user->staffAgencyId();
+        $agencyId = CalendarEventCollector::agencyOf($request);
         $issued = $this->feeds->issue($user, $agencyId);
 
         return $this->json(['data' => [
@@ -60,7 +61,7 @@ class CalendarFeedController extends Controller
     public function destroy(Request $request): JsonResponse
     {
         $user = $request->user();
-        $this->feeds->revoke($user, $user->staffAgencyId());
+        $this->feeds->revoke($user, CalendarEventCollector::agencyOf($request));
 
         return $this->json(null, 204);
     }
