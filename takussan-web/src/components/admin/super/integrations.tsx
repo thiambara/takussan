@@ -230,7 +230,8 @@ export function WebhookTrailTable({
       id: 'payload',
       header: t('colPayload'),
       className: 'max-w-md truncate font-mono text-xs',
-      cell: (log) => log.payload.truncated,
+      // TCK-602 — la vue expurgée (ADR-0051 §4) : un objet, plus une chaîne tronquée.
+      cell: (log) => JSON.stringify(log.payload ?? {}),
     },
     {
       id: 'received',

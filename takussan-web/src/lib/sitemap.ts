@@ -91,6 +91,12 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
     source: null,
     exclue: 'TCK-587',
   },
+  // TCK-602 (ADR-0051 §1) — le lien de paiement d'une échéance. Même nature : un lien PORTEUR, dont
+  // le jeton autorise à lire et payer l'échéance ; la page est `noindex` et `no-referrer`.
+  '/pay/[token]': {
+    source: null,
+    exclue: 'TCK-602',
+  },
 };
 
 /**

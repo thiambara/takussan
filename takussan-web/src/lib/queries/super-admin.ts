@@ -27,6 +27,10 @@ import type {
   AdminIntegrationSchemaResponse,
   IntegrationTestResponse,
   IntegrationWebhooksResponse,
+  PaymentSupervisionResponse,
+  PaymentSummaryResponse,
+  WebhookLog,
+  WebhookLogsResponse,
   MaintenanceStatusResponse,
   MaintenanceMode,
   MaintenanceSeverity,
@@ -817,6 +821,60 @@ export async function testAdminIntegration(id: number): Promise<IntegrationTestR
 export async function fetchIntegrationWebhooks(id: number): Promise<IntegrationWebhooksResponse> {
   const res = await fetch(cheminApi`/api/super-admin/integrations/${id}/webhooks`, { credentials: 'include' });
   return jsonOrThrow<IntegrationWebhooksResponse>(res);
+}
+
+// ─── TCK-602 — console « Paiements » et journal des webhooks ───────────────────────────────
+
+export type PaymentSupervisionFilters = {
+  status?: 'failed' | 'late';
+  provider?: string;
+  page?: number;
+  perPage?: number;
+};
+
+export async function fetchPaymentSupervision(filters: PaymentSupervisionFilters = {}): Promise<PaymentSupervisionResponse> {
+  const qs = new URLSearchParams();
+  qs.set('per_page', String(filters.perPage ?? 20));
+  if (filters.page) qs.set('page', String(filters.page));
+  if (filters.status) qs.set('filter[status]', filters.status);
+  if (filters.provider) qs.set('filter[provider]', filters.provider);
+  const res = await fetch(cheminApi`/api/super-admin/payments${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<PaymentSupervisionResponse>(res);
+}
+
+export async function fetchPaymentSummary(): Promise<PaymentSummaryResponse> {
+  const res = await fetch('/api/super-admin/payments/summary', { credentials: 'include' });
+  return jsonOrThrow<PaymentSummaryResponse>(res);
+}
+
+export type WebhookLogFilters = {
+  channel?: string;
+  status?: string;
+  unmatched?: boolean;
+  page?: number;
+  perPage?: number;
+};
+
+/** Les seules colonnes que la table lit — jamais `body` ni `headers`, que l'API refuse. */
+const WEBHOOK_LOG_FIELDS =
+  'id,channel,provider,status,event_type,http_status,error_code,external_id,matched_count,attempts,authenticated_at,body_truncated,replayed_at,created_at';
+
+export async function fetchWebhookLogs(filters: WebhookLogFilters = {}): Promise<WebhookLogsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('fields[integration_webhook_logs]', WEBHOOK_LOG_FIELDS);
+  qs.set('per_page', String(filters.perPage ?? 20));
+  if (filters.page) qs.set('page', String(filters.page));
+  if (filters.channel) qs.set('filter[channel]', filters.channel);
+  if (filters.status) qs.set('filter[status]', filters.status);
+  if (filters.unmatched) qs.set('filter[unmatched]', '1');
+  const res = await fetch(cheminApi`/api/super-admin/webhook-logs${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<WebhookLogsResponse>(res);
+}
+
+export async function replayWebhookLog(id: number): Promise<{ data: WebhookLog }> {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new RangeError(String(id));
+  const res = await fetch(cheminApi`/api/super-admin/webhook-logs/${id}/replay`, { method: 'POST', credentials: 'include' });
+  return jsonOrThrow<{ data: WebhookLog }>(res);
 }
 
 export async function fetchMaintenance(): Promise<MaintenanceStatusResponse> {

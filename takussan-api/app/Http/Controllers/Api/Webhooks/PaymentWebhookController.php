@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Webhooks;
 
 use App\Http\Controllers\Base\Controller;
-use App\Services\Admin\IntegrationService;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,18 +27,16 @@ use Illuminate\Http\Request;
  */
 class PaymentWebhookController extends Controller
 {
-    public function __construct(
-        protected PaymentGatewayService $gateway,
-        protected IntegrationService $integrations,
-    ) {}
+    public function __construct(protected PaymentGatewayService $gateway) {}
 
     public function __invoke(Request $request, string $provider, string $token): JsonResponse
     {
         $integration = $this->gateway->resolveWebhookIntegration($provider, $token);
         abort_code_if($integration === null, 404, 'webhook.endpoint_unknown');
 
+        // TCK-602 (ADR-0051 §4) — la trace ne s'écrit plus ici, après le succès : le middleware
+        // `webhook.journal` l'a ouverte avant tout, et `handleWebhook` l'annote.
         $event = $this->gateway->handleWebhook($integration, $request);
-        $this->integrations->recordWebhook($integration->provider, $request->all(), 'processed', $event->type);
 
         return $this->json([
             'data' => [

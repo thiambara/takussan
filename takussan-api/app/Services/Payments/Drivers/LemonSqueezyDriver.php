@@ -8,8 +8,11 @@ use App\Models\Integration;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Lemon Squeezy driver. Wraps the official `lemonsqueezy/laravel` package
@@ -28,6 +31,15 @@ use Illuminate\Http\Request;
  */
 class LemonSqueezyDriver implements PaymentDriverContract
 {
+    /**
+     * TCK-602 (ADR-0051 §3) — les identifiants que ce pilote LIT. Chacun est un champ `required`
+     * du schéma de son fournisseur (`PaymentDriverCredentialsTest`), et une intégration à qui il en
+     * manque un n'est pas proposée au payeur (`PaymentGatewayService::availableProviders`).
+     *
+     * @var list<string>
+     */
+    public const CREDENTIAL_KEYS = ['api_key', 'store_id', 'variant_id', 'signing_secret'];
+
     public const PROVIDER = 'lemon_squeezy';
 
     public function __construct(protected Integration $integration) {}
@@ -50,7 +62,14 @@ class LemonSqueezyDriver implements PaymentDriverContract
             $checkout->redirectTo((string) $meta['return_url']);
         }
 
-        $url = $checkout->url();
+        // TCK-602 — l'exception du paquet porte la réponse de l'API : ni au client, ni au journal
+        // (ADR-0044 §2, son message est une donnée).
+        try {
+            $url = $checkout->url();
+        } catch (Throwable $e) {
+            Log::warning('[lemon-squeezy] checkout failed', SafeExceptionContext::of($e));
+            abort_code(502, 'payment.provider_unavailable');
+        }
 
         // The Checkout builder doesn't expose the LS checkout id directly
         // (it lives in the response body). Re-fetch from the URL: LS embeds
@@ -187,7 +206,11 @@ class LemonSqueezyDriver implements PaymentDriverContract
     {
         $creds = $this->integration->credentials ?? [];
         $value = is_array($creds) ? ($creds[$key] ?? null) : null;
-        abort_code_if(empty($value), 500, 'payment.integration_credential_missing', ['credential' => $key]);
+        // TCK-602 — le nom de la clé manquante ne sort pas : il reste au journal du serveur.
+        if (empty($value)) {
+            Log::warning('[payments] integration credential missing', ['integration_id' => $this->integration->getKey(), 'credential' => $key]);
+            abort_code(500, 'payment.integration_misconfigured');
+        }
 
         return (string) $value;
     }

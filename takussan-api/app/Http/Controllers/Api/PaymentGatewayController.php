@@ -68,6 +68,28 @@ class PaymentGatewayController extends Controller
     }
 
     /**
+     * TCK-602 (ADR-0051 §3) — les fournisseurs que CE paiement peut utiliser : une intégration active
+     * couvre son agence (repli global compris), un pilote la sert, ses identifiants sont remplis, et
+     * le fournisseur accepte la devise. Même autorisation que l'initiation : le locataire qui paie la
+     * lit, sans accès à `GET /api/integrations` (réservé à l'admin d'agence). Aucun appel sortant.
+     */
+    public function providers(Request $request, string $paymentType, int $paymentId): JsonResponse
+    {
+        $payment = $this->resolvePayment($paymentType, $paymentId);
+        abort_if($request->user() === null, 401);
+        $this->authorize('update', $payment);
+
+        return $this->json([
+            'data' => [
+                'providers' => array_map(
+                    static fn (PaymentProvider $provider): string => $provider->value,
+                    $this->gateway->availableProviders($payment),
+                ),
+            ],
+        ]);
+    }
+
+    /**
      * VERIF-596 passe 8 (m-o) — le règlement vérifié a débité le payeur sans rien solder (échéance
      * annulée par un renouvellement, ou déjà réglée) : il est inscrit en doublon, et l'agence doit
      * le rembourser. La part « pénalité » d'un règlement qui a soldé le loyer (`kind: late_fee`)

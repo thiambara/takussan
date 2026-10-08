@@ -100,8 +100,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const bookingQuery = useBooking(bookingId);
   const { data, isLoading, isError } = bookingQuery;
   const { user } = useAuth();
-  const agencyId = data?.data?.agency_id ?? null;
-  const { providers } = usePaymentProviders(agencyId);
+  // TCK-602 — lus sur le premier paiement en attente : agence et devise sont celles de la réservation.
+  const { providers } = usePaymentProviders(
+    'booking-payments',
+    data?.data?.booking_payments?.find((p) => p.status === 'pending')?.id ?? null,
+  );
   const cancelBooking = useCancelBooking(bookingId);
   const confirmBooking = useConfirmBooking(bookingId);
   const rejectBooking = useRejectBooking(bookingId);
@@ -317,7 +320,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         <CustomerPayCta
           bookingId={bookingId}
           booking={booking}
-          providers={providers}
+          // TCK-602 — l'appel n'existe qu'en l'absence de paiement en attente : aucun paiement
+          // dont lire les fournisseurs. « Inconnu » ; l'initiation refuse en 422 un fournisseur
+          // que l'agence n'a pas, avant tout appel sortant.
+          providers={undefined}
         />
       )}
 

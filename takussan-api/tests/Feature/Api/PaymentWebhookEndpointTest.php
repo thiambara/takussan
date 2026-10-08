@@ -79,7 +79,21 @@ class PaymentWebhookEndpointTest extends ApiTestCase
         $this->assertCount(1, array_unique($bodies), 'Le corps du 404 diffère : '.json_encode($bodies));
         $this->assertSame('webhook.endpoint_unknown', json_decode((string) reset($bodies), true)['code'] ?? null);
         $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
-        $this->assertSame(0, IntegrationWebhookLog::query()->count());
+        // TCK-602 (ADR-0051 §4) — chaque appel est journalisé AVANT tout traitement, et rejeté :
+        // aucune autorité, aucun rattachement, aucun jeton dans une colonne.
+        $logs = IntegrationWebhookLog::query()->get();
+        $this->assertCount(count($urls), $logs);
+        foreach ($logs as $log) {
+            $this->assertSame(IntegrationWebhookLog::STATUS_REJECTED, $log->status);
+            $this->assertSame(404, $log->http_status);
+            $this->assertNull($log->authenticated_at);
+            $this->assertNull($log->integration_id);
+            $this->assertNull($log->agency_id);
+        }
+        $raw = json_encode(DB::table('integration_webhook_logs')->get());
+        foreach ([$integration->webhook_token, $inactive->webhook_token, $deletedToken] as $token) {
+            $this->assertStringNotContainsString($token, $raw);
+        }
     }
 
     // ─── Le jeton ────────────────────────────────────────────────
@@ -334,6 +348,10 @@ class PaymentWebhookEndpointTest extends ApiTestCase
     {
         $agencyA = Agency::factory()->create();
         [$payment, $integrationA] = $this->arrange($agencyA);
+        // TCK-602 (ADR-0051, conséquence M-1) — le chemin `custom_data` n'apparie plus une ligne dont
+        // le checkout ouvert est d'un AUTRE fournisseur : ce test-ci éprouve la borne d'agence, sur
+        // une ligne sans checkout ouvert.
+        $payment->forceFill(['transaction_id' => null, 'metadata' => []])->save();
         $integrationB = $this->waveIntegration(Agency::factory()->create());
         $event = new PaymentEvent('lemon_squeezy', PaymentEvent::TYPE_PAID, 'ord_custom', [
             'custom_data' => ['payment_id' => (string) $payment->id, 'payment_type' => BookingPayment::class],
@@ -430,19 +448,20 @@ class PaymentWebhookEndpointTest extends ApiTestCase
     /** ADR-0046 §4 — `notif_url` porte l'URL de l'intégration qui initie ; l'appelant ne la remplace pas. */
     public function test_orange_money_notif_url_is_the_url_of_the_initiating_integration(): void
     {
-        Http::fake(['*/orange-money-webpay/v1/webpayment' => Http::response(['payment_url' => 'https://om.example/p', 'pay_token' => 'om_tok'])]);
+        Http::fake(['*/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]), '*/orange-money-webpay/v1/webpayment' => Http::response(['payment_url' => 'https://om.example/p', 'pay_token' => 'om_tok'])]);
         $agency = Agency::factory()->create();
         [$payment] = $this->arrange($agency);
         $om = Integration::factory()->create([
             'agency_id' => $agency->id,
             'provider' => 'orange_money',
-            'credentials' => ['access_token' => 'at', 'merchant_key' => 'mk', 'webhook_secret' => 's'],
+            'credentials' => ['client_id' => 'om_client', 'client_secret' => 'om_secret', 'merchant_key' => 'mk', 'webhook_secret' => 's'],
         ]);
 
         (new OrangeMoneyDriver($om))->initiate($payment, 5_000_000, 'XOF', ['notif_url' => 'https://evil.example/hook']);
 
         Http::assertSent(function ($request) use ($om): bool {
-            return $request['notif_url'] === $om->webhookUrl()
+            return str_contains($request->url(), '/webpayment')
+                && $request['notif_url'] === $om->webhookUrl()
                 && str_ends_with((string) $request['notif_url'], '/api/webhooks/payments/orange_money/'.$om->webhook_token);
         });
     }

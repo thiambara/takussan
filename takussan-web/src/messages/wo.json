@@ -217,7 +217,8 @@
         "failedJobs": "Jobs yi ñàkk",
         "maintenance": "Defar",
         "scheduler": "Arminaatkat",
-        "privacyRequests": "Laaj ci sañ-sañ"
+        "privacyRequests": "Laaj ci sañ-sañ",
+        "payments": "Fey yi"
       }
     },
     "notifications": {
@@ -2089,6 +2090,12 @@
           "submit": "Bind ko rekk",
           "cancel": "Neenal"
         }
+      },
+      "paymentLink": {
+        "copy": "Lien bu ñuy fey",
+        "copied": "Lien bu ñuy fey bi duppi nañu ko : yónneel ko ki luwaas.",
+        "ready": "Lien bu ñuy fey bi pare na : yónneel ko ki luwaas.",
+        "failed": "Lien bu ñuy fey bi mënul sosu."
       }
     },
     "fallbackReference": "Luwé #{id}",
@@ -6506,7 +6513,7 @@
         "empty_title": "Amul webhook bu yees",
         "empty_description": "Woote yi ñu jot ci jottalikat bi dinañu feeñ fii.",
         "title": "Webhook yu {label}",
-        "retention": "Mbind mi day des 30 fan.",
+        "retention": "Mbind mi day des 90 fan ngir fey yi, 30 fan ngir bataaxal yi.",
         "closeAria": "Tëj webhook yi",
         "colEvent": "Xew-xew",
         "colStatus": "Nekkin",
@@ -7044,6 +7051,10 @@
         "metaTitle": "Laaj ci sañ-sañ — Konsol Takussan",
         "title": "Laaj ci sañ-sañ",
         "subtitle": "Téereb laaj yi ngir xool, defar, bañ, far walla jël sa xibaar, ñu topp leen ba seen àpp."
+      },
+      "payments": {
+        "title": "Fey yi",
+        "subtitle": "Xaalis bi agsiwul : fey yu ñàkk walla yu yéex, ak webhook yu jottalikat yi."
       }
     },
     "featureFlags": {
@@ -7504,6 +7515,83 @@
         "proofHint": "PDF walla nataal (JPG, PNG, WebP, HEIC).",
         "proofReplace": "Am na firnde bu ñu fi denc ba noppi ({name}) : fichier bu bees dina ko wuutu."
       }
+    },
+    "payments": {
+      "all": "Yépp",
+      "loadError": "Njumte ci yeb fey yi.",
+      "providers": {
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "lemon_squeezy": "Kart (Lemon Squeezy)",
+        "unknown": "Jottalikat bu ñu xamul"
+      },
+      "summary": {
+        "title": "Ci jottalikat bu nekk",
+        "windowLabel": "Diir",
+        "last7": "7 fan yii weesu",
+        "last30": "30 fan yii weesu",
+        "caption": "Fey yu ñàkk, yu yéex ak webhook yu ñu mënul jokkale, ci jottalikat bu nekk",
+        "colProvider": "Jottalikat",
+        "colFailed": "Ñàkk",
+        "colLate": "Yéex",
+        "colUnmatched": "Webhook yu ñu mënul jokkale"
+      },
+      "list": {
+        "title": "Fey yi war a topp",
+        "reasonLabel": "Lu tax",
+        "providerLabel": "Jottalikat",
+        "caption": "Fey yu ñàkk walla yu yéex ci diir bi",
+        "colReason": "Lu tax",
+        "colType": "Xeet",
+        "colReference": "Référence",
+        "colStatus": "Nekkin",
+        "colProvider": "Jottalikat",
+        "colAmount": "Limu xaalis",
+        "colAt": "Bés",
+        "reasons": {
+          "failed": "Ñàkk",
+          "late": "Yéex"
+        },
+        "types": {
+          "lease_payment": "Fey kër",
+          "booking_payment": "Fey reservation"
+        },
+        "empty_title": "Dara warul a topp",
+        "empty_description": "Amul fey bu ñàkk walla bu yéex ci 30 fan yii weesu."
+      },
+      "journal": {
+        "title": "Journal webhook yi",
+        "retention": "Day des 90 fan ngir fey yi, 30 fan ngir bataaxal yi. Nimero yi ak adres yi dañu leen nëbb.",
+        "channelLabel": "Yoon",
+        "onlyUnmatched": "Yu ñu mënul jokkale rekk",
+        "caption": "Webhook yi jottalikat yi yónne",
+        "colReceived": "Jot",
+        "colSource": "Fu mu jóge",
+        "colStatus": "Nekkin",
+        "colHttp": "HTTP",
+        "colError": "Njumte",
+        "colExternal": "ID jottalikat",
+        "colActions": "Jëf yi",
+        "channels": {
+          "payment": "Fey",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "statuses": {
+          "received": "Jot",
+          "processed": "Jëfe nañu ko",
+          "rejected": "Bañ nañu ko",
+          "failed": "Ñàkk"
+        },
+        "unmatched": "Mënuñu ko jokkale",
+        "replay": "Dellu jëfe",
+        "confirmTitle": "Dellu jëfe webhook bii",
+        "confirmDescription": "Webhook {source} dinañu ko dellu jëfe ni ñu ko jotee, xool signature bi ci kanam. Fey bu ñu feyoon duñu ko fey ñaari yoon.",
+        "replayOutcome": "Webhook bi dellu nañu ko jëfe : {status}.",
+        "replayError": "Dellu jëfe bi ñàkk na.",
+        "empty_title": "Amul webhook",
+        "empty_description": "Woote yi ñu jot ci jottalikat yi dinañu feeñ fii."
+      }
     }
   },
   "adminSettings": {
@@ -7573,6 +7661,18 @@
           "orange_money": "Orange Money"
         },
         "unsupported": "Takussan mënagul dëggal fey yi ci boppam ak fournisseur bii."
+      },
+      "paymentFields": {
+        "legend": "Identifiants yu jottalikat bi",
+        "api_key": "Caabi API",
+        "webhook_secret": "Secret webhook",
+        "client_id": "Identifiant client",
+        "client_secret": "Secret client",
+        "merchant_key": "Caabi jaaykat",
+        "store_id": "Identifiant bitik",
+        "variant_id": "Identifiant variante",
+        "signing_secret": "Secret xaatim",
+        "secret_key": "Caabi bu kumpaywul"
       }
     },
     "settings": {
@@ -9680,6 +9780,10 @@
         "received_landlord": {
           "title": "Pey kër bi agsi na : {property}",
           "body": "{tenant} fey na {amount} ngir {property}."
+        },
+        "settled_online": {
+          "title": "Fey bi agsi na : {property}",
+          "body": "Sa fey bu {amount} ngir {property} agsi na. Sa kitaas mi ngi ci sa bérab."
         }
       },
       "payment": {
@@ -10138,5 +10242,37 @@
     "reessayer": "Jéemaatal",
     "favorisTitre": "Sa bëgg-bëgg yi nga xoolewoon ci bii aparey",
     "favorisVide": "Amul benn ci sa bëgg-bëgg yi mën a feeñ te amul internet ci bii aparey."
+  },
+  "payLink": {
+    "metaTitle": "Fey sama luwaasu kër",
+    "title": "Fey sa luwaas",
+    "loading": "Nu ngi ubbi lien bi…",
+    "dueDate": "Bës bu ñuy fey",
+    "reference": "Référence",
+    "amountDue": "Xaalis bi nga wara fey",
+    "rent": "Luwaas",
+    "lateFee": "Pénalité yeexteg",
+    "lateFeeAtAgency": "Dangay fey ko ca agence {agency}.",
+    "payWith": "Fey ak {provider}",
+    "providers": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "lemon_squeezy": "Carte bancaire",
+      "free_money": "Free Money"
+    },
+    "payError": "Feyum bi mënul ubbiku. Jéemaatal ci kanam.",
+    "unavailable": "Feyum internet amul ci luwaas bii. Jokkool ak agence {agency}.",
+    "cancelledNotice": "Feyum bi dañu ko neenal. Mën nga jéemaat.",
+    "paid": "Luwaas bii fey nañu ko. Jërëjëf!",
+    "receipt": "Yebbi quittance bi",
+    "receiptFile": "quittance",
+    "receiptError": "Quittance bi mënul yebbiku. Jéemaatal ci kanam.",
+    "goneTitle": "Lien bii baaxatul",
+    "goneDescription": "Jeexna walla soppi nañu ko. Laajal sa agence lien bu bees.",
+    "goneDescriptionAgency": "Jeexna walla soppi nañu ko. Laajal agence {agency} lien bu bees.",
+    "notFoundTitle": "Lien bi gisuñu ko",
+    "notFoundDescription": "Seetal adres bi nga jot, walla laajal sa agence lien bu bees.",
+    "error": "Luwaas bi mënul feeñ. Jéemaatal ci kanam.",
+    "retry": "Jéemaat"
   }
 }
