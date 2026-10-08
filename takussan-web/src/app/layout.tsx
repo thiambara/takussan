@@ -17,7 +17,7 @@ import { ChatDraftProvider } from '@/context/ChatDraftContext';
 import { FloatingDockProvider } from '@/components/floating-dock';
 import { IntlProviderRacine } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
-import { Analytics } from '@vercel/analytics/next';
+import { AudienceSansSecret } from '@/components/shared/AudienceSansSecret';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
@@ -105,7 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <BandeauxDuSite emplacement="racine" />
                       <ChatWidget />
                       {children}
-                      <Analytics />
+                      <AudienceSansSecret />
                     </ChatDraftProvider>
                   </FloatingDockProvider>
                 </UserLocationProvider>
