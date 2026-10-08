@@ -22,25 +22,31 @@ use App\Services\Review\ReviewModerationScope;
  */
 class ReviewPolicy extends BasePolicy
 {
-    public function __construct(
-        private readonly ReviewModerationScope $scope,
-    ) {}
+    /**
+     * Résolu par le conteneur à l'usage, pas injecté : aucune policy du dépôt n'a de constructeur,
+     * et `BasePolicyCapabilityTest` les instancie par `new`. Le service est `scoped` et sa mémoire
+     * vit sous la requête : le résoudre à chaque appel ne coûte rien.
+     */
+    private function scope(): ReviewModerationScope
+    {
+        return app(ReviewModerationScope::class);
+    }
 
     /** Ouvrir la file de modération des avis (filtrée ensuite par {@see ReviewModerationScope}). */
     public function viewModerationQueue(User $user): bool
     {
-        return $this->scope->agencyFor($user) !== null;
+        return $this->scope()->agencyFor($user) !== null;
     }
 
     /** `$decision` nommée : l'admin d'agence n'approuve ou ne masque qu'un avis en attente. */
     public function moderate(User $user, Review $review, ?string $decision = null): bool
     {
-        return $this->scope->canModerate($user, $review, $decision);
+        return $this->scope()->canModerate($user, $review, $decision);
     }
 
     public function viewReports(User $user, Review $review): bool
     {
-        return $this->scope->inAgencyScope($user, $review);
+        return $this->scope()->inAgencyScope($user, $review);
     }
 
     /**
@@ -56,7 +62,7 @@ class ReviewPolicy extends BasePolicy
             $subject instanceof Property => $this->publisherReplies($user, $subject)
                 || $this->isStaffOf($user, $review->agency_id ?? $subject->agency_id),
             $subject instanceof User => ($subject->id === $user->id
-                    && ($review->agency_id === null || $this->scope->isStaffAt($user, (int) $review->agency_id)))
+                    && ($review->agency_id === null || $this->scope()->isStaffAt($user, (int) $review->agency_id)))
                 || $this->isStaffOf($user, $review->agency_id),
             $subject instanceof Agency => $this->isStaffOf($user, $subject->id),
             $subject instanceof ServiceProviderProfile => (int) $subject->user_id === $user->id,
@@ -84,8 +90,8 @@ class ReviewPolicy extends BasePolicy
             return true;
         }
 
-        return $this->scope->isOwnerAt($user, (int) $property->agency_id)
-            || $this->scope->isStaffAt($user, (int) $property->agency_id);
+        return $this->scope()->isOwnerAt($user, (int) $property->agency_id)
+            || $this->scope()->isStaffAt($user, (int) $property->agency_id);
     }
 
     /** {@see BasePolicy::isStaffOf()}, sur l'agence de personnel mémorisée par requête. */
@@ -95,7 +101,7 @@ class ReviewPolicy extends BasePolicy
             return false;
         }
 
-        $staffAgencyId = $this->scope->staffAgencyId($user);
+        $staffAgencyId = $this->scope()->staffAgencyId($user);
 
         return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
     }
