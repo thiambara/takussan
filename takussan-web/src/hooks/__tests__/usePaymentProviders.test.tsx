@@ -1,7 +1,6 @@
 /**
- * TCK-593 — un refus de LIRE les intégrations (403, le cas du locataire) n'est pas une absence de
- * fournisseur. Rendre `[]` masquait « Payer » à la seule personne qui paie ; on rend `undefined`
- * (« inconnu »), et le sélecteur s'en tient aux règles de devise.
+ * TCK-602 (ADR-0051 §3) — les fournisseurs viennent du point d'entrée du PAIEMENT, sous
+ * l'autorisation de l'initiation, et non plus de `GET /api/integrations` (403 au locataire).
  */
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,22 +14,37 @@ vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: (...a: unknown[]) => useApi
 beforeEach(() => useApiQuery.mockReset());
 
 describe('usePaymentProviders', () => {
-  it('rend les fournisseurs actifs de l’agence', () => {
-    useApiQuery.mockReturnValue({
-      data: { data: [{ id: 1, provider: 'wave', agency_id: 3, is_active: true }] },
-      error: null,
-      isLoading: false,
-    });
-    expect(renderHook(() => usePaymentProviders(3)).result.current.providers).toEqual(['wave']);
+  it('lit les fournisseurs du paiement sur son point d’entrée', () => {
+    useApiQuery.mockReturnValue({ data: { data: { providers: ['wave'] } }, error: null, isLoading: false });
+    expect(renderHook(() => usePaymentProviders('lease-payments', 12)).result.current.providers).toEqual(['wave']);
+    expect(useApiQuery).toHaveBeenCalledWith(
+      ['payments', 'gateway-providers', 'lease-payments', 12],
+      '/api/lease-payments/12/providers',
+      { enabled: true },
+    );
+    expect(useApiQuery.mock.calls.flat().join(' ')).not.toContain('/api/integrations');
   });
 
-  it('un 403 rend « inconnu » (undefined), pas une liste vide', () => {
+  it('une liste vide reste vide', () => {
+    useApiQuery.mockReturnValue({ data: { data: { providers: [] } }, error: null, isLoading: false });
+    expect(renderHook(() => usePaymentProviders('invoices', 3)).result.current.providers).toEqual([]);
+  });
+
+  it('un fournisseur inconnu du front est écarté', () => {
+    useApiQuery.mockReturnValue({ data: { data: { providers: ['wave', 'inconnu'] } }, error: null, isLoading: false });
+    expect(renderHook(() => usePaymentProviders('lease-payments', 12)).result.current.providers).toEqual(['wave']);
+  });
+
+  it('un refus ou un identifiant invalide : aucune requête utile, liste vide', () => {
     useApiQuery.mockReturnValue({ data: undefined, error: new ApiError(403, null), isLoading: false });
-    expect(renderHook(() => usePaymentProviders(3)).result.current.providers).toBeUndefined();
-  });
+    expect(renderHook(() => usePaymentProviders('lease-payments', 12)).result.current.providers).toEqual([]);
 
-  it('une autre erreur reste une liste vide', () => {
-    useApiQuery.mockReturnValue({ data: undefined, error: new ApiError(500, null), isLoading: false });
-    expect(renderHook(() => usePaymentProviders(3)).result.current.providers).toEqual([]);
+    useApiQuery.mockClear();
+    renderHook(() => usePaymentProviders('lease-payments', Number.NaN));
+    expect(useApiQuery).toHaveBeenCalledWith(
+      ['payments', 'gateway-providers', 'lease-payments', null],
+      '/api/lease-payments/0/providers',
+      { enabled: false },
+    );
   });
 });

@@ -409,6 +409,23 @@ export function useMarkLateFeePaid(leaseId: number) {
   );
 }
 
+export type IssuePaymentLinkPayload = { paymentId: number; regenerate?: boolean };
+
+/**
+ * TCK-602 (ADR-0051 §1) — le lien `/pay/{jeton}` d'une échéance, pour le locataire sans compte :
+ * le lien actif (le même d'un appel à l'autre), ou un neuf avec `regenerate` (l'ancien rend 410).
+ */
+export function useIssuePaymentLink() {
+  return useApiMutation<ApiResponse<{ url: string; expires_at: string | null }>, IssuePaymentLinkPayload>({
+    path: ({ paymentId }) => {
+      if (!Number.isSafeInteger(paymentId) || paymentId <= 0) throw new RangeError(String(paymentId));
+      return cheminApi`/api/lease-payments/${paymentId}/payment-link`;
+    },
+    method: 'POST',
+    body: ({ paymentId: _paymentId, ...rest }) => rest,
+  });
+}
+
 export type GenerateSchedulePayload = {
   start_date?: string;
   end_date?: string;

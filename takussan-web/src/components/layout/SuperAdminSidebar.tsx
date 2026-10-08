@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
   Tags,
   Users,
+  Wallet,
   Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -127,6 +128,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/super-admin/plans', labelKey: 'plans', icon: CreditCard },
       { href: '/super-admin/payouts', labelKey: 'payouts', icon: Send },
+      // TCK-602 — l'argent qui n'arrive pas : échecs, retards, webhooks non appariés ou rejouables.
+      { href: '/super-admin/payments', labelKey: 'payments', icon: Wallet },
     ],
   },
   {

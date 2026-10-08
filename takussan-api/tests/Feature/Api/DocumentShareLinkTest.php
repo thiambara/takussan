@@ -161,7 +161,7 @@ class DocumentShareLinkTest extends TestCase
         // One revoked link.
         $revokedToken = $this->postJson("/api/documents/{$document->id}/share")
             ->json('data.token');
-        $revokedLink = DocumentShareLink::where('token', $revokedToken)->firstOrFail();
+        $revokedLink = DocumentShareLink::where('token_hash', DocumentShareLink::hashToken($revokedToken))->firstOrFail();
         $revokedLink->update(['revoked_at' => now()]);
 
         // One expired link — create active then expire via DB update so we
@@ -169,7 +169,7 @@ class DocumentShareLinkTest extends TestCase
         $expiredToken = $this->postJson("/api/documents/{$document->id}/share", [
             'expires_at' => now()->addDay()->toDateTimeString(),
         ])->json('data.token');
-        DocumentShareLink::where('token', $expiredToken)
+        DocumentShareLink::where('token_hash', DocumentShareLink::hashToken($expiredToken))
             ->update(['expires_at' => now()->subHour()]);
 
         $this->getJson("/api/documents/{$document->id}/share-links")

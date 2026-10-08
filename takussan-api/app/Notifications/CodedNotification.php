@@ -12,6 +12,7 @@ use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -29,8 +30,14 @@ use Illuminate\Notifications\Notification;
  * La langue n'est jamais lue ici : `NotificationSender` exécute chaque canal sous
  * `withLocale()` — la langue préférée du `User`, ou celle que `->locale()` fixe pour un contact
  * sans compte. `app()->getLocale()` EST donc la langue du destinataire dans chaque `to*()`.
+ *
+ * TCK-602 (VERIF-602 M2) — mise en file CHIFFRÉE (`ShouldBeEncrypted`) : ses paramètres portent des
+ * données personnelles et, vers un contact sans compte, le lien porteur `/pay/{jeton}`
+ * ({@see NotificationCode::bearerParams()}). Sans chiffrement, ils resteraient en clair dans la
+ * charge de la file (`jobs`, Redis) et dans `failed_jobs.payload`, que TCK-601 garde intact pour
+ * le rejeu.
  */
-class CodedNotification extends Notification implements ShouldQueue, SupportsSms, SupportsWhatsapp
+class CodedNotification extends Notification implements ShouldBeEncrypted, ShouldQueue, SupportsSms, SupportsWhatsapp
 {
     use Queueable;
 

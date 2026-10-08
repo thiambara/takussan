@@ -25,7 +25,7 @@ class IntegrationTest extends TestCase
 
         $response = $this->postJson('/api/integrations', [
             'provider' => 'stripe',
-            'credentials' => ['api_key' => 'sk_test_123'],
+            'credentials' => ['secret_key' => 'sk_test_123'],
             'is_active' => true,
         ])->assertCreated()
             ->assertJsonPath('data.provider', 'stripe')
@@ -59,7 +59,7 @@ class IntegrationTest extends TestCase
         // use the same path as the UI — `test()` reads credentials back.
         $created = $this->postJson('/api/integrations', [
             'provider' => 'stripe',
-            'credentials' => ['api_key' => 'sk_live_abc'],
+            'credentials' => ['secret_key' => 'sk_live_abc'],
             'is_active' => true,
         ])->assertCreated();
 
@@ -128,7 +128,7 @@ class IntegrationTest extends TestCase
 
         $created = $this->postJson('/api/integrations', [
             'provider' => 'stripe',
-            'credentials' => ['api_key' => 'sk_live_xyz', 'webhook_secret' => 'whsec_test'],
+            'credentials' => ['secret_key' => 'sk_live_xyz', 'webhook_secret' => 'whsec_test'],
             'is_active' => true,
         ])->assertCreated();
 
@@ -137,7 +137,7 @@ class IntegrationTest extends TestCase
 
         // The cast must surface a PHP array, not a JSON-encoded string.
         $this->assertIsArray($integration->credentials);
-        $this->assertSame('sk_live_xyz', $integration->credentials['api_key']);
+        $this->assertSame('sk_live_xyz', $integration->credentials['secret_key']);
         $this->assertSame('whsec_test', $integration->credentials['webhook_secret']);
 
         // Also confirm the on-disk payload decrypts to exactly one layer
@@ -147,7 +147,7 @@ class IntegrationTest extends TestCase
             ->value('credentials');
         $decoded = json_decode(Crypt::decryptString($raw), true);
         $this->assertIsArray($decoded);
-        $this->assertSame('sk_live_xyz', $decoded['api_key']);
+        $this->assertSame('sk_live_xyz', $decoded['secret_key']);
     }
 
     public function test_agency_admin_cannot_manage_other_agency_integrations(): void

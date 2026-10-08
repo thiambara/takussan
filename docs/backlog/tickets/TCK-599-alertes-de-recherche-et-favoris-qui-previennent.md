@@ -683,8 +683,8 @@ Restauration vérifiée par md5 après chaque ablation.
 - **Favoris qui préviennent** : `SendFavoriteChangeAlerts` quotidien (09:15), prix comparés en
   centimes entiers, base posée par `FavoriteObserver::creating`, bases avancées APRÈS l'envoi.
 - **Gardes** : l'exemption `FavoriteController::store` de `check-agency-scope-clause` est morte
-  depuis Delta A — retirée, cliquet 1 → 0 (`a327a4b1`). `docs/models-spec.md` : §84
-  `AlertSubscriber` (§80 avant la fusion de 596 et 600), colonnes neuves de `Favorite` et `SavedSearch`.
+  depuis Delta A — retirée, cliquet 1 → 0 (`a327a4b1`). `docs/models-spec.md` : §85
+  `AlertSubscriber` (§80 avant la fusion de 596 et 600, §84 avant celle de 602), colonnes neuves de `Favorite` et `SavedSearch`.
 
 | Ablation (`ablate.py` / `ablate2.py`, cp + md5) | Test | Résultat |
 |---|---|---|

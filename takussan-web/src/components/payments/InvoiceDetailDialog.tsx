@@ -57,7 +57,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
   // TCK-594 (ADR-0039 §5) — un avoir se lit comme tel, et l'avoir se lit sur la facture qu'il annule.
   const isCreditNote = invoice?.kind === 'credit_note';
   const status = (invoice?.status ?? 'draft') as InvoiceStatus;
-  const { providers } = usePaymentProviders(invoice?.agency_id ?? null);
+  const { providers } = usePaymentProviders('invoices', invoiceId);
 
   return (
     <Dialog open={invoiceId !== null} onOpenChange={(open) => !open && onClose()}>

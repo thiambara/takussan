@@ -337,6 +337,9 @@ return [
         'status_transition_invalid' => 'Soppi statut fay bii nangouñu ko.',
         'type_unknown' => 'Xeetu fay bii xamuñu ko.',
         'webhook_endpoint_missing' => 'Intégration fay bi amul adrees notification : defaraatal ko.',
+        'provider_not_available' => 'Fey ak :provider amul ngir fey bii.',
+        'provider_unavailable' => 'Jottalikatu fey bi tontuwul. Jéemaatal ci ay simili.',
+        'integration_misconfigured' => 'Feyu internet bi baaxul ngir jottalikat bii. Jokkool ak sa ajaas.',
     ],
     'payout' => [
         'agency_required' => 'Reversement dañu koy def ci turu agence.',
@@ -466,6 +469,7 @@ return [
         'password_in_query' => 'Baatu jàll bu lien bi, ci biir laaj bi lañu koy yónnee, du ci URL bi.',
         'password_invalid' => 'Baatu jàll bi baaxul.',
         'revoked' => 'Lënku séddoo bii dindi nañu ko.',
+        'too_many_attempts' => 'Baatu jàll yu baaxul bari na ci lien bii. Jéemaatal ci ay simili.',
     ],
     'super_admin' => [
         'code_invalid' => 'Kodu TOTP du baax.',
@@ -538,5 +542,14 @@ return [
     ],
     'wizard_draft' => [
         'not_found' => 'Amul benn brouillon.',
+    ],
+    'webhook_log' => [
+        'not_replayable' => 'Bind bii mënuñu ko defaat : webhook bu ñu wóor, bu dañu ci tële walla bu amul lu mu méngóo, te ñu denc corps bi rekk lañuy defaat.',
+        'integration_unavailable' => 'Intégration bi wóoral webhook bii dootul dox : mënuñu ko defaat.',
+    ],
+    'pay_link' => [
+        'not_found' => 'Lien fey bii amul.',
+        'gone' => 'Lien fey bii jariñatul. Laajal :agency benn bu bees.',
+        'receipt_unavailable' => 'Kitaas bi dafay am su fey bi agsee rekk.',
     ],
 ];

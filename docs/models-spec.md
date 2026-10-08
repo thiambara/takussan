@@ -237,9 +237,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 
 #### Console plateforme
 83. [ImpersonationSession](#83-impersonationsession-) 🆕
+#### Paiement sans compte (TCK-602, ADR-0051)
+84. [LeasePaymentLink](#84-leasepaymentlink-) 🆕
 
 #### Alertes de recherche (TCK-599)
-84. [AlertSubscriber](#84-alertsubscriber-) 🆕
+85. [AlertSubscriber](#85-alertsubscriber-) 🆕
 
 ### Enums
 
@@ -3370,7 +3372,36 @@ activité écrite pendant une requête authentifiée par le jeton d'une session 
 
 ---
 
-### 84. AlertSubscriber 🆕
+### 84. LeasePaymentLink 🆕
+
+> **Entrée minimale posée par TCK-602** ; description complète par `/sync-specs`. Source :
+> ADR-0051 §1.
+
+**Table :** `lease_payment_links`
+**Description :** Lien de paiement `/pay/{jeton}` d'une échéance de loyer, pour un locataire sans
+compte. Un seul lien actif par échéance ; le jeton se cherche par son empreinte et se relit chiffré.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| lease_payment_id | FK lease_payments | | | `cascadeOnDelete` (`lpl_lease_payment_fk`) |
+| token_hash | char(64) | | | sha256 du jeton — unique (`lpl_token_hash_unique`) |
+| token | text | | | Jeton (32 octets base64url), casté `encrypted`, `$hidden` |
+| expires_at | timestamp | | | max(aujourd'hui, échéance) + 60 j ; ramené à `paid_at` + 30 j une fois payée (calculé, non écrit) |
+| revoked_at | timestamp | oui | null | Révoqué (régénération, révocation) |
+| last_accessed_at | timestamp | oui | null | Dernière lecture publique |
+| access_count | unsignedInteger | | 0 | Lectures publiques |
+| created_by_id | FK users | oui | null | `nullOnDelete` (`lpl_created_by_fk`) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** index unique partiel `lpl_one_active_per_payment_unique` sur `lease_payment_id`
+`WHERE revoked_at IS NULL` — un seul lien actif par échéance. Index `lpl_lease_payment_idx`.
+
+**Relations :** `leasePayment()` → belongsTo LeasePayment (`withTrashed`) ; `creator()` → belongsTo User.
+
+---
+
+### 85. AlertSubscriber 🆕
 
 **Table :** `alert_subscribers`
 **Description :** Le destinataire d'une alerte de recherche **sans compte** (TCK-599,

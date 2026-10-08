@@ -47,6 +47,21 @@ export interface IntegrationWebhookEndpoint {
   url: string;
 }
 
+/**
+ * TCK-602 (ADR-0051 §3) — un fournisseur de paiement et les champs de son schéma
+ * (`GET /api/integrations/payment-providers`) : exactement les clés que son pilote lit.
+ */
+export interface PaymentProviderSchema {
+  readonly key: string;
+  readonly label: string;
+  readonly fields: readonly {
+    readonly name: string;
+    readonly type: string;
+    readonly secret: boolean;
+    readonly required: boolean;
+  }[];
+}
+
 export interface IntegrationTestResult {
   ok: boolean;
   message: string;

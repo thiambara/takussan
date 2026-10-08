@@ -131,6 +131,9 @@ const LES_DIX: readonly (readonly [string, () => Promise<unknown>])[] = [
   // TCK-293 — l'adresse de notification : la lire et la régénérer portent la même agence.
   ['fetchIntegrationWebhookEndpointAction', () => actions.fetchIntegrationWebhookEndpointAction(1)],
   ['rotateIntegrationWebhookEndpointAction', () => actions.rotateIntegrationWebhookEndpointAction(1)],
+  // TCK-602 (ADR-0051 §3) — les champs exigés par fournisseur : la route est sous la même garde
+  // d'intégrations que la liste, un multi-agences sans hint y prendrait le même 403.
+  ['fetchPaymentProviderSchemasAction', () => actions.fetchPaymentProviderSchemasAction()],
 ];
 
 describe('admin-settings — le contexte d’agence sur TOUTES les actions', () => {

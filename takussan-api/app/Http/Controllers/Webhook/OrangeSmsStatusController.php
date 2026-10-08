@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhook;
 use App\Http\Controllers\Controller;
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -50,13 +51,24 @@ use Illuminate\Http\Request;
  */
 class OrangeSmsStatusController extends Controller
 {
-    public function __invoke(Request $request, DeliveryAttemptUpdater $updater): JsonResponse
+    public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
         $token = (string) config('sms.webhook_url_token', '');
         if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
             abort(404);
         }
+        // TCK-602 — l'IP (`restrict.ip`, en amont) et le jeton ont passé.
+        $journal->authenticated();
 
+        return $this->process($request, $updater, $journal);
+    }
+
+    /**
+     * TCK-602 (ADR-0051 §5) — le traitement d'un accusé AUTHENTIFIÉ : la route y arrive après le
+     * jeton, le rejeu d'une ligne du journal directement (Orange ne signe rien, D-49).
+     */
+    public function process(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
+    {
         $payload = $request->json()->all();
         $info = $payload['deliveryInfoNotification']['deliveryInfo'] ?? [];
         $providerStatus = (string) ($info['deliveryStatus'] ?? '');
@@ -68,6 +80,7 @@ class OrangeSmsStatusController extends Controller
         if ($providerMessageId === '') {
             abort(404);
         }
+        $journal->annotate(['external_id' => $providerMessageId, 'event_type' => $providerStatus]);
         $newStatus = match ($providerStatus) {
             'DeliveredToTerminal' => SmsResult::STATUS_DELIVERED,
             'DeliveryImpossible',
@@ -84,9 +97,12 @@ class OrangeSmsStatusController extends Controller
             deliveredAt: $deliveredAt,
         );
         if (! $updated) {
-            // Silent 404 — payload didn't match any tracked attempt.
+            // Silent 404 — payload didn't match any tracked attempt. TCK-602 — un « non apparié »,
+            // que le journal garde `processed`, `matched_count = 0`.
+            $journal->unmatched();
             abort(404);
         }
+        $journal->annotate(['matched_count' => 1]);
 
         return new JsonResponse(['ok' => true]);
     }

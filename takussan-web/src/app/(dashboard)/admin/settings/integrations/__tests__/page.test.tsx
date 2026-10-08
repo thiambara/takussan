@@ -53,6 +53,7 @@ vi.mock('@/app/actions/auth', () => ({
 
 vi.mock('@/app/actions/admin-settings', () => ({
   fetchIntegrationsAction: async () => ({ ok: true, data: { data: [] } }),
+  fetchPaymentProviderSchemasAction: async () => ({ ok: true, data: [] }),
 }));
 
 // L'écran des intégrations lui-même est hors périmètre du ticket ; seul son ACCÈS est en jeu.

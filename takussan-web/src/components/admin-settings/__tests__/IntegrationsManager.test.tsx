@@ -275,4 +275,51 @@ describe('<IntegrationsManager />', () => {
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
   });
+
+  describe('TCK-602 — fournisseur de paiement : les champs du schéma serveur', () => {
+    const SCHEMAS = [
+      {
+        key: 'orange_money',
+        label: 'Orange Money',
+        fields: [
+          { name: 'client_id', type: 'text', secret: false, required: true },
+          { name: 'client_secret', type: 'password', secret: true, required: true },
+          { name: 'merchant_key', type: 'text', secret: false, required: true },
+          { name: 'webhook_secret', type: 'password', secret: true, required: true },
+        ],
+      },
+    ];
+
+    it('présente les champs du schéma, envoie ces clés, et affiche l’erreur credentials.<clé> sous son champ', async () => {
+      createMock.mockResolvedValue({
+        ok: false,
+        message: 'invalide',
+        errors: { 'credentials.merchant_key': ['Le champ merchant_key est obligatoire.'] },
+      });
+      const user = userEvent.setup();
+      renderWithIntl(<IntegrationsManager initialIntegrations={[]} paymentProviders={SCHEMAS} />);
+      await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+      fireEvent.change(screen.getByLabelText(/Fournisseur/), { target: { value: 'orange_money' } });
+
+      expect(screen.getByTestId('payment-provider-fields')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Clé API/)).toBeNull();
+      await user.type(screen.getByLabelText('Identifiant client (client ID)'), 'cid');
+      await user.type(screen.getByLabelText('Secret client'), 'csec');
+      await user.type(screen.getByLabelText('Secret de webhook'), 'ws');
+      await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+      expect(createMock).toHaveBeenCalledTimes(1);
+      expect(createMock.mock.calls[0][0].credentials).toEqual({ client_id: 'cid', client_secret: 'csec', webhook_secret: 'ws' });
+      expect(await screen.findByText('Le champ merchant_key est obligatoire.')).toBeInTheDocument();
+    });
+
+    it('sans schéma (lecture échouée), retombe sur les champs génériques', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
+      await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+      fireEvent.change(screen.getByLabelText(/Fournisseur/), { target: { value: 'orange_money' } });
+
+      expect(screen.queryByTestId('payment-provider-fields')).toBeNull();
+    });
+  });
 });

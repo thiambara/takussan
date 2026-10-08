@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Admin\KycController;
 use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
+use App\Http\Controllers\Api\Admin\PaymentSupervisionController;
 use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\Admin\PlatformAbilityController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
+use App\Http\Controllers\Api\Admin\WebhookLogController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -248,6 +250,15 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('integrations/{integration}/test', [IntegrationController::class, 'test'])->name('admin.integrations.test');
     Route::get('integrations/{integration}', [IntegrationController::class, 'show'])->name('admin.integrations.show');
     Route::patch('integrations/{integration}', [IntegrationController::class, 'update'])->name('admin.integrations.update');
+
+    // TCK-602 (ADR-0051) — le journal des webhooks entrants, et son rejeu (geste sensible : step-up).
+    Route::get('webhook-logs', [WebhookLogController::class, 'index'])->name('admin.webhook-logs.index');
+    Route::get('webhook-logs/{webhookLog}', [WebhookLogController::class, 'show'])->name('admin.webhook-logs.show');
+    Route::post('webhook-logs/{webhookLog}/replay', [WebhookLogController::class, 'replay'])->name('admin.webhook-logs.replay');
+
+    // TCK-602 — la console « Paiements » : le littéral avant toute route paramétrée.
+    Route::get('payments/summary', [PaymentSupervisionController::class, 'summary'])->name('admin.payments.summary');
+    Route::get('payments', [PaymentSupervisionController::class, 'index'])->name('admin.payments.index');
 
     Route::get('maintenance', [MaintenanceController::class, 'show'])->name('admin.maintenance.show');
     Route::post('maintenance', [MaintenanceController::class, 'store'])->name('admin.maintenance.store');
