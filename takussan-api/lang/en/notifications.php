@@ -79,20 +79,6 @@ return [
         'role_delegation_revoked' => 'Delegation revoked',
     ],
 
-    'visit_requested' => [
-        'subject' => 'New visit request for :property',
-        'greeting' => 'Hello,',
-        'intro' => 'A visitor has requested a visit for :property.',
-        'schedule' => 'Requested slot: :datetime.',
-    ],
-
-    'visit_confirmed' => [
-        'subject' => 'Visit confirmed for :property',
-        'greeting' => 'Hello,',
-        'intro' => 'Your visit request for :property has been confirmed.',
-        'schedule' => 'Scheduled for: :datetime.',
-    ],
-
     'task_due_reminder' => [
         'subject' => 'Reminder: task due soon — :title',
         'greeting' => 'Hello,',
@@ -243,62 +229,6 @@ return [
         'action' => 'Open “My data”',
         'expires' => '{1} You can download it from that page for :count day.|[2,*] You can download it from that page for :count days.',
     ],
-    // ── TCK-590 — contact, requests and visits ────────────────────────────────────────────
-    'visit_time' => ':date at :time (Dakar time)',
-
-    'visit_requested_contact' => 'To reach the visitor: :contact.',
-
-    'visit_sms' => [
-        'visit_confirmed' => 'Takussan: your visit of “:property” is confirmed for :datetime.',
-        'visit_rescheduled' => 'Takussan: your visit of “:property” has been moved to :datetime.',
-        'visit_cancelled' => 'Takussan: your visit of “:property” planned for :datetime is cancelled.',
-    ],
-
-    'visit_rescheduled' => [
-        'subject' => 'Your visit of :property has a new time',
-        'greeting' => 'Hello,',
-        'intro' => 'The agency has moved your visit of :property.',
-        'schedule' => 'New time: :datetime.',
-    ],
-
-    'visit_rescheduled_by_visitor' => [
-        'subject' => 'A visitor suggests another slot for :property',
-        'greeting' => 'Hello,',
-        'intro' => 'The visitor has suggested another slot for :property. The visit awaits your confirmation.',
-        'schedule' => 'Suggested slot: :datetime.',
-    ],
-
-    'visit_cancelled' => [
-        'subject' => 'Your visit of :property is cancelled',
-        'greeting' => 'Hello,',
-        'intro' => 'The agency has cancelled your visit of :property.',
-        'schedule' => 'It was planned for :datetime.',
-    ],
-
-    'visit_cancelled_by_visitor' => [
-        'subject' => 'Visit cancelled by the visitor: :property',
-        'greeting' => 'Hello,',
-        'intro' => 'The visitor has cancelled their visit of :property.',
-        'schedule' => 'It was planned for :datetime.',
-    ],
-
-    'contact_lead' => [
-        'title' => 'New request from :name — :contact',
-        'greeting' => 'Hello,',
-        'intro_property' => 'A contact request has arrived for :property.',
-        'intro_agent' => 'A contact request has been sent to you.',
-        'from' => 'From :name — :contact',
-        'action' => 'Open the request',
-    ],
-
-    'contact_lead_received' => [
-        'subject' => 'Your request has been sent',
-        'greeting' => 'Hello,',
-        'intro_property' => 'Your request about “:property” has been sent to the agency.',
-        'intro_agent' => 'Your request has been sent to the agent.',
-        'next' => 'They will get back to you shortly, by phone or by email.',
-    ],
-    // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
 
     // TCK-588 — alertes administrateur (canaux Slack, Discord, e-mail de l'exploitant).
     'admin_alert' => [
@@ -376,6 +306,42 @@ return [
                 'body' => 'Reminder: the visit of :property is scheduled for :scheduled_at.',
                 'sms' => 'Takussan: visit of :property on :scheduled_at.',
             ],
+            'requested' => [
+                'title' => 'Visit request: :property',
+                'body' => 'Requested slot: :scheduled_at. To reach the visitor: :contact.',
+                'mail_body' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).\nTo reach the visitor: :contact.",
+                'sms' => 'Takussan: visit request for :property on :scheduled_at (:timezone).',
+            ],
+            'rescheduled_by_visitor' => [
+                'title' => 'Another slot suggested: :property',
+                'body' => 'The visitor suggests :scheduled_at. The visit awaits your confirmation.',
+                'mail_body' => "The visitor has suggested another slot for :property. The visit awaits your confirmation.\nSuggested slot: :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: the visitor suggests :scheduled_at (:timezone) for :property.',
+            ],
+            'cancelled_by_visitor' => [
+                'title' => 'Visit cancelled by the visitor: :property',
+                'body' => 'The visitor has cancelled the visit planned for :scheduled_at.',
+                'mail_body' => "The visitor has cancelled their visit of :property.\nIt was planned for :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: the visitor cancelled the visit of :property on :scheduled_at (:timezone).',
+            ],
+            'confirmed' => [
+                'title' => 'Visit confirmed: :property',
+                'body' => 'Your visit of :property is confirmed for :scheduled_at.',
+                'mail_body' => "Your visit request for :property has been confirmed.\nScheduled for :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: your visit of “:property” is confirmed for :scheduled_at (:timezone).',
+            ],
+            'rescheduled' => [
+                'title' => 'Your visit of :property has a new time',
+                'body' => 'New time: :scheduled_at.',
+                'mail_body' => "The agency has moved your visit of :property.\nNew time: :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: your visit of “:property” has been moved to :scheduled_at (:timezone).',
+            ],
+            'cancelled' => [
+                'title' => 'Your visit of :property is cancelled',
+                'body' => 'The visit planned for :scheduled_at is cancelled.',
+                'mail_body' => "The agency has cancelled your visit of :property.\nIt was planned for :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: your visit of “:property” planned for :scheduled_at (:timezone) is cancelled.',
+            ],
         ],
         'message' => [
             'received' => [
@@ -386,9 +352,14 @@ return [
         ],
         'lead' => [
             'received' => [
-                'title' => 'New contact without an account',
-                'body' => ':name (:email): :excerpt',
-                'sms' => 'Takussan: new contact from :name.',
+                'title' => 'New request from :name — :contact',
+                'body' => ':name (:contact): :message',
+                'sms' => 'Takussan: new request from :name.',
+            ],
+            'acknowledged' => [
+                'title' => 'Your request has been sent',
+                'body' => 'Your request about “:about” has been sent. You will hear back shortly, by phone or by email.',
+                'sms' => 'Takussan: your request about :about has been sent.',
             ],
         ],
         'kyc' => [

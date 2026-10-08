@@ -2,14 +2,16 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
-use App\Notifications\VisitRescheduledNotification;
+use App\Notifications\CodedNotification;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
@@ -18,6 +20,7 @@ use Tests\Support\FabriqueDemandesEtVisites;
  */
 class PropertyVisitRescheduleTest extends ApiTestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -51,8 +54,8 @@ class PropertyVisitRescheduleTest extends ApiTestCase
         $visite->refresh();
         $this->assertSame(VisitStatus::Scheduled, $visite->status);
         $this->assertTrue($visite->scheduled_at->equalTo(Carbon::parse($nouveau)));
-        Notification::assertSentToTimes($agent, VisitRescheduledNotification::class, 1);
-        Notification::assertNotSentTo($visiteur, VisitRescheduledNotification::class);
+        $this->assertSame(1, self::nombreDEnvois($agent, NotificationCode::VisitRescheduledByVisitor));
+        Notification::assertNotSentTo($visiteur, CodedNotification::class, self::deCode(NotificationCode::VisitRescheduled, NotificationCode::VisitRescheduledByVisitor));
     }
 
     public function test_une_visite_annulee_ne_se_replanifie_pas(): void

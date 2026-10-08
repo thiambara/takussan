@@ -2,21 +2,20 @@
 
 namespace App\Services\Visit;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Notifications\VisitCancelledNotification;
-use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitNotification;
-use App\Notifications\VisitRequestedNotification;
-use App\Notifications\VisitRescheduledNotification;
+use App\Notifications\CodedNotification;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Lead\ContactLeadService;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\ContactSansCompte;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Support\TelephoneSaisi;
-use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
@@ -29,9 +28,13 @@ use Illuminate\Support\Facades\RateLimiter;
  * **Vers l'agence** : l'agent assigné, le contact principal du bien, le propriétaire ; si la
  * visite est non attribuée, les admins de l'agence (le repli de `ContactLeadService`).
  *
- * **Vers le visiteur** : son compte s'il en a un ; sinon son e-mail et son téléphone saisis, par
- * `Notification::route()`, dans la langue enregistrée sur la visite. Un seul envoi par visite et
+ * **Vers le visiteur** : son compte s'il en a un ; sinon un {@see ContactSansCompte} — son e-mail
+ * et son téléphone saisis, dans la langue enregistrée sur la visite. Un seul envoi par visite et
  * par événement.
+ *
+ * TCK-588 (ADR-0032) — chaque événement est un CODE envoyé par {@see NotificationService::send()} :
+ * la ligne de la cloche, l'e-mail, le push et le SMS sont rendus dans la langue du destinataire,
+ * l'heure dans son fuseau (Dakar par défaut) suivie de ce fuseau (`timezone`).
  *
  * Un échec d'envoi ne casse jamais la requête qui l'a déclenché.
  */
@@ -54,11 +57,14 @@ class VisitNotifier
     /** Passe 3 (R1) — le code rendu à l'appelant quand le SMS au visiteur est retenu. */
     public const CODE_SMS_RETENU = 'visit_sms_capped';
 
-    public function __construct(private readonly ContactLeadService $leads) {}
+    public function __construct(
+        private readonly ContactLeadService $leads,
+        private readonly NotificationService $notifications,
+    ) {}
 
     public function requested(PropertyVisit $visit): void
     {
-        $this->toAgency($visit, new VisitRequestedNotification($visit), withPrimaryAndOwner: true);
+        $this->toAgency($visit, NotificationCode::VisitRequested, withPrimaryAndOwner: true);
     }
 
     /**
@@ -67,29 +73,29 @@ class VisitNotifier
      */
     public function confirmed(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, new VisitConfirmedNotification($visit), $emetteur);
+        return $this->toVisitor($visit, NotificationCode::VisitConfirmed, $emetteur);
     }
 
     /** L'agence a déplacé l'heure : le visiteur est prévenu. */
     public function rescheduledByAgency(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, new VisitRescheduledNotification($visit), $emetteur);
+        return $this->toVisitor($visit, NotificationCode::VisitRescheduled, $emetteur);
     }
 
     /** Le visiteur propose un autre créneau : l'agence est prévenue. */
     public function rescheduledByVisitor(PropertyVisit $visit): void
     {
-        $this->toAgency($visit, new VisitRescheduledNotification($visit, parLeVisiteur: true));
+        $this->toAgency($visit, NotificationCode::VisitRescheduledByVisitor);
     }
 
     public function cancelledByAgency(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, new VisitCancelledNotification($visit), $emetteur);
+        return $this->toVisitor($visit, NotificationCode::VisitCancelled, $emetteur);
     }
 
     public function cancelledByVisitor(PropertyVisit $visit): void
     {
-        $this->toAgency($visit, new VisitCancelledNotification($visit, parLeVisiteur: true));
+        $this->toAgency($visit, NotificationCode::VisitCancelledByVisitor);
     }
 
     /**
@@ -143,18 +149,20 @@ class VisitNotifier
         return $recipients->filter()->unique('id')->values();
     }
 
-    private function toAgency(PropertyVisit $visit, VisitNotification $notification, bool $withPrimaryAndOwner = false): void
+    private function toAgency(PropertyVisit $visit, NotificationCode $code, bool $withPrimaryAndOwner = false): void
     {
-        $recipients = $this->agencyRecipients($visit, $withPrimaryAndOwner);
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
-        try {
-            Notification::send($recipients, $notification);
-        } catch (\Throwable) {
-            // Notification routing failures must never bubble up and break
-            // the originating HTTP request.
+        foreach ($this->agencyRecipients($visit, $withPrimaryAndOwner) as $recipient) {
+            try {
+                $this->notifications->send(
+                    $recipient,
+                    $code,
+                    $this->params($visit, $code, $recipient->timezone),
+                    NotificationTarget::of('visit', $visit->id),
+                );
+            } catch (\Throwable) {
+                // Notification routing failures must never bubble up and break
+                // the originating HTTP request.
+            }
         }
     }
 
@@ -162,35 +170,74 @@ class VisitNotifier
      * Passe 3 (R1) — rend le sort du SMS, pour que l'action le dise à l'appelant : un SMS retenu
      * sans signal laissait l'agent croire le client prévenu.
      */
-    private function toVisitor(PropertyVisit $visit, VisitNotification $notification, ?User $emetteur): ?bool
+    private function toVisitor(PropertyVisit $visit, NotificationCode $code, ?User $emetteur): ?bool
     {
         $visit->loadMissing(['visitor', 'property']);
 
         try {
-            if ($visit->visitor !== null) {
-                $sms = $this->borneLeSms($visit, $visit->visitor, $notification, $emetteur);
-                $visit->visitor->notify($notification);
-
-                return $sms;
-            }
-
-            $routes = array_filter([
-                'mail' => $visit->visitor_email,
-                'sms' => $visit->visitor_phone,
-            ]);
-            if ($routes === []) {
+            $to = $visit->visitor ?? ContactSansCompte::fromVisit($visit);
+            if ($to instanceof ContactSansCompte && ! $to->hasPhone() && ! $to->hasEmail()) {
                 return null;
             }
 
-            $anonymous = Notification::routes($routes);
-            $sms = $this->borneLeSms($visit, $anonymous, $notification, $emetteur);
-            $anonymous->notify($notification->locale($visit->locale ?? config('app.locale')));
+            $sms = $this->borneLeSms($visit, $this->numeroMobile($to, $code), $code, $emetteur);
+            $this->notifications->send(
+                $to,
+                $code,
+                $this->params($visit, $code, $to instanceof User ? $to->timezone : null),
+                $to instanceof User ? NotificationTarget::of('visit', $visit->id) : null,
+                // Le SMS est borné ICI, seule source du plafond : `true` dit aux canaux mobiles de
+                // ne pas le recompter, `false` (retenu, ou pas de mobile) n'en ouvre aucun.
+                mobileBorne: $sms === true,
+            );
 
             return $sms;
         } catch (\Throwable) {
             // Silent — see toAgency().
             return null;
         }
+    }
+
+    /**
+     * Les paramètres BRUTS d'un code de visite. Aucun texte libre du visiteur : ni son message, ni
+     * le nom qu'il a saisi (contrainte 4) ; une demande neuve porte de quoi le joindre.
+     *
+     * @return array<string, mixed>
+     */
+    private function params(PropertyVisit $visit, NotificationCode $code, ?string $timezone): array
+    {
+        $params = [
+            'property' => $visit->property?->title ?? '#'.$visit->id,
+            'scheduled_at' => $visit->scheduled_at?->toIso8601String(),
+            'timezone' => $timezone ?: NotificationRenderer::DEFAULT_TIMEZONE,
+        ];
+        if ($code === NotificationCode::VisitRequested) {
+            $params['contact'] = implode(' · ', array_filter([$visit->visitor_phone, $visit->visitor_email])) ?: null;
+        }
+
+        return $params;
+    }
+
+    /**
+     * Le numéro vers lequel un canal mobile partirait, ou `null` s'il n'en part aucun : code non
+     * mobile, préférences du compte, numéro absent ou fixe (vérification adverse, m7).
+     */
+    private function numeroMobile(User|ContactSansCompte $to, NotificationCode $code): ?string
+    {
+        if (! $code->mobile()) {
+            return null;
+        }
+
+        if ($to instanceof ContactSansCompte) {
+            return TelephoneSaisi::recoitLesSms($to->phone) ? $to->phone : null;
+        }
+
+        $sonde = new CodedNotification($code, []);
+        if (array_intersect($sonde->via($to), ['sms', 'whatsapp']) === []) {
+            return null;
+        }
+
+        return TelephoneSaisi::normaliser($to->routeNotificationFor('sms', $sonde) ?? $to->phone);
     }
 
     /**
@@ -214,17 +261,16 @@ class VisitNotifier
      * {@see self::SMS_PAR_JOUR_PAR_EMETTEUR} par jour. Un particulier faisait partir 15 SMS vers
      * 3 numéros, 5 chacun, sans rien qui le borne lui.
      *
+     * TCK-588 — c'est la SEULE borne d'un SMS de visite. Les canaux SMS et WhatsApp ont leur propre
+     * limite horaire par numéro (5/h, `sms-channel:phone:<e164>`) pour les codes qui ne sont pas
+     * bornés en amont ; un SMS qui a passé celle-ci la saute ({@see CodedNotification::mobileDejaBorne()}).
+     * Compté deux fois, le plafond global par numéro reviendrait par la porte du canal, et un
+     * particulier qui l'épuise couperait de nouveau les SMS des agences (R1).
+     *
      * @return bool|null `true` le SMS part, `false` il est retenu, `null` aucun SMS prévu
      */
-    private function borneLeSms(PropertyVisit $visit, object $notifiable, VisitNotification $notification, ?User $emetteur): ?bool
+    private function borneLeSms(PropertyVisit $visit, ?string $numero, NotificationCode $code, ?User $emetteur): ?bool
     {
-        if (! in_array('sms', $notification->via($notifiable), true)) {
-            return null;
-        }
-
-        $numero = TelephoneSaisi::normaliser($notifiable instanceof AnonymousNotifiable
-            ? ($notifiable->routes['sms'] ?? null)
-            : ($notifiable->routeNotificationFor('sms', $notification) ?? $notifiable->phone ?? null));
         if (! is_string($numero) || $numero === '') {
             return null;
         }
@@ -243,10 +289,9 @@ class VisitNotifier
             || RateLimiter::tooManyAttempts($jour, self::SMS_PAR_JOUR)
             || RateLimiter::tooManyAttempts($filet, self::SMS_PAR_JOUR_PAR_NUMERO)
             || ($acteur !== null && RateLimiter::tooManyAttempts($acteur, self::SMS_PAR_JOUR_PAR_EMETTEUR))) {
-            $notification->retenirLeSms();
             Log::notice('visit.sms_retenu', [
                 'visit_id' => $visit->id,
-                'notification' => class_basename($notification),
+                'code' => $code->value,
                 'destinataire' => substr($empreinte, 0, 16),
             ]);
 

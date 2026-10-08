@@ -3,6 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Models\Customer;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -20,6 +21,9 @@ final class ContactSansCompte
     public const DEFAULT_LOCALE = 'fr';
 
     /**
+     * TCK-590 — un contact sans compte peut aussi avoir laissé un e-mail (le visiteur d'une
+     * demande publique) : il le reçoit alors par e-mail, en plus du canal mobile.
+     *
      * @param  string|null  $phone  E.164 normalisé, ou null quand le numéro est absent/invalide
      */
     private function __construct(
@@ -27,6 +31,7 @@ final class ContactSansCompte
         public readonly ?string $name,
         public readonly string $locale,
         public readonly ?int $customerId,
+        public readonly ?string $email = null,
     ) {}
 
     public static function fromCustomer(Customer $customer): self
@@ -41,7 +46,13 @@ final class ContactSansCompte
         );
     }
 
-    /** Le visiteur d'une visite : `visitor_phone`, sinon le téléphone du client lié. */
+    /**
+     * Le visiteur d'une visite : `visitor_phone`, sinon le téléphone du client lié.
+     *
+     * TCK-590 — sa langue est celle de son compte lié, sinon celle ENREGISTRÉE sur la visite à la
+     * demande (`locale`, la langue de la page publique), sinon `fr` ; son e-mail saisi, sinon
+     * celui de la fiche client.
+     */
     public static function fromVisit(PropertyVisit $visit): self
     {
         $visit->loadMissing('customer.user');
@@ -50,14 +61,34 @@ final class ContactSansCompte
         return new self(
             self::normalize($visit->visitor_phone) ?? self::normalize($customer?->phone),
             $visit->visitor_name ?: null,
-            $customer?->user?->preferredLocale() ?? self::DEFAULT_LOCALE,
+            $customer?->user?->preferredLocale() ?? ($visit->locale ?: self::DEFAULT_LOCALE),
             $customer?->getKey(),
+            self::email($visit->visitor_email) ?? self::email($customer?->email),
         );
+    }
+
+    /**
+     * TCK-590 — l'auteur d'une demande de contact, pour son accusé de réception : son e-mail
+     * SEULEMENT. Un numéro saisi par un tiers ne fait pas partir de SMS (contrainte 4).
+     */
+    public static function fromLead(PropertyContactLead $lead): self
+    {
+        return new self(null, $lead->name ?: null, $lead->locale ?: self::DEFAULT_LOCALE, null, self::email($lead->email));
     }
 
     public function hasPhone(): bool
     {
         return $this->phone !== null;
+    }
+
+    public function hasEmail(): bool
+    {
+        return $this->email !== null;
+    }
+
+    private static function email(?string $email): ?string
+    {
+        return is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) ? trim($email) : null;
     }
 
     private static function normalize(?string $phone): ?string

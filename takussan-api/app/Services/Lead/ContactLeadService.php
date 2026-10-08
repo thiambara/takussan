@@ -2,6 +2,8 @@
 
 namespace App\Services\Lead;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyAdminProfileStatus;
@@ -16,14 +18,13 @@ use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\RoleDelegation;
 use App\Models\User;
-use App\Notifications\ContactLeadReceivedNotification;
-use App\Notifications\NewContactLeadNotification;
 use App\Services\Model\CustomerService;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * TCK-590 — une demande de contact arrive chez QUELQU'UN.
@@ -43,7 +44,10 @@ use Illuminate\Support\Facades\Notification;
  */
 class ContactLeadService
 {
-    public function __construct(private readonly CustomerService $customers) {}
+    public function __construct(
+        private readonly CustomerService $customers,
+        private readonly NotificationService $notifications,
+    ) {}
 
     /**
      * Qui reçoit une demande portant sur ce bien : le contact principal, sinon les lecteurs de
@@ -224,7 +228,7 @@ class ContactLeadService
         $lead->update(['recipient_user_id' => $assignee->id]);
 
         try {
-            $assignee->notify(new NewContactLeadNotification($lead->loadMissing('property')));
+            $this->notifyReceived($lead, $assignee);
         } catch (\Throwable) {
             // Un échec d'envoi ne défait pas l'attribution.
         }
@@ -313,22 +317,47 @@ class ContactLeadService
      * seulement s'il en a donné un (contrainte 4). Un échec d'envoi ne casse jamais la requête :
      * la piste est écrite, elle se relit dans la boîte.
      *
+     * TCK-588 (ADR-0032) — deux codes, `lead.received` et `lead.acknowledged`, rendus dans la langue
+     * de chaque destinataire.
+     *
      * @param  Collection<int,User>  $recipients
      */
     private function dispatch(PropertyContactLead $lead, Collection $recipients): void
     {
-        $lead->loadMissing('property');
+        $lead->loadMissing(['property', 'agency', 'recipient']);
+
+        foreach ($recipients as $recipient) {
+            try {
+                $this->notifyReceived($lead, $recipient);
+            } catch (\Throwable) {
+                // Silencieux — même règle que les notifications de visite.
+            }
+        }
 
         try {
-            if ($recipients->isNotEmpty()) {
-                Notification::send($recipients, new NewContactLeadNotification($lead));
-            }
-            if ($lead->email !== null) {
-                Notification::route('mail', $lead->email)
-                    ->notify((new ContactLeadReceivedNotification($lead))->locale($lead->locale));
+            $contact = ContactSansCompte::fromLead($lead);
+            if ($contact->hasEmail()) {
+                // L'accusé ne recopie rien de ce que le visiteur a saisi : il nomme le bien, sinon
+                // l'agent ou l'agence à qui la demande est allée — des textes de l'agence.
+                $this->notifications->send($contact, NotificationCode::LeadAcknowledged, [
+                    'about' => $lead->property?->title ?: ($lead->recipient?->full_name ?: $lead->agency?->name),
+                ]);
             }
         } catch (\Throwable) {
-            // Silencieux — même règle que les notifications de visite.
+            // Silencieux.
         }
+    }
+
+    /**
+     * De quoi RÉPONDRE : le message entier et le moyen de joindre — téléphone d'abord, e-mail à
+     * défaut. L'extrait de 80 caractères sans téléphone disait seulement qu'on avait été contacté.
+     */
+    private function notifyReceived(PropertyContactLead $lead, User $recipient): void
+    {
+        $this->notifications->send($recipient, NotificationCode::LeadReceived, [
+            'name' => $lead->name,
+            'contact' => implode(' · ', array_filter([$lead->phone, $lead->email])) ?: null,
+            'message' => $lead->message,
+        ], NotificationTarget::of('lead', $lead->id));
     }
 }

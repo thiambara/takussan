@@ -6,6 +6,7 @@ use App\Models\AppNotification;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Models\WhatsappContact;
+use App\Notifications\CodedNotification;
 use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Notifications\PreferenceResolver;
@@ -90,7 +91,9 @@ class WhatsappChannel
         if (! $isCritical && ! $this->isOptedIn($notifiable, $notification)) {
             return null;
         }
-        if (! $isCritical && ! $this->withinRateLimit($notifiable, $phone)) {
+        // TCK-590 — même règle que `SmsChannel` : borné au point d'envoi, pas recompté ici.
+        $dejaBorne = $notification instanceof CodedNotification && $notification->mobileDejaBorne();
+        if (! $isCritical && ! $dejaBorne && ! $this->withinRateLimit($notifiable, $phone)) {
             return null;
         }
 

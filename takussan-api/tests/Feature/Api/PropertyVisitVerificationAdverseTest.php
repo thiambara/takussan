@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgentProfileStatus;
@@ -11,9 +12,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Notifications\VisitCancelledNotification;
-use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitRescheduledNotification;
+use App\Notifications\CodedNotification;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
@@ -23,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
@@ -35,6 +35,7 @@ use Tests\Support\FabriqueDemandesEtVisites;
  */
 class PropertyVisitVerificationAdverseTest extends ApiTestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -185,7 +186,7 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         $this->assertSame('+221770000099', $visite->visitor_phone);
         $this->assertDatabaseMissing('property_visits', ['visitor_phone' => '+221776660002']);
         Notification::assertNothingSentTo(new AnonymousNotifiable);
-        Notification::assertNotSentTo($bailleur, VisitConfirmedNotification::class);
+        Notification::assertNotSentTo($bailleur, CodedNotification::class, self::deCode(NotificationCode::VisitConfirmed));
     }
 
     /** B2 (R) — la planification est bornée par DESTINATAIRE : 5 visites par heure vers un même numéro. */
@@ -498,11 +499,11 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
         $this->postJson("/api/property-visits/{$annulee->id}/cancel")->assertOk();
         $this->postJson("/api/property-visits/{$deplacee->id}/reschedule", ['scheduled_at' => $this->creneau(jours: 5, heure: 11)])->assertOk();
 
-        Notification::assertSentTo($admin, VisitCancelledNotification::class);
-        Notification::assertSentTo($admin, VisitRescheduledNotification::class);
-        Notification::assertNotSentTo($bailleur, VisitCancelledNotification::class);
-        Notification::assertNotSentTo($bailleur, VisitRescheduledNotification::class);
-        Notification::assertNotSentTo($agent, VisitCancelledNotification::class);
+        Notification::assertSentTo($admin, CodedNotification::class, self::deCode(NotificationCode::VisitCancelledByVisitor));
+        Notification::assertSentTo($admin, CodedNotification::class, self::deCode(NotificationCode::VisitRescheduledByVisitor));
+        Notification::assertNotSentTo($bailleur, CodedNotification::class, self::deCode(NotificationCode::VisitCancelledByVisitor));
+        Notification::assertNotSentTo($bailleur, CodedNotification::class, self::deCode(NotificationCode::VisitRescheduledByVisitor));
+        Notification::assertNotSentTo($agent, CodedNotification::class, self::deCode(NotificationCode::VisitCancelledByVisitor));
     }
 
     /** M4 (R) — un agent SUSPENDU n'est ni attribuable, ni preneur. */
@@ -548,7 +549,7 @@ class PropertyVisitVerificationAdverseTest extends ApiTestCase
             'scheduled_at' => $this->creneau(), 'duration_minutes' => 240,
         ])->assertCreated()->assertJsonPath('data.status', VisitStatus::Confirmed->value);
 
-        Notification::assertSentOnDemand(VisitConfirmedNotification::class);
+        $this->assertCount(1, self::envoisALaDemande(NotificationCode::VisitConfirmed));
         $this->assertInstanceOf(User::class, $agent);
     }
 

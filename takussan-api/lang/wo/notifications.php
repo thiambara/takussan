@@ -228,77 +228,6 @@ return [
         'action' => 'Ubbi « Samay xibaar »',
         'expires' => '{1} Mën nga ko wàcce ci xët woowu diirub :count fan.|[2,*] Mën nga ko wàcce ci xët woowu diirub :count fan.',
     ],
-    // ── TCK-590 — jokkoo, laaj ak seetaan (xoolal fichier fr bi) ──────────────────────────
-    'visit_time' => ':date ci :time (waxtu Dakar)',
-
-    'visit_requested_contact' => 'Ngir jokkoo ak ki bëgg seetaan : :contact.',
-
-    'visit_sms' => [
-        'visit_confirmed' => 'Takussan : sa seetaanu « :property » dëggal nañu ko ci :datetime.',
-        'visit_rescheduled' => 'Takussan : sa seetaanu « :property » toxal nañu ko ci :datetime.',
-        'visit_cancelled' => 'Takussan : sa seetaanu « :property » bu waroon am ci :datetime, neenal nañu ko.',
-    ],
-
-    // Wolof ameegul woon caabi yii (TCK-590, AC22).
-    'visit_requested' => [
-        'subject' => 'Laaj bu bees ngir seetaan :property',
-        'greeting' => 'Salaam,',
-        'intro' => 'Am na ku laaj seetaan :property.',
-        'schedule' => 'Waxtu bi ñu laaj : :datetime.',
-    ],
-
-    'visit_confirmed' => [
-        'subject' => 'Seetaanu :property dëggal nañu ko',
-        'greeting' => 'Salaam,',
-        'intro' => 'Sa laaju seetaan ngir :property dëggal nañu ko.',
-        'schedule' => 'Waxtu bi : :datetime.',
-    ],
-
-    'visit_rescheduled' => [
-        'subject' => 'Waxtu seetaanu :property soppiku na',
-        'greeting' => 'Salaam,',
-        'intro' => 'Ajaans bi toxal na sa seetaanu :property.',
-        'schedule' => 'Waxtu bu bees : :datetime.',
-    ],
-
-    'visit_rescheduled_by_visitor' => [
-        'subject' => 'Ku bëgg seetaan :property dafa joxe beneen waxtu',
-        'greeting' => 'Salaam,',
-        'intro' => 'Ki bëgg seetaan :property joxe na beneen waxtu. Seetaan bi dafay xaar nga dëggal ko.',
-        'schedule' => 'Waxtu bi mu joxe : :datetime.',
-    ],
-
-    'visit_cancelled' => [
-        'subject' => 'Sa seetaanu :property neenal nañu ko',
-        'greeting' => 'Salaam,',
-        'intro' => 'Ajaans bi neenal na sa seetaanu :property.',
-        'schedule' => 'Waroon na am ci :datetime.',
-    ],
-
-    'visit_cancelled_by_visitor' => [
-        'subject' => 'Ki bëgg seetaan neenal na : :property',
-        'greeting' => 'Salaam,',
-        'intro' => 'Ki bëgg seetaan neenal na seetaanu :property.',
-        'schedule' => 'Waroon na am ci :datetime.',
-    ],
-
-    'contact_lead' => [
-        'title' => 'Laaj bu bees bu :name — :contact',
-        'greeting' => 'Salaam,',
-        'intro_property' => 'Laaju jokkoo agsi na ngir :property.',
-        'intro_agent' => 'Am na ku la yónne laaju jokkoo.',
-        'from' => 'Bu :name — :contact',
-        'action' => 'Ubbi laaj bi',
-    ],
-
-    'contact_lead_received' => [
-        'subject' => 'Sa laaj agsi na',
-        'greeting' => 'Salaam,',
-        'intro_property' => 'Sa laaj ci « :property » yónne nañu ko ajaans bi.',
-        'intro_agent' => 'Sa laaj yónne nañu ko ajaan bi.',
-        'next' => 'Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail.',
-    ],
-    // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
 
     // TCK-588 — alertes administrateur (canaux Slack, Discord, e-mail de l'exploitant).
     'admin_alert' => [
@@ -376,6 +305,42 @@ return [
                 'body' => 'Fàttali : seetlu :property mu ngi ci :scheduled_at.',
                 'sms' => 'Takussan : seetlu :property ci :scheduled_at.',
             ],
+            'requested' => [
+                'title' => 'Laaj seetaan : :property',
+                'body' => 'Waxtu bi ñu laaj : :scheduled_at. Ngir jokkoo ak ki bëgg seetaan : :contact.',
+                'mail_body' => "Am na ku laaj seetaan :property.\nWaxtu bi ñu laaj : :scheduled_at (waxtu :timezone).\nNgir jokkoo ak ki bëgg seetaan : :contact.",
+                'sms' => 'Takussan : laaj seetaan ngir :property ci :scheduled_at (:timezone).',
+            ],
+            'rescheduled_by_visitor' => [
+                'title' => 'Beneen waxtu : :property',
+                'body' => 'Ki bëgg seetaan joxe na :scheduled_at. Seetaan bi dafay xaar nga dëggal ko.',
+                'mail_body' => "Ki bëgg seetaan :property joxe na beneen waxtu. Seetaan bi dafay xaar nga dëggal ko.\nWaxtu bi mu joxe : :scheduled_at (waxtu :timezone).",
+                'sms' => 'Takussan : ki bëgg seetaan joxe na :scheduled_at (:timezone) ngir :property.',
+            ],
+            'cancelled_by_visitor' => [
+                'title' => 'Ki bëgg seetaan neenal na : :property',
+                'body' => 'Ki bëgg seetaan neenal na seetaan bu waroon am ci :scheduled_at.',
+                'mail_body' => "Ki bëgg seetaan neenal na seetaanu :property.\nWaroon na am ci :scheduled_at (waxtu :timezone).",
+                'sms' => 'Takussan : ki bëgg seetaan neenal na seetaanu :property ci :scheduled_at (:timezone).',
+            ],
+            'confirmed' => [
+                'title' => 'Seetaan dëggal nañu ko : :property',
+                'body' => 'Sa seetaanu :property dëggal nañu ko ci :scheduled_at.',
+                'mail_body' => "Sa laaju seetaan ngir :property dëggal nañu ko.\nWaxtu bi : :scheduled_at (waxtu :timezone).",
+                'sms' => 'Takussan : sa seetaanu « :property » dëggal nañu ko ci :scheduled_at (:timezone).',
+            ],
+            'rescheduled' => [
+                'title' => 'Waxtu seetaanu :property soppiku na',
+                'body' => 'Waxtu bu bees : :scheduled_at.',
+                'mail_body' => "Ajaans bi toxal na sa seetaanu :property.\nWaxtu bu bees : :scheduled_at (waxtu :timezone).",
+                'sms' => 'Takussan : sa seetaanu « :property » toxal nañu ko ci :scheduled_at (:timezone).',
+            ],
+            'cancelled' => [
+                'title' => 'Sa seetaanu :property neenal nañu ko',
+                'body' => 'Seetaan bu waroon am ci :scheduled_at neenal nañu ko.',
+                'mail_body' => "Ajaans bi neenal na sa seetaanu :property.\nWaroon na am ci :scheduled_at (waxtu :timezone).",
+                'sms' => 'Takussan : sa seetaanu « :property » bu waroon am ci :scheduled_at (:timezone), neenal nañu ko.',
+            ],
         ],
         'message' => [
             'received' => [
@@ -386,9 +351,14 @@ return [
         ],
         'lead' => [
             'received' => [
-                'title' => 'Jokkookat bu bees bu amul compte',
-                'body' => ':name (:email) : :excerpt',
-                'sms' => 'Takussan : jokkookat bu bees : :name.',
+                'title' => 'Laaj bu bees bu :name — :contact',
+                'body' => ':name (:contact) : :message',
+                'sms' => 'Takussan : laaj bu bees bu :name.',
+            ],
+            'acknowledged' => [
+                'title' => 'Sa laaj agsi na',
+                'body' => 'Sa laaj ci « :about » yónne nañu ko. Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail.',
+                'sms' => 'Takussan : sa laaj ci :about yónne nañu ko.',
             ],
         ],
         'kyc' => [
@@ -496,18 +466,6 @@ return [
     ],
 
     // TCK-588 — les e-mails de visite partaient en ANGLAIS à un wolophone (fallback_locale = en).
-    'visit_requested' => [
-        'subject' => 'Laaj seetlu bu bees ngir :property',
-        'greeting' => 'Salaam aleekum,',
-        'intro' => 'Am na ku laaj seetlu ngir :property.',
-        'schedule' => 'Waxtu wi ñu laaj : :datetime.',
-    ],
-    'visit_confirmed' => [
-        'subject' => 'Seetlu bi dëggal nañu ko ngir :property',
-        'greeting' => 'Salaam aleekum,',
-        'intro' => 'Sa laaj seetlu ngir :property dëggal nañu ko.',
-        'schedule' => 'Mu ngi ci : :datetime.',
-    ],
 
     // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).
     'threshold_alert_mail' => [

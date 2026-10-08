@@ -10,11 +10,10 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\CodedNotification;
-use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\EnvoisParCode;
 use Tests\TestCase;
 
 /**
@@ -24,6 +23,7 @@ use Tests\TestCase;
  */
 class PropertyVisitWorkflowTest extends TestCase
 {
+    use EnvoisParCode;
     use RefreshDatabase;
 
     public function test_requesting_a_visit_notifies_property_owner(): void
@@ -43,7 +43,7 @@ class PropertyVisitWorkflowTest extends TestCase
             'duration_minutes' => 30,
         ])->assertCreated();
 
-        Notification::assertSentTo($owner, VisitRequestedNotification::class);
+        Notification::assertSentTo($owner, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
     }
 
     public function test_confirming_a_visit_notifies_the_visitor(): void
@@ -66,7 +66,7 @@ class PropertyVisitWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'confirmed');
 
-        Notification::assertSentTo($visitor, VisitConfirmedNotification::class);
+        Notification::assertSentTo($visitor, CodedNotification::class, self::deCode(NotificationCode::VisitConfirmed));
     }
 
     public function test_confirming_overlapping_visit_returns_422(): void

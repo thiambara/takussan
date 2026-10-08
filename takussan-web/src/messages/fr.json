@@ -8238,6 +8238,30 @@
         "reminder": {
           "title": "Rappel de visite : {property}",
           "body": "Rappel : la visite de {property} est prévue le {scheduled_at}."
+        },
+        "requested": {
+          "title": "Demande de visite : {property}",
+          "body": "Créneau demandé : {scheduled_at}. Pour joindre le visiteur : {contact}."
+        },
+        "rescheduled_by_visitor": {
+          "title": "Autre créneau proposé : {property}",
+          "body": "Le visiteur propose le {scheduled_at}. La visite attend votre confirmation."
+        },
+        "cancelled_by_visitor": {
+          "title": "Visite annulée par le visiteur : {property}",
+          "body": "Le visiteur a annulé la visite prévue le {scheduled_at}."
+        },
+        "confirmed": {
+          "title": "Visite confirmée : {property}",
+          "body": "Votre visite de {property} est confirmée le {scheduled_at}."
+        },
+        "rescheduled": {
+          "title": "Votre visite de {property} change d'heure",
+          "body": "Nouvel horaire : {scheduled_at}."
+        },
+        "cancelled": {
+          "title": "Votre visite de {property} est annulée",
+          "body": "La visite prévue le {scheduled_at} est annulée."
         }
       },
       "message": {
@@ -8248,8 +8272,12 @@
       },
       "lead": {
         "received": {
-          "title": "Nouveau contact sans compte",
-          "body": "{name} ({email}) : {excerpt}"
+          "title": "Nouvelle demande de {name} — {contact}",
+          "body": "{name} ({contact}) : {message}"
+        },
+        "acknowledged": {
+          "title": "Votre demande a bien été transmise",
+          "body": "Votre demande concernant « {about} » a bien été transmise. Vous recevrez une réponse au plus vite, par téléphone ou par e-mail."
         }
       },
       "kyc": {

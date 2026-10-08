@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Public;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\AgencyRole;
 use App\Models\AppNotification;
 use App\Models\Enums\Capability;
@@ -13,20 +14,19 @@ use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\RoleDelegation;
 use App\Models\User;
-use App\Notifications\ContactLeadReceivedNotification;
-use App\Notifications\NewContactLeadNotification;
-use App\Notifications\VisitRequestedNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 use Tests\TestCase;
 
 class PropertyContactLeadTest extends TestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -252,7 +252,7 @@ class PropertyContactLeadTest extends TestCase
         $lead = PropertyContactLead::query()->sole();
         $this->assertSame($agency->id, $lead->agency_id);
         $this->assertNull($lead->recipient_user_id);
-        Notification::assertSentTo($admin, NewContactLeadNotification::class);
+        Notification::assertSentTo($admin, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
     }
 
     /** AC18 (R) — même bien SANS agence : 409 `contact_unavailable`, et rien n'est écrit. */
@@ -285,22 +285,21 @@ class PropertyContactLeadTest extends TestCase
 
         $this->postJson($url, ['name' => 'Awa Diop', 'email' => 'awa@example.com', 'message' => $message])->assertCreated();
 
-        Notification::assertSentOnDemandTimes(ContactLeadReceivedNotification::class, 1);
-        Notification::assertSentOnDemand(
-            ContactLeadReceivedNotification::class,
-            function (ContactLeadReceivedNotification $n, array $channels, AnonymousNotifiable $to) use ($message) {
-                $mail = $n->toMail($to);
-                $texte = implode(' ', [...$mail->introLines, ...$mail->outroLines, $mail->subject]);
-
-                return $channels === ['mail']
-                    && $to->routes === ['mail' => 'awa@example.com']
-                    && ! str_contains($texte, $message)
-                    && ! str_contains($texte, 'Awa Diop');
-            },
-        );
+        $envois = self::envoisALaDemande(NotificationCode::LeadAcknowledged);
+        $this->assertCount(1, $envois);
+        [$n, $channels, $to] = $envois->first();
+        $mail = $n->toMail($to);
+        $texte = implode(' ', [...$mail->introLines, ...$mail->outroLines, $mail->subject]);
+        $this->assertSame(['mail'], $channels);
+        $this->assertSame(['mail' => 'awa@example.com'], $to->routes);
+        $this->assertStringContainsString((string) $property->title, $texte);
+        $this->assertStringNotContainsString($message, $texte);
+        $this->assertStringNotContainsString('Awa Diop', $texte);
+        Notification::assertSentOnDemandTimes(CodedNotification::class, 1);
 
         $this->postJson($url, ['name' => 'Moussa Fall', 'phone' => '+221771234567', 'message' => 'Rappelez-moi svp.'])->assertCreated();
-        Notification::assertSentOnDemandTimes(ContactLeadReceivedNotification::class, 1);
+        $this->assertCount(1, self::envoisALaDemande(NotificationCode::LeadAcknowledged));
+        Notification::assertSentOnDemandTimes(CodedNotification::class, 1);
     }
 
     /** AC17 (R) — un agent en anglais reçoit un titre anglais qui contient le téléphone du visiteur. */
@@ -385,8 +384,8 @@ class PropertyContactLeadTest extends TestCase
         ])->assertCreated();
 
         $lead = PropertyContactLead::query()->latest('id')->firstOrFail();
-        Notification::assertSentTo($lecteur, NewContactLeadNotification::class);
-        Notification::assertSentTo($lecteur, VisitRequestedNotification::class);
+        Notification::assertSentTo($lecteur, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
+        Notification::assertSentTo($lecteur, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
 
         Sanctum::actingAs($lecteur);
         $this->getJson("/api/contact-leads/{$lead->id}")->assertOk();
@@ -418,8 +417,8 @@ class PropertyContactLeadTest extends TestCase
             'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771231001', 'scheduled_at' => $this->creneau(),
         ])->assertCreated();
 
-        Notification::assertSentTo($delegue, NewContactLeadNotification::class);
-        Notification::assertSentTo($delegue, VisitRequestedNotification::class);
+        Notification::assertSentTo($delegue, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
+        Notification::assertSentTo($delegue, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
     }
 
     /** Passe 3 (n3′) — une délégation RÉVOQUÉE ou échue ne fait pas un lecteur : 409, comme avant. */

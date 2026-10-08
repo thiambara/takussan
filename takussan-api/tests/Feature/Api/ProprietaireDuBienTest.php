@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\VisitStatus;
@@ -10,13 +11,13 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Notifications\NewContactLeadNotification;
-use App\Notifications\VisitRequestedNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
@@ -27,6 +28,7 @@ use Tests\Support\FabriqueDemandesEtVisites;
  */
 class ProprietaireDuBienTest extends ApiTestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -64,15 +66,15 @@ class ProprietaireDuBienTest extends ApiTestCase
         $lead = PropertyContactLead::query()->latest('id')->firstOrFail();
 
         $this->assertNotSame($a->id, $lead->recipient_user_id);
-        Notification::assertNotSentTo($a, NewContactLeadNotification::class);
-        Notification::assertSentTo($this->admin, NewContactLeadNotification::class);
+        Notification::assertNotSentTo($a, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
+        Notification::assertSentTo($this->admin, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
         $this->assertNotSame('+221770001111', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('phone'));
 
         $this->postJson("/api/public/properties/{$bien->slug}/visit-request", [
             'visitor_name' => 'Awa', 'visitor_phone' => '+221771234567', 'scheduled_at' => $this->creneau(),
         ])->assertCreated();
-        Notification::assertNotSentTo($a, VisitRequestedNotification::class);
-        Notification::assertSentTo($this->admin, VisitRequestedNotification::class);
+        Notification::assertNotSentTo($a, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
+        Notification::assertSentTo($this->admin, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
 
         Sanctum::actingAs($a);
         $this->assertNotContains($lead->id, collect($this->getJson('/api/contact-leads')->json('data'))->pluck('id')->all());

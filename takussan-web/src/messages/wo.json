@@ -8238,6 +8238,30 @@
         "reminder": {
           "title": "Fàttali seetlu : {property}",
           "body": "Fàttali : seetlu {property} mu ngi ci {scheduled_at}."
+        },
+        "requested": {
+          "title": "Laaj seetaan : {property}",
+          "body": "Waxtu bi ñu laaj : {scheduled_at}. Ngir jokkoo ak ki bëgg seetaan : {contact}."
+        },
+        "rescheduled_by_visitor": {
+          "title": "Beneen waxtu : {property}",
+          "body": "Ki bëgg seetaan joxe na {scheduled_at}. Seetaan bi dafay xaar nga dëggal ko."
+        },
+        "cancelled_by_visitor": {
+          "title": "Ki bëgg seetaan neenal na : {property}",
+          "body": "Ki bëgg seetaan neenal na seetaan bu waroon am ci {scheduled_at}."
+        },
+        "confirmed": {
+          "title": "Seetaan dëggal nañu ko : {property}",
+          "body": "Sa seetaanu {property} dëggal nañu ko ci {scheduled_at}."
+        },
+        "rescheduled": {
+          "title": "Waxtu seetaanu {property} soppiku na",
+          "body": "Waxtu bu bees : {scheduled_at}."
+        },
+        "cancelled": {
+          "title": "Sa seetaanu {property} neenal nañu ko",
+          "body": "Seetaan bu waroon am ci {scheduled_at} neenal nañu ko."
         }
       },
       "message": {
@@ -8248,8 +8272,12 @@
       },
       "lead": {
         "received": {
-          "title": "Jokkookat bu bees bu amul compte",
-          "body": "{name} ({email}) : {excerpt}"
+          "title": "Laaj bu bees bu {name} — {contact}",
+          "body": "{name} ({contact}) : {message}"
+        },
+        "acknowledged": {
+          "title": "Sa laaj agsi na",
+          "body": "Sa laaj ci « {about} » yónne nañu ko. Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail."
         }
       },
       "kyc": {

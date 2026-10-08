@@ -2,17 +2,19 @@
 
 namespace Tests\Unit\Services;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\User;
-use App\Notifications\NewContactLeadNotification;
+use App\Notifications\CodedNotification;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 use Tests\TestCase;
 
@@ -28,6 +30,7 @@ use Tests\TestCase;
  */
 class PrimaryPropertyContactEligibilityTest extends TestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -58,8 +61,8 @@ class PrimaryPropertyContactEligibilityTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame($attendu->id, PropertyContactLead::query()->sole()->recipient_user_id);
-        Notification::assertSentTo($attendu, NewContactLeadNotification::class);
-        Notification::assertNotSentTo($ecarte, NewContactLeadNotification::class);
+        Notification::assertSentTo($attendu, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
+        Notification::assertNotSentTo($ecarte, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
 
         $this->getJson("/api/public/properties/{$property->slug}/contact")
             ->assertOk()

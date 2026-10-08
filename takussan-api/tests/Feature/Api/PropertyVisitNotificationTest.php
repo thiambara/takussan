@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
@@ -9,17 +10,14 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Notifications\VisitCancelledNotification;
-use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitNotification;
-use App\Notifications\VisitRescheduledNotification;
+use App\Notifications\CodedNotification;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
@@ -31,6 +29,7 @@ use Tests\Support\FabriqueDemandesEtVisites;
  */
 class PropertyVisitNotificationTest extends ApiTestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -66,22 +65,26 @@ class PropertyVisitNotificationTest extends ApiTestCase
     }
 
     /** L'envoi à la demande vers l'e-mail ET le téléphone saisis, avec ces canaux. */
-    private function assertEnvoyeALaDemande(string $classe, array $canaux): VisitNotification
+    private function assertEnvoyeALaDemande(NotificationCode $code, array $canaux): CodedNotification
     {
-        $trouve = null;
-        Notification::assertSentOnDemand($classe, function (VisitNotification $n, array $channels, AnonymousNotifiable $notifiable) use ($canaux, &$trouve) {
-            $ok = $channels === $canaux
-                && ($notifiable->routes['mail'] ?? null) === 'awa@example.com'
-                && ($notifiable->routes['sms'] ?? null) === '+221771234567';
-            if ($ok) {
-                $trouve = $n;
-            }
+        $envois = self::envoisALaDemande($code);
+        $this->assertCount(1, $envois);
+        [$n, $channels, $notifiable] = $envois->first();
+        $this->assertSame($canaux, $channels);
+        $this->assertSame('awa@example.com', $notifiable->routes['mail'] ?? null);
+        $this->assertSame('+221771234567', $notifiable->routes['sms'] ?? null);
 
-            return $ok;
-        });
-        Notification::assertSentOnDemandTimes($classe, 1);
+        return $n;
+    }
 
-        return $trouve;
+    /** Le seul envoi à la demande d'un code : ses canaux et son numéro. */
+    private function envoiALaDemande(NotificationCode $code): array
+    {
+        $envois = self::envoisALaDemande($code);
+        $this->assertCount(1, $envois);
+        [, $channels, $notifiable] = $envois->first();
+
+        return [$channels, $notifiable->routes['sms'] ?? null];
     }
 
     /** AC9 (R) — confirmer une visite anonyme prévient le visiteur, dans sa langue, à l'heure de Dakar. */
@@ -92,15 +95,19 @@ class PropertyVisitNotificationTest extends ApiTestCase
         Sanctum::actingAs($this->agent);
         $this->postJson("/api/property-visits/{$visite->id}/confirm")->assertOk();
 
-        $n = $this->assertEnvoyeALaDemande(VisitConfirmedNotification::class, ['mail', 'sms']);
+        $n = $this->assertEnvoyeALaDemande(NotificationCode::VisitConfirmed, ['mail', 'sms']);
         $this->assertSame('en', $n->locale);
 
+        // L'heure est rendue dans le fuseau du destinataire — Dakar pour un contact sans compte —
+        // et suivie de ce fuseau (TCK-588 : `NotificationRenderer`, plus `HeureDeVisite`).
         $notifiable = Notification::route('mail', 'awa@example.com');
         app()->setLocale($n->locale);
         [$sms, $mail] = [$n->toSms($notifiable), $n->toMail($notifiable)->render()];
-        $this->assertStringContainsString('10:00 (Dakar time)', $sms);
+        $this->assertStringContainsString('10:00', $sms);
+        $this->assertStringContainsString('(Africa/Dakar)', $sms);
         $this->assertStringContainsString('confirmed', $sms);
-        $this->assertStringContainsString('10:00 (Dakar time)', (string) $mail);
+        $this->assertStringContainsString('10:00', (string) $mail);
+        $this->assertStringContainsString('Africa/Dakar', (string) $mail);
     }
 
     /** AC9b (R) — l'agence annule : le visiteur sans compte est prévenu, sans son nom ni son texte libre. */
@@ -111,7 +118,8 @@ class PropertyVisitNotificationTest extends ApiTestCase
         Sanctum::actingAs($this->agent);
         $this->postJson("/api/property-visits/{$visite->id}/cancel", ['reason' => 'Bien loué'])->assertOk();
 
-        $n = $this->assertEnvoyeALaDemande(VisitCancelledNotification::class, ['mail', 'sms']);
+        $n = $this->assertEnvoyeALaDemande(NotificationCode::VisitCancelled, ['mail', 'sms']);
+        $this->assertNotContains('Awa', $n->params);
         $notifiable = Notification::route('mail', 'awa@example.com');
         foreach ([$n->toSms($notifiable), (string) $n->toMail($notifiable)->render()] as $corps) {
             $this->assertStringNotContainsString('Awa', $corps);
@@ -134,12 +142,12 @@ class PropertyVisitNotificationTest extends ApiTestCase
 
         Sanctum::actingAs($visiteur);
         $this->postJson("/api/property-visits/{$assignee->id}/cancel")->assertOk();
-        Notification::assertSentTo($this->agent, VisitCancelledNotification::class, fn ($n) => $n->visit->id === $assignee->id);
-        Notification::assertNotSentTo($admin, VisitCancelledNotification::class, fn ($n) => $n->visit->id === $assignee->id);
+        Notification::assertSentTo($this->agent, CodedNotification::class, self::deCodeSur(NotificationCode::VisitCancelledByVisitor, $assignee->id));
+        Notification::assertNotSentTo($admin, CodedNotification::class, self::deCodeSur(NotificationCode::VisitCancelledByVisitor, $assignee->id));
 
         $this->postJson("/api/property-visits/{$libre->id}/cancel")->assertOk();
-        Notification::assertSentTo($admin, VisitCancelledNotification::class, fn ($n) => $n->visit->id === $libre->id);
-        Notification::assertNotSentTo($visiteur, VisitCancelledNotification::class);
+        Notification::assertSentTo($admin, CodedNotification::class, self::deCodeSur(NotificationCode::VisitCancelledByVisitor, $libre->id));
+        Notification::assertNotSentTo($visiteur, CodedNotification::class, self::deCode(NotificationCode::VisitCancelled, NotificationCode::VisitCancelledByVisitor));
     }
 
     /**
@@ -174,9 +182,9 @@ class PropertyVisitNotificationTest extends ApiTestCase
             $this->postJson("/api/property-visits/{$annulee->id}/cancel")->assertOk();
             $this->postJson("/api/property-visits/{$deplacee->id}/reschedule", ['scheduled_at' => $this->creneau(jours: 6)])->assertOk();
 
-            Notification::assertSentTo($admin, VisitCancelledNotification::class, fn ($n) => $n->visit->id === $annulee->id);
-            Notification::assertSentTo($admin, VisitRescheduledNotification::class, fn ($n) => $n->visit->id === $deplacee->id);
-            Notification::assertNotSentTo($agent, VisitCancelledNotification::class);
+            Notification::assertSentTo($admin, CodedNotification::class, self::deCodeSur(NotificationCode::VisitCancelledByVisitor, $annulee->id));
+            Notification::assertSentTo($admin, CodedNotification::class, self::deCodeSur(NotificationCode::VisitRescheduledByVisitor, $deplacee->id));
+            Notification::assertNotSentTo($agent, CodedNotification::class, self::deCode(NotificationCode::VisitCancelledByVisitor));
         }
     }
 
@@ -199,11 +207,7 @@ class PropertyVisitNotificationTest extends ApiTestCase
         $this->assertSame($this->agent->id, $visite->agent_id);
         $this->assertSame(VisitStatus::Confirmed, $visite->status);
 
-        Notification::assertSentOnDemand(
-            VisitConfirmedNotification::class,
-            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $channels === ['sms']
-                && $notifiable->routes['sms'] === '+221776543210',
-        );
+        $this->assertSame([['sms'], '+221776543210'], $this->envoiALaDemande(NotificationCode::VisitConfirmed));
     }
 
     /**
@@ -221,11 +225,9 @@ class PropertyVisitNotificationTest extends ApiTestCase
         Sanctum::actingAs($this->agent);
         $this->postJson("/api/property-visits/{$id}/confirm")->assertOk();
 
-        Notification::assertSentOnDemand(
-            VisitConfirmedNotification::class,
-            fn ($n, array $channels, AnonymousNotifiable $notifiable) => in_array('sms', $channels, true)
-                && $notifiable->routes['sms'] === '+221771234567',
-        );
+        [$canaux, $numero] = $this->envoiALaDemande(NotificationCode::VisitConfirmed);
+        $this->assertContains('sms', $canaux);
+        $this->assertSame('+221771234567', $numero);
     }
 
     /** Le prospect que l'agent planifie, numéro dicté au format national : même normalisation. */
@@ -240,10 +242,7 @@ class PropertyVisitNotificationTest extends ApiTestCase
         ])->assertCreated()->json('data.id');
 
         $this->assertSame('+221787654321', PropertyVisit::query()->findOrFail($id)->visitor_phone);
-        Notification::assertSentOnDemand(
-            VisitConfirmedNotification::class,
-            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $notifiable->routes['sms'] === '+221787654321',
-        );
+        $this->assertSame('+221787654321', $this->envoiALaDemande(NotificationCode::VisitConfirmed)[1]);
     }
 
     /**
@@ -260,11 +259,7 @@ class PropertyVisitNotificationTest extends ApiTestCase
         ])->assertCreated()->json('data.id');
 
         $this->assertSame('+221776543210', PropertyVisit::query()->findOrFail($id)->visitor_phone);
-        Notification::assertSentOnDemand(
-            VisitConfirmedNotification::class,
-            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $channels === ['sms']
-                && $notifiable->routes['sms'] === '+221776543210',
-        );
+        $this->assertSame([['sms'], '+221776543210'], $this->envoiALaDemande(NotificationCode::VisitConfirmed));
     }
 
     /** m7 — un fixe est un numéro de contact valable, mais la confirmation ne part que par e-mail. */
@@ -275,12 +270,7 @@ class PropertyVisitNotificationTest extends ApiTestCase
         Sanctum::actingAs($this->agent);
         $this->postJson("/api/property-visits/{$visite->id}/confirm")->assertOk();
 
-        Notification::assertSentOnDemand(
-            VisitConfirmedNotification::class,
-            fn ($n, array $channels, AnonymousNotifiable $notifiable) => $channels === ['mail']
-                && $notifiable->routes['sms'] === '+221338201234',
-        );
-        Notification::assertSentOnDemandTimes(VisitConfirmedNotification::class, 1);
+        $this->assertSame([['mail'], '+221338201234'], $this->envoiALaDemande(NotificationCode::VisitConfirmed));
     }
 
     /** AC8 — sans fiche, le prospect se donne par nom + téléphone ; l'un sans l'autre → 422. */
@@ -318,13 +308,13 @@ class PropertyVisitNotificationTest extends ApiTestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['scheduled_at']);
 
         $this->patchJson("/api/property-visits/{$avecCompte->id}", ['scheduled_at' => $this->creneau(jours: 4)])->assertOk();
-        Notification::assertSentToTimes($visiteur, VisitRescheduledNotification::class, 1);
+        $this->assertSame(1, self::nombreDEnvois($visiteur, NotificationCode::VisitRescheduled));
 
         $this->patchJson("/api/property-visits/{$anonyme->id}", ['scheduled_at' => $this->creneau(jours: 5)])->assertOk();
-        $this->assertEnvoyeALaDemande(VisitRescheduledNotification::class, ['mail', 'sms']);
+        $this->assertEnvoyeALaDemande(NotificationCode::VisitRescheduled, ['mail', 'sms']);
 
         // Une modification sans changement d'heure ne prévient personne.
         $this->patchJson("/api/property-visits/{$avecCompte->id}", ['notes' => 'Portail bleu'])->assertOk();
-        Notification::assertSentToTimes($visiteur, VisitRescheduledNotification::class, 1);
+        $this->assertSame(1, self::nombreDEnvois($visiteur, NotificationCode::VisitRescheduled));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\AgentProfileStatus;
@@ -10,11 +11,12 @@ use App\Models\Enums\ContactLeadChannel;
 use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyContactLead;
 use App\Models\User;
-use App\Notifications\NewContactLeadNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
@@ -24,6 +26,7 @@ use Tests\Support\FabriqueDemandesEtVisites;
  */
 class ContactLeadInboxTest extends ApiTestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -185,7 +188,7 @@ class ContactLeadInboxTest extends ApiTestCase
         $this->postJson("/api/contact-leads/{$this->sienne->id}/assign", ['user_id' => $cible->id])
             ->assertOk()
             ->assertJsonPath('data.recipient_user_id', $cible->id);
-        Notification::assertSentTo($cible, NewContactLeadNotification::class);
+        Notification::assertSentTo($cible, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
     }
 
     /**

@@ -8238,6 +8238,30 @@
         "reminder": {
           "title": "Visit reminder: {property}",
           "body": "Reminder: the visit of {property} is scheduled for {scheduled_at}."
+        },
+        "requested": {
+          "title": "Visit request: {property}",
+          "body": "Requested slot: {scheduled_at}. To reach the visitor: {contact}."
+        },
+        "rescheduled_by_visitor": {
+          "title": "Another slot suggested: {property}",
+          "body": "The visitor suggests {scheduled_at}. The visit awaits your confirmation."
+        },
+        "cancelled_by_visitor": {
+          "title": "Visit cancelled by the visitor: {property}",
+          "body": "The visitor has cancelled the visit planned for {scheduled_at}."
+        },
+        "confirmed": {
+          "title": "Visit confirmed: {property}",
+          "body": "Your visit of {property} is confirmed for {scheduled_at}."
+        },
+        "rescheduled": {
+          "title": "Your visit of {property} has a new time",
+          "body": "New time: {scheduled_at}."
+        },
+        "cancelled": {
+          "title": "Your visit of {property} is cancelled",
+          "body": "The visit planned for {scheduled_at} is cancelled."
         }
       },
       "message": {
@@ -8248,8 +8272,12 @@
       },
       "lead": {
         "received": {
-          "title": "New contact without an account",
-          "body": "{name} ({email}): {excerpt}"
+          "title": "New request from {name} — {contact}",
+          "body": "{name} ({contact}): {message}"
+        },
+        "acknowledged": {
+          "title": "Your request has been sent",
+          "body": "Your request about “{about}” has been sent. You will hear back shortly, by phone or by email."
         }
       },
       "kyc": {

@@ -2,13 +2,15 @@
 
 namespace Tests\Feature\Public;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\PropertyVisit;
-use App\Notifications\VisitRequestedNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\EnvoisParCode;
 use Tests\Support\FabriqueDemandesEtVisites;
 use Tests\TestCase;
 
@@ -20,6 +22,7 @@ use Tests\TestCase;
  */
 class VisitRequestRoutingTest extends TestCase
 {
+    use EnvoisParCode;
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
@@ -44,8 +47,8 @@ class VisitRequestRoutingTest extends TestCase
         $id = $this->demander($bien->slug)->assertCreated()->json('data.id');
 
         $this->assertSame($agentA->id, PropertyVisit::query()->findOrFail($id)->agent_id);
-        Notification::assertSentTo($agentA, VisitRequestedNotification::class);
-        Notification::assertSentTo($owner, VisitRequestedNotification::class);
+        Notification::assertSentTo($agentA, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
+        Notification::assertSentTo($owner, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
     }
 
     /** AC2 (R) — la 4ᵉ demande active sur le même bien est refusée par la route publique aussi. */
@@ -113,7 +116,7 @@ class VisitRequestRoutingTest extends TestCase
 
         $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567'])->assertCreated();
 
-        Notification::assertSentTo($agent, VisitRequestedNotification::class, fn ($n, array $channels) => ! in_array('sms', $channels, true));
+        Notification::assertSentTo($agent, CodedNotification::class, fn ($n, array $channels) => $n->code === NotificationCode::VisitRequested && ! in_array('sms', $channels, true));
         Notification::assertNothingSentTo(new AnonymousNotifiable);
 
         $canaux = collect(Notification::sentNotifications())->flatten(3)->pluck('channels')->flatten();
@@ -121,10 +124,11 @@ class VisitRequestRoutingTest extends TestCase
         $this->assertNotContains('sms', $canaux->all());
 
         // Vérification adverse (m4) — le drapeau lui-même : adressée à un numéro, la notification
-        // de DÉPÔT ne prend jamais le canal SMS. Sans cette ligne, forcer `envoieUnSms()` à vrai
-        // laissait le test vert (le dépôt ne s'adresse simplement jamais au visiteur).
-        $demande = PropertyVisit::query()->sole();
-        $this->assertNotContains('sms', (new VisitRequestedNotification($demande))->via(Notification::route('sms', '+221771234567')));
+        // de DÉPÔT ne prend jamais le canal SMS. Sans cette ligne, rendre le code mobile
+        // (`NotificationCode::mobile()`) laissait le test vert (le dépôt ne s'adresse simplement
+        // jamais au visiteur).
+        $this->assertFalse(NotificationCode::VisitRequested->mobile());
+        $this->assertNotContains('sms', (new CodedNotification(NotificationCode::VisitRequested, []))->via(Notification::route('sms', '+221771234567')));
     }
 
     /** AC10 (serveur) — une heure hors de la grille de Dakar est refusée. */
@@ -159,7 +163,7 @@ class VisitRequestRoutingTest extends TestCase
         $this->app['auth']->forgetGuards();
 
         $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567'])->assertCreated();
-        Notification::assertSentTo($admin, VisitRequestedNotification::class);
+        Notification::assertSentTo($admin, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));
 
         $this->demander($sansAgence->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567'])
             ->assertStatus(409)->assertJsonPath('code', 'lead.contact_unavailable');
