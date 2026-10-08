@@ -1681,7 +1681,12 @@
         "payments": "Paiements",
         "leases": "Baux",
         "customers": "Clients",
-        "properties": "Biens"
+        "properties": "Biens",
+        "payouts": "Reversements",
+        "invoices": "Factures",
+        "commissions": "Commissions",
+        "aging": "Impayés par ancienneté",
+        "deposits": "Cautions détenues"
       },
       "formats": {
         "csv": "CSV",

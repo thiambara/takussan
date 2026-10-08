@@ -33,8 +33,24 @@ const CAPACITE: Record<ExportEntity, string> = {
   leases: 'reports.export',
   customers: 'crm.export',
   properties: 'reports.export',
+  // TCK-595 (§7) — les exports financiers : au personnel seul, jamais au bailleur.
+  payouts: 'reports.export',
+  invoices: 'reports.export',
+  commissions: 'reports.export',
+  aging: 'reports.export',
+  deposits: 'reports.export',
 };
-const TOUTES: readonly ExportEntity[] = ['payments', 'leases', 'customers', 'properties'];
+const TOUTES: readonly ExportEntity[] = [
+  'payments',
+  'leases',
+  'customers',
+  'properties',
+  'payouts',
+  'invoices',
+  'commissions',
+  'aging',
+  'deposits',
+];
 const DU_BAILLEUR: readonly ExportEntity[] = ['payments', 'leases', 'properties'];
 
 export function ExportForm({ staff }: Props) {

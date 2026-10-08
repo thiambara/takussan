@@ -1706,7 +1706,12 @@
         "payments": "Payments",
         "leases": "Leases",
         "customers": "Customers",
-        "properties": "Properties"
+        "properties": "Properties",
+        "payouts": "Payouts",
+        "invoices": "Invoices",
+        "commissions": "Commissions",
+        "aging": "Overdue by age",
+        "deposits": "Deposits held"
       },
       "formats": {
         "csv": "CSV",

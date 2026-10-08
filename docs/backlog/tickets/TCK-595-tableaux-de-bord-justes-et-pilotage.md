@@ -915,3 +915,16 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 - Chaque tuile garde une destination unique (garde de TCK-461) : le MRR mène à
   `/super-admin/reports?tab=revenue`, d'où `ReportingShell` prend désormais un `initialTab`. Le take
   rate mène aux réglages (les frais plateforme), le volume aux reversements, les essais aux plans.
+
+### Lot 11 — fusion de `dev` (TCK-601) et exports financiers (§7, AC19)
+
+- Fusion d'`origin/dev` `33932c60` : PrivacyRequest garde le § 79 de `models-spec.md`,
+  CommissionEntry et PlatformMetricDaily passent aux § 80 et 81. Le layout de `/app/commissions`
+  passe par `assertCanReachAgencyStaffArea` (cliquet de `check-auth-interrupts.mjs`).
+- `GET /api/export/payouts|invoices|commissions|aging|deposits` : `reports.export` au personnel,
+  **403 au bailleur et au locataire** (`STAFF_ONLY`). `aging` exporte à la ligne (retard, tranche)
+  avec la règle *Impayé* ; `deposits` rend une ligne par bail, encaissé moins restitué, sans borne
+  de dates. Dans `scopeToActor`, une entité inconnue des branches bailleur et locataire ne rend
+  plus rien (`1 = 0`) au lieu de tout rendre.
+- Front : les cinq types s'offrent dans `/app/overview/exports` au personnel qui tient
+  `reports.export`, jamais au bailleur, et le BFF les relaie.

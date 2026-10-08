@@ -7,7 +7,17 @@
  * works regardless of whether the API is same-origin.
  */
 
-export type ExportEntity = 'payments' | 'leases' | 'customers' | 'properties';
+export type ExportEntity =
+  | 'payments'
+  | 'leases'
+  | 'customers'
+  | 'properties'
+  // TCK-595 (§7) — les exports financiers de l'agence, au personnel qui tient `reports.export`.
+  | 'payouts'
+  | 'invoices'
+  | 'commissions'
+  | 'aging'
+  | 'deposits';
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export type ExportOptions = {

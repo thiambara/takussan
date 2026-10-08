@@ -8168,7 +8168,12 @@
         "payments": "Fey yi",
         "leases": "Kontaraa yi",
         "customers": "Kiliyaan yi",
-        "properties": "Kër yi"
+        "properties": "Kër yi",
+        "payouts": "Delloo xaalis yi",
+        "invoices": "Faktiir yi",
+        "commissions": "Komisioŋ yi",
+        "aging": "Bor yi ci seen yàgg",
+        "deposits": "Garaas yi ñu denc"
       },
       "formats": {
         "csv": "CSV",

@@ -13,7 +13,8 @@ use App\Services\Export\ExportWriter;
  * GET /api/export/{entity}?format=csv|xlsx|pdf
  *
  * TCK-032 P2 — data exports. Supported entities: payments, leases, customers,
- * properties. All outputs respect the actor's role scope (agency / owner /
+ * properties ; TCK-595 (§7) adds payouts, invoices, commissions, aging and
+ * deposits. All outputs respect the actor's role scope (agency / owner /
  * tenant) — see `ExportDataService::scopeToActor()`.
  *
  * Query params:
@@ -37,7 +38,16 @@ class ExportController extends Controller
         'payments' => Capability::PaymentsExport,
         'leases' => Capability::ReportsExport,
         'properties' => Capability::ReportsExport,
+        // TCK-595 (§7) — les exports financiers de l'agence : `reports.export`, et au PERSONNEL seul.
+        'payouts' => Capability::ReportsExport,
+        'invoices' => Capability::ReportsExport,
+        'commissions' => Capability::ReportsExport,
+        'aging' => Capability::ReportsExport,
+        'deposits' => Capability::ReportsExport,
     ];
+
+    /** TCK-595 — ni le bailleur ni le locataire n'exportent les finances d'une agence. */
+    private const STAFF_ONLY = ['payouts', 'invoices', 'commissions', 'aging', 'deposits'];
 
     public function show(ShowExportRequest $request, string $entity)
     {
@@ -58,7 +68,7 @@ class ExportController extends Controller
                     403,
                     'export.forbidden',
                 );
-            } elseif ($entity === 'customers') {
+            } elseif ($entity === 'customers' || in_array($entity, self::STAFF_ONLY, true)) {
                 abort_code(403, 'export.forbidden');
             } elseif ($entity === 'properties'
                 && ! ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))) {

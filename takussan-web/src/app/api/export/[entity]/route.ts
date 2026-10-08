@@ -4,7 +4,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
-const ALLOWED_ENTITIES = new Set(['payments', 'leases', 'customers', 'properties']);
+const ALLOWED_ENTITIES = new Set([
+  'payments',
+  'leases',
+  'customers',
+  'properties',
+  // TCK-595 (§7) — les exports financiers de l'agence.
+  'payouts',
+  'invoices',
+  'commissions',
+  'aging',
+  'deposits',
+]);
 const FORWARD_PARAMS = ['format', 'from', 'to', 'limit'] as const;
 
 export async function GET(
