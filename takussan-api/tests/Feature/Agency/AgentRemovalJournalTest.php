@@ -34,7 +34,7 @@ class AgentRemovalJournalTest extends ApiTestCase
 
         $this->actingAsApi($admin)->deleteJson("/api/profiles/{$profile->id}")
             ->assertStatus(422)
-            ->assertJsonPath('code', 'portfolio_not_empty');
+            ->assertJsonPath('code', 'agency_member.portfolio_not_empty');
 
         $this->actingAsApi($admin)->deleteJson("/api/profiles/{$profile->id}", ['leave_unassigned' => true])
             ->assertNoContent();

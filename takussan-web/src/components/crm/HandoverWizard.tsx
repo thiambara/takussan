@@ -48,7 +48,7 @@ const CATEGORIES: readonly PortfolioCategory[] = [
  * choisit un repreneur, on relit, puis l'API transmet ET retire dans la même transaction.
  *
  * Sans repreneur, le retrait reste possible, mais ASSUMÉ (`leave_unassigned`) : c'est le refus
- * `portfolio_not_empty` de l'API rendu en choix explicite. Ce que l'API ne transmet pas encore
+ * `agency_member.portfolio_not_empty` de l'API rendu en choix explicite. Ce que l'API ne transmet pas encore
  * (les biens détenus, TCK-504) est dit, et exige ce même aveu.
  */
 export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWizardProps) {

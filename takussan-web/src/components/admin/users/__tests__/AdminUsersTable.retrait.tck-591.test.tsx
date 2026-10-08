@@ -1,6 +1,6 @@
 /**
  * TCK-591 AC23 (front) — « Retirer de l'agence » n'est proposé que pour le personnel : un bailleur
- * seul n'est pas « retiré de l'équipe » (l'API le refuse en `member_not_staff`).
+ * seul n'est pas « retiré de l'équipe » (l'API le refuse en `agency_member.not_staff`).
  */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

@@ -6,7 +6,6 @@ use App\Models\CalendarFeed;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -39,7 +38,7 @@ class CalendarFeedService
         // Un agent retiré, qui n'est plus personnel nulle part, en recevait un neuf que le retrait
         // ne pouvait pas couper.
         if ($agencyId === null && ! $this->mayHoldAgencylessFeed($user)) {
-            throw new AuthorizationException(__('calendar.errors.feed_not_staff'));
+            abort_code(403, 'calendar.feed_not_staff');
         }
 
         $token = Str::random(40);

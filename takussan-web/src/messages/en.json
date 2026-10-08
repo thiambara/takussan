@@ -8470,6 +8470,12 @@
           "body": "Your quote for the job \"{request}\" was rejected."
         }
       },
+      "prospect_match": {
+        "digest": {
+          "title": "Properties match your prospects",
+          "body": "{properties} new or repriced property(ies) match {prospects} of your prospects."
+        }
+      },
       "property": {
         "approved": {
           "title": "Property approved: {property}",

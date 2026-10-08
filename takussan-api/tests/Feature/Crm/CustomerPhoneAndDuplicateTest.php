@@ -70,7 +70,7 @@ class CustomerPhoneAndDuplicateTest extends ApiTestCase
 
         $this->create($this->agent, ['first_name' => 'Awa', 'phone' => '+221 77 123 45 67'])
             ->assertStatus(409)
-            ->assertJsonPath('code', 'customer_duplicate')
+            ->assertJsonPath('code', 'customer.duplicate')
             ->assertJsonPath('existing.0.id', $first)
             ->assertJsonPath('existing.0.name', 'Awa Diop')
             ->assertJsonPath('existing.0.matched_on', 'phone');
@@ -100,7 +100,7 @@ class CustomerPhoneAndDuplicateTest extends ApiTestCase
 
         $this->actingAsApi($this->agent)->apiPut("/api/customers/{$other}", ['phone' => '77 123 45 67'])
             ->assertStatus(409)
-            ->assertJsonPath('code', 'customer_duplicate');
+            ->assertJsonPath('code', 'customer.duplicate');
 
         // Rester sur son propre numéro n'est pas un doublon.
         $this->actingAsApi($this->agent)->apiPut("/api/customers/{$other}", ['phone' => '78 123 45 67', 'last_name' => 'Fall'])

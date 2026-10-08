@@ -2,9 +2,9 @@
 
 namespace App\Jobs\Crm;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\AppNotification;
 use App\Models\Customer;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -89,22 +89,17 @@ class SendProspectMatchDigest implements ShouldQueue
                 continue;
             }
 
-            $locale = $user->preferred_language ?: config('app.locale');
-            $replace = ['properties' => count($entry['properties']), 'prospects' => count($entry['prospects'])];
+            $params = ['properties' => count($entry['properties']), 'prospects' => count($entry['prospects'])];
 
-            $notifications->notify(
-                $user,
-                NotificationType::System,
-                __('crm.match_digest.title', [], $locale),
-                __('crm.match_digest.body', $replace, $locale),
-                [
-                    'kind' => self::KIND,
-                    'digest_date' => $today,
-                    'properties_count' => $replace['properties'],
-                    'prospects_count' => $replace['prospects'],
-                    'matches' => array_slice($entry['pairs'], 0, self::MAX_PAIRS_IN_DATA),
-                ],
-            );
+            // TCK-588 (ADR-0032) — un code, rendu dans la langue du référent ; `data` garde la clé
+            // d'idempotence du jour et le détail des correspondances, sans aucun texte.
+            $notifications->send($user, NotificationCode::ProspectMatchDigest, $params)?->update(['data' => [
+                'kind' => self::KIND,
+                'digest_date' => $today,
+                'properties_count' => $params['properties'],
+                'prospects_count' => $params['prospects'],
+                'matches' => array_slice($entry['pairs'], 0, self::MAX_PAIRS_IN_DATA),
+            ]]);
         }
     }
 

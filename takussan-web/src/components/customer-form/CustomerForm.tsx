@@ -105,7 +105,7 @@ export function CustomerForm({
   const tContract = useTranslations('property.contractTypes');
   const router = useRouter();
 
-  // TCK-591 — un 409 `customer_duplicate` n'est pas une erreur mais une aide : on montre la fiche
+  // TCK-591 — un 409 `customer.duplicate` n'est pas une erreur mais une aide : on montre la fiche
   // existante, et « Créer quand même » renvoie le même formulaire avec `allow_duplicate`.
   const [duplicates, setDuplicates] = useState<CustomerDuplicateMatch[] | null>(null);
   const allowDuplicate = useRef(false);

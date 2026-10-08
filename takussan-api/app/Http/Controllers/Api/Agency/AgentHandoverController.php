@@ -21,9 +21,7 @@ class AgentHandoverController extends Controller
     public function show(Agency $agency, User $user): JsonResponse
     {
         $this->authorize('removeMember', $agency);
-        if (($refusal = $this->refuseNonStaff($agency, $user)) !== null) {
-            return $refusal;
-        }
+        $this->refuseNonStaff($agency, $user);
 
         return $this->json(['data' => [
             'user_id' => $user->id,
@@ -36,9 +34,7 @@ class AgentHandoverController extends Controller
 
     public function store(StoreAgentHandoverRequest $request, Agency $agency, User $user): JsonResponse
     {
-        if (($refusal = $this->refuseNonStaff($agency, $user)) !== null) {
-            return $refusal;
-        }
+        $this->refuseNonStaff($agency, $user);
 
         $result = $this->handover->transfer(
             $agency,
@@ -64,17 +60,14 @@ class AgentHandoverController extends Controller
      * que le retrait (`AgencyMemberRemovalService`). La passation d'un bailleur transmettait sa
      * co-propriété à un agent.
      */
-    private function refuseNonStaff(Agency $agency, User $user): ?JsonResponse
+    private function refuseNonStaff(Agency $agency, User $user): void
     {
         $agencyId = (int) $agency->id;
         if ($user->agentProfiles()->where('agency_id', $agencyId)->exists()
             || $user->agencyAdminProfiles()->where('agency_id', $agencyId)->exists()) {
-            return null;
+            return;
         }
 
-        return $this->json([
-            'code' => 'member_not_staff',
-            'message' => __('team_handover.handover.member_not_staff'),
-        ], 422);
+        abort_code(422, 'agent_handover.member_not_staff');
     }
 }

@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
  * TCK-591 §8 — ce qu'un membre du personnel laisse derrière lui dans UNE agence.
  *
  * Une catégorie = une requête, partagée par l'inventaire (`GET …/portfolio`), la passation et la
- * garde du retrait (`portfolio_not_empty`) : les trois comptent la même chose.
+ * garde du retrait (`agency_member.portfolio_not_empty`) : les trois comptent la même chose.
  *
  * Seul le travail EN COURS compte : une tâche terminée, une visite passée, une intervention close
  * restent à leur auteur — c'est l'histoire, pas le portefeuille.

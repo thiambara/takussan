@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
 use App\Http\Requests\Api\StoreCustomerRequest;
@@ -53,8 +54,8 @@ class CustomerController extends Controller
         // (`CustomerPolicy::create` l'a établi ; `null` pour le super-admin hors agence).
         $agencyId = $user->staffAgencyId();
 
-        if (! $allowDuplicate && ($response = $this->duplicateResponse($duplicates, $agencyId, $data, $user)) !== null) {
-            return $response;
+        if (! $allowDuplicate) {
+            $this->refuseDuplicate($duplicates, $agencyId, $data, $user);
         }
 
         $customer = Customer::create(array_merge($data, [
@@ -71,23 +72,23 @@ class CustomerController extends Controller
 
     /**
      * TCK-591 — un client de la même agence au même téléphone normalisé ou au même e-mail replié :
-     * 409 `customer_duplicate` avec les fiches trouvées, que le front présente comme une aide
+     * 409 `customer.duplicate` avec les fiches trouvées (`existing`), que le front présente comme une aide
      * (« ouvrir sa fiche » / « créer quand même » → `allow_duplicate=true`).
      *
      * @param  array<string, mixed>  $data
      */
-    private function duplicateResponse(
+    private function refuseDuplicate(
         CustomerDuplicateDetector $duplicates,
         ?int $agencyId,
         array $data,
         User $user,
         ?Customer $current = null,
-    ): ?JsonResponse {
+    ): void {
         // TCK-591 (verif-591 m1) — la détection sonde tout le CRM de l'agence : réservée à son
         // personnel. Un bailleur auteur d'une fiche s'en servait d'oracle (409 sur un numéro présent).
         if ($agencyId !== null && ! $user->isSuperAdmin()
             && ! app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId)) {
-            return null;
+            return;
         }
 
         $phone = array_key_exists('phone', $data) ? $data['phone'] : null;
@@ -100,14 +101,10 @@ class CustomerController extends Controller
 
         $existing = $duplicates->find($agencyId, $phone, $email, $user, $current?->id);
         if ($existing === []) {
-            return null;
+            return;
         }
 
-        return $this->json([
-            'code' => 'customer_duplicate',
-            'message' => __('crm.customers.duplicate'),
-            'existing' => $existing,
-        ], 409);
+        throw (new ApiError(409, 'customer.duplicate'))->with(['existing' => $existing]);
     }
 
     public function show(Request $request, Customer $customer): JsonResponse
@@ -130,9 +127,8 @@ class CustomerController extends Controller
         $allowDuplicate = (bool) ($data['allow_duplicate'] ?? false);
         unset($data['reason'], $data['allow_duplicate']);
 
-        if (! $allowDuplicate
-            && ($response = $this->duplicateResponse($duplicates, $customer->agency_id, $data, $request->user(), $customer)) !== null) {
-            return $response;
+        if (! $allowDuplicate) {
+            $this->refuseDuplicate($duplicates, $customer->agency_id, $data, $request->user(), $customer);
         }
 
         $oldStage = $customer->pipeline_stage;

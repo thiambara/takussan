@@ -201,7 +201,7 @@ class AgentAbsenceTest extends ApiTestCase
             'substitute_id' => $this->admin->id,
             'starts_at' => now()->addDays(2)->toIso8601String(),
             'ends_at' => now()->addDays(10)->toIso8601String(),
-        ])->assertStatus(422)->assertJsonPath('code', 'absence_overlaps');
+        ])->assertStatus(422)->assertJsonPath('code', 'agent_absence.overlaps');
 
         $this->declare($this->admin, [
             'starts_at' => now()->addDays(6)->toIso8601String(),

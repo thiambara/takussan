@@ -76,7 +76,7 @@ class AgencyMemberRemovalTest extends ApiTestCase
 
         $this->remove($this->admin, $agent)
             ->assertStatus(422)
-            ->assertJsonPath('code', 'portfolio_not_empty')
+            ->assertJsonPath('code', 'agency_member.portfolio_not_empty')
             ->assertJsonPath('portfolio.tasks', 1);
         $this->assertNotSoftDeleted('agent_profiles', ['user_id' => $agent->id]);
 
@@ -136,7 +136,7 @@ class AgencyMemberRemovalTest extends ApiTestCase
         $landlord = $this->member('owner');
         $this->remove($this->admin, $landlord)
             ->assertStatus(422)
-            ->assertJsonPath('code', 'member_not_staff');
+            ->assertJsonPath('code', 'agency_member.not_staff');
     }
 
     /** AC21 — retiré avec `leave_unassigned`, l'agent ne reçoit plus la visite qui lui reste assignée. */
@@ -195,7 +195,7 @@ class AgencyMemberRemovalTest extends ApiTestCase
 
         $this->actingAsApi($agent)->apiPost('/api/me/calendar-feed')
             ->assertForbidden()
-            ->assertJsonPath('code', 'calendar_feed_not_staff');
+            ->assertJsonPath('code', 'calendar.feed_not_staff');
         $this->assertSame(0, CalendarFeed::query()->where('user_id', $agent->id)->whereNull('revoked_at')->count());
     }
 

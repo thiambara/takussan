@@ -132,7 +132,7 @@ export interface CustomerFormPayload {
   status: (typeof customerStatusValues)[number];
   id_type?: (typeof idTypeValues)[number];
   id_number?: string;
-  /** TCK-591 — `true` après un 409 `customer_duplicate` assumé (« Créer quand même »). */
+  /** TCK-591 — `true` après un 409 `customer.duplicate` assumé (« Créer quand même »). */
   allow_duplicate?: boolean;
   seeking_contract_type?: (typeof seekingContractTypeValues)[number] | null;
   budget_min?: number | null;

@@ -8,7 +8,6 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Permissions\RoleDelegationService;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -60,12 +59,7 @@ class AgentAbsenceService
                 ->where('ends_at', '>', $from)
                 ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<', $endsAt))
                 ->exists();
-            if ($overlaps) {
-                throw new HttpResponseException(response()->json([
-                    'code' => 'absence_overlaps',
-                    'message' => __('team_handover.absences.overlaps'),
-                ], 422));
-            }
+            abort_code_if($overlaps, 422, 'agent_absence.overlaps');
 
             $absence = RoleDelegation::query()->create([
                 'user_id' => $substitute->id,

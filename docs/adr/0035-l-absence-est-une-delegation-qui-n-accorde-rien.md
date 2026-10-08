@@ -57,7 +57,7 @@ cycle de vie des délégations et n'accorde aucune capacité.**
 4. **Qui la déclare** — le titulaire de `team.delegate_role` dans l'agence, ou l'agent lui-même pour
    sa propre absence. L'absent et le remplaçant sont tous deux **personnel** de l'agence (prédicat de
    TCK-587) et distincts ; une absence ne chevauche pas une autre absence planifiée ou active du
-   même agent (422 `absence_overlaps`).
+   même agent (422 `agent_absence.overlaps`, code renommé à la fusion de TCK-588).
 5. **Surface** — `GET|POST /api/agencies/{agency}/absences`, `DELETE
    /api/agencies/{agency}/absences/{delegation}` (révocation). La console des délégations
    (`RoleDelegationController::index`) **exclut** les lignes d'absence : elles ne sont pas des

@@ -2,6 +2,7 @@
 
 namespace App\Services\Agency;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -9,7 +10,6 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Calendar\CalendarFeedService;
 use App\Services\Permissions\RoleDelegationService;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,9 +23,9 @@ use Illuminate\Support\Facades\DB;
  *  - les deux gardes historiques : l'administrateur principal (`primary_admin_id`) et le dernier
  *    administrateur, compté SOUS VERROU ;
  *  - un membre du personnel seulement — `AgentProfile` OU `AgencyAdminProfile` dans l'agence. Un
- *    bailleur seul n'est pas « retiré de l'équipe » : 422 `member_not_staff` ;
+ *    bailleur seul n'est pas « retiré de l'équipe » : 422 `agency_member.not_staff` ;
  *  - un portefeuille non vide exige une passation, ou `leave_unassigned` ASSUMÉ (422
- *    `portfolio_not_empty`, avec les comptes) ;
+ *    `agency_member.portfolio_not_empty`, avec les comptes) ;
  *  - un journal `activity('Membership')` : `agent_removed` / `agency_admin_removed` ;
  *  - l'extinction de ce que la présence ouvrait : flux iCalendar du membre dans l'agence (ADR-0034),
  *    délégations et absences où il figure (ADR-0035).
@@ -46,15 +46,13 @@ class AgencyMemberRemovalService
         $hasAdmin = $member->agencyAdminProfiles()->where('agency_id', $agencyId)->exists();
 
         if (! $hasAgent && ! $hasAdmin) {
-            if ($member->isOwnerAt($agencyId)) {
-                $this->fail('member_not_staff', __('team_handover.removal.member_not_staff'));
-            }
-            abort(422, __('messages.user_not_in_agency'));
+            abort_code_if($member->isOwnerAt($agencyId), 422, 'agency_member.not_staff');
+            abort_code(422, 'agency_member.not_in_agency');
         }
-        abort_if($member->id === $agency->primary_admin_id, 422, __('messages.cannot_remove_primary_admin'));
+        abort_code_if($member->id === $agency->primary_admin_id, 422, 'agency_member.cannot_remove_primary_admin');
 
         if (! $leaveUnassigned && ! $this->portfolio->isEmpty($agency, $member)) {
-            $this->fail('portfolio_not_empty', __('team_handover.removal.portfolio_not_empty'), [
+            throw (new ApiError(422, 'agency_member.portfolio_not_empty'))->with([
                 'portfolio' => $this->portfolio->inventory($agency, $member),
             ]);
         }
@@ -72,7 +70,7 @@ class AgencyMemberRemovalService
                     ->lockForUpdate()
                     ->get(['id'])
                     ->count();
-                abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
+                abort_code_if($remainingAdmins === 0, 422, 'agency_member.cannot_remove_last_admin');
             }
 
             $removed = [];
@@ -108,11 +106,5 @@ class AgencyMemberRemovalService
 
             return $removed;
         });
-    }
-
-    /** @param array<string, mixed> $extra */
-    private function fail(string $code, string $message, array $extra = []): never
-    {
-        throw new HttpResponseException(response()->json(['code' => $code, 'message' => $message, ...$extra], 422));
     }
 }

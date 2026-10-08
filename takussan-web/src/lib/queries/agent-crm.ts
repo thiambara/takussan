@@ -320,7 +320,7 @@ export async function searchTaskables(
 
 /**
  * TCK-591 §8 — retirer un membre en ASSUMANT de laisser son portefeuille en place
- * (`leave_unassigned`) : sans ce drapeau, un portefeuille non vide rend 422 `portfolio_not_empty`.
+ * (`leave_unassigned`) : sans ce drapeau, un portefeuille non vide rend 422 `agency_member.portfolio_not_empty`.
  */
 export async function removeMember(
   token: string,

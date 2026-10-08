@@ -115,11 +115,12 @@ class CalendarScopeTest extends ApiTestCase
         $agent = $this->member('agent');
         $uri = $this->window('&agency_id='.Agency::factory()->create()->id);
 
-        $fr = $this->actingAsApi($agent)->getJson($uri, ['Accept-Language' => 'fr'])->assertForbidden()->json('message');
+        $fr = $this->actingAsApi($agent)->getJson($uri, ['Accept-Language' => 'fr'])->assertForbidden()
+            ->assertJsonPath('code', 'calendar.other_agency_forbidden')->json('message');
         $en = $this->actingAsApi($agent)->getJson($uri, ['Accept-Language' => 'en'])->assertForbidden()->json('message');
 
-        $this->assertSame(__('calendar.errors.cross_agency_forbidden', [], 'fr'), $fr);
-        $this->assertSame(__('calendar.errors.cross_agency_forbidden', [], 'en'), $en);
+        $this->assertSame(__('errors.calendar.other_agency_forbidden', [], 'fr'), $fr);
+        $this->assertSame(__('errors.calendar.other_agency_forbidden', [], 'en'), $en);
         $this->assertNotSame($fr, $en);
     }
 }

@@ -62,7 +62,7 @@ class TaskAuthorizationTest extends ApiTestCase
             'taskable_type' => Customer::class,
             'taskable_id' => $customer->id,
             'assigned_to_id' => $landlord->id,
-        ])->assertStatus(422)->assertJsonPath('code', 'task_assignee_not_staff');
+        ])->assertStatus(422)->assertJsonPath('code', 'task.assignee_not_staff');
 
         $this->assertDatabaseCount('tasks', 0);
     }
@@ -91,7 +91,7 @@ class TaskAuthorizationTest extends ApiTestCase
         $this->actingAsApi($this->agent)
             ->apiPut("/api/tasks/{$task->id}", ['assigned_to_id' => $outsider->id])
             ->assertStatus(422)
-            ->assertJsonPath('code', 'task_assignee_not_staff');
+            ->assertJsonPath('code', 'task.assignee_not_staff');
 
         $this->assertSame($this->agent->id, $task->fresh()->assigned_to_id);
     }
@@ -188,7 +188,7 @@ class TaskAuthorizationTest extends ApiTestCase
 
         $this->actingAsApi($landlord)->apiPost('/api/tasks', $body + ['assigned_to_id' => $landlord->id])
             ->assertStatus(422)
-            ->assertJsonPath('code', 'task_assignee_not_staff');
+            ->assertJsonPath('code', 'task.assignee_not_staff');
         $this->assertDatabaseCount('tasks', 0);
 
         $this->actingAsApi($landlord)->apiPost('/api/tasks', $body)->assertCreated();
@@ -213,8 +213,8 @@ class TaskAuthorizationTest extends ApiTestCase
         $en = $this->actingAsApi($this->agent)->postJson('/api/tasks', $body, ['Accept-Language' => 'en'])
             ->assertStatus(422)->json('message');
 
-        $this->assertSame(__('crm.tasks.assignee_not_staff', [], 'fr'), $fr);
-        $this->assertSame(__('crm.tasks.assignee_not_staff', [], 'en'), $en);
+        $this->assertSame(__('errors.task.assignee_not_staff', [], 'fr'), $fr);
+        $this->assertSame(__('errors.task.assignee_not_staff', [], 'en'), $en);
         $this->assertNotSame($fr, $en);
     }
 }

@@ -8470,6 +8470,12 @@
           "body": "Votre devis pour l'intervention « {request} » a été rejeté."
         }
       },
+      "prospect_match": {
+        "digest": {
+          "title": "Des biens correspondent à vos prospects",
+          "body": "{properties} bien(s) récent(s) ou dont le prix a changé correspondent à {prospects} de vos prospects."
+        }
+      },
       "property": {
         "approved": {
           "title": "Bien approuvé : {property}",
