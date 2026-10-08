@@ -16,6 +16,13 @@ use App\Models\MaintenanceRequest;
  */
 final class CurrencyUnit
 {
+    /**
+     * verif-592 passe 3 (N10) — le plus grand montant que tiennent les colonnes `decimal(14,2)`
+     * (`estimated_cost`, `actual_cost`, `quote_amount`). Au-delà, PostgreSQL lève `numeric field
+     * overflow` : une 500.
+     */
+    public const MAX_COLUMN = '999999999999.99';
+
     /** Rendu sur 2 décimales, l'échelle des colonnes. */
     public static function round(string $amount, int $scale): string
     {

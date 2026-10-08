@@ -78,6 +78,31 @@ class MaintenanceActualCostTest extends TestCase
     }
 
     /**
+     * Passe 3 (N10, sondes q04b et q04c) — sans `max`, un montant au-delà de `decimal(14,2)`
+     * passait la validation et rendait 500 (`numeric field overflow`).
+     */
+    public function test_a_cost_beyond_the_column_is_refused(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null, 'estimated_cost' => null]);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '1000000000000'])
+            ->assertUnprocessable()->assertJsonValidationErrors('actual_cost');
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['estimated_cost' => '1000000000000'])
+            ->assertUnprocessable()->assertJsonValidationErrors('estimated_cost');
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['actual_cost' => '99999999999999999999'])
+            ->assertUnprocessable()->assertJsonValidationErrors('actual_cost');
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['cost' => '99999999999999999999'])
+            ->assertUnprocessable()->assertJsonValidationErrors('cost');
+        $this->assertNull($mr->refresh()->actual_cost);
+        $this->assertSame(MaintenanceStatus::InProgress, $mr->status);
+
+        // La borne elle-même tient dans la colonne.
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '999999999999'])->assertOk();
+        $this->assertSame('999999999999.00', (string) $mr->refresh()->actual_cost);
+    }
+
+    /**
      * Passe 2 (N5, sonde p05) — `numeric` admettait la notation scientifique, que bcmath refuse au
      * premier plafond lu : `5e5` rendait une 500. Désormais un 422 de validation, et rien d'écrit.
      */

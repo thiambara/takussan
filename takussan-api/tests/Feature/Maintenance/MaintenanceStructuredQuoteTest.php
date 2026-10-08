@@ -93,6 +93,26 @@ class MaintenanceStructuredQuoteTest extends TestCase
             ->assertJsonPath('data.quote_valid_until', now()->addDays(10)->toDateString());
     }
 
+    /**
+     * Passe 3 (N10, sonde q04d) — chaque facteur sous son `max`, le produit (100 000 × 1 000 000 000)
+     * dépassait la colonne `decimal(14,2)` de `quote_amount` : 500. Désormais un 422 codé, rien
+     * d'écrit.
+     */
+    public function test_a_quote_total_beyond_the_column_is_refused(): void
+    {
+        ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested, ['accepted_at' => now()]);
+
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", [
+            'lines' => [['label' => 'x', 'kind' => 'labour', 'quantity' => 100000, 'unit_price' => 1000000000]],
+            'valid_until' => now()->addWeek()->toDateString(),
+        ])->assertUnprocessable()->assertJsonPath('code', 'maintenance.quote_amount_too_large');
+
+        $mr->refresh();
+        $this->assertNull($mr->quote_amount);
+        $this->assertSame(MaintenanceStatus::QuoteRequested, $mr->status);
+    }
+
     /** @return array<string, array{array<string, mixed>, string}> */
     public static function refusedBodies(): array
     {

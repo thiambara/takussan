@@ -139,7 +139,11 @@ class MaintenanceQuoteWorkflow
             $total = bcadd($total, $lineTotal, 2);
         }
 
-        return [$lines, CurrencyUnit::round($total, $scale)];
+        $total = CurrencyUnit::round($total, $scale);
+        // verif-592 passe 3 (N10) — chaque facteur sous son `max`, le produit dépassait la colonne.
+        abort_code_if(bccomp($total, CurrencyUnit::MAX_COLUMN, 2) === 1, 422, 'maintenance.quote_amount_too_large');
+
+        return [$lines, $total];
     }
 
     private function decimal(mixed $value): string

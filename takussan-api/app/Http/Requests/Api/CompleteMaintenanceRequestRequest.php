@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenanceStatus;
+use App\Services\Maintenance\CurrencyUnit;
 
 /**
  * TCK-305 — extrait de MaintenanceRequestController::complete(), où les règles étaient écrites en ligne.
@@ -50,8 +51,9 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
         return [
             'resolution_notes' => ['nullable', 'string'],
             // verif-592 passe 2 (N5) — `numeric` admet `6e4`, que bcmath refuse (500).
-            'cost' => ['nullable', 'numeric', 'min:0', 'decimal:0,2'],
-            'actual_cost' => ['nullable', 'numeric', 'min:0', 'decimal:0,2'],
+            // verif-592 passe 3 (N10) — au-delà de la colonne `decimal(14,2)` : 500.
+            'cost' => ['nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
+            'actual_cost' => ['nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             'photos' => ['nullable', 'array'],
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ];

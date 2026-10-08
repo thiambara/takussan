@@ -219,6 +219,7 @@ return [
         'dedicated_endpoint' => 'This status change goes through its own action, not through the generic status.',
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
+        'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
         'quote_expired' => 'This quote is no longer valid: its validity date has passed.',
         'reassign_after_completion' => 'The work is done: the job can no longer be reassigned.',
         'status_transition_invalid' => 'This maintenance status change is not allowed.',

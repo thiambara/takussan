@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenancePriority;
 use App\Rules\AssignableProvider;
+use App\Services\Maintenance\CurrencyUnit;
 use Illuminate\Validation\Rule;
 
 /**
@@ -112,9 +113,10 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
             'access_instructions' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
             'status' => ['prohibited'],
-            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            // verif-592 passe 3 (N10) — au-delà de la colonne `decimal(14,2)` : 500.
+            'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN],
             // verif-592 passe 2 (N5) — `numeric` admet `5e5`, que bcmath refuse (500).
-            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'decimal:0,2'],
+            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],
             'started_at' => ['prohibited'],
             'completed_at' => ['prohibited'],
