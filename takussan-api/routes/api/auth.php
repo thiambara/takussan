@@ -7,7 +7,9 @@ use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
 use App\Http\Controllers\Api\Auth\OAuthController;
 use App\Http\Controllers\Api\Auth\OAuthProviderController;
+use App\Http\Controllers\Api\Auth\OAuthTwoFactorController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Auth\PhoneLoginController;
 use App\Http\Controllers\Api\Auth\PhoneVerificationController;
 use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
@@ -25,6 +27,15 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,10');
+
+    // TCK-589 (ADR-0033) — entrée par téléphone : le code SMS remplace le mot de
+    // passe. 404 tant que `auth.phone_login.enabled` est éteint.
+    Route::post('/phone/request-code', [PhoneLoginController::class, 'requestCode'])
+        ->middleware('throttle:auth-phone-send')
+        ->name('auth.phone.request-code');
+    Route::post('/phone/verify-code', [PhoneLoginController::class, 'verifyCode'])
+        ->middleware('throttle:auth-phone-verify')
+        ->name('auth.phone.verify-code');
 
     Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword'])
         ->middleware('throttle:auth-password')
@@ -56,8 +67,16 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // OTP).
     Route::post('/verify-phone', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
     Route::post('/phone/verify-otp', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
-    Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
-    Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware('throttle:3,1');
+    // Vérification adverse M3 — le limiteur de `request-code` aussi, par numéro DESTINATAIRE
+    // (celui du corps, sinon celui du compte) et par IP : `throttle:3,1` par compte ne bornait
+    // rien, chaque compte neuf visant un numéro neuf. Les assistants d'onboarding passent ici.
+    Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
+    Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
+    // TCK-589 p3-1 — un code à l'ANCIEN numéro vérifié, preuve exigée pour le remplacer. Mêmes
+    // bornes que `send-otp` : sans corps, `auth-phone-send` compte sur le numéro du compte.
+    Route::post('/phone/change-code', [PhoneVerificationController::class, 'changeCode'])
+        ->middleware(['throttle:3,1', 'throttle:auth-phone-send'])
+        ->name('auth.phone.change-code');
 
     // Two-factor authentication
     // /confirm and /disable both gate on a 6-digit TOTP (or password on
@@ -69,8 +88,14 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::get('/two-factor/qr', [TwoFactorController::class, 'qr']);
     Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:5,1');
     Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:5,1');
+    // TCK-589 — les codes de secours exigent un step-up (`RequireRecentTwoFactor`,
+    // liste `ProtectedActions::STEP_UP`) : une session volée ne contourne plus le TOTP.
     Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes']);
     Route::post('/two-factor/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+    // TCK-589 — step-up : un TOTP frais, porté par CE jeton pendant 10 minutes.
+    Route::post('/two-factor/step-up', [TwoFactorController::class, 'stepUp'])
+        ->middleware('throttle:5,1')
+        ->name('auth.two-factor.step-up');
 
     // TCK-264 — Mandatory TOTP enrollment for a freshly-coopted
     // super-admin. The spatie role is deferred until /confirm flips
@@ -109,6 +134,13 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 // for retries while blocking cheap enumeration.
 Route::prefix('auth/oauth')->middleware('throttle:60,1')->group(function () {
     Route::get('/providers', OAuthProviderController::class);
+    // TCK-589, vérification adverse B2 — le rappel d'un compte à 2FA rend un défi : le jeton
+    // n'est émis qu'ici, contre un TOTP ou un code de secours.
+    // Préfixe propre : sans lui, la clé est celle du `throttle:60,1` du groupe, et chaque
+    // appel compterait deux fois.
+    Route::post('/2fa', OAuthTwoFactorController::class)
+        ->middleware('throttle:10,1,oauth-2fa')
+        ->name('auth.oauth.2fa');
 
     // Dedicated Facebook/Apple controllers (TCK-081) — declared before the
     // generic `{provider}` route so Laravel matches them first.

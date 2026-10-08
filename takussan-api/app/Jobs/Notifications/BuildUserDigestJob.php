@@ -42,6 +42,12 @@ class BuildUserDigestJob implements ShouldQueue
         }
 
         $windowStart = $this->windowStart($frequency);
+        // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : pas de résumé
+        // par courriel (ses notifications restent dans l'application).
+        if (! $this->user->email) {
+            return;
+        }
+
         $grouped = $builder->buildForUser($this->user, $windowStart);
         $all = $builder->flatten($grouped);
 

@@ -92,6 +92,11 @@ export type User = {
    * onboarding wizard on this flag.
    */
   force_2fa_at_first_login?: boolean;
+  /**
+   * TCK-589 — posé quand le support réinitialise le second facteur : le compte doit en configurer
+   * un nouveau avant de retrouver son espace (`configurationDoubleFacteurExigee`).
+   */
+  force_2fa_reconfigure?: boolean;
   agency_id?: number | null;
   roles: UserRole[];
   status: UserStatus;

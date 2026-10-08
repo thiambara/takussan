@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Auth\ConfirmSuperAdminTwoFactorRequest;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
+use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\SuperAdminBootstrapService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Auth\TwoFactorService;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * TCK-264 — Mandatory TOTP enrollment for a freshly-coopted super-admin.
@@ -110,12 +112,24 @@ class SuperAdminTwoFactorController extends Controller
         );
 
         DB::transaction(function () use ($user): void {
+            // TCK-589 — l'enrôlement solde aussi une réinitialisation par le support.
+            $metadata = $user->metadata ?? [];
+            unset($metadata['force_2fa_reconfigure']);
+
             $user->forceFill([
                 'two_factor_enabled' => true,
                 'force_2fa_at_first_login' => false,
+                'metadata' => $metadata,
             ])->save();
 
             $this->attachSuperAdminRole($user);
+
+            // Vérification adverse B2 — le TOTP vient d'être saisi sur CE jeton : la
+            // console s'ouvre sans redemander le code.
+            $token = $user->currentAccessToken();
+            if ($token instanceof PersonalAccessToken && $token->exists) {
+                SessionTokenIssuer::markStepUp($token);
+            }
 
             activity('User')
                 ->performedOn($user)

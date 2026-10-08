@@ -34,12 +34,26 @@ return [
      * until one returns `sent`. `failed` and `deferred_to_fallback`
      * both trigger the next driver in the chain in the same execution.
      */
-    'fallback_chains' => [
-        'orange' => ['orange', 'lafricamobile', 'mtarget'],
-        'free' => ['lafricamobile', 'mtarget'],
-        'expresso' => ['lafricamobile', 'mtarget'],
-        'default' => ['lafricamobile', 'mtarget'],
-    ],
+    'fallback_chains' => array_map(
+        // TCK-589 — `SMS_LOG_FALLBACK=true` (développement seulement, `.env.docker`)
+        // termine chaque chaîne par le pilote `log` : sans fournisseur configuré, le
+        // SMS — et le code de vérification qu'il porte — s'écrit dans le journal au
+        // lieu de se perdre. L'API ne rend plus jamais ce code (ADR-0033 §5) : c'est
+        // la seule façon, en local, de franchir l'étape « code SMS ». Faux par défaut,
+        // et forcé à faux dans `phpunit.xml`. Vérification adverse m6 : la variable ne
+        // suffit pas, `APP_ENV` doit être `local` ou `testing` — recopiée par erreur en
+        // préproduction ou en production, elle n'écrirait pas les codes dans le journal.
+        fn (array $chain): array => filter_var(env('SMS_LOG_FALLBACK', false), FILTER_VALIDATE_BOOL)
+            && in_array(env('APP_ENV'), ['local', 'testing'], true)
+            ? [...$chain, 'log']
+            : $chain,
+        [
+            'orange' => ['orange', 'lafricamobile', 'mtarget'],
+            'free' => ['lafricamobile', 'mtarget'],
+            'expresso' => ['lafricamobile', 'mtarget'],
+            'default' => ['lafricamobile', 'mtarget'],
+        ],
+    ),
 
     /**
      * Mapping driver-id → Integration.provider value used to look up
@@ -71,6 +85,29 @@ return [
         'sms_mtarget',
         'sms_lafricamobile',
     ],
+
+    /**
+     * TCK-589, vérification adverse M3 — les codes de vérification (`phone_otp`) partent par un
+     * VRAI SMS : sans borne, un formulaire public est un relais de « SMS pumping » vers des
+     * numéros surtaxés.
+     *  - `otp_allowed_country_codes` : indicatifs servis pour un code (sans `+`). Hors liste,
+     *    422 `phone_country_not_allowed`, et rien ne part. Défaut : le Sénégal seul.
+     *  - `otp_daily_cap` : plafond GLOBAL de codes par jour (UTC). Atteint, plus rien ne part
+     *    jusqu'au lendemain, et une alerte est journalisée une fois. 2000 ≈ 100 € / jour au
+     *    tarif « default » le plus cher de la grille ci-dessous.
+     */
+    'otp_allowed_country_codes' => array_values(array_filter(array_map(
+        fn (string $code): string => ltrim(trim($code), '+'),
+        explode(',', (string) env('SMS_OTP_ALLOWED_COUNTRY_CODES', '221')),
+    ))),
+    'otp_daily_cap' => (int) env('SMS_OTP_DAILY_CAP', 2000),
+
+    /**
+     * TCK-589, vérification adverse m1 — plafond journalier (UTC) des SMS d'invitation PAR
+     * AGENCE, envoi et relance (le rappel automatique, un par invitation, n'y est pas compté).
+     * Atteint : 429 `invitation.sms_daily_cap_reached`, et rien n'est écrit.
+     */
+    'invitation_daily_cap_per_agency' => (int) env('SMS_INVITATION_DAILY_CAP_PER_AGENCY', 50),
 
     /**
      * Application-level rate limit applied before any driver is called.

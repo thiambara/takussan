@@ -56,6 +56,7 @@ return [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
     ],
     'auth' => [
+        'account_blocked' => 'Kont bii dañu ko tëj.',
         'insufficient_privileges' => 'Sañ-sañ yi doyuñu.',
         'oauth_email_taken' => 'Am na compte bu am adrees e-mail bii ba noppi. Duggal ak sa baatu jàll, te nga takk sa compte ci sa paramètre yi.',
         'oauth_not_configured' => 'Connexion bii configurerouñu ko.',
@@ -179,6 +180,8 @@ return [
         'tenant_not_found' => 'Luwekat bu bail bi gisuñu ko.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'Limu woote yi ci SMS ci bés bi jot na ci agence bi. Jéemaatal ëllëg, walla woo ko ci e-mail.',
+        'phone_mismatch' => 'Nimero bii du bi ñu yónne woote bi.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',
         'token_accepted' => 'Lëkkalekaay bi nanguwoon nañu ko.',
@@ -285,10 +288,13 @@ return [
         'status_transition_invalid' => 'Soppi statut reversement bii nangouñu ko.',
     ],
     'phone' => [
+        'taken' => 'Nimero bii, beneen kont la ko wóor.',
         'already_verified' => 'Nimero bii dëggal nañu ko ba noppi.',
         'code_invalid' => 'Code dëggal bi baaxul walla jeex na.',
         'missing' => 'Amuloo benn nimero telefon bu ñu bind.',
         'resend_too_soon' => 'Muñal balaa ngay laaj beneen code.',
+        'change_requires_proof' => 'Ngir soppi nimero bu ñu dëggal, wonal ci kanam ne yaa ko yor : code bi ñu yónne ci nimero boobu, walla sa baatu jàll.',
+        'no_verified_number' => 'Amul benn nimero bu ñu dëggal ci kont bii.',
     ],
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\CallbackOAuthRequest;
-use App\Http\Resources\UserResource;
 use App\Services\Auth\OAuthProviderConfiguration;
 use App\Services\Auth\OAuthProvisioningService;
+use App\Services\Auth\OAuthSessionOpener;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -63,11 +63,8 @@ class OAuthController extends Controller
 
         // Google asserts email verification via its OIDC contract; mark verified.
         $user = $this->provisioning->provision($provider, $socialUser, markEmailVerified: true);
-        $token = $user->createToken($provider.'-oauth')->plainTextToken;
 
-        return $this->json(['data' => [
-            'token' => $token,
-            'user' => (new UserResource($user))->toArray($request),
-        ]]);
+        // TCK-589 — B2 : un compte à 2FA reçoit un défi, pas un jeton.
+        return app(OAuthSessionOpener::class)->open($user, $provider.'-oauth', $request);
     }
 }

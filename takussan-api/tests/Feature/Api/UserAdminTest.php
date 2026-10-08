@@ -21,7 +21,7 @@ class UserAdminTest extends TestCase
     protected function createAdmin(): User
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;
@@ -32,7 +32,7 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         User::factory()->count(5)->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->getJson('/api/users')
             ->assertOk()
@@ -46,7 +46,7 @@ class UserAdminTest extends TestCase
         User::factory()->create(['first_name' => 'Fatou', 'last_name' => 'Sall']);
         $this->indexSearchable(User::class);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->getJson('/api/users?filter[search]=Amadou')
             ->assertOk()
@@ -65,7 +65,7 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         $user = User::factory()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->postJson("/api/users/{$user->id}/block")
             ->assertOk()
@@ -78,7 +78,7 @@ class UserAdminTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->postJson("/api/users/{$admin->id}/block")
             ->assertStatus(422);
@@ -89,7 +89,7 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         $user = User::factory()->create(['status' => UserStatus::Blocked->value]);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->postJson("/api/users/{$user->id}/activate")
             ->assertOk()
@@ -107,7 +107,7 @@ class UserAdminTest extends TestCase
         $admin = $this->createAdmin();
         $user = User::factory()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsWithStepUp($admin);
 
         $this->deleteJson("/api/users/{$user->id}")
             ->assertNoContent();

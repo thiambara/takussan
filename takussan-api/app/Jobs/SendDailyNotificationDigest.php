@@ -59,6 +59,11 @@ class SendDailyNotificationDigest implements ShouldQueue
      */
     protected function sendDigest(User $user, Collection $notifications): void
     {
+        // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : rien à envoyer.
+        if (! $user->email) {
+            return;
+        }
+
         // Localize against the recipient's preferred language.
         $locale = $user->preferred_language ?: config('app.locale');
 

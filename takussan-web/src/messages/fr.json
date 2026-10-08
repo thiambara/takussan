@@ -436,6 +436,48 @@
         "fileFooter": "Chaque code n’est utilisable qu’une seule fois."
       }
     },
+    "twoFactorGate": {
+      "requiredTitle": "Activez la double authentification",
+      "requiredBody": "Cette action touche des données sensibles : elle demande un second facteur sur votre compte. Configurez-le maintenant, l’action reprendra juste après.",
+      "stepUpTitle": "Confirmez que c’est bien vous",
+      "stepUpBody": "Par sécurité, cette action demande un code récent de votre application d’authentification. Saisissez-le, et l’action reprendra.",
+      "codeLabel": "Code à 6 chiffres",
+      "confirm": "Confirmer",
+      "confirming": "Vérification…",
+      "cancel": "Annuler",
+      "invalidCode": "Ce code n’est pas valide. Vérifiez l’heure de votre téléphone, puis réessayez.",
+      "failed": "La vérification n’a pas abouti. Réessayez dans un instant.",
+      "sessionClosed": "Trop de codes invalides : cette session est fermée. Reconnectez-vous.",
+      "reconfigureTitle": "Reconfigurez votre double authentification",
+      "reconfigureBody": "Votre second facteur a été réinitialisé par le support. Configurez-en un nouveau pour retrouver votre espace.",
+      "superAdminTitle": "La double authentification est obligatoire",
+      "superAdminBody": "La console de la plateforme n’est accessible qu’avec un second facteur. Configurez-le pour continuer."
+    },
+    "phoneLogin": {
+      "loginTitle": "Connectez-vous avec votre numéro",
+      "loginSubtitle": "Nous vous envoyons un code par SMS : aucun mot de passe à retenir.",
+      "registerTitle": "Créez votre compte avec votre numéro",
+      "registerSubtitle": "Un code reçu par SMS suffit : votre compte est prêt dès qu’il est confirmé.",
+      "phoneLabel": "Numéro de téléphone",
+      "sendCode": "Recevoir un code",
+      "sending": "Envoi…",
+      "codeSentTo": "Si ce numéro peut recevoir des SMS, un code à 6 chiffres vient d’être envoyé au {phone}. Il reste valable 5 minutes.",
+      "codeLabel": "Code reçu par SMS",
+      "verify": "Valider",
+      "verifying": "Vérification…",
+      "resendIn": "Renvoyer le code dans {seconds} s",
+      "resend": "Renvoyer le code",
+      "changeNumber": "Changer de numéro",
+      "useEmail": "Utiliser plutôt un e-mail et un mot de passe",
+      "usePhone": "Utiliser plutôt mon numéro de téléphone",
+      "invalidPhone": "Ce numéro n’est pas valide. Vérifiez l’indicatif et les chiffres.",
+      "codeInvalid": "Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.",
+      "locked": "Trop de tentatives : l’accès est suspendu quelques minutes. Réessayez un peu plus tard.",
+      "blocked": "Ce compte est suspendu. Contactez le support pour en savoir plus.",
+      "tooMany": "Trop de demandes en peu de temps. Patientez un instant avant de réessayer.",
+      "failed": "Une erreur est survenue. Réessayez dans un instant.",
+      "termsNotice": "En continuant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>."
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Authentification — Takussan"
@@ -839,6 +881,7 @@
       },
       "cancel": "Annuler",
       "signIn": "Se connecter",
+      "createAccount": "Créer un compte",
       "sending": "Envoi…",
       "booking": {
         "description": "Précisez vos dates et le nombre d'invités. Le propriétaire confirmera votre demande.",
@@ -3947,11 +3990,9 @@
           "sending": "Envoi…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code est valable 5 minutes.",
-            "bodyDebug": "Code envoyé (debug : {code})."
+            "body": "Le code est valable 5 minutes."
           },
           "verified": {
             "title": "Téléphone vérifié",
@@ -4072,11 +4113,9 @@
           "sending": "Envoi…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code est valable 5 minutes.",
-            "bodyDebug": "Code envoyé (debug : {code})."
+            "body": "Le code est valable 5 minutes."
           },
           "verified": {
             "title": "Téléphone vérifié",
@@ -4131,22 +4170,9 @@
         "welcome": {
           "title": "Bienvenue dans l'équipe",
           "subtitle": "Votre périmètre et vos premiers leads sont prêts.",
-          "roleLabel": "Rôle assigné",
-          "roles": {
-            "agent": "Agent",
-            "agent_senior": "Agent senior",
-            "agent_manager": "Agent manager"
-          },
-          "permissions": {
-            "list_properties": "Voir les biens",
-            "list_customers": "Voir les clients",
-            "create_visits": "Programmer des visites",
-            "message_customers": "Messager les clients",
-            "edit_properties": "Éditer les biens",
-            "invite_owner": "Inviter un propriétaire",
-            "invite_agent": "Inviter un agent",
-            "reassign_leads": "Réattribuer des leads"
-          },
+          "capabilitiesLabel": "Ce que vous pourrez faire dans l’agence",
+          "capabilitiesEmpty": "Aucun droit ne vous est encore attribué dans cette agence. Son administrateur peut vous en donner depuis la gestion de l’équipe.",
+          "capabilitiesError": "Vos droits n’ont pas pu être chargés. Ils restent consultables depuis votre espace.",
           "firstLeadLabel": "Votre premier lead",
           "noLead": "Aucun lead pré-assigné pour le moment.",
           "stageLabel": "Étape : {stage}",
@@ -4436,11 +4462,9 @@
           "sending": "Envoi…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code de développement : {code}",
           "sent": {
             "title": "Code envoyé",
-            "body": "Le code est valable 5 minutes.",
-            "bodyDebug": "Code envoyé (debug : {code})."
+            "body": "Le code est valable 5 minutes."
           },
           "verified": {
             "title": "Téléphone vérifié",
@@ -4610,10 +4634,8 @@
             "verifying": "Vérification…",
             "sentTitle": "Code envoyé",
             "sentBody": "Le code est valable 5 minutes.",
-            "sentDebug": "Code envoyé (debug : {code}).",
             "verifiedTitle": "Téléphone vérifié",
             "verifiedBody": "Vous pouvez maintenant publier votre bien.",
-            "devHint": "Code de développement : {code}",
             "errors": {
               "sendFailed": "Envoi du code impossible",
               "verifyFailed": "Code invalide"
@@ -5220,6 +5242,22 @@
         "title": "Tableau de bord agence",
         "subtitle": "Vue d'ensemble de l'agence"
       },
+      "setupStatus": {
+        "title": "Mise en service de l’agence",
+        "description": "Ce qu’il reste à faire pour que l’agence fonctionne pleinement.",
+        "progress": "{done} sur {total} étapes terminées",
+        "done": "Fait",
+        "todo": "À faire",
+        "steps": {
+          "kyc_verified": "Dossier KYC vérifié",
+          "logo": "Logo de l’agence ajouté",
+          "commission_rate": "Taux de commission renseigné",
+          "payment_integration": "Moyen de paiement connecté",
+          "first_member": "Premier membre invité dans l’équipe",
+          "first_published_property": "Premier bien publié",
+          "admin_two_factor": "Double authentification de l’administrateur activée"
+        }
+      },
       "team": {
         "shortTitle": "Équipe",
         "shortSubtitle": "Gestion des membres de l'agence",
@@ -5421,6 +5459,12 @@
         "label": "Modération obligatoire avant publication",
         "hint": "Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut « En attente de validation » jusqu'à l'approbation d'un administrateur, avant d'être visible publiquement."
       },
+      "security": {
+        "title": "Sécurité de l’équipe",
+        "description": "Les règles qui s’appliquent à chaque membre de l’agence.",
+        "teamTwoFactorLabel": "Double authentification obligatoire pour toute l’équipe",
+        "teamTwoFactorHint": "Chaque membre devra configurer un second facteur (application d’authentification) avant d’agir dans l’espace de l’agence. La colonne « Double authentification » de l’équipe montre qui l’a déjà fait."
+      },
       "submit": {
         "saving": "Enregistrement…"
       },
@@ -5473,6 +5517,10 @@
         "role": "Rôle",
         "status": "Statut",
         "lastLogin": "Dernière connexion",
+        "twoFactor": "Double authentification",
+        "twoFactorOn": "Activée",
+        "twoFactorOff": "Non activée",
+        "twoFactorUnknown": "Non communiquée",
         "createdAt": "Créé le",
         "actions": "Actions",
         "you": "Vous",
@@ -7562,8 +7610,13 @@
       "saveError": "Échec de la mise à jour du profil.",
       "saved": "Modifications enregistrées.",
       "otpSent": "Code envoyé par SMS. Il est valable 5 minutes.",
-      "otpSentDebug": "Code envoyé. (Debug : {code})",
-      "phoneVerifiedOk": "Téléphone vérifié avec succès."
+      "phoneVerifiedOk": "Téléphone vérifié avec succès.",
+      "changeProofPrompt": "Ce numéro est vérifié : pour le remplacer, confirmez que vous le détenez.",
+      "changeProofPasswordLabel": "Mot de passe actuel",
+      "changeProofOr": "ou",
+      "changeProofSendCode": "Recevoir un code sur {phone}",
+      "changeProofCodeSent": "Code envoyé sur votre numéro actuel. Il est valable 5 minutes.",
+      "changeProofCodeAria": "Code reçu sur votre numéro actuel"
     },
     "searchPreferences": {
       "defaultName": "Mes préférences",
@@ -8758,6 +8811,22 @@
         "cancelled": {
           "title": "Réservation annulée",
           "body": "Votre réservation {reference} pour {property} a été annulée."
+        }
+      },
+      "account": {
+        "phone_changed": {
+          "title": "Numéro de téléphone remplacé",
+          "body": "Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n'est pas vous, contactez le support."
+        }
+      },
+      "invitation": {
+        "received": {
+          "title": "Invitation de {agency}",
+          "body": "{agency} vous invite à rejoindre son équipe."
+        },
+        "reminder": {
+          "title": "Rappel : invitation de {agency}",
+          "body": "Votre invitation à rejoindre {agency} vous attend."
         }
       },
       "visit": {

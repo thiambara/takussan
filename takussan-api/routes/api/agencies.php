@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\KycController;
@@ -47,6 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
 
+    // TCK-589 §7 — mise en service : sept étapes lues sur l'état réel.
+    Route::get('agencies/{agency}/setup-status', AgencySetupStatusController::class)->name('agencies.setup-status');
+
     // Agency KYC dossier.
     Route::get('agencies/{agency}/kyc', [KycController::class, 'show'])->name('agencies.kyc.show');
     Route::post('agencies/{agency}/kyc/documents', [KycController::class, 'upload'])->name('agencies.kyc.documents.store');
@@ -66,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Resend / revoke réutilisent les routes génériques /api/invitations/{id}/*
     // exposées par TCK-249 (InvitationController).
     Route::post('agencies/{agency}/owners/invite', OwnerInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.owners.invite');
 
     // TCK-258 — équipe : listing membres + invitation agent. Resend / revoke
@@ -74,6 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
         ->name('agencies.team.index');
     Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.agents.invite');
 
     // TCK-266 — Console agence : queue locataires avec onboarding bloqué
@@ -89,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('agencies/{agency}/service-providers', [ServiceProviderProfileController::class, 'index'])
         ->name('agencies.serviceProviders.index');
     Route::post('agencies/{agency}/service-providers/invite', ServiceProviderInvitationController::class)
+        ->middleware('throttle:invitations-send')
         ->name('agencies.serviceProviders.invite');
 
     // TCK-267 — agency-side upgrade request flow (`individual → standard`).
