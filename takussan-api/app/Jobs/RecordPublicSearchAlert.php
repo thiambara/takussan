@@ -50,10 +50,12 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
     {
         try {
             $hash = AlertSubscriber::contactHash($this->channel, $this->contact);
+            // Les plafonds se comptent par BOÎTE : `awa+1@`, `awa+2@`… arrivent chez `awa@`.
+            $boite = AlertSubscriber::mailboxHash($this->channel, $this->contact);
 
-            $open = AlertSubscriber::query()->where('contact_hash', $hash)->count();
+            $open = AlertSubscriber::query()->where('mailbox_hash', $boite)->count();
             if ($open < (int) config('search_alerts.max_open_per_contact', 5)) {
-                $this->createAndConfirm($codes, $hash);
+                $this->createAndConfirm($codes, $hash, $boite);
             }
         } catch (Throwable $e) {
             Log::error('search_alert.request_failed', ['channel' => $this->channel]
@@ -61,17 +63,18 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
         }
     }
 
-    private function createAndConfirm(PhoneVerificationService $codes, string $hash): void
+    private function createAndConfirm(PhoneVerificationService $codes, string $hash, string $boite): void
     {
         $data = $this->data;
         $token = $this->channel === AlertSubscriber::CHANNEL_EMAIL ? AlertSubscriber::newToken() : null;
         $unsubscribe = AlertSubscriber::newToken();
 
-        $subscriber = DB::transaction(function () use ($data, $hash, $token, $unsubscribe): AlertSubscriber {
+        $subscriber = DB::transaction(function () use ($data, $hash, $boite, $token, $unsubscribe): AlertSubscriber {
             $subscriber = AlertSubscriber::create([
                 'channel' => $this->channel,
                 'contact' => $this->contact,
                 'contact_hash' => $hash,
+                'mailbox_hash' => $boite,
                 'locale' => $data['locale'],
                 'confirmation_token_hash' => $token !== null ? AlertSubscriber::tokenHash($token) : null,
                 'unsubscribe_token' => $unsubscribe,
@@ -94,7 +97,7 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
         // Au plus N messages de confirmation au même contact sur 24 h : au-delà, la demande
         // reste en attente, muette, et la purge l'efface à 48 h.
         $sent = AlertSubscriber::query()
-            ->where('contact_hash', $hash)
+            ->where('mailbox_hash', $boite)
             ->where('confirmation_sent_at', '>=', now()->subDay())
             ->count();
         if ($sent >= (int) config('search_alerts.max_confirmations_per_day', 2)) {

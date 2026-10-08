@@ -295,6 +295,37 @@ class PublicSearchAlertTest extends TestCase
         $this->assertSame(5, AlertSubscriber::count(), 'la casse ne fait pas un nouveau contact');
     }
 
+    /**
+     * verif-599 m1 — les alias `+` arrivent dans la même boîte : ils partagent ses plafonds (2
+     * confirmations par 24 h, 5 alertes ouvertes) et son limiteur. Le contact stocké reste celui
+     * saisi.
+     */
+    public function test_les_alias_plus_partagent_les_plafonds_de_la_boite(): void
+    {
+        $alias = ['awa@exemple.sn', 'awa+1@exemple.sn', 'awa+2@exemple.sn', 'Awa+3@exemple.sn', 'awa+4@exemple.sn', 'awa+5@exemple.sn'];
+        foreach ($alias as $i => $adresse) {
+            $this->travel(61)->minutes();
+            $this->withServerVariables(['REMOTE_ADDR' => "10.0.1.{$i}"])
+                ->postJson('/api/public/search-alerts', $this->demande(['name' => "Alias {$i}", 'email' => $adresse]))->assertStatus(202);
+        }
+
+        $recues = array_sum(array_map(fn (string $a) => count($this->emailsA(strtolower($a))), $alias));
+        $this->assertSame(2, $recues, 'deux confirmations au plus par boîte et par 24 h');
+        $this->assertSame(5, AlertSubscriber::count(), 'cinq alertes ouvertes au plus par boîte');
+        $this->assertSame('awa+1@exemple.sn', AlertSubscriber::query()->orderBy('id')->skip(1)->first()->contact, 'le contact reste celui saisi');
+    }
+
+    public function test_le_limiteur_par_contact_compte_les_alias_ensemble(): void
+    {
+        $statuts = [];
+        foreach (range(1, 6) as $i) {
+            $statuts[] = $this->withServerVariables(['REMOTE_ADDR' => "10.0.2.{$i}"])
+                ->postJson('/api/public/search-alerts', $this->demande(['name' => "N{$i}", 'email' => "awa+{$i}@exemple.sn"]))->getStatusCode();
+        }
+
+        $this->assertSame([202, 202, 202, 202, 202, 429], $statuts);
+    }
+
     /** **AC17** — le limiteur rend 429 au-delà de sa borne (par visiteur). */
     public function test_le_limiteur_rend_429(): void
     {

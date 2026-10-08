@@ -20,6 +20,9 @@ return new class extends Migration
             $table->string('channel', 16);
             $table->text('contact');
             $table->string('contact_hash', 64);
+            // verif-599 m1 — l'empreinte de la BOÎTE (`awa+x@` → `awa@`) : elle seule porte les
+            // plafonds et le limiteur. `contact_hash` garde le contact tel que saisi (rattachement).
+            $table->string('mailbox_hash', 64);
             $table->string('locale', 8)->default('fr');
             $table->string('confirmation_token_hash', 64)->nullable()->unique();
             $table->timestamp('confirmation_sent_at')->nullable();
@@ -33,6 +36,7 @@ return new class extends Migration
 
             $table->index(['contact_hash', 'confirmed_at'], 'alert_subscribers_contact_idx');
             $table->index('created_at', 'alert_subscribers_created_idx');
+            $table->index(['mailbox_hash', 'confirmation_sent_at'], 'alert_subscribers_mailbox_idx');
         });
     }
 

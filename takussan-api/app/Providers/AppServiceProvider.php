@@ -363,16 +363,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
-        // TCK-599 (ADR-0050 §4) — l'alerte sans compte : par VISITEUR, et par CONTACT visé (son
-        // empreinte, jamais le contact) — un script qui tourne ses adresses IP ne martèle pas une
-        // même boîte. Un 429 ne dit rien du contact : la borne vaut qu'il soit connu ou non.
+        // TCK-599 (ADR-0050 §4) — l'alerte sans compte : par CONTACT visé (l'empreinte de sa
+        // BOÎTE, jamais le contact, et `awa+x@` compte pour `awa@` — verif-599 m1) — un script qui
+        // tourne ses adresses IP ne martèle pas une même boîte ; et par VISITEUR. Un 429 ne dit
+        // rien du contact : la borne vaut qu'il soit connu ou non.
         RateLimiter::for('public-search-alert', function (Request $request) {
             $limits = [Limit::perMinutes(10, 10)->by('visitor:'.$this->visitorRateLimitKey($request))];
             $channel = $request->input('channel');
             $contact = $channel === AlertSubscriber::CHANNEL_WHATSAPP ? $request->input('phone') : $request->input('email');
             if (in_array($channel, AlertSubscriber::CHANNELS, true) && is_string($contact) && $contact !== '') {
                 try {
-                    $limits[] = Limit::perHour(5)->by('contact:'.AlertSubscriber::contactHash($channel, $contact));
+                    $limits[] = Limit::perHour(5)->by('contact:'.AlertSubscriber::mailboxHash($channel, $contact));
                 } catch (\InvalidArgumentException) {
                     // Numéro invalide : la validation le refusera, la borne par visiteur suffit.
                 }

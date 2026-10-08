@@ -37,12 +37,12 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     public const CONSENT_VERSION = 'search-alert-2026-10-08';
 
     protected $fillable = [
-        'channel', 'contact', 'contact_hash', 'locale', 'confirmation_token_hash',
+        'channel', 'contact', 'contact_hash', 'mailbox_hash', 'locale', 'confirmation_token_hash',
         'confirmation_sent_at', 'confirmed_at', 'unsubscribe_token', 'unsubscribe_token_hash',
         'consent_at', 'consent_source', 'consent_version',
     ];
 
-    protected $hidden = ['contact', 'contact_hash', 'confirmation_token_hash', 'unsubscribe_token', 'unsubscribe_token_hash'];
+    protected $hidden = ['contact', 'contact_hash', 'mailbox_hash', 'confirmation_token_hash', 'unsubscribe_token', 'unsubscribe_token_hash'];
 
     protected $casts = [
         'contact' => 'encrypted',
@@ -53,6 +53,14 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     ];
 
     protected static array $queryFields = ['id', 'channel', 'locale', 'confirmed_at', 'created_at'];
+
+    protected static function booted(): void
+    {
+        // L'empreinte de boîte se déduit du contact : aucun écrivain ne peut l'oublier.
+        static::creating(function (self $subscriber): void {
+            $subscriber->mailbox_hash ??= self::mailboxHash((string) $subscriber->channel, (string) $subscriber->contact);
+        });
+    }
 
     /** La forme comparable d'un contact : e-mail replié (ADR-0025), téléphone en E.164. */
     public static function normalizeContact(string $channel, string $contact): string
@@ -66,6 +74,22 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     public static function contactHash(string $channel, string $contact): string
     {
         return hash_hmac('sha256', $channel.'|'.self::normalizeContact($channel, $contact), (string) config('app.key'));
+    }
+
+    /**
+     * verif-599 m1 — l'empreinte de la BOÎTE qui reçoit : `awa+promo@exemple.sn` et
+     * `awa@exemple.sn` arrivent au même endroit. Elle porte les PLAFONDS et le limiteur par
+     * contact, jamais le rattachement ni la désinscription, qui restent sur le contact saisi
+     * ({@see self::contactHash()}). Un téléphone n'a pas d'alias : même empreinte que le contact.
+     */
+    public static function mailboxHash(string $channel, string $contact): string
+    {
+        $contact = self::normalizeContact($channel, $contact);
+        if ($channel === self::CHANNEL_EMAIL) {
+            $contact = (string) preg_replace('/\+[^@]*(?=@[^@]*$)/', '', $contact);
+        }
+
+        return hash_hmac('sha256', 'mailbox|'.$channel.'|'.$contact, (string) config('app.key'));
     }
 
     /** L'empreinte stockée d'un jeton : on ne garde jamais le jeton de confirmation lui-même. */

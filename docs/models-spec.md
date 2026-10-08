@@ -3384,7 +3384,8 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 | id | bigint PK | | auto | |
 | channel | string(16) | | | `email`, `whatsapp` (ce dernier derrière `SEARCH_ALERTS_WHATSAPP_ENABLED`) |
 | contact | text | | | Adresse ou numéro E.164 normalisé, **chiffré** (cast `encrypted`) |
-| contact_hash | string(64) | | | HMAC (`app.key`) de `canal\|contact normalisé` — recherche, plafonds, rattachement |
+| contact_hash | string(64) | | | HMAC (`app.key`) de `canal\|contact normalisé` — recherche, rattachement, désinscription |
+| mailbox_hash | string(64) | | | HMAC de la BOÎTE (`awa+x@` → `awa@`) — plafonds et limiteur par contact (verif-599 m1) ; posée à la création |
 | locale | string(8) | | 'fr' | `fr`, `en`, `wo` |
 | confirmation_token_hash | string(64) | ✓ | null | sha256 du lien de confirmation (e-mail), unique ; effacé à la confirmation (usage unique) |
 | confirmation_sent_at | timestamp | ✓ | null | Envoi de la confirmation — au plus 2 par contact sur 24 h |
@@ -3394,7 +3395,7 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 | consent_at / consent_source / consent_version | timestamp / string(40) / string(40) | | | Preuve du consentement (`public_search_alert`, `search-alert-2026-10-08`) |
 | created_at / updated_at | timestamp | | | |
 
-**Index :** `(contact_hash, confirmed_at)` (`alert_subscribers_contact_idx`), `created_at` (`alert_subscribers_created_idx`)
+**Index :** `(contact_hash, confirmed_at)` (`alert_subscribers_contact_idx`), `created_at` (`alert_subscribers_created_idx`), `(mailbox_hash, confirmation_sent_at)` (`alert_subscribers_mailbox_idx`)
 
 **Relations :** `savedSearches()` → hasMany SavedSearch
 
