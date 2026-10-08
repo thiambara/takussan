@@ -1152,3 +1152,13 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
 encore sur la chaîne agence : le gel d'une agence non active (ADR-0039 §5) ne couvre que la chaîne
 plateforme. Rendre au bailleur l'argent encaissé pour lui reste légitime pendant une suspension ; on
 n'y touche pas.
+
+**Fusion de TCK-591 (2026-10-08, après les corrections VERIF-594).** Conflits gardés des deux côtés
+(ADR README, `NotificationCode`, `AgencyPolicy`, INDEX régénéré). Dans `docs/models-spec.md`, le §72
+revient à `CalendarFeed` (591) ; les entrées de 594 deviennent §73 `PayoutMethod`,
+§74 `ServiceProviderBill` et §75 `PayoutMethodVerification`. **Un défaut invisible des deux côtés** :
+chaque branche avait retiré deux lignes de `CapabilityEnforcementInventory::AWAITING` et baissé le
+cliquet de `check-capability-readers` de 16 à 14. La fusion n'a eu aucun conflit textuel et gardait
+14 pour un inventaire de 12 : la garde était rouge. Le cliquet passe à 12. `AgencyIdIsIndexedTest`
+est vert : `payout_method_verifications.agency_id` est la première colonne de
+`pm_verifications_agency_method_unique`.
