@@ -598,4 +598,26 @@ Et autour :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure sur `dev` (`f1220c3c`, 2026-10-08)
+
+- A : les prémisses tiennent (colonnes `varchar` en clair, `$queryFields`/`requestSearchFields`,
+  `GET /api/owners` brut). `OwnerProfilePolicy::viewAny` lit toujours `isAgencyAdminAt || isAgentAt`.
+  Le masqueur `BankStatementController::maskIban` existe (format `SN12 **** **34`). `/api/users?include=ownerProfiles`
+  et tout `toArray()` d'un profil (`MeProfiles`, `Admin/UserDetail`, `AgencyDetail`) sont fermés par le
+  même `$hidden`, pas un par un.
+- 594 (non fusionné) garde `rib_pro` dans `LEGAL_FIELDS` et déplace `rc`/`ninea`/`company_legal_name`/
+  `address_fiscale` vers des colonnes ; son `PayoutMethod::mask()` = `'•••• '.tail(4)` après retrait
+  des blancs, soit exactement `Masking::tail()`.
+
+### A — données sensibles du bailleur (commit `feat(api): chiffrer le RIB…`)
+
+- `Masking::iban()` garde le code pays et les 2 derniers caractères (`SN•• •••• ••89`) : le relevé
+  bancaire, qui gardait 4 caractères en tête (`SN12 ****`), en montre désormais moins — écart voulu.
+- `GET /api/owners` : les colonnes sensibles ne sont plus demandables (`fields[]` → 400) mais le
+  contrôleur les ajoute au `select` pour que la Resource calcule leurs masques ; sans `fields[]`,
+  `select *` les charge déjà.
+- `viewSensitive` exige que le profil actif soit dans l'agence du profil (principe n° 2), pas
+  seulement un `AgencyAdminProfile` quelque part.
+- Tests : `OwnerProfileSensitiveDataTest` 7/7 (+ `OwnerProfileListingTest` 5/5, comptabilité et export
+  74/74). Ablations (`scratchpad/t601/ablations.log`) : `$hidden` retiré → 2 rouges ; Resource
+  retirée → rouge ; policy à `true` → rouge ; cast retiré → 2 rouges ; `makeVisible` retiré → rouge.
