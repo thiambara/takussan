@@ -30,6 +30,8 @@ use Throwable;
  *  - **retour au public** → `unavailable_notified_at` repart à `null` et la base se recale sur le
  *    prix courant, sans rien annoncer (« de nouveau disponible » est hors périmètre).
  *
+ * Le favori d'un bien dont l'agence est suspendue est GELÉ : ni annoncé, ni rebasé (ADR-0048).
+ *
  * « Public » se juge par `scopePublic()` (via `withExists`), jamais par une copie. Les montants
  * se comparent en centimes entiers ({@see Favorite::cents()}), jamais en flottant.
  *
@@ -61,6 +63,9 @@ class SendFavoriteChangeAlerts implements ShouldQueue
         /** @var Collection<int, Favorite> $favorites */
         $favorites = Favorite::query()
             ->where('user_id', $user->id)
+            // TCK-600 (ADR-0048 §1) — le bien d'une agence suspendue est MASQUÉ, pas sorti du
+            // public : ni annoncé, ni rebasé. Il reprend à la levée, contre sa base d'avant.
+            ->whereHas('property', fn (Builder $q) => $q->withTrashed()->ofPublicAgency())
             ->withExists(['property as property_is_public' => fn (Builder $q) => $q->public()])
             ->with(['property' => fn (BelongsTo $q) => $q->withTrashed()])
             ->orderBy('id')

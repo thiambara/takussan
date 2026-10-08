@@ -37,6 +37,7 @@ import {
   BOOKING_STATUS_TONE,
 } from './booking-status';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
+import { BookingRefundPanel } from './BookingRefundPanel';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
@@ -379,6 +380,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           <p className="mt-3 text-sm text-muted-foreground">{t('noPayments')}</p>
         )}
       </section>
+
+      {/* TCK-596 — l'acompte d'une réservation fermée : bloc distinct du reçu (TCK-593). */}
+      {booking.refund_status != null && (
+        <BookingRefundPanel booking={booking} locale={locale} isCustomer={isCustomer} />
+      )}
 
       <BookingTimeline booking={booking} locale={locale} />
 

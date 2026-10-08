@@ -4,6 +4,8 @@ namespace Tests\Feature\Auth\TwoFactor;
 
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PropertyModerationController;
+use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
+use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
@@ -12,7 +14,6 @@ use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\UserAdminController;
-use App\Http\Controllers\Api\UserRoleController;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Routing\Router;
@@ -117,8 +118,11 @@ class ProtectedActionsCoverageTest extends TestCase
             $conferent['App\\'.str_replace('/', '\\', $relatif)] = true;
         }
         // Plancher : la recherche qui ne trouve plus rien ne doit pas passer pour un vert.
-        $this->assertArrayHasKey(UserRoleController::class, $conferent);
-        $this->assertArrayHasKey(UserAdminController::class, $conferent);
+        // TCK-600 (ADR-0047 §4) — `UserRoleController` ne confère plus de pouvoir plateforme (sa
+        // branche `super_admin` est retirée) : le plancher passe à la cooptation.
+        $this->assertArrayHasKey(SuperAdminInvitationController::class, $conferent);
+        // TCK-600 (verif-600 m1) — réactiver un compte a quitté `UserAdminController` pour la console.
+        $this->assertArrayHasKey(UserLifecycleController::class, $conferent);
 
         $oubliees = [];
         foreach (Route::getRoutes()->getRoutes() as $route) {

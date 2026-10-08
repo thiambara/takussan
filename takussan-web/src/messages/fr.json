@@ -932,7 +932,8 @@
         "weeklyLine": "{price} / semaine, au prorata de {count, plural, =1 {# nuit} other {# nuits}}",
         "deposit": "Acompte (30 %)",
         "rentLine": "Loyer",
-        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif."
+        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif.",
+        "occupiedHint": "Les dates grisées sont déjà prises."
       },
       "offerForm": {
         "invalidAmount": "Montant invalide.",
@@ -1085,7 +1086,8 @@
         "fullPriceHistory": "Historique complet des prix",
         "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
         "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
-        "unknownDate": "Date inconnue"
+        "unknownDate": "Date inconnue",
+        "calendar": "Calendrier"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1202,6 +1204,45 @@
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
         "cancel": "Annuler",
         "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
+      },
+      "calendar": {
+        "title": "Calendrier du bien",
+        "description": "Réservations confirmées, dates bloquées et dates importées d'autres plateformes, sur douze mois.",
+        "legend": "Légende",
+        "legendBooked": "Réservé",
+        "legendBlocked": "Bloqué",
+        "legendImported": "Importé",
+        "genericError": "L'opération n'a pas abouti.",
+        "blockTitle": "Bloquer des dates",
+        "blockHint": "Les nuits bloquées ne sont plus réservables, ici comme sur les plateformes qui lisent votre lien d'export.",
+        "blockFrom": "Première nuit",
+        "blockTo": "Jour de reprise",
+        "blockReason": "Motif (facultatif, visible de vous seul)",
+        "blockSubmit": "Bloquer",
+        "blocksTitle": "Dates bloquées",
+        "blocksEmpty": "Aucune date bloquée sur les douze prochains mois.",
+        "range": "Du {from} au {to}",
+        "manual": "Blocage manuel",
+        "importedFrom": "Importé de {feed}",
+        "conflict": "Conflit avec une réservation",
+        "unblock": "Débloquer",
+        "feedsTitle": "Calendriers importés",
+        "feedsHint": "Collez le lien iCal d'Airbnb, de Booking.com ou d'un agenda : leurs dates prises sont bloquées ici toutes les heures. Une date importée se retire à la source.",
+        "feedUrl": "Lien iCal (https)",
+        "feedLabel": "Nom (facultatif)",
+        "feedAdd": "Importer",
+        "feedOk": "synchronisé",
+        "feedFailing": "en échec ({count, plural, =1 {# tentative} other {# tentatives}})",
+        "feedSync": "Synchroniser",
+        "feedRemove": "Retirer",
+        "exportTitle": "Lien d'export",
+        "exportHint": "Donnez ce lien aux autres plateformes pour qu'elles bloquent vos réservations Takussan. Il ne contient ni nom ni téléphone.",
+        "exportGenerate": "Générer un nouveau lien",
+        "exportUrl": "Lien d'export iCal",
+        "exportCopy": "Copier",
+        "exportCopied": "Copié",
+        "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent.",
+        "feedPending": "première synchronisation en cours"
       },
       "collaborators": {
         "title": "Agent principal",
@@ -3017,6 +3058,11 @@
           "title": "Paiement échoué",
           "body": "Le paiement n’a pas pu aboutir. Vous pouvez réessayer."
         },
+        "refund": {
+          "title": "Paiement reçu, remboursement à venir",
+          "bodyCancelled": "Paiement reçu sur une échéance annulée : l’agence vous remboursera.",
+          "bodyAlreadyPaid": "Cette échéance était déjà réglée : l’agence vous remboursera ce paiement."
+        },
         "pending": {
           "title": "Paiement en cours",
           "body": "Nous vérifions le statut du paiement avec le fournisseur — cela peut prendre quelques secondes."
@@ -3120,7 +3166,8 @@
       "late": "En retard",
       "partially_paid": "Partiellement payé",
       "failed": "Échec",
-      "refunded": "Remboursé"
+      "refunded": "Remboursé",
+      "cancelled": "Annulé"
     },
     "invoiceStatus": {
       "draft": "Brouillon",
@@ -3450,7 +3497,8 @@
       "banner_cancel_request": "Annuler la résiliation",
       "cancelled_toast_title": "Résiliation annulée",
       "cancelled_toast_body": "Le bail revient à l'état actif.",
-      "cancel_failed_title": "L'annulation a échoué"
+      "cancel_failed_title": "L'annulation a échoué",
+      "cta_tenant": "Donner mon préavis"
     },
     "error_generic": "Action impossible.",
     "list": {
@@ -3509,7 +3557,8 @@
         "paid": "Payé",
         "late": "En retard",
         "pending": "À venir",
-        "other": "Autre"
+        "other": "Autre",
+        "cancelled": "Annulée"
       },
       "listLabel": "Échéances du bail",
       "dueOn": "Échéance : {date}",
@@ -3651,6 +3700,35 @@
         "passport": "Passeport",
         "driving_license": "Permis de conduire"
       }
+    },
+    "signature": {
+      "title": "Signature du bail",
+      "notFrozenDescription": "Le contrat n’est pas encore figé. Demandez la signature : le contrat est alors arrêté, et chaque partie le signe avec un code reçu par SMS ou par e-mail.",
+      "frozenDescription": "Le contrat est figé. Chaque partie le lit, puis le signe avec son code. La seconde signature active le bail. Toute modification du bail annule les signatures en attente.",
+      "readContract": "Lire le contrat à signer",
+      "roles": {
+        "tenant": "Locataire",
+        "landlord": "Bailleur"
+      },
+      "signed": "Signé",
+      "awaiting": "En attente",
+      "signedBy": "Signé par {signer} le {date}",
+      "signedOnBehalf": "Signé par {signer} pour le compte de {landlord} le {date}",
+      "sendCode": "Recevoir mon code",
+      "resendCode": "Renvoyer le code",
+      "codeSentSms": "Code envoyé par SMS au {destination}. Il est valable 10 minutes.",
+      "codeSentMail": "Code envoyé par e-mail à {destination}. Il est valable 10 minutes.",
+      "codeLabel": "Code à 6 chiffres",
+      "sign": "Signer",
+      "consent": "En saisissant ce code, je signe le contrat affiché ci-dessus.",
+      "request": "Demander la signature",
+      "requestAgain": "Figer à nouveau le contrat",
+      "requestedToast": "Signature demandée : les parties sont prévenues.",
+      "signedToast": "Votre signature est enregistrée.",
+      "activatedToast": "Bail signé et activé.",
+      "paperLabel": "Contrat signé sur papier (PDF, JPG ou PNG, 10 Mo)",
+      "paperSubmit": "Activer sur contrat papier",
+      "genericError": "L’opération a échoué. Réessayez."
     }
   },
   "maintenance": {
@@ -5181,7 +5259,11 @@
       "disputeReason": "Motif du litige",
       "disputeReasonPlaceholder": "Expliquez le point contesté",
       "sendDispute": "Envoyer le litige",
-      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant."
+      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant.",
+      "roomPhotos": "Photos de la pièce {room}",
+      "roomPhotoAlt": "Photo {index} — {room}",
+      "deleteRoomPhotoAria": "Supprimer la photo {index} de la pièce {room}",
+      "deleteRoomPhotoFailed": "La photo n'a pas pu être supprimée. Réessayez."
     },
     "roomEditor": {
       "empty_title": "Aucune pièce",
@@ -5253,7 +5335,9 @@
       "signAs": "Signer comme {role}",
       "confirmAs": "Signer en tant que {role}",
       "helper": "Tracez votre signature puis confirmez — l'action est définitive.",
-      "signFailed": "Signature impossible. Réessayez."
+      "signFailed": "Signature impossible. Réessayez.",
+      "onBehalfOf": "Pour le compte de {name}",
+      "signedOnBehalf": "Signé par le gestionnaire pour le compte du bailleur"
     },
     "signaturePad": {
       "label": "Signez ici",
@@ -6462,7 +6546,24 @@
           "submit": "Annuler la réservation"
         }
       },
-      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès."
+      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès.",
+      "refund": {
+        "pendingTitle": "Remboursement en cours",
+        "pendingDescription": "Votre réservation n'aura pas lieu : l'acompte versé vous sera remboursé.",
+        "refundedTitle": "Remboursé",
+        "refundedDescription": "L'acompte versé pour cette réservation a été remboursé.",
+        "toProcessTitle": "Remboursement à traiter",
+        "toProcessDescription": "Cette réservation est fermée et porte un acompte encaissé. Enregistrez son remboursement une fois l'argent rendu.",
+        "action": "Rembourser",
+        "dialogTitle": "Enregistrer un remboursement",
+        "dialogDescription": "Montant encaissé : {amount}.",
+        "fields": {
+          "amount": "Montant remboursé",
+          "reason": "Motif"
+        },
+        "submit": "Enregistrer le remboursement",
+        "submitting": "Enregistrement…"
+      }
     },
     "public": {
       "no_property_title": "Aucun bien sélectionné",
@@ -7072,19 +7173,33 @@
         "cache": "Cache",
         "storage": "Stockage",
         "mail": "E-mail",
-        "sms": "SMS"
+        "sms": "SMS",
+        "media_storage": "Médias",
+        "search": "Recherche",
+        "queue": "Files de jobs",
+        "workers": "Workers",
+        "cdn": "CDN"
       },
       "hint": {
         "error": "Erreur : {message}",
         "driver": "Pilote : {driver}",
         "value": "Valeur : {value}",
-        "latency": "{ms} ms"
+        "latency": "{ms} ms",
+        "checkedAt": "Sondé à {time}",
+        "reason": {
+          "no_delivery": "Aucun envoi réel (pilote de test)",
+          "unreachable": "Serveur injoignable",
+          "not_meilisearch": "Recherche hors Meilisearch"
+        }
       },
       "status": {
         "ok": "OK",
         "failed": "En panne",
-        "loading": "…"
-      }
+        "loading": "…",
+        "degraded": "Dégradé"
+      },
+      "global": "État général :",
+      "queueOldestSeconds": "Plus longue attente (s)"
     },
     "integrations": {
       "webhooks": {
@@ -7135,13 +7250,6 @@
       "activeOutOf": "{active} actifs",
       "delta": "{value} % sur {days} jours"
     },
-    "impersonation": {
-      "banner": "Vous agissez en tant que {target} — session jusqu'à {expires}.",
-      "fallbackUser": "utilisateur #{id}",
-      "unknownExpiry": "inconnu",
-      "stopping": "Arrêt…",
-      "stop": "Arrêter l’impersonation"
-    },
     "confirmDialog": {
       "typePrompt": "Pour confirmer, tapez",
       "pending": "En cours…"
@@ -7168,15 +7276,21 @@
         },
         "suspend": {
           "title": "Suspendre l’agence",
-          "description": "L’agence sera bloquée. Ses utilisateurs perdent l’accès aux fonctionnalités produits.",
+          "description": "Ses annonces quittent le site et son équipe passe en lecture seule. Les paiements des locataires continuent ; ses admins sont prévenus, avec votre motif.",
           "label": "Suspendre"
         },
         "unverify": {
           "title": "Retirer la vérification",
           "description": "L’agence reviendra en statut Inactive et perdra son badge vérifié.",
           "label": "Dévérifier"
+        },
+        "reinstate": {
+          "title": "Lever la suspension",
+          "description": "L’agence redevient active : ses annonces reviennent sur le site et son équipe retrouve l’écriture. Sa vérification ne change pas ; ses admins sont prévenus.",
+          "label": "Lever la suspension"
         }
-      }
+      },
+      "reasonLabel": "Motif (transmis aux admins de l’agence)"
     },
     "agencyDetail": {
       "loadError": "Impossible de charger cette agence.",
@@ -7203,13 +7317,18 @@
         },
         "suspend": {
           "title": "Suspendre l’agence",
-          "description": "L’agence sera suspendue dans toute la plateforme.",
+          "description": "Ses annonces quittent le site et son équipe passe en lecture seule. Les paiements des locataires continuent ; ses admins sont prévenus, avec votre motif.",
           "label": "Suspendre"
         },
         "unverify": {
           "title": "Retirer la vérification",
           "description": "L’agence perdra son badge vérifié et repassera inactive.",
           "label": "Dévérifier"
+        },
+        "reinstate": {
+          "title": "Lever la suspension",
+          "description": "L’agence redevient active : ses annonces reviennent sur le site et son équipe retrouve l’écriture. Sa vérification ne change pas ; ses admins sont prévenus.",
+          "label": "Lever la suspension"
         }
       },
       "health": {
@@ -7234,7 +7353,12 @@
         "revenue30d": "Revenu 30 jours",
         "lastPayment": "Dernier paiement"
       },
-      "backToList": "Retour aux agences"
+      "backToList": "Retour aux agences",
+      "reasonLabel": "Motif (transmis aux admins de l’agence)",
+      "suspension": {
+        "since": "Suspendue le {date}",
+        "reason": "Motif : {reason}"
+      }
     },
     "pages": {
       "shared": {
@@ -7297,7 +7421,9 @@
       },
       "featureFlags": {
         "title": "Feature flags",
-        "subtitle": "Contrôlez les rollouts globaux, par segment et par override de session."
+        "subtitle": "Contrôlez les rollouts globaux, par segment et par override de session.",
+        "emptyTitle": "Aucun drapeau en service",
+        "emptyDescription": "Un drapeau n’apparaît ici qu’avec le code qui le lit. Il s’ajoutera au catalogue en même temps que la fonctionnalité qu’il commande."
       },
       "integrations": {
         "title": "Intégrations tierces",
@@ -7306,7 +7432,7 @@
       },
       "settings": {
         "title": "Paramètres plateforme",
-        "subtitle": "Réglez les devises, formats, frais et limites globales sans redéploiement.",
+        "subtitle": "Réglez les devises et la durée des sessions opérateur. Seuls les paramètres qu’un code lit figurent ici.",
         "sensitiveNotice": "Les paramètres marqués comme sensibles peuvent nécessiter un redémarrage de queue ou un vidage de cache applicatif."
       },
       "templates": {
@@ -7405,8 +7531,8 @@
         "open": "Ouvrir",
         "impersonate": "Impersonifier",
         "impersonateTitle": "Impersonifier {name}",
-        "impersonateDescription": "Vous obtiendrez un token éphémère (≤ 1h) pour agir en tant que cet utilisateur. Toutes les actions sont auditées.",
-        "impersonateConfirmLabel": "Lancer l’impersonation",
+        "impersonateDescription": "Vous verrez Takussan exactement comme cette personne, en lecture seule, pendant 15 minutes au plus. Aucune modification n'est possible ; la session, son motif et sa durée sont journalisés, et la personne en sera informée à la fin.",
+        "impersonateConfirmLabel": "Ouvrir la session de lecture",
         "roles": {
           "all": "Tous rôles",
           "super_admin": "Super-admin",
@@ -7443,7 +7569,11 @@
           "security": "Sécurité",
           "lastLogin": "Dernière connexion",
           "actions": "Actions"
-        }
+        },
+        "impersonateReasonLabel": "Motif",
+        "impersonateReasonPlaceholder": "Ex. : ticket de support n° 4821, l'utilisateur ne voit pas son bail.",
+        "impersonateReasonHint": "Au moins {min} caractères. Le motif est conservé et communiqué à la personne.",
+        "impersonateConfirmPhrase": "CONSULTER"
       },
       "agencies": {
         "title": "Agences",
@@ -7508,7 +7638,14 @@
         "confirmCancelBody": "Le lien envoyé à {email} cessera immédiatement de fonctionner. Vous pourrez toujours réinviter cette personne plus tard.",
         "confirmCancelKeep": "Conserver",
         "confirmCancelConfirm": "Annuler l'invitation",
-        "invitationActions": "Actions sur l'invitation de {email}"
+        "invitationActions": "Actions sur l'invitation de {email}",
+        "revokeOperator": {
+          "label": "Retirer",
+          "title": "Retirer {email} des opérateurs",
+          "description": "Son accès à la console est révoqué, ses sessions sont fermées (impersonation comprise) et les autres super-admins sont alertés. Son compte utilisateur reste intact.",
+          "reasonLabel": "Motif (journalisé, transmis aux pairs)",
+          "success": "{email} n’est plus opérateur."
+        }
       },
       "upgradeRequests": {
         "title": "Demandes d'upgrade",
@@ -7644,7 +7781,39 @@
       "emptyTitle": "Aucune règle d'alerte",
       "emptyDescription": "Créez une règle pour être prévenu par email ou webhook quand une action critique a lieu sur la plateforme.",
       "deleteTitle": "Supprimer la règle d'alerte",
-      "deleteDescription": "Les prochaines occurrences de cet événement ne déclencheront plus d'alerte."
+      "deleteDescription": "Les prochaines occurrences de cet événement ne déclencheront plus d'alerte.",
+      "events": {
+        "super_admin_impersonation_started": "Impersonation démarrée",
+        "super_admin_impersonation_stopped": "Impersonation terminée",
+        "super_admin_agency_suspended": "Agence suspendue",
+        "super_admin_agency_reinstated": "Agence rétablie",
+        "super_admin_user_blocked": "Compte bloqué",
+        "super_admin_user_reactivated": "Compte réactivé",
+        "super_admin_user_erasure_requested": "Effacement de compte demandé",
+        "super_admin_password_reset_forced": "Réinitialisation de mot de passe forcée",
+        "super_admin_2fa_reset": "Double authentification réinitialisée",
+        "super_admin_sessions_revoked": "Sessions révoquées",
+        "super_admin_account_unlocked": "Compte déverrouillé",
+        "super_admin_data_export_requested": "Export de données demandé",
+        "two_factor_disabled": "Double authentification désactivée",
+        "super_admin_invited": "Opérateur invité",
+        "super_admin_operator_revoked": "Opérateur retiré",
+        "super_admin_setting_updated": "Paramètre plateforme modifié",
+        "super_admin_feature_flag_updated": "Drapeau de fonctionnalité modifié",
+        "super_admin_integration_updated": "Intégration modifiée",
+        "super_admin_payout_approved": "Reversement approuvé",
+        "super_admin_payout_marked_paid": "Reversement marqué payé",
+        "super_admin_payout_cancelled": "Reversement annulé",
+        "super_admin_payout_period_closed": "Période de reversement clôturée",
+        "ops_failed_jobs_spike": "Rafale d’échecs de jobs",
+        "ops_queue_stalled": "File de jobs à l’arrêt",
+        "ops_health_degraded": "Santé de la plateforme dégradée"
+      },
+      "channels": {
+        "email": "E-mail",
+        "slack": "Slack",
+        "discord": "Discord"
+      }
     },
     "inviteModal": {
       "title": "Coopter un super-admin",
@@ -7728,15 +7897,29 @@
       "updatedByOn": "Modifié par {name} le {date}",
       "defaultValue": "Valeur par défaut",
       "errors": {
-        "xofRequired": "XOF doit rester dans les devises supportées.",
-        "feeRange": "Le frais plateforme doit rester entre 0,00 et 100,00 %.",
-        "feeDecimals": "Le frais plateforme accepte deux décimales maximum."
+        "xofRequired": "XOF doit rester dans les devises supportées."
       },
       "categories": {
         "currency": "Devises",
-        "format": "Formats & i18n",
-        "transaction": "Frais plateforme",
         "limits": "Limites techniques"
+      },
+      "keys": {
+        "currency": {
+          "default": {
+            "label": "Devise par défaut",
+            "description": "Devise des paiements quand le bien ou l’agence n’en précise pas."
+          },
+          "supported": {
+            "label": "Devises acceptées",
+            "description": "Devises qu’une agence peut choisir à sa création ou dans ses réglages. XOF reste toujours acceptée."
+          }
+        },
+        "platform": {
+          "session_max_minutes": {
+            "label": "Durée maximale d’une session opérateur",
+            "description": "En minutes, de 15 à 1440. S’applique aux connexions ouvertes après l’enregistrement."
+          }
+        }
       }
     },
     "agencyOnboarding": {
@@ -7840,12 +8023,33 @@
         "title": "Activité",
         "viewInAudit": "Voir dans l’audit",
         "empty": "Aucune activité récente.",
-        "fallbackLabel": "Activité"
+        "fallbackLabel": "Activité",
+        "viaImpersonation": "Via impersonation par {name}"
       },
       "supportDialog": {
         "reasonLabel": "Raison support",
         "reasonPlaceholder": "Décrivez la raison auditée",
         "pending": "Exécution…"
+      },
+      "lifecycle": {
+        "block": {
+          "label": "Bloquer",
+          "title": "Bloquer ce compte",
+          "description": "Ses sessions sont fermées et il ne peut plus se connecter, par aucun chemin, jusqu’à sa réactivation. Il en est informé, avec votre motif."
+        },
+        "reactivate": {
+          "label": "Réactiver",
+          "title": "Réactiver ce compte",
+          "description": "Il peut de nouveau se connecter. Il en est informé."
+        },
+        "erase": {
+          "label": "Effacer le compte",
+          "title": "Effacer ce compte",
+          "description": "L’effacement est planifié au terme du délai de grâce, sauf contestation ; ses sessions sont fermées tout de suite. Il est refusé tant qu’une obligation reste ouverte (bail actif, réservation, paiement)."
+        },
+        "reasonLabel": "Motif (journalisé)",
+        "toastDone": "Action effectuée.",
+        "toastErasureScheduled": "Effacement planifié le {date}."
       }
     },
     "queues": {
@@ -7884,6 +8088,40 @@
       "emptyDescription": "Les actions cross-agences apparaîtront ici dès leur journalisation.",
       "unknownEvent": "Événement sans libellé",
       "systemCauser": "Système"
+    },
+    "operatorLevels": {
+      "legend": "Niveau",
+      "viewer": {
+        "label": "Lecture",
+        "hint": "Consulte la console, les rapports, la santé et les agences. Ne touche à rien."
+      },
+      "support": {
+        "label": "Support",
+        "hint": "En plus : fiches des utilisateurs, gestes de support, blocage, file de modération, recherche globale."
+      },
+      "super_admin": {
+        "label": "Super-admin",
+        "hint": "Tous les gestes, dont la suspension d’agence, l’effacement de compte, l’impersonation et les opérateurs."
+      }
+    },
+    "globalSearch": {
+      "trigger": "Rechercher",
+      "shortcut": "Ctrl K",
+      "title": "Recherche globale",
+      "description": "E-mail, téléphone, référence, transaction, NINEA ou nom. Flèches pour choisir, Entrée pour ouvrir.",
+      "placeholder": "Rechercher dans toute la plateforme",
+      "hint": "Au moins 2 caractères.",
+      "empty": "Aucun résultat pour « {q} ».",
+      "types": {
+        "user": "Utilisateurs",
+        "agency": "Agences",
+        "property": "Biens",
+        "booking": "Réservations",
+        "lease": "Baux",
+        "invoice": "Factures",
+        "payment": "Paiements",
+        "payout": "Reversements"
+      }
     },
     "privacyRequests": {
       "tableCaption": "Registre des demandes de droits, par échéance",
@@ -9559,13 +9797,25 @@
         },
         "cancelled": {
           "title": "Réservation annulée",
-          "body": "Votre réservation {reference} pour {property} a été annulée."
+          "body": "La réservation {reference} pour {property} a été annulée."
+        },
+        "requested_undated": {
+          "title": "Nouvelle demande",
+          "body": "Une demande {reference} a été faite pour {property}."
         }
       },
       "account": {
         "phone_changed": {
           "title": "Numéro de téléphone remplacé",
           "body": "Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n'est pas vous, contactez le support."
+        },
+        "blocked": {
+          "title": "Votre compte est bloqué",
+          "body": "Votre compte Takussan a été bloqué par la plateforme. Motif : {reason}. Contactez le support pour toute question."
+        },
+        "reactivated": {
+          "title": "Votre compte est réactivé",
+          "body": "Votre compte Takussan a été réactivé. Motif : {reason}. Vous pouvez vous reconnecter."
         }
       },
       "invitation": {
@@ -9814,6 +10064,54 @@
         "rejected": {
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        },
+        "calendar_conflict": {
+          "title": "Conflit de calendrier : {property}",
+          "body": "Le calendrier « {feed} » bloque {property} du {start_date} au {end_date}, alors qu'une réservation confirmée occupe ces dates. Rien n'a été annulé : vérifiez les deux plateformes."
+        },
+        "calendar_feed_failing": {
+          "title": "Calendrier importé en échec : {property}",
+          "body": "Le calendrier « {feed} » de {property} ne se synchronise plus depuis trois tentatives. Vérifiez son lien."
+        },
+        "unpublished_contact_erased": {
+          "title": "Annonce retirée : {property}",
+          "body": "L'annonce {property} ({reference}) a été retirée du site : son seul contact a effacé son compte. Attribuez-lui un agent puis republiez-la : {url}"
+        }
+      },
+      "lease": {
+        "signature_requested": {
+          "title": "Bail à signer : {reference}",
+          "body": "Le bail {reference} pour {property} est prêt. Lisez le contrat, puis signez-le avec le code que vous recevrez."
+        },
+        "signed_by_party": {
+          "title": "Bail {reference} signé par {signer}",
+          "body": "{signer} a signé le bail {reference} pour {property}. Il attend votre signature."
+        },
+        "signature_completed": {
+          "title": "Bail {reference} signé",
+          "body": "Les deux parties ont signé le bail {reference} pour {property}. Il est désormais actif."
+        }
+      },
+      "impersonation": {
+        "ended": {
+          "title": "Votre compte a été consulté par l'équipe Takussan",
+          "body": "Un membre de l'équipe Takussan, {operator}, a consulté votre compte en lecture seule du {started_at} au {ended_at}. Motif : {reason}. Aucune modification n'a été faite en votre nom."
+        }
+      },
+      "agency": {
+        "suspended": {
+          "title": "Agence suspendue : {agency}",
+          "body": "L'agence {agency} est suspendue par la plateforme. Motif : {reason}. Ses annonces ne sont plus publiées et son espace est en lecture seule."
+        },
+        "reinstated": {
+          "title": "Suspension levée : {agency}",
+          "body": "La suspension de l'agence {agency} est levée. Motif : {reason}. Ses annonces publiques sont de nouveau visibles."
+        }
+      },
+      "platform_operator": {
+        "revoked": {
+          "title": "Opérateur retiré : {operator}",
+          "body": "L'accès de {operator} à la console plateforme a été retiré. Motif : {reason}."
         }
       },
       "payout": {
@@ -9902,6 +10200,21 @@
       "previous": "Précédente",
       "next": "Suivante",
       "pageOf": "Page {page} sur {last}"
+    }
+  },
+  "impersonation": {
+    "banner": {
+      "message": "Lecture seule — vous voyez Takussan en tant que {target}, jusqu'à {ends}.",
+      "fallbackUser": "utilisateur n° {id}",
+      "unknownEnd": "l'échéance",
+      "leave": "Quitter",
+      "leaving": "Sortie…"
+    }
+  },
+  "agencySuspension": {
+    "banner": {
+      "title": "Agence suspendue par la plateforme : lecture seule.",
+      "body": "Vos données restent consultables et exportables ; aucune modification n’est possible tant que la suspension dure."
     }
   },
   "horsLigne": {

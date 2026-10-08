@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AdminShell } from '../AdminShell';
@@ -37,8 +38,8 @@ vi.mock('@/lib/queries/property-moderation', () => ({
   })),
 }));
 vi.mock('@/hooks/useImpersonation', () => ({
-  useImpersonationSession: () => null,
-  useStopImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
+  useImpersonationCourante: () => ({ data: null }),
+  useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 // Les modales de bienvenue d'`AppShell` montent chacune leur propre requête : hors sujet ici.
@@ -94,7 +95,7 @@ const MAINTENANCE = {
 
 const COQUES = [
   ['AdminShell', (enfants: React.ReactNode) => <AdminShell user={utilisateur(['agency_admin'])}>{enfants}</AdminShell>],
-  ['SuperAdminShell', (enfants: React.ReactNode) => <SuperAdminShell user={utilisateur(['super_admin'])}>{enfants}</SuperAdminShell>],
+  ['SuperAdminShell', (enfants: React.ReactNode) => <SuperAdminShell user={utilisateur(['super_admin'])} abilities={SUPER_ADMIN}>{enfants}</SuperAdminShell>],
 ] as const;
 
 describe('Consoles — emplacement des bandeaux du site (TCK-572)', () => {

@@ -25,7 +25,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 type SettingValue = string | number | string[];
 type Draft = Record<string, SettingValue>;
 
-export const categoryOrder: PlatformSettingCategory[] = ['currency', 'format', 'transaction', 'limits'];
+export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits'];
 
 /**
  * TCK-292 — la donnée porte la CLÉ, le rendu la résout.
@@ -56,7 +56,7 @@ export function SettingsSection({
   const [error, setError] = useState<string | null>(null);
   const requiresRestart = settings.some((setting) => setting.requires_restart);
   const hasChanges = settings.some((setting) => JSON.stringify(draft[setting.key]) !== JSON.stringify(setting.value));
-  const clientError = validateSection(settings, draft, t);
+  const clientError = validateSection(draft, t);
 
   const mutation = useMutation({
     mutationFn: () => patchPlatformSettings(draft),
@@ -142,8 +142,9 @@ export function SettingField({
   return (
     <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.2fr)_minmax(160px,0.7fr)] lg:items-center">
       <div className="min-w-0">
-        <Label htmlFor={setting.key}>{setting.label}</Label>
-        <p className="mt-1 text-sm text-pretty text-muted-foreground">{setting.description}</p>
+        {/* TCK-600 — l'API ne sert plus que la clé ; le libellé et sa phrase se traduisent ici. */}
+        <Label htmlFor={setting.key}>{t(`keys.${setting.key}.label`)}</Label>
+        <p className="mt-1 text-sm text-pretty text-muted-foreground">{t(`keys.${setting.key}.description`)}</p>
       </div>
       <div className="min-w-0">
         {setting.type === 'select' ? (
@@ -192,13 +193,12 @@ export function SettingField({
           </div>
         ) : null}
 
-        {setting.type === 'percentage' || setting.type === 'integer' ? (
+        {setting.type === 'integer' ? (
           <Input
             id={setting.key}
             type="number"
-            min={setting.type === 'percentage' ? 0 : 1}
-            max={setting.type === 'percentage' ? 100 : undefined}
-            step={setting.type === 'percentage' ? 0.01 : 1}
+            min={1}
+            step={1}
             value={String(value)}
             onChange={(event) => onChange(event.target.value)}
           />
@@ -218,26 +218,10 @@ export function SettingField({
   );
 }
 
-function validateSection(
-  settings: PlatformSetting[],
-  draft: Draft,
-  t: (key: string) => string,
-): string | null {
+function validateSection(draft: Draft, t: (key: string) => string): string | null {
   const supportedCurrencies = draft['currency.supported'];
   if (Array.isArray(supportedCurrencies) && !supportedCurrencies.includes('XOF')) {
     return t('errors.xofRequired');
-  }
-
-  for (const setting of settings) {
-    if (setting.type !== 'percentage') continue;
-    const raw = draft[setting.key];
-    const numeric = Number(raw);
-    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) {
-      return t('errors.feeRange');
-    }
-    if (!/^\d+(\.\d{1,2})?$/.test(String(raw))) {
-      return t('errors.feeDecimals');
-    }
   }
 
   return null;

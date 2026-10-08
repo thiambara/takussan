@@ -9,4 +9,8 @@ return [
     'stay_too_long' => 'This stay is too long to be booked: bring the check-out date closer.',
     'start_in_past' => 'The check-in date cannot be in the past.',
     'end_before_start' => 'The check-out date must come after the check-in date.',
+    // TCK-596 — title of the task opened by BookingRefundTaskService.
+    'refund_task' => [
+        'title' => 'Refund to process — booking :reference',
+    ],
 ];

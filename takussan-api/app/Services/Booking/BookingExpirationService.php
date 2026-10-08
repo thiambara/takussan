@@ -2,6 +2,7 @@
 
 namespace App\Services\Booking;
 
+use App\Events\Booking\BookingClosed;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
@@ -24,6 +25,13 @@ class BookingExpirationService
     public const LOCK_KEY = 'expire-bookings';
 
     public const LOCK_TTL_SECONDS = 600;
+
+    /** TCK-596 — `expiry_reason` : seuil de l'agence, `expire-now`, échéance propre. */
+    public const REASON_AUTO = 'auto';
+
+    public const REASON_MANUAL = 'manual';
+
+    public const REASON_DEADLINE = 'deadline';
 
     /**
      * Get the expiry threshold in hours for a given agency.
@@ -127,8 +135,9 @@ class BookingExpirationService
 
                 foreach ($bookings as $booking) {
                     try {
-                        $this->expireBooking($booking);
-                        $expiredCount++;
+                        if ($this->expireBooking($booking)) {
+                            $expiredCount++;
+                        }
                         $remaining--;
                     } catch (\Exception $e) {
                         // TCK-601 (ADR-0044 §2) — la chaîne poussée dans `$errors` est journalisée
@@ -159,7 +168,26 @@ class BookingExpirationService
      */
     public function expireBookingManually(Booking $booking, ?int $userId = null): bool
     {
-        return DB::transaction(function () use ($booking, $userId) {
+        return $this->expire($booking, self::REASON_MANUAL, $userId);
+    }
+
+    /**
+     * TCK-596 — LA voie d'expiration, pour les trois chemins : le seuil de l'agence
+     * (`ExpirePendingBookingsJob`, `auto`), l'échéance propre (`ExpireBookings`, `deadline`) et
+     * `expire-now` (`manual`). Elle pose `expired_at` et `expiry_reason`, journalise, prévient le
+     * client et l'agent, et émet `BookingClosed` — un acompte encaissé devient une tâche.
+     *
+     * `ExpireBookings` faisait un `update` de masse du seul statut : ni colonnes, ni journal, ni
+     * notification. Une demande expirée à son échéance restait `expired_at = null` sans que son
+     * client le sache.
+     *
+     * Rend `false` si la réservation n'est plus expirable (elle a changé d'état entre-temps) : la
+     * ligne est verrouillée puis relue avant toute écriture.
+     */
+    public function expire(Booking $booking, string $reason, ?int $userId = null): bool
+    {
+        return DB::transaction(function () use ($booking, $reason, $userId): bool {
+            Booking::query()->whereKey($booking->getKey())->lockForUpdate()->first();
             $booking->refresh();
 
             if (! $this->canBeExpired($booking)) {
@@ -169,11 +197,13 @@ class BookingExpirationService
             $booking->update([
                 'status' => BookingStatus::Expired,
                 'expired_at' => now(),
-                'expiry_reason' => 'manual',
+                'expiry_reason' => $reason,
             ]);
 
-            $this->logExpiration($booking, 'manual', $userId);
+            $this->logExpiration($booking, $reason, $userId);
             $this->sendNotifications($booking);
+
+            BookingClosed::dispatch($booking, BookingClosed::REASON_EXPIRED, $userId);
 
             return true;
         });
@@ -205,22 +235,9 @@ class BookingExpirationService
     /**
      * Expire a single booking (auto).
      */
-    private function expireBooking(Booking $booking): void
+    private function expireBooking(Booking $booking): bool
     {
-        if (! $this->canBeExpired($booking)) {
-            return;
-        }
-
-        DB::transaction(function () use ($booking) {
-            $booking->update([
-                'status' => BookingStatus::Expired,
-                'expired_at' => now(),
-                'expiry_reason' => 'auto',
-            ]);
-
-            $this->logExpiration($booking, 'auto');
-            $this->sendNotifications($booking);
-        });
+        return $this->expire($booking, self::REASON_AUTO);
     }
 
     /**

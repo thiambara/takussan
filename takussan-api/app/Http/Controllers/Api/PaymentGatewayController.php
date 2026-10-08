@@ -55,14 +55,33 @@ class PaymentGatewayController extends Controller
         $this->authorize('update', $payment);
 
         $status = $this->gateway->verify($payment);
+        $payment->refresh();
 
         return $this->json([
             'data' => [
-                'status' => $payment->refresh()->status->value ?? null,
+                'status' => $payment->status->value ?? null,
                 'provider_status' => $status?->status,
                 'transaction_id' => $payment->transaction_id,
+                'refund_pending' => $status !== null && $this->isRefundPending($payment, $status->transactionId),
             ],
         ]);
+    }
+
+    /**
+     * VERIF-596 passe 8 (m-o) — le règlement vérifié a débité le payeur sans rien solder (échéance
+     * annulée par un renouvellement, ou déjà réglée) : il est inscrit en doublon, et l'agence doit
+     * le rembourser. La part « pénalité » d'un règlement qui a soldé le loyer (`kind: late_fee`)
+     * n'en fait pas un règlement à rembourser.
+     */
+    private function isRefundPending(Model $payment, string $transactionId): bool
+    {
+        $duplicates = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway_duplicate_payment'] ?? []) : [];
+
+        return collect(is_array($duplicates) ? $duplicates : [])->contains(
+            fn ($entry): bool => is_array($entry)
+                && ($entry['transaction_id'] ?? null) === $transactionId
+                && ($entry['kind'] ?? null) !== 'late_fee',
+        );
     }
 
     protected function resolvePayment(string $type, int $id): Model

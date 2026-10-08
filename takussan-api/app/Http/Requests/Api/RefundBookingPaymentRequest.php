@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
-use App\Http\Requests\Concerns\AuthorizesTransitionally;
+use App\Services\Booking\BookingMoneyAccess;
 
 /**
  * TCK-305 — extrait de BookingPaymentController::refund(), où les règles étaient écrites en ligne.
@@ -15,8 +15,6 @@ use App\Http\Requests\Concerns\AuthorizesTransitionally;
  */
 class RefundBookingPaymentRequest extends BaseFormRequest
 {
-    use AuthorizesTransitionally;
-
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -24,14 +22,18 @@ class RefundBookingPaymentRequest extends BaseFormRequest
      * contrôleur, ce qui rendait 422 là où l'API rendait 403 pour un appel à la fois non
      * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
      *
-     * ⚠ **REPRISE, pas délégation** : cette règle n'est pas encore dans une policy — elle fait
-     * partie des 19 helpers relevés hors périmètre de TCK-306. L'expression est reproduite à
-     * l'identique ; son domicile définitif est une policy, et le ticket de suite doit la
-     * convertir en délégation comme les 35 autres.
+     * ⚠ La règle n'est pas encore dans une policy : elle vit dans `BookingMoneyAccess` (TCK-596),
+     * partagée avec l'enregistrement d'un paiement.
      */
     public function authorize(): bool
     {
-        return $this->canManageBooking($this->route('payment')?->booking);
+        $booking = $this->route('payment')?->booking;
+        $user = $this->user();
+
+        // TCK-596 — plus `canManageBooking`, qui inclut le CLIENT (TCK-172, pour `store`) : `store`
+        // le neutralisait ensuite, `refund` non. Le client faisait passer son propre acompte à
+        // `refunded`, sans qu'aucun argent ne bouge. `bookings.refund` gagne ici son lecteur.
+        return $user !== null && $booking !== null && BookingMoneyAccess::canRefund($user, $booking);
     }
 
     /** @return array<string, mixed> */

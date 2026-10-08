@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-599 (ADR-0050 §4) — l'alerte de recherche SANS compte, et les liens de ses e-mails.
@@ -88,5 +89,5 @@ export async function unsubscribeAccountSearch(link: AccountUnsubscribeLink): Pr
   // L'ordre `expires` puis `signature` est celui que Laravel a signé : la signature relative
   // porte sur le chemin et la requête SANS elle-même.
   const qs = new URLSearchParams({ expires: link.expires, signature: link.signature });
-  await apiFetch(`/saved-searches/${link.searchId}/unsubscribe?${qs.toString()}`, post({}));
+  await apiFetch(cheminApi`/saved-searches/${link.searchId}/unsubscribe${qs}`, post({}));
 }

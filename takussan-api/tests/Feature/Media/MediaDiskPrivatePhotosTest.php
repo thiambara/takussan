@@ -3,6 +3,7 @@
 namespace Tests\Feature\Media;
 
 use App\Models\Customer;
+use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
@@ -98,11 +99,15 @@ class MediaDiskPrivatePhotosTest extends TestCase
     public function test_room_photo_upload_returns_signed_api_urls_that_redirect_to_a_short_presigned_url(): void
     {
         [$owner, $inventory] = $this->signedInventory(signed: false);
+        // TCK-596 §5 (AC15) — les photos ne s'ajoutent qu'à un brouillon.
+        $inventory->update(['status' => InventoryStatus::Draft]);
 
         Sanctum::actingAs($owner);
         $url = $this->postJson("/api/inventories/{$inventory->id}/room-photos", [
             'photos' => [UploadedFile::fake()->image('chambre.jpg')],
-            'room_name' => 'Chambre',
+            // TCK-596 §5 — `room_name` est une pièce DE l'état des lieux (la fabrique pose Living room,
+            // Kitchen) ; « Chambre » n'en est pas une et rend désormais 422.
+            'room_name' => 'Kitchen',
         ])->assertOk()->json('data.0.url');
 
         $this->assertPrivateMediaUrl($url, Media::query()->sole());

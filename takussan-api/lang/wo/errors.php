@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'Suufeel bi ëpp na, jaarewul.',
         'grace_expired' => 'Waxtu wu nga manon a baña la, jeexna.',
+        'has_obligations' => 'Kont bii am na ay liggéey yu des (bay, fey, faktiir walla resërwaasiyon) : war nañu leen jeexal balaa ñu koy far.',
     ],
     'activity_log' => [
         'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
@@ -29,8 +30,11 @@ return [
         'individual_no_owner_invites' => 'Ajance ind doxoo mën inviter borom kër.',
         'individual_no_team' => 'Ajance ind amul kuréel mu mën a toppatoo.',
         'kyc_not_verified' => 'KYC agence bi war nañu ko dëggal balaa ñuy dëggal agence bi.',
+        'not_suspended' => 'Ajaans bii taxawaluñu ko.',
+        'reinstate_first' => 'Ajaans bii dañu ko taxawal : neddi taxawal bi ci kanam, ak ab lay.',
         'staff_only' => 'Xibaar yii, liggéeykati ajaans bi rekk ñoo ko moom.',
         'standard_only' => 'Fonctionnalité bii, agence standard yi rekk ñoo ko am.',
+        'suspended' => 'Ajaans bii dañu ko taxawal : sa bataaxal yi mën nañu leen jàng ak génne, waaye dara mënul soppiku.',
     ],
     'agency_member' => [
         'already_in_other_agency' => 'Jàngalekat bi nekk na ci beneen agence.',
@@ -69,6 +73,7 @@ return [
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
+        'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
         'not_found' => 'Wootu bi gisuñu ko.',
         'not_in_active_agency' => 'Wootu bii bokkul ci sa agence bu dox bi.',
@@ -80,6 +85,7 @@ return [
     'booking_payment' => [
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',
+        'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',
         'refund_unpaid' => 'Fay bu ñu fay ba noppi rekk lañu mën a delloo.',
     ],
     'business_enum' => [
@@ -89,6 +95,12 @@ return [
     'calendar' => [
         'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
+    ],
+    'calendar_feed' => [
+        'limit_reached' => 'Kër gii dafa egg ci lim bu mag bi ci calendrier yu ñu jële.',
+        'property_closed' => 'Kër gii dañu ko denc, jaay ko, walla duñu ko luwe ci guddi walla ci ayubés : calendrier bi dootul synchroniser.',
+        'sync_throttled' => 'Calendrier bii leegi lañu ko synchroniser. Jéemaatal ci benn simili.',
+        'unsafe_url' => 'Lien calendrier bii mënuñu koo jële : dafa wara nekk HTTPS te jëm ci benn service bu ubbeeku.',
     ],
     'conversation' => [
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
@@ -138,6 +150,9 @@ return [
     'filter' => [
         'identifier_invalid' => 'Filtre :filter dafay xaar identifiant bu nekk nimero.',
     ],
+    'guarantor' => [
+        'attached_to_open_lease' => 'Garant bii dafa lëkkaloo ak ab bayle buy xaar xaatim walla bu ngi dox : nangeel ko jëlee ci bayle bi njëkk.',
+    ],
     'http' => [
         'bad_gateway' => 'Benn service bu nu bokk tontuwul ni mu waroon.',
         'bad_request' => 'Laaj bi baaxul.',
@@ -162,9 +177,12 @@ return [
         'unsupported_media_type' => 'Xeetu fichier bii nangouñu ko.',
     ],
     'impersonation' => [
-        'self' => 'Mënuloo jël sa bopp ni beneen.',
-        'target_not_found' => 'Jëfandikukat bi gisuñu ko.',
-        'user_required' => 'Waxal jëfandikukat bi ngay jël.',
+        'no_session' => 'Amul jël-bopp bu ubbeeku.',
+        'query_refused' => 'Ubbi walla tëj ab impersonation du jël benn paramètre ci adrees bi.',
+        'read_only' => 'Jàng rekk ci jël-bopp bi : mënuloo soppi dara.',
+        'target_inactive' => 'Kont bii doxul : mënuloo ko jël ni sa bopp.',
+        'target_operator' => 'Mënuloo jël ni sa bopp ab liggéeykatu platform bi.',
+        'target_self' => 'Mënuloo jël sa bopp ni beneen.',
     ],
     'integration' => [
         'not_payment' => 'Intégration fay rekk moo am adrees notification.',
@@ -217,12 +235,29 @@ return [
         'cannot_terminate' => 'Luwé yi jàpp walla yi ñu baaxal rekk la ñu mën tas.',
         'guarantor_already_attached' => 'Garant bii takk nañu ko ci bail bi ba noppi.',
         'max_guarantors' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
+        'not_activatable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a doxal.',
         'not_active_schedule' => 'Bail buy dox rekk moo mën a defar échéancier.',
         'not_draft_activate' => 'Bail bu nekk brouillon rekk lañu mën a doxal.',
         'not_found' => 'Bail bi gisuñu ko.',
+        'rent_review_above_contract_cap' => 'Kontra bi ñu xaatim dafa tëj soppi lowe bi ci :max % : mënuñu ko forcer. Jaaral ci yeesal bayle bi walla ab yokk bu ñu xaatim.',
+        'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko, walla nga tàmbali yeesal bi ginnaaw ko ; yeesal buy xaar xaatim, dañu koy dakkal, ba noppi defar beneen.',
+        'renewal_parent_not_renewable' => 'Bayle bi ñuy yeesal du dox ba tey (yégle walla dakkal) : yeesal bii mënul a am doole. Dakkal ko, ba noppi defar beneen su soxlawee.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
+        'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
+    ],
+    'lease_signature' => [
+        'already_signed' => 'Xaatim nga kontraa bii ba noppi.',
+        'code_locked' => 'Kood yu baaxul bari nañu : xaatim bi tëju na diirub 15 simili.',
+        'contract_missing' => 'Kontraa bu taxaw bu bayle bii gisuñu ko : xaatim bi taxaw na. Jokkooal ak ndimbal.',
+        'invalid_code' => 'Kood bi baaxul walla jeex na.',
+        'not_requestable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a yónne ngir xaatim.',
+        'not_requested' => 'Amul kontraa buñuy xaar xaatim : laaj bi lañu wara jëkk a yónne.',
+        'resend_too_soon' => 'Yónne nañu kood leegi : xaaral benn simili balaa ngay laaj beneen.',
+        'terms_changed' => 'Bayle bi soppiku na bi ñuy waajal kontra bi : dara fëjjul. Laajaatal xaatim bi.',
+        'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
     ],
     'lease_payment' => [
+        'cancelled' => 'Fey bii, yeesal bi moo ko far : warul ñu koy fey te duñu ko jël.',
         'cannot_mark_paid' => 'Échéance buy xaar walla bu yéex rekk lañu mën a màndargaal ni lu ñu fay.',
         'deposit_refund_paid_by_payout' => 'Kaution bu ñu delloo, ci reversement bi lañu koy fey, du ak loxo.',
         'late_fee_not_due' => 'Amul penalité bu des ci fey bii.',
@@ -251,6 +286,7 @@ return [
         'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal, kenn mënatu koo soppi.',
     ],
     'media' => [
+        'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',
         'photo_unprocessable' => 'Nataal bii mënuñu ko liggéeyal. Seetal fichier bi te jéemaat.',
         'unsupported_target' => 'Mbir mii mënul am média.',
     ],
@@ -341,6 +377,14 @@ return [
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',
     ],
+    'platform' => [
+        'ability_missing' => 'Sa daraja operatëer mayu la nga def lii.',
+        'last_super_admin' => 'Mënuñu dindi super-administratëer bu mujj bi.',
+        'operator_not_found' => 'Kont bii du operatëer bu dox.',
+        'operator_self_revoke' => 'Mënuloo dindi sa bopp.',
+        'revoke_operator_first' => 'Kont bii ab operatëer la : dindi ko ci operatëer yi njëkk.',
+        'target_is_operator' => 'Super-administratëer rekk mën a def dara ci kontu operatëer.',
+    ],
     'platform_payout' => [
         'agency_frozen' => 'Bii agence du active : reversement yi dañu leen taxawal.',
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
@@ -411,6 +455,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Administrateur plateforme yi rekk ñoo yor paramètre global yi.',
+        'managed_by_catalogue' => 'Paramètre bii, katalog bi moo koy saytu : soppil ko ci console platform bi.',
         'other_agency_forbidden' => 'Paramètre yu sa agence rekk nga mën a toppatoo.',
     ],
     'share_link' => [
@@ -451,11 +496,15 @@ return [
         'not_in_setup' => 'Double authentification bi nekkul ci configuration.',
         'password_or_code_invalid' => 'Baatu jàll bi walla code bi baaxul.',
     ],
+    'unavailability' => [
+        'imported_locked' => 'Bis yii ci calendrier bu ñu jële lañu bawoo : far leen ci plateforme bi mu bawoo.',
+        'overlaps_booking' => 'Réservation bu ñu dëggal jël na bis yii ba noppi.',
+    ],
     'user' => [
-        'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',
         'cannot_block_self' => 'Mën nga téqale sa bopp.',
-        'cannot_delete_self' => 'Mën nga far sa bopp ci yoon wii.',
+        'cannot_erase_self' => 'Mënoo far sa kont ci konsol bi : jaaral ci sa bopp.',
         'no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
+        'not_blocked' => 'Kont bii tëjuñu ko.',
         'not_in_active_agency' => 'Jàngalekat bi tànn nga ñoom du ci sa agence bi nga di liggéeyal.',
     ],
     'visit' => [

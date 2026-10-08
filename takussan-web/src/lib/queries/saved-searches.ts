@@ -17,6 +17,7 @@
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { SavedSearchPayload } from '@/lib/schemas/search';
+import { cheminApi } from '@/lib/chemin-api';
 
 /** `instant` retiré par TCK-599 (porteur, 2026-10-06) : l'API le refuse en 422. */
 export type SavedSearchNotificationFrequency = 'off' | 'daily' | 'weekly';
@@ -95,7 +96,7 @@ export function cheminRecherche(id: unknown): string {
   if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) {
     throw new RangeError('saved_search.invalid_id');
   }
-  return `/api/saved-searches/${id}`;
+  return cheminApi`/api/saved-searches/${id}`;
 }
 
 export function useUpdateSavedSearchMutation() {

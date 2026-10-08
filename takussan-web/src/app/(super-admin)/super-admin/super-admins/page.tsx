@@ -10,6 +10,7 @@ import {
   RotateCw,
   ShieldCheck,
   ShieldAlert,
+  UserMinus,
   UserPlus,
   X,
 } from 'lucide-react';
@@ -28,10 +29,13 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { InviteSuperAdminModal } from '@/components/super-admin/InviteSuperAdminModal';
+import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
 import {
   fetchSuperAdminListing,
   resendSuperAdminInvitation,
+  revokePlatformOperator,
   revokeSuperAdminInvitation,
+  type SuperAdminEntry,
   type SuperAdminCooptationListing,
   type SuperAdminPendingInvitation,
 } from '@/lib/queries/super-admin';
@@ -61,6 +65,7 @@ export default function SuperAdminsCooptationPage() {
   const t = useTranslations('superAdmin.pages.superAdmins');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
+  const tLevels = useTranslations('superAdmin.operatorLevels');
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -117,8 +122,8 @@ export default function SuperAdminsCooptationPage() {
                 </Card>
               ) : (
                 data.super_admins.map((admin) => (
-                  <Card key={admin.id}>
-                    <CardContent className="flex items-center gap-3 p-4">
+                  <Card key={admin.id} data-testid={`operator-${admin.id}`}>
+                    <CardContent className="flex flex-wrap items-center gap-3 p-4">
                       <Avatar className="size-10">
                         <AvatarFallback>
                           {(admin.first_name?.[0] ?? '?').toUpperCase()}
@@ -132,7 +137,9 @@ export default function SuperAdminsCooptationPage() {
                         <p className="truncate text-xs text-muted-foreground">{admin.email}</p>
                         <LastLogin lastLoginAt={admin.last_login_at} />
                       </div>
+                      {admin.level ? <StatusBadge tone="info" label={tLevels(`${admin.level}.label`)} /> : null}
                       <TwoFactorBadge admin={admin} />
+                      <RevokeOperatorButton admin={admin} onRevoked={refresh} />
                     </CardContent>
                   </Card>
                 ))
@@ -170,6 +177,54 @@ export default function SuperAdminsCooptationPage() {
         }}
       />
     </div>
+  );
+}
+
+/**
+ * TCK-600 (ADR-0047) — retirer un opérateur : motif et phrase exigés, effet dit en clair. L'API
+ * refuse de retirer le dernier `super_admin` et de se retirer soi-même ; le refus s'affiche
+ * dans la modale.
+ */
+function RevokeOperatorButton({ admin, onRevoked }: { readonly admin: SuperAdminEntry; readonly onRevoked: () => void }) {
+  const t = useTranslations('superAdmin.pages.superAdmins.revokeOperator');
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const revoke = useMutation({
+    mutationFn: (reason: string) => revokePlatformOperator(admin.id, reason),
+    onSuccess: () => {
+      setOpen(false);
+      toast.add({ title: t('success', { email: admin.email }), type: 'success' });
+      onRevoked();
+    },
+  });
+
+  return (
+    <>
+      <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
+        <UserMinus className="size-4" aria-hidden="true" />
+        {t('label')}
+      </Button>
+      {open ? (
+        <ConfirmActionDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) {
+              setOpen(false);
+              revoke.reset();
+            }
+          }}
+          title={t('title', { email: admin.email })}
+          description={t('description')}
+          confirmPhrase="RETIRER"
+          confirmLabel={t('label')}
+          destructive
+          pending={revoke.isPending}
+          reason={{ label: t('reasonLabel') }}
+          error={revoke.error}
+          onConfirm={(reason) => revoke.mutate(reason)}
+        />
+      ) : null}
+    </>
   );
 }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\SettingScope;
 use Illuminate\Validation\Rule;
@@ -35,5 +36,19 @@ class StoreSettingRequest extends BaseFormRequest
             'scope' => ['required', Rule::enum(SettingScope::class)],
             'scope_id' => ['nullable', 'integer'],
         ];
+    }
+
+    /**
+     * TCK-600 — en portée `global`, une clé d'un catalogue (paramètres plateforme, énumérations
+     * métier) ne s'écrit que par son éditeur, qui porte ses règles et sa journalisation.
+     */
+    protected function passedValidation(): void
+    {
+        abort_code_if(
+            $this->input('scope') === SettingScope::Global->value
+                && EditablePlatformSettings::managedByCatalogue((string) $this->input('key')),
+            422,
+            'setting.managed_by_catalogue',
+        );
     }
 }

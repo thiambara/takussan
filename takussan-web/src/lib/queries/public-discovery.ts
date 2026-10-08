@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { apiFetch } from '@/lib/api';
 import { HOMEPAGE_DISCOVERY_PER_ROW } from '@/lib/rangees-de-l-accueil';
 import type { HomepageDiscoveryData, HomepageDiscoveryResponse } from '@/types/property';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Les quatre rangées de l'accueil, **récupérées par le serveur** — TCK-432.
@@ -57,7 +58,7 @@ export const decouverteDeLAccueil = cache(
 
     try {
       const res = await apiFetch<HomepageDiscoveryResponse>(
-        `/public/properties/discovery?${qs.toString()}`,
+        cheminApi`/public/properties/discovery?${qs.toString()}`,
         undefined,
         { locale },
       );

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyCondition;
@@ -121,6 +122,9 @@ class Property extends AbstractModel implements HasMedia
     protected static array $requestSearchFields = ['title', 'reference_number', 'description'];
 
     /** @var array<int,string> */
+    /** TCK-596 (ADR-0041) — l'empreinte du jeton d'export iCal ne sort d'aucune sérialisation. */
+    protected $hidden = ['ical_export_token_hash'];
+
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'parent_id', 'reference_number',
         'title', 'slug', 'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
@@ -457,7 +461,8 @@ class Property extends AbstractModel implements HasMedia
      */
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
-        return $query->with('address', 'tags');
+        // TCK-600 — `shouldBeSearchable()` lit le statut de l'agence (ADR-0048).
+        return $query->with('address', 'tags', 'agency');
     }
 
     public function shouldBeSearchable(): bool
@@ -468,12 +473,32 @@ class Property extends AbstractModel implements HasMedia
                 PropertyStatus::Draft,
                 PropertyStatus::PendingReview,
                 PropertyStatus::Rejected,
-            ], true);
+            ], true)
+            && $this->agencyIsPublic();
+    }
+
+    /**
+     * TCK-600 (ADR-0048) — un bien d'agence n'est public que tant que son agence est `active` :
+     * `suspended` et `inactive` le retirent de la liste, de la fiche, de la réservation et de
+     * l'index. Même règle que l'annuaire des agences. Un bien sans agence n'en dépend pas.
+     */
+    public function agencyIsPublic(): bool
+    {
+        return $this->agency_id === null || $this->agency?->status === AgencyStatus::Active;
+    }
+
+    /** TCK-600 (ADR-0048) — {@see agencyIsPublic()}, en requête. */
+    public function scopeOfPublicAgency(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull($q->qualifyColumn('agency_id'))
+            ->orWhereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', AgencyStatus::Active)));
     }
 
     public function scopePublic(Builder $query): Builder
     {
-        return $query->where('visibility', PropertyVisibility::Public)
+        return $query->ofPublicAgency()
+            ->where('visibility', PropertyVisibility::Public)
             ->where('is_test', false)
             ->whereNotNull('published_at')
             ->whereNotIn('status', [
@@ -525,6 +550,28 @@ class Property extends AbstractModel implements HasMedia
     public function scopePublicPortfolio(Builder $query): Builder
     {
         return $query->public()->available();
+    }
+
+    /**
+     * TCK-596 (VERIF-596 passe 2 n2, ADR-0041 §5) — le calendrier d'hôte (export iCal, import des
+     * flux) ne vit que pour un bien loué à la nuit ou à la semaine, ni archivé ni vendu — le même
+     * prédicat que l'onglet de la console (`PropertyDetailTabs`). Un bien archivé exportait encore
+     * son calendrier et faisait une requête sortante par flux et par heure, indéfiniment.
+     */
+    public const HOST_CALENDAR_CLOSED_STATUSES = [PropertyStatus::Archived, PropertyStatus::Sold];
+
+    public function hasHostCalendar(): bool
+    {
+        return $this->contract_type === ContractType::Rent
+            && in_array($this->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true)
+            && ! in_array($this->status, self::HOST_CALENDAR_CLOSED_STATUSES, true);
+    }
+
+    public function scopeWithHostCalendar(Builder $query): Builder
+    {
+        return $query->where('contract_type', ContractType::Rent->value)
+            ->whereIn('rent_period', [RentPeriod::Daily->value, RentPeriod::Weekly->value])
+            ->whereNotIn('status', array_map(static fn (PropertyStatus $s): string => $s->value, self::HOST_CALENDAR_CLOSED_STATUSES));
     }
 
     public function scopeRoots(Builder $query): Builder
@@ -799,6 +846,18 @@ class Property extends AbstractModel implements HasMedia
     public function collaborators(): HasMany
     {
         return $this->hasMany(PropertyCollaborator::class);
+    }
+
+    /** TCK-596 (ADR-0041) — plages `[starts_on, ends_on)` non réservables. */
+    public function unavailabilities(): HasMany
+    {
+        return $this->hasMany(PropertyUnavailability::class);
+    }
+
+    /** TCK-596 (ADR-0041) — flux iCal externes importés. */
+    public function calendarFeeds(): HasMany
+    {
+        return $this->hasMany(PropertyCalendarFeed::class);
     }
 
     public function bookings(): HasMany

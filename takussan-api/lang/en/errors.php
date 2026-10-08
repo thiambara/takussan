@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'Deletion has already been executed.',
         'grace_expired' => 'The cancellation window has expired.',
+        'has_obligations' => 'This account still has open commitments (leases, instalments, invoices or bookings): they must be settled before erasure.',
     ],
     'activity_log' => [
         'export_too_large' => 'Too many rows to export: narrow the filters.',
@@ -29,8 +30,11 @@ return [
         'individual_no_owner_invites' => 'Individual agencies cannot invite owners.',
         'individual_no_team' => 'Individual agencies don\'t have a team to manage.',
         'kyc_not_verified' => 'The agency KYC must be verified before the agency can be verified.',
+        'not_suspended' => 'This agency is not suspended.',
+        'reinstate_first' => 'This agency is suspended: lift the suspension first, with a reason.',
         'staff_only' => 'This data is reserved for the agency\'s staff.',
         'standard_only' => 'This feature is reserved for standard agencies.',
+        'suspended' => 'This agency is suspended: its data can still be read and exported, but nothing can be changed.',
     ],
     'agency_member' => [
         'already_in_other_agency' => 'This user already belongs to another agency.',
@@ -69,6 +73,7 @@ return [
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
+        'dates_unavailable' => 'These dates are not available for this property.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
@@ -80,6 +85,7 @@ return [
     'booking_payment' => [
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',
+        'refund_fractional' => 'This amount has decimals the payment currency does not have.',
         'refund_unpaid' => 'Only a settled payment can be refunded.',
     ],
     'business_enum' => [
@@ -89,6 +95,12 @@ return [
     'calendar' => [
         'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
+    ],
+    'calendar_feed' => [
+        'limit_reached' => 'This property has reached the maximum number of imported calendars.',
+        'property_closed' => 'This property is archived, sold or no longer rented by the night or week: its calendar no longer syncs.',
+        'sync_throttled' => 'This calendar was just synchronised. Try again in a minute.',
+        'unsafe_url' => 'This calendar link cannot be imported: it must use HTTPS and point to a public service.',
     ],
     'conversation' => [
         'participant_not_found' => 'This participant is not part of the conversation.',
@@ -138,6 +150,9 @@ return [
     'filter' => [
         'identifier_invalid' => 'The :filter filter expects a numeric identifier.',
     ],
+    'guarantor' => [
+        'attached_to_open_lease' => 'This guarantor is attached to a lease awaiting signature or in force: detach them from the lease first.',
+    ],
     'http' => [
         'bad_gateway' => 'A partner service did not respond correctly.',
         'bad_request' => 'The request is invalid.',
@@ -162,9 +177,12 @@ return [
         'unsupported_media_type' => 'This file type is not supported.',
     ],
     'impersonation' => [
-        'self' => 'You cannot impersonate yourself.',
-        'target_not_found' => 'User not found.',
-        'user_required' => 'Specify the user to impersonate.',
+        'no_session' => 'No impersonation session is open.',
+        'query_refused' => 'Starting or ending an impersonation takes no parameter in the address.',
+        'read_only' => 'Read-only during impersonation: no change is possible.',
+        'target_inactive' => 'This account is not active: it cannot be viewed through impersonation.',
+        'target_operator' => 'A platform operator cannot be viewed through impersonation.',
+        'target_self' => 'You cannot impersonate yourself.',
     ],
     'integration' => [
         'not_payment' => 'Only a payment integration has a notification address.',
@@ -217,12 +235,29 @@ return [
         'cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
         'guarantor_already_attached' => 'This guarantor is already attached to the lease.',
         'max_guarantors' => 'A lease cannot have more than 3 guarantors.',
+        'not_activatable' => 'Only a draft lease or one awaiting signature can be activated.',
         'not_active_schedule' => 'Only an active lease can generate a payment schedule.',
         'not_draft_activate' => 'Only a draft lease can be activated.',
         'not_found' => 'Lease not found.',
+        'rent_review_above_contract_cap' => 'The signed contract caps the rent review at :max %: this cap cannot be forced. Use a renewal or a signed amendment.',
+        'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it, or start the renewal after it; a renewal already awaiting signature must be terminated, then a new one created.',
+        'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
         'schedule_exists' => 'The payment schedule has already been generated.',
+        'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
+    ],
+    'lease_signature' => [
+        'already_signed' => 'You have already signed this contract.',
+        'code_locked' => 'Too many wrong codes: signing is blocked for 15 minutes.',
+        'contract_missing' => 'This lease\'s frozen contract cannot be found: signing is suspended. Contact support.',
+        'invalid_code' => 'Invalid or expired code.',
+        'not_requestable' => 'Only a draft lease or one awaiting signature can be sent for signature.',
+        'not_requested' => 'No contract is awaiting signature: the request must be sent first.',
+        'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
+        'terms_changed' => 'The lease changed while the contract was being prepared: nothing was frozen. Request the signature again.',
+        'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [
+        'cancelled' => 'This instalment was cancelled by a renewal: it is no longer due and cannot be collected.',
         'cannot_mark_paid' => 'Only a pending or late payment can be marked paid.',
         'deposit_refund_paid_by_payout' => 'A refunded deposit is settled by its payout, never by hand.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
@@ -251,6 +286,7 @@ return [
         'terminal_request' => 'A closed or cancelled request can no longer be changed.',
     ],
     'media' => [
+        'evidence_locked' => 'This file is evidence: it cannot be deleted.',
         'photo_unprocessable' => 'This image cannot be processed. Check the file and try again.',
         'unsupported_target' => 'This item cannot hold media.',
     ],
@@ -341,6 +377,14 @@ return [
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',
     ],
+    'platform' => [
+        'ability_missing' => 'Your operator level does not allow this action.',
+        'last_super_admin' => 'The last active super administrator cannot be removed.',
+        'operator_not_found' => 'This account is not an active operator.',
+        'operator_self_revoke' => 'You cannot remove your own access.',
+        'revoke_operator_first' => 'This account belongs to a platform operator: revoke the operator first.',
+        'target_is_operator' => 'Only a super administrator can act on an operator\'s account.',
+    ],
     'platform_payout' => [
         'agency_frozen' => 'This agency is not active: its payouts are frozen.',
         'agency_unverified' => 'An unverified agency cannot be paid.',
@@ -411,6 +455,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Only platform administrators manage global settings.',
+        'managed_by_catalogue' => 'This setting is managed by its catalogue: change it from the platform console.',
         'other_agency_forbidden' => 'You can only manage your own agency\'s settings.',
     ],
     'share_link' => [
@@ -451,11 +496,15 @@ return [
         'not_in_setup' => 'Two-factor authentication is not being set up.',
         'password_or_code_invalid' => 'Invalid password or code.',
     ],
+    'unavailability' => [
+        'imported_locked' => 'These dates come from an imported calendar: remove them on the original platform.',
+        'overlaps_booking' => 'A confirmed booking already holds these dates.',
+    ],
     'user' => [
-        'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',
         'cannot_block_self' => 'You cannot block your own account.',
-        'cannot_delete_self' => 'You cannot delete your own account via this route.',
+        'cannot_erase_self' => 'You cannot erase your own account from the console: use your personal space.',
         'no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',
+        'not_blocked' => 'This account is not blocked.',
         'not_in_active_agency' => 'The target user does not belong to your active agency.',
     ],
     'visit' => [

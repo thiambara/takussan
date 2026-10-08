@@ -4,7 +4,7 @@ import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getMe, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
-import { getActiveProfileId, getToken } from '@/lib/session';
+import { getActiveProfileId, getOperatorActiveProfileId, getOperatorToken, getToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { User } from '@/types/user';
@@ -114,4 +114,23 @@ const cachedGetMe = cache(async () => {
 
 export async function getMeAction() {
   return cachedGetMe();
+}
+
+// TCK-600 (ADR-0055 §6) — l'OPÉRATEUR, impersonation ou non : la console lit avec son propre jeton.
+const cachedGetMeOperateur = cache(async () => {
+  const token = await getOperatorToken();
+  if (!token) redirect('/auth/login');
+
+  try {
+    return await getMe(token, await getOperatorActiveProfileId());
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      redirect('/api/auth/session-expired');
+    }
+    throw err;
+  }
+});
+
+export async function getMeOperateurAction() {
+  return cachedGetMeOperateur();
 }

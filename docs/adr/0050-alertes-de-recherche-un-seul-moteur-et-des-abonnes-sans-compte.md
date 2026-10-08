@@ -166,6 +166,21 @@ Ajoutées pendant l'implémentation (2026-10-08), même règle :
 10. **Le formulaire visiteur fixe la fréquence à quotidienne** ; l'API accepte `weekly`, l'écran ne
     le propose pas encore.
 
+Ajoutées à la fusion de TCK-600 (ADR-0048, suspension d'agence), même règle :
+
+11. **Le favori d'un bien d'agence suspendue est gelé, pas annoncé.** `scopePublic()` exclut
+    désormais ces biens. Sans précaution, `SendFavoriteChangeAlerts` aurait donc annoncé
+    « n'est plus disponible » à tous les favoris de l'agence le jour de la suspension. Le
+    moteur de recherche ne serait pas en cause : ce serait l'effet d'un geste de modération.
+    Or ADR-0048 tient le bien pour **masqué** : il revient à la levée. Le job écarte donc ces
+    favoris par `ofPublicAgency()` : il ne les annonce pas, ne les rebase pas, et ils reprennent
+    contre leur base d'avant. Pour annoncer la suspension, il suffit de retirer ce filtre.
+12. **L'ajout d'un favori sur un bien d'agence suspendue rend 404, pas 403.** TCK-600 avait écrit
+    403 ; la contrainte 11 de 599 veut la même réponse pour un bien absent et un bien non visible.
+    `AgencySuspensionAuthenticatedReadsTest` est aligné. La liste garde le filtre de TCK-600 (le
+    favori est masqué, et le personnel de l'agence le garde), appliqué `withTrashed()` : un bien
+    supprimé reste une carte éteinte.
+
 ## Conséquences
 
 - Une alerte et la liste ne peuvent plus diverger sur le sens d'un critère : elles partagent

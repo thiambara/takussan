@@ -107,6 +107,15 @@ return [
     // TCK-272 — step-up code for accounts without a usable password
     // (OAuth, invitation, provisioning). No clickable link on purpose: this
     // confirms a destructive act, it does not invite one.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Your signing code for lease :reference',
+        'greeting' => 'Hello,',
+        'intro' => 'Here is the code to enter to sign lease :reference:',
+        'expires' => 'This code is valid for :minutes minutes and can only be used once.',
+        'ignore' => 'If you did not ask for anything, ignore this message: without this code, nothing is signed.',
+        'sms' => 'Takussan: your signing code for lease :reference is :code (valid :minutes min). Do not share it.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Your account deletion confirmation code',
         'greeting' => 'Hello,',
@@ -245,6 +254,32 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        'impersonation' => [
+            'ended' => [
+                'title' => 'Your account was viewed by the Takussan team',
+                'body' => 'A member of the Takussan team, :operator, viewed your account read-only from :started_at to :ended_at. Reason: :reason. No change was made on your behalf.',
+                'sms' => 'Takussan: our team viewed your account read-only (:operator). Details in your notifications.',
+            ],
+        ],
+        'agency' => [
+            'suspended' => [
+                'title' => 'Agency suspended: :agency',
+                'body' => 'The agency :agency has been suspended by the platform. Reason: :reason. Its listings are no longer published and its workspace is read-only.',
+                'sms' => 'Takussan: the agency :agency is suspended. Its listings are removed from the site.',
+            ],
+            'reinstated' => [
+                'title' => 'Suspension lifted: :agency',
+                'body' => 'The suspension of the agency :agency has been lifted. Reason: :reason. Its public listings are visible again.',
+                'sms' => 'Takussan: the suspension of :agency is lifted.',
+            ],
+        ],
+        'platform_operator' => [
+            'revoked' => [
+                'title' => 'Operator removed: :operator',
+                'body' => 'The platform console access of :operator has been removed. Reason: :reason.',
+                'sms' => 'Takussan: console access of :operator removed.',
+            ],
+        ],
         'lease_payment' => [
             'due_soon' => [
                 'title' => 'Rent due on :due_date',
@@ -300,6 +335,11 @@ return [
                 'body' => 'Booking :reference was requested for :property, from :start_date to :end_date.',
                 'sms' => 'Takussan: new booking :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'New request',
+                'body' => 'Request :reference was made for :property.',
+                'sms' => 'Takussan: new request :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Booking confirmed',
                 'body' => 'Your booking :reference for :property, from :start_date to :end_date, is confirmed.',
@@ -312,7 +352,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Booking cancelled',
-                'body' => 'Your booking :reference for :property was cancelled.',
+                'body' => 'Booking :reference for :property was cancelled.',
                 'sms' => 'Takussan: booking :reference cancelled (:property).',
             ],
         ],
@@ -335,6 +375,16 @@ return [
                 'title' => 'Phone number replaced',
                 'body' => 'The verified phone number on your account was replaced. If this was not you, contact support.',
                 'sms' => 'Takussan: this number is no longer the one on your account. If you did not make this change, contact support.',
+            ],
+            'blocked' => [
+                'title' => 'Your account is blocked',
+                'body' => 'Your Takussan account has been blocked by the platform. Reason: :reason. Contact support with any question.',
+                'sms' => 'Takussan: your account is blocked. Contact support.',
+            ],
+            'reactivated' => [
+                'title' => 'Your account is reactivated',
+                'body' => 'Your Takussan account has been reactivated. Reason: :reason. You can sign in again.',
+                'sms' => 'Takussan: your account is reactivated.',
             ],
         ],
         'visit' => [
@@ -616,6 +666,24 @@ return [
                 'sms' => 'Takussan: Your approval is required: :request',
             ],
         ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Lease to sign: :reference',
+                'body' => 'Lease :reference for :property is ready. Read the contract, then sign it with the code you will receive.',
+                'sms' => 'Takussan: lease :reference is ready to sign.',
+            ],
+            'signed_by_party' => [
+                'title' => 'Lease :reference signed by :signer',
+                'body' => ':signer signed lease :reference for :property. It is awaiting your signature.',
+                'sms' => 'Takussan: :signer signed lease :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Lease :reference signed',
+                'body' => 'Both parties signed lease :reference for :property. It is now active.',
+                'sms' => 'Takussan: lease :reference is signed and active.',
+            ],
+        ],
         'prospect_match' => [
             'digest' => [
                 'title' => 'Properties match your prospects',
@@ -633,6 +701,21 @@ return [
                 'title' => 'Property rejected: :property',
                 'body' => 'Your property ":property" was rejected. Reason: :reason. You can fix the listing and resubmit it from your workspace.',
                 'sms' => 'Takussan: listing ":property" rejected.',
+            ],
+            'unpublished_contact_erased' => [
+                'title' => 'Listing removed: :property',
+                'body' => 'The listing :property (:reference) has been removed from the site: its only contact erased their account. Assign an agent, then publish it again: :url',
+                'sms' => 'Takussan: listing :reference removed, no contact left.',
+            ],
+            'calendar_conflict' => [
+                'title' => 'Calendar conflict: :property',
+                'body' => 'Calendar ":feed" blocks :property from :start_date to :end_date, while a confirmed booking holds these dates. Nothing was cancelled: check both platforms.',
+                'sms' => 'Takussan: calendar conflict on :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Imported calendar failing: :property',
+                'body' => 'Calendar ":feed" for :property has failed to sync three times in a row. Check its link.',
+                'sms' => 'Takussan: calendar ":feed" no longer syncs.',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

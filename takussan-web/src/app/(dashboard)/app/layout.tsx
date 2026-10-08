@@ -5,6 +5,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
+import { isAgent } from '@/lib/roles';
 
 
 /**
@@ -27,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let agencyIsStandard: boolean | undefined;
   let hasPendingUpgrade: boolean | undefined;
+  let agencySuspended = false;
 
   if (user.roles.includes('agency_admin') && typeof user.agency_id === 'number') {
     const token = await getToken();
@@ -49,6 +51,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       agencyIsStandard = agency ? agency.kind === 'standard' : undefined;
       hasPendingUpgrade =
         listing?.data.some((request) => request.status === 'pending') ?? false;
+      agencySuspended = agency?.status === 'suspended';
+    }
+  } else if (isAgent(user.roles) && typeof user.agency_id === 'number') {
+    // TCK-600 (ADR-0048) — l'agent d'une agence suspendue voit le même bandeau que son admin.
+    // `resolveAgencyOrNull` est mis en cache pour le rendu : la page qui relit l'agence ne paie
+    // pas un second appel.
+    const token = await getToken();
+    if (token) {
+      const agency = await resolveAgencyOrNull(token, user.agency_id, 'app/layout (suspension)');
+      agencySuspended = agency?.status === 'suspended';
     }
   }
 
@@ -58,6 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         user={user}
         agencyIsStandard={agencyIsStandard}
         hasPendingUpgrade={hasPendingUpgrade}
+        agencySuspended={agencySuspended}
       >
         {children}
       </AppShell>

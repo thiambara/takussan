@@ -22,6 +22,7 @@ import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 export type FavoriteAvailability = 'available' | 'rented' | 'sold' | 'unavailable' | 'removed';
 
@@ -63,7 +64,7 @@ export function cheminFavori(propertyId: unknown): string {
   if (typeof propertyId !== 'number' || !Number.isSafeInteger(propertyId) || propertyId <= 0) {
     throw new RangeError('favorite.invalid_property_id');
   }
-  return `/api/favorites/${propertyId}`;
+  return cheminApi`/api/favorites/${propertyId}`;
 }
 
 export const favoritesQueryKeys = {
@@ -103,7 +104,7 @@ export async function fetchAllFavoritePropertyIds(token: string): Promise<number
   const ids: number[] = [];
   for (let page = 1; page <= FAVORITES_MAX_PAGES; page++) {
     const res = await apiRequest<PaginatedResponse<FavoriteItem>>(
-      `/api/favorites?page=${page}&per_page=${FAVORITES_MAX_PER_PAGE}`,
+      cheminApi`/api/favorites?page=${page}&per_page=${FAVORITES_MAX_PER_PAGE}`,
       { token },
     );
     ids.push(...res.data.map((f) => f.property_id));
@@ -221,7 +222,7 @@ export function usePropertiesByIdsChunkedQuery(ids: readonly number[]) {
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const qs = buildQueryString({ extra: { ids: chunkIds.join(',') } });
         return apiRequest<PropertiesByIdsResponse>(
-          `/api/public/properties/by-ids${qs ? `?${qs}` : ''}`,
+          cheminApi`/api/public/properties/by-ids${requete(qs)}`,
           { token: token ?? undefined, locale, signal },
         );
       },

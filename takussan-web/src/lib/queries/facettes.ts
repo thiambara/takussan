@@ -1,6 +1,7 @@
 import { apiFetch } from '@/lib/api';
 import { type DomainesDeFacette, domainesStatiques } from '@/lib/canonique';
 import { DEFAULT_LOCALE } from '@/i18n/config';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Le DOMAINE de la facette `city` — TCK-433, passe 2.
@@ -107,7 +108,7 @@ export function replie(valeur: string): string {
 export async function quartiersDeLaVille(ville: string): Promise<Map<string, string> | null> {
   try {
     const reponse = await apiFetch<ReponseQuartiers>(
-      `/public/properties/neighborhoods?city=${encodeURIComponent(ville)}`,
+      cheminApi`/public/properties/neighborhoods?city=${encodeURIComponent(ville)}`,
       { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,
       { locale: DEFAULT_LOCALE, partage: true },
     );

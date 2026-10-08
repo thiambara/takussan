@@ -203,8 +203,11 @@ class PublicAgencyController extends Controller
 
     public function show(Request $request, string $slug): JsonResponse
     {
+        // TCK-600 (ADR-0048) — une agence suspendue ou désactivée quitte le site : la fiche suit
+        // l'annuaire (`index`), qui ne liste que les agences `active`.
         $agency = Agency::query()
             ->where('slug', $slug)
+            ->where('status', AgencyStatus::Active)
             ->with('addresses')
             ->first();
 
@@ -373,7 +376,7 @@ class PublicAgencyController extends Controller
      */
     public function properties(Request $request, string $slug)
     {
-        $agency = Agency::query()->where('slug', $slug)->first();
+        $agency = Agency::query()->where('slug', $slug)->where('status', AgencyStatus::Active)->first();
 
         abort_if($agency === null, 404);
 

@@ -5,6 +5,7 @@ import type {
   WizardDraftListResponse,
   WizardDraftResponse,
 } from '@/types/wizard-draft';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-250 — Server-side helpers around `/api/me/wizard-drafts/*`.
@@ -24,7 +25,7 @@ export async function fetchWizardDraft<TData = Record<string, unknown>>(
 ): Promise<WizardDraftResponse<TData> | null> {
   try {
     return await apiRequest<WizardDraftResponse<TData>>(
-      `/api/me/wizard-drafts/${encodeURIComponent(key)}`,
+      cheminApi`/api/me/wizard-drafts/${key}`,
       { token },
     );
   } catch (err) {
@@ -42,13 +43,13 @@ export async function upsertWizardDraft<TData = Record<string, unknown>>(
   payload: { step: number; data: TData },
 ): Promise<WizardDraftResponse<TData>> {
   return apiRequest<WizardDraftResponse<TData>>(
-    `/api/me/wizard-drafts/${encodeURIComponent(key)}`,
+    cheminApi`/api/me/wizard-drafts/${key}`,
     { method: 'PUT', token, body: payload },
   );
 }
 
 export async function deleteWizardDraft(token: string, key: string): Promise<void> {
-  await apiRequest<void>(`/api/me/wizard-drafts/${encodeURIComponent(key)}`, {
+  await apiRequest<void>(cheminApi`/api/me/wizard-drafts/${key}`, {
     method: 'DELETE',
     token,
   });

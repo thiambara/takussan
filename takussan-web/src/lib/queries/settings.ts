@@ -9,6 +9,7 @@ import type {
   SettingValue,
 } from '@/types/setting';
 import type { IntegrationFormPayload } from '@/lib/schemas/setting';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Settings & Integrations admin queries — TCK-023 / TCK-068.
@@ -102,7 +103,7 @@ export async function fetchSettings(
   activeProfileId?: string,
 ): Promise<PaginatedResponse<Setting>> {
   const qs = buildQueryString(buildSettingsParams(params));
-  return apiRequest<PaginatedResponse<Setting>>(`/api/settings${qs ? `?${qs}` : ''}`, {
+  return apiRequest<PaginatedResponse<Setting>>(cheminApi`/api/settings${requete(qs)}`, {
     token,
     activeProfileId,
   });
@@ -133,7 +134,7 @@ export async function updateSetting(
   value: Record<string, unknown>,
   activeProfileId?: string,
 ): Promise<Setting> {
-  const res = await apiRequest<ApiResponse<Setting>>(`/api/settings/${settingId}`, {
+  const res = await apiRequest<ApiResponse<Setting>>(cheminApi`/api/settings/${settingId}`, {
     method: 'PATCH',
     body: { value },
     token,
@@ -147,7 +148,7 @@ export async function deleteSetting(
   settingId: number,
   activeProfileId?: string,
 ): Promise<void> {
-  await apiRequest<unknown>(`/api/settings/${settingId}`, {
+  await apiRequest<unknown>(cheminApi`/api/settings/${settingId}`, {
     method: 'DELETE',
     token,
     activeProfileId,
@@ -174,7 +175,7 @@ export async function fetchIntegrations(
     per_page: 100,
   });
   return apiRequest<PaginatedResponse<Integration>>(
-    `/api/integrations${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/integrations${requete(qs)}`,
     { token, activeProfileId },
   );
 }
@@ -200,7 +201,7 @@ export async function updateIntegration(
   activeProfileId?: string,
 ): Promise<Integration> {
   const res = await apiRequest<ApiResponse<Integration>>(
-    `/api/integrations/${integrationId}`,
+    cheminApi`/api/integrations/${integrationId}`,
     {
       method: 'PATCH',
       body: payload,
@@ -217,7 +218,7 @@ export async function testIntegration(
   activeProfileId?: string,
 ): Promise<IntegrationTestResult> {
   const res = await apiRequest<ApiResponse<IntegrationTestResult>>(
-    `/api/integrations/${integrationId}/test`,
+    cheminApi`/api/integrations/${integrationId}/test`,
     { method: 'POST', token, activeProfileId },
   );
   return res.data;
@@ -233,7 +234,7 @@ export async function fetchIntegrationWebhookEndpoint(
   activeProfileId?: string,
 ): Promise<IntegrationWebhookEndpoint> {
   const res = await apiRequest<ApiResponse<IntegrationWebhookEndpoint>>(
-    `/api/integrations/${integrationId}/webhook-endpoint`,
+    cheminApi`/api/integrations/${integrationId}/webhook-endpoint`,
     { token, activeProfileId },
   );
   return res.data;
@@ -246,7 +247,7 @@ export async function rotateIntegrationWebhookEndpoint(
   activeProfileId?: string,
 ): Promise<IntegrationWebhookEndpoint> {
   const res = await apiRequest<ApiResponse<IntegrationWebhookEndpoint>>(
-    `/api/integrations/${integrationId}/webhook-endpoint`,
+    cheminApi`/api/integrations/${integrationId}/webhook-endpoint`,
     { method: 'POST', token, activeProfileId },
   );
   return res.data;
@@ -257,7 +258,7 @@ export async function deleteIntegration(
   integrationId: number,
   activeProfileId?: string,
 ): Promise<void> {
-  await apiRequest<unknown>(`/api/integrations/${integrationId}`, {
+  await apiRequest<unknown>(cheminApi`/api/integrations/${integrationId}`, {
     method: 'DELETE',
     token,
     activeProfileId,

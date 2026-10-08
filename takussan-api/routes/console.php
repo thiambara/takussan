@@ -11,11 +11,13 @@ use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
+use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\RefreshNewBuildSearchLabel;
 use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
+use App\Jobs\SyncPropertyCalendarFeedsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -29,6 +31,8 @@ Artisan::command('inspire', function () {
 // handles the legacy `expires_at` deadline set at booking creation.
 Schedule::job(new ExpirePendingBookingsJob)->everyFifteenMinutes()->withoutOverlapping();
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
+// TCK-596 (ADR-0041 §5) — import horaire des calendriers externes des biens.
+Schedule::job(new SyncPropertyCalendarFeedsJob)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
@@ -96,6 +100,17 @@ Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlappi
 // TCK-589 (vérification adverse m7) — et les jetons morts d'INACTIVITÉ, que la purge de
 // Sanctum ne voit pas : même règle que `AccessTokenGate`, même grâce de 24 h.
 Schedule::command('sessions:prune-idle --hours=24')->daily()->withoutOverlapping();
+// TCK-600 (ADR-0055) — une session d'impersonation échue se ferme, et sa cible en est prévenue.
+Schedule::command('impersonation:close-expired')->everyMinute()->withoutOverlapping();
+
+// TCK-600 (S15) — la santé : un battement par file (exécuté seulement si un worker la consomme),
+// puis l'instantané des sondes, que la route publique `/api/health` lit en cache.
+foreach (RecordQueueHeartbeat::QUEUES as $file) {
+    Schedule::job(new RecordQueueHeartbeat($file), $file)->everyMinute();
+}
+Schedule::command('health:probe')->everyMinute()->withoutOverlapping();
+// TCK-600 (S16) — alertes d'exploitation, écrites à leur transition seulement.
+Schedule::command('alerts:evaluate')->everyFiveMinutes()->withoutOverlapping();
 
 // TCK-250 — Garbage-collect resumable wizard drafts older than 90 days.
 Schedule::command('wizard-drafts:purge')->dailyAt('03:30')->withoutOverlapping();

@@ -5,12 +5,15 @@ import type { User } from '@/types/user';
 import { useTranslations } from 'next-intl';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
-import { ImpersonationBanner } from '@/components/admin/super/ImpersonationBanner';
 import { SuperAdminTopbar } from './SuperAdminTopbar';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
+import { PlatformAbilitiesProvider } from '@/components/admin/super/PlatformAbilitiesProvider';
+import type { PlatformAbilities } from '@/lib/platform-abilities';
 
 interface SuperAdminShellProps {
   user: User;
+  /** TCK-600 — les gestes de l'opérateur, résolus par le layout : ils filtrent toute la console. */
+  abilities: PlatformAbilities;
   children: React.ReactNode;
 }
 
@@ -21,10 +24,11 @@ interface SuperAdminShellProps {
 export const SUPER_ADMIN_MAIN_ID = 'super-admin-main';
 
 /**
- * Layout shell for the super-admin area (TCK-145). Mounts a global
- * `ImpersonationBanner` so any active impersonation session is signalled
- * regardless of the page being viewed. No agency components are imported
+ * Layout shell for the super-admin area (TCK-145). No agency components are imported
  * here — the cross-tenant context must be visually unambiguous.
+ *
+ * TCK-600 (ADR-0055) — la bannière d'impersonation n'est plus montée ici : la console lit avec le
+ * jeton de l'opérateur, c'est l'ESPACE APPLICATIF qui lit en tant que la cible (`AppShell`).
  *
  * ────────────────────────────────────────────────────────────────────────────
  * TCK-358 — le signal cross-tenant est un LISERÉ, plus un gris
@@ -45,7 +49,7 @@ export const SUPER_ADMIN_MAIN_ID = 'super-admin-main';
  * `dark` — cf. le docblock de `SuperAdminSidebar` pour le pourquoi de ce
  * mécanisme plutôt qu'un jeu de jetons parallèle.
  */
-export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
+export function SuperAdminShell({ user, abilities, children }: SuperAdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.superAdmin');
 
@@ -63,6 +67,7 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
    * `md:h-full` sur la barre latérale continue de résoudre, `h-dvh` restant une hauteur DÉFINIE.
    */
   return (
+    <PlatformAbilitiesProvider value={abilities}>
     <div className="relative flex h-dvh flex-col bg-muted">
       <div className="h-1 shrink-0 bg-primary" aria-hidden="true" />
       {/*
@@ -84,7 +89,6 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
       >
         {t('skipToContent')}
       </a>
-      <ImpersonationBanner />
       <SuperAdminTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden md:block md:h-full">
@@ -111,5 +115,6 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
         </main>
       </div>
     </div>
+    </PlatformAbilitiesProvider>
   );
 }

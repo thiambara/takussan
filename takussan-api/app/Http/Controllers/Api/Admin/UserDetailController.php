@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,11 +29,13 @@ class UserDetailController extends Controller
                     $q->orWhere('id', (int) $search);
                 }
 
-                $q->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                // TCK-600 — `like` nu est sensible à la casse sur PostgreSQL : « diop » ne
+                // trouvait pas « Diop » (piège n°9 du CLAUDE.md).
+                $motif = '%'.addcslashes(CaseInsensitive::fold($search), '\\%_').'%';
+                foreach (['first_name', 'last_name', 'email', 'username'] as $colonne) {
+                    $q->orWhereRaw(CaseInsensitive::sql($colonne).' like ?', [$motif]);
+                }
+                $q->orWhere('phone', 'like', '%'.addcslashes($search, '\\%_').'%');
             });
         }
 
@@ -156,6 +159,13 @@ class UserDetailController extends Controller
         // la trace de cette consultation-ci paraît à la suivante.
         $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_ACTIVITY);
 
+        // TCK-600 (ADR-0055 §5) — « via impersonation par X » : l'opérateur qui lisait en tant que
+        // la cible quand l'activité s'est écrite. Une requête pour la page, pas une par entrée.
+        $operateurs = User::withTrashed()
+            ->whereIn('id', $activity->getCollection()->pluck('impersonator_id')->filter()->unique()->values())
+            ->get(['id', 'first_name', 'last_name'])
+            ->keyBy('id');
+
         return $this->json([
             'data' => $activity->getCollection()->map(fn (Activity $log) => [
                 'id' => $log->id,
@@ -167,6 +177,10 @@ class UserDetailController extends Controller
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => $log->properties?->toArray(),
+                'impersonator' => $log->impersonator_id === null ? null : [
+                    'id' => (int) $log->impersonator_id,
+                    'name' => $operateurs->get($log->impersonator_id)?->full_name,
+                ],
                 'created_at' => $log->created_at?->toIso8601String(),
             ])->values()->all(),
             'meta' => $this->paginationMeta($activity),

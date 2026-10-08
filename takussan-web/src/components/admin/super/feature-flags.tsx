@@ -31,17 +31,16 @@ export function FeatureFlagTable({ flags }: { flags: AdminFeatureFlag[] }) {
       header: t('colFlag'),
       cell: (flag) => (
         <>
-          {/* Le libellé ouvre aussi la configuration : sur mobile, « Configurer » vit au bout
-              d'une table qui défile. */}
+          {/* La clé ouvre aussi la configuration : sur mobile, « Configurer » vit au bout d'une
+              table qui défile. TCK-600 — l'API ne sert plus de libellé : la clé est l'identifiant. */}
           <Button
             type="button"
             variant="link"
-            className="h-auto min-h-9 p-0 text-left font-medium text-foreground hover:text-primary"
+            className="h-auto min-h-9 p-0 text-left font-mono font-medium text-foreground hover:text-primary"
             onClick={() => setEditing(flag)}
           >
-            {flag.label}
+            {flag.key}
           </Button>
-          <p className="font-mono text-xs text-muted-foreground">{flag.key}</p>
         </>
       ),
     },
@@ -129,7 +128,7 @@ export function FeatureFlagSegmentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{flag ? t('configureFlag', { label: flag.label }) : t('configureGeneric')}</DialogTitle>
+          <DialogTitle>{flag ? t('configureFlag', { label: flag.key }) : t('configureGeneric')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Button

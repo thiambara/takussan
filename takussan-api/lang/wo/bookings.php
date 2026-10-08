@@ -9,4 +9,8 @@ return [
     'stay_too_long' => 'Dëkk bii dafa gudd lool ngir ñu ko reserve : jubbalal bis bu ngay génn.',
     'start_in_past' => 'Bisu dugg bi warul a nekk bis bu weesu.',
     'end_before_start' => 'Bisu génn bi dafa wara topp bisu dugg bi.',
+    // TCK-596 — tur u liggéey bi BookingRefundTaskService di ubbi.
+    'refund_task' => [
+        'title' => 'Delloo bu ñu wara def — réservation :reference',
+    ],
 ];

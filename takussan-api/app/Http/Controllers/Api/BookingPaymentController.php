@@ -9,6 +9,7 @@ use App\Http\Resources\BookingPaymentResource;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Payments\PaymentReceiptPdf;
 use Illuminate\Http\JsonResponse;
@@ -41,13 +42,9 @@ class BookingPaymentController extends Controller
         // ignore any client-provided shortcut to `paid`.
         $user = $request->user();
         $isCustomer = $booking->customer && $booking->customer->user_id === $user->id;
-        $bookingAgencyId = $booking->agency_id ?? $booking->property?->agency_id;
-        $isStaff = $user->isSuperAdmin()
-            || ($bookingAgencyId !== null && (
-                $user->isAgencyAdminAt((int) $bookingAgencyId)
-                || $user->isAgentAt((int) $bookingAgencyId)
-                || $user->isOwnerAt((int) $bookingAgencyId)
-            ));
+        // TCK-596 — « bailleur direct du bien », plus `isOwnerAt(agence)` : tout bailleur de
+        // l'agence comptait comme encaisseur. Même règle que l'autorisation (`BookingMoneyAccess`).
+        $isStaff = BookingMoneyAccess::canRecordAsCollector($user, $booking);
         if ($isCustomer && ! $isStaff) {
             $data['status'] = PaymentStatus::Pending->value;
             $data['paid_at'] = null;

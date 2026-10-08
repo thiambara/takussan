@@ -7,13 +7,15 @@
  * laisser survivre fait transmettre au résolveur un identifiant de profil qui n'appartient plus à
  * personne. `set-token` le rattrapait à la connexion suivante — un correctif par la porte d'à côté.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const logoutMock = vi.fn().mockResolvedValue(undefined);
 
+const cookiesPresents = vi.hoisted((): Record<string, string> => ({}));
+
 vi.mock('next/headers', () => ({
   cookies: async () => ({
-    get: (nom: string) => (nom === 'auth_token' ? { value: 'jeton-A' } : { value: 'agent:5' }),
+    get: (nom: string) => (nom in cookiesPresents ? { value: cookiesPresents[nom] } : undefined),
   }),
 }));
 
@@ -30,10 +32,36 @@ const effaces = (res: Response) =>
     .map((c) => c.split('=')[0]);
 
 describe('POST /api/auth/logout', () => {
-  it('révoque le jeton côté API puis efface auth_token ET active_profile_id', async () => {
+  beforeEach(() => {
+    for (const nom of Object.keys(cookiesPresents)) delete cookiesPresents[nom];
+    Object.assign(cookiesPresents, { auth_token: 'jeton-A', active_profile_id: 'agent:5' });
+    logoutMock.mockClear();
+    vi.unstubAllGlobals();
+  });
+
+  it('révoque le jeton côté API puis efface auth_token, active_profile_id et la session d\'impersonation', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
     const res = await POST();
 
     expect(logoutMock).toHaveBeenCalledWith('jeton-A');
-    expect(effaces(res).sort()).toEqual(['active_profile_id', 'auth_token']);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(effaces(res).sort()).toEqual(['active_profile_id', 'auth_token', 'impersonation_active', 'impersonation_token']);
+  });
+
+  /** TCK-600 (ADR-0055 §6) — la déconnexion de l'opérateur ferme sa session d'impersonation. */
+  it('pendant une impersonation, ferme la session avec le jeton de l\'OPÉRATEUR avant de révoquer', async () => {
+    cookiesPresents.impersonation_token = 'jeton-imp';
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await POST();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/admin\/impersonate\/stop$/),
+      expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer jeton-A' }) }),
+    );
+    expect(effaces(res)).toEqual(expect.arrayContaining(['impersonation_token', 'impersonation_active']));
   });
 });

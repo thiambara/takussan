@@ -93,7 +93,6 @@ class AlertRuleService
         return [
             'id' => $rule->id,
             'event' => $rule->event,
-            'label' => AlertableEvents::all()[$rule->event] ?? $rule->event,
             'channels' => $rule->channels_json ?? [],
             'recipients' => $rule->recipients_json ?? [],
             'is_active' => $rule->is_active,

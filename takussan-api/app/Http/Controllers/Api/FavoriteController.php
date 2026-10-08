@@ -40,7 +40,16 @@ class FavoriteController extends Controller
 
     public function index(IndexFavoriteRequest $request): JsonResponse
     {
-        $favorites = $this->projected(Favorite::query()->where('user_id', $request->user()->id))
+        $user = $request->user();
+        $agenceDuPersonnel = $user->staffAgencyId();
+
+        // TCK-600 (ADR-0048 §1, verif-600 m3) — le favori d'un bien dont l'agence est hors ligne est
+        // MASQUÉ, pas supprimé : il revient à la levée. Le personnel de cette agence le garde.
+        // TCK-599 — `withTrashed()` : un bien supprimé reste une carte éteinte, pas un favori perdu.
+        $favorites = $this->projected(Favorite::query()->where('user_id', $user->id)
+            ->whereHas('property', fn (Builder $bien) => $bien->withTrashed()->where(fn (Builder $q) => $q
+                ->ofPublicAgency()
+                ->when($agenceDuPersonnel !== null, fn (Builder $q) => $q->orWhere('properties.agency_id', $agenceDuPersonnel)))))
             ->latest()
             ->latest('id')
             ->paginate((int) $request->validated('per_page', 20));

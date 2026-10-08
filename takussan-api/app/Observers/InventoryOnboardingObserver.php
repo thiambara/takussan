@@ -13,7 +13,7 @@ use App\Services\Tenant\TenantOnboardingService;
  * `inventory_completed_at` sur la checklist du bail. On observe la
  * transition `wasChanged('status')` plutôt que d'émettre un event
  * `Inventory.signed` dédié : ça absorbe les deux paths de signature
- * existants (InventoryService::sign + InventorySignatureService::sign)
+ * existants (InventoryService::sign, retiré par TCK-596, + InventorySignatureService::sign)
  * sans toucher au workflow EDL — garde-fou explicitement demandé par
  * le ticket.
  *

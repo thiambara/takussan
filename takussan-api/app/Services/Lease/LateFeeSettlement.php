@@ -2,6 +2,7 @@
 
 namespace App\Services\Lease;
 
+use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Payments\PaymentGatewayService;
@@ -25,6 +26,8 @@ class LateFeeSettlement
             // Sérialisé sur la ligne : deux enregistrements simultanés ne posent pas deux règlements.
             $locked = LeasePayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
+            // VERIF-596 passe 6 (m-h) — une échéance annulée par un renouvellement : rien à régler.
+            abort_code_if($locked->status === PaymentStatus::Cancelled, 422, 'lease_payment.cancelled');
             abort_code_unless($locked->lateFeeOutstanding() > 0, 409, 'lease_payment.late_fee_not_due');
 
             // TCK-593 (vérification adverse, V4) — un checkout ouvert qui INCLUT la pénalité

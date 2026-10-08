@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'La suppression a déjà été exécutée.',
         'grace_expired' => 'Le délai d\'annulation a expiré.',
+        'has_obligations' => 'Ce compte a encore des engagements en cours (baux, échéances, factures ou réservations) : ils doivent être soldés avant l\'effacement.',
     ],
     'activity_log' => [
         'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
@@ -29,8 +30,11 @@ return [
         'individual_no_owner_invites' => 'Les agences individuelles ne peuvent pas inviter de propriétaires.',
         'individual_no_team' => 'Les agences individuelles n\'ont pas d\'équipe à gérer.',
         'kyc_not_verified' => 'Le KYC de l\'agence doit être vérifié avant de vérifier l\'agence.',
+        'not_suspended' => 'Cette agence n\'est pas suspendue.',
+        'reinstate_first' => 'Cette agence est suspendue : levez d\'abord la suspension, avec un motif.',
         'staff_only' => 'Cette donnée est réservée au personnel de l\'agence.',
         'standard_only' => 'Cette fonctionnalité est réservée aux agences standard.',
+        'suspended' => 'Cette agence est suspendue : ses données restent consultables et exportables, mais aucune modification n\'est possible.',
     ],
     'agency_member' => [
         'already_in_other_agency' => 'Cet utilisateur appartient déjà à une autre agence.',
@@ -69,6 +73,7 @@ return [
         'cannot_cancel' => 'Cette réservation ne peut pas être annulée dans son état actuel.',
         'cannot_expire' => 'Cette réservation ne peut pas être expirée : elle doit être en attente.',
         'dates_overlap' => 'Une autre réservation confirmée occupe déjà ces dates sur ce bien.',
+        'dates_unavailable' => 'Ces dates ne sont pas disponibles pour ce bien.',
         'expire_race' => 'Le statut de la réservation a changé entre-temps. Rechargez la page.',
         'not_found' => 'Réservation introuvable.',
         'not_in_active_agency' => 'Cette réservation n\'appartient pas à votre agence active.',
@@ -80,6 +85,7 @@ return [
     'booking_payment' => [
         'receipt_unpaid' => 'La quittance est disponible uniquement pour un paiement acquitté.',
         'refund_exceeds_paid' => 'Le remboursement ne peut pas dépasser le montant payé.',
+        'refund_fractional' => 'Ce montant comporte des décimales que la devise du paiement n\'a pas.',
         'refund_unpaid' => 'Seul un paiement acquitté peut être remboursé.',
     ],
     'business_enum' => [
@@ -89,6 +95,12 @@ return [
     'calendar' => [
         'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',
+    ],
+    'calendar_feed' => [
+        'limit_reached' => 'Ce bien a atteint le nombre maximal de calendriers importés.',
+        'property_closed' => 'Ce bien est archivé, vendu ou n\'est plus loué à la nuit ou à la semaine : son calendrier ne se synchronise plus.',
+        'sync_throttled' => 'Ce calendrier vient d\'être synchronisé. Réessayez dans une minute.',
+        'unsafe_url' => 'Ce lien de calendrier ne peut pas être importé : il doit être en HTTPS et pointer vers un service public.',
     ],
     'conversation' => [
         'participant_not_found' => 'Ce participant ne fait pas partie de la conversation.',
@@ -138,6 +150,9 @@ return [
     'filter' => [
         'identifier_invalid' => 'Le filtre :filter attend un identifiant numérique.',
     ],
+    'guarantor' => [
+        'attached_to_open_lease' => 'Ce garant est rattaché à un bail en attente de signature ou en cours : détachez-le d\'abord du bail.',
+    ],
     'http' => [
         'bad_gateway' => 'Un service partenaire n\'a pas répondu correctement.',
         'bad_request' => 'La requête est invalide.',
@@ -162,9 +177,12 @@ return [
         'unsupported_media_type' => 'Ce type de fichier n\'est pas pris en charge.',
     ],
     'impersonation' => [
-        'self' => 'Vous ne pouvez pas vous emprunter vous-même.',
-        'target_not_found' => 'Utilisateur introuvable.',
-        'user_required' => 'Indiquez l\'utilisateur à emprunter.',
+        'no_session' => 'Aucune session d\'impersonation n\'est ouverte.',
+        'query_refused' => 'Ouvrir ou fermer une impersonation ne prend aucun paramètre dans l\'adresse.',
+        'read_only' => 'Lecture seule pendant l\'impersonation : aucune modification n\'est possible.',
+        'target_inactive' => 'Ce compte n\'est pas actif : il ne peut pas être consulté en impersonation.',
+        'target_operator' => 'Un opérateur de la plateforme ne peut pas être consulté en impersonation.',
+        'target_self' => 'Vous ne pouvez pas vous emprunter vous-même.',
     ],
     'integration' => [
         'not_payment' => 'Seule une intégration de paiement a une adresse de notification.',
@@ -217,12 +235,29 @@ return [
         'cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',
         'guarantor_already_attached' => 'Ce garant est déjà rattaché au bail.',
         'max_guarantors' => 'Un bail ne peut pas avoir plus de 3 garants.',
+        'not_activatable' => 'Seul un bail en brouillon ou en attente de signature peut être activé.',
         'not_active_schedule' => 'Seul un bail actif peut générer un échéancier.',
         'not_draft_activate' => 'Seul un bail en brouillon peut être activé.',
         'not_found' => 'Bail introuvable.',
+        'rent_review_above_contract_cap' => 'Le contrat signé plafonne la révision du loyer à :max % : ce plafond ne se force pas. Passez par un renouvellement ou un avenant signé.',
+        'renewal_overlaps_paid_schedule' => 'Une échéance du bail en cours, dans la période que le renouvellement reprend, est déjà réglée ou en cours de règlement : le renouvellement ne l\'annule pas. Remboursez-la, ou faites commencer le renouvellement après elle ; un renouvellement déjà en attente de signature se résilie, puis s\'en crée un autre.',
+        'renewal_parent_not_renewable' => 'Le bail renouvelé n\'est plus en cours (préavis ou résiliation) : ce renouvellement ne peut plus prendre effet. Résiliez-le, puis créez-en un autre si besoin.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
+        'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
+    ],
+    'lease_signature' => [
+        'already_signed' => 'Vous avez déjà signé ce contrat.',
+        'code_locked' => 'Trop de codes faux : la signature est bloquée pendant 15 minutes.',
+        'contract_missing' => 'Le contrat figé de ce bail est introuvable : la signature est suspendue. Contactez le support.',
+        'invalid_code' => 'Code invalide ou expiré.',
+        'not_requestable' => 'Seul un bail en brouillon ou en attente de signature peut être soumis à signature.',
+        'not_requested' => 'Aucun contrat n\'attend de signature : la demande doit d\'abord être lancée.',
+        'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
+        'terms_changed' => 'Le bail a été modifié pendant la préparation du contrat : rien n\'a été figé. Relancez la demande de signature.',
+        'tenant_without_account' => 'Le locataire de ce bail n\'a pas de compte : signez sur papier et joignez le contrat numérisé.',
     ],
     'lease_payment' => [
+        'cancelled' => 'Cette échéance a été annulée par un renouvellement : elle n\'est plus due et ne s\'encaisse pas.',
         'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
         'deposit_refund_paid_by_payout' => 'Une caution rendue se règle par son reversement, jamais à la main.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
@@ -251,6 +286,7 @@ return [
         'terminal_request' => 'Une demande clôturée ou annulée ne se modifie plus.',
     ],
     'media' => [
+        'evidence_locked' => 'Ce fichier est une pièce de preuve : il ne se supprime pas.',
         'photo_unprocessable' => 'Cette image ne peut pas être traitée. Vérifiez le fichier puis réessayez.',
         'unsupported_target' => 'Cet objet ne peut pas porter de médias.',
     ],
@@ -341,6 +377,14 @@ return [
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
     ],
+    'platform' => [
+        'ability_missing' => 'Votre niveau d\'opérateur ne permet pas ce geste.',
+        'last_super_admin' => 'Le dernier super-administrateur actif ne peut pas être retiré.',
+        'operator_not_found' => 'Ce compte n\'est pas un opérateur actif.',
+        'operator_self_revoke' => 'Vous ne pouvez pas retirer votre propre accès.',
+        'revoke_operator_first' => 'Ce compte est celui d\'un opérateur plateforme : retirez-le d\'abord des opérateurs.',
+        'target_is_operator' => 'Seul un super-administrateur peut agir sur le compte d\'un opérateur.',
+    ],
     'platform_payout' => [
         'agency_frozen' => 'Cette agence n\'est pas active : ses reversements sont gelés.',
         'agency_unverified' => 'Une agence non vérifiée ne peut pas être payée.',
@@ -411,6 +455,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Seuls les administrateurs de la plateforme gèrent les paramètres globaux.',
+        'managed_by_catalogue' => 'Ce paramètre est géré par son catalogue : modifiez-le depuis la console de la plateforme.',
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les paramètres de votre agence.',
     ],
     'share_link' => [
@@ -451,11 +496,15 @@ return [
         'not_in_setup' => 'La double authentification n\'est pas en cours de configuration.',
         'password_or_code_invalid' => 'Mot de passe ou code invalide.',
     ],
+    'unavailability' => [
+        'imported_locked' => 'Ces dates viennent d\'un calendrier importé : retirez-les sur la plateforme d\'origine.',
+        'overlaps_booking' => 'Une réservation confirmée occupe déjà ces dates.',
+    ],
     'user' => [
-        'account_block_reserved' => 'Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d\'agence suspend un membre dans son agence.',
         'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
-        'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
+        'cannot_erase_self' => 'Vous ne pouvez pas effacer votre propre compte depuis la console : passez par votre espace personnel.',
         'no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',
+        'not_blocked' => 'Ce compte n\'est pas bloqué.',
         'not_in_active_agency' => 'L’utilisateur cible n’appartient pas à votre agence active.',
     ],
     'visit' => [

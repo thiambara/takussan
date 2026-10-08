@@ -3,7 +3,9 @@
 namespace Tests\Feature\Favorites;
 
 use App\Jobs\SendFavoriteChangeAlerts;
+use App\Models\Agency;
 use App\Models\AppNotification;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
@@ -174,6 +176,32 @@ class FavoriteChangeAlertsTest extends TestCase
         $this->assertCount(1, $this->notificationsDe($client));
         $this->assertNull(Favorite::sole()->unavailable_notified_at);
         $this->assertSame('400000.00', Favorite::sole()->getRawOriginal('alert_baseline_price'));
+    }
+
+    /**
+     * TCK-600 (ADR-0048) — le bien d'une agence suspendue est MASQUÉ, pas sorti : le job n'en dit
+     * rien et ne touche pas sa base. À la levée, une baisse prise contre la base d'avant s'annonce.
+     */
+    public function test_une_agence_suspendue_gele_le_favori_sans_l_annoncer(): void
+    {
+        $client = User::factory()->create();
+        $agence = Agency::factory()->create();
+        $bien = $this->favori($client);
+        $bien->forceFill(['agency_id' => $agence->id])->save();
+        $agence->forceFill(['status' => AgencyStatus::Suspended])->save();
+        $bien->update(['price' => 450_000]);
+
+        $this->lancerLeJob();
+
+        $this->assertCount(0, $this->notificationsDe($client));
+        $this->assertNull(Favorite::sole()->unavailable_notified_at);
+        $this->assertSame('500000.00', Favorite::sole()->getRawOriginal('alert_baseline_price'));
+
+        $agence->forceFill(['status' => AgencyStatus::Active])->save();
+        $this->lancerLeJob();
+
+        $this->assertSame([$bien->id], $this->notificationsDe($client)->sole()->data['property_ids']);
+        $this->assertSame('450000.00', Favorite::sole()->getRawOriginal('alert_baseline_price'));
     }
 
     /** Groupée : deux baisses, une notification. */

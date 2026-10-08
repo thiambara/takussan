@@ -106,6 +106,15 @@ return [
     ],
 
     // TCK-272 — kod bu step-up ngir kont yu amul baatu jubaale bu baax.
+    // TCK-596 (ADR-0042 §2) — le code à usage unique qui vaut signature d'un bail.
+    'lease_signature_code' => [
+        'subject' => 'Sa koodu xaatim bu bayle :reference',
+        'greeting' => 'Asalaa maalekum,',
+        'intro' => 'Kood bii nga wara bind ngir xaatim bayle :reference :',
+        'expires' => 'Kood bii :minutes simili lay dox, benn yoon rekk lañu koy jëfandikoo.',
+        'ignore' => 'Soo laajul dara, bul ko faale : bu amul kood bii, dara du xaatimu.',
+        'sms' => 'Takussan : sa koodu xaatim bu bayle :reference mooy :code (:minutes simili). Bul ko wax kenn.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Sa kod bu dëggal suufeelu kont bi',
         'greeting' => 'Salaam,',
@@ -244,6 +253,32 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        'impersonation' => [
+            'ended' => [
+                'title' => 'Ekibu Takussan seet na sa kont',
+                'body' => 'Benn ci ekibu Takussan, :operator, seet na sa kont te soppiwul dara, li dale :started_at ba :ended_at. Lu ko waral : :reason. Defuñu dara ci sa tur.',
+                'sms' => 'Takussan : sunu ekib seet na sa kont te soppiwul dara (:operator). Xoolal sa yëgle yi.',
+            ],
+        ],
+        'agency' => [
+            'suspended' => [
+                'title' => 'Ajans bi taxawal nañu ko : :agency',
+                'body' => 'Platform bi taxawal na ajans :agency. Lu ko waral : :reason. Ay yéenekaayam feeñatul te mënuñu soppi dara ci béréb bi.',
+                'sms' => 'Takussan : ajans :agency taxawal nañu ko. Ay yéenekaayam dindi nañu leen ci site bi.',
+            ],
+            'reinstated' => [
+                'title' => 'Taxawal gi dindi nañu ko : :agency',
+                'body' => 'Taxawal gu ajans :agency dindi nañu ko. Lu ko waral : :reason. Ay yéenekaayam feeñ nañu ci kaw.',
+                'sms' => 'Takussan : taxawal gu :agency dindi nañu ko.',
+            ],
+        ],
+        'platform_operator' => [
+            'revoked' => [
+                'title' => 'Operatëer bi dindi nañu ko : :operator',
+                'body' => 'Dindi nañu :operator ci konsol platform bi. Lu ko waral : :reason.',
+                'sms' => 'Takussan : :operator amatul konsol bi.',
+            ],
+        ],
         'lease_payment' => [
             'due_soon' => [
                 'title' => 'Pey kër bi ngir :due_date',
@@ -299,6 +334,11 @@ return [
                 'body' => 'Ñu laaj na réservation :reference ngir :property, li dale :start_date ba :end_date.',
                 'sms' => 'Takussan : réservation bu bees :reference (:property).',
             ],
+            'requested_undated' => [
+                'title' => 'Laaj bu bees',
+                'body' => 'Ñu def na laaj :reference ngir :property.',
+                'sms' => 'Takussan : laaj bu bees :reference (:property).',
+            ],
             'confirmed' => [
                 'title' => 'Réservation bi dëggal nañu ko',
                 'body' => 'Sa réservation :reference ngir :property, li dale :start_date ba :end_date, dëggal nañu ko.',
@@ -311,7 +351,7 @@ return [
             ],
             'cancelled' => [
                 'title' => 'Réservation bi neenal nañu ko',
-                'body' => 'Sa réservation :reference ngir :property, neenal nañu ko.',
+                'body' => 'Réservation :reference ngir :property, neenal nañu ko.',
                 'sms' => 'Takussan : réservation :reference neenal nañu ko (:property).',
             ],
         ],
@@ -334,6 +374,16 @@ return [
                 'title' => 'Nimero telefon bi soppi nañu ko',
                 'body' => 'Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi.',
                 'sms' => 'Takussan : nimero bii du nimero sa kont kenn. Su dul yow moo ko soppi, jokkoo ak support bi.',
+            ],
+            'blocked' => [
+                'title' => 'Sa kont tëj nañu ko',
+                'body' => 'Platform bi tëj na sa kont Takussan. Lu ko waral : :reason. Jokkool ak support bi su la soxlaa.',
+                'sms' => 'Takussan : sa kont tëj nañu ko. Jokkool ak support bi.',
+            ],
+            'reactivated' => [
+                'title' => 'Sa kont ubbi nañu ko',
+                'body' => 'Sa kont Takussan ubbi nañu ko. Lu ko waral : :reason. Mën nga dugg ci kaw.',
+                'sms' => 'Takussan : sa kont ubbi nañu ko.',
             ],
         ],
         'visit' => [
@@ -615,6 +665,24 @@ return [
                 'sms' => 'Takussan : Sa ndigal la ñuy xaar : :request',
             ],
         ],
+        // TCK-596 (ADR-0042 §9) — signature du bail.
+        'lease' => [
+            'signature_requested' => [
+                'title' => 'Bayle bu ñuy xaatimal : :reference',
+                'body' => 'Bayle :reference bu :property pare na. Jàngal kontraa bi, te xaatimal ko ak kood bi ngay jot.',
+                'sms' => 'Takussan : bayle :reference pare na ngir xaatim.',
+            ],
+            'signed_by_party' => [
+                'title' => ':signer xaatim na bayle :reference',
+                'body' => ':signer xaatim na bayle :reference bu :property. Sa xaatim lañuy xaar.',
+                'sms' => 'Takussan : :signer xaatim na bayle :reference.',
+            ],
+            'signature_completed' => [
+                'title' => 'Bayle :reference xaatimu na',
+                'body' => 'Ñaari wàll yi xaatim nañu bayle :reference bu :property. Leegi mu ngi dox.',
+                'sms' => 'Takussan : bayle :reference xaatimu na te mu ngi dox.',
+            ],
+        ],
         'prospect_match' => [
             'digest' => [
                 'title' => 'Ay kër dëppoo nañu ak say kiliyaan',
@@ -632,6 +700,21 @@ return [
                 'title' => 'Yégle bi gàntu nañu ko : :property',
                 'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',
                 'sms' => 'Takussan : yégle « :property » gàntu nañu ko.',
+            ],
+            'unpublished_contact_erased' => [
+                'title' => 'Yéenekaay bi dindi nañu ko : :property',
+                'body' => 'Yéenekaay :property (:reference) dindi nañu ko ci site bi : ki ñuy jokkoo ak moom far na kontam. Joxal ko benn ajaŋ te ngay ko siiwal ci kaw : :url',
+                'sms' => 'Takussan : yéenekaay :reference dindi nañu ko, amatul ku ñuy jokkoo.',
+            ],
+            'calendar_conflict' => [
+                'title' => 'Calendrier yi dañuy xeex : :property',
+                'body' => 'Calendrier « :feed » dafa tëj :property li dale :start_date ba :end_date, fekk réservation bu ñu dëggal moo jël bis yooyu. Dara neenalu ci : xoolal ñaari plateforme yi.',
+                'sms' => 'Takussan : calendrier yi dañuy xeex ci :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Calendrier bi ñu jële du dox : :property',
+                'body' => 'Calendrier « :feed » bu :property mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi.',
+                'sms' => 'Takussan : calendrier « :feed » mënatul a synchroniser.',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

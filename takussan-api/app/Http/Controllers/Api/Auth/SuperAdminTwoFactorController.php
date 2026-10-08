@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Auth\ConfirmSuperAdminTwoFactorRequest;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Invitation;
 use App\Models\Profiles\PlatformProfile;
 use App\Notifications\SuperAdminAcceptedBroadcast;
 use App\Services\Auth\SessionTokenIssuer;
@@ -160,20 +162,43 @@ class SuperAdminTwoFactorController extends Controller
     }
 
     /**
-     * TCK-278 — Source de vérité unique : `PlatformProfile` super_admin.
-     * Idempotent : re-running on a user who already holds the profile is
-     * a no-op (et lève `revoked_at` si présent).
+     * TCK-278 — Source de vérité unique : `PlatformProfile`.
+     *
+     * TCK-600 (ADR-0047 §4) — la cooptation est le SEUL chemin d'octroi : le profil n'est posé que
+     * d'après l'invitation de cooptation ACCEPTÉE par ce compte, dont il prend le NIVEAU et
+     * l'inviteur (`granted_by_id`). `force_2fa_at_first_login` seul ne prouve rien — il est aussi
+     * posé par l'amorçage, et le serait par tout autre chemin demain. Un compte déjà opérateur
+     * actif (amorçage Artisan) n'est pas modifié.
      */
     protected function attachSuperAdminRole($user): void
     {
+        if ($user->hasActivePlatformProfile()) {
+            return;
+        }
+
+        $invitation = $this->acceptedCooptation($user);
+        abort_code_if($invitation === null, 403, 'super_admin.not_pending');
+
         $profile = PlatformProfile::query()
             ->firstOrNew(['user_id' => $user->id]);
-        $profile->level = PlatformProfileLevel::SuperAdmin;
+        $profile->level = PlatformProfileLevel::tryFrom((string) ($invitation->metadata['level'] ?? ''))
+            ?? PlatformProfileLevel::SuperAdmin;
         $profile->revoked_at = null;
-        if (! $profile->exists) {
-            $profile->granted_at = now();
-        }
+        $profile->granted_by_id = $invitation->invited_by;
+        $profile->granted_at = now();
         $profile->save();
+    }
+
+    /** TCK-600 — la dernière invitation de cooptation acceptée par ce compte. */
+    private function acceptedCooptation($user): ?Invitation
+    {
+        return Invitation::query()
+            ->where('role', 'super_admin')
+            ->whereNull('agency_id')
+            ->where('status', InvitationStatus::Accepted->value)
+            ->where('invited_user_id', $user->id)
+            ->latest('accepted_at')
+            ->first();
     }
 
     /**

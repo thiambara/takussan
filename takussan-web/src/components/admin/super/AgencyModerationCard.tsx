@@ -5,10 +5,12 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { postAgencyAction } from '@/lib/queries/super-admin';
+import { postAgencyAction, type AgencyModerationAction } from '@/lib/queries/super-admin';
 import type { AdminAgency } from '@/types/super-admin';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
+import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
+import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 
@@ -30,7 +32,7 @@ interface AgencyModerationCardProps {
   agency: AdminAgency;
 }
 
-type Action = 'verify' | 'suspend' | 'unverify';
+type Action = AgencyModerationAction;
 
 type ActionMeta = { title: string; description: string; phrase: string; label: string; destructive?: boolean };
 
@@ -60,8 +62,22 @@ function actionMeta(t: (key: string) => string): Record<Action, ActionMeta> {
       label: t('actions.unverify.label'),
       destructive: true,
     },
+    reinstate: {
+      title: t('actions.reinstate.title'),
+      description: t('actions.reinstate.description'),
+      phrase: 'LEVER',
+      label: t('actions.reinstate.label'),
+    },
   };
 }
+
+/** Le rendu de chaque bouton : `suspend` est le seul geste rouge, `unverify` le seul en retrait. */
+const VARIANTES: Record<Action, 'default' | 'destructive' | 'outline'> = {
+  verify: 'default',
+  suspend: 'destructive',
+  unverify: 'outline',
+  reinstate: 'default',
+};
 
 export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
   const t = useTranslations('superAdmin.agencyCard');
@@ -70,27 +86,26 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
   const [pending, setPending] = useState<Action | null>(null);
   const queryClient = useQueryClient();
 
+  const { can } = usePlatformAbilities();
+
   const mutation = useMutation({
-    mutationFn: (action: Action) => postAgencyAction(agency.id, action),
+    mutationFn: ({ action, reason }: { action: Action; reason: string }) =>
+      postAgencyAction(agency.id, action, reason || undefined),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'agencies'] });
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'system-metrics'] });
       setPending(null);
     },
-    onError: () => setPending(null),
+    // TCK-600 — l'échec reste affiché DANS la modale : la fermer sur erreur (ce que faisait
+    // `onError: () => setPending(null)`) avalait le refus de l'API sans un mot.
   });
 
   const status = agency.status ?? 'inactive';
   const statusKey = STATUS_KEY[status];
-  const meta = pending ? actionMeta(t)[pending] : null;
-  // Seules les transitions qui changent quelque chose sont proposées : la carte d'une agence
-  // vérifiée et active offrait « Vérifier » à côté de « Déverifier ». `verify` reste proposé à
-  // une agence vérifiée mais suspendue ou inactive — c'est aussi la voie de réactivation.
-  const canVerify = !(agency.is_verified && status === 'active');
-  const canSuspend = status !== 'suspended';
-  // `unverify` passe AUSSI le statut à `inactive` (API) : il change quelque chose tant que
-  // l'agence est vérifiée OU pas encore inactive — c'est la seule voie vers `inactive`.
-  const canUnverify = agency.is_verified || status !== 'inactive';
+  const metas = actionMeta(t);
+  const meta = pending ? metas[pending] : null;
+  // Seules les transitions qui changent quelque chose, et que le niveau de l'opérateur permet.
+  const transitions = transitionsDeModeration(agency).filter((action) => can(GESTE_DE_TRANSITION[action]));
 
   return (
     <article
@@ -163,34 +178,37 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/agencies/${agency.id}`}>
           {t('open')}
         </Link>
-        {canVerify ? (
-          <Button size="sm" variant="default" onClick={() => setPending('verify')} disabled={mutation.isPending}>
-            {t('actions.verify.label')}
+        {transitions.map((action) => (
+          <Button
+            key={action}
+            size="sm"
+            variant={VARIANTES[action]}
+            onClick={() => setPending(action)}
+            disabled={mutation.isPending}
+          >
+            {metas[action].label}
           </Button>
-        ) : null}
-        {canSuspend ? (
-          <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
-            {t('actions.suspend.label')}
-          </Button>
-        ) : null}
-        {canUnverify ? (
-          <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
-            {t('actions.unverify.label')}
-          </Button>
-        ) : null}
+        ))}
       </div>
 
       {meta ? (
         <ConfirmActionDialog
           open={pending !== null}
-          onOpenChange={(open) => !open && setPending(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPending(null);
+              mutation.reset();
+            }
+          }}
           title={meta.title}
           description={meta.description}
           confirmPhrase={meta.phrase}
           confirmLabel={meta.label}
           destructive={meta.destructive}
           pending={mutation.isPending}
-          onConfirm={() => pending && mutation.mutate(pending)}
+          reason={pending && AVEC_MOTIF.has(pending) ? { label: t('reasonLabel') } : undefined}
+          error={mutation.error}
+          onConfirm={(reason) => pending && mutation.mutate({ action: pending, reason })}
         />
       ) : null}
     </article>

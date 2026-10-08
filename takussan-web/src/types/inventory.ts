@@ -67,6 +67,19 @@ export interface InventoryLeaseLite {
   readonly reference_number: string | null;
 }
 
+/** TCK-596 — une photo de pièce, servie par URL signée (collection privée). */
+export interface InventoryRoomPhoto {
+  readonly id: number;
+  readonly url: string;
+  readonly room_name: string;
+}
+
+/** TCK-596 — `show` seulement : les photos groupées dans l'ordre des pièces. */
+export interface InventoryRoomPhotoGroup {
+  readonly room_name: string;
+  readonly photos: readonly InventoryRoomPhoto[];
+}
+
 export interface Inventory {
   readonly id: number;
   readonly lease_id: number;
@@ -89,6 +102,16 @@ export interface Inventory {
   readonly owner_signature_hash?: string | null;
   readonly signed_at?: string | null;
   readonly created_at: string;
+  // TCK-596 — qui a signé pour le bailleur et pour le compte de qui ; empreinte figée.
+  readonly owner_signed_by_user_id?: number | null;
+  readonly owner_signed_on_behalf_of_user_id?: number | null;
+  readonly traceability_hash?: string | null;
+  // TCK-596 — `show` seulement.
+  readonly room_photos?: readonly InventoryRoomPhotoGroup[];
+  /** Les rôles que l'utilisateur courant peut signer, jugés par l'API (même prédicat que la signature). */
+  readonly can_sign_as?: readonly InventorySignatureRole[];
+  /** Le bailleur pour le compte duquel l'utilisateur courant signerait, ou `null` s'il est le bailleur. */
+  readonly sign_on_behalf_of?: { readonly id: number; readonly full_name: string } | null;
 }
 
 /** TCK-076 — explicit role accepted by `POST /inventories/{id}/sign`. */

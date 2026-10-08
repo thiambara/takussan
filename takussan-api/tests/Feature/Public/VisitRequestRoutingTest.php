@@ -158,9 +158,10 @@ class VisitRequestRoutingTest extends TestCase
         $bien = $this->bienDe($x, $owner);
         $sansAgence = $this->bienDe(null, $owner);
 
-        Sanctum::actingAs($owner);
-        $this->deleteJson('/api/auth/account')->assertSuccessful();
-        $this->app['auth']->forgetGuards();
+        // TCK-600 — `DELETE /api/auth/account` (effacement immédiat) n'existe plus : le compte parti
+        // est supprimé en douceur directement, SANS `ErasedAccountListings` (qui dépublierait le
+        // bien et rendrait sans objet ce que ce test éprouve, le repli de la demande).
+        $owner->delete();
 
         $this->demander($bien->slug, ['visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567'])->assertCreated();
         Notification::assertSentTo($admin, CodedNotification::class, self::deCode(NotificationCode::VisitRequested));

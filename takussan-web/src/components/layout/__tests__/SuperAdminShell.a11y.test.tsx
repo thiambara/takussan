@@ -15,6 +15,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
+import { SUPER_ADMIN, avecGestes } from '@/test/habilitations';
 import type { User } from '@/types/user';
 import { SUPER_ADMIN_MAIN_ID, SuperAdminShell } from '../SuperAdminShell';
 import { NAV_GROUPS, SuperAdminSidebar } from '../SuperAdminSidebar';
@@ -26,8 +27,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/hooks/useImpersonation', () => ({
-  useImpersonationSession: () => null,
-  useStopImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
+  useImpersonationCourante: () => ({ data: null }),
+  useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const user: User = {
@@ -43,7 +44,7 @@ function renderShell() {
   return render(
     withIntl(
       <QueryClientProvider client={queryClient}>
-        <SuperAdminShell user={user}>
+        <SuperAdminShell user={user} abilities={SUPER_ADMIN}>
           <p>contenu de la page</p>
         </SuperAdminShell>
       </QueryClientProvider>,
@@ -56,7 +57,7 @@ function renderSidebar() {
   return render(
     withIntl(
       <QueryClientProvider client={queryClient}>
-        <SuperAdminSidebar />
+        {avecGestes(<SuperAdminSidebar />)}
       </QueryClientProvider>,
     ),
   );
@@ -144,6 +145,15 @@ describe('SuperAdminShell — lien d’évitement (TCK-359)', () => {
     for (const classe of ['focus:absolute', 'focus:left-4', 'focus:top-4', 'focus:z-50']) {
       expect(classes).toContain(classe);
     }
+  });
+});
+
+describe('SuperAdminShell — recherche globale (TCK-600)', () => {
+  afterEach(() => cleanup());
+
+  it('la barre haute porte la recherche globale, depuis toute page de la console', () => {
+    renderShell();
+    expect(screen.getByRole('button', { name: /Rechercher/ })).toBeInTheDocument();
   });
 });
 

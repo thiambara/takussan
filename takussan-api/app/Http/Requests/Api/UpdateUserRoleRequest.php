@@ -40,10 +40,13 @@ class UpdateUserRoleRequest extends BaseFormRequest
      * TCK-305 — la liste vivait dans un `protected function allowedRoles()` du contrôleur,
      * donc hors de portée des règles une fois déplacées.
      *
+     * TCK-600 (ADR-0047 §4) — `super_admin` n'y est plus : la cooptation est le SEUL chemin
+     * d'octroi d'un `PlatformProfile`. Ce PUT créait un super-admin sans invitation, sans 2FA
+     * forcée ni activité, réactivait un profil révoqué et promouvait un `support`.
+     *
      * @var list<string>
      */
     public const ALLOWED_ROLES = [
-        'super_admin',
         'agency_admin',
         'agent',
         'owner',

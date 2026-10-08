@@ -43,6 +43,9 @@ enum NotificationCode: string
 
     // ─── Réservations ───────────────────────────────────────────────────────────────────
     case BookingCreated = 'booking.created';
+
+    /** TCK-596 — une demande sans dates (offre d'achat, demande privée non datée) : « du … au … » vide sinon. */
+    case BookingRequestedUndated = 'booking.requested_undated';
     case BookingConfirmed = 'booking.confirmed';
     case BookingRejected = 'booking.rejected';
     case BookingCancelled = 'booking.cancelled';
@@ -126,6 +129,21 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    /** TCK-596 (ADR-0041 §6) — un événement importé chevauche une réservation confirmée. */
+    case PropertyCalendarConflict = 'property.calendar_conflict';
+
+    /** TCK-596 (ADR-0041 §5) — un flux iCal importé échoue pour la troisième fois d'affilée. */
+    case PropertyCalendarFeedFailing = 'property.calendar_feed_failing';
+
+    /** TCK-596 (ADR-0042 §9) — le contrat est figé : chaque partie a son bail à signer. */
+    case LeaseSignatureRequested = 'lease.signature_requested';
+
+    /** TCK-596 (ADR-0042 §9) — une partie a signé ; l'autre en est prévenue. */
+    case LeaseSignedByParty = 'lease.signed_by_party';
+
+    /** TCK-596 (ADR-0042 §9) — la seconde signature a activé le bail. */
+    case LeaseSignatureCompleted = 'lease.signature_completed';
+
     // ─── Sorties d'argent (TCK-594, ADR-0039) ───────────────────────────────────────────
     case PayoutAwaitingApproval = 'payout.awaiting_approval';
     case PayoutDue = 'payout.due';
@@ -151,6 +169,20 @@ enum NotificationCode: string
 
     // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
     case AccountPhoneChanged = 'account.phone_changed';
+
+    // ─── Console plateforme (TCK-600) ───────────────────────────────────────────────────
+    /** À la cible, à la fermeture d'une session d'impersonation, quelle qu'en soit la cause (ADR-0055). */
+    case ImpersonationEnded = 'impersonation.ended';
+    /** Aux admins de l'agence (ADR-0048). */
+    case AgencySuspended = 'agency.suspended';
+    case AgencyReinstated = 'agency.reinstated';
+    /** Au compte bloqué ou réactivé depuis la console. */
+    case AccountBlocked = 'account.blocked';
+    case AccountReactivated = 'account.reactivated';
+    /** Aux admins de l'agence : un bien dépublié parce que son seul contact a été effacé. */
+    case PropertyUnpublishedContactErased = 'property.unpublished_contact_erased';
+    /** Aux autres `super_admin` : un opérateur a été retiré (ADR-0047). */
+    case PlatformOperatorRevoked = 'platform_operator.revoked';
 
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
@@ -179,7 +211,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord, self::PaymentDuplicate,
             self::PaymentDuplicateLateFee => NotificationType::Payment,
-            self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
+            self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
@@ -202,7 +234,13 @@ enum NotificationCode: string
             self::ModerationReportUpheld, self::ModerationReportDismissed,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
+            self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
+            self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
+            self::PlatformOperatorRevoked => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty,
+            self::LeaseSignatureCompleted => NotificationType::Lease,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
@@ -221,7 +259,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::LeasePaymentOverdueDigest => 'lease_payment_overdue',
             self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord => 'lease_payment_received',
-            self::BookingCreated => 'booking_request',
+            self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
@@ -243,6 +281,8 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
+            self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
             // TCK-597 — le retrait d'une annonce et l'issue d'un signalement : non désactivables.
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
             self::ModerationReportUpheld, self::ModerationReportDismissed,
@@ -257,6 +297,10 @@ enum NotificationCode: string
             self::InvitationReceived, self::InvitationReminder => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
+            // TCK-600 — avis de la plateforme sur le compte ou l'agence : non désactivables.
+            self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
+            self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
+            self::PlatformOperatorRevoked => null,
         };
     }
 
@@ -278,6 +322,7 @@ enum NotificationCode: string
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
+            self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             // TCK-590 — de quoi RÉPONDRE : le message entier et le moyen de joindre (téléphone ·
@@ -322,6 +367,10 @@ enum NotificationCode: string
             self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
+            self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
+            self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
             self::PayoutAwaitingApproval, self::PayoutDue => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             // `transaction` et `destination` (forme masquée) valent « — » pour un paiement en espèces.
             self::PayoutProcessed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'transaction' => self::PARAM_TEXT, 'destination' => self::PARAM_TEXT],
@@ -337,6 +386,12 @@ enum NotificationCode: string
             // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
             self::AccountPhoneChanged => [],
             self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
+            // TCK-600 — le motif est la saisie d'un opérateur, jamais une phrase de l'API.
+            self::ImpersonationEnded => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT, 'started_at' => self::PARAM_DATETIME, 'ended_at' => self::PARAM_DATETIME],
+            self::AgencySuspended, self::AgencyReinstated => ['agency' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::AccountBlocked, self::AccountReactivated => ['reason' => self::PARAM_TEXT],
+            self::PropertyUnpublishedContactErased => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
         };
     }
 

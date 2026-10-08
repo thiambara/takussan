@@ -121,6 +121,7 @@ use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
+use App\Support\ImpersonationContext;
 use App\Support\Logging\SanitizingFailedJobProvider;
 use App\Support\TelephoneSaisi;
 use App\Support\VisitorFingerprint;
@@ -162,6 +163,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-600 (ADR-0055 §5) — la session d'impersonation de la requête courante.
+        $this->app->scoped(ImpersonationContext::class);
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
@@ -417,6 +421,24 @@ class AppServiceProvider extends ServiceProvider
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
 
+        // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
+        // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
+        RateLimiter::for('lease-signature-code', function (Request $request) {
+            $key = 'user:'.($request->user()?->id ?? $request->ip());
+
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
+        });
+        // La saisie du code : le verrou à 5 essais faux est dans le service ; ceci borne les requêtes.
+        RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
+        // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
+        // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
+        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+        // VERIF-596 m4 (ADR-0041 §5) — l'enregistrement d'un flux importé déclenche une résolution DNS
+        // et un appel sortant : par utilisateur, 10 par heure, quel que soit le bien.
+        RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+
         // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
         // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
@@ -484,7 +506,8 @@ class AppServiceProvider extends ServiceProvider
                 ? 'user:'.$request->user()->id
                 : 'ip:'.$request->ip();
 
-            return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
+            // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
+            return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
         });
 
         // TCK-592 (verif-592, mineur 9) — poster dans une conversation. La route n'avait aucun
@@ -609,6 +632,15 @@ class AppServiceProvider extends ServiceProvider
         AuditActivity::created(fn (AuditActivity $activity) => app(DispatchAlerts::class)->handle($activity));
         // TCK-601 (E) — un acte de gouvernance journalisé avertit les autres admins de l'agence.
         AuditActivity::created(fn (AuditActivity $activity) => app(GovernanceAlertService::class)->handle($activity));
+        // TCK-600 (ADR-0055 §5) — toute activité écrite pendant une session d'impersonation
+        // porte l'opérateur, en plus de son `causer` (la cible). Sur `AuditActivity` (TCK-601) :
+        // posé sur la classe spatie, l'écouteur ne verrait plus aucune création.
+        AuditActivity::creating(function (AuditActivity $activity): void {
+            $context = app(ImpersonationContext::class);
+            if ($context->active()) {
+                $activity->setAttribute('impersonator_id', $context->impersonatorId());
+            }
+        });
         // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //

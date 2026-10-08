@@ -14,8 +14,6 @@ vi.mock('@/lib/queries/super-admin', () => ({
 
 const flag: AdminFeatureFlag = {
   key: 'property_compare',
-  label: 'Comparateur de biens',
-  description: 'Active le comparateur',
   client_visible: true,
   enabled: false,
   segments: {},
