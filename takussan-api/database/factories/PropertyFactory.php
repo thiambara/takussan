@@ -83,6 +83,19 @@ class PropertyFactory extends Factory
         ]);
     }
 
+    /** TCK-598 — une location mensuelle avec un coût d'entrée courant à Dakar. */
+    public function withEntryCost(): static
+    {
+        return $this->state([
+            'contract_type' => ContractType::Rent,
+            'rent_period' => RentPeriod::Monthly,
+            'deposit_months' => 2,
+            'advance_months' => fake()->randomElement([1, 2, 3]),
+            'agency_fee_months' => fake()->randomElement([0.5, 1]),
+            'monthly_charges' => fake()->optional(0.5)->randomElement([5_000, 10_000, 15_000]),
+        ]);
+    }
+
     public function featured(): static
     {
         return $this->state(['featured' => true]);

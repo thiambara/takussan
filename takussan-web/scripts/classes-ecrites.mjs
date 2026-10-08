@@ -62,6 +62,26 @@
  *    dès qu'il porte deux jetons, ce qui est le cas courant.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * DEUX POSITIONS QUI NE SONT JAMAIS DES CLASSES (TCK-598)
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * La route « forme » a rougi la CI de la PR #337 sur neuf « classes » qui n'en étaient pas. Chacune
+ * venait d'un défaut du relevé, pas du code relevé :
+ *
+ * - **la valeur d'un attribut JSX qui ne parle pas de classe.** `sandbox="allow-scripts
+ *   allow-same-origin"` a la forme exacte d'une liste de classes ; seule sa POSITION dit le
+ *   contraire. Elle est écartée de la route « forme », et seulement elle : un attribut dont le
+ *   nom contient `class` (`controlsClassName="md:grid-cols-2 …"`, `overlayClassName=…`) y reste,
+ *   parce qu'il porte réellement des classes dans ce dépôt.
+ * - **un jeton `[…]` sans `:`.** `[canonique] le domaine des quartiers de …`, un message de
+ *   journal, n'avait pour toute marque Tailwind que ses crochets. Or un crochet en tête n'est de la
+ *   syntaxe Tailwind qu'avec un `:` — variante arbitraire (`[&>div]:hidden`) ou propriété
+ *   arbitraire (`[mask-type:alpha]`). Sans lui, c'est de la prose entre crochets.
+ *
+ * Les deux règles sont de POSITION et de FORME ; aucune ne connaît `sandbox`, `console` ni aucun
+ * nom d'attribut hors `class`.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
  * LES COMMENTAIRES SONT ÉCARTÉS, ET C'EST UNE DÉCISION
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
@@ -302,6 +322,8 @@ function jetonBienForme(jeton) {
   if (!CARACTERES_UTILITAIRE.test(jeton.replace(/^-/, ''))) return false;
   if (!/[a-z0-9]/.test(jeton)) return false;
   if (/[,.:]$/.test(jeton)) return false;
+  // Un `[…]` en tête n'est Tailwind qu'avec un `:` (cf. l'en-tête, TCK-598).
+  if (/^[-!]?\[/.test(jeton) && !jeton.includes(':')) return false;
   return crochetsApparies(jeton);
 }
 
@@ -437,6 +459,77 @@ function positionsDeClasse(jetons) {
   return dans;
 }
 
+/** Les mots-clés qui ouvrent une déclaration : un identifiant qui les suit n'est pas un attribut. */
+const DECLARATION = new Set(['const', 'let', 'var']);
+
+/** Recule depuis la fin d'un nom d'attribut ou de balise (`aria-label`, `xlink:href`, `Foo.Bar`). */
+function debutDuNom(jetons, fin) {
+  let p = fin;
+  while (p >= 2 && jetons[p - 1].t === 'punct' && ['-', ':', '.'].includes(jetons[p - 1].v)
+    && jetons[p - 2].t === 'ident') p -= 2;
+  return p;
+}
+
+/**
+ * Un nom qui commence en `debut` siège-t-il dans une balise JSX ouvrante ? On remonte les attributs
+ * qui le précèdent — valeur chaîne, valeur `{…}`, attribut booléen, `{...props}` — jusqu'à un nom
+ * de balise collé à un `<`. Une affectation (`const CARTE = 'p-4 shadow-sm'`) n'y arrive jamais.
+ */
+function dansUneBaliseOuvrante(jetons, debut) {
+  let p = debut - 1;
+  for (let pas = 0; pas < 500 && p >= 0; pas++) {
+    const t = jetons[p];
+    if (t.t === 'ident') {
+      if (DECLARATION.has(t.v)) return false;
+      const debutDuPrecedent = debutDuNom(jetons, p);
+      const avant = jetons[debutDuPrecedent - 1];
+      if (avant?.t === 'punct' && avant.v === '<') return true;
+      p = debutDuPrecedent - 1;
+      continue;
+    }
+    if (t.t === 'chaine') {
+      if (jetons[p - 1]?.t !== 'punct' || jetons[p - 1].v !== '=' || jetons[p - 2]?.t !== 'ident') return false;
+      p = debutDuNom(jetons, p - 2) - 1;
+      continue;
+    }
+    if (t.t === 'punct' && t.v === '}') {
+      let profondeur = 0;
+      for (; p >= 0; p--) {
+        if (jetons[p].t !== 'punct') continue;
+        if (jetons[p].v === '}') profondeur += 1;
+        else if (jetons[p].v === '{' && --profondeur === 0) break;
+      }
+      if (p < 0) return false;
+      const avant = jetons[p - 1];
+      if (avant?.t === 'punct' && avant.v === '=') {
+        if (jetons[p - 2]?.t !== 'ident') return false;
+        p = debutDuNom(jetons, p - 2) - 1;
+      } else p -= 1;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Les indices des chaînes qui sont la valeur DIRECTE d'un attribut JSX dont le nom ne contient pas
+ * `class` — `sandbox="allow-scripts allow-same-origin"`. Cf. l'en-tête, TCK-598.
+ */
+function valeursDAttributsHorsClasse(jetons) {
+  const hors = new Set();
+  for (let k = 2; k < jetons.length; k++) {
+    if (jetons[k].t !== 'chaine') continue;
+    const egal = jetons[k - 1];
+    if (egal.t !== 'punct' || egal.v !== '=' || jetons[k - 2].t !== 'ident') continue;
+    const debut = debutDuNom(jetons, k - 2);
+    const nom = jetons.slice(debut, k - 1).map((t) => t.v).join('');
+    if (/class/i.test(nom)) continue;
+    if (dansUneBaliseOuvrante(jetons, debut)) hors.add(k);
+  }
+  return hors;
+}
+
 /**
  * Relève les classes écrites par un fichier.
  *
@@ -452,13 +545,14 @@ function positionsDeClasse(jetons) {
 export function scanneClasses(source) {
   const jetons = lexe(source);
   const enPosition = positionsDeClasse(jetons);
+  const horsClasse = valeursDAttributsHorsClasse(jetons);
   const releve = [];
 
   for (let k = 0; k < jetons.length; k++) {
     const j = jetons[k];
     if (j.t !== 'chaine') continue;
     const dansUneClasse = enPosition.has(k);
-    if (!dansUneClasse && !ressembleAUneListeDeClasses(j.v)) continue;
+    if (!dansUneClasse && (horsClasse.has(k) || !ressembleAUneListeDeClasses(j.v))) continue;
 
     const morceaux = jetonsDe(j.v);
     for (let m = 0; m < morceaux.length; m++) {

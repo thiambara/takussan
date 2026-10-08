@@ -171,6 +171,8 @@ const APPELANTS: readonly Appelant[] = [
       'tags',
       'approved_at',
       'rejection_reason',
+      // TCK-598 — calculé par `CoutDEntree` depuis quatre colonnes DEMANDÉES ci-dessus.
+      'entry_cost',
     ],
     horsQueryFields: ['description'],
     minColonnesLues: 20,

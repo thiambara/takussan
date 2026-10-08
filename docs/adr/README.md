@@ -66,6 +66,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 | [0047](0047-niveaux-d-operateur-plateforme.md) | Un opérateur plateforme agit par `/api/admin` selon son niveau (`PlatformAbility`) ; toute route qui ne déclare aucun geste reste au `super_admin` ; la cooptation est le seul chemin d'octroi | Accepté |
 | [0048](0048-effet-d-une-suspension-d-agence.md) | Une agence suspendue disparaît du site et ne s'écrit plus ; ses locataires paient encore | Accepté |
+| [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
 | [0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) | L'impersonation est une session de lecture de 15 minutes, dont le jeton ne quitte jamais le serveur du front | Accepté |
 
 ## Décisions recensées, pas encore rédigées

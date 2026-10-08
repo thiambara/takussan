@@ -51,6 +51,9 @@ class Property extends AbstractModel implements HasMedia
         'available_from', 'published_at', 'archived_at', 'metadata',
         'rejection_reason', 'submitted_at', 'approved_at', 'rejected_at',
         'approved_by_user_id', 'rejected_by_user_id',
+        // TCK-598 — coût d'entrée d'une location mensuelle, et visite virtuelle (lien seulement).
+        'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges',
+        'virtual_tour_url',
     ];
 
     protected $casts = [
@@ -76,6 +79,10 @@ class Property extends AbstractModel implements HasMedia
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'metadata' => 'array',
+        'deposit_months' => 'integer',
+        'advance_months' => 'integer',
+        'agency_fee_months' => 'decimal:2',
+        'monthly_charges' => 'decimal:2',
     ];
 
     /** @var array<int,string> */
@@ -113,6 +120,7 @@ class Property extends AbstractModel implements HasMedia
         'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'furnished',
         'floor_number', 'total_floors', 'year_built', 'condition', 'parking_spaces', 'featured',
         'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
+        'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges', 'virtual_tour_url',
     ];
 
     protected static function booted(): void

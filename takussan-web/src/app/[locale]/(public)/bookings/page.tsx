@@ -7,6 +7,7 @@ import { Compass, SearchX } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
+import { segmentDeSlug } from '@/lib/slug-de-bien';
 import { cn } from '@/lib/utils';
 import type { PropertyDetail } from '@/types/property';
 import { BookingTunnel } from '@/components/bookings/BookingTunnel';
@@ -52,7 +53,8 @@ export default async function BookingPage({
   searchParams: Promise<{ property?: string }>;
 }) {
   const params = await searchParams;
-  const slug = params.property;
+  // `?property=a&property=b` arrive en tableau : ce n'est pas un slug.
+  const slug = typeof params.property === 'string' ? params.property : undefined;
   const t = await getTranslations('bookings.public');
 
   if (!slug) {
@@ -78,15 +80,26 @@ export default async function BookingPage({
   }
 
   let property: PropertyDetail | null = null;
-  try {
-    const res = await apiFetch<{ data: PropertyDetail }>(
-      `/public/properties/${slug}`,
-      undefined,
-      { locale: await getLocale() },
-    );
-    property = res.data;
-  } catch {
-    property = null;
+  // Après verif-598 (m2) : `encodeURIComponent` laisse `.` et `..`, que `fetch` résout —
+  // `?property=.` appelait la liste du catalogue. Hors forme d'un slug de bien : introuvable,
+  // sans appel.
+  const segment = segmentDeSlug(slug);
+  if (segment !== null) {
+    try {
+      // TCK-598 (AC20) — le slug lu dans l'URL est UN segment de chemin, encodé comme tel. Brut,
+      // `?property=..%2Fproperties%3Fper_page%3D100000` faisait appeler
+      // `/public/properties/../properties?per_page=100000` — la liste du catalogue, normalisée par
+      // `fetch`, au plafond que le visiteur choisissait. L'appel est rendu POUR le visiteur : il
+      // transmet son IP (comportement par défaut d'`apiFetch`).
+      const res = await apiFetch<{ data: PropertyDetail }>(
+        `/public/properties/${segment}`,
+        undefined,
+        { locale: await getLocale() },
+      );
+      property = res.data;
+    } catch {
+      property = null;
+    }
   }
 
   if (!property) {
