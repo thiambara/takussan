@@ -9204,5 +9204,17 @@
       "next": "Next",
       "pageOf": "Page {page} of {last}"
     }
+  },
+  "horsLigne": {
+    "application": {
+      "nom": "Takussan — Real estate in Senegal",
+      "nomCourt": "Takussan",
+      "description": "Rent, buy and sell property in Senegal."
+    },
+    "titre": "You are offline",
+    "message": "Takussan cannot reach the network. The page will load as soon as your connection is back.",
+    "reessayer": "Try again",
+    "favorisTitre": "Your favorites already viewed on this device",
+    "favorisVide": "None of your favorites is available offline on this device."
   }
 }

@@ -9204,5 +9204,17 @@
       "next": "Ca kanam",
       "pageOf": "Xët {page} ci {last}"
     }
+  },
+  "horsLigne": {
+    "application": {
+      "nom": "Takussan — Kër ak suuf ci Senegaal",
+      "nomCourt": "Takussan",
+      "description": "Luwe, jënd ak jaay kër ci Senegaal."
+    },
+    "titre": "Internet bi dagg na",
+    "message": "Takussan mënul jokkoo ak internet. Xët wi dina feeñ bu internet bi délsee.",
+    "reessayer": "Jéemaatal",
+    "favorisTitre": "Sa bëgg-bëgg yi nga xoolewoon ci bii aparey",
+    "favorisVide": "Amul benn ci sa bëgg-bëgg yi mën a feeñ te amul internet ci bii aparey."
   }
 }
