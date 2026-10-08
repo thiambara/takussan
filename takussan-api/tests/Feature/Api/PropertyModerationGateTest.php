@@ -193,6 +193,124 @@ class PropertyModerationGateTest extends ApiTestCase
         $this->assertQueuedNotPublic($property);
     }
 
+    /**
+     * verif-597 B1′ — `pending` est un statut affichable : un bien NÉ `pending` dans une agence
+     * `moderation_required` partait d'un statut affichable, et aucune transition ne le faisait
+     * passer par la file. Deux appels d'agent le mettaient en ligne.
+     *
+     * @return array<string, array{?string}>
+     */
+    public static function createdPendingThen(): array
+    {
+        return [
+            'POST pending' => [null],
+            'POST pending → publish' => ['publish'],
+            'POST pending → PUT status available' => ['status'],
+        ];
+    }
+
+    #[DataProvider('createdPendingThen')]
+    public function test_a_listing_created_as_pending_is_queued_from_birth(?string $then): void
+    {
+        $this->actingAsApi($this->agent);
+        $id = $this->postJson('/api/properties', [
+            'title' => 'Villa aux Almadies',
+            'type' => 'house',
+            'contract_type' => 'sale',
+            'price' => 90_000_000,
+            'status' => 'pending',
+            'visibility' => 'public',
+        ])->assertCreated()->json('data.id');
+        $property = Property::findOrFail($id);
+
+        match ($then) {
+            'publish' => $this->postJson("/api/properties/{$id}/publish")->assertOk(),
+            'status' => $this->putJson("/api/properties/{$id}/status", ['status' => 'available'])->assertOk(),
+            null => null,
+        };
+
+        $this->assertQueuedNotPublic($property);
+        $this->assertNull($property->approved_at);
+    }
+
+    /** verif-597 B1′ — le bien né `pending` était indexé dès sa création, jamais modéré. */
+    public function test_a_listing_created_as_pending_is_not_searchable(): void
+    {
+        $this->actingAsApi($this->agent);
+        $id = $this->postJson('/api/properties', [
+            'title' => 'Studio à Ouakam',
+            'type' => 'apartment',
+            'contract_type' => 'rent',
+            'price' => 150_000,
+            'status' => 'pending',
+            'visibility' => 'public',
+        ])->assertCreated()->json('data.id');
+
+        $this->assertFalse(Property::findOrFail($id)->shouldBeSearchable());
+    }
+
+    /**
+     * verif-597 B1′ — un bien jamais approuvé ni publié n'est pas « déjà en ligne », même sous un
+     * statut affichable. Cas réel : l'agence active la modération sur un parc existant.
+     *
+     * @return array<string, array{PropertyStatus, string}>
+     */
+    public static function neverOnline(): array
+    {
+        return [
+            'pending → publish' => [PropertyStatus::Pending, 'publish'],
+            'pending → PUT status available' => [PropertyStatus::Pending, 'status'],
+            'pending → PUT {visibility: public}' => [PropertyStatus::Pending, 'put'],
+            'available privé → publish' => [PropertyStatus::Available, 'publish'],
+        ];
+    }
+
+    #[DataProvider('neverOnline')]
+    public function test_a_never_approved_never_published_listing_is_not_already_online(PropertyStatus $status, string $then): void
+    {
+        $this->agency->update(['moderation_required' => false]);
+        $property = $this->draft($status);
+        $this->agency->update(['moderation_required' => true]);
+
+        $this->actingAsApi($this->agent);
+        match ($then) {
+            'publish' => $this->postJson("/api/properties/{$property->id}/publish")->assertOk(),
+            'status' => $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk(),
+            'put' => $this->putJson("/api/properties/{$property->id}", ['visibility' => 'public'])->assertOk(),
+        };
+
+        $this->assertQueuedNotPublic($property);
+    }
+
+    /** Témoin de B1′ : un bien déjà publié avant la modération garde ses changements de statut. */
+    public function test_a_listing_published_before_moderation_keeps_its_status_changes(): void
+    {
+        $this->agency->update(['moderation_required' => false]);
+        $property = $this->draft(PropertyStatus::Available, [
+            'visibility' => PropertyVisibility::Public,
+            'published_at' => now()->subWeek(),
+        ]);
+        $this->agency->update(['moderation_required' => true]);
+
+        $this->actingAsApi($this->agent);
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'pending'])->assertOk();
+
+        $this->assertSame(PropertyStatus::Pending, $property->refresh()->status);
+    }
+
+    /** Témoin de B1′ : modifier le texte d'un bien jamais publié n'est pas une activation. */
+    public function test_editing_a_never_published_listing_is_not_an_activation(): void
+    {
+        $this->agency->update(['moderation_required' => false]);
+        $property = $this->draft(PropertyStatus::Pending);
+        $this->agency->update(['moderation_required' => true]);
+
+        $this->actingAsApi($this->agent);
+        $this->putJson("/api/properties/{$property->id}", ['title' => 'Titre corrigé'])->assertOk();
+
+        $this->assertSame(PropertyStatus::Pending, $property->refresh()->status);
+    }
+
     /** Une approbation suivie d'un refus n'est plus une approbation. */
     public function test_an_approval_followed_by_a_rejection_does_not_count(): void
     {

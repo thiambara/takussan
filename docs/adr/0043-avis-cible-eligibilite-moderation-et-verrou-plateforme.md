@@ -158,10 +158,15 @@ Le verrou n'est pas un statut de plus : un statut neuf aurait dû être exclu de
 ### 5. La modération d'agence tient au même point
 
 Dans la même méthode, **après** le verrou, l'activation se juge sur la **destination** et sur
-l'**histoire** du bien, jamais sur le seul statut d'origine. Une **activation**, c'est un `status` qui
-passe d'un statut non affichable à un statut affichable (`available`, `published`, `pending`). Elle
-compte quand l'agence du bien est `moderation_required` et que le bien ne porte pas d'**approbation
-debout** : `approved_at` non nul et postérieur à `rejected_at`. Dans ce cas, la sauvegarde est
+l'**histoire** du bien, jamais sur le seul statut d'origine. Une **activation**, c'est une sauvegarde
+dont le statut d'arrivée est affichable (`available`, `published`, `pending`) et qui rapproche le bien
+de l'affichage : `status` passé à un statut affichable, `visibility` passée à `public` ou
+`published_at` posé. Elle compte quand l'agence du bien est `moderation_required`, que le bien ne
+porte pas d'**approbation debout** (`approved_at` non nul et postérieur à `rejected_at`), et qu'il
+n'était pas **déjà en ligne**. Être déjà en ligne, c'est partir d'un statut affichable **et** porter
+un `published_at`. Un bien `pending` ou `available` privé, jamais approuvé ni publié, n'est pas déjà
+en ligne : le publier, le rendre public ou le passer `available` est une activation. Dans ce cas, la
+sauvegarde est
 réécrite en `status = pending_review` et `submitted_at = now()`. `submitted_at` est conservé s'il
 était déjà posé et que le bien était déjà en attente. Le reste de la sauvegarde passe tel quel :
 `pending_review` est exclu du catalogue.
@@ -177,6 +182,18 @@ un autre identifiant.
 > `unavailable`, `under_maintenance` ou `pending` blanchissait donc un brouillon, un bien refusé ou
 > un bien en file en deux appels. Le témoin `test_unarchiving_is_not_an_activation` affirmait ce
 > contournement.
+
+**À la création** (`PropertyObserver::creating`), la même règle s'applique sans condition
+d'histoire : un bien neuf ne porte jamais d'approbation debout. Dans une agence
+`moderation_required`, tout statut affichable demandé, `pending` compris, est réécrit en
+`pending_review` avec `submitted_at = now()`. Un bien `pending_review` n'est pas indexé
+(`shouldBeSearchable()`).
+
+> **Corrigé après verif-597 passe 2 (B1′).** `creating` n'interceptait que `available` et
+> `published`, et `updating` exemptait tout départ affichable. Un bien **né** `pending` partait donc
+> d'un statut affichable : `POST {status: pending}` puis `publish` (ou `PUT …/status available`) le
+> mettait en ligne sans la file, et il était indexé dès sa création. L'exemption du départ
+> affichable ne vaut plus que pour un bien déjà publié.
 
 Seule `PropertyModerationService::approve` passe outre, par `Property::withoutModerationGate()` :
 un drapeau **statique**, posé pour la durée de l'appel et remis à zéro dans un `finally`, jamais un
