@@ -61,6 +61,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0034](0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md) | L'agenda sort de la plateforme par un lien secret, haché, révocable, propre à une agence | Accepté |
 | [0035](0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) | L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit | Accepté |
 | [0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) | L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire | Accepté — appliqué à la fusion de TCK-504 |
+| [0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md) | Une donnée personnelle sensible est chiffrée sous `APP_KEY` et ne sort jamais en clair, ni dans un journal ; le journal d'audit est cloisonné par l'agence de son sujet ; consultations et demandes de droits sont tracées cinq ans | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
