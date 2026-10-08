@@ -2207,3 +2207,40 @@ Les ablations, restaurées par `cp` avec un md5 identique :
 
 Les entrées par fichier de G3 sont une redondance : elles couvrent un futur contrôleur ajouté à
 ces deux fichiers.
+
+#### Fusion d'`origin/dev` après TCK-590 (PR #333, `f1220c3c`)
+
+**Conflits textuels :**
+- `ContactSansCompte` : `fromInvitation` et `forPhone` (589) cohabitent avec `fromLead` (590).
+  590 ajoute un cinquième paramètre au constructeur, l'e-mail, qui vaut `null` par défaut. Les
+  deux usines de 589 n'en passent pas : l'avis à l'ancien numéro ne va qu'à ce numéro, et le
+  compte reçoit l'e-mail par son propre envoi.
+- `NotificationCode::reachesContacts` : les deux listes sont gardées.
+- `INDEX.md` et `namespaces.json` : régénérés.
+
+**Conflit de sens.** 590 change `CodedNotification::contactChannels` : un contact sans compte ne
+reçoit plus de canal mobile que pour un code `mobile()`. C'est la contrainte 4 de 590 : pas de SMS
+au dépôt d'une demande par un tiers. Or `InvitationReceived`, `InvitationReminder` et
+`AccountPhoneChanged` n'étaient pas dans `mobile()`. Le texte fusionné compilait, mais les SMS de
+589 ne partaient plus vers les contacts sans compte : 11 rouges dans `tests/Feature/Invitation` et
+2 dans `PhoneChangeNoticeTest`.
+
+**Correctif.** Les trois codes entrent dans `mobile()`. Ce sont des gestes humains (le lien d'une
+invitation, envoyé par l'agence) ou de sécurité (l'avis à l'ancien numéro), bornés par numéro au
+point d'envoi. Leur `preferenceEvent()` est `null` : ils n'entrent donc pas dans `mobileEvents()`
+et n'ouvrent **aucun** canal mobile vers un compte, puisque la branche `User` de `via()` exige un
+événement. `SmsSegmentsTest` vérifie désormais aussi que leur SMS tient dans les segments.
+
+**Ablations**, restaurées par `cp` avec un md5 identique :
+
+| Ablation | Résultat |
+|---|---|
+| H1 : `AccountPhoneChanged` sort de `mobile()` | `PhoneChangeNoticeTest` : 2 rouges |
+| H2 : les invitations sortent de `mobile()` | `InvitationSmsContentTest` : 4 rouges |
+
+**Exécutions** (`composer dump-autoload` fait) :
+- API : `tests/Feature/Auth`, `Api/Me`, `Notifications`, `Onboarding`, `Invitation`,
+  `tests/Unit/Lang`, `ProseLitteraleInterditeTest` et les 23 fichiers de test apportés par la
+  fusion (`Visit*`, `ContactLead*`…) donnent 850 verts.
+- Front : `promesses-de-delai`, `profile` et les actions donnent 182 verts.
+- `tsc` et eslint sont propres, et `check-i18n` est à parité.

@@ -272,6 +272,11 @@ enum NotificationCode: string
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            // TCK-589 — le lien d'une invitation adressée à un NUMÉRO (geste humain de l'agence,
+            // borné par numéro au point d'envoi) et l'avis à l'ancien numéro remplacé : leur
+            // destinataire est un contact sans compte qu'on ne joint que par là. Sans préférence
+            // (`preferenceEvent()` null), ils n'ouvrent aucun canal mobile vers un compte.
+            self::InvitationReceived, self::InvitationReminder, self::AccountPhoneChanged,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
             default => false,
         };
