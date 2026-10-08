@@ -2741,7 +2741,11 @@
       "working": "…",
       "markPaid": "Mark as paid",
       "cancelInvoice": "Cancel the invoice",
-      "close": "Close"
+      "close": "Close",
+      "creditNoteTitle": "Credit note {reference}",
+      "credits": "Cancels invoice #{id}",
+      "creditNotes": "Credit notes issued against this invoice",
+      "actionFailed": "The invoice action failed."
     },
     "payoutDetail": {
       "title": "Payout {reference}",
@@ -5108,6 +5112,17 @@
       },
       "submit": {
         "saving": "Saving…"
+      },
+      "moneyOut": {
+        "title": "Legal details and payments",
+        "description": "Printed on your invoices; the threshold decides when a payout waits for a second person.",
+        "taxRate": "Default invoice VAT (%)",
+        "threshold": "Payout approval threshold (CFA F)",
+        "thresholdHint": "Above this net amount, a payout must be approved by someone other than the person who prepared it. Leave empty to disable. At least two people allowed to approve are required.",
+        "legalName": "Registered company name",
+        "ninea": "NINEA",
+        "rccm": "RCCM",
+        "legalAddress": "Registered office address"
       }
     },
     "inviteMember": {
@@ -7570,7 +7585,12 @@
       "currencyInvalid": "Invalid currency code (e.g. XOF, EUR).",
       "timezoneTooLong": "Time zone too long.",
       "logoTooLarge": "The logo exceeds 2 MB.",
-      "logoUnsupportedFormat": "Unsupported format. Use JPG, PNG or WEBP."
+      "logoUnsupportedFormat": "Unsupported format. Use JPG, PNG or WEBP.",
+      "taxRateRange": "VAT must be between 0 and 100.",
+      "thresholdInvalid": "The threshold is a positive whole amount, without decimals.",
+      "legalNameTooLong": "The company name must not exceed 255 characters.",
+      "legalIdTooLong": "This number must not exceed 30 characters.",
+      "legalAddressTooLong": "The address must not exceed 1000 characters."
     },
     "booking": {
       "guestsRequired": "The number of guests is required.",

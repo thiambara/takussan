@@ -74,6 +74,8 @@ class Agency extends AbstractModel implements HasMedia
         'id', 'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
+        // TCK-594 (ADR-0039 §4, §7) — l'écran des réglages les relit ; `AgencyResource` les rend déjà.
+        'payout_approval_threshold', 'default_tax_rate', 'legal_name', 'ninea', 'rccm', 'legal_address',
     ];
 
     protected static function booted(): void

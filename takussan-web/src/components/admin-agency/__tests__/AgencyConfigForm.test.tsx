@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { updateAgencyAction } from '@/app/actions/admin-agency';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -15,6 +16,8 @@ vi.mock('@/app/actions/admin-agency', () => ({
   updateAgencyAction: vi.fn(),
   uploadAgencyLogoAction: vi.fn(),
 }));
+const CAN = vi.hoisted(() => ({ current: { can: false, isLoading: false } }));
+vi.mock('@/hooks/useCan', () => ({ useCan: () => CAN.current }));
 
 import { AgencyConfigForm } from '../AgencyConfigForm';
 
@@ -79,5 +82,51 @@ describe('AgencyConfigForm — la devise choisie se reflète tout de suite (TCK-
     await user.click(screen.getByRole('combobox', { name: 'Devise' }));
     await user.click(await screen.findByRole('option', { name: 'XOF (F CFA)' }));
     expect(screen.queryByText(/Le changement de devise/)).toBeNull();
+  });
+});
+
+/**
+ * TCK-594 (ADR-0039 §4, §7) — la section « Mentions légales et paiements ».
+ *
+ * Le champ du seuil n'est proposé qu'au détenteur de `payouts.approve` (le serveur refuse les
+ * autres) ; les mentions légales ne le sont jamais à une agence `individual` (le serveur les
+ * refuse). Ces tests gardent l'accord entre l'écran et le serveur, pas une sécurité.
+ */
+describe('AgencyConfigForm — mentions légales et seuil (TCK-594)', () => {
+  it('propose le seuil au seul détenteur de payouts.approve', () => {
+    CAN.current = { can: false, isLoading: false };
+    const { unmount } = render(withIntl(<AgencyConfigForm agency={AGENCE} />));
+    expect(screen.queryByLabelText(/Seuil d'approbation/)).toBeNull();
+    expect(screen.getByLabelText(/TVA par défaut/)).toBeInTheDocument();
+    unmount();
+
+    CAN.current = { can: true, isLoading: false };
+    render(withIntl(<AgencyConfigForm agency={AGENCE} />));
+    expect(screen.getByLabelText(/Seuil d'approbation/)).toBeInTheDocument();
+  });
+
+  it('ne montre aucune mention légale à une agence individual', () => {
+    CAN.current = { can: true, isLoading: false };
+    const { unmount } = render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'standard' }} />));
+    expect(screen.getByLabelText('NINEA')).toBeInTheDocument();
+    unmount();
+
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'individual' }} />));
+    expect(screen.queryByLabelText('NINEA')).toBeNull();
+    expect(screen.queryByLabelText('Raison sociale')).toBeNull();
+  });
+
+  it("n'envoie pas le seuil inchangé, ni de mentions légales pour une agence individual", async () => {
+    CAN.current = { can: true, isLoading: false };
+    vi.mocked(updateAgencyAction).mockResolvedValue({ ok: true, data: AGENCE });
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'individual', payout_approval_threshold: 500000 }} />));
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(updateAgencyAction).toHaveBeenCalledTimes(1);
+    const payload = vi.mocked(updateAgencyAction).mock.calls[0][1] as unknown as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('payout_approval_threshold');
+    expect(payload).not.toHaveProperty('ninea');
   });
 });

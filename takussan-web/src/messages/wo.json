@@ -1356,7 +1356,11 @@
       "working": "…",
       "markPaid": "Wone ne fey nañu ko",
       "cancelInvoice": "Neenal fakteer bi",
-      "close": "Tëj"
+      "close": "Tëj",
+      "creditNoteTitle": "Avoir {reference}",
+      "credits": "Dafay neenal factuur bi n° {id}",
+      "creditNotes": "Avoir yi ñu génne ci factuur bii",
+      "actionFailed": "Jëf ji ci factuur bi antuwul."
     },
     "payoutDetail": {
       "title": "Peymaan {reference}",
@@ -3723,6 +3727,17 @@
       },
       "submit": {
         "saving": "Mu ngi denc…"
+      },
+      "moneyOut": {
+        "title": "Xibaar yu yoon ak fey yi",
+        "description": "Dañu leen di bind ci say factuur ; seuil bi moo wax kañ la reversement di xaar keneen.",
+        "taxRate": "TVA bu jëkk ci factuur yi (%)",
+        "threshold": "Seuil bu ñuy nangu reversement yi (F CFA)",
+        "thresholdHint": "Bu net bi ëppee lii, reversement bi war na am nangu ci keneen ku dul ki ko waajal. Bàyyil ko neen ngir fey ko. Fàww ñu am ñaari nit yu am sañ-sañ nangu.",
+        "legalName": "Raison sociale",
+        "ninea": "NINEA",
+        "rccm": "RCCM",
+        "legalAddress": "Adrees bu siège bi"
       }
     },
     "inviteMember": {
@@ -7570,7 +7585,12 @@
       "currencyInvalid": "Kodu xaalis bu baaxul (misaal : XOF, EUR).",
       "timezoneTooLong": "Goxu waxtu bi dafa gudd lool.",
       "logoTooLarge": "Logo bi rëy lool (2 Mo max).",
-      "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP."
+      "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP.",
+      "taxRateRange": "TVA bi war na nekk diggante 0 ak 100.",
+      "thresholdInvalid": "Seuil bi dafa war a nekk xaalis bu mat, amul décimales.",
+      "legalNameTooLong": "Raison sociale bi warul ëpp 255 araf.",
+      "legalIdTooLong": "Nimero bii warul ëpp 30 araf.",
+      "legalAddressTooLong": "Adrees bi warul ëpp 1000 araf."
     },
     "booking": {
       "guestsRequired": "Limu nit ñi fàww la.",

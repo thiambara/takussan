@@ -2716,7 +2716,11 @@
       "working": "…",
       "markPaid": "Marquer payée",
       "cancelInvoice": "Annuler la facture",
-      "close": "Fermer"
+      "close": "Fermer",
+      "creditNoteTitle": "Avoir {reference}",
+      "credits": "Annule la facture n° {id}",
+      "creditNotes": "Avoirs émis sur cette facture",
+      "actionFailed": "L'action sur la facture a échoué."
     },
     "payoutDetail": {
       "title": "Reversement {reference}",
@@ -5108,6 +5112,17 @@
       },
       "submit": {
         "saving": "Enregistrement…"
+      },
+      "moneyOut": {
+        "title": "Mentions légales et paiements",
+        "description": "Imprimées sur vos factures ; le seuil décide quand un reversement attend une seconde personne.",
+        "taxRate": "TVA par défaut des factures (%)",
+        "threshold": "Seuil d'approbation des reversements (F CFA)",
+        "thresholdHint": "Au-dessus de ce net, un reversement doit être approuvé par une autre personne que celle qui l'a préparé. Laisser vide pour désactiver. Il faut au moins deux personnes habilitées à approuver.",
+        "legalName": "Raison sociale",
+        "ninea": "NINEA",
+        "rccm": "RCCM",
+        "legalAddress": "Adresse du siège"
       }
     },
     "inviteMember": {
@@ -7545,7 +7560,12 @@
       "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
       "timezoneTooLong": "Fuseau horaire trop long.",
       "logoTooLarge": "Le logo dépasse 2 Mo.",
-      "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP."
+      "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP.",
+      "taxRateRange": "La TVA doit être comprise entre 0 et 100.",
+      "thresholdInvalid": "Le seuil est un montant entier positif, sans décimales.",
+      "legalNameTooLong": "La raison sociale ne doit pas dépasser 255 caractères.",
+      "legalIdTooLong": "Ce numéro ne doit pas dépasser 30 caractères.",
+      "legalAddressTooLong": "L'adresse ne doit pas dépasser 1000 caractères."
     },
     "common": {
       "emailTooLong": "L’adresse e-mail est trop longue.",

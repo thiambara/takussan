@@ -22,6 +22,13 @@ export const AGENCY_ADMIN_FIELDS = [
   'status',
   // TCK-248 / TCK-256 — `kind` gates owner-invitation features in /app/owners.
   'kind',
+  // TCK-594 (ADR-0039 §4, §7) — seuil des quatre yeux, TVA par défaut et mentions légales.
+  'payout_approval_threshold',
+  'default_tax_rate',
+  'legal_name',
+  'ninea',
+  'rccm',
+  'legal_address',
 ] as const;
 
 function buildShowParams(): SpatieQueryParams {

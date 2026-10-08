@@ -34,6 +34,7 @@ import {
 } from '@/app/actions/admin-agency';
 import type { Agency } from '@/types/agency';
 import { reduirePhoto } from '@/lib/reduire-photo';
+import { useCan } from '@/hooks/useCan';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -71,7 +72,17 @@ function toDefaults(agency: Agency): AgencyFormValues {
     currency: currency.toUpperCase(),
     timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
     moderation_required: agency.moderation_required ?? false,
+    default_tax_rate: agency.default_tax_rate != null ? String(agency.default_tax_rate) : '',
+    payout_approval_threshold: initialThreshold(agency),
+    legal_name: agency.legal_name ?? '',
+    ninea: agency.ninea ?? '',
+    rccm: agency.rccm ?? '',
+    legal_address: agency.legal_address ?? '',
   };
+}
+
+function initialThreshold(agency: Agency): string {
+  return agency.payout_approval_threshold != null ? String(Math.round(agency.payout_approval_threshold)) : '';
 }
 
 const CURRENCY_OPTIONS = (Object.keys(CURRENCY_METADATA) as CurrencyCode[])
@@ -94,13 +105,21 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const tValidation = useTraducteurValidation();
   const tCurrency = useTranslations('agency.currency');
   const tCommon = useTranslations('common.actions');
+  const tMoney = useTranslations('admin.agencyConfig.moneyOut');
+  // TCK-594 — le serveur décide (`AgencyPolicy::updatePayoutThreshold`) ; ceci évite seulement de
+  // proposer un champ qui rendrait 403.
+  const { can: canSetThreshold } = useCan('payouts.approve');
+  const individual = agency.kind === 'individual';
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<AgencyFormValues, Agency>({
       schema: agencyFormSchema,
       defaultValues: toDefaults(agency),
       onSubmit: async (values) => {
-        const payload = normaliseAgencyForm(values);
+        const payload = normaliseAgencyForm(values, {
+          individual,
+          initialThreshold: initialThreshold(agency),
+        });
         const result = await updateAgencyAction(agency.id, payload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
@@ -366,6 +385,44 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             </p>
           </div>
         </div>
+      </section>
+
+      {/* TCK-594 (ADR-0039 §4, §7) — ce qui sort de l'agence : factures et reversements. */}
+      <section className="rounded-xl bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{tMoney('title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{tMoney('description')}</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FormInput
+            control={control}
+            name="default_tax_rate"
+            label={tMoney('taxRate')}
+            inputMode="decimal"
+            placeholder="18"
+          />
+          {canSetThreshold ? (
+            <div>
+              <FormInput
+                control={control}
+                name="payout_approval_threshold"
+                label={tMoney('threshold')}
+                inputMode="numeric"
+              />
+              <p className="mt-1.5 text-pretty text-xs text-muted-foreground">{tMoney('thresholdHint')}</p>
+            </div>
+          ) : null}
+        </div>
+        {individual ? null : (
+          <>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <FormInput control={control} name="legal_name" label={tMoney('legalName')} />
+              <FormInput control={control} name="ninea" label={tMoney('ninea')} />
+              <FormInput control={control} name="rccm" label={tMoney('rccm')} />
+            </div>
+            <FormTextarea control={control} name="legal_address" label={tMoney('legalAddress')} rows={2} />
+          </>
+        )}
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
