@@ -12,6 +12,7 @@
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 export const AGING_BUCKETS = ['1_30', '31_60', '61_90', '90_plus'] as const;
 export type AgingBucket = (typeof AGING_BUCKETS)[number];
@@ -67,7 +68,7 @@ export const agencyReportingKeys = {
 export function useAgingBalance(agencyId: number | undefined, groupBy: AgingGroupBy) {
   return useApiQuery<ApiResponse<AgingBalance>>(
     agencyReportingKeys.aging(agencyId, groupBy),
-    `/api/agencies/${agencyId}/finance/aging`,
+    cheminApi`/api/agencies/${agencyId}/finance/aging`,
     { params: { extra: { group_by: groupBy } }, enabled: typeof agencyId === 'number' },
   );
 }
@@ -76,7 +77,7 @@ export function useAgingBalance(agencyId: number | undefined, groupBy: AgingGrou
 export function useTeamPerformance(agencyId: number, period: string) {
   return useApiQuery<ApiResponse<TeamPerformance>>(
     agencyReportingKeys.teamPerformance(agencyId, period),
-    `/api/agencies/${agencyId}/team-performance`,
+    cheminApi`/api/agencies/${agencyId}/team-performance`,
     { params: { extra: { period } } },
   );
 }

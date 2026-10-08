@@ -13,6 +13,7 @@
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse, PaginationMeta } from '@/types/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 export type CommissionEntryStatus = 'due' | 'paid' | 'cancelled';
 
@@ -70,14 +71,14 @@ export function useCommissionEntries(params: UseCommissionEntriesParams) {
 /** Geste d'argent : famille protégée et step-up côté API, que `useApiMutation` résout sur place. */
 export function useMarkCommissionPaid() {
   return useApiMutation<ApiResponse<CommissionEntry>, { id: number }>(
-    { path: ({ id }) => `/api/commissions/${id}/mark-paid`, method: 'POST', body: () => ({}) },
+    { path: ({ id }) => cheminApi`/api/commissions/${id}/mark-paid`, method: 'POST', body: () => ({}) },
     { invalidate: [commissionKeys.all] },
   );
 }
 
 export function useCancelCommission() {
   return useApiMutation<ApiResponse<CommissionEntry>, { id: number }>(
-    { path: ({ id }) => `/api/commissions/${id}/cancel`, method: 'POST', body: () => ({}) },
+    { path: ({ id }) => cheminApi`/api/commissions/${id}/cancel`, method: 'POST', body: () => ({}) },
     { invalidate: [commissionKeys.all] },
   );
 }
