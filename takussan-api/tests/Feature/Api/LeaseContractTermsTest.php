@@ -746,4 +746,94 @@ class LeaseContractTermsTest extends TestCase
         $this->assertEquals(40, (float) $fresh->late_fee_percent);
         $this->assertNull($fresh->contract_sha256, 'le contrat figé imprime encore 5 %');
     }
+
+    // ── VERIF-596 passe 5 (m-f) — les mutations que la course seule attrapait ────────────────────
+
+    /**
+     * P5-MT.3, P5-mc.3, P5-mc.4 — la résiliation, l'ajout et le retrait d'un garant relisent le bail
+     * SOUS verrou. Sans `FOR UPDATE`, la course réelle gagnait (3/7, 1/7, 2/7) : bail activé résilié
+     * sans indemnité, bail actif défigé.
+     */
+    public function test_terminate_and_guarantor_routes_read_the_lease_for_update(): void
+    {
+        $lease = $this->lease(['status' => LeaseStatus::Active, 'monthly_rent' => 100_000, 'end_date' => now()->addMonths(10)->toDateString()]);
+        $guarantor = Guarantor::factory()->create(['added_by_id' => $lease->landlord_id]);
+        Sanctum::actingAs($lease->landlord);
+
+        $seen = [];
+        $before = 0;
+        $locks = [];
+        DB::listen(function (QueryExecuted $query) use (&$locks): void {
+            if (preg_match('/from "leases" .*for update/i', $query->sql)) {
+                $locks[] = $query->sql;
+            }
+        });
+
+        $this->postJson("/api/leases/{$lease->id}/guarantors", ['guarantor_id' => $guarantor->id])->assertCreated();
+        $seen['POST guarantors'] = count($locks) - $before;
+        $before = count($locks);
+
+        $this->deleteJson("/api/leases/{$lease->id}/guarantors/{$guarantor->id}")->assertOk();
+        $seen['DELETE guarantors'] = count($locks) - $before;
+        $before = count($locks);
+
+        $this->postJson("/api/leases/{$lease->id}/terminate", [])->assertOk();
+        $seen['POST terminate'] = count($locks) - $before;
+
+        foreach ($seen as $route => $count) {
+            $this->assertGreaterThan(0, $count, "aucun select … from \"leases\" … for update pendant {$route}");
+        }
+    }
+
+    /**
+     * P5-MT.4 — la ligne verrouillée est déjà `terminated`, l'instance liée encore `active` : la
+     * seconde résiliation rend 422. Jugée sur l'instance liée, elle rendait 200 et réécrivait la
+     * première (date, auteur, motif).
+     */
+    public function test_a_termination_of_a_lease_terminated_since_binding_is_refused(): void
+    {
+        $lease = $this->lease(['status' => LeaseStatus::Active, 'monthly_rent' => 100_000, 'end_date' => now()->addMonths(10)->toDateString()]);
+        $terminatedAt = now()->subHour()->startOfSecond();
+        $slipped = false;
+        Lease::retrieved(function (Lease $model) use ($lease, $terminatedAt, &$slipped): void {
+            if (! $slipped && $model->id === $lease->id && $model->status === LeaseStatus::Active) {
+                $slipped = true;
+                Lease::query()->whereKey($lease->id)->update([
+                    'status' => LeaseStatus::Terminated->value,
+                    'terminated_at' => $terminatedAt,
+                    'termination_reason' => 'première résiliation',
+                ]);
+            }
+        });
+        Sanctum::actingAs($lease->landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/terminate", ['reason' => 'seconde'])
+            ->assertStatus(422)->assertJsonPath('code', 'lease.cannot_terminate');
+
+        $this->assertTrue($slipped);
+        $fresh = $lease->fresh();
+        $this->assertSame('première résiliation', $fresh->termination_reason);
+        $this->assertSame($terminatedAt->toIso8601String(), $fresh->terminated_at->toIso8601String());
+        $this->assertNull($this->terminationPenalty($lease));
+    }
+
+    /**
+     * P5-md.5 — un parent figé par ses SEULES colonnes : l'enfant d'un renouvellement sans changement
+     * naît actif, sans empreinte, avec les termes d'exécution recopiés. Le renouveler ensuite à
+     * +50 % reste un avenant : `pending_signature`. Jugé sur l'empreinte seule, le contournement
+     * de m-d en deux temps rouvrait (`active`, sans signature).
+     */
+    public function test_a_parent_frozen_by_its_columns_only_still_requires_a_signature(): void
+    {
+        $parent = $this->signedParent(['rent_review_max_pct' => 10]);
+        $child = $this->renew($parent);
+        $this->assertSame(LeaseStatus::Active, $child->status);
+        $this->assertNull($child->contract_sha256);
+        $this->assertSame(10.0, (float) $child->rent_review_max_pct);
+
+        $grandChild = $this->renew($child, ['monthly_rent' => 150_000, 'end_date' => now()->addYears(10)->toDateString()]);
+
+        $this->assertSame(LeaseStatus::PendingSignature, $grandChild->status);
+        $this->assertNull($grandChild->signed_at);
+    }
 }
