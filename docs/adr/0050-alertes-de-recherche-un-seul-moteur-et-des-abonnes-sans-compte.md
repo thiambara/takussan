@@ -197,6 +197,37 @@ Ajoutée à la demande de la session, même règle :
     Le code WhatsApp vit 5 minutes : un worker en retard en consomme une partie. Pour revenir à un
     envoi synchrone, il suffit d'appeler `dispatchSync`, au prix de la fuite par le temps.
 
+Ajoutées après la contre-vérification (verif-599), même règle :
+
+14. **Aucune saisie n'est reprise avant consentement, et toute saisie reste du texte dans un
+    e-mail.** Le gabarit Markdown de Laravel échappe le HTML, pas la syntaxe Markdown : le nom
+    d'une alerte de visiteur devenait un lien dans l'e-mail de confirmation, envoyé à une adresse
+    qui n'avait rien confirmé. L'e-mail de confirmation ne reprend donc plus le nom. Les autres
+    e-mails passent chaque saisie (nom d'alerte, titre de bien) par `App\Support\MarkdownText::escape()`.
+15. **Une annonce est réservée avant d'être envoyée.** Le `withoutOverlapping()` du planificateur
+    ne protège que la mise en file : deux passages concurrents annonçaient tout deux fois. Les
+    deux jobs (`SendFavoriteChangeAlerts`, `SendSavedSearchAlerts`) ne sont annoncés qu'après un
+    UPDATE conditionnel sur l'état lu. Un envoi qui échoue rend sa réservation. Les jobs portent
+    en plus le middleware `WithoutOverlapping` (sans relâche, expiration à `$timeout` + 60 s),
+    avec `$timeout = 1800` et `$tries = 1`. Le verrou seul ne suffirait pas : il expire, et rien
+    ne garantit qu'un passage reste sous son délai.
+16. **Les plafonds d'un contact portent sur sa boîte, pas sur l'adresse saisie.**
+    `awa+promo@exemple.sn` et `awa@exemple.sn` arrivent au même endroit. `mailbox_hash` (HMAC
+    sans le suffixe `+…`) porte les deux plafonds et la borne par contact. `contact_hash` garde
+    l'adresse saisie : le rattachement et la désinscription visent ce que la personne a écrit. Un
+    fournisseur qui ignore aussi les points (Gmail) n'est pas replié : la règle est propre à un
+    fournisseur, et la manquer coûte une confirmation de plus, pas une fuite.
+17. **La borne par contact n'est pas un limiteur de route.** `ThrottleRequests` publie dans
+    `X-RateLimit-Remaining` le plus petit reste de toutes ses limites. Le compteur d'un contact
+    devenait donc lisible par un tiers, quel que soit l'ordre des limites. La borne (5 par heure)
+    est appliquée dans `PublicSearchAlertController::store()` : le 429 porte `Retry-After`,
+    jamais `X-RateLimit-*`. La route garde la seule borne par visiteur.
+18. **La désinscription WhatsApp retire le consentement que l'alerte avait posé, et celui-là
+    seul.** Confirmer par code inscrit le numéro `opted_in` dans `whatsapp_contacts`, source
+    `search_alert`, sauf s'il l'était déjà. À la désinscription, une ligne posée par l'alerte, sans
+    compte et sans message entrant, est supprimée. Une ligne liée à un compte ou ayant reçu un
+    message passe `opted_out`. Un consentement d'une autre source n'est pas touché.
+
 ## Conséquences
 
 - Une alerte et la liste ne peuvent plus diverger sur le sens d'un critère : elles partagent
@@ -215,6 +246,8 @@ Ajoutée à la demande de la session, même règle :
 ## Application
 
 - Demande d'un visiteur : `App\Jobs\RecordPublicSearchAlert` (décision 13).
+- Saisie dans un e-mail : `App\Support\MarkdownText`, `tests/Feature/Search/SaisieDansLesEmailsTest.php`
+  (décision 14).
 - Moteur : `App\Services\Search\PropertySearchService::alertMatches()`,
   `App\Services\Model\SearchService::getMatchingProperties()`.
 - Vocabulaire : `App\Support\SavedSearchCriteria`, `tests/Feature/Search/SavedSearchCriteriaVocabularyTest.php`.

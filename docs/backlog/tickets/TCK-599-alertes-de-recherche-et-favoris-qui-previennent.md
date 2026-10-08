@@ -795,3 +795,34 @@ faux) ; un essai sur téléphone réel des pages de confirmation et de désinscr
 l'e-mail dans un vrai client (Gmail : bouton « Se désabonner » en un clic).
 
 **La suite entière** (back et front) n'a pas été lancée par l'agent : lancée par la session.
+
+### Après la contre-vérification (verif-599, passe 1 et addendum)
+
+Un point, un commit, un test nommé, des ablations rouges. Décisions dans ADR-0050, n° 14 à 18.
+
+| Point | Commit | Test | Ablations (`ablate.py` / `ablate-web.py`, cp + md5) |
+|---|---|---|---|
+| **B1** saisie rendue en Markdown | `5eb4bd67` | `SaisieDansLesEmailsTest` (4) | échappement neutralisé · nom repris dans la confirmation · titre brut (favoris) · nom brut (alerte) · titre de carte brut — 5 rouges |
+| **M1** annonce doublée sous course | `1375c2db` | recouvrement, échec d'envoi, verrou (`FavoriteChangeAlertsTest`, `SavedSearchAlertsTest`) | réservation ignorée · non rendue · sans verrou, pour chacun des deux jobs — 6 rouges |
+| **m1** alias `+` | `c29cee43` | `test_les_alias_plus_partagent_les_plafonds_de_la_boite` | alias non retiré · alertes ouvertes et confirmations comptées par contact saisi · limiteur par contact saisi — 4 rouges |
+| **m2** `X-RateLimit-Remaining` | `0c00e08a` | `test_les_en_tetes_du_limiteur_ne_trahissent_pas_le_contact` | borne remise dans le limiteur de route · borne retirée — 2 rouges |
+| **m3** désinscription WhatsApp | `a18b5d86` | 3 tests (`abonnementWhatsappPuisDesinscription`) | consentement jamais retiré · retiré même venu d'ailleurs · consentement existant réécrit · ligne toujours supprimée — 4 rouges |
+| **m4** valeurs du vocabulaire | `12a8ec13` | `test_une_valeur_hors_vocabulaire_rend_422` (13 cas), `test_les_deux_formes_d_une_liste_sont_acceptees` | `type` / `tags` libres · `condition` hors énumération · rayon nul · latitude / longitude non exigées · contrat / titre libres — 9 rouges |
+| **m5** A13, A19 | `dd115b4f` | `test_tck599_l_alerte_de_recherche_ne_se_replie_jamais_en_sms` ; casses alternées (`test_cinq_alertes_au_plus_par_contact`, rattachement) | `smsFallbackAllowed()` → `true` · repli de casse retiré (deux fichiers) — 3 rouges |
+| **m7** fuite temporelle | `eba4d577` | `DB::listen` dans `test_la_requete_ne_fait_que_pousser_un_job_chiffre` | `forContact()->count()` · UPDATE si connu · UPDATE seul · lecture de `saved_searches` — 4 rouges |
+| **m8** `no-referrer` | `cb4413eb` | `search-alerts/__tests__/metadata.test.ts` | retiré · affaibli à `origin`, sur chaque page — 4 rouges |
+
+- **M1, course réelle** : deux processus sur une base jetable (`takussan_tck599_conc`, créée puis
+  supprimée), 300 favoris en baisse. Avec réservation : `{"1":300}`. Témoin sans réservation :
+  `{"1":12,"2":288}`.
+- **m2 ne suit pas le remède proposé** : mettre la limite par visiteur en dernier n'y change rien.
+  `ThrottleRequests::getHeaders` garde le plus petit reste de toutes les limites (lu dans le code,
+  puis mesuré). La borne par contact a donc quitté la route (décision 17).
+- **m4** : la normalisation de `BaseFormRequest` ramène un champ vide à `null` ;
+  `BaseFormRequestNormalizationTest` en envoie un dans `tags`. Une entrée `null` reste acceptée.
+  Un tableau imbriqué, un objet ou une valeur hors énumération rendent 422. Les règles `lat` et
+  `lng` se couvraient l'une l'autre : la première ablation est restée verte jusqu'à l'ajout des
+  cas « point sans latitude » et « point sans longitude ».
+- **m6** : fait par la fusion de TCK-603 (`47f86b59`).
+- **m9** (Analytics) : attend TCK-602. Le ticket fusionné en second ajoute à `urlSansSecret` les
+  cas `/fr/search-alerts/confirm?token=…` et `/fr/search-alerts/unsubscribe?search=12&…`.
