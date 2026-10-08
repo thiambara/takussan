@@ -268,8 +268,9 @@ class ExportDataService
 
     /**
      * TCK-595 (§7, AD17) — la balance âgée à la ligne : chaque échéance impayée et échue, avec son
-     * retard et sa tranche. La règle est celle de `AgingBalanceService` (*Impayé* : `pending` OU
-     * `late`, jamais une restitution de caution), qui en rend l'agrégat.
+     * retard et sa tranche. La règle est celle de `AgingBalanceService` (*Impayé* : `pending`,
+     * `partially_paid` ou `late`, jamais une restitution de caution), qui en rend l'agrégat :
+     * `amount` est le RESTE DÛ, pour que la somme de l'export soit celle de la balance.
      *
      * @return array{columns: array<int,string>, rows: array<int,array<string,mixed>>, filename: string}
      */
@@ -295,7 +296,7 @@ class ExportDataService
                 'due_date' => $p->due_date?->toDateString(),
                 'days_overdue' => $days,
                 'bucket' => $this->agingBucket($days),
-                'amount' => (float) $p->amount,
+                'amount' => (float) $p->remaining_amount,
                 'currency' => $p->currency?->value,
                 'status' => $p->status?->value,
             ];

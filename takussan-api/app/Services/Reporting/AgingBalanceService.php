@@ -57,7 +57,7 @@ class AgingBalanceService
             ->where('leases.agency_id', $agency->id)
             ->whereDate('lease_payments.due_date', '<', $today)
             ->toBase()
-            ->selectRaw("{$key} AS group_id, {$case} AS bucket, COUNT(*) AS n, SUM(lease_payments.amount) AS total", $bindings)
+            ->selectRaw("{$key} AS group_id, {$case} AS bucket, COUNT(*) AS n, SUM(".CollectedPayments::OWED_REMAINING_SQL.') AS total', $bindings)
             ->groupBy('group_id', 'bucket')
             ->get();
 

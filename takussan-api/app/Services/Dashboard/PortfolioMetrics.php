@@ -294,7 +294,8 @@ class PortfolioMetrics
     }
 
     /**
-     * Impayés à date : échéances `pending | late` échues, hors restitution de caution.
+     * Impayés à date : échéances `pending | partially_paid | late` échues, hors restitution de caution,
+     * comptées au reste dû.
      *
      * @return array{count: int, amount: float}
      */
@@ -305,7 +306,7 @@ class PortfolioMetrics
             ->whereNull('leases.deleted_at')
             ->where('leases.'.$scope->leaseColumn, $scope->id)
             ->whereDate('lease_payments.due_date', '<', now()->toDateString())
-            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(lease_payments.amount), 0) AS total')
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
             ->toBase()
             ->first();
 

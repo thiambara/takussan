@@ -16,8 +16,9 @@ use Illuminate\Database\Eloquent\Builder;
  * - *Encaissé* = `LeasePayment` payés de type `rent | charges | regularization | penalty`, plus
  *   `BookingPayment` `paid`, montant − `refund_amount`. Jamais `deposit` (de l'argent détenu, pas un
  *   revenu) ni `deposit_refund` (de l'argent qui SORT vers le locataire, TCK-594).
- * - *Impayé* = `LeasePayment` `pending | late` échus, hors `deposit_refund`, quel que soit le statut
- *   `late` ou non : un bail sans pénalité ne passe jamais `late` (`LateFeeCalculator`).
+ * - *Impayé* = `LeasePayment` `pending | partially_paid | late` échus, hors `deposit_refund`, quel que
+ *   soit le statut `late` ou non : un bail sans pénalité ne passe jamais `late` (`LateFeeCalculator`).
+ *   Il se compte au RESTE DÛ ({@see self::OWED_REMAINING_SQL}), pas au montant facial.
  *
  * Chaque lecteur recopiait son filtre ; trois d'entre eux comptaient le dépôt comme revenu et la
  * caution rendue comme une dette du locataire.
@@ -32,8 +33,18 @@ final class CollectedPayments
         LeasePaymentType::Penalty,
     ];
 
-    /** Les statuts d'une échéance due et non réglée. */
-    public const OWED_STATUSES = [PaymentStatus::Pending, PaymentStatus::Late];
+    /**
+     * Les statuts d'une échéance due et non réglée, en tout ou en partie : ceux de
+     * `HasPaymentAttributes::scopeOverdue`, des relances, des pénalités et du relevé du bailleur
+     * (verif-595 passe 2 : `partially_paid` manquait, l'impayé se sous-estimait).
+     */
+    public const OWED_STATUSES = [PaymentStatus::Pending, PaymentStatus::PartiallyPaid, PaymentStatus::Late];
+
+    /**
+     * Le RESTE DÛ d'une échéance : son montant moins la part versée (`metadata.paid_amount`), jamais
+     * négatif. C'est l'assiette de `LateFeeCalculator` et l'accesseur `remaining_amount`, en SQL.
+     */
+    public const OWED_REMAINING_SQL = "GREATEST(lease_payments.amount - COALESCE((lease_payments.metadata->>'paid_amount')::numeric, 0), 0)";
 
     /** Montant encaissé d'une ligne de réservation : ce qui a été payé, moins ce qui a été rendu. */
     public const BOOKING_NET_SQL = 'booking_payments.amount - COALESCE(booking_payments.refund_amount, 0)';

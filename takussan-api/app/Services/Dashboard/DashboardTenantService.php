@@ -82,7 +82,7 @@ class DashboardTenantService
             $overdue = $owed()
                 ->whereDate('lease_payments.due_date', '<', $today)
                 ->toBase()
-                ->selectRaw('COUNT(*) AS n, COALESCE(SUM(lease_payments.amount), 0) AS total')
+                ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
                 ->first();
 
             $visits = PropertyVisit::query()
