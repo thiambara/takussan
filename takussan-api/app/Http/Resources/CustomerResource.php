@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Http\Request;
 
 class CustomerResource extends BaseResource
@@ -27,14 +28,21 @@ class CustomerResource extends BaseResource
             'added_by_id' => $this->added_by_id,
             'metadata' => $this->metadata,
             'notes' => $this->notes,
-            // TCK-591 §5 — les critères du prospect, que la fiche affiche et édite.
-            'seeking_contract_type' => $this->seeking_contract_type,
-            'budget_min' => $this->budget_min,
-            'budget_max' => $this->budget_max,
-            'seeking_property_types' => $this->seeking_property_types,
-            'seeking_cities' => $this->seeking_cities,
-            'seeking_neighborhoods' => $this->seeking_neighborhoods,
-            'min_bedrooms' => $this->min_bedrooms,
+            // TCK-591 §5 — les critères du prospect, que la fiche affiche et édite. Réservés au
+            // personnel de l'agence de la fiche (verif-591 m2) : la ressource est imbriquée dans le
+            // bail (`include=tenant`) et la réservation, et le bailleur lisait le budget plafond de
+            // son locataire.
+            // Étalé, pas `mergeWhen()` : les contrôleurs appellent `toArray()` directement, et un
+            // `MergeValue` n'y est pas résolu.
+            ...($this->readsCriteria($request) ? [
+                'seeking_contract_type' => $this->seeking_contract_type,
+                'budget_min' => $this->budget_min,
+                'budget_max' => $this->budget_max,
+                'seeking_property_types' => $this->seeking_property_types,
+                'seeking_cities' => $this->seeking_cities,
+                'seeking_neighborhoods' => $this->seeking_neighborhoods,
+                'min_bedrooms' => $this->min_bedrooms,
+            ] : []),
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
@@ -66,5 +74,30 @@ class CustomerResource extends BaseResource
                 ])->values(),
             ),
         ];
+    }
+
+    /**
+     * Super-admin, personnel de l'agence de la fiche, ou — fiche hors agence — son auteur. Les
+     * agences du personnel sont lues une fois par requête, pas une fois par ligne.
+     */
+    private function readsCriteria(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return false;
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        if ($this->agency_id === null) {
+            return $this->added_by_id === $user->id;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return in_array((int) $this->agency_id, $request->attributes->get($key), true);
     }
 }

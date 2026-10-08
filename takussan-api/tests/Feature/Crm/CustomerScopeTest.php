@@ -8,7 +8,9 @@ use App\Models\Customer;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
@@ -126,6 +128,38 @@ class CustomerScopeTest extends ApiTestCase
         $landlord = $landlord->fresh();
         $this->assertSame([], $this->listed($landlord));
         $this->actingAsApi($landlord)->apiGet("/api/customers/{$mine->id}")->assertForbidden();
+    }
+
+    /**
+     * verif-591 m2 — les critères de recherche d'un client (budget, villes…) ne sortent que vers le
+     * personnel de l'agence : le bailleur qui lit son bail avec `include=tenant` ne voit pas le
+     * budget plafond de son locataire.
+     */
+    public function test_search_criteria_are_rendered_to_agency_staff_only(): void
+    {
+        $agent = $this->member('agent');
+        $landlord = $this->member('owner');
+        $property = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $landlord->id]);
+        $tenant = Customer::factory()->create([
+            'agency_id' => $this->agency->id, 'added_by_id' => $agent->id,
+            'budget_max' => 250000, 'seeking_cities' => ['Dakar'],
+        ]);
+        $lease = Lease::factory()->create([
+            'property_id' => $property->id, 'landlord_id' => $landlord->id,
+            'tenant_id' => $tenant->id, 'agency_id' => $this->agency->id,
+        ]);
+
+        $seen = $this->actingAsApi($landlord)->apiGet("/api/leases/{$lease->id}?include=tenant")
+            ->assertOk()->json('data.tenant');
+        $this->assertSame($tenant->id, $seen['id']);
+        $this->assertArrayNotHasKey('budget_max', $seen);
+        $this->assertArrayNotHasKey('seeking_cities', $seen);
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAsApi($agent)->apiGet("/api/customers/{$tenant->id}")
+            ->assertOk()
+            ->assertJsonPath('data.budget_max', '250000.00')
+            ->assertJsonPath('data.seeking_cities', ['Dakar']);
     }
 
     /** @return list<int> */
