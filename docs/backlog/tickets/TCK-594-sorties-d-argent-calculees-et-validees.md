@@ -602,6 +602,24 @@ rend **403** avec une clé i18n, jamais une phrase.
   destinations sont sous step-up (`ProtectedActions::STEP_UP`) ; les actions mutantes ajoutées par 594
   aux familles protégées sont dans `AGENCY_TWO_FACTOR`.
 
+### 11. Ajoutés après la passe 4 (VERIF-594 passe 4, 2026-10-08)
+
+- [x] **P4-1, P4-2** — `deposit_remaining` déduit la retenue vivante : caution − rendu − factures de
+  retenue liées par le `metadata.invoice_id` d'une restitution, de type `invoice`, `draft`, `sent`,
+  `overdue` ou `paid` (`Lease::liveDepositRetention`). `refund`, `GET deposit-refund` et le bandeau
+  la lisent seule. Une restitution partielle solde la caution ; `state` dit `full` quand toute la
+  caution est rendue, et le bouton du bandeau suit le restituable.
+- [x] **P4-3** — la règle de P3-3 se juge sur la destination fixée, citée ou non.
+- [x] **P4-4** — `releaseRetentionInvoice` relit la facture `lockForUpdate()` et juge son statut sur
+  cette ligne.
+- [x] **P4-5** — `LeasePayment::exceptDepositRefunds` : la ligne `deposit_refund` sort du revenu de
+  l'agence, du flux du bailleur, du revenu de la plateforme (et de son point à J-30) et des
+  candidats crédit du rapprochement.
+- [x] **P4-6** — `PayoutMethodController@verify` est sous step-up.
+- [x] **P4-7** — la ligne `deposit_refund` sort des pénalités, des relances et du règlement en ligne ;
+  `mark-paid` la refuse (422 `lease_payment.deposit_refund_paid_by_payout`, fr, en, wo).
+- [x] **P4-8** — ADR-0039 §6 : la raison écrite de B-1 suit TCK-589.
+
 ### Front (intentionnel)
 
 - [x] Préparation d'un reversement par bailleur et période, montants en lecture seule ; file « À
@@ -892,6 +910,45 @@ rend **403** avec une clé i18n, jamais une phrase.
   rien ne change ; avec un TOTP frais : 200 / 201. Un titulaire sans 2FA : `two_factor_required`.
   `ProtectedActionsCoverageTest` garde les huit entrées (gestes plateforme compris).
   **Preuve** : `PayoutStepUpTest` (trois), `ProtectedActionsCoverageTest::test_les_sorties_d_argent_exigent_le_step_up`. Ablations STEPUP-d1 à d4 (une entrée retirée de `STEP_UP`) : rouges. *Rouge sur 3dd943df* : non exécutable, `ProtectedActions` n'y existe pas (589 non fusionné).
+
+### AC ajoutés après la passe 4 (VERIF-594 passe 4)
+
+- [x] **AC-P4-1 — une retenue payée survit à l'échec et se déduit.** Caution 400 000, restitution de
+  300 000 avec motif ; la facture de retenue (100 000) est émise puis payée ; le virement échoue. Le
+  restituable vaut 300 000 (400 000 refusé : `deposit_refund.exceeds_remaining`) ; la restitution de
+  300 000 ne crée **aucune** facture : une seule facture de retenue vivante, payée. Sorti 300 000 +
+  retenu 100 000 = la caution.
+  **Preuve** : `PayoutBypassTest::test_p4_1_a_paid_retention_is_deducted_from_what_is_refunded_next` (rouge sur 5cd85e45). Ablation P4-12-accessor (retenue non déduite) : rouge.
+- [x] **AC-P4-2 — une restitution partielle solde la caution.** Restitution de 100 000 avec motif :
+  `state` = `partial`, restituable 0 ; une seconde restitution de 200 000 : 422
+  `deposit_refund.already_refunded`, sorti 100 000 + retenu 300 000. La première refusée, le reste
+  rendu : sorti + retenu = 400 000. Une autre facture du bail (50 000) ne se déduit pas. Le bandeau
+  n'offre plus « Solder le remboursement » quand le restituable est nul, et l'offre quand il ne l'est
+  pas.
+  **Preuve** : `PayoutBypassTest::test_p4_2_a_partial_refund_retains_the_rest_and_closes_the_deposit`, `test_p4_2_refusing_the_first_refund_then_refunding_the_rest_matches_the_deposit`, `test_p4_2_only_the_retention_invoices_are_deducted` ; front `DepositRefundBanner.test.tsx` (deux) — rouges sur 5cd85e45. Ablations P4-12-accessor, P4-12-lien-bis (toute facture du bail déduite), P4-12-front (le bouton suit l'état) : rouges.
+- [x] **AC-P4-3 — la destination fixée, citée ou non.** L'approbateur vérifie la destination par
+  défaut, puis approuve sans la citer : 403 `payout.approver_verified_destination_recently`. Le
+  préparateur cite un numéro que l'approbateur vient de vérifier : 403 à l'approbation ; 25 h plus
+  tard, 200.
+  **Preuve** : `PayoutBypassTest::test_p4_3_the_approver_does_not_approve_the_default_destination_they_just_verified`, `test_p4_3_the_approver_does_not_approve_a_cited_destination_they_just_verified` (rouges sur 5cd85e45). Ablation P4-3 (`$cited &&` rétabli) : rouge.
+- [x] **AC-P4-4 — une retenue réglée pendant l'échec ne le fait pas échouer.** La facture émise est
+  réglée juste après une lecture sans verrou (ou juste avant la lecture verrouillée) du
+  `mark-failed` : 200, reversement `failed`, facture `paid`, aucun avoir, restituable 300 000.
+  **Preuve** : `PayoutBypassTest::test_p4_4_a_retention_paid_meanwhile_does_not_fail_the_failed_refund` (rouge sur 5cd85e45 : 422). Ablation P4-4 (lecture sans verrou) : rouge.
+- [x] **AC-P4-5 — une caution rendue n'est pas un encaissement.** Restitution de 300 000 payée : revenu
+  du mois et série de l'agence à 0, flux du mois et série du bailleur à 0, revenu de la plateforme à
+  0 et sans point de comparaison à J-30 ; un crédit de 300 000 au relevé n'a pas de suggestion.
+  **Preuve** : `PayoutBypassTest::test_p4_5_a_refunded_deposit_is_not_revenue` (rouge sur 5cd85e45). Ablations P4-5-agence-mois, -agence-serie, -bailleur-mois, -bailleur-serie, -plateforme, -plateforme-tendance, -rapprochement : rouges.
+- [x] **AC-P4-6 — vérifier une destination exige un step-up.** Une session sans step-up récent : 403
+  `two_factor_step_up_required` ; un agent sans 2FA : 403 `two_factor_required`, aucune vérification
+  écrite ; avec un TOTP frais : 200. `ProtectedActionsCoverageTest` garde l'entrée.
+  **Preuve** : `PayoutStepUpTest::test_verifying_a_destination_requires_a_fresh_step_up`, `ProtectedActionsCoverageTest::test_les_sorties_d_argent_exigent_le_step_up` (rouges sur 5cd85e45). Ablation P4-6 (entrée retirée de `STEP_UP`) : rouge.
+- [x] **AC-P4-7 — une caution rendue n'est pas une échéance du locataire.** Restitution de 400 000 en
+  attente d'approbation (seuil 0), pénalité de 5 % sans délai de grâce : aux jalons J-3, J+1, J+7 et
+  J+38 de son échéance, ni pénalité, ni relance, et pas de règlement en ligne ; `mark-paid` : 422
+  `lease_payment.deposit_refund_paid_by_payout`, la ligne reste `pending`. Le refus ne fait échouer
+  qu'une ligne encore `pending` (mutation M9 de la passe 3).
+  **Preuve** : `PayoutBypassTest::test_p4_7_a_pending_deposit_refund_is_not_a_tenant_due`, `test_p4_7_a_deposit_refund_line_is_not_marked_paid_by_hand` (rouges sur 5cd85e45), `test_p4_7_the_refusal_only_fails_a_pending_line` (vert sur 5cd85e45 : il garde un comportement existant). Ablations P4-7-penalite, -relance, -marquage, -en-ligne, -M9 : rouges.
 
 ## Hors périmètre
 
@@ -1352,3 +1409,25 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   exigeait l'absence de `MaintenanceRequestObserver` vérifie désormais que le seul observateur est
   celui de 594 et qu'il n'écoute pas `MaintenanceStatusChanged` (coordination prévue). L'observateur
   lit `quote_decision_at` / `quote_rejection_reason`, que 592 garde : inchangé.
+
+### Corrections après la passe 4 (VERIF-594 passe 4, 2026-10-08)
+
+- **P4-1, P4-2 — la retenue n'était pas déduite.** La racine commune : `deposit_remaining` ne
+  retirait que le rendu. Le lien d'une retenue est celui que `refund` pose (`metadata.invoice_id` du
+  reversement) : une autre facture du bail ne compte pas. La sémantique de TCK-088 change — une
+  restitution partielle ne se complète plus ; les tests qui le faisaient (`DepositRefundServiceTest`,
+  `LeaseDepositRefundEndpointTest`, `test_n2_…released_once`, `test_p3_2_…`) passent par l'annulation
+  de la retenue, seule voie qui rouvre la caution. `state` suit le rendu (`full` = toute la caution
+  rendue), le bouton du bandeau suit le restituable. Plus de « limite notée » de P3-1 : une retenue
+  payée se déduit.
+- **P4-3** — la note de P3-3 (« une destination déjà fixée à la préparation n'est pas visée ») est
+  caduque : la règle porte sur la destination fixée, citée ou non.
+- **P4-4** — verrou sur la facture dans `releaseRetentionInvoice` ; ordre inchangé.
+- **P4-5** — une portée (`exceptDepositRefunds`) plutôt que cinq copies. Le point de comparaison à
+  J-30 de la plateforme l'emprunte ; le contrôle « encaissement sans date » non (une ligne de caution
+  payée a toujours sa date). TCK-595 possède les tableaux de bord : voir « Pour la session » du rapport.
+- **P4-6** — décision de session, réversible. La restitution de caution reste hors step-up (ADR §4).
+- **P4-7** — la ligne sort aussi du règlement en ligne (`isPayable`), une ligne de plus que la
+  consigne : même racine, un locataire aurait pu payer la caution qu'on lui rend.
+- **P4-8** — ADR §6 réécrit.
+
