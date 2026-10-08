@@ -8021,7 +8021,8 @@
       "titleContract": "{contract, select, rent {{subject} yu ñuy luwaa} sale {{subject} yu ñuy jaay} other {{subject}}}",
       "titleCity": "{subject} ci {city}",
       "subjectAny": "Kër yi",
-      "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi."
+      "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi.",
+      "titleQuarter": "{subject} ci {quarter}, {city}"
     },
     "compare": {
       "title": "Méengal kër yi",

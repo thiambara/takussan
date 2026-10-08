@@ -322,7 +322,8 @@
       "titleContract": "{contract, select, rent {{subject} à louer} sale {{subject} à vendre} other {{subject}}}",
       "titleCity": "{subject} à {city}",
       "subjectAny": "Biens immobiliers",
-      "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
+      "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier.",
+      "titleQuarter": "{subject} à {quarter}, {city}"
     },
     "compare": {
       "title": "Comparer des biens",

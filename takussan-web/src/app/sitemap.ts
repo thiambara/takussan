@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 
+import { cheminCanoniqueDeLaListe, domainesStatiques } from '@/lib/canonique';
+import { quartiersDeLaVille, SEUIL_QUARTIER_INDEXABLE, villesAvecComptes } from '@/lib/queries/facettes';
 import { listerBiensDuSitemap } from '@/lib/queries/sitemap-catalogue';
 import {
   RESSOURCES_DE_PROFIL,
@@ -83,6 +85,39 @@ const SOURCES: readonly SourceDeSitemap[] = [
           priority: 0.8,
         }),
       );
+    },
+  },
+  // TCK-598 (V14) — les pages de VILLE et de QUARTIER de la liste. Chaque chemin est produit par
+  // `cheminCanoniqueDeLaListe` elle-même, avec les mêmes domaines que la page : le sitemap annonce
+  // exactement les canoniques, jamais une variante. Une ville sous le seuil ne peut pas avoir de
+  // quartier indexable — elle ne coûte aucun appel de plus. Aucun `lastModified` : la liste n'a pas
+  // de date, et une date inventée est pire qu'une date absente.
+  {
+    nom: 'quartiers-et-villes',
+    pages: async () => {
+      const villes = await villesAvecComptes();
+      const domaineDesVilles = new Map(villes.map((v) => [v.value.trim().toLocaleLowerCase('fr'), v.value]));
+      const pages: PageIndexable[] = [];
+
+      for (const { value: ville, count } of villes) {
+        const quartiers = count >= SEUIL_QUARTIER_INDEXABLE ? await quartiersDeLaVille(ville) : null;
+        const domaines = { ...domainesStatiques(), villes: domaineDesVilles, quartiers };
+
+        pages.push({
+          chemin: cheminCanoniqueDeLaListe(new URLSearchParams({ city: ville }), domaines),
+          changeFrequency: 'daily',
+          priority: 0.6,
+        });
+        for (const quartier of quartiers?.values() ?? []) {
+          pages.push({
+            chemin: cheminCanoniqueDeLaListe(new URLSearchParams({ city: ville, location: quartier }), domaines),
+            changeFrequency: 'daily',
+            priority: 0.5,
+          });
+        }
+      }
+
+      return pages;
     },
   },
   // TCK-436 — les deux annuaires de profils. Leur source est l'endpoint d'INDEX, qui applique

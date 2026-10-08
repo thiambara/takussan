@@ -322,7 +322,8 @@
       "titleContract": "{contract, select, rent {{subject} for rent} sale {{subject} for sale} other {{subject}}}",
       "titleCity": "{subject} in {city}",
       "subjectAny": "Properties",
-      "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood."
+      "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood.",
+      "titleQuarter": "{subject} in {quarter}, {city}"
     },
     "compare": {
       "title": "Compare properties",
