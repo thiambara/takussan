@@ -26,6 +26,7 @@ use App\Models\PayoutMethod;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
+use App\Services\Accounting\PaymentSearchService;
 use App\Services\Accounting\ReconciliationMatcher;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Model\PayoutService;
@@ -1177,6 +1178,39 @@ class PayoutBypassTest extends TestCase
         $this->actingWithStepUp($approver);
         $this->postJson("/api/payouts/{$id}/approve")
             ->assertUnprocessable()->assertJsonPath('code', 'payout.unverified_destination');
+    }
+
+    /**
+     * VERIF-594 passe 5, P5-2 — une caution rendue ne se rapproche pas À LA MAIN d'un crédit du
+     * relevé : la recherche ne la propose pas, et la confirmation la refuse (422, mauvais sens). Son
+     * débit se rapproche de son reversement, jamais de sa ligne.
+     */
+    public function test_p5_2_a_refunded_deposit_is_not_matched_by_hand(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-10-08 10:00:00');
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $payer = $this->agencyAdmin($lease->agency);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $this->actingWithStepUp($payer);
+        $this->postJson("/api/payouts/{$refund->json('data.payout_id')}/mark-processed", ['payment_method' => 'cash', 'notes' => 'remis en main propre'])->assertOk();
+        $line = LeasePayment::query()->findOrFail($refund->json('data.payment_id'));
+
+        $found = app(PaymentSearchService::class)->search($lease->agency, (string) $line->reference_number, 300000.0, 20, BankStatementLineDirection::Credit);
+        $this->assertSame([], $found->where('type', 'lease_payment')->pluck('id')->all());
+
+        $statement = BankStatement::factory()->create([
+            'agency_id' => $lease->agency_id, 'uploaded_by' => $admin->id, 'status' => BankStatementStatus::ReadyForReview,
+        ]);
+        $credit = BankStatementLine::factory()->create([
+            'bank_statement_id' => $statement->id, 'direction' => BankStatementLineDirection::Credit,
+            'amount' => 300_000, 'currency' => 'XOF', 'posted_at' => '2026-10-08', 'reference' => null, 'counterparty' => null,
+        ]);
+        $this->actingWithStepUp($admin);
+        $this->postJson("/api/bank-statement-lines/{$credit->id}/match", ['payment_type' => 'lease_payment', 'payment_id' => $line->id])
+            ->assertUnprocessable()->assertJsonValidationErrors(['payment_type']);
+        $this->assertNull($line->fresh()->bank_reconciled_at);
     }
 
     /**

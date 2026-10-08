@@ -153,7 +153,9 @@ deux agences ne font pas deux personnes.
   paiement ; payée, elle reste une sortie, et la clôture plateforme (`PlatformPayoutService`) ne la
   compte pas parmi les encaissements reversés à l'agence — ni le revenu de l'agence, ni le flux du
   bailleur, ni le revenu de la plateforme, ni le rapprochement d'un crédit du relevé (VERIF-594
-  passe 4, P4-5 : `LeasePayment::exceptDepositRefunds`). Elle n'est pas non plus une échéance du
+  passe 4, P4-5 : `LeasePayment::exceptDepositRefunds` ; passe 5, P5-2 : ni suggérée, ni trouvée
+  par la recherche manuelle, et la confirmation la refuse en 422 — son débit se rapproche de son
+  reversement). Elle n'est pas non plus une échéance du
   locataire (P4-7, défaut hérité de TCK-088) : ni pénalité de retard, ni relance, ni règlement en
   ligne, et elle ne se marque pas payée à la main (422 `lease_payment.deposit_refund_paid_by_payout`)
   — seul son reversement la règle. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
