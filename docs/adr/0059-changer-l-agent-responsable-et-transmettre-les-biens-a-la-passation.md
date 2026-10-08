@@ -134,6 +134,43 @@ geste et d'elle seule.
 - Une transaction par bien. Sortie : `restored`, `responsible_set`, `leases_fixed`, `leases_to_review` (avec
   identifiants), `owners_to_review`. `--dry-run` n'écrit rien et annonce les mêmes comptes.
 
+### 6. Amendements de la vérification adverse (verif-603, 2026-10-08)
+
+**La réparation ne rend un bien qu'à un bailleur** (§5 resserré, M1, m1, m2). `user_id` vaut aussi l'agent
+qui a saisi le bien (`PropertyController::store`), et l'ancien « Réattribuer » servait parfois à rendre un bien
+saisi à son vrai bailleur. Rétablir « la première valeur `old` » sans la juger rendait donc le bien à un agent,
+parti compris, et réécrivait le bail brouillon du bailleur à son nom. Un bien n'est restauré **que si** toutes
+ces conditions tiennent ; sinon il est listé dans `owners_to_review` avec son motif, **sans aucune écriture** :
+
+| Motif | Condition |
+|---|---|
+| `no_agency` | le bien n'a pas d'agence : rien ne dit si l'origine est un bailleur |
+| `original_missing` | le titulaire d'origine n'existe plus, **suppression douce comprise** |
+| `original_not_landlord` | il ne détient aucun profil propriétaire **non supprimé** dans l'agence du bien |
+| `current_is_landlord` | le titulaire actuel détient lui-même un tel profil : le dernier geste a pu être un transfert légitime entre bailleurs |
+| `designated_after` | la marque `is_primary` du bien a été posée ou changée après la première réattribution fautive (journal `property.primary_agent_designated` postérieur, ou ligne marquée dont `updated_at` l'est) : la réparation n'écrase pas un choix de l'agence |
+
+`--dry-run` et le passage réel impriment **une ligne par bien** : `restore` (bien, titulaire actuel → d'origine,
+responsable désigné, baux rétablis, baux à reprendre) ou `review` (bien, motif, titulaires actuel et d'origine).
+
+**La source du contact est rendue par l'API** (M2). Un agent qui a saisi un bien (`user_id` = lui) et en est
+l'agent principal produit `owner.id = primary_contact.id` : l'égalité d'identifiants ne dit pas d'où vient le
+contact. `PropertyResource` rend `primary_contact_source` — `designated` (la ligne marquée), `invitation_order`
+(le repli sur l'ordre d'invitation), `owner` (le repli sur le titulaire), `null` (personne) — sous la même
+condition que `primary_contact`, **jamais sur une route `public.*`** (une donnée d'organisation d'agence). Le
+vocabulaire est celui de `GET …/collaborators` ; l'écran lit ce champ, jamais une égalité d'identifiants.
+
+**L'index précharge ce que `primary_contact` juge** (m4). Le personnel (`isStaffAt`), l'agent (`isAgentAt`) et
+le bailleur (`isOwnerAt`) d'une page se jugent en trois requêtes, pour les seuls couples (utilisateur, agence)
+de la page, le temps de sérialiser la page (`MembershipCapabilityResolver::primed()`), puis l'amorce est
+effacée : hors de ce rappel, chaque jugement reste une requête.
+
+**Une passation ne verrouille jamais un bien hors de son ensemble** (m3, complète §3). Entre le verrou des
+biens et le traitement des lignes, un bien peut entrer dans le portefeuille du partant (une ligne validée entre
+les deux). Le traiter imposerait un verrou de bien après des lignes, l'ordre exclu. Les catégories de biens ne
+traitent donc que l'ensemble verrouillé, et **si le portefeuille de biens a changé** depuis, la passation est
+refusée en `409 agency_member.handover_conflict` — elle n'a rien écrit et se rejoue.
+
 ## Options écartées
 
 - **Désigner après les lignes, dans la passation** (ce que suggérait la lecture littérale de verif-504) :
@@ -146,6 +183,11 @@ geste et d'elle seule.
   bien sans marque suit déjà sa ligne de collaboration.
 - **Écrire `user_id` par le journal du modèle** dans la passation et la réparation : la réparation relirait
   la passation comme une réattribution et rendrait le bien au partant.
+- **Restaurer aussi un bien sans agence** (verif-603 le proposait) : l'origine d'un bien de particulier ne se
+  distingue pas, par aucune colonne, d'un compte quelconque ; la liste coûte une vérification à la main.
+- **Traiter les lignes apparues après le verrou en verrouillant leurs biens à ce moment** : bien après lignes
+  et hors de l'ordre croissant de l'ensemble — deux interblocages possibles pour un cas rare ; le refus
+  rejouable est plus simple et ne laisse rien à moitié fait.
 - **Garder « aucune vérification » sans agence déterminée** : un particulier désignait n'importe quel compte
   comme contact de son annonce, et son téléphone sortait par `GET …/contact`.
 
