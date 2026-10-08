@@ -328,6 +328,14 @@ return [
                 'sms' => 'Takussan : fàttali — sa woote ngir bokk ci :agency ngi lay xaar : :url',
             ],
         ],
+        // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
+        'account' => [
+            'phone_changed' => [
+                'title' => 'Nimero telefon bi soppi nañu ko',
+                'body' => 'Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi.',
+                'sms' => 'Takussan : nimero bii du nimero sa kont kenn. Su dul yow moo ko soppi, jokkoo ak support bi.',
+            ],
+        ],
         'visit' => [
             'reminder' => [
                 'title' => 'Fàttali seetlu : :property',

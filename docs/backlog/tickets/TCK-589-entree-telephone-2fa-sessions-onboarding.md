@@ -1977,3 +1977,52 @@ rouge sur `bb27af99`, chaque ablation est restaurée par `cp` avec md5 identique
 **Effet sur les assistants d'onboarding.** Un compte qui a **déjà** un numéro vérifié et en saisit
 un autre reçoit le 403 et son message localisé. C'est voulu : l'écran qui remplace un numéro est
 le profil (p3-1c).
+
+#### p3-1b — l'avis à l'ancien numéro et au compte
+
+**Le défaut.** Un remplacement, même légitime, ne prévenait personne. Le titulaire dépossédé
+apprenait la perte de son entrée par téléphone en essayant de s'en servir.
+
+**Le correctif.**
+- **Un nouveau code de notification, `account.phone_changed`** (`AccountPhoneChanged`) :
+  - type `System`, non désactivable (`preferenceEvent` null) ;
+  - `reachesContacts` vrai : c'est un message transactionnel de sécurité ;
+  - aucun paramètre : ni l'ancien ni le nouveau numéro n'apparaît dans un SMS adressé à l'ancien.
+- **Les textes** : `codes.account.phone_changed.{title,body,sms}` en fr/en/wo côté API, et
+  `notifications.codes.account.phone_changed.{title,body}` dans les trois dictionnaires du front
+  (insertion seule, sans reformatage).
+- **`PhoneChangeGuard::notifyReplaced(User, ancien)`**, appelé par les trois écrivains **après**
+  l'écriture, et seulement quand un numéro vérifié a été remplacé avec preuve :
+  - l'ancien numéro reçoit l'avis par `ContactSansCompte::forPhone()`. Il n'est plus celui
+    d'aucun compte, donc il passe sous la borne par numéro du canal SMS, dans la langue du
+    compte qui l'a quitté ;
+  - le compte reçoit l'avis par `send($user, …)` : la cloche, plus l'e-mail s'il en a un.
+    `mobile()` est faux : rien ne part vers le nouveau numéro, qui n'est d'ailleurs pas vérifié.
+
+**Les tests, dans le nouveau `PhoneChangeNoticeTest` (3)** :
+- par chacun des trois écrivains (profil, `PATCH /me`, `send-otp`), l'ancien numéro reçoit
+  exactement le SMS rendu de `account.phone_changed`, et une ligne `app_notifications` est
+  créée ;
+- l'avis part par e-mail au compte et à la demande vers l'ancien numéro, jamais vers le
+  nouveau ;
+- témoin : sans preuve, aucun avis.
+
+**Preuves :**
+- Rouge sur `a2e2cd7d` : 2 rouges sur 3.
+- Un écueil du test, corrigé : un second `FakeSmsRouter::install()` dans la boucle n'est pas vu
+  par le canal déjà résolu. Le faux routeur est donc installé une fois.
+
+**Ablations, chacune restaurée par `cp`, md5 identique :**
+
+| Ablation | Rouges |
+|---|---|
+| A : aucun avis (l'état de `a2e2cd7d`) | 2/3 |
+| B : pas d'avis à l'ancien numéro | 2/3 |
+| C : pas d'avis au compte | 2/3 |
+| D : `send-otp` ne prévient pas | 1/3 |
+
+**Exécutions :**
+- `tests/Feature/Auth/Phone`, `tests/Feature/Notifications` et `tests/Unit/Lang` : 169 verts.
+- Front : `NotificationRow` donne 12 verts. `check-i18n` est à parité (6131 clés) et
+  `check-i18n-namespaces` est propre.
+- Toutes les gardes racine passent, dont `check-notification-codes`.

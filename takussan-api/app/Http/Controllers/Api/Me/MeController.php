@@ -27,6 +27,7 @@ class MeController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+        $remplace = null;
 
         if ($request->has('phone')) {
             $newPhone = $request->input('phone');
@@ -38,6 +39,7 @@ class MeController extends Controller
                 // TCK-589 p3-1 — remplacer (ou retirer) un numéro VÉRIFIÉ exige une preuve.
                 if ($phoneChange->replacesVerified($user, $newPhone)) {
                     $phoneChange->authorize($request, $user);
+                    $remplace = (string) $user->phone;
                 }
                 $user->phone = $newPhone;
                 $user->phone_verified_at = null;
@@ -64,6 +66,9 @@ class MeController extends Controller
         }
 
         $user->save();
+        if ($remplace !== null) {
+            $phoneChange->notifyReplaced($user, $remplace);
+        }
 
         return response()->json(['data' => new UserResource($user->fresh())]);
     }

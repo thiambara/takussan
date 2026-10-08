@@ -2,7 +2,10 @@
 
 namespace App\Services\Auth;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\User;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\ContactSansCompte;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -50,6 +53,7 @@ class PhoneChangeGuard
     public function __construct(
         private readonly PhoneVerificationService $codes,
         private readonly CacheRepository $cache,
+        private readonly NotificationService $notifications,
     ) {}
 
     /** L'écriture de `$nouveau` lèverait-elle la vérification d'un numéro vérifié ? */
@@ -64,6 +68,18 @@ class PhoneChangeGuard
     public function authorize(Request $request, User $user): void
     {
         abort_code_unless($this->proofHolds($request, $user), 403, 'phone.change_requires_proof');
+    }
+
+    /**
+     * L'avis, une fois le remplacement ÉCRIT : à l'ancien numéro (contact sans compte — il n'est
+     * plus celui du compte), et au compte (cloche, plus e-mail s'il en a un). Le titulaire qui
+     * n'est pas à l'origine du changement l'apprend tout de suite, pas en essayant d'entrer.
+     */
+    public function notifyReplaced(User $user, string $ancien): void
+    {
+        $locale = $user->preferredLocale() ?? ContactSansCompte::DEFAULT_LOCALE;
+        $this->notifications->send(ContactSansCompte::forPhone($ancien, $locale), NotificationCode::AccountPhoneChanged, []);
+        $this->notifications->send($user, NotificationCode::AccountPhoneChanged, []);
     }
 
     /** (a) — le code part à l'ANCIEN numéro, par la porte commune des codes. */

@@ -8339,6 +8339,12 @@
           "body": "Votre réservation {reference} pour {property} a été annulée."
         }
       },
+      "account": {
+        "phone_changed": {
+          "title": "Numéro de téléphone remplacé",
+          "body": "Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n'est pas vous, contactez le support."
+        }
+      },
       "invitation": {
         "received": {
           "title": "Invitation de {agency}",

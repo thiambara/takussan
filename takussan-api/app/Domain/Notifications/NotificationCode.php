@@ -84,6 +84,9 @@ enum NotificationCode: string
     case InvitationReceived = 'invitation.received';
     case InvitationReminder = 'invitation.reminder';
 
+    // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
+    case AccountPhoneChanged = 'account.phone_changed';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -118,7 +121,8 @@ enum NotificationCode: string
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
-            self::InvitationReceived, self::InvitationReminder => NotificationType::System,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged => NotificationType::System,
         };
     }
 
@@ -149,6 +153,8 @@ enum NotificationCode: string
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             self::InvitationReceived, self::InvitationReminder => null,
+            // Un avis de sécurité : on ne s'en désabonne pas.
+            self::AccountPhoneChanged => null,
         };
     }
 
@@ -190,6 +196,8 @@ enum NotificationCode: string
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             // Le nom de l'agence seul, jamais un texte de l'invitant (vérification adverse m1).
             self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
+            self::AccountPhoneChanged => [],
         };
     }
 
@@ -240,7 +248,8 @@ enum NotificationCode: string
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
-            self::InvitationReceived, self::InvitationReminder => true,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged => true,
             default => false,
         };
     }

@@ -343,6 +343,14 @@ return [
                 'sms' => 'Takussan: reminder — your invitation to join :agency is waiting: :url',
             ],
         ],
+        // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
+        'account' => [
+            'phone_changed' => [
+                'title' => 'Phone number replaced',
+                'body' => 'The verified phone number on your account was replaced. If this was not you, contact support.',
+                'sms' => 'Takussan: this number is no longer the one on your account. If you did not make this change, contact support.',
+            ],
+        ],
         'visit' => [
             'reminder' => [
                 'title' => 'Visit reminder: :property',

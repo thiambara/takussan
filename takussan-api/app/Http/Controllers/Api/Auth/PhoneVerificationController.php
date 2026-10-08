@@ -63,13 +63,18 @@ class PhoneVerificationController extends Controller
             if ($incoming !== null && $incoming !== $user->phone) {
                 // TCK-589 p3-1 — remplacer un numéro VÉRIFIÉ exige une preuve sur le facteur en
                 // place. Jugé avant la branche neutre : le refus ne dépend que de l'appelant.
+                $remplace = null;
                 if ($this->phoneChange->replacesVerified($user, $incoming)) {
                     $this->phoneChange->authorize($request, $user);
+                    $remplace = (string) $user->phone;
                 }
                 $user->forceFill([
                     'phone' => $incoming,
                     'phone_verified_at' => null,
                 ])->save();
+                if ($remplace !== null) {
+                    $this->phoneChange->notifyReplaced($user, $remplace);
+                }
             }
         }
 

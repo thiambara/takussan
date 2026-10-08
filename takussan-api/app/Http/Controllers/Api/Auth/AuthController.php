@@ -161,6 +161,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         $data = $request->only(['first_name', 'last_name', 'bio']);
+        $remplace = null;
 
         if ($request->has('phone')) {
             $newPhone = $request->input('phone');
@@ -172,6 +173,7 @@ class AuthController extends Controller
                 // sur le facteur en place ; rien n'est écrit sans elle.
                 if ($phoneChange->replacesVerified($user, $newPhone)) {
                     $phoneChange->authorize($request, $user);
+                    $remplace = (string) $user->phone;
                 }
                 $data['phone'] = $newPhone;
                 $data['phone_verified_at'] = null;
@@ -189,6 +191,9 @@ class AuthController extends Controller
         }
 
         $user->update($data);
+        if ($remplace !== null) {
+            $phoneChange->notifyReplaced($user, $remplace);
+        }
 
         return $this->json(new UserResource($user->fresh()));
     }

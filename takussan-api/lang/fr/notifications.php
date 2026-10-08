@@ -348,6 +348,14 @@ return [
                 'sms' => 'Takussan : rappel — votre invitation à rejoindre :agency vous attend : :url',
             ],
         ],
+        // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
+        'account' => [
+            'phone_changed' => [
+                'title' => 'Numéro de téléphone remplacé',
+                'body' => 'Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n\'est pas vous, contactez le support.',
+                'sms' => 'Takussan : ce numéro n\'est plus celui de votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez le support.',
+            ],
+        ],
         'visit' => [
             'reminder' => [
                 'title' => 'Rappel de visite : :property',

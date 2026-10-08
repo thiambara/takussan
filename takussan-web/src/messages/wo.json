@@ -8339,6 +8339,12 @@
           "body": "Sa réservation {reference} ngir {property}, neenal nañu ko."
         }
       },
+      "account": {
+        "phone_changed": {
+          "title": "Nimero telefon bi soppi nañu ko",
+          "body": "Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi."
+        }
+      },
       "invitation": {
         "received": {
           "title": "Woote bu {agency}",

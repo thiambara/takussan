@@ -65,6 +65,16 @@ final class ContactSansCompte
         return new self(self::normalize($invitation->phone), null, $locale, null);
     }
 
+    /**
+     * TCK-589 p3-1 — l'ANCIEN numéro vérifié d'un compte, après son remplacement : il n'est plus
+     * celui d'aucun compte, l'avis lui part donc comme à un contact sans compte (et sous la même
+     * borne par numéro du canal SMS), dans la langue du compte qui l'a quitté.
+     */
+    public static function forPhone(string $phone, string $locale): self
+    {
+        return new self(self::normalize($phone), null, $locale, null);
+    }
+
     public function hasPhone(): bool
     {
         return $this->phone !== null;
