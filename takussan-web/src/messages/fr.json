@@ -8393,6 +8393,34 @@
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
         }
+      },
+      "review": {
+        "to_moderate": {
+          "title": "Avis à modérer : {subject}",
+          "body": "Un nouvel avis ({rating}/5) sur « {subject} » attend votre validation."
+        },
+        "received": {
+          "title": "Nouvel avis : {subject}",
+          "body": "Un avis ({rating}/5) sur « {subject} » vient d'être publié. Vous pouvez y répondre depuis votre boîte des avis."
+        }
+      },
+      "moderation": {
+        "property_hidden": {
+          "title": "Annonce retirée : {property}",
+          "body": "Votre annonce « {property} » a été retirée du site par la plateforme à la suite d'un signalement. Motif : {reason}. Seule la plateforme peut la remettre en ligne."
+        },
+        "property_removed": {
+          "title": "Annonce supprimée : {property}",
+          "body": "Votre annonce « {property} » a été supprimée par la plateforme à la suite d'un signalement. Motif : {reason}."
+        },
+        "report_upheld": {
+          "title": "Signalement traité : {property}",
+          "body": "Merci : l'annonce « {property} » que vous avez signalée a été retirée du site."
+        },
+        "report_dismissed": {
+          "title": "Signalement examiné : {property}",
+          "body": "Nous avons examiné votre signalement de l'annonce « {property} » et ne l'avons pas retenu."
+        }
       }
     },
     "history": {

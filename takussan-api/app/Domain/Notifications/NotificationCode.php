@@ -80,6 +80,14 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    // ─── Avis et signalements (TCK-597, ADR-0043) ───────────────────────────────────────
+    case ReviewToModerate = 'review.to_moderate';
+    case ReviewReceived = 'review.received';
+    case ModerationPropertyHidden = 'moderation.property_hidden';
+    case ModerationPropertyRemoved = 'moderation.property_removed';
+    case ModerationReportUpheld = 'moderation.report_upheld';
+    case ModerationReportDismissed = 'moderation.report_dismissed';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -113,7 +121,10 @@ enum NotificationCode: string
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
-            self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PropertyApproved, self::PropertyRejected,
+            self::ReviewToModerate, self::ReviewReceived,
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
+            self::ModerationReportUpheld, self::ModerationReportDismissed => NotificationType::System,
         };
     }
 
@@ -132,6 +143,7 @@ enum NotificationCode: string
             self::BookingCreated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
             self::VisitReminder => 'visit_reminder',
+            self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::LeadReceived => 'message_received',
             self::KycSubmitted, self::KycVerified, self::KycRejected => 'kyc_status_changed',
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
@@ -141,6 +153,9 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected,
+            // TCK-597 — le retrait d'une annonce et l'issue d'un signalement : non désactivables.
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
+            self::ModerationReportUpheld, self::ModerationReportDismissed,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
         };
@@ -182,6 +197,9 @@ enum NotificationCode: string
             self::MaintenanceQuoteSubmitted => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],
         };
     }
 

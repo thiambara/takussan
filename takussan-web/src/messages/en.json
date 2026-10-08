@@ -8393,6 +8393,34 @@
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
         }
+      },
+      "review": {
+        "to_moderate": {
+          "title": "Review to moderate: {subject}",
+          "body": "A new review ({rating}/5) on “{subject}” is awaiting your approval."
+        },
+        "received": {
+          "title": "New review: {subject}",
+          "body": "A review ({rating}/5) on “{subject}” has just been published. You can reply from your reviews inbox."
+        }
+      },
+      "moderation": {
+        "property_hidden": {
+          "title": "Listing taken down: {property}",
+          "body": "Your listing “{property}” was taken down by the platform following a report. Reason: {reason}. Only the platform can put it back online."
+        },
+        "property_removed": {
+          "title": "Listing removed: {property}",
+          "body": "Your listing “{property}” was removed by the platform following a report. Reason: {reason}."
+        },
+        "report_upheld": {
+          "title": "Report handled: {property}",
+          "body": "Thank you: the listing “{property}” you reported has been taken down."
+        },
+        "report_dismissed": {
+          "title": "Report reviewed: {property}",
+          "body": "We reviewed your report of the listing “{property}” and did not uphold it."
+        }
       }
     },
     "history": {

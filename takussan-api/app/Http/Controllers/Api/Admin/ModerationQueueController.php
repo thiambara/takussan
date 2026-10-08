@@ -35,7 +35,8 @@ class ModerationQueueController extends Controller
                 $id,
                 $request->user(),
                 $data['decision'],
-                $data['reason'],
+                $data['reason'] ?? null,
+                $data['reason_code'] ?? null,
             ),
         ]);
     }

@@ -60,16 +60,33 @@ class UnifiedModerationService
     }
 
     /**
+     * TCK-597 (ADR-0043 §4) — les décisions valides PAR TYPE d'élément. Avant, `hide`/`remove` sur
+     * un bien en attente tombaient dans `reject`, et toute décision sur un signalement posait
+     * `resolved_at` sans toucher l'annonce.
+     */
+    public const DECISIONS = [
+        'property' => ['approve', 'reject'],
+        'property_report' => ['hide', 'remove', 'reject'],
+        'review' => ['approve', 'hide', 'remove'],
+    ];
+
+    /**
      * @return array<string,mixed>
      */
-    public function decide(string $queueId, User $actor, string $decision, string $reason): array
+    public function decide(string $queueId, User $actor, string $decision, ?string $reason, ?string $reasonCode = null): array
     {
         [$sourceType, $sourceId] = $this->parseQueueId($queueId);
 
+        abort_code_unless(
+            in_array($decision, self::DECISIONS[$sourceType] ?? [], true),
+            422,
+            'moderation.decision_invalid_for_type'
+        );
+
         $subject = match ($sourceType) {
-            'property' => $this->decideProperty(Property::findOrFail($sourceId), $actor, $decision, $reason),
-            'property_report' => $this->decidePropertyReport(PropertyReport::with('property')->findOrFail($sourceId), $actor, $decision, $reason),
-            'review' => $this->decideReview(Review::findOrFail($sourceId), $actor, $decision, $reason),
+            'property' => $this->decideProperty(Property::findOrFail($sourceId), $actor, $decision, $reason ?? $reasonCode),
+            'property_report' => $this->decidePropertyReport(PropertyReport::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
+            'review' => $this->decideReview(Review::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
             default => throw ValidationException::withMessages(['id' => __('errors.moderation.item_id_invalid')]),
         };
 
@@ -81,6 +98,7 @@ class UnifiedModerationService
                 'subject_type' => $subject->getMorphClass(),
                 'subject_id' => $subject->getKey(),
                 'reason' => $reason,
+                'reason_code' => $reasonCode,
                 'moderation_item_id' => $queueId,
             ])
             ->event('super_admin_moderation_decision')
@@ -279,25 +297,26 @@ class UnifiedModerationService
         return [$sourceType, (int) $rawId];
     }
 
-    private function decideProperty(Property $property, User $actor, string $decision, string $reason): Property
+    private function decideProperty(Property $property, User $actor, string $decision, ?string $reason): Property
     {
         if ($decision === 'approve') {
             return $this->propertyModeration->approve($property, $actor);
         }
 
-        return $this->propertyModeration->reject($property, $actor, $reason);
+        return $this->propertyModeration->reject($property, $actor, (string) $reason);
     }
 
-    private function decidePropertyReport(PropertyReport $report, User $actor, string $decision, string $reason): Property
+    private function decidePropertyReport(PropertyReport $report, User $actor, string $decision, ?string $reason, ?string $reasonCode): Property
     {
-        $this->propertyModeration->resolveReport($report, $actor, $decision, $reason);
+        $this->propertyModeration->resolveReport($report, $actor, $decision, $reason, $reasonCode);
 
-        return $report->property;
+        return Property::withTrashed()->findOrFail($report->property_id);
     }
 
-    private function decideReview(Review $review, User $actor, string $decision, string $reason): Review
+    private function decideReview(Review $review, User $actor, string $decision, ?string $reason, ?string $reasonCode): Review
     {
-        $result = $this->reviewModeration->moderate($review, $actor, $decision, $reason);
+        // `remove` est le mot de la file ; le service des avis l'appelle `delete`.
+        $result = $this->reviewModeration->moderate($review, $actor, $decision === 'remove' ? 'delete' : $decision, $reason, $reasonCode);
 
         return $result['review'];
     }

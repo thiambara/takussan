@@ -127,6 +127,7 @@ class ModerationQueueTest extends TestCase
 
         $this->postJson("/api/admin/moderation/review:{$review->id}/decide", [
             'decision' => 'hide',
+            'reason_code' => 'offensive',
             'reason' => 'Contenu injurieux.',
         ])->assertOk()
             ->assertJsonPath('data.subject_id', $review->id);
@@ -154,8 +155,10 @@ class ModerationQueueTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', "property_report:{$report->id}");
 
+        // TCK-597 — `approve` n'est plus une décision de signalement : `reject` le classe sans suite.
         $this->postJson("/api/admin/moderation/property_report:{$report->id}/decide", [
-            'decision' => 'approve',
+            'decision' => 'reject',
+            'reason_code' => 'off_topic',
             'reason' => 'Signalement traité.',
         ])->assertOk();
 

@@ -46,6 +46,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use App\Support\DistanceHaversine;
+use App\Support\VisitorFingerprint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -583,13 +584,42 @@ class PublicPropertyController extends Controller
 
         $data = $request->validated();
 
-        PropertyReport::create([
-            'property_id' => $property->id,
-            'reporter_user_id' => $request->user()?->id,
-            'reporter_ip' => $request->ip(),
-            'reason' => $data['reason'],
-            'details' => $data['details'] ?? null,
-        ]);
+        // TCK-597 — un piège rempli rend la même réponse qu'un succès, sans rien enregistrer.
+        if (! empty($data['company'])) {
+            return $this->json(null, 204);
+        }
+
+        // TCK-597 (ADR-0043 §7) — l'IP n'est plus conservée en clair : une empreinte HMAC. Le même
+        // visiteur (compte, sinon empreinte) qui signale deux fois le même bien en 24 h crée UNE
+        // ligne. Verrou sur la ligne parent : deux envois simultanés ne passent pas tous les deux.
+        $userId = $request->user()?->id;
+        $fingerprint = VisitorFingerprint::of($request);
+
+        DB::transaction(function () use ($property, $userId, $fingerprint, $data) {
+            Property::query()->whereKey($property->id)->lockForUpdate()->first();
+
+            $already = PropertyReport::query()
+                ->where('property_id', $property->id)
+                ->where('created_at', '>=', now()->subDay())
+                ->when(
+                    $userId !== null,
+                    fn ($q) => $q->where('reporter_user_id', $userId),
+                    fn ($q) => $q->whereNull('reporter_user_id')->where('reporter_fingerprint', $fingerprint),
+                )
+                ->exists();
+
+            if ($already) {
+                return;
+            }
+
+            PropertyReport::create([
+                'property_id' => $property->id,
+                'reporter_user_id' => $userId,
+                'reporter_fingerprint' => $fingerprint,
+                'reason' => $data['reason'],
+                'details' => $data['details'] ?? null,
+            ]);
+        });
 
         return $this->json(null, 204);
     }

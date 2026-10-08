@@ -585,4 +585,51 @@ Sans recopier la spec, voici ce qui change.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure (2026-10-08, `6dc81542`)
+
+- 587 est fusionné : le périmètre se juge par `isAgencyAdminAt` sur l'agence du profil actif
+  (modération) et par `isStaffOf` / `MembershipCapabilityResolver::isStaffAt` (réponse), sans la
+  forme provisoire `isAgentAt || isAgencyAdminAt`.
+- `agencies` n'a **pas** de colonne `reviews_count` et `AgencyResource` n'en rend pas : la prémisse
+  « aujourd'hui 3.0 et 2 » d'AC12 ne vaut que pour la moyenne. Voir §4.
+- L'index unique partiel porte `reviewable_type` en plus des trois colonnes nommées (ADR-0043 §3) :
+  sans lui, le formulaire commun « bien + agent » d'un même bail se refuserait à lui-même.
+
+### §1 — cloisonnement (commit `f59dcd7e`)
+
+- `ReviewModerationScope` porte la règle (agence du profil actif, admin actif, agence `standard`,
+  cible bien ou agent) ; `ReviewPolicy` la lit. `pending_count` compte ce que l'admin peut trancher
+  (les avis sur l'agence elle-même sont listés mais relèvent de la plateforme).
+- Preuve : `php artisan test tests/Feature/Api/ReviewModerationScopeTest.php` → 13 verts.
+  Ablations rejouées (restaurées par `cp`) : comparaison d'agence retirée de `canModerate` → 2
+  rouges ; `restrict()` retiré de `index` → 1 rouge ; `pending_count` sur la plateforme → 1 rouge ;
+  plafond `per_page` retiré → 1 rouge ; clause `agency_id === $user->agency_id` remise dans
+  `reply` → 1 rouge (bailleur).
+
+
+### §2 + §8 — le signalement agit sur le bien, la modération d'agence tient à toute mise en ligne
+
+- `PropertyModerationService::resolveReport` : `hide` (rejected + private + `published_at` nul +
+  verrou), `remove` (verrou puis suppression douce), `reject` (le signalement seul). `hide`/`remove`
+  closent **tous** les signalements ouverts du bien. Notifications après la transaction : publieur
+  (`moderation.property_hidden|removed`, motif = texte, sinon code), signalants connectés
+  (`moderation.report_upheld|dismissed`).
+- `PropertyObserver::updating` (seul ajout à l'observateur) : verrou plateforme, puis modération
+  d'agence sur toute activation `draft|pending_review|rejected → available|published`.
+  `archived → available` n'est pas une activation (témoin dans le test). `approve` seul passe outre,
+  par `Property::withoutModerationGate()`.
+- Verrou et approbation : la policy **et** le service refusent l'admin d'agence ; un seul des deux
+  retiré laisse le test vert (l'autre couvre), les deux retirés le rougissent — ablation notée
+  ci-dessous.
+- Signalement public d'annonce : empreinte HMAC au lieu de l'IP (la reprise efface les IP
+  existantes), piège `company` (comme `ContactLeadPublicRequest`), une ligne par visiteur et par
+  bien sur 24 h, sous verrou de la ligne du bien.
+- Preuves : `PropertyReportDecisionTest` 6 verts, `PropertyModerationGateTest` 5 verts,
+  `AgencyTest --filter=moderation_required` 1 vert, `PropertyReportTest` 10 verts ;
+  67 classes `*Property*` / `*Moderation*` : 543 verts, 0 rouge (deux lots, 123 s et 141 s, sous
+  charge 26-29).
+- Ablations (restaurées par `cp`) : sans `updating` → 1 rouge (republication) ; sans la seconde
+  règle → 3 rouges (AC13) ; sans `withoutModerationGate` → 1 rouge (AC5) ; `resolveReport` sans
+  action sur le bien → 4 rouges ; sans `DECISIONS` par type → 1 rouge ; sans la ligne
+  `moderation_required` → 1 rouge (AC14) ; policy seule sans verrou → 0 rouge (le service couvre),
+  policy + service → 2 rouges ; sans dédoublonnage 24 h → 1 rouge ; sans piège → 1 rouge.

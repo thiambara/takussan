@@ -8393,6 +8393,34 @@
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
         }
+      },
+      "review": {
+        "to_moderate": {
+          "title": "Xalaat bu ñuy saytu : {subject}",
+          "body": "Xalaat bu bees ({rating}/5) ci « {subject} » mi ngi xaar sa ndigal."
+        },
+        "received": {
+          "title": "Xalaat bu bees : {subject}",
+          "body": "Xalaat ({rating}/5) ci « {subject} » génn na. Mën nga ko tontu ci sa boîte xalaat yi."
+        }
+      },
+      "moderation": {
+        "property_hidden": {
+          "title": "Yégle bi dindi nañu ko : {property}",
+          "body": "Platform bi dindi na sa yégle « {property} » ci site bi ndax ab signalement. Ngirte : {reason}. Platform bi rekk mën koo delloo ci internet."
+        },
+        "property_removed": {
+          "title": "Yégle bi far nañu ko : {property}",
+          "body": "Platform bi far na sa yégle « {property} » ndax ab signalement. Ngirte : {reason}."
+        },
+        "report_upheld": {
+          "title": "Signalement bi defar nañu ko : {property}",
+          "body": "Jërëjëf : yégle « {property} » bi nga signaler, dindi nañu ko ci site bi."
+        },
+        "report_dismissed": {
+          "title": "Signalement bi saytu nañu ko : {property}",
+          "body": "Saytu nañu sa signalement ci yégle « {property} », waaye nanguñu ko."
+        }
       }
     },
     "history": {
