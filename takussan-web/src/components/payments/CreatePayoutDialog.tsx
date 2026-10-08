@@ -289,7 +289,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
 
               {prep.requires_approval ? (
                 <p className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">
-                  {t('requiresApproval', { threshold: money(prep.approval_threshold ?? 0) })}
+                  {t('requiresApproval', { threshold: money(prep.approval_threshold ?? 0), days: prep.approval_window_days })}
                 </p>
               ) : null}
 

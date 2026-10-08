@@ -3087,7 +3087,7 @@
       "billLine": "Job {reference}",
       "rateFromLease": "({rate}% from the lease)",
       "rateFromAgency": "({rate}% from the agency)",
-      "requiresApproval": "This net, added to the unapproved payouts to this landlord over the last 30 days, reaches the agency's approval threshold ({threshold}): another member must approve it before payment.",
+      "requiresApproval": "This net, added to the unapproved payouts to this landlord over the last {days} days, reaches the agency's approval threshold ({threshold}): another member must approve it before payment.",
       "destination": "Destination",
       "destinationNone": "No destination on file",
       "destinationOption": "{kind} {masked} — {state}",

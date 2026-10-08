@@ -68,6 +68,7 @@ const CALCUL = {
     totals: { gross: 220000, commission: 22000, fees: 15000, net: 183000 },
     requires_approval: true,
     approval_threshold: 100000,
+    approval_window_days: 27,
     payout_methods: [
       { id: 8, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true },
       { id: 9, kind: 'orange_money', masked_identifier: '•••• 8899', is_default: false, verified: false },
@@ -115,6 +116,8 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     const net = screen.getAllByText('Net').find((el) => el.tagName === 'DT');
     expect(sansEspaces(net?.nextElementSibling?.textContent ?? '')).toBe('183000FCFA');
     expect(screen.getByText(/seuil d'approbation/)).toBeInTheDocument();
+    // VERIF-594 passe 2, N-3 — la fenêtre du cumul vient du serveur, pas du texte.
+    expect(screen.getByText(/depuis 27 jours/)).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Destination'), '8');
     await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));

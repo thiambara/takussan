@@ -184,6 +184,8 @@ export type PayoutPreparation = {
   totals: { gross: number; commission: number; fees: number; net: number };
   requires_approval: boolean;
   approval_threshold: number | null;
+  /** VERIF-594 passe 2, N-3 — la fenêtre du cumul, en jours glissants (`PayoutApprovalRule::WINDOW_DAYS`). */
+  approval_window_days: number;
   payout_methods: Array<Pick<PayoutMethod, 'id' | 'kind' | 'masked_identifier' | 'is_default' | 'verified'>>;
 };
 

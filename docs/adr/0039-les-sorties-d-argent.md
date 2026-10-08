@@ -114,9 +114,14 @@ deux agences ne font pas deux personnes.
   est `null`, un reversement naît `pending` (ou `scheduled`) et une seule personne peut le préparer
   puis le payer. L'agence active elle-même le seuil (`0` ⇒ toujours). Le seuil se juge sur le
   **cumul** : le net, ajouté aux nets **non approuvés** déjà émis vers le même bénéficiaire dans
-  l'agence sur **30 jours glissants** (`pending`, `scheduled`, `processing`, `completed` sans
+  l'agence sur **27 jours glissants** (`pending`, `scheduled`, `processing`, `completed` sans
   `approved_by_id`), atteint le seuil ⇒ `awaiting_approval` (VERIF-594 M-1 : jugé reversement par
-  reversement, il se contournait en fractionnant). Une règle, `PayoutApprovalRule`, lue sous le
+  reversement, il se contournait en fractionnant). **27 et non 30** (VERIF-594 passe 2, N-3,
+  décision de session réversible) : un mois fait 28 jours au moins, une cadence mensuelle ne se
+  cumule donc plus avec elle-même — sur 30 jours, un bailleur payé chaque mois de plus de la moitié
+  du seuil passait en approbation un mois sur deux — quand un fractionnement DANS le mois reste pris.
+  La valeur vit dans `PayoutApprovalRule::WINDOW_DAYS` seule ; l'écran la lit dans la préparation
+  (`approval_window_days`). Une règle, `PayoutApprovalRule`, lue sous le
   verrou de la ligne agence, prise en dernier après les pièces ; la création, la préparation et la
   **caution rendue** l'empruntent (VERIF-594 M-3 : la caution naissait `pending` à côté du seuil —
   c'est une sortie d'argent, seule sa destination reste hors contrôle, le locataire n'ayant pas

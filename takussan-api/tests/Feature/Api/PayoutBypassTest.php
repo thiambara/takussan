@@ -17,6 +17,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Model\PayoutService;
+use App\Services\Payout\PayoutApprovalRule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -608,5 +609,29 @@ class PayoutBypassTest extends TestCase
 
         $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000])->assertCreated();
         $this->assertEquals(400000, (float) $lease->fresh()->deposit_refunded_amount);
+    }
+
+    /**
+     * VERIF-594 passe 2, N-3 — sur 30 jours glissants, un bailleur payé chaque mois de plus de la
+     * moitié du seuil passait en approbation un mois sur deux (31/01 puis 28/02). Sur 27 jours, une
+     * cadence mensuelle ne se cumule plus avec elle-même ; deux reversements à 10 jours d'écart, si.
+     */
+    public function test_n3_a_monthly_cadence_does_not_add_up_but_a_split_within_the_month_does(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer] = $this->fourEyesAgency();
+        Sanctum::actingAs($issuer);
+
+        $this->travelTo('2027-01-31 10:00:00');
+        $this->createFor($agency, $landlord, 60_000)->assertJsonPath('data.status', 'pending');
+        $this->travelTo('2027-02-28 10:00:00');
+        $this->createFor($agency, $landlord, 60_000)->assertJsonPath('data.status', 'pending');
+        $this->travelTo('2027-03-10 10:00:00');
+        $this->createFor($agency, $landlord, 60_000)->assertJsonPath('data.status', 'awaiting_approval');
+
+        // L'écran lit la fenêtre dans la préparation : une seule valeur.
+        $this->getJson("/api/payouts/preparation?landlord_id={$landlord->id}&period_start=2027-03-01&period_end=2027-03-31")
+            ->assertOk()->assertJsonPath('data.approval_window_days', PayoutApprovalRule::WINDOW_DAYS);
+        $this->assertSame(27, PayoutApprovalRule::WINDOW_DAYS);
     }
 }

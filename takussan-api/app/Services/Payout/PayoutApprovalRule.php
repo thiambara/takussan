@@ -13,7 +13,7 @@ use App\Models\Payout;
  *
  * Le seuil ne se juge pas reversement par reversement : fractionner 120 000 en deux fois 60 000
  * passait sous un seuil de 100 000 (VERIF-594 M-1). Il se juge sur le net, AJOUTÉ aux nets non
- * approuvés déjà émis vers le même bénéficiaire, dans la même agence, sur 30 jours glissants. Un
+ * approuvés déjà émis vers le même bénéficiaire, dans la même agence, sur 27 jours glissants. Un
  * reversement approuvé ne compte plus : l'approbation l'a couvert. Un reversement payé sans
  * approbation compte : c'est l'argent sorti d'une seule main.
  *
@@ -25,7 +25,12 @@ use App\Models\Payout;
  */
 final class PayoutApprovalRule
 {
-    public const WINDOW_DAYS = 30;
+    /**
+     * VERIF-594 passe 2, N-3 — 27 et non 30 : une cadence mensuelle (28 jours au moins, février
+     * compris) ne se cumule plus avec elle-même, quand un fractionnement DANS le mois reste pris. La
+     * seule valeur de la fenêtre : l'écran la lit dans la préparation (`approval_window_days`).
+     */
+    public const WINDOW_DAYS = 27;
 
     public function requiresApproval(Agency $agency, float $net, PayeeRole $role, ?int $beneficiaryKey): bool
     {

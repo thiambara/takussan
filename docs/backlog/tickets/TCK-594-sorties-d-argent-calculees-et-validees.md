@@ -531,6 +531,7 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **B-1** — la vérification d'office disparaît : toute destination attend un membre de l'agence.
 - [x] **M-1** — le seuil se juge sur le cumul des nets non approuvés vers le même bénéficiaire,
   dans l'agence, sur 30 jours glissants (`PayoutApprovalRule`), sous le verrou de la ligne agence.
+  *(27 jours depuis la passe 2, N-3.)*
 - [x] **M-2** — relâcher le seuil (le couper, le relever) attend un second détenteur de
   `payouts.approve` : 202 et `pending_payout_threshold_change`, les autres détenteurs avisés,
   confirmation par `POST /api/agencies/{id}/payout-threshold/confirm` ; 403
@@ -575,6 +576,8 @@ rend **403** avec une clé i18n, jamais une phrase.
   (`deposit_refunded_amount`, `deposit_refunded_at` à nul à solde nul), sous le verrou du bail, une
   seule fois ; la ligne `deposit_refund` passe `failed` et l'activité `deposit_refund_reversed` le
   trace.
+- [x] **N-3** — la fenêtre du cumul passe à 27 jours glissants (`PayoutApprovalRule::WINDOW_DAYS`,
+  seule valeur ; la préparation la rend en `approval_window_days`, que le bandeau de l'écran affiche).
 
 ### Front (intentionnel)
 
@@ -823,6 +826,11 @@ rend **403** avec une clé i18n, jamais une phrase.
   annulés ensuite → 100 000 rendus (une seule fois), le premier reversement intact ; nouvelle
   restitution de 300 000 : 201, 400 000 rendus.
   **Preuve** : `PayoutBypassTest::test_n2_a_refused_deposit_refund_can_be_refunded_again`, `test_n2_a_failed_deposit_refund_is_released_once` (rouges sur 38495c16). Ablations V-N2a à V-N2e : rouges.
+- [x] **AC-N3 — une cadence mensuelle ne se cumule pas.** Seuil 100 000, 60 000 au même bailleur le
+  31/01 puis le 28/02 : deux `pending` ; un troisième le 10/03, à 10 jours du deuxième :
+  `awaiting_approval`. La préparation rend `approval_window_days = 27`, et le bandeau dit
+  « depuis 27 jours ».
+  **Preuve** : `PayoutBypassTest::test_n3_a_monthly_cadence_does_not_add_up_but_a_split_within_the_month_does` (rouge sur 38495c16) ; front `CreatePayoutDialog.test.tsx`. Ablations V-N3 (30 jours), V-N3b (9 jours), W-N3 (30 en dur dans l'écran) : rouges.
 
 ## Hors périmètre
 
@@ -1215,3 +1223,8 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   retour ne joue que depuis un état qui tenait la caution (`PayoutStatus::holdingItems()`) : un
   reversement `failed` puis `cancelled` ne la rend pas deux fois. Ordre des verrous : reversement,
   puis bail.
+- **N-3 — la cadence mensuelle.** 27 jours : la plus longue fenêtre qui laisse passer une cadence
+  mensuelle stricte (février : 28 jours entre deux 28). Le bandeau de l'écran disait « depuis
+  30 jours » en dur ; il lit maintenant la valeur du serveur (`{days}` dans les trois langues), et le
+  test d'ablation W-N3 rougit si l'écran l'écrit en dur. Décision réversible : changer la constante
+  suffit, l'écran suit.

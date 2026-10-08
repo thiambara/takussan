@@ -59,6 +59,7 @@ final class PayoutPreparationService
             // VERIF-594 M-1 — la même règle que la création : le cumul non approuvé compte.
             'requires_approval' => $this->approvalRule->requiresApproval($agency, (float) $computation['totals']['net'], PayeeRole::Landlord, (int) $landlord->id),
             'approval_threshold' => $threshold !== null ? (float) $threshold : null,
+            'approval_window_days' => PayoutApprovalRule::WINDOW_DAYS,
             // La forme masquée seule : l'agence ne lit jamais le numéro en clair (ADR-0039 §6).
             'payout_methods' => PayoutMethod::query()
                 ->with('verifications')
