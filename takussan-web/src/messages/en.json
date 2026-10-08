@@ -4636,6 +4636,25 @@
         "already_member": "This person is already in your team.",
         "forbidden": "You do not have permission to manage the team."
       }
+    },
+    "performance": {
+      "title": "Team performance",
+      "period": "Month",
+      "caption": "Indicators per agent for the selected month",
+      "sortBy": "Sort by {column}",
+      "unknown": "Unnamed agent",
+      "columns": {
+        "name": "Agent",
+        "leases_signed": "Leases signed",
+        "sales_signed": "Sales signed",
+        "visits_completed": "Visits completed",
+        "customers_added": "Customers added",
+        "commissions_earned": "Commissions earned",
+        "properties_managed": "Properties managed",
+        "tasks_overdue": "Overdue tasks"
+      },
+      "emptyTitle": "No active agent",
+      "emptyDescription": "Invite an agent to follow their indicators here."
     }
   },
   "serviceProviders": {
@@ -5289,6 +5308,33 @@
         "pendingPayouts": "Pending payouts",
         "invoicesToIssue": "Invoices to issue",
         "overdueHint": "{count, plural, one {# lease affected} other {# leases affected}}"
+      },
+      "aging": {
+        "groupByLabel": "Group overdue amounts",
+        "groupBy": {
+          "tenant": "By tenant",
+          "landlord": "By landlord"
+        },
+        "buckets": {
+          "1_30": "1–30 days",
+          "31_60": "31–60 days",
+          "61_90": "61–90 days",
+          "90_plus": "Over 90 days"
+        },
+        "count": "{count, plural, =0 {No instalment} one {# instalment} other {# instalments}}",
+        "total": "Total overdue",
+        "depositsHeld": "Deposits held",
+        "depositsHeldHint": "{count, plural, =0 {No landlord} one {# landlord} other {# landlords}}",
+        "columns": {
+          "tenant": "Tenant",
+          "landlord": "Landlord",
+          "total": "Total"
+        },
+        "unknown": "Not specified",
+        "captionTenant": "Overdue amounts by tenant and age bracket",
+        "captionLandlord": "Overdue amounts by landlord and age bracket",
+        "emptyTitle": "Nothing overdue",
+        "emptyDescription": "No past-due rent instalment is awaiting payment."
       }
     },
     "audit": {
@@ -5680,7 +5726,8 @@
           "all": "All",
           "agents": "Agents",
           "admins": "Administrators",
-          "owners": "Owners"
+          "owners": "Owners",
+          "performance": "Performance"
         },
         "invite": "Invite",
         "inviteAgent": "Invite",

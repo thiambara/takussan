@@ -4636,6 +4636,25 @@
         "already_member": "Cette personne fait déjà partie de votre équipe.",
         "forbidden": "Vous n'avez pas la permission de gérer l'équipe."
       }
+    },
+    "performance": {
+      "title": "Performance de l'équipe",
+      "period": "Mois",
+      "caption": "Indicateurs par agent sur le mois choisi",
+      "sortBy": "Trier par {column}",
+      "unknown": "Agent sans nom",
+      "columns": {
+        "name": "Agent",
+        "leases_signed": "Baux signés",
+        "sales_signed": "Ventes signées",
+        "visits_completed": "Visites effectuées",
+        "customers_added": "Clients ajoutés",
+        "commissions_earned": "Commissions acquises",
+        "properties_managed": "Biens gérés",
+        "tasks_overdue": "Tâches en retard"
+      },
+      "emptyTitle": "Aucun agent actif",
+      "emptyDescription": "Invitez un agent pour suivre ses indicateurs ici."
     }
   },
   "serviceProviders": {
@@ -5289,6 +5308,33 @@
         "pendingPayouts": "Reversements en attente",
         "invoicesToIssue": "Factures à émettre",
         "overdueHint": "{count, plural, one {# bail concerné} other {# bails concernés}}"
+      },
+      "aging": {
+        "groupByLabel": "Regrouper les impayés",
+        "groupBy": {
+          "tenant": "Par locataire",
+          "landlord": "Par bailleur"
+        },
+        "buckets": {
+          "1_30": "1 à 30 jours",
+          "31_60": "31 à 60 jours",
+          "61_90": "61 à 90 jours",
+          "90_plus": "Plus de 90 jours"
+        },
+        "count": "{count, plural, =0 {Aucune échéance} one {# échéance} other {# échéances}}",
+        "total": "Total des impayés",
+        "depositsHeld": "Cautions détenues",
+        "depositsHeldHint": "{count, plural, =0 {Aucun bailleur} one {# bailleur} other {# bailleurs}}",
+        "columns": {
+          "tenant": "Locataire",
+          "landlord": "Bailleur",
+          "total": "Total"
+        },
+        "unknown": "Non renseigné",
+        "captionTenant": "Impayés par locataire et par tranche de retard",
+        "captionLandlord": "Impayés par bailleur et par tranche de retard",
+        "emptyTitle": "Aucun impayé",
+        "emptyDescription": "Aucune échéance de loyer échue n'attend de paiement."
       }
     },
     "audit": {
@@ -5680,7 +5726,8 @@
           "all": "Tous",
           "agents": "Agents",
           "admins": "Administrateurs",
-          "owners": "Propriétaires"
+          "owners": "Propriétaires",
+          "performance": "Performance"
         },
         "invite": "Inviter",
         "inviteAgent": "Inviter",

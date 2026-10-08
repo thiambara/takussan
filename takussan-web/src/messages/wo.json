@@ -3162,6 +3162,25 @@
         "already_member": "Nit kii am na ci sa kuréel.",
         "forbidden": "Amul nga sañ-sañu toppatoo kuréel gi."
       }
+    },
+    "performance": {
+      "title": "Njariñu mbooloo mi",
+      "period": "Weer",
+      "caption": "Màndarga yu ajaŋ bu nekk ci weer wi ñu tànn",
+      "sortBy": "Toftal ci {column}",
+      "unknown": "Ajaŋ bu amul tur",
+      "columns": {
+        "name": "Ajaŋ",
+        "leases_signed": "Kontaraa yu ñu xaatim",
+        "sales_signed": "Jaay yu ñu xaatim",
+        "visits_completed": "Seetlu yu ñu def",
+        "customers_added": "Kiliyaan yu ñu yokk",
+        "commissions_earned": "Komisioŋ yu ñu jot",
+        "properties_managed": "Kër yu ñuy topptoo",
+        "tasks_overdue": "Liggéey yu yeex"
+      },
+      "emptyTitle": "Amul ajaŋ buy liggéey",
+      "emptyDescription": "Woowal benn ajaŋ ngir topp ay màndargaam fii."
     }
   },
   "serviceProviders": {
@@ -3815,6 +3834,33 @@
         "pendingPayouts": "Peymaan yuy xaar",
         "invoicesToIssue": "Fakteer yu ñu war a génne",
         "overdueHint": "{count, plural, one {# luwé bu ci aju} other {# luwé yu ci aju}}"
+      },
+      "aging": {
+        "groupByLabel": "Mboolewaayu yu ñu feyul",
+        "groupBy": {
+          "tenant": "Ci luwaakat bu nekk",
+          "landlord": "Ci boroom kër bu nekk"
+        },
+        "buckets": {
+          "1_30": "1 ba 30 fan",
+          "31_60": "31 ba 60 fan",
+          "61_90": "61 ba 90 fan",
+          "90_plus": "Ëpp 90 fan"
+        },
+        "count": "{count, plural, =0 {Amul bes} other {# bes}}",
+        "total": "Yu ñu feyul yépp",
+        "depositsHeld": "Garaasi yi ñu denc",
+        "depositsHeldHint": "{count, plural, =0 {Amul boroom kër} other {# boroom kër}}",
+        "columns": {
+          "tenant": "Luwaakat",
+          "landlord": "Boroom kër",
+          "total": "Lépp"
+        },
+        "unknown": "Xamuñu ko",
+        "captionTenant": "Yu ñu feyul ci luwaakat ak ci yeex",
+        "captionLandlord": "Yu ñu feyul ci boroom kër ak ci yeex",
+        "emptyTitle": "Amul lu ñu feyul",
+        "emptyDescription": "Amul benn bes luwaas bu jot bu ñuy xaar fey."
       }
     },
     "audit": {
@@ -4206,7 +4252,8 @@
           "all": "Ñépp",
           "agents": "Agent yi",
           "admins": "Administrateur yi",
-          "owners": "Boroom kër yi"
+          "owners": "Boroom kër yi",
+          "performance": "Njariñ"
         },
         "invite": "Woo",
         "inviteAgent": "Woo",

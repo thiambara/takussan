@@ -895,3 +895,13 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
 - Nouvelle entrée de navigation « Commissions » pour l'agent et l'admin ; espace i18n `commissions`
   ajouté à la frontière `(dashboard)/app` (`namespaces.json`, les plafonds des autres frontières
   inchangés).
+
+### Lot 9 — front : balance âgée et performance d'équipe (§6, §7, AC18 front)
+
+- L'onglet « Impayés » de `/admin/finances` garde son composant (`OverduePaymentsTable`) mais lit
+  `GET /api/agencies/{agency}/finance/aging` : quatre tranches, total, cautions détenues, détail par
+  locataire (lien vers la fiche client) ou par bailleur. Plus aucun `filter[status]=late`.
+- L'onglet « Performance » de `/admin/team` vit dans `?vue=performance`, offert aux agences
+  `standard` avec `reports.view_agency`. Le tri se fait sur la réponse entière : l'API rend une ligne
+  par agent, sans pagination.
+- **Écart** : l'accès front aux nouveaux exports (§7) attend AC19, lui-même en attente de TCK-601.
