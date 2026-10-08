@@ -58,7 +58,8 @@ class ExportWriter
     {
         $filename = ($payload['filename'] ?? 'export').'.xlsx';
         $columns = $payload['columns'];
-        $rows = array_map(fn ($row) => array_map(fn ($col) => $row[$col] ?? '', $columns), $payload['rows']);
+        // TCK-601 (verif-601 n2) — PhpSpreadsheet type en formule toute chaîne qui commence par `=`.
+        $rows = array_map(fn ($row) => CsvCell::line(array_map(fn ($col) => $row[$col] ?? '', $columns)), $payload['rows']);
 
         return Excel::download(new class($columns, $rows) implements FromArray, WithHeadings
         {

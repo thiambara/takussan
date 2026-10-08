@@ -62,8 +62,9 @@ class ExportActivityLogJob implements ShouldQueue
             // brittle in a queue worker (no active SAPI buffer), so use
             // PhpSpreadsheet's raw() exporter instead.
             $columns = $payload['columns'];
+            // TCK-601 (verif-601 n2) — PhpSpreadsheet type en formule toute chaîne qui commence par `=`.
             $rows = array_map(
-                fn ($row) => array_map(fn ($col) => $row[$col] ?? '', $columns),
+                fn ($row) => CsvCell::line(array_map(fn ($col) => $row[$col] ?? '', $columns)),
                 $payload['rows']
             );
             $sheet = new class($columns, $rows) implements FromArray, WithHeadings

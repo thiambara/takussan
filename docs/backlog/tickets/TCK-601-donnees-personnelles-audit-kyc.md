@@ -200,7 +200,7 @@ Et autour :
 | Élément | Forme |
 |---|---|
 | `owner_profiles.rib`, `tax_id`, `id_document_number` | `text`, cast `encrypted`, dans `$hidden`, hors `$queryFields` et hors recherche |
-| `agency_upgrade_requests.ninea`, `rib_pro` | `text`, cast `encrypted` ; rendus complets à l'admin de l'agence et au super-admin seulement (`AgencyUpgradeRequestResource`, inchangé) |
+| `agency_upgrade_requests.ninea`, `rib_pro` | `text`, cast `encrypted` ; complets au seul détail de la console (`withClearIdentifiers()`), tracé ; masqués partout ailleurs, admin d'agence compris (`AgencyUpgradeRequestResource`, verif-601 M1) |
 | `agencies.metadata.legal_info.rib_pro` | **n'existe plus** (retiré des données, plus jamais recopié) ; `AgencyResource` ne le rend jamais |
 | `OwnerProfileResource` | `rib_masked`, `tax_id_masked`, `id_document_number_masked` (jamais la valeur complète) |
 | `GET /api/owners/{owner_profile}/sensitive` | valeurs complètes, admin de l'agence du profil ou super-admin ; journalisé |
@@ -856,3 +856,20 @@ Et autour :
   - Test : `test_une_copie_anterieure_ne_passe_pas_par_l_agence_incluse`, pour l'agent et l'admin. Le
     NINEA, lui, reste lu.
   - Ablation : `Arr::forget` retiré → rouge.
+
+### Corrections après verif-601, passe 2 (2026-10-08)
+
+- **n1** : `PropertyRedactor` juge la clé en minuscules **et** en `Str::snake()`. Les deux formes sont
+  nécessaires : `Str::snake('RIB')` rend `r_i_b`. Ainsi `ownerRib`, `ribPro`, `taxId`, `bankIban` et
+  `idDocumentNumber` sont expurgés. Une chaîne qui commence par `{` ou `[` et se décode en JSON est
+  expurgée puis réencodée.
+  - Test : `PropertyRedactorTest`, 13 cas. Il couvre aussi la casse différente, l'imbrication, les
+    listes, les faux segments et une chaîne non JSON.
+- **n2** : `CsvCell::line` est appliqué aux deux branches XLSX, `ExportWriter::xlsx` et
+  `ExportActivityLogJob::generateContent`.
+  - Test : `XlsxExportFormulaTest`. La cellule A2 sort en type `s` ; `-1500`, en entier comme en
+    chaîne, reste en type `n`. Le job est testé par la même mesure.
+- **n3** : le Contrat de données s'aligne sur M1. Il n'y a pas de nouveau geste pour l'admin d'agence.
+- **Ablations** : toutes rouges.
+  - n1 : normalisation snake retirée (7 rouges) ; décodage JSON retiré.
+  - n2 : `ExportWriter::xlsx` ; branche XLSX du job.

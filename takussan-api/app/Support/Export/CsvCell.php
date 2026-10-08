@@ -8,7 +8,9 @@ namespace App\Support\Export;
  * Une cellule qui commence par `=`, `+`, `-`, `@`, une tabulation ou un retour chariot est exécutée
  * par Excel ou LibreOffice à l'ouverture (`=HYPERLINK(…)`). Le registre des demandes de droits
  * recopie le nom saisi par l'utilisateur, à destination du super-admin : la cellule est préfixée
- * d'une apostrophe, que le tableur affiche comme du texte.
+ * d'une apostrophe, que le tableur affiche comme du texte. Les branches XLSX (`ExportWriter::xlsx`,
+ * `ExportActivityLogJob`) l'appliquent aussi (verif-601 n2) : sans elle, PhpSpreadsheet type la
+ * cellule en formule.
  *
  * Un NOMBRE reste un nombre : `-1500` ou `+3.5` ne sont pas neutralisés, un montant négatif
  * s'exporte tel quel.
