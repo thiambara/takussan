@@ -71,6 +71,17 @@ class CalendarEventCollector
         $staffAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
         $memberAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
         $isProvider = ! $isAdmin && $user->serviceProviderProfile()->active()->exists();
+        // verif-591 passe 2 (N2, ADR-0034) — une agence donnée (le lien, ou le profil actif de la
+        // console) borne aussi les tâches et interventions à CETTE agence : un flux n'agrège jamais
+        // deux agences. Le lien de A servait la tâche et l'intervention de B au même agent ; révoqué
+        // ou divulgué dans A, il exposait B, qui ne pouvait ni le voir ni le couper. « Toutes mes
+        // agences » reste la forme de `GET /api/tasks`.
+        if (! $isAdmin && $staffAgencyId !== null) {
+            $staffAgencyIds = array_values(array_intersect($staffAgencyIds, [$staffAgencyId]));
+            $memberAgencyIds = array_values(array_intersect($memberAgencyIds, [$staffAgencyId]));
+        }
+        // Le prestataire n'est borné nulle part, sauf dans l'agenda d'une agence.
+        $unboundedProvider = $isProvider && $staffAgencyId === null;
 
         $restrict = function (Builder $q, string $propertyKey = 'property_id') use ($propertyId, $propertyIds, $agencyFilter, $isAdmin, $userId, $staffAgencyId): void {
             if ($propertyId) {
@@ -102,7 +113,7 @@ class CalendarEventCollector
             $events = $events->merge($this->leaseEvents($start, $end, $restrict));
         }
         if (in_array('maintenance', $types, true)) {
-            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter, $staffAgencyIds, $isProvider));
+            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter, $staffAgencyIds, $unboundedProvider));
         }
 
         return $events->sortBy('start')->values();

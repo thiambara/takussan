@@ -4,12 +4,17 @@ namespace Tests\Feature\Calendar;
 
 use App\Models\Agency;
 use App\Models\CalendarFeed;
+use App\Models\Customer;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
+use App\Models\Task;
 use App\Models\User;
+use App\Services\Calendar\CalendarFeedService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\ApiTestCase;
@@ -153,5 +158,43 @@ class CalendarFeedTest extends ApiTestCase
         $this->get($path)->assertNotFound();
         $this->agent->fresh()->update(['status' => UserStatus::Active]);
         $this->get($path)->assertOk();
+    }
+
+    /**
+     * verif-591 passe 2 (N2, ADR-0034) — un flux ne sert qu'une agence. L'agent de A et de B ne
+     * retrouve dans le lien de A ni la tâche (assignée ou créée) ni l'intervention de B ; le lien
+     * de B les sert.
+     */
+    public function test_a_feed_never_aggregates_two_agencies(): void
+    {
+        $other = Agency::factory()->create();
+        $this->materializeRoleProfile($this->agent, 'agent', $other);
+        $due = ['due_at' => now()->addDays(2)];
+        Task::factory()->forCustomer(Customer::factory()->create(['agency_id' => $this->agency->id]))
+            ->create(['title' => 'Tâche de A', 'assigned_to_id' => $this->agent->id] + $due);
+        Task::factory()->forCustomer(Customer::factory()->create(['agency_id' => $other->id]))
+            ->create(['title' => 'Tâche de B', 'assigned_to_id' => $this->agent->id] + $due);
+        // Une intervention s'affiche sous le titre de son bien.
+        $otherProperty = Property::factory()->create(['agency_id' => $other->id, 'title' => 'Intervention de B']);
+        MaintenanceRequest::factory()->create([
+            'property_id' => $otherProperty->id,
+            'assigned_to' => $this->agent->id,
+            'status' => MaintenanceStatus::Assigned,
+            'scheduled_at' => now()->addDays(3),
+        ]);
+
+        $feeds = app(CalendarFeedService::class);
+        $titles = fn (int $agencyId) => $feeds->events($feeds->resolve($feeds->issue($this->agent, $agencyId)['token']))
+            ->pluck('title')->all();
+
+        $ofA = $titles((int) $this->agency->id);
+        $this->assertContains('Tâche de A', $ofA);
+        $this->assertNotContains('Tâche de B', $ofA);
+        $this->assertNotContains('Intervention de B', $ofA);
+
+        $ofB = $titles((int) $other->id);
+        $this->assertContains('Tâche de B', $ofB);
+        $this->assertContains('Intervention de B', $ofB);
+        $this->assertNotContains('Tâche de A', $ofB);
     }
 }
