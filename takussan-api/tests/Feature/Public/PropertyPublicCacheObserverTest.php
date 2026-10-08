@@ -8,8 +8,10 @@ use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as RequeteSortante;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use RuntimeException;
 use Tests\ApiTestCase;
 
 /**
@@ -153,5 +155,41 @@ class PropertyPublicCacheObserverTest extends ApiTestCase
         $this->expectException(RequestException::class);
 
         (new RevalidatePublicPropertyPage(['un-bien']))->handle();
+    }
+
+    /**
+     * Après verif-598 (N16) — ADR-0052 §2 : l'invalidation part APRÈS la validation de la
+     * transaction (`afterCommit`). Partie avant, le front relit l'ANCIENNE version et la remet en
+     * cache pour 300 s ; partie d'une transaction annulée, elle invalide pour rien.
+     *
+     * `Queue::fake()` ignore `afterCommit` (il pousse tout de suite) : il ne pouvait pas voir ce
+     * défaut. On passe donc par la file `sync` réelle, et on observe l'appel HTTP sortant.
+     */
+    public function test_l_invalidation_attend_la_validation_de_la_transaction(): void
+    {
+        config([
+            'queue.default' => 'sync',
+            'services.public_cache.revalidate_url' => 'https://front.test/api/revalidation/fiche',
+            'services.public_cache.revalidate_secret' => 'secret-de-test',
+        ]);
+        Http::fake(['front.test/*' => Http::response(['revalidated' => 1])]);
+        $property = Property::factory()->published()->create();
+
+        try {
+            DB::transaction(function () use ($property) {
+                $property->update(['price' => 111_111]);
+                throw new RuntimeException('annulée');
+            });
+        } catch (RuntimeException) {
+            // attendu
+        }
+        Http::assertNothingSent();
+
+        DB::transaction(function () use ($property) {
+            $property->update(['price' => 222_222]);
+            // Toujours DANS la transaction : rien n'est encore parti.
+            Http::assertNothingSent();
+        });
+        Http::assertSentCount(1);
     }
 }
