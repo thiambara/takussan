@@ -297,6 +297,30 @@ class FavoriteChangeAlertsTest extends TestCase
         $this->assertSame([FavoriteChangesNotification::KIND_PRICE_DROP, FavoriteChangesNotification::KIND_UNAVAILABLE], $mails, 'la baisse ne repart pas');
     }
 
+    /**
+     * verif-599 m11 — l'e-mail en échec ne laisse pas de cloche : la cloche part en dernier, la
+     * reprise l'écrit une seule fois.
+     */
+    public function test_un_e_mail_en_echec_ne_double_pas_la_cloche(): void
+    {
+        $client = User::factory()->create();
+        $this->favori($client)->update(['price' => 450_000]);
+        $echec = true;
+        Event::listen(NotificationSending::class, function (NotificationSending $e) use (&$echec): void {
+            if ($echec && $e->channel === 'mail') {
+                throw new \RuntimeException('transport indisponible');
+            }
+        });
+
+        $this->lancerLeJob();
+        $this->assertCount(0, $this->notificationsDe($client), 'aucune cloche sans e-mail');
+
+        $echec = false;
+        $this->lancerLeJob();
+        $this->assertCount(1, $this->notificationsDe($client));
+        $this->assertCount(1, $this->emailsA($client));
+    }
+
     /** Le verrou de job : un passage mis en file pendant qu'un autre tient le verrou est abandonné. */
     public function test_un_passage_pendant_un_autre_est_abandonne(): void
     {

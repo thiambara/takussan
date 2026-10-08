@@ -55,10 +55,13 @@ class FavoriteChangesNotification extends Notification
         if (! $notifiable instanceof User) {
             return [];
         }
-        $channels = ['database'];
+        // La cloche en DERNIER (verif-599 m11) : un e-mail qui échoue lève avant qu'elle soit
+        // écrite, la réservation est rendue, et la reprise ne la double pas.
+        $channels = [];
         if (app(PreferenceResolver::class)->shouldSend($notifiable, $this->eventType(), PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
         }
+        $channels[] = 'database';
 
         return $channels;
     }

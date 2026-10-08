@@ -17,6 +17,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -186,6 +187,36 @@ class SavedSearchAlertsTest extends TestCase
         $echec = false;
         $this->lancerLeJob();
         $this->assertCount(1, $this->notificationsDe($user));
+    }
+
+    /**
+     * verif-599 m11 — l'e-mail en échec ne laisse pas de cloche : la cloche part en dernier, la
+     * reprise l'écrit une seule fois.
+     */
+    public function test_un_e_mail_en_echec_ne_double_pas_la_cloche(): void
+    {
+        $user = User::factory()->create();
+        $this->bienPublieLe(now()->subDay());
+        $this->recherche($user);
+        $this->indexProperties();
+        $echec = true;
+        Event::listen(NotificationSending::class, function (NotificationSending $e) use (&$echec): void {
+            if ($echec && $e->channel === 'mail') {
+                throw new RuntimeException('transport indisponible');
+            }
+        });
+        $mails = 0;
+        Event::listen(NotificationSent::class, function (NotificationSent $e) use (&$mails): void {
+            $mails += $e->channel === 'mail' ? 1 : 0;
+        });
+
+        $this->lancerLeJob();
+        $this->assertCount(0, $this->notificationsDe($user), 'aucune cloche sans e-mail');
+
+        $echec = false;
+        $this->lancerLeJob();
+        $this->assertCount(1, $this->notificationsDe($user));
+        $this->assertSame(1, $mails);
     }
 
     /** Le verrou de job : un passage mis en file pendant qu'un autre tient le verrou est abandonné. */

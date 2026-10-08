@@ -43,10 +43,22 @@ class SavedSearchResource extends BaseResource
 
         $via = (new SavedSearchMatchesNotification($this->resource, new Collection, 0))->via($user);
 
-        return array_map(fn (string $channel) => match ($channel) {
+        $canaux = array_map(fn (string $channel) => match ($channel) {
             'database' => PreferenceResolver::CHANNEL_INAPP,
             'mail' => PreferenceResolver::CHANNEL_EMAIL,
             default => $channel,
         }, $via);
+
+        // L'ordre d'ENVOI met la cloche en dernier (verif-599 m11) ; l'ordre AFFICHÉ reste le sien.
+        usort($canaux, fn (string $a, string $b) => $this->rang($a) <=> $this->rang($b));
+
+        return $canaux;
+    }
+
+    private function rang(string $canal): int
+    {
+        $rang = array_search($canal, [PreferenceResolver::CHANNEL_INAPP, PreferenceResolver::CHANNEL_EMAIL], true);
+
+        return $rang === false ? 2 : $rang;
     }
 }

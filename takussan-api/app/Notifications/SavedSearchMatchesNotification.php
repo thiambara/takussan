@@ -61,7 +61,9 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
     {
         if ($notifiable instanceof User) {
             $resolver = app(PreferenceResolver::class);
-            $channels = ['database'];
+            // La cloche en DERNIER (verif-599 m11) : un envoi qui échoue lève avant qu'elle soit
+            // écrite, la réservation est rendue, et la reprise ne la double pas.
+            $channels = [];
             if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
                 $channels[] = 'mail';
             }
@@ -69,6 +71,7 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
                 && $resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_WHATSAPP)) {
                 $channels[] = 'whatsapp';
             }
+            $channels[] = 'database';
 
             return $channels;
         }
