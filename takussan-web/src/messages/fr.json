@@ -1133,7 +1133,8 @@
         "deleteTitle": "Supprimer ce bien ?",
         "deleteBodyRow": "Le bien <b>{title}</b> sera archivé (soft-delete). Vous pourrez le restaurer depuis l’administration.",
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
       }
     },
     "visibility": {
@@ -5151,7 +5152,8 @@
       },
       "moderation": {
         "label": "Modération obligatoire avant publication",
-        "hint": "Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut « En attente de validation » jusqu'à l'approbation d'un administrateur, avant d'être visible publiquement."
+        "hint": "Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut « En attente de validation » jusqu'à l'approbation d'un administrateur, avant d'être visible publiquement.",
+        "notSaved": "Modifications enregistrées, sauf la modération obligatoire : l'API ne l'a pas prise en compte. La case affiche la valeur réellement enregistrée."
       },
       "submit": {
         "saving": "Enregistrement…"
@@ -5950,8 +5952,6 @@
       "colAge": "Âge",
       "colAction": "Action",
       "subjectUnavailable": "Sujet indisponible",
-      "typeProperty": "Bien",
-      "typeReview": "Avis",
       "statusFlagged": "Signalé",
       "statusPending": "En attente",
       "noAgency": "Sans agence",
@@ -5965,7 +5965,6 @@
       "statProperties": "Biens",
       "statReviews": "Avis",
       "staleWarning": "{count, plural, one {# item} other {# items}} de cette page attendent depuis plus de 7 jours.",
-      "ageToday": "Aujourd'hui",
       "ageOneDay": "1 jour",
       "ageDays": "{days} jours",
       "types": {
@@ -5988,7 +5987,68 @@
         "reject": "Rejeter",
         "remove": "Supprimer"
       },
-      "tableCaption": "File de modération cross-tenant"
+      "tableCaption": "File de modération cross-tenant",
+      "selectAll": "Sélectionner tous les éléments de la page",
+      "selectItem": "Sélectionner « {subject} »",
+      "sources": {
+        "property": "Bien à valider",
+        "property_report": "Signalement d'annonce",
+        "review": "Avis",
+        "suspected_duplicate": "Doublon soupçonné"
+      },
+      "suspicious": "Avis suspect",
+      "suspiciousHint": "Avis suspect : rafale d'avis, compte récent ou adresse partagée avec un autre auteur. Ce n'est qu'un indice.",
+      "colClaim": "Prise en charge",
+      "claimedBy": "Pris par {name} · {time}",
+      "claimedByYou": "Vous l'avez pris en charge",
+      "unclaimed": "Libre",
+      "claim": "Prendre en charge",
+      "release": "Rendre",
+      "ageLabel": "Dans la file depuis {age}",
+      "ageMinutes": "{minutes} min",
+      "ageHours": "{hours} h",
+      "duplicateSignal": {
+        "photo": "Même photo qu'une autre annonce (écart {distance})",
+        "address": "Même adresse, surface et prix qu'une autre annonce"
+      },
+      "duplicateOf": "Annonce d'origine : « {title} » ({agency})",
+      "reasonCode": "Motif",
+      "reasonCodePlaceholder": "Choisir un motif",
+      "decisionReasonRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
+      "decisionsByType": {
+        "property": {
+          "approve": "Approuver",
+          "reject": "Refuser"
+        },
+        "property_report": {
+          "hide": "Masquer l'annonce",
+          "remove": "Supprimer l'annonce",
+          "reject": "Classer le signalement"
+        },
+        "review": {
+          "approve": "Approuver l'avis",
+          "hide": "Masquer l'avis",
+          "remove": "Supprimer l'avis"
+        },
+        "suspected_duplicate": {
+          "hide": "Masquer l'annonce",
+          "reject": "Classer : pas un doublon"
+        }
+      },
+      "hideListingHint": "Masquer l'annonce la retire du site et la verrouille : l'agence ne peut plus la remettre en ligne, seule la plateforme le peut.",
+      "batchTitle": "Traitement en lot",
+      "batchSelected": "{count, plural, one {# élément sélectionné} other {# éléments sélectionnés}}",
+      "batchClear": "Tout désélectionner",
+      "batchNoCommonDecision": "Aucune décision n'est commune aux éléments sélectionnés.",
+      "batchDecision": "Décision",
+      "batchDecisionPlaceholder": "Choisir une décision",
+      "batchApply": "Appliquer à {count, plural, one {# élément} other {# éléments}}",
+      "batchResult": "{ok} traité(s), {failed} en échec.",
+      "batchErrors": {
+        "already_decided": "déjà tranché",
+        "claimed_by_other": "pris en charge par un autre modérateur",
+        "other": "refusé"
+      }
     },
     "properties": {
       "empty_title": "Aucun bien à afficher",

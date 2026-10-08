@@ -112,8 +112,15 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         }
         return result.data as Agency;
       },
-      onSuccess: () => {
-        setSuccessMessage(t('successSaved'));
+      // TCK-597 (§8) — la case « modération » RELIT la valeur rendue par l'API. Elle était envoyée
+      // et ignorée en silence (`AgencyUpdateRequest` ne la validait pas) : l'écran disait
+      // « enregistré » sur une valeur que la base n'avait jamais reçue.
+      onSuccess: (saved, values) => {
+        const persisted = saved?.moderation_required ?? false;
+        form.setValue('moderation_required', persisted, { shouldDirty: false });
+        setSuccessMessage(
+          persisted === values.moderation_required ? t('successSaved') : t('moderation.notSaved'),
+        );
         router.refresh();
       },
     });

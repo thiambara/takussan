@@ -1158,7 +1158,8 @@
         "deleteTitle": "Delete this property?",
         "deleteBodyRow": "The property <b>{title}</b> will be archived (soft-delete). You will be able to restore it from the admin area.",
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
       }
     },
     "visibility": {
@@ -5151,7 +5152,8 @@
       },
       "moderation": {
         "label": "Moderation required before publishing",
-        "hint": "When this option is enabled, every new property submitted by an agent is set to “Pending validation” until an administrator approves it, before it becomes publicly visible."
+        "hint": "When this option is enabled, every new property submitted by an agent is set to “Pending validation” until an administrator approves it, before it becomes publicly visible.",
+        "notSaved": "Changes saved, except mandatory moderation: the API did not apply it. The checkbox shows the value actually saved."
       },
       "submit": {
         "saving": "Saving…"
@@ -5950,8 +5952,6 @@
       "colAge": "Age",
       "colAction": "Action",
       "subjectUnavailable": "Subject unavailable",
-      "typeProperty": "Property",
-      "typeReview": "Review",
       "statusFlagged": "Flagged",
       "statusPending": "Pending",
       "noAgency": "No agency",
@@ -5965,7 +5965,6 @@
       "statProperties": "Properties",
       "statReviews": "Reviews",
       "staleWarning": "{count, plural, one {# item} other {# items}} on this page have been waiting for more than 7 days.",
-      "ageToday": "Today",
       "ageOneDay": "1 day",
       "ageDays": "{days} days",
       "types": {
@@ -5988,7 +5987,68 @@
         "reject": "Reject",
         "remove": "Delete"
       },
-      "tableCaption": "Cross-tenant moderation queue"
+      "tableCaption": "Cross-tenant moderation queue",
+      "selectAll": "Select every item on the page",
+      "selectItem": "Select “{subject}”",
+      "sources": {
+        "property": "Listing to approve",
+        "property_report": "Listing report",
+        "review": "Review",
+        "suspected_duplicate": "Suspected duplicate"
+      },
+      "suspicious": "Suspicious review",
+      "suspiciousHint": "Suspicious review: burst of reviews, recent account or address shared with another author. It is only a hint.",
+      "colClaim": "Claimed",
+      "claimedBy": "Claimed by {name} · {time}",
+      "claimedByYou": "You claimed it",
+      "unclaimed": "Free",
+      "claim": "Claim",
+      "release": "Release",
+      "ageLabel": "In the queue for {age}",
+      "ageMinutes": "{minutes} min",
+      "ageHours": "{hours} h",
+      "duplicateSignal": {
+        "photo": "Same photo as another listing (distance {distance})",
+        "address": "Same address, area and price as another listing"
+      },
+      "duplicateOf": "Original listing: “{title}” ({agency})",
+      "reasonCode": "Reason",
+      "reasonCodePlaceholder": "Choose a reason",
+      "decisionReasonRequired": "Describe the reason (required for “Other reason”)",
+      "decisionsByType": {
+        "property": {
+          "approve": "Approve",
+          "reject": "Refuse"
+        },
+        "property_report": {
+          "hide": "Hide the listing",
+          "remove": "Delete the listing",
+          "reject": "Dismiss the report"
+        },
+        "review": {
+          "approve": "Approve the review",
+          "hide": "Hide the review",
+          "remove": "Delete the review"
+        },
+        "suspected_duplicate": {
+          "hide": "Hide the listing",
+          "reject": "Dismiss: not a duplicate"
+        }
+      },
+      "hideListingHint": "Hiding the listing takes it off the site and locks it: the agency can no longer put it back online, only the platform can.",
+      "batchTitle": "Batch processing",
+      "batchSelected": "{count, plural, one {# item selected} other {# items selected}}",
+      "batchClear": "Clear selection",
+      "batchNoCommonDecision": "No decision is common to the selected items.",
+      "batchDecision": "Decision",
+      "batchDecisionPlaceholder": "Choose a decision",
+      "batchApply": "Apply to {count, plural, one {# item} other {# items}}",
+      "batchResult": "{ok} processed, {failed} failed.",
+      "batchErrors": {
+        "already_decided": "already decided",
+        "claimed_by_other": "claimed by another moderator",
+        "other": "refused"
+      }
     },
     "properties": {
       "empty_title": "No property to show",

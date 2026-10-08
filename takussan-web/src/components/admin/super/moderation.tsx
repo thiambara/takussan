@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, EyeOff, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, EyeOff, Hand, ShieldCheck, Sparkles, Trash2, XCircle } from 'lucide-react';
 import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 import { DataTable, FilterBar, StatCard, StatusBadge, type DataTableColumn } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
@@ -21,13 +21,29 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { WarningBanner } from '@/components/ui/warning-banner';
-import { postModerationDecision } from '@/lib/queries/super-admin';
+import {
+  claimModerationItem,
+  postModerationDecision,
+  postModerationDecisionBatch,
+  releaseModerationItem,
+} from '@/lib/queries/super-admin';
 import type {
   AdminModerationItem,
+  ModerationBatchResult,
   ModerationDecision,
+  ModerationDecisionPayload,
   ModerationItemStatus,
   ModerationItemType,
+  ModerationSourceType,
 } from '@/types/super-admin';
+import {
+  MODERATION_REASON_CODES,
+  reasonTextRequired,
+  type ModerationReasonCode,
+} from '@/lib/moderation-reasons';
+import { useAuth } from '@/context/AuthContext';
+import { formatDateTime } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -160,14 +176,42 @@ export function ModerationQueueTable({
   items,
   selectedId,
   onSelect,
+  checkedIds,
+  onToggleChecked,
 }: {
   items: AdminModerationItem[];
   selectedId: string | null;
   onSelect: (item: AdminModerationItem) => void;
+  /** TCK-597 — la sélection multiple, pour traiter le spam évident en lot. */
+  checkedIds: ReadonlySet<string>;
+  onToggleChecked: (ids: string[], checked: boolean) => void;
 }) {
   const t = useTranslations('superAdmin.moderation');
+  const locale = useLocale() as Locale;
+  const allChecked = items.length > 0 && items.every((item) => checkedIds.has(item.id));
 
   const columns: DataTableColumn<AdminModerationItem>[] = [
+    {
+      id: 'select',
+      header: (
+        <input
+          type="checkbox"
+          className="size-4 rounded border-input"
+          aria-label={t('selectAll')}
+          checked={allChecked}
+          onChange={(e) => onToggleChecked(items.map((item) => item.id), e.target.checked)}
+        />
+      ),
+      cell: (item) => (
+        <input
+          type="checkbox"
+          className="size-4 rounded border-input"
+          aria-label={t('selectItem', { subject: item.subject?.title ?? item.id })}
+          checked={checkedIds.has(item.id)}
+          onChange={(e) => onToggleChecked([item.id], e.target.checked)}
+        />
+      ),
+    },
     {
       id: 'subject',
       header: t('colSubject'),
@@ -191,11 +235,17 @@ export function ModerationQueueTable({
       cell: (item) => (
         <div className="flex flex-col items-start gap-1">
           <Badge variant={item.type === 'property' ? 'outline' : 'secondary'}>
-            {item.type === 'property' ? t('typeProperty') : t('typeReview')}
+            {t(`sources.${item.source_type}`)}
           </Badge>
           <span className="text-xs text-muted-foreground">
             {item.status === 'flagged' ? t('statusFlagged') : t('statusPending')}
           </span>
+          {item.suspicious ? (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+              <Sparkles className="size-3" aria-hidden="true" />
+              {t('suspicious')}
+            </span>
+          ) : null}
         </div>
       ),
     },
@@ -219,10 +269,26 @@ export function ModerationQueueTable({
       cell: (item) => <span className="line-clamp-2">{item.reason}</span>,
     },
     {
+      id: 'claim',
+      header: t('colClaim'),
+      className: 'min-w-32 text-xs',
+      cell: (item) => (item.claim && claimActive(item.claim) ? (
+        <span className="inline-flex items-center gap-1 text-foreground">
+          <Hand className="size-3" aria-hidden="true" />
+          {t('claimedBy', {
+            name: item.claim.by.name ?? '—',
+            time: item.claim.claimed_at ? formatDateTime(item.claim.claimed_at, locale) : '—',
+          })}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">{t('unclaimed')}</span>
+      )),
+    },
+    {
       id: 'age',
       header: t('colAge'),
       className: 'whitespace-nowrap tabular-nums text-muted-foreground',
-      cell: (item) => formatAge(item.reported_at, t),
+      cell: (item) => formatAge(item.age_minutes, t),
     },
     {
       id: 'action',
@@ -252,6 +318,93 @@ export function ModerationQueueTable({
   );
 }
 
+/** Une prise expirée ne tient plus personne : l'API la laisse reprendre. */
+function claimActive(claim: NonNullable<AdminModerationItem['claim']>): boolean {
+  return claim.expires_at === null || new Date(claim.expires_at).getTime() > Date.now();
+}
+
+const DECISION_ICONS: Record<ModerationDecision, ElementType> = {
+  approve: CheckCircle2,
+  hide: EyeOff,
+  reject: XCircle,
+  remove: Trash2,
+};
+
+const DECISION_VARIANTS: Record<ModerationDecision, 'outline' | 'destructive' | 'default'> = {
+  approve: 'default',
+  hide: 'outline',
+  reject: 'outline',
+  remove: 'destructive',
+};
+
+/** « Masquer l'annonce » pose le verrou plateforme : l'écran le dit (ADR-0043 §4). */
+function hidesListing(source: ModerationSourceType, decision: ModerationDecision): boolean {
+  return decision === 'hide' && (source === 'property_report' || source === 'suspected_duplicate');
+}
+
+/**
+ * Le motif d'une décision : un code choisi dans une liste traduite, et un complément libre
+ * facultatif — obligatoire pour « autre ». Partagé par la décision seule et la décision en lot.
+ */
+function ReasonFields({
+  idPrefix,
+  code,
+  onCode,
+  text,
+  onText,
+}: {
+  idPrefix: string;
+  code: ModerationReasonCode | '';
+  onCode: (code: ModerationReasonCode | '') => void;
+  text: string;
+  onText: (text: string) => void;
+}) {
+  const t = useTranslations('superAdmin.moderation');
+  const tReasons = useTranslations('common.moderationReasons');
+  const options = MODERATION_REASON_CODES.map((value) => ({ value, label: tReasons(value) }));
+  return (
+    <>
+      <label className="block space-y-2 text-sm font-medium text-foreground">
+        <span>{t('reasonCode')}</span>
+        <Select value={code} onValueChange={(v) => onCode((v as ModerationReasonCode | null) ?? '')} items={options}>
+          <SelectTrigger className="w-full bg-card" aria-label={t('reasonCode')}>
+            <SelectValue placeholder={t('reasonCodePlaceholder')} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <label htmlFor={`${idPrefix}-reason`} className="block space-y-2 text-sm font-medium text-foreground">
+        <span>{reasonTextRequired(code) ? t('decisionReasonRequired') : t('decisionReason')}</span>
+      </label>
+      <Textarea
+        id={`${idPrefix}-reason`}
+        value={text}
+        onChange={(event) => onText(event.target.value)}
+        placeholder={t('decisionReasonPlaceholder')}
+        rows={3}
+        maxLength={1000}
+      />
+    </>
+  );
+}
+
+function payloadOf(decision: ModerationDecision, code: ModerationReasonCode | '', text: string): ModerationDecisionPayload {
+  return decision === 'approve'
+    ? { decision, reason: text.trim() || undefined }
+    : { decision, reason_code: code || undefined, reason: text.trim() || undefined };
+}
+
+/** Le motif est complet : approuver n'en demande pas ; « autre » demande le texte. */
+function reasonComplete(decision: ModerationDecision, code: ModerationReasonCode | '', text: string): boolean {
+  if (decision === 'approve') return true;
+  if (code === '') return false;
+  return !reasonTextRequired(code) || text.trim().length > 0;
+}
+
 export function ModerationDecisionPanel({
   item,
   onDone,
@@ -260,17 +413,21 @@ export function ModerationDecisionPanel({
   onDone: () => void;
 }) {
   const t = useTranslations('superAdmin.moderation');
+  const locale = useLocale() as Locale;
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [code, setCode] = useState<ModerationReasonCode | ''>('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: ({ decision }: { decision: ModerationDecision }) => {
       if (!item) throw new Error(SENTINELLE_SANS_ITEM);
-      return postModerationDecision(item.id, { decision, reason: reason.trim() });
+      return postModerationDecision(item.id, payloadOf(decision, code, reason));
     },
     onSuccess: () => {
+      setCode('');
       setReason('');
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'moderation'] });
@@ -279,7 +436,20 @@ export function ModerationDecisionPanel({
     onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
-  const canSubmit = Boolean(item && reason.trim().length > 0 && !mutation.isPending);
+  // TCK-597 (ADR-0043 §7) — prendre en charge avant de lire : un second modérateur voit le nom
+  // et l'heure, et l'API lui refuse la décision tant que la prise court.
+  const claim = useMutation({
+    mutationFn: async (action: 'claim' | 'release'): Promise<void> => {
+      if (!item) throw new Error(SENTINELLE_SANS_ITEM);
+      if (action === 'claim') await claimModerationItem(item.id);
+      else await releaseModerationItem(item.id);
+    },
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'moderation'] });
+    },
+    onError: (err: ApiError) => setError(messageErreur(err)),
+  });
 
   if (!item) {
     return (
@@ -290,23 +460,21 @@ export function ModerationDecisionPanel({
     );
   }
 
-  const actions: Array<{ decision: ModerationDecision; label: string; icon: ElementType; variant?: 'outline' | 'destructive' | 'default' }> = [
-    { decision: 'approve', label: t('decisions.approve'), icon: CheckCircle2, variant: 'default' },
-    { decision: 'hide', label: t('decisions.hide'), icon: EyeOff, variant: 'outline' },
-    { decision: 'reject', label: t('decisions.reject'), icon: XCircle, variant: 'outline' },
-    { decision: 'remove', label: t('decisions.remove'), icon: Trash2, variant: 'destructive' },
-  ];
+  const heldClaim = item.claim && claimActive(item.claim) ? item.claim : null;
+  const mine = heldClaim !== null && heldClaim.by.id === user?.id;
+  const heldByOther = heldClaim !== null && !mine;
 
   return (
     <aside className="rounded-xl bg-card p-5 ring-1 ring-border" data-testid="moderation-decision-panel">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {t('decisionTitle')}
+            {t('decisionTitle')} · {t(`sources.${item.source_type}`)}
           </p>
           <h2 className="mt-1 font-display text-lg font-semibold text-foreground">
             {item.subject?.title ?? item.id}
           </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t('ageLabel', { age: formatAge(item.age_minutes, t) })}</p>
         </div>
         <StatusBadge
           tone={item.status === 'flagged' ? 'danger' : 'attention'}
@@ -318,37 +486,200 @@ export function ModerationDecisionPanel({
         {item.reason}
       </div>
 
-      <label className="mt-4 block space-y-2 text-sm font-medium text-foreground">
-        <span>{t('decisionReason')}</span>
-        <Textarea
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder={t('decisionReasonPlaceholder')}
-          rows={4}
-        />
-      </label>
+      {item.suspicious ? (
+        <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-destructive">
+          <Sparkles className="size-4" aria-hidden="true" />
+          {t('suspiciousHint')}
+        </p>
+      ) : null}
+
+      {item.duplicate ? (
+        <div className="mt-3 rounded-lg border border-border p-3 text-sm text-foreground" data-testid="moderation-duplicate">
+          <p className="inline-flex items-center gap-1.5 font-medium">
+            <Copy className="size-4" aria-hidden="true" />
+            {t(`duplicateSignal.${item.duplicate.signal}`, { distance: item.duplicate.distance ?? 0 })}
+          </p>
+          {item.duplicate.matched ? (
+            <p className="mt-1 text-muted-foreground">
+              {t('duplicateOf', {
+                title: item.duplicate.matched.title,
+                agency: item.duplicate.matched.agency ?? t('noAgency'),
+              })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid="moderation-claim">
+        {heldClaim ? (
+          <span className="inline-flex items-center gap-1.5 text-foreground">
+            <Hand className="size-4" aria-hidden="true" />
+            {mine
+              ? t('claimedByYou')
+              : t('claimedBy', {
+                name: heldClaim.by.name ?? '—',
+                time: heldClaim.claimed_at ? formatDateTime(heldClaim.claimed_at, locale) : '—',
+              })}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{t('unclaimed')}</span>
+        )}
+        {heldByOther ? null : (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={claim.isPending}
+            onClick={() => claim.mutate(mine ? 'release' : 'claim')}
+          >
+            {mine ? t('release') : t('claim')}
+          </Button>
+        )}
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <ReasonFields idPrefix={`decision-${item.id}`} code={code} onCode={setCode} text={reason} onText={setReason} />
+      </div>
 
       {error ? <ErrorState className="mt-3" message={error} /> : null}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {actions.map((action) => {
-          const Icon = action.icon;
+        {item.decisions.map((decision) => {
+          const Icon = DECISION_ICONS[decision];
           return (
             <Button
-              key={action.decision}
+              key={decision}
               type="button"
-              variant={action.variant}
-              disabled={!canSubmit}
-              onClick={() => mutation.mutate({ decision: action.decision })}
+              variant={DECISION_VARIANTS[decision]}
+              disabled={heldByOther || mutation.isPending || !reasonComplete(decision, code, reason)}
+              onClick={() => mutation.mutate({ decision })}
             >
               <Icon className="size-4" aria-hidden="true" />
-              {action.label}
+              {t(`decisionsByType.${item.source_type}.${decision}`)}
             </Button>
           );
         })}
       </div>
+      {item.decisions.some((decision) => hidesListing(item.source_type, decision)) ? (
+        <p className="mt-2 text-xs text-muted-foreground">{t('hideListingHint')}</p>
+      ) : null}
     </aside>
   );
+}
+
+/**
+ * TCK-597 (ADR-0043 §7) — traiter le spam évident en lot : une décision et un motif communs aux
+ * éléments cochés (au plus 50). Seules les décisions valides pour TOUS les cochés sont offertes ;
+ * l'API tranche chaque élément dans sa transaction et rend un résultat par élément.
+ */
+export function ModerationBatchBar({
+  items,
+  onDone,
+  onClear,
+}: {
+  items: AdminModerationItem[];
+  onDone: (results: ModerationBatchResult[]) => void;
+  onClear: () => void;
+}) {
+  const t = useTranslations('superAdmin.moderation');
+  const messageErreur = useMessageErreurApi();
+  const queryClient = useQueryClient();
+  const [decision, setDecision] = useState<ModerationDecision | ''>('');
+  const [code, setCode] = useState<ModerationReasonCode | ''>('');
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<ModerationBatchResult[] | null>(null);
+
+  const common = (['approve', 'hide', 'reject', 'remove'] as const).filter((d) =>
+    items.every((item) => item.decisions.includes(d)),
+  );
+  const chosen = decision !== '' && common.includes(decision) ? decision : '';
+
+  const mutation = useMutation({
+    mutationFn: () => postModerationDecisionBatch(
+      items.map((item) => item.id),
+      payloadOf(chosen as ModerationDecision, code, reason),
+    ),
+    onSuccess: (res) => {
+      setResults(res.data);
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'moderation'] });
+      onDone(res.data);
+    },
+    onError: (err: ApiError) => setError(messageErreur(err)),
+  });
+
+  if (items.length === 0 && results === null) return null;
+
+  const failed = results?.filter((r) => !r.ok) ?? [];
+  const decisionOptions = common.map((d) => ({ value: d, label: t(`decisions.${d}`) }));
+
+  return (
+    <section
+      className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-border"
+      aria-label={t('batchTitle')}
+      data-testid="moderation-batch-bar"
+    >
+      {results ? (
+        <div role="status" className="text-sm text-foreground">
+          {t('batchResult', { ok: results.length - failed.length, failed: failed.length })}
+          {failed.length > 0 ? (
+            <ul className="mt-1 list-inside list-disc text-xs text-muted-foreground">
+              {failed.map((r) => (
+                <li key={r.id}>{r.id} — {t(`batchErrors.${batchErrorKey(r.code)}`)}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+      {items.length > 0 ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-foreground">{t('batchSelected', { count: items.length })}</p>
+            <Button type="button" variant="ghost" size="sm" onClick={onClear}>{t('batchClear')}</Button>
+          </div>
+          {common.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('batchNoCommonDecision')}</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="block space-y-2 text-sm font-medium text-foreground">
+                <span>{t('batchDecision')}</span>
+                <Select value={chosen} onValueChange={(v) => setDecision((v as ModerationDecision | null) ?? '')} items={decisionOptions}>
+                  <SelectTrigger className="w-full bg-card" aria-label={t('batchDecision')}>
+                    <SelectValue placeholder={t('batchDecisionPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {decisionOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <div className="space-y-2">
+                <ReasonFields idPrefix="batch" code={code} onCode={setCode} text={reason} onText={setReason} />
+              </div>
+            </div>
+          )}
+          {error ? <ErrorState message={error} /> : null}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              disabled={chosen === '' || mutation.isPending || items.length > 50 || !reasonComplete(chosen as ModerationDecision, code, reason)}
+              onClick={() => mutation.mutate()}
+            >
+              {t('batchApply', { count: items.length })}
+            </Button>
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function batchErrorKey(code: string | undefined): 'already_decided' | 'claimed_by_other' | 'other' {
+  if (code === 'moderation.already_decided') return 'already_decided';
+  if (code === 'moderation.claimed_by_other') return 'claimed_by_other';
+  return 'other';
 }
 
 function FilterSelect({
@@ -386,7 +717,7 @@ export function ModerationStats({ items, total }: { items: AdminModerationItem[]
   const stats = useMemo(() => {
     const properties = items.filter((item) => item.type === 'property').length;
     const reviews = items.filter((item) => item.type === 'review').length;
-    const old = items.filter((item) => daysSince(item.reported_at) > 7).length;
+    const old = items.filter((item) => (item.age_minutes ?? 0) > 7 * MINUTES_PAR_JOUR).length;
     return { properties, reviews, old };
   }, [items]);
 
@@ -409,20 +740,20 @@ export function ModerationStats({ items, total }: { items: AdminModerationItem[]
   );
 }
 
+const MINUTES_PAR_JOUR = 1440;
+
+/**
+ * TCK-597 — l'âge vient du serveur (`age_minutes`), plus d'un `Date.now()` du navigateur contre
+ * une date : une horloge de poste décalée ne vieillit plus la file.
+ */
 export function formatAge(
-  value: string | null,
+  ageMinutes: number | null,
   t: (key: string, values?: Record<string, string | number>) => string,
 ): string {
-  const days = daysSince(value);
-  if (days < 0) return '—';
-  if (days === 0) return t('ageToday');
+  if (ageMinutes === null || ageMinutes < 0) return '—';
+  if (ageMinutes < 60) return t('ageMinutes', { minutes: ageMinutes });
+  if (ageMinutes < MINUTES_PAR_JOUR) return t('ageHours', { hours: Math.floor(ageMinutes / 60) });
+  const days = Math.floor(ageMinutes / MINUTES_PAR_JOUR);
   if (days === 1) return t('ageOneDay');
   return t('ageDays', { days });
-}
-
-function daysSince(value: string | null): number {
-  if (!value) return -1;
-  const timestamp = new Date(value).getTime();
-  if (Number.isNaN(timestamp)) return -1;
-  return Math.floor((Date.now() - timestamp) / 86_400_000);
 }
