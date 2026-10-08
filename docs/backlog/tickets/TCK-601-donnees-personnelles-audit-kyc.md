@@ -670,3 +670,26 @@ Et autour :
   `request()` relu dans le job → rouge ; agence non transmise au job → rouge ; expurgation retirée de
   la liste → rouge, de l'export → rouge ; segments d'identifiants vidés → rouge ; enfant retiré du
   rattrapage → rouge.
+
+### F — consultations et audit plateforme (back)
+
+- Appels `PersonalDataAccessLogger::record()` posés après les gardes : `Admin/UserDetailController`
+  (`show`, `sessions`, `activity` — ce dernier **après** la lecture, sinon la page montrait sa propre
+  trace et `UserDetailTest` comptait trois lignes au lieu de deux), `Admin/KycController` (`show`,
+  `agency`), `KycDocumentController` (un appel, coordination 546 ; sujet = le dossier, pour que la
+  trace porte l'agence ; deux pièces du même dossier dans la fenêtre comptent pour une).
+- **Step-up (raccord 589)** : `OwnerProfileController@sensitive` rejoint `ProtectedActions::STEP_UP`,
+  au même titre que la lecture des codes de secours — c'est une lecture de secret. Les autres routes
+  de 601 suivent le classement de 589 sans ajout : console (`/api/admin/*`) déjà sous 2FA, KYC
+  d'agence hors des familles protégées.
+- `GET /api/admin/audit/export` : mêmes filtres que l'index (QueryBuilder partagé), CSV écrit sur le
+  disque, lien signé d'une heure (route de téléchargement de l'export d'agence), plafond 50 000
+  lignes (`activity_log.export_too_large`), journalisé `export`/`audit_exported`.
+  `filter[sensitive]=1` lit `CrossTenantAuditController::SENSITIVE_LOG_NAMES`.
+- Tests : `PersonalDataAccessLogTest` 3/3, `CrossTenantAuditExportTest` 4/4, `OwnerProfileSensitiveDataTest`
+  7/7 (AC3 joué avec step-up : sans TOTP récent 403 `two_factor_step_up_required` et aucune trace ;
+  refus de policy `http.forbidden` pour l'agent et l'admin d'ailleurs, step-up fait), `Api/Admin/*`
+  et `KycDocumentAccessTest` 191/191. Ablations : trace du détail retirée → rouge ; du dossier (show)
+  → rouge ; du dossier (agence) → rouge ; de la pièce → rouge ; fenêtre de 15 min neutralisée →
+  rouge ; préréglage sensible vidé → 2 rouges ; expurgation de l'export retirée → rouge ; journal de
+  l'export retiré → rouge ; step-up retiré → rouge ; policy à `true` (step-up fait) → rouge.

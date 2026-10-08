@@ -62,6 +62,38 @@ class ActivityLogExporter
         ];
     }
 
+    /**
+     * TCK-601 (F) — les lignes d'une requête déjà filtrée et déjà bornée par l'appelant (l'audit de
+     * la console filtre par le QueryBuilder de son index), mises en forme comme l'export d'agence :
+     * mêmes colonnes, même expurgation.
+     *
+     * @return array{columns: list<string>, rows: list<array<string,mixed>>, filename: string}
+     */
+    public function payloadForQuery(Builder $query, string $filename): array
+    {
+        return [
+            'columns' => self::COLUMNS,
+            'rows' => $query->with('causer')->get()->map(fn (Activity $log) => $this->mapRow($log))->all(),
+            'filename' => $filename,
+        ];
+    }
+
+    /** Le CSV d'un export, BOM UTF-8 compris (Excel sous Windows), en mémoire. */
+    public function csvContent(array $payload): string
+    {
+        $handle = fopen('php://temp', 'w+b');
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, $payload['columns']);
+        foreach ($payload['rows'] as $row) {
+            fputcsv($handle, array_map(fn (string $col) => $row[$col] ?? '', $payload['columns']));
+        }
+        rewind($handle);
+        $content = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        return $content;
+    }
+
     private function baseQuery(User $user, array $filters, ?int $agencyId): Builder
     {
         $query = AuditScope::apply(Activity::query(), $user, $agencyId);

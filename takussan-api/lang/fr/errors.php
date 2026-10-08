@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'Le délai d\'annulation a expiré.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
         'export_link_invalid' => 'Lien expiré ou invalide.',
     ],
     'agency' => [

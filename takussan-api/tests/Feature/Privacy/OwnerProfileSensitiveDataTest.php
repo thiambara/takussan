@@ -127,6 +127,14 @@ class OwnerProfileSensitiveDataTest extends ApiTestCase
         $profile = $this->ownerOf($agency);
 
         $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        // TCK-589 × 601 — une lecture de secret : sans TOTP récent sur CE jeton, la garde refuse
+        // avant le contrôleur, et rien n'est journalisé (un refus n'est pas une consultation).
+        $this->apiGet("/api/owners/{$profile->id}/sensitive")
+            ->assertForbidden()
+            ->assertJsonPath('code', 'two_factor_step_up_required');
+        $this->assertSame(0, Activity::query()->where('log_name', PersonalDataAccessLogger::LOG_NAME)->count());
+
+        $this->actingAsWithStepUp($admin);
         $this->apiGet("/api/owners/{$profile->id}/sensitive")
             ->assertOk()
             ->assertJsonPath('data.rib', self::RIB)
@@ -141,11 +149,14 @@ class OwnerProfileSensitiveDataTest extends ApiTestCase
             ->where('subject_id', $profile->id)
             ->count());
 
-        $this->apiActingAsRole('agent', ['agency' => $agency]);
-        $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertForbidden();
+        // Les refus suivants sont ceux de la POLICY : chaque lecteur a la 2FA et un step-up frais,
+        // pour que la garde de second facteur ne réponde pas à sa place.
+        $agent = $this->apiActingAsRole('agent', ['agency' => $agency, 'two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
+        $this->actingAsWithStepUp($agent);
+        $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertForbidden()->assertJsonPath('code', 'http.forbidden');
 
-        $this->apiActingAsRole('agency_admin', ['agency' => Agency::factory()->create()]);
-        $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertForbidden();
+        $this->actingAsWithStepUp($this->apiActingAsRole('agency_admin', ['agency' => Agency::factory()->create()]));
+        $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertForbidden()->assertJsonPath('code', 'http.forbidden');
     }
 
     /** AC4 — l'archive du droit d'accès contient le RIB complet du titulaire. */

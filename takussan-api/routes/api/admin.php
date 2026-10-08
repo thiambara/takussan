@@ -144,6 +144,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // Cross-tenant audit log — no agency restriction (unlike AuditLogController).
     Route::get('audit', [CrossTenantAuditController::class, 'index'])
         ->name('admin.audit.index');
+    // TCK-601 (F) — même filtres que l'index (`filter[sensitive]=1` compris), CSV par lien signé.
+    Route::get('audit/export', [CrossTenantAuditController::class, 'export'])
+        ->name('admin.audit.export');
 
     Route::get('moderation', [ModerationQueueController::class, 'index'])
         ->name('admin.moderation.index');

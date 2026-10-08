@@ -16,6 +16,7 @@ return [
         'grace_expired' => 'The cancellation window has expired.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Too many rows to export: narrow the filters.',
         'export_link_invalid' => 'Expired or invalid link.',
     ],
     'agency' => [
