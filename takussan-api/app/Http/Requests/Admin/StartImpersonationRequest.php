@@ -28,6 +28,16 @@ class StartImpersonationRequest extends BaseFormRequest
         return $this->getInputSource()->all();
     }
 
+    /**
+     * Le parent normalise `input()` — query COMPRISE — et le réécrit dans le corps : le `reason`
+     * d'une URL réécrite y entrait avant que {@see validationData()} ne le lise. Ici, le corps seul.
+     */
+    protected function prepareForValidation(): void
+    {
+        $corps = $this->getInputSource();
+        $corps->replace($this->normalize($corps->all()));
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin\Platform;
 
 use App\Domain\Alerts\AlertableEvents;
 use App\Jobs\SendAdminAlert;
+use App\Models\Agency;
 use App\Models\AlertRule;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\PlatformPayout;
@@ -50,7 +51,10 @@ class AlertableEventsCatalogueTest extends TestCase
         $regle = AlertRule::create($this->ligne('super_admin_payout_approved'));
         $operateur = $this->operateur(PlatformProfileLevel::SuperAdmin);
 
-        app(PlatformPayoutService::class)->approve(PlatformPayout::factory()->create(), $operateur);
+        // L'agence payée est vérifiée : la fabrique tire `is_verified` au hasard (70 %), et TCK-594
+        // refuse d'approuver un reversement à une agence standard non vérifiée.
+        $payout = PlatformPayout::factory()->for(Agency::factory()->state(['is_verified' => true]))->create();
+        app(PlatformPayoutService::class)->approve($payout, $operateur);
 
         Queue::assertPushed(SendAdminAlert::class, 1);
         Queue::assertPushed(SendAdminAlert::class, fn (SendAdminAlert $job) => $job->ruleId === $regle->id);
