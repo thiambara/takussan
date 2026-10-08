@@ -22,7 +22,7 @@ class ClaimPropertyVisitRequest extends BaseFormRequest
 
         return $user !== null && $visit instanceof PropertyVisit && (
             $user->isSuperAdmin()
-            || PersonnelDeLAgence::estPersonnel($user, $visit->property?->agency_id)
+            || PersonnelDeLAgence::personnelActifDe($user, $visit->property?->agency_id)
         );
     }
 

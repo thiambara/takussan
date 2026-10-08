@@ -35,16 +35,16 @@ class PropertyVisitPolicy extends BasePolicy
         // d'agence que tant qu'il en est du personnel. La fiche client reste au seul personnel
         // ({@see PropertyVisitResource}).
         //
-        // Passe 4 (X1) — le personnel est jugé par LA définition du ticket,
-        // `PersonnelDeLAgence::estPersonnel` (compte joignable, puis `isStaffAt`) : par
-        // `isStaffOf`, un compte BLOQUÉ de l'agence lisait encore la visite et sa fiche.
+        // Passe 4 (X1) — le compte doit être joignable : par `isStaffOf`, un compte BLOQUÉ de
+        // l'agence lisait encore la visite et sa fiche. Passe 5 (X1′) — et l'agence est celle du
+        // PROFIL ACTIF (ADR-0031 §1) : `PersonnelDeLAgence::personnelActifDe`.
         return $user->isSuperAdmin()
             || $model->visitor_id === $user->id
             || ($model->agent_id === $user->id
                 && ($property === null || $property->agency_id === null
-                    || PersonnelDeLAgence::estPersonnel($user, $property->agency_id)))
+                    || PersonnelDeLAgence::personnelActifDe($user, $property->agency_id)))
             || ($property && PrimaryPropertyContact::estProprietaire($user, $property))
-            || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id))
+            || ($property && PersonnelDeLAgence::personnelActifDe($user, $property->agency_id))
             || ($model->customer && $model->customer->user_id === $user->id);
     }
 
@@ -65,11 +65,11 @@ class PropertyVisitPolicy extends BasePolicy
         // bailleur, actif ou bloqué, n'écrit plus une visite — `update`, `confirm`, `complete` et
         // `cancel` passent par `PropertyVisitController::agitPourLeBien`, réservé au personnel.
         // La branche `landlordWrites` ne décide donc plus que pour un bien sans agence.
-        // Passe 4 (X1) — le personnel, comme dans `view` : `estPersonnel`.
+        // Passes 4 et 5 (X1, X1′) — le personnel, comme dans `view` : `personnelActifDe`.
         return $user->isSuperAdmin()
             || $model->agent_id === $user->id
             || ($property && $this->landlordWrites($user, $property->user_id, $property->agency_id))
-            || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
+            || ($property && PersonnelDeLAgence::personnelActifDe($user, $property->agency_id));
     }
 
     /**

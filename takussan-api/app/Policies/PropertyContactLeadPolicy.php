@@ -57,7 +57,7 @@ class PropertyContactLeadPolicy extends BasePolicy
         $property = $lead->property_id !== null ? Property::query()->find($lead->property_id) : null;
 
         return $lead->agency_id === null
-            || PersonnelDeLAgence::estPersonnel($user, $lead->agency_id)
+            || PersonnelDeLAgence::personnelActifDe($user, $lead->agency_id)
             || ($property !== null && PrimaryPropertyContact::estProprietaire($user, $property));
     }
 
@@ -67,7 +67,8 @@ class PropertyContactLeadPolicy extends BasePolicy
      */
     public function scopeDestinataire(Builder $query, User $user): void
     {
-        $agences = PersonnelDeLAgence::agencesOuPersonnel($user);
+        // Passe 5 (X1′) — l'agence du profil actif seulement (ADR-0031 §1).
+        $agences = PersonnelDeLAgence::agencesOuPersonnelActif($user);
         $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
 
         $query->where('recipient_user_id', $user->id)
@@ -98,7 +99,7 @@ class PropertyContactLeadPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || ($agency !== null
-                && PersonnelDeLAgence::estPersonnel($user, $agency->id)
+                && PersonnelDeLAgence::personnelActifDe($user, $agency->id)
                 && $user->canActAt(Capability::CrmAssign, $agency));
     }
 
@@ -116,7 +117,7 @@ class PropertyContactLeadPolicy extends BasePolicy
 
     private function readsWholeAgency(User $user, mixed $agencyId): bool
     {
-        if ($agencyId === null || ! PersonnelDeLAgence::estPersonnel($user, $agencyId)) {
+        if ($agencyId === null || ! PersonnelDeLAgence::personnelActifDe($user, $agencyId)) {
             return false;
         }
 

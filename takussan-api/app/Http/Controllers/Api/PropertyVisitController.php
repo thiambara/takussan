@@ -51,10 +51,9 @@ class PropertyVisitController extends Controller
             $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
             // Passe 3 (M7′) — l'agent assigné ne lit la visite d'un bien d'agence que tant qu'il
             // est du personnel de cette agence : parti ou suspendu, il la perd, comme dans `view`.
-            // Passe 4 (X1) — et le personnel lit les visites des biens de SES agences par la même
-            // définition (`estPersonnel` : compte joignable) ; `staffAgencyId()` ignorait le
-            // compte bloqué.
-            $personnelDe = PersonnelDeLAgence::agencesOuPersonnel($user);
+            // Passe 4 (X1) — le compte doit être joignable ; passe 5 (X1′) — et l'agence est celle
+            // du profil actif (ADR-0031 §1) : `agencesOuPersonnelActif`, au plus une.
+            $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
             $request->attributes->set('visits.staff_agencies', $personnelDe);
 
             $base->where(function ($q) use ($user, $bailleurDe, $personnelDe) {
@@ -169,7 +168,7 @@ class PropertyVisitController extends Controller
 
         $agentId = array_key_exists('agent_id', $data) && $data['agent_id'] !== null
             ? (int) $data['agent_id']
-            : (PersonnelDeLAgence::estPersonnel($user, $property->agency_id) ? $user->id : null);
+            : (PersonnelDeLAgence::personnelActifDe($user, $property->agency_id) ? $user->id : null);
 
         $visitor = $customer?->user_id !== null ? User::query()->find($customer->user_id) : null;
 
@@ -420,7 +419,7 @@ class PropertyVisitController extends Controller
         $isAgent = $user->isSuperAdmin()
             || $visit->agent_id === $user->id
             || ($property && PrimaryPropertyContact::estProprietaire($user, $property))
-            || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
+            || ($property && PersonnelDeLAgence::personnelActifDe($user, $property->agency_id));
 
         if ($role === 'customer') {
             abort_code_unless($isCustomer, 403, 'visit.feedback_visitor_only');
@@ -505,7 +504,7 @@ class PropertyVisitController extends Controller
             return $visit->agent_id === $user->id;
         }
         if ($property->agency_id !== null) {
-            return PersonnelDeLAgence::estPersonnel($user, $property->agency_id);
+            return PersonnelDeLAgence::personnelActifDe($user, $property->agency_id);
         }
 
         return ($visit->agent_id === $user->id && PrimaryPropertyContact::joignable($user))

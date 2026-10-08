@@ -76,8 +76,8 @@ class PropertyVisitResource extends BaseResource
      * où le lecteur est personnel (`visits.staff_agencies`) : rien n'est relu ligne par ligne.
      * Ailleurs, le verdict est retenu par agence pour la requête.
      *
-     * Passe 4 (X1) — le personnel est jugé par `PersonnelDeLAgence::estPersonnel` (compte
-     * joignable, puis `isStaffAt`), la définition de `PropertyVisitPolicy::view`.
+     * Passes 4 et 5 (X1, X1′) — le personnel est jugé par `PersonnelDeLAgence::personnelActifDe`
+     * (compte joignable, agence du profil actif), la définition de `PropertyVisitPolicy::view`.
      */
     private function ficheClientLisible(Request $request): bool
     {
@@ -114,7 +114,7 @@ class PropertyVisitResource extends BaseResource
 
         $verdicts = $request->attributes->get('visits.staff_of', []);
         if (! array_key_exists((int) $agencyId, $verdicts)) {
-            $verdicts[(int) $agencyId] = PersonnelDeLAgence::estPersonnel($user, $agencyId);
+            $verdicts[(int) $agencyId] = PersonnelDeLAgence::personnelActifDe($user, $agencyId);
             $request->attributes->set('visits.staff_of', $verdicts);
         }
 

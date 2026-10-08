@@ -47,26 +47,38 @@ class PersonnelDeLAgence implements ValidationRule
     }
 
     /**
-     * Les agences où l'utilisateur est personnel actif — la même définition, en liste, pour une
-     * clause d'`index` : les agences candidates (profils et délégations), jugées une à une par
-     * {@see self::estPersonnel()}.
+     * TCK-590, passe 5 (X1′) — l'APPELANT agit-il ici en personnel : compte joignable, et cette
+     * agence est celle de son PROFIL ACTIF, où il est personnel (`staffAgencyId()`, ADR-0031 §1) ?
+     *
+     * C'est LE prédicat du lecteur et de l'acteur — lecture et écriture des visites, index, masque
+     * de la fiche client, boîte des demandes, planification, prise en charge. {@see self::estPersonnel()}
+     * juge un TIERS (l'agent qu'on attribue, le destinataire d'une notification, le contact
+     * principal) sur toutes ses agences ; appliqué à l'appelant, il ouvrait à un agent de X, sous
+     * son profil actif Y, les visites de X et leur fiche, que le CRM lui cache dans le même
+     * contexte.
+     */
+    public static function personnelActifDe(?User $user, mixed $agencyId): bool
+    {
+        if ($user === null || $agencyId === null || ! PrimaryPropertyContact::joignable($user)) {
+            return false;
+        }
+
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
+    }
+
+    /**
+     * La même règle, en liste, pour une clause d'`index` : l'agence du profil actif si l'appelant y
+     * est personnel et joignable, sinon aucune.
      *
      * @return list<int>
      */
-    public static function agencesOuPersonnel(User $user): array
+    public static function agencesOuPersonnelActif(User $user): array
     {
-        if (! PrimaryPropertyContact::joignable($user)) {
-            return [];
-        }
+        $staffAgencyId = PrimaryPropertyContact::joignable($user) ? $user->staffAgencyId() : null;
 
-        return $user->agentProfiles()->pluck('agency_id')
-            ->merge($user->agencyAdminProfiles()->pluck('agency_id'))
-            ->merge($user->roleDelegations()->pluck('agency_id'))
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->filter(fn (int $id) => self::estPersonnel($user, $id))
-            ->values()
-            ->all();
+        return $staffAgencyId !== null ? [$staffAgencyId] : [];
     }
 
     /**

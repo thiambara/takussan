@@ -76,7 +76,7 @@ class StorePropertyVisitRequest extends BaseFormRequest
 
         return $user !== null && $property !== null && (
             $user->isSuperAdmin()
-            || PersonnelDeLAgence::estPersonnel($user, $property->agency_id)
+            || PersonnelDeLAgence::personnelActifDe($user, $property->agency_id)
         );
     }
 
