@@ -108,6 +108,7 @@
       "other": "Autre"
     },
     "sidebar": {
+      "leads": "Demandes de contact",
       "dashboard": "Tableau de bord",
       "myProperties": "Mes biens",
       "publishProperty": "Publier un bien",
@@ -8636,6 +8637,167 @@
     },
     "otherDocuments": "Autres documents"
   },
+  "propertyContact": {
+    "whatsapp": {
+      "prefill": "Bonjour, je suis intéressé(e) par « {title} » vu sur Takussan : {url}"
+    },
+    "call": {
+      "cta": "Appeler",
+      "aria": "Appeler le contact de {title}",
+      "calling": "Appel…"
+    },
+    "errors": {
+      "title": "Contact indisponible",
+      "phone": "Le numéro n'a pas pu être récupéré. Réessayez dans un instant."
+    },
+    "share": {
+      "text": "{type} · {price} · {quarter} — {url}",
+      "textNoQuarter": "{type} · {price} — {url}",
+      "subject": "{type} sur Takussan"
+    },
+    "privacy": {
+      "notice": "Vos coordonnées ne servent qu’à traiter cette demande.",
+      "link": "Politique de confidentialité"
+    },
+    "lead": {
+      "phone": "Téléphone",
+      "contactRequired": "Indiquez un téléphone ou un e-mail pour qu’on puisse vous répondre.",
+      "phoneInvalid": "Ce numéro ne semble pas complet."
+    },
+    "visit": {
+      "nameLabel": "Votre nom",
+      "phoneLabel": "Téléphone",
+      "emailLabel": "E-mail",
+      "optional": "(facultatif)",
+      "nameRequired": "Indiquez votre nom.",
+      "phoneRequired": "Indiquez un numéro où l’agent peut vous joindre.",
+      "dakarTime": "heure de Dakar",
+      "slotTaken": "{time} — déjà pris",
+      "slotsLoading": "Chargement des créneaux…",
+      "slotsError": "Les créneaux n’ont pas pu être chargés.",
+      "noSlots": "Plus aucun créneau libre ce jour-là. Choisissez une autre date.",
+      "done": {
+        "title": "Demande envoyée",
+        "bodySms": "L’agent va confirmer le créneau du {when}. Vous recevrez un SMS au {phone} dès qu’il l’aura fait.",
+        "bodyAccount": "L’agent va confirmer le créneau du {when}. Vous serez prévenu(e) dans votre espace et par e-mail.",
+        "bodyEmail": "Un e-mail vous sera aussi envoyé à {email}.",
+        "close": "Fermer"
+      }
+    }
+  },
+  "contactLeads": {
+    "title": "Demandes de contact",
+    "description": "Les messages laissés sur le site public : à lire, à traiter, à transformer en client.",
+    "filters": {
+      "todo": "À traiter",
+      "handled": "Traitées",
+      "all": "Toutes"
+    },
+    "empty": {
+      "todo": "Aucune demande en attente.",
+      "handled": "Aucune demande traitée pour l’instant.",
+      "all": "Aucune demande reçue pour l’instant.",
+      "description": "Les demandes déposées sur vos biens et votre fiche d’agent arrivent ici."
+    },
+    "error": "Les demandes n’ont pas pu être chargées.",
+    "anonymous": "Visiteur",
+    "aboutProperty": "À propos de « {title} »",
+    "aboutAgent": "Contact direct",
+    "receivedAt": "Reçue le {date}",
+    "handledAt": "Traitée le {date}",
+    "source": "Arrivé par {source}",
+    "recipient": "Pour {name}",
+    "actions": {
+      "whatsapp": "WhatsApp",
+      "call": "Appeler",
+      "email": "E-mail",
+      "convert": "Convertir en client",
+      "openCustomer": "Voir la fiche client",
+      "handle": "Marquer traitée",
+      "assign": "Attribuer"
+    },
+    "whatsappReply": "Bonjour {name}, je fais suite à votre demande sur Takussan.",
+    "whatsappReplyProperty": "Bonjour {name}, je fais suite à votre demande sur Takussan au sujet de « {title} ».",
+    "assign": {
+      "title": "Attribuer la demande",
+      "description": "Le collègue choisi la reçoit et en est prévenu.",
+      "label": "Collègue",
+      "placeholder": "Choisir un collègue",
+      "submit": "Attribuer",
+      "cancel": "Annuler"
+    },
+    "toasts": {
+      "handled": "Demande marquée traitée.",
+      "converted": "Fiche client créée.",
+      "assigned": "Demande attribuée.",
+      "error": "L’action n’a pas abouti."
+    }
+  },
+  "visitPlanning": {
+    "unassigned": "Non attribuées",
+    "unassignedEmpty": "Aucune visite en attente d’un agent.",
+    "unassignedBadge": "Non attribuée",
+    "claim": "Prendre en charge",
+    "claimed": "Visite prise en charge.",
+    "claimConflict": "Un collègue l’a déjà prise en charge.",
+    "actionError": "L’action n’a pas abouti.",
+    "plan": {
+      "cta": "Planifier une visite",
+      "title": "Planifier une visite",
+      "description": "La visite est confirmée tout de suite et le client est prévenu.",
+      "property": "Bien",
+      "propertyPlaceholder": "Rechercher un bien",
+      "customer": "Client",
+      "customerPlaceholder": "Rechercher un client",
+      "noCustomer": "Pas encore client : nom et téléphone",
+      "name": "Nom du prospect",
+      "phone": "Téléphone",
+      "date": "Date",
+      "time": "Heure",
+      "dakarTime": "heure de Dakar",
+      "submit": "Planifier",
+      "cancel": "Annuler",
+      "success": "Visite planifiée et confirmée.",
+      "required": "Choisissez un bien, une date et une heure, puis un client ou un nom et un téléphone."
+    },
+    "propose": {
+      "cta": "Proposer un autre créneau",
+      "title": "Proposer un autre créneau",
+      "description": "La visite repasse en attente : l’agent confirme le nouveau créneau.",
+      "submit": "Proposer",
+      "success": "Nouveau créneau proposé."
+    },
+    "smsWithheld": {
+      "title": "Le SMS au visiteur n’est pas parti.",
+      "description": "La limite d’envoi vers ce numéro est atteinte. Prévenez le client par un autre moyen."
+    }
+  },
+  "publicLeadErrors": {
+    "contactUnavailable": "Personne ne peut recevoir de demande pour ce bien en ce moment : la vôtre n’a pas été envoyée. Réessayez plus tard."
+  },
+  "shareReception": {
+    "metaTitle": "Document partagé",
+    "title": "Document partagé avec vous",
+    "loading": "Ouverture du lien…",
+    "name": "Document",
+    "size": "Taille",
+    "expiresAt": "Disponible jusqu'au {date}",
+    "downloadsLeft": "{count, plural, one {# téléchargement restant} other {# téléchargements restants}}",
+    "download": "Télécharger",
+    "downloading": "Téléchargement…",
+    "downloadError": "Le téléchargement n'a pas abouti. Réessayez dans un instant.",
+    "passwordTitle": "Ce document est protégé",
+    "passwordHint": "Saisissez le mot de passe que l'expéditeur vous a communiqué.",
+    "passwordLabel": "Mot de passe",
+    "submit": "Ouvrir le document",
+    "wrongPassword": "Mot de passe incorrect.",
+    "goneTitle": "Ce lien n'est plus valide",
+    "goneDescription": "Il a expiré, a été révoqué, ou a atteint son nombre maximal de téléchargements. Demandez un nouveau lien à l'expéditeur.",
+    "notFoundTitle": "Lien introuvable",
+    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à l'expéditeur.",
+    "error": "Le document n'a pas pu être chargé. Réessayez dans un instant.",
+    "retry": "Réessayer"
+  },
   "notifications": {
     "codes": {
       "lease_payment": {
@@ -8700,6 +8862,30 @@
         "reminder": {
           "title": "Rappel de visite : {property}",
           "body": "Rappel : la visite de {property} est prévue le {scheduled_at}."
+        },
+        "requested": {
+          "title": "Demande de visite : {property}",
+          "body": "Créneau demandé : {scheduled_at}. Pour joindre le visiteur : {contact}."
+        },
+        "rescheduled_by_visitor": {
+          "title": "Autre créneau proposé : {property}",
+          "body": "Le visiteur propose le {scheduled_at}. La visite attend votre confirmation."
+        },
+        "cancelled_by_visitor": {
+          "title": "Visite annulée par le visiteur : {property}",
+          "body": "Le visiteur a annulé la visite prévue le {scheduled_at}."
+        },
+        "confirmed": {
+          "title": "Visite confirmée : {property}",
+          "body": "Votre visite de {property} est confirmée le {scheduled_at}."
+        },
+        "rescheduled": {
+          "title": "Votre visite de {property} change d'heure",
+          "body": "Nouvel horaire : {scheduled_at}."
+        },
+        "cancelled": {
+          "title": "Votre visite de {property} est annulée",
+          "body": "La visite prévue le {scheduled_at} est annulée."
         }
       },
       "message": {
@@ -8710,8 +8896,12 @@
       },
       "lead": {
         "received": {
-          "title": "Nouveau contact sans compte",
-          "body": "{name} ({email}) : {excerpt}"
+          "title": "Nouvelle demande de {name} — {contact}",
+          "body": "{name} ({contact}) : {message}"
+        },
+        "acknowledged": {
+          "title": "Votre demande a bien été transmise",
+          "body": "Votre demande concernant « {about} » a bien été transmise. Vous recevrez une réponse au plus vite, par téléphone ou par e-mail."
         }
       },
       "kyc": {
@@ -8841,28 +9031,5 @@
       "next": "Suivante",
       "pageOf": "Page {page} sur {last}"
     }
-  },
-  "shareReception": {
-    "metaTitle": "Document partagé",
-    "title": "Document partagé avec vous",
-    "loading": "Ouverture du lien…",
-    "name": "Document",
-    "size": "Taille",
-    "expiresAt": "Disponible jusqu'au {date}",
-    "downloadsLeft": "{count, plural, one {# téléchargement restant} other {# téléchargements restants}}",
-    "download": "Télécharger",
-    "downloading": "Téléchargement…",
-    "downloadError": "Le téléchargement n'a pas abouti. Réessayez dans un instant.",
-    "passwordTitle": "Ce document est protégé",
-    "passwordHint": "Saisissez le mot de passe que l'expéditeur vous a communiqué.",
-    "passwordLabel": "Mot de passe",
-    "submit": "Ouvrir le document",
-    "wrongPassword": "Mot de passe incorrect.",
-    "goneTitle": "Ce lien n'est plus valide",
-    "goneDescription": "Il a expiré, a été révoqué, ou a atteint son nombre maximal de téléchargements. Demandez un nouveau lien à l'expéditeur.",
-    "notFoundTitle": "Lien introuvable",
-    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à l'expéditeur.",
-    "error": "Le document n'a pas pu être chargé. Réessayez dans un instant.",
-    "retry": "Réessayer"
   }
 }

@@ -70,20 +70,20 @@ const ATTENDU: Record<string, string[]> = {
     '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/calendar',
+    '/app/visits', '/app/leads', '/app/calendar',
   ],
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
-    '/app/inventories', '/app/visits', '/app/calendar', '/app/leases/onboarding-pending',
+    '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
   ],
   agency_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin',
   ],
   super_admin: [
@@ -91,7 +91,7 @@ const ATTENDU: Record<string, string[]> = {
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin',
   ],
   // Son métier, et rien d'autre : interventions, messagerie, documents (§1.8 de features.md).

@@ -108,6 +108,7 @@
       "other": "Other"
     },
     "sidebar": {
+      "leads": "Contact requests",
       "dashboard": "Dashboard",
       "myProperties": "My properties",
       "publishProperty": "Publish a property",
@@ -8636,6 +8637,167 @@
     },
     "otherDocuments": "Other documents"
   },
+  "propertyContact": {
+    "whatsapp": {
+      "prefill": "Hello, I am interested in “{title}” seen on Takussan: {url}"
+    },
+    "call": {
+      "cta": "Call",
+      "aria": "Call the contact for {title}",
+      "calling": "Calling…"
+    },
+    "errors": {
+      "title": "Contact unavailable",
+      "phone": "The number could not be retrieved. Please try again in a moment."
+    },
+    "share": {
+      "text": "{type} · {price} · {quarter} — {url}",
+      "textNoQuarter": "{type} · {price} — {url}",
+      "subject": "{type} on Takussan"
+    },
+    "privacy": {
+      "notice": "Your details are only used to handle this request.",
+      "link": "Privacy policy"
+    },
+    "lead": {
+      "phone": "Phone",
+      "contactRequired": "Give a phone number or an email so we can reply.",
+      "phoneInvalid": "This number does not look complete."
+    },
+    "visit": {
+      "nameLabel": "Your name",
+      "phoneLabel": "Phone",
+      "emailLabel": "Email",
+      "optional": "(optional)",
+      "nameRequired": "Enter your name.",
+      "phoneRequired": "Enter a number where the agent can reach you.",
+      "dakarTime": "Dakar time",
+      "slotTaken": "{time} — taken",
+      "slotsLoading": "Loading time slots…",
+      "slotsError": "The time slots could not be loaded.",
+      "noSlots": "No free slot left on that day. Pick another date.",
+      "done": {
+        "title": "Request sent",
+        "bodySms": "The agent will confirm the slot on {when}. You will get a text message at {phone} as soon as they do.",
+        "bodyAccount": "The agent will confirm the slot on {when}. You will be notified in your account and by email.",
+        "bodyEmail": "An email will also be sent to {email}.",
+        "close": "Close"
+      }
+    }
+  },
+  "contactLeads": {
+    "title": "Contact requests",
+    "description": "Messages left on the public site: read them, handle them, turn them into clients.",
+    "filters": {
+      "todo": "To handle",
+      "handled": "Handled",
+      "all": "All"
+    },
+    "empty": {
+      "todo": "No request waiting.",
+      "handled": "No handled request yet.",
+      "all": "No request received yet.",
+      "description": "Requests left on your properties and your agent page arrive here."
+    },
+    "error": "The requests could not be loaded.",
+    "anonymous": "Visitor",
+    "aboutProperty": "About “{title}”",
+    "aboutAgent": "Direct contact",
+    "receivedAt": "Received on {date}",
+    "handledAt": "Handled on {date}",
+    "source": "Came from {source}",
+    "recipient": "For {name}",
+    "actions": {
+      "whatsapp": "WhatsApp",
+      "call": "Call",
+      "email": "Email",
+      "convert": "Convert to client",
+      "openCustomer": "Open client record",
+      "handle": "Mark as handled",
+      "assign": "Assign"
+    },
+    "whatsappReply": "Hello {name}, I am following up on your request on Takussan.",
+    "whatsappReplyProperty": "Hello {name}, I am following up on your request on Takussan about “{title}”.",
+    "assign": {
+      "title": "Assign the request",
+      "description": "The chosen colleague receives it and is notified.",
+      "label": "Colleague",
+      "placeholder": "Choose a colleague",
+      "submit": "Assign",
+      "cancel": "Cancel"
+    },
+    "toasts": {
+      "handled": "Request marked as handled.",
+      "converted": "Client record created.",
+      "assigned": "Request assigned.",
+      "error": "The action did not go through."
+    }
+  },
+  "visitPlanning": {
+    "unassigned": "Unassigned",
+    "unassignedEmpty": "No viewing waiting for an agent.",
+    "unassignedBadge": "Unassigned",
+    "claim": "Take it on",
+    "claimed": "Viewing taken on.",
+    "claimConflict": "A colleague has already taken it on.",
+    "actionError": "The action did not go through.",
+    "plan": {
+      "cta": "Schedule a viewing",
+      "title": "Schedule a viewing",
+      "description": "The viewing is confirmed right away and the client is notified.",
+      "property": "Property",
+      "propertyPlaceholder": "Search a property",
+      "customer": "Client",
+      "customerPlaceholder": "Search a client",
+      "noCustomer": "Not a client yet: name and phone",
+      "name": "Prospect name",
+      "phone": "Phone",
+      "date": "Date",
+      "time": "Time",
+      "dakarTime": "Dakar time",
+      "submit": "Schedule",
+      "cancel": "Cancel",
+      "success": "Viewing scheduled and confirmed.",
+      "required": "Pick a property, a date and a time, then a client or a name and a phone."
+    },
+    "propose": {
+      "cta": "Propose another slot",
+      "title": "Propose another slot",
+      "description": "The viewing goes back to pending: the agent confirms the new slot.",
+      "submit": "Propose",
+      "success": "New slot proposed."
+    },
+    "smsWithheld": {
+      "title": "The text message to the visitor was not sent.",
+      "description": "The sending limit for this number has been reached. Let the client know another way."
+    }
+  },
+  "publicLeadErrors": {
+    "contactUnavailable": "No one can receive requests for this property right now: yours was not sent. Please try again later."
+  },
+  "shareReception": {
+    "metaTitle": "Shared document",
+    "title": "A document shared with you",
+    "loading": "Opening the link…",
+    "name": "Document",
+    "size": "Size",
+    "expiresAt": "Available until {date}",
+    "downloadsLeft": "{count, plural, one {# download left} other {# downloads left}}",
+    "download": "Download",
+    "downloading": "Downloading…",
+    "downloadError": "The download did not complete. Please try again in a moment.",
+    "passwordTitle": "This document is protected",
+    "passwordHint": "Enter the password the sender gave you.",
+    "passwordLabel": "Password",
+    "submit": "Open the document",
+    "wrongPassword": "Incorrect password.",
+    "goneTitle": "This link is no longer valid",
+    "goneDescription": "It has expired, been revoked, or reached its maximum number of downloads. Ask the sender for a new link.",
+    "notFoundTitle": "Link not found",
+    "notFoundDescription": "Check the address you received, or ask the sender for a new link.",
+    "error": "The document could not be loaded. Please try again in a moment.",
+    "retry": "Try again"
+  },
   "notifications": {
     "codes": {
       "lease_payment": {
@@ -8700,6 +8862,30 @@
         "reminder": {
           "title": "Visit reminder: {property}",
           "body": "Reminder: the visit of {property} is scheduled for {scheduled_at}."
+        },
+        "requested": {
+          "title": "Visit request: {property}",
+          "body": "Requested slot: {scheduled_at}. To reach the visitor: {contact}."
+        },
+        "rescheduled_by_visitor": {
+          "title": "Another slot suggested: {property}",
+          "body": "The visitor suggests {scheduled_at}. The visit awaits your confirmation."
+        },
+        "cancelled_by_visitor": {
+          "title": "Visit cancelled by the visitor: {property}",
+          "body": "The visitor has cancelled the visit planned for {scheduled_at}."
+        },
+        "confirmed": {
+          "title": "Visit confirmed: {property}",
+          "body": "Your visit of {property} is confirmed for {scheduled_at}."
+        },
+        "rescheduled": {
+          "title": "Your visit of {property} has a new time",
+          "body": "New time: {scheduled_at}."
+        },
+        "cancelled": {
+          "title": "Your visit of {property} is cancelled",
+          "body": "The visit planned for {scheduled_at} is cancelled."
         }
       },
       "message": {
@@ -8710,8 +8896,12 @@
       },
       "lead": {
         "received": {
-          "title": "New contact without an account",
-          "body": "{name} ({email}): {excerpt}"
+          "title": "New request from {name} — {contact}",
+          "body": "{name} ({contact}): {message}"
+        },
+        "acknowledged": {
+          "title": "Your request has been sent",
+          "body": "Your request about “{about}” has been sent. You will hear back shortly, by phone or by email."
         }
       },
       "kyc": {
@@ -8841,28 +9031,5 @@
       "next": "Next",
       "pageOf": "Page {page} of {last}"
     }
-  },
-  "shareReception": {
-    "metaTitle": "Shared document",
-    "title": "A document shared with you",
-    "loading": "Opening the link…",
-    "name": "Document",
-    "size": "Size",
-    "expiresAt": "Available until {date}",
-    "downloadsLeft": "{count, plural, one {# download left} other {# downloads left}}",
-    "download": "Download",
-    "downloading": "Downloading…",
-    "downloadError": "The download did not complete. Please try again in a moment.",
-    "passwordTitle": "This document is protected",
-    "passwordHint": "Enter the password the sender gave you.",
-    "passwordLabel": "Password",
-    "submit": "Open the document",
-    "wrongPassword": "Incorrect password.",
-    "goneTitle": "This link is no longer valid",
-    "goneDescription": "It has expired, been revoked, or reached its maximum number of downloads. Ask the sender for a new link.",
-    "notFoundTitle": "Link not found",
-    "notFoundDescription": "Check the address you received, or ask the sender for a new link.",
-    "error": "The document could not be loaded. Please try again in a moment.",
-    "retry": "Try again"
   }
 }

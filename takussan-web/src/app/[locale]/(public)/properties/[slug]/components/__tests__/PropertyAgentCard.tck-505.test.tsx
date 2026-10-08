@@ -27,6 +27,8 @@ import { PropertyAgentCard } from '../PropertyAgentCard';
 vi.mock('@/components/contact/WhatsAppButton', () => ({
   WhatsAppButton: () => null,
 }));
+// TCK-590 — la carte signale ses erreurs par un toast : hors de son fournisseur, le hook lève.
+vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 
 const CONTACT: PropertyOwnerLite = {
   id: 2,

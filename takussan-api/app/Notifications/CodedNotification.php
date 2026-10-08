@@ -43,7 +43,16 @@ class CodedNotification extends Notification implements ShouldQueue, SupportsSms
         public readonly array $params,
         public readonly ?array $target = null,
         public readonly ?int $appNotificationId = null,
+        // TCK-590 — cf. {@see NotificationService::send()} : null, règles du code ; true, borné en
+        // amont (les canaux ne recomptent pas) ; false, aucun canal mobile.
+        public readonly ?bool $mobileBorne = null,
     ) {}
+
+    /** Le SMS a été borné au point d'envoi : les canaux mobiles ne le recomptent pas. */
+    public function mobileDejaBorne(): bool
+    {
+        return $this->mobileBorne === true;
+    }
 
     /**
      * @return list<string>
@@ -69,7 +78,7 @@ class CodedNotification extends Notification implements ShouldQueue, SupportsSms
             $channels[] = 'broadcast';
         }
         // Un seul canal mobile — WhatsApp s'il est permis, sinon SMS (TCK-282, AC5).
-        if ($this->code->mobile() && $event !== null) {
+        if ($this->code->mobile() && $event !== null && $this->mobileBorne !== false) {
             $mobile = $resolver->resolveMobileChannel($notifiable, $event);
             if ($mobile !== null) {
                 $channels[] = $mobile;
@@ -82,21 +91,35 @@ class CodedNotification extends Notification implements ShouldQueue, SupportsSms
     /**
      * Un contact sans compte : WhatsApp seulement s'il y a consenti (`opted_in`), sinon SMS.
      *
+     * TCK-590 — et l'e-mail qu'il a laissé. Le canal mobile ne part que pour un code mobile (un
+     * accusé de réception ne fait pas partir de SMS), et jamais quand l'appelant l'a retenu.
+     *
      * @return list<string>
      */
     private function contactChannels(object $notifiable): array
     {
-        $phone = $notifiable instanceof AnonymousNotifiable ? ($notifiable->routes['sms'] ?? null) : null;
-        if (! is_string($phone) || $phone === '') {
+        if (! $notifiable instanceof AnonymousNotifiable) {
             return [];
+        }
+
+        $channels = [];
+        $mail = $notifiable->routes['mail'] ?? null;
+        if (is_string($mail) && $mail !== '') {
+            $channels[] = 'mail';
+        }
+
+        $phone = $notifiable->routes['sms'] ?? null;
+        if (! $this->code->mobile() || $this->mobileBorne === false || ! is_string($phone) || $phone === '') {
+            return $channels;
         }
 
         $optedIn = WhatsappContact::query()
             ->where('phone', $phone)
             ->where('opt_in_status', WhatsappContact::OPT_IN_OPTED_IN)
             ->exists();
+        $channels[] = $optedIn ? 'whatsapp' : 'sms';
 
-        return [$optedIn ? 'whatsapp' : 'sms'];
+        return $channels;
     }
 
     private function render(object $notifiable, string $surface): string

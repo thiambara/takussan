@@ -147,6 +147,19 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         ->middleware('throttle:public-contact-lead')
         ->name('properties.contact-lead');
 
+    // ── TCK-590 ────────────────────────────────────────────────────────────────────────────
+    // Les créneaux d'une journée, heure de Dakar. Lecture publique : le groupe porte déjà
+    // `throttle:public-read`.
+    Route::get('properties/{slug}/visit-slots', [PublicPropertyController::class, 'visitSlots'])
+        ->name('properties.visit-slots');
+
+    // Un clic WhatsApp / Appeler, compté sans identité. Limiteur DÉDIÉ : un compteur ne doit pas
+    // consommer le crédit des demandes de contact, ni l'inverse.
+    Route::post('properties/{slug}/contact-click', [PublicPropertyController::class, 'contactClick'])
+        ->middleware('throttle:public-contact-click')
+        ->name('properties.contact-click');
+    // ── /TCK-590 ───────────────────────────────────────────────────────────────────────────
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('properties/{slug}/booking-request', [PublicPropertyController::class, 'bookingRequest'])
             ->name('properties.booking-request');

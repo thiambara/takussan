@@ -209,6 +209,12 @@ return [
         'not_transitionable' => 'Only a submitted KYC file can be reviewed.',
         'unknown_document_type' => 'Unknown KYC document type.',
     ],
+    'lead' => [
+        'already_converted' => 'This request has already been converted into a customer record.',
+        'contact_unavailable' => 'This property has no reachable contact at the moment. Your request was not sent.',
+        'not_convertible' => 'Only a request sent through the form can become a customer record.',
+        'without_agency' => 'This request is not linked to any agency: it cannot become a customer record.',
+    ],
     'lease' => [
         'cannot_terminate' => 'Only active or pending-signature leases can be terminated.',
         'guarantor_already_attached' => 'This guarantor is already attached to the lease.',
@@ -406,6 +412,7 @@ return [
     ],
     'visit' => [
         'active_limit_reached' => 'You already have :max active visits on this property. Cancel one before requesting another.',
+        'already_assigned' => 'This visit is already handled by another member of the agency.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
         'closed' => 'A completed or cancelled visit can no longer be changed.',
@@ -415,7 +422,10 @@ return [
         'feedback_window_closed' => 'The time to give feedback on this visit has passed.',
         'not_scheduled_confirm' => 'Only a scheduled visit can be confirmed.',
         'property_unavailable' => 'This property is not open for visits.',
+        'reassign_forbidden' => 'Changing the agent of an already assigned visit requires the assign right.',
+        'reschedule_inactive' => 'Only a pending or confirmed visit can change slot.',
         'slot_overlap' => 'Another confirmed visit already covers this slot on this property.',
+        'staff_only' => 'Only the staff of the property\'s agency can confirm, complete, cancel or move this visit.',
     ],
     'webhook' => [
         'ip_allowlist_not_configured' => 'The allowed address list is not configured.',

@@ -12,6 +12,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
@@ -163,9 +164,15 @@ class SendLeasePaymentRemindersTest extends TestCase
     {
         Carbon::setTestNow('2026-09-30 08:00:00');
         $agency = Agency::factory()->create();
+        $ailleurs = Agency::factory()->create();
         $agent = User::factory()->create();
         $idleAgent = User::factory()->create();
         $otherAgent = User::factory()->create();
+        // TCK-590 — le contact principal d'un bien d'agence est un membre de son PERSONNEL : un
+        // collaborateur sans profil dans l'agence n'en est pas un (`PrimaryPropertyContact`).
+        foreach ([[$agent, $agency], [$idleAgent, $agency], [$otherAgent, $ailleurs]] as [$membre, $agence]) {
+            AgentProfile::factory()->create(['user_id' => $membre->id, 'agency_id' => $agence->id]);
+        }
 
         $landlords = [User::factory()->create(), User::factory()->create()];
         $properties = [];
@@ -184,7 +191,7 @@ class SendLeasePaymentRemindersTest extends TestCase
         $this->payment(['due_date' => '2026-09-23'], null, ['property_id' => $properties[1]->id, 'landlord_id' => $landlords[1]->id]);
 
         // Un retard dans une autre agence.
-        $elsewhere = Property::factory()->create(['agency_id' => Agency::factory()->create()->id]);
+        $elsewhere = Property::factory()->create(['agency_id' => $ailleurs->id]);
         PropertyCollaborator::create(['property_id' => $elsewhere->id, 'user_id' => $otherAgent->id, 'role' => CollaboratorRole::Agent->value, 'invited_at' => now()]);
         $this->payment(['due_date' => '2026-09-29'], null, ['property_id' => $elsewhere->id]);
 
