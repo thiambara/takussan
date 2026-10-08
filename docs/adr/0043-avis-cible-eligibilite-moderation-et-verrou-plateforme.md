@@ -207,12 +207,19 @@ jetée sans erreur.
 
 `decide` verrouille la ligne source (`lockForUpdate`, piège PostgreSQL n° 2 : la ligne, jamais un
 agrégat), vérifie qu'elle est encore ouverte et qu'aucun autre modérateur ne la tient, sinon **409**.
+Pour un signalement ou une suspicion de doublon, **le bien se verrouille d'abord, puis la source** :
+c'est l'ordre de `resolveReport` (le bien, puis tous ses signalements ouverts). L'ordre inverse
+faisait se croiser deux décisions sur deux signalements du même bien, avec un interblocage 40P01 et
+un 500 (verif-597 M1). Un interblocage résiduel rend 409 `moderation.concurrent_decision`.
+
+Le motif est un **code** (`ModerationReasonCode`). Il voyage à part du texte libre jusque dans les
+notifications et se traduit au rendu, dans l'API comme dans le front (`moderation.reasons.<code>`,
+verif-597 m5) : le destinataire ne lit jamais le code brut.
 Prendre en charge un élément (`POST …/claim`) le réserve **10 minutes** (`moderation_claims`,
 `item_key` unique) ; une prise expirée ne protège plus rien. Les décisions valides dépendent du type
 d'élément — `property` : `approve`|`reject` ; `property_report` : `hide`|`remove`|`reject` ;
 `review` : `approve`|`hide`|`remove` ; `suspected_duplicate` : `hide`|`reject` — tout autre couple
-rend 422. Le motif est un **code** (`ModerationReasonCode`), traduit par le front ; le texte libre
-n'est requis que pour `other`.
+rend 422. Le texte libre n'est requis que pour `other`.
 
 ## Conséquences
 
