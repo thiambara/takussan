@@ -3,7 +3,6 @@
 namespace App\Services\Crm;
 
 use App\Models\Customer;
-use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\User;
@@ -15,11 +14,8 @@ use Spatie\Activitylog\Models\Activity;
 /**
  * TCK-083 — Compute the pipeline metrics shown on `/app/crm/pipeline`.
  *
- * Scope rule (kept aligned with `CustomerController::index`):
- *   - admin / super_admin → unrestricted
- *   - agency members → all customers belonging to their agency, plus
- *     legacy rows they personally added before agency_id was attached
- *   - everyone else → only customers they personally added
+ * Scope rule: `Customer::scopeVisibleTo()` (TCK-591 §9), shared with
+ * `CustomerController::index` — the rule of `CustomerPolicy::view`.
  *
  * Pipeline widgets represent active CRM prospects, so terminal/customer
  * lifecycle archives are excluded by Customer.status.
@@ -61,25 +57,10 @@ class PipelineStatsService
      */
     protected function scopedQuery(User $user): Builder
     {
-        $query = Customer::query()
+        // TCK-591 §9 — la portée de `CustomerController::index` (`Customer::scopeVisibleTo`).
+        return Customer::query()
+            ->visibleTo($user)
             ->where('status', CustomerStatus::Active);
-
-        if ($user->isSuperAdmin()) {
-            return $query;
-        }
-
-        // TCK-587 — même périmètre que `CustomerController::index` et `CustomerPolicy::view` : le
-        // CRM de l'agence pour le personnel tenant `crm.view_all`, ses propres clients sinon.
-        $staffAgencyId = $user->staffAgencyId();
-        if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
-            return $query->where(function (Builder $inner) use ($user, $staffAgencyId) {
-                $inner
-                    ->where('agency_id', $staffAgencyId)
-                    ->orWhere('added_by_id', $user->id);
-            });
-        }
-
-        return $query->where('added_by_id', $user->id);
     }
 
     /**

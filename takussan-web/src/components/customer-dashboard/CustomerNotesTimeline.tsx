@@ -13,6 +13,7 @@ import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { CustomerNote } from '@/types/customer';
 import { cn } from '@/lib/utils';
+import { noteBody } from '@/components/crm/noteBody';
 
 /**
  * Chronological note timeline — TCK-042.
@@ -33,6 +34,7 @@ export function CustomerNotesTimeline({
   const router = useRouter();
   const locale = useLocale() as Locale;
   const t = useTranslations('crm.customerDetail.notes');
+  const tNotes = useTranslations('agentCrm.notes');
   const [body, setBody] = useState('');
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +126,7 @@ export function CustomerNotesTimeline({
                   <Pin className="size-3.5 shrink-0 text-primary" role="img" aria-label={t('pinnedAria')} />
                 ) : null}
               </div>
-              <p className="whitespace-pre-line text-pretty text-sm leading-relaxed text-foreground">{note.body}</p>
+              <p className="whitespace-pre-line text-pretty text-sm leading-relaxed text-foreground">{noteBody(note, tNotes)}</p>
             </li>
           ))}
         </ol>

@@ -22,6 +22,14 @@ import type { Tag } from '@/types/tag';
  * Dashboard Agent — CRM server actions (TCK-042).
  */
 
+/** TCK-591 — une fiche de la même agence au même téléphone ou au même e-mail (409 `customer.duplicate`). */
+export interface CustomerDuplicateMatch {
+  /** `null` quand l'appelant ne peut pas lire cette fiche : on dit qu'elle existe, pas qui elle est. */
+  readonly id: number | null;
+  readonly name: string | null;
+  readonly matched_on: 'phone' | 'email';
+}
+
 type ActionResult<T = void> =
   | { ok: true; data?: T }
   | {
@@ -29,12 +37,23 @@ type ActionResult<T = void> =
       status?: number;
       message: string;
       errors?: Record<string, string[]>;
+      /** TCK-591 — présent sur un 409 `customer.duplicate` : le formulaire le présente comme une aide. */
+      duplicates?: CustomerDuplicateMatch[];
     };
+
+function duplicatesOf(e: ApiError): CustomerDuplicateMatch[] | undefined {
+  const data = e.data as { code?: unknown; existing?: unknown } | null;
+  if (e.status !== 409 || !data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) {
+    return undefined;
+  }
+  return data.existing as CustomerDuplicateMatch[];
+}
 
 async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
+  duplicates?: CustomerDuplicateMatch[];
 }> {
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
@@ -49,6 +68,7 @@ async function mapError(e: unknown): Promise<{
       status: e.status,
       message: messageErreurApi(e, tRacine, repli),
       errors: e.validationErrors,
+      duplicates: duplicatesOf(e),
     };
   }
   return { message: repli };

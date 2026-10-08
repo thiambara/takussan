@@ -76,6 +76,10 @@ enum NotificationCode: string
     case MaintenanceQuoteApproved = 'maintenance_quote.approved';
     case MaintenanceQuoteRejected = 'maintenance_quote.rejected';
 
+    // ─── CRM ───────────────────────────────────────────────────────────────────────────
+    /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
+    case ProspectMatchDigest = 'prospect_match.digest';
+
     // ─── Modération des biens (envoyés par leurs classes Notification) ──────────────────
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
@@ -123,6 +127,7 @@ enum NotificationCode: string
             self::PropertyApproved, self::PropertyRejected,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
+            self::ProspectMatchDigest => NotificationType::System,
         };
     }
 
@@ -149,7 +154,7 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             self::InvitationReceived, self::InvitationReminder => null,
@@ -198,6 +203,7 @@ enum NotificationCode: string
             self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
             // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
             self::AccountPhoneChanged => [],
+            self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
 

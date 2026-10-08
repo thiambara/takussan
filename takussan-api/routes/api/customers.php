@@ -16,6 +16,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/{customer}/relationships', [CustomerController::class, 'relationships'])->name('customers.relationships.index');
     Route::post('customers/{customer}/primary-contact', [CustomerController::class, 'setPrimaryContact'])->name('customers.primary-contact');
     Route::patch('customers/{customer}/pipeline-stage', [CustomerController::class, 'updatePipelineStage'])->name('customers.pipeline-stage');
+    // TCK-591 — le journal de la fiche (client, notes, tâches), autorisé par la lecture du client.
+    Route::get('customers/{customer}/activity', [CustomerController::class, 'activity'])->name('customers.activity');
 
     // Customer notes
     Route::get('customers/{customer}/notes', [CustomerNoteController::class, 'index'])->name('customer-notes.index');

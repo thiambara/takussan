@@ -83,6 +83,24 @@ const PALETTE_PAR_TYPE: Record<CalendarEventType, EventPalette> = {
     accent: 'bg-success',
     labelKey: 'eventStatus.lease',
   },
+  // TCK-591 — trois types de plus, trois jetons de plus. L'encre est `--foreground` : `--warning`
+  // et `--accent` ne sont pas des encres sur ces aplats (même raisonnement que `--primary`
+  // ci-dessus) ; la teinte vit dans l'aplat, la bordure et la pastille.
+  task: {
+    pill: 'bg-warning/10 text-foreground border-warning/40',
+    accent: 'bg-warning',
+    labelKey: 'eventStatus.confirmed',
+  },
+  lease_event: {
+    pill: 'bg-success/10 text-success border-success/30',
+    accent: 'bg-success',
+    labelKey: 'eventStatus.lease',
+  },
+  maintenance: {
+    pill: 'bg-accent/10 text-foreground border-accent/40',
+    accent: 'bg-accent',
+    labelKey: 'eventStatus.confirmed',
+  },
 };
 
 /** L'événement non traité — un ÉTAT, celui-là, et il écrase le type. */
@@ -108,9 +126,30 @@ export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): Event
   return pending ? PALETTE_EN_ATTENTE : paletteForType(event.type);
 }
 
-/** Clé i18n du type d'événement, relative au namespace `calendar` (cf. `labelKey`). */
-export function typeLabelKey(type: CalendarEvent['type']): string {
-  if (type === 'booking') return 'eventType.booking';
-  if (type === 'lease') return 'eventType.lease';
-  return 'eventType.visit';
+/**
+ * Chemin i18n COMPLET du libellé d'un type d'événement (singulier). TCK-591 : les trois types
+ * ajoutés vivent dans `agentCrm.calendar`, d'où un chemin depuis la racine et non une clé relative
+ * à `calendar` — l'appelant le résout avec `useTranslations()` sans namespace.
+ */
+export function typeLabelPath(type: CalendarEvent['type']): string {
+  switch (type) {
+    case 'booking': return 'calendar.eventType.booking';
+    case 'lease': return 'calendar.eventType.lease';
+    case 'task': return 'agentCrm.calendar.eventType.task';
+    case 'lease_event': return 'agentCrm.calendar.eventType.lease_event';
+    case 'maintenance': return 'agentCrm.calendar.eventType.maintenance';
+    default: return 'calendar.eventType.visit';
+  }
+}
+
+/** Libellé pluriel (filtres, légende) et aide de légende d'un type — chemins depuis la racine. */
+export function typeLegendPaths(type: CalendarEventType): { label: string; helper: string } {
+  switch (type) {
+    case 'booking':
+    case 'visit':
+    case 'lease':
+      return { label: `calendar.types.${type}`, helper: `calendar.legend.helper.${type}` };
+    default:
+      return { label: `agentCrm.calendar.types.${type}`, helper: `agentCrm.calendar.helper.${type}` };
+  }
 }

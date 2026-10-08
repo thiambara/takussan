@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
@@ -13,11 +14,26 @@ class CustomerCrmTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * TCK-591 — le référent est du personnel de l'agence du client, et le désigner exige
+     * `crm.assign` : le jeu pose donc une agence et deux agents (il désignait un compte quelconque).
+     *
+     * @return array{0: User, 1: Agency}
+     */
+    private function agentInAgency(?Agency $agency = null): array
+    {
+        $agency ??= Agency::factory()->create();
+        $user = User::factory()->create();
+        $this->materializeRoleProfile($user, 'agent', $agency);
+
+        return [$user, $agency];
+    }
+
     public function test_set_primary_contact(): void
     {
-        $user = User::factory()->create();
-        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
-        $agent = User::factory()->create();
+        [$user, $agency] = $this->agentInAgency();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id, 'agency_id' => $agency->id]);
+        [$agent] = $this->agentInAgency($agency);
 
         Sanctum::actingAs($user);
 
@@ -35,10 +51,10 @@ class CustomerCrmTest extends TestCase
 
     public function test_set_primary_contact_resets_previous(): void
     {
-        $user = User::factory()->create();
-        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
-        $agent1 = User::factory()->create();
-        $agent2 = User::factory()->create();
+        [$user, $agency] = $this->agentInAgency();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id, 'agency_id' => $agency->id]);
+        [$agent1] = $this->agentInAgency($agency);
+        [$agent2] = $this->agentInAgency($agency);
 
         // First set agent1 as primary
         UserCustomerRelationship::create([

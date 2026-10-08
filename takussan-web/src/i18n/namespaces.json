@@ -71,6 +71,7 @@
     "(dashboard)/app": [
       "account",
       "agency",
+      "agentCrm",
       "agentWelcome",
       "announcements",
       "auth",
@@ -116,6 +117,7 @@
       "admin",
       "adminSettings",
       "agency",
+      "agentCrm",
       "announcements",
       "auth",
       "billing",
@@ -188,14 +190,14 @@
     ]
   },
   "plafondsPourcent": {
-    ".": 15,
-    "(auth)": 18,
-    "publish": 19,
-    "onboarding": 49,
-    "(dashboard)": 19,
-    "(dashboard)/app": 72,
-    "(dashboard)/admin": 60,
-    "[locale]/(public)": 39,
-    "(super-admin)/super-admin": 47
+    ".": 14,
+    "(auth)": 17,
+    "publish": 18,
+    "onboarding": 48,
+    "(dashboard)": 18,
+    "(dashboard)/app": 73,
+    "(dashboard)/admin": 64,
+    "[locale]/(public)": 37,
+    "(super-admin)/super-admin": 43
   }
 }

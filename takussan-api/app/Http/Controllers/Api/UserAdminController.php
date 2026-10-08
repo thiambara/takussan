@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\CalendarFeed;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
@@ -80,6 +81,9 @@ class UserAdminController extends Controller
 
         $user->update(['status' => UserStatus::Blocked]);
         $user->tokens()->delete();
+        // TCK-591 (verif-591 M4) — un lien d'agenda est une méthode d'authentification (ADR-0034) :
+        // bloquer le compte le coupe aussi, comme les jetons.
+        CalendarFeed::query()->active()->where('user_id', $user->id)->update(['revoked_at' => now()]);
 
         return $this->json(['data' => ['id' => $user->id, 'status' => $user->status]]);
     }

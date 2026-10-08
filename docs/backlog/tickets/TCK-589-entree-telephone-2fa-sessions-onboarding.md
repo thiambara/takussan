@@ -2139,3 +2139,37 @@ que leur SMS part.
 - **« Application »** cite `PhoneChangeGuard`, `PhoneChangeProofTest` et
   `PhoneChangeNoticeTest`.
 - Toutes les gardes racine passent.
+
+#### Fusion d'`origin/dev` après TCK-591 (PR #332, `f6a2a868`)
+
+**Conflits textuels :**
+- `NotificationCode` : les deux côtés sont gardés. Côté 589, les invitations et
+  `AccountPhoneChanged` ; côté 591, `ProspectMatchDigest`, dans `type()` et `params()`.
+- `docs/adr/README.md` : les deux côtés sont gardés, 0033 puis 0034 à 0036.
+- `docs/backlog/INDEX.md` : régénéré (`gen-index`). `check-backlog` donne 547.
+- `takussan-web/src/i18n/namespaces.json` : c'est une table dérivée, régénérée par
+  `check-i18n-namespaces --update`. Les plafonds dépassent ceux de `dev` d'un à trois points, et
+  `onboarding` de dix. L'écart vient des espaces que la branche ajoutait déjà (`auth` au tableau
+  de bord, `admin` à l'onboarding), combinés à `agentCrm` de 591. Aucun espace n'est relevé à
+  l'aveugle.
+
+**Conflits de sens.** Des tests de 591 faisaient agir, **sans second facteur**, des acteurs sur
+des gestes que 589 protège :
+- l'admin d'agence de `AgencyMemberRemovalTest`, `AgentHandoverTest`, `AgentAbsenceTest` et
+  `AgentRemovalJournalTest`, sur `DELETE agencies/{a}/members/{u}` (`removeAgent`) et
+  `DELETE profiles/{p}`, qui renvoyaient 403 `two_factor_required`. Leur fabrique d'admin porte
+  désormais la 2FA, et l'objet de chaque test est gardé ;
+- le super-admin de `CalendarFeedTest::test_blocking_the_account_kills_its_feed`, sur
+  `users/{u}/block`, qui exige la 2FA **et** le step-up depuis la console. Il passe désormais
+  par `actingAsWithStepUp`.
+
+**Exécutions** (`composer dump-autoload` fait) :
+- API : `tests/Feature/Auth` (dont `ProtectedActionsCoverageTest`), `Api/Me`, `Notifications`,
+  `Onboarding`, `tests/Unit/Lang`, `ProseLitteraleInterditeTest` et les 22 fichiers de test
+  apportés par la fusion donnent 676 verts.
+- Front : vitest sur `profile`, `actions`, `auth`, `notifications` et `src/lib/__tests__` donne
+  951 verts.
+- eslint et `tsc` sont propres.
+- `check-i18n` est à parité (6359 clés), et `check-i18n-namespaces` est propre.
+- Toutes les gardes racine passent, ainsi que `gen-index --check`, `check-backlog` et
+  `gen-features-by-actor --check`.

@@ -4,6 +4,7 @@ export interface PipelineCustomerCard {
   id: number;
   first_name: string;
   last_name: string;
+  phone?: string | null;
   pipeline_stage: CustomerPipelineStage;
   updated_at: string;
   created_at: string;

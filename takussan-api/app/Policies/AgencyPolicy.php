@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
 
@@ -54,5 +55,22 @@ class AgencyPolicy
 
         return $user->activeProfile()?->agency_id === $agency->id
             && $user->isAgencyAdminAt((int) $agency->id);
+    }
+
+    /**
+     * TCK-591 §8 — retirer un membre de l'équipe : la capacité `team.remove` DANS l'agence de la
+     * route, sous le profil actif de cette agence (contrat strict TCK-146, cf. le docblock de la
+     * classe), plus le court-circuit de l'administrateur principal, qui ne peut pas s'enfermer
+     * dehors par l'édition d'un rôle. Elle remplace `update` : un admin dont le rôle retire
+     * `team.remove` ne retire plus, un agent dont le rôle l'accorde retire.
+     */
+    public function removeMember(User $user, Agency $agency): bool
+    {
+        if ($user->isSuperAdmin() || $agency->primary_admin_id === $user->id) {
+            return true;
+        }
+
+        return $user->activeProfile()?->agency_id === $agency->id
+            && $user->canActAt(Capability::TeamRemove, $agency);
     }
 }
