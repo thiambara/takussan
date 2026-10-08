@@ -6616,15 +6616,21 @@
         },
         "suspend": {
           "title": "Suspendre l’agence",
-          "description": "L’agence sera bloquée. Ses utilisateurs perdent l’accès aux fonctionnalités produits.",
+          "description": "Ses annonces quittent le site et son équipe passe en lecture seule. Les paiements des locataires continuent ; ses admins sont prévenus, avec votre motif.",
           "label": "Suspendre"
         },
         "unverify": {
           "title": "Retirer la vérification",
           "description": "L’agence reviendra en statut Inactive et perdra son badge vérifié.",
           "label": "Dévérifier"
+        },
+        "reinstate": {
+          "title": "Lever la suspension",
+          "description": "L’agence redevient active : ses annonces reviennent sur le site et son équipe retrouve l’écriture. Sa vérification ne change pas ; ses admins sont prévenus.",
+          "label": "Lever la suspension"
         }
-      }
+      },
+      "reasonLabel": "Motif (transmis aux admins de l’agence)"
     },
     "agencyDetail": {
       "loadError": "Impossible de charger cette agence.",
@@ -6651,13 +6657,18 @@
         },
         "suspend": {
           "title": "Suspendre l’agence",
-          "description": "L’agence sera suspendue dans toute la plateforme.",
+          "description": "Ses annonces quittent le site et son équipe passe en lecture seule. Les paiements des locataires continuent ; ses admins sont prévenus, avec votre motif.",
           "label": "Suspendre"
         },
         "unverify": {
           "title": "Retirer la vérification",
           "description": "L’agence perdra son badge vérifié et repassera inactive.",
           "label": "Dévérifier"
+        },
+        "reinstate": {
+          "title": "Lever la suspension",
+          "description": "L’agence redevient active : ses annonces reviennent sur le site et son équipe retrouve l’écriture. Sa vérification ne change pas ; ses admins sont prévenus.",
+          "label": "Lever la suspension"
         }
       },
       "health": {
@@ -6682,7 +6693,12 @@
         "revenue30d": "Revenu 30 jours",
         "lastPayment": "Dernier paiement"
       },
-      "backToList": "Retour aux agences"
+      "backToList": "Retour aux agences",
+      "reasonLabel": "Motif (transmis aux admins de l’agence)",
+      "suspension": {
+        "since": "Suspendue le {date}",
+        "reason": "Motif : {reason}"
+      }
     },
     "pages": {
       "shared": {
@@ -9082,6 +9098,12 @@
       "unknownEnd": "l'échéance",
       "leave": "Quitter",
       "leaving": "Sortie…"
+    }
+  },
+  "agencySuspension": {
+    "banner": {
+      "title": "Agence suspendue par la plateforme : lecture seule.",
+      "body": "Vos données restent consultables et exportables ; aucune modification n’est possible tant que la suspension dure."
     }
   }
 }

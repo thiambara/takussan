@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface ConfirmActionDialogProps {
   open: boolean;
@@ -23,7 +25,15 @@ interface ConfirmActionDialogProps {
   confirmLabel: string;
   destructive?: boolean;
   pending?: boolean;
-  onConfirm: () => void;
+  /**
+   * TCK-600 — un geste lourd (suspendre, lever, bloquer, effacer, retirer un opérateur) exige un
+   * MOTIF : le bouton reste inactif tant qu'il est vide, et `onConfirm` le reçoit, rogné. Sans
+   * cette prop, aucun champ, et `onConfirm` reçoit `''`.
+   */
+  reason?: { label: string; maxLength?: number };
+  /** L'échec de l'API, affiché DANS la modale : la fermer l'aurait fait disparaître sans un mot. */
+  error?: unknown;
+  onConfirm: (reason: string) => void;
 }
 
 /**
@@ -40,20 +50,28 @@ export function ConfirmActionDialog({
   confirmLabel,
   destructive = false,
   pending = false,
+  reason,
+  error,
   onConfirm,
 }: ConfirmActionDialogProps) {
   const t = useTranslations('superAdmin.confirmDialog');
   const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const [typed, setTyped] = useState('');
+  const [motif, setMotif] = useState('');
   const inputId = useId();
-  const enabled = typed.trim() === confirmPhrase;
+  const reasonId = useId();
+  const enabled = typed.trim() === confirmPhrase && (!reason || motif.trim().length > 0);
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
         onOpenChange(o);
-        if (!o) setTyped('');
+        if (!o) {
+          setTyped('');
+          setMotif('');
+        }
       }}
     >
       <DialogContent>
@@ -61,6 +79,20 @@ export function ConfirmActionDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {reason ? (
+          <div className="space-y-2">
+            <label htmlFor={reasonId} className="block text-xs font-semibold text-muted-foreground">
+              {reason.label}
+            </label>
+            <Textarea
+              id={reasonId}
+              value={motif}
+              maxLength={reason.maxLength ?? 1000}
+              onChange={(e) => setMotif(e.target.value)}
+              data-testid="confirm-action-reason"
+            />
+          </div>
+        ) : null}
         <div className="space-y-2">
           {/* Le libellé est RELIÉ au champ (il ne l'était pas), et le champ est la primitive du DS :
               l'`<input>` nu n'avait ni fond de jeton ni anneau de focus visible. */}
@@ -78,6 +110,11 @@ export function ConfirmActionDialog({
             spellCheck={false}
           />
         </div>
+        {error ? (
+          <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            {messageErreur(error)}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
             type="button"
@@ -92,7 +129,7 @@ export function ConfirmActionDialog({
             data-testid="confirm-action-submit"
             disabled={!enabled || pending}
             variant={destructive ? 'destructive' : 'default'}
-            onClick={onConfirm}
+            onClick={() => onConfirm(reason ? motif.trim() : '')}
           >
             {pending ? t('pending') : confirmLabel}
           </Button>

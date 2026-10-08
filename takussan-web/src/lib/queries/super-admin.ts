@@ -277,13 +277,22 @@ export async function cancelAdminAgencySubscription(agencyId: number): Promise<A
   return jsonOrThrow<AgencySubscriptionResponse>(res);
 }
 
+export type AgencyModerationAction = 'verify' | 'suspend' | 'unverify' | 'reinstate';
+
+/**
+ * TCK-600 (ADR-0048) — `suspend` et `reinstate` exigent un motif (422 sans) : il part dans le
+ * corps, l'API le journalise et le transmet aux admins de l'agence.
+ */
 export async function postAgencyAction(
   agencyId: number,
-  action: 'verify' | 'suspend' | 'unverify',
+  action: AgencyModerationAction,
+  reason?: string,
 ): Promise<unknown> {
   const res = await fetch(`/api/super-admin/agencies/${agencyId}/${action}`, {
     method: 'POST',
     credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reason ? { reason } : {}),
   });
   return jsonOrThrow<unknown>(res);
 }

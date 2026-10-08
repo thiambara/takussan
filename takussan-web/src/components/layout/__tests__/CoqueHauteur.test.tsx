@@ -19,6 +19,7 @@ import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
@@ -114,7 +115,7 @@ const COQUES: ReadonlyArray<readonly [string, React.ReactNode]> = [
   ],
   [
     'SuperAdminShell',
-    <SuperAdminShell key='super' user={user}>
+    <SuperAdminShell key='super' user={user} abilities={SUPER_ADMIN}>
       <p>contenu</p>
     </SuperAdminShell>,
   ],
@@ -156,4 +157,19 @@ describe('TCK-503 — hauteur des coques de tableau de bord', () => {
       expect(main).toHaveClass('flex-1');
     },
   );
+});
+
+// TCK-600 — ici parce que ce fichier monte déjà `AppShell` avec tous ses voisins neutralisés.
+describe('AppShell — bandeau de suspension de l’agence (TCK-600)', () => {
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])('agencySuspended=%s → %i bandeau', (agencySuspended, attendus) => {
+    const coque = monter(
+      <AppShell user={user} agencySuspended={agencySuspended}>
+        <p>contenu</p>
+      </AppShell>,
+    );
+    expect(coque.querySelectorAll('[data-testid="agency-suspended-banner"]')).toHaveLength(attendus);
+  });
 });

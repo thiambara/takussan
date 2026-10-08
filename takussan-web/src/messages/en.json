@@ -6616,15 +6616,21 @@
         },
         "suspend": {
           "title": "Suspend the agency",
-          "description": "The agency will be blocked. Its users lose access to product features.",
+          "description": "Its listings leave the site and its team becomes read-only. Tenant payments continue; its admins are notified, with your reason.",
           "label": "Suspend"
         },
         "unverify": {
           "title": "Remove verification",
           "description": "The agency will return to Inactive status and lose its verified badge.",
           "label": "Unverify"
+        },
+        "reinstate": {
+          "title": "Lift the suspension",
+          "description": "The agency becomes active again: its listings return to the site and its team can write again. Its verification is unchanged; its admins are notified.",
+          "label": "Lift the suspension"
         }
-      }
+      },
+      "reasonLabel": "Reason (sent to the agency admins)"
     },
     "agencyDetail": {
       "loadError": "Unable to load this agency.",
@@ -6651,13 +6657,18 @@
         },
         "suspend": {
           "title": "Suspend the agency",
-          "description": "The agency will be suspended across the whole platform.",
+          "description": "Its listings leave the site and its team becomes read-only. Tenant payments continue; its admins are notified, with your reason.",
           "label": "Suspend"
         },
         "unverify": {
           "title": "Remove verification",
           "description": "The agency will lose its verified badge and return to inactive.",
           "label": "Unverify"
+        },
+        "reinstate": {
+          "title": "Lift the suspension",
+          "description": "The agency becomes active again: its listings return to the site and its team can write again. Its verification is unchanged; its admins are notified.",
+          "label": "Lift the suspension"
         }
       },
       "health": {
@@ -6682,7 +6693,12 @@
         "revenue30d": "Revenue 30 days",
         "lastPayment": "Last payment"
       },
-      "backToList": "Back to agencies"
+      "backToList": "Back to agencies",
+      "reasonLabel": "Reason (sent to the agency admins)",
+      "suspension": {
+        "since": "Suspended on {date}",
+        "reason": "Reason: {reason}"
+      }
     },
     "pages": {
       "shared": {
@@ -9082,6 +9098,12 @@
       "unknownEnd": "the end of the session",
       "leave": "Leave",
       "leaving": "Leaving…"
+    }
+  },
+  "agencySuspension": {
+    "banner": {
+      "title": "Agency suspended by the platform: read-only.",
+      "body": "Your data remains viewable and exportable; no change is possible while the suspension lasts."
     }
   }
 }

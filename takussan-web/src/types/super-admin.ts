@@ -27,6 +27,8 @@ export type AdminAgenciesResponse = {
 };
 
 export type AdminAgencyDetail = AdminAgency & {
+  /** TCK-600 — motif et date de la dernière suspension ; `null` hors suspension. */
+  suspension?: { reason: string | null; suspended_at: string | null } | null;
   website: string | null;
   description: string | null;
   commission_rate: number | null;

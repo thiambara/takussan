@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getMeOperateurAction } from '@/app/actions/auth';
 import { getOperatorToken } from '@/lib/session';
-import { isSuperAdmin } from '@/lib/roles';
+import { fetchPlatformAbilities } from '@/lib/platform-abilities';
 import { SuperAdminShell } from '@/components/layout/SuperAdminShell';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { IntlProvider } from '@/i18n/IntlProvider';
@@ -56,7 +56,11 @@ export default async function SuperAdminLayout({
   if (configuration) {
     redirect(configuration);
   }
-  if (!isSuperAdmin(user.roles)) {
+  // TCK-600 (ADR-0047) — la console s'ouvre à tout opérateur (`viewer`, `support`, `super_admin`),
+  // pas au seul rôle `super_admin` : c'est le geste `platform.console.access`, lu à l'API, qui
+  // juge. Ses gestes filtrent ensuite la console entière, sans que le front recopie la matrice.
+  const habilitations = await fetchPlatformAbilities(token);
+  if (!habilitations?.abilities.includes('platform.console.access')) {
     redirect('/app');
   }
 
@@ -64,7 +68,7 @@ export default async function SuperAdminLayout({
     <IntlProvider messages={await messagesPour('(super-admin)/super-admin')}>
       <ToastProvider>
         <GardeDoubleFacteur>
-          <SuperAdminShell user={user}>{children}</SuperAdminShell>
+          <SuperAdminShell user={user} abilities={habilitations}>{children}</SuperAdminShell>
           <Toaster />
         </GardeDoubleFacteur>
       </ToastProvider>

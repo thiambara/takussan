@@ -7,9 +7,13 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { SuperAdminTopbar } from './SuperAdminTopbar';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
+import { PlatformAbilitiesProvider } from '@/components/admin/super/PlatformAbilitiesProvider';
+import type { PlatformAbilities } from '@/lib/platform-abilities';
 
 interface SuperAdminShellProps {
   user: User;
+  /** TCK-600 — les gestes de l'opérateur, résolus par le layout : ils filtrent toute la console. */
+  abilities: PlatformAbilities;
   children: React.ReactNode;
 }
 
@@ -45,7 +49,7 @@ export const SUPER_ADMIN_MAIN_ID = 'super-admin-main';
  * `dark` — cf. le docblock de `SuperAdminSidebar` pour le pourquoi de ce
  * mécanisme plutôt qu'un jeu de jetons parallèle.
  */
-export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
+export function SuperAdminShell({ user, abilities, children }: SuperAdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.superAdmin');
 
@@ -63,6 +67,7 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
    * `md:h-full` sur la barre latérale continue de résoudre, `h-dvh` restant une hauteur DÉFINIE.
    */
   return (
+    <PlatformAbilitiesProvider value={abilities}>
     <div className="relative flex h-dvh flex-col bg-muted">
       <div className="h-1 shrink-0 bg-primary" aria-hidden="true" />
       {/*
@@ -110,5 +115,6 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
         </main>
       </div>
     </div>
+    </PlatformAbilitiesProvider>
   );
 }

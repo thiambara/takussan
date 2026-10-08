@@ -12,6 +12,7 @@ const redirect = vi.fn((url: string) => {
   throw e;
 });
 const getMeAction = vi.fn();
+const fetchPlatformAbilities = vi.fn();
 
 vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
 // TCK-600 — la console lit avec le jeton de l'OPÉRATEUR, même pendant une impersonation.
@@ -21,6 +22,8 @@ vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 vi.mock('@/i18n/IntlProvider', () => ({ IntlProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/layout/SuperAdminShell', () => ({ SuperAdminShell: () => null }));
 vi.mock('@/components/auth/GardeDoubleFacteur', () => ({ GardeDoubleFacteur: () => null }));
+// TCK-600 (ADR-0047) — l'entrée de la console se juge sur le geste `platform.console.access`.
+vi.mock('@/lib/platform-abilities', () => ({ fetchPlatformAbilities: () => fetchPlatformAbilities() }));
 
 const { default: SuperAdminLayout } = await import('../layout');
 
@@ -41,6 +44,7 @@ async function destination(user: User): Promise<string | null> {
 describe('layout super-admin — second facteur exigé (AC7)', () => {
   beforeEach(() => {
     redirect.mockClear();
+    fetchPlatformAbilities.mockResolvedValue({ level: 'super_admin', abilities: ['platform.console.access'] });
   });
 
   it('sans second facteur → enrôlement', async () => {
@@ -59,5 +63,21 @@ describe('layout super-admin — second facteur exigé (AC7)', () => {
 
   it('en règle → la console se rend', async () => {
     expect(await destination(superAdmin({}))).toBeNull();
+  });
+});
+
+describe('layout super-admin — entrée par le geste, pas par le rôle (TCK-600)', () => {
+  beforeEach(() => {
+    redirect.mockClear();
+  });
+
+  it('un viewer, sans le rôle `super_admin`, entre dans la console', async () => {
+    fetchPlatformAbilities.mockResolvedValue({ level: 'viewer', abilities: ['platform.console.access'] });
+    expect(await destination(superAdmin({ roles: ['customer'] }))).toBeNull();
+  });
+
+  it('sans opérateur actif (403 de l’API) → /app, même avec le rôle `super_admin` dans la session', async () => {
+    fetchPlatformAbilities.mockResolvedValue(null);
+    expect(await destination(superAdmin({}))).toBe('/app');
   });
 });

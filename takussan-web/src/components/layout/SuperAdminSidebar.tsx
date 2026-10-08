@@ -37,6 +37,8 @@ import {
   type SuperAdminQueueKey,
 } from '@/lib/queries/super-admin-queues';
 import { SUPER_ADMIN_EXACT_ROOTS, isActiveHref } from '@/lib/navigation/active-path';
+import type { PlatformAbility } from '@/lib/platform-abilities';
+import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 
 /**
  * TCK-377 — La règle était écrite ici pour la troisième fois. Elle vit maintenant dans
@@ -66,6 +68,11 @@ interface NavItem {
    * l'accueil pour que les deux affichent LE MÊME nombre, du même cache.
    */
   badgeKey?: SuperAdminQueueKey;
+  /**
+   * TCK-600 (ADR-0047) — le geste que la page exige : celui que déclarent les routes d'API qu'elle
+   * lit. Sans geste, l'entrée reste au `super_admin` — le refus par défaut de l'API.
+   */
+  ability?: PlatformAbility;
 }
 
 interface NavGroup {
@@ -87,29 +94,30 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'overview',
     items: [
-      { href: '/super-admin', labelKey: 'console', icon: LayoutDashboard },
-      { href: '/super-admin/reports', labelKey: 'reports', icon: BarChart3 },
+      { href: '/super-admin', labelKey: 'console', icon: LayoutDashboard, ability: 'platform.console.access' },
+      { href: '/super-admin/reports', labelKey: 'reports', icon: BarChart3, ability: 'platform.reports.view' },
     ],
   },
   {
     labelKey: 'operations',
     items: [
-      { href: '/super-admin/agencies', labelKey: 'agencies', icon: Building2 },
+      { href: '/super-admin/agencies', labelKey: 'agencies', icon: Building2, ability: 'platform.agencies.view' },
       {
         href: '/super-admin/agency-upgrade-requests',
         labelKey: 'upgradeRequests',
         icon: ClipboardCheck,
         badgeKey: 'upgrade-requests-pending',
       },
-      { href: '/super-admin/users', labelKey: 'users', icon: Users },
-      { href: '/super-admin/super-admins', labelKey: 'superAdmins', icon: ShieldCheck },
+      { href: '/super-admin/users', labelKey: 'users', icon: Users, ability: 'platform.users.view' },
+      { href: '/super-admin/super-admins', labelKey: 'superAdmins', icon: ShieldCheck, ability: 'platform.operators.manage' },
       { href: '/super-admin/properties', labelKey: 'properties', icon: Home },
-      { href: '/super-admin/kyc', labelKey: 'kyc', icon: ShieldCheck, badgeKey: 'kyc-pending' },
+      { href: '/super-admin/kyc', labelKey: 'kyc', icon: ShieldCheck, badgeKey: 'kyc-pending', ability: 'platform.kyc.view' },
       {
         href: '/super-admin/moderation',
         labelKey: 'moderation',
         icon: ShieldAlert,
         badgeKey: 'moderation-pending',
+        ability: 'platform.moderation.view',
       },
     ],
   },
@@ -132,7 +140,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'platform',
     items: [
-      { href: '/super-admin/settings', labelKey: 'settings', icon: SlidersHorizontal },
+      { href: '/super-admin/settings', labelKey: 'settings', icon: SlidersHorizontal, ability: 'platform.settings.manage' },
       { href: '/super-admin/integrations', labelKey: 'integrations', icon: PlugZap },
       { href: '/super-admin/feature-flags', labelKey: 'featureFlags', icon: FlaskConical },
       { href: '/super-admin/alerts', labelKey: 'alerts', icon: Siren },
@@ -141,18 +149,34 @@ export const NAV_GROUPS: NavGroup[] = [
         href: '/super-admin/system',
         labelKey: 'system',
         icon: Settings2,
+        ability: 'platform.health.view',
         children: [
-          { href: '/super-admin/system/health', labelKey: 'health', icon: Activity },
+          { href: '/super-admin/system/health', labelKey: 'health', icon: Activity, ability: 'platform.health.view' },
           // TCK-365 — les jobs échoués vivaient au bas de `/system/health`, sans entrée de menu :
           // on n'y arrivait qu'en sachant déjà que la page existait.
           { href: '/super-admin/system/jobs', labelKey: 'failedJobs', icon: ListX },
           { href: '/super-admin/system/maintenance', labelKey: 'maintenance', icon: Wrench },
-          { href: '/super-admin/system/scheduler', labelKey: 'scheduler', icon: CalendarClock },
+          { href: '/super-admin/system/scheduler', labelKey: 'scheduler', icon: CalendarClock, ability: 'platform.health.view' },
         ],
       },
     ],
   },
 ];
+
+/**
+ * TCK-600 — la navigation de l'opérateur : ses seules entrées, enfants compris ; un groupe vidé
+ * disparaît avec son titre.
+ */
+export function navigationPour(can: (ability?: PlatformAbility) => boolean): NavGroup[] {
+  const garder = (items: NavItem[]): NavItem[] =>
+    items
+      .filter((item) => can(item.ability))
+      .map((item) => (item.children ? { ...item, children: garder(item.children) } : item));
+
+  return NAV_GROUPS.map((group) => ({ ...group, items: garder(group.items) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
 
 interface SuperAdminSidebarProps {
   className?: string;
@@ -217,6 +241,8 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
   const pathname = usePathname();
   const t = useTranslations('nav.superAdmin');
   const tGroups = useTranslations('nav.superAdmin.groups');
+  const { can } = usePlatformAbilities();
+  const groups = navigationPour(can);
 
   return (
     <aside
@@ -233,7 +259,7 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
         aria-label={t('ariaNav')}
         className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 pb-5 pt-1 [scrollbar-gutter:stable] [scrollbar-width:thin]"
       >
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.labelKey} className="space-y-1">
             {/*
               TCK-359 — le libellé de groupe doit tenir 4,5:1 sur le fond de la barre ; `stone-500`

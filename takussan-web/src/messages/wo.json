@@ -6006,15 +6006,21 @@
         },
         "suspend": {
           "title": "Bañ ajaans bi ba ëllëg",
-          "description": "Ajaans bi dañu koy tëj. Jëfandikukat yi dañuy ñàkk bunt yi ci jumtukaay yi.",
+          "description": "Yëgle yi dañuy génn ci site bi, ekip bi day jàng rekk. Fey yu luwakat yi dañuy wéy ; admin yi dañu leen di yégal, ak sa lay.",
           "label": "Bañ ko ba ëllëg"
         },
         "unverify": {
           "title": "Dindi seetlu gi",
           "description": "Ajaans bi dina dellu ci nekkin « Daxul » te dina ñàkk màndargam seetlu gi.",
           "label": "Dindi seetlu"
+        },
+        "reinstate": {
+          "title": "Neddi taxawal bi",
+          "description": "Ajaans bi dafay dellu dox : yëgle yi dañuy dellu ci site bi, ekip bi man naa bind. Seetlu bi du soppiku ; admin yi dañu leen di yégal.",
+          "label": "Neddi taxawal bi"
         }
-      }
+      },
+      "reasonLabel": "Lay (dañu koy yónne admin yu ajaans bi)"
     },
     "agencyDetail": {
       "loadError": "Mënuñu yeb ajaans bii.",
@@ -6041,13 +6047,18 @@
         },
         "suspend": {
           "title": "Bañ ajaans bi ba ëllëg",
-          "description": "Ajaans bi dañu koy bañ ba ëllëg ci platform bi yépp.",
+          "description": "Yëgle yi dañuy génn ci site bi, ekip bi day jàng rekk. Fey yu luwakat yi dañuy wéy ; admin yi dañu leen di yégal, ak sa lay.",
           "label": "Bañ ko ba ëllëg"
         },
         "unverify": {
           "title": "Dindi seetlu gi",
           "description": "Ajaans bi dina ñàkk màndargam seetlu gi te dellu ci daxul.",
           "label": "Dindi seetlu"
+        },
+        "reinstate": {
+          "title": "Neddi taxawal bi",
+          "description": "Ajaans bi dafay dellu dox : yëgle yi dañuy dellu ci site bi, ekip bi man naa bind. Seetlu bi du soppiku ; admin yi dañu leen di yégal.",
+          "label": "Neddi taxawal bi"
         }
       },
       "health": {
@@ -6072,7 +6083,12 @@
         "revenue30d": "Ndëwlu 30 fan",
         "lastPayment": "Fey bu mujj"
       },
-      "backToList": "Dellu ci ajaans yi"
+      "backToList": "Dellu ci ajaans yi",
+      "reasonLabel": "Lay (dañu koy yónne admin yu ajaans bi)",
+      "suspension": {
+        "since": "Taxawal nañu ko {date}",
+        "reason": "Lay : {reason}"
+      }
     },
     "pages": {
       "shared": {
@@ -9082,6 +9098,12 @@
       "unknownEnd": "jeexitalu session bi",
       "leave": "Génn",
       "leaving": "Mu ngi génn…"
+    }
+  },
+  "agencySuspension": {
+    "banner": {
+      "title": "Platform bi taxawal na ajaans bi : jàng rekk.",
+      "body": "Sa xibaar yi man nañu leen gis te génne leen ; dara du soppiku bu taxawal bi weesuwul."
     }
   }
 }

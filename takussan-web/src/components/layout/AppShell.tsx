@@ -8,6 +8,7 @@ import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { ImpersonationBanner } from '@/components/admin/super/ImpersonationBanner';
+import { AgencySuspendedBanner } from '@/components/agency/AgencySuspendedBanner';
 import { AgencyStandardWelcomeWizard } from '@/components/agency/AgencyStandardWelcomeWizard';
 import { AgentWelcomeWizard } from '@/components/agent/AgentWelcomeWizard';
 import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWizard';
@@ -26,6 +27,8 @@ interface AppShellProps {
    */
   agencyIsStandard?: boolean;
   hasPendingUpgrade?: boolean;
+  /** TCK-600 — l'agence du profil actif est suspendue : bandeau « lecture seule ». */
+  agencySuspended?: boolean;
 }
 
 export function AppShell({
@@ -33,6 +36,7 @@ export function AppShell({
   children,
   agencyIsStandard,
   hasPendingUpgrade,
+  agencySuspended = false,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -81,6 +85,7 @@ export function AppShell({
         {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
             ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
         <ImpersonationBanner />
+        {agencySuspended ? <AgencySuspendedBanner /> : null}
         <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="hidden md:block md:h-full">

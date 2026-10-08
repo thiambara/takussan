@@ -76,6 +76,7 @@
     "(dashboard)/app": [
       "account",
       "agency",
+      "agencySuspension",
       "agentCrm",
       "agentWelcome",
       "announcements",
