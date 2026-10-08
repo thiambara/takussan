@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Auth\Session;
 
+use App\Exceptions\ApiError;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
+use App\Services\Auth\SessionTokenIssuer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
@@ -19,9 +21,11 @@ use Tests\TestCase;
  * chemin : mot de passe, code SMS, rappel OAuth Google, jeton émis AVANT le blocage.
  *
  * Rouge sur `5f872f1f` : `AuthController::login` ne lisait jamais `status`, le mot de
- * passe suffisait à rouvrir une session. Ablations séparées rejouées : retirer la clause
- * de `login` → le cas mot de passe rougit ; retirer la clause d'`AccessTokenGate` → le
- * cas « jeton existant » rougit.
+ * passe suffisait à rouvrir une session. Ablations séparées rejouées (re-mesurées le
+ * 2026-10-08, vérification adverse m8) : retirer la clause de `login` → 4 rouges, les deux
+ * cas « refus avant le défi 2FA » et les deux cas « mot de passe » (l'émetteur refuse encore,
+ * mais sous son propre code `auth.account_blocked`) ; retirer la clause d'`AccessTokenGate`
+ * → le cas « jeton existant » rougit ; retirer celle de l'émetteur → son cas direct rougit.
  */
 class BlockedAccountAuthenticationTest extends TestCase
 {
@@ -52,6 +56,28 @@ class BlockedAccountAuthenticationTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('code', 'account_blocked')
             ->assertJsonMissingPath('token');
+    }
+
+    /**
+     * L'émetteur refuse LUI-MÊME un compte fermé : depuis la fusion de TCK-588, chaque
+     * chemin d'entrée refuse avant lui, si bien qu'aucun test HTTP n'atteignait plus cette
+     * clause (mesuré : la retirer laissait `tests/Feature/Auth` entièrement vert). C'est
+     * l'invariant d'un appelant futur qui oublierait de vérifier.
+     */
+    #[DataProvider('statutsFermes')]
+    public function test_l_emetteur_refuse_lui_meme_un_compte_ferme(UserStatus $statut): void
+    {
+        $user = User::factory()->create(['status' => $statut->value]);
+
+        try {
+            app(SessionTokenIssuer::class)->issue($user, 'appelant-oublieux');
+            $this->fail("L'émetteur a émis un jeton pour un compte fermé.");
+        } catch (ApiError $e) {
+            $this->assertSame(403, $e->getStatusCode());
+            $this->assertSame('auth.account_blocked', $e->errorCode);
+        }
+
+        $this->assertSame(0, $user->tokens()->count());
     }
 
     /**

@@ -698,7 +698,9 @@ en cache sous la clé du numéro (le 423 ne trahit pas l'existence d'un compte).
 - **Exécutions** : `php artisan test tests/Feature/Auth/Session` → vert ; 16 fichiers qui émettent
   ou lisent un vrai jeton (`grep -rl "createToken\|withToken\|auth/login\|oauth/.*/callback"`)
   + `tests/Feature/Auth` → 332 tests verts.
-- **Ablations** : AC4 — clause de `login` retirée → `le_refus_precede_le_defi_2fa…` rouge (2/9) ;
+- **Ablations** : AC4 — clause de `login` retirée → `le_refus_precede_le_defi_2fa…` rouge (2/9),
+  `le_mot_de_passe_ne_rouvre_pas…` restant vert (re-mesuré après la fusion de 588 : 4/13, cf.
+  m8) ;
   clause d'`AccessTokenGate` retirée → `un_jeton_emis_avant_le_blocage_rend_401` rouge (2/7) ;
   clause de l'émetteur retirée → rappel OAuth rouge. AC15 — lecture du verrou retirée → 3/6 rouges
   dont « bon mot de passe → 423 ». AC10 — `sanctum.expiration` remis à `null` → le jeton hérité de
@@ -1631,3 +1633,21 @@ allumée. `log` apparaît en `local` et en `testing`, jamais en `staging`, `prev
 - `last_used_at` seul (sans `created_at`) ;
 - grâce retirée ;
 - ligne du planificateur retirée.
+
+#### m8 — la phrase d'ablation d'AC4, re-mesurée
+
+- **Le rapport disait** : « chaque clause retirée séparément rend son test rouge ». Le vérificateur
+  a montré que c'était inexact sur `e59cb8b2`. Sans la clause de `login`, seul
+  `le_refus_precede_le_defi_2fa…` rougissait (×2). `le_mot_de_passe_ne_rouvre_pas…` restait vert,
+  parce que l'émetteur refusait encore sous le même code.
+- **Re-mesuré le 2026-10-08, après la fusion de 588 :**
+  - Clause de `login` retirée → **4 rouges** (les 2 cas du défi et les 2 cas « mot de passe »).
+    L'émetteur refuse désormais sous `auth.account_blocked`, et ce code n'est plus `account_blocked`.
+  - **Clause de l'émetteur retirée → `tests/Feature/Auth` entièrement vert (327).** Chaque chemin
+    refuse avant l'émetteur (le défi OAuth y compris, depuis `442050b3`), si bien que plus aucun
+    test n'atteignait l'invariant.
+- **Correction** : `test_l_emetteur_refuse_lui_meme_un_compte_ferme` (×2) appelle l'émetteur
+  directement et attend une `ApiError` 403 `auth.account_blocked`, sans jeton créé. L'ablation de
+  la clause le fait rougir (2/13), et la clause restaurée par `cp` le rend vert (13/13).
+- Le rapport, le docblock de `BlockedAccountAuthenticationTest` et la ligne d'ablation du § Notes
+  sont corrigés.
