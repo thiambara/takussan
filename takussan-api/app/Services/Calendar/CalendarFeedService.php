@@ -115,10 +115,14 @@ class CalendarFeedService
         return $feed;
     }
 
-    /** ADR-0034 §2 — le lien sans agence est celui du prestataire, qui n'est personnel nulle part. */
+    /**
+     * ADR-0034 §2 — le lien sans agence est celui du prestataire, qui n'est personnel nulle part. Le
+     * super-admin n'en tient pas (verif-591 passe 2, N3) : sans borne d'agence, son lien servait les
+     * réservations de toute la plateforme à quiconque détenait l'URL.
+     */
     public function mayHoldAgencylessFeed(User $user): bool
     {
-        return $user->isSuperAdmin() || $user->serviceProviderProfile()->active()->exists();
+        return $user->serviceProviderProfile()->active()->exists();
     }
 
     /**

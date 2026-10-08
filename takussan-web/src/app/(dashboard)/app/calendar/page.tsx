@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { CalendarPage, type CalendarAudience } from '@/components/calendar/CalendarPage';
 import { CalendarSubscription } from '@/components/crm/CalendarSubscription';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { isAdmin, isAgencyAdmin, isAgent, isOwner } from '@/lib/roles';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 
@@ -23,7 +23,9 @@ export default async function Page() {
     <div className="space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
       <CalendarPage audience={audience} defaultMine={isAgent(roles) && !isAdmin(roles)} />
-      {staff ? <CalendarSubscription /> : null}
+      {/* TCK-591 (verif-591 N3, ADR-0034 §2) — le lien est celui du personnel d'une agence ; le
+          super-admin garde la console, l'API lui refuse le lien. */}
+      {isAgent(roles) || isAgencyAdmin(roles) ? <CalendarSubscription /> : null}
     </div>
   );
 }

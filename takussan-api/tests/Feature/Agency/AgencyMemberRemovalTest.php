@@ -260,4 +260,28 @@ class AgencyMemberRemovalTest extends ApiTestCase
         ]);
         $this->get("/api/calendar-feed/{$token}.ics")->assertNotFound();
     }
+
+    /**
+     * verif-591 passe 2 (N3, ADR-0034 §2) — le super-admin n'a pas de lien sans agence : sans borne,
+     * il servait les réservations de toutes les agences. Ni émis, ni servi s'il existe déjà.
+     */
+    public function test_the_super_admin_holds_no_agencyless_feed(): void
+    {
+        $root = User::factory()->create();
+        $this->materializeRoleProfile($root, 'super_admin');
+
+        $this->actingAsApi($root)->apiPost('/api/me/calendar-feed')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'calendar.feed_not_staff');
+        $this->assertSame(0, CalendarFeed::query()->where('user_id', $root->id)->count());
+
+        $token = str_repeat('b', 40);
+        CalendarFeed::query()->create([
+            'user_id' => $root->id,
+            'agency_id' => null,
+            'token_hash' => CalendarFeed::hashToken($token),
+        ]);
+        $this->app['auth']->forgetGuards();
+        $this->get("/api/calendar-feed/{$token}.ics")->assertNotFound();
+    }
 }
