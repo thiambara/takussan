@@ -369,6 +369,9 @@ class AppServiceProvider extends ServiceProvider
         // logged-in browser keeps a stable bucket and shared-NAT visitors are
         // not collapsed once authenticated.
         RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
+        // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
+        // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
+        RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
 
         // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup

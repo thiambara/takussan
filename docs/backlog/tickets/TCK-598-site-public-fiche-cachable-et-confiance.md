@@ -660,4 +660,23 @@ Direction « Ancrage Local Contemporain » (`docs/design-guidelines.md`). Mobile
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Relevés et décisions non évidentes, au fil de l'eau (2026-10-08, branche `feat/tck-598-site-public`
+partie de `06a0f7f0`). Les numéros de ligne du Contexte ont bougé avec 590/591/592 ; les constats
+tiennent tous, relus un par un.
+
+- **Delta 0** — ADR-0052 commité seul (`e87a5523`), avant tout code. Il tranche les quatre questions
+  par écrit ; l'IP vue par Laravel sur le chemin serveur Next → API y est déclarée **inférée, non
+  mesurée** (§ 6), la mesure revenant au porteur.
+- **Écart avec le Delta 2 (prescription fausse, mesurée)** : `Property::query()->whereKey($id)->increment()`
+  écrit `updated_at` — `Eloquent\Builder::increment()` appelle `addUpdatedAtColumn()`
+  (`vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1347-1351`). Le service passe
+  par `->toBase()->increment()`. Ablation A6 (constructeur Éloquent) : rouge sur la date.
+- **Contrainte 2** : `PropertyResource` lit `routeIs('public.*')` une fois. Les champs de modération
+  et l'e-mail des collaborateurs suivent `$appelantConnu` (connu ET hors `public.*`) ; `?raw=1` et
+  `original` signé ne s'ouvrent plus sur `public.*`. Le repli WebP de TCK-585 (`PublicPhotoUrl`) n'est
+  pas touché. `PropertyModerationFieldsTest` lisait les quatre champs sur la fiche PUBLIQUE avec un
+  jeton : il les lit désormais sur `properties.show`, la route que le tableau de bord appelle.
+- **Comptage** : la vue part du navigateur directement vers l'API (ADR-0052 §1) ; le corps de
+  `show()` ne change donc plus d'un appel à l'autre (`CataloguePublicCacheTest` asserte l'identité
+  au lieu de la divergence, comme son propre docblock le demandait).
+

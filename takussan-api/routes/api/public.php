@@ -83,26 +83,19 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         ->middleware('throttle:60,1')
         ->name('properties.map');
 
-    // TCK-341 — la fiche NE REÇOIT NI `public` NI `etag`, et c'est un refus
-    // motivé, pas un oubli. Le ticket la listait pourtant dans son delta.
-    // Trois mesures, chacune suffisante à elle seule :
+    // TCK-341 refusait ici `public` et `etag`, pour trois raisons ; TCK-598 en a levé deux et
+    // déplacé la troisième (ADR-0052) :
     //
-    //   1. Le corps varie avec l'appelant, comme `search` ci-dessus — et ici
-    //      s'y ajoute l'e-mail d'un collaborateur, que
-    //      `PropertyResource` ne masque que si `$request->user()` est null,
-    //      sur une route qui eager-load `collaborators.user`. Un cache
-    //      partagé le servirait au visiteur suivant.
-    //   2. `show()` ÉCRIT : elle incrémente `views_count`, que la même
-    //      ressource émet. Deux appels anonymes successifs depuis la même IP
-    //      ne rendent donc pas le même corps (mesuré : 1 puis 2), et un ETag
-    //      n'y serait stable qu'une fois les 3 crédits horaires du
-    //      `RateLimiter` épuisés. Un ETag qui change trois fois avant de se
-    //      fixer n'est pas une garantie de fraîcheur, c'est du bruit.
-    //   3. Même stable, il ne servirait à personne : la fiche est cherchée par
-    //      le SERVEUR Next (`takussan-web/src/lib/queries/public-property.ts:63`),
-    //      et le `fetch` de Next 16 est `no-store` par défaut — il n'émet
-    //      jamais d'`If-None-Match`. Contrairement à `search`, qui part du
-    //      navigateur.
+    //   1. Le corps variait avec l'appelant (champs de modération, e-mail des collaborateurs,
+    //      original signé). **Plus vrai** : sur une route `public.*`, `PropertyResource` rend le
+    //      même corps à tout le monde, jeton du propriétaire compris
+    //      (`PropertyCollaboratorsNotExposedTest`).
+    //   2. `show()` écrivait (`views_count`). **Plus vrai** : elle ne compte plus rien ; la vue se
+    //      compte par `POST properties/{slug}/view`, ci-dessous.
+    //   3. Un ETag ne servirait à personne : la fiche est lue par le SERVEUR Next, dont le `fetch`
+    //      n'émet pas d'`If-None-Match`. **Toujours vrai** — d'où l'absence de `cache.headers`.
+    //      Le cache de la fiche vit côté front : cache de données de Next, étiqueté
+    //      `property:{slug}`, invalidé par l'API (`RevalidatePublicPropertyPage`).
     Route::get('properties/{slug}', [PublicPropertyController::class, 'show'])
         ->name('properties.show');
 
@@ -118,6 +111,12 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/{slug}/contact', [PublicPropertyController::class, 'contact'])
         ->middleware('throttle:20,10')
         ->name('properties.contact');
+
+    // TCK-598 — le compteur de vues, séparé de la lecture. Rend toujours 204. Limiteur dédié : un
+    // rafraîchissement compulsif ne doit pas consommer le crédit de lecture du visiteur.
+    Route::post('properties/{slug}/view', [PublicPropertyController::class, 'view'])
+        ->middleware('throttle:public-view')
+        ->name('properties.view');
 
     Route::get('properties/{slug}/similar', [PublicPropertyController::class, 'similar'])
         ->name('properties.similar');

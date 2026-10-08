@@ -48,6 +48,7 @@ use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use App\Services\Visit\VisitNotifier;
@@ -60,7 +61,6 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 class PublicPropertyController extends Controller
@@ -524,13 +524,35 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $key = 'views:'.$property->id.':'.$request->ip();
-        if (! RateLimiter::tooManyAttempts($key, 3)) {
-            RateLimiter::hit($key, 3600);
-            $property->increment('views_count');
+        // TCK-598 (contrainte 3, ADR-0052 §1) — la lecture n'écrit plus. Elle incrémentait
+        // `views_count` par `$property->increment()`, donc rajeunissait `updated_at` et vidait le
+        // cache des biens similaires de TOUS les biens à chaque vue ; elle ne pouvait pas non plus
+        // entrer dans un cache, puisque son corps changeait à chaque appel. La vue se compte par
+        // `view()` ci-dessous, appelée par le navigateur.
+        return new PropertyResource($property);
+    }
+
+    /**
+     * TCK-598 — compte une vue de la fiche. `POST /api/public/properties/{slug}/view` → 204.
+     *
+     * Ne rend JAMAIS d'erreur visible : un slug inconnu, ou un bien qui n'est pas public, rend
+     * aussi 204, sans écriture — un compteur n'a rien à apprendre à son appelant, et surtout pas
+     * l'existence d'un bien retiré. L'appel part du NAVIGATEUR, directement : l'API y voit l'IP du
+     * visiteur par sa propre chaîne de mandataires, sans transit par le serveur Next.
+     */
+    public function view(Request $request, PropertyViewCounter $compteur, string $slug): JsonResponse
+    {
+        $property = Property::query()
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->first();
+
+        if ($property !== null) {
+            $compteur->record($property, (string) $request->ip());
         }
 
-        return new PropertyResource($property);
+        return $this->json(null, 204);
     }
 
     public function similar(ListSimilarPropertiesRequest $request, SimilarPropertiesService $service, string $slug): AnonymousResourceCollection
