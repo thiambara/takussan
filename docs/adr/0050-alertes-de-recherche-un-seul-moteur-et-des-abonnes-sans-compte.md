@@ -203,7 +203,9 @@ Ajoutées après la contre-vérification (verif-599), même règle :
     e-mail.** Le gabarit Markdown de Laravel échappe le HTML, pas la syntaxe Markdown : le nom
     d'une alerte de visiteur devenait un lien dans l'e-mail de confirmation, envoyé à une adresse
     qui n'avait rien confirmé. L'e-mail de confirmation ne reprend donc plus le nom. Les autres
-    e-mails passent chaque saisie (nom d'alerte, titre de bien) par `App\Support\MarkdownText::escape()`.
+    e-mails passent chaque saisie (nom d'alerte, titre et lieu d'un bien) par
+    `App\Support\MarkdownText::escape()`. Les deux e-mails de résumé y passent aussi le titre et le
+    corps de chaque cloche.
 15. **Une annonce est réservée avant d'être envoyée.** Le `withoutOverlapping()` du planificateur
     ne protège que la mise en file : deux passages concurrents annonçaient tout deux fois. Les
     deux jobs (`SendFavoriteChangeAlerts`, `SendSavedSearchAlerts`) ne sont annoncés qu'après un
@@ -211,6 +213,17 @@ Ajoutées après la contre-vérification (verif-599), même règle :
     en plus le middleware `WithoutOverlapping` (sans relâche, expiration à `$timeout` + 60 s),
     avec `$timeout = 1800` et `$tries = 1`. Le verrou seul ne suffirait pas : il expire, et rien
     ne garantit qu'un passage reste sous son délai.
+
+    Une annonce qui échoue ne rend que SES réservations : la baisse déjà partie ne repart pas
+    quand l'avis « indisponible » échoue. La cloche (`database`) part en DERNIER : un e-mail qui
+    échoue lève avant qu'elle soit écrite, et la reprise ne la double pas. Si la cloche échoue
+    après l'e-mail, l'e-mail repart : plutôt renvoyer que perdre.
+
+    `$timeout = 1800` dépasse le `retry_after` de la connexion `database` (90 s). Avec plusieurs
+    workers, un second worker reprendrait le job à 90 s et, `$tries = 1`, l'inscrirait en échec
+    pendant que le premier tourne. La réservation et le verrou empêchent tout doublon d'envoi,
+    mais `failed_jobs` porterait une fausse ligne. Sans effet avec un seul worker : à régler
+    (file dédiée, ou `retry_after` relevé) le jour où l'on en ajoute.
 16. **Les plafonds d'un contact portent sur sa boîte, pas sur l'adresse saisie.**
     `awa+promo@exemple.sn` et `awa@exemple.sn` arrivent au même endroit. `mailbox_hash` (HMAC
     sans le suffixe `+…`) porte les deux plafonds et la borne par contact. `contact_hash` garde

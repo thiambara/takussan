@@ -828,3 +828,44 @@ Un point, un commit, un test nommé, des ablations rouges. Décisions dans ADR-0
   trois cas nommés sont ajoutés à son test : confirmation (`?token=`), désinscription de compte
   (`?search=12&expires=…&signature=…` → `?search=12`), désinscription sans compte (`?token=`).
   Ablations : `token`, `signature` ou `expires` gardés — 3 rouges.
+
+### Passe 2 de verif-599 (sur `050975e3`)
+
+Refusée sur B1-bis. Le reste tenait : M1 refermé en course réelle, m4 refermé, 24 ablations sur 24
+rouges. Un commit par point, un test nommé, des ablations rouges. Décisions 14, 15 et 17 de
+l'ADR-0050 amendées.
+
+| Point | Commit | Test | Ablations |
+|---|---|---|---|
+| **B1-bis** lieu non échappé | `f2b0016f` | `test_l_alerte_rend_le_quartier_et_la_ville_en_texte` | lieu brut · quartier brut · ville brute — 3 rouges |
+| **B1-bis**, balayage : résumés | `11d0d521` | `test_les_resumes_rendent_les_cloches_en_texte` | titre ou corps bruts, dans chacun des deux gabarits — 4 rouges, cache des vues vidé avant chacune ; témoin vert |
+| **m10** échec d'une annonce | `1a881de7` | `test_l_echec_d_une_annonce_ne_rejoue_pas_l_autre` | lot entier rendu · erreur avalée — 2 rouges |
+| **m11** cloche doublée | `0fb4d394` | `test_un_e_mail_en_echec_ne_double_pas_la_cloche` (favoris, recherches) | cloche remise en premier, dans chacune des deux notifications — 2 rouges |
+| **m2** borne par contact | `9a32d7f9` | `test_une_borne_par_contact_atteinte_repond_comme_un_contact_vierge` | 429 rétabli · borne retirée du job · borne sur le contact saisi — 3 rouges |
+
+- **Balayage B1-bis, dans les e-mails de 599.** Sont échappés le nom de l'alerte, le titre et le lieu
+  du bien, et le titre d'un favori. Les autres champs sont générés : prix (`CurrencyFormatter`), URL
+  de la fiche (slug passé par `rawurlencode`), photo. Ni le type, ni la référence, ni l'agence ne
+  sont rendus. La cloche des favoris ne porte que des comptes.
+- **Balayage B1-bis, hors de 599** (préexistant, non corrigé ici, inventaire pour un ticket à
+  part). Ces notifications reprennent une saisie dans `line()` ou dans le sujet, rendus en
+  Markdown :
+  - `NewBookingNotification` : titre du bien, par le gabarit éditable `booking_confirmed`.
+  - `BookingExpiredNotification` : titre du bien.
+  - `TaskDueReminderNotification` : titre de la tâche.
+  - `UrgentMaintenanceCreatedNotification` : titre de la demande.
+  - `AgencyUpgradeRequestSubmittedNotification` : nom de l'agence et du demandeur.
+  - `AgencyUpgradeRejectedNotification` : commentaire.
+  - `LeaseDepositRefundNotification`, `LeaseRentReviewedNotification` : motif.
+  - `ConversationInviteNotification` : sujet et invitant.
+  - `SuperAdminInvitedBroadcast` : invitant.
+  
+  Les références (`reference_number`) sont générées. Le remède commun : `MarkdownText::escape` sur
+  chaque paramètre saisi.
+- **m11, la réponse retenue est l'ordre et non l'idempotence.** `alert_channels` lisait l'ordre de
+  `via()` : la ressource garde son ordre affiché (cloche, e-mail, puis le reste).
+- **m2** : le contrôleur ne lit plus rien qui dépende du contact. Les deux tests du limiteur par
+  contact relèvent le plafond d'alertes ouvertes, pour que seule la borne horaire retienne la
+  sixième demande.
+- **Au porteur** : `$timeout` 1800 contre `retry_after` 90 de la file `database` (ADR-0050,
+  décision 15). Sans effet avec un seul worker.
