@@ -222,6 +222,9 @@ final class ProtectedActions
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',
         MePayoutMethodController::class.'@destroy',
+        // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
+        // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
+        PayoutMethodController::class.'@verify',
 
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',

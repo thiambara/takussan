@@ -95,6 +95,33 @@ class PayoutStepUpTest extends TestCase
         $this->postJson('/api/me/payout-methods', $new)->assertCreated();
     }
 
+    /**
+     * VERIF-594 passe 4, P4-6 (décision de session, réversible) — vérifier une destination décide où
+     * l'argent part : le geste exige un step-up. Une session sans preuve récente est refusée, et un
+     * membre sans second facteur — un agent, que la 2FA de l'agence ne visait pas — ne vérifie plus.
+     */
+    public function test_verifying_a_destination_requires_a_fresh_step_up(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $admin = $this->agencyAdmin($agency);
+        $agent = $this->agencyAgent($agency);
+        $method = PayoutMethod::factory()->create(['user_id' => $landlord->id]);
+
+        $this->actingAs($admin);
+        $this->stepUpRefused($this->postJson("/api/payout-methods/{$method->id}/verify"));
+
+        $this->assertFalse((bool) $agent->two_factor_enabled);
+        $this->actingAs($agent);
+        $this->postJson("/api/payout-methods/{$method->id}/verify")->assertForbidden()->assertJsonPath('code', 'two_factor_required');
+        $this->assertNull($method->fresh()->verificationFor($agency->id));
+
+        $this->actingWithStepUp($admin);
+        $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk();
+        $this->assertSame($admin->id, (int) $method->fresh()->verificationFor($agency->id)?->verified_by_id);
+    }
+
     private function stepUpRefused(TestResponse $response): void
     {
         $response->assertForbidden()->assertJsonPath('code', 'two_factor_step_up_required');

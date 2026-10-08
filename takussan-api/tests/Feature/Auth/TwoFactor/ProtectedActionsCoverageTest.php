@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\PayoutController;
+use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
@@ -146,6 +147,8 @@ class ProtectedActionsCoverageTest extends TestCase
             MePayoutMethodController::class.'@store',
             MePayoutMethodController::class.'@update',
             MePayoutMethodController::class.'@destroy',
+            // VERIF-594 passe 4, P4-6 — qui vérifie une destination décide où l'argent part.
+            PayoutMethodController::class.'@verify',
             PlatformPayoutController::class.'@approve',
             PlatformPayoutController::class.'@markPaid',
         ] as $action) {

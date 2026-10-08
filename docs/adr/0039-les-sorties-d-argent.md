@@ -194,10 +194,18 @@ deux agences ne font pas deux personnes.
   TOTP saisi sur le jeton il y a moins de 10 min (`ProtectedActions::STEP_UP`) — approuver, marquer
   payé, payer une facture d'intervention, ajouter, modifier ou retirer une destination (le
   titulaire, bailleur ou prestataire, configure donc un second facteur avant sa première
-  destination), et les gestes plateforme. Préparer, refuser, marquer en échec, vérifier une
-  destination et confirmer un relâchement du seuil exigent la 2FA de l'agence
-  (`AGENCY_TWO_FACTOR`), sans step-up : la confirmation passe par une server action, qui ne sait
-  pas rejouer après la saisie d'un code.
+  destination), **vérifier une destination** pour l'agence, et les gestes plateforme. La
+  vérification y est entrée à la passe 4 (VERIF-594 P4-6, décision de session réversible) : qui
+  vérifie décide où l'argent part, et elle passe par `useApiMutation`, donc par
+  `GardeDoubleFacteur`, qui rejoue la requête après la saisie du code ; la conséquence est assumée
+  — un membre sans second facteur, agent compris, ne vérifie plus. Préparer, refuser, marquer en
+  échec et confirmer un relâchement du seuil exigent la 2FA de l'agence (`AGENCY_TWO_FACTOR`), sans
+  step-up : la confirmation passe par une server action, qui ne sait pas rejouer après la saisie
+  d'un code. **La restitution de caution** (`LeaseDepositRefundController@store`) reste sous la
+  2FA de l'agence, sans step-up : elle ne fait sortir aucun argent — elle naît comme tout
+  reversement, sous le seuil des quatre yeux, et c'est son paiement (`mark-processed`), sous
+  step-up, qui le fait sortir ; sa destination n'est pas contrôlée, le locataire n'ayant pas
+  toujours de compte, si bien que le step-up ne protégerait aucune destination de plus.
 
 *Écarté* : un seuil par défaut (décision du porteur) ; une règle stricte « préparateur ≠ payeur »
 (trois personnes) — elle rendrait la chaîne agence inapplicable dans une agence de deux.
