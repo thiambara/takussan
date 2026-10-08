@@ -26,6 +26,9 @@ class IcalExportController extends Controller
         $hash = hash('sha256', $token);
         $property = Property::query()->where('ical_export_token_hash', $hash)->first();
         abort_unless($property !== null && hash_equals((string) $property->ical_export_token_hash, $hash), 404);
+        // VERIF-596 passe 2 (n2) — un bien archivé, vendu ou qui n'est plus loué à la nuit n'exporte
+        // plus rien ; le jeton est gardé, l'export revient si le bien redevient louable.
+        abort_unless($property->hasHostCalendar(), 404);
 
         $since = Carbon::today()->subMonths(3)->toDateString();
 

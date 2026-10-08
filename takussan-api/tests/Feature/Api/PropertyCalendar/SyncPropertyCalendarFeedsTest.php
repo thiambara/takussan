@@ -8,11 +8,15 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\ContractType;
+use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\PropertyCalendarFeed;
 use App\Models\PropertyUnavailability;
 use App\Models\User;
 use App\Services\Booking\PropertyCalendarSyncService;
+use App\Services\Property\PropertyPublication;
 use App\Support\Http\DnsResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -183,7 +187,7 @@ class SyncPropertyCalendarFeedsTest extends TestCase
 
         // Le compteur est celui de l'utilisateur : un autre bailleur crée encore le sien.
         $neighbour = User::factory()->create();
-        $theirs = Property::factory()->create(['user_id' => $neighbour->id]);
+        $theirs = Property::factory()->create(['user_id' => $neighbour->id, 'contract_type' => ContractType::Rent, 'rent_period' => RentPeriod::Daily, 'status' => PropertyStatus::Available]);
         Sanctum::actingAs($neighbour);
         $this->postJson("/api/properties/{$theirs->id}/calendar-feeds", ['url' => self::URL])->assertCreated();
     }
@@ -421,5 +425,61 @@ class SyncPropertyCalendarFeedsTest extends TestCase
 
         $this->assertSame(['now@airbnb'], array_column($this->imported(), 0));
         $this->assertSame(0, Booking::query()->count());
+    }
+
+    /**
+     * VERIF-596 passe 2 (n2) — un bien archivé par `PropertyPublication` (591) exportait encore son
+     * calendrier (200) et l'import horaire faisait une requête sortante par flux et par heure.
+     * Désarchivé, il retrouve les deux.
+     */
+    public function test_an_archived_property_neither_exports_nor_imports_its_calendar(): void
+    {
+        Http::fake(['cal.example.com/*' => Http::response($this->ics([['a@airbnb', 5, 8]]))]);
+        $this->register()->assertCreated();
+        $path = (string) parse_url((string) $this->postJson("/api/properties/{$this->property->id}/ical-token")->assertCreated()->json('data.url'), PHP_URL_PATH);
+        $this->property->update(app(PropertyPublication::class)->archivedAttributes());
+        Http::fake();
+
+        $this->get($path)->assertNotFound();
+        (new SyncPropertyCalendarFeedsJob)->handle(app(PropertyCalendarSyncService::class));
+        Http::assertNothingSent();
+        $this->postJson("/api/property-calendar-feeds/{$this->feed()->id}/sync")
+            ->assertStatus(422)->assertJsonPath('code', 'calendar_feed.property_closed');
+        $this->postJson("/api/properties/{$this->property->id}/calendar-feeds", ['url' => self::URL])
+            ->assertStatus(422)->assertJsonPath('code', 'calendar_feed.property_closed');
+
+        $this->property->update(['status' => PropertyStatus::Available, 'archived_at' => null]);
+        $this->get($path)->assertOk();
+        Http::fake(['cal.example.com/*' => Http::response($this->ics([]))]);
+        (new SyncPropertyCalendarFeedsJob)->handle(app(PropertyCalendarSyncService::class));
+        Http::assertSentCount(1);
+    }
+
+    /** La première synchronisation, en file, ne part pas si le bien a été archivé entre-temps. */
+    public function test_the_queued_first_sync_skips_a_property_archived_meanwhile(): void
+    {
+        Queue::fake();
+        Http::fake();
+        $this->register()->assertCreated();
+        $this->property->update(app(PropertyPublication::class)->archivedAttributes());
+
+        (new SyncPropertyCalendarFeedJob($this->feed()->id))->handle(app(PropertyCalendarSyncService::class));
+
+        Http::assertNothingSent();
+        $this->assertSame(PropertyCalendarFeed::STATUS_PENDING, $this->feed()->last_status);
+    }
+
+    /** Un bien qui n'est plus loué à la nuit (location au mois) sort aussi du calendrier d'hôte. */
+    public function test_a_property_no_longer_rented_by_the_night_stops_exporting_and_importing(): void
+    {
+        Http::fake(['cal.example.com/*' => Http::response($this->ics([]))]);
+        $this->register()->assertCreated();
+        $path = (string) parse_url((string) $this->postJson("/api/properties/{$this->property->id}/ical-token")->assertCreated()->json('data.url'), PHP_URL_PATH);
+        $this->property->update(['rent_period' => RentPeriod::Monthly]);
+        Http::fake();
+
+        $this->get($path)->assertNotFound();
+        (new SyncPropertyCalendarFeedsJob)->handle(app(PropertyCalendarSyncService::class));
+        Http::assertNothingSent();
     }
 }

@@ -47,6 +47,7 @@ class PropertyCalendarFeedController extends Controller
     public function sync(Request $request, PropertyCalendarFeed $feed, PropertyCalendarSyncService $sync): JsonResponse
     {
         $this->authorize('update', $feed->property);
+        abort_code_unless($feed->property->hasHostCalendar(), 422, 'calendar_feed.property_closed');
 
         $key = 'calendar-feed-sync:'.$feed->id;
         abort_code_if(RateLimiter::tooManyAttempts($key, 1), 429, 'calendar_feed.sync_throttled');

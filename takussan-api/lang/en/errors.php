@@ -92,6 +92,7 @@ return [
     ],
     'calendar_feed' => [
         'limit_reached' => 'This property has reached the maximum number of imported calendars.',
+        'property_closed' => 'This property is archived, sold or no longer rented by the night or week: its calendar no longer syncs.',
         'sync_throttled' => 'This calendar was just synchronised. Try again in a minute.',
         'unsafe_url' => 'This calendar link cannot be imported: it must use HTTPS and point to a public service.',
     ],

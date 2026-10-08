@@ -514,6 +514,28 @@ class Property extends AbstractModel implements HasMedia
         return $query->public()->available();
     }
 
+    /**
+     * TCK-596 (VERIF-596 passe 2 n2, ADR-0041 §5) — le calendrier d'hôte (export iCal, import des
+     * flux) ne vit que pour un bien loué à la nuit ou à la semaine, ni archivé ni vendu — le même
+     * prédicat que l'onglet de la console (`PropertyDetailTabs`). Un bien archivé exportait encore
+     * son calendrier et faisait une requête sortante par flux et par heure, indéfiniment.
+     */
+    public const HOST_CALENDAR_CLOSED_STATUSES = [PropertyStatus::Archived, PropertyStatus::Sold];
+
+    public function hasHostCalendar(): bool
+    {
+        return $this->contract_type === ContractType::Rent
+            && in_array($this->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true)
+            && ! in_array($this->status, self::HOST_CALENDAR_CLOSED_STATUSES, true);
+    }
+
+    public function scopeWithHostCalendar(Builder $query): Builder
+    {
+        return $query->where('contract_type', ContractType::Rent->value)
+            ->whereIn('rent_period', [RentPeriod::Daily->value, RentPeriod::Weekly->value])
+            ->whereNotIn('status', array_map(static fn (PropertyStatus $s): string => $s->value, self::HOST_CALENDAR_CLOSED_STATUSES));
+    }
+
     public function scopeRoots(Builder $query): Builder
     {
         return $query->whereNull('parent_id');

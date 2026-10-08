@@ -63,6 +63,12 @@ aléatoire stocké haché, et par un import horaire qui passe par une garde SSRF
    plus un worker HTTP à chaque création. La création est bornée à **10 par heure et par
    utilisateur**, quel que soit le bien (limiteur `calendar-feed-create`, VERIF-596 m4) : chacune
    déclenche une résolution DNS et un appel sortant.
+   **Le calendrier d'hôte ne vit que pour un bien loué à la nuit ou à la semaine, ni archivé ni
+   vendu** (`Property::hasHostCalendar()`, le prédicat de l'onglet de la console ; VERIF-596
+   passe 2, n2) : sinon l'export rend 404, l'import horaire l'ignore, la synchronisation (horaire,
+   première, « maintenant ») ne fait aucun appel sortant, et l'enregistrement d'un flux est refusé
+   (422 `calendar_feed.property_closed`). Le jeton d'export n'est pas révoqué : désarchivé, le bien
+   retrouve son flux.
 6. **Conflits.** Un événement importé qui chevauche une réservation confirmée est **enregistré**,
    marqué en conflit (`conflict_booking_id`), et le bailleur et l'agent du bien sont prévenus. Un
    import **n'annule jamais** une réservation : seul un humain tranche entre deux plateformes.

@@ -92,6 +92,7 @@ return [
     ],
     'calendar_feed' => [
         'limit_reached' => 'Kër gii dafa egg ci lim bu mag bi ci calendrier yu ñu jële.',
+        'property_closed' => 'Kër gii dañu ko denc, jaay ko, walla duñu ko luwe ci guddi walla ci ayubés : calendrier bi dootul synchroniser.',
         'sync_throttled' => 'Calendrier bii leegi lañu ko synchroniser. Jéemaatal ci benn simili.',
         'unsafe_url' => 'Lien calendrier bii mënuñu koo jële : dafa wara nekk HTTPS te jëm ci benn service bu ubbeeku.',
     ],

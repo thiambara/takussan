@@ -27,7 +27,8 @@ class SyncPropertyCalendarFeedsJob implements ShouldQueue
     public function handle(PropertyCalendarSyncService $sync): void
     {
         PropertyCalendarFeed::query()
-            ->whereHas('property')
+            // VERIF-596 passe 2 (n2) — ni bien archivé, ni vendu, ni qui n'est plus loué à la nuit.
+            ->whereHas('property', fn ($property) => $property->withHostCalendar())
             ->chunkById(50, function ($feeds) use ($sync): void {
                 foreach ($feeds as $feed) {
                     $sync->sync($feed);

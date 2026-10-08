@@ -43,6 +43,8 @@ class PropertyCalendarSyncService
      */
     public function register(Property $property, string $url, ?string $label, User $by): PropertyCalendarFeed
     {
+        abort_code_unless($property->hasHostCalendar(), 422, 'calendar_feed.property_closed');
+
         try {
             ['host' => $host] = $this->outbound->check($url);
         } catch (UnsafeOutboundUrl $e) {
@@ -70,6 +72,12 @@ class PropertyCalendarSyncService
     /** Synchronise un flux ; rend `true` en cas de succès. Un échec est compté, jamais levé. */
     public function sync(PropertyCalendarFeed $feed): bool
     {
+        // VERIF-596 passe 2 (n2) — garde de tous les chemins (horaire, première synchronisation,
+        // « synchroniser maintenant ») : aucun appel sortant pour un bien sans calendrier d'hôte.
+        if ($feed->property === null || ! $feed->property->hasHostCalendar()) {
+            return false;
+        }
+
         try {
             $events = $this->reader->events($this->outbound->get($feed->url));
         } catch (UnsafeOutboundUrl $e) {

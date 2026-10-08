@@ -92,6 +92,7 @@ return [
     ],
     'calendar_feed' => [
         'limit_reached' => 'Ce bien a atteint le nombre maximal de calendriers importés.',
+        'property_closed' => 'Ce bien est archivé, vendu ou n\'est plus loué à la nuit ou à la semaine : son calendrier ne se synchronise plus.',
         'sync_throttled' => 'Ce calendrier vient d\'être synchronisé. Réessayez dans une minute.',
         'unsafe_url' => 'Ce lien de calendrier ne peut pas être importé : il doit être en HTTPS et pointer vers un service public.',
     ],
