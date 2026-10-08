@@ -1,7 +1,7 @@
 ---
 id: TCK-594
 title: "Les sorties d'argent ne sont ni calculées, ni contrôlées, ni tracées : le brut d'un reversement se saisit à la main, une seule personne crée, approuve et paie, et la facture porte un numéro aléatoire"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -356,7 +356,7 @@ rend **403** avec une clé i18n, jamais une phrase.
 
 ### 0. Décision
 
-- [ ] **ADR à écrire et accepter avant le code** : « Les sorties d'argent ». Il tranche :
+- [x] **ADR à écrire et accepter avant le code** : « Les sorties d'argent ». Il tranche :
   1. **Décaissement** : *manuel tracé* (l'humain paie dans Wave Business ou Orange Money, puis
      saisit la référence) ou *automatique* (API de décaissement). **Option retenue par défaut :
      manuel tracé dans ce ticket**, derrière un contrat `App\Contracts\Payments\DisbursementDriverContract`
@@ -374,7 +374,7 @@ rend **403** avec une clé i18n, jamais une phrase.
 
 ### 1. Reversement calculé (AD11)
 
-- [ ] Migration `add_payee_and_approval_columns_to_payouts_table` : `payee_role` string défaut
+- [x] Migration `add_payee_and_approval_columns_to_payouts_table` : `payee_role` string défaut
   `landlord`, `approved_by_id`, `approved_at`, `processed_by_id`, `payout_method_id`,
   `service_provider_bill_id`, chacune avec une FK nommée explicitement. **Origine obligatoire** : le
   CHECK `lease_id OR booking_id` de models-spec §28 ne tient plus dès qu'un reversement couvre
@@ -383,146 +383,150 @@ rend **403** avec une clé i18n, jamais une phrase.
   d'intervention) est exigée par `StorePayoutRequest` et revérifiée par `PayoutService::create`.
   Compter en préproduction les `Payout` sans `lease_id`, `booking_id` ni pivot ; le compte va dans
   les Notes. La ligne §28 de models-spec est à corriger par la session (fichier de retour).
-- [ ] Migration de données : `payee_role = tenant` pour les reversements nés de `DepositRefundService`.
+  ⚠ **Compte en préproduction non relevé** : l'agent n'a pas d'accès à la préproduction ; à relever
+  par la session avant la promotion (voir le rapport, « Pour la session »).
+- [x] Migration de données : `payee_role = tenant` pour les reversements nés de `DepositRefundService`.
   On les identifie par jointure avec le `LeasePayment` `deposit_refund` de même bail, même montant et
   même seconde de création, et le compte va dans les Notes. `DepositRefundService` écrit désormais
   `payee_role = tenant`.
-- [ ] Migration `add_unique_payment_to_payout_pivots` : index uniques
+  ⚠ **Compte en préproduction non relevé** (même raison) ; la reprise est prouvée sur une base de
+  test (AC23 : 2 `tenant`, 1 `landlord`).
+- [x] Migration `add_unique_payment_to_payout_pivots` : index uniques
   `payout_lp_lease_payment_unique` et `payout_bp_booking_payment_unique`. Dédoublonner au préalable
   les lignes du seeder.
-- [ ] `PayoutStatus::AwaitingApproval` (`awaiting_approval`). Transitions : `awaiting_approval →
+- [x] `PayoutStatus::AwaitingApproval` (`awaiting_approval`). Transitions : `awaiting_approval →
   pending` (approbation ; `scheduled` si `scheduled_at` est posé) et `awaiting_approval → cancelled`.
   `markProcessed` et `markFailed` refusent `awaiting_approval` (422). Un reversement ne naît
   `awaiting_approval` que si `agencies.payout_approval_threshold` n'est pas `null` et que net ≥ seuil.
-- [ ] Service `App\Services\Payout\PayoutPreparationService::prepare()` ; contrôleur
+- [x] Service `App\Services\Payout\PayoutPreparationService::prepare()` ; contrôleur
   `PayoutPreparationController` ; `PreparePayoutRequest` (autorisation `can('create', Payout::class)`).
-- [ ] `StorePayoutRequest` : `gross_amount`, `commission_amount` et `fees_amount` passent en
+- [x] `StorePayoutRequest` : `gross_amount`, `commission_amount` et `fees_amount` passent en
   **`prohibited`** ; ajout de `lease_payment_ids[]`, `booking_payment_ids[]`,
   `service_provider_bill_ids[]` et `payout_method_id` ; `lease_id` et `booking_id` passent en
   `prohibited` (ils se déduisent des paiements). Au moins un identifiant de pièce est requis.
   `PayoutService::create` recalcule tout, attache les pivots et détache sur `cancel`/`markFailed`.
-- [ ] `PayoutService::create` vérifie, avant toute écriture, que chaque pièce citée relève de
+- [x] `PayoutService::create` vérifie, avant toute écriture, que chaque pièce citée relève de
   l'agence du profil actif et du bailleur désigné (Contraintes) ; sinon 422 avec la clé
   `money_out.payout.foreign_item` et l'identifiant fautif. `lease_id` (resp. `booking_id`) du
   `Payout` est rempli quand toutes les pièces relèvent d'un même bail (resp. réservation), sinon
   `null` : les pivots portent alors l'origine.
-- [ ] `Payout::$requestFilterable` gagne `payee_role` ; `PayoutResource` le rend.
-- [ ] Commande `payouts:remind-due` (quotidienne) : notifie l'émetteur (`PayoutDueNotification`, clés `money_out.*`) des reversements `pending` **ou
+- [x] `Payout::$requestFilterable` gagne `payee_role` ; `PayoutResource` le rend.
+- [x] Commande `payouts:remind-due` (quotidienne) : notifie l'émetteur (`PayoutDueNotification`, clés `money_out.*`) des reversements `pending` **ou
   `scheduled`** dont `scheduled_at` est échu, **une fois** (`metadata.due_reminded_at`). Elle
   n'exécute rien tant que le décaissement est manuel.
 
 ### 2. Relevé de gérance (O8 = AD11)
 
-- [ ] `App\Services\Payout\OwnerStatementService`. Il produit, par agence, par bien puis consolidé :
+- [x] `App\Services\Payout\OwnerStatementService`. Il produit, par agence, par bien puis consolidé :
   loyers encaissés, commission, frais d'intervention, net reversé avec ses références, et impayés de
   la période. Il ne lit que `payee_role = landlord`.
-- [ ] `OwnerStatementController` (`index`, `pdf`, `csv`), `OwnerStatementRequest` (`period` au format
+- [x] `OwnerStatementController` (`index`, `pdf`, `csv`), `OwnerStatementRequest` (`period` au format
   `YYYY-MM` ou `YYYY`), nouvelle `OwnerStatementPolicy`. Le bailleur lit le sien ; un membre détenant
   `payouts.create` lit ceux des bailleurs de **son** agence.
-- [ ] Gabarit `resources/views/pdf/statements/owner.blade.php` sur `layouts/base`, avec les mentions
+- [x] Gabarit `resources/views/pdf/statements/owner.blade.php` sur `layouts/base`, avec les mentions
   légales du § 5.
-- [ ] Commande `payouts:send-owner-statements` mensuelle (le 1er, 08:00, heure de Dakar), avec la
+- [x] Commande `payouts:send-owner-statements` mensuelle (le 1er, 08:00, heure de Dakar), avec la
   notification `OwnerStatementAvailableNotification`.
 
 ### 3. Quatre yeux
 
-- [ ] `App\Support\SegregationOfDuties` : `assertDistinct(User $actor, array $priorActorIds, string $step)`.
-- [ ] **3a** : `PayoutPolicy::approve()` (capacité `payouts.approve` à l'agence du reversement).
+- [x] `App\Support\SegregationOfDuties` : `assertDistinct(User $actor, array $priorActorIds, string $step)`.
+- [x] **3a** : `PayoutPolicy::approve()` (capacité `payouts.approve` à l'agence du reversement).
   `ApprovePayoutRequest`, `PayoutController::approve`, route `payouts.approve`. `PayoutService`
   appelle `SegregationOfDuties` dans `approve()` et `markProcessed()`.
   `MarkProcessedPayoutRequest` : `transaction_id` est `required_unless:payment_method,cash`.
-- [ ] Migration `add_payout_settings_and_legal_columns_to_agencies_table` (voir § 5) :
+- [x] Migration `add_payout_settings_and_legal_columns_to_agencies_table` (voir § 5) :
   `payout_approval_threshold` decimal(14,2) nullable, **sans défaut et sans reprise** : `null` pour
   toute agence existante comme pour toute agence créée ensuite (porteur, 2026-10-06). C'est une
   **colonne** et non `settings` : `AgencyUpdateRequest.php:37` remplace le tableau `settings` entier.
-- [ ] `AgencyUpdateRequest` : `payout_approval_threshold` `['sometimes','nullable','numeric','min:0']`.
+- [x] `AgencyUpdateRequest` : `payout_approval_threshold` `['sometimes','nullable','numeric','min:0']`.
   Le poser à une valeur non nulle exige `payouts.approve` (403 sinon) et au moins deux membres actifs
   de l'agence détenant `payouts.approve` (422, clé `money_out.threshold.needs_two_approvers`) ; le
   remettre à `null` exige `payouts.approve`. Tout changement écrit une entrée d'activité
   `agency_payout_threshold_changed` (ancienne et nouvelle valeur).
-- [ ] Notification `PayoutAwaitingApprovalNotification` aux détenteurs de `payouts.approve`, sauf l'émetteur.
-- [ ] **3b** : migration `add_segregation_columns_to_platform_payouts_table` : `closed_by_id`,
+- [x] Notification `PayoutAwaitingApprovalNotification` aux détenteurs de `payouts.approve`, sauf l'émetteur.
+- [x] **3b** : migration `add_segregation_columns_to_platform_payouts_table` : `closed_by_id`,
   `paid_by_id`, `approved_at`, `payment_reference`. `PlatformPayoutService` : `closeForAgency` écrit
   `closed_by_id`, `approve` et `markPaid` appellent `SegregationOfDuties`.
   `MarkPlatformPayoutPaidRequest` : `payment_reference` required.
-- [ ] `closeForAgency` / `agenciesWithUnpaidEligiblePayments` : on exclut `status <> active`, et la
+- [x] `closeForAgency` / `agenciesWithUnpaidEligiblePayments` : on exclut `status <> active`, et la
   réponse de `close-period` liste les exclues avec leur motif (`agency_not_active`,
   `already_closed`). `approve` refuse (422) une agence `standard` non vérifiée. Pour une agence
   `individual`, l'état de vérification est seulement affiché (option retenue par défaut).
-- [ ] **Gel** : `approve` et `markPaid` relisent `agencies.status` et refusent (422, clé
+- [x] **Gel** : `approve` et `markPaid` relisent `agencies.status` et refusent (422, clé
   `money_out.platform.agency_frozen`) une agence non active, même si le `PlatformPayout` a été clôturé
   quand elle l'était.
-- [ ] **Clôture globale non interrompue** : sans `agency_id`, `closePeriod` traite chaque agence
+- [x] **Clôture globale non interrompue** : sans `agency_id`, `closePeriod` traite chaque agence
   dans sa transaction ; une agence déjà clôturée pour cette date (vérification du `existing` avant
   toute insertion) est **rangée dans les exclues** avec `already_closed` au lieu de lever 409, et la
   boucle continue. Le cas d'une course perdue sur l'index unique partiel ne s'attrape pas dans la
   transaction (piège n°1) : la transaction de cette agence échoue, son identifiant rejoint les
   exclues **après** le rollback, et les suivantes sont traitées. Avec `agency_id`, le 409 actuel est
   conservé (`test_close_period_is_idempotent_and_returns_409_on_replay` reste vert).
-- [ ] Réécrire `test_full_happy_path_pending_to_paid` avec deux super-admins distincts.
+- [x] Réécrire `test_full_happy_path_pending_to_paid` avec deux super-admins distincts.
 
 ### 4. Destinations et décaissement (O7, P8)
 
-- [ ] Migration `create_payout_methods_table` : `user_id`, `kind` (`wave`|`orange_money`|`free_money`|`bank_transfer`),
+- [x] Migration `create_payout_methods_table` : `user_id`, `kind` (`wave`|`orange_money`|`free_money`|`bank_transfer`),
   `account_identifier` et `account_holder_name` (`text`, mécanisme de chiffrement de TCK-601 :
   cast `encrypted`, `$hidden`, masqueur), `masked_identifier` (calculé par le masqueur de 601),
   `is_default`, `verified_at`, `verified_by_id`, soft delete. Modèle `PayoutMethod`, `PayoutMethodPolicy`,
   `Me\PayoutMethodController`, `PayoutMethodVerificationController`, et leurs FormRequests.
-- [ ] `DisbursementDriverContract` + `ManualDisbursementDriver` (selon l'ADR). `markProcessed`
+- [x] `DisbursementDriverContract` + `ManualDisbursementDriver` (selon l'ADR). `markProcessed`
   recopie la destination masquée dans `payouts.metadata`.
-- [ ] Notifications `PayoutProcessedNotification` (net, référence, destination masquée) et
+- [x] Notifications `PayoutProcessedNotification` (net, référence, destination masquée) et
   `PayoutFailedNotification` (motif), envoyées au bénéficiaire. Plus `PayoutMethodChangedNotification`.
 
 ### 5. Facture conforme (AD12)
 
-- [ ] Même migration agence : `legal_name`, `ninea`, `rccm`, `legal_address`, `default_tax_rate`
+- [x] Même migration agence : `legal_name`, `ninea`, `rccm`, `legal_address`, `default_tax_rate`
   decimal(5,2) nullable. On recopie depuis `metadata.legal_info` (`company_legal_name`, `ninea`, `rc`,
   `address_fiscale`) — jamais `rib_pro`, que 601 supprime de `metadata.legal_info` —, et
   `AgencyKindFlipService` écrit désormais ces quatre valeurs dans les colonnes. `AgencyUpdateRequest` les
   accepte pour une agence `standard` et les déclare `prohibited` pour une agence `individual` ;
   `ninea`/`rccm` : `['sometimes','nullable','string','max:30']`, sans contrôle de forme (D-68).
-- [ ] Migration `add_numbering_and_credit_notes_to_invoices_table` : `kind` (défaut `invoice`),
+- [x] Migration `add_numbering_and_credit_notes_to_invoices_table` : `kind` (défaut `invoice`),
   `credited_invoice_id` (FK `invoices_credited_invoice_fk`), `sequence_year`, `sequence_number`. Index
   unique `invoices_agency_kind_seq_unique` sur `(agency_id, kind, sequence_year, sequence_number)`.
   L'unicité de `reference_number` devient `invoices_agency_reference_unique` `(agency_id, reference_number)`,
   plus un index partiel `invoices_reference_no_agency_unique` pour `agency_id IS NULL`.
-- [ ] `App\Services\Invoice\InvoiceNumberAllocator`, appelé par `InvoiceService::send`,
+- [x] `App\Services\Invoice\InvoiceNumberAllocator`, appelé par `InvoiceService::send`,
   `InvoiceService::markPaid` quand la facture est encore `draft`, `EarlyTerminationService` et
   `DepositRefundService` (si non brouillon). Format `FA-{année}-{00001}` / `AV-{année}-{00001}`.
-- [ ] `InvoiceService::resolveInvoiceableTarget` reçoit l'agence de la facture et refuse (422, clé
+- [x] `InvoiceService::resolveInvoiceableTarget` reçoit l'agence de la facture et refuse (422, clé
   `money_out.invoice.foreign_target`) un bail ou une réservation d'une autre agence.
-- [ ] `InvoiceService::create` : `tax_rate` absent ⇒ `agency.default_tax_rate`, à défaut 0. Un
+- [x] `InvoiceService::create` : `tax_rate` absent ⇒ `agency.default_tax_rate`, à défaut 0. Un
   `tax_rate` explicite gagne. `InvoiceService::cancel` sur `sent`/`overdue` crée l'avoir dans la même
   transaction.
-- [ ] `pdf/invoices/default.blade.php` (+ `layouts/base`) : raison sociale, NINEA, RCCM et adresse au
+- [x] `pdf/invoices/default.blade.php` (+ `layouts/base`) : raison sociale, NINEA, RCCM et adresse au
   pied quand ils existent, sans libellé vide ; « Avoir » et la facture d'origine pour un avoir.
 
 ### 6. Facture d'intervention (P8)
 
-- [ ] Migration `create_service_provider_bills_table` : `maintenance_request_id`, `agency_id`,
+- [x] Migration `create_service_provider_bills_table` : `maintenance_request_id`, `agency_id`,
   `property_id`, `provider_id`, `reference_number` (`SPB-`), `provider_reference` nullable, `amount`,
   `currency`, `exceeds_quote` bool, `status` (`pending_validation`|`validated`|`rejected`|`paid`|`cancelled`),
   `validated_by_id`, `validated_at`, `rejection_reason`, `rechargeable_to_landlord` bool,
   `imputed_payout_id`. Index unique partiel `sp_bills_one_open_per_request` sur
   `maintenance_request_id` hors `rejected`/`cancelled`.
-- [ ] `App\Observers\MaintenanceRequestObserver` (`ShouldHandleEventsAfterCommit`), enregistré dans
+- [x] `App\Observers\MaintenanceRequestObserver` (`ShouldHandleEventsAfterCommit`), enregistré dans
   `AppServiceProvider`. Au passage à `completed`, avec un `assigned_to` et un montant > 0 (le coût
   réel s'il est fourni, sinon le devis approuvé), il crée la facture **sans exception attendue** :
   `insertOrIgnore`, ou bien une vérification d'existence sous verrou de la demande.
-- [ ] `ServiceProviderBillPolicy`, `ServiceProviderBillController` (`index`, `show`, `validate`,
+- [x] `ServiceProviderBillPolicy`, `ServiceProviderBillController` (`index`, `show`, `validate`,
   `reject`, `pay`). `pay` crée un `Payout` `payee_role = service_provider` : même seuil, mêmes quatre
   yeux, même destination vérifiée.
 
 ### 7. Reversements plateforme de l'hôte individuel (AD18)
 
-- [ ] `Me\PlatformPayoutController::index` exige `agency.update_billing` à l'agence du profil actif (403 sinon).
-- [ ] Front : l'hôte individuel consulte ses reversements plateforme. **Option retenue par défaut** : retirer
+- [x] `Me\PlatformPayoutController::index` exige `agency.update_billing` à l'agence du profil actif (403 sinon).
+- [x] Front : l'hôte individuel consulte ses reversements plateforme. **Option retenue par défaut** : retirer
   `/admin/agency/billing` de `PRO_ROUTES` et la redirection de sa page, et masquer pour `individual`
   le seul bloc d'abonnement. `scripts/check-pro-routes.mjs` reste vert.
 
 ### Front (intentionnel)
 
-- [ ] Préparation d'un reversement par bailleur et période, montants en lecture seule ; file « À
+- [x] Préparation d'un reversement par bailleur et période, montants en lecture seule ; file « À
   approuver » ; référence obligatoire au marquage payé ; avoir visible sur la facture d'origine ;
   mentions légales, TVA par défaut et seuil d'approbation dans les réglages de l'agence ; relevés côté
   bailleur ; moyens de versement dans le profil (bailleur, prestataire) et leur vérification côté
@@ -530,7 +534,7 @@ rend **403** avec une clé i18n, jamais une phrase.
 
 ### Tests
 
-- [ ] `PayoutPreparationTest`, `PayoutApprovalTest`, `OwnerStatementTest`, `PayoutMethodTest`,
+- [x] `PayoutPreparationTest`, `PayoutApprovalTest`, `OwnerStatementTest`, `PayoutMethodTest`,
   `PlatformPayoutSegregationTest`, `MePlatformPayoutAccessTest`, `InvoiceNumberingTest`,
   `InvoiceCreditNoteTest`, `InvoiceLegalMentionsTest`, `ServiceProviderBillTest`,
   `PayoutApprovalThresholdTest`, `PayoutItemScopeTest`, `RemindDuePayoutsCommandTest`,
@@ -541,24 +545,29 @@ rend **403** avec une clé i18n, jamais une phrase.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 — calcul.** Prenons un bail à `commission_rate = 10` avec, en septembre 2026, un loyer de
+- [x] **AC1 — calcul.** Prenons un bail à `commission_rate = 10` avec, en septembre 2026, un loyer de
   200 000 payé, des charges de 20 000 payées, une caution de 400 000 payée et un loyer de 200 000
   `pending`. La préparation de septembre rend brut **220 000**, commission **22 000**, net **198 000**.
   Le même bail sans taux, dans une agence à 8 %, rend une commission de **17 600**.
-- [ ] **AC2 — pas de brut saisi.** `POST /api/payouts` avec `gross_amount` rend 422 sur ce champ. Le
+  **Preuve** : `PayoutPreparationTest::test_ac1_september_gross_commission_and_net_from_collected_rent_only`, `…_a_lease_without_rate_falls_back_on_the_agency_rate`, `test_commission_is_rounded_to_the_unit_line_by_line_in_xof`.
+- [x] **AC2 — pas de brut saisi.** `POST /api/payouts` avec `gross_amount` rend 422 sur ce champ. Le
   reversement créé à partir des identifiants porte le brut de AC1, quel que soit le corps envoyé.
-- [ ] **AC3 — une seule fois.** Un second reversement qui inclut un `lease_payment_id` déjà reversé
+  **Preuve** : `PayoutPreparationTest::test_ac2_the_payout_created_from_the_ids_carries_the_computed_gross_whatever_the_body_says`. Ablation J2 (brut accepté) : rouge. Front : `CreatePayoutDialog.test.tsx` (aucun champ de montant ; W3).
+- [x] **AC3 — une seule fois.** Un second reversement qui inclut un `lease_payment_id` déjà reversé
   rend 409, et la base ne contient qu'une ligne pivot pour ce paiement. Après `cancel` du premier, le
   même paiement est de nouveau reversable. Deux périodes qui se chevauchent ne comptent pas deux fois
   le même loyer.
-- [ ] **AC4 — caution.** Un remboursement de caution crée un `Payout` `payee_role = tenant`. Il
+  **Preuve** : `PayoutItemScopeTest::test_ac3_a_rent_is_paid_out_once_and_again_after_cancel`, `…_the_database_refuses_a_second_pivot_row_for_one_payment`, `test_the_period_bounds_paid_at_and_a_paid_out_rent_is_not_offered_again`. Ablation J3 : la garde applicative seule retirée reste verte, l'index unique tient (noté).
+- [x] **AC4 — caution.** Un remboursement de caution crée un `Payout` `payee_role = tenant`. Il
   n'apparaît ni dans le relevé du bailleur ni dans la préparation.
-- [ ] **AC5 — relevé.** Avec les données de AC1 reversées et une facture d'intervention refacturable
+  **Preuve** : `PayoutPayeeRoleTest::test_ac4_ac23_…`, `test_ac4_a_refunded_deposit_never_enters_the_preparation`, et `OwnerStatementTest::test_ac5_the_year_sums_the_months_and_a_deposit_refund_is_not_a_payout_of_the_landlord`. Ablation J4 : rouge.
+- [x] **AC5 — relevé.** Avec les données de AC1 reversées et une facture d'intervention refacturable
   de 15 000, le relevé de septembre rend encaissé 220 000, commission 22 000, frais 15 000, net
   **183 000**, plus la référence du reversement. Le PDF rend 200 `application/pdf`. Un autre bailleur
   de la **même** agence reçoit 403 sur ce relevé, et un agent sans `payouts.create` aussi.
   `period=2026` rend la somme annuelle.
-- [ ] **AC6a — pas de seuil par défaut (porteur, 2026-10-06).** Une agence créée par sa factory
+  **Preuve** : `OwnerStatementTest::test_ac5_*` (3 tests, PDF et CSV compris). Ablations H1 à H4 : rouges. Front : `OwnerStatementPanel.test.tsx` (W18 à W21).
+- [x] **AC6a — pas de seuil par défaut (porteur, 2026-10-06).** Une agence créée par sa factory
   après la migration, et une agence existante avant elle, ont `payout_approval_threshold = null`.
   Dans cette agence, un net de 150 000 naît `pending` (jamais `awaiting_approval`), et **son
   émetteur seul** le marque payé : 200, `processed_by_id` = l'émetteur. On pose ensuite le seuil à
@@ -566,41 +575,50 @@ rend **403** avec une clé i18n, jamais une phrase.
   `awaiting_approval` et `mark-processed` par l'émetteur rend 422. **Ablation** : forcer un seuil
   `0` par défaut dans la migration rougit la première moitié ; ignorer le seuil dans
   `PayoutService::create` rougit la seconde.
-- [ ] **AC6 — quatre yeux, agence.** Seuil à 100 000. Un net de 150 000 est créé en
+  **Preuve** : `PayoutApprovalTest::test_ac6a_a_new_agency_has_no_threshold_and_its_issuer_pays_alone`, `…_an_agency_existing_before_the_migration_has_no_threshold`. Ablations A4 (défaut 0) et A5 (seuil ignoré) : rouges.
+- [x] **AC6 — quatre yeux, agence.** Seuil à 100 000. Un net de 150 000 est créé en
   `awaiting_approval`, et `mark-processed` y rend 422. L'émetteur qui approuve reçoit **403**. Un
   second détenteur de `payouts.approve` approuve, et le statut passe à `pending`. L'approbateur qui
   marque payé reçoit 403 ; l'émetteur, lui, obtient 200, et sans `transaction_id` il reçoit 422. Un
   net de 50 000 naît directement `pending`. **Ablation** : retirer l'appel à `SegregationOfDuties`
   rougit les deux cas 403.
-- [ ] **AC7 — bénéficiaire.** Seuil actif : un admin d'agence qui est aussi le bailleur du
+  **Preuve** : `PayoutApprovalTest::test_ac6_four_eyes_issuer_approver_and_payer_are_three_distinct_gestures`, `…_under_a_second_profile_in_another_agency`, `…_a_super_admin_issuer_does_not_approve_its_own_payout`, `test_an_amount_changed_after_approval_is_not_paid`. Ablations A2, A3, A8, I2 : rouges. Front : `PayoutDetailDialog.capacites.test.tsx` (W4, W5).
+- [x] **AC7 — bénéficiaire.** Seuil actif : un admin d'agence qui est aussi le bailleur du
   reversement reçoit 403 sur `approve` alors qu'il détient `payouts.approve`.
-- [ ] **AC8 — seuil.** Activer le seuil dans une agence à un seul détenteur de `payouts.approve` rend
+  **Preuve** : `PayoutApprovalTest::test_ac7_an_admin_who_is_the_landlord_cannot_approve_its_own_payout` (deux gardes : policy et service, A2).
+- [x] **AC8 — seuil.** Activer le seuil dans une agence à un seul détenteur de `payouts.approve` rend
   422 et la colonne reste `null` ; avec deux détenteurs, 200. Un membre sans `payouts.approve` qui
   le modifie (ou le remet à `null`) reçoit 403. Chaque changement accepté écrit une entrée
   `agency_payout_threshold_changed` portant l'ancienne et la nouvelle valeur.
-- [ ] **AC9 — quatre yeux, plateforme.** SA1 clôture. SA1 qui approuve reçoit 403 ; SA2 approuve.
+  **Preuve** : `PayoutApprovalThresholdTest` (4 tests). Ablations A6, A7 : rouges. Front : `AgencyConfigForm.test.tsx`, `admin-schemas.test.ts` (W9 à W12).
+- [x] **AC9 — quatre yeux, plateforme.** SA1 clôture. SA1 qui approuve reçoit 403 ; SA2 approuve.
   SA2 qui marque payé reçoit 403. SA1 marque payé, et sans `payment_reference` il reçoit 422.
   `closed_by_id`, `approved_by` et `paid_by_id` valent SA1, SA2, SA1. Le nouveau test rougit sur le
   code actuel, où un seul acteur passe tout.
-- [ ] **AC10 — conformité.** Une agence `suspended` qui a des paiements éligibles n'obtient **aucun**
+  **Preuve** : `PlatformPayoutSegregationTest` (3 tests) et `PlatformPayoutTest::test_full_happy_path_pending_to_paid` (deux super-admins). Ablations B1, B2, B7, I2 : rouges. Front : `reversements-plateforme.tck-594.test.tsx` (W13 à W16).
+- [x] **AC10 — conformité.** Une agence `suspended` qui a des paiements éligibles n'obtient **aucun**
   `PlatformPayout` à la clôture globale et figure dans la liste des exclues (`agency_not_active`).
   L'approbation du reversement d'une agence `standard` non vérifiée rend 422. **Gel** : une agence
   active est clôturée (`pending`), puis passée `suspended` ; `approve` rend 422, et un reversement
   déjà `approved` d'une agence suspendue rend 422 sur `mark-paid`, statut inchangé. Les deux cas
   rougissent sur le code actuel (200 aujourd'hui).
-- [ ] **AC11 — lecture des reversements plateforme.** `GET /api/me/payouts` avec un profil
+  **Preuve** : `PlatformPayoutFreezeTest::test_ac10_*` (3 tests). Ablations B3, B4, B6 : rouges. Front : exclusions affichées (W17).
+- [x] **AC11 — lecture des reversements plateforme.** `GET /api/me/payouts` avec un profil
   propriétaire ou agent de l'agence rend **403**, et avec le profil admin 200. Le test rougit sur le
   code actuel.
-- [ ] **AC12 — numérotation.** L'agence A émet trois factures en 2026 : `FA-2026-00001`, `00002`,
+  **Preuve** : `MePlatformPayoutAccessTest::test_ac11_owner_and_agent_profiles_get_403_the_admin_200`, `test_the_capability_is_read_not_the_role`. Ablation C1 : rouge.
+- [x] **AC12 — numérotation.** L'agence A émet trois factures en 2026 : `FA-2026-00001`, `00002`,
   `00003` dans l'ordre d'émission. L'agence B émet sa première : `FA-2026-00001`, sans conflit. Un
   brouillon annulé n'a consommé aucun numéro. La pénalité de résiliation anticipée, créée directement
   émise, reçoit un numéro de la séquence. Un brouillon passé directement par `mark-paid` reçoit le
   numéro suivant (`FA-2026-00004` pour A). **Ablation** : retirer l'appel à l'allocateur dans un des
   quatre sites rougit le test qui énumère ces quatre sites.
-- [ ] **AC13 — avoir.** L'annulation d'une facture émise de 118 000 la passe `cancelled` et crée un
+  **Preuve** : `InvoiceNumberingTest` (6 tests). Ablations D1 à D5 (un site à la fois, et le verrou) : rouges.
+- [x] **AC13 — avoir.** L'annulation d'une facture émise de 118 000 la passe `cancelled` et crée un
   avoir `AV-2026-00001` de 118 000, avec `credited_invoice_id` égal à l'originale. Annuler un
   brouillon ne crée pas d'avoir.
-- [ ] **AC14 — mentions et TVA.** Avec une agence à NINEA `0012345 2G3`, le rendu HTML du PDF contient
+  **Preuve** : `InvoiceCreditNoteTest` (2 tests). Ablation D6 : rouge. Front : `InvoiceDetailDialog.avoir.test.tsx` (W6 à W8).
+- [x] **AC14 — mentions et TVA.** Avec une agence à NINEA `0012345 2G3`, le rendu HTML du PDF contient
   cette valeur ; sans NINEA, il ne contient aucun libellé « NINEA ». Avec `default_tax_rate = 18`,
   une facture créée sans `tax_rate` sur 100 000 donne 18 000 de taxe ; avec `tax_rate = 0` explicite,
   elle donne 0. Une agence dont `metadata.legal_info` porte `ninea = 0012345 2G3` et `rib_pro` a,
@@ -608,50 +626,60 @@ rend **403** avec une clé i18n, jamais une phrase.
   aucune colonne d'`agencies` (sa suppression de `metadata` est chez 601 ; ablation : recopier `rib_pro` rougit le
   test). `PATCH /api/agencies/{id}` avec `ninea` sur une agence `individual` rend 422 ; une valeur
   de forme quelconque (`ABC`) est acceptée sur une agence `standard` (pas de contrôle de forme, D-68).
-- [ ] **AC15 — facture d'intervention.** Une demande passée à `completed`, avec un prestataire assigné
+  **Preuve** : `InvoiceLegalMentionsTest` (4 tests). Ablations D8 à D11 : rouges.
+- [x] **AC15 — facture d'intervention.** Une demande passée à `completed`, avec un prestataire assigné
   et un devis approuvé de 50 000, crée **une** facture `pending_validation` de 50 000. Avec un coût
   réel de 60 000, la facture vaut 60 000 et porte `exceeds_quote = true`. Repasser par `completed` ne
   crée pas de seconde facture, et sans prestataire assigné aucune n'est créée. Une fois validée,
   `pay` crée un `Payout` `service_provider` soumis à AC6. Le prestataire lit ses factures et reçoit
   404 sur celle d'un autre.
-- [ ] **AC16 — destination.** Les valeurs brutes en base (`DB::table`) de `account_identifier` et
+  **Preuve** : `ServiceProviderBillTest` (5 tests). Ablations G1 à G5 : rouges. Front : `ServiceProviderBillsTable.test.tsx` (W27b à W32).
+- [x] **AC16 — destination.** Les valeurs brutes en base (`DB::table`) de `account_identifier` et
   d'`account_holder_name` diffèrent de celles saisies, et aucune entrée d'`activity_log` ne contient
   le numéro en clair.
   La ressource rend la forme masquée à l'agence et la forme claire au titulaire. Marquer payé un
   reversement Wave vers une destination non vérifiée rend 422. Modifier une destination la
   dé-vérifie et notifie le titulaire.
-- [ ] **AC17 — avis.** `mark-processed` notifie le bénéficiaire avec le net et la référence ;
+  **Preuve** : `PayoutMethodTest` (8 tests). Ablations E1 à E6, I4, I5 : rouges. Front : `PayoutMethodsSection.test.tsx`, vérification dans `CreatePayoutDialog.test.tsx` (W22 à W26).
+- [x] **AC17 — avis.** `mark-processed` notifie le bénéficiaire avec le net et la référence ;
   `mark-failed` le notifie avec le motif. Les deux contenus passent par des clés `money_out.*`, et le
   test échoue si l'un des deux contient un littéral.
-- [ ] **AC18 — hôte individuel.** Un admin d'agence `individual` atteint ses reversements plateforme
+  **Preuve** : `PayoutBeneficiaryNotificationsTest` (2 tests). Ablations F2, I3 : rouges. ⚠ Après la fusion de TCK-588, le contenu ne passe plus par des clés `money_out.*` mais par les codes `payout.processed` / `payout.failed` (`NotificationCode`, `lang/*/notifications.php`) : la garde du littéral est `ProseLitteraleInterditeTest` et `scripts/check-notification-codes.mjs`.
+- [x] **AC18 — hôte individuel.** Un admin d'agence `individual` atteint ses reversements plateforme
   sans redirection, et `check-pro-routes.mjs` passe.
-- [ ] **AC19 — pièces de l'agence et du bailleur.** `POST /api/payouts` qui cite un `lease_payment_id`
+  **Preuve** : `MePlatformPayoutAccessTest::test_ac18_the_admin_of_an_individual_agency_reads_its_platform_payouts` ; front `billing/__tests__/page.hote-individuel.test.tsx` (W1, W2) ; `node scripts/check-pro-routes.mjs` vert.
+- [x] **AC19 — pièces de l'agence et du bailleur.** `POST /api/payouts` qui cite un `lease_payment_id`
   d'un bail d'une **autre agence** rend 422 (`money_out.payout.foreign_item`) ; un paiement d'un bail
   de la même agence mais d'un **autre bailleur** rend 422 ; un corps sans aucune pièce rend 422 ; un
   corps avec `lease_id` rend 422 sur ce champ. Dans les quatre cas, aucune ligne `payouts` ni pivot
   n'est écrite. Rouge aujourd'hui : le `lease_id` d'une autre agence est accepté (201).
   **Ablation** : retirer la vérification de périmètre de `PayoutService::create` rougit les deux
   premiers cas.
-- [ ] **AC20 — échéance d'un reversement programmé.** Un reversement `scheduled` dont `scheduled_at`
+  **Preuve** : `PayoutItemScopeTest::test_ac19_*` (4 tests). Ablation J1 (périmètre retiré) : rouge sur les deux premiers cas (et la pièce impayée).
+- [x] **AC20 — échéance d'un reversement programmé.** Un reversement `scheduled` dont `scheduled_at`
   est hier et un `pending` dont `scheduled_at` est hier : `payouts:remind-due` notifie l'émetteur de
   chacun (2 notifications). Relancée, la commande n'en envoie aucune de plus. Un reversement dont
   `scheduled_at` est demain, et un `completed` échu, ne produisent rien. `routes/console.php`
   planifie la commande (test sur `Schedule::events()`).
-- [ ] **AC21 — clôture globale.** Trois agences A, B, C ont des paiements éligibles au 2026-09-30 ; B
+  **Preuve** : `RemindDuePayoutsCommandTest` (2 tests). Ablation A1 : rouge.
+- [x] **AC21 — clôture globale.** Trois agences A, B, C ont des paiements éligibles au 2026-09-30 ; B
   est déjà clôturée pour cette date (puis un paiement tardif de B, `paid_at` au 2026-09-20, est
   enregistré). `close-period` sans `agency_id` rend 201, crée les reversements de A **et** de C, et
   liste B dans les exclues avec `already_closed`. Rouge aujourd'hui : la réponse est 409 quel que soit
   l'ordre de traitement, et l'agence traitée après B n'a pas de reversement.
-- [ ] **AC22 — cible de facture.** `POST /api/invoices` avec `invoiceable_type = lease` et l'id d'un
+  **Preuve** : `PlatformPayoutFreezeTest::test_ac21_the_global_close_skips_an_already_closed_agency_and_goes_on`. Ablations B5, I1 : rouges.
+- [x] **AC22 — cible de facture.** `POST /api/invoices` avec `invoiceable_type = lease` et l'id d'un
   bail d'une autre agence rend 422 (`money_out.invoice.foreign_target`) et n'écrit rien ; avec un
   bail de l'agence, 201. Rouge aujourd'hui (201 dans les deux cas).
-- [ ] **AC23 — la caution n'est pas un reversement au bailleur.** Après un remboursement de caution
+  **Preuve** : `InvoiceTargetScopeTest::test_ac22_a_lease_of_another_agency_is_refused_and_nothing_is_written`. Ablation D7 : rouge.
+- [x] **AC23 — la caution n'est pas un reversement au bailleur.** Après un remboursement de caution
   sur le bail du bailleur L, `GET /api/payouts?filter[landlord_id]=L&filter[payee_role]=landlord&filter[status]=pending`
   ne rend pas ce `Payout` ; sans le filtre `payee_role`, il le rend avec `payee_role = "tenant"`. La
   migration de données passe les `Payout` de caution existants à `tenant` : sur une base où
   deux `Payout` de caution ont été insérés comme les écrit le code actuel (sans `payee_role`, joints
   à leur `LeasePayment` `deposit_refund`) et un reversement ordinaire, le compte `payee_role = tenant`
   vaut **2** et `landlord` **1** après la migration.
+  **Preuve** : `PayoutPayeeRoleTest::test_ac4_ac23_…`, `test_ac23_the_data_migration_moves_existing_deposit_refunds_to_tenant`. Ablation J4 : rouge.
 
 ## Hors périmètre
 
@@ -721,8 +749,8 @@ le ticket nommé (vérifié dans son texte).
   colonnes (une valeur curée de `metadata.legal_info` gagne sur la demande) ; `rib_pro` reste dans
   `metadata` (sa suppression est chez TCK-601).
 - **`payouts.approve`** quitte `CapabilityEnforcementInventory::AWAITING` ; `CLIQUET` 16 → 15.
-- Notifications : `App\Notifications\Payouts\*`, database + mail, textes sous `money_out.notifications.*`.
-  Elles fournissent `toAppNotification()` au lieu d'étendre la table `TYPES` d'`AppDatabaseChannel`.
+- Notifications : ~~`App\Notifications\Payouts\*`, textes sous `money_out.notifications.*`~~ —
+  **remplacées après la fusion de TCK-588** par des codes (voir « Partie 7 »).
 - **Non tenu (noté)** : « une agence `individual` n'émet pas de `Payout` à un tiers » n'est pas
   appliqué par le code.
 
@@ -796,10 +824,10 @@ le ticket nommé (vérifié dans son texte).
   `PayoutMethod::mask()` seul (quatre derniers caractères) : **c'est la méthode que 601 remplace.**
   La liste blanche d'audit d'`Agency` n'existe pas encore : 594 n'y inscrit rien (à faire par 601 ou
   par la seconde fusion).
-- **Avis** : `PayoutMethodChangedNotification` (ajout, modification, suppression ; critique : e-mail
-  quelles que soient les préférences ; seule la forme masquée), `PayoutProcessedNotification` (net,
-  référence, destination masquée — une ligne sans valeur ne s'écrit pas), `PayoutFailedNotification`
-  (motif). Base + e-mail ; WhatsApp/SMS viendront par les canaux de TCK-588.
+- **Avis** : ajout, modification et suppression d'une destination (critique : e-mail quelles que
+  soient les préférences ; seule la forme masquée), reversement payé (net, référence, destination
+  masquée), reversement échoué (motif). Depuis la fusion de TCK-588, ce sont des **codes** et non plus
+  des classes (voir « Partie 7 »).
 
 ### Partie 5 — facture d'intervention (§ 6)
 
@@ -837,4 +865,59 @@ le ticket nommé (vérifié dans son texte).
   encaissements le mois précédent (`OwnerStatementAvailableNotification`). Idempotence par
   `Cache::add` (40 jours) : un cache vidé entre deux exécutions du même mois renverrait l'avis.
 - `PayoutPreparationService` aligné sur `PayoutService::create` : le `agency_id` du super-admin l'emporte.
+
+### Partie 7 — fusion de TCK-588 : refus et avis en codes
+
+- **Refus** : chaque `abort(4xx, __('money_out.…'))` est devenu `abort_code(4xx, '<domaine>.<code>')`,
+  clés ajoutées (ajout seul) à `lang/{fr,en,wo}/errors.php` :
+  `payout.{agency_required, already_paid_out, amount_changed_since_approval, awaiting_approval,
+  mixed_currencies, not_awaiting_approval, payment_method_required, reference_required,
+  unverified_destination, threshold_needs_two_approvers}`, `platform_payout.{agency_frozen,
+  agency_unverified}`, `invoice.foreign_target`, `segregation.{prepare, approve, pay}`,
+  `service_provider_bill.{already_in_payout, not_payable, not_pending}`. Repris de 588 :
+  `payout.landlord_not_in_agency`, `payout.net_negative`, `payout.failure_reason_required`,
+  `payout.cannot_*`, `platform_payout.already_exists`, `platform_payout.status_transition_invalid`.
+  Les codes cités par le texte du ticket sous `money_out.*` (AC17, AC19, AC22, § 3) se lisent donc
+  sous ces noms ; `money_out.php` ne garde que les messages de **validation** (`payout.no_items`,
+  `foreign_item`, `ineligible_item`, `foreign_destination`), le relevé (`statement.*`) et le PDF (`legal.*`).
+- **`SegregationOfDuties::refuse($step)`** rend le code du geste (`segregation.prepare|approve|pay`).
+- **Défaut attrapé à la fusion** : `PlatformPayoutService::closePeriod` attrapait `HttpException`
+  sans l'importer après la résolution du conflit — la clôture globale ne rangeait plus rien dans les
+  exclues (409). Corrigé en attrapant `ApiError` et en ne gardant que `platform_payout.already_exists`
+  (ablation I1).
+- **Avis** : `NotificationCode` gagne `payout.awaiting_approval`, `payout.due`, `payout.processed`,
+  `payout.failed`, `payout_method.added|updated|removed`, `owner_statement.available` — type
+  Payment, **aucun interrupteur de préférence** (une sortie d'argent ne se coupe pas). Envoi par
+  `NotificationService::send()`, montants par `NotificationRenderer::money()`. Textes dans
+  `lang/*/notifications.php` (API) et `notifications.codes.*` des trois dictionnaires du front. Le
+  dossier `app/Notifications/Payouts/` est supprimé.
+
+### Partie 8 — front
+
+- **Préparer** (`CreatePayoutDialog`) : bailleur (liste `/api/owners`), période, puis lecture du
+  calcul (pièces, totaux, bandeau de seuil) ; la création n'envoie que les identifiants. Une
+  destination en attente se **vérifie** depuis ce dialogue (`/api/payout-methods/{id}/verify`).
+- **Quatre yeux** (`PayoutDetailDialog`) : « Approuver » visible pour `payouts.approve` et refusé
+  **visiblement** au préparateur ; paiement refusé visiblement à l'approbateur ; référence exigée
+  hors espèces. File « À approuver » dans les finances de l'agence (`PaymentsTabs`,
+  `AdminFinancesTabs`). Le pré-remplissage de commission de TCK-370 est retiré (le calcul est
+  serveur), avec ses deux tests.
+- **Avoir** (`InvoiceDetailDialog`) : titre « Avoir », facture annulée nommée, avoirs listés sur
+  l'originale, refus du serveur affiché.
+- **Réglages d'agence** (`AgencyConfigForm`) : TVA par défaut ; seuil proposé au seul détenteur de
+  `payouts.approve` et **envoyé seulement s'il change** (renvoyé inchangé, il ferait refuser
+  l'enregistrement du nom à un admin sans la capacité) ; mentions légales jamais pour une
+  `individual`. Les six colonnes rejoignent `Agency::$queryFields`.
+- **Plateforme** (`PayoutDetailPanel`, `PayoutCloseDialog`) : trois mains rendues visibles,
+  référence du virement exigée, exclusions de la clôture nommées avec leur motif.
+- **Relevé** (`OwnerStatementPanel`, onglet des versements du bailleur) : mois ou année, PDF et CSV
+  téléchargés avec le jeton de session.
+- **Destinations** (`PayoutMethodsSection`, profil du bailleur et du prestataire) : forme masquée
+  seule, état vérifiée / en attente, défaut, ajout, retrait.
+- **Factures d'intervention** (`ServiceProviderBillsTable`) : prestataire dans « Mes
+  interventions », sans geste ; agence dans l'onglet « Interventions » des finances
+  (`payouts.create`) : valider (refacturable ou non), rejeter avec motif, payer puis ouvrir le
+  reversement.
+- **AC18** : `/admin/agency/billing` quitte `PRO_ROUTES`, la page ne redirige plus et ne montre le
+  bloc d'abonnement qu'à une agence `standard` (ou au super-admin).
 
