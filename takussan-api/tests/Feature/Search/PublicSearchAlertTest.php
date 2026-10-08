@@ -200,43 +200,68 @@ class PublicSearchAlertTest extends TestCase
         $this->assertCount(1, $this->emailsA('inconnu@exemple.sn'));
     }
 
+    /** Un abonné posé directement en base : l'état de départ d'un cas, sans passer par la route. */
+    private function abonne(string $email, bool $confirme = false): AlertSubscriber
+    {
+        $desinscription = AlertSubscriber::newToken();
+
+        return AlertSubscriber::create([
+            'channel' => AlertSubscriber::CHANNEL_EMAIL,
+            'contact' => $email,
+            'contact_hash' => AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_EMAIL, $email),
+            'locale' => 'fr',
+            'confirmed_at' => $confirme ? now() : null,
+            'unsubscribe_token' => $desinscription,
+            'unsubscribe_token_hash' => AlertSubscriber::tokenHash($desinscription),
+            'consent_at' => now(),
+            'consent_source' => 'public_search_alert',
+            'consent_version' => AlertSubscriber::CONSENT_VERSION,
+        ]);
+    }
+
     /**
      * **AC17**, le temps de réponse — la requête ne fait RIEN qui dépende du contact : ni
-     * compte, ni écriture, ni envoi. Un contact connu, à sa borne, et un contact neuf poussent le
-     * même job chiffré et repartent sans qu'un message soit parti ; c'est le worker qui envoie.
+     * compte, ni écriture, ni envoi. Les quatre états d'un contact — neuf, connu, à sa borne,
+     * déjà confirmé — et le canal WhatsApp poussent chacun le même job chiffré et rendent le même
+     * 202, sans qu'un e-mail ni un SMS soit parti ; c'est le worker qui décide et envoie.
      */
     public function test_la_requete_ne_fait_que_pousser_un_job_chiffre(): void
     {
+        $this->abonne('connu@exemple.sn');
         foreach (range(1, 5) as $i) {
-            $this->postJson('/api/public/search-alerts', $this->demande(['name' => "Connue {$i}"]))->assertStatus(202);
-            $this->travel(61)->minutes();
+            $this->abonne(self::EMAIL);
         }
-        $this->assertSame(5, AlertSubscriber::count(), 'le contact connu est à sa borne');
-        $this->assertCount(2, $this->emailsA(self::EMAIL));
+        $this->abonne('confirme@exemple.sn', confirme: true);
+        $avant = AlertSubscriber::count();
 
         config(['search_alerts.whatsapp_enabled' => true]);
         Queue::fake();
         Notification::fake();
 
-        $connu = $this->postJson('/api/public/search-alerts', $this->demande(['name' => 'Sixième']));
-        $inconnu = $this->postJson('/api/public/search-alerts', $this->demande(['email' => 'inconnu@exemple.sn']));
-        $whatsapp = $this->postJson('/api/public/search-alerts', $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => self::PHONE]));
+        $cas = [
+            'neuf@exemple.sn' => $this->demande(['email' => 'neuf@exemple.sn']),
+            'connu@exemple.sn' => $this->demande(['email' => 'connu@exemple.sn']),
+            self::EMAIL => $this->demande(),
+            'confirme@exemple.sn' => $this->demande(['email' => 'confirme@exemple.sn']),
+            self::PHONE => $this->demande(['channel' => 'whatsapp', 'email' => null, 'phone' => self::PHONE]),
+        ];
+        $reponses = array_map(fn (array $demande) => $this->postJson('/api/public/search-alerts', $demande), $cas);
 
-        foreach ([$connu, $inconnu, $whatsapp] as $reponse) {
+        $premiere = reset($reponses);
+        foreach ($reponses as $contact => $reponse) {
             $reponse->assertStatus(202);
-            $this->assertSame($connu->json(), $reponse->json());
+            $this->assertSame($premiere->json(), $reponse->json(), $contact);
+            Queue::assertPushed(RecordPublicSearchAlert::class, fn (RecordPublicSearchAlert $job) => $job->contact === $contact
+                && $job instanceof ShouldBeEncrypted);
         }
-        Queue::assertPushed(RecordPublicSearchAlert::class, 3);
-        Queue::assertPushed(RecordPublicSearchAlert::class, fn (RecordPublicSearchAlert $job) => $job instanceof ShouldBeEncrypted
-            && $job->contact === 'inconnu@exemple.sn');
+        Queue::assertPushed(RecordPublicSearchAlert::class, count($cas));
         // `dispatchSync()` passe AUSSI par la file simulée, sur la connexion `sync` : c'est elle
         // qui trahirait un travail fait pendant la requête en production.
         Queue::assertNotPushed(RecordPublicSearchAlert::class, fn (RecordPublicSearchAlert $job) => $job->connection === 'sync');
         Notification::assertNothingSent();
+        $this->assertSame([], app('mailer')->getSymfonyTransport()->messages()->all());
         $this->assertSame([], $this->sms->sentTo(self::PHONE));
-        $this->assertSame(5, AlertSubscriber::count(), 'aucune écriture dans la requête');
-        $this->assertCount(2, $this->emailsA(self::EMAIL));
-        $this->assertCount(0, $this->emailsA('inconnu@exemple.sn'));
+        $this->assertSame($avant, AlertSubscriber::count(), 'aucune écriture dans la requête');
     }
 
     /** Le job qui échoue se journalise sans contact ni message, et ne relance pas l'erreur. */
