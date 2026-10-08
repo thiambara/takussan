@@ -674,6 +674,26 @@ son test rougit sous l'ablation M1a. Ablations restaurées par `cp`, md5 contrô
 - [ ] **n3** — un garant se rattache encore à un bail actif : hors périmètre, **à ticketer par la
       session**, pas corrigé ici.
 
+### 8. Ajoutés après la passe 3 de vérification adverse (verif-596 passe 3, REFUSÉ : 1 majeur, 2 mineurs)
+
+Chaque test est **rouge sur ef61596f**, sauf les deux gardes de non-régression (parent antérieur,
+`force` sur un bail antérieur), vertes avant comme après et rougies par leur ablation. Ablations
+restaurées par `cp`, md5 contrôlé, dans un seul script.
+
+- [x] **N1'** — `LeaseRenewalService::renew` recopie `early_termination_penalty_months` et
+      `rent_review_max_pct` du parent, comme les autres termes imprimés ; `RenewLeaseRequest` les
+      accepte aux bornes d'`UpdateLeaseRequest`. Un parent antérieur (colonnes nulles) donne un
+      enfant nul. La lecture « un renouvellement sans signature retombe sur le réglage, comme un bail
+      antérieur » était fausse : le parent a une valeur figée et signée. ADR-0042 §1. — `d01cbfe9`.
+      P3-N1'.1 et P3-N1'.2 : 2 rouges chacune ; P3-N1'.3 : 1.
+- [x] **m-a** — `LeaseController::update` relit la ligne sous `lockForUpdate()` dans une transaction,
+      juge `lease.terms_locked` sur elle et écrit sur elle. — `2c964039`. P3-m-a.1 (juger sur
+      l'instance liée) : 1 rouge.
+- [x] **m-b** — au-dessus d'un plafond de révision **figé**, `force` rend 422
+      `lease.rent_review_above_contract_cap`, capacité ou non ; `force` ne vaut plus que pour un bail
+      antérieur. Décision de session, option (a), réversible. ADR-0042 §1 tranche le point ouvert. —
+      `1d24d363`. P3-m-b.1 et P3-m-b.2 : 1 rouge chacune.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -805,6 +825,20 @@ son test rougit sous l'ablation M1a. Ablations restaurées par `cp`, md5 contrô
       synchronisation sans requête sortante, « synchroniser maintenant » et un nouveau flux → 422
       `calendar_feed.property_closed`. Désarchivé : export 200, import repris. Un bien passé au
       mois : export 404, import arrêté (`SyncPropertyCalendarFeedsTest`, 3 tests).
+
+**Ajoutés après la passe 3 (verif-596 passe 3) :**
+
+- [x] AC37 — Un parent signé à 1 mois et 5 %, renouvelé sans signature, réglage d'indemnité passé à
+      6 : l'enfant `active` porte `[1, 5]`, `computePenalty` rend 1 mois, une révision de +15 % est
+      refusée. Un enfant `pending_signature` hérite et imprime « 1 mois » et « Variation de 5 % » à
+      sa demande de signature. Le corps du renouvellement renégocie dans les bornes (13 mois, 101 %
+      → 422). Un parent antérieur donne un enfant nul (`LeaseContractTermsTest`, 4 tests).
+- [x] AC38 — Une activation validée entre la liaison de route et le contrôle : le `PATCH` rend 422
+      `lease.terms_locked`, `contract_sha256` et les termes restent intacts
+      (`LeaseContractTermsTest::test_a_patch_racing_an_activation_is_judged_on_the_locked_row`).
+- [x] AC39 — Super-admin, `force`, bail figé à 10 % (réglage relevé à 50 %), +30 % → 422
+      `lease.rent_review_above_contract_cap`, loyer inchangé ; +10 % passe. Sur un bail antérieur,
+      `force` dépasse encore le réglage (`LeaseContractTermsTest`, 2 tests).
 
 ## Hors périmètre
 
