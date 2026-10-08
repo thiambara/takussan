@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\SettingScope;
 
@@ -50,5 +51,16 @@ class UpdateSettingRequest extends BaseFormRequest
         return [
             'value' => ['required', 'array'],
         ];
+    }
+
+    /** TCK-600 — même refus qu'à la création : une ligne de catalogue ne se modifie pas d'ici. */
+    protected function passedValidation(): void
+    {
+        $setting = $this->route('setting');
+        abort_code_if(
+            $setting->scope === SettingScope::Global && EditablePlatformSettings::managedByCatalogue($setting->key),
+            422,
+            'setting.managed_by_catalogue',
+        );
     }
 }

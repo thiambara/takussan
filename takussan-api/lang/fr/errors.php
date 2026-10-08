@@ -357,6 +357,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Seuls les administrateurs de la plateforme gèrent les paramètres globaux.',
+        'managed_by_catalogue' => 'Ce paramètre est géré par son catalogue : modifiez-le depuis la console de la plateforme.',
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les paramètres de votre agence.',
     ],
     'share_link' => [
