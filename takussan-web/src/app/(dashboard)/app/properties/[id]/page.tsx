@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 
 import { fetchTagsAction } from '@/app/actions/admin-tags';
+import { getMeAction } from '@/app/actions/auth';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 import { ApiError } from '@/lib/api';
+import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
@@ -18,6 +20,7 @@ import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/
 import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { isAdmin, isAgent } from '@/lib/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.propertyDetail');
@@ -86,6 +89,11 @@ export default async function Page({ params }: { params: Params }) {
     ? enumLabel(tContract, contractTypeValues, property.contract_type)
     : property.contract_type_label;
 
+  // TCK-591 §5 — le rapprochement est un outil du personnel ; le bailleur n'en voit pas l'entrée
+  // (l'API le lui refuse aussi). `getMeAction` est mémoïsé : le layout l'a déjà appelé.
+  const { roles } = await getMeAction();
+  const staff = isAgent(roles) || isAdmin(roles);
+
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
 
@@ -109,6 +117,8 @@ export default async function Page({ params }: { params: Params }) {
       />
 
       <PropertyModerationBanner property={property} />
+
+      {staff ? <PropertyMatchingCustomers propertyId={property.id} /> : null}
 
       <PropertyDetailTabs property={property} tags={tags} />
     </div>

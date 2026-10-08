@@ -21,6 +21,11 @@ class NotifyDelegationActivated
     public function handle(RoleDelegationActivated $event): void
     {
         $delegation = $event->delegation;
+        // TCK-591 (ADR-0035) — une absence n'est pas une délégation de rôle : ce texte annonce un
+        // rôle accordé, et l'absence n'en accorde aucun.
+        if ($delegation->isAbsence()) {
+            return;
+        }
         $user = $delegation->user;
         $delegator = $delegation->delegator;
         $role = $delegation->role;

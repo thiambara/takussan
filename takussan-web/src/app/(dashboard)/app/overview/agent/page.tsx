@@ -85,8 +85,9 @@ export default async function AgentDashboardPage() {
             label={t('leasesToSign')}
             value={data.pipeline_ops?.leases_to_sign ?? 0}
           />
+          {/* TCK-591 — menait à cette page elle-même. */}
           <MetricLink
-            href="/app/overview/agent"
+            href="/app/tasks?filter[due]=today"
             label={t('tasksToday')}
             value={data.pipeline_ops?.tasks_today ?? data.tasks?.today ?? 0}
           />

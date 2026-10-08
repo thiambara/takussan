@@ -212,10 +212,13 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+#### Agenda
+72. [CalendarFeed](#72-calendarfeed-) ✅
+
 #### Modération (TCK-597)
-72. [ModerationClaim](#72-moderationclaim-) 🆕
-73. [MediaFingerprint](#73-mediafingerprint-) 🆕
-74. [DuplicateSuspicion](#74-duplicatesuspicion-) 🆕
+73. [ModerationClaim](#73-moderationclaim-) 🆕
+74. [MediaFingerprint](#74-mediafingerprint-) 🆕
+75. [DuplicateSuspicion](#75-duplicatesuspicion-) 🆕
 
 ### Enums
 
@@ -2937,7 +2940,39 @@ traite `key` comme un identifiant court opaque.
 
 ---
 
-### 72. ModerationClaim 🆕
+### 72. CalendarFeed ✅
+
+**Table :** `calendar_feeds`
+**Description :** Lien d'abonnement iCalendar d'un utilisateur, en lecture seule (TCK-591,
+[ADR-0034](adr/0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md)). Le jeton n'est connu
+que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) : il est rendu une seule fois, à la
+création ou à la rotation, et jamais stocké en clair. Le lien est révoqué par l'utilisateur, à la
+rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire du lien (`calendar_feeds_user_fk`, `cascadeOnDelete`) |
+| agency_id | FK agencies | ✓ | null | Agence où le titulaire est du personnel ; `null` pour un compte qui n'est personnel d'aucune agence (prestataire) (`calendar_feeds_agency_fk`, `cascadeOnDelete`) |
+| token_hash | string(64) | | | Empreinte SHA-256 du jeton ; masquée à la sérialisation (`$hidden`) |
+| revoked_at | timestamp | ✓ | null | Révocation ; un lien révoqué rend 404 |
+| last_accessed_at | timestamp | ✓ | null | Dernière lecture du flux |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :**
+- `token_hash` (`calendar_feeds_token_hash_unique`)
+
+**Index :** `(user_id, agency_id)` (`calendar_feeds_user_agency_idx`)
+
+**Relations :**
+- `user()` → belongsTo User
+- `agency()` → belongsTo Agency
+
+**Scopes :** `active()` — `revoked_at IS NULL`
+
+---
+
+### 73. ModerationClaim 🆕
 
 **Table :** `moderation_claims`
 **Description :** Prise en charge d'un élément de la file de modération super-admin pour
@@ -2963,7 +2998,7 @@ réécrit. Elle est supprimée avec la décision.
 
 ---
 
-### 73. MediaFingerprint 🆕
+### 74. MediaFingerprint 🆕
 
 **Table :** `media_fingerprints`
 **Description :** Empreinte dHash 64 bits de la photo **originale** d'un bien (collection `photos`),
@@ -2987,7 +3022,7 @@ une annonce recopiée par un autre publieur.
 
 ---
 
-### 74. DuplicateSuspicion 🆕
+### 75. DuplicateSuspicion 🆕
 
 **Table :** `duplicate_suspicions`
 **Description :** Deux biens de publieurs différents soupçonnés d'être la même annonce (ADR-0054

@@ -20,6 +20,7 @@ import type { Locale } from '@/i18n/config';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
+import { isAgencyStaffRow } from './isAgencyStaffRow';
 
 interface UserDetailDrawerProps {
   user: AdminAgencyUserRow | null;
@@ -179,7 +180,7 @@ export function UserDetailDrawer({
                       : tSuspension('reactivate')}
                   </Button>
                 ) : null}
-                {onRemove ? (
+                {onRemove && isAgencyStaffRow(user, assignments) ? (
                   <Button
                     className="w-full"
                     variant="outline"
