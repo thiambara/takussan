@@ -2101,3 +2101,21 @@ que leur SMS part.
 - Rouge avant correctif : `[200, 200, 200, 200]`.
 - Ablation (la clé reprend le corps) : 1 rouge sur 9. Restauré par `cp`, md5 identique.
 - Exécutions : `tests/Feature/Auth/Phone` (dont `PhoneLoginRateLimitTest`) donne 59 verts.
+
+#### p3-1d — ADR-0033 : la règle, et le prix de la borne par destinataire
+
+- **§2 « Identifiant »** porte la règle : remplacer un numéro **déjà** vérifié exige une preuve
+  sur le facteur en place. Elle détaille pourquoi (entrée durable, step-up détourné), les trois
+  preuves, le 403 codé, les trois écrivains et leur condition exacte, l'avis, et la liberté du
+  premier ajout.
+- **§6, tableau** : une ligne pour la borne de la preuve par mot de passe (5 / 15 min par compte).
+- **§6, « Le prix accepté de la borne par destinataire »** (observation de verif-589) :
+  - un tiers peut épuiser le budget de 5 codes par 24 h d'un numéro par `request-code`. Le
+    titulaire ne reçoit alors plus de code sur ce numéro, `change-code` compris, puisqu'il compte
+    dans le même seau (p3-1a bis) ;
+  - c'est accepté, parce qu'une clé par (IP, numéro) rouvrirait le « SMS pumping » de M3 ;
+  - il reste au titulaire le mot de passe, OAuth, le TOTP et le support. Le pire cas (ni mot de
+    passe, ni TOTP, ni e-mail) est un délai de 24 h au plus, pas une perte.
+- **« Application »** cite `PhoneChangeGuard`, `PhoneChangeProofTest` et
+  `PhoneChangeNoticeTest`.
+- Toutes les gardes racine passent.

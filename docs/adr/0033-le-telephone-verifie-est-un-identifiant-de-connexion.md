@@ -70,6 +70,27 @@ rien.**
   entière (piège n° 1 de `CLAUDE.md`). L'index est la garde de dernier recours, pas le mécanisme.
 - Le numéro est stocké et comparé sous sa forme E.164 normalisée (`PhoneNumber::normalize`), que
   `TelephoneJoignable` a déjà validée (TCK-566, TCK-574).
+- **Remplacer un numéro DÉJÀ vérifié exige une preuve sur le facteur en place** (vérification
+  adverse passe 3, p3-1, 2026-10-08). Un identifiant de connexion ne se change pas sur la seule
+  session : sans cette règle, un jeton volé remplaçait le numéro vérifié. Il gagnait ainsi une
+  entrée durable par `request-code`, qui survit à l'expiration et à la révocation du jeton comme
+  au changement de mot de passe. Il détournait aussi le step-up de suppression d'un compte sans
+  e-mail, qui part à ce numéro.
+  - **La preuve**, au choix (`PhoneChangeGuard`) :
+    - (a) un code envoyé à l'**ancien** numéro vérifié (`POST /auth/phone/change-code`, portée
+      `phone-change`, même porte que tout code) ; c'est la voie d'un compte sans mot de passe ;
+    - (b) le mot de passe du compte, s'il en a un, avec 5 échecs par 15 min et par compte ;
+    - (c) un step-up TOTP de moins de 10 min sur le jeton courant.
+  - **Sans preuve** : 403 `phone.change_requires_proof`. Rien n'est écrit, et rien ne part vers
+    le nouveau numéro.
+  - **Où** : les trois écrivains du numéro (`PUT /auth/profile`, `PATCH /me`, `send-otp`/`resend`
+    avec un numéro). Le juge reprend leur condition d'écriture exacte, `phone !== nouveau` :
+    retirer le numéro est aussi un remplacement, et aucune variante de forme ne lève la
+    vérification sans preuve.
+  - **Avec preuve, un avis part** (code `account.phone_changed`, sans aucun numéro dans le
+    texte) : à l'ancien numéro comme contact sans compte, et au compte (cloche et e-mail s'il
+    existe).
+  - **Le premier ajout reste libre** : un compte sans numéro vérifié n'a aucun facteur à prouver.
 
 ### 3. Un numéro non vérifié ne prouve rien (option retenue par défaut)
 
@@ -117,6 +138,7 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
 | Plafond global des codes (M3) | 2000 / jour UTC (`sms.otp_daily_cap`) ; atteint : 503 `sms_capacity_reached` (202 muet à `request-code`), alerte au journal une fois | service (cache) |
 | `auth-phone-verify` — par numéro | **4** / 15 min (sous la moitié du seuil, M1) | limiteur nommé |
 | Échecs sur un même code | 5 → code invalidé | service |
+| Preuve par mot de passe au remplacement d'un numéro vérifié (p3-1) | 5 échecs / 15 min par compte, au-delà même le bon mot de passe ne prouve plus | `PhoneChangeGuard` (cache) |
 | Échecs avant verrou, **par canal** | **10** | mot de passe : `metadata.failed_login_attempts`, série de **24 h** depuis son premier échec (`failed_login_first_at`, passe 2 p2-3) ; téléphone : cache, par numéro, fenêtre fixe de 15 min |
 | E-mail sans compte (m3) | **10**, même 423 | compteur **leurre** en cache, par adresse (empreinte sha256), échecs consécutifs comme un compte, même série de 24 h (l'échéance de la clé) |
 | Durée du verrou | **15 min**, calculée depuis `metadata.locked_at` | lu avant toute vérification |
@@ -160,6 +182,23 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
   - Le plafond global borne la perte d'un jour à un montant connu.
 - **Aucune réponse ne laisse deviner si le numéro a un compte** : `request-code` rend 202
   `{retry_after}` identique dans les deux cas.
+- **Le prix accepté de la borne par destinataire** (observation de verif-589, passe 3).
+  - **Ce qui est possible.** `auth-phone-send` compte par **numéro destinataire**, quel que soit
+    l'appelant. Un tiers qui connaît un numéro peut donc épuiser son budget de 5 codes par 24 h
+    par `request-code`, sans compte et depuis quelques IP. Pendant le reste de la fenêtre, le
+    titulaire ne reçoit plus aucun code sur ce numéro : ni connexion par téléphone, ni
+    vérification, ni code de preuve `change-code`, qui compte dans le même seau.
+  - **Pourquoi c'est accepté.** C'est l'objet même de la borne. Une clé par couple
+    (IP, numéro) rendrait chaque numéro joignable autant de fois qu'un attaquant a d'IP : c'est
+    le « SMS pumping » que M3 a fermé. La borne protège le budget et le numéro, au prix d'un
+    déni de service de 24 h au plus sur ce canal.
+  - **Ce qui reste au titulaire pendant ce temps :**
+    - le mot de passe et OAuth pour entrer ;
+    - le mot de passe ou un step-up TOTP pour prouver un remplacement de numéro ;
+    - le support.
+  - **Le pire cas** : un compte sans mot de passe, sans TOTP et sans e-mail. Il attend la fin de
+    la fenêtre. C'est un délai, pas une perte : rien n'a été écrit, et aucun code n'a été remis
+    à un autre que le titulaire.
 
 ### 7. Canal : SMS seul (option retenue par défaut)
 
@@ -237,9 +276,11 @@ console. Deux règles ferment ce passage :
 
 - Schéma : migration `make_email_nullable_and_phone_unique_on_users_table`.
 - Code : `App\Services\Auth\PhoneVerificationService` (envoi, code haché, compteur, `markVerified`),
+  `App\Services\Auth\PhoneChangeGuard` (preuve et avis du remplacement d'un numéro vérifié, p3-1),
   `App\Services\Auth\PhoneLoginService`, `App\Http\Controllers\Api\Auth\PhoneLoginController`,
   `App\Services\Auth\LoginLock` (verrou partagé), limiteurs nommés dans `AppServiceProvider`.
 - Gardes (TCK-589) : `PhoneOtpDeliveryTest`, `PhoneOtpAttemptLimitTest`,
   `OnboardingFixedCodeRemovedTest`, `PhoneLoginTest`, `PhoneLoginFlagTest`,
   `PhoneLoginEnumerationTest`, `PhoneLoginRateLimitTest`, `PhoneNumberUniquenessTest`,
-  `PasswordLoginLockTest`, `AccountWithoutEmailTest`.
+  `PasswordLoginLockTest`, `AccountWithoutEmailTest`, `PhoneChangeProofTest`,
+  `PhoneChangeNoticeTest`.
