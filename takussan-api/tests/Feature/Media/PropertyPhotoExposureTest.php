@@ -145,9 +145,12 @@ class PropertyPhotoExposureTest extends TestCase
         $media = $this->photo($property);
 
         Sanctum::actingAs($this->superAdmin());
-        $original = $this->detail($property)['photos'][0]['original'];
+        // TCK-598 (contrainte 2) — par la route AUTHENTIFIÉE : sur une route `public.*`, le corps ne
+        // dépend plus de l'appelant, et l'original signé n'y sort pour personne.
+        $original = $this->getJson('/api/properties/'.$property->id)->assertOk()->json('data.photos.0.original');
 
         $this->assertStringContainsString("/api/media/{$media->id}/file", $original);
+        $this->assertStringNotContainsString('/file', $this->detail($property)['photos'][0]['original']);
 
         $cible = (string) $this->get($original)->assertRedirect()->headers->get('Location');
         $this->assertStringStartsWith(RemoteDiskFake::PRESIGNED_HOST.'/r2-private/'.$media->getPathRelativeToRoot(), $cible);

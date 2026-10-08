@@ -11,6 +11,8 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
+use App\Rules\HoteDeVisiteVirtuelle;
+use App\Services\Property\CoutDEntree;
 use App\Services\Property\HierarchyService;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -71,7 +73,24 @@ class UpdatePropertyRequest extends FormRequest
             'address.postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address.latitude' => ['sometimes', 'nullable', 'numeric'],
             'address.longitude' => ['sometimes', 'nullable', 'numeric'],
+            // TCK-598 — la visite virtuelle : un LIEN https vers un hôte autorisé, jamais un fichier.
+            'virtual_tour_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:https', new HoteDeVisiteVirtuelle],
+            // TCK-598 — le coût d'entrée, d'une location MENSUELLE seulement (422 sinon). Le contrat
+            // et la période jugés sont ceux qui RÉSULTERONT de la modification : envoyés, sinon
+            // ceux du bien.
+            ...CoutDEntree::regles($this->coutDEntreeApplicable(), partiel: true),
         ];
+    }
+
+    private function coutDEntreeApplicable(): bool
+    {
+        /** @var Property|null $bien */
+        $bien = $this->route('property');
+
+        return CoutDEntree::sApplique(
+            $this->exists('contract_type') ? $this->input('contract_type') : $bien?->contract_type,
+            $this->exists('rent_period') ? $this->input('rent_period') : $bien?->rent_period,
+        );
     }
 
     /**

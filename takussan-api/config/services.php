@@ -47,6 +47,16 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT_URI'),
     ],
 
+    /*
+    | TCK-598 (ADR-0052 §2) — l'invalidation du cache de données de la fiche publique, côté front.
+    | Les deux vides : `RevalidatePublicPropertyPage` ne fait rien, et seule la revalidation
+    | temporelle du front (300 s) s'applique. Le secret est le MÊME que la clé homonyme du front.
+    */
+    'public_cache' => [
+        'revalidate_url' => env('PUBLIC_CACHE_REVALIDATE_URL', ''),
+        'revalidate_secret' => env('PUBLIC_CACHE_REVALIDATE_SECRET', ''),
+    ],
+
     'apple' => [
         'client_id' => env('APPLE_CLIENT_ID'),
         // Generated dynamically at runtime by AppleClientSecretGenerator from

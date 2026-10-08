@@ -334,7 +334,8 @@
       "titleContract": "{contract, select, rent {{subject} for rent} sale {{subject} for sale} other {{subject}}}",
       "titleCity": "{subject} in {city}",
       "subjectAny": "Properties",
-      "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood."
+      "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood.",
+      "titleQuarter": "{subject} in {quarter}, {city}"
     },
     "compare": {
       "title": "Compare properties",
@@ -797,7 +798,28 @@
       "unavailableBody": "We can't reach the catalogue right now. The listing may still exist — please try again in a moment.",
       "favoriteAddShort": "Save",
       "favoriteSavedShort": "Saved",
-      "descriptionLanguageNotice": "{langue, select, fr {Description written in French by the lister} en {Description written in English by the lister} wo {Description written in Wolof by the lister} other {Description written by the lister, in their own language}}"
+      "descriptionLanguageNotice": "{langue, select, fr {Description written in French by the lister} en {Description written in English by the lister} wo {Description written in Wolof by the lister} other {Description written by the lister, in their own language}}",
+      "entryCost": {
+        "title": "Move-in cost",
+        "advance": "Rent in advance",
+        "deposit": "Deposit",
+        "agencyFee": "Agency fee",
+        "monthlyCharges": "Monthly charges",
+        "months": "{count, plural, one {# month} other {# months}}",
+        "total": "Total to move in"
+      },
+      "trust": {
+        "phoneVerified": "Phone verified",
+        "safetyTitle": "Stay safe",
+        "safetyBody": "Never pay any money before you have visited the property and met the person offering it."
+      },
+      "virtualTour": {
+        "video": "Watch the property video",
+        "tour": "Virtual tour",
+        "loadHint": "Only loads when you open it",
+        "frameTitle": "Virtual tour — {title}",
+        "opensNewTab": "(opens in a new tab)"
+      }
     },
     "reviews": {
       "title": "Reviews",
@@ -1357,7 +1379,20 @@
       "draftResumed": "We picked your draft up where you left it.",
       "draftSaveFailed": "Your draft could not be saved. Nothing is lost as long as you stay on this page.",
       "draftSaveRetry": "Try again",
-      "draftAutosaveFailed": "Autosave is not responding: your latest changes are not safe yet."
+      "draftAutosaveFailed": "Autosave is not responding: your latest changes are not safe yet.",
+      "entryCost": {
+        "legend": "Move-in cost",
+        "hint": "What the tenant pays to move in. Leave blank anything that does not apply.",
+        "advance": "Months in advance",
+        "deposit": "Months of deposit",
+        "agencyFee": "Agency fee (in months of rent)",
+        "monthlyCharges": "Monthly charges"
+      },
+      "virtualTour": {
+        "label": "Virtual tour or video (link)",
+        "placeholder": "https://www.youtube.com/watch?v=…",
+        "hint": "A YouTube, Vimeo, Matterport or Kuula link. No video file to upload."
+      }
     },
     "titleTypes": {
       "bail": "Lease",
@@ -1394,6 +1429,19 @@
         "off_topic": "Off topic",
         "other": "Other"
       }
+    },
+    "retired": {
+      "title": {
+        "rented": "This property has been rented",
+        "sold": "This property has been sold",
+        "withdrawn": "This property is no longer listed"
+      },
+      "body": "The listing you are looking for is no longer available. Here are nearby properties that may suit you.",
+      "similarTitle": "Similar properties",
+      "searchQuarter": "See properties in {quarter}, {city}",
+      "searchCity": "See properties in {city}",
+      "searchAll": "See all properties",
+      "metaDescription": "This Takussan listing is no longer available. Discover similar properties."
     }
   },
   "dashboard": {
@@ -2217,7 +2265,8 @@
       "parking": "Parking spots",
       "amenities": "Amenities",
       "tags": "Other tags",
-      "titleDeed": "Title deed"
+      "titleDeed": "Title deed",
+      "entryCost": "Move-in cost"
     },
     "table": {
       "ariaLabel": "Property comparison table",
@@ -8487,7 +8536,8 @@
       "yearInvalid": "Invalid year.",
       "dateInvalid": "Invalid date format (YYYY-MM-DD).",
       "descriptionTooLong": "The description is too long.",
-      "statusInvalid": "Invalid status."
+      "statusInvalid": "Invalid status.",
+      "virtualTourInvalid": "Enter a link that starts with https://."
     },
     "search": {
       "savedSearchNameRequired": "Give this search a name."
@@ -9354,5 +9404,17 @@
       "next": "Next",
       "pageOf": "Page {page} of {last}"
     }
+  },
+  "horsLigne": {
+    "application": {
+      "nom": "Takussan — Real estate in Senegal",
+      "nomCourt": "Takussan",
+      "description": "Rent, buy and sell property in Senegal."
+    },
+    "titre": "You are offline",
+    "message": "Takussan cannot reach the network. The page will load as soon as your connection is back.",
+    "reessayer": "Try again",
+    "favorisTitre": "Your favorites already viewed on this device",
+    "favorisVide": "None of your favorites is available offline on this device."
   }
 }

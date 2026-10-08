@@ -99,6 +99,16 @@ describe('cheminDeFiche — un slug hostile ne casse pas le XML', () => {
   });
 });
 
+describe('construireSitemap — TCK-598 : le `&` d’une requête échappé pour le XML', () => {
+  it('échappe `&` dans `url` ET dans chaque alternative de langue', () => {
+    const [entree] = construireSitemap([{ chemin: '/properties?city=Dakar&location=Mermoz' }]);
+    expect(entree!.url).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar&amp;location=Mermoz`);
+    for (const href of Object.values(entree!.alternates!.languages as Record<string, string>)) {
+      expect(href).toContain('?city=Dakar&amp;location=Mermoz');
+    }
+  });
+});
+
 describe('absolu — TCK-431 · AC5', () => {
   it('préfixe l’origine', () => {
     expect(absolu('/fr/properties/x')).toBe(`${ORIGINE_SITE}/fr/properties/x`);

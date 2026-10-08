@@ -54,7 +54,14 @@ import {
   propertyTypeOptions as fabriquePropertyTypeOptions,
   rentPeriodOptions as fabriqueRentPeriodOptions,
 } from './options';
-import { toUpdatePayload, type PropertyAddressBlock, type PropertyUpdatePayload } from './payload';
+import {
+  toUpdatePayload,
+  withClearedFields,
+  type PropertyAddressBlock,
+  type PropertyUpdatePayload,
+} from './payload';
+import { EntryCostFields } from './wizard/steps/StepPrix';
+import { VirtualTourField } from './wizard/steps/StepFinition';
 
 interface PropertyFormProps {
   readonly mode: 'edit';
@@ -104,6 +111,14 @@ function toDefaults(property: PropertyDetail): PropertyFormValues {
     tag_ids: Array.isArray(property.tags)
       ? property.tags.filter((t) => t.type === 'amenity').map((t) => t.id)
       : [],
+    // TCK-598 — relus depuis le bloc calculé `entry_cost` : la ressource n'émet pas les quatre
+    // colonnes au premier niveau. Un bloc `null` (rien de renseigné, ou pas une location
+    // mensuelle) laisse les quatre champs vides.
+    deposit_months: property.entry_cost?.deposit_months ?? undefined,
+    advance_months: property.entry_cost?.advance_months ?? undefined,
+    agency_fee_months: property.entry_cost?.agency_fee_months ?? undefined,
+    monthly_charges: property.entry_cost?.monthly_charges ?? undefined,
+    virtual_tour_url: property.virtual_tour_url ?? '',
   };
 }
 
@@ -207,10 +222,11 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           payload,
           form.formState.dirtyFields,
         );
-        const finalPayload: PropertyUpdatePayload = {
-          ...basePayload,
-          ...(address ? { address } : {}),
-        };
+        const finalPayload: PropertyUpdatePayload = withClearedFields(
+          { ...basePayload, ...(address ? { address } : {}) },
+          payload,
+          form.formState.dirtyFields as Partial<Record<string, unknown>>,
+        );
         const result = await updatePropertyAction(property.id, finalPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
@@ -268,16 +284,16 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   // `AgencyConfigForm`, la même lecture d'hôte tombe dans un bloc mis en cache, et l'avertissement
   // de changement de devise n'y apparaît jamais (mesuré par exécution, compilateur actif, le
   // 2026-09-23). La devise, elle, décide des décimales du prix.
-  const [typeDuBien, contractType, descriptionSaisie, latSaisie, lngSaisie, tagIdsSaisis, devise] =
+  const [typeDuBien, contractType, descriptionSaisie, latSaisie, lngSaisie, tagIdsSaisis, devise, periode] =
     useWatch({
       control,
-      name: ['type', 'contract_type', 'description', 'latitude', 'longitude', 'tag_ids', 'currency'],
+      name: ['type', 'contract_type', 'description', 'latitude', 'longitude', 'tag_ids', 'currency', 'rent_period'],
     });
   const lat = latSaisie as number | null | undefined;
   const lng = lngSaisie as number | null | undefined;
   const description = descriptionSaisie ?? '';
   const tagIds = (tagIdsSaisis ?? []) as number[];
-  const ctx: RelevanceContext = { type: typeDuBien, contract: contractType };
+  const ctx: RelevanceContext = { type: typeDuBien, contract: contractType, rentPeriod: periode };
 
   // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
   // un `useCallback` : le React Compiler s'en charge (ADR-0015). Les `useCallback` qui s'y
@@ -402,6 +418,9 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             <div />
           )}
         </div>
+        {/* TCK-598 (V9) — d'une location mensuelle seulement : la matrice décide, ici comme à
+            l'envoi (où elle efface ces champs hors contexte). */}
+        {isFieldRelevant('deposit_months', ctx) ? <EntryCostFields form={form} devise={devise} /> : null}
       </section>
 
       {/* ── Section 3 : Localisation / Adresse ── */}
@@ -604,6 +623,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
         <p className="text-right text-xs text-muted-foreground">
           {t('description.counter', { count: description.length })}
         </p>
+        <VirtualTourField form={form} />
       </section>
 
       {/* ── Section 6 : Équipements / Tags ──

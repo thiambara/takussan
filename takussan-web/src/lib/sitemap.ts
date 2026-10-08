@@ -268,9 +268,37 @@ export function partitionnerPagesLocalisables(pages: readonly PageIndexable[]): 
   return { retenues, ecartees };
 }
 
+/**
+ * TCK-598 — `&` échappé en `&amp;` dans `<loc>` et dans chaque `xhtml:link`.
+ *
+ * Next interpole les URL SANS échappement (`resolve-route-data.js` : `<loc>${item.url}</loc>`, et
+ * `href="${languages[language]}"`). Les fiches n'en souffraient pas — leur slug est encodé
+ * ({@link cheminDeFiche}). Les pages de ville et de quartier portent une requête
+ * (`/properties?city=Dakar&location=Mermoz`) : leur `&` nu rendrait le fichier ENTIER invalide.
+ * Le lecteur XML rend `&amp;` en `&` : l'URL lue est l'URL canonique, au caractère près.
+ */
+function echapperPourXml(entree: MetadataRoute.Sitemap[number]): MetadataRoute.Sitemap[number] {
+  // Tout `&` : aucune URL n'arrive ici déjà échappée — elles sortent toutes de `URLSearchParams`,
+  // qui encode le `&` d'une VALEUR en `%26`.
+  const echappe = (url: string) => url.replaceAll('&', '&amp;');
+  const languages = entree.alternates?.languages as Record<string, string> | undefined;
+  return {
+    ...entree,
+    url: echappe(entree.url),
+    ...(languages
+      ? {
+          alternates: {
+            ...entree.alternates,
+            languages: Object.fromEntries(Object.entries(languages).map(([l, u]) => [l, echappe(u)])),
+          },
+        }
+      : {}),
+  };
+}
+
 /** Le sitemap complet, une page devenant {@link LOCALES_INDEXABLES}`.length` entrées. */
 export function construireSitemap(pages: readonly PageIndexable[]): MetadataRoute.Sitemap {
-  const entrees = pages.flatMap(entreesLocalisees);
+  const entrees = pages.flatMap(entreesLocalisees).map(echapperPourXml);
 
   if (entrees.length > LIMITE_URL_PAR_SITEMAP) {
     throw new Error(

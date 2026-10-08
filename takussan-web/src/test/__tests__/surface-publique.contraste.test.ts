@@ -322,7 +322,9 @@ const FICHIERS_HORS_JETONS = 5;
  * bien, `ReviewsSection`), apporte 1 entrée : le lien
  * « Signaler » porte `text-muted-foreground` sans fond — celui de la carte d'avis (`bg-card`) ou
  * de la page (`--background`), le même que le « Signaler cette annonce » voisin, déjà compté.
- * Relevé en vidant la liste des encres inverses : c'est la seule entrée neuve.
+ * Relevé en vidant la liste des encres inverses : c'est la seule entrée neuve. Recompté après la
+ * fusion de TCK-598 (qui garde 256 sur `dev` et y déclare des fonds) : 257 sur
+ * l'arbre fusionné, 256 en retirant l'encre de ce seul lien.
  */
 const ENCRES_INVERSES = 257;
 

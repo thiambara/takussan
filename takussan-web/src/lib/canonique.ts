@@ -24,7 +24,10 @@ import type { ContractType, PropertyType } from '@/types/property';
  *
  * ── TROIS CLÉS GARDENT LEUR PROPRE URL INDEXABLE ────────────────────────────────────────────────
  *
- * `contract_type`, `type`, `city` — et le critère est le même pour les trois :
+ * `contract_type`, `type`, `city` — et le critère est le même pour les trois. TCK-598 en ajoute une
+ * QUATRIÈME, `location` (le quartier), sous deux conditions de plus : il appartient au domaine de la
+ * ville présente dans l'URL, et il compte au moins `SEUIL_QUARTIER_INDEXABLE` biens
+ * (`src/lib/queries/facettes.ts`) :
  *
  * · **leur ensemble de valeurs est FINI et énumérable** — 2 pour le contrat, 16 pour le type, les
  *   villes du catalogue pour la troisième. Le nombre de pages indexables reste donc borné, ce qui
@@ -51,7 +54,7 @@ import type { ContractType, PropertyType } from '@/types/property';
  * Texte libre (`q`), rayon géographique (`radius_km`/`lat`/`lng`, à valeurs continues), bornes
  * numériques (`price_min`/`price_max`, `area_min`/`area_max`, `bedrooms`, `bathrooms`,
  * `floor_number`), `furnished`, `featured`, `available_from`, `title_type`, `condition`, `tags`,
- * `rent_period`, `location`.
+ * `rent_period` (`location` en faisait partie jusqu'à TCK-598).
  * Chacune multiplie les URL sans changer ce que la page EST : un sous-ensemble du même catalogue.
  *
  * ── LA PAGINATION ET LE TRI SE REPLIENT AUSSI, ET C'EST LE POINT LE PLUS DISCUTABLE ─────────────
@@ -195,6 +198,12 @@ export type DomainesDeFacette = {
   readonly types: ReadonlySet<string>;
   readonly contrats: ReadonlySet<string>;
   readonly villes: ReadonlyMap<string, string> | null;
+  /**
+   * TCK-598 (V14) — les quartiers INDEXABLES de la ville présente dans l'URL (repli → graphie),
+   * seuil `SEUIL_QUARTIER_INDEXABLE` déjà appliqué. `null` = inconnaissable ou non demandé : le
+   * quartier se replie. Optionnel pour les appelants qui ne jugent pas de quartier.
+   */
+  readonly quartiers?: ReadonlyMap<string, string> | null;
 };
 
 /**
@@ -258,7 +267,7 @@ export function domainesStatiques(): Pick<DomainesDeFacette, 'types' | 'contrats
  * `?city=Dakar&type=villa` produiraient deux canoniques différentes pour la même page, ce qui est
  * précisément le défaut qu'on corrige.
  */
-export const CLES_CANONIQUES: readonly CleDeRechercheNom[] = ['contract_type', 'type', 'city'];
+export const CLES_CANONIQUES: readonly CleDeRechercheNom[] = ['contract_type', 'type', 'city', 'location'];
 
 /** Le chemin de la liste, sans langue et sans paramètre. */
 export const CHEMIN_LISTE = '/properties';
@@ -293,6 +302,10 @@ export function filtresCanoniques(
     const ecrit = definition.ecrire(valeur);
     if (ecrit === undefined || ecrit === '') continue;
 
+    // TCK-598 — un quartier ne se juge que dans SA ville : sans ville RETENUE (absente, ou hors
+    // domaine), `?location=Mermoz` désigne un nom, pas un lieu, et se replie.
+    if (cle === 'location' && !retenus.has('city')) continue;
+
     // ⚠️ **L'APPARTENANCE AU DOMAINE, et c'est le contrôle qui manquait.** Une valeur hors domaine
     // ne fait pas échouer : elle se replie, exactement comme le `other {}` du gabarit ICU du
     // titre. Un 404 ou une erreur seraient faux — l'URL reste servie, elle cesse seulement d'être
@@ -325,11 +338,18 @@ function valeurCanoniqueDe(
     return domaines.villes.get(valeur.trim().toLocaleLowerCase('fr')) ?? null;
   }
 
+  if (cle === 'location') {
+    // TCK-598 (contrainte 12) — le domaine est celui de la ville de l'URL, seuil compris : un
+    // quartier inventé, ou trop mince, se replie sur la page de la ville.
+    if (!domaines.quartiers) return null;
+    return domaines.quartiers.get(valeur.trim().toLocaleLowerCase('fr')) ?? null;
+  }
+
   const replie = valeur.trim().toLowerCase();
   if (cle === 'type') return domaines.types.has(replie) ? replie : null;
   if (cle === 'contract_type') return domaines.contrats.has(replie) ? replie : null;
 
-  // Inatteignable tant que `CLES_CANONIQUES` porte ces trois clés — et le test de partition le
+  // Inatteignable tant que `CLES_CANONIQUES` porte ces quatre clés — et le test de partition le
   // vérifie. Refuser plutôt que laisser passer : une quatrième clé retenue sans domaine écrit
   // rouvrirait l'espace non borné en silence.
   return null;

@@ -80,6 +80,25 @@ export interface PropertyOwnerLite {
    * qu'au geste (`GET …/contact`, limité). Faux ou absent, la fiche n'offre ni WhatsApp ni Appeler.
    */
   has_phone?: boolean;
+  /**
+   * TCK-598 (V8) — le numéro du contact a-t-il été vérifié ? Un booléen dérivé de
+   * `phone_verified_at`, jamais la date ni le numéro. Absent d'une charge utile antérieure : lu
+   * comme faux.
+   */
+  phone_verified?: boolean;
+}
+
+/**
+ * TCK-598 (V9) — ce qu'un locataire verse pour emménager, calculé par l'API (`CoutDEntree`).
+ * `null` hors location mensuelle, et quand rien n'est renseigné : le bloc est alors ABSENT, jamais
+ * affiché à zéro. Le front n'additionne rien — `total` fait foi.
+ */
+export interface PropertyEntryCost {
+  deposit_months: number | null;
+  advance_months: number | null;
+  agency_fee_months: number | null;
+  monthly_charges: number | null;
+  total: number;
 }
 
 export interface PropertyAgencyLite {
@@ -183,6 +202,14 @@ export interface PropertyDetail extends PropertyListItem {
   description: string | null;
   photos: PropertyPhoto[];
   media_extra: PropertyMediaExtra;
+  /**
+   * TCK-598 (V19) — l'URL de la visite virtuelle ou de la vidéo, au premier niveau
+   * (`media_extra.virtual_tour_url` la reprend pour la compatibilité, puis disparaît). Optionnelle :
+   * `whenHas` côté ressource, la clé est absente quand la colonne n'est pas demandée.
+   */
+  virtual_tour_url?: string | null;
+  /** TCK-598 (V9) — cf. {@link PropertyEntryCost}. Émis sur la forme détail. */
+  entry_cost?: PropertyEntryCost | null;
   tags: PropertyTag[];
   owner: PropertyOwnerLite;
   /**
