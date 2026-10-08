@@ -5,6 +5,7 @@ namespace App\Jobs\Audit;
 use App\Models\User;
 use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
+use App\Support\Export\CsvCell;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -97,7 +98,7 @@ class ExportActivityLogJob implements ShouldQueue
             foreach ($columns as $col) {
                 $line[] = $row[$col] ?? '';
             }
-            fputcsv($handle, $line);
+            fputcsv($handle, CsvCell::line($line));
         }
         rewind($handle);
         $content = (string) stream_get_contents($handle);

@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\User;
 use App\Support\Audit\PropertyRedactor;
+use App\Support\Export\CsvCell;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -85,7 +86,7 @@ class ActivityLogExporter
         fwrite($handle, "\xEF\xBB\xBF");
         fputcsv($handle, $payload['columns']);
         foreach ($payload['rows'] as $row) {
-            fputcsv($handle, array_map(fn (string $col) => $row[$col] ?? '', $payload['columns']));
+            fputcsv($handle, CsvCell::line(array_map(fn (string $col) => $row[$col] ?? '', $payload['columns'])));
         }
         rewind($handle);
         $content = (string) stream_get_contents($handle);

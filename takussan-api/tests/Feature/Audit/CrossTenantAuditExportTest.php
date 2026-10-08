@@ -92,4 +92,17 @@ class CrossTenantAuditExportTest extends ApiTestCase
 
         $this->apiGet('/api/admin/audit/export')->assertForbidden();
     }
+
+    /** verif-601 m3 — l'export de la console neutralise une cellule qui serait une formule. */
+    public function test_l_export_neutralise_les_formules(): void
+    {
+        Storage::fake();
+        activity('Property')->performedOn(Agency::factory()->create())->event('updated')->log('=HYPERLINK("http://p.invalid")');
+        $this->apiActingAsRole('super_admin');
+
+        $content = $this->download($this->apiGet('/api/admin/audit/export')->assertOk()->json('data.url'));
+
+        $this->assertStringContainsString("'=HYPERLINK", $content);
+        $this->assertDoesNotMatchRegularExpression('/(^|,)"?=HYPERLINK/m', $content);
+    }
 }

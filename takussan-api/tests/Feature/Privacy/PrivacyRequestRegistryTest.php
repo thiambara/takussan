@@ -156,4 +156,20 @@ class PrivacyRequestRegistryTest extends ApiTestCase
 
         $this->assertSame('received', $entry->fresh()->status->value);
     }
+
+    /** verif-601 m3 — un nom saisi qui commence par `=` ne s'exécute pas dans le tableur du super-admin. */
+    public function test_une_formule_saisie_est_neutralisee_dans_l_export(): void
+    {
+        $this->apiActingAsRole('super_admin');
+        PrivacyRequest::query()->create([
+            'type' => 'access', 'channel' => 'email', 'received_at' => now(),
+            'requester_name' => '=HYPERLINK("http://p5.invalid","x")', 'requester_contact' => '@contact',
+        ]);
+
+        $csv = $this->get('/api/admin/privacy-requests/export')->assertOk()->streamedContent();
+
+        $this->assertStringContainsString('"\'=HYPERLINK(""http://p5.invalid"",""x"")"', $csv);
+        $this->assertStringContainsString("'@contact", $csv);
+        $this->assertDoesNotMatchRegularExpression('/(^|,)"?=HYPERLINK/m', $csv);
+    }
 }

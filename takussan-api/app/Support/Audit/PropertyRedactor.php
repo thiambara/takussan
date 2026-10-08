@@ -38,11 +38,26 @@ final class PropertyRedactor
 
         $array = $properties instanceof Collection ? $properties->toArray() : (array) $properties;
 
-        array_walk_recursive($array, function (mixed &$value, mixed $key): void {
+        return self::walk($array);
+    }
+
+    /**
+     * Parcours récursif : une clé sensible remplace sa valeur ENTIÈRE, tableau compris. Un
+     * `array_walk_recursive` ne visite que les feuilles — sous `rib => ['old' => …, 'new' => …]`, il
+     * jugeait `old` et `new`, jamais `rib`, et rendait les deux valeurs en clair.
+     *
+     * @param  array<mixed>  $array
+     * @return array<mixed>
+     */
+    private static function walk(array $array): array
+    {
+        foreach ($array as $key => $value) {
             if (is_string($key) && self::isSensitive($key)) {
-                $value = self::REDACTED;
+                $array[$key] = self::REDACTED;
+            } elseif (is_array($value)) {
+                $array[$key] = self::walk($value);
             }
-        });
+        }
 
         return $array;
     }

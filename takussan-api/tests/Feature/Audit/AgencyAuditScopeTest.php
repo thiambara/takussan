@@ -186,12 +186,24 @@ class AgencyAuditScopeTest extends ApiTestCase
                 'ninea' => 'NINEATEMOIN', 'rib_pro' => 'RIBPROTEMOIN', 'title' => 'Villa conservée',
                 'distribution' => 'conservee',
             ],
+            // verif-601 m1 — une clé sensible dont la valeur est un TABLEAU (forme `{old, new}`).
+            'rib' => ['old' => 'RIBANCIENTEMOIN', 'new' => 'RIBNOUVEAUTEMOIN'],
+            'changes' => ['ninea' => ['old' => 'NINEAANCIENTEMOIN', 'new' => 'NINEANOUVEAUTEMOIN']],
         ]);
-        $temoins = ['RIBTEMOIN', 'IBANTEMOIN', 'TAXTEMOIN', 'NINEATEMOIN', 'RIBPROTEMOIN'];
+        $temoins = [
+            'RIBTEMOIN', 'IBANTEMOIN', 'TAXTEMOIN', 'NINEATEMOIN', 'RIBPROTEMOIN',
+            'RIBANCIENTEMOIN', 'RIBNOUVEAUTEMOIN', 'NINEAANCIENTEMOIN', 'NINEANOUVEAUTEMOIN',
+        ];
 
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
         $list = $this->apiGet('/api/activity-log')->assertOk();
-        $byEntity = $this->apiGet('/api/activity-log/property/'.Activity::query()->value('subject_id'))->assertOk();
+        // verif-601 m5 — le sujet TÉMOIN, pas la première ligne venue : depuis E, la création de
+        // l'agence est journalisée aussi, et `value()` sans ordre pouvait viser un autre sujet — la
+        // réponse ne contenait alors pas la ligne, et l'expurgation de l'historique n'était pas jouée.
+        $temoin = Activity::query()->where('description', 'temoin-expurge')->sole();
+        $byEntity = $this->apiGet('/api/activity-log/property/'.$temoin->subject_id)->assertOk();
+        $this->assertContains($temoin->id, array_column($byEntity->json('data'), 'id'));
+        $this->assertSame('[REDACTED]', collect($byEntity->json('data'))->firstWhere('id', $temoin->id)['properties']['attributes']['rib']);
         $agencyExport = $this->exportCsv();
 
         $this->apiActingAsRole('super_admin');
@@ -207,9 +219,35 @@ class AgencyAuditScopeTest extends ApiTestCase
         $attributes = collect($list->json('data'))->firstWhere('description', 'temoin-expurge')['properties']['attributes'];
         $this->assertSame('[REDACTED]', $attributes['rib']);
         $this->assertSame('[REDACTED]', $attributes['ninea']);
+        $properties = collect($list->json('data'))->firstWhere('description', 'temoin-expurge')['properties'];
+        $this->assertSame('[REDACTED]', $properties['rib']);
+        $this->assertSame('[REDACTED]', $properties['changes']['ninea']);
         $this->assertSame('Villa conservée', $attributes['title']);
         $this->assertSame('conservee', $attributes['distribution']);
         $this->assertSame('[REDACTED]', collect($platform->json('data'))->firstWhere('description', 'temoin-expurge')['properties']['attributes']['iban']);
+    }
+
+    /** verif-601 m3 — les deux exports du journal neutralisent une cellule qui serait une formule. */
+    public function test_les_exports_du_journal_neutralisent_les_formules(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->logOn(Property::factory()->create(['agency_id' => $agency->id]), null, '=HYPERLINK("http://p.invalid")');
+
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agencyExport = $this->exportCsv();
+        $this->apiActingAsRole('super_admin');
+        $platformExport = $this->exportCsv();
+
+        // Le chemin différé (plus de 5 000 lignes) écrit son fichier par le job.
+        Storage::fake();
+        Notification::fake();
+        (new ExportActivityLogJob($admin, ['format' => 'csv'], $agency->id))->handle(app(ActivityLogExporter::class));
+        $jobExport = Storage::get(Storage::files('exports/audit')[0]);
+
+        foreach ([$agencyExport, $platformExport, $jobExport] as $csv) {
+            $this->assertStringContainsString("'=HYPERLINK", $csv);
+            $this->assertDoesNotMatchRegularExpression('/(^|,)"?=HYPERLINK/m', $csv);
+        }
     }
 
     /** Second chemin — un admin suspendu ne lit plus le journal ni ne l'exporte. */

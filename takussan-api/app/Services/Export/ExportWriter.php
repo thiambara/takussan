@@ -2,6 +2,7 @@
 
 namespace App\Services\Export;
 
+use App\Support\Export\CsvCell;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Facades\Excel;
@@ -43,7 +44,7 @@ class ExportWriter
                 foreach ($columns as $col) {
                     $line[] = $row[$col] ?? '';
                 }
-                fputcsv($out, $line);
+                fputcsv($out, CsvCell::line($line));
             }
             fclose($out);
         }, 200, [
