@@ -694,6 +694,28 @@ restaurées par `cp`, md5 contrôlé, dans un seul script.
       antérieur. Décision de session, option (a), réversible. ADR-0042 §1 tranche le point ouvert. —
       `1d24d363`. P3-m-b.1 et P3-m-b.2 : 1 rouge chacune.
 
+### 9. Ajoutés après la passe 4 de vérification adverse (verif-596 passe 4, REFUSÉ : 2 majeurs, 3 mineurs)
+
+Chaque test est **rouge sur dea6d4cd**, sauf ceux de m-e (manques de tests : verts sur dea6d4cd, rouges
+sous la mutation qu'ils gardent) et les témoins de non-régression. Ablations restaurées par `cp`, md5
+contrôlé, dans un seul script.
+
+- [x] **M-T** — `POST leases/{id}/terminate` facture `EarlyTerminationService::computePenalty` (terme
+      figé borné aux mois restants, réglage pour un bail antérieur ; aucune ligne à 0), sous verrou de
+      la ligne relue (volet `terminate` de m-c). Option (a). ADR-0042 §1. — `17e0864a`. P4-MT.1
+      (`min(…, 3)`) : 3 rouges ; P4-MT.2 : 1.
+- [x] **M-R** — la demande de signature relit la ligne, rend hors verrou, puis compare sous verrou
+      termes imprimés, parties et garants ; un écart rend 409 `lease_signature.terms_changed`, sans
+      empreinte ni média. ADR-0042 §1. — `148a3486`. P4-MR.1 : 3 rouges ; P4-MR.2 : 1 ; P4-MR.4 : 2 ;
+      P4-MR.3b : 5.
+- [x] **m-c** — `attachGuarantor` et `detachGuarantor` verrouillent `leases` puis le pivot, et défigent
+      la ligne verrouillée. — `4fb08b7e`. P4-mc.1 et P4-mc.2 : 1 rouge chacune.
+- [x] **m-d** — un renouvellement d'un parent figé qui change un terme imprimé renégociable naît
+      `pending_signature`, quel que soit le réglage. Décision de session, réversible, signalée au
+      porteur. ADR-0042 §1. — `0156be08`. P4-md.1 : 2 rouges ; P4-md.2, P4-md.3, P4-md.4 : rouges.
+- [x] **m-e** — gardes de P4-ma.b (`FOR UPDATE` exigé), P4-ma.c (`PATCH` croisant une demande de
+      signature) et P4-N1p.e (journal `lease_renewed`). — `90723555`. Les trois mutations rougissent.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -839,6 +861,24 @@ restaurées par `cp`, md5 contrôlé, dans un seul script.
 - [x] AC39 — Super-admin, `force`, bail figé à 10 % (réglage relevé à 50 %), +30 % → 422
       `lease.rent_review_above_contract_cap`, loyer inchangé ; +10 % passe. Sur un bail antérieur,
       `force` dépasse encore le réglage (`LeaseContractTermsTest`, 2 tests).
+
+**Ajoutés après la passe 4 (verif-596 passe 4) :**
+
+- [x] AC40 — Bail figé à 1, 0 et 6 mois, 10 mois restants : `terminate` facture 100 000, aucune ligne,
+      600 000 ; bail antérieur au réglage 4 → 400 000 ; activation glissée à la liaison → l'indemnité
+      est facturée (`LeaseContractTermsTest`, 3 tests).
+- [x] AC41 — Un `PATCH` (5 → 40 %), une indemnité (1 → 6) ou un garant validés pendant le rendu de la
+      demande de signature → 409 `lease_signature.terms_changed`, bail en brouillon, aucune empreinte,
+      aucun média, la valeur concurrente gardée ; un rendu calme fige (`LeaseContractTermsTest`, 4 tests).
+- [x] AC42 — Activation glissée à la liaison : rattacher ou retirer un garant garde l'empreinte du bail
+      actif (`LeaseContractTermsTest`, 2 tests).
+- [x] AC43 — Parent figé à 10 %, renouvellement à J+1 à +50 % → enfant `pending_signature`, sans
+      échéancier, loyer du parent inchangé, actif après la voie papier ; chacun des huit termes
+      renégociables suffit ; sans changement, ou parent antérieur → `active` (`LeaseContractTermsTest`,
+      4 tests).
+- [x] AC44 — `PATCH` : un `select … from "leases" … for update` est émis ; croisant une demande de
+      signature, il défige ; le journal `lease_renewed` nomme l'indemnité et le plafond renégociés
+      (`LeaseContractTermsTest`).
 
 ## Hors périmètre
 
