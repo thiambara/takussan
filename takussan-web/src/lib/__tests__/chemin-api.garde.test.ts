@@ -69,6 +69,10 @@ describe('cheminApi', () => {
     expect(cheminApi`/api/customers/${12}${requete('x=a/../b')}`).toBe('/api/customers/12?x=a/../b');
     expect(cheminApi`/api/customers${requete('')}`).toBe('/api/customers');
     expect(cheminApi`/api/customers${new URLSearchParams()}`).toBe('/api/customers');
+    // La marque n'est pas imitable — ni par une clé chaîne, ni par un symbole global (verif-600 E3) :
+    // un argument de server action arrive en JSON, et `{ requete: … }` doit rester un segment.
+    expect(cheminApi`/api/customers/${{ requete: 'a=1' }}/notes`).not.toContain('?');
+    expect(cheminApi`/api/customers/${{ [Symbol.for('requete')]: 'a=1' }}/notes`).not.toContain('?');
     // Une CHAÎNE qui commence par `?` n'est pas un suffixe de requête : c'est un segment refusé.
     expect(() => cheminApi`/api/customers${'?page=2'}`).toThrow(ApiError);
     expect(() => cheminApi`/api/customers/${'?reason=Ticket support 4821&x='}/notes`).toThrow(
