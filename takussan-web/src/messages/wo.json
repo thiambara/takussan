@@ -5079,6 +5079,29 @@
         "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey ajaŋ. Bind bi man nañ ko delloo ci wàllu njiit bi.",
         "cancel": "Neenal",
         "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee."
+      },
+      "collaborators": {
+        "title": "Ajaa bu njëkk",
+        "explanation": "Ajaa bu njëkk bi mooy ki xët wu siiwu wu kër gi di tudd, di jot bataaxal yi ak laaj yi, te ñu wone nimeroom.",
+        "source": {
+          "designated": "Ajaas bi moo ko tànn.",
+          "invitation_order": "Kenn tànnaguñu ko : ajaa bi ñu njëkk a boole ak kër gi moo tontu.",
+          "owner": "Amul ajaa buy dox bu ñu boole ak kër gii : boroom kër gi moo tontu."
+        },
+        "badge": {
+          "designated": "Ajaa bu njëkk",
+          "default": "Moo tontu ci boppam"
+        },
+        "roles": {
+          "agent": "Ajaa",
+          "manager": "Saytukat",
+          "co_owner": "Boroom kër bu bokk",
+          "viewer": "Xool rekk"
+        },
+        "designate": "Def ko ajaa bu njëkk",
+        "designateFor": "Def {name} ajaa bu njëkk",
+        "empty": "Amul benn jàngalekat bu ñu boole ak kër gii.",
+        "error": "Tànn gi antuwul. Jéemaatal."
       }
     },
     "status": {

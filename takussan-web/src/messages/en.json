@@ -1226,6 +1226,29 @@
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
         "cancel": "Cancel",
         "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
+      },
+      "collaborators": {
+        "title": "Primary agent",
+        "explanation": "The primary agent is the person the property's public page names, who receives visitors' messages and requests, and whose phone number is shown.",
+        "source": {
+          "designated": "Chosen by the agency.",
+          "invitation_order": "No choice has been made: the agent first associated with the property responds.",
+          "owner": "No active agent is associated with this property: the owner responds."
+        },
+        "badge": {
+          "designated": "Primary agent",
+          "default": "Responds by default"
+        },
+        "roles": {
+          "agent": "Agent",
+          "manager": "Manager",
+          "co_owner": "Co-owner",
+          "viewer": "View only"
+        },
+        "designate": "Make primary",
+        "designateFor": "Make {name} the primary agent",
+        "empty": "No collaborator is associated with this property.",
+        "error": "The designation did not go through. Please try again."
       }
     },
     "visibility": {
