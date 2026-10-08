@@ -182,8 +182,9 @@ change, pas la règle.
 ## Application
 
 - API : `App\Services\Property\PropertyViewCounter`, `PublicPropertyController::view()` et
-  `::show()`, `App\Observers\PropertyPublicCacheObserver`, `App\Jobs\RevalidatePublicPropertyPage`,
-  `config/catalogue.php` (`public_cache`), `PropertyResource` (règle des routes `public.*`).
+  `::show()`, `App\Observers\PropertyPublicCacheObserver`,
+  `App\Jobs\Property\RevalidatePublicPropertyPage`, `config/services.php` (`public_cache`),
+  `PropertyResource` (règle des routes `public.*`).
 - Front : `src/lib/api.ts` (`resolveVisitorIp`, `partage`, `API_INTERNAL_URL`),
   `src/lib/queries/public-property.ts`, `src/app/api/revalidation/fiche/route.ts`,
   `src/app/sw.js/route.ts`, `src/app/manifest.ts`.

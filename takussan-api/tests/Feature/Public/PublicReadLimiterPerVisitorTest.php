@@ -10,7 +10,7 @@ use Tests\TestCase;
  * confiance, `throttle:public-read` (90/min) compte par visiteur, d'après `X-Forwarded-For` ;
  * hors de la chaîne de confiance, l'en-tête n'est pas lu.
  *
- * Le front transmet l'IP du visiteur dans ses appels serveur (ADR-0052 §4). Ce test ne prouve
+ * Le front transmet l'IP du visiteur dans ses appels serveur (ADR-0052 §5). Ce test ne prouve
  * PAS que le chemin réseau de production passe par un mandataire de confiance — ça se mesure sur
  * preview (AC22, au porteur). Il prouve que, s'il y passe, l'API fait ce que le front attend.
  *
@@ -20,7 +20,8 @@ class PublicReadLimiterPerVisitorTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ROUTE = '/api/public/property-types';
+    /** La route que l'AC nomme : la liste, que le serveur Next appelle pour chaque visiteur. */
+    private const ROUTE = '/api/public/properties';
 
     private function depuis(string $remoteAddr, ?string $xff = null): int
     {
