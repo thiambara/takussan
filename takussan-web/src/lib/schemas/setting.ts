@@ -75,6 +75,30 @@ export function isSmsProvider(provider: string): provider is SmsProviderId {
   return (SMS_PROVIDER_IDS as readonly string[]).includes(provider);
 }
 
+/**
+ * TCK-293 — les fournisseurs de paiement, miroir de l'enum `PaymentProvider` de l'API : seuls
+ * ceux-là ont une adresse de notification (ADR-0046).
+ */
+export const PAYMENT_PROVIDER_IDS = ['wave', 'orange_money', 'lemon_squeezy'] as const;
+export type PaymentProviderId = (typeof PAYMENT_PROVIDER_IDS)[number];
+
+export function isPaymentProvider(provider: string): provider is PaymentProviderId {
+  return (PAYMENT_PROVIDER_IDS as readonly string[]).includes(provider);
+}
+
+/**
+ * TCK-293 — ceux dont l'adresse de notification solde réellement un paiement aujourd'hui.
+ * Lemon Squeezy d'agence n'en est pas : son pilote ne relie la commande ni au checkout initié
+ * (identifiants différents) ni à `custom_data` (vérification adverse, m-1). L'écran ne l'invite
+ * donc pas à coller une adresse qui ne solderait rien.
+ */
+export const WEBHOOK_ENDPOINT_PROVIDER_IDS = ['wave', 'orange_money'] as const;
+export type WebhookEndpointProviderId = (typeof WEBHOOK_ENDPOINT_PROVIDER_IDS)[number];
+
+export function hasWebhookEndpoint(provider: string): provider is WebhookEndpointProviderId {
+  return (WEBHOOK_ENDPOINT_PROVIDER_IDS as readonly string[]).includes(provider);
+}
+
 export const integrationFormSchema = z
   .object({
     provider: z

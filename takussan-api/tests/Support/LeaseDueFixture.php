@@ -116,10 +116,14 @@ trait LeaseDueFixture
     }
 
     /**
-     * Envoie un webhook Wave signé `checkout.session.completed` (ou `…failed`).
+     * Envoie un webhook Wave signé `checkout.session.completed` (ou `…failed`), sur l'URL de
+     * l'intégration Wave de `leaseDue()` — la dernière créée (TCK-293, ADR-0046 : une URL par
+     * intégration), ou celle qu'on désigne.
      */
-    protected function waveWebhook(string $transactionId, ?int $amount, string $type = 'checkout.session.completed')
+    protected function waveWebhook(string $transactionId, ?int $amount, string $type = 'checkout.session.completed', ?Integration $integration = null)
     {
+        $integration ??= Integration::query()->where('provider', 'wave')->where('is_active', true)->latest('id')->firstOrFail();
+
         $data = ['id' => $transactionId];
         if ($amount !== null) {
             $data += ['amount' => (string) $amount, 'currency' => 'XOF'];
@@ -129,7 +133,7 @@ trait LeaseDueFixture
         $ts = time();
         $sig = 't='.$ts.',v1='.hash_hmac('sha256', $ts.'.'.$body, $this->waveSecret);
 
-        return $this->call('POST', '/api/webhooks/payments/wave', $payload, [], [], [
+        return $this->call('POST', '/api/webhooks/payments/wave/'.$integration->webhook_token, $payload, [], [], [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_WAVE_SIGNATURE' => $sig,
         ], $body);

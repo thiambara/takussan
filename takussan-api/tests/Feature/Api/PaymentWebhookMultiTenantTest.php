@@ -8,56 +8,28 @@ use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\Currency;
+use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
+use App\Models\Invoice;
+use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Property;
-use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
-use ReflectionMethod;
 use Tests\ApiTestCase;
 
 /**
- * TCK-285 — Le webhook de paiement doit résoudre l'intégration de la BONNE
- * agence. AUJOURD'HUI IL NE LE FAIT PAS, et ces deux tests sont SUSPENDUS
- * en attendant la décision (ardoise D-50).
+ * TCK-285 / TCK-293 (ADR-0046) — le webhook de paiement ne valide qu'avec le secret de
+ * l'intégration que désigne son URL, et ne rapproche que dans l'agence de celle-ci.
  *
- * `PaymentGatewayService::initiate` scope l'intégration par agence
- * (`resolveIntegration($provider, $agencyId)`, ligne 70). `::handleWebhook`
- * ne le fait pas (lignes 132-137) : il retient la PREMIÈRE intégration
- * active du fournisseur, toutes agences confondues, et c'est le secret de
- * celle-là — et lui seul — qui valide les signatures de toute la plateforme.
- *
- * MESURÉ le 2026-08-15, deux agences ayant chacune leur intégration Wave
- * active et leur propre `webhook_secret` :
- *
- *   • webhook visant le paiement de A, signé avec le secret de B
- *       → HTTP 200, et le paiement de A passe à `paid`.
- *   • webhook visant le paiement de A, signé avec le secret de A
- *       → HTTP 401.
- *
- * Le comportement est donc INVERSÉ, dans les deux sens à la fois : la
- * passerelle est à la fois perméable (le secret d'un tiers encaisse) et
- * cassée (le secret légitime est rejeté). Une agence connaît forcément son
- * propre secret : elle peut marquer « payé » n'importe quel encaissement de
- * n'importe quelle autre agence.
+ * Ces cas étaient SUSPENDUS depuis le 2026-08-15 par une sonde qui lisait la source de
+ * `handleWebhook` (ardoise D-50). Mesuré alors, et re-mesuré le 2026-10-08 sur `dev` : le secret de
+ * B faisait passer à `paid` le paiement de A (200), et le secret légitime de A était rejeté (401).
+ * La sonde est retirée avec le correctif : ces tests sont désormais la garde.
  *
  * `PaymentWebhookTest` ne pouvait pas le voir : il ne crée qu'UNE intégration.
- *
- * POURQUOI CES TESTS NE SONT PAS ROUGES, ET POURQUOI ILS NE SONT PAS ÉCRITS
- * « AUTOUR » DU DÉFAUT. Les écrire à l'endroit du comportement mesuré
- * figerait le défaut en contrat. Les laisser rouges casserait la CI de tout
- * le monde. Ils sont donc suspendus par une sonde qui interroge LA CAUSE —
- * `handleWebhook` scope-t-il sa résolution par agence — et non le symptôme :
- * le jour où la résolution est corrigée, ils se rallument seuls et
- * deviennent la garde anti-régression de ce correctif.
- *
- * LE CORRECTIF N'EST PAS ÉCRIT ICI, DÉLIBÉRÉMENT. Il n'est pas d'une ligne :
- * pour connaître l'agence il faut connaître le paiement, pour connaître le
- * paiement il faut analyser la charge utile, et l'analyse est aujourd'hui
- * faite par le driver DERRIÈRE la vérification de signature. Sortir de cette
- * boucle change le contrat de `PaymentDriverContract` — c'est une décision
- * d'architecture (ADR), pas une correction de test.
  */
 class PaymentWebhookMultiTenantTest extends ApiTestCase
 {
@@ -67,112 +39,135 @@ class PaymentWebhookMultiTenantTest extends ApiTestCase
 
     private const SECRET_B = 'wave_secret_agency_b';
 
+    /** AC1 — l'URL de A, signée avec le secret de B : refusé, rien n'est muté. */
     public function test_the_secret_of_another_agency_must_not_authenticate_a_webhook(): void
     {
-        $this->skipWhileTheWebhookResolvesTheIntegrationWithoutAnAgency();
+        [$payment, $integrationA] = $this->arrangeTwoAgencies();
 
-        [$payment] = $this->arrangeTwoAgencies();
-
-        $body = $this->payloadFor($payment);
-
-        // Le webhook vise le paiement de A mais est signé avec le secret de B.
-        $response = $this->postSignedWebhook($body, self::SECRET_B);
+        $response = $this->postSignedWebhook($integrationA, $this->payloadFor($payment->transaction_id), self::SECRET_B);
 
         $response->assertStatus(401);
         $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
+        $this->assertArrayNotHasKey('gateway_events', $payment->metadata);
     }
 
+    /** AC2 — l'URL de A, signée avec le secret de A : le paiement de A passe. */
     public function test_the_own_secret_of_the_agency_authenticates_its_webhook(): void
     {
-        $this->skipWhileTheWebhookResolvesTheIntegrationWithoutAnAgency();
+        [$payment, $integrationA] = $this->arrangeTwoAgencies();
 
-        [$payment] = $this->arrangeTwoAgencies();
-
-        $body = $this->payloadFor($payment);
-        $response = $this->postSignedWebhook($body, self::SECRET_A);
+        $response = $this->postSignedWebhook($integrationA, $this->payloadFor($payment->transaction_id), self::SECRET_A);
 
         $response->assertOk();
         $this->assertSame(PaymentStatus::Paid, $payment->refresh()->status);
     }
 
-    // ─── La sonde ────────────────────────────────────────────────
+    /**
+     * AC3 — B, avec SON URL et SON secret (une signature parfaitement valide), vise la transaction
+     * d'un acompte de A : 200 pour le fournisseur, mais rien n'est rapproché.
+     */
+    public function test_a_valid_webhook_of_another_agency_never_reaches_the_booking_payment_of_a(): void
+    {
+        [$payment, , $integrationB] = $this->arrangeTwoAgencies();
+
+        $this->postSignedWebhook($integrationB, $this->payloadFor($payment->transaction_id), self::SECRET_B)->assertOk();
+
+        $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
+        $this->assertArrayNotHasKey('gateway_events', $payment->metadata);
+    }
+
+    /** AC3, second chemin — l'échéance de loyer, rattachée à l'agence par son bail. */
+    public function test_a_valid_webhook_of_another_agency_never_reaches_the_lease_payment_of_a(): void
+    {
+        [, $integrationA, $integrationB, $agencyA] = $this->arrangeTwoAgencies();
+        $lease = Lease::factory()->create(['agency_id' => $agencyA->id, 'status' => LeaseStatus::Active, 'currency' => Currency::XOF]);
+        $due = LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'amount' => 150_000,
+            'currency' => Currency::XOF,
+            'status' => PaymentStatus::Pending,
+            'transaction_id' => 'cs_lease_a',
+            'metadata' => ['gateway' => ['provider' => 'wave', 'transaction_id' => 'cs_lease_a']],
+        ]);
+
+        $this->postSignedWebhook($integrationB, $this->payloadFor('cs_lease_a'), self::SECRET_B)->assertOk();
+        $this->assertSame(PaymentStatus::Pending, $due->refresh()->status);
+
+        $this->postSignedWebhook($integrationA, $this->payloadFor('cs_lease_a'), self::SECRET_A)->assertOk();
+        $this->assertSame(PaymentStatus::Paid, $due->refresh()->status);
+    }
+
+    /** AC3, troisième chemin — la facture, rattachée par son `agency_id`. */
+    public function test_a_valid_webhook_of_another_agency_never_reaches_the_invoice_of_a(): void
+    {
+        [, $integrationA, $integrationB, $agencyA] = $this->arrangeTwoAgencies();
+        $invoice = Invoice::factory()->sent()->create([
+            'agency_id' => $agencyA->id,
+            'transaction_id' => 'cs_invoice_a',
+            'metadata' => ['gateway' => ['provider' => 'wave', 'transaction_id' => 'cs_invoice_a']],
+        ]);
+
+        $this->postSignedWebhook($integrationB, $this->payloadFor('cs_invoice_a'), self::SECRET_B)->assertOk();
+        $this->assertSame(InvoiceStatus::Sent, $invoice->refresh()->status);
+
+        $this->postSignedWebhook($integrationA, $this->payloadFor('cs_invoice_a'), self::SECRET_A)->assertOk();
+        $this->assertSame(InvoiceStatus::Paid, $invoice->refresh()->status);
+    }
 
     /**
-     * Interroge la CAUSE : le bloc de résolution d'`handleWebhook` mentionne-t-il
-     * une agence ? Tant qu'il n'en mentionne aucune, la résolution est
-     * globale et les deux cas ci-dessus ne peuvent pas passer.
-     *
-     * Sonder la cause plutôt que le symptôme évite le piège du test suspendu
-     * qui ne se rallume jamais : le jour où quelqu'un scope la résolution,
-     * cette sonde le voit sans qu'on ait à y repenser.
+     * AC3, chemin de l'historique — un checkout ANTÉRIEUR de A (son identifiant n'est plus dans
+     * `transaction_id`, il est dans `gateway.transactions`) n'est pas atteignable par B.
      */
-    private function skipWhileTheWebhookResolvesTheIntegrationWithoutAnAgency(): void
+    public function test_the_checkout_history_of_a_is_out_of_reach_of_another_agency(): void
     {
-        $method = new ReflectionMethod(PaymentGatewayService::class, 'handleWebhook');
-        $source = implode('', array_slice(
-            file($method->getFileName()),
-            $method->getStartLine() - 1,
-            $method->getEndLine() - $method->getStartLine() + 1,
-        ));
+        [$payment, , $integrationB] = $this->arrangeTwoAgencies();
+        $payment->forceFill(['metadata' => ['gateway' => [
+            'provider' => 'wave',
+            'transaction_id' => 'cs_current',
+            'transactions' => [['transaction_id' => 'cs_old_a', 'provider' => 'wave', 'amount' => 50000]],
+        ]], 'transaction_id' => 'cs_current'])->save();
 
-        // ⚠ Ne PAS sonder le simple mot « agency » : le bloc actuel contient
-        // déjà `orderByRaw('agency_id IS NULL')`, qui ORDONNE les intégrations
-        // sans en RESTREINDRE aucune. La sonde cherche les marqueurs d'un
-        // véritable scope — l'helper `resolveIntegration($provider, $agencyId)`
-        // qu'`initiate` emploie déjà, la dérivation `paymentAgencyId`, ou une
-        // restriction explicite `where('agency_id', …)`.
-        $isScoped = str_contains($source, 'resolveIntegration')
-            || str_contains($source, 'paymentAgencyId')
-            || str_contains($source, "where('agency_id'");
+        $this->postSignedWebhook($integrationB, $this->payloadFor('cs_old_a'), self::SECRET_B)->assertOk();
 
-        if (! $isScoped) {
-            $this->markTestSkipped(
-                'TCK-285 / ardoise D-50 — PaymentGatewayService::handleWebhook résout '
-                .'l\'Integration sans aucun scope d\'agence (première active du fournisseur). '
-                .'Mesuré : le secret d\'une agence tierce fait passer à `paid` le paiement '
-                .'d\'une autre agence (HTTP 200), tandis que le secret légitime est rejeté '
-                .'(HTTP 401). Ce test se rallume dès que la résolution sera scopée.',
-            );
-        }
+        $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────
 
     /**
-     * Deux agences, chacune avec son intégration Wave active et son propre
-     * secret. Celle de B est créée EN PREMIER : c'est elle que la résolution
-     * non scopée retient aujourd'hui.
+     * Deux agences, chacune avec son intégration Wave active et son propre secret. Celle de B est
+     * créée EN PREMIER : c'est elle que l'ancienne résolution non scopée retenait.
      *
-     * @return array{0: BookingPayment, 1: Agency, 2: Agency}
+     * @return array{0: BookingPayment, 1: Integration, 2: Integration, 3: Agency, 4: Agency}
      */
     private function arrangeTwoAgencies(): array
     {
         $agencyB = Agency::factory()->create();
-        $this->integration($agencyB, self::SECRET_B);
+        $integrationB = $this->integration($agencyB, self::SECRET_B);
 
         $agencyA = Agency::factory()->create();
         $payment = $this->pendingPayment($agencyA, 'cs_wave_agency_a');
-        $this->integration($agencyA, self::SECRET_A);
+        $integrationA = $this->integration($agencyA, self::SECRET_A);
 
-        return [$payment, $agencyA, $agencyB];
+        return [$payment, $integrationA, $integrationB, $agencyA, $agencyB];
     }
 
-    private function payloadFor(BookingPayment $payment): string
+    private function payloadFor(string $transactionId): string
     {
         return json_encode([
             'type' => 'checkout.session.completed',
-            'data' => ['id' => $payment->transaction_id],
+            'data' => ['id' => $transactionId],
         ]);
     }
 
-    private function postSignedWebhook(string $body, string $secret): TestResponse
+    private function postSignedWebhook(Integration $integration, string $body, string $secret): TestResponse
     {
         $ts = time();
         $signature = "t={$ts},v1=".hash_hmac('sha256', $ts.'.'.$body, $secret);
 
         return $this->call(
             'POST',
-            '/api/webhooks/payments/wave',
+            '/api/webhooks/payments/wave/'.$integration->webhook_token,
             [], [], [],
             [
                 'CONTENT_TYPE' => 'application/json',

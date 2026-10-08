@@ -29,7 +29,9 @@ use App\Services\Payments\Drivers\WaveDriver;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
+use App\Services\Payments\Dto\WebhookAuthority;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +47,14 @@ class PaymentGatewayService
 {
     /** Passe 2, N4 — la valeur de `gateway.settled_by` d'un règlement manuel. */
     public const SETTLED_MANUALLY = 'manual';
+
+    /**
+     * Les payables qu'un événement de paiement peut rapprocher — et rien d'autre : TCK-293 ferme
+     * l'appariement par `custom_data.payment_type`, qui acceptait n'importe quelle classe.
+     *
+     * @var list<class-string<Model>>
+     */
+    private const PAYABLES = [BookingPayment::class, LeasePayment::class, Invoice::class];
 
     /**
      * Resolve the active `Integration` for `(provider, agency)`. Falls back
@@ -153,7 +163,7 @@ class PaymentGatewayService
 
         // Persist the gateway hint on the payment so the verify endpoint
         // and the webhook can find this row again.
-        $this->recordInitiation($payment, $provider, $session, $amount);
+        $this->recordInitiation($payment, $provider, $session, $amount, $integration);
 
         // Bump `last_used_at` for the integration UI surface.
         $integration->forceFill(['last_used_at' => now()])->save();
@@ -193,20 +203,44 @@ class PaymentGatewayService
     }
 
     /**
-     * Process an inbound webhook for `$provider`. Idempotent on
-     * `(provider, transaction_id)`.
+     * TCK-293 (ADR-0046 §3.1) — l'intégration que désigne une URL de webhook, ou `null`.
+     *
+     * Une seule requête, quel que soit `$provider` : l'empreinte du jeton est cherchée d'abord, puis
+     * recomparée en temps constant, et c'est seulement ensuite que l'on juge l'intégration —
+     * active, de paiement, du fournisseur de l'URL. Rien n'est écrit ici : un `null` n'a rien
+     * muté, et l'appelant rend le même 404 dans tous les cas.
      */
-    public function handleWebhook(PaymentProvider $provider, Request $request, ?Integration $integration = null): PaymentEvent
+    public function resolveWebhookIntegration(string $provider, string $token): ?Integration
     {
-        $integration ??= Integration::query()
-            ->where('provider', $provider->value)
-            ->where('is_active', true)
-            ->orderByRaw('agency_id IS NULL')
-            ->first();
-        abort_code_unless($integration, 404, 'payment.integration_missing', ['provider' => $provider->value]);
+        $hash = Integration::hashWebhookToken($token);
+        $integration = Integration::query()->where('webhook_token_hash', $hash)->first();
 
-        $driver = $this->driverFor($integration);
-        $event = $driver->handleWebhook($request);
+        if ($integration === null || ! hash_equals((string) $integration->webhook_token_hash, $hash)) {
+            return null;
+        }
+
+        $expected = PaymentProvider::tryFrom($provider);
+        if ($expected === null || ! $integration->is_active || $integration->provider !== $expected->value) {
+            return null;
+        }
+
+        return $integration;
+    }
+
+    /**
+     * Process an inbound webhook received on the URL of `$integration`. Idempotent on
+     * `(provider, transaction_id, type)`.
+     *
+     * TCK-293 (ADR-0046 §3) — l'intégration vient du jeton de l'URL, plus d'une recherche « la
+     * première active du fournisseur ». Le pilote vérifie la signature avec SES identifiants avant
+     * de lire le corps ; l'événement porte ensuite cette intégration comme autorité, et le
+     * rapprochement ne sort pas de son périmètre.
+     */
+    public function handleWebhook(Integration $integration, Request $request): PaymentEvent
+    {
+        $event = $this->driverFor($integration)
+            ->handleWebhook($request)
+            ->authenticatedBy(WebhookAuthority::of($integration));
 
         $this->applyEventToMatchingPayment($event);
 
@@ -231,7 +265,16 @@ class PaymentGatewayService
             return null;
         }
 
-        $driver = new LemonSqueezyDriver($integration);
+        // TCK-293 (ADR-0046 §6) — ce chemin est authentifié par le secret de signature de la
+        // CONFIGURATION, qui appartient à la plateforme : l'événement porte l'autorité de la
+        // plateforme, jamais celle d'une agence dont l'intégration se trouverait ici en premier.
+        $platform = Integration::query()
+            ->where('provider', PaymentProvider::LemonSqueezy->value)
+            ->where('is_active', true)
+            ->whereNull('agency_id')
+            ->first();
+
+        $driver = new LemonSqueezyDriver($platform ?? $integration);
         $request = Request::create('/webhooks/payments/lemon_squeezy', 'POST', [], [], [], [], json_encode($payload));
         $request->setJson(new InputBag($payload));
         $request->headers->set('Content-Type', 'application/json');
@@ -260,6 +303,7 @@ class PaymentGatewayService
                 'lemon_squeezy_event' => $eventName,
                 'custom_data' => $attributes['first_order_item']['custom_data'] ?? $payload['meta']['custom_data'] ?? [],
             ]),
+            authority: WebhookAuthority::platform($platform),
         );
 
         $this->applyEventToMatchingPayment($event);
@@ -279,10 +323,14 @@ class PaymentGatewayService
             // encaissé et rattaché à rien : il laisse une trace. Identifiants seulement, aucune
             // donnée personnelle.
             if ($candidates === []) {
+                // TCK-293 — un événement hors du périmètre de son autorité finit ici aussi : la trace
+                // dit quelle intégration l'a authentifié.
                 Log::warning('payment_webhook_unmatched', [
                     'provider' => $event->provider,
                     'transaction_id' => $event->transactionId,
                     'type' => $event->type,
+                    'integration_id' => $event->authority?->integration?->id,
+                    'agency_id' => $event->authority?->agencyId,
                 ]);
 
                 return;
@@ -495,7 +543,7 @@ class PaymentGatewayService
         );
     }
 
-    protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, float $amount): void
+    protected function recordInitiation(Model $payment, PaymentProvider $provider, CheckoutSession $session, float $amount, ?Integration $integration = null): void
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
         $lateFeeIncluded = $payment instanceof LeasePayment && $this->lateFeeIncluded($payment);
@@ -507,6 +555,9 @@ class PaymentGatewayService
         $transactions[] = [
             'transaction_id' => $session->transactionId,
             'provider' => $provider->value,
+            // TCK-293 (ADR-0046 §5) — l'intégration qui initie : seul son propriétaire (son agence,
+            // ou la plateforme) pourra solder CE checkout par webhook.
+            'integration_id' => $integration?->id,
             'amount' => $amount,
             'late_fee_included' => $lateFeeIncluded,
             // La part de pénalité de CE montant : un webhook tardif sur une pénalité réglée entre-temps
@@ -525,6 +576,7 @@ class PaymentGatewayService
                 'gateway' => [
                     'provider' => $provider->value,
                     'transaction_id' => $session->transactionId,
+                    'integration_id' => $integration?->id,
                     'checkout_url' => $session->checkoutUrl,
                     'initiated_at' => now()->toIso8601String(),
                     'transactions' => $transactions,
@@ -542,14 +594,25 @@ class PaymentGatewayService
     }
 
     /**
+     * Les payables que rapproche cet événement, verrouillés.
+     *
+     * TCK-293 (ADR-0046 §5) — dans le périmètre de l'autorité de l'événement, sur LES TROIS chemins
+     * d'appariement : l'agence de l'intégration qui a validé (la plateforme n'est pas bornée par
+     * agence), puis le propriétaire de l'intégration qui a initié le checkout, quand il est
+     * enregistré. Sans autorité, rien.
+     *
      * @return array<int, Model>
      */
     protected function paymentsForEvent(PaymentEvent $event): array
     {
+        $authority = $event->authority;
+        if ($authority === null) {
+            return [];
+        }
+
         $matches = [];
-        foreach ([BookingPayment::class, LeasePayment::class, Invoice::class] as $class) {
-            /** @var class-string<Model> $class */
-            $rows = $class::query()
+        foreach (self::PAYABLES as $class) {
+            $rows = $this->withinAuthority($class::query(), $class, $authority)
                 ->where('transaction_id', $event->transactionId)
                 ->lockForUpdate()
                 ->get();
@@ -561,9 +624,8 @@ class PaymentGatewayService
         // TCK-593 (V2) — le webhook d'un checkout ANTÉRIEUR : son identifiant n'est plus dans
         // `transaction_id`, il est dans l'historique.
         if ($matches === []) {
-            foreach ([BookingPayment::class, LeasePayment::class, Invoice::class] as $class) {
-                /** @var class-string<Model> $class */
-                $rows = $class::query()
+            foreach (self::PAYABLES as $class) {
+                $rows = $this->withinAuthority($class::query(), $class, $authority)
                     ->whereJsonContains('metadata->gateway->transactions', [['transaction_id' => $event->transactionId]])
                     ->lockForUpdate()
                     ->get();
@@ -578,16 +640,85 @@ class PaymentGatewayService
         if ($matches === [] && ! empty($event->metadata['custom_data']['payment_id'])) {
             $paymentId = (int) $event->metadata['custom_data']['payment_id'];
             $type = (string) ($event->metadata['custom_data']['payment_type'] ?? '');
-            if ($paymentId > 0 && class_exists($type)) {
-                /** @var class-string<Model> $type */
-                $row = $type::query()->find($paymentId);
+            if ($paymentId > 0 && in_array($type, self::PAYABLES, true)) {
+                $row = $this->withinAuthority($type::query(), $type, $authority)
+                    ->whereKey($paymentId)
+                    ->lockForUpdate()
+                    ->first();
                 if ($row !== null) {
                     $matches[] = $row;
                 }
             }
         }
 
-        return $matches;
+        return array_values(array_filter(
+            $matches,
+            fn (Model $row): bool => $this->initiatedWithinAuthority($row, $event->transactionId, $authority),
+        ));
+    }
+
+    /**
+     * TCK-293 (ADR-0046 §5, AC3) — une intégration d'agence ne voit que les payables de son agence :
+     * l'acompte par sa réservation, l'échéance par son bail, la facture par son agence.
+     *
+     * @param  Builder<Model>  $query
+     * @param  class-string<Model>  $class
+     * @return Builder<Model>
+     */
+    private function withinAuthority(Builder $query, string $class, WebhookAuthority $authority): Builder
+    {
+        if ($authority->isPlatform()) {
+            return $query;
+        }
+
+        $agencyId = $authority->agencyId;
+
+        return match ($class) {
+            BookingPayment::class => $query->whereHas('booking', fn (Builder $q) => $q->where('agency_id', $agencyId)),
+            LeasePayment::class => $query->whereHas('lease', fn (Builder $q) => $q->where('agency_id', $agencyId)),
+            default => $query->where('agency_id', $agencyId),
+        };
+    }
+
+    /**
+     * TCK-293 (ADR-0046 §5) — si le checkout de cette transaction a enregistré l'intégration qui l'a
+     * initié, son propriétaire (une agence, ou la plateforme) doit être celui de l'autorité. Un
+     * checkout encaissé sur le compte de la plateforme ne se solde pas avec le secret d'une agence,
+     * ni l'inverse. Un payable antérieur à l'enregistrement (aucune intégration notée) n'est borné
+     * que par l'agence. Une intégration notée mais introuvable ne donne rien.
+     */
+    private function initiatedWithinAuthority(Model $payment, string $transactionId, WebhookAuthority $authority): bool
+    {
+        $integrationId = $this->initiatingIntegrationId(is_array($payment->metadata ?? null) ? $payment->metadata : [], $transactionId);
+        if ($integrationId === null) {
+            return true;
+        }
+
+        $initiator = Integration::withTrashed()->whereKey($integrationId)->first(['id', 'agency_id']);
+        if ($initiator === null) {
+            return false;
+        }
+
+        return ($initiator->agency_id !== null ? (int) $initiator->agency_id : null) === $authority->agencyId;
+    }
+
+    /**
+     * L'intégration qui a initié le checkout `$transactionId` : son entrée de l'historique si elle
+     * existe (même sans intégration notée), sinon celle du checkout courant.
+     *
+     * @param  array<string,mixed>  $meta
+     */
+    private function initiatingIntegrationId(array $meta, string $transactionId): ?int
+    {
+        $gateway = is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [];
+
+        foreach (is_array($gateway['transactions'] ?? null) ? $gateway['transactions'] : [] as $entry) {
+            if (is_array($entry) && ($entry['transaction_id'] ?? null) === $transactionId) {
+                return is_numeric($entry['integration_id'] ?? null) ? (int) $entry['integration_id'] : null;
+            }
+        }
+
+        return is_numeric($gateway['integration_id'] ?? null) ? (int) $gateway['integration_id'] : null;
     }
 
     /**
