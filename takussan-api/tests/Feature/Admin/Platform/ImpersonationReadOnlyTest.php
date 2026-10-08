@@ -3,8 +3,10 @@
 namespace Tests\Feature\Admin\Platform;
 
 use App\Http\Middleware\EnforceImpersonationReadOnly;
+use App\Models\Agency;
 use App\Models\DataExport;
 use App\Models\Document;
+use App\Models\Integration;
 use App\Models\User;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Support\Security\ProtectedActions;
@@ -85,6 +87,36 @@ class ImpersonationReadOnlyTest extends TestCase
         // Témoin : la même cible, avec SON jeton, lit bien son QR — le refus est celui de la session.
         $propre = $cible->createToken('mobile')->plainTextToken;
         $this->avecLeJeton($propre)->get('/api/auth/two-factor/qr')->assertOk();
+    }
+
+    /**
+     * verif-600 m-D — l'URL de webhook de paiement d'une intégration (TCK-293, ADR-0046) porte un
+     * jeton que seule l'agence, sous 2FA, peut invalider : c'est un secret durable, il ne se lit pas
+     * sous impersonation.
+     */
+    public function test_l_url_secrete_d_un_webhook_de_paiement_ne_se_lit_pas(): void
+    {
+        $agence = Agency::factory()->create();
+        $cible = User::factory()->withTwoFactor()->create(['agency_id' => $agence->id]);
+        $this->materializeRoleProfile($cible, 'agency_admin', $agence);
+        $integration = Integration::factory()->create([
+            'agency_id' => $agence->id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'k', 'webhook_secret' => 'secret-de-signature'],
+        ]);
+        $chemin = "/api/integrations/{$integration->id}/webhook-endpoint";
+        ['jeton' => $jeton] = $this->ouvrirUneSession(cible: $cible);
+
+        $reponse = $this->avecLeJeton($jeton)->getJson($chemin);
+        $reponse->assertForbidden()->assertJsonPath('code', 'impersonation.read_only');
+        $this->assertStringNotContainsString((string) $integration->webhook_token, $reponse->getContent());
+
+        // Témoin : l'admin, avec SON jeton, lit son URL — le refus est celui de la session.
+        $propre = $cible->createToken('mobile')->plainTextToken;
+        $this->avecLeJeton($propre)->getJson($chemin)
+            ->assertOk()
+            ->assertJsonPath('data.url', $integration->webhookUrl());
     }
 
     /** Les lectures refusées de l'ADR : la console, les exports, les codes de secours. */

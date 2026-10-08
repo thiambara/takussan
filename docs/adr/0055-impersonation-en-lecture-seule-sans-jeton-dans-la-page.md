@@ -66,10 +66,17 @@ puis :
 - **lectures refusées malgré tout**, même code : les téléchargements d'export (`me/data-exports/*`,
   `export/*`, exports de rapports), **toute la famille 2FA** (`auth/two-factor*` : codes de secours,
   et QR de la graine TOTP en cours d'enrôlement — verif-600 M1), les liens de partage d'un document
-  (leur `token` ouvre le fichier sans session), et **toute action de la liste step-up**
+  (leur `token` ouvre le fichier sans session), l'URL de webhook de paiement d'une intégration
+  (`integrations/*/webhook-endpoint`, ADR-0046 — verif-600 m-D), et **toute action de la liste step-up**
   (`ProtectedActions::STEP_UP` et `STEP_UP_FOR_PLATFORM`) — le jeton d'impersonation ne porte jamais
   de confirmation 2FA ; `/api/admin/*` entier (la cible n'est jamais un opérateur, mais la règle ne
   repose pas sur cette seule garde).
+
+**Consigne : toute route `GET` qui rend un secret durable entre dans `REFUSED_READS` le jour où
+elle est créée.** Un secret durable, c'est un jeton, une URL secrète, une graine, ou un lien qui
+ouvre sans session. Aucune garde ne l'attrape : une lecture neuve qui rend un secret ne casse aucun
+test, et l'opérateur repart avec ce qu'il a lu bien après les 15 minutes. La consigne est répétée
+en tête de la constante.
 
 ### 4. Fin, expiration, révocation
 

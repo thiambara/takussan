@@ -34,6 +34,12 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnforceImpersonationReadOnly
 {
+    /**
+     * CONSIGNE (verif-600 m-D) : toute route GET qui rend un SECRET DURABLE — un jeton, une URL
+     * secrète, une graine, un lien qui ouvre sans session — entre ici, le jour où elle est créée.
+     * Rien d'autre ne l'attrape : une lecture neuve qui rend un secret ne casse aucun test, et la
+     * session repart avec ce qu'elle a lu bien après ses 15 minutes (ADR-0055 §3).
+     */
     public const REFUSED_READS = [
         'api/admin',
         'api/admin/*',
@@ -43,6 +49,8 @@ class EnforceImpersonationReadOnly
         'api/activity-logs/export*',
         'api/auth/two-factor*',
         'api/documents/*/share-links*',
+        // TCK-293 (ADR-0046) — l'URL de webhook porte le jeton qui route les paiements de l'agence.
+        'api/integrations/*/webhook-endpoint',
     ];
 
     public function __construct(
