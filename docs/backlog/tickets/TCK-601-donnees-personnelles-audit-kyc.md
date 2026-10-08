@@ -1,7 +1,7 @@
 ---
 id: TCK-601
 title: "Données personnelles et audit : RIB et pièces en clair, journal d'agence qui montre les actes d'une autre agence et cache ceux des admins, consultations non tracées, aucun registre des demandes de droits"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -291,7 +291,7 @@ Et autour :
 
 ### 0. Décision
 
-- [ ] **ADR à écrire et accepter avant le code** — « Données personnelles : chiffrement applicatif,
+- [x] **ADR à écrire et accepter avant le code** — « Données personnelles : chiffrement applicatif,
       périmètre d'agence du journal, registre des droits ». Il tranche : (1) chiffrement par cast
       `encrypted` et gestion de `APP_KEY` / `APP_PREVIOUS_KEYS` (sauvegarde, rotation, ré-chiffrement),
       **option retenue par défaut**, pour `owner_profiles` comme pour `agency_upgrade_requests` ;
@@ -304,52 +304,52 @@ Et autour :
 
 ### A. Données sensibles du bailleur
 
-- [ ] Migration `encrypt_sensitive_columns_on_owner_profiles` : les trois colonnes passent en `text`,
+- [x] Migration `encrypt_sensitive_columns_on_owner_profiles` : les trois colonnes passent en `text`,
       puis chaque ligne existante est chiffrée par lots (lecture brute, `Crypt::encryptString`,
       écriture brute — idempotente : une valeur déjà déchiffrable est laissée telle quelle) ; `down()`
       déchiffre puis rend `string`.
-- [ ] `OwnerProfile` : casts `encrypted`, `public const SENSITIVE = ['rib','tax_id','id_document_number']`,
+- [x] `OwnerProfile` : casts `encrypted`, `public const SENSITIVE = ['rib','tax_id','id_document_number']`,
       `$hidden = self::SENSITIVE`, retrait de `$queryFields`, `requestSearchFields = ['employer']`.
-- [ ] `App\Support\Masking` : `iban()` (extrait de `BankStatementController::maskIban`, qui l'appelle
+- [x] `App\Support\Masking` : `iban()` (extrait de `BankStatementController::maskIban`, qui l'appelle
       désormais) et `tail(string, int $visible = 4)`.
-- [ ] `App\Http\Resources\OwnerProfileResource` ; `OwnerProfileController::index` l'utilise.
-- [ ] `GET /api/owners/{owner_profile}/sensitive` → `OwnerProfileController::sensitive`, nouvelle
+- [x] `App\Http\Resources\OwnerProfileResource` ; `OwnerProfileController::index` l'utilise.
+- [x] `GET /api/owners/{owner_profile}/sensitive` → `OwnerProfileController::sensitive`, nouvelle
       méthode de policy `OwnerProfilePolicy::viewSensitive` (admin de l'agence du profil ; super-admin
       par `Gate::before` — **option retenue par défaut** : pas de capacité dédiée tant que TCK-587 n'a
       pas branché les capacités de lecture) ; journalisée (F).
-- [ ] `DataExportBuilder.php:83` : les profils sont exportés avec `makeVisible(OwnerProfile::SENSITIVE)`.
+- [x] `DataExportBuilder.php:83` : les profils sont exportés avec `makeVisible(OwnerProfile::SENSITIVE)`.
 - [x] Front : le carnet de propriétaires affiche les valeurs masquées et le geste « Afficher » pour l'admin.
-- [ ] Tests : `OwnerProfileSensitiveDataTest`.
+- [x] Tests : `OwnerProfileSensitiveDataTest`.
 
 ### A2. Identifiants légaux de la demande de passage en agence
 
-- [ ] Migration `encrypt_legal_identifiers_on_agency_upgrade_requests` : `ninea` et `rib_pro` passent en
+- [x] Migration `encrypt_legal_identifiers_on_agency_upgrade_requests` : `ninea` et `rib_pro` passent en
       `text` puis sont chiffrés par lots (même procédé idempotent qu'en A) ; la même migration retire
       `legal_info.rib_pro` de `agencies.metadata` (`metadata #- '{legal_info,rib_pro}'`). `down()` :
       déchiffre, rend `string`, et recopie `rib_pro` depuis la demande `approved` de chaque agence.
-- [ ] `AgencyUpgradeRequest` : casts `encrypted` sur `ninea` et `rib_pro`. `AgencyUpgradeRequestResource`
+- [x] `AgencyUpgradeRequest` : casts `encrypted` sur `ninea` et `rib_pro`. `AgencyUpgradeRequestResource`
       inchangée (lecteurs : admin de l'agence et super-admin, déjà autorisés).
-- [ ] `AgencyKindFlipService` : `rib_pro` ne fait plus partie des champs recopiés (`LEGAL_FIELDS`
+- [x] `AgencyKindFlipService` : `rib_pro` ne fait plus partie des champs recopiés (`LEGAL_FIELDS`
       garde `rc`, `ninea`, `company_legal_name`, `address_fiscale`). La copie n'a aucun lecteur ; la seule
       source du RIB pro reste la demande, chiffrée. *Chiffrer une clé d'un `jsonb` n'est pas le mécanisme
       du cast `encrypted` : la supprimer l'est.*
-- [ ] `AgencyResource` : `metadata` rendu sans `legal_info.rib_pro` (`Arr::except`), défense contre une
+- [x] `AgencyResource` : `metadata` rendu sans `legal_info.rib_pro` (`Arr::except`), défense contre une
       donnée antérieure à la migration.
 - [x] Front : le type d'agence ne déclare plus de RIB pro dans ses métadonnées.
-- [ ] `Admin\AgencyUpgradeRequestController::show` journalise la consultation (F, surface
+- [x] `Admin\AgencyUpgradeRequestController::show` journalise la consultation (F, surface
       `agency_upgrade_request`).
-- [ ] Tests : `AgencyUpgradeRequestEncryptionTest`.
+- [x] Tests : `AgencyUpgradeRequestEncryptionTest`.
 
 ### B. Pièces, documents et journaux
 
-- [ ] `UploadKycOwnerProfileRequest`, `UploadKycAgentProfileRequest`, `UploadKycServiceProviderProfileRequest`
+- [x] `UploadKycOwnerProfileRequest`, `UploadKycAgentProfileRequest`, `UploadKycServiceProviderProfileRequest`
       et `UploadKycDocumentRequest` : `mimes:jpg,jpeg,png,webp,heic,heif,pdf`, `mimetypes:` correspondants,
       `min:1` (Ko) ; la taille maximale reste celle de chaque requête.
-- [ ] `StoreDocumentRequest` et `UploadDocumentVersionRequest` : `mimes:pdf,jpg,jpeg,png,webp,heic,heif,doc,docx,xls,xlsx,txt,csv`,
+- [x] `StoreDocumentRequest` et `UploadDocumentVersionRequest` : `mimes:pdf,jpg,jpeg,png,webp,heic,heif,doc,docx,xls,xlsx,txt,csv`,
       `mimetypes:` correspondants, `min:1` ; `max:10240` inchangé. La liste est celle que le front
       annonce déjà (`DOCUMENT_MIME_ACCEPT`, plus `heic`/`heif`) ; le docblock de
       `UploadDocumentVersionRequest` dit vrai.
-- [ ] `App\Support\Logging\SafeExceptionContext::of(Throwable $e): array` : `exception` (classe),
+- [x] `App\Support\Logging\SafeExceptionContext::of(Throwable $e): array` : `exception` (classe),
       `code` ; pour une `QueryException` : `sqlstate`, `sql` (`getSql()`, placeholders seuls),
       `connection`, `bindings_count` ; pour toute autre : **aucun message** — `file:line` du point de
       levée suffit à retrouver la cause. `trace` réduite à `fichier:ligne` par cadre. **Jamais**
@@ -358,16 +358,16 @@ Et autour :
       refusée — le message d'une exception est une donnée, pas un diagnostic (relevé par la
       consolidation de TCK-599, 2026-10-06). Un appelant qui a besoin d'un texte le compose lui-même
       à partir de codes.
-- [ ] `bootstrap/app.php`, dans `withExceptions` (coordination 588) :
+- [x] `bootstrap/app.php`, dans `withExceptions` (coordination 588) :
       `$exceptions->report(function (QueryException $e) { Log::error('query_exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]); })->stop();`
       — remplace le rapport par défaut de **toute** `QueryException`, quelle que soit la route ou le job.
-- [ ] `PropertyController::store`, **le `catch` seulement** : `user_id`, `payload_keys`
+- [x] `PropertyController::store`, **le `catch` seulement** : `user_id`, `payload_keys`
       (`array_keys($request->all())`) et `SafeExceptionContext::of($e)` — jamais `$request->all()` ni
       `getMessage()`.
-- [ ] Mêmes contextes dans `FlipAgencyKindOnUpgradeApproved::handle` (`:53-63`),
+- [x] Mêmes contextes dans `FlipAgencyKindOnUpgradeApproved::handle` (`:53-63`),
       `BookingExpirationService` (`:133-134`, le Log **et** la chaîne poussée dans `$errors[]`, qui porte
       désormais la classe et le SQLSTATE) et `ExpirePendingBookingsJob::failed` (`:51-56`).
-- [ ] Tests : `KycUploadMimeTest` (les quatre routes), `DocumentUploadMimeTest` (les deux routes),
+- [x] Tests : `KycUploadMimeTest` (les quatre routes), `DocumentUploadMimeTest` (les deux routes),
       `PropertyStoreFailureLogTest`, `SafeExceptionLoggingTest`.
 
 ### C. KYC d'agence
@@ -399,24 +399,24 @@ Et autour :
 
 ### D. Audit d'agence
 
-- [ ] `App\Models\Activity` (étend le modèle spatie, déclaré dans `config/activitylog.php`) : à la
+- [x] `App\Models\Activity` (étend le modèle spatie, déclaré dans `config/activitylog.php`) : à la
       création, `agency_id` résolu par `App\Services\Audit\AuditAgencyResolver` (contrainte 3).
       Interface `App\Models\Contracts\HasAuditAgency` sur les modèles enfants.
-- [ ] Migration `add_agency_id_to_activity_log` (colonne, FK, deux index) puis migration
+- [x] Migration `add_agency_id_to_activity_log` (colonne, FK, deux index) puis migration
       `backfill_agency_id_on_activity_log` : `UPDATE … FROM` par type de sujet portant `agency_id`,
       par jointure pour les enfants, `subject_id` pour `Agency`.
-- [ ] `AuditLogController::index` et `ActivityLogExporter::scopeForUser` : un admin d'agence voit
+- [x] `AuditLogController::index` et `ActivityLogExporter::scopeForUser` : un admin d'agence voit
       `agency_id = <agence active>`, et rien d'autre.
-- [ ] `AuditLogController::indexByEntity` : même filtre pour un non-super-admin ; le type est
+- [x] `AuditLogController::indexByEntity` : même filtre pour un non-super-admin ; le type est
       résolu en classe exacte (`App\Models\<Studly>` existante), plus de `LIKE`.
-- [ ] `ExportActivityLogJob` reçoit l'`agency_id` à la répartition ; l'exporteur ne lit plus
+- [x] `ExportActivityLogJob` reçoit l'`agency_id` à la répartition ; l'exporteur ne lit plus
       `request()` dans le job.
-- [ ] `App\Support\Audit\PropertyRedactor` (extrait de `CrossTenantAuditController`, liste étendue à
+- [x] `App\Support\Audit\PropertyRedactor` (extrait de `CrossTenantAuditController`, liste étendue à
       `rib`, `iban`, `tax_id`, `ninea`, `id_document`) appliqué à `properties` dans l'audit d'agence,
       dans l'audit plateforme et dans les deux exports.
 - [x] Front `AuditTrail` : filtre par membre (liste issue de `GET /api/agencies/{agency}/members`),
       libellés i18n des événements métier et des nouveaux types de sujet, acteur nul rendu « Système ».
-- [ ] Tests : `AgencyAuditScopeTest` (AC10 à AC14, AC12b, AC13b), `ActivityLogAgencyBackfillTest`.
+- [x] Tests : `AgencyAuditScopeTest` (AC10 à AC14, AC12b, AC13b), `ActivityLogAgencyBackfillTest`.
 
 ### E. Actes de gouvernance
 
@@ -439,77 +439,77 @@ Et autour :
 
 ### F. Consultations et audit plateforme
 
-- [ ] `App\Services\Privacy\PersonalDataAccessLogger::record(User $viewer, Model $subject, string $surface)` :
+- [x] `App\Services\Privacy\PersonalDataAccessLogger::record(User $viewer, Model $subject, string $surface)` :
       journal `PersonalDataAccess`, événement `personal_data_viewed`, `properties.surface` ; au plus une
       entrée par (lecteur, sujet, surface) par fenêtre de 15 min.
-- [ ] Appels : `Admin/UserDetailController` (`show`, `sessions`, `activity`), `Admin/KycController`
+- [x] Appels : `Admin/UserDetailController` (`show`, `sessions`, `activity`), `Admin/KycController`
       (`show`, `agency`), `KycDocumentController` (coordination 546), `OwnerProfileController::sensitive`,
       `Admin\AgencyUpgradeRequestController::show` (RIB et NINEA complets, A2).
-- [ ] `GET /api/admin/audit/export` → `CrossTenantAuditController::export` (réutilise
+- [x] `GET /api/admin/audit/export` → `CrossTenantAuditController::export` (réutilise
       `ActivityLogExporter` en portée plateforme, lien signé) ; `filter[sensitive]=1` sur l'index et
       l'export, sur une liste de `log_name` nommée en constante ; l'export lui-même est journalisé.
 - [x] Front : préréglage « Gestes sensibles » et export sur l'audit de la console.
-- [ ] Tests : `PersonalDataAccessLogTest`, `CrossTenantAuditExportTest`.
+- [x] Tests : `PersonalDataAccessLogTest`, `CrossTenantAuditExportTest`.
 
 ### G. Registre des demandes de droits
 
-- [ ] Migration `create_privacy_requests_table` (Contrat de données ; index nommés sur
+- [x] Migration `create_privacy_requests_table` (Contrat de données ; index nommés sur
       `(status, due_at)` et `user_id`) ; modèle `PrivacyRequest` (`Auditable`, journal `Privacy`) ;
       enums `PrivacyRequestType` (`access`, `rectification`, `opposition`, `erasure`, `portability`),
       `PrivacyRequestChannel`, `PrivacyRequestStatus` (`received`, `in_progress`, `answered`,
       `rejected`, `withdrawn`) ; `due_at = received_at + config('privacy.rights_request_deadline_days')`.
-- [ ] Alimentation automatique par observers : `DataExport` créé → `portability` ; `AccountDeletionRequest`
+- [x] Alimentation automatique par observers : `DataExport` créé → `portability` ; `AccountDeletionRequest`
       créée → `erasure`, et sa **suppression** (annulation) passe l'entrée à `withdrawn` sans l'effacer.
-- [ ] `Admin\PrivacyRequestController` (`index`, `store`, `update`, `export` CSV) +
+- [x] `Admin\PrivacyRequestController` (`index`, `store`, `update`, `export` CSV) +
       `StorePrivacyRequestRequest`, `UpdatePrivacyRequestRequest` + `PrivacyRequestPolicy` (super-admin
       seul) ; dépôt de la preuve de réponse par média `proof` (mêmes `mimes` qu'en B).
 - [x] Front : page « Demandes de droits » de la console.
 - [ ] `docs/models-spec.md` et `docs/features.md` mis à jour après fusion (`/sync-specs`).
-- [ ] Tests : `PrivacyRequestRegistryTest`.
+- [x] Tests : `PrivacyRequestRegistryTest`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — En base, `owner_profiles.rib` d'un profil créé par la factory ne contient pas la valeur
+- [x] **AC1** — En base, `owner_profiles.rib` d'un profil créé par la factory ne contient pas la valeur
       saisie (lecture SQL brute) ; le modèle la relit intacte. Une valeur de 34 caractères s'enregistre.
-- [ ] **AC2** — `GET /api/owners` (agent, puis admin) ne contient ni `rib`, ni `tax_id`, ni
+- [x] **AC2** — `GET /api/owners` (agent, puis admin) ne contient ni `rib`, ni `tax_id`, ni
       `id_document_number` en clair ; `fields[owner_profiles]=rib,tax_id` est refusé (400, champ non
       autorisé) au lieu de les rendre ; la réponse contient `rib_masked` égal au masque attendu pour une
       valeur fixée. Rouge sur le code actuel ; rouge à nouveau si l'on retire la Resource ou le `$hidden`.
-- [ ] **AC3** — `GET /api/owners/{id}/sensitive` : 200 pour l'admin de l'agence (valeur complète, une
+- [x] **AC3** — `GET /api/owners/{id}/sensitive` : 200 pour l'admin de l'agence (valeur complète, une
       entrée `personal_data_viewed` créée) ; 403 pour un agent de la même agence ; 403 pour l'admin d'une
       autre agence. Ablation : retirer la policy → rouge.
-- [ ] **AC4** — L'archive produite par `DataExportBuilder` pour un bailleur contient son RIB complet.
-- [ ] **AC4b** — `AgencyUpgradeRequestEncryptionTest` : en base, `agency_upgrade_requests.rib_pro` et
+- [x] **AC4** — L'archive produite par `DataExportBuilder` pour un bailleur contient son RIB complet.
+- [x] **AC4b** — `AgencyUpgradeRequestEncryptionTest` : en base, `agency_upgrade_requests.rib_pro` et
       `ninea` d'une demande soumise par `POST /api/agencies/{agency}/upgrade-requests` ne contiennent pas
       les valeurs témoins (lecture SQL brute) ; le modèle les relit intactes ; un RIB de 60 caractères
       s'enregistre. Rouge sur le code actuel ; rouge à nouveau si l'on retire le cast.
-- [ ] **AC4c** — Après approbation d'une demande dont le RIB pro est un témoin : `agencies.metadata`
+- [x] **AC4c** — Après approbation d'une demande dont le RIB pro est un témoin : `agencies.metadata`
       (lecture SQL brute) ne contient pas le témoin, et `GET /api/agencies/{agency}` appelé par un
       bailleur, un agent puis l'admin de l'agence ne le contient nulle part dans le corps. Une agence dont
       `metadata.legal_info.rib_pro` préexiste ne le porte plus après la migration. Rouge sur le code
       actuel ; rouge à nouveau si `rib_pro` revient dans les champs recopiés par le flip.
-- [ ] **AC5** — Un `.html`, un `.svg` et un fichier vide sont refusés (422) sur chacune des quatre
+- [x] **AC5** — Un `.html`, un `.svg` et un fichier vide sont refusés (422) sur chacune des quatre
       routes d'upload KYC ; un `.heic` et un `.pdf` sont acceptés. Rouge sur le code actuel pour les
       trois routes `me/*`.
-- [ ] **AC5b** — `DocumentUploadMimeTest` : un `.html`, un `.svg` et un fichier vide sont refusés (422,
+- [x] **AC5b** — `DocumentUploadMimeTest` : un `.html`, un `.svg` et un fichier vide sont refusés (422,
       erreur sur `file`) sur `POST /api/documents` et `POST /api/documents/{document}/versions` ; un `.pdf`,
       un `.docx` et un `.heic` sont acceptés (201). Rouge sur le code actuel pour les deux routes ; rouge à
       nouveau si l'on retire `mimes`.
-- [ ] **AC6** — Un échec forcé de `PropertyController::store` (contrainte violée) : **toutes** les entrées
+- [x] **AC6** — Un échec forcé de `PropertyController::store` (contrainte violée) : **toutes** les entrées
       de log émises pendant la requête (écouteur `MessageLogged` ; message + contexte, chaque `Throwable`
       rendu par `(string) $e`) ne contiennent **aucune** valeur saisie (titre et adresse témoins) ;
       l'entrée du `catch` contient `payload_keys`. Rouge sur le code actuel (payload **et** rapport du
       framework) ; rouge à nouveau si l'on remet `getMessage()` dans le `catch`.
-- [ ] **AC6b** — `SafeExceptionLoggingTest::test_le_rapporteur_ne_journalise_aucun_binding` : une
+- [x] **AC6b** — `SafeExceptionLoggingTest::test_le_rapporteur_ne_journalise_aucun_binding` : une
       insertion qui viole une contrainte d'unicité avec une valeur témoin (dans un point de sauvegarde),
       puis `report($e)` : aucune entrée de log ne contient le témoin (ni le `DETAIL` PostgreSQL) ; une
       entrée `query_exception` porte `sqlstate = 23505` et un `sql` à placeholders `?`. Rouge sur le code
       actuel ; rouge à nouveau si l'on retire le `->stop()` (le rapport par défaut réécrit le message).
-- [ ] **AC6b-bis** — `SafeExceptionLoggingTest::test_aucun_message_hors_sql` : `SafeExceptionContext::of()`
+- [x] **AC6b-bis** — `SafeExceptionLoggingTest::test_aucun_message_hors_sql` : `SafeExceptionContext::of()`
       d'une `Symfony\Component\Mailer\Exception\TransportException` dont le message porte une adresse
       témoin rend un tableau sans clé `message` et dont aucune valeur ne contient le témoin. Rouge si
       l'on remet la branche `message` pour les exceptions non SQL.
-- [ ] **AC6c** — Même assertion (aucun témoin dans aucune entrée de log ni dans `errors`) pour une
+- [x] **AC6c** — Même assertion (aucun témoin dans aucune entrée de log ni dans `errors`) pour une
       `QueryException` témoin levée dans `AgencyKindFlipService::flip` (via
       `FlipAgencyKindOnUpgradeApproved`), à l'expiration d'une réservation (`BookingExpirationService`,
       écrivain d'événement `updating` qui lève) et passée à `ExpirePendingBookingsJob::failed`. Rouge sur
@@ -528,23 +528,23 @@ Et autour :
 - [x] **AC9b** — Un membre de l'agence à qui un rôle personnalisé donne `agency.update_kyc` dépose une
       pièce (201) ; un admin dont le rôle la retire reçoit 403. Ablation : revenir à `isAgencyAdminAt`
       → rouge.
-- [ ] **AC10** — L'admin 1 de l'agence A voit l'activité causée par l'admin 2 de A (qui n'a **que** un
+- [x] **AC10** — L'admin 1 de l'agence A voit l'activité causée par l'admin 2 de A (qui n'a **que** un
       `AgencyAdminProfile`, créé sans le pont `agency_id`). Rouge sur le code actuel.
-- [ ] **AC11** — L'admin de A voit une activité système (`causer` nul) sur un sujet de A.
-- [ ] **AC12** — Un bailleur présent chez A et B cause une activité sur un sujet de B : l'admin de A ne
+- [x] **AC11** — L'admin de A voit une activité système (`causer` nul) sur un sujet de A.
+- [x] **AC12** — Un bailleur présent chez A et B cause une activité sur un sujet de B : l'admin de A ne
       la voit **ni** dans la liste, **ni** dans l'export ; l'admin de B la voit. Rouge sur le code
       actuel ; rouge à nouveau si le filtre revient sur l'acteur.
-- [ ] **AC12b** — Un admin de A **et** de B (deux `AgencyAdminProfile`), profil actif A, lance l'export
+- [x] **AC12b** — Un admin de A **et** de B (deux `AgencyAdminProfile`), profil actif A, lance l'export
       de l'audit : le fichier produit par le job contient les entrées de A (au moins une, valeur témoin
       attendue) et aucune de B. Rouge sur le code actuel (fichier vide : `request()` nul dans le job).
-- [ ] **AC13** — `GET /api/activity-log/payout/{id}` et `/api/audit-log/payout/{id}` d'un reversement de
+- [x] **AC13** — `GET /api/activity-log/payout/{id}` et `/api/audit-log/payout/{id}` d'un reversement de
       B, appelé par l'admin de A → aucune entrée ; le même appel par l'admin de B rend les entrées du
       reversement, et aucune d'un `PlatformPayout` de même identifiant. Rouge sur le code actuel.
-- [ ] **AC13b** — Une activité sur un sujet de A dont `properties` porte `rib`, `iban`, `tax_id` et
+- [x] **AC13b** — Une activité sur un sujet de A dont `properties` porte `rib`, `iban`, `tax_id` et
       `ninea` témoins : ni la liste de l'audit d'agence (admin de A), ni l'audit plateforme, ni leurs
       exports ne contiennent un témoin ; les clés restent, valeur `[REDACTED]`. Rouge sur le code actuel
       (audit d'agence non expurgé, liste plateforme sans ces clés).
-- [ ] **AC14** — Après la migration de rattrapage, une activité préexistante sur un `LeasePayment` de A
+- [x] **AC14** — Après la migration de rattrapage, une activité préexistante sur un `LeasePayment` de A
       porte `agency_id = A` ; une activité sur un `User` porte `null`.
 - [x] **AC15** — Remplacer les capacités d'un rôle crée `role_capabilities_changed` avec `added` et
       `removed` exacts, et notifie les autres admins de l'agence (pas l'auteur) ; une entrée
@@ -553,12 +553,12 @@ Et autour :
       toute la ligne). Changer le `commission_rate` de l'agence écrit une entrée `updated` avec l'ancienne
       et la nouvelle valeur ; changer les `credentials` d'une `Integration` écrit `credentials_changed:
       true` et aucune valeur de secret. Rouge sur le code actuel (aucune entrée).
-- [ ] **AC16** — Ouvrir le détail d'un utilisateur, ses sessions, un dossier KYC et une pièce KYC depuis
+- [x] **AC16** — Ouvrir le détail d'un utilisateur, ses sessions, un dossier KYC et une pièce KYC depuis
       la console écrit chacun une entrée `personal_data_viewed` ; deux ouvertures en 15 min, une seule.
-- [ ] **AC17** — `GET /api/admin/audit/export` rend un lien signé ; le fichier respecte les filtres et
+- [x] **AC17** — `GET /api/admin/audit/export` rend un lien signé ; le fichier respecte les filtres et
       `filter[sensitive]=1` ; aucune valeur expurgée n'y figure ; l'export est journalisé. 403 pour un
       admin d'agence.
-- [ ] **AC18** — Une demande d'export ou de suppression par un utilisateur crée une entrée du registre
+- [x] **AC18** — Une demande d'export ou de suppression par un utilisateur crée une entrée du registre
       avec `due_at` attendu ; annuler la suppression passe l'entrée à `withdrawn` sans la supprimer ; une
       demande saisie à la main, puis répondue avec preuve, apparaît dans l'export CSV. 403 pour tout
       non-super-admin.
@@ -567,6 +567,11 @@ Et autour :
       composant). Rouge sur le code actuel.
 - [ ] **AC19** — `./vendor/bin/pint` propre ; `npm run lint` et `npx tsc --noEmit` propres ; tests des
       classes touchées verts ; `php artisan migrate:fresh --seed` passe.
+      *(2026-10-08 : Pint, lint, `tsc` propres ; classes touchées vertes (556 + 149 + 364 après la
+      fusion de 592) ; toutes les gardes racine vertes. `migrate:fresh --seed` sur base jetable : les
+      135+ migrations passent, dont les six de ce ticket, mais le seeder `YearOfActivitySeeder` a été
+      coupé à 520 s sous une charge de 33-43 sur 8 cœurs — **à lancer par la session, machine au
+      repos**, avec la suite entière.)*
 
 ## Hors périmètre
 
