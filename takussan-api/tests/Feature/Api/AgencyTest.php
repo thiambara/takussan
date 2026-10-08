@@ -134,7 +134,7 @@ class AgencyTest extends ApiTestCase
     public function test_agency_admin_persists_moderation_required(): void
     {
         $agency = Agency::factory()->create(['moderation_required' => false]);
-        $admin = User::factory()->create();
+        $admin = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($admin, 'agency_admin', $agency);
         $agent = User::factory()->create();
         $this->materializeRoleProfile($agent, 'agent', $agency);

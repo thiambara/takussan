@@ -473,6 +473,48 @@
         "fileFooter": "Each code can only be used once."
       }
     },
+    "twoFactorGate": {
+      "requiredTitle": "Turn on two-factor authentication",
+      "requiredBody": "This action touches sensitive data, so it requires a second factor on your account. Set it up now — the action will resume right after.",
+      "stepUpTitle": "Confirm it’s really you",
+      "stepUpBody": "For your security, this action needs a recent code from your authenticator app. Enter it and the action will resume.",
+      "codeLabel": "6-digit code",
+      "confirm": "Confirm",
+      "confirming": "Verifying…",
+      "cancel": "Cancel",
+      "invalidCode": "This code isn’t valid. Check your phone’s clock, then try again.",
+      "failed": "Verification didn’t go through. Please try again in a moment.",
+      "sessionClosed": "Too many invalid codes: this session has been closed. Please sign in again.",
+      "reconfigureTitle": "Set up two-factor authentication again",
+      "reconfigureBody": "Support has reset your second factor. Set up a new one to get back to your workspace.",
+      "superAdminTitle": "Two-factor authentication is required",
+      "superAdminBody": "The platform console is only available with a second factor. Set it up to continue."
+    },
+    "phoneLogin": {
+      "loginTitle": "Sign in with your phone number",
+      "loginSubtitle": "We’ll text you a code — no password to remember.",
+      "registerTitle": "Create your account with your phone number",
+      "registerSubtitle": "A code received by text is all it takes: your account is ready as soon as it’s confirmed.",
+      "phoneLabel": "Phone number",
+      "sendCode": "Get a code",
+      "sending": "Sending…",
+      "codeSentTo": "If this number can receive text messages, a 6-digit code has just been sent to {phone}. It is valid for 5 minutes.",
+      "codeLabel": "Code received by text",
+      "verify": "Confirm",
+      "verifying": "Verifying…",
+      "resendIn": "Resend the code in {seconds} s",
+      "resend": "Resend the code",
+      "changeNumber": "Change number",
+      "useEmail": "Use an email and password instead",
+      "usePhone": "Use my phone number instead",
+      "invalidPhone": "This number isn’t valid. Check the country code and the digits.",
+      "codeInvalid": "Incorrect or expired code. Check it, or request a new one.",
+      "locked": "Too many attempts: access is paused for a few minutes. Please try again a little later.",
+      "blocked": "This account is suspended. Contact support to find out more.",
+      "tooMany": "Too many requests in a short time. Please wait a moment before trying again.",
+      "failed": "Something went wrong. Please try again in a moment.",
+      "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>."
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Sign in — Takussan"
@@ -876,6 +918,7 @@
       },
       "cancel": "Cancel",
       "signIn": "Sign in",
+      "createAccount": "Create an account",
       "sending": "Sending…",
       "booking": {
         "description": "Give your dates and the number of guests. The owner will confirm your request.",
@@ -2859,6 +2902,39 @@
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",
       "newThreadHint": "Your first message to {name} about this property.",
       "newThreadHintNoName": "Your first message about this property."
+    },
+    "voiceNote": {
+      "record": "Record a voice note",
+      "stop": "Stop recording",
+      "elapsed": "{seconds} s / {max} s",
+      "preview": "Listen before sending",
+      "send": "Send the voice note",
+      "discard": "Delete the note",
+      "microphoneDenied": "The microphone is not accessible. Allow it in your browser.",
+      "sendFailed": "The voice note was not sent. Please try again.",
+      "label": "Voice note",
+      "duration": "{seconds} s"
+    },
+    "maintenanceEvents": {
+      "assigned": "Job assigned to {provider}.",
+      "unassigned": "The job is no longer assigned to {provider}.",
+      "accepted": "{provider} accepted the job.",
+      "declined": "{provider} declined the job.",
+      "status": "Status: {status}.",
+      "statuses": {
+        "open": "Open",
+        "acknowledged": "Acknowledged",
+        "quote_requested": "Quote requested",
+        "quote_submitted": "Quote submitted",
+        "awaiting_owner": "Awaiting landlord",
+        "approved": "Quote approved",
+        "rejected": "Quote rejected",
+        "assigned": "Assigned",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "closed": "Closed",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "payments": {
@@ -3472,6 +3548,7 @@
       "acknowledged": "Acknowledged",
       "quote_requested": "Quote requested",
       "quote_submitted": "Quote submitted",
+      "awaiting_owner": "Awaiting landlord",
       "approved": "Quote approved",
       "rejected": "Quote rejected",
       "assigned": "Assigned",
@@ -3573,6 +3650,105 @@
         "reason_placeholder": "Please explain why this quote is refused...",
         "reason_min": "The reason must be at least 5 characters long",
         "confirm": "Confirm the rejection"
+      }
+    },
+    "intervention": {
+      "response": {
+        "title": "This job has been assigned to you",
+        "body": "Accept it to see the address and the tenant's contact, or decline it: it will go back to the agency.",
+        "accept": "I accept",
+        "decline": "I decline",
+        "reason_label": "Why are you declining?",
+        "reason_placeholder": "Unavailable that day, outside my area…",
+        "confirm_decline": "Confirm decline",
+        "back": "Back",
+        "failed": "Your answer was not saved. Please try again."
+      },
+      "access": {
+        "title": "Access to the property",
+        "address_missing": "No address provided",
+        "instructions": "Access instructions",
+        "directions": "Directions",
+        "call_requester": "Call the tenant",
+        "discuss": "Chat"
+      },
+      "assignment": {
+        "title": "Provider and time slot",
+        "invite": "Invite a new provider",
+        "provider_label": "Provider",
+        "nobody": "No provider",
+        "directory_unavailable": "The agency's provider directory is not available to your account.",
+        "slot_label": "Time slot",
+        "unavailable_that_day": "This provider does not declare working on that day.",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Saved.",
+        "failed": "The assignment was not saved."
+      },
+      "gallery": {
+        "title": "Photos and files",
+        "reported": "Report",
+        "before": "Before",
+        "after": "After",
+        "quotes": "Quote",
+        "before_label": "Photos before the work",
+        "send": "{count, plural, =0 {Send} =1 {Send # photo} other {Send # photos}}",
+        "sending": "Sending…",
+        "failed": "The photos were not sent. They are still selected: try again."
+      },
+      "resolution": {
+        "title": "The work is done",
+        "body": "Is the problem fixed? Without an answer from you, the request will be closed in 7 days.",
+        "confirm": "It's fixed",
+        "contest": "The problem persists",
+        "comment_label": "What is wrong?",
+        "comment_placeholder": "Describe what persists",
+        "photos_label": "Photos (optional)",
+        "send_contest": "Send",
+        "back": "Back",
+        "failed": "Your answer was not saved. Please try again."
+      },
+      "quote": {
+        "request": "Request a quote",
+        "approve": "Approve the quote",
+        "reject": "Reject the quote",
+        "failed": "The quote action failed.",
+        "awaiting_owner_you": "This quote exceeds your works threshold: it is awaiting your approval.",
+        "awaiting_owner_other": "This quote exceeds the landlord's works threshold: it is awaiting their approval.",
+        "pdf": "Download the quote (PDF)",
+        "pdf_downloading": "Downloading…",
+        "pdf_failed": "The quote PDF could not be downloaded.",
+        "line_label": "Description",
+        "line_kind": "Type",
+        "line_quantity": "Quantity",
+        "line_unit_price": "Unit price",
+        "line_total": "Total",
+        "kinds": {
+          "labour": "Labour",
+          "supply": "Supplies"
+        },
+        "valid_until": "Valid until {date}",
+        "duration": "{days, plural, =1 {Estimated duration: # day} other {Estimated duration: # days}}"
+      },
+      "quote_form": {
+        "title": "Submit a quote",
+        "title_again": "Submit a new quote",
+        "intro": "Itemise labour and supplies: the amount is calculated from the lines.",
+        "remove_line": "Remove line",
+        "add_line": "Add a line",
+        "total_preview": "Estimated total: {amount}",
+        "valid_until_label": "Valid until",
+        "duration_label": "Estimated duration (days)",
+        "attachments_label": "Attachments (PDF or images)",
+        "remove_file": "Remove",
+        "file_type_refused": "File type refused (PDF, JPG, PNG or WEBP only): {files}",
+        "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
+        "failed": "The quote was not sent.",
+        "submitting": "Sending…",
+        "submit": "Send the quote"
+      },
+      "list": {
+        "agency": "Agency {name}"
       }
     }
   },
@@ -3975,11 +4151,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4100,11 +4274,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4159,22 +4331,9 @@
         "welcome": {
           "title": "Welcome to the team",
           "subtitle": "Your scope and your first leads are ready.",
-          "roleLabel": "Assigned role",
-          "roles": {
-            "agent": "Agent",
-            "agent_senior": "Senior agent",
-            "agent_manager": "Agent manager"
-          },
-          "permissions": {
-            "list_properties": "View properties",
-            "list_customers": "View customers",
-            "create_visits": "Schedule visits",
-            "message_customers": "Message customers",
-            "edit_properties": "Edit properties",
-            "invite_owner": "Invite an owner",
-            "invite_agent": "Invite an agent",
-            "reassign_leads": "Reassign leads"
-          },
+          "capabilitiesLabel": "What you’ll be able to do in the agency",
+          "capabilitiesEmpty": "No permissions have been granted to you in this agency yet. Its administrator can grant them from team management.",
+          "capabilitiesError": "Your permissions couldn’t be loaded. You can still review them from your workspace.",
           "firstLeadLabel": "Your first lead",
           "noLead": "No pre-assigned lead yet.",
           "stageLabel": "Stage: {stage}",
@@ -4464,11 +4623,9 @@
           "sending": "Sending…",
           "verifyCta": "Verify",
           "verifying": "Verifying…",
-          "devHint": "Dev code: {code}",
           "sent": {
             "title": "Code sent",
-            "body": "The code is valid for 5 minutes.",
-            "bodyDebug": "Code sent (debug: {code})."
+            "body": "The code is valid for 5 minutes."
           },
           "verified": {
             "title": "Phone verified",
@@ -4638,10 +4795,8 @@
             "verifying": "Verifying…",
             "sentTitle": "Code sent",
             "sentBody": "The code is valid for 5 minutes.",
-            "sentDebug": "Code sent (debug: {code}).",
             "verifiedTitle": "Phone verified",
             "verifiedBody": "You can now publish your property.",
-            "devHint": "Development code: {code}",
             "errors": {
               "sendFailed": "Could not send the code",
               "verifyFailed": "Invalid code"
@@ -5256,6 +5411,22 @@
         "title": "Agency dashboard",
         "subtitle": "Agency overview"
       },
+      "setupStatus": {
+        "title": "Agency setup",
+        "description": "What’s left for the agency to be fully up and running.",
+        "progress": "{done} of {total} steps completed",
+        "done": "Done",
+        "todo": "To do",
+        "steps": {
+          "kyc_verified": "KYC file verified",
+          "logo": "Agency logo added",
+          "commission_rate": "Commission rate set",
+          "payment_integration": "Payment method connected",
+          "first_member": "First team member invited",
+          "first_published_property": "First property published",
+          "admin_two_factor": "Administrator two-factor authentication turned on"
+        }
+      },
       "team": {
         "shortTitle": "Team",
         "shortSubtitle": "Manage the agency's members",
@@ -5458,6 +5629,12 @@
         "hint": "When this option is enabled, every new property submitted by an agent is set to “Pending validation” until an administrator approves it, before it becomes publicly visible.",
         "notSaved": "Changes saved, except mandatory moderation: the API did not apply it. The checkbox shows the value actually saved."
       },
+      "security": {
+        "title": "Team security",
+        "description": "Rules that apply to every member of the agency.",
+        "teamTwoFactorLabel": "Require two-factor authentication for the whole team",
+        "teamTwoFactorHint": "Every member will have to set up a second factor (authenticator app) before acting in the agency’s workspace. The team’s “Two-factor” column shows who already has."
+      },
       "submit": {
         "saving": "Saving…"
       },
@@ -5510,6 +5687,10 @@
         "role": "Role",
         "status": "Status",
         "lastLogin": "Last sign-in",
+        "twoFactor": "Two-factor",
+        "twoFactorOn": "On",
+        "twoFactorOff": "Off",
+        "twoFactorUnknown": "Not reported",
         "createdAt": "Created on",
         "actions": "Actions",
         "you": "You",
@@ -7684,8 +7865,13 @@
       "saveError": "Profile update failed.",
       "saved": "Changes saved.",
       "otpSent": "Code sent by SMS. It is valid for 5 minutes.",
-      "otpSentDebug": "Code sent. (Debug: {code})",
-      "phoneVerifiedOk": "Phone verified successfully."
+      "phoneVerifiedOk": "Phone verified successfully.",
+      "changeProofPrompt": "This number is verified: to replace it, confirm that you hold it.",
+      "changeProofPasswordLabel": "Current password",
+      "changeProofOr": "or",
+      "changeProofSendCode": "Get a code on {phone}",
+      "changeProofCodeSent": "Code sent to your current number. It is valid for 5 minutes.",
+      "changeProofCodeAria": "Code received on your current number"
     },
     "searchPreferences": {
       "defaultName": "My preferences",
@@ -7905,6 +8091,21 @@
         "phoneNotVerified": "Phone not verified.",
         "channelUnavailable": "No message of this kind is sent on this channel."
       }
+    },
+    "serviceProvider": {
+      "title": "My provider activity",
+      "subtitle": "What the agencies you work with see. Each setting is saved separately.",
+      "trades": "Trades",
+      "zones": "Service areas",
+      "zonesPlaceholder": "Dakar, Mbour, Thiès",
+      "rates": "Rates",
+      "hourlyRate": "Hourly rate (FCFA)",
+      "visitFee": "Call-out fee (FCFA)",
+      "availability": "Availability",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "failed": "This setting was not saved."
     }
   },
   "contact": {
@@ -8882,6 +9083,22 @@
           "body": "Your booking {reference} for {property} was cancelled."
         }
       },
+      "account": {
+        "phone_changed": {
+          "title": "Phone number replaced",
+          "body": "The verified phone number on your account was replaced. If this was not you, contact support."
+        }
+      },
+      "invitation": {
+        "received": {
+          "title": "Invitation from {agency}",
+          "body": "{agency} invites you to join its team."
+        },
+        "reminder": {
+          "title": "Reminder: invitation from {agency}",
+          "body": "Your invitation to join {agency} is waiting."
+        }
+      },
       "visit": {
         "reminder": {
           "title": "Visit reminder: {property}",
@@ -8982,6 +9199,78 @@
         "created": {
           "title": "New maintenance request",
           "body": "A maintenance request ({reference}) was submitted for {property}."
+        },
+        "assigned": {
+          "title": "New job: {request}",
+          "body": "A job is assigned to you at {property}. Accept or decline it from its page."
+        },
+        "unassigned": {
+          "title": "Job withdrawn: {request}",
+          "body": "The job \"{request}\" is no longer assigned to you."
+        },
+        "accepted": {
+          "title": "Job accepted: {request}",
+          "body": "{provider} accepted the job \"{request}\"."
+        },
+        "declined": {
+          "title": "Job declined: {request}",
+          "body": "{provider} declined the job \"{request}\". Reason: {reason}"
+        },
+        "completed": {
+          "title": "Job completed: {request}",
+          "body": "The service provider completed the job \"{request}\". The requester must confirm the repair."
+        },
+        "confirmed": {
+          "title": "Repair confirmed: {request}",
+          "body": "The requester confirmed the repair: the job \"{request}\" is closed."
+        },
+        "contested": {
+          "title": "Repair contested: {request}",
+          "body": "The problem persists on \"{request}\". Comment: {comment}"
+        },
+        "auto_closed": {
+          "title": "Job closed: {request}",
+          "body": "With no answer within {days} days, the job \"{request}\" was closed automatically."
+        },
+        "cancelled": {
+          "title": "Job cancelled: {request}",
+          "body": "The job \"{request}\" was cancelled."
+        },
+        "step_acknowledged": {
+          "title": "Your request \"{request}\": acknowledged",
+          "body": "Your maintenance request is now: acknowledged."
+        },
+        "step_assigned": {
+          "title": "Your request \"{request}\": assigned",
+          "body": "Your maintenance request is now: assigned."
+        },
+        "step_in_progress": {
+          "title": "Your request \"{request}\": in progress",
+          "body": "Your maintenance request is now: in progress."
+        },
+        "step_completed": {
+          "title": "Your request \"{request}\": completed",
+          "body": "Your maintenance request is now: completed."
+        },
+        "step_closed": {
+          "title": "Your request \"{request}\": closed",
+          "body": "Your maintenance request is now: closed."
+        },
+        "step_cancelled": {
+          "title": "Your request \"{request}\": cancelled",
+          "body": "Your maintenance request is now: cancelled."
+        },
+        "step_acknowledged_scheduled": {
+          "title": "Your request \"{request}\": acknowledged",
+          "body": "Your maintenance request is now: acknowledged. Visit planned on {scheduled_at}."
+        },
+        "step_assigned_scheduled": {
+          "title": "Your request \"{request}\": assigned",
+          "body": "Your maintenance request is now: assigned. Visit planned on {scheduled_at}."
+        },
+        "step_in_progress_scheduled": {
+          "title": "Your request \"{request}\": in progress",
+          "body": "Your maintenance request is now: in progress. Visit planned on {scheduled_at}."
         }
       },
       "maintenance_quote": {
@@ -8999,7 +9288,11 @@
         },
         "rejected": {
           "title": "Quote rejected: {request}",
-          "body": "Your quote for the job \"{request}\" was rejected."
+          "body": "Your quote for the job \"{request}\" was rejected. Reason: {reason}"
+        },
+        "awaiting_owner": {
+          "title": "Your approval is required: {request}",
+          "body": "A quote of {amount} for \"{request}\" exceeds the works ceiling agreed with your agency. Approve or reject it."
         }
       },
       "prospect_match": {

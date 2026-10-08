@@ -19,10 +19,10 @@ import { QuestionDIntention } from '../QuestionDIntention';
 
 const T = frMessages.onboarding.intention;
 
-function monter(apres = '/app') {
+function monter(apres = '/app', retour?: string) {
   return render(
     <NextIntlClientProvider locale="fr" messages={frMessages}>
-      <QuestionDIntention apres={apres} />
+      <QuestionDIntention apres={apres} retour={retour} />
     </NextIntlClientProvider>,
   );
 }
@@ -61,6 +61,17 @@ describe('<QuestionDIntention>', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/properties'));
     const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(JSON.parse(init.body as string)).toEqual({ entry_intent: 'search' });
+  });
+
+  it('TCK-589 — « je cherche un logement » ramène à la fiche quand l’inscription en venait', async () => {
+    const user = userEvent.setup();
+    const fiche = '/properties/villa?action=reserver&debut=2026-11-02&fin=2026-11-05';
+    monter(fiche, fiche);
+
+    await user.click(screen.getByRole('radio', { name: new RegExp(T.options.search.title) }));
+    await user.click(screen.getByRole('button', { name: T.submit }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(fiche));
   });
 
   it('« je veux publier » mène à l’assistant hôte', async () => {

@@ -28,4 +28,7 @@ return [
     'attributes' => [
         'property_filter' => 'bien',
     ],
+
+    // TCK-592 — ADR-0038 : aperçu d'une note vocale dans la liste des conversations.
+    'audio_preview' => 'Note vocale',
 ];

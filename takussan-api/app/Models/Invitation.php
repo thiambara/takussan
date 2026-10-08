@@ -37,6 +37,8 @@ class Invitation extends AbstractModel
     protected $fillable = [
         'token',
         'email',
+        // TCK-589 — destinataire par numéro (E.164) quand l'e-mail manque.
+        'phone',
         'invited_user_id',
         'invited_by',
         'invitable_type',
@@ -89,7 +91,7 @@ class Invitation extends AbstractModel
     protected static array $requestSearchFields = ['email'];
 
     protected static array $queryFields = [
-        'id', 'email', 'invited_user_id', 'invited_by',
+        'id', 'email', 'phone', 'invited_user_id', 'invited_by',
         'invitable_type', 'invitable_id', 'agency_id', 'role',
         'status', 'expires_at', 'accepted_at', 'revoked_at',
         'last_reminded_at', 'created_at', 'updated_at',

@@ -13,6 +13,8 @@ class AlertableEvents
             'super_admin_feature_flag_updated' => 'Feature flag modifié',
             'super_admin_password_reset_forced' => 'Reset mot de passe forcé',
             'super_admin_integration_updated' => 'Intégration modifiée',
+            // TCK-589 — `TwoFactorController::disable` (événement nommé).
+            'two_factor_disabled' => 'Double authentification désactivée',
         ];
     }
 

@@ -71,6 +71,7 @@ function toDefaults(agency: Agency): AgencyFormValues {
     currency: currency.toUpperCase(),
     timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
     moderation_required: agency.moderation_required ?? false,
+    require_team_two_factor: settings.require_team_two_factor === true,
     // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
     late_fee_online_collection: settings.late_fee_online_collection === true,
   };
@@ -398,6 +399,34 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               className="mt-0.5 text-pretty text-xs text-muted-foreground"
             >
               {t('lateFeeOnline.hint')}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* TCK-589 — sécurité de l'équipe. Même encadré cliquable que la modération. */}
+      <section className="rounded-xl bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t('security.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
+        </div>
+        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+          <input
+            id="require_team_two_factor"
+            type="checkbox"
+            aria-describedby="require_team_two_factor-hint"
+            {...form.register('require_team_two_factor')}
+            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+          />
+          <div>
+            <label
+              htmlFor="require_team_two_factor"
+              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+            >
+              {t('security.teamTwoFactorLabel')}
+            </label>
+            <p id="require_team_two_factor-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
+              {t('security.teamTwoFactorHint')}
             </p>
           </div>
         </div>

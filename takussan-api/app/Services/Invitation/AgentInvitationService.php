@@ -66,7 +66,9 @@ class AgentInvitationService
         $this->assertAgencyCanInvite($agency);
         $this->assertInviterCanManageTeam($inviter, $agency);
 
-        $email = CaseInsensitive::fold(trim((string) $data['email']));
+        // TCK-589 — e-mail facultatif quand un numéro est donné (drapeau
+        // `auth.phone_login.enabled`) : l'invitation part alors par SMS.
+        $email = filled($data['email'] ?? null) ? CaseInsensitive::fold(trim((string) $data['email'])) : null;
         $role = (string) ($data['role'] ?? 'agent');
 
         if (! in_array($role, self::ALLOWED_ROLES, true)) {
@@ -75,7 +77,9 @@ class AgentInvitationService
             ])->status(422);
         }
 
-        $this->assertNoActiveAgentInAgency($agency, $email);
+        if ($email !== null) {
+            $this->assertNoActiveAgentInAgency($agency, $email);
+        }
 
         return DB::transaction(function () use ($agency, $inviter, $email, $role, $data): Invitation {
             $profile = AgentProfile::query()->create([
@@ -94,6 +98,7 @@ class AgentInvitationService
 
             $invitation = $this->invitations->send([
                 'email' => $email,
+                'phone' => $this->cleanString($data['phone'] ?? null),
                 'role' => $role,
                 'invitable_type' => AgentProfile::class,
                 'invitable_id' => $profile->id,

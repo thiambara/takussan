@@ -24,7 +24,7 @@ class SuspiciousReviewFlagTest extends ApiTestCase
     {
         parent::setUp();
         Notification::fake();
-        $this->super = User::factory()->create();
+        $this->super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->super, 'super_admin');
     }
 

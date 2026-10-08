@@ -25,6 +25,7 @@ return [
         'duplicate_pending' => 'Am na ndaw lu xaaru ngir email bi (#:id).',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',
+        'phone_mismatch' => 'Nimero kont bi nga duggee waxul ak bu woote bi.',
         'token_not_found' => 'Lëkkalekaay bi gisuñu ko.',
         'token_expired' => 'Lëkkalekaay bi jeex na.',
         'token_accepted' => 'Lëkkalekaay bi nanguwoon nañu ko.',

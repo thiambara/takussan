@@ -266,7 +266,7 @@ class DuplicateListingDetectorTest extends ApiTestCase
         $this->addPhoto($copy, $photo);
         $suspicion = DuplicateSuspicion::query()->firstOrFail();
 
-        $super = User::factory()->create();
+        $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
         $this->actingAsApi($super);
 

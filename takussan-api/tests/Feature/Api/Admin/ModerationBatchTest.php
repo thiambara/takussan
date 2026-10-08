@@ -23,7 +23,7 @@ class ModerationBatchTest extends ApiTestCase
     {
         parent::setUp();
         Notification::fake();
-        $this->super = User::factory()->create();
+        $this->super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->super, 'super_admin');
     }
 
@@ -33,7 +33,7 @@ class ModerationBatchTest extends ApiTestCase
         $decided = Review::factory()->create(['status' => ReviewStatus::Rejected, 'is_approved' => false]);
         $claimed = Review::factory()->create(['status' => ReviewStatus::Pending, 'is_approved' => false]);
 
-        $other = User::factory()->create();
+        $other = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($other, 'super_admin');
         $this->actingAsApi($other);
         $this->postJson("/api/admin/moderation/review:{$claimed->id}/claim")->assertOk();

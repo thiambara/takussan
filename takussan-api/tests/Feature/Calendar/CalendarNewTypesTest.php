@@ -6,11 +6,13 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -113,8 +115,7 @@ class CalendarNewTypesTest extends ApiTestCase
     /** AC9 + AC27 — le prestataire voit SES interventions, aucune autre, et rien d'autre. */
     public function test_a_service_provider_sees_only_his_scheduled_interventions(): void
     {
-        $provider = User::factory()->create();
-        ServiceProviderProfile::factory()->create(['user_id' => $provider->id]);
+        $provider = $this->providerOf($this->agency);
 
         $his = MaintenanceRequest::factory()->create([
             'property_id' => $this->property->id,
@@ -150,5 +151,47 @@ class CalendarNewTypesTest extends ApiTestCase
         $this->actingAsApi($provider)->apiGet($this->uri(['booking', 'visit']))
             ->assertOk()
             ->assertJsonCount(0, 'data');
+    }
+
+    /**
+     * TCK-592 — l'agenda suit la policy : une collaboration en pause laisse `assigned_to` en place,
+     * mais le prestataire ne garde plus l'intervention (`ProviderEligibility`). Le bien et la date
+     * ne lui sont plus servis, ni par la console ni par son lien.
+     */
+    public function test_a_paused_collaboration_takes_the_intervention_out_of_the_provider_agenda(): void
+    {
+        $provider = $this->providerOf($this->agency, CollaborationStatus::Paused);
+        MaintenanceRequest::factory()->create([
+            'property_id' => $this->property->id,
+            'assigned_to' => $provider->id,
+            'status' => MaintenanceStatus::Assigned,
+            'scheduled_at' => now()->addDays(2),
+        ]);
+
+        $this->actingAsApi($provider)->apiGet($this->uri(['maintenance']))
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+        $url = $this->actingAsApi($provider)->postJson('/api/me/calendar-feed')->assertCreated()->json('data.url');
+        $this->app['auth']->forgetGuards();
+        $this->assertStringNotContainsString('Villa Ngor', (string) $this->get((string) parse_url($url, PHP_URL_PATH))->assertOk()->getContent());
+
+        ServiceProviderAgencyCollaboration::query()->update(['status' => CollaborationStatus::Active->value]);
+        $this->actingAsApi($provider)->apiGet($this->uri(['maintenance']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    private function providerOf(Agency $agency, CollaborationStatus $status = CollaborationStatus::Active): User
+    {
+        $provider = User::factory()->create();
+        $profile = ServiceProviderProfile::factory()->create(['user_id' => $provider->id]);
+        ServiceProviderAgencyCollaboration::query()->create([
+            'service_provider_profile_id' => $profile->id,
+            'agency_id' => $agency->id,
+            'status' => $status->value,
+            'started_at' => now()->subMonth()->toDateString(),
+        ]);
+
+        return $provider;
     }
 }

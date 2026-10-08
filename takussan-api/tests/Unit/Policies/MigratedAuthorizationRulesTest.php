@@ -33,6 +33,7 @@ use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
 use App\Policies\TaskPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
 
 /**
@@ -55,7 +56,7 @@ use Tests\TestCase;
  */
 class MigratedAuthorizationRulesTest extends TestCase
 {
-    use RefreshDatabase;
+    use MaintenanceActors, RefreshDatabase;
 
     private Agency $agency;
 
@@ -320,7 +321,8 @@ class MigratedAuthorizationRulesTest extends TestCase
     public function test_maintenance_request_separates_requester_provider_and_owner_side(): void
     {
         $demandeur = $this->quidam();
-        $prestataire = $this->quidam();
+        // TCK-592 — un prestataire réel : profil actif, collaboration active avec l'agence du bien.
+        $prestataire = $this->providerFor($this->agency);
         $proprietaire = $this->quidam();
         $property = Property::factory()->create([
             'user_id' => $proprietaire->id,

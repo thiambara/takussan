@@ -38,9 +38,9 @@ class ModerationQueueConcurrencyTest extends ApiTestCase
         parent::setUp();
         Notification::fake();
 
-        $this->first = User::factory()->create();
+        $this->first = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->first, 'super_admin');
-        $this->second = User::factory()->create();
+        $this->second = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->second, 'super_admin');
     }
 

@@ -65,6 +65,8 @@ const STATUS_TONE: Record<MaintenanceStatus, string> = {
   acknowledged: 'bg-info/10 text-info',
   quote_requested: 'bg-primary/12 text-primary',
   quote_submitted: 'bg-primary/12 text-primary',
+  // TCK-592 (ADR-0037) — la même parenthèse de devis : la balle est chez le bailleur.
+  awaiting_owner: 'bg-primary/12 text-primary',
   approved: 'bg-success/10 text-success',
   rejected: 'bg-destructive/10 text-destructive',
   assigned: 'bg-info/10 text-info',
@@ -97,7 +99,7 @@ export function quoteDecisionKey(
   if (['approved', 'in_progress', 'completed', 'closed'].includes(request.status)) {
     return 'approved';
   }
-  if (request.status === 'quote_submitted') return 'pending';
+  if (request.status === 'quote_submitted' || request.status === 'awaiting_owner') return 'pending';
   if (request.status === 'quote_requested') return 'requested';
   return 'not_applicable';
 }

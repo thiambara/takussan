@@ -28,23 +28,25 @@ describe('<PhoneVerificationSection>', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('sends an OTP and then reveals the verification form', async () => {
+  // TCK-589 — le code part par SMS et n'est jamais affiché : même si une API d'avant
+  // le renvoyait encore (`debug_code`), l'écran ne le montre pas.
+  it('sends an OTP and then reveals the verification form, without ever showing a code', async () => {
     const user = userEvent.setup();
-    sendMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '999999' } });
+    sendMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '999999' } as { sent: boolean } });
     render(withIntl(
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
     ));
 
     await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(/999999/),
-    );
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(screen.getByRole('status')).not.toHaveTextContent(/999999/);
+    expect(document.body).not.toHaveTextContent(/999999/);
     expect(screen.getByLabelText(/code à 6 chiffres/i)).toBeInTheDocument();
   });
 
   it('flips the status badge after a successful verification', async () => {
     const user = userEvent.setup();
-    sendMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
+    sendMock.mockResolvedValue({ ok: true, data: { sent: true } });
     verifyMock.mockResolvedValue({ ok: true, data: null });
     render(withIntl(
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,

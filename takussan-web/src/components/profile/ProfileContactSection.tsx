@@ -7,7 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { updateProfileAction } from '@/app/actions/auth';
-import { phoneSendOtpAction, phoneVerifyOtpAction } from '@/app/actions/security';
+import {
+  phoneChangeCodeAction,
+  phoneSendOtpAction,
+  phoneVerifyOtpAction,
+} from '@/app/actions/security';
 import { isE164, normalizePhoneInput } from '@/lib/phone';
 import { useAuth } from '@/context/AuthContext';
 
@@ -26,6 +30,11 @@ type Feedback = { ok: boolean; message: string };
  * Status reset: the backend wipes `phone_verified_at` when the value
  * changes (`AuthController::updateProfile`). The local `phoneVerified`
  * state mirrors this so the badge flips immediately on save.
+ *
+ * TCK-589 p3-1 — remplacer un numéro VÉRIFIÉ exige une preuve sur le facteur en place
+ * (`PhoneChangeGuard`, 403 `phone.change_requires_proof` sans elle) : le mot de passe actuel
+ * quand le compte en a un, ou un code reçu sur l'ANCIEN numéro. Le bloc de preuve n'apparaît
+ * que dans ce cas ; un premier numéro, ou un numéro non vérifié, se change librement.
  */
 export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const t = useTranslations('profile.contact');
@@ -46,12 +55,23 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const [otpFeedback, setOtpFeedback] = useState<Feedback | null>(null);
   const [otpPending, startOtpTransition] = useTransition();
 
+  // Preuve du remplacement d'un numéro vérifié (TCK-589 p3-1)
+  const [proofPassword, setProofPassword] = useState('');
+  const [proofCode, setProofCode] = useState('');
+  const [proofCodeSent, setProofCodeSent] = useState(false);
+  const [proofFeedback, setProofFeedback] = useState<Feedback | null>(null);
+  const [proofPending, startProofTransition] = useTransition();
+
   const emailVerified = Boolean(user.email_verified_at);
   const phoneTrimmed = phone.trim();
   const phoneFormatValid = phoneTrimmed.length === 0 || isE164(phoneTrimmed);
   const phoneDirty = phoneTrimmed !== savedPhone;
   const bioDirty = bio !== (user.bio ?? '');
-  const canSubmit = phoneFormatValid && (phoneDirty || bioDirty) && !loading;
+  const canProveByPassword = user.has_usable_password === true;
+  const needsProof = phoneDirty && phoneVerified && savedPhone.length > 0;
+  const proofGiven = proofPassword.length > 0 || proofCode.length === 6;
+  const canSubmit =
+    phoneFormatValid && (phoneDirty || bioDirty) && !loading && (!needsProof || proofGiven);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,6 +83,10 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     fd.append('last_name', user.last_name);
     fd.append('bio', bio);
     fd.append('phone', phoneTrimmed);
+    if (needsProof) {
+      if (proofPassword.length > 0) fd.append('current_password', proofPassword);
+      else fd.append('phone_change_code', proofCode);
+    }
     const result = await updateProfileAction(fd);
     setLoading(false);
     if (!result.ok) {
@@ -75,11 +99,28 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     setOtpSent(false);
     setOtpCode('');
     setOtpFeedback(null);
+    setProofPassword('');
+    setProofCode('');
+    setProofCodeSent(false);
+    setProofFeedback(null);
     // Keep the global auth context in sync so other sections that read
     // from `useAuth()` (notably `ProfileSecuritySection`) reflect the
     // new phone + reset verification status without a page reload.
     setUser({ ...(contextUser ?? user), ...result.user });
     setFeedback({ ok: true, message: t('saved') });
+  }
+
+  function handleSendProofCode() {
+    setProofFeedback(null);
+    startProofTransition(async () => {
+      const result = await phoneChangeCodeAction();
+      if (!result.ok) {
+        setProofFeedback({ ok: false, message: result.message });
+        return;
+      }
+      setProofCodeSent(true);
+      setProofFeedback({ ok: true, message: t('changeProofCodeSent') });
+    });
   }
 
   function handleSendOtp() {
@@ -93,9 +134,8 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
       setOtpSent(true);
       setOtpFeedback({
         ok: true,
-        message: result.data.debug_code
-          ? t('otpSentDebug', { code: result.data.debug_code })
-          : t('otpSent'),
+        // TCK-589 — le code part par SMS ; l'API ne le rend plus.
+        message: t('otpSent'),
       });
     });
   }
@@ -184,6 +224,68 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             </p>
           )}
         </div>
+
+        {needsProof ? (
+          <div
+            data-testid="phone-change-proof"
+            className="space-y-2 rounded-md border border-border bg-muted/40 p-3"
+          >
+            <p className="text-xs text-foreground">{t('changeProofPrompt')}</p>
+            {canProveByPassword ? (
+              <>
+                <label
+                  htmlFor="phone-change-password"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
+                  {t('changeProofPasswordLabel')}
+                </label>
+                <Input
+                  id="phone-change-password"
+                  data-testid="phone-change-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={proofPassword}
+                  onChange={(e) => setProofPassword(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">{t('changeProofOr')}</p>
+              </>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSendProofCode}
+                disabled={proofPending}
+                data-testid="phone-change-send-code"
+              >
+                {proofPending ? t('sending') : t('changeProofSendCode', { phone: savedPhone })}
+              </Button>
+              {proofCodeSent ? (
+                <Input
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={proofCode}
+                  onChange={(e) => setProofCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  autoComplete="one-time-code"
+                  aria-label={t('changeProofCodeAria')}
+                  data-testid="phone-change-code"
+                  className="max-w-[8rem]"
+                />
+              ) : null}
+            </div>
+            {proofFeedback ? (
+              <p
+                role={proofFeedback.ok ? 'status' : 'alert'}
+                className={'text-xs ' + (proofFeedback.ok ? 'text-success' : 'text-destructive')}
+              >
+                {proofFeedback.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {showVerifyControls ? (
           <div

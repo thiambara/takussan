@@ -46,9 +46,9 @@ class PropertyReportDecisionTest extends ApiTestCase
         $this->agency = Agency::factory()->create();
         $this->owner = User::factory()->create();
         $this->materializeRoleProfile($this->owner, 'agent', $this->agency);
-        $this->adminA = User::factory()->create();
+        $this->adminA = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->adminA, 'agency_admin', $this->agency);
-        $this->super = User::factory()->create();
+        $this->super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->super, 'super_admin');
 
         $this->property = Property::factory()->published()->create([

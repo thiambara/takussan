@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -34,7 +35,7 @@ class ServiceProviderProfileController extends Controller
             throw new AuthorizationException;
         }
 
-        $base = $this->scopeForAgency($agency);
+        $base = $this->scopeForAgency($agency, $this->collaborationStatuses($request));
         $paginator = ServiceProviderProfile::buildQuery($base, $request)
             ->defaultSort('-created_at')
             // TCK-597 (ADR-0043 §2) — la note moyenne des seuls avis approuvés, lue à la demande.
@@ -55,11 +56,37 @@ class ServiceProviderProfileController extends Controller
      * spatie/laravel-query-builder (les sparse fieldsets sont plus
      * propres sans aliasing manuel).
      */
-    protected function scopeForAgency(Agency $agency): Builder
+    /**
+     * @param  list<string>  $statuses
+     */
+    protected function scopeForAgency(Agency $agency, array $statuses): Builder
     {
+        // TCK-592 — le statut DU COUPLE (profil, cette agence), défaut `active` : un prestataire dont
+        // la collaboration a pris fin ne figure plus dans le carnet, sauf à le demander.
         return ServiceProviderProfile::query()
-            ->whereHas('agencyCollaborations', function (Builder $query) use ($agency): void {
-                $query->where('agency_id', $agency->id);
+            ->whereHas('agencyCollaborations', function (Builder $query) use ($agency, $statuses): void {
+                $query->where('agency_id', $agency->id)->whereIn('status', $statuses);
             });
+    }
+
+    /**
+     * `filter[collaboration_status]=active,paused` — liste à virgules, comme les autres filtres spatie.
+     * Une valeur inconnue est ignorée ; aucune valeur connue → `active`.
+     *
+     * @return list<string>
+     */
+    private function collaborationStatuses(Request $request): array
+    {
+        $raw = $request->input('filter.collaboration_status');
+        $values = is_array($raw) ? $raw : explode(',', (string) $raw);
+
+        $statuses = collect($values)
+            ->map(fn ($value) => CollaborationStatus::tryFrom(trim((string) $value))?->value)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $statuses === [] ? [CollaborationStatus::Active->value] : $statuses;
     }
 }

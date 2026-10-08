@@ -24,7 +24,8 @@ class AgentRemovalJournalTest extends ApiTestCase
     public function test_the_profile_path_journals_and_guards_the_portfolio_like_the_team_screen(): void
     {
         $agency = Agency::factory()->create(['kind' => AgencyKind::Standard]);
-        $admin = User::factory()->create();
+        // TCK-589 (fusion) — retirer un membre est un geste d'équipe protégé : l'admin a sa 2FA.
+        $admin = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
         $this->materializeRoleProfile($admin, 'agency_admin', $agency);
         $agent = User::factory()->create();
         $this->materializeRoleProfile($agent, 'agent', $agency);
