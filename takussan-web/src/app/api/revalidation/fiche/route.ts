@@ -4,6 +4,7 @@ import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 
 import { etiquetteDeFiche } from '@/lib/queries/public-property';
+import { estSlugDeBien } from '@/lib/slug-de-bien';
 
 /**
  * TCK-598 (ADR-0052 §2) — l'API demande au front d'expirer les données en cache d'une ou plusieurs
@@ -20,14 +21,41 @@ import { etiquetteDeFiche } from '@/lib/queries/public-property';
  * être resservi une fois de plus pendant une revalidation en arrière-plan.
  *
  * Le corps est lu en TEXTE, avant tout `JSON.parse` : la signature porte sur les octets reçus, pas
- * sur une resérialisation.
+ * sur une resérialisation. Il est BORNÉ à {@link CORPS_MAX_OCTETS} avant tout calcul (verif-598,
+ * m6) : sans borne, un en-tête bien formé suffisait à faire lire et hacher un corps arbitraire.
+ *
+ * Un slug hors forme est IGNORÉ, pas le lot entier (verif-598, m3) : `-XXXXXX`, produit par l'API
+ * pour un titre sans lettre latine, était refusé, et emportait le slug valide envoyé avec lui.
  */
 export const FENETRE_SECONDES = 300;
 
 /** Plafond défensif : l'API envoie un ou deux slugs (ancien et nouveau). */
 const SLUGS_MAX = 50;
 
-const FORME_DE_SLUG = /^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/;
+/** Un lot de 50 slugs de 255 caractères tient sous 14 Kio ; l'API en envoie deux. 8 Kio suffisent. */
+export const CORPS_MAX_OCTETS = 8 * 1024;
+
+/** Le corps en texte, ou `null` s'il dépasse {@link CORPS_MAX_OCTETS} — sans le lire au-delà. */
+async function corpsBorne(request: Request): Promise<string | null> {
+  const annonce = Number(request.headers.get('content-length') ?? '0');
+  if (!Number.isFinite(annonce) || annonce > CORPS_MAX_OCTETS) return null;
+  if (!request.body) return '';
+
+  const lecteur = request.body.getReader();
+  const morceaux: Uint8Array[] = [];
+  let taille = 0;
+  for (;;) {
+    const { done, value } = await lecteur.read();
+    if (done) break;
+    taille += value.byteLength;
+    if (taille > CORPS_MAX_OCTETS) {
+      await lecteur.cancel();
+      return null;
+    }
+    morceaux.push(value);
+  }
+  return Buffer.concat(morceaux).toString('utf8');
+}
 
 function signatureValide(corps: string, entete: string | null, secret: string, maintenant: number): boolean {
   if (!entete) return false;
@@ -48,7 +76,10 @@ function signatureValide(corps: string, entete: string | null, secret: string, m
 
 export async function POST(request: Request): Promise<NextResponse> {
   const secret = process.env.PUBLIC_CACHE_REVALIDATE_SECRET ?? '';
-  const corps = await request.text();
+  const corps = await corpsBorne(request);
+  if (corps === null) {
+    return NextResponse.json({ code: 'invalid_json_body' }, { status: 413 });
+  }
 
   if (
     secret === '' ||
@@ -63,18 +94,18 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch {
     slugs = undefined;
   }
-  if (
-    !Array.isArray(slugs) ||
-    slugs.length === 0 ||
-    slugs.length > SLUGS_MAX ||
-    !slugs.every((s): s is string => typeof s === 'string' && FORME_DE_SLUG.test(s))
-  ) {
+  if (!Array.isArray(slugs) || slugs.length > SLUGS_MAX) {
+    return NextResponse.json({ code: 'invalid_json_body' }, { status: 422 });
+  }
+  const bienFormes = slugs.filter(estSlugDeBien);
+  const valides = [...new Set(bienFormes)];
+  if (valides.length === 0) {
     return NextResponse.json({ code: 'invalid_json_body' }, { status: 422 });
   }
 
-  for (const slug of new Set(slugs)) {
+  for (const slug of valides) {
     revalidateTag(etiquetteDeFiche(slug), { expire: 0 });
   }
 
-  return NextResponse.json({ revalidated: slugs.length });
+  return NextResponse.json({ revalidated: valides.length, ignored: slugs.length - bienFormes.length });
 }
