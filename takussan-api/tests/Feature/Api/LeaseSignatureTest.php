@@ -358,17 +358,23 @@ class LeaseSignatureTest extends TestCase
 
     /**
      * Second chemin du SMS : critique ne veut pas dire illimité. Le canal réel (sans le faux
-     * `Notification`) borne le code comme tout SMS, à 5 par heure et par utilisateur.
+     * `Notification`) borne le code comme tout SMS, à la limite horaire par utilisateur.
+     *
+     * La borne se LIT dans la configuration : la CI prend `.env.example` comme environnement, qui
+     * la déclare à 10 quand le défaut de `config/sms.php` vaut 5. Écrite en dur, elle rendait le
+     * test vert en local et rouge en CI (7 envois sous une borne de 10).
      */
     public function test_the_real_sms_channel_bounds_signature_codes_too(): void
     {
+        $max = (int) config('sms.rate_limit.per_user_per_hour');
+        $this->assertGreaterThan(0, $max);
         $this->owner->forceFill(['phone' => '+221771234567', 'phone_verified_at' => now()])->save();
-        $this->mock(SmsRouterDriver::class, function ($mock) {
-            $mock->shouldReceive('send')->times(5)->andReturn([]);
+        $this->mock(SmsRouterDriver::class, function ($mock) use ($max) {
+            $mock->shouldReceive('send')->times($max)->andReturn([]);
         });
         $channel = app(SmsChannel::class);
 
-        for ($i = 0; $i < 7; $i++) {
+        for ($i = 0; $i < $max + 2; $i++) {
             $channel->send($this->owner, new LeaseSignatureCodeNotification('123456', 'LS-1', 10, LeaseSignatureCodeNotification::CHANNEL_SMS));
         }
     }
