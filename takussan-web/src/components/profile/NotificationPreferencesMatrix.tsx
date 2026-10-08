@@ -43,6 +43,9 @@ const EVENTS: readonly string[] = [
   'saved_search_match',
   'visit_reminder',
   'threshold_alert',
+  // TCK-599 §5 — les favoris qui préviennent : deux interrupteurs, la baisse et l'indisponibilité.
+  'favorite_price_drop',
+  'favorite_unavailable',
 ];
 
 const GROUPS: { key: string; events: string[] }[] = [
@@ -57,7 +60,16 @@ const GROUPS: { key: string; events: string[] }[] = [
   },
   { key: 'maintenance', events: ['maintenance_status_changed'] },
   { key: 'reviews', events: ['review_received'] },
-  { key: 'alerts', events: ['saved_search_match', 'visit_reminder', 'threshold_alert'] },
+  {
+    key: 'alerts',
+    events: [
+      'saved_search_match',
+      'favorite_price_drop',
+      'favorite_unavailable',
+      'visit_reminder',
+      'threshold_alert',
+    ],
+  },
 ];
 
 const PREFS_KEY = ['notifications', 'preferences'] as const;

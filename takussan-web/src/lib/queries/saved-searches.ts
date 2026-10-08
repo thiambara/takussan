@@ -9,7 +9,7 @@
  * - `DELETE /api/saved-searches/{id}` → 204
  *
  * Ticket TCK-047 refers to a `notify` boolean — backend exposes the richer
- * `notification_frequency` enum (`off|daily|weekly|instant`). We default to
+ * `notification_frequency` enum (`off|daily|weekly`). We default to
  * `off` when the UI hasn't collected a frequency.
  */
 
@@ -18,11 +18,8 @@
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { SavedSearchPayload } from '@/lib/schemas/search';
 
-export type SavedSearchNotificationFrequency =
-  | 'off'
-  | 'daily'
-  | 'weekly'
-  | 'instant';
+/** `instant` retiré par TCK-599 (porteur, 2026-10-06) : l'API le refuse en 422. */
+export type SavedSearchNotificationFrequency = 'off' | 'daily' | 'weekly';
 
 export interface SavedSearch {
   id: number;
@@ -32,8 +29,23 @@ export interface SavedSearch {
   notification_frequency: SavedSearchNotificationFrequency | null;
   is_active: boolean;
   results_count: number | null;
+  /**
+   * TCK-599 — les canaux EFFECTIFS de l'alerte pour cet utilisateur (`inapp` toujours ; `email`,
+   * `whatsapp` selon ses préférences), vide pour une alerte coupée. L'interface dit par où
+   * l'alerte arrivera à partir de ceci, jamais d'une supposition.
+   */
+  alert_channels?: SavedSearchAlertChannel[];
   created_at: string | null;
 }
+
+export type SavedSearchAlertChannel = 'inapp' | 'email' | 'whatsapp';
+
+/** Les fréquences qu'une ligne de `/app/saved-searches` propose, dans l'ordre affiché. */
+export const SAVED_SEARCH_FREQUENCIES: readonly SavedSearchNotificationFrequency[] = [
+  'off',
+  'daily',
+  'weekly',
+];
 
 export const SAVED_SEARCH_FIELDS = [
   'id',
@@ -75,10 +87,21 @@ export type UpdateSavedSearchPayload = {
   is_active?: boolean;
 };
 
+/**
+ * Le segment d'URL d'une recherche sauvegardée : un entier sûr, ou rien — jamais un `../` ni un
+ * `?` glissé par un appelant non typé.
+ */
+export function cheminRecherche(id: unknown): string {
+  if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) {
+    throw new RangeError('saved_search.invalid_id');
+  }
+  return `/api/saved-searches/${id}`;
+}
+
 export function useUpdateSavedSearchMutation() {
   return useApiMutation<{ data: SavedSearch }, UpdateSavedSearchPayload>(
     {
-      path: ({ id }) => `/api/saved-searches/${id}`,
+      path: ({ id }) => cheminRecherche(id),
       method: 'PATCH',
       body: ({ id: _id, ...rest }) => rest,
     },
@@ -89,7 +112,7 @@ export function useUpdateSavedSearchMutation() {
 export function useDeleteSavedSearchMutation() {
   return useApiMutation<unknown, { id: number }>(
     {
-      path: ({ id }) => `/api/saved-searches/${id}`,
+      path: ({ id }) => cheminRecherche(id),
       method: 'DELETE',
       body: () => undefined,
     },

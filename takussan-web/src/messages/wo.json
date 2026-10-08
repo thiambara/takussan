@@ -2478,7 +2478,26 @@
       "empty": "Amul bëgg-bëgg ba leegi",
       "emptyHint": "Yëngal kër yi te bësal xolu ngir denc leen fii.",
       "discoverCta": "Gis kër yi",
-      "error": "Mënul yebal sa bëgg-bëgg yi leegi."
+      "error": "Mënul yebal sa bëgg-bëgg yi leegi.",
+      "availability": {
+        "rented": "Luwaa nañu ko",
+        "sold": "Jaay nañu ko",
+        "unavailable": "Amatul",
+        "removed": "Ki ko yéenekaay dindi na ko"
+      },
+      "removedTitle": "Yéenekaay bi dindi nañu ko",
+      "remove": "Dindi",
+      "removeError": "Mënuñu dindi bëgg-bëgg bii. Jéemaatal.",
+      "similar": "Xool kër yu ko niru",
+      "note": {
+        "add": "Yokk ab bind",
+        "edit": "Soppi",
+        "label": "Sa bind",
+        "save": "Denc",
+        "cancel": "Neenal",
+        "count": "{count}/{max}",
+        "error": "Mënuñu denc bind bi. Jéemaatal."
+      }
     }
   },
   "search": {
@@ -2499,7 +2518,16 @@
       "error": "Mënunu yebal say seet. Xoolal sa konexion, ba noppi jéemaat.",
       "noCriteria": "Amul tànneef",
       "relaunch": "Jéemaat",
-      "deleteAria": "Far {name}"
+      "deleteAria": "Far {name}",
+      "frequency": {
+        "off": "Fay nañu ko",
+        "daily": "Bés bu nekk",
+        "weekly": "Ayubés bu nekk"
+      },
+      "alertAria": "Xamle bu « {name} »",
+      "alertOff": "Amul xamle : seet gii du la xamal dara.",
+      "alertChannels": "Xamle {channels}.",
+      "alertError": "Mënuñu soppi xamle bi. Jéemaatal."
     },
     "results": {
       "vide_titre": "Yaatal sa seet",
@@ -2632,7 +2660,71 @@
       "dialogBodyFull": "Dinga gis tànneef yii ci sa bérébu bopp ngir jéemaat leen ci benn bës.",
       "savedFull": "Denc nañu seet gi. Dinga ko gis ci say seet yu ñu denc.",
       "save": "Denc",
-      "bedroomsShort": "{count} neeg"
+      "bedroomsShort": "{count} neeg",
+      "alsoAlert": "Xamal ma bés bu nekk kër yu bees yu ko méngoo",
+      "alsoAlertHint": "Doo ko war. Mën nga ko fay walla soppi ni muy faral di ñëw ci say seet yu ñu denc.",
+      "savedWithAlert": "Denc nañu seet gi, ak ab xamle bés bu nekk : {channels}."
+    },
+    "alertChannels": {
+      "inapp": "ci appli bi",
+      "email": "ci e-mail",
+      "whatsapp": "ci WhatsApp"
+    },
+    "publicAlert": {
+      "dialogTitle": "Xamal ma kër yu bees yi",
+      "dialogBody": "Jot benn yoon ci bés kër yu bees yu méngoo ak seet gii, te sosoo kont.",
+      "channelLegend": "Jotee ko ci",
+      "channelEmail": "E-mail",
+      "channelWhatsapp": "WhatsApp",
+      "emailLabel": "Sa adrees e-mail",
+      "phoneLabel": "Sa nimero WhatsApp",
+      "consent": "Nangu naa jot xamle yii. Bataaxal bu nekk dina ma may ma bàyyi ko.",
+      "privacyLink": "Politig sutura",
+      "submit": "Xamal ma",
+      "submitting": "Mu ngi yónnee…",
+      "emailRequired": "Bindal sa adrees e-mail.",
+      "phoneRequired": "Bindal sa nimero WhatsApp.",
+      "consentRequired": "Tànnal kàrre bi ngir nangu jot xamle yi.",
+      "invalid": "Seetaatal li nga bind.",
+      "tooMany": "Laaj yi bari nañu lool. Jéemaatal ci kanam.",
+      "error": "Mënuñu denc xamle bi leegi.",
+      "sentEmailTitle": "Seetal sa e-mail",
+      "sentEmailBody": "Su adrees bii mënee jot xamle, yónnee nañu fa ab lien ngir dëggal. Dara du dem balaa nga koy ubbi, te laaj bu ñu dëggalul ci 48 waxtu dañu koy far.",
+      "codeTitle": "Bindal kood bi nga jot ci WhatsApp",
+      "codeBody": "Su nimero bii mënee jot xamle, yónnee nañu ko ab kood. Mu ngi baax 5 simili.",
+      "codeLabel": "Kood",
+      "confirm": "Dëggal",
+      "invalidCode": "Kood bi baaxul walla jeex na.",
+      "confirmedTitle": "Dëggal nañu xamle bi",
+      "confirmedBody": "Dinga jot kër yu bees yu ko méngoo benn yoon ci bés.",
+      "close": "Tëj",
+      "loginInstead": "Am nga kont ? Duggal ngir denc seet gi."
+    },
+    "alertPages": {
+      "confirm": {
+        "metaTitle": "Dëggal sa xamle",
+        "title": "Dëggal sa xamle seet",
+        "body": "Benn bës doy na : dinga jot kër yu bees yu méngoo ak sa seet.",
+        "button": "Dëggal xamle bi",
+        "working": "Mu ngi dëggal…",
+        "doneTitle": "Dëggal nañu xamle bi",
+        "doneBody": "Dinga jot kër yu bees yu ko méngoo. Bataaxal bu nekk am na lien ngir bàyyi ko."
+      },
+      "unsubscribe": {
+        "metaTitle": "Bàyyi",
+        "title": "Bañatee jot xamle bii",
+        "bodyContact": "Sa xamle yépp yu amul kont dinañu taxaw, te dinañu far sa adrees.",
+        "bodyAccount": "Dinañu fay xamle bu seet gii. Seet gi dina des ci sa bérébu.",
+        "button": "Bàyyi",
+        "working": "Mu ngi bàyyi…",
+        "doneTitle": "Def nañu ko",
+        "doneContact": "Doo jotati xamle, te far nañu sa contact.",
+        "doneAccount": "Fay nañu xamle bii. Mën nga ko taalaat ci say seet yu ñu denc."
+      },
+      "invalidTitle": "Lien bii dootul dox",
+      "invalidBody": "Matul, jariñoo nañu ko ba noppi walla jeex na. Mën nga def beneen laaj ci ab seet.",
+      "error": "Liggéey bi antuwul. Jéemaatal.",
+      "backToSearch": "Seet ay kër"
     }
   },
   "wizardDrafts": {
@@ -7625,7 +7717,6 @@
       "frequencyAria": "Ñaata yoon la yégle yi di ñëw",
       "manageSavedSearches": "Toppatool samay ceet yu ñu denc yépp",
       "frequency": {
-        "instant": "Ci saa si",
         "daily": "Bés bu nekk",
         "weekly": "Ayubés bu nekk"
       }
@@ -7799,6 +7890,8 @@
         "maintenance_status_changed": "Defaraat — nekkin",
         "review_received": "Xalaat bu bees",
         "saved_search_match": "Ceet bu ñu denc",
+        "favorite_price_drop": "Bëgg-bëgg — njëg mi wàññiku",
+        "favorite_unavailable": "Bëgg-bëgg — amatul",
         "visit_reminder": "Fàttali gis-gis",
         "threshold_alert": "Yégle ci dig KPI",
         "lease_payment_received": "Loyer — fey bi agsi na"

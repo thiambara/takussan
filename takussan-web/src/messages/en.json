@@ -3954,7 +3954,26 @@
       "empty": "No favorites yet",
       "emptyHint": "Browse listings and tap the heart to save them here.",
       "discoverCta": "Discover listings",
-      "error": "Couldn't load your favorites right now."
+      "error": "Couldn't load your favorites right now.",
+      "availability": {
+        "rented": "Rented",
+        "sold": "Sold",
+        "unavailable": "No longer available",
+        "removed": "Removed by the advertiser"
+      },
+      "removedTitle": "Listing removed",
+      "remove": "Remove",
+      "removeError": "Could not remove this favorite. Please try again.",
+      "similar": "See similar properties",
+      "note": {
+        "add": "Add a note",
+        "edit": "Edit",
+        "label": "Personal note",
+        "save": "Save",
+        "cancel": "Cancel",
+        "count": "{count}/{max}",
+        "error": "Could not save the note. Please try again."
+      }
     }
   },
   "search": {
@@ -3975,7 +3994,16 @@
       "error": "Could not load your searches. Check your connection, then try again.",
       "noCriteria": "No criteria",
       "relaunch": "Run again",
-      "deleteAria": "Delete {name}"
+      "deleteAria": "Delete {name}",
+      "frequency": {
+        "off": "Off",
+        "daily": "Daily",
+        "weekly": "Weekly"
+      },
+      "alertAria": "Alert for “{name}”",
+      "alertOff": "No alert: this search does not notify you.",
+      "alertChannels": "Alert {channels}.",
+      "alertError": "Could not change the alert. Please try again."
     },
     "results": {
       "vide_titre": "Broaden your search",
@@ -4108,7 +4136,71 @@
       "dialogBodyFull": "Find these filters in your personal space to run them again in one click.",
       "savedFull": "Search saved. Find it in your saved searches.",
       "save": "Save",
-      "bedroomsShort": "{count} bd"
+      "bedroomsShort": "{count} bd",
+      "alsoAlert": "Notify me daily of new matching properties",
+      "alsoAlertHint": "Optional. You can turn the alert off or change its frequency in your saved searches.",
+      "savedWithAlert": "Search saved, with a daily alert: {channels}."
+    },
+    "alertChannels": {
+      "inapp": "in the app",
+      "email": "by email",
+      "whatsapp": "by WhatsApp"
+    },
+    "publicAlert": {
+      "dialogTitle": "Notify me of new properties",
+      "dialogBody": "Get the new properties matching this search once a day, without creating an account.",
+      "channelLegend": "Receive by",
+      "channelEmail": "Email",
+      "channelWhatsapp": "WhatsApp",
+      "emailLabel": "Email address",
+      "phoneLabel": "WhatsApp number",
+      "consent": "I agree to receive these alerts. Every message lets me unsubscribe.",
+      "privacyLink": "Privacy policy",
+      "submit": "Notify me",
+      "submitting": "Sending…",
+      "emailRequired": "Enter your email address.",
+      "phoneRequired": "Enter your WhatsApp number.",
+      "consentRequired": "Tick the box to agree to receive the alerts.",
+      "invalid": "Please check the information you entered.",
+      "tooMany": "Too many requests. Please try again a little later.",
+      "error": "Could not save the alert right now.",
+      "sentEmailTitle": "Check your inbox",
+      "sentEmailBody": "If this address can receive an alert, a confirmation link has just been sent to it. Nothing is sent until you open it, and a request not confirmed within 48 hours is deleted.",
+      "codeTitle": "Enter the code received on WhatsApp",
+      "codeBody": "If this number can receive an alert, a code has just been sent to it. It is valid for 5 minutes.",
+      "codeLabel": "Code",
+      "confirm": "Confirm",
+      "invalidCode": "Incorrect or expired code.",
+      "confirmedTitle": "Alert confirmed",
+      "confirmedBody": "You will receive the new matching properties once a day.",
+      "close": "Close",
+      "loginInstead": "Have an account? Log in to save the search."
+    },
+    "alertPages": {
+      "confirm": {
+        "metaTitle": "Confirm your alert",
+        "title": "Confirm your search alert",
+        "body": "One click is enough: you will then receive the new properties matching your search.",
+        "button": "Confirm the alert",
+        "working": "Confirming…",
+        "doneTitle": "Alert confirmed",
+        "doneBody": "You will receive the new matching properties. Every message contains an unsubscribe link."
+      },
+      "unsubscribe": {
+        "metaTitle": "Unsubscribe",
+        "title": "Stop receiving this alert",
+        "bodyContact": "All your alerts without an account stop, and your address is deleted.",
+        "bodyAccount": "The alert for this search will be turned off. The search stays in your space.",
+        "button": "Unsubscribe",
+        "working": "Unsubscribing…",
+        "doneTitle": "Done",
+        "doneContact": "You will no longer receive alerts, and your contact has been deleted.",
+        "doneAccount": "This alert is off. You can turn it back on from your saved searches."
+      },
+      "invalidTitle": "This link no longer works",
+      "invalidBody": "It is incomplete, has already been used or has expired. You can make a new request from a search.",
+      "error": "The operation did not go through. Please try again.",
+      "backToSearch": "Search properties"
     }
   },
   "wizardDrafts": {
@@ -8236,7 +8328,6 @@
       "frequencyAria": "Alert frequency",
       "manageSavedSearches": "Manage all my saved searches",
       "frequency": {
-        "instant": "Instant",
         "daily": "Daily",
         "weekly": "Weekly"
       }
@@ -8410,6 +8501,8 @@
         "maintenance_status_changed": "Maintenance — status",
         "review_received": "New review",
         "saved_search_match": "Saved search",
+        "favorite_price_drop": "Favorite — price drop",
+        "favorite_unavailable": "Favorite — no longer available",
         "visit_reminder": "Visit reminder",
         "threshold_alert": "KPI threshold alert",
         "lease_payment_received": "Rent — payment received"
