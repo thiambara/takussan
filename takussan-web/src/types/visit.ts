@@ -15,6 +15,9 @@ export interface VisitRequestPayload {
   visitor_email?: string;
   visitor_phone?: string;
   notes?: string;
+  /** TCK-590 — la source d'arrivée retenue pour la session (`lib/attribution.ts`). */
+  source?: string;
+  medium?: string;
 }
 
 /**

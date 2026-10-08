@@ -6,8 +6,10 @@ use App\Http\Filters\RangeFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class PropertyVisit extends AbstractModel
 {
@@ -19,6 +21,8 @@ class PropertyVisit extends AbstractModel
         'type', 'status', 'scheduled_at', 'duration_minutes',
         'completed_at', 'cancelled_at', 'cancellation_reason',
         'feedback', 'rating', 'notes', 'metadata',
+        // TCK-590 — d'où vient la demande, et dans quelle langue prévenir un visiteur sans compte.
+        'source', 'medium', 'locale',
     ];
 
     protected $casts = [
@@ -49,8 +53,35 @@ class PropertyVisit extends AbstractModel
         'visitor_name', 'visitor_phone', 'visitor_email',
         'type', 'status', 'scheduled_at', 'completed_at', 'duration_minutes',
         'cancelled_at', 'cancellation_reason', 'feedback', 'rating', 'notes', 'metadata',
+        'source', 'medium', 'locale',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-590 — `filter[unassigned]=1` : les visites sans agent, à prendre en charge ;
+     * `filter[mine]=1` : celles dont je suis l'agent.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function getAllowedQueryFilters(): array
+    {
+        $filters = parent::getAllowedQueryFilters();
+
+        $filters[] = AllowedFilter::callback('unassigned', function (Builder $q, mixed $value) {
+            if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                $q->whereNull('agent_id');
+            }
+        });
+
+        $filters[] = AllowedFilter::callback('mine', function (Builder $q, mixed $value) {
+            $userId = request()->user()?->id;
+            if (filter_var($value, FILTER_VALIDATE_BOOLEAN) && $userId !== null) {
+                $q->where('agent_id', $userId);
+            }
+        });
+
+        return $filters;
+    }
 
     public function property(): BelongsTo
     {

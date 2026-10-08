@@ -9,6 +9,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
+use App\Services\Visit\VisitNotifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -121,6 +122,13 @@ class SendPropertyVisitReminders implements ShouldQueue
                 'window' => $window,
             ];
             foreach ($recipients as $recipient) {
+                // TCK-590 (passe 4, X2) — vers un contact sans compte, le SMS du rappel passe par
+                // la borne des SMS de visite, seule source du plafond.
+                if ($recipient instanceof ContactSansCompte) {
+                    app(VisitNotifier::class)->reminderToContact($fresh, $recipient, $params);
+
+                    continue;
+                }
                 $this->notifications->send(
                     $recipient,
                     NotificationCode::VisitReminder,

@@ -97,13 +97,11 @@ const EXEMPTIONS = new Map([
   ['app/Policies/MaintenanceRequestPolicy.php::update', 'TCK-592'],
   ['app/Policies/MaintenanceRequestPolicy.php::isPrincipalFor', 'TCK-592'],
   ['app/Http/Controllers/Api/MaintenanceRequestController.php::index', 'TCK-592'],
-  ['app/Http/Controllers/Api/PropertyVisitController.php::store', 'TCK-590'],
-  ['app/Http/Controllers/Api/PropertyVisitController.php::feedback', 'TCK-590'],
   ['app/Http/Controllers/Api/FavoriteController.php::store', 'TCK-599'],
 ]);
 
 /** Le nombre d'exemptions. Bilatéral : il suit `EXEMPTIONS.size`, dans les deux sens. */
-const CLIQUET = 7;
+const CLIQUET = 5;
 
 /**
  * Des REFUS qui n'accordent rien : `if ($user->agency_id !== $agency->id) return false;` suivi d'un

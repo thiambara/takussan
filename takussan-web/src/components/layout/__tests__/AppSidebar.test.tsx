@@ -23,6 +23,7 @@ import {
   groupBySection,
   withSectionHeadings,
   SECTION_ORDER,
+  type NavCounterKey,
   type NavItem,
 } from '../AppSidebar';
 import { AdminSidebar } from '../AdminSidebar';
@@ -46,6 +47,12 @@ vi.mock('@/components/chat-widget/useUnreadCount', () => ({
 const pendingVisitsMock = vi.fn<(options: OptionsDeSondage) => ReponseCompteur>(() => ({}));
 vi.mock('@/lib/queries/visits', () => ({
   usePendingVisitsCount: (options: OptionsDeSondage = {}) => pendingVisitsMock(options),
+}));
+
+// TCK-590 — le troisième compteur : les demandes de contact non traitées.
+const unhandledLeadsMock = vi.fn<(options: OptionsDeSondage) => ReponseCompteur>(() => ({}));
+vi.mock('@/lib/queries/contact-leads', () => ({
+  useUnhandledLeadsCount: (options: OptionsDeSondage = {}) => unhandledLeadsMock(options),
 }));
 
 // `AdminSidebar` sonde deux files de modération ; on ne teste ici que son `aria-current`.
@@ -100,6 +107,8 @@ beforeEach(() => {
   unreadMock.mockReturnValue(0);
   pendingVisitsMock.mockReset();
   pendingVisitsMock.mockReturnValue({ data: undefined });
+  unhandledLeadsMock.mockReset();
+  unhandledLeadsMock.mockReturnValue({ data: undefined });
 });
 
 /**
@@ -148,7 +157,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
-    '/app/inventories', '/app/visits', '/app/calendar', '/app/leases/onboarding-pending',
+    '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
     '/app/profile/reviews',
   ],
   agency_admin: [
@@ -156,7 +165,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews',
   ],
   // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
@@ -166,7 +175,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/calendar', '/app/profile/reviews',
+    '/app/visits', '/app/leads', '/app/calendar', '/app/profile/reviews',
   ],
   // TCK-379 — ce relevé figeait le comportement d'AVANT : le prestataire recevait
   // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
@@ -183,7 +192,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/calendar',
+    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews',
   ],
 };
@@ -191,7 +200,8 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
 const ROLES = Object.keys(HREFS_PAR_ROLE) as UserRole[];
 
 /**
- * Les DEUX seules entrées comptées, et le compteur que chacune porte — **écrit ici, à la main**.
+ * Les TROIS seules entrées comptées (la troisième, `/app/leads`, depuis TCK-590), et le compteur
+ * que chacune porte — **écrit ici, à la main**.
  *
  * C'est la seconde moitié de l'indépendance de l'AC6. Le jeu sondé attendu se dérive de
  * {@link HREFS_PAR_ROLE} et de cette correspondance ; il ne se dérive PAS de `item.counterKey`,
@@ -199,14 +209,15 @@ const ROLES = Object.keys(HREFS_PAR_ROLE) as UserRole[];
  * `countersToPoll` ne pourrait plus rougir sur une erreur de ce prédicat — c'est exactement ce
  * qu'il faisait avant, et il a survécu à la mutation qui armait les deux compteurs en dur.
  */
-const COMPTEUR_PAR_HREF: Record<string, 'unreadMessages' | 'pendingVisits'> = {
+const COMPTEUR_PAR_HREF: Record<string, NavCounterKey> = {
   '/app/messages': 'unreadMessages',
   '/app/visits': 'pendingVisits',
+  '/app/leads': 'unhandledLeads',
 };
 
 /** Ce qu'un rôle DOIT sonder, déduit de sa ligne de la table et de rien d'autre. */
-function sondesAttendues(role: UserRole): Set<'unreadMessages' | 'pendingVisits'> {
-  const cles = new Set<'unreadMessages' | 'pendingVisits'>();
+function sondesAttendues(role: UserRole): Set<NavCounterKey> {
+  const cles = new Set<NavCounterKey>();
   for (const href of HREFS_PAR_ROLE[role]) {
     const cle = COMPTEUR_PAR_HREF[href];
     if (cle) cles.add(cle);
@@ -321,13 +332,15 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
     },
   );
 
-  it('les 24 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  // TCK-590 — 23 → 24 : la boîte « Demandes de contact » (`/app/leads`).
+  // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
+  it('les 25 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(24);
+    expect(items).toHaveLength(25);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(24);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(25);
   });
 
   it('un rôle sans catalogue ne voit aucune césure vide', () => {
@@ -340,8 +353,10 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
     renderSidebar(['agency_admin'], '/app');
     for (const libelle of ['CATALOGUE', 'DÉCOUVRIR', 'DEMANDES', 'ENGAGEMENTS', 'PILOTAGE']) {
       // Les en-têtes sont mis en capitales par CSS (`uppercase`) : on cherche le texte SOURCE.
+      // TCK-590 — correspondance EXACTE : l'entrée « Demandes de contact » contient « Demandes »,
+      // et une recherche partielle trouvait deux éléments.
       expect(
-        screen.getByText(libelle.charAt(0) + libelle.slice(1).toLowerCase(), { exact: false }),
+        screen.getByText(libelle.charAt(0) + libelle.slice(1).toLowerCase(), { exact: true }),
       ).toBeInTheDocument();
     }
   });
