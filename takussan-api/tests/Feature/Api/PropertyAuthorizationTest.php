@@ -284,9 +284,11 @@ class PropertyAuthorizationTest extends ApiTestCase
             ->assertStatus(422);
         $this->assertSame($b1->id, (int) $property->fresh()->user_id);
 
+        // TCK-603 (ADR-0036) — l'agent devient responsable du bien ; b1 en reste propriétaire.
         $agent = $this->agencyAgent($this->agency);
         $this->putJson("/api/properties/{$property->id}/assigned-agent", ['user_id' => $agent->id])
-            ->assertOk();
-        $this->assertSame($agent->id, (int) $property->fresh()->user_id);
+            ->assertOk()
+            ->assertJsonPath('data.primary_contact.id', $agent->id);
+        $this->assertSame($b1->id, (int) $property->fresh()->user_id);
     }
 }

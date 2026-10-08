@@ -27,7 +27,10 @@ vi.mock('@/lib/queries/agent-crm', async (original) => ({
   removeMember: (...a: unknown[]) => removeMember(...a),
 }));
 
-const VIDE = { tasks: 0, visits: 0, maintenance: 0, collaborations: 0, customers: 0, held_properties: 0 };
+const VIDE = {
+  tasks: 0, visits: 0, maintenance: 0, responsible_properties: 0, held_properties: 0, collaborations: 0, customers: 0,
+};
+const TOUT = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers'];
 const partant = { id: 7, first_name: 'Moussa', last_name: 'Fall' };
 
 function rendu() {
@@ -51,8 +54,8 @@ describe('HandoverWizard', () => {
     fetchMemberPortfolio.mockResolvedValue({
       user_id: 7,
       portfolio: { ...VIDE, tasks: 3, customers: 2 },
-      transferable: ['tasks', 'visits', 'maintenance', 'collaborations', 'customers'],
-      pending: ['held_properties'],
+      transferable: TOUT,
+      pending: [],
     });
     handOverPortfolio.mockResolvedValue({ moved: { tasks: 3, customers: 2 }, unassigned: {}, removed: true });
     const onDone = rendu();
@@ -90,6 +93,38 @@ describe('HandoverWizard', () => {
     await userEvent.click(retirer);
 
     await waitFor(() => expect(removeMember).toHaveBeenCalledWith('jeton', 3, 7, true));
+  });
+
+  /** TCK-603 AC5 — les biens se transmettent comme le reste : ni « pas encore transmissible », ni aveu. */
+  it('les biens du partant se transmettent sans aveu', async () => {
+    fetchMemberPortfolio.mockResolvedValue({
+      user_id: 7,
+      portfolio: { ...VIDE, responsible_properties: 2, held_properties: 1 },
+      transferable: TOUT,
+      pending: [],
+    });
+    handOverPortfolio.mockResolvedValue({
+      moved: { responsible_properties: 2, held_properties: 1 }, unassigned: {}, removed: true,
+    });
+    const onDone = rendu();
+
+    const portefeuille = await screen.findByTestId('handover-portfolio');
+    expect(portefeuille).toHaveTextContent('Biens dont il est l’agent responsable2');
+    expect(portefeuille).toHaveTextContent('Biens saisis à son nom1');
+    expect(portefeuille).not.toHaveTextContent('pas encore transmissible');
+    await userEvent.selectOptions(await screen.findByLabelText('Repreneur'), '8');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Relire' }));
+
+    const relecture = screen.getByTestId('handover-review');
+    expect(relecture).toHaveTextContent('2 × Biens dont il est l’agent responsable');
+    expect(relecture).toHaveTextContent('1 × Biens saisis à son nom');
+    await userEvent.click(screen.getByRole('button', { name: 'Transmettre et retirer' }));
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(handOverPortfolio).toHaveBeenCalledWith('jeton', 3, 7, {
+      successor_id: 8, remove_after: true, leave_unassigned: false,
+    });
   });
 
   it('un portefeuille vide se retire sans passation ni aveu', async () => {

@@ -43,9 +43,10 @@ export type PortfolioCategory =
   | 'tasks'
   | 'visits'
   | 'maintenance'
+  | 'responsible_properties'
+  | 'held_properties'
   | 'collaborations'
-  | 'customers'
-  | 'held_properties';
+  | 'customers';
 
 export interface MemberPortfolio {
   user_id: number;
@@ -88,6 +89,9 @@ export interface BulkFailure {
 export interface BulkResult {
   updated: number;
   updated_ids: number[];
+  /** TCK-603 — `bulk-assign` seulement : la cible était déjà l'agent responsable. Ni un refus, ni un changement. */
+  unchanged?: number;
+  unchanged_ids?: number[];
   failed: BulkFailure[];
 }
 

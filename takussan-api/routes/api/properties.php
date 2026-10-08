@@ -20,6 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/bulk-archive', [PropertyController::class, 'bulkArchive'])->name('properties.bulk-archive');
     // TCK-591 — dépublier en lot (jamais publier : la modération est unitaire).
     Route::post('properties/bulk-visibility', [PropertyController::class, 'bulkVisibility'])->name('properties.bulk-visibility');
+    // TCK-603 — changer l'agent responsable en lot (jamais le propriétaire, ADR-0036).
+    Route::post('properties/bulk-assign', [PropertyController::class, 'bulkAssign'])->name('properties.bulk-assign');
 
     // TCK-098 — moderation queue (admin-scoped: agency_admin sees own queue,
     // super_admin sees all). Lives outside /api/admin/* (which is super-admin

@@ -81,10 +81,36 @@ class PrimaryPropertyContact
      */
     public static function for(Property $property): ?User
     {
-        $owner = $property->owner;
+        return self::resolve($property)['contact'];
+    }
 
-        return self::collaborateurPrincipal($property)?->user
-            ?? (self::estProprietaire($owner, $property) || self::eligible($owner, $property) ? $owner : null);
+    /**
+     * TCK-603 (ADR-0059 §6, verif-603 M2) — le contact ET d'où il vient, en un seul passage de la règle :
+     * `designated` (la ligne marquée), `invitation_order` (le repli sur l'ordre d'invitation), `owner`
+     * (le repli sur le titulaire), `null` (personne). Le vocabulaire de `GET …/collaborators`.
+     *
+     * L'écran ne peut pas le déduire d'une égalité d'identifiants : un agent qui a saisi un bien
+     * (`user_id` = lui) et qui en est l'agent principal donne `owner.id = primary_contact.id`.
+     *
+     * ⚠️ Même hypothèse de chargement que {@see self::for()}.
+     *
+     * @return array{contact: ?User, principal: ?PropertyCollaborator, source: ?string}
+     */
+    public static function resolve(Property $property): array
+    {
+        $principal = self::collaborateurPrincipal($property);
+        if ($principal !== null) {
+            return [
+                'contact' => $principal->user,
+                'principal' => $principal,
+                'source' => $principal->is_primary === true ? 'designated' : 'invitation_order',
+            ];
+        }
+
+        $owner = $property->owner;
+        $contact = self::estProprietaire($owner, $property) || self::eligible($owner, $property) ? $owner : null;
+
+        return ['contact' => $contact, 'principal' => null, 'source' => $contact !== null ? 'owner' : null];
     }
 
     /**

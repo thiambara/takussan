@@ -93,7 +93,8 @@ class PersonnelDeLAgence implements ValidationRule
             return false;
         }
 
-        return $user->isOwnerAt((int) $agencyId);
+        return MembershipCapabilityResolver::amorce('owner', (int) $user->id, (int) $agencyId)
+            ?? $user->isOwnerAt((int) $agencyId);
     }
 
     /**
