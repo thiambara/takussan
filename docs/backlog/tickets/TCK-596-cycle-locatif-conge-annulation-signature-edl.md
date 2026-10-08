@@ -375,11 +375,11 @@ du Delta et un critère qui rougit sur le code actuel.
       - la sortie de l'impasse `pending_signature`.
 
 ### 1. Préavis du locataire (front)
-- [ ] Sur le détail d'un bail `active` ou `expired`, le **locataire de ce bail** (utilisateur courant =
+- [x] Sur le détail d'un bail `active` ou `expired`, le **locataire de ce bail** (utilisateur courant =
       `tenant.user_id`, jamais « tout client ») voit le geste de préavis et peut retirer sa demande
       depuis la bannière tant que la fenêtre est ouverte. La confirmation reste au gestionnaire.
-- [ ] Le commentaire faux de `LeaseDetail.tsx:88-91` disparaît ; `tenant.user_id` est typé côté front.
-- [ ] Test de composant : locataire du bail → geste visible ; client non locataire → absent ; agent
+- [x] Le commentaire faux de `LeaseDetail.tsx:88-91` disparaît ; `tenant.user_id` est typé côté front.
+- [x] Test de composant : locataire du bail → geste visible ; client non locataire → absent ; agent
       → inchangé.
 
 ### 2. Demande, annulation et remboursement à traiter
@@ -542,23 +542,23 @@ du Delta et un critère qui rougit sur le code actuel.
       - renouvellement `pending_signature` signable.
 
 ### 5. État des lieux
-- [ ] `InventoryController::uploadRoomPhotos` : garde de statut identique à `update` (409 si `signed`,
+- [x] `InventoryController::uploadRoomPhotos` : garde de statut identique à `update` (409 si `signed`,
       422 si non `draft`), placée **avant** l'écriture. `UploadRoomPhotosInventoryRequest` :
       `room_name` ∈ noms de `rooms`.
-- [ ] `InventoryController::show` charge `room_photos`. `InventoryResource` les expose **seulement
+- [x] `InventoryController::show` charge `room_photos`. `InventoryResource` les expose **seulement
       quand ils sont chargés** (id, URL signée, `room_name`), pas dans `index`.
-- [ ] Route `DELETE inventories/{inventory}/room-photos/{media}` (`inventories.room-photos.destroy`)
+- [x] Route `DELETE inventories/{inventory}/room-photos/{media}` (`inventories.room-photos.destroy`)
       → `InventoryController::destroyRoomPhoto`, avec autorisation `update`, `draft` seulement, et un
       média qui appartient bien à cet état des lieux et à cette collection (sinon 404).
-- [ ] Front : chaque zone d'envoi a un identifiant **unique** ; les photos sont **réduites avant
+- [x] Front : chaque zone d'envoi a un identifiant **unique** ; les photos sont **réduites avant
       d'être validées** puis envoyées, avec une limite affichée cohérente avec l'API ; chaque pièce
       montre ses vignettes et permet de supprimer en brouillon.
-- [ ] Signature : `InventoryController::sign` valide **toujours** par `InventorySignRequest` (`role`
+- [x] Signature : `InventoryController::sign` valide **toujours** par `InventorySignRequest` (`role`
       et `signature` requis) ; la branche sans charge utile et `InventoryService::sign` disparaissent.
       Les trois appels sans corps de `InventoryTest.php:138-164` passent au corps `{role, signature}`.
       Côté front, la mutation de signature n'admet plus d'appel sans tracé, et le commentaire qui
       décrit l'ancien comportement disparaît.
-- [ ] Nouvelle classe `App\Services\Lease\LandlordSignatory`, le prédicat unique « qui signe pour le
+- [x] Nouvelle classe `App\Services\Lease\LandlordSignatory`, le prédicat unique « qui signe pour le
       bailleur », livré ici (PR 1) et réutilisé par §4B :
       - `allows(User $user, Lease $lease): bool` vaut vrai si `$user->id === $lease->landlord_id`, ou
         si `$lease->agency_id !== null`, le signataire est du personnel de cette agence
@@ -567,35 +567,35 @@ du Delta et un critère qui rougit sur le code actuel.
         collaborateur du bien non plus ;
       - `onBehalfOf(User $user, Lease $lease): ?int` rend `null` si le signataire est le bailleur,
         `$lease->landlord_id` sinon.
-- [ ] `InventorySignatureService::authorizeRole` : `tenant` = le locataire du bail **seulement** (le
+- [x] `InventorySignatureService::authorizeRole` : `tenant` = le locataire du bail **seulement** (le
       super-admin sort de l.101, le docblock l.18 devient vrai). `landlord` =
       `LandlordSignatory::allows($user, $inventory->lease)`, sinon 403. Le bloc
       `$isOwner || $isAgencyStaff || $isCollaborator || $isAdmin` (l.108-120) disparaît en entier,
       **requête des collaborateurs comprise** (l.110-115). Le docblock l.19-20 est réécrit sur la
       règle des Contraintes strictes. `inventories.lease_id` est non nul
       (`2026_04_17_160022_create_inventories_table.php:13`) : `lease` existe toujours.
-- [ ] Qui a signé, et pour qui : la migration de l'empreinte (ci-dessous) ajoute aussi
+- [x] Qui a signé, et pour qui : la migration de l'empreinte (ci-dessous) ajoute aussi
       `owner_signed_by_user_id` et `owner_signed_on_behalf_of_user_id` (FK `users`, nullables,
       `nullOnDelete`). `InventorySignatureService::sign` les pose à la signature `landlord`, par
       `LandlordSignatory::onBehalfOf`. `InventoryResource` expose les deux identifiants. Le PDF
       imprime « Signé par X pour le compte de Y » quand `on_behalf_of` est renseigné (clé
       `inventories.pdf.signed_on_behalf_of`, fr/en/wo).
-- [ ] `InventoryResource` expose `can_sign_as` (`tenant`/`landlord`, pour l'utilisateur courant, par
+- [x] `InventoryResource` expose `can_sign_as` (`tenant`/`landlord`, pour l'utilisateur courant, par
       le même prédicat que `authorizeRole`, en `show` seulement). Front : le canevas bailleur s'ouvre
       à qui l'API laisse signer, et à lui seul. Aujourd'hui, `InventoryDetail.tsx:355-362` l'ouvre
       à tout rôle `agent|agency_admin|owner|super_admin`, puis l'API répond 403. Quand le signataire
       n'est pas le bailleur, le canevas dit « pour le compte de <bailleur> ». Le super-admin ne voit
       plus aucun canevas.
-- [ ] Fixture : `InventorySignatureTest::makeInventory` (l.319-326) passe `lease_id` du bail de
+- [x] Fixture : `InventorySignatureTest::makeInventory` (l.319-326) passe `lease_id` du bail de
       `scaffoldLease`. Sans cela, la fabrique crée un autre bail (`InventoryFactory.php:22`) dont le
       bailleur n'est pas `$owner`, et `test_property_owner_can_sign_as_landlord` rougirait pour une
       raison de fixture, pas de règle.
-- [ ] Empreinte : migration `add_signature_traceability_to_inventories` (`traceability_hash`, chaîne
+- [x] Empreinte : migration `add_signature_traceability_to_inventories` (`traceability_hash`, chaîne
       64, nullable ; plus les deux FK du signataire ci-dessus). À la seconde signature, `InventorySignatureService::sign` y fige un SHA-256 qui couvre
       aussi les photos : pour chaque média `room_photos`, trié par id, `room_name` et le SHA-256 de ses
       octets. Le PDF imprime la colonne quand elle existe, sinon l'ancien calcul (états des lieux signés
       avant ce ticket : empreinte inchangée).
-- [ ] Tests :
+- [x] Tests :
       - `InventoryRoomPhotosTest` : envoi sur `signed` → 409, sur `pending_signature` et `disputed`
         → 422, pièce inconnue → 422 ; `show` rend les URL signées groupées ; suppression d'un média
         d'un autre état des lieux → 404 ;
@@ -758,3 +758,17 @@ A5.1 `authorizeRole` d'acf58a66 → 8 rouges ; A5.2 requête des collaborateurs 
 → 2 ; A5.4 upload sans garde → 3 ; A5.5 `room_name` libre → 1 ; A5.6 suppression sans filtre de collection
 → 1 ; A5.7 suppression sans garde → 3 ; A5.8 photos hors empreinte → 1 ; A5.9 colonne ignorée → 1 ;
 A5.10 clause `users.agency_id` d'e3ab4a4e → 4. `leases.sign` sort de `CapabilityEnforcementInventory`, cliquet 16 → 15.
+
+**§5 — état des lieux, front.** `MediaDropzone` et `MediaManager` prennent un `useId()` par instance.
+La zone réduit **avant** de valider, et jusque sous le plafond : `reduirePhotoSousPlafond` (nouvelle,
+`lib/reduire-photo.ts`) rétrécit les dimensions d'un ratio tiré du poids, 4 essais au plus, format
+inchangé — sans elle, une photo de 7 Mo déjà sous 2 560 px partait intacte et l'API la refusait.
+Plafond affiché et appliqué : 5 Mo (`INVENTORY_PHOTO_MAX_BYTES`, = `max:5120` de l'API). Les vignettes
+viennent de `room_photos` (URL signées), supprimables en brouillon. Le canevas s'ouvre par
+`can_sign_as` ; l'API ajoute `sign_on_behalf_of` (`{id, full_name}` du bailleur) pour le libellé
+« Pour le compte de … ». `useSignInventory` n'admet plus d'appel sans `{role, signature}`.
+Preuve : `npx vitest run src/components/inventory src/components/media src/components/property-form src/lib/__tests__`
+→ 981 verts (dont `InventoryDetail.pieces.test.tsx`, 7). Ablations (restaurées par `cp`) : F5.1 id fixe →
+2 rouges (AC13) ; F5.2 réduction sans plafond → 1 (AC14) ; F5.3 valider avant de réduire → 1 (AC14) ;
+F5.4 canevas deviné par les rôles → 1. Les tests jsdom doublent `createImageBitmap`/`OffscreenCanvas`
+(poids proportionnel aux pixels) ; **non mesuré au navigateur réel** à ce stade.

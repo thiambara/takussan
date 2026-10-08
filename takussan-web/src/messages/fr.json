@@ -4377,7 +4377,11 @@
       "disputeReason": "Motif du litige",
       "disputeReasonPlaceholder": "Expliquez le point contesté",
       "sendDispute": "Envoyer le litige",
-      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant."
+      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant.",
+      "roomPhotos": "Photos de la pièce {room}",
+      "roomPhotoAlt": "Photo {index} — {room}",
+      "deleteRoomPhotoAria": "Supprimer la photo {index} de la pièce {room}",
+      "deleteRoomPhotoFailed": "La photo n'a pas pu être supprimée. Réessayez."
     },
     "roomEditor": {
       "empty_title": "Aucune pièce",
@@ -4449,7 +4453,9 @@
       "signAs": "Signer comme {role}",
       "confirmAs": "Signer en tant que {role}",
       "helper": "Tracez votre signature puis confirmez — l'action est définitive.",
-      "signFailed": "Signature impossible. Réessayez."
+      "signFailed": "Signature impossible. Réessayez.",
+      "onBehalfOf": "Pour le compte de {name}",
+      "signedOnBehalf": "Signé par le gestionnaire pour le compte du bailleur"
     },
     "signaturePad": {
       "label": "Signez ici",

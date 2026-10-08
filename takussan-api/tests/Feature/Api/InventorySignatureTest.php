@@ -516,6 +516,14 @@ class InventorySignatureTest extends TestCase
         Sanctum::actingAs($owner);
         $this->getJson("/api/inventories/{$inventory->id}")->assertOk()->assertJsonPath('data.can_sign_as', ['landlord']);
 
+        $this->getJson("/api/inventories/{$inventory->id}")->assertOk()->assertJsonPath('data.sign_on_behalf_of', null);
+
+        Sanctum::actingAs($this->agencyAgent($agency));
+        $this->getJson("/api/inventories/{$inventory->id}")->assertOk()
+            ->assertJsonPath('data.can_sign_as', ['landlord'])
+            ->assertJsonPath('data.sign_on_behalf_of.id', $owner->id)
+            ->assertJsonPath('data.sign_on_behalf_of.full_name', $owner->getFullNameAttribute());
+
         $this->actingAsRole('super_admin');
         $this->getJson("/api/inventories/{$inventory->id}")->assertOk()->assertJsonPath('data.can_sign_as', []);
 

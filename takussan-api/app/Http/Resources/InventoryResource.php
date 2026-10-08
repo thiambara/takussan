@@ -6,6 +6,7 @@ use App\Http\Requests\InventorySignRequest;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\User;
 use App\Services\Inventory\InventorySignatureService;
+use App\Services\Lease\LandlordSignatory;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
 
@@ -60,6 +61,11 @@ class InventoryResource extends BaseResource
                     fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
                 )),
             ),
+            // TCK-596 — quand le lecteur signerait POUR LE COMPTE du bailleur, le canevas le dit.
+            'sign_on_behalf_of' => $this->when(
+                $this->viewer !== null && $this->signatures !== null,
+                fn () => $this->signOnBehalfOf(),
+            ),
             // TCK-182 — surface human-readable labels when the related models
             // are eager-loaded so the customer UI can render `<bien>` /
             // `<bail.reference>` instead of raw ids.
@@ -74,6 +80,20 @@ class InventoryResource extends BaseResource
             ] : null),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /** @return array{id: int, full_name: string}|null */
+    private function signOnBehalfOf(): ?array
+    {
+        $lease = $this->lease;
+        if ($lease === null || ! $this->signatures->canSignAs($this->resource, $this->viewer, InventorySignRequest::ROLE_LANDLORD)) {
+            return null;
+        }
+
+        $landlordId = LandlordSignatory::onBehalfOf($this->viewer, $lease);
+        $landlord = $landlordId !== null ? User::query()->find($landlordId) : null;
+
+        return $landlord !== null ? ['id' => (int) $landlord->id, 'full_name' => $landlord->getFullNameAttribute()] : null;
     }
 
     /**

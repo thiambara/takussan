@@ -4377,7 +4377,11 @@
       "disputeReason": "Reason for the dispute",
       "disputeReasonPlaceholder": "Explain the disputed point",
       "sendDispute": "Send the dispute",
-      "disputeFailed": "The dispute could not be sent. Please try again in a moment."
+      "disputeFailed": "The dispute could not be sent. Please try again in a moment.",
+      "roomPhotos": "Photos of the {room}",
+      "roomPhotoAlt": "Photo {index} — {room}",
+      "deleteRoomPhotoAria": "Delete photo {index} of the {room}",
+      "deleteRoomPhotoFailed": "The photo could not be deleted. Try again."
     },
     "roomEditor": {
       "empty_title": "No room",
@@ -4449,7 +4453,9 @@
       "signAs": "Sign as {role}",
       "confirmAs": "Sign as the {role}",
       "helper": "Draw your signature then confirm — the action is final.",
-      "signFailed": "Signature failed. Please try again."
+      "signFailed": "Signature failed. Please try again.",
+      "onBehalfOf": "On behalf of {name}",
+      "signedOnBehalf": "Signed by the property manager on behalf of the landlord"
     },
     "signaturePad": {
       "label": "Sign here",

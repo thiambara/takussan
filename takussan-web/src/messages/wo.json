@@ -2992,7 +2992,11 @@
       "disputeReason": "Mboor werante bi",
       "disputeReasonPlaceholder": "Leeralal li ngay werante",
       "sendDispute": "Yónnee werante bi",
-      "disputeFailed": "Nanguwul nañu yónnee sa ñàkk-nangu. Jéemaatal ci kanam tuuti."
+      "disputeFailed": "Nanguwul nañu yónnee sa ñàkk-nangu. Jéemaatal ci kanam tuuti.",
+      "roomPhotos": "Nataali néeg bi: {room}",
+      "roomPhotoAlt": "Nataal {index} — {room}",
+      "deleteRoomPhotoAria": "Far nataal {index} bu néeg bi {room}",
+      "deleteRoomPhotoFailed": "Mënuñu far nataal bi. Jéemaatal."
     },
     "roomEditor": {
       "empty_title": "Amul néeg",
@@ -3064,7 +3068,9 @@
       "signAs": "Xaatim ni {role}",
       "confirmAs": "Xaatim ni {role}",
       "helper": "Bindal sa xaatim ba noppi dëggal — jëf ji du soppiku.",
-      "signFailed": "Xaatim bi mënul. Jéemaatal."
+      "signFailed": "Xaatim bi mënul. Jéemaatal.",
+      "onBehalfOf": "Ci turu {name}",
+      "signedOnBehalf": "Ki di yor kër gi moo xaatim ci turu boroom kër gi"
     },
     "signaturePad": {
       "label": "Xaatimal fii",
