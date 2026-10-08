@@ -8,6 +8,7 @@ use App\Models\Address;
 use App\Models\AlertSubscriber;
 use App\Models\Property;
 use App\Models\SavedSearch;
+use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Model\SearchService;
@@ -178,6 +179,48 @@ class PublicSearchAlertTest extends TestCase
 
         $this->assertSame(1, AlertSubscriber::whereNotNull('confirmed_at')->count());
         $this->assertSame(WhatsappContact::OPT_IN_OPTED_IN, WhatsappContact::where('phone', self::PHONE)->sole()->opt_in_status);
+    }
+
+    /** Demande WhatsApp confirmée par code, puis désinscription par le jeton de l'abonné. */
+    private function abonnementWhatsappPuisDesinscription(): void
+    {
+        config(['search_alerts.whatsapp_enabled' => true]);
+        $this->postJson('/api/public/search-alerts', $this->demande(['channel' => 'whatsapp', 'phone' => self::PHONE]))->assertStatus(202);
+        $this->postJson('/api/public/search-alerts/confirm', ['phone' => self::PHONE, 'code' => $this->sms->lastCodeFor(self::PHONE)])->assertOk();
+
+        $this->postJson('/api/public/search-alerts/unsubscribe', ['token' => AlertSubscriber::sole()->unsubscribe_token])->assertOk();
+        $this->assertSame(0, AlertSubscriber::count());
+    }
+
+    /** verif-599 m3 — sans compte ni message reçu, le numéro quitte `whatsapp_contacts`. */
+    public function test_la_desinscription_whatsapp_efface_le_numero(): void
+    {
+        $this->abonnementWhatsappPuisDesinscription();
+
+        $this->assertFalse(WhatsappContact::query()->where('phone', self::PHONE)->exists());
+    }
+
+    /** verif-599 m3 — rattaché à un compte, le numéro reste, mais le consentement de l'alerte tombe. */
+    public function test_la_desinscription_whatsapp_retire_le_consentement_qu_elle_avait_pose(): void
+    {
+        $user = User::factory()->create(['phone' => self::PHONE]);
+        WhatsappContact::create(['phone' => self::PHONE, 'user_id' => $user->id, 'opt_in_status' => WhatsappContact::OPT_IN_PENDING]);
+
+        $this->abonnementWhatsappPuisDesinscription();
+
+        $this->assertSame(WhatsappContact::OPT_IN_OPTED_OUT, WhatsappContact::query()->where('phone', self::PHONE)->sole()->opt_in_status);
+    }
+
+    /** verif-599 m3 — un consentement donné ailleurs n'est ni réécrit par l'alerte, ni retiré avec elle. */
+    public function test_la_desinscription_whatsapp_garde_un_consentement_venu_d_ailleurs(): void
+    {
+        WhatsappContact::create(['phone' => self::PHONE, 'opt_in_status' => WhatsappContact::OPT_IN_OPTED_IN, 'opt_in_source' => 'account_settings']);
+
+        $this->abonnementWhatsappPuisDesinscription();
+
+        $contact = WhatsappContact::query()->where('phone', self::PHONE)->sole();
+        $this->assertSame(WhatsappContact::OPT_IN_OPTED_IN, $contact->opt_in_status);
+        $this->assertSame('account_settings', $contact->opt_in_source);
     }
 
     /**

@@ -33,6 +33,9 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     /** @var list<string> */
     public const CHANNELS = [self::CHANNEL_EMAIL, self::CHANNEL_WHATSAPP];
 
+    /** La source du consentement WhatsApp que pose la confirmation d'une alerte. */
+    public const WHATSAPP_CONSENT_SOURCE = 'search_alert';
+
     /** La version du texte de consentement affiché par le formulaire (preuve de consentement). */
     public const CONSENT_VERSION = 'search-alert-2026-10-08';
 
@@ -149,6 +152,29 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
      */
     public function eraseContact(): int
     {
+        if ($this->channel === self::CHANNEL_WHATSAPP) {
+            $this->retirerLeConsentementWhatsapp();
+        }
+
         return self::query()->where('contact_hash', $this->contact_hash)->delete();
+    }
+
+    /**
+     * verif-599 m3 — la confirmation par code inscrit le numéro dans `whatsapp_contacts`, en
+     * `opted_in` (la garde d'opt-in de `WhatsappChannel` l'exige). La désinscription le retire :
+     * la ligne disparaît si l'alerte était sa seule raison d'être (aucun compte, aucun message
+     * reçu) ; sinon le consentement que l'alerte avait posé est retiré. Un consentement venu
+     * d'ailleurs (`opt_in_source` ≠ `search_alert`) n'est pas touché.
+     */
+    private function retirerLeConsentementWhatsapp(): void
+    {
+        $contact = WhatsappContact::query()->where('phone', $this->contact)->first();
+        if ($contact === null || $contact->opt_in_source !== self::WHATSAPP_CONSENT_SOURCE) {
+            return;
+        }
+
+        $contact->user_id === null && $contact->last_inbound_at === null
+            ? $contact->delete()
+            : $contact->optOut('search_alert_unsubscribe');
     }
 }

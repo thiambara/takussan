@@ -148,7 +148,12 @@ class PublicSearchAlertController extends Controller
                 $subscriber->forceFill(['confirmed_at' => now()])->save();
                 // La garde d'opt-in de `WhatsappChannel` (TCK-588) sert un destinataire sans compte
                 // seulement s'il y a consenti : la confirmation EST ce consentement.
-                WhatsappContact::query()->firstOrCreate(['phone' => $phone])->optIn('search_alert');
+                // Un consentement déjà donné ailleurs garde sa source : la désinscription de l'alerte
+                // ne retirera que celui qu'elle a posé (verif-599 m3).
+                $contact = WhatsappContact::query()->firstOrCreate(['phone' => $phone]);
+                if ($contact->opt_in_status !== WhatsappContact::OPT_IN_OPTED_IN) {
+                    $contact->optIn(AlertSubscriber::WHATSAPP_CONSENT_SOURCE);
+                }
             });
 
             return $subscriber;
