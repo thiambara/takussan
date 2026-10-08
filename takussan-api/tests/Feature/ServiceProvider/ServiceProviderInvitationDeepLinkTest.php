@@ -149,6 +149,34 @@ class ServiceProviderInvitationDeepLinkTest extends TestCase
         $this->assertSame($other->id, $mr->refresh()->assigned_to);
     }
 
+    /**
+     * verif-592 passe 2 (N2, sonde p01) — le lien se consomme à la PREMIÈRE fin d'onboarding, même
+     * sans assignation : la demande prise par un autre, puis rendue par son refus, ne revient pas
+     * au prestataire invité qui rejoue la fin d'onboarding.
+     */
+    public function test_the_link_is_consumed_even_when_the_first_completion_assigns_nothing(): void
+    {
+        Mail::fake();
+        [$agency, $admin] = $this->agencyWithAdmin();
+        $mr = $this->requestIn($agency);
+        $other = $this->providerOf($agency);
+
+        [$sp, $invited] = $this->onboardedThrough($agency, $admin, $mr, function () use ($mr, $other): void {
+            $mr->forceFill(['assigned_to' => $other->id])->save();
+        });
+        $this->assertSame($other->id, $mr->refresh()->assigned_to);
+        $this->assertNotNull(data_get($sp->invitations()->firstOrFail()->metadata, 'deep_link_consumed_at'));
+
+        Sanctum::actingAs($other);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/decline", ['reason' => 'Pas disponible'])->assertOk();
+        $this->assertNull($mr->refresh()->assigned_to);
+
+        Sanctum::actingAs($invited);
+        $this->postJson('/api/service-provider/onboard/complete', ['sp_profile_id' => $sp->id])->assertOk();
+
+        $this->assertNull($mr->refresh()->assigned_to);
+    }
+
     /** `completed` n'est pas terminal, mais les travaux sont faits : rien à assigner. */
     public function test_a_completed_request_is_not_assigned(): void
     {

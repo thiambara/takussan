@@ -165,17 +165,28 @@ class ServiceProviderOnboardingService
      * reprenait l'intervention au prestataire en plein travaux. N'assigne donc que si les trois
      * conditions tiennent, sous verrou de la ligne :
      *
-     *  - l'invitation n'a encore assigné personne (`metadata.deep_link_assigned_at`, une fois) ;
+     *  - le lien n'a pas encore servi : il est CONSOMMÉ à la première fin d'onboarding
+     *    (`metadata.deep_link_consumed_at`), que l'assignation ait lieu ou non. Posée seulement
+     *    en cas de succès, la marque laissait un rejeu ultérieur prendre la demande dès qu'elle
+     *    était libérée — par-dessus le donneur d'ordre (verif-592 passe 2, N2) ;
      *  - la demande est libre (`assigned_to` nul) et non commencée (`open`, `acknowledged`) ;
      *  - le prestataire y est assignable (collaboration active avec l'agence du bien) —
      *    l'invitation l'a vérifié à l'émission, l'état a pu changer depuis.
      */
     protected function assignDeepLinkedRequest(?Invitation $invitation, ?int $maintenanceRequestId, User $user): void
     {
-        if ($invitation === null || $maintenanceRequestId === null
-            || data_get($invitation->metadata, 'deep_link_assigned_at') !== null) {
+        if ($invitation === null || $maintenanceRequestId === null) {
             return;
         }
+
+        // Sous verrou de l'invitation : deux fins d'onboarding simultanées ne consomment qu'une fois.
+        $invitation = Invitation::query()->lockForUpdate()->find($invitation->getKey());
+        if ($invitation === null || data_get($invitation->metadata, 'deep_link_consumed_at') !== null) {
+            return;
+        }
+        $invitation->forceFill([
+            'metadata' => array_merge($invitation->metadata ?? [], ['deep_link_consumed_at' => now()->toIso8601String()]),
+        ])->save();
 
         $mr = MaintenanceRequest::query()->with('property')->lockForUpdate()->find($maintenanceRequestId);
         if ($mr === null
