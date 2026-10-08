@@ -8,6 +8,7 @@ use App\Models\Integration;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -61,11 +62,12 @@ class LemonSqueezyDriver implements PaymentDriverContract
             $checkout->redirectTo((string) $meta['return_url']);
         }
 
-        // TCK-602 — l'exception du paquet porte la réponse de l'API : elle reste au journal.
+        // TCK-602 — l'exception du paquet porte la réponse de l'API : ni au client, ni au journal
+        // (ADR-0044 §2, son message est une donnée).
         try {
             $url = $checkout->url();
         } catch (Throwable $e) {
-            Log::warning('[lemon-squeezy] checkout failed', ['exception' => $e::class, 'message' => $e->getMessage()]);
+            Log::warning('[lemon-squeezy] checkout failed', SafeExceptionContext::of($e));
             abort_code(502, 'payment.provider_unavailable');
         }
 

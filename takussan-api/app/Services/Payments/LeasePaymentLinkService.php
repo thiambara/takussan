@@ -105,8 +105,8 @@ class LeasePaymentLinkService
         if ($link->revoked_at !== null || $payment === null || $payment->trashed() || $payment->lease === null) {
             return true;
         }
-        // TCK-594 — une caution rendue n'est pas une somme que le locataire règle. TCK-596 ajoutera
-        // `cancelled` (PR #342) : une échéance annulée ne se paie pas non plus — voir `isPayableByNature`.
+        // TCK-594 — une caution rendue n'est pas une somme que le locataire règle ; TCK-596, une
+        // échéance annulée par un renouvellement non plus — voir `isPayableByNature`.
         if (! $this->isPayableByNature($payment)) {
             return true;
         }
@@ -124,9 +124,7 @@ class LeasePaymentLinkService
             return false;
         }
 
-        $status = $payment->status instanceof PaymentStatus ? $payment->status->value : (string) $payment->status;
-
-        return ! in_array($status, [PaymentStatus::Refunded->value, 'cancelled'], true);
+        return ! in_array($payment->status, [PaymentStatus::Refunded, PaymentStatus::Cancelled], true);
     }
 
     private function tokenFor(LeasePayment $payment, ?User $by, bool $fresh): string

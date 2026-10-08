@@ -102,6 +102,38 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
         $this->assertSame(1, self::nombreDEnvois($ctx['lease']->landlord, NotificationCode::LeasePaymentReceivedLandlord));
     }
 
+    /**
+     * Raccord TCK-596 — l'échéance est ANNULÉE (renouvellement) pendant que le checkout du lien est
+     * ouvert. Le webhook, puis le rejeu de sa ligne, ne la ressoldent pas : elle reste `cancelled`,
+     * l'encaissement est inscrit UNE fois à rembourser, aucune quittance ne part, et le lien rend 410.
+     */
+    public function test_a_cancelled_instalment_is_never_settled_by_the_webhook_nor_its_replay(): void
+    {
+        [$ctx, $token] = $this->initiatedWithoutAccount();
+        DB::table('lease_payments')->where('id', $ctx['payment']->id)->update(['status' => PaymentStatus::Cancelled->value]);
+
+        $this->waveWebhook('spy_txn_1', 150000)->assertOk();
+        $payment = $ctx['payment']->fresh();
+        $this->assertSame(PaymentStatus::Cancelled, $payment->status);
+        $this->assertCount(1, $payment->metadata['gateway_duplicate_payment']);
+
+        $log = IntegrationWebhookLog::query()->where('channel', 'payment')->latest('id')->firstOrFail();
+        DB::table('integration_webhook_logs')->where('id', $log->id)->update(['status' => 'failed']);
+        $this->actingAsRole('super_admin');
+        $this->postJson("/api/admin/webhook-logs/{$log->id}/replay")
+            ->assertOk()
+            ->assertJsonPath('data.status', IntegrationWebhookLog::STATUS_PROCESSED);
+
+        $payment = $ctx['payment']->fresh();
+        $this->assertSame(PaymentStatus::Cancelled, $payment->status, 'Le rejeu ne ressolde pas une échéance annulée.');
+        $this->assertCount(1, $payment->metadata['gateway_duplicate_payment'], 'Le rejeu ne recompte pas le même règlement.');
+        $this->assertCount(0, self::envoisALaDemande(NotificationCode::LeasePaymentSettledOnline));
+        $this->assertSame(0, self::nombreDEnvois($ctx['lease']->landlord, NotificationCode::LeasePaymentReceivedLandlord));
+
+        $this->app['auth']->forgetGuards();
+        $this->getJson("/api/pay/{$token}")->assertStatus(410)->assertJsonPath('code', 'pay_link.gone');
+    }
+
     /** AC19 — `verify` seul (webhook perdu) : une quittance. */
     public function test_verify_alone_sends_one_receipt(): void
     {

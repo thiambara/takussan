@@ -2,13 +2,19 @@
 
 namespace Tests\Feature\Payments;
 
+use App\Models\Agency;
+use App\Models\Booking;
+use App\Models\BookingPayment;
 use App\Models\Integration;
 use App\Models\LeasePayment;
+use App\Models\Property;
+use App\Services\Payments\Drivers\LemonSqueezyDriver;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
@@ -101,5 +107,35 @@ class PaymentDriverErrorLeakTest extends TestCase
         $this->assertStringNotContainsString('api_key', $response->getContent());
         $this->assertArrayNotHasKey('credential', (array) $response->json('params'));
         Http::assertNothingSent();
+    }
+
+    /**
+     * Raccord TCK-601 (ADR-0044 §2) — l'exception du paquet Lemon Squeezy recopie le `detail` de
+     * l'API : 502 au client, et le journal ne garde que `SafeExceptionContext` — jamais le message.
+     */
+    public function test_a_lemon_squeezy_failure_logs_the_exception_without_its_message(): void
+    {
+        Log::spy();
+        Http::fake(['api.lemonsqueezy.com/*' => Http::response(['errors' => [['detail' => self::SECRET, 'status' => '422']]], 422)]);
+        $agency = Agency::factory()->create();
+        $integration = Integration::factory()->create([
+            'provider' => 'lemon_squeezy',
+            'agency_id' => $agency->id,
+            'credentials' => array_fill_keys(LemonSqueezyDriver::CREDENTIAL_KEYS, '1'),
+        ]);
+        $booking = Booking::factory()->create(['property_id' => Property::factory()->create(['agency_id' => $agency->id])->id, 'agency_id' => $agency->id]);
+        $payment = BookingPayment::factory()->create(['booking_id' => $booking->id, 'amount' => 25.00]);
+
+        try {
+            (new LemonSqueezyDriver($integration))->initiate($payment, 2500, 'USD');
+            $this->fail('Un échec du fournisseur doit lever.');
+        } catch (HttpException $e) {
+            $this->assertSame(502, $e->getStatusCode());
+            $this->assertStringNotContainsString(self::SECRET, $e->getMessage());
+        }
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => $m === '[lemon-squeezy] checkout failed'
+            && isset($c['exception'], $c['trace'])
+            && ! str_contains((string) json_encode($c), self::SECRET))->once();
     }
 }
