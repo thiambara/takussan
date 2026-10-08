@@ -739,6 +739,33 @@ dans un seul script.
       rattaché (pivot ou ancienne colonne) à un bail `pending_signature` ou `active`. — `bad68acf`.
       Trois ablations rouges.
 
+### 11. Ajoutés après la passe 6 de vérification adverse (verif-596 passe 6, REFUSÉ : 2 majeurs, 4 mineurs)
+
+Chaque test de M-F, M-G, m-h et m-i est **rouge sur 872dae3b** ; ceux de m-j et m-k gardent une
+mutation qui survivait (verts sur 872dae3b, rouges sous la mutation). Ablations restaurées par `cp`, md5
+contrôlé, dans un seul script.
+
+- [x] **M-F** — l'activation d'un enfant dont le parent n'est plus `active` ni `expired` (préavis,
+      résiliation) rend 409 `lease.renewal_parent_not_renewable`, sur toutes les voies ; le préavis et la
+      résiliation du parent restent ouverts ; le message dit le recours (résilier ce renouvellement). Un
+      parent déjà `renewed` (enfant antérieur à la passe 5) passe sans seconde relève. `signOnPaper` écrit
+      le contrat après l'activation : un 409 ne laisse aucun fichier. ADR-0042 §1. — `6ab5f4d9`. Quatre
+      ablations rouges (dont P6-ME.12).
+- [x] **M-G** — `LeasePaymentService::markPaid` relit l'échéance sous `FOR UPDATE` en transaction et y
+      juge le statut ; une échéance `cancelled` rend 409 `lease_payment.cancelled`. — `6980596f`. Deux
+      ablations rouges ; courses R1 (10) et R2 (6) rejouées : aucune violation.
+- [x] **m-h** — `lateFeeOutstanding()` rend 0 sur une échéance annulée ; `LateFeeSettlement` la refuse
+      en 422 `lease_payment.cancelled` ; `LateFeeCalculator::apply` rejuge le statut sous verrou. —
+      `475f304f`. Trois ablations rouges.
+- [x] **m-i** — l'échéancier affiche « Annulée » (`lease.schedule.status.cancelled`, fr/en/wo), montant
+      barré, sans pénalité ni geste. — `1b907db1`. Quatre ablations rouges.
+- [x] **m-j** — le parent se verrouille `FOR NO KEY UPDATE` dans `renew` et à l'activation. Course R4 sur
+      base jetable : **0 interblocage sur 16** (6 sur 8 sous la mutation `FOR UPDATE`). — `cdbef851`.
+- [x] **m-k** — P6-ME.9 gardée par le test E4 (`475f304f`), P6-ME.10 par le test E10 (`132f38fe`).
+      P6-ME.11 (échéances lues sous verrou) et P6-ME.15 (verrou du parent à l'activation), que seule la
+      course voyait, sont gardées par le relevé des requêtes de m-j (`cdbef851`).
+- Hors périmètre, ticket de suite : un bail résilié continue de facturer (sonde E11, préexistant).
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -922,6 +949,23 @@ dans un seul script.
 - [x] AC48 — Un garant rattaché à un bail en attente de signature ou en cours ne se supprime pas (422),
       par le pivot comme par l'ancienne colonne ; un bail brouillon ou résilié ne retient rien
       (`GuarantorTest`).
+
+**Ajoutés après la passe 6 (verif-596 passe 6) :**
+
+- [x] AC49 — Parent en préavis ou résilié pendant que l'avenant attend : l'activation (papier, par la
+      route) rend 409 `lease.renewal_parent_not_renewable`, enfant `pending_signature`, aucun échéancier,
+      aucun fichier sur le disque, parent inchangé ; un parent déjà `renewed` laisse activer
+      (`LeaseRenewalOverlapTest`, 2 tests).
+- [x] AC50 — Une échéance annulée depuis sa lecture : `markPaid` (service et route) rend 409
+      `lease_payment.cancelled`, l'échéance reste `cancelled`, sans `paid_at` (`LeaseRenewalOverlapTest`).
+- [x] AC51 — Enfant commençant à une date passée : les échéances `late` du chevauchement s'annulent,
+      pénalité due 0 (modèle et ressource), `late-fee/mark-paid` → 422 `lease_payment.cancelled`, le
+      calculateur ne pose rien sur une échéance annulée depuis sa lecture ; enfant commençant le jour d'une
+      échéance du parent : elle s'annule ; aucun mois doublé (`LeaseRenewalOverlapTest`, 2 tests).
+- [x] AC52 — Échéancier : une échéance annulée s'affiche « Annulée », sans « Payer », sans « Pénalité
+      réglée », sans pénalité (`LeaseSchedule.test.tsx`).
+- [x] AC53 — `renew` et l'activation verrouillent le parent `FOR NO KEY UPDATE`, et `renew` lit les
+      échéances `FOR UPDATE` (`LeaseRenewalOverlapTest`).
 
 ## Hors périmètre
 
