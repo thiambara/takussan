@@ -173,7 +173,17 @@ class PropertyResource extends BaseResource
             // et six surfaces le lisent pour ça (duplication, tableau de bord, politiques).
             // Redéfinir une clé existante aurait corrigé la fiche en cassant tout le reste en
             // silence. La clé neuve, elle, ne ment nulle part : là où elle manque, elle manque.
-            'primary_contact' => $this->when($isDetail, fn () => $this->buildPrimaryContact()),
+            //
+            // TCK-603 (ADR-0036) — la liste pro et la réponse de « Changer l'agent responsable »
+            // le rendent aussi, à côté de `owner` : l'écran distingue le propriétaire de l'agent
+            // responsable. Seulement si `agency_id` et `user_id` sont chargés — sans eux, la règle
+            // jugerait un bien d'agence comme celui d'un particulier.
+            'primary_contact' => $this->when(
+                $isDetail || ($request->routeIs('properties.index', 'properties.assigned-agent.update')
+                    && array_key_exists('agency_id', $this->resource->getAttributes())
+                    && array_key_exists('user_id', $this->resource->getAttributes())),
+                fn () => $this->buildPrimaryContact()
+            ),
             // TCK-598 (B1) — JAMAIS sur une route `public.*`, quel que soit l'appelant : la part de
             // commission et le rôle d'un collaborateur sont des données d'agence. `show()` et
             // `compare()` chargent pourtant la relation, parce que `PrimaryPropertyContact` en a

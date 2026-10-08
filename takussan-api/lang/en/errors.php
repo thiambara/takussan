@@ -358,6 +358,7 @@ return [
         'not_pending_moderation' => 'The property is not awaiting moderation.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
+        'responsible_agent_co_owner' => 'A co-owner of the property cannot become its responsible agent.',
         'resubmit_not_rejected' => 'Only a rejected property can be resubmitted.',
     ],
     'quota' => [

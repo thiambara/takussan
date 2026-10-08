@@ -358,6 +358,7 @@ return [
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
         'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
+        'responsible_agent_co_owner' => 'Ku bokk moom kër gi mënul a nekk ajaa bi ko yor.',
         'resubmit_not_rejected' => 'Kër gu ñu bañ rekk lañu mën a yónniwaat.',
     ],
     'quota' => [

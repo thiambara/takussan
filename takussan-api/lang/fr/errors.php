@@ -358,6 +358,7 @@ return [
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
         'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
+        'responsible_agent_co_owner' => 'Un co-propriétaire du bien ne peut pas en devenir l\'agent responsable.',
         'resubmit_not_rejected' => 'Seul un bien refusé peut être resoumis.',
     ],
     'quota' => [
