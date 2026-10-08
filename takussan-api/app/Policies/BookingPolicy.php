@@ -59,7 +59,7 @@ class BookingPolicy extends BasePolicy
      */
     public function validate(User $user, Booking $booking): bool
     {
-        if ($user->isSuperAdmin() || $booking->property?->user_id === $user->id) {
+        if ($user->isSuperAdmin() || $this->landlordOf($user, $booking)) {
             return true;
         }
 
@@ -75,12 +75,25 @@ class BookingPolicy extends BasePolicy
     public function cancel(User $user, Booking $booking): bool
     {
         if ($user->isSuperAdmin()
-            || $booking->property?->user_id === $user->id
+            || $this->landlordOf($user, $booking)
             || ($booking->customer && $booking->customer->user_id === $user->id)) {
             return true;
         }
 
         return $this->isStaffOf($user, $booking->agency_id)
             && $user->can(Capability::BookingsCancel->value, $booking);
+    }
+
+    /**
+     * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
+     * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
+     * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.
+     */
+    private function landlordOf(User $user, Booking $booking): bool
+    {
+        $property = $booking->property;
+
+        return $property !== null
+            && $this->landlordWrites($user, $property->user_id, $booking->agency_id ?? $property->agency_id);
     }
 }

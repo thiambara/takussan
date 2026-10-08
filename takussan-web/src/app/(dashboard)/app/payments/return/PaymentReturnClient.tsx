@@ -15,9 +15,16 @@ const POLL_INTERVAL_MS = 15_000;
 const MAX_POLL_DURATION_MS = 120_000; // 2 min
 const MIN_LOADING_MS = 800;
 
-type StatusBucket = 'pending' | 'success' | 'failed' | 'unknown';
+type StatusBucket = 'pending' | 'success' | 'failed' | 'refund' | 'unknown';
 
-function bucketFor(status: string | null | undefined, hint?: string | null): StatusBucket {
+function bucketFor(
+  status: string | null | undefined,
+  hint?: string | null,
+  refundPending?: boolean,
+): StatusBucket {
+  // TCK-596 (VERIF-596 passe 8, m-o) — débité sur une échéance annulée (ou déjà réglée) : ni un
+  // échec, qui inviterait à payer une seconde fois, ni un succès. L'agence rembourse.
+  if (refundPending === true) return 'refund';
   const value = (status ?? '').toLowerCase();
   if (value === 'paid' || value === 'success') return 'success';
   if (value === 'failed' || value === 'cancelled') return 'failed';
@@ -65,8 +72,8 @@ function PaymentReturnInner() {
   );
 
   const status = verify.data?.data?.status ?? null;
-  const bucket = bucketFor(status, providerHint);
-  const reachedTerminal = bucket === 'success' || bucket === 'failed';
+  const bucket = bucketFor(status, providerHint, verify.data?.data?.refund_pending);
+  const reachedTerminal = bucket === 'success' || bucket === 'failed' || bucket === 'refund';
 
   // Schedule a single timer to mark the polling budget exhausted.
   useEffect(() => {
@@ -103,6 +110,7 @@ function PaymentReturnInner() {
           <>
             {bucket === 'success' && t('return.success.title')}
             {bucket === 'failed' && t('return.failed.title')}
+            {bucket === 'refund' && t('return.refund.title')}
             {bucket === 'pending' && t('return.pending.title')}
             {bucket === 'unknown' && t('return.unknown.title')}
           </>
@@ -111,6 +119,8 @@ function PaymentReturnInner() {
           <>
             {bucket === 'success' && t('return.success.body')}
             {bucket === 'failed' && t('return.failed.body')}
+            {bucket === 'refund' &&
+              (status === 'cancelled' ? t('return.refund.bodyCancelled') : t('return.refund.bodyAlreadyPaid'))}
             {(bucket === 'pending' || bucket === 'unknown') && t('return.pending.body')}
           </>
         }

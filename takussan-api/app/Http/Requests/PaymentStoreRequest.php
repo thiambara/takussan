@@ -26,7 +26,8 @@ class PaymentStoreRequest extends BaseFormRequest
             'payable_type' => ['required', 'string', Rule::in(['booking', 'lease'])],
             'payable_id' => ['required', 'integer', 'min:1'],
             'amount' => ['required', 'numeric', 'gt:0'],
-            'status' => ['nullable', Rule::enum(PaymentStatus::class)],
+            // VERIF-596 passe 5 — `cancelled` n'est posé que par le renouvellement d'un bail.
+            'status' => ['nullable', Rule::enum(PaymentStatus::class)->except([PaymentStatus::Cancelled])],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'paid_at' => ['nullable', 'date'],
             'transaction_id' => ['nullable', 'string'],

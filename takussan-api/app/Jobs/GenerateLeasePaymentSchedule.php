@@ -18,10 +18,8 @@ class GenerateLeasePaymentSchedule implements ShouldQueue
 
     public function handle(LeaseService $leaseService): void
     {
-        if ($this->lease->payments()->count() > 0) {
-            return;
-        }
-
-        $leaseService->generateSchedule($this->lease);
+        // VERIF-596 — « aucune échéance » se juge sous le verrou du bail, dans le service : un
+        // contrôle ici, hors verrou, laissait une génération manuelle concurrente doubler l'échéancier.
+        $leaseService->generateScheduleIfMissing($this->lease);
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Services\Booking\BookingExpirationService;
 use Illuminate\Http\Request;
 
@@ -31,6 +33,12 @@ class BookingResource extends BaseResource
             'response_deadline' => $this->iso($this->responseDeadline()),
             'cancellation_by' => $this->cancellation_by?->value,
             'cancellation_reason' => $this->cancellation_reason,
+            // TCK-596 — dérivé des paiements, et seulement quand ils sont chargés : jamais une
+            // requête par ligne d'une liste.
+            'refund_status' => $this->whenLoaded('payments', fn (): ?string => $this->refundStatus()),
+            // TCK-596 — le détail les attendait (`booking_payments`) et ne les recevait jamais : la
+            // liste des paiements restait vide, et rien ne désignait l'acompte à rembourser.
+            'booking_payments' => $this->whenLoaded('payments', fn (): array => BookingPaymentResource::collection($this->payments)->toArray($request)),
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             'customer' => $this->whenLoaded('customer', fn () => CustomerResource::make($this->customer)),
@@ -57,6 +65,25 @@ class BookingResource extends BaseResource
      * une colonne absente y vaut réellement `null` en base (la demande publique ne pose pas
      * `expires_at`) — elle n'a pas été omise par une sélection.
      */
+    /**
+     * TCK-596 — `pending` : réservation fermée sans avoir eu lieu, au moins un paiement encore
+     * `paid` ; `refunded` : plus aucun `paid`, au moins un `refunded` ; `null` sinon.
+     */
+    private function refundStatus(): ?string
+    {
+        if (! in_array($this->status, [BookingStatus::Cancelled, BookingStatus::Rejected, BookingStatus::Expired], true)) {
+            return null;
+        }
+
+        $statuses = $this->payments->map(static fn ($p) => $p->status);
+
+        return match (true) {
+            $statuses->contains(PaymentStatus::Paid) => 'pending',
+            $statuses->contains(PaymentStatus::Refunded) => 'refunded',
+            default => null,
+        };
+    }
+
     private function responseDeadline(): ?\DateTimeInterface
     {
         $booking = $this->resource;

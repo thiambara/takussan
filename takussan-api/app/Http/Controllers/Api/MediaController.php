@@ -6,6 +6,9 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\GenericMediaUploadRequest;
 use App\Http\Requests\MediaUploadRequest;
 use App\Http\Resources\MediaResource;
+use App\Models\Enums\InventoryStatus;
+use App\Models\Inventory;
+use App\Models\Lease;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -90,11 +93,37 @@ class MediaController extends Controller
 
     public function destroy(Media $media): JsonResponse
     {
+        // TCK-596 (ADR-0042 §1) — une pièce de preuve ne se supprime par AUCUNE route
+        // générique, super-admin compris : jugé AVANT la policy, que `Gate::before` court-circuite.
+        abort_code_if(self::isLockedEvidence($media), 403, 'media.evidence_locked');
+
         Gate::authorize('delete', $media);
 
         $media->delete();
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * TCK-596 — les médias qui sont des PREUVES : le contrat de bail figé que les parties signent
+     * (`signed_contract`, son empreinte est dans `leases.contract_sha256`), et les photos d'un état
+     * des lieux sorti du brouillon (elles entrent dans son empreinte figée). Leur route de retrait
+     * propre, quand elle existe, porte ses gardes ; la route générique n'en a aucune.
+     */
+    private static function isLockedEvidence(Media $media): bool
+    {
+        if ($media->collection_name === 'signed_contract' && $media->model_type === (new Lease)->getMorphClass()) {
+            return true;
+        }
+
+        if ($media->collection_name === 'room_photos' && $media->model_type === (new Inventory)->getMorphClass()) {
+            // `value()` d'Eloquent applique le cast : c'est l'enum qui revient, pas la chaîne.
+            $status = Inventory::query()->whereKey($media->model_id)->value('status');
+
+            return $status !== null && $status !== InventoryStatus::Draft;
+        }
+
+        return false;
     }
 
     /**

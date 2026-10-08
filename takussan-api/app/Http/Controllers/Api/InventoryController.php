@@ -13,6 +13,7 @@ use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Models\User;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Media\PdfImageEmbedder;
 use App\Services\Media\PrivateMediaAccess;
@@ -20,6 +21,7 @@ use App\Services\Model\InventoryService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class InventoryController extends Controller
@@ -98,8 +100,14 @@ class InventoryController extends Controller
     {
         $this->authorize('view', $inventory);
 
+        // TCK-596 — `room_photos` (URL signées, par pièce) et `can_sign_as` ne sortent qu'ici,
+        // jamais dans `index` : une URL signée par ligne de liste n'a pas de lecteur.
+        $inventory->load(['lease.tenant', 'property', 'media']);
+
         return $this->json([
-            'data' => InventoryResource::make($inventory->load(['lease', 'property']))->toArray($request),
+            'data' => InventoryResource::make($inventory)
+                ->forViewer($request->user(), $this->signatures)
+                ->toArray($request),
         ]);
     }
 
@@ -151,28 +159,21 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function sign(Request $request, Inventory $inventory): JsonResponse
+    /**
+     * TCK-596 — toujours avec un tracé : `role` et `signature` sont requis (422 sinon). La branche
+     * sans charge utile, qui marquait signé sans tracé ni empreinte et, pour un super-admin, les deux
+     * parties d'un coup, a disparu avec `InventoryService::sign`.
+     */
+    public function sign(InventorySignRequest $request, Inventory $inventory): JsonResponse
     {
-        // TCK-076 — explicit role + signature payload. We still support the
-        // legacy payload-less call (used by TCK-031 tests): when no `role`
-        // is provided, fall back to the historical InventoryService::sign
-        // that infers the role from the caller identity (no signature data
-        // stored, only the boolean + timestamp).
-        if ($request->has('role') || $request->has('signature')) {
-            $signRequest = InventorySignRequest::createFrom($request);
-            $signRequest->setContainer(app())->setRedirector(app('redirect'));
-            $signRequest->validateResolved();
-            $data = $signRequest->validated();
+        $data = $request->validated();
 
-            $inventory = $this->signatures->sign(
-                $inventory,
-                $request->user(),
-                $data['role'],
-                $data['signature'],
-            );
-        } else {
-            $inventory = $this->inventories->sign($inventory, $request->user());
-        }
+        $inventory = $this->signatures->sign(
+            $inventory,
+            $request->user(),
+            $data['role'],
+            $data['signature'],
+        );
 
         return $this->json([
             'data' => InventoryResource::make($inventory)->toArray($request),
@@ -217,7 +218,27 @@ class InventoryController extends Controller
             'tenant_signature' => $inventory->tenant_signature_data,
             'owner_signature' => $inventory->owner_signature_data,
             'traceability_hash' => $this->signatures->traceabilityHash($inventory),
+            'owner_signed_on_behalf' => $this->ownerSignedOnBehalf($inventory),
             'filename' => $filename,
+        ]);
+    }
+
+    /**
+     * TCK-596 — « Signé par X pour le compte de Y » quand un membre du personnel a signé au titre du
+     * mandat. `null` quand le bailleur a signé lui-même, ou pour un état des lieux antérieur.
+     */
+    protected function ownerSignedOnBehalf(Inventory $inventory): ?string
+    {
+        if ($inventory->owner_signed_on_behalf_of_user_id === null || $inventory->owner_signed_by_user_id === null) {
+            return null;
+        }
+
+        $signer = User::query()->find($inventory->owner_signed_by_user_id);
+        $landlord = User::query()->find($inventory->owner_signed_on_behalf_of_user_id);
+
+        return __('inventories.pdf.signed_on_behalf_of', [
+            'signer' => $signer?->getFullNameAttribute() ?? '—',
+            'landlord' => $landlord?->getFullNameAttribute() ?? '—',
         ]);
     }
 
@@ -259,6 +280,9 @@ class InventoryController extends Controller
 
     public function uploadRoomPhotos(UploadRoomPhotosInventoryRequest $request, Inventory $inventory): JsonResponse
     {
+        // TCK-596 — même garde que `update`, AVANT toute écriture : le PDF d'un état des lieux est
+        // recomposé au téléchargement, une photo ajoutée après signature changerait le document signé.
+        $this->assertDraft($inventory);
 
         foreach ($request->file('photos') as $photo) {
             $inventory->addMedia($photo)
@@ -275,5 +299,35 @@ class InventoryController extends Controller
                 'room_name' => $m->getCustomProperty('room_name'),
             ]),
         ]);
+    }
+
+    /**
+     * TCK-596 — retire une photo de pièce, en brouillon seulement. Le média doit appartenir à CET
+     * état des lieux et à la collection `room_photos` : sinon 404, sans dire s'il existe ailleurs.
+     */
+    public function destroyRoomPhoto(Request $request, Inventory $inventory, int $media): Response
+    {
+        $this->authorize('update', $inventory);
+
+        $photo = $inventory->media()
+            ->where('collection_name', 'room_photos')
+            ->whereKey($media)
+            ->firstOrFail();
+
+        $this->assertDraft($inventory);
+
+        $photo->delete();
+
+        return response()->noContent();
+    }
+
+    /** 409 si l'état des lieux est signé, 422 s'il n'est plus un brouillon — la garde d'`update`. */
+    private function assertDraft(Inventory $inventory): void
+    {
+        if ($inventory->status === InventoryStatus::Signed) {
+            abort_code(SymfonyResponse::HTTP_CONFLICT, 'inventory.signed_locked');
+        }
+
+        abort_code_unless($inventory->status === InventoryStatus::Draft, 422, 'inventory.not_draft');
     }
 }

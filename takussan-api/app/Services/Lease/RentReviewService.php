@@ -20,8 +20,9 @@ use Illuminate\Validation\ValidationException;
  * rows. Already-issued rent payments are NOT amended retroactively.
  *
  * Variations above the configured threshold (default 20 %) require the
- * `force=true` flag AND `Capability::LeasesRentReviewForce`, resolved by
- * `MembershipCapabilityResolver` through the Gate derived from the enum
+ * `force=true` flag AND `Capability::LeasesRentReviewForce` — on a legacy lease only: a cap frozen
+ * with the signed contract is never forced (VERIF-596 passe 3, m-b, ADR-0042 §1). The capability is
+ * resolved by `MembershipCapabilityResolver` through the Gate derived from the enum
  * (TCK-278 / ADR-0003 — it is no longer a Spatie permission, the package is
  * uninstalled, ADR-0002). A tenant-facing notification fires on every
  * successful review.
@@ -79,7 +80,7 @@ class RentReviewService
             }
 
             $variationPct = abs($newRent - $oldRent) / $oldRent * 100;
-            $maxPct = $this->resolveMaxPct();
+            $maxPct = $this->maxPctFor($lease);
             if ($variationPct > $maxPct + 0.0001) {
                 if (! $force) {
                     throw ValidationException::withMessages([
@@ -89,6 +90,13 @@ class RentReviewService
                         ])],
                     ])->status(422);
                 }
+                // VERIF-596 passe 3 (m-b, ADR-0042 §1) — un plafond FIGÉ est imprimé au contrat signé,
+                // sans réserve : `force` ne le dépasse pas, capacité ou non. Le dépassement d'un
+                // plafond contractuel passe par un renouvellement ou un avenant signé. `force` ne vaut
+                // plus que pour un bail antérieur, dont le plafond est le réglage global.
+                abort_code_if($lease->rent_review_max_pct !== null, 422, 'lease.rent_review_above_contract_cap', [
+                    'max' => (string) $maxPct,
+                ]);
                 if (! $actor->can('leases.rent_review_force')) {
                     throw ValidationException::withMessages([
                         'force' => [__('messages.lease_rent_review_force_not_allowed')],
@@ -125,6 +133,17 @@ class RentReviewService
 
             return $lease;
         });
+    }
+
+    /**
+     * VERIF-596 passe 2 (N1, ADR-0042 §1) — le plafond que CE bail exécute : celui figé avec son
+     * contrat, imprimé et signé ; le réglage global seulement pour un bail antérieur (colonne nulle).
+     */
+    public function maxPctFor(Lease $lease): float
+    {
+        return $lease->rent_review_max_pct !== null
+            ? (float) $lease->rent_review_max_pct
+            : $this->resolveMaxPct();
     }
 
     /**

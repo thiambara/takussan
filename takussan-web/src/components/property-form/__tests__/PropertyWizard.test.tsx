@@ -62,6 +62,8 @@ vi.mock('@/hooks/useWizardDraft', () => ({ useWizardDraft: () => brouillon.etat 
 const reduction = vi.hoisted(() => ({
   reduirePhoto: vi.fn(async (f: File) => f),
   reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+  // TCK-596 — la zone de dépôt réduit sous plafond avant de valider ; ici elle rend l'original.
+  reduirePhotosSousPlafond: vi.fn(async (fs: readonly File[]) => [...fs]),
 }));
 vi.mock('@/lib/reduire-photo', () => reduction);
 

@@ -9,4 +9,8 @@ return [
     'stay_too_long' => 'Ce séjour est trop long pour être réservé : rapprochez la date de départ.',
     'start_in_past' => 'La date d\'arrivée ne peut pas être passée.',
     'end_before_start' => 'La date de départ doit suivre la date d\'arrivée.',
+    // TCK-596 — titre de la tâche ouverte par BookingRefundTaskService.
+    'refund_task' => [
+        'title' => 'Remboursement à traiter — réservation :reference',
+    ],
 ];

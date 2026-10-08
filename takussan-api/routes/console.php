@@ -15,6 +15,7 @@ use App\Jobs\RefreshNewBuildSearchLabel;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
+use App\Jobs\SyncPropertyCalendarFeedsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -28,6 +29,8 @@ Artisan::command('inspire', function () {
 // handles the legacy `expires_at` deadline set at booking creation.
 Schedule::job(new ExpirePendingBookingsJob)->everyFifteenMinutes()->withoutOverlapping();
 Schedule::job(new ExpireBookings)->hourly()->withoutOverlapping();
+// TCK-596 (ADR-0041 §5) — import horaire des calendriers externes des biens.
+Schedule::job(new SyncPropertyCalendarFeedsJob)->hourly()->withoutOverlapping();
 Schedule::job(new ApplyLateFeesJob)->dailyAt('02:00')->withoutOverlapping();
 Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping();
 // TCK-090 — Closes leases whose effective_date has passed AND whose
