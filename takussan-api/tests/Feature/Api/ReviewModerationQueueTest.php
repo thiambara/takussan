@@ -17,7 +17,7 @@ class ReviewModerationQueueTest extends TestCase
     private function admin(): User
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;
@@ -25,7 +25,7 @@ class ReviewModerationQueueTest extends TestCase
 
     private function superAdmin(): User
     {
-        $user = User::factory()->create();
+        $user = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($user, 'super_admin');
 
         return $user;

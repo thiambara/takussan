@@ -234,6 +234,19 @@ console. Deux règles ferment ce passage :
   - Un compte à 2FA dont le jeton n'en porte pas reçoit `two_factor_step_up_required`. Le front
     résout ce refus sur place, en demandant le TOTP.
 
+**Ajouté par TCK-597 (verif-597 passe 3, M5, 2026-10-08) : une liste appliquée aux seuls profils
+plateforme.** `RequireTwoFactor` exigeait la 2FA d'un profil plateforme sous `/api/admin/*` et sur
+les actions d'`AGENCY_TWO_FACTOR` et de `STEP_UP_FOR_PLATFORM`. Or `Gate::before` ouvre aussi à la
+plateforme des gestes de modération hors de la console. Le verrou plateforme se posait donc sous 2FA
+(`/api/admin/moderation`) et se levait sans elle (`POST /api/properties/{id}/approve`).
+
+`ProtectedActions::PLATFORM_TWO_FACTOR` liste ces gestes, et `RequireTwoFactor` l'applique quand
+l'acteur porte un profil plateforme. Ce ne sont pas des entrées d'`AGENCY_TWO_FACTOR`, parce que
+l'admin d'agence garde ses gestes d'agence sans 2FA. On n'exige pas non plus de step-up, puisque la
+décision symétrique de la console n'en demande pas. `PLATFORM_TWO_FACTOR_EXEMPT` range, avec leur
+raison, les autres actions mutantes de ces contrôleurs, et `ProtectedActionsCoverageTest` casse sur
+toute action qui n'est rangée dans aucune des deux listes.
+
 ## Alternatives écartées
 
 - **Rattacher la connexion par téléphone au compte qui porte le numéro, même non vérifié.** Le numéro

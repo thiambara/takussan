@@ -151,6 +151,16 @@ service). Pour que le super-admin puisse le lever, le bien repasse par la file :
 resoumet (`rejected → pending_review`, qui n'est pas un statut affichable), il apparaît dans la
 file unifiée, et l'approbation le rend `available` — publiable, pas encore public.
 
+**Le verrou se lève sous la même 2FA qu'il se pose** (verif-597 passe 3, M5). Le poser passe par
+`/api/admin/moderation`, où 589 exige la 2FA de tout profil plateforme. Le lever passe par
+`POST /api/properties/{id}/approve`, hors de la console. Un super-admin sans 2FA, ou un jeton qui n'a
+jamais vu le second facteur (entrée OAuth), le levait donc, et retirait de même n'importe quel avis
+publié par `PATCH /api/reviews/{id}/moderate`. Ces gestes (`PropertyModerationController@approve` et
+`@reject`, `ReviewController@moderate`, `@approve` et `@reject`) sont rangés dans
+`ProtectedActions::PLATFORM_TWO_FACTOR`, que `RequireTwoFactor` applique aux seuls profils
+plateforme (ADR-0033 §8). L'admin d'agence garde sans 2FA ses gestes d'agence : avis en attente,
+bien sans verrou. Aucun step-up n'est exigé, puisque la console n'en demande pas.
+
 Le statut seul ne suffisait pas (contexte) ; la visibilité seule non plus (`publish` la réécrit).
 Le verrou n'est pas un statut de plus : un statut neuf aurait dû être exclu de `scopePublic()` et de
 `shouldBeSearchable()` (territoire de TCK-600), alors que `rejected` + `private` y sont déjà exclus.

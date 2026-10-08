@@ -115,7 +115,7 @@ class ReviewNotificationTest extends ApiTestCase
             'reviewable_type' => Property::class, 'reviewable_id' => $this->property->id,
             'rating' => 4, 'status' => ReviewStatus::Pending, 'is_approved' => false,
         ]);
-        $super = User::factory()->create();
+        $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
 
         $this->actingAsApi($this->admin);
@@ -145,7 +145,7 @@ class ReviewNotificationTest extends ApiTestCase
         app(ReviewNotifier::class)->toModerate($review);
         Notification::assertNothingSent();
 
-        $super = User::factory()->create();
+        $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
         $this->actingAsApi($super);
         $this->postJson("/api/reviews/{$review->id}/approve")->assertOk();

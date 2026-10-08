@@ -222,7 +222,7 @@ class ReviewModerationScopeTest extends ApiTestCase
         $this->postJson("/api/reviews/{$onAgencyA->id}/approve")->assertForbidden();
         $this->assertSame(ReviewStatus::Pending, $onAgencyA->refresh()->status);
 
-        $super = User::factory()->create();
+        $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
         $this->actingAsApi($super);
         $this->postJson("/api/reviews/{$onAgencyA->id}/approve")->assertOk();

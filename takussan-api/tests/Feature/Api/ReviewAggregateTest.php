@@ -30,7 +30,7 @@ class ReviewAggregateTest extends ApiTestCase
         $agency = Agency::factory()->create();
         $admin = User::factory()->create();
         $this->materializeRoleProfile($admin, 'agency_admin', $agency);
-        $super = User::factory()->create();
+        $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
 
         $five = Review::factory()->create([

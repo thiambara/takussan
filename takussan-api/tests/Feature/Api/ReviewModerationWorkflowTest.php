@@ -17,7 +17,7 @@ class ReviewModerationWorkflowTest extends TestCase
     private function admin(): User
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
 
         return $admin;

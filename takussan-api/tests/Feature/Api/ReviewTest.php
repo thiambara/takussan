@@ -87,7 +87,7 @@ class ReviewTest extends TestCase
             'customer_id' => $customer->id,
             'status' => BookingStatus::Completed,
         ]);
-        $super = User::factory()->create();
+        $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
         $agency = Agency::factory()->create();
 
@@ -145,7 +145,7 @@ class ReviewTest extends TestCase
     public function test_admin_can_approve_review(): void
     {
         $agency = Agency::factory()->create();
-        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
         $this->materializeRoleProfile($admin, 'super_admin');
         $review = Review::factory()->create(['is_approved' => false]);
 
