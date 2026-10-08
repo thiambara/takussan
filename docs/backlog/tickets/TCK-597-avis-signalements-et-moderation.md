@@ -472,6 +472,8 @@ Sans recopier la spec, voici ce qui change.
   était déjà posé et que le bien était `pending_review`). Les autres attributs de la sauvegarde
   (`visibility`, `published_at`) passent tels quels : le bien reste hors catalogue tant qu'il est
   `pending_review` (`Property::scopePublic` et `shouldBeSearchable` l'excluent déjà, territoire 600).
+  ⚠ **Remplacée par §9 (B1)** : juger l'activation sur le statut d'origine laissait passer un
+  détour par `archived`, `unavailable`, `under_maintenance` ou `pending`.
 - [x] `Property::withoutModerationGate(callable)` (statique, remis à zéro dans un `finally`) ;
   `PropertyModerationService::approve` (l.27-43) enveloppe son `update` dedans, et c'est son seul
   appelant.
@@ -481,6 +483,39 @@ Sans recopier la spec, voici ce qui change.
   silencieux ne puisse plus se faire passer pour un succès.
 - [x] Tests `PropertyModerationGateTest` (AC13) et un cas ajouté à un test d'agence existant pour
   la persistance de la case (AC14).
+
+### 9. Ajoutés après vérification adverse (verif-597, 2026-10-08)
+
+Rapport du vérificateur : REFUSÉ, 1 bloquant, 4 majeurs, 6 mineurs. Décisions de session suivies.
+
+- [x] **B1** — `PropertyObserver::updating` juge l'activation sur la **destination** et l'**histoire**
+  du bien : sous `moderation_required`, tout passage d'un statut non affichable vers `available`,
+  `published` ou `pending` va dans la file, sauf si le bien porte une approbation debout
+  (`approved_at` non nul et postérieur à `rejected_at`). Un retour en `draft`, `pending_review` ou
+  `rejected` efface `approved_at` et `approved_by_user_id`. La duplication n'hérite pas de
+  l'approbation et hérite explicitement de `platform_hold_*`. ADR-0043 §5.
+- [x] **M1** — `UnifiedModerationService::lockSource` verrouille le bien (`withTrashed`) avant un
+  `property_report` ou un `suspected_duplicate` ; un interblocage résiduel rend 409
+  `moderation.concurrent_decision`, à l'unité et ligne à ligne en lot. ADR-0043 §7.
+- [x] **M2** — `withTrashed()` dans les quatre contrôles d'unicité et dans `opportunities` : un avis
+  retiré par la plateforme interdit d'en redéposer un (422 `review.*_already_reviewed`). ADR-0043 §3.
+- [x] **M3** (décision de session, réversible) — l'admin d'agence ne tranche qu'un avis `pending`,
+  par `approve` ou `hide` ; `pending_count` d'agence ne compte plus `reported` ; le front n'offre
+  plus que Approuver et Masquer. ADR-0043 §1, motif « juge et partie ».
+- [x] **M4** — `storeForProperty` et `storeForAgency` : contrôle et `create` sous `lockForUpdate` de
+  la ligne parent, dans une transaction. ADR-0043 §3.
+- [x] **m1** — `ReviewResource` rend `can_reply` et `can_moderate` (policy) ; `ModerationDetail` et
+  `ProfileReviewsList` ne lisent plus que ces drapeaux.
+- [x] **m2** — `PhotoFingerprint::isDegenerate` (poids < 8 ou > 56) : ni source ni candidat ;
+  candidats triés par `bit_count` de la distance. ADR-0054 §2.
+- [x] **m3** — `ReviewReportService::report` rend 404 sur un avis non publié, pour les deux routes.
+- [x] **m4** — « Nouvel avis » ne part qu'à la première publication (`approved_at` d'origine nul).
+- [x] **m5** — `reason_code` passe à part et se traduit au rendu (`lang/*/moderation.php`,
+  `common.moderationReasons`) ; `reason` ne porte que le texte libre. ADR-0043 §7.
+- [x] **m6** — `VisitorFingerprint::network` tronque l'IPv6 au /64, dans l'empreinte et dans la clé
+  du limiteur. ADR-0043 §6.
+- [x] **Raccord 591** — fusion d'`origin/dev` (`383fa6f8`), puis tests des actions de lot
+  (`441d8f74`) : archivage en lot, dépublication en lot, verrou plateforme.
 
 ## Critères d'acceptation
 
@@ -613,6 +648,111 @@ Sans recopier la spec, voici ce qui change.
 
   **Preuve :** `AgencyTest --filter=moderation_required` (200 et colonne `true`, `"oui"` → 422, agent → 403). Ablation : sans la ligne de `AgencyUpdateRequest` → 1 rouge. Front : `AgencyConfigForm.moderation.test.tsx` (la case relit la valeur rendue).
 
+
+### Ajoutés après vérification adverse (verif-597, 2026-10-08)
+
+« Rouge sur 31968d11 » : les sources du correctif remises à 31968d11, le test joué, puis restaurées
+par `cp` avec contrôle md5. Chaque ablation est restaurée de même.
+
+- [x] **AC15 (B1).** Sous `moderation_required`, un bien jamais approuvé ne se met pas en ligne par
+  un détour : `draft→archived→available`, `rejected→archived→available`, `draft→pending`,
+  `draft→unavailable` puis `PUT …/visibility public`, `pending_review→under_maintenance→available`
+  finissent `pending_review`, hors catalogue. Un bien approuvé qui sort d'archive revient en ligne ;
+  un bien jamais approuvé qui sort d'archive va dans la file. Approuvé puis refusé : la file.
+  Dépublié : l'approbation tombe. Une copie d'un bien approuvé va dans la file ; une copie d'un bien
+  masqué hérite du verrou.
+
+  **Preuve :** `PropertyModerationGateTest` (approved/never-approved archive, `detours` × 5,
+  approbation puis refus, dépublication, copie) et
+  `PropertyReportDecisionTest::test_a_copy_of_a_hidden_listing_inherits_the_hold`. Rouge sur
+  31968d11 : 9 tests. Ablations : héritage du verrou annulé dans `PropertyDuplicationService` → 1
+  rouge ; effacement de `approved_at` retiré → 1 rouge ; exception « approbation debout » retirée →
+  1 rouge.
+
+- [x] **AC16 (M1).** Une décision sur un signalement verrouille `properties` en premier ; une
+  `DeadlockException` rend 409 `moderation.concurrent_decision` à `/decide` et ligne à ligne à
+  `/decide-batch`, jamais 500.
+
+  **Preuve :** `ModerationQueueConcurrencyTest` (ordre des verrous par `DB::listen`, interblocage
+  simulé à l'unité et en lot). Rouge sur 31968d11 : 2 tests. Course réelle à deux processus (base
+  jetable `takussan_tck597_conc`, supprimée) : 3 manches sur 3 « succès + 409 », contre 3 sur 3
+  `DeadlockException` sur 31968d11.
+
+- [x] **AC17 (M2).** Un avis d'agent ou de prestataire retiré par la plateforme : renoter rend 422
+  `review.*_already_reviewed`, jamais 500, et l'invitation ne réapparaît pas.
+
+  **Preuve :** `AgentReviewTest` et `ServiceProviderReviewTest`
+  `test_a_review_removed_by_the_platform_cannot_be_posted_again`. Rouge sur 31968d11 : 2 tests.
+  Ablation : `withTrashed()` retiré d'`opportunities` → 1 rouge.
+
+- [x] **AC18 (M3).** Un admin d'agence face à un avis publié sur son bien reçoit 403 sur `hide`,
+  `delete` et `reject`, et la moyenne ne bouge pas ; sur un avis en attente, `delete` lui reste
+  refusé : il approuve ou masque ;
+  `pending_count` ne compte plus `reported`. Front : sur un avis publié, la vue d'agence n'offre
+  aucun geste et dit pourquoi.
+
+  **Preuve :** `ReviewModerationScopeTest::test_an_agency_admin_cannot_take_down_a_published_review_and_the_average_holds`
+  et le compte ramené à 2 ; `ModerationWorkspace.test.tsx` (2 cas de vue d'agence). Rouge sur
+  31968d11 : API 2, front 2. Ablations : garde `status === pending` retirée → 1 rouge ; garde de
+  décision retirée → 1 rouge.
+
+- [x] **AC19 (M4).** Poster un avis sur un bien ou une agence verrouille la ligne parent ; sous
+  quatre envois simultanés, un seul avis par sujet.
+
+  **Preuve :** `ReviewTest::test_posting_a_property_or_agency_review_locks_the_parent_row`. Rouge
+  sur 31968d11 : 1 test. Course réelle (base jetable, supprimée) : 1 avis par sujet à chaque manche,
+  contre 3 sur le bien et 2 sur l'agence sur 31968d11.
+
+- [x] **AC20 (m1).** L'API dit qui peut répondre et qui peut trancher ; le front ne montre que ces
+  gestes : aucun bouton de modération sur un avis de prestataire dans la file d'agence, aucun
+  « Répondre » quand `can_reply` est faux.
+
+  **Preuve :** `ReceivedReviewsTest::test_the_inbox_says_who_may_reply`,
+  `ReviewModerationScopeTest::test_the_queue_says_which_reviews_the_agency_may_decide` (rouge sur
+  31968d11 : 2) ; `ModerationWorkspace.test.tsx` et `ProfileReviewsList.test.tsx` (rouge sur
+  31968d11 : 4). Ablation : `decidable` recalculé sur le statut → 2 rouges.
+
+- [x] **AC21 (m2).** Deux aplats de couleurs différentes ne font aucune suspicion ; un candidat
+  dégénéré ne correspond jamais ; la borne des candidats garde les plus proches, pas les plus
+  anciens.
+
+  **Preuve :** `DuplicateListingDetectorTest` (3 cas). Rouge sur 31968d11 : 2 tests. Ablation : rejet
+  des candidats dégénérés retiré → 1 rouge.
+
+- [x] **AC22 (m3).** Signaler un avis non publié rend 404 par la route authentifiée comme par la
+  route publique, et le statut ne change pas.
+
+  **Preuve :** `PublicReportTest::test_an_unpublished_review_cannot_be_reported_by_an_account_either`.
+  Rouge sur 31968d11 : 1 test. Ablation : garde `is_approved` retirée → 2 rouges.
+
+- [x] **AC23 (m4).** Signalement puis réapprobation, trois fois : une seule notification « Nouvel
+  avis ».
+
+  **Preuve :** `ReviewNotificationTest::test_reapproving_after_a_report_does_not_notify_the_subject_again`.
+  Rouge sur 31968d11 : 1 test.
+
+- [x] **AC24 (m5).** Le propriétaire lit le motif traduit, jamais `personal_data` en clair, en
+  français, en anglais et en wolof, côté API et côté front.
+
+  **Preuve :** `PropertyReportDecisionTest::test_the_owner_reads_a_translated_reason_never_the_raw_code`
+  et `NotificationRow` (`it.each` fr, en, fr avec texte libre). Rouge sur 31968d11 : API 1, front 3.
+  Ablations : libellé remplacé par le code brut, côté API → 1 rouge, côté front → 3 rouges.
+
+- [x] **AC25 (m6).** Deux adresses IPv6 du même /64 donnent la même empreinte et la même clé de
+  limiteur.
+
+  **Preuve :** `PublicReportTest::test_two_ipv6_addresses_of_the_same_64_are_one_visitor`. Rouge sur
+  31968d11 : 1 test. Ablation : clé du limiteur sur l'adresse entière → 1 rouge.
+
+- [x] **AC26 (raccord 591).** Un bien jamais approuvé, archivé en lot puis désarchivé, va dans la
+  file ; dépublier en lot efface l'approbation ; aucune action de lot ne remet en ligne un bien sous
+  verrou de plateforme (`bulk-visibility public` → 422, `private` → `invalid_status`, sortie
+  d'archive → 422 `moderation.platform_hold`).
+
+  **Preuve :** `PropertyModerationGateTest` (2 cas `bulk`) et
+  `PropertyReportDecisionTest::test_bulk_actions_never_put_a_hidden_listing_back_online`. Les routes
+  de lot n'existent pas sur 31968d11 : la preuve de rouge est l'observateur de 31968d11 sous le code
+  fusionné (2 rouges) ; ablation : `guardPlatformHold` retiré → 1 rouge.
 
 ## Hors périmètre
 
@@ -825,86 +965,20 @@ Sans recopier la spec, voici ce qui change.
   barre latérale l'interdit ; ses avis restent lisibles par l'API) ; un avis en attente ne se
   répond ni ne se signale depuis la boîte ; aucune passe au navigateur.
 
-### Raccord avec le lot de TCK-591 (à éprouver après la fusion d'`origin/dev`, `f6a2a868`)
+### Raccord avec le lot de TCK-591 (fait après la fusion d'`origin/dev`, `383fa6f8`)
 
-Relu sur `origin/dev` : `PropertyPublication` (règle et écriture de « dépublier » et « archiver »,
-partagées par l'unitaire et le lot) et `PropertyBulkVisibilityService`.
-
-- **`bulk-visibility` ne publie pas** : `PropertyBulkVisibilityRequest` n'accepte que
-  `visibility: private`. Une visibilité `public` en lot rend donc 422 à la validation, avant
-  tout service. Le verrou n'y est pas sollicité, mais le test doit le fixer : si la règle s'élargit
-  un jour, le verrou devra tenir.
-- **Dépublier en lot un bien verrouillé** : `hide` écrit `status = rejected`, et
-  `PropertyPublication::canUnpublish` n'accepte que `available | published`. Le bien revient donc en
-  `invalid_status`, intact.
-- **Archiver en lot un bien verrouillé** (`bulk-archive`, `update`) : `archivedAttributes()` ne
-  rend pas le bien public, le garde de `updating` le laisse donc passer, et `platform_hold_at` reste
-  posé. La sortie d'archive vers `available` doit buter sur `moderation.platform_hold`. Les deux
-  services écrivent par `forceFill()->save()` : l'observateur s'applique.
-- **Conflits attendus à la fusion** (`git merge-tree`) : `docs/adr/README.md`,
-  `docs/backlog/INDEX.md` (à régénérer), `docs/models-spec.md`, et
-  `app/Domain/Notifications/NotificationCode.php` (cas ajoutés des deux côtés : garder l'union).
-- ⚠ **Trou trouvé en relisant, antérieur au lot et dans le périmètre de §8.** Sous
-  `moderation_required`, un bien `pending_review` peut passer en `archived` (unitaire ou lot), puis
-  en `available` sans passer par la file. En effet, `archived` n'est pas dans
-  `PRE_ACTIVATION_STATUSES`, et `test_unarchiving_is_not_an_activation` fixe ce comportement. Or
-  `archivedAttributes()` efface `published_at` : rien ne distingue plus un bien déjà approuvé d'un
-  bien jamais approuvé. La correction reste à trancher par la session, voir le second test.
-
-Test à ajouter à `tests/Feature/Api/Admin/PropertyReportDecisionTest.php` après la fusion :
-
-```php
-/** TCK-591 × TCK-597 — les actions groupées ne contournent pas le verrou plateforme. */
-public function test_bulk_actions_never_put_a_hidden_listing_back_online(): void
-{
-    Notification::fake();
-    $this->decide($this->report(null, str_repeat('c', 64)), 'hide')->assertOk();
-    $id = $this->property->id;
-    $this->actingAsApi($this->adminA);
-
-    // Le lot ne publie pas : `public` est refusé à la validation.
-    $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$id], 'visibility' => 'public'])
-        ->assertStatus(422)->assertJsonValidationErrors('visibility');
-
-    // Dépublier un bien masqué : `rejected` n'est pas en vitrine, rien n'est écrit.
-    $this->postJson('/api/properties/bulk-visibility', ['property_ids' => [$id], 'visibility' => 'private'])
-        ->assertOk()->assertJsonPath('updated', 0)
-        ->assertJsonPath('failed.0.reason', 'invalid_status');
-
-    // Archiver est permis, mais ne lève pas le verrou ; en sortir vers la vitrine bute dessus.
-    $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$id]])
-        ->assertOk()->assertJsonPath('archived', 1);
-    $this->putJson("/api/properties/{$id}/status", ['status' => 'available'])
-        ->assertStatus(422)->assertJsonPath('code', 'moderation.platform_hold');
-
-    $property = $this->property->refresh();
-    $this->assertNotNull($property->platform_hold_at);
-    $this->assertSame(PropertyStatus::Archived, $property->status);
-    $this->assertNull($property->published_at);
-    $this->assertSame(PropertyVisibility::Private, $property->visibility);
-}
-```
-
-Ablation prévue : `guardPlatformHold()` court-circuité dans `PropertyObserver::updating`, puis
-restauré par `cp`. La sortie d'archive doit alors rendre 200 et le test rougir. Si elle reste verte,
-c'est que l'assertion ne mord pas.
-
-Second test, pour `tests/Feature/Api/PropertyModerationGateTest.php`. **Il est rouge sur le code
-actuel**, et l'écrire suppose que la session tranche le trou ci-dessus :
-
-```php
-/** Archiver un bien jamais approuvé ne le dispense pas de la file d'agence. */
-public function test_archiving_a_listing_awaiting_review_does_not_skip_the_queue(): void
-{
-    $property = $this->draft(PropertyStatus::PendingReview, ['submitted_at' => now()]);
-    $this->actingAsApi($this->agent);
-
-    $this->postJson('/api/properties/bulk-archive', ['property_ids' => [$property->id]])->assertOk();
-    $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk();
-
-    $this->assertQueuedNotPublic($property);
-}
-```
+- **Conflits** : `docs/adr/README.md` (0034-0036 de dev, puis 0043 et 0054), `docs/backlog/INDEX.md`
+  (régénéré), `docs/models-spec.md` (sections de ce ticket renumérotées `73. ModerationClaim`,
+  `74. MediaFingerprint`, `75. DuplicateSuspicion`) et `NotificationCode.php` (union avec
+  `ProspectMatchDigest`).
+- **`PropertyPublication` passe par l'observateur** : l'unitaire écrit par `update()`, les deux
+  services de lot par `forceFill()->save()`. Sous l'observateur de 31968d11, les deux tests de lot
+  rougissent.
+- **Le trou relevé avant la fusion** (un bien `pending_review` archivé puis désarchivé sautait la
+  file) est fermé par B1 : `test_unarchiving_is_not_an_activation` est remplacé, et le test de lot
+  prévu ici est devenu `test_a_never_approved_listing_archived_in_bulk_then_restored_goes_to_the_queue`.
+- **La sonde « réapprobation » de verif-597** rend maintenant 403 : depuis M3, l'admin d'agence ne
+  tranche plus un avis signalé. Comportement voulu.
 
 ### Ce que ce ticket ne porte pas
 
