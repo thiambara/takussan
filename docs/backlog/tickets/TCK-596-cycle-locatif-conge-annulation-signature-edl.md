@@ -778,6 +778,17 @@ contrôlé, dans un seul script.
 - [x] **m-l** — le `FOR UPDATE` de la relecture de `markPaid` est gardé par un relevé `DB::listen`. —
       `73332db9`. Ablation P7-MG.1 rouge.
 
+### 13. Ajoutés après la passe 8 de vérification adverse (verif-596 passe 8, ACCEPTÉ : 3 mineurs)
+
+- [x] **m-m** — les deux gardes de verrou (`markPaid`, `verify`) relèvent `DB::transactionLevel()` au
+      moment du `FOR UPDATE` et exigent qu'il dépasse celui du test. — `1c2ed989`. Ablations P8-MM.1 et
+      P8-MM.2 (`DB::transaction` retiré) rouges.
+- [x] **m-o** — `GET …/verify` porte `refund_pending` (règlement vérifié inscrit en doublon, hors part
+      « pénalité ») ; la page de retour annonce le remboursement au lieu d'un échec, fr/en/wo, sans
+      nouvel essai. — `9708f465`, `e8d1085f`. Trois ablations API et deux front rouges.
+- **m-n** — ticket de suivi (FILE-D-ATTENTE) : `LeasePaymentService::create` peut solder un loyer du
+  parent relevé. Non traité ici.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -981,7 +992,11 @@ contrôlé, dans un seul script.
 - [x] AC54 — Un renouvellement qui annule l'échéance pendant la vérification forcée d'un paiement en
       ligne : l'échéance reste `cancelled`, sans `paid_at`, le règlement est marqué doublon, aucun mois
       doublé ; la relecture se fait `FOR UPDATE` après l'appel (`LeaseRenewalOverlapTest`).
-- [x] AC55 — `mark-paid` relit l'échéance `FOR UPDATE` (`LeaseRenewalOverlapTest`).
+- [x] AC55 — `mark-paid` relit l'échéance `FOR UPDATE`, dans une transaction du code
+      (`LeaseRenewalOverlapTest`).
+- [x] AC56 — Un règlement vérifié qui n'a rien soldé (échéance annulée, ou déjà réglée) rend
+      `refund_pending: true`, et la page de retour dit que l'agence rembourse ; le règlement qui a soldé
+      rend `false` (`LeaseRenewalOverlapTest`, `PaymentCheckoutReuseTest`, `PaymentReturnClient.test.tsx`).
 
 ## Hors périmètre
 
