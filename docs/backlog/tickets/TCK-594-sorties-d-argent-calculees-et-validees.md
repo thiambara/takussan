@@ -785,7 +785,7 @@ rend **403** avec une clé i18n, jamais une phrase.
   vient de vérifier la destination rend 403 `payout.verifier_cannot_pay_yet` une heure après, et
   paie 25 h après. Écran : la destination prévue, puis approuvée, est affichée ; approuvé, le choix
   de destination n'offre que l'approuvée, et approuvé sans destination il le dit.
-  **Preuve** : `PayoutBypassTest::test_m4_the_destination_changed_after_approval_is_refused`, `…_another_destination_than_the_approved_one_is_refused`, `…_a_payout_approved_without_destination_is_not_paid_to_one`, `…_the_verifier_does_not_pay_the_destination_within_24_hours` (rouges sur 9923b16c) ; front `PayoutDetailDialog.capacites.test.tsx` (trois tests VERIF-594 M-4). Ablations V-M4a, V-M4d, V-M4e, W-M4a, W-M4b : rouges ; V-M4b, V-M4c : vertes (l'empreinte couvre seule ces cas, voir les notes).
+  **Preuve** : `PayoutBypassTest::test_m4_the_destination_changed_after_approval_is_refused`, `…_another_destination_than_the_approved_one_is_refused`, `…_a_payout_approved_without_destination_is_not_paid_to_one`, `…_the_verifier_does_not_pay_the_destination_within_24_hours` (rouges sur 9923b16c) ; front `PayoutDetailDialog.capacites.test.tsx` (trois tests VERIF-594 M-4). Ablations V-M4a, V-M4d, V-M4e, W-M4a, W-M4b : rouges ; V-M4b, V-M4c : vertes (voir les notes : V-M4c est strictement redondante, V-M4b ne l'est pas tout à fait).
 - [x] **AC-m1 — une agence individuelle ne paie pas un tiers.** L'hôte d'une agence `individual`
   prépare un reversement à un autre bailleur de son agence : 422 `payout.individual_third_party`,
   aucun `Payout` écrit. Un super-admin qui reverse à l'hôte lui-même : 201.
@@ -1158,9 +1158,13 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
     sa destination (l'écran de la facture ne la propose pas encore — limite écrite au rapport).
   - **Le délai de 24 h** compte depuis la vérification de **l'agence du reversement** par le payeur
     lui-même ; une revérification le relance.
-  - **Deux gardes redondantes, nommées** : la comparaison d'identifiant (V-M4b) et le refus d'une
-    approbation sans destination (V-M4c) restent vertes seules, parce que l'empreinte, avec son
-    contrôle `is_string`, refuse déjà une autre destination et une approbation sans empreinte.
+  - **Deux ablations vertes, nommées** : le refus d'une approbation sans destination (V-M4c) est
+    strictement redondant — le contrôle `is_string` de l'empreinte le couvre seul. La comparaison
+    d'identifiant (V-M4b) **ne l'est pas tout à fait** (passe 2) : sans elle, une AUTRE fiche du
+    bénéficiaire portant le MÊME numéro et le même type passe, puisque l'empreinte est celle du
+    numéro. Sans danger (même numéro, même type), et la garde a un coût : une fiche supprimée puis
+    recréée à l'identique ne se paie plus qu'en espèces ou par chèque — l'approbateur peut désormais
+    fixer la nouvelle en approuvant (N-1), pas après. Aucun test ne fige ce cas ; le code reste.
     V-M4e, qui retire identifiant et empreinte, rougit les deux premiers tests. V-M4a a d'abord été
     mal écrite (virgule emportée, 500 de syntaxe) : rejouée, elle rougit.
   - `PayoutMethodTest::test_ac16_paying_by_wave_to_an_unverified_destination_is_refused` faisait
