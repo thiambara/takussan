@@ -107,6 +107,23 @@ class CustomerPhoneAndDuplicateTest extends ApiTestCase
             ->assertOk();
     }
 
+    /**
+     * verif-591 m1 — la détection de doublon n'est pas un oracle pour qui n'est pas du personnel :
+     * un bailleur qui modifie SA fiche avec le numéro d'un client de l'agence n'apprend rien.
+     */
+    public function test_the_duplicate_check_is_no_oracle_for_a_landlord(): void
+    {
+        $this->create($this->agent, ['phone' => '771234567'])->assertCreated();
+        $landlord = User::factory()->create();
+        $this->materializeRoleProfile($landlord, 'owner', $this->agency);
+        $mine = Customer::factory()->create(['agency_id' => $this->agency->id, 'added_by_id' => $landlord->id]);
+
+        $response = $this->actingAsApi($landlord)->apiPut("/api/customers/{$mine->id}", ['phone' => '77 123 45 67'])
+            ->assertOk();
+        $this->assertNull($response->json('existing'));
+        $this->assertNull($response->json('code'));
+    }
+
     public function test_every_write_path_normalizes(): void
     {
         $customer = Customer::factory()->create(['phone' => '00221 76 000 00 00', 'emergency_contact_phone' => '70-111-22-33']);

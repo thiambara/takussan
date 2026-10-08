@@ -18,6 +18,7 @@ use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\PipelineStatsService;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -82,6 +83,13 @@ class CustomerController extends Controller
         User $user,
         ?Customer $current = null,
     ): ?JsonResponse {
+        // TCK-591 (verif-591 m1) — la détection sonde tout le CRM de l'agence : réservée à son
+        // personnel. Un bailleur auteur d'une fiche s'en servait d'oracle (409 sur un numéro présent).
+        if ($agencyId !== null && ! $user->isSuperAdmin()
+            && ! app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId)) {
+            return null;
+        }
+
         $phone = array_key_exists('phone', $data) ? $data['phone'] : null;
         $email = array_key_exists('email', $data) ? $data['email'] : null;
         if ($current !== null) {
