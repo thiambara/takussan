@@ -3,9 +3,11 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeaseDepositRefunded;
+use App\Models\Agency;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
@@ -14,17 +16,22 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Model\PayoutService;
 use App\Services\Model\ReferenceNumberGenerator;
 use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-088 — Caution refund at lease end.
  *
- * Single-shot operation: a lease's deposit is refunded once (totally or
- * partially). Any retained portion is captured via `reason` + (optionally)
- * an Invoice line item; the cash actually returned to the tenant flows
- * through a `Payout` outflow. Once `deposit_refunded_at` is set and
- * `deposit_remaining` is zero, the operation is locked (idempotency).
+ * Single-shot operation: a lease's deposit is settled once — refunded in full,
+ * or refunded in part with the rest retained. The retained portion is captured
+ * via `reason` + a retention Invoice; the cash actually returned to the tenant
+ * flows through a `Payout` outflow. `deposit_remaining` deducts both what was
+ * refunded and the live retention (VERIF-594 passe 4, P4-1/P4-2), so a partial
+ * refund leaves nothing to refund: a second refund is refused
+ * (`deposit_refund.already_refunded`). It reopens only when a refund is refused
+ * or fails (its retention invoice falls with it) or when the agency cancels the
+ * retention invoice itself — then what is refundable is exactly that amount.
  *
  * The legacy `deposit_refund` LeasePayment row created by the previous
  * implementation is preserved to keep TCK-027 receipts/journal coherent.
@@ -54,7 +61,7 @@ class DepositRefundService
         $reason = isset($data['reason']) ? trim((string) $data['reason']) : '';
         $currency = $lease->currency?->value ?? 'XOF';
 
-        return DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $currency, $data) {
+        $result = DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $currency, $data) {
             // Re-fetch under a row lock so two concurrent partial refunds can't
             // each observe `deposit_refunded_amount=0` and over-credit the
             // tenant. The remaining-amount and partial-vs-full checks are
@@ -93,24 +100,6 @@ class DepositRefundService
                 'notes' => $reason !== '' ? $reason : null,
             ]);
 
-            $payout = Payout::create([
-                'lease_id' => $lease->id,
-                'agency_id' => $lease->agency_id,
-                'landlord_id' => $lease->landlord_id,
-                'issued_by_id' => $issuedBy->id,
-                'reference_number' => ReferenceNumberGenerator::payout(),
-                'status' => PayoutStatus::Pending->value,
-                'period_start' => $now->toDateString(),
-                'period_end' => $now->toDateString(),
-                'gross_amount' => $amount,
-                'commission_amount' => 0,
-                'net_amount' => $amount,
-                'currency' => $currency,
-                'notes' => __('messages.deposit_refund_payout_note', [
-                    'reference' => $lease->reference_number,
-                ]),
-            ]);
-
             $invoice = null;
             if ($retained > 0 && $lease->tenant_id) {
                 $invoice = Invoice::create([
@@ -133,6 +122,46 @@ class DepositRefundService
                     ]),
                 ]);
             }
+
+            // TCK-594 (VERIF-594 M-3) — rendre la caution est une sortie d'argent : elle naît par le
+            // même seuil que tout reversement, jugé sous le verrou de la ligne agence (pris après
+            // celui du bail, l'ordre de toute création). Seule la destination du locataire reste hors
+            // contrôle (il n'a pas toujours de compte) — l'approbation, non. Un bail hors agence n'a
+            // pas de seuil : la caution naît `pending`.
+            $agency = $lease->agency_id !== null
+                ? Agency::query()->whereKey($lease->agency_id)->lockForUpdate()->first()
+                : null;
+            $status = $agency === null ? PayoutStatus::Pending : app(PayoutService::class)->initialStatus(
+                $agency, $amount, null, PayeeRole::Tenant, $lease->tenant_id !== null ? (int) $lease->tenant_id : null,
+            );
+
+            $payout = Payout::create([
+                'lease_id' => $lease->id,
+                'agency_id' => $lease->agency_id,
+                'landlord_id' => $lease->landlord_id,
+                // TCK-594 (ADR-0039 §2) — l'argent rendu au LOCATAIRE : ce n'est pas un reversement au
+                // bailleur, et aucun lecteur de « reversé au bailleur » ne doit le compter.
+                'payee_role' => PayeeRole::Tenant->value,
+                'issued_by_id' => $issuedBy->id,
+                'reference_number' => ReferenceNumberGenerator::payout(),
+                'status' => $status->value,
+                'period_start' => $now->toDateString(),
+                'period_end' => $now->toDateString(),
+                'gross_amount' => $amount,
+                'commission_amount' => 0,
+                'net_amount' => $amount,
+                'currency' => $currency,
+                'notes' => __('messages.deposit_refund_payout_note', [
+                    'reference' => $lease->reference_number,
+                ]),
+                // VERIF-594 passe 3 (P3-1, P3-2) — la restitution porte ses deux pièces : la ligne
+                // `deposit_refund` du bail et la facture de retenue. Refusée ou échouée, elle les défait
+                // par ce lien (`PayoutService::releaseDeposit`), jamais en les cherchant par montant.
+                'metadata' => [
+                    'lease_payment_id' => $payment->id,
+                    'invoice_id' => $invoice?->id,
+                ],
+            ]);
 
             $totalRefunded = round((float) ($lease->deposit_refunded_amount ?? 0) + $amount, 2);
             $lease->forceFill([
@@ -176,6 +205,13 @@ class DepositRefundService
                 'invoice' => $invoice?->fresh(),
             ];
         });
+
+        $agency = $lease->agency_id !== null ? Agency::query()->find($lease->agency_id) : null;
+        if ($agency !== null) {
+            app(PayoutService::class)->notifyApprovers($result['payout'], $agency);
+        }
+
+        return $result;
     }
 
     /**
@@ -197,8 +233,11 @@ class DepositRefundService
         $refunded = (float) ($lease->deposit_refunded_amount ?? 0);
         $remaining = (float) $lease->deposit_remaining;
 
+        // VERIF-594 passe 4 — `full` dit que toute la caution est rendue, `partial` qu'une part l'est
+        // (le reste retenu) : une restitution partielle solde la caution (`deposit_remaining` à 0)
+        // sans être pour autant intégrale.
         $state = 'none';
-        if ($refunded > 0 && $remaining <= 0.001) {
+        if ($refunded > 0 && $refunded + 0.001 >= $deposit) {
             $state = 'full';
         } elseif ($refunded > 0) {
             $state = 'partial';

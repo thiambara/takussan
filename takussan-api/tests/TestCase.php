@@ -256,6 +256,22 @@ abstract class TestCase extends LaravelTestCase
     }
 
     /**
+     * TCK-594 × TCK-589 — les gestes d'argent sont sous step-up (`ProtectedActions::STEP_UP` :
+     * approuver, marquer payé, payer une facture d'intervention, gérer ses destinations). Le compte
+     * reçoit la 2FA s'il ne l'a pas, puis agit par un jeton qui porte un TOTP frais (10 min : un test
+     * qui voyage dans le temps rappelle ce helper après le voyage).
+     */
+    protected function actingWithStepUp(User $user): User
+    {
+        if (! $user->two_factor_enabled) {
+            $user->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        }
+        $this->actingAsWithStepUp($user);
+
+        return $user;
+    }
+
+    /**
      * TCK-304 × TCK-309 — défaut d'INTÉGRATION, réparé ici.
      *
      * TCK-304 avait corrigé ce helper dans `Tests\BaseTestCase` ; TCK-309 a fondu

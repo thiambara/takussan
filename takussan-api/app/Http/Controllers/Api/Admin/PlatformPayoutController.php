@@ -44,17 +44,20 @@ class PlatformPayoutController extends Controller
             ? Agency::query()->findOrFail($request->integer('agency_id'))
             : null;
 
-        $created = $this->payouts->closePeriod(
+        $result = $this->payouts->closePeriod(
             $agency,
             Carbon::parse($request->input('period_end')),
             $request->user(),
         );
 
+        // TCK-594 — les agences écartées de la clôture globale, avec leur motif
+        // (`agency_not_active`, `already_closed`) : un code, le libellé est au front.
         return $this->json([
             'data' => array_map(
                 fn (PlatformPayout $payout) => (new PlatformPayoutResource($payout))->resolve($request),
-                $created,
+                $result['created'],
             ),
+            'excluded' => $result['excluded'],
         ], 201);
     }
 
@@ -71,6 +74,7 @@ class PlatformPayoutController extends Controller
             $payout,
             $request->user(),
             Carbon::parse($request->input('processed_at')),
+            $request->string('payment_reference')->toString(),
             $request->input('metadata'),
         );
 

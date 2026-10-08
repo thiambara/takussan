@@ -19,9 +19,11 @@ import { PAYOUT_STATUS_TONE } from './constants';
 
 interface PayoutsTableProps {
   readonly onSelect: (payoutId: number) => void;
+  /** TCK-594 — un statut imposé : la file « À approuver » est la table filtrée sur `awaiting_approval`. */
+  readonly status?: PayoutStatus;
 }
 
-export function PayoutsTable({ onSelect }: PayoutsTableProps) {
+export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payouts');
   const tTable = useTranslations('payments.payouts.table');
@@ -33,9 +35,9 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
     () => ({
       page,
       per_page: 20,
-      status: (searchParams.get('payout_status') as PayoutStatus | null) ?? undefined,
+      status: status ?? (searchParams.get('payout_status') as PayoutStatus | null) ?? undefined,
     }),
-    [page, searchParams],
+    [page, searchParams, status],
   );
 
   const query = usePayouts(params);

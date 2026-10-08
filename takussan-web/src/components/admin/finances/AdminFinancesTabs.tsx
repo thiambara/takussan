@@ -29,7 +29,7 @@ import { useTranslations } from 'next-intl';
  * « encaissements » — la ligne mènerait à côté de ce qu'elle annonce, sans qu'aucun test ne le
  * voie. L'invariant se vérifie contre CETTE table, jamais contre une chaîne recopiée.
  */
-export const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'impayes'] as const;
+export const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'a-approuver', 'impayes'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 function isTabValue(value: string | null): value is TabValue {
@@ -37,11 +37,6 @@ function isTabValue(value: string | null): value is TabValue {
 }
 
 interface AdminFinancesTabsProps {
-  /**
-   * Default agency commission rate forwarded to the create-payout dialog.
-   * Read from `/api/dashboard/agency` upstream to pre-fill the slider.
-   */
-  readonly defaultCommissionRate?: number;
   /**
    * `true` if the current actor can issue invoices and payouts. Falsy
    * disables the action buttons (the views remain readable).
@@ -60,7 +55,7 @@ interface AdminFinancesTabsProps {
  * Tab state is mirrored in `?tab=...` so the URL is shareable and the
  * page is reload-safe.
  */
-export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinancesTabsProps) {
+export function AdminFinancesTabs({ canEmit }: AdminFinancesTabsProps) {
   const t = useTranslations('admin.finances');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,6 +68,9 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
   const { can: peutFacturer, isLoading: facturationEnCours } = useCan('invoices.create');
   const { can: peutReverser, isLoading: reversementEnCours } = useCan('payouts.create');
   const capacitesEnCours = facturationEnCours || reversementEnCours;
+  // TCK-594 (ADR-0039 §4) — la file « À approuver » : les reversements au-dessus du seuil de
+  // l'agence attendent un second membre. Elle dit qui a préparé (dialogue de détail).
+  const { can: peutApprouver } = useCan('payouts.approve');
   const emetFacture = !!canEmit && peutFacturer;
   const emetReversement = !!canEmit && peutReverser;
 
@@ -107,6 +105,7 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
               <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
               <TabsTrigger value="factures">{t('tabs.invoices')}</TabsTrigger>
               <TabsTrigger value="reversements">{t('tabs.payouts')}</TabsTrigger>
+              {peutApprouver ? <TabsTrigger value="a-approuver">{t('tabs.toApprove')}</TabsTrigger> : null}
               <TabsTrigger value="impayes">{t('tabs.overdue')}</TabsTrigger>
             </TabsList>
           </div>
@@ -143,6 +142,12 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
           <PayoutsTable onSelect={setPayoutId} />
         </TabsContent>
 
+        {peutApprouver ? (
+          <TabsContent value="a-approuver" className="space-y-4">
+            <PayoutsTable onSelect={setPayoutId} status="awaiting_approval" />
+          </TabsContent>
+        ) : null}
+
         <TabsContent value="impayes" className="space-y-4">
           <OverduePaymentsTable />
         </TabsContent>
@@ -160,7 +165,6 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
           open={payoutOpen}
           onOpenChange={setPayoutOpen}
           onCreated={(id) => setPayoutId(id)}
-          defaultCommissionRate={defaultCommissionRate}
         />
       ) : null}
       <InvoiceDetailDialog invoiceId={invoiceId} onClose={() => setInvoiceId(null)} />

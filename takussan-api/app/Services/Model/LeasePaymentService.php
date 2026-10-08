@@ -4,6 +4,7 @@ namespace App\Services\Model;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -37,6 +38,15 @@ class LeasePaymentService
      */
     public function markPaid(LeasePayment $payment, array $data = [], ?User $by = null): LeasePayment
     {
+        // TCK-594 (VERIF-594 passe 4, P4-7) — la ligne d'une caution rendue se règle par son
+        // reversement (`PayoutService::markProcessed`), jamais à la main : marquée payée, le refus de
+        // la restitution la laissait `paid`, et la restitution suivante en créait une seconde.
+        abort_code_if(
+            $payment->payment_type === LeasePaymentType::DepositRefund,
+            422,
+            'lease_payment.deposit_refund_paid_by_payout'
+        );
+
         abort_code_unless(
             in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
             422,

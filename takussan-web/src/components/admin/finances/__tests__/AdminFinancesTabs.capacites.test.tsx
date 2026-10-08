@@ -43,7 +43,7 @@ function accorder(accordees: readonly string[], isLoading = false) {
 }
 
 function rendre(canEmit = true) {
-  render(withIntl(<AdminFinancesTabs canEmit={canEmit} />));
+  return render(withIntl(<AdminFinancesTabs canEmit={canEmit} />));
 }
 
 describe('AdminFinancesTabs — boutons de création gardés par capacité (TCK-528)', () => {
@@ -51,12 +51,23 @@ describe('AdminFinancesTabs — boutons de création gardés par capacité (TCK-
     vi.clearAllMocks();
   });
 
-  it('lit exactement invoices.create et payouts.create', () => {
+  it('lit exactement invoices.create, payouts.create et payouts.approve (TCK-594)', () => {
     accorder([]);
     rendre();
 
     const lues = vi.mocked(useCan).mock.calls.map(([capability]) => capability);
-    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create']));
+    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create', 'payouts.approve']));
+  });
+
+  it('ne montre la file « À approuver » qu’à qui tient payouts.approve (TCK-594)', () => {
+    accorder(['payouts.create']);
+    const { unmount } = rendre();
+    expect(screen.queryByRole('tab', { name: fr.admin.finances.tabs.toApprove })).not.toBeInTheDocument();
+    unmount();
+
+    accorder(['payouts.approve']);
+    rendre();
+    expect(screen.getByRole('tab', { name: fr.admin.finances.tabs.toApprove })).toBeInTheDocument();
   });
 
   it('propose les deux gestes à un admin d’agence qui porte les deux capacités', () => {

@@ -32,6 +32,11 @@ class Agency extends AbstractModel implements HasMedia
         'founded_at', 'is_verified', 'verified_at',
         'primary_admin_id', 'status', 'metadata', 'settings',
         'moderation_required', 'bank_csv_mapping',
+        // TCK-594 (ADR-0039 §5, §7) — TVA par défaut et mentions légales (personne morale :
+        // imprimées sur chaque facture). Le seuil d'approbation n'est PAS ici : il ne s'écrit que
+        // par `PayoutApprovalThreshold` (capacité, deux approbateurs, trace).
+        'default_tax_rate',
+        'legal_name', 'ninea', 'rccm', 'legal_address',
     ];
 
     protected $casts = [
@@ -47,6 +52,11 @@ class Agency extends AbstractModel implements HasMedia
         'settings' => 'array',
         'moderation_required' => 'boolean',
         'bank_csv_mapping' => 'array',
+        'payout_approval_threshold' => 'decimal:2',
+        'default_tax_rate' => 'decimal:2',
+        // VERIF-594 M-2 — un relâchement du seuil en attente d'un second détenteur.
+        'pending_payout_threshold' => 'decimal:2',
+        'pending_payout_threshold_requested_at' => 'datetime',
     ];
 
     protected $attributes = [
@@ -67,6 +77,8 @@ class Agency extends AbstractModel implements HasMedia
         'id', 'name', 'slug', 'kind', 'license_number', 'description',
         'email', 'phone', 'website', 'commission_rate', 'currency',
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
+        // TCK-594 (ADR-0039 §4, §7) — l'écran des réglages les relit ; `AgencyResource` les rend déjà.
+        'payout_approval_threshold', 'default_tax_rate', 'legal_name', 'ninea', 'rccm', 'legal_address',
     ];
 
     /**

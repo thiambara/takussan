@@ -61,7 +61,9 @@ class DashboardAgencyService
             ->count();
 
         // Monthly revenue = paid lease payments on agency leases for the period.
+        // TCK-594 (P4-5) — une caution rendue est une sortie, pas un encaissement.
         $revenueMonth = (float) LeasePayment::whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
+            ->exceptDepositRefunds()
             ->where('status', PaymentStatus::Paid)
             ->whereBetween('paid_at', [$monthStart, $monthEnd])
             ->sum('amount');
@@ -148,6 +150,7 @@ class DashboardAgencyService
             $labels[] = $from->format('Y-m');
 
             $sum = (float) LeasePayment::whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
+                ->exceptDepositRefunds()
                 ->where('status', PaymentStatus::Paid)
                 ->whereBetween('paid_at', [$from, $to])
                 ->sum('amount');

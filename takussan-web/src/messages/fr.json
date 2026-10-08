@@ -3110,7 +3110,8 @@
       "processing": "En cours",
       "completed": "Effectué",
       "failed": "Échoué",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé",
+      "awaiting_approval": "À approuver"
     },
     "methods": {
       "cash": "Espèces",
@@ -3126,7 +3127,9 @@
     "tabs": {
       "history": "Historique",
       "invoices": "Factures",
-      "payouts": "Reversements"
+      "payouts": "Reversements",
+      "approvals": "À approuver",
+      "bills": "Interventions"
     },
     "actions": {
       "createInvoice": "Générer une facture",
@@ -3177,33 +3180,56 @@
       "working": "…",
       "markPaid": "Marquer payée",
       "cancelInvoice": "Annuler la facture",
-      "close": "Fermer"
+      "close": "Fermer",
+      "creditNoteTitle": "Avoir {reference}",
+      "credits": "Annule la facture n° {id}",
+      "creditNotes": "Avoirs émis sur cette facture",
+      "actionFailed": "L'action sur la facture a échoué."
     },
     "payoutDialog": {
-      "title": "Créer un reversement",
-      "description": "Calcule automatiquement le montant net à verser au bailleur après commission.",
-      "landlordId": "ID bailleur",
-      "currency": "Devise",
-      "leaseId": "ID bail (optionnel)",
-      "bookingId": "ID réservation (optionnel)",
+      "title": "Préparer un reversement",
+      "description": "Choisissez le bailleur et la période : le calcul se lit, il ne se saisit pas.",
       "periodStart": "Début de période",
       "periodEnd": "Fin de période",
-      "grossAmount": "Montant brut",
-      "commissionRate": "Taux commission (%)",
       "commission": "Commission",
       "fees": "Frais",
-      "method": "Méthode",
+      "method": "Moyen de paiement",
       "scheduledAt": "Prévu le",
       "notes": "Notes",
       "gross": "Brut",
       "net": "Net",
       "cancel": "Annuler",
       "creating": "Création…",
-      "submit": "Créer le reversement"
+      "submit": "Créer le reversement",
+      "landlord": "Bailleur",
+      "landlordPlaceholder": "Choisir un bailleur",
+      "chooseFirst": "Choisissez un bailleur et une période pour lire le calcul.",
+      "preparationFailed": "Le calcul n'a pas pu être préparé.",
+      "calculation": "Calcul du reversement",
+      "nothingToPay": "Aucun encaissement à reverser sur cette période.",
+      "colItem": "Pièce",
+      "colDate": "Encaissé le",
+      "colAmount": "Montant",
+      "colCommission": "Commission",
+      "leaseLine": "Loyer — bail {reference}",
+      "bookingLine": "Réservation {reference}",
+      "billLine": "Intervention {reference}",
+      "rateFromLease": "({rate} % du bail)",
+      "rateFromAgency": "({rate} % de l'agence)",
+      "requiresApproval": "Ce net, ajouté aux reversements non approuvés vers ce bailleur depuis {days} jours, atteint le seuil d'approbation de l'agence ({threshold}) : un autre membre devra l'approuver avant le paiement.",
+      "destination": "Destination",
+      "destinationNone": "Aucune destination enregistrée",
+      "destinationOption": "{kind} {masked} — {state}",
+      "verified": "vérifiée",
+      "unverified": "en attente de vérification",
+      "createFailed": "Le reversement n'a pas pu être créé.",
+      "unverifiedHint": "Cette destination n'a pas encore été vérifiée par l'agence.",
+      "verifyDestination": "Vérifier cette destination",
+      "verifyFailed": "La vérification a échoué."
     },
     "payoutDetail": {
       "title": "Reversement {reference}",
-      "description": "Transitions de statut du payout.",
+      "description": "Préparation, approbation et paiement du reversement.",
       "notFound": "Reversement introuvable.",
       "createdOn": "Créé le {date}",
       "landlord": "Bailleur",
@@ -3215,14 +3241,34 @@
       "method": "Méthode",
       "processedOn": "Effectué le",
       "failedReason": "Raison de l'échec",
-      "transactionId": "Référence de transaction (optionnelle)",
+      "transactionId": "Référence de la transaction",
       "transactionIdPlaceholder": "Ex: TX-2025-0001",
       "working": "…",
       "markProcessed": "Marquer effectué",
       "failedReasonPlaceholder": "Ex: Compte bancaire invalide",
       "markFailed": "Marquer échoué",
       "cancel": "Annuler",
-      "close": "Fermer"
+      "close": "Fermer",
+      "preparedBy": "Préparé par",
+      "approvedOn": "Approuvé le",
+      "destination": "Destination",
+      "reference": "Référence de la transaction",
+      "approve": "Approuver",
+      "approveSelfRefused": "Vous avez préparé ce reversement : un autre membre doit l'approuver.",
+      "paySelfRefused": "Vous avez approuvé ce reversement : un autre membre doit le marquer payé.",
+      "transactionIdOptional": "Référence de la transaction (facultative en espèces)",
+      "cashNote": "Justificatif du paiement en espèces",
+      "actionFailed": "L'action n'a pas abouti.",
+      "payDestination": "Destination du paiement",
+      "noVerifiedDestination": "Ce bénéficiaire n'a aucune destination vérifiée pour ce moyen : vérifiez-la avant de payer.",
+      "plannedDestination": "Destination prévue",
+      "approvedDestination": "Destination approuvée",
+      "approveWithoutDestination": "Aucune destination n'est prévue : une fois approuvé, ce reversement ne se paiera qu'en espèces ou par chèque.",
+      "approvedDestinationOnly": "Ce reversement ne part que vers la destination approuvée, et elle n'est pas vérifiée pour ce moyen. Payez en espèces ou par chèque, ou faites-le préparer à nouveau.",
+      "approveDestination": "Destination du paiement",
+      "approveKeepDestination": "Garder la destination prévue ({masked})",
+      "approveNoDestination": "Sans destination (espèces ou chèque)",
+      "approveDestinationOption": "{kind} · {masked} (vérifiée)"
     },
     "customer": {
       "nextTitle": "Prochain paiement",
@@ -3242,6 +3288,56 @@
       "previous": "Précédent",
       "next": "Suivant",
       "pageOf": "Page {page} sur {total}"
+    },
+    "payoutMethodKinds": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "bank_transfer": "Virement bancaire"
+    },
+    "ownerStatement": {
+      "title": "Relevé de gérance",
+      "description": "Ce qui a été encaissé pour vous, ce que l'agence a retenu, et ce qui vous a été versé.",
+      "month": "Mois",
+      "annual": "Toute l'année (attestation annuelle)",
+      "gross": "Encaissé",
+      "commission": "Commission",
+      "fees": "Interventions",
+      "net": "Net",
+      "paidOut": "Déjà versé",
+      "downloadPdf": "Télécharger le PDF",
+      "downloadCsv": "Télécharger le CSV",
+      "downloadFailed": "Le téléchargement du relevé a échoué.",
+      "unavailable": "Le relevé n'est pas disponible."
+    },
+    "serviceProviderBills": {
+      "providerTitle": "Mes factures d'intervention",
+      "agencyTitle": "Factures des prestataires",
+      "emptyTitle": "Aucune facture d'intervention",
+      "emptyProvider": "Vos factures apparaîtront ici une fois vos interventions terminées.",
+      "emptyAgency": "Les factures des prestataires à valider apparaîtront ici.",
+      "reference": "Référence",
+      "intervention": "Intervention",
+      "amount": "Montant",
+      "statusLabel": "Statut",
+      "actions": "Actions",
+      "exceedsQuote": "Dépasse le devis approuvé",
+      "rechargeable": "Refacturer au bailleur",
+      "rechargedToLandlord": "Imputée sur le reversement du bailleur",
+      "validate": "Valider",
+      "reject": "Rejeter",
+      "confirmReject": "Confirmer le rejet",
+      "cancel": "Annuler",
+      "rejectionReason": "Motif du rejet",
+      "pay": "Payer le prestataire",
+      "actionFailed": "L'action sur la facture a échoué.",
+      "status": {
+        "pending_validation": "À valider",
+        "validated": "Validée",
+        "rejected": "Rejetée",
+        "paid": "Payée",
+        "cancelled": "Annulée"
+      }
     }
   },
   "lease": {
@@ -5160,7 +5256,8 @@
         "payouts": "Reversements",
         "overdue": "Impayés",
         "newInvoice": "Générer une facture",
-        "newPayout": "Créer un reversement"
+        "newPayout": "Créer un reversement",
+        "toApprove": "À approuver"
       },
       "kpis": {
         "collections30d": "Encaissements (30 j)",
@@ -5690,6 +5787,24 @@
       "lateFeeOnline": {
         "label": "Encaisser les pénalités de retard avec le paiement en ligne",
         "hint": "Activé : le locataire paie en ligne le loyer et la pénalité de retard ensemble. Désactivé : seul le loyer est payé en ligne, et la pénalité se règle auprès de l’agence."
+      },
+      "moneyOut": {
+        "title": "Mentions légales et paiements",
+        "description": "Imprimées sur vos factures ; le seuil décide quand un reversement attend une seconde personne.",
+        "taxRate": "TVA par défaut des factures (%)",
+        "threshold": "Seuil d'approbation des reversements (F CFA)",
+        "thresholdHint": "Au-dessus de ce net, un reversement doit être approuvé par une autre personne que celle qui l'a préparé. Laisser vide pour désactiver. Il faut au moins deux personnes habilitées à approuver.",
+        "legalName": "Raison sociale",
+        "ninea": "NINEA",
+        "rccm": "RCCM",
+        "legalAddress": "Adresse du siège",
+        "thresholdPendingOff": "Une demande de désactivation du seuil attend la confirmation d'un second approbateur. D'ici là, le seuil actuel s'applique.",
+        "thresholdPendingRaise": "Une demande de relèvement du seuil à {threshold} attend la confirmation d'un second approbateur. D'ici là, le seuil actuel s'applique.",
+        "thresholdPendingSelf": "Vous avez fait cette demande : un autre approbateur de l'agence doit la confirmer.",
+        "thresholdConfirm": "Confirmer",
+        "thresholdConfirming": "Confirmation…",
+        "thresholdConfirmed": "Le nouveau seuil s'applique.",
+        "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu."
       }
     },
     "inviteMember": {
@@ -8141,6 +8256,24 @@
         "channelUnavailable": "Aucun message de ce type ne part sur ce canal."
       }
     },
+    "payoutMethods": {
+      "title": "Où recevoir vos versements",
+      "subtitle": "Votre numéro n'est plus affiché en clair une fois enregistré. L'agence qui vous paie le vérifie avant le premier versement.",
+      "empty": "Aucune destination enregistrée.",
+      "verified": "Vérifiée",
+      "pending": "En attente de vérification",
+      "default": "Par défaut",
+      "makeDefault": "Utiliser par défaut",
+      "remove": "Retirer",
+      "removeAria": "Retirer la destination {masked}",
+      "kind": "Moyen",
+      "phone": "Numéro de téléphone",
+      "iban": "IBAN ou numéro de compte",
+      "holder": "Titulaire (facultatif)",
+      "add": "Ajouter",
+      "saveFailed": "La destination n'a pas pu être enregistrée.",
+      "removeFailed": "La destination n'a pas pu être retirée."
+    },
     "serviceProvider": {
       "title": "Mon activité de prestataire",
       "subtitle": "Ce que voient les agences avec lesquelles vous travaillez. Chaque réglage s'enregistre séparément.",
@@ -8269,7 +8402,13 @@
         "submit": "Clôturer",
         "toastNone": "Aucun paiement éligible",
         "toastCreated": "{total} {count, plural, one {payout créé} other {payouts créés}}",
-        "toastFailed": "Clôture impossible"
+        "toastFailed": "Clôture impossible",
+        "excludedTitle": "{count, plural, one {# agence écartée} other {# agences écartées}} de la clôture",
+        "excludedRow": "Agence #{agency} — {reason}",
+        "excludedReason": {
+          "agency_not_active": "agence suspendue ou non active",
+          "already_closed": "période déjà clôturée"
+        }
       },
       "detail": {
         "notFound": "Reversement introuvable.",
@@ -8286,7 +8425,6 @@
         "breakdownLine": "<count>{count}</count> paiements · <gross>{gross}</gross> brut · <fees>-{fees}</fees> com.",
         "approve": "Approuver",
         "processedAtAria": "Date de traitement",
-        "bankRefPlaceholder": "Référence bancaire (optionnel)",
         "markPaid": "Marquer payé",
         "cancelReasonPlaceholder": "Raison de l'annulation",
         "cancel": "Annuler",
@@ -8298,7 +8436,13 @@
           "cancelled": "Reversement annulé",
           "cancelFailed": "Annulation impossible"
         },
-        "breakdownRow": "<qty>{count}</qty> paiements · <amount>{gross}</amount> brut · <fee>-{fees}</fee> com."
+        "breakdownRow": "<qty>{count}</qty> paiements · <amount>{gross}</amount> brut · <fee>-{fees}</fee> com.",
+        "approvedAt": "Approuvé le",
+        "paymentReference": "Référence du virement",
+        "paymentReferenceLabel": "Référence du virement",
+        "paymentReferencePlaceholder": "Référence du virement (obligatoire)",
+        "approveSelfRefused": "Vous avez clôturé cette période : une autre personne doit approuver le reversement.",
+        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé."
       }
     }
   },
@@ -8399,7 +8543,12 @@
       "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
       "timezoneTooLong": "Fuseau horaire trop long.",
       "logoTooLarge": "Le logo dépasse 2 Mo.",
-      "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP."
+      "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP.",
+      "taxRateRange": "La TVA doit être comprise entre 0 et 100.",
+      "thresholdInvalid": "Le seuil est un montant entier positif, sans décimales.",
+      "legalNameTooLong": "La raison sociale ne doit pas dépasser 255 caractères.",
+      "legalIdTooLong": "Ce numéro ne doit pas dépasser 30 caractères.",
+      "legalAddressTooLong": "L'adresse ne doit pas dépasser 1000 caractères."
     },
     "common": {
       "emailTooLong": "L’adresse e-mail est trop longue.",
@@ -8500,15 +8649,7 @@
       "taxMin": "La TVA doit être ≥ 0.",
       "taxMax": "La TVA doit être ≤ 100.",
       "invoiceableBoth": "Fournir à la fois le type et l'identifiant de l'entité, ou aucun.",
-      "dueDateAfterIssue": "L'échéance doit être postérieure ou égale à la date d'émission.",
-      "landlordRequired": "Bailleur requis.",
-      "grossRequired": "Montant brut requis.",
-      "grossPositive": "Le montant brut doit être supérieur à 0.",
-      "commissionMin": "La commission doit être ≥ 0.",
-      "commissionMax": "La commission doit être ≤ 100.",
-      "feesMin": "Les frais doivent être ≥ 0.",
-      "periodEndAfterStart": "La fin de période doit être postérieure au début.",
-      "netPositive": "Le montant net doit être supérieur à 0."
+      "dueDateAfterIssue": "L'échéance doit être postérieure ou égale à la date d'émission."
     },
     "property": {
       "titleRequired": "Le titre est requis.",
@@ -9359,6 +9500,50 @@
         "rejected": {
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        }
+      },
+      "payout": {
+        "awaiting_approval": {
+          "title": "Reversement {reference} à approuver",
+          "body": "Le reversement {reference} de {amount} attend votre approbation."
+        },
+        "due": {
+          "title": "Reversement {reference} à effectuer",
+          "body": "Le reversement {reference} de {amount} est arrivé à échéance : effectuez-le, puis saisissez sa référence."
+        },
+        "processed": {
+          "title": "Reversement {reference} effectué",
+          "body": "Un reversement de {amount} vous a été versé. Référence de la transaction : {transaction}. Destination : {destination}."
+        },
+        "failed": {
+          "title": "Reversement {reference} en échec",
+          "body": "Le reversement {reference} de {amount} n'a pas abouti. Motif : {reason}."
+        }
+      },
+      "payout_method": {
+        "added": {
+          "title": "Destination de paiement ajoutée",
+          "body": "La destination de paiement {destination} a été ajoutée à votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
+        },
+        "updated": {
+          "title": "Destination de paiement modifiée",
+          "body": "La destination de paiement {destination} a été modifiée sur votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
+        },
+        "removed": {
+          "title": "Destination de paiement supprimée",
+          "body": "La destination de paiement {destination} a été supprimée de votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
+        }
+      },
+      "owner_statement": {
+        "available": {
+          "title": "Relevé de gérance {period} disponible",
+          "body": "Votre relevé de gérance pour {period} est disponible dans votre espace."
+        }
+      },
+      "payout_threshold": {
+        "relax_requested": {
+          "title": "Assouplissement du seuil des reversements à confirmer",
+          "body": "Un membre de l'agence {agency} demande d'assouplir le seuil d'approbation des reversements. Rien ne change tant qu'un second approbateur ne l'a pas confirmé depuis les réglages de l'agence."
         }
       },
       "review": {

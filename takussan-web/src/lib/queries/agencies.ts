@@ -22,6 +22,13 @@ export const AGENCY_ADMIN_FIELDS = [
   'status',
   // TCK-248 / TCK-256 — `kind` gates owner-invitation features in /app/owners.
   'kind',
+  // TCK-594 (ADR-0039 §4, §7) — seuil des quatre yeux, TVA par défaut et mentions légales.
+  'payout_approval_threshold',
+  'default_tax_rate',
+  'legal_name',
+  'ninea',
+  'rccm',
+  'legal_address',
 ] as const;
 
 function buildShowParams(): SpatieQueryParams {
@@ -87,6 +94,23 @@ export async function updateAgency(
   const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}`, {
     method: 'PATCH',
     body: payload,
+    token,
+    activeProfileId,
+  });
+  return res.data;
+}
+
+/** VERIF-594 M-2 — un second détenteur de `payouts.approve` confirme le relâchement du seuil. */
+/** VERIF-594 passe 2, N-5 — `expectedThreshold` : la valeur lue et confirmée (`null` : couper). */
+export async function confirmAgencyPayoutThreshold(
+  token: string,
+  agencyId: number,
+  expectedThreshold: number | null,
+  activeProfileId?: string,
+): Promise<Agency> {
+  const res = await apiRequest<ApiResponse<Agency>>(`/api/agencies/${agencyId}/payout-threshold/confirm`, {
+    method: 'POST',
+    body: { expected_threshold: expectedThreshold },
     token,
     activeProfileId,
   });

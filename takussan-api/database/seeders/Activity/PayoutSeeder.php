@@ -33,6 +33,8 @@ class PayoutSeeder extends Seeder
             ->where('lease_id', $lease->id)
             ->where('status', 'paid')
             ->whereNotNull('paid_at')
+            // TCK-594 (ADR-0039 §3) — la caution n'est pas reversée au bailleur.
+            ->whereIn('payment_type', ['rent', 'charges', 'penalty', 'regularization'])
             ->get()
             ->groupBy(fn ($p) => CarbonImmutable::parse($p->period_start)->format('Y-m'));
 

@@ -58,6 +58,27 @@ class AgencyPolicy
     }
 
     /**
+     * TCK-594 (ADR-0039 §4) — le seuil des quatre yeux se règle par qui administre l'agence ET
+     * détient `payouts.approve` à cette agence : celui qui approuve décide quand on approuve. Le
+     * remettre à `null` est le même geste — désactiver le contrôle n'est pas moins sensible.
+     */
+    public function updatePayoutThreshold(User $user, Agency $agency): bool
+    {
+        return $this->update($user, $agency)
+            && $user->canActAt(Capability::PayoutsApprove, $agency);
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §7) — ce que la plateforme reverse à l'agence se lit avec
+     * `agency.update_billing` À CETTE AGENCE : le relevé de facturation n'est ni au bailleur ni à
+     * l'agent. L'admin d'une agence `individual` (l'hôte) la détient comme celui d'une `standard`.
+     */
+    public function viewPlatformPayouts(User $user, Agency $agency): bool
+    {
+        return $user->canActAt(Capability::AgencyUpdateBilling, $agency);
+    }
+
+    /**
      * TCK-591 §8 — retirer un membre de l'équipe : la capacité `team.remove` DANS l'agence de la
      * route, sous le profil actif de cette agence (contrat strict TCK-146, cf. le docblock de la
      * classe), plus le court-circuit de l'administrateur principal, qui ne peut pas s'enfermer
