@@ -5,6 +5,8 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
@@ -302,9 +304,23 @@ class PropertyResource extends BaseResource
      */
     private function actsAsAgent(User $user): bool
     {
-        $agency = $this->resource->agency;
+        // TCK-595 (§4) — l'identifiant suffit : charger `agency` coûtait une requête par ligne.
+        $agencyId = $this->resource->getAttribute('agency_id');
+        if ($agencyId === null) {
+            return false;
+        }
 
-        return $agency !== null && $user->isAgentAt($agency->id);
+        // Profils préchargés par la liste (`owner.agentProfiles`, actifs) : lus en mémoire. Le
+        // statut est relu ici, pour qu'un chargement non filtré ailleurs ne compte pas un profil
+        // suspendu.
+        if ($user->relationLoaded('agentProfiles')) {
+            return $user->agentProfiles->contains(
+                fn (AgentProfile $profile) => (int) $profile->agency_id === (int) $agencyId
+                    && $profile->status === AgentProfileStatus::Active,
+            );
+        }
+
+        return $user->isAgentAt((int) $agencyId);
     }
 
     /**

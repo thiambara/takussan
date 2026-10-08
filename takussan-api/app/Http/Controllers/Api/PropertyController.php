@@ -39,7 +39,18 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        $base = Property::query()->with(['address', 'owner', 'collaborators.user']);
+        // TCK-595 (§4) — tout ce que `PropertyResource` lit pour une ligne : la photo principale
+        // (`media`), l'avatar du propriétaire et ses profils agent ACTIFS (`is_agent`). Chaque ligne
+        // faisait trois requêtes de plus, soit une soixantaine sur une page de vingt biens.
+        // `agency` n'est PAS préchargée : `is_agent` ne lit que `agency_id`, et une relation chargée
+        // ferait émettre le bloc `agency` (et sa requête de note) dans chaque ligne de liste.
+        $base = Property::query()->with([
+            'address',
+            'media',
+            'owner.media',
+            'owner.agentProfiles' => fn ($q) => $q->active(),
+            'collaborators.user',
+        ]);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {

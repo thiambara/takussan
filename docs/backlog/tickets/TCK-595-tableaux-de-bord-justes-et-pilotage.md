@@ -840,3 +840,11 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   `months` 1 et 36 et pour 1 et 20 baux. Le code d'origine fait 133 requêtes à 36 mois côté agence.
 - `DashboardAgentTest` passe désormais par l'activation d'un bail négocié : un `commission_amount` posé à
   la main sur un bail actif ne crée aucune ligne.
+
+### Lot 4 — liste des biens sans N+1 (§4, AC15)
+
+- **Écart au Delta** : `agency` n'est pas préchargée. `is_agent` ne lit que `agency_id`. Une relation
+  `agency` chargée ferait émettre le bloc `agency` dans chaque ligne de liste (`relationLoaded`), avec sa
+  requête de note d'agence, soit une clé nouvelle et un N+1 de plus (contraire à TCK-539).
+- `owner.agentProfiles` est préchargé avec le filtre `active()`. Le statut est relu en mémoire, et un
+  profil suspendu ne fait pas d'un propriétaire un agent (test dédié).
