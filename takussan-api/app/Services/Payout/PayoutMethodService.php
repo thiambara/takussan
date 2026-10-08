@@ -2,10 +2,11 @@
 
 namespace App\Services\Payout;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\PayoutMethodKind;
 use App\Models\PayoutMethod;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutMethodChangedNotification;
+use App\Services\Model\NotificationService;
 use App\Support\SegregationOfDuties;
 use Illuminate\Support\Facades\DB;
 
@@ -43,7 +44,7 @@ final class PayoutMethodService
             return $method;
         });
 
-        $holder->notify(new PayoutMethodChangedNotification($method, 'added'));
+        $this->notifyHolder($holder, NotificationCode::PayoutMethodAdded, $method);
 
         return $method->refresh();
     }
@@ -80,7 +81,7 @@ final class PayoutMethodService
             $this->keepOneDefault($method);
         });
 
-        $method->user?->notify(new PayoutMethodChangedNotification($method->refresh(), 'updated'));
+        $this->notifyHolder($method->user, NotificationCode::PayoutMethodUpdated, $method->refresh());
 
         return $method;
     }
@@ -88,7 +89,19 @@ final class PayoutMethodService
     public function delete(PayoutMethod $method): void
     {
         $method->delete();
-        $method->user?->notify(new PayoutMethodChangedNotification($method, 'removed'));
+        $this->notifyHolder($method->user, NotificationCode::PayoutMethodRemoved, $method);
+    }
+
+    /**
+     * Au titulaire, à chaque ajout, modification ou suppression : c'est le signal d'un détournement
+     * après prise de compte. Le code n'a pas d'interrupteur (ADR-0039 §6), et seule la forme
+     * masquée y figure.
+     */
+    private function notifyHolder(?User $holder, NotificationCode $code, PayoutMethod $method): void
+    {
+        if ($holder !== null) {
+            app(NotificationService::class)->send($holder, $code, ['destination' => $method->masked_identifier]);
+        }
     }
 
     public function verify(PayoutMethod $method, User $verifier): PayoutMethod

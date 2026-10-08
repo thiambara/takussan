@@ -2,12 +2,13 @@
 
 namespace App\Console\Commands\Payouts;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
-use App\Notifications\Payouts\OwnerStatementAvailableNotification;
+use App\Services\Model\NotificationService;
 use App\Services\Payout\OwnerStatementService;
 use App\Services\Payout\PayoutCalculator;
 use Illuminate\Console\Command;
@@ -27,7 +28,7 @@ class SendOwnerStatements extends Command
 
     protected $description = 'Avise les bailleurs que leur relevé de gérance du mois est disponible.';
 
-    public function handle(): int
+    public function handle(NotificationService $notifications): int
     {
         $period = $this->option('period') ?: now()->subMonthNoOverflow()->format('Y-m');
         [$start, $end] = OwnerStatementService::period($period);
@@ -53,7 +54,7 @@ class SendOwnerStatements extends Command
                 continue;
             }
 
-            $landlord->notify(new OwnerStatementAvailableNotification($agency, $period));
+            $notifications->send($landlord, NotificationCode::OwnerStatementAvailable, ['period' => $period]);
             $sent++;
         }
 

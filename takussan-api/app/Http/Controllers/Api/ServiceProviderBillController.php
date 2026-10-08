@@ -85,7 +85,7 @@ class ServiceProviderBillController extends Controller
 
         return DB::transaction(function () use ($bill, $changes): ServiceProviderBill {
             $locked = ServiceProviderBill::query()->whereKey($bill->id)->lockForUpdate()->firstOrFail();
-            abort_unless($locked->status === ServiceProviderBillStatus::PendingValidation, 422, __('money_out.bill.not_pending'));
+            abort_code_unless($locked->status === ServiceProviderBillStatus::PendingValidation, 422, 'service_provider_bill.not_pending');
             $locked->update($changes($locked));
 
             return $locked->refresh();

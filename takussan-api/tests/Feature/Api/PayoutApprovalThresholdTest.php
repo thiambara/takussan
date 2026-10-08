@@ -30,7 +30,7 @@ class PayoutApprovalThresholdTest extends TestCase
 
         $this->patchJson("/api/agencies/{$agency->id}", ['payout_approval_threshold' => 100_000, 'name' => 'Renommée'])
             ->assertStatus(422)
-            ->assertJsonPath('message', __('money_out.threshold.needs_two_approvers'));
+            ->assertJsonPath('code', 'payout.threshold_needs_two_approvers');
 
         $this->assertNull($agency->fresh()->payout_approval_threshold);
         $this->assertNotSame('Renommée', $agency->fresh()->name);

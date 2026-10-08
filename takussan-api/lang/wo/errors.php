@@ -180,6 +180,7 @@ return [
     'invoice' => [
         'cannot_cancel' => 'Facture bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_mark_paid' => 'Facture bii mënuñu ko màndargaal ni lu ñu fay ni mu nekke léegi.',
+        'foreign_target' => 'Bii bail walla bii réservation bokkul ci agence bu facture bi.',
         'not_draft_send' => 'Facture bu nekk brouillon rekk lañu mën a yónni.',
         'status_transition_invalid' => 'Soppi statut facture bii nangouñu ko.',
         'target_not_found' => 'Mbir mi ñuy facturer gisuñu ko.',
@@ -255,14 +256,24 @@ return [
         'type_unknown' => 'Xeetu fay bii xamuñu ko.',
     ],
     'payout' => [
+        'agency_required' => 'Reversement dañu koy def ci turu agence.',
+        'already_paid_out' => 'Benn ci pièce yi dañu ko delloo ba noppi.',
+        'amount_changed_since_approval' => 'Montant bi soppiku na ginnaaw ba ñu ko nangoo : nangu ko ci kanam.',
+        'awaiting_approval' => 'Bii reversement mi ngi xaar ñu nangu ko.',
         'cannot_cancel' => 'Reversement bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_fail' => 'Reversement bii mënuñu ko màndargaal ni lu daanu ni mu nekke léegi.',
         'cannot_process' => 'Reversement bii mënuñu ko màndargaal ni lu ñu def ni mu nekke léegi.',
         'failure_reason_required' => 'Waxal lu tax mu daanu.',
         'issuer_forbidden' => 'Way agence walla administrateur yi rekk ñoo mën a génne reversement.',
         'landlord_not_in_agency' => 'Boroom kër gii bokkul ci sa agence.',
+        'mixed_currencies' => 'Reversement du boole ñaari devise.',
         'net_negative' => 'Xaalis net bi mënul a nekk ci suufu tus.',
+        'not_awaiting_approval' => 'Bii reversement du xaar ñu nangu ko.',
+        'payment_method_required' => 'Wax naka lañuy feyee.',
+        'reference_required' => 'Référence bu transaction bi war na, su du ci espèces.',
         'status_transition_invalid' => 'Soppi statut reversement bii nangouñu ko.',
+        'threshold_needs_two_approvers' => 'Seuil d\'approbation bi dafay laaj ñaari membre yu am sañ-sañ nangu.',
+        'unverified_destination' => 'Bii reversement mën na dem rekk ci destination bu ñu vérifier bu ki ñuy fey.',
     ],
     'phone' => [
         'already_verified' => 'Nimero bii dëggal nañu ko ba noppi.',
@@ -274,6 +285,8 @@ return [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',
     ],
     'platform_payout' => [
+        'agency_frozen' => 'Bii agence du active : reversement yi dañu leen taxawal.',
+        'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
     ],
@@ -311,6 +324,16 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Super admin rekk mën na jox super_admin.',
+    ],
+    'segregation' => [
+        'approve' => 'Yaa waajal bii reversement, walla yaa koy jot : beneen membre war na ko nangu.',
+        'pay' => 'Yaa nangu bii reversement, walla yaa koy jot : beneen membre war na ko màrke ni dañu ko fey.',
+        'prepare' => 'Ki ñuy fey reversement bi warul ko waajal.',
+    ],
+    'service_provider_bill' => [
+        'already_in_payout' => 'Bii facture d\'intervention mi ngi ci reversement bu ñu nekk di def.',
+        'not_payable' => 'Facture d\'intervention bu ñu valider rekk lañuy fey.',
+        'not_pending' => 'Bii facture d\'intervention du xaar validation.',
     ],
     'session' => [
         'cannot_revoke_current' => 'Mënuñu dindi session bi ngay jëfandikoo: génnal ci sa compte.',

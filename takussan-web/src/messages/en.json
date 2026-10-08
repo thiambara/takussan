@@ -8173,6 +8173,44 @@
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
         }
+      },
+      "payout": {
+        "awaiting_approval": {
+          "title": "Payout {reference} to approve",
+          "body": "Payout {reference} of {amount} is awaiting your approval."
+        },
+        "due": {
+          "title": "Payout {reference} is due",
+          "body": "Payout {reference} of {amount} is due: send it, then enter its reference."
+        },
+        "processed": {
+          "title": "Payout {reference} sent",
+          "body": "A payout of {amount} has been sent to you. Transaction reference: {transaction}. Destination: {destination}."
+        },
+        "failed": {
+          "title": "Payout {reference} failed",
+          "body": "Payout {reference} of {amount} did not go through. Reason: {reason}."
+        }
+      },
+      "payout_method": {
+        "added": {
+          "title": "Payment destination added",
+          "body": "Payment destination {destination} was added to your account. If you did not make this change, contact your agency immediately."
+        },
+        "updated": {
+          "title": "Payment destination updated",
+          "body": "Payment destination {destination} was updated on your account. If you did not make this change, contact your agency immediately."
+        },
+        "removed": {
+          "title": "Payment destination removed",
+          "body": "Payment destination {destination} was removed from your account. If you did not make this change, contact your agency immediately."
+        }
+      },
+      "owner_statement": {
+        "available": {
+          "title": "Your {period} management statement is available",
+          "body": "Your management statement for {period} is available in your space."
+        }
       }
     },
     "history": {

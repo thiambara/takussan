@@ -50,7 +50,8 @@ class PlatformPayoutSegregationTest extends TestCase
         $payout = $this->closeOne($agency);
         $this->assertSame($sa1->id, $payout->closed_by_id);
 
-        $this->postJson("/api/admin/payouts/{$payout->id}/approve")->assertForbidden();
+        $this->postJson("/api/admin/payouts/{$payout->id}/approve")->assertForbidden()
+            ->assertJsonPath('code', 'segregation.approve');
         $this->assertSame(PlatformPayoutStatus::Pending, $payout->fresh()->status);
 
         $this->actingAs($sa2);
@@ -58,7 +59,7 @@ class PlatformPayoutSegregationTest extends TestCase
         $this->postJson("/api/admin/payouts/{$payout->id}/mark-paid", [
             'processed_at' => '2026-10-01T10:00:00Z',
             'payment_reference' => 'VIR-1',
-        ])->assertForbidden();
+        ])->assertForbidden()->assertJsonPath('code', 'segregation.pay');
 
         $this->actingAs($sa1);
         $this->postJson("/api/admin/payouts/{$payout->id}/mark-paid", [

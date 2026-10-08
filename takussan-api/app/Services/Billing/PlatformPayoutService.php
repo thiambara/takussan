@@ -2,6 +2,7 @@
 
 namespace App\Services\Billing;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\AgencyKind;
@@ -36,7 +37,7 @@ class PlatformPayoutService
      * Closes a billing period for one or all agencies.
      *
      * TCK-594 (ADR-0039 §4, §3b) — with an `agency_id`, the historical contract holds: 409 when the
-     * period is already closed, and 422 (`money_out.platform.agency_frozen`) for an agency that is
+     * period is already closed, and 422 (`platform_payout.agency_frozen`) for an agency that is
      * not `active`. Without it, the global close NEVER stops on one agency: each one runs in its
      * own transaction, and an agency that is not active or already closed is listed in
      * `excluded` with its reason instead. A race lost on the partial unique index is caught
@@ -49,12 +50,12 @@ class PlatformPayoutService
         $periodEnd = $periodEnd->copy()->endOfDay();
 
         if ($agency !== null) {
-            abort_unless($agency->status === AgencyStatus::Active, 422, __('money_out.platform.agency_frozen'));
+            abort_code_unless($agency->status === AgencyStatus::Active, 422, 'platform_payout.agency_frozen');
 
             try {
                 $payout = DB::transaction(fn () => $this->closeForAgency($agency->id, $periodEnd, $actor));
             } catch (UniqueConstraintViolationException) {
-                abort(409, __('money_out.platform.already_closed'));
+                abort_code(409, 'platform_payout.already_exists');
             }
 
             return ['created' => array_values(array_filter([$payout])), 'excluded' => []];
@@ -77,8 +78,8 @@ class PlatformPayoutService
                 $excluded[] = ['agency_id' => $agencyId, 'reason' => 'already_closed'];
 
                 continue;
-            } catch (HttpException $e) {
-                if ($e->getStatusCode() !== 409) {
+            } catch (ApiError $e) {
+                if ($e->errorCode !== 'platform_payout.already_exists') {
                     throw $e;
                 }
                 $excluded[] = ['agency_id' => $agencyId, 'reason' => 'already_closed'];
@@ -106,10 +107,10 @@ class PlatformPayoutService
             $this->assertTransition($locked, PlatformPayoutStatus::Approved);
             $agency = $this->payableAgency($locked);
 
-            abort_if(
+            abort_code_if(
                 $agency->kind === AgencyKind::Standard && ! $agency->is_verified,
                 422,
-                __('money_out.platform.agency_unverified'),
+                'platform_payout.agency_unverified',
             );
 
             $this->assertNotBeneficiary($actor, $agency, SegregationOfDuties::STEP_APPROVE);
@@ -145,7 +146,7 @@ class PlatformPayoutService
             SegregationOfDuties::assertDistinct($actor, [$locked->approved_by], SegregationOfDuties::STEP_PAY);
 
             $reference = trim($reference);
-            abort_if($reference === '', 422, __('money_out.payout.reference_required'));
+            abort_code_if($reference === '', 422, 'payout.reference_required');
 
             $locked->update([
                 'status' => PlatformPayoutStatus::Paid,
@@ -343,10 +344,10 @@ class PlatformPayoutService
         $allowed = self::TRANSITIONS[$current?->value ?? ''] ?? [];
 
         if (! in_array($next, $allowed, true)) {
-            throw new HttpException(422, __('money_out.platform.invalid_transition', [
-                'from' => $current?->value ?? 'unknown',
+            abort_code(422, 'platform_payout.status_transition_invalid', [
+                'from' => $current?->value,
                 'to' => $next->value,
-            ]));
+            ]);
         }
     }
 
@@ -354,7 +355,7 @@ class PlatformPayoutService
     private function payableAgency(PlatformPayout $payout): Agency
     {
         $agency = Agency::query()->findOrFail($payout->agency_id);
-        abort_unless($agency->status === AgencyStatus::Active, 422, __('money_out.platform.agency_frozen'));
+        abort_code_unless($agency->status === AgencyStatus::Active, 422, 'platform_payout.agency_frozen');
 
         return $agency;
     }
@@ -364,7 +365,7 @@ class PlatformPayoutService
     {
         SegregationOfDuties::assertDistinct($actor, [$agency->primary_admin_id], $step);
         if (app(MembershipCapabilityResolver::class)->isStaffAt($actor, (int) $agency->id)) {
-            abort(403, __('money_out.segregation.'.$step));
+            SegregationOfDuties::refuse($step);
         }
     }
 

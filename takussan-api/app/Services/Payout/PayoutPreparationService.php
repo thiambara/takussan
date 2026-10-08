@@ -27,15 +27,15 @@ final class PayoutPreparationService
         // Comme `PayoutService::create` : le super-admin désigne l'agence ; pour tout autre, c'est celle
         // de son profil actif.
         $agencyId = $issuer->isSuperAdmin() && $agencyId !== null ? $agencyId : $issuer->agency_id;
-        abort_if($agencyId === null, 403, __('money_out.payout.agency_required'));
+        abort_code_if($agencyId === null, 403, 'payout.agency_required');
         $agency = Agency::query()->findOrFail($agencyId);
 
-        abort_unless(
+        abort_code_unless(
             $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)
             || $landlord->hasProfileAt((int) $agency->id, AgentProfile::class)
             || $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
             403,
-            __('money_out.payout.landlord_not_member'),
+            'payout.landlord_not_in_agency',
         );
 
         $computation = $this->calculator->compute(

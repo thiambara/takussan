@@ -5,7 +5,7 @@ namespace Tests\Feature\Console;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutDueNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,9 +49,9 @@ class RemindDuePayoutsCommandTest extends TestCase
 
         $this->artisan('payouts:remind-due')->assertSuccessful();
 
-        Notification::assertSentToTimes($scheduledIssuer, PayoutDueNotification::class, 1);
-        Notification::assertSentToTimes($pendingIssuer, PayoutDueNotification::class, 1);
-        Notification::assertNotSentTo($quiet, PayoutDueNotification::class);
+        Notification::assertSentToTimes($scheduledIssuer, CodedNotification::class, 1);
+        Notification::assertSentToTimes($pendingIssuer, CodedNotification::class, 1);
+        Notification::assertNotSentTo($quiet, CodedNotification::class);
         Notification::assertCount(2);
 
         $this->artisan('payouts:remind-due')->assertSuccessful();

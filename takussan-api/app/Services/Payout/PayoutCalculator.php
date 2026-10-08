@@ -216,7 +216,7 @@ final class PayoutCalculator
             foreach ($set as $item) {
                 $currency = $item->currency instanceof Currency ? $item->currency : Currency::tryFrom((string) $item->currency);
                 if ($currency !== null && $currency !== $agencyCurrency) {
-                    abort(422, __('money_out.payout.mixed_currencies'));
+                    abort_code(422, 'payout.mixed_currencies');
                 }
             }
         }

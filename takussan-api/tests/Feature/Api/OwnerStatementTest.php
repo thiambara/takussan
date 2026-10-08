@@ -6,7 +6,7 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Payout;
 use App\Models\ServiceProviderBill;
-use App\Notifications\Payouts\OwnerStatementAvailableNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -111,7 +111,7 @@ class OwnerStatementTest extends TestCase
         $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
         $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
 
-        Notification::assertSentToTimes($landlord, OwnerStatementAvailableNotification::class, 1);
+        Notification::assertSentToTimes($landlord, CodedNotification::class, 1);
 
         $events = array_values(array_filter(
             app(Schedule::class)->events(),

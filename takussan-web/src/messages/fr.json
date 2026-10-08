@@ -8173,6 +8173,44 @@
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
         }
+      },
+      "payout": {
+        "awaiting_approval": {
+          "title": "Reversement {reference} à approuver",
+          "body": "Le reversement {reference} de {amount} attend votre approbation."
+        },
+        "due": {
+          "title": "Reversement {reference} à effectuer",
+          "body": "Le reversement {reference} de {amount} est arrivé à échéance : effectuez-le, puis saisissez sa référence."
+        },
+        "processed": {
+          "title": "Reversement {reference} effectué",
+          "body": "Un reversement de {amount} vous a été versé. Référence de la transaction : {transaction}. Destination : {destination}."
+        },
+        "failed": {
+          "title": "Reversement {reference} en échec",
+          "body": "Le reversement {reference} de {amount} n'a pas abouti. Motif : {reason}."
+        }
+      },
+      "payout_method": {
+        "added": {
+          "title": "Destination de paiement ajoutée",
+          "body": "La destination de paiement {destination} a été ajoutée à votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
+        },
+        "updated": {
+          "title": "Destination de paiement modifiée",
+          "body": "La destination de paiement {destination} a été modifiée sur votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
+        },
+        "removed": {
+          "title": "Destination de paiement supprimée",
+          "body": "La destination de paiement {destination} a été supprimée de votre compte. Si vous n'êtes pas à l'origine de ce changement, contactez votre agence immédiatement."
+        }
+      },
+      "owner_statement": {
+        "available": {
+          "title": "Relevé de gérance {period} disponible",
+          "body": "Votre relevé de gérance pour {period} est disponible dans votre espace."
+        }
       }
     },
     "history": {

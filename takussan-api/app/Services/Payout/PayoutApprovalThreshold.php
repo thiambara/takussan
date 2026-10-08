@@ -25,10 +25,10 @@ final class PayoutApprovalThreshold
         $new = $value === null || $value === '' ? null : round((float) $value, 2);
 
         if ($new !== null) {
-            abort_if(
+            abort_code_if(
                 $this->approvers->holders($agency)->count() < 2,
                 422,
-                __('money_out.threshold.needs_two_approvers'),
+                'payout.threshold_needs_two_approvers',
             );
         }
 

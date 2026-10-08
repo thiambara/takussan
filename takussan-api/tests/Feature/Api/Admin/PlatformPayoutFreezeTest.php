@@ -65,7 +65,7 @@ class PlatformPayoutFreezeTest extends TestCase
 
         $this->postJson("/api/admin/payouts/{$a->id}/approve")
             ->assertStatus(422)
-            ->assertJsonPath('message', __('money_out.platform.agency_unverified'));
+            ->assertJsonPath('code', 'platform_payout.agency_unverified');
         $this->postJson("/api/admin/payouts/{$b->id}/approve")->assertOk();
     }
 
@@ -87,11 +87,11 @@ class PlatformPayoutFreezeTest extends TestCase
 
         $this->postJson("/api/admin/payouts/{$pending->id}/approve")
             ->assertStatus(422)
-            ->assertJsonPath('message', __('money_out.platform.agency_frozen'));
+            ->assertJsonPath('code', 'platform_payout.agency_frozen');
         $this->postJson("/api/admin/payouts/{$approved->id}/mark-paid", [
             'processed_at' => '2026-10-01T10:00:00Z',
             'payment_reference' => 'VIR-9',
-        ])->assertStatus(422)->assertJsonPath('message', __('money_out.platform.agency_frozen'));
+        ])->assertStatus(422)->assertJsonPath('code', 'platform_payout.agency_frozen');
 
         $this->assertSame(PlatformPayoutStatus::Pending, $pending->fresh()->status);
         $this->assertSame(PlatformPayoutStatus::Approved, $approved->fresh()->status);

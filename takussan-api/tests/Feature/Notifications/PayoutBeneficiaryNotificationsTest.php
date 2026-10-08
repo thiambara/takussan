@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Payout;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutFailedNotification;
-use App\Notifications\Payouts\PayoutProcessedNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\App;
@@ -18,8 +18,8 @@ use Tests\TestCase;
 
 /**
  * TCK-594 (AC17) — le bénéficiaire apprend que l'argent est parti (net, référence) ou qu'il n'est
- * pas parti (motif). Chaque phrase vient d'une clé `money_out.*` : une phrase écrite en dur dans la
- * classe se lirait identique en français et en anglais, et ce test la refuse.
+ * pas parti (motif). L'avis est un CODE rendu dans la langue du destinataire (ADR-0032) : une phrase
+ * écrite en dur se lirait identique en français et en anglais, et ce test la refuse.
  */
 class PayoutBeneficiaryNotificationsTest extends TestCase
 {
@@ -58,10 +58,10 @@ class PayoutBeneficiaryNotificationsTest extends TestCase
 
         foreach ($fr as $i => $line) {
             $this->assertNotSame($en[$i], $line, "ligne non traduite (littéral ?) : {$line}");
-            $this->assertStringNotContainsString('money_out.', $line, "clé absente : {$line}");
+            $this->assertStringNotContainsString('notifications.', $line, "clé absente : {$line}");
         }
         foreach (['fr', 'en', 'wo'] as $locale) {
-            $this->assertTrue(Lang::has("money_out.notifications.{$code}.subject", $locale), "{$code} sans sujet en {$locale}");
+            $this->assertTrue(Lang::has("notifications.codes.{$code}.title", $locale), "{$code} sans titre en {$locale}");
         }
     }
 
@@ -74,11 +74,12 @@ class PayoutBeneficiaryNotificationsTest extends TestCase
             'payment_method' => 'check', 'transaction_id' => 'CHQ-778899',
         ])->assertOk();
 
-        Notification::assertSentTo($landlord, PayoutProcessedNotification::class, function (PayoutProcessedNotification $n) use ($landlord): bool {
+        Notification::assertSentTo($landlord, CodedNotification::class, function (CodedNotification $n) use ($landlord): bool {
+            $this->assertSame(NotificationCode::PayoutProcessed, $n->code);
             $text = implode("\n", $this->mailText($n, $landlord, 'fr'));
-            $this->assertStringContainsString('180 000', $text);
+            $this->assertMatchesRegularExpression('/180\s000/u', $text);
             $this->assertStringContainsString('CHQ-778899', $text);
-            $this->assertEveryLineIsTranslated($n, $landlord, 'payout_processed');
+            $this->assertEveryLineIsTranslated($n, $landlord, 'payout.processed');
 
             return true;
         });
@@ -91,9 +92,10 @@ class PayoutBeneficiaryNotificationsTest extends TestCase
 
         $this->postJson("/api/payouts/{$payout->id}/mark-failed", ['failed_reason' => 'Numéro Wave fermé'])->assertOk();
 
-        Notification::assertSentTo($landlord, PayoutFailedNotification::class, function (PayoutFailedNotification $n) use ($landlord): bool {
+        Notification::assertSentTo($landlord, CodedNotification::class, function (CodedNotification $n) use ($landlord): bool {
+            $this->assertSame(NotificationCode::PayoutFailed, $n->code);
             $this->assertStringContainsString('Numéro Wave fermé', implode("\n", $this->mailText($n, $landlord, 'fr')));
-            $this->assertEveryLineIsTranslated($n, $landlord, 'payout_failed');
+            $this->assertEveryLineIsTranslated($n, $landlord, 'payout.failed');
 
             return true;
         });

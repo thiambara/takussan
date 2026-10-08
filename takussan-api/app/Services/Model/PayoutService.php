@@ -3,6 +3,8 @@
 namespace App\Services\Model;
 
 use App\Contracts\Payments\DisbursementDriverContract;
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
@@ -21,9 +23,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutAwaitingApprovalNotification;
-use App\Notifications\Payouts\PayoutFailedNotification;
-use App\Notifications\Payouts\PayoutProcessedNotification;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payout\PayoutApprovers;
 use App\Services\Payout\PayoutCalculator;
 use App\Support\SegregationOfDuties;
@@ -31,7 +31,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -78,13 +77,13 @@ class PayoutService
         $agency = $this->issuingAgency($user, $data);
 
         // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur.
-        abort_unless(
+        abort_code_unless(
             // TCK-587 — APPARTENANCE du bénéficiaire, sans filtre de statut.
             $landlord->hasProfileAt((int) $agency->id, OwnerProfile::class)
             || $landlord->hasProfileAt((int) $agency->id, AgentProfile::class)
             || $landlord->hasProfileAt((int) $agency->id, AgencyAdminProfile::class),
             403,
-            __('money_out.payout.landlord_not_member'),
+            'payout.landlord_not_in_agency',
         );
 
         // ADR-0039 §4 — le bénéficiaire ne prépare pas son propre reversement.
@@ -109,7 +108,7 @@ class PayoutService
                 $user, $landlord, $agency, $leaseIds, $bookingIds, $billIds, $destination, $data,
             ));
         } catch (UniqueConstraintViolationException) {
-            abort(409, __('money_out.payout.already_paid_out'));
+            abort_code(409, 'payout.already_paid_out');
         }
 
         $this->notifyApprovers($payout, $agency);
@@ -136,14 +135,14 @@ class PayoutService
             $locked = ServiceProviderBill::query()->whereKey($bill->id)->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== ServiceProviderBillStatus::Validated) {
-                abort(422, __('money_out.bill.not_payable'));
+                abort_code(422, 'service_provider_bill.not_payable');
             }
 
             $live = Payout::query()
                 ->where('service_provider_bill_id', $locked->id)
                 ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::holdingItems()))
                 ->exists();
-            abort_if($live, 409, __('money_out.bill.already_in_payout'));
+            abort_code_if($live, 409, 'service_provider_bill.already_in_payout');
 
             $amount = (float) $locked->amount;
 
@@ -181,7 +180,7 @@ class PayoutService
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
-            abort_unless($locked->status === PayoutStatus::AwaitingApproval, 422, __('money_out.payout.not_awaiting_approval'));
+            abort_code_unless($locked->status === PayoutStatus::AwaitingApproval, 422, 'payout.not_awaiting_approval');
 
             SegregationOfDuties::assertDistinct(
                 $actor,
@@ -214,11 +213,11 @@ class PayoutService
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
-            abort_if($locked->status === PayoutStatus::AwaitingApproval, 422, __('money_out.payout.awaiting_approval'));
-            abort_unless(
+            abort_code_if($locked->status === PayoutStatus::AwaitingApproval, 422, 'payout.awaiting_approval');
+            abort_code_unless(
                 in_array($locked->status, [PayoutStatus::Pending, PayoutStatus::Scheduled, PayoutStatus::Processing], true),
                 422,
-                __('money_out.payout.cannot_process'),
+                'payout.cannot_process',
             );
 
             SegregationOfDuties::assertDistinct(
@@ -228,18 +227,18 @@ class PayoutService
             );
 
             $approvedNet = $locked->metadata['approved_net_amount'] ?? null;
-            abort_if(
+            abort_code_if(
                 $locked->approved_by_id !== null && $approvedNet !== null
                     && round((float) $approvedNet, 2) !== round((float) $locked->net_amount, 2),
                 422,
-                __('money_out.payout.amount_changed_since_approval'),
+                'payout.amount_changed_since_approval',
             );
 
             $method = $this->paymentMethodOf($data['payment_method'] ?? null, $locked);
-            abort_if($method === null, 422, __('money_out.payout.payment_method_required'));
+            abort_code_if($method === null, 422, 'payout.payment_method_required');
 
             $reference = isset($data['transaction_id']) ? trim((string) $data['transaction_id']) : '';
-            abort_if($method !== PaymentMethod::Cash && $reference === '', 422, __('money_out.payout.reference_required'));
+            abort_code_if($method !== PaymentMethod::Cash && $reference === '', 422, 'payout.reference_required');
 
             $destination = $this->verifiedDestination($locked, $method, $data['payout_method_id'] ?? null);
 
@@ -264,7 +263,10 @@ class PayoutService
         });
 
         $payout->refresh();
-        $this->notifyBeneficiary($payout, new PayoutProcessedNotification($payout));
+        $this->notifyBeneficiary($payout, NotificationCode::PayoutProcessed, [
+            'transaction' => $payout->transaction_id,
+            'destination' => $payout->metadata['destination_masked'] ?? null,
+        ]);
 
         return $payout;
     }
@@ -274,15 +276,15 @@ class PayoutService
      */
     public function markFailed(Payout $payout, array $data): Payout
     {
-        abort_if($payout->status === PayoutStatus::AwaitingApproval, 422, __('money_out.payout.awaiting_approval'));
-        abort_if(
+        abort_code_if($payout->status === PayoutStatus::AwaitingApproval, 422, 'payout.awaiting_approval');
+        abort_code_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
             422,
-            __('money_out.payout.cannot_fail'),
+            'payout.cannot_fail',
         );
 
         $reason = isset($data['failed_reason']) ? trim((string) $data['failed_reason']) : '';
-        abort_if($reason === '', 422, __('money_out.payout.failed_reason_required'));
+        abort_code_if($reason === '', 422, 'payout.failure_reason_required');
 
         DB::transaction(function () use ($payout, $reason): void {
             $payout->update([
@@ -293,7 +295,7 @@ class PayoutService
         });
 
         $payout->refresh();
-        $this->notifyBeneficiary($payout, new PayoutFailedNotification($payout));
+        $this->notifyBeneficiary($payout, NotificationCode::PayoutFailed, ['reason' => $payout->failed_reason]);
 
         return $payout;
     }
@@ -345,7 +347,7 @@ class PayoutService
         $alreadyOut = ($leaseIds !== [] && DB::table('payout_lease_payment')->whereIn('lease_payment_id', $leaseIds)->exists())
             || ($bookingIds !== [] && DB::table('payout_booking_payment')->whereIn('booking_payment_id', $bookingIds)->exists())
             || $bills->contains(fn (ServiceProviderBill $bill) => $bill->imputed_payout_id !== null);
-        abort_if($alreadyOut, 409, __('money_out.payout.already_paid_out'));
+        abort_code_if($alreadyOut, 409, 'payout.already_paid_out');
 
         $computation = $this->calculator->compute(
             $agency,
@@ -354,7 +356,7 @@ class PayoutService
             $bills,
         );
         $totals = $computation['totals'];
-        abort_if($totals['net'] < 0, 422, __('money_out.payout.negative_net'));
+        abort_code_if($totals['net'] < 0, 422, 'payout.net_negative');
 
         $paidAt = $leasePayments->pluck('paid_at')->concat($bookingPayments->pluck('paid_at'))->filter();
         $leaseOrigin = $bookingPayments->isEmpty() ? $leasePayments->pluck('lease_id')->unique() : collect();
@@ -409,7 +411,7 @@ class PayoutService
             ? (int) $data['agency_id']
             : $user->agency_id;
 
-        abort_if($agencyId === null, 403, __('money_out.payout.agency_required'));
+        abort_code_if($agencyId === null, 403, 'payout.agency_required');
 
         return Agency::query()->findOrFail($agencyId);
     }
@@ -524,10 +526,10 @@ class PayoutService
             ->verified()
             ->first();
 
-        abort_if(
+        abort_code_if(
             $destination === null || ! in_array($destination->kind, $kinds, true),
             422,
-            __('money_out.payout.unverified_destination'),
+            'payout.unverified_destination',
         );
 
         return $destination;
@@ -564,16 +566,38 @@ class PayoutService
         $recipients = $this->approvers->holders($agency)
             ->reject(fn (User $user): bool => in_array((int) $user->id, $excluded, true));
 
-        if ($recipients->isNotEmpty()) {
-            Notification::send($recipients, new PayoutAwaitingApprovalNotification($payout));
+        foreach ($recipients as $recipient) {
+            $this->notifications()->send($recipient, NotificationCode::PayoutAwaitingApproval, self::notificationParams($payout), NotificationTarget::of('finances'));
         }
     }
 
-    private function notifyBeneficiary(Payout $payout, object $notification): void
+    /** @param  array<string, mixed>  $extra */
+    private function notifyBeneficiary(Payout $payout, NotificationCode $code, array $extra): void
     {
         $beneficiaryId = $payout->beneficiaryUserId();
         $beneficiary = $beneficiaryId !== null ? User::query()->find($beneficiaryId) : null;
-        $beneficiary?->notify($notification);
+        if ($beneficiary !== null) {
+            $this->notifications()->send($beneficiary, $code, self::notificationParams($payout) + $extra);
+        }
+    }
+
+    /**
+     * Les paramètres communs des avis d'un reversement : sa référence et son NET, montant brut que
+     * le rendu formate dans la langue du destinataire (ADR-0032).
+     *
+     * @return array{reference: ?string, amount: array{amount: string, currency: string}}
+     */
+    public static function notificationParams(Payout $payout): array
+    {
+        return [
+            'reference' => $payout->reference_number,
+            'amount' => NotificationRenderer::money($payout->net_amount, $payout->currency),
+        ];
+    }
+
+    private function notifications(): NotificationService
+    {
+        return app(NotificationService::class);
     }
 
     /**

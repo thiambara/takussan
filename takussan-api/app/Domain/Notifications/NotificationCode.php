@@ -76,6 +76,16 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    // ─── Sorties d'argent (TCK-594, ADR-0039) ───────────────────────────────────────────
+    case PayoutAwaitingApproval = 'payout.awaiting_approval';
+    case PayoutDue = 'payout.due';
+    case PayoutProcessed = 'payout.processed';
+    case PayoutFailed = 'payout.failed';
+    case PayoutMethodAdded = 'payout_method.added';
+    case PayoutMethodUpdated = 'payout_method.updated';
+    case PayoutMethodRemoved = 'payout_method.removed';
+    case OwnerStatementAvailable = 'owner_statement.available';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -109,6 +119,9 @@ enum NotificationCode: string
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
+            self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
+            self::OwnerStatementAvailable => NotificationType::Payment,
         };
     }
 
@@ -136,6 +149,12 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected => null,
+            // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
+            // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
+            // d'un détournement (ADR-0039 §6).
+            self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
+            self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
+            self::OwnerStatementAvailable => null,
         };
     }
 
@@ -174,6 +193,12 @@ enum NotificationCode: string
             self::MaintenanceQuoteSubmitted => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::PayoutAwaitingApproval, self::PayoutDue => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
+            // `transaction` et `destination` (forme masquée) valent « — » pour un paiement en espèces.
+            self::PayoutProcessed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'transaction' => self::PARAM_TEXT, 'destination' => self::PARAM_TEXT],
+            self::PayoutFailed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'reason' => self::PARAM_TEXT],
+            self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
+            self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
         };
     }
 

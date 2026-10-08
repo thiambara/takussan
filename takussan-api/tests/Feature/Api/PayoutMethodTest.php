@@ -2,10 +2,14 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Models\AppNotification;
 use App\Models\Enums\Capability;
+use App\Models\NotificationPreference;
 use App\Models\PayoutMethod;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutMethodChangedNotification;
+use App\Notifications\CodedNotification;
+use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -93,7 +97,7 @@ class PayoutMethodTest extends TestCase
 
         $this->postJson("/api/payouts/{$id}/mark-processed", $body)
             ->assertStatus(422)
-            ->assertJsonPath('message', __('money_out.payout.unverified_destination'));
+            ->assertJsonPath('code', 'payout.unverified_destination');
 
         // Vérifiée par l'agence, elle sert ; la destination masquée est recopiée sur le reversement.
         $this->postJson("/api/payout-methods/{$method->id}/verify")->assertOk()->assertJsonPath('data.verified', true);
@@ -117,6 +121,31 @@ class PayoutMethodTest extends TestCase
         ])->assertStatus(422);
     }
 
+    /** ADR-0039 §6 — l'avis de changement de destination n'a pas d'interrupteur : couper tous les e-mails ne le coupe pas. */
+    public function test_ac16_the_destination_change_notice_ignores_email_preferences(): void
+    {
+        Notification::fake();
+        $landlord = $this->landlordOf($this->moneyAgency());
+        foreach (PreferenceResolver::EVENTS as $event) {
+            NotificationPreference::query()->updateOrCreate(
+                ['user_id' => $landlord->id, 'event_type' => $event, 'channel' => PreferenceResolver::CHANNEL_EMAIL],
+                ['enabled' => false],
+            );
+        }
+        Sanctum::actingAs($landlord);
+
+        $this->postJson('/api/me/payout-methods', [
+            'kind' => 'wave', 'account_identifier' => '+221 77 123 45 67', 'account_holder_name' => 'Awa Ndiaye',
+        ])->assertCreated();
+
+        Notification::assertSentTo($landlord, CodedNotification::class, function ($n, array $channels): bool {
+            return $n->code === NotificationCode::PayoutMethodAdded && in_array('mail', $channels, true);
+        });
+        $row = AppNotification::query()->where('user_id', $landlord->id)->where('code', 'payout_method.added')->sole();
+        $this->assertStringContainsString('4567', $row->body);
+        $this->assertStringNotContainsString('123 45', $row->body);
+    }
+
     public function test_ac16_modifying_a_destination_unverifies_it_and_notifies_the_holder(): void
     {
         Notification::fake();
@@ -129,12 +158,12 @@ class PayoutMethodTest extends TestCase
             ->assertJsonPath('data.verified', false)
             ->assertJsonPath('data.masked_identifier', '•••• 1122');
 
-        Notification::assertSentTo($landlord, PayoutMethodChangedNotification::class, function ($n, array $channels): bool {
-            return $n->action === 'updated' && in_array('mail', $channels, true);
+        Notification::assertSentTo($landlord, CodedNotification::class, function ($n, array $channels): bool {
+            return $n->code === NotificationCode::PayoutMethodUpdated && in_array('mail', $channels, true);
         });
 
         $this->deleteJson("/api/me/payout-methods/{$method->id}")->assertNoContent();
-        Notification::assertSentTo($landlord, PayoutMethodChangedNotification::class, fn ($n): bool => $n->action === 'removed');
+        Notification::assertSentTo($landlord, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutMethodRemoved);
     }
 
     public function test_adding_a_destination_notifies_and_only_a_verified_phone_verifies_itself(): void
@@ -147,7 +176,7 @@ class PayoutMethodTest extends TestCase
             ->assertCreated()->assertJsonPath('data.verified', true);
         $this->postJson('/api/me/payout-methods', ['kind' => 'wave', 'account_identifier' => '+221 70 999 88 77'])
             ->assertCreated()->assertJsonPath('data.verified', false);
-        Notification::assertSentToTimes($holder, PayoutMethodChangedNotification::class, 2);
+        Notification::assertSentToTimes($holder, CodedNotification::class, 2);
 
         $unverifiedPhone = User::factory()->create(['phone' => '+221771234567', 'phone_verified_at' => null]);
         Sanctum::actingAs($unverifiedPhone);

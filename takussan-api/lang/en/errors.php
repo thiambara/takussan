@@ -180,6 +180,7 @@ return [
     'invoice' => [
         'cannot_cancel' => 'This invoice cannot be cancelled in its current state.',
         'cannot_mark_paid' => 'This invoice cannot be marked paid in its current state.',
+        'foreign_target' => 'This lease or booking does not belong to the invoice\'s agency.',
         'not_draft_send' => 'Only a draft invoice can be sent.',
         'status_transition_invalid' => 'This invoice status change is not allowed.',
         'target_not_found' => 'The item to invoice was not found.',
@@ -255,14 +256,24 @@ return [
         'type_unknown' => 'Unknown payment type.',
     ],
     'payout' => [
+        'agency_required' => 'A payout is issued on behalf of an agency.',
+        'already_paid_out' => 'One of the cited items has already been paid out.',
+        'amount_changed_since_approval' => 'The amount changed since it was approved: have it approved again.',
+        'awaiting_approval' => 'This payout is awaiting approval.',
         'cannot_cancel' => 'This payout cannot be cancelled in its current state.',
         'cannot_fail' => 'This payout cannot be marked failed in its current state.',
         'cannot_process' => 'This payout cannot be marked processed in its current state.',
         'failure_reason_required' => 'Provide the reason for the failure.',
         'issuer_forbidden' => 'Only agency members or administrators can issue payouts.',
         'landlord_not_in_agency' => 'This landlord does not belong to your agency.',
+        'mixed_currencies' => 'A payout cannot mix two currencies.',
         'net_negative' => 'The net amount cannot be negative.',
+        'not_awaiting_approval' => 'This payout is not awaiting approval.',
+        'payment_method_required' => 'Specify the payment method.',
+        'reference_required' => 'The transaction reference is required unless paid in cash.',
         'status_transition_invalid' => 'This payout status change is not allowed.',
+        'threshold_needs_two_approvers' => 'The approval threshold requires at least two active members allowed to approve.',
+        'unverified_destination' => 'This payout can only go to a verified destination of the payee, of the chosen method.',
     ],
     'phone' => [
         'already_verified' => 'This phone number is already verified.',
@@ -274,6 +285,8 @@ return [
         'in_use' => 'This plan is used by agency subscriptions.',
     ],
     'platform_payout' => [
+        'agency_frozen' => 'This agency is not active: its payouts are frozen.',
+        'agency_unverified' => 'An unverified agency cannot be paid.',
         'already_exists' => 'A payout already exists for this period.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
     ],
@@ -311,6 +324,16 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Only a super admin can grant the super_admin role.',
+    ],
+    'segregation' => [
+        'approve' => 'You prepared this payout, or you are its payee: another member must approve it.',
+        'pay' => 'You approved this payout, or you are its payee: another member must mark it paid.',
+        'prepare' => 'The payee of a payout cannot prepare it.',
+    ],
+    'service_provider_bill' => [
+        'already_in_payout' => 'This maintenance bill is already in an ongoing payout.',
+        'not_payable' => 'Only a validated maintenance bill can be paid.',
+        'not_pending' => 'This maintenance bill is no longer awaiting validation.',
     ],
     'session' => [
         'cannot_revoke_current' => 'The current session cannot be revoked: sign out instead.',

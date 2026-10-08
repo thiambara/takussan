@@ -30,7 +30,7 @@ class InvoiceTargetScopeTest extends TestCase
 
         $this->postJson('/api/invoices', $body + ['invoiceable_id' => $foreign->id])
             ->assertStatus(422)
-            ->assertJsonPath('message', __('money_out.invoice.foreign_target'));
+            ->assertJsonPath('code', 'invoice.foreign_target');
         $this->assertSame(0, Invoice::query()->count());
 
         $this->postJson('/api/invoices', $body + ['invoiceable_id' => $own->id])->assertCreated();

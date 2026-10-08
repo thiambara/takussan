@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PayoutStatus;
@@ -9,7 +10,7 @@ use App\Models\Payout;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutAwaitingApprovalNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -96,10 +97,10 @@ class PayoutApprovalTest extends TestCase
         Sanctum::actingAs($issuer);
         $id = $this->createPayout($agency, $landlord, 150_000);
         $this->assertSame(PayoutStatus::AwaitingApproval, Payout::find($id)->status);
-        Notification::assertSentTo($approver, PayoutAwaitingApprovalNotification::class);
-        Notification::assertNotSentTo($issuer, PayoutAwaitingApprovalNotification::class);
+        Notification::assertSentTo($approver, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutAwaitingApproval);
+        Notification::assertNotSentTo($issuer, CodedNotification::class);
 
-        $this->pay($id)->assertStatus(422);
+        $this->pay($id)->assertStatus(422)->assertJsonPath('code', 'payout.awaiting_approval');
         $this->postJson("/api/payouts/{$id}/approve")->assertForbidden();
         $this->assertSame(PayoutStatus::AwaitingApproval, Payout::find($id)->status);
 
@@ -108,8 +109,8 @@ class PayoutApprovalTest extends TestCase
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.approved_by_id', $approver->id);
         // L'approbation ne se rejoue pas.
-        $this->postJson("/api/payouts/{$id}/approve")->assertStatus(422);
-        $this->pay($id)->assertForbidden();
+        $this->postJson("/api/payouts/{$id}/approve")->assertStatus(422)->assertJsonPath('code', 'payout.not_awaiting_approval');
+        $this->pay($id)->assertForbidden()->assertJsonPath('code', 'segregation.pay');
 
         Sanctum::actingAs($issuer);
         $this->pay($id, ['transaction_id' => null])->assertStatus(422);

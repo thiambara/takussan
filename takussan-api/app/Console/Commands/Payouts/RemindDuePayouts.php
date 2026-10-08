@@ -2,10 +2,13 @@
 
 namespace App\Console\Commands\Payouts;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
 use App\Models\User;
-use App\Notifications\Payouts\PayoutDueNotification;
+use App\Services\Model\NotificationService;
+use App\Services\Model\PayoutService;
 use Illuminate\Console\Command;
 
 /**
@@ -21,7 +24,7 @@ class RemindDuePayouts extends Command
 
     protected $description = 'Rappelle à leur émetteur les reversements programmés échus (une fois chacun).';
 
-    public function handle(): int
+    public function handle(NotificationService $notifications): int
     {
         $sent = 0;
 
@@ -32,7 +35,7 @@ class RemindDuePayouts extends Command
             ->whereNotNull('issued_by_id')
             ->whereRaw("(metadata->>'due_reminded_at') IS NULL")
             ->orderBy('id')
-            ->chunkById(200, function ($payouts) use (&$sent): void {
+            ->chunkById(200, function ($payouts) use (&$sent, $notifications): void {
                 foreach ($payouts as $payout) {
                     // Marqué AVANT l'envoi : une relance rejouée ne double jamais l'avis, au prix
                     // d'un avis perdu si l'envoi échoue — c'est un rappel, pas l'argent.
@@ -40,8 +43,11 @@ class RemindDuePayouts extends Command
                         'due_reminded_at' => now()->toIso8601String(),
                     ])])->saveQuietly();
 
-                    User::query()->find($payout->issued_by_id)?->notify(new PayoutDueNotification($payout));
-                    $sent++;
+                    $issuer = User::query()->find($payout->issued_by_id);
+                    if ($issuer !== null) {
+                        $notifications->send($issuer, NotificationCode::PayoutDue, PayoutService::notificationParams($payout), NotificationTarget::of('finances'));
+                        $sent++;
+                    }
                 }
             });
 

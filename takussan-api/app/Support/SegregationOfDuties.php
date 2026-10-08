@@ -13,7 +13,7 @@ use App\Models\User;
  *
  * Les deux chaînes (agence → bailleur ou prestataire, plateforme → agence) appellent cette classe ;
  * aucune ne réécrit la comparaison. Elle porte sur l'UTILISATEUR, jamais sur le profil : deux profils
- * ou deux agences ne font pas deux personnes. Une violation rend 403 avec une clé, jamais une phrase.
+ * ou deux agences ne font pas deux personnes. Une violation rend 403 avec un code, jamais une phrase.
  */
 final class SegregationOfDuties
 {
@@ -32,8 +32,18 @@ final class SegregationOfDuties
     {
         foreach ($priorActorIds as $priorId) {
             if ($priorId !== null && (int) $priorId === (int) $actor->id) {
-                abort(403, __('money_out.segregation.'.$step));
+                self::refuse($step);
             }
         }
+    }
+
+    /** Le refus d'un geste : 403 et un code par geste, écrit en littéral (ADR-0032). */
+    public static function refuse(string $step): never
+    {
+        match ($step) {
+            self::STEP_PREPARE => abort_code(403, 'segregation.prepare'),
+            self::STEP_APPROVE => abort_code(403, 'segregation.approve'),
+            self::STEP_PAY => abort_code(403, 'segregation.pay'),
+        };
     }
 }
