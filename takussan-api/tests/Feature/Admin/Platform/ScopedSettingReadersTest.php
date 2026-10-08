@@ -2,9 +2,14 @@
 
 namespace Tests\Feature\Admin\Platform;
 
+use App\Jobs\Invoice\SendOverdueRemindersJob;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Enums\SettingScope;
+use App\Models\Invoice;
 use App\Models\Setting;
+use App\Models\User;
+use App\Notifications\InvoiceOverdueReminderNotification;
 use App\Services\Invoice\OverdueReminderService;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LateFeeCalculator;
@@ -12,6 +17,7 @@ use App\Services\Lease\LeaseRenewalService;
 use App\Services\Lease\RentReviewService;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use Tests\Support\FabriqueDemandesEtVisites;
@@ -81,6 +87,40 @@ class ScopedSettingReadersTest extends TestCase
         $service = app(OverdueReminderService::class);
         $this->assertSame([40, 41], $service->offsets($a->id));
         $this->assertSame(OverdueReminderService::DEFAULT_OFFSETS, $service->offsets($b->id));
+    }
+
+    /**
+     * verif-600 passe 2, m-B — le balayage quotidien unit les échéances de TOUTES les agences.
+     * Une agence dont le seul réglage vaut [40] n'a aucune facture aux échéances par défaut : sans
+     * l'union, le balayage ne la listerait jamais, et sa relance de J+40 ne partirait jamais.
+     */
+    public function test_le_balayage_relance_une_agence_a_ses_seules_echeances(): void
+    {
+        Notification::fake();
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        $this->ligne(OverdueReminderService::SETTING_KEY, [40], SettingScope::Agency, $a->id);
+        $clientA = $this->factureEchue($a, 40);
+        $clientB = $this->factureEchue($b, 40);
+
+        $this->assertContains($a->id, app(OverdueReminderService::class)->agenciesWithRemindableInvoices());
+        $this->assertSame(1, app()->call([new SendOverdueRemindersJob, 'handle']));
+
+        Notification::assertSentToTimes($clientA, InvoiceOverdueReminderNotification::class, 1);
+        // Témoin : J+40 n'est une échéance que pour A ; B garde le défaut.
+        Notification::assertNothingSentTo($clientB);
+    }
+
+    private function factureEchue(Agency $agence, int $joursDeRetard): User
+    {
+        $client = User::factory()->create();
+        Invoice::factory()->sent()->create([
+            'agency_id' => $agence->id,
+            'customer_id' => Customer::factory()->create(['user_id' => $client->id])->id,
+            'due_date' => now()->subDays($joursDeRetard)->toDateString(),
+        ]);
+
+        return $client;
     }
 
     private function ligne(string $cle, mixed $valeur, SettingScope $portee, ?int $agence): void
