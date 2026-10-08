@@ -103,6 +103,9 @@ class LeaseRenewalService
                 'landlord_id' => $parent->landlord_id,
                 'tenant_id' => $parent->tenant_id,
                 'agency_id' => $parent->agency_id,
+                // TCK-595 (ADR-0049 §1) — le négociateur suit le bail. Le renouvellement n'émet pas
+                // `LeaseActivated` : aucune ligne de commission ne naît ici.
+                'agent_id' => $parent->agent_id,
                 'guarantor_id' => $parent->guarantor_id,
                 'renewed_from_lease_id' => $parent->id,
                 'reference_number' => ReferenceNumberGenerator::lease(),

@@ -89,6 +89,9 @@ return [
         'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
     ],
+    'commission' => [
+        'not_due' => 'Komisiyoŋ bu ñu war a fey rekk lañu mën a bind ne fey nañu ko walla neenal ko.',
+    ],
     'conversation' => [
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',

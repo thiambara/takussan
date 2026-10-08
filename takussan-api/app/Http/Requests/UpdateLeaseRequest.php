@@ -2,13 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Lease;
+use App\Rules\PersonnelDeLAgence;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
 /**
  * TCK-087 — `PATCH /api/leases/{lease}` payload validator.
  *
- * Currently only the late-fee config is editable through this endpoint;
+ * Editable here: the late-fee config and, since TCK-595 (ADR-0049), the
+ * negotiator (`agent_id`) and the agency commission (`commission_amount`);
  * lifecycle changes (status, dates, monthly_rent…) flow through their
  * dedicated actions on `LeaseController` (activate, terminate, renew) or
  * dedicated endpoints (`PATCH /leases/{lease}/rent` for rent reviews —
@@ -29,6 +32,10 @@ class UpdateLeaseRequest extends BaseFormRequest
         return [
             'late_fee_percent' => ['sometimes', 'nullable', 'numeric', 'between:0,50'],
             'late_fee_grace_days' => ['sometimes', 'nullable', 'integer', 'between:0,30'],
+            // TCK-595 (ADR-0049 §1, §2) — modifiables, mais le grand livre est figé à l'activation : une
+            // correction après coup ne régénère aucune ligne, l'admin annule la ligne fausse.
+            'commission_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'agent_id' => ['sometimes', 'nullable', 'integer', new PersonnelDeLAgence($this->leaseAgencyId())],
         ];
     }
 
@@ -60,6 +67,15 @@ class UpdateLeaseRequest extends BaseFormRequest
     public function messages(): array
     {
         return [];
+    }
+
+    /** TCK-595 — l'agence DU BIEN du bail, celle dont le négociateur doit être le personnel. */
+    private function leaseAgencyId(): ?int
+    {
+        $lease = $this->route('lease');
+        $agencyId = $lease instanceof Lease ? $lease->property()->value('agency_id') : null;
+
+        return $agencyId !== null ? (int) $agencyId : null;
     }
 
     public function withValidator(Validator $validator): void

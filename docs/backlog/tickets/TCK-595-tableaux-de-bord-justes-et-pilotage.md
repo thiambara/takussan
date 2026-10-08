@@ -816,3 +816,15 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   `update`). Un admin de X agissant sous son profil Y ne lit donc pas X.
 - Ablations rejouées (`scratchpad/vague73/t595/ablations.log`) : chaque test d'AC1 à AC5, AC7, AC8,
   AC16, AC16 bis, AC17 bis et H-2 rougit sur le code d'origine ou sur sa mutation ciblée.
+
+### Lot 2 — grand livre des commissions (ADR-0049 §1 à §3)
+
+- `commission_amount` n'était ni dans les règles de `StoreLeaseRequest` ni dans `LeaseResource` : le
+  montant saisi disparaissait et ne se relisait pas. Les deux l'ont maintenant, avec `agent_id`.
+- Les montants des lignes sont arrondis au **centime inférieur**. Σ ≤ base tient donc par construction,
+  quel que soit le nombre de parts. `round()` pouvait dépasser la base d'un demi-centime par ligne.
+- **Décision à confirmer (ajoutée à l'ADR)** : `mark-paid` et `cancel` entrent dans la famille
+  protégée de `ProtectedActions` (2FA de l'admin d'agence), et `mark-paid` exige le step-up, comme
+  `payouts/{payout}/mark-processed`. Le bénéficiaire ne solde pas sa propre ligne.
+- L'écouteur est en file (`ShouldQueue`), comme ses voisins sur `LeaseActivated`. La relance est sans
+  effet grâce à `insertOrIgnore`.

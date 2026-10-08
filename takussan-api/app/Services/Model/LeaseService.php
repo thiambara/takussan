@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Guarantor;
@@ -15,6 +16,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -46,6 +48,20 @@ class LeaseService
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::query()->find($data['guarantor_id']);
             abort_unless($guarantor !== null && $user->can('view', $guarantor), 403);
+        }
+
+        // TCK-595 (ADR-0049 §1) — sans négociateur saisi, le créateur s'il est personnel de l'agence du
+        // bien. Un bailleur qui crée son propre bail ne se désigne pas.
+        if (! array_key_exists('agent_id', $data)) {
+            $data['agent_id'] = PersonnelDeLAgence::estPersonnel($user, $property->agency_id) ? $user->id : null;
+        }
+
+        // TCK-595 (ADR-0049 §2) — une vente sans montant naît avec prix × taux. Jamais une location :
+        // son `commission_rate` est le taux de gestion des reversements (ADR-0039), un autre flux.
+        if (($data['commission_amount'] ?? null) === null
+            && ($data['type'] ?? null) === LeaseType::Sale->value
+            && isset($data['sale_price'], $data['commission_rate'])) {
+            $data['commission_amount'] = round((float) $data['sale_price'] * (float) $data['commission_rate'] / 100, 2);
         }
 
         return Lease::create(array_merge($data, [

@@ -113,6 +113,9 @@ l'autre serait faux.
   lit alors toutes celles de l'agence.
 - `mark-paid` et `cancel` exigent `payouts.approve` à l'agence de la ligne (`CommissionEntryPolicy`), et
   seule une ligne `due` change d'état. Chaque geste est journalisé (`activity('CommissionEntry')`).
+  Le bénéficiaire ne solde pas sa propre ligne. Les deux gestes rejoignent la famille protégée de
+  `ProtectedActions` (2FA de l'admin d'agence), et `mark-paid` le step-up, comme
+  `payouts/{payout}/mark-processed` (TCK-594).
 - Le versement effectif (mobile money) est hors périmètre : seul le marquage est livré.
 
 *Écarté* : calculer la commission à la volée depuis le bail et les parts courantes. Une part modifiée

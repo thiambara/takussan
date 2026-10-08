@@ -3154,6 +3154,43 @@ reversement (`imputed_payout_id`).
 
 ---
 
+### 79. CommissionEntry 🆕
+
+> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0049 §3. Le même ticket
+> ajoute `leases.agent_id` (FK users, `nullOnDelete`, le négociateur, ADR-0049 §1).
+
+**Table :** `commission_entries`
+**Description :** Grand livre des commissions d'agence : la part d'un bénéficiaire (négociateur du
+bail ou collaborateur `agent` du bien) sur `leases.commission_amount`, figée à l'activation du bail
+(`LeaseActivated` → `CommissionLedgerService::generateFor`). Jamais recalculée depuis un état courant.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete` |
+| lease_id | FK leases | | | `cascadeOnDelete` |
+| beneficiary_id | FK users | | | `cascadeOnDelete` |
+| origin | string(20) | | | `CommissionOrigin` : `negotiator`, `collaborator` |
+| base_amount | decimal(14,2) | | | `commission_amount` du bail à l'activation |
+| share_percent | decimal(5,2) | | | Part servie |
+| amount | decimal(14,2) | | | Arrondi au centime inférieur (Σ ≤ base) |
+| currency | string(3) | | XOF | |
+| status | string(20) | | due | `CommissionEntryStatus` : `due`, `paid`, `cancelled` |
+| earned_at | timestamp | | | `signed_at` du bail |
+| paid_at / paid_by_id | timestamp / FK users | oui | null | Marquage versé (`payouts.approve`) |
+| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulation (`payouts.approve`) |
+| metadata | jsonb | oui | null | Détail des parts du négociateur également collaborateur |
+| created_at / updated_at | timestamp | | auto | |
+
+Unicité `commission_entries_lease_benef_uq (lease_id, beneficiary_id)` ; index
+`commission_entries_agency_benef_idx (agency_id, beneficiary_id, earned_at)`.
+
+**Relations :** `agency()`, `lease()`, `beneficiary()` → belongsTo. Inverse :
+`Lease.commissionEntries()`.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)

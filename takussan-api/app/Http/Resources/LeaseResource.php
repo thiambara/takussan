@@ -16,6 +16,8 @@ class LeaseResource extends BaseResource
             'landlord_id' => $this->landlord_id,
             'tenant_id' => $this->tenant_id,
             'agency_id' => $this->agency_id,
+            // TCK-595 (ADR-0049 §1) — le négociateur.
+            'agent_id' => $this->agent_id,
             'booking_id' => $this->booking_id,
             'renewed_from_lease_id' => $this->renewed_from_lease_id,
             'type' => $this->type?->value,
@@ -31,6 +33,9 @@ class LeaseResource extends BaseResource
             'deposit_refunded_at' => $this->iso($this->deposit_refunded_at),
             'deposit_refund_reason' => $this->deposit_refund_reason,
             'commission_rate' => $this->commission_rate !== null ? (float) $this->commission_rate : null,
+            // TCK-595 (ADR-0049 §2) — la base du grand livre. Elle était en base et jamais rendue : le
+            // formulaire ne pouvait ni la montrer ni vérifier ce qu'il avait envoyé.
+            'commission_amount' => $this->commission_amount !== null ? (float) $this->commission_amount : null,
             'payment_frequency' => $this->payment_frequency?->value,
             'payment_day' => $this->payment_day,
             'signed_at' => $this->iso($this->signed_at),

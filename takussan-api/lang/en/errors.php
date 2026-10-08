@@ -89,6 +89,9 @@ return [
         'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
     ],
+    'commission' => [
+        'not_due' => 'Only a commission that is due can be marked paid or cancelled.',
+    ],
     'conversation' => [
         'participant_not_found' => 'This participant is not part of the conversation.',
         'participant_required' => 'At least one other participant is required.',

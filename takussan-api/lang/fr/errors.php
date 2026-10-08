@@ -89,6 +89,9 @@ return [
         'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',
     ],
+    'commission' => [
+        'not_due' => 'Seule une commission due peut être marquée versée ou annulée.',
+    ],
     'conversation' => [
         'participant_not_found' => 'Ce participant ne fait pas partie de la conversation.',
         'participant_required' => 'Il faut au moins un autre participant.',
