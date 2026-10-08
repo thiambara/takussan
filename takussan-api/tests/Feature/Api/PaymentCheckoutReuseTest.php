@@ -251,11 +251,23 @@ class PaymentCheckoutReuseTest extends TestCase
 
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
-        $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk();
+        $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk()
+            ->assertJsonPath('data.refund_pending', false);
         $this->assertSame(PaymentStatus::Paid, $ctx['payment']->refresh()->status);
 
-        $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk();
-        $this->assertArrayNotHasKey('gateway_duplicate_payment', $ctx['payment']->refresh()->metadata);
+        // VERIF-596 passe 8 (m-o) — le rejeu du règlement qui a soldé n'attend aucun remboursement,
+        // même quand un AUTRE règlement de l'échéance est inscrit en doublon (le drapeau porte sur
+        // le règlement vérifié, pas sur l'échéance), ni quand seule SA part « pénalité » l'est.
+        $meta = $ctx['payment']->refresh()->metadata;
+        $meta['gateway_duplicate_payment'] = [
+            ['transaction_id' => 'autre_txn', 'amount' => 150_000, 'at' => now()->toIso8601String()],
+            ['transaction_id' => 'spy_txn_1', 'amount' => 7_500, 'at' => now()->toIso8601String(), 'kind' => 'late_fee'],
+        ];
+        $ctx['payment']->forceFill(['metadata' => $meta])->saveQuietly();
+        $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk()
+            ->assertJsonPath('data.refund_pending', false);
+        // Le rejeu n'ajoute aucun doublon : seuls ceux posés à la main restent.
+        $this->assertSame(['autre_txn', 'spy_txn_1'], array_column($ctx['payment']->refresh()->metadata['gateway_duplicate_payment'], 'transaction_id'));
     }
 
     public function test_un_reglement_anterieur_a_settled_by_n_est_pas_son_propre_doublon(): void

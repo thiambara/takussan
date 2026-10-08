@@ -442,8 +442,10 @@ class LeaseRenewalOverlapTest extends TestCase
             }
         });
 
+        // Passe 8 (m-o) — la réponse dit que ce règlement attend un remboursement.
         $this->getJson("/api/lease-payments/{$due->id}/verify")->assertOk()
-            ->assertJsonPath('data.status', PaymentStatus::Cancelled->value);
+            ->assertJsonPath('data.status', PaymentStatus::Cancelled->value)
+            ->assertJsonPath('data.refund_pending', true);
 
         $this->assertTrue($driver->called);
         $this->assertNotEmpty($locksAfterCall, 'verify : l\'échéance n\'est pas relue FOR UPDATE après l\'appel au fournisseur');
