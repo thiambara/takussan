@@ -853,7 +853,8 @@
         "weeklyLine": "{price} / semaine, au prorata de {count, plural, =1 {# nuit} other {# nuits}}",
         "deposit": "Acompte (30 %)",
         "rentLine": "Loyer",
-        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif."
+        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif.",
+        "occupiedHint": "Les dates grisées sont déjà prises."
       },
       "offerForm": {
         "invalidAmount": "Montant invalide.",
@@ -1006,7 +1007,8 @@
         "fullPriceHistory": "Historique complet des prix",
         "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
         "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
-        "unknownDate": "Date inconnue"
+        "unknownDate": "Date inconnue",
+        "calendar": "Calendrier"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1122,6 +1124,44 @@
         "deleteBodyRow": "Le bien <b>{title}</b> sera archivé (soft-delete). Vous pourrez le restaurer depuis l’administration.",
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
         "cancel": "Annuler"
+      },
+      "calendar": {
+        "title": "Calendrier du bien",
+        "description": "Réservations confirmées, dates bloquées et dates importées d'autres plateformes, sur douze mois.",
+        "legend": "Légende",
+        "legendBooked": "Réservé",
+        "legendBlocked": "Bloqué",
+        "legendImported": "Importé",
+        "genericError": "L'opération n'a pas abouti.",
+        "blockTitle": "Bloquer des dates",
+        "blockHint": "Les nuits bloquées ne sont plus réservables, ici comme sur les plateformes qui lisent votre lien d'export.",
+        "blockFrom": "Première nuit",
+        "blockTo": "Jour de reprise",
+        "blockReason": "Motif (facultatif, visible de vous seul)",
+        "blockSubmit": "Bloquer",
+        "blocksTitle": "Dates bloquées",
+        "blocksEmpty": "Aucune date bloquée sur les douze prochains mois.",
+        "range": "Du {from} au {to}",
+        "manual": "Blocage manuel",
+        "importedFrom": "Importé de {feed}",
+        "conflict": "Conflit avec une réservation",
+        "unblock": "Débloquer",
+        "feedsTitle": "Calendriers importés",
+        "feedsHint": "Collez le lien iCal d'Airbnb, de Booking.com ou d'un agenda : leurs dates prises sont bloquées ici toutes les heures. Une date importée se retire à la source.",
+        "feedUrl": "Lien iCal (https)",
+        "feedLabel": "Nom (facultatif)",
+        "feedAdd": "Importer",
+        "feedOk": "synchronisé",
+        "feedFailing": "en échec ({count, plural, =1 {# tentative} other {# tentatives}})",
+        "feedSync": "Synchroniser",
+        "feedRemove": "Retirer",
+        "exportTitle": "Lien d'export",
+        "exportHint": "Donnez ce lien aux autres plateformes pour qu'elles bloquent vos réservations Takussan. Il ne contient ni nom ni téléphone.",
+        "exportGenerate": "Générer un nouveau lien",
+        "exportUrl": "Lien d'export iCal",
+        "exportCopy": "Copier",
+        "exportCopied": "Copié",
+        "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent."
       }
     },
     "visibility": {
@@ -8200,6 +8240,14 @@
         "rejected": {
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        },
+        "calendar_conflict": {
+          "title": "Conflit de calendrier : {property}",
+          "body": "Le calendrier « {feed} » bloque {property} du {start_date} au {end_date}, alors qu'une réservation confirmée occupe ces dates. Rien n'a été annulé : vérifiez les deux plateformes."
+        },
+        "calendar_feed_failing": {
+          "title": "Calendrier importé en échec : {property}",
+          "body": "Le calendrier « {feed} » de {property} ne se synchronise plus depuis trois tentatives. Vérifiez son lien."
         }
       }
     },

@@ -322,6 +322,10 @@ class AppServiceProvider extends ServiceProvider
         // not collapsed once authenticated.
         RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
 
+        // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
+        // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
+        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
         // account-creation spam, reset-email bombing, user enumeration and

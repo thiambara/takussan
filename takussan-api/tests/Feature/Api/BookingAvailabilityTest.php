@@ -4,6 +4,8 @@ namespace Tests\Feature\Api;
 
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\PropertyCalendarFeed;
+use App\Models\PropertyUnavailability;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -117,5 +119,60 @@ class BookingAvailabilityTest extends TestCase
         Sanctum::actingAs($this->landlord);
         $this->postJson("/api/bookings/{$first->id}/confirm")->assertOk();
         $this->postJson("/api/bookings/{$second->id}/confirm")->assertStatus(422)->assertJsonPath('code', 'booking.dates_overlap');
+    }
+
+    // ─── §3B (ADR-0041) — une nuit BLOQUÉE refuse comme une nuit réservée ───────────────────────
+
+    public function test_a_private_request_on_blocked_nights_is_refused(): void
+    {
+        PropertyUnavailability::query()->create([
+            'property_id' => $this->property->id, 'starts_on' => $this->day(40), 'ends_on' => $this->day(43), 'source' => 'manual',
+        ]);
+        Sanctum::actingAs($this->client);
+
+        $this->postJson('/api/bookings', [
+            'property_id' => $this->property->id,
+            'start_date' => $this->day(42),
+            'end_date' => $this->day(44),
+        ])->assertStatus(422)->assertJsonPath('code', 'booking.dates_unavailable');
+        $this->assertSame(0, Booking::query()->whereKeyNot($this->confirmed->id)->count());
+    }
+
+    public function test_a_public_request_on_blocked_nights_is_refused(): void
+    {
+        PropertyUnavailability::query()->create([
+            'property_id' => $this->property->id, 'starts_on' => $this->day(40), 'ends_on' => $this->day(43), 'source' => 'manual',
+        ]);
+
+        $this->publicRequest(39, 41)->assertStatus(422)->assertJsonPath('code', 'booking.dates_unavailable');
+        $this->assertSame(0, Booking::query()->whereKeyNot($this->confirmed->id)->count());
+    }
+
+    public function test_leaving_on_the_first_blocked_day_is_accepted(): void
+    {
+        PropertyUnavailability::query()->create([
+            'property_id' => $this->property->id, 'starts_on' => $this->day(40), 'ends_on' => $this->day(43), 'source' => 'manual',
+        ]);
+
+        $this->publicRequest(37, 40)->assertCreated();
+        $this->publicRequest(43, 45)->assertCreated();
+    }
+
+    /** Second chemin : la demande acceptée AVANT le blocage (importé) ne se confirme plus. */
+    public function test_confirming_a_request_whose_nights_were_blocked_since_is_refused(): void
+    {
+        $this->publicRequest(20, 23)->assertCreated();
+        $pending = Booking::query()->whereKeyNot($this->confirmed->id)->sole();
+        $feed = PropertyCalendarFeed::query()->create([
+            'property_id' => $this->property->id, 'url' => 'https://cal.example.com/a.ics', 'url_host' => 'cal.example.com',
+        ]);
+        PropertyUnavailability::query()->create([
+            'property_id' => $this->property->id, 'starts_on' => $this->day(21), 'ends_on' => $this->day(22),
+            'source' => 'ical', 'calendar_feed_id' => $feed->id, 'external_uid' => 'x@airbnb',
+        ]);
+
+        Sanctum::actingAs($this->landlord);
+        $this->postJson("/api/bookings/{$pending->id}/confirm")->assertStatus(422)->assertJsonPath('code', 'booking.dates_unavailable');
+        $this->assertSame(BookingStatus::Pending, $pending->fresh()->status);
     }
 }

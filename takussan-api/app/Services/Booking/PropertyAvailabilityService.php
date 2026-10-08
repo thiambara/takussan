@@ -5,7 +5,9 @@ namespace App\Services\Booking;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Property;
+use App\Models\PropertyUnavailability;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -31,14 +33,85 @@ class PropertyAvailabilityService
             return;
         }
 
+        $propertyId = $property instanceof Property ? $property->id : $property;
+        $start = Carbon::parse($start);
+        $end = Carbon::parse($end);
+
         abort_code_if(
-            $this->confirmedOverlapExists($property instanceof Property ? $property->id : $property, Carbon::parse($start), Carbon::parse($end), $ignore),
+            $this->confirmedOverlapExists($propertyId, $start, $end, $ignore),
             422,
             'booking.dates_overlap'
         );
+
+        // TCK-596 §3B (ADR-0041) — une nuit bloquée, à la main ou par un flux importé.
+        abort_code_if(
+            $this->unavailabilityOverlapExists($propertyId, $start, $end),
+            422,
+            'booking.dates_unavailable'
+        );
+    }
+
+    /**
+     * La réservation confirmée qui chevauche `[start, end)`, s'il y en a une — pour refuser un
+     * blocage manuel et marquer un événement importé en conflit.
+     */
+    public function confirmedOverlap(int $propertyId, CarbonInterface $start, CarbonInterface $end): ?Booking
+    {
+        return $this->confirmedOverlapQuery($propertyId, $start, $end, null)->orderBy('start_date')->first();
+    }
+
+    /**
+     * TCK-596 §3B — les plages occupées de `[from, to)`, fusionnées, sans rien qui dise pourquoi :
+     * réservations confirmées et indisponibilités (manuelles et importées) confondues.
+     *
+     * @return list<array{start: string, end: string}>
+     */
+    public function occupiedRanges(Property $property, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $ranges = $this->confirmedOverlapQuery($property->id, $from, $to, null)
+            ->get(['start_date', 'end_date'])
+            ->map(fn (Booking $b): array => [$b->start_date->toDateString(), $b->end_date->toDateString()])
+            ->concat(
+                PropertyUnavailability::query()
+                    ->where('property_id', $property->id)
+                    ->where('starts_on', '<', $to->toDateString())
+                    ->where('ends_on', '>', $from->toDateString())
+                    ->get(['starts_on', 'ends_on'])
+                    ->map(fn (PropertyUnavailability $u): array => [$u->starts_on->toDateString(), $u->ends_on->toDateString()])
+            )
+            ->sortBy(fn (array $r): string => $r[0])
+            ->values();
+
+        $merged = [];
+        foreach ($ranges as [$start, $end]) {
+            $last = count($merged) - 1;
+            if ($last >= 0 && $start <= $merged[$last]['end']) {
+                $merged[$last]['end'] = max($merged[$last]['end'], $end);
+
+                continue;
+            }
+            $merged[] = ['start' => $start, 'end' => $end];
+        }
+
+        return $merged;
+    }
+
+    private function unavailabilityOverlapExists(int $propertyId, CarbonInterface $start, CarbonInterface $end): bool
+    {
+        return PropertyUnavailability::query()
+            ->where('property_id', $propertyId)
+            ->where('starts_on', '<', $end->toDateString())
+            ->where('ends_on', '>', $start->toDateString())
+            ->exists();
     }
 
     private function confirmedOverlapExists(int $propertyId, CarbonInterface $start, CarbonInterface $end, ?Booking $ignore): bool
+    {
+        return $this->confirmedOverlapQuery($propertyId, $start, $end, $ignore)->exists();
+    }
+
+    /** @return Builder<Booking> */
+    private function confirmedOverlapQuery(int $propertyId, CarbonInterface $start, CarbonInterface $end, ?Booking $ignore)
     {
         return Booking::query()
             ->where('property_id', $propertyId)
@@ -47,7 +120,6 @@ class PropertyAvailabilityService
             ->whereNotNull('start_date')
             ->whereNotNull('end_date')
             ->where('start_date', '<', $end->toDateString())
-            ->where('end_date', '>', $start->toDateString())
-            ->exists();
+            ->where('end_date', '>', $start->toDateString());
     }
 }

@@ -451,35 +451,35 @@ du Delta et un critère qui rougit sur le code actuel.
       la confirmation.
 
 ### 3B. Indisponibilités et iCal (après l'ADR d'O12)
-- [ ] Migrations (noms datés du jour, index et FK nommés < 63 caractères) :
+- [x] Migrations (noms datés du jour, index et FK nommés < 63 caractères) :
       `create_property_unavailabilities_table` (index `(property_id, starts_on, ends_on)`, unicité
       partielle `(calendar_feed_id, external_uid)`), `create_property_calendar_feeds_table`,
       `add_ical_export_token_hash_to_properties`.
-- [ ] Modèles `PropertyUnavailability` et `PropertyCalendarFeed` (`url` en cast `encrypted`).
+- [x] Modèles `PropertyUnavailability` et `PropertyCalendarFeed` (`url` en cast `encrypted`).
       `PropertyAvailabilityService` (§3A) :
       - `assertAvailable` vérifie aussi les indisponibilités, en [début, fin) ;
       - `occupiedRanges(Property, from, to)`.
-- [ ] `PropertyUnavailabilityController` (`index`, `store`, `destroy`) et
+- [x] `PropertyUnavailabilityController` (`index`, `store`, `destroy`) et
       `Store/IndexPropertyUnavailabilityRequest`, avec la `PropertyUnavailabilityPolicy` :
       - délègue à `PropertyPolicy::update` sur le bien (territoire 587, lu et non modifié) : qui peut
         modifier le bien peut bloquer ses dates ;
       - une indisponibilité de source `ical` ne se supprime pas à la main.
-- [ ] `PropertyCalendarFeedController` (`index`, `store`, `destroy`, `sync`) avec
+- [x] `PropertyCalendarFeedController` (`index`, `store`, `destroy`, `sync`) avec
       `StorePropertyCalendarFeedRequest`. `PropertyIcalTokenController::store` régénère le jeton et rend
       l'URL **une seule fois**.
-- [ ] `App\Http\Controllers\Public\PublicPropertyAvailabilityController` (plages occupées d'un bien
+- [x] `App\Http\Controllers\Public\PublicPropertyAvailabilityController` (plages occupées d'un bien
       public, bornées à 18 mois, sans donnée personnelle) et `App\Http\Controllers\Public\IcalExportController`
       (`text/calendar; charset=utf-8`, limiteur `throttle:ical-export`).
-- [ ] Job `SyncPropertyCalendarFeedsJob`, à la fréquence fixée par l'ADR, dans `routes/console.php`,
+- [x] Job `SyncPropertyCalendarFeedsJob`, à la fréquence fixée par l'ADR, dans `routes/console.php`,
       avec `withoutOverlapping`. Il passe par un garde-fou HTTP sortant `App\Support\Http\SafeOutboundUrl`
       (SSRF). Il compte les échecs ; au troisième d'affilée, le bailleur est prévenu. Un conflit avec
       une réservation confirmée est marqué, et le bailleur et l'agent sont prévenus.
-- [ ] Front, côté hôte : sur la fiche d'un bien en location courte durée, la vue calendrier du bien
+- [x] Front, côté hôte : sur la fiche d'un bien en location courte durée, la vue calendrier du bien
       (réservations, blocages, importés), le blocage d'une plage, la gestion des flux et la copie du
       lien d'export.
-- [ ] Front, tunnel public : les nuits occupées sont grisées dans les champs de dates du dialogue de
+- [x] Front, tunnel public : les nuits occupées sont grisées dans les champs de dates du dialogue de
       réservation, qui affiche une erreur explicite si le serveur refuse quand même.
-- [ ] Tests :
+- [x] Tests :
       - `PropertyUnavailabilityTest` : CRUD, autorisation, refus sur une réservation confirmée ;
       - `BookingAvailabilityTest` (suite du §3A) : demande privée et publique refusées sur des dates
         bloquées ; un blocage qui finit le jour d'arrivée ne bloque pas ;
@@ -821,3 +821,38 @@ Ablations : A4.1 sans émission (le code d'origine) → 1 rouge ; A4.2 émission
 statut → 1 rouge. ⚠ Incident : une commande de vérification a, par un motif de fichiers vide, lancé
 `php artisan test` sans argument (suite entière) ; arrêtée à la main après ~7 min, aucun résultat
 exploité.
+
+**§3B — indisponibilités et iCal (ADR-0041, commité avant le code).** Deux tables, `[starts_on, ends_on)`
+comme les réservations ; `assertAvailable` refuse aussi une nuit bloquée (`booking.dates_unavailable`),
+sous le même verrou de la ligne du bien, à la demande privée, publique et à la confirmation.
+Autorisation : les trois FormRequest et la `PropertyUnavailabilityPolicy` lisent `PropertyPolicy::update`
+(non modifiée) — donc **un agent sans `properties.update_any` ne gère pas le calendrier**, un
+administrateur d'agence oui, un bailleur suspendu non. Export : jeton 256 bits haché SHA-256, URL
+rendue une fois, route `GET /ical/{token}.ics` **hors du groupe `web`** (`withoutMiddleware('web')` :
+sans session, une 404 rendue sous `web` exigeait le magasin de session), limiteur `ical-export`
+30/min/IP. Import : `SafeOutboundUrl` (résolution, toutes les adresses globales, épinglage
+`CURLOPT_RESOLVE`, pas de redirection, 10 s, 1 Mo), un UID répété ne garde que sa première
+occurrence (sinon violation d'unicité dans la transaction), événements passés ignorés, 2 000 au
+plus, 10 flux par bien. **Mesuré pendant l'ablation** : PHP refuse déjà `::ffff:0:0/96`
+(`NO_RES_RANGE`) — la branche « IPv4 mappée » était morte (B3.22 survivait) ; elle est remplacée par
+le refus des préfixes NAT64 `64:ff9b::/96`, que PHP juge **globaux** (`64:ff9b::a9fe:a9fe` atteint
+`169.254.169.254` sur un réseau NAT64). L'ADR est amendé d'une ligne en ce sens.
+Front : onglet « Calendrier » de la fiche (location `daily`/`weekly` seulement) — vue mois
+(réservé / bloqué / importé), blocage, déblocage des seuls blocages manuels, conflit signalé, flux
+(ajout, état, synchroniser, retirer, jamais l'URL), lien d'export (généré, montré une fois, copié).
+Tunnel public : `DatePicker` reçoit `isDateDisabled`, l'arrivée grise les nuits prises, le départ
+grise ce qui franchirait une nuit prise ; le refus du serveur s'affiche (`role="alert"`).
+`check-status-badge-unique` : la table de teintes des cases est déclarée (vocabulaire d'origine, pas
+de statut). Preuve : `PropertyUnavailabilityTest` 10, `BookingAvailabilityTest` 11, `IcalExportTest` 5,
+`SyncPropertyCalendarFeedsTest` 27, `IcalTest` 23 ; balayage de 63 classes voisines → 609 verts.
+Front : `occupancy.test.ts` 4, `PropertyReservationDialog.nuits-prises` 5, `PropertyCalendarPanel` 6 ;
+101 fichiers voisins → 1 098 verts ; `tsc`, ESLint propres. Ablations (restaurées par `cp`) :
+B3.1 → 3 rouges, B3.2 → 1, B3.3 → 1, B3.4 → 1, B3.5 → 2, B3.6 → 2, B3.7 → 1, B3.8 → 1, B3.9 → 3,
+B3.10 → 2, B3.11 → 1, B3.12 → 1, B3.13 → 1, B3.20 → 8, B3.21 → 1, B3.22 survivante (voir plus haut),
+B3.22bis → 3, B3.23 → 1, B3.24 → 1, B3.25 → 1, B3.26 → 1, B3.27 → 1, B3.28 → 1, B3.29 → 1,
+B3.30 → 1, B3.31 → 1, B3.32 → 1, B3.33 → 1, B3.34 → 1, B3.35 → 1, B3.36 → 1, B3.37 → 1, B3.38 → 1 ;
+F3.1 → 2, F3.2 → 2, F3.3 → 1, F3.4 → 1, F3.5 → 3, F3.6 → 1, F3.7 → 1, F3.8 → 1, F3.9 → 1,
+F3.10 → 1, F3.11 → 1. **Non mesuré au navigateur réel** ; la garde SSRF n'a pas été éprouvée contre un
+vrai serveur (tests par `Http::fake` et résolveur DNS substitué). Au passage, `NoLegacyUserTypeTest`
+rougissait sur deux commentaires de §2/§5 (commit `fix(api)` séparé) — mes balayages précédents ne
+l'incluaient pas.

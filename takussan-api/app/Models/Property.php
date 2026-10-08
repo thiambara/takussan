@@ -106,6 +106,9 @@ class Property extends AbstractModel implements HasMedia
     protected static array $requestSearchFields = ['title', 'reference_number', 'description'];
 
     /** @var array<int,string> */
+    /** TCK-596 (ADR-0041) — l'empreinte du jeton d'export iCal ne sort d'aucune sérialisation. */
+    protected $hidden = ['ical_export_token_hash'];
+
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'parent_id', 'reference_number',
         'title', 'slug', 'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
@@ -742,6 +745,18 @@ class Property extends AbstractModel implements HasMedia
     public function collaborators(): HasMany
     {
         return $this->hasMany(PropertyCollaborator::class);
+    }
+
+    /** TCK-596 (ADR-0041) — plages `[starts_on, ends_on)` non réservables. */
+    public function unavailabilities(): HasMany
+    {
+        return $this->hasMany(PropertyUnavailability::class);
+    }
+
+    /** TCK-596 (ADR-0041) — flux iCal externes importés. */
+    public function calendarFeeds(): HasMany
+    {
+        return $this->hasMany(PropertyCalendarFeed::class);
     }
 
     public function bookings(): HasMany

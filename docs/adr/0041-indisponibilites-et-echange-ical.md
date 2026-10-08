@@ -64,7 +64,7 @@ aléatoire stocké haché, et par un import horaire qui passe par une garde SSRF
 7. **Garde SSRF** (`App\Support\Http\SafeOutboundUrl`). HTTPS seulement, port 443 ; l'hôte est
    résolu, et **toutes** ses adresses doivent être publiques : refus des plages privées, de bouclage,
    lien-local (dont `169.254.169.254`), réservées, CGNAT `100.64.0.0/10`, et de leurs équivalents IPv6
-   (ULA, lien-local, adresses IPv4 mappées). La connexion est **épinglée** sur l'adresse vérifiée
+   (ULA, lien-local, adresses IPv4 mappées, préfixes NAT64 `64:ff9b::/96` qui transportent une IPv4). La connexion est **épinglée** sur l'adresse vérifiée
    (`CURLOPT_RESOLVE`) : une seconde résolution ne peut pas rebondir vers une adresse interne. Pas de
    redirection suivie (une redirection est un échec), délai de 10 s, réponse plafonnée à 1 Mo
    (en-tête et corps). Une URL refusée l'est **avant** toute requête sortante, et dès l'enregistrement

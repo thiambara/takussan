@@ -441,6 +441,16 @@ return [
                 'body' => 'Your property ":property" was rejected. Reason: :reason. You can fix the listing and resubmit it from your workspace.',
                 'sms' => 'Takussan: listing ":property" rejected.',
             ],
+            'calendar_conflict' => [
+                'title' => 'Calendar conflict: :property',
+                'body' => 'Calendar ":feed" blocks :property from :start_date to :end_date, while a confirmed booking holds these dates. Nothing was cancelled: check both platforms.',
+                'sms' => 'Takussan: calendar conflict on :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Imported calendar failing: :property',
+                'body' => 'Calendar ":feed" for :property has failed to sync three times in a row. Check its link.',
+                'sms' => 'Takussan: calendar ":feed" no longer syncs.',
+            ],
         ],
     ],
 

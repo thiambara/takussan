@@ -79,6 +79,12 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    /** TCK-596 (ADR-0041 §6) — un événement importé chevauche une réservation confirmée. */
+    case PropertyCalendarConflict = 'property.calendar_conflict';
+
+    /** TCK-596 (ADR-0041 §5) — un flux iCal importé échoue pour la troisième fois d'affilée. */
+    case PropertyCalendarFeedFailing = 'property.calendar_feed_failing';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -111,7 +117,8 @@ enum NotificationCode: string
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
-            self::PropertyApproved, self::PropertyRejected => NotificationType::System,
+            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
         };
     }
 
@@ -138,7 +145,8 @@ enum NotificationCode: string
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
-            self::PropertyApproved, self::PropertyRejected => null,
+            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => null,
         };
     }
 
@@ -178,6 +186,8 @@ enum NotificationCode: string
             self::MaintenanceQuoteSubmitted => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
+            self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
         };
     }
 

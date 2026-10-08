@@ -59,6 +59,7 @@ return [
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
+        'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
         'not_found' => 'Wootu bi gisuñu ko.',
         'not_in_active_agency' => 'Wootu bii bokkul ci sa agence bu dox bi.',
@@ -79,6 +80,11 @@ return [
     ],
     'calendar' => [
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
+    ],
+    'calendar_feed' => [
+        'limit_reached' => 'Kër gii dafa egg ci lim bu mag bi ci calendrier yu ñu jële.',
+        'sync_throttled' => 'Calendrier bii leegi lañu ko synchroniser. Jéemaatal ci benn simili.',
+        'unsafe_url' => 'Lien calendrier bii mënuñu koo jële : dafa wara nekk HTTPS te jëm ci benn service bu ubbeeku.',
     ],
     'conversation' => [
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
@@ -357,6 +363,10 @@ return [
         'not_enabled' => 'Double authentification bi doxaluñu ko.',
         'not_in_setup' => 'Double authentification bi nekkul ci configuration.',
         'password_or_code_invalid' => 'Baatu jàll bi walla code bi baaxul.',
+    ],
+    'unavailability' => [
+        'imported_locked' => 'Bis yii ci calendrier bu ñu jële lañu bawoo : far leen ci plateforme bi mu bawoo.',
+        'overlaps_booking' => 'Réservation bu ñu dëggal jël na bis yii ba noppi.',
     ],
     'user' => [
         'account_block_reserved' => 'Super-yorkat rekk moo mën a tëj walla ubbiwaat benn kont. Yorkatu ajaans dafay taxawal benn ndaw ci ajaansam.',

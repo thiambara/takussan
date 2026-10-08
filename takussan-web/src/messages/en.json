@@ -878,7 +878,8 @@
         "weeklyLine": "{price} / week, prorated over {count, plural, =1 {# night} other {# nights}}",
         "deposit": "Deposit (30%)",
         "rentLine": "Rent",
-        "rentNotice": "Your application is for one rent; the lease will set the final amount."
+        "rentNotice": "Your application is for one rent; the lease will set the final amount.",
+        "occupiedHint": "Greyed-out dates are already taken."
       },
       "offerForm": {
         "invalidAmount": "Invalid amount.",
@@ -1031,7 +1032,8 @@
         "fullPriceHistory": "Full price history",
         "fullPriceHistoryHint": "All changes recorded for this property.",
         "noPriceHistory": "No price change recorded for this property.",
-        "unknownDate": "Unknown date"
+        "unknownDate": "Unknown date",
+        "calendar": "Calendar"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1147,6 +1149,44 @@
         "deleteBodyRow": "The property <b>{title}</b> will be archived (soft-delete). You will be able to restore it from the admin area.",
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
         "cancel": "Cancel"
+      },
+      "calendar": {
+        "title": "Property calendar",
+        "description": "Confirmed bookings, blocked dates and dates imported from other platforms, over twelve months.",
+        "legend": "Legend",
+        "legendBooked": "Booked",
+        "legendBlocked": "Blocked",
+        "legendImported": "Imported",
+        "genericError": "The operation did not go through.",
+        "blockTitle": "Block dates",
+        "blockHint": "Blocked nights can no longer be booked, here and on the platforms that read your export link.",
+        "blockFrom": "First night",
+        "blockTo": "Available again on",
+        "blockReason": "Reason (optional, only visible to you)",
+        "blockSubmit": "Block",
+        "blocksTitle": "Blocked dates",
+        "blocksEmpty": "No blocked dates in the next twelve months.",
+        "range": "From {from} to {to}",
+        "manual": "Manual block",
+        "importedFrom": "Imported from {feed}",
+        "conflict": "Conflicts with a booking",
+        "unblock": "Unblock",
+        "feedsTitle": "Imported calendars",
+        "feedsHint": "Paste the iCal link from Airbnb, Booking.com or a calendar: their taken dates are blocked here every hour. An imported date is removed at its source.",
+        "feedUrl": "iCal link (https)",
+        "feedLabel": "Name (optional)",
+        "feedAdd": "Import",
+        "feedOk": "in sync",
+        "feedFailing": "failing ({count, plural, =1 {# attempt} other {# attempts}})",
+        "feedSync": "Sync now",
+        "feedRemove": "Remove",
+        "exportTitle": "Export link",
+        "exportHint": "Give this link to other platforms so they block your Takussan bookings. It contains no name or phone number.",
+        "exportGenerate": "Generate a new link",
+        "exportUrl": "iCal export link",
+        "exportCopy": "Copy",
+        "exportCopied": "Copied",
+        "exportOnce": "This link is shown only once. Generating a new one disables the previous one."
       }
     },
     "visibility": {
@@ -8200,6 +8240,14 @@
         "rejected": {
           "title": "Property rejected: {property}",
           "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        },
+        "calendar_conflict": {
+          "title": "Calendar conflict: {property}",
+          "body": "Calendar \"{feed}\" blocks {property} from {start_date} to {end_date}, while a confirmed booking holds these dates. Nothing was cancelled: check both platforms."
+        },
+        "calendar_feed_failing": {
+          "title": "Imported calendar failing: {property}",
+          "body": "Calendar \"{feed}\" for {property} has failed to sync three times in a row. Check its link."
         }
       }
     },

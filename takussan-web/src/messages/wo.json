@@ -4090,7 +4090,8 @@
         "weeklyLine": "{price} ci ayu-bés, ci limu {count, plural, other {# guddi}}",
         "deposit": "Waar (30 %)",
         "rentLine": "Njëgu luwe",
-        "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi."
+        "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi.",
+        "occupiedHint": "Bés yi ñu fukkal, jël nañu leen ba noppi."
       },
       "offerForm": {
         "invalidAmount": "Waññi bu baaxul.",
@@ -4243,7 +4244,8 @@
         "fullPriceHistory": "Taariixu njëg bu mat",
         "fullPriceHistoryHint": "Coppite yépp yu ñu bind ci kër gii.",
         "noPriceHistory": "Amul coppiteg njëg bu ñu bind ci kër gii.",
-        "unknownDate": "Bes bu ñu xamul"
+        "unknownDate": "Bes bu ñu xamul",
+        "calendar": "Arminaat"
       },
       "pagination": {
         "aria": "Xët yi",
@@ -4359,6 +4361,44 @@
         "deleteBodyRow": "Kër gi <b>{title}</b> dañu koy denc (soft-delete). Dinga ko man a delloo ci wàllu njiit bi.",
         "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey ajaŋ. Bind bi man nañ ko delloo ci wàllu njiit bi.",
         "cancel": "Neenal"
+      },
+      "calendar": {
+        "title": "Arminaatu kër gi",
+        "description": "Reserwasioŋ yi ñu dëggal, bés yi ñu tëj ak bés yi ñu jële ci yeneen platfoorm, ci fukki weer ak ñaar.",
+        "legend": "Leeral",
+        "legendBooked": "Reserwe nañu ko",
+        "legendBlocked": "Tëj nañu ko",
+        "legendImported": "Jële nañu ko",
+        "genericError": "Liggéey bi antuwul.",
+        "blockTitle": "Tëj ay bés",
+        "blockHint": "Guddi yi ñu tëj, kenn mënatul leen a reserwe, fii ak ci platfoorm yi di jàng sa lëkkalekaay bu génné.",
+        "blockFrom": "Guddi bu jëkk",
+        "blockTo": "Bésu ubbeeku",
+        "blockReason": "Lu tax (bul ko war, yaw rekk a koy gis)",
+        "blockSubmit": "Tëj",
+        "blocksTitle": "Bés yi ñu tëj",
+        "blocksEmpty": "Amul bés bu ñu tëj ci fukki weer ak ñaar yii di ñëw.",
+        "range": "Li dale {from} ba {to}",
+        "manual": "Tëj ak loxo",
+        "importedFrom": "Jële nañu ko ci {feed}",
+        "conflict": "Dafa jéppante ak ab reserwasioŋ",
+        "unblock": "Ubbi",
+        "feedsTitle": "Arminaat yi ñu jële",
+        "feedsHint": "Taqal lëkkalekaay iCal bu Airbnb, Booking.com walla ab arminaat : bés yi ñu jël ci nii dañuy tëju fii saa bu nekk. Bés bu ñu jële, ci cosaanam lañu koy far.",
+        "feedUrl": "Lëkkalekaay iCal (https)",
+        "feedLabel": "Tur (bul ko war)",
+        "feedAdd": "Jële",
+        "feedOk": "dëppoo na",
+        "feedFailing": "antuwul ({count, plural, =1 {# yéem} other {# yéem}})",
+        "feedSync": "Dëppale",
+        "feedRemove": "Far",
+        "exportTitle": "Lëkkalekaay bu génné",
+        "exportHint": "Joxal lëkkalekaay bii yeneen platfoorm ngir ñu tëj sa reserwasioŋi Takussan. Amul tur, amul telefon.",
+        "exportGenerate": "Defar lëkkalekaay bu bees",
+        "exportUrl": "Lëkkalekaay iCal bu génné",
+        "exportCopy": "Duppi",
+        "exportCopied": "Duppi nañu ko",
+        "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba."
       }
     },
     "status": {
@@ -8200,6 +8240,14 @@
         "rejected": {
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
+        },
+        "calendar_conflict": {
+          "title": "Calendrier yi dañuy xeex : {property}",
+          "body": "Calendrier « {feed} » dafa tëj {property} li dale {start_date} ba {end_date}, fekk réservation bu ñu dëggal moo jël bis yooyu. Dara neenalu ci : xoolal ñaari plateforme yi."
+        },
+        "calendar_feed_failing": {
+          "title": "Calendrier bi ñu jële du dox : {property}",
+          "body": "Calendrier « {feed} » bu {property} mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi."
         }
       }
     },

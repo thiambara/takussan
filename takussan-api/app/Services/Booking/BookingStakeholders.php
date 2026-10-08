@@ -4,6 +4,7 @@ namespace App\Services\Booking;
 
 use App\Models\Booking;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -57,11 +58,33 @@ final class BookingStakeholders
      */
     public function collaborators(Booking $booking, ?int $agencyId = null): Collection
     {
-        $agencyId ??= $this->agencyId($booking);
+        return $this->collaboratorsOf((int) $booking->property_id, $agencyId ?? $this->agencyId($booking));
+    }
 
+    /**
+     * TCK-596 §3B — l'équipe d'un bien, sans réservation : le bailleur et ses collaborateurs
+     * acceptés `manager|agent` encore personnel. Un conflit d'import iCal la prévient.
+     *
+     * @return Collection<int, User>
+     */
+    public function propertyTeam(Property $property): Collection
+    {
+        $property->loadMissing('owner');
+        $agencyId = $property->agency_id !== null ? (int) $property->agency_id : null;
+
+        return collect([$property->owner])
+            ->merge($this->collaboratorsOf((int) $property->id, $agencyId))
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /** @return Collection<int, User> */
+    private function collaboratorsOf(int $propertyId, ?int $agencyId): Collection
+    {
         return PropertyCollaborator::query()
             ->with('user')
-            ->where('property_id', $booking->property_id)
+            ->where('property_id', $propertyId)
             ->whereNotNull('accepted_at')
             ->whereIn('role', array_map(static fn (CollaboratorRole $r): string => $r->value, self::COLLABORATOR_ROLES))
             ->orderByRaw("CASE WHEN role = 'manager' THEN 0 ELSE 1 END")

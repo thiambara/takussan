@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Public\PublicAgencyController;
 use App\Http\Controllers\Public\PublicAgentController;
+use App\Http\Controllers\Public\PublicPropertyAvailabilityController;
 use App\Http\Controllers\Public\PublicPropertyController;
 use App\Http\Controllers\Public\PublicPropertyDocumentController;
 use App\Http\Controllers\Public\PublicPropertyTypeController;
@@ -118,6 +119,11 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/{slug}/contact', [PublicPropertyController::class, 'contact'])
         ->middleware('throttle:20,10')
         ->name('properties.contact');
+
+    // TCK-596 §3B (ADR-0041) — les nuits occupées d'un bien public, pour le tunnel de réservation.
+    // Des dates seulement : ni réservation, ni motif, ni source.
+    Route::get('properties/{slug}/availability', PublicPropertyAvailabilityController::class)
+        ->name('properties.availability');
 
     Route::get('properties/{slug}/similar', [PublicPropertyController::class, 'similar'])
         ->name('properties.similar');

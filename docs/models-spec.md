@@ -212,6 +212,10 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+#### Calendrier d'hôte 🆕 (TCK-596, ADR-0041)
+72. [PropertyUnavailability](#72-propertyunavailability-) 🆕
+73. [PropertyCalendarFeed](#73-propertycalendarfeed-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -2929,6 +2933,61 @@ traite `key` comme un identifiant court opaque.
 > de timestamps dans la migration. Seul `seen_at` a un sens ici. Ce n'est pas un oubli : avec
 > [26. PropertyPriceHistory](#26-propertypricehistory-), ce sont les **deux seuls** modèles du dépôt
 > à couper les timestamps (mesuré le 2026-08-16).
+
+---
+
+### 72. PropertyUnavailability 🆕
+
+**Table :** `property_unavailabilities`
+**Description :** Une plage `[starts_on, ends_on)` où un bien n'est pas réservable (TCK-596,
+[ADR-0041](adr/0041-indisponibilites-et-echange-ical.md)). `ends_on` est **exclusif**, comme le jour
+de départ d'une réservation. Manuelle (posée par qui peut modifier le bien) ou importée d'un flux
+iCal ; une plage importée ne se supprime pas à la main.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| starts_on | date | | | Première nuit bloquée |
+| ends_on | date | | | Lendemain de la dernière nuit (exclusif) ; `CHECK ends_on > starts_on` |
+| reason | string(255) | ✓ | | Motif, visible de l'hôte seul |
+| source | string(20) | | `manual` | `manual` \| `ical` |
+| calendar_feed_id | FK property_calendar_feeds | ✓ | | Flux d'origine (`cascadeOnDelete`) |
+| external_uid | string(255) | ✓ | | `UID` de l'événement importé |
+| conflict_booking_id | FK bookings | ✓ | | Réservation confirmée chevauchée (`nullOnDelete`) — jamais annulée par l'import |
+| created_by_id | FK users | ✓ | | Auteur d'un blocage manuel |
+| created_at / updated_at | timestamp | | | |
+
+**Contraintes d'unicité :** `(calendar_feed_id, external_uid)`, partielle (flux non nul).
+**Index :** `(property_id, starts_on, ends_on)`.
+
+**Relations :** `property()`, `feed()`, `conflictBooking()` → belongsTo.
+
+### 73. PropertyCalendarFeed 🆕
+
+**Table :** `property_calendar_feeds`
+**Description :** Un calendrier iCal externe importé pour un bien, synchronisé toutes les heures
+derrière la garde SSRF `App\Support\Http\SafeOutboundUrl` (TCK-596, ADR-0041). Au plus 10 par bien.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| url | text | | | **Chiffrée** (cast `encrypted`), cachée de toute sérialisation |
+| url_host | string(255) | | | Hôte de l'URL — seule partie rendue par l'API |
+| label | string(120) | ✓ | | Nom donné par l'hôte |
+| created_by_id | FK users | ✓ | | |
+| last_synced_at | timestamp | ✓ | | Dernière tentative |
+| last_status | string(20) | ✓ | | `ok` \| `failed` |
+| last_error | string(60) | ✓ | | Motif codé (`private_address`, `too_large`, `http_error`…) |
+| failing_since | timestamp | ✓ | | Premier échec de la série en cours |
+| consecutive_failures | unsigned int | | 0 | Au 3ᵉ, le bailleur est prévenu une fois |
+| created_at / updated_at | timestamp | | | |
+
+**Relations :** `property()` → belongsTo ; `unavailabilities()` → hasMany PropertyUnavailability.
+
+> Le jeton d'export du bien vit sur `properties.ical_export_token_hash` (SHA-256, unique, caché) :
+> le jeton en clair n'est rendu qu'une fois, à la régénération.
 
 ---
 

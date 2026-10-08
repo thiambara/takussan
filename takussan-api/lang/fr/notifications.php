@@ -446,6 +446,16 @@ return [
                 'body' => 'Votre bien « :property » a été refusé. Motif : :reason. Vous pouvez corriger l\'annonce et la resoumettre depuis votre espace.',
                 'sms' => 'Takussan : annonce « :property » refusée.',
             ],
+            'calendar_conflict' => [
+                'title' => 'Conflit de calendrier : :property',
+                'body' => 'Le calendrier « :feed » bloque :property du :start_date au :end_date, alors qu\'une réservation confirmée occupe ces dates. Rien n\'a été annulé : vérifiez les deux plateformes.',
+                'sms' => 'Takussan : conflit de calendrier sur :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Calendrier importé en échec : :property',
+                'body' => 'Le calendrier « :feed » de :property ne se synchronise plus depuis trois tentatives. Vérifiez son lien.',
+                'sms' => 'Takussan : le calendrier « :feed » ne se synchronise plus.',
+            ],
         ],
     ],
 

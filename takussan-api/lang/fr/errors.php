@@ -59,6 +59,7 @@ return [
         'cannot_cancel' => 'Cette réservation ne peut pas être annulée dans son état actuel.',
         'cannot_expire' => 'Cette réservation ne peut pas être expirée : elle doit être en attente.',
         'dates_overlap' => 'Une autre réservation confirmée occupe déjà ces dates sur ce bien.',
+        'dates_unavailable' => 'Ces dates ne sont pas disponibles pour ce bien.',
         'expire_race' => 'Le statut de la réservation a changé entre-temps. Rechargez la page.',
         'not_found' => 'Réservation introuvable.',
         'not_in_active_agency' => 'Cette réservation n\'appartient pas à votre agence active.',
@@ -79,6 +80,11 @@ return [
     ],
     'calendar' => [
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',
+    ],
+    'calendar_feed' => [
+        'limit_reached' => 'Ce bien a atteint le nombre maximal de calendriers importés.',
+        'sync_throttled' => 'Ce calendrier vient d\'être synchronisé. Réessayez dans une minute.',
+        'unsafe_url' => 'Ce lien de calendrier ne peut pas être importé : il doit être en HTTPS et pointer vers un service public.',
     ],
     'conversation' => [
         'participant_not_found' => 'Ce participant ne fait pas partie de la conversation.',
@@ -357,6 +363,10 @@ return [
         'not_enabled' => 'La double authentification n\'est pas activée.',
         'not_in_setup' => 'La double authentification n\'est pas en cours de configuration.',
         'password_or_code_invalid' => 'Mot de passe ou code invalide.',
+    ],
+    'unavailability' => [
+        'imported_locked' => 'Ces dates viennent d\'un calendrier importé : retirez-les sur la plateforme d\'origine.',
+        'overlaps_booking' => 'Une réservation confirmée occupe déjà ces dates.',
     ],
     'user' => [
         'account_block_reserved' => 'Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d\'agence suspend un membre dans son agence.',

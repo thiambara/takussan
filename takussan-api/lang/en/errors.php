@@ -59,6 +59,7 @@ return [
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
+        'dates_unavailable' => 'These dates are not available for this property.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
@@ -79,6 +80,11 @@ return [
     ],
     'calendar' => [
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
+    ],
+    'calendar_feed' => [
+        'limit_reached' => 'This property has reached the maximum number of imported calendars.',
+        'sync_throttled' => 'This calendar was just synchronised. Try again in a minute.',
+        'unsafe_url' => 'This calendar link cannot be imported: it must use HTTPS and point to a public service.',
     ],
     'conversation' => [
         'participant_not_found' => 'This participant is not part of the conversation.',
@@ -357,6 +363,10 @@ return [
         'not_enabled' => 'Two-factor authentication is not enabled.',
         'not_in_setup' => 'Two-factor authentication is not being set up.',
         'password_or_code_invalid' => 'Invalid password or code.',
+    ],
+    'unavailability' => [
+        'imported_locked' => 'These dates come from an imported calendar: remove them on the original platform.',
+        'overlaps_booking' => 'A confirmed booking already holds these dates.',
     ],
     'user' => [
         'account_block_reserved' => 'Only a super-administrator can block or reactivate an account. An agency administrator suspends a member within their agency.',

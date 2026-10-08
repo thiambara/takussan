@@ -426,6 +426,16 @@ return [
                 'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',
                 'sms' => 'Takussan : yégle « :property » gàntu nañu ko.',
             ],
+            'calendar_conflict' => [
+                'title' => 'Calendrier yi dañuy xeex : :property',
+                'body' => 'Calendrier « :feed » dafa tëj :property li dale :start_date ba :end_date, fekk réservation bu ñu dëggal moo jël bis yooyu. Dara neenalu ci : xoolal ñaari plateforme yi.',
+                'sms' => 'Takussan : calendrier yi dañuy xeex ci :property (:start_date).',
+            ],
+            'calendar_feed_failing' => [
+                'title' => 'Calendrier bi ñu jële du dox : :property',
+                'body' => 'Calendrier « :feed » bu :property mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi.',
+                'sms' => 'Takussan : calendrier « :feed » mënatul a synchroniser.',
+            ],
         ],
     ],
 
