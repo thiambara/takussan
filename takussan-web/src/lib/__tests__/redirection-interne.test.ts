@@ -58,6 +58,20 @@ describe('destinationInterne', () => {
     expect(destinationInterne('/app/./biens/../baux')).toBe('/app/baux');
   });
 
+  /**
+   * TCK-589, passe 2 (M2bis, AC-p2a) — la résolution NORMALISE les segments `.` et `..` : le
+   * chemin rendu peut commencer par `//` alors que l'entrée se résolvait sur le site. Le juge
+   * porte donc sur la valeur RENDUE. Rouge sur `104589df` : les quatre rendaient `//evil.com`.
+   */
+  it.each(['/..//evil.com', '/.//evil.com', '/a/..//evil.com', '/%2e%2e//evil.com'])(
+    'refuse %j, que la normalisation rendrait protocole-relatif',
+    (brute) => {
+      const rendue = destinationInterne(brute);
+      expect(rendue).toBe('/app');
+      expect(new URL(rendue, 'https://www.takussan.com').origin).toBe('https://www.takussan.com');
+    },
+  );
+
   it('retombe sur le défaut quand rien n’est fourni', () => {
     expect(destinationInterne(null)).toBe('/app');
     expect(destinationInterne(undefined)).toBe('/app');

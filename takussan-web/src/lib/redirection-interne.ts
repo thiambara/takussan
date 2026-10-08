@@ -45,7 +45,14 @@ export function destinationInterne(
   // `//evil.tld` se résout vers un AUTRE hôte : c'est le cas qui commence par `/` tout en sortant.
   if (url.origin !== ORIGINE_SENTINELLE) return defaut;
 
-  return `${url.pathname}${url.search}${url.hash}`;
+  // TCK-589, passe 2 (M2bis) — la résolution NORMALISE `.` et `..` : `/..//evil.com` se résout
+  // sur le site, mais son `pathname` vaut `//evil.com`, qu'un navigateur résout hors du site.
+  // Juger l'entrée ne suffit donc pas : on juge la valeur RENDUE, telle qu'elle sera relue.
+  const rendue = `${url.pathname}${url.search}${url.hash}`;
+  if (rendue.startsWith('//') || rendue.startsWith('/\\')) return defaut;
+  if (new URL(rendue, ORIGINE_SENTINELLE).origin !== ORIGINE_SENTINELLE) return defaut;
+
+  return rendue;
 }
 
 /**

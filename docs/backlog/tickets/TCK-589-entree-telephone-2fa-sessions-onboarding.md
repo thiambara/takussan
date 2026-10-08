@@ -1739,3 +1739,31 @@ clés non gérées (`watermark_enabled`, `welcome`) ne sont toujours ni renvoyé
 - eslint, `tsc` et `check-i18n-namespaces` sont propres.
 - Toutes les gardes racine passent, ainsi que `gen-index --check` et `gen-features-by-actor
   --check`.
+
+### Corrections après la passe 2 (verif-589, sur `104589df`, 2026-10-08)
+
+Verdict : **refusé**, 0 bloquant, 1 majeur, 3 mineurs. Un point = un commit. Chaque test est
+rouge sur `104589df`. Chaque ablation est restaurée par `cp`, md5 identique avant et après
+(`scratchpad/tck589/ablate_cp.sh`).
+
+#### M2bis — la normalisation de `..` rouvrait la redirection ouverte
+
+**Le défaut.** `destinationInterne` jugeait l'origine de l'URL résolue, puis rendait son
+`pathname`. Or la résolution normalise `.` et `..` : `/..//evil.com` se résout bien sur la
+sentinelle, mais son `pathname` vaut `//evil.com`, que le navigateur relit comme un hôte. Même
+chose pour `/.//evil.com`, `/a/..//evil.com` et `/%2e%2e//evil.com`. La sonde
+`verif589-redirection-p2.test.ts` le confirme : 4 rouges sur `104589df`.
+
+**Le correctif.** On juge la valeur **rendue**, après avoir construit
+`pathname + search + hash`. Elle ne doit commencer ni par `//` ni par `/\`, et
+`new URL(rendue, ORIGINE_SENTINELLE).origin` doit rester la sentinelle. Sinon, la fonction rend le
+défaut. `avecRedirection` en hérite, puisqu'elle passe par `destinationInterne`.
+
+**Les tests.** `redirection-interne.test.ts` gagne un `it.each` sur les quatre entrées : la valeur
+rendue est `/app`, et elle reste sur le site.
+- Rouge sur `104589df` : 4 rouges sur 23, chacun rendant `'//evil.com'`.
+- Ablation des deux lignes du contrôle final : 4 rouges sur 23. Restauré par `cp`, md5
+  `9a7f2bf5…` identique.
+- Avec le correctif : 23 verts, plus la sonde (4) qui passe. La sonde est retirée avant le commit.
+- Appelants : `intention-oauth`, `lien-connexion` et `redirection-interne` donnent 35 verts.
+- eslint et `tsc` sont propres.
