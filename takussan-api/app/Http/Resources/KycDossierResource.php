@@ -64,7 +64,10 @@ class KycDossierResource extends BaseResource
             'expires_at' => $this->iso($dossier->expires_at),
             'shared_identifiers' => $this->when(
                 $request->user()?->isSuperAdmin() === true && $dossier->subject_type === Agency::class && $dossier->subject_id !== null,
-                fn () => SharedLegalIdentifierDetector::forRequestCycle($request)->forAgency((int) $dossier->subject_id),
+                fn () => SharedLegalIdentifierDetector::forRequestCycle($request)->forAgency(
+                    (int) $dossier->subject_id,
+                    $dossier->subject instanceof Agency ? $dossier->subject->ninea : null,
+                ),
             ),
             'metadata' => $dossier->metadata ?? [],
             'documents' => $dossier->getMedia('documents')->map(fn ($media) => [

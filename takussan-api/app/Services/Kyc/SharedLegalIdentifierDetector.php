@@ -71,19 +71,19 @@ class SharedLegalIdentifierDetector
 
     /**
      * Les identifiants d'une agence sont ceux de sa demande de passage la plus récente encore
-     * `pending` ou `approved`.
+     * `pending` ou `approved`. Son NINEA de colonne (`agencies.ninea`, TCK-594) fait foi quand il est
+     * posé : l'appelant le passe depuis l'agence qu'il a déjà chargée, sans requête de plus.
      *
      * @return array{ninea: list<array{id: int, name: string}>, rib_pro: list<array{id: int, name: string}>}
      */
-    public function forAgency(int $agencyId): array
+    public function forAgency(int $agencyId, ?string $columnNinea = null): array
     {
         // Lue dans les candidats déjà chargés : une file KYC de cinquante dossiers ne fait pas
         // cinquante requêtes de plus.
         $own = $this->candidates()->where('agency_id', $agencyId)->sortByDesc('request_id')->first();
-        $column = $this->agencyNineas()->firstWhere('agency_id', $agencyId);
 
         return $this->detect($agencyId, [
-            'ninea' => $column['ninea'] ?? $own['ninea'] ?? null,
+            'ninea' => self::normalize($columnNinea) ?? $own['ninea'] ?? null,
             'rib_pro' => $own['rib_pro'] ?? null,
         ]);
     }
@@ -97,8 +97,16 @@ class SharedLegalIdentifierDetector
         $result = [];
         foreach (self::FIELDS as $field) {
             $needle = self::normalize($values[$field]);
+            if ($needle === null) {
+                // Rien à comparer : aucune requête, en particulier sur `agencies` (TCK-362 compte
+                // celles de la file KYC).
+                $result[$field] = [];
+
+                continue;
+            }
+
             $haystack = $field === 'ninea' ? $this->candidates()->concat($this->agencyNineas()) : $this->candidates();
-            $result[$field] = $needle === null ? [] : $haystack
+            $result[$field] = $haystack
                 ->filter(fn (array $row) => $row['agency_id'] !== $agencyId && $row[$field] === $needle)
                 ->unique('agency_id')
                 ->map(fn (array $row) => ['id' => $row['agency_id'], 'name' => $row['agency_name']])

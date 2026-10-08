@@ -913,3 +913,21 @@ Et autour :
   qu'une intégration modifiée.
   - Test : `test_une_url_de_webhook_regeneree_avertit`.
   - Ablation : la ligne retirée → rouge.
+
+### CI de #339 sur `34e7b5a4` : une requête de plus sur `agencies` dans la file KYC
+
+- **Rouge** : `KycWorkflowTest::test_kyc_queue_exposes_the_agency_name_without_a_query_per_row` comptait
+  2 requêtes sur `agencies` au lieu de 1. La cause a été mesurée par une sonde SQL : c'est le raccord 594
+  du détecteur, `select id, name, ninea from agencies where ninea is not null`. Il partait même sans
+  NINEA à comparer.
+- **Correctif à la racine** :
+  - Le détecteur ne lit `agencies.ninea` des autres agences que s'il a un NINEA à comparer.
+  - Le NINEA de colonne de l'agence elle-même est lu sur le sujet déjà chargé par la file
+    (`forAgency($id, $columnNinea)`), sans requête.
+  - Avec des NINEA, la file coûte une requête **par requête HTTP**, jamais une par ligne.
+- **Test** : `test_la_file_kyc_ne_fait_pas_une_requete_par_ligne_sur_les_agences`. Une file de trois
+  dossiers avec NINEA fait autant de requêtes sur `agencies` qu'une file d'un seul.
+- **Ablations**, toutes rouges :
+  - Une requête par ligne pour le NINEA propre.
+  - La requête des agences tirée avant le test du NINEA.
+  - Le NINEA de colonne non passé par la Resource.

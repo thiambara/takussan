@@ -10,6 +10,7 @@ use App\Models\KycDossier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
@@ -106,6 +107,42 @@ class SharedLegalIdentifierTest extends ApiTestCase
         // Le dossier de A, sans aucune demande : son NINEA est celui de la colonne.
         $dossier = KycDossier::query()->create(['subject_type' => Agency::class, 'subject_id' => $a->id, 'status' => KycDossierStatus::Submitted]);
         $this->assertSame([$b->id], array_column($this->apiGet("/api/admin/kyc/{$dossier->id}")->assertOk()->json('data.shared_identifiers.ninea'), 'id'));
+    }
+
+    /**
+     * La file KYC lit le NINEA de colonne sur l'agence déjà chargée, et compare aux autres par UNE
+     * requête par requête HTTP, jamais par ligne : une file de trois dossiers coûte autant qu'une file
+     * d'un seul (TCK-362 compte les requêtes sur `agencies`).
+     */
+    public function test_la_file_kyc_ne_fait_pas_une_requete_par_ligne_sur_les_agences(): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $count = 0;
+        DB::listen(function ($query) use (&$count): void {
+            if (str_contains($query->sql, 'agencies')) {
+                $count++;
+            }
+        });
+        $file = function () use (&$count): int {
+            $count = 0;
+            $this->apiGet('/api/admin/kyc?filter[status]=submitted&filter[subject_type]=Agency&per_page=10')
+                ->assertOk()->assertJsonPath('meta.total', KycDossier::query()->count());
+
+            return $count;
+        };
+        $dossier = fn (string $ninea) => KycDossier::query()->create([
+            'subject_type' => Agency::class,
+            'subject_id' => Agency::factory()->create(['ninea' => $ninea])->id,
+            'status' => KycDossierStatus::Submitted,
+        ]);
+
+        $dossier('00111111A1');
+        $une = $file();
+        $dossier('00222222A2');
+        $dossier('00111111 a1');
+        $trois = $file();
+
+        $this->assertSame($une, $trois);
     }
 
     /** D-68 — aucun contrôle de forme : un NINEA `ABC` est accepté. */
