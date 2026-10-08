@@ -1,7 +1,7 @@
 ---
 id: TCK-293
 title: "Webhook de paiement — le secret de n'importe quelle agence valide celui des autres"
-status: doing
+status: done
 phase: P0
 family: bug
 estimate: M
@@ -64,19 +64,31 @@ la configuration chez le fournisseur, pas seulement le code :
 
 ## Delta à produire
 
-- [ ] Trancher entre les trois sorties ci-dessus (produit + ops).
-- [ ] Écrire la décision en ADR — c'est une décision structurelle sur l'isolation par agence, qui
-      est le principe non négociable n°2 du dépôt.
-- [ ] Implémenter, puis retirer la sonde de `tests/Feature/Api/PaymentWebhookMultiTenantTest.php`
-      (elle se rallume seule dès que la résolution est scopée).
+- [x] Trancher entre les trois sorties ci-dessus (produit + ops). — *Le porteur, le 2026-10-08 :
+      option 1, une URL par intégration.*
+- [x] Écrire la décision en ADR — c'est une décision structurelle sur l'isolation par agence, qui
+      est le principe non négociable n°2 du dépôt. — *ADR-0046, commit `9ae44ec9`, avant le code.*
+- [x] Implémenter, puis retirer la sonde de `tests/Feature/Api/PaymentWebhookMultiTenantTest.php`
+      (elle se rallume seule dès que la résolution est scopée). — *Back `9ca48769`, écran
+      `1492ccd9` ; sonde retirée, le fichier est désormais la garde (6 tests).*
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un webhook signé avec le secret d'une autre agence est **refusé** (401), et ne mute rien.
-- [ ] AC2 — un webhook signé avec le secret légitime de l'agence propriétaire du paiement **passe**.
-- [ ] AC3 — le rapprochement d'événement (`paymentsForEvent`) ne peut atteindre que des payables de
-      l'agence dont l'intégration a validé la signature.
-- [ ] AC4 — un ADR consigne la sortie retenue et le coût opérationnel accepté.
+- [x] AC1 — un webhook signé avec le secret d'une autre agence est **refusé** (401), et ne mute rien.
+      — *`PaymentWebhookMultiTenantTest::test_the_secret_of_another_agency_must_not_authenticate_a_webhook`,
+      vert le 2026-10-08 ; rougit sous l'ablation A2 (retour au secret « première active »).*
+- [x] AC2 — un webhook signé avec le secret légitime de l'agence propriétaire du paiement **passe**.
+      — *`…::test_the_own_secret_of_the_agency_authenticates_its_webhook`, vert ; rougit sous A2.*
+- [x] AC3 — le rapprochement d'événement (`paymentsForEvent`) ne peut atteindre que des payables de
+      l'agence dont l'intégration a validé la signature. — *Quatre tests de
+      `PaymentWebhookMultiTenantTest` (acompte, échéance, facture, historique) et deux de
+      `PaymentWebhookEndpointTest` (`custom_data`), verts ; rougissent sous A1 et A8.*
+- [x] AC4 — un ADR consigne la sortie retenue et le coût opérationnel accepté. — *ADR-0046,
+      section « Conséquences » : la reconfiguration Wave par agence, la régénération qui coupe
+      les notifications des checkouts OM ouverts, l'horodatage Wave non borné.*
+- [ ] Suite backend entière verte. — *Lancée par la session : `bin/impacted-tests.php
+      --base=origin/dev` exige la suite entière (fichier neuf hors de la carte), qu'un agent
+      délégué ne lance pas.*
 
 ## Hors périmètre
 
@@ -224,3 +236,60 @@ empreinte uniforme (la base stocke l'empreinte, testé), et le clair n'est stock
 - Le formulaire d'agence n'écrit pas `webhook_secret` ; c'est le §3 de 602.
 - La console super-admin n'a pas d'écran propre. Le super-admin passe par les mêmes points
   (autorisé, testé).
+
+### 2026-10-08 — Écran livré, vérifié au navigateur
+
+- **Écran.** `IntegrationWebhookEndpoint` sur chaque carte de paiement de
+  `/admin/settings/integrations`. La page précharge l'adresse ; sinon un bouton la lit. On y
+  trouve « Copier » et « Régénérer », ce dernier après une confirmation qui dit que l'ancienne
+  adresse tombe tout de suite et que les checkouts OM ouverts se confirment à la vérification. Une
+  consigne par fournisseur. Libellés fr/en/wo sous
+  `adminSettings.integrations.webhookEndpoint`.
+- **Second facteur.** Le refus revient d'une action serveur, donc sans `ApiError`.
+  `mapError` rend désormais le `code` du refus, et `avecGardeDoubleFacteurAction` le confie à
+  `GardeDoubleFacteur` puis rejoue l'action, deux passages au plus. Aucun écran à action serveur
+  ne le faisait jusqu'ici.
+- **Preuves.**
+  - `vitest` sur `admin-settings`, `double-facteur`, `actions/__tests__` et
+    `promesses-de-delai` : 182 passed.
+  - `eslint` et `tsc --noEmit` à 0.
+  - `check:i18n` : parité 0/0.
+  - `check:i18n-namespaces` vert.
+- **Ablations du front** (même protocole, arbre identique avant et après) : les 6 mordent.
+  - F1 : la garde n'est pas transmise.
+  - F2 : la carte n'affiche pas l'adresse.
+  - F3 : régénérer sans confirmation.
+  - F4 : `code` perdu par `mapError`.
+  - F5 : la boucle de rejeu n'est plus bornée.
+  - F6 : une action sort de la table du profil actif.
+- **Navigateur** : API sur :8115 et Next sur :3115, base jetable `takussan_tck293_ui`, admin
+  d'agence avec second facteur, Wave, OM et SMS. Les deux serveurs sont arrêtés et la base
+  supprimée à la fin.
+  - Les cartes OM et Wave affichent leur adresse et leur consigne ; la carte SMS n'en a pas.
+  - « Copier » passe à « Copied ».
+  - « Regenerate » ouvre la confirmation, puis affiche une adresse neuve et l'avis.
+  - Mesuré par `curl` ensuite : l'ancien jeton rend **404**, le nouveau **401** (il résout, la
+    signature manque), l'ancienne route **410**. `activity_log` porte `webhook_token_rotated`
+    `{provider, agency_id}`, sans jeton.
+  - *Écart du banc, pas du ticket* : la connexion par l'écran a rendu 429 au second facteur. Le
+    jeton a été obtenu par `POST /api/auth/login` depuis la page, puis posé par
+    `/api/auth/set-token`.
+
+## Au porteur
+
+Hors dépôt, et hors du périmètre de l'agent (préproduction, production, Dokploy, portail Wave) :
+
+1. **Avant le déploiement** : la migration `2026_10_08_120000_add_webhook_token_to_integrations_table`
+   tire un jeton pour chaque intégration de paiement existante. À partir de là, **l'ancienne URL
+   `…/api/webhooks/payments/{provider}` rend 410** : Wave n'y livre plus rien.
+2. **Wave, par agence** : chaque agence qui a une intégration Wave active colle la nouvelle
+   adresse, lue sur son écran Intégrations, dans son portail Wave Business. D'ici là, ses
+   paiements ne se confirment que par la vérification (`verify`), pas par le webhook.
+3. **Intégration de la plateforme** (`agency_id` nul) : elle a aussi son jeton. Son adresse se lit
+   par `GET /api/integrations/{id}/webhook-endpoint` en super-admin ; aucun écran de la console
+   plateforme ne l'affiche encore.
+4. **Orange Money** : rien à faire. `notif_url` porte la nouvelle adresse dès le prochain checkout.
+   Un checkout ouvert AVANT le déploiement notifie l'ancienne URL (410) et se solde par
+   `verify`.
+5. **À relever en préproduction**, ce que l'agent n'a pas pu lire : combien d'intégrations de
+   paiement sont actives, et chez quelles agences. C'est la liste des portails à reconfigurer.
