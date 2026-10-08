@@ -419,14 +419,14 @@ export type NotificationTemplatePreviewResponse = {
   };
 };
 
-export type PlatformSettingCategory = 'currency' | 'format' | 'transaction' | 'limits';
-export type PlatformSettingType = 'select' | 'multi_select' | 'percentage' | 'integer';
+/** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
+export type PlatformSettingCategory = 'currency' | 'limits';
+export type PlatformSettingType = 'select' | 'multi_select' | 'integer';
 
 export type PlatformSetting = {
   key: string;
   category: PlatformSettingCategory;
-  label: string;
-  description: string;
+  /** TCK-600 — ni libellé ni description servis par l'API : traduits par clé (`superAdmin.platformSettings.keys`). */
   type: PlatformSettingType;
   value: string | number | string[];
   default_value: string | number | string[];
@@ -523,8 +523,6 @@ export type MaintenanceStatusResponse = { data: MaintenanceStatus };
 
 export type AdminFeatureFlag = {
   key: string;
-  label: string;
-  description: string;
   client_visible: boolean;
   enabled: boolean;
   segments: {

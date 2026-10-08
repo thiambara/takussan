@@ -6121,7 +6121,9 @@
       },
       "featureFlags": {
         "title": "Feature flags",
-        "subtitle": "Kontarole génne yu mag yi, yu segment ak override sesioŋ."
+        "subtitle": "Kontarole génne yu mag yi, yu segment ak override sesioŋ.",
+        "emptyTitle": "Amul benn drapeau buy dox",
+        "emptyDescription": "Drapeau dafay feeñ fii ak kood bi koy jàng rekk. Dina dugg ci katalog bi ak fonksiyoŋ bi mu yilif."
       },
       "integrations": {
         "title": "Boole ak jumtukaay yu biti",
@@ -6130,7 +6132,7 @@
       },
       "settings": {
         "title": "Tegtal yu platform bi",
-        "subtitle": "Tegal xaalis yi, format yi, njëg yi ak dig yu mag te du ñu déploye ëllëg.",
+        "subtitle": "Tànnal xaalis yi ak diirub sesiyoŋu operatëer yi. Paramètre yi am kood buy jàng rekk ñoo fi nekk.",
         "sensitiveNotice": "Tegtal yi ñu màrke ni yu am solo man nañu laaj ñu tàmbalaat liiñ bi walla ñu fanq cache app bi."
       },
       "templates": {
@@ -6551,15 +6553,29 @@
       "updatedByOn": "{name} moo ko soppi ci {date}",
       "defaultValue": "Njëg bu ndoorte",
       "errors": {
-        "xofRequired": "XOF war na des ci xaalis yi ñu nangu.",
-        "feeRange": "Peyu platform bi war na des ci diggante 0,00 ak 100,00 %.",
-        "feeDecimals": "Peyu platform bi day nangu ñaari tus rekk."
+        "xofRequired": "XOF war na des ci xaalis yi ñu nangu."
       },
       "categories": {
         "currency": "Xaalis yi",
-        "format": "Formaa & i18n",
-        "transaction": "Peyoom bu plaatfoom bi",
         "limits": "Dig yu teknik"
+      },
+      "keys": {
+        "currency": {
+          "default": {
+            "label": "Xaalis bi ñuy jëfandikoo ci kaw",
+            "description": "Xaalis bi ñuy fey bu kër gi walla ajaans bi tànnul beneen."
+          },
+          "supported": {
+            "label": "Xaalis yi ñu nangu",
+            "description": "Xaalis yi ajaans mën a tànn bu ñuy sos walla ci ay tànneefam. XOF ñu ngi koy nangu saa su nekk."
+          }
+        },
+        "platform": {
+          "session_max_minutes": {
+            "label": "Diirub sesiyoŋu operatëer bi gëna yàgg",
+            "description": "Ci simili, li dale ci 15 ba 1440. Dafay dal ci duggu yi ñu ubbi ginnaaw bi ñu ko denc."
+          }
+        }
       }
     },
     "agencyOnboarding": {

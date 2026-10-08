@@ -6731,7 +6731,9 @@
       },
       "featureFlags": {
         "title": "Feature flags",
-        "subtitle": "Contrôlez les rollouts globaux, par segment et par override de session."
+        "subtitle": "Contrôlez les rollouts globaux, par segment et par override de session.",
+        "emptyTitle": "Aucun drapeau en service",
+        "emptyDescription": "Un drapeau n’apparaît ici qu’avec le code qui le lit. Il s’ajoutera au catalogue en même temps que la fonctionnalité qu’il commande."
       },
       "integrations": {
         "title": "Intégrations tierces",
@@ -6740,7 +6742,7 @@
       },
       "settings": {
         "title": "Paramètres plateforme",
-        "subtitle": "Réglez les devises, formats, frais et limites globales sans redéploiement.",
+        "subtitle": "Réglez les devises et la durée des sessions opérateur. Seuls les paramètres qu’un code lit figurent ici.",
         "sensitiveNotice": "Les paramètres marqués comme sensibles peuvent nécessiter un redémarrage de queue ou un vidage de cache applicatif."
       },
       "templates": {
@@ -7161,15 +7163,29 @@
       "updatedByOn": "Modifié par {name} le {date}",
       "defaultValue": "Valeur par défaut",
       "errors": {
-        "xofRequired": "XOF doit rester dans les devises supportées.",
-        "feeRange": "Le frais plateforme doit rester entre 0,00 et 100,00 %.",
-        "feeDecimals": "Le frais plateforme accepte deux décimales maximum."
+        "xofRequired": "XOF doit rester dans les devises supportées."
       },
       "categories": {
         "currency": "Devises",
-        "format": "Formats & i18n",
-        "transaction": "Frais plateforme",
         "limits": "Limites techniques"
+      },
+      "keys": {
+        "currency": {
+          "default": {
+            "label": "Devise par défaut",
+            "description": "Devise des paiements quand le bien ou l’agence n’en précise pas."
+          },
+          "supported": {
+            "label": "Devises acceptées",
+            "description": "Devises qu’une agence peut choisir à sa création ou dans ses réglages. XOF reste toujours acceptée."
+          }
+        },
+        "platform": {
+          "session_max_minutes": {
+            "label": "Durée maximale d’une session opérateur",
+            "description": "En minutes, de 15 à 1440. S’applique aux connexions ouvertes après l’enregistrement."
+          }
+        }
       }
     },
     "agencyOnboarding": {

@@ -6731,7 +6731,9 @@
       },
       "featureFlags": {
         "title": "Feature flags",
-        "subtitle": "Control global, per-segment and per-session override rollouts."
+        "subtitle": "Control global, per-segment and per-session override rollouts.",
+        "emptyTitle": "No flag in service",
+        "emptyDescription": "A flag only appears here together with the code that reads it. It will join the catalogue with the feature it controls."
       },
       "integrations": {
         "title": "Third-party integrations",
@@ -6740,7 +6742,7 @@
       },
       "settings": {
         "title": "Platform settings",
-        "subtitle": "Set currencies, formats, fees and global limits without redeploying.",
+        "subtitle": "Set the currencies and the operator session length. Only settings that some code reads are listed here.",
         "sensitiveNotice": "Settings marked as sensitive may require a queue restart or an application cache flush."
       },
       "templates": {
@@ -7161,15 +7163,29 @@
       "updatedByOn": "Updated by {name} on {date}",
       "defaultValue": "Default value",
       "errors": {
-        "xofRequired": "XOF must remain among the supported currencies.",
-        "feeRange": "The platform fee must stay between 0.00 and 100.00%.",
-        "feeDecimals": "The platform fee accepts two decimals at most."
+        "xofRequired": "XOF must remain among the supported currencies."
       },
       "categories": {
         "currency": "Currencies",
-        "format": "Formats & i18n",
-        "transaction": "Platform fees",
         "limits": "Technical limits"
+      },
+      "keys": {
+        "currency": {
+          "default": {
+            "label": "Default currency",
+            "description": "Currency used for payments when neither the property nor the agency sets one."
+          },
+          "supported": {
+            "label": "Accepted currencies",
+            "description": "Currencies an agency can pick when it is created or in its settings. XOF is always accepted."
+          }
+        },
+        "platform": {
+          "session_max_minutes": {
+            "label": "Maximum operator session length",
+            "description": "In minutes, from 15 to 1440. Applies to sign-ins opened after saving."
+          }
+        }
       }
     },
     "agencyOnboarding": {
