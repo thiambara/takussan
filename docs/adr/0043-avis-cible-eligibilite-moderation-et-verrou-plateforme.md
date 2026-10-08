@@ -218,7 +218,9 @@ jetée sans erreur.
   `reviews.metadata` ni dans un signalement d'annonce neuf. Pour une IPv6, l'« IP » est son **/64**,
   dans l'empreinte comme dans la clé des limiteurs publics (verif-597 m6) : un abonné IPv6 dispose
   d'un /64 entier, et l'adresse complète lui donnait autant d'empreintes et de compteurs qu'il en
-  voulait. Un champ piège rempli rend 204 sans rien enregistrer. Le limiteur `public-report` reste.
+  voulait. Une IPv4-mappée (`::ffff:a.b.c.d`) est déballée en IPv4 **avant** cette troncature
+  (verif-597 passe 2, n1) : tronquée, elle rendait `::/64` à tous ces visiteurs, donc une seule
+  empreinte et un seul compteur. Un champ piège rempli rend 204 sans rien enregistrer. Le limiteur `public-report` reste.
 
 ### 7. Aucune décision de la file ne se joue deux fois
 

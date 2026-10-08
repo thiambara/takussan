@@ -190,4 +190,31 @@ class PublicReportTest extends ApiTestCase
             ->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'spam'])->assertOk();
         $this->assertSame(1, $this->five->refresh()->reported_count);
     }
+
+    /**
+     * verif-597 passe 2 n1 — une IPv4 vue sous sa forme IPv4-mappée (`::ffff:a.b.c.d`, pile
+     * d'écoute double) est une IPv4 : tronquée au /64, elle donnait `::/64` à TOUS ces visiteurs,
+     * donc une seule empreinte (un seul signalement) et un seul compteur de limiteur.
+     */
+    public function test_ipv4_mapped_addresses_are_ipv4_visitors(): void
+    {
+        $a = '::ffff:203.0.113.5';
+        $b = '::ffff:198.51.100.9';
+
+        $this->assertNotSame(VisitorFingerprint::ofIp($a), VisitorFingerprint::ofIp($b));
+        $this->assertSame(VisitorFingerprint::ofIp('203.0.113.5'), VisitorFingerprint::ofIp($a));
+
+        $key = fn (string $ip): string => RateLimiter::limiter('public-report')(
+            Request::create('/api/public/reviews/1/report', 'POST', server: ['REMOTE_ADDR' => $ip])
+        )->key;
+        $this->assertNotSame($key($a), $key($b));
+        $this->assertSame($key('203.0.113.5'), $key($a));
+
+        // De bout en bout : deux visiteurs distincts comptent deux fois.
+        $this->withServerVariables(['REMOTE_ADDR' => $a])
+            ->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'spam'])->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => $b])
+            ->postJson("/api/public/reviews/{$this->five->id}/report", ['reason' => 'spam'])->assertOk();
+        $this->assertSame(2, $this->five->refresh()->reported_count);
+    }
 }
