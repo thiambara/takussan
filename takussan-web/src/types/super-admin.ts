@@ -536,10 +536,10 @@ export type AdminFeatureFlag = {
 export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };
 export type FeatureFlagsMeResponse = { data: Record<string, boolean> };
 
+/** TCK-600 — servie par clé : le libellé de l'événement se traduit (`superAdmin.alerts.events`). */
 export type AlertRule = {
   id: number;
   event: string;
-  label: string;
   channels: string[];
   recipients: { emails?: string[]; webhooks?: string[] };
   is_active: boolean;
@@ -549,7 +549,8 @@ export type AlertRule = {
 
 export type AlertRulesResponse = {
   data: AlertRule[];
-  catalogue: Record<string, string>;
+  /** Les clés des événements alertables (`AlertableEvents::keys()`). */
+  catalogue: string[];
 };
 export type AlertRuleResponse = { data: AlertRule };
 

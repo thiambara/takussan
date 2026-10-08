@@ -7093,7 +7093,39 @@
       "emptyTitle": "No alert rules",
       "emptyDescription": "Create a rule to be notified by email or webhook when a critical action happens on the platform.",
       "deleteTitle": "Delete the alert rule",
-      "deleteDescription": "Future occurrences of this event will no longer trigger an alert."
+      "deleteDescription": "Future occurrences of this event will no longer trigger an alert.",
+      "events": {
+        "super_admin_impersonation_started": "Impersonation started",
+        "super_admin_impersonation_stopped": "Impersonation ended",
+        "super_admin_agency_suspended": "Agency suspended",
+        "super_admin_agency_reinstated": "Agency reinstated",
+        "super_admin_user_blocked": "Account blocked",
+        "super_admin_user_reactivated": "Account reactivated",
+        "super_admin_user_erasure_requested": "Account erasure requested",
+        "super_admin_password_reset_forced": "Password reset forced",
+        "super_admin_2fa_reset": "Two-factor authentication reset",
+        "super_admin_sessions_revoked": "Sessions revoked",
+        "super_admin_account_unlocked": "Account unlocked",
+        "super_admin_data_export_requested": "Data export requested",
+        "two_factor_disabled": "Two-factor authentication disabled",
+        "super_admin_invited": "Operator invited",
+        "super_admin_operator_revoked": "Operator revoked",
+        "super_admin_setting_updated": "Platform setting changed",
+        "super_admin_feature_flag_updated": "Feature flag changed",
+        "super_admin_integration_updated": "Integration changed",
+        "super_admin_payout_approved": "Payout approved",
+        "super_admin_payout_marked_paid": "Payout marked as paid",
+        "super_admin_payout_cancelled": "Payout cancelled",
+        "super_admin_payout_period_closed": "Payout period closed",
+        "ops_failed_jobs_spike": "Spike of failed jobs",
+        "ops_queue_stalled": "Job queue stalled",
+        "ops_health_degraded": "Platform health degraded"
+      },
+      "channels": {
+        "email": "Email",
+        "slack": "Slack",
+        "discord": "Discord"
+      }
     },
     "inviteModal": {
       "title": "Coopt a super-admin",
