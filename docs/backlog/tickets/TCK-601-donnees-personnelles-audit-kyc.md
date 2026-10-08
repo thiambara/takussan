@@ -318,7 +318,7 @@ Et autour :
       par `Gate::before` — **option retenue par défaut** : pas de capacité dédiée tant que TCK-587 n'a
       pas branché les capacités de lecture) ; journalisée (F).
 - [ ] `DataExportBuilder.php:83` : les profils sont exportés avec `makeVisible(OwnerProfile::SENSITIVE)`.
-- [ ] Front : le carnet de propriétaires affiche les valeurs masquées et le geste « Afficher » pour l'admin.
+- [x] Front : le carnet de propriétaires affiche les valeurs masquées et le geste « Afficher » pour l'admin.
 - [ ] Tests : `OwnerProfileSensitiveDataTest`.
 
 ### A2. Identifiants légaux de la demande de passage en agence
@@ -335,7 +335,7 @@ Et autour :
       du cast `encrypted` : la supprimer l'est.*
 - [ ] `AgencyResource` : `metadata` rendu sans `legal_info.rib_pro` (`Arr::except`), défense contre une
       donnée antérieure à la migration.
-- [ ] Front : le type d'agence ne déclare plus de RIB pro dans ses métadonnées.
+- [x] Front : le type d'agence ne déclare plus de RIB pro dans ses métadonnées.
 - [ ] `Admin\AgencyUpgradeRequestController::show` journalise la consultation (F, surface
       `agency_upgrade_request`).
 - [ ] Tests : `AgencyUpgradeRequestEncryptionTest`.
@@ -394,7 +394,7 @@ Et autour :
       `agencies.ninea` après TCK-594. Résultat exposé au seul super-admin dans `KycDossierResource` et la
       demande de passage `standard` (`shared_identifiers` : `ninea` / `rib_pro`, identifiants des
       agences en conflit). Aucun refus automatique : un signal pour la revue.
-- [ ] `KycDossierResource` expose `expires_at` et l'échéance de chaque pièce ; le front l'affiche.
+- [x] `KycDossierResource` expose `expires_at` et l'échéance de chaque pièce ; le front l'affiche.
 - [x] Tests : `KycDossierExpiryTest`, `AgencyKycCapabilityTest`, `SharedLegalIdentifierTest`.
 
 ### D. Audit d'agence
@@ -414,7 +414,7 @@ Et autour :
 - [ ] `App\Support\Audit\PropertyRedactor` (extrait de `CrossTenantAuditController`, liste étendue à
       `rib`, `iban`, `tax_id`, `ninea`, `id_document`) appliqué à `properties` dans l'audit d'agence,
       dans l'audit plateforme et dans les deux exports.
-- [ ] Front `AuditTrail` : filtre par membre (liste issue de `GET /api/agencies/{agency}/members`),
+- [x] Front `AuditTrail` : filtre par membre (liste issue de `GET /api/agencies/{agency}/members`),
       libellés i18n des événements métier et des nouveaux types de sujet, acteur nul rendu « Système ».
 - [ ] Tests : `AgencyAuditScopeTest` (AC10 à AC14, AC12b, AC13b), `ActivityLogAgencyBackfillTest`.
 
@@ -448,7 +448,7 @@ Et autour :
 - [ ] `GET /api/admin/audit/export` → `CrossTenantAuditController::export` (réutilise
       `ActivityLogExporter` en portée plateforme, lien signé) ; `filter[sensitive]=1` sur l'index et
       l'export, sur une liste de `log_name` nommée en constante ; l'export lui-même est journalisé.
-- [ ] Front : préréglage « Gestes sensibles » et export sur l'audit de la console.
+- [x] Front : préréglage « Gestes sensibles » et export sur l'audit de la console.
 - [ ] Tests : `PersonalDataAccessLogTest`, `CrossTenantAuditExportTest`.
 
 ### G. Registre des demandes de droits
@@ -463,7 +463,7 @@ Et autour :
 - [ ] `Admin\PrivacyRequestController` (`index`, `store`, `update`, `export` CSV) +
       `StorePrivacyRequestRequest`, `UpdatePrivacyRequestRequest` + `PrivacyRequestPolicy` (super-admin
       seul) ; dépôt de la preuve de réponse par média `proof` (mêmes `mimes` qu'en B).
-- [ ] Front : page « Demandes de droits » de la console.
+- [x] Front : page « Demandes de droits » de la console.
 - [ ] `docs/models-spec.md` et `docs/features.md` mis à jour après fusion (`/sync-specs`).
 - [ ] Tests : `PrivacyRequestRegistryTest`.
 
@@ -562,7 +562,7 @@ Et autour :
       avec `due_at` attendu ; annuler la suppression passe l'entrée à `withdrawn` sans la supprimer ; une
       demande saisie à la main, puis répondue avec preuve, apparaît dans l'export CSV. 403 pour tout
       non-super-admin.
-- [ ] **AC18b** — Front : le journal d'audit de l'agence propose un choix de membre qui envoie
+- [x] **AC18b** — Front : le journal d'audit de l'agence propose un choix de membre qui envoie
       `filter[causer_id]` ; une ligne sans acteur se lit « Système » dans les trois langues (test de
       composant). Rouge sur le code actuel.
 - [ ] **AC19** — `./vendor/bin/pint` propre ; `npm run lint` et `npx tsc --noEmit` propres ; tests des
@@ -759,6 +759,28 @@ Et autour :
   propre agence retirée → rouge ; `when(super-admin)` à `true` → rouge ; signal du dossier coupé →
   rouge. Le marquage des jalons plus lointains (« rattraper sans doubler ») était un **mutant
   équivalent** (vert) : le jalon le plus proche seul suffit, le code a été simplifié.
+
+### Front (A, A2, C, D, F, G)
+
+- Carnet de propriétaires : masques `*_masked`, geste « Afficher » réservé à l'admin, appel par
+  `fetchOwnerSensitive` sous la garde 2FA de 589, jamais en cache React Query. `rib_pro` retiré de
+  `AgencyMetadata`.
+- KYC : `KycEcheance` (échéance de la PIÈCE, `document_expires_at`, distincte de l'`expires_at` du
+  lien signé ; bientôt / expirée), champ d'échéance obligatoire pour `director_id`,
+  `SharedIdentifiersNotice` sur la file et la demande de passage (super-admin).
+- `AuditTrail` : filtre « Membre » (`filter[causer_id]`), libellés des événements métier et des
+  nouveaux sujets, « Système » pour une ligne sans acteur (AC18b : 6 rouges avant, 23/23 après).
+- Console : préréglage « Gestes sensibles » et export signé sur l'audit ; page « Demandes de droits »
+  (`/super-admin/privacy-requests`, entrée de navigation). Le proxy `/api/super-admin` transmet
+  désormais le corps en octets (`arrayBuffer()`) : `text()` corrompait la preuve multipart.
+- Clés `notifications.codes.kyc.expiring_soon` et `governance.*` (fr/en/wo).
+- Écarts : `GET /agencies/{id}/members` ne rend que les profils agent et bailleur — un membre
+  seulement admin n'apparaît pas dans le filtre (le journal reste filtrable par sujet) ; le filtre
+  charge 100 membres sans pagination. Wolof écrit par l'agent, à relire.
+- Vérifié : `tsc --noEmit` 0, `npm run lint` 0, 9 fichiers de test ciblés 119/119 (dont
+  `promesses-de-delai`), `check-i18n-namespaces` et `check-notification-codes` verts. Ablations de
+  l'agent front, toutes rouges : corps en `text()`, garde 2FA d'« Afficher », échéance lue sur le
+  lien, `filter[sensitive]`, `sort=due_at`, `causer_id`.
 
 ### G — registre des demandes de droits (back)
 
