@@ -284,6 +284,26 @@ export type AgencyModerationAction = 'verify' | 'suspend' | 'unverify' | 'reinst
  * TCK-600 (ADR-0048) — `suspend` et `reinstate` exigent un motif (422 sans) : il part dans le
  * corps, l'API le journalise et le transmet aux admins de l'agence.
  */
+/** TCK-600 — un résultat de la recherche globale de la console (`AdminGlobalSearchService`). */
+export type GlobalSearchHit = {
+  type: 'user' | 'agency' | 'property' | 'booking' | 'lease' | 'invoice' | 'payment' | 'payout' | string;
+  id: number;
+  label: string;
+  sublabel: string | null;
+  agency: { id: number; name: string } | null;
+  /** Où ouvrir le résultat dans la console ; `null` quand il n'a pas d'écran à lui. */
+  url: string | null;
+};
+
+/** TCK-600 — `GET /api/admin/search?q=` : correspondances exactes d'abord, puis texte libre. */
+export async function fetchGlobalSearch(q: string, signal?: AbortSignal): Promise<{ data: GlobalSearchHit[] }> {
+  const res = await fetch(`/api/super-admin/search?${new URLSearchParams({ q }).toString()}`, {
+    credentials: 'include',
+    signal,
+  });
+  return jsonOrThrow<{ data: GlobalSearchHit[] }>(res);
+}
+
 export async function postAgencyAction(
   agencyId: number,
   action: AgencyModerationAction,

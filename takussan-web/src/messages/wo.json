@@ -6828,6 +6828,25 @@
         "label": "Super-admin",
         "hint": "Jëf yépp, ak taxawal ajaans, far kont, impersonation ak operatëer yi."
       }
+    },
+    "globalSearch": {
+      "trigger": "Seet",
+      "shortcut": "Ctrl K",
+      "title": "Seet bu mag",
+      "description": "Imeel, telefon, referaans, transaksioŋ, NINEA walla tur. Fetal yi ngir tànn, Entrée ngir ubbi.",
+      "placeholder": "Seet ci platform bi yépp",
+      "hint": "Ñaari araf lu néew.",
+      "empty": "Amul dara ngir « {q} ».",
+      "types": {
+        "user": "Jëfandikukat yi",
+        "agency": "Ajaans yi",
+        "property": "Kër yi",
+        "booking": "Booking yi",
+        "lease": "Bayi yi",
+        "invoice": "Faktiir yi",
+        "payment": "Fey yi",
+        "payout": "Delloo xaalis yi"
+      }
     }
   },
   "adminSettings": {

@@ -7438,6 +7438,25 @@
         "label": "Super admin",
         "hint": "Every action, including agency suspension, account erasure, impersonation and operators."
       }
+    },
+    "globalSearch": {
+      "trigger": "Search",
+      "shortcut": "Ctrl K",
+      "title": "Global search",
+      "description": "Email, phone, reference, transaction, NINEA or name. Arrows to choose, Enter to open.",
+      "placeholder": "Search the whole platform",
+      "hint": "At least 2 characters.",
+      "empty": "No result for “{q}”.",
+      "types": {
+        "user": "Users",
+        "agency": "Agencies",
+        "property": "Properties",
+        "booking": "Bookings",
+        "lease": "Leases",
+        "invoice": "Invoices",
+        "payment": "Payments",
+        "payout": "Payouts"
+      }
     }
   },
   "adminSettings": {

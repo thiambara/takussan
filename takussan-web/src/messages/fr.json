@@ -7438,6 +7438,25 @@
         "label": "Super-admin",
         "hint": "Tous les gestes, dont la suspension d’agence, l’effacement de compte, l’impersonation et les opérateurs."
       }
+    },
+    "globalSearch": {
+      "trigger": "Rechercher",
+      "shortcut": "Ctrl K",
+      "title": "Recherche globale",
+      "description": "E-mail, téléphone, référence, transaction, NINEA ou nom. Flèches pour choisir, Entrée pour ouvrir.",
+      "placeholder": "Rechercher dans toute la plateforme",
+      "hint": "Au moins 2 caractères.",
+      "empty": "Aucun résultat pour « {q} ».",
+      "types": {
+        "user": "Utilisateurs",
+        "agency": "Agences",
+        "property": "Biens",
+        "booking": "Réservations",
+        "lease": "Baux",
+        "invoice": "Factures",
+        "payment": "Paiements",
+        "payout": "Reversements"
+      }
     }
   },
   "adminSettings": {

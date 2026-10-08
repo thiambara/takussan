@@ -148,6 +148,15 @@ describe('SuperAdminShell — lien d’évitement (TCK-359)', () => {
   });
 });
 
+describe('SuperAdminShell — recherche globale (TCK-600)', () => {
+  afterEach(() => cleanup());
+
+  it('la barre haute porte la recherche globale, depuis toute page de la console', () => {
+    renderShell();
+    expect(screen.getByRole('button', { name: /Rechercher/ })).toBeInTheDocument();
+  });
+});
+
 describe('SuperAdminSidebar — focus clavier (TCK-359)', () => {
   /**
    * AC2 exige un anneau de focus sur CHACUN des trois types de liens. Un test qui n'en
