@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\Admin\DispatchAlerts;
+use App\Models\AccountDeletionRequest;
 use App\Models\Activity as AuditActivity;
 use App\Models\Agency;
 use App\Models\AgencyRole;
@@ -11,6 +12,7 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\DataExport;
 use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Favorite;
@@ -46,6 +48,7 @@ use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
+use App\Observers\Privacy\PrivacyRegistryObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
@@ -525,6 +528,14 @@ class AppServiceProvider extends ServiceProvider
         // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`
         // (cf. `PhotoConversionFormat`).
         Media::creating(fn (Media $media) => PhotoConversionFormat::markNew($media));
+
+        // TCK-601 (ADR-0044 §4) — le registre des demandes de droits se remplit par l'application.
+        $registry = PrivacyRegistryObserver::class;
+        DataExport::created(fn (DataExport $export) => app($registry)->dataExportCreated($export));
+        DataExport::updated(fn (DataExport $export) => app($registry)->dataExportUpdated($export));
+        AccountDeletionRequest::created(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestCreated($request));
+        AccountDeletionRequest::updated(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestUpdated($request));
+        AccountDeletionRequest::deleting(fn (AccountDeletionRequest $request) => app($registry)->deletionRequestDeleting($request));
     }
 
     private function bootReportingHooks(): void

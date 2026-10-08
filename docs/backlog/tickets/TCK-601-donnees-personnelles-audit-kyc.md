@@ -693,3 +693,22 @@ Et autour :
   → rouge ; du dossier (agence) → rouge ; de la pièce → rouge ; fenêtre de 15 min neutralisée →
   rouge ; préréglage sensible vidé → 2 rouges ; expurgation de l'export retirée → rouge ; journal de
   l'export retiré → rouge ; step-up retiré → rouge ; policy à `true` (step-up fait) → rouge.
+
+### G — registre des demandes de droits (back)
+
+- `privacy_requests` (migration `2026_10_08_601400`), `PrivacyRequest` (journal `Privacy`, liste
+  blanche sans nom, contact ni résumé), trois enums, `config/privacy.php` (30 jours, variable
+  `PRIVACY_RIGHTS_REQUEST_DEADLINE_DAYS`). `due_at` est **dérivé** à l'enregistrement, jamais saisi.
+- `PrivacyRegistryObserver` : export demandé **par son titulaire** → `portability` (un export lancé
+  par la plateforme répond à une demande déjà inscrite, il n'en ouvre pas une seconde) ; export prêt
+  → `answered`. Effacement → `erasure` ; exécution → `answered` ; annulation → `withdrawn`, saisi
+  sur `deleting` parce que la FK `nullOnDelete` efface le lien avant tout `deleted`.
+- `Admin\PrivacyRequestController` (`index` par échéance, `filter[overdue]`, `store`, `update` —
+  multipart par `_method=PATCH` pour la preuve —, `export` CSV journalisé). Une demande close ne se
+  rouvre pas (`privacy.request_closed`). `PrivacyRequestPolicy` refuse tout le monde hors
+  `Gate::before` (super-admin), en plus du middleware `super-admin`.
+- Tests : `PrivacyRequestRegistryTest` 6/6 ; suppression de compte, exports, `Privacy/*`, seeders 82/82.
+  Ablations : `deleting` retiré → rouge ; `created` d'effacement retiré → rouge ; `created` d'export
+  retiré → rouge ; filtre « lancé par la plateforme » neutralisé → rouge ; garde de réouverture
+  retirée → rouge ; `mimes` de la preuve retirés → rouge ; `logOnly` remplacé par `logFillable` →
+  rouge (nom du demandeur dans le journal) ; `due_at` non dérivé → rouge.

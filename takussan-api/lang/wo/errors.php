@@ -304,6 +304,9 @@ return [
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
     ],
+    'privacy' => [
+        'request_closed' => 'Laaj bii tëju na : bindal beneen.',
+    ],
     'profile' => [
         'not_accessible' => 'Profil bii, sañuloo ko jëfandikoo.',
     ],

@@ -304,6 +304,9 @@ return [
         'already_exists' => 'A payout already exists for this period.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',
     ],
+    'privacy' => [
+        'request_closed' => 'This request is closed: record a new one.',
+    ],
     'profile' => [
         'not_accessible' => 'This profile is not accessible to you.',
     ],

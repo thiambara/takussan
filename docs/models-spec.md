@@ -2978,6 +2978,43 @@ rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
 
 ---
 
+### 73. PrivacyRequest ✅
+
+**Table :** `privacy_requests`
+**Description :** Registre des demandes de droits (TCK-601,
+[ADR-0044 §4](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md)) :
+accès, rectification, opposition, effacement, portabilité, suivies par le super-admin jusqu'à leur
+échéance. Alimenté à la main (demande reçue par courriel ou courrier) et par l'application : un
+`DataExport` demandé par son titulaire ouvre une `portability`, une `AccountDeletionRequest` une
+`erasure` ; l'annulation de l'effacement passe l'entrée `withdrawn` sans l'effacer. Journal `Privacy`
+en liste blanche (ni nom, ni contact, ni résumé). Preuve de réponse : média privé `proof`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | ✓ | null | Demandeur s'il a un compte (`privacy_requests_user_fk`, `nullOnDelete`) |
+| requester_name | string | | | Nom du demandeur |
+| requester_contact | string | ✓ | null | Courriel, téléphone ou adresse |
+| type | PrivacyRequestType (string 20) | | | access, rectification, opposition, erasure, portability |
+| channel | PrivacyRequestChannel (string 20) | | | in_app, email, postal, phone, in_person |
+| received_at | timestamp | | | Réception |
+| due_at | timestamp | | | `received_at + config('privacy.rights_request_deadline_days')` (30 j, valeur de travail), dérivé à l'enregistrement |
+| status | PrivacyRequestStatus (string 20) | | 'received' | received, in_progress, answered, rejected, withdrawn ; une demande close ne se rouvre pas |
+| answered_at | timestamp | ✓ | null | Posé au passage `answered` |
+| response_summary | text | ✓ | null | Résumé de la réponse |
+| handled_by | FK users | ✓ | null | Dernier super-admin à l'avoir traitée (`privacy_requests_handled_by_fk`, `nullOnDelete`) |
+| data_export_id | FK data_exports | ✓ | null | `privacy_requests_data_export_fk`, `nullOnDelete` |
+| account_deletion_request_id | FK account_deletion_requests | ✓ | null | `privacy_requests_deletion_fk`, `nullOnDelete` |
+| created_at / updated_at | timestamp | | | |
+
+**Index :** `(status, due_at)` (`privacy_requests_status_due_idx`), `user_id` (`privacy_requests_user_idx`)
+
+**Relations :** `user()`, `handler()` → belongsTo User
+
+**Scopes :** `overdue()` — statut ouvert (`received`, `in_progress`) et `due_at` passé
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)

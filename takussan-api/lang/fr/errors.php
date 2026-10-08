@@ -304,6 +304,9 @@ return [
         'already_exists' => 'Un reversement existe déjà pour cette période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',
     ],
+    'privacy' => [
+        'request_closed' => 'Cette demande est close : enregistrez-en une nouvelle.',
+    ],
     'profile' => [
         'not_accessible' => 'Ce profil ne vous est pas accessible.',
     ],
