@@ -1,13 +1,13 @@
 ---
 id: TCK-601
 title: "Données personnelles et audit : RIB et pièces en clair, journal d'agence qui montre les actes d'une autre agence et cache ceux des admins, consultations non tracées, aucun registre des demandes de droits"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
