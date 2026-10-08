@@ -200,7 +200,7 @@ n'est requis que pour `other`.
 - `App\Policies\ReviewPolicy` (liée dans `AppServiceProvider::bootGatesAndPolicies`) ;
   `tests/Feature/Api/ReviewModerationScopeTest.php`.
 - `PropertyObserver::updating`, `Property::withoutModerationGate()` ;
-  `tests/Feature/Api/PropertyReportDecisionTest.php`, `tests/Feature/PropertyModerationGateTest.php`.
+  `tests/Feature/Api/Admin/PropertyReportDecisionTest.php`, `tests/Feature/Api/PropertyModerationGateTest.php`.
 - `ReviewReportService`, `ReviewObserver::updated` ; `tests/Feature/Api/PublicReportTest.php`,
   `tests/Feature/Api/ReviewAggregateTest.php`.
 - `UnifiedModerationService::decide`, `moderation_claims` ;

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**546 tickets** — 42 ouverts, 502 livrés.
+**546 tickets** — 41 ouverts, 503 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 39 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 502 |
+| ✅ Done | 503 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -76,7 +76,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-597](tickets/TCK-597-avis-signalements-et-moderation.md) — Avis et signalements : un admin d'agence modère les avis de toutes les agences, un signalement tranché laisse l'annonce en ligne, et ni un agent ni un prestataire ne peuvent être notés `XL · P1 · full`
 
 ## 👀 Review
 
@@ -88,15 +87,16 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 502
+## ✅ Done — 503
 
 <details>
-<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 4 tickets</summary>
+<summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 5 tickets</summary>
 
 - [TCK-586](tickets/TCK-586-retrait-complet-du-courtier.md) — Le courtier quitte le code et la base : tables, modèles, lectures publiques, fixtures et libellés retirés (ADR-0030) `M · P1 · technique`
 - [TCK-587](tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md) — Un bailleur lit et modifie les baux, loyers, versements et biens des autres bailleurs de son agence ; supprimer n'est pas jugé par `delete` ; 31 capacités sur 45 ne sont lues par aucun geste `XL · P0 · full`
 - [TCK-588](tickets/TCK-588-api-sans-prose-notifications-multicanal.md) — L'API n'écrit plus de prose : une notification est un code rendu dans la langue du destinataire, part sur WhatsApp ou SMS y compris vers un contact sans compte, et une erreur métier porte un code `XL · P1 · full`
 - [TCK-593](tickets/TCK-593-encaissements-locataire-et-rapprochement.md) — Le locataire télécharge son contrat et ses quittances et paie ce qu'il doit vraiment, et l'agence rapproche ses relevés, reversements compris `XL · P1 · full`
+- [TCK-597](tickets/TCK-597-avis-signalements-et-moderation.md) — Avis et signalements : un admin d'agence modère les avis de toutes les agences, un signalement tranché laisse l'annonce en ligne, et ni un agent ni un prestataire ne peuvent être notés `XL · P1 · full`
 
 </details>
 

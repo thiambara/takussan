@@ -1,7 +1,7 @@
 ---
 id: TCK-597
 title: "Avis et signalements : un admin d'agence modère les avis de toutes les agences, un signalement tranché laisse l'annonce en ligne, et ni un agent ni un prestataire ne peuvent être notés"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -325,36 +325,36 @@ Sans recopier la spec, voici ce qui change.
 
 ### 0. Décisions
 
-- [ ] ADR A et ADR B, écrits et acceptés **avant** le code (voir Contraintes 1).
+- [x] ADR A et ADR B, écrits et acceptés **avant** le code (voir Contraintes 1).
 
 ### 1. Cloisonnement (AD1)
 
-- [ ] Migration `add_moderation_scope_to_reviews_table` :
+- [x] Migration `add_moderation_scope_to_reviews_table` :
   - `agency_id` (FK `reviews_agency_id_fk`, `nullOnDelete`) ;
   - `context_type`/`context_id` ;
   - index `reviews_agency_status_idx (agency_id, status)` ;
   - index unique partiel `reviews_author_context_uniq (author_id, context_type, context_id) WHERE
     context_id IS NOT NULL` ;
   - reprise des données : bien → `properties.agency_id`, agence → `id`, user → `null`.
-- [ ] `App\Policies\ReviewPolicy` (`moderate`, `viewReports`, `reply`, `deleteReply`), enregistrée.
+- [x] `App\Policies\ReviewPolicy` (`moderate`, `viewReports`, `reply`, `deleteReply`), enregistrée.
   `ModerateReviewRequest`, `ReplyReviewRequest`, `approve`, `reject`, `reports` et `deleteReply`
   **délèguent** à la policy.
-- [ ] `ReviewController::index` : le super-admin voit tout ; l'admin d'agence filtre sur
+- [x] `ReviewController::index` : le super-admin voit tout ; l'admin d'agence filtre sur
   `reviews.agency_id` = agence du profil actif ; `pending_count` est filtré de la même façon ;
   `per_page` est plafonné à 100.
-- [ ] Tests `ReviewModerationScopeTest` : refus inter-agences sur `index`, `pending_count`,
+- [x] Tests `ReviewModerationScopeTest` : refus inter-agences sur `index`, `pending_count`,
   `reports`, `approve`, `reject`, `moderate`, `reply` et `deleteReply` ; succès dans sa propre
   agence ; un bailleur membre ne peut pas répondre.
-- [ ] Front : une vue de modération des avis pour l'admin d'agence (agences `standard`), qui
+- [x] Front : une vue de modération des avis pour l'admin d'agence (agences `standard`), qui
   consomme `GET /api/reviews` sans filtre d'agence côté client.
 
 ### 2. Le signalement agit sur le bien (S1)
 
-- [ ] Migration `add_platform_hold_to_properties_table` : `platform_hold_at`,
+- [x] Migration `add_platform_hold_to_properties_table` : `platform_hold_at`,
   `platform_hold_by_id` (FK `properties_platform_hold_by_fk`), `platform_hold_reason`.
-- [ ] Migration `add_decision_to_property_reports_table` : `decision`, `resolved_by_id` (FK
+- [x] Migration `add_decision_to_property_reports_table` : `decision`, `resolved_by_id` (FK
   `property_reports_resolved_by_fk`), `reason_code`.
-- [ ] `PropertyModerationService::resolveReport` agit selon la décision :
+- [x] `PropertyModerationService::resolveReport` agit selon la décision :
   - **`hide`** : le bien passe `rejected`, `private`, `published_at=null`, verrou posé, motif dans
     `rejection_reason` ;
   - **`remove`** : verrou posé, puis suppression douce du bien ;
@@ -363,44 +363,44 @@ Sans recopier la spec, voici ce qui change.
   Pour `hide` et `remove`, **tous** les signalements ouverts du bien sont clos avec la même
   décision. Le propriétaire est notifié avec le motif, et chaque signalant connecté est notifié de
   l'issue.
-- [ ] `PropertyModerationService::approve` : un super-admin lève le verrou ; un admin d'agence
+- [x] `PropertyModerationService::approve` : un super-admin lève le verrou ; un admin d'agence
   reçoit un 403 sur un bien verrouillé.
-- [ ] `PropertyObserver::updating` (méthode **nouvelle**) : refuse en 422
+- [x] `PropertyObserver::updating` (méthode **nouvelle**) : refuse en 422
   (`errors.moderation.platform_hold`) toute écriture qui rendrait public un bien verrouillé.
-- [ ] `DecideModerationQueueRequest` et `UnifiedModerationService` : décisions valides par
+- [x] `DecideModerationQueueRequest` et `UnifiedModerationService` : décisions valides par
   `source_type` (`property` : `approve`|`reject` ; `property_report` : `hide`|`remove`|`reject` ;
   `review` : `approve`|`hide`|`remove`). Tout autre couple rend 422.
-- [ ] Tests `PropertyReportDecisionTest` : un test par décision, qui vérifie **l'état du bien**
+- [x] Tests `PropertyReportDecisionTest` : un test par décision, qui vérifie **l'état du bien**
   (statut, visibilité, verrou, présence dans `GET /api/public/properties` et `…/{slug}`,
   `shouldBeSearchable()`), puis la tentative de republication par l'agence.
 
 ### 3. Signaler sans compte (V12)
 
-- [ ] Route `POST /api/public/reviews/{review}/report` (`public.reviews.report`,
+- [x] Route `POST /api/public/reviews/{review}/report` (`public.reviews.report`,
   `throttle:public-report`) et `ReportPublicReviewRequest` (motif, champ piège). Elle partage avec
   la route authentifiée un `ReviewReportService` qui porte le dédoublonnage par compte ou par
   empreinte hachée.
-- [ ] `ReportPublicPropertyRequest` : même champ piège. Le contrôleur rend 204 sans enregistrer
+- [x] `ReportPublicPropertyRequest` : même champ piège. Le contrôleur rend 204 sans enregistrer
   quand le piège est rempli, et dédoublonne par bien et par empreinte sur 24 h.
-- [ ] Seuil de signalement d'un avis : retirer la lecture du réglage fantôme
+- [x] Seuil de signalement d'un avis : retirer la lecture du réglage fantôme
   `config('takussan.reviews.report_threshold', 1)` (`ReviewController.php:351`) et écrire la règle
   dans `ReviewReportService` : constante `REPORTED_THRESHOLD = 1`, avec un commentaire qui dit
   pourquoi 1 suffit (un signalement **range** l'avis dans la file, il ne le masque jamais). Option
   retenue par défaut ; pas de `config/takussan.php` créé pour une seule valeur.
-- [ ] Front : plus de barrière de connexion pour signaler une annonce. Le jeton est transmis quand
+- [x] Front : plus de barrière de connexion pour signaler une annonce. Le jeton est transmis quand
   le visiteur est connecté. Un bouton « Signaler » est présent sur chaque avis public (fiche bien,
   fiche agent, fiche agence).
-- [ ] Tests `PublicReportTest` : signalement anonyme d'un avis enregistré, piège, dédoublonnage,
+- [x] Tests `PublicReportTest` : signalement anonyme d'un avis enregistré, piège, dédoublonnage,
   rattachement du compte quand un jeton est envoyé.
 
 ### 4. Boîte des avis et notification (A15)
 
-- [ ] `GET /api/reviews/received` (`reviews.received`), avec `IndexReceivedReviewsRequest` :
+- [x] `GET /api/reviews/received` (`reviews.received`), avec `IndexReceivedReviewsRequest` :
   - périmètre : les biens publiés par l'acteur ou dont il est collaborateur, les avis qui le visent
     (agent, prestataire), et toute l'agence pour l'admin d'agence ;
   - `filter[property_id]`, `filter[replied]`, `filter[status]` (sans `rejected`),
     `filter[subject_type]`, `per_page` ≤ 50.
-- [ ] `ReviewObserver` :
+- [x] `ReviewObserver` :
   - à la création, notification « avis à modérer » aux admins de `reviews.agency_id` (rien pour la
     file plateforme) ;
   - au passage `approved`, notification « nouvel avis » au sujet (publieur du bien, agent, admins
@@ -408,83 +408,83 @@ Sans recopier la spec, voici ce qui change.
   - méthode `updated` : recompte de `reviews_count` et `average_rating` sur les seuls avis
     `is_approved = true` (Contraintes 7) quand `is_approved` ou `status` change ; `syncCounts`
     (l.33-35) filtre de même à la création et à la suppression.
-- [ ] Front : la boîte est ouverte à l'agent, au bailleur et à l'admin d'agence. Une seule requête
+- [x] Front : la boîte est ouverte à l'agent, au bailleur et à l'admin d'agence. Une seule requête
   paginée, la réponse se rédige dans la page.
-- [ ] Tests `ReceivedReviewsTest` (périmètres et filtres), `ReviewNotificationTest` et
+- [x] Tests `ReceivedReviewsTest` (périmètres et filtres), `ReviewNotificationTest` et
   `ReviewAggregateTest` (moyenne d'agence, AC12).
 
 ### 5. Noter un agent, une agence, un prestataire (C18, P20)
 
-- [ ] `POST /api/agents/{user}/reviews` (`agents.reviews.store`) et
+- [x] `POST /api/agents/{user}/reviews` (`agents.reviews.store`) et
   `StoreForAgentReviewRequest`, qui vérifie l'éligibilité et renseigne `context_*` et
   `agency_id` à partir du contexte.
-- [ ] `POST /api/service-providers/{serviceProviderProfile}/reviews`
+- [x] `POST /api/service-providers/{serviceProviderProfile}/reviews`
   (`service-providers.reviews.store`) et `StoreForServiceProviderReviewRequest`. Ajouter
   `ServiceProviderProfile::reviews()`. La note moyenne (approuvée) est exposée dans le carnet de
   prestataires de l'agence, par `withAvg`.
-- [ ] `GET /api/me/review-opportunities` : bien, agent, agence et prestataire éligibles, pas encore
+- [x] `GET /api/me/review-opportunities` : bien, agent, agence et prestataire éligibles, pas encore
   notés, avec leur contexte. Remplace l'assemblage fait côté client.
-- [ ] Front : invitations à noter dans les avis du profil, formulaire commun bien + agent après
+- [x] Front : invitations à noter dans les avis du profil, formulaire commun bien + agent après
   une visite ou un bail, avis d'agence relié à l'endpoint existant.
-- [ ] Tests `AgentReviewTest`, `ServiceProviderReviewTest` et `ReviewOpportunitiesTest` :
+- [x] Tests `AgentReviewTest`, `ServiceProviderReviewTest` et `ReviewOpportunitiesTest` :
   éligible → 201, non éligible → 403, doublon → 422, se noter soi-même → 403.
 
 ### 6. Doublons et avis suspects (S18), après ADR B
 
-- [ ] Migration `create_media_fingerprints_table` (`media_id` unique, `property_id`, `agency_id`,
+- [x] Migration `create_media_fingerprints_table` (`media_id` unique, `property_id`, `agency_id`,
   empreinte, index nommés) et migration `create_duplicate_suspicions_table` (paire de biens,
   signal `photo`|`address`, score, `resolved_at`, `decision`, unicité de la paire).
-- [ ] Job `App\Jobs\Media\ComputePhotoFingerprintJob` sur la file `media`, déclenché à l'ajout
+- [x] Job `App\Jobs\Media\ComputePhotoFingerprintJob` sur la file `media`, déclenché à l'ajout
   d'une photo. Le calcul se fait sur l'**original**.
-- [ ] Service `App\Services\Moderation\DuplicateListingDetector` :
+- [x] Service `App\Services\Moderation\DuplicateListingDetector` :
   - empreinte proche, **entre agences différentes seulement** ;
   - clé d'adresse normalisée : ville et quartier repliés par `CaseInsensitive::fold`, position
     arrondie, surface et prix à ±5 %, même transaction ;
   - un bien dupliqué volontairement (TCK-074) dans la même agence n'est jamais signalé.
-- [ ] `source_type = suspected_duplicate` dans la file unifiée. Décisions `hide` (verrou §2) et
+- [x] `source_type = suspected_duplicate` dans la file unifiée. Décisions `hide` (verrou §2) et
   `reject`.
-- [ ] Avis suspects : `metadata.ip_hash` posé à la création, et drapeau `suspicious` calculé à la
+- [x] Avis suspects : `metadata.ip_hash` posé à la création, et drapeau `suspicious` calculé à la
   lecture de la file (rafale sur un même sujet, compte récent, empreinte partagée entre auteurs),
   qui sert au tri. Aucune action automatique.
-- [ ] Tests `DuplicateListingDetectorTest` et `SuspiciousReviewFlagTest`.
+- [x] Tests `DuplicateListingDetectorTest` et `SuspiciousReviewFlagTest`.
 
 ### 7. File de modération (S20)
 
-- [ ] Migration `create_moderation_claims_table` (`item_key` unique, `claimed_by_id`,
+- [x] Migration `create_moderation_claims_table` (`item_key` unique, `claimed_by_id`,
   `claimed_at`, `expires_at`).
-- [ ] `POST|DELETE /api/admin/moderation/{id}/claim`. `decide` avec verrou et 409 (Contraintes 4).
-- [ ] Enum `ModerationReasonCode` (codes traduits côté front) : `reason_code` est requis, `reason`
+- [x] `POST|DELETE /api/admin/moderation/{id}/claim`. `decide` avec verrou et 409 (Contraintes 4).
+- [x] Enum `ModerationReasonCode` (codes traduits côté front) : `reason_code` est requis, `reason`
   est requis seulement pour `other`.
-- [ ] `POST /api/admin/moderation/decide-batch` : au plus 50 identifiants, une décision et un motif
+- [x] `POST /api/admin/moderation/decide-batch` : au plus 50 identifiants, une décision et un motif
   communs, une transaction par élément, résultat rendu par élément.
-- [ ] Front : prise en charge, décisions filtrées par type, âge de l'élément, sélection multiple.
-- [ ] Tests `ModerationQueueConcurrencyTest` (deux décisions sur le même élément : la seconde rend
+- [x] Front : prise en charge, décisions filtrées par type, âge de l'élément, sélection multiple.
+- [x] Tests `ModerationQueueConcurrencyTest` (deux décisions sur le même élément : la seconde rend
   409) et `ModerationBatchTest`.
 
 ### 8. La modération d'agence tient à toute mise en ligne (constat neuf)
 
-- [ ] `AgencyUpdateRequest::rules()` : `'moderation_required' => ['sometimes', 'boolean']`. Rien
+- [x] `AgencyUpdateRequest::rules()` : `'moderation_required' => ['sometimes', 'boolean']`. Rien
   d'autre dans ce fichier (Contraintes 9). L'autorisation reste `AgencyPolicy::update`.
-- [ ] `PropertyObserver::updating`, seconde règle (après le verrou du §2) : si
+- [x] `PropertyObserver::updating`, seconde règle (après le verrou du §2) : si
   `$property->isDirty('status')`, que le statut d'origine est `draft`, `pending_review` ou
   `rejected`, que le nouveau est `available` ou `published`, et que l'agence du bien est
   `moderation_required`, alors `status = pending_review` et `submitted_at = now()` (conservé s'il
   était déjà posé et que le bien était `pending_review`). Les autres attributs de la sauvegarde
   (`visibility`, `published_at`) passent tels quels : le bien reste hors catalogue tant qu'il est
   `pending_review` (`Property::scopePublic` et `shouldBeSearchable` l'excluent déjà, territoire 600).
-- [ ] `Property::withoutModerationGate(callable)` (statique, remis à zéro dans un `finally`) ;
+- [x] `Property::withoutModerationGate(callable)` (statique, remis à zéro dans un `finally`) ;
   `PropertyModerationService::approve` (l.27-43) enveloppe son `update` dedans, et c'est son seul
   appelant.
-- [ ] Front : quand une mise en ligne revient avec `status = pending_review`, l'écran dit « envoyé
+- [x] Front : quand une mise en ligne revient avec `status = pending_review`, l'écran dit « envoyé
   pour validation à l'administrateur de l'agence », jamais « publié ». La case « modération » de la
   configuration d'agence relit la valeur rendue par l'API après l'enregistrement, pour qu'un refus
   silencieux ne puisse plus se faire passer pour un succès.
-- [ ] Tests `PropertyModerationGateTest` (AC13) et un cas ajouté à un test d'agence existant pour
+- [x] Tests `PropertyModerationGateTest` (AC13) et un cas ajouté à un test d'agence existant pour
   la persistance de la case (AC14).
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (cloisonnement, rouge sur le code actuel).** Prenons deux agences A et B, et un admin
+- [x] **AC1 (cloisonnement, rouge sur le code actuel).** Prenons deux agences A et B, et un admin
   de A. Sur un avis d'un bien de B :
   - `PATCH /api/reviews/{id}/moderate`, `POST …/approve`, `POST …/reject` et `GET …/reports`
     rendent **403**, et l'avis est inchangé en base ;
@@ -494,12 +494,18 @@ Sans recopier la spec, voici ce qui change.
 
   Le même admin modère un avis de A et obtient 200. **Ablation** : on remet l'expression
   d'autorisation actuelle et le test redevient rouge.
-- [ ] **AC2 (rouge sur le code actuel).** Un bailleur dont le profil actif est dans l'agence A
+
+  **Preuve :** `ReviewModerationScopeTest` (14 verts) : refus inter-agences, liste et `pending_count` de A seulement, `per_page` 100, succès dans A. Ablation : comparaison d'agence retirée de `canModerate` → 2 rouges.
+
+- [x] **AC2 (rouge sur le code actuel).** Un bailleur dont le profil actif est dans l'agence A
   répond à un avis d'un bien de A qui n'est pas le sien : `POST /api/reviews/{id}/reply` rend 403,
   et `DELETE /api/reviews/{id}/reply` sur la réponse d'un agent rend 403 ; `reply_content` est
   inchangé en base. Le publieur du bien et un agent de A obtiennent 200. **Ablation** : remettre
   la clause `agency_id === $user->agency_id` (`ReviewController.php:225,245`) rend le test rouge.
-- [ ] **AC3 (S1, l'état du bien, pas celui du signalement).** On signale un bien public deux fois,
+
+  **Preuve :** `ReviewModerationScopeTest::test_a_landlord_member_cannot_reply_nor_delete_an_agent_reply` et `test_the_publisher_and_an_agent_of_a_reply`. Ablation : clause `agency_id === $user->agency_id` remise → 1 rouge.
+
+- [x] **AC3 (S1, l'état du bien, pas celui du signalement).** On signale un bien public deux fois,
   puis le super-admin décide `hide` sur l'un des signalements. Résultat :
   - le bien est `rejected`, `private`, avec `published_at = null` et `platform_hold_at` non nul ;
   - `GET /api/public/properties/{slug}` rend 404, et le bien est absent de
@@ -513,13 +519,22 @@ Sans recopier la spec, voici ce qui change.
   Ensuite, l'agence appelle `POST /api/properties/{id}/publish`, puis
   `PUT …/status {status: available}` : les deux rendent 422, et le bien reste non public.
   **Ablation** : sans la méthode `updating`, la republication passe et le test rougit.
-- [ ] **AC4.** `remove` supprime le bien (suppression douce, 404 public). `reject` laisse le bien
+
+  **Preuve :** `PropertyReportDecisionTest::test_hide_takes_the_listing_offline_closes_every_report_and_notifies` et `test_the_agency_cannot_put_a_hidden_listing_back_online_by_any_path`. Ablation : sans `updating` → 1 rouge.
+
+- [x] **AC4.** `remove` supprime le bien (suppression douce, 404 public). `reject` laisse le bien
   public et inchangé, et clôt seulement le signalement. Une décision `approve` sur un
   `property_report` rend 422, et une décision `hide` ou `remove` sur un élément `property` rend 422
   (aujourd'hui confondue avec `reject`, `UnifiedModerationService.php:282-289`).
-- [ ] **AC5.** Un admin d'agence approuve un bien verrouillé : 403. Un super-admin l'approuve : le
+
+  **Preuve :** `PropertyReportDecisionTest` (`remove`, `reject`, couples invalides par type). Ablation : sans `DECISIONS` par type → 1 rouge.
+
+- [x] **AC5.** Un admin d'agence approuve un bien verrouillé : 403. Un super-admin l'approuve : le
   verrou est levé et le bien redevient publiable.
-- [ ] **AC6 (V12).** Sans jeton, `POST /api/public/reviews/{id}/report` rend 200 et ajoute un
+
+  **Preuve :** `PropertyReportDecisionTest::test_only_a_super_admin_approval_lifts_the_hold_and_the_listing_becomes_publishable`. Ablation : policy + service sans verrou → 2 rouges.
+
+- [x] **AC6 (V12).** Sans jeton, `POST /api/public/reviews/{id}/report` rend 200 et ajoute un
   signalement. Quand le champ piège est rempli, la réponse est 204 et rien n'est enregistré. Le même
   visiteur qui signale deux fois fait monter `reported_count` de 1 seulement. Un avis `approved`
   signalé une fois par un anonyme passe `reported`, **reste** dans
@@ -529,31 +544,52 @@ Sans recopier la spec, voici ce qui change.
   signalement d'une annonce sans voir de boîte de connexion ; chaque avis public affiche un geste
   « Signaler » ; connecté, l'action envoie le jeton (test de l'action : en-tête `Authorization`
   présent), et l'API enregistre son `reporter_user_id`.
-- [ ] **AC7 (A15).** Un agent voit les avis de ses biens et ceux qui le visent, jamais ceux d'un
+
+  **Preuve :** API : `PublicReportTest` (6 verts : enregistré, piège 204, dédoublonnage, `reported` mais visible, moyenne 4.0 inchangée, jeton rattaché) et `PropertyReportTest` (une ligne en 24 h, `reporter_user_id` sous jeton). Front : `ReportButtons.test.tsx` (formulaire sans boîte de connexion, « Signaler » sur l'avis), `property.signalement.test.ts` (en-tête `Authorization` présent connecté, absent sinon). Ablations : sans dédoublonnage par empreinte → 1 rouge ; action sans jeton → 1 rouge (front).
+
+- [x] **AC7 (A15).** Un agent voit les avis de ses biens et ceux qui le visent, jamais ceux d'un
   autre agent de l'agence. Avec `filter[replied]=0`, un **seul** appel rend exactement les avis
   sans réponse (comptes attendus écrits dans le test). L'approbation d'un avis crée une
   notification pour le publieur du bien. Le libellé de cette notification vient d'une clé, et le
   test l'affirme dans deux langues.
-- [ ] **AC8 (C18).** Un client dont la visite accompagnée par l'agent X est `completed` note X :
+
+  **Preuve :** `ReceivedReviewsTest` (périmètres, `filter[replied]=0` en un appel, comptes écrits) et `ReviewNotificationTest` (notification au publieur ; libellé fr en base, en par le rendu). Ablations : biens de toute l'agence → 1 rouge ; sans notification « reçu » → 2 rouges.
+
+- [x] **AC8 (C18).** Un client dont la visite accompagnée par l'agent X est `completed` note X :
   201, et l'avis apparaît sur `GET /api/public/agents/{slug}` une fois approuvé. Un client sans
   visite ni bail avec X reçoit 403. Un agent qui se note lui-même reçoit 403.
-- [ ] **AC9 (P20).** Le demandeur d'une intervention `completed` note le prestataire assigné : 201.
+
+  **Preuve :** `AgentReviewTest` (201 puis visible sur `GET /api/public/agents/{slug}` une fois approuvé, 403 sans preuve, 403 soi-même, 422 doublon). Ablation : sans refus de soi-même → 1 rouge.
+
+- [x] **AC9 (P20).** Le demandeur d'une intervention `completed` note le prestataire assigné : 201.
   Une seconde note sur la **même** intervention rend 422. Une note sur une intervention `open` rend
   403. La note moyenne exposée au carnet ne compte que les avis approuvés : avec trois avis (5 et 3
   approuvés, 1 en attente), elle vaut **4.0**.
-- [ ] **AC10 (S18).** Deux biens d'agences différentes partagent une photo identique au pixel près
+
+  **Preuve :** `ServiceProviderReviewTest` (201, 422 même intervention, 403 intervention `open`, moyenne du carnet 4.0). Ablation : moyenne sur tous les avis → 1 rouge.
+
+- [x] **AC10 (S18).** Deux biens d'agences différentes partagent une photo identique au pixel près
   (originaux), ce qui crée **une** suspicion. Le même cas dans une seule agence, issu d'une
   duplication volontaire, n'en crée **aucune**. Une photo différente mais avec le même filigrane
   d'agence n'en crée aucune non plus.
-- [ ] **AC11 (S20).** Deux super-admins décident le même élément l'un après l'autre : la seconde
+
+  **Preuve :** `DuplicateListingDetectorTest` (même original entre deux agences → une suspicion ; duplication volontaire → aucune ; même filigrane sur photos différentes → aucune). Ablation : sans exclusion du même publieur → 1 rouge ; empreinte sur `getPath()` → 3 rouges.
+
+- [x] **AC11 (S20).** Deux super-admins décident le même élément l'un après l'autre : la seconde
   décision rend 409 et ne change rien. Un élément pris en charge par A rend 409 à B jusqu'à
   l'expiration de la prise. Avec `reason_code=other` sans `reason`, la réponse est 422.
-- [ ] **AC12 (moyenne stockée, rouge sur le code actuel).** Une agence reçoit un avis 5 approuvé et
+
+  **Preuve :** `ModerationQueueConcurrencyTest` (seconde décision 409 sans effet ; prise de A → 409 pour B jusqu'à expiration ; `other` sans `reason` → 422). Ablations : sans contrôle « encore ouvert » → 2 rouges ; prise sans expiration → 1 rouge.
+
+- [x] **AC12 (moyenne stockée, rouge sur le code actuel).** Une agence reçoit un avis 5 approuvé et
   un avis 1 en attente : `GET /api/agencies/{id}` rend `average_rating = 5.0` et
   `reviews_count = 1` (aujourd'hui 3.0 et 2). On approuve l'avis 1 : 3.0 et 2. On rejette l'avis 5 :
   1.0 et 1. Un signalement anonyme de l'avis 1 approuvé ne change rien. **Ablation** : sans la
   méthode `updated` de `ReviewObserver`, l'étape « approuver » reste à 5.0 et le test rougit.
-- [ ] **AC13 (§8, rouge sur le code actuel).** Agence `moderation_required = true`, bien `draft`
+
+  **Preuve :** `ReviewAggregateTest` (5.0/1 → 3.0/2 → 1.0/1 ; signalement anonyme sans effet). Ablation : sans `ReviewObserver::updated` → 1 rouge.
+
+- [x] **AC13 (§8, rouge sur le code actuel).** Agence `moderation_required = true`, bien `draft`
   publié par un agent de l'agence :
   - `POST /api/properties/{id}/publish` rend 200 avec `data.status = pending_review` ; en base,
     `status = pending_review` et `submitted_at` non nul ; le bien est absent de
@@ -567,10 +603,16 @@ Sans recopier la spec, voici ce qui change.
   Témoin : agence `moderation_required = false`, même `publish` → `available`. **Ablation** : sans
   la seconde règle de `updating`, le premier point rend `available` et le test rougit ; sans
   `withoutModerationGate` dans `approve`, l'approbation reste `pending_review` et le test rougit.
-- [ ] **AC14 (§8, rouge sur le code actuel).** L'admin de l'agence envoie
+
+  **Preuve :** `PropertyModerationGateTest` (5 verts : `publish`, `PUT …/status`, `PUT …`, `rejected`/`pending_review`, approbation, témoin sans modération, présence dans `GET /api/properties/moderation`). Ablations : sans la seconde règle → 3 rouges ; sans `withoutModerationGate` → 1 rouge.
+
+- [x] **AC14 (§8, rouge sur le code actuel).** L'admin de l'agence envoie
   `PATCH /api/agencies/{id} {moderation_required: true}` : 200, `data.moderation_required = true`,
   et la colonne vaut `true` en base (aujourd'hui `false` : la clé est jetée). `{moderation_required:
   "oui"}` rend 422. Un agent de l'agence reçoit 403.
+
+  **Preuve :** `AgencyTest --filter=moderation_required` (200 et colonne `true`, `"oui"` → 422, agent → 403). Ablation : sans la ligne de `AgencyUpdateRequest` → 1 rouge. Front : `AgencyConfigForm.moderation.test.tsx` (la case relit la valeur rendue).
+
 
 ## Hors périmètre
 
@@ -731,3 +773,60 @@ Sans recopier la spec, voici ce qui change.
   seuil : la première version passait verte, aucun candidat ne partageait de bande) ; seuil à 4 →
   1 rouge ; adresse sans repli de casse → 1 rouge ; sans drapeau « compte récent » → 1 rouge ; sans
   tri par suspicion → 1 rouge (après correction du test, d'abord vert par l'ordre des identifiants).
+
+### API complémentaire pour le front (commit `864a3344`)
+
+- `ModerationItemResource` émet `source_type` et `decisions`
+  (`UnifiedModerationService::DECISIONS[source_type]`) : le front n'affiche plus que les décisions
+  que l'API accepte pour ce type, au lieu de les deviner (assertion ajoutée à `ModerationQueueTest`).
+- `GET /api/reviews?sort=pending_first` : avis à décider en tête (`pending`, puis `reported`, puis
+  le reste). Test : `ReviewModerationScopeTest::test_pending_first_sort_puts_reviews_to_decide_on_top`.
+  Ablations : décisions retirées de la ressource → 1 rouge ; tri `pending_first` ignoré → 1 rouge.
+- ⚠ Ce commit embarque par erreur la suppression de `takussan-web/src/hooks/useReportProperty.ts`
+  (indexée plus tôt par un `git rm`) : l'arbre de `864a3344` seul est incohérent côté front, celui
+  de `005aca4d` l'est de nouveau. Historique non réécrit.
+
+### Front (commits `005aca4d`, `293c877a`)
+
+- **Signaler sans compte (V12)** : `components/reports/ReportDialog.tsx` générique (aucune boîte de
+  connexion, piège `company` étiqueté, confirmation « nous allons examiner » et « prévenu de
+  l'issue » seulement si connecté), `ReviewReportButton` (« Signaler » sur chaque avis public, sans
+  champ libre), `PropertyReportButton` réécrit (motif « arnaque » en tête). `submitPropertyReport`
+  envoie le jeton quand il existe ; `submitReviewReport` vise `/api/public/reviews/{id}/report`.
+  L'ancien `reportReview` (authentifié) et `useReportReview` sont retirés.
+- **Boîte des avis reçus (A15)** : `/app/profile/reviews` — `ReceivedReviewsInbox` (un seul appel
+  paginé à `/api/reviews/received`, filtres bien / répondu / statut / sujet côté serveur, réponse en
+  ligne, avis « en attente » signalés comme tels), `ReviewOpportunitiesList` groupé par contexte
+  avec `StarRatingInput` (radios natives), liste des avis écrits. Entrée `receivedReviews` dans
+  `AppSidebar` pour propriétaire, agent, admin.
+- **Modération d'agence (AD1)** : `/admin/moderation` ouverte à tout admin d'agence standard
+  (`platform` seulement pour le super-admin), motif codé (`lib/moderation-reasons.ts`, texte exigé
+  pour `other`), tri par défaut `pending_first,-reported_count,-created_at`, note « plateforme
+  seulement » sur les avis d'agence.
+- **File unifiée (S20, S18)** : colonne de sélection, prise en charge (prendre / libérer), drapeau
+  suspect, bloc doublon, âge depuis `age_minutes`, décisions lues dans `item.decisions`,
+  `ModerationBatchBar` (intersection des décisions des éléments choisis, résultat par élément).
+- **§8** : `PropertyHeaderActions` / `PropertyRowActions` affichent « envoyé en revue » sur un
+  `pending_review` ; `AgencyConfigForm` relit `moderation_required` rendu par l'API.
+- Clés mortes retirées : `property.report.{loginTitle,loginBody,signIn,sent}`,
+  `profile.reviews.{stayCompleted,leaseActive,leaseEnded,details,replyFilterPlaceholder,reportPrompt,reportToastTitle,reportToastDescription}`,
+  `superAdmin.moderation.{ageToday,typeProperty,typeReview}`. `ENCRES_INVERSES` 248 → 249 (le
+  « Signaler » de `ReviewsSection`), commentaire daté.
+- Ablations front (restaurées par `cp`) : action sans jeton → 1 rouge ; garde « plateforme
+  seulement » retirée → 1 rouge ; `reason_code` retiré → 2 rouges ; filtre de statut de la boîte
+  retiré → 1 rouge ; `maintenance_request_id` du prestataire retiré → 1 rouge ; regroupement par
+  sujet au lieu du contexte → 2 rouges ; les quatre décisions affichées → 1 rouge (après ajout d'un
+  test de panneau d'avis : la première version restait verte, le mutant égalait l'ensemble réel) ;
+  prise en charge non gardée → 1 rouge ; lot en `some` au lieu de `every` → 2 rouges ; message
+  « en attente » retiré → 1 rouge ; relecture de la config d'agence retirée → 1 rouge.
+- Preuves : vitest sur les zones touchées 171 fichiers / 1716 tests verts ; `tsc --noEmit` propre ;
+  `npm run lint` 0 erreur ; `check:i18n` et `check:i18n-namespaces` verts.
+- **Écarts** : pas d'entrée de navigation pour le prestataire (la garde « AUCUNE césure » de sa
+  barre latérale l'interdit ; ses avis restent lisibles par l'API) ; un avis en attente ne se
+  répond ni ne se signale depuis la boîte ; aucune passe au navigateur.
+
+### Ce que ce ticket ne porte pas
+
+- Aucun AC « suite entière » : la suite backend complète reste à la session (dernier lot ciblé :
+  les 15 classes de TCK-597, 71 tests / 456 assertions verts, 88,85 s, charge 53/42/34 — chiffre
+  pris sous charge, il ne dit rien du dépôt).
