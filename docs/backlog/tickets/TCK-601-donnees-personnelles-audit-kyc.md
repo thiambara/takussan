@@ -811,3 +811,27 @@ Et autour :
   retiré → rouge ; filtre « lancé par la plateforme » neutralisé → rouge ; garde de réouverture
   retirée → rouge ; `mimes` de la preuve retirés → rouge ; `logOnly` remplacé par `logFillable` →
   rouge (nom du demandeur dans le journal) ; `due_at` non dérivé → rouge.
+
+### Corrections après verif-601, passe 1 (2026-10-08)
+
+- **M1** : `ninea` et `rib_pro` quittent les sparse fieldsets d'`AgencyUpgradeRequest` (400 s'ils sont
+  demandés). La Resource les **masque** partout, et seul le détail de la console les rend en clair, par
+  `withClearIdentifiers()`. Ce détail est tracé. Test : `test_hors_du_detail_les_identifiants_sortent_masques`,
+  qui couvre la liste console avec et sans `fields[]`, la liste de l'agence et la soumission.
+- **m1** : `PropertyRedactor` parcourt lui-même le tableau. Une clé sensible remplace sa valeur
+  entière, tableaux compris.
+- **m5** : le test d'expurgation vise le **sujet témoin** de l'historique d'un objet.
+  - Avant, `value('subject_id')` n'avait pas d'ordre. Depuis E, il pouvait donc viser la création de l'agence.
+  - Le test vérifie aussi que la ligne figure dans la réponse.
+- **m3** : `App\Support\Export\CsvCell` neutralise les formules dans `ExportWriter`, `ActivityLogExporter` et
+  `ExportActivityLogJob`. Un nombre est laissé tel quel, ce qui permet d'exporter `-1500`.
+  Tests : le registre, les deux exports du journal, le job et `CsvCellTest`.
+- **m4** : l'ADR-0044 §2 dit exactement ce qui est garanti : toute `QueryException`, les `catch` repris
+  et `failed_jobs`. Il nomme aussi les limites connues, qui relèvent d'un ticket de suite.
+- **Ablations** : toutes rouges.
+  - M1 : rendu en clair, `queryFields` remis, détail non révélé.
+  - m1 : retour à `array_walk_recursive`.
+  - m5 : expurgation retirée d'`indexByEntity`.
+  - m3 : `ExportWriter`, `csvContent`, le job, l'exception numérique, les déclencheurs.
+  - Deux mutations m3 étaient d'abord **vertes**, avant l'ajout de leurs tests : `csvContent` et le job.
+- Hors de ce passage : M2 (NINEA) attend l'arbitrage du porteur ; m2 part dans un ticket de suite.
