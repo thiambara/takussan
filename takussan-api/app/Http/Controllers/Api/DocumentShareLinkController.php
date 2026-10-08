@@ -90,7 +90,7 @@ class DocumentShareLinkController extends Controller
         $link = $this->shareLinks->validate($token, $password);
 
         $media = $link->document->getFirstMedia('file');
-        abort_unless($media !== null, 404, 'No file attached to this document.');
+        abort_code_unless($media !== null, 404, 'document.file_missing');
 
         $this->shareLinks->recordDownload($link);
 
@@ -121,7 +121,7 @@ class DocumentShareLinkController extends Controller
      */
     private function passwordFromBody(Request $request): ?string
     {
-        abort_if($request->query->has('password'), 400, __('errors.share_password_in_query'));
+        abort_code_if($request->query->has('password'), 400, 'share_link.password_in_query');
 
         $password = $request->post('password');
 

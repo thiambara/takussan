@@ -111,7 +111,7 @@ class BillingPlansTest extends TestCase
 
         $this->postJson('/api/properties', $this->propertyPayload())
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Active listing quota exceeded for this agency plan.');
+            ->assertJsonPath('code', 'quota.listings_exceeded');
     }
 
     public function test_expired_trial_transitions_to_active(): void
@@ -174,7 +174,7 @@ class BillingPlansTest extends TestCase
 
         $this->deleteJson("/api/admin/plans/{$planId}")
             ->assertStatus(409)
-            ->assertJsonPath('message', 'Plan is referenced by agency subscriptions.');
+            ->assertJsonPath('code', 'plan.in_use');
 
         $this->assertTrue(Activity::query()
             ->where('event', 'super_admin_plan_created')

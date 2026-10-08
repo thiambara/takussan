@@ -224,7 +224,8 @@
       "loading": "Chargement...",
       "empty": "Aucune notification.",
       "markRead": "Marquer lu",
-      "markUnread": "Marquer non lu"
+      "markUnread": "Marquer non lu",
+      "viewAll": "Voir tout l’historique"
     },
     "proUpgrade": {
       "title": "Passer en pro",
@@ -1740,6 +1741,11 @@
       },
       "visitDetail": {
         "metaTitle": "Fiche visite"
+      },
+      "notifications": {
+        "metaTitle": "Notifications",
+        "title": "Notifications",
+        "subtitle": "Tout ce qui vous a été signalé, lu ou non."
       }
     },
     "empty": {
@@ -7243,7 +7249,8 @@
         "review_received": "Nouvel avis",
         "saved_search_match": "Recherche sauvegardée",
         "visit_reminder": "Rappel de visite",
-        "threshold_alert": "Alerte seuil KPI"
+        "threshold_alert": "Alerte seuil KPI",
+        "lease_payment_received": "Loyer — paiement reçu"
       },
       "channels": {
         "inapp": "In-app",
@@ -7262,7 +7269,8 @@
       },
       "reasons": {
         "inappAlwaysOn": "Toujours actif pour ne rien manquer.",
-        "phoneNotVerified": "Téléphone non vérifié."
+        "phoneNotVerified": "Téléphone non vérifié.",
+        "channelUnavailable": "Aucun message de ce type ne part sur ce canal."
       }
     }
   },
@@ -8017,6 +8025,170 @@
       "frenchOnly": "Ce document n'est disponible qu'en français pour le moment."
     },
     "otherDocuments": "Autres documents"
+  },
+  "notifications": {
+    "codes": {
+      "lease_payment": {
+        "due_soon": {
+          "title": "Loyer à payer le {due_date}",
+          "body": "Votre loyer de {amount} pour {property} est dû le {due_date}."
+        },
+        "overdue": {
+          "title": "Loyer en retard",
+          "body": "{days, plural, one {Votre loyer de {amount} pour {property}, dû le {due_date}, est en retard de # jour.} other {Votre loyer de {amount} pour {property}, dû le {due_date}, est en retard de # jours.}}"
+        },
+        "overdue_landlord": {
+          "title": "Loyer impayé : {property}",
+          "body": "{days, plural, one {Le loyer de {amount} de {tenant} pour {property} est en retard de # jour.} other {Le loyer de {amount} de {tenant} pour {property} est en retard de # jours.}}"
+        },
+        "overdue_digest": {
+          "title": "{count, plural, one {# loyer en retard} other {# loyers en retard}}",
+          "body": "{count, plural, one {# échéance de vos baux est en retard, pour un total de {total}.} other {# échéances de vos baux sont en retard, pour un total de {total}.}}"
+        },
+        "recorded": {
+          "title": "Paiement enregistré",
+          "body": "Votre paiement de {amount} pour {property} a été enregistré."
+        },
+        "received_landlord": {
+          "title": "Loyer reçu : {property}",
+          "body": "{tenant} a payé {amount} pour {property}."
+        }
+      },
+      "booking": {
+        "created": {
+          "title": "Nouvelle réservation",
+          "body": "La réservation {reference} a été demandée pour {property}, du {start_date} au {end_date}."
+        },
+        "confirmed": {
+          "title": "Réservation confirmée",
+          "body": "Votre réservation {reference} pour {property}, du {start_date} au {end_date}, est confirmée."
+        },
+        "rejected": {
+          "title": "Réservation refusée",
+          "body": "Votre réservation {reference} pour {property} a été refusée."
+        },
+        "cancelled": {
+          "title": "Réservation annulée",
+          "body": "Votre réservation {reference} pour {property} a été annulée."
+        }
+      },
+      "visit": {
+        "reminder": {
+          "title": "Rappel de visite : {property}",
+          "body": "Rappel : la visite de {property} est prévue le {scheduled_at}."
+        }
+      },
+      "message": {
+        "received": {
+          "title": "Nouveau message de {sender}",
+          "body": "{sender} : {excerpt}"
+        }
+      },
+      "lead": {
+        "received": {
+          "title": "Nouveau contact sans compte",
+          "body": "{name} ({email}) : {excerpt}"
+        }
+      },
+      "kyc": {
+        "submitted": {
+          "title": "KYC d'agence à instruire",
+          "body": "Le dossier KYC de {agency} a été soumis."
+        },
+        "verified": {
+          "title": "KYC d'agence vérifié",
+          "body": "Votre dossier KYC a été vérifié."
+        },
+        "rejected": {
+          "title": "KYC d'agence rejeté",
+          "body": "Votre dossier KYC a été rejeté : {reason}"
+        }
+      },
+      "role_delegation": {
+        "activated": {
+          "title": "Rôle délégué — {role}",
+          "body": "Vous avez reçu le rôle {role} jusqu'au {ends_at}."
+        },
+        "activated_delegator": {
+          "title": "Rôle délégué — {role}",
+          "body": "La délégation à {beneficiary} pour le rôle {role} est maintenant active."
+        },
+        "expired": {
+          "title": "Délégation expirée — {role}",
+          "body": "Votre délégation pour le rôle {role} a pris fin."
+        },
+        "expired_delegator": {
+          "title": "Délégation expirée — {role}",
+          "body": "La délégation à {beneficiary} pour le rôle {role} a expiré."
+        },
+        "revoked": {
+          "title": "Délégation révoquée — {role}",
+          "body": "Votre délégation pour le rôle {role} a été révoquée."
+        },
+        "revoked_delegator": {
+          "title": "Délégation révoquée — {role}",
+          "body": "Vous avez révoqué la délégation de {beneficiary} pour le rôle {role}."
+        }
+      },
+      "bank_statement": {
+        "imported": {
+          "title": "Relevé importé",
+          "body": "{lines, plural, one {Votre relevé {bank} (# ligne) est prêt à être rapproché.} other {Votre relevé {bank} (# lignes) est prêt à être rapproché.}}"
+        },
+        "finalized": {
+          "title": "Relevé clôturé",
+          "body": "Le relevé du {period_start} au {period_end} a été clôturé ({confirmed}/{total} lignes rapprochées)."
+        }
+      },
+      "maintenance": {
+        "created": {
+          "title": "Nouvelle demande de maintenance",
+          "body": "Une demande de maintenance ({reference}) a été soumise pour {property}."
+        }
+      },
+      "maintenance_quote": {
+        "requested": {
+          "title": "Demande de devis : {request}",
+          "body": "Un devis vous est demandé pour l'intervention « {request} »."
+        },
+        "submitted": {
+          "title": "Devis soumis : {request}",
+          "body": "Un devis de {amount} a été soumis pour l'intervention « {request} »."
+        },
+        "approved": {
+          "title": "Devis approuvé : {request}",
+          "body": "Votre devis pour l'intervention « {request} » a été approuvé."
+        },
+        "rejected": {
+          "title": "Devis rejeté : {request}",
+          "body": "Votre devis pour l'intervention « {request} » a été rejeté."
+        }
+      },
+      "property": {
+        "approved": {
+          "title": "Bien approuvé : {property}",
+          "body": "Votre bien « {property} » a été approuvé et est maintenant visible sur la plateforme."
+        },
+        "rejected": {
+          "title": "Bien refusé : {property}",
+          "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        }
+      }
+    },
+    "history": {
+      "filterLabel": "Filtrer les notifications",
+      "filterAll": "Toutes",
+      "filterUnread": "{count, plural, =0 {Non lues} other {Non lues (#)}}",
+      "markAllRead": "Tout marquer comme lu",
+      "retry": "Réessayer",
+      "loading": "Chargement…",
+      "empty": "Aucune notification pour l’instant.",
+      "emptyUnread": "Vous avez tout lu.",
+      "pagination": "Pages de l’historique",
+      "previous": "Précédente",
+      "next": "Suivante",
+      "pageOf": "Page {page} sur {last}"
+    }
   },
   "shareReception": {
     "metaTitle": "Document partagé",

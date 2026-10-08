@@ -63,7 +63,7 @@ class WizardDraftController extends Controller
             ->first();
 
         if (! $draft) {
-            return $this->json(['message' => 'No draft.'], 404);
+            abort_code(404, 'wizard_draft.not_found');
         }
 
         return $this->json(['data' => $draft]);

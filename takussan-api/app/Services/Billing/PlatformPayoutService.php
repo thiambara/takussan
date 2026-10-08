@@ -17,7 +17,6 @@ use App\Support\SegregationOfDuties;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PlatformPayoutService
 {
@@ -227,7 +226,7 @@ class PlatformPayoutService
             ->first();
 
         if ($existing !== null) {
-            throw new HttpException(409, __('money_out.platform.already_closed'));
+            abort_code(409, 'platform_payout.already_exists', ['period_end' => $periodEnd->toDateString()]);
         }
 
         $bookingPayments = BookingPayment::query()

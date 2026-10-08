@@ -18,6 +18,7 @@ class AppNotification extends AbstractModel
 
     protected $fillable = [
         'user_id', 'type', 'delivery_channel',
+        'code', 'params', 'target',
         'title', 'body', 'data', 'delivery_attempts',
         'referenceable_id', 'referenceable_type',
         'is_read', 'read_at', 'sent_at', 'digested_at',
@@ -27,6 +28,9 @@ class AppNotification extends AbstractModel
         'type' => NotificationType::class,
         'delivery_channel' => NotificationChannel::class,
         'data' => 'array',
+        // TCK-588 (ADR-0032) — paramètres bruts et cible d'une notification par code.
+        'params' => 'array',
+        'target' => 'array',
         // TCK-102 — JSON array of fallback-chain attempts.
         'delivery_attempts' => 'array',
         'is_read' => 'boolean',

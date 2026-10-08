@@ -14,7 +14,7 @@ class PlatformPayoutController extends Controller
     public function index(Request $request): JsonResponse
     {
         $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
-        abort_unless($agencyId, 404, 'No active agency profile.');
+        abort_code_unless($agencyId, 404, 'agency.active_profile_missing');
 
         // TCK-594 (ADR-0039 §7) — un profil propriétaire ou agent de l'agence ne lit pas ce que la
         // plateforme lui reverse : seul le détenteur d'`agency.update_billing`.

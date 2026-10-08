@@ -7,6 +7,7 @@ import {
   markNotificationRead,
   markNotificationUnread,
   type AppNotification,
+  type NotificationsQuery,
   type NotificationsResponse,
 } from '@/lib/notifications';
 import { getToken } from '@/lib/session';
@@ -38,14 +39,14 @@ async function nonAuthentifie(): Promise<{ ok: false; message: string }> {
   return { ok: false, message: t('notAuthenticated') };
 }
 
-export async function getNotificationsAction(): Promise<
-  ActionResult<NotificationsResponse>
-> {
+export async function getNotificationsAction(
+  query: NotificationsQuery = {},
+): Promise<ActionResult<NotificationsResponse>> {
   const token = await getToken();
   if (!token) return nonAuthentifie();
 
   try {
-    return { ok: true, data: await fetchNotifications(token) };
+    return { ok: true, data: await fetchNotifications(token, query) };
   } catch (err) {
     return failure(err, 'loadFailed');
   }

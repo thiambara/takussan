@@ -53,7 +53,9 @@ class ApiErrorFormatTest extends TestCase
 
         $response->assertStatus(403)
             ->assertHeader('Content-Type', 'application/json')
-            ->assertJsonPath('message', 'Forbidden resource');
+            // TCK-588 (ADR-0032) — le message d'une exception n'atteint jamais le corps.
+            ->assertJsonPath('code', 'http.forbidden')
+            ->assertJsonPath('message', __('errors.http.forbidden'));
     }
 
     public function test_method_not_allowed_returns_json_405(): void

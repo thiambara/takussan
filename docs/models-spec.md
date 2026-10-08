@@ -753,6 +753,9 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | type | NotificationType | | | Type de notification (booking, payment, lease, maintenance, visit, message, system) | ✏️ |
 | title | string | | | Titre | |
 | content | text | | | Contenu | |
+| code | string(100) | oui | null | Code du message (`lease_payment.overdue`), cas de `App\Domain\Notifications\NotificationCode` ([ADR-0032](adr/0032-l-api-n-ecrit-plus-de-prose.md)). Null pour les classes `Notification` historiques | 🆕 TCK-588 |
+| params | jsonb | oui | null | Paramètres BRUTS du code (montant `{amount, currency}`, date ISO, compte, texte saisi) — jamais une phrase | 🆕 TCK-588 |
+| target | jsonb | oui | null | Cible `{kind, id, path}` (`NotificationTarget`). Null : dérivée à la lecture de `data`/`referenceable_*` | 🆕 TCK-588 |
 | referenceable_id | bigint | oui | null | ID de l'entité liée (morphs manuel) | ✏️ ancien `reference_id` |
 | referenceable_type | string | oui | null | Type de l'entité liée (morphs manuel) | ✏️ ancien `reference_type` |
 | is_read | boolean | | false | Lue oui/non | |
@@ -770,6 +773,12 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 **Colonnes renommées :**
 - ✏️ `reference_id` → `referenceable_id` / `reference_type` → `referenceable_type` (convention standard Laravel pour les morphs)
 - ✏️ `type` et `delivery_channel` passent de `string` à enum typé
+
+**TCK-588 ([ADR-0032](adr/0032-l-api-n-ecrit-plus-de-prose.md)) — le texte n'est plus la donnée.**
+Une ligne émise par `NotificationService::send()` porte `code` + `params` + `target` ; `title` et
+`body` y sont rendus dans la langue du DESTINATAIRE à l'écriture, et **re-rendus à la lecture**
+dans la langue de la requête (`AppNotificationResource`) — ils ne servent plus que de repli pour
+les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **aucune** ligne.
 
 **Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard) — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification) pour le motif.
 

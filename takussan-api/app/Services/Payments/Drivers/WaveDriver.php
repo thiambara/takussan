@@ -10,6 +10,7 @@ use App\Services\Payments\Dto\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Wave Business Checkout API driver.
@@ -52,12 +53,15 @@ class WaveDriver implements PaymentDriverContract
             ->timeout(20)
             ->post($this->baseUrl().'/v1/checkout/sessions', $payload);
 
-        abort_if(! $response->successful(), 502, 'Wave checkout failed: '.$response->body());
+        if (! $response->successful()) {
+            Log::warning('[wave] checkout failed', ['status' => $response->status(), 'body' => $response->body()]);
+            abort_code(502, 'payment.provider_failed', ['provider' => 'Wave']);
+        }
 
         $data = $response->json();
         $checkoutUrl = $data['wave_launch_url'] ?? $data['url'] ?? '';
         $transactionId = (string) ($data['id'] ?? '');
-        abort_if($checkoutUrl === '' || $transactionId === '', 502, 'Wave returned an invalid checkout payload.');
+        abort_code_if($checkoutUrl === '' || $transactionId === '', 502, 'payment.provider_invalid_response');
 
         return new CheckoutSession(
             checkoutUrl: $checkoutUrl,
@@ -78,7 +82,10 @@ class WaveDriver implements PaymentDriverContract
             ->retry(2, 200, throw: false)
             ->get($this->baseUrl().'/v1/checkout/sessions/'.$externalId);
 
-        abort_if(! $response->successful(), 502, 'Wave verify failed: '.$response->body());
+        if (! $response->successful()) {
+            Log::warning('[wave] verify failed', ['status' => $response->status(), 'body' => $response->body()]);
+            abort_code(502, 'payment.provider_failed', ['provider' => 'Wave']);
+        }
         $data = $response->json();
         $status = match ($data['payment_status'] ?? $data['status'] ?? null) {
             'succeeded', 'success', 'completed' => PaymentStatus::SUCCESS,
@@ -100,7 +107,7 @@ class WaveDriver implements PaymentDriverContract
         $eventType = (string) ($payload['type'] ?? '');
         $session = $payload['data'] ?? [];
         $transactionId = (string) ($session['id'] ?? '');
-        abort_if($transactionId === '', 422, 'Wave webhook missing transaction id.');
+        abort_code_if($transactionId === '', 422, 'webhook.transaction_id_missing');
 
         $type = match (true) {
             str_contains($eventType, 'completed'), str_contains($eventType, 'succeeded') => PaymentEvent::TYPE_PAID,
@@ -129,10 +136,10 @@ class WaveDriver implements PaymentDriverContract
 
         $timestamp = $parts['t'] ?? null;
         $provided = $parts['v1'] ?? null;
-        abort_if($timestamp === null || $provided === null, 401, 'Wave webhook signature missing.');
+        abort_code_if($timestamp === null || $provided === null, 401, 'webhook.signature_missing');
 
         $expected = hash_hmac('sha256', $timestamp.'.'.$rawBody, $secret);
-        abort_unless(hash_equals($expected, $provided), 401, 'Wave webhook signature mismatch.');
+        abort_code_unless(hash_equals($expected, $provided), 401, 'webhook.signature_invalid');
     }
 
     protected function baseUrl(): string
@@ -144,7 +151,7 @@ class WaveDriver implements PaymentDriverContract
     {
         $creds = $this->integration->credentials ?? [];
         $value = is_array($creds) ? ($creds[$key] ?? null) : null;
-        abort_if(empty($value), 500, "Wave integration is missing credential `{$key}`.");
+        abort_code_if(empty($value), 500, 'payment.integration_credential_missing', ['credential' => $key]);
 
         return (string) $value;
     }

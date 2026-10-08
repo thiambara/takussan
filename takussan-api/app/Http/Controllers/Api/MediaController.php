@@ -26,7 +26,7 @@ class MediaController extends Controller
         $target = $type::query()->findOrFail($data['model_id']);
 
         if (! $target instanceof HasMedia) {
-            abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Target model does not support media.');
+            abort_code(Response::HTTP_UNPROCESSABLE_ENTITY, 'media.unsupported_target');
         }
 
         // Authorize: we piggyback on the target's own `update` policy when one

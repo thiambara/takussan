@@ -68,7 +68,7 @@ class FeatureFlagEvaluator
 
     public function setOverride(User $user, string $key, bool $enabled): void
     {
-        abort_unless(Flag::tryFrom($key), 404, 'Unknown feature flag.');
+        abort_code_unless(Flag::tryFrom($key), 404, 'feature_flag.unknown');
         Cache::put($this->overrideKey($user, $key), $enabled, now()->addHour());
     }
 

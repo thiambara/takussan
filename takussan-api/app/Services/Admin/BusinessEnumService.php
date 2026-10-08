@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class BusinessEnumService
 {
@@ -93,7 +92,7 @@ class BusinessEnumService
         $index = $values->search(fn (array $row) => $row['value'] === $value);
 
         if ($index === false) {
-            abort(404, 'Enum value not found.');
+            abort_code(404, 'business_enum.value_not_found');
         }
 
         $current = $values->get($index);
@@ -117,7 +116,7 @@ class BusinessEnumService
         $this->ensureEditable($key);
         $usage = $this->usageCount($key, $value);
         if ($usage > 0) {
-            throw new ConflictHttpException('enum_value_in_use');
+            abort_code(409, 'business_enum.value_in_use');
         }
 
         $updated = $this->updateValue($key, $value, ['is_active' => false], $actor);

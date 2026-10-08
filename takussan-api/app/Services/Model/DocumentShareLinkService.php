@@ -27,19 +27,19 @@ class DocumentShareLinkService
     {
         $link = DocumentShareLink::where('token', $token)->firstOrFail();
 
-        abort_if($link->revoked_at !== null, 410, 'This share link has been revoked.');
-        abort_if($link->expires_at !== null && $link->expires_at->isPast(), 410, 'This share link has expired.');
-        abort_if(
+        abort_code_if($link->revoked_at !== null, 410, 'share_link.revoked');
+        abort_code_if($link->expires_at !== null && $link->expires_at->isPast(), 410, 'share_link.expired');
+        abort_code_if(
             $link->max_downloads !== null && $link->downloads_count >= $link->max_downloads,
             410,
-            'This share link has reached its download limit.'
+            'share_link.download_limit'
         );
 
         if ($link->password_hash !== null) {
-            abort_unless(
+            abort_code_unless(
                 $password !== null && password_verify($password, $link->password_hash),
                 401,
-                'Invalid password.'
+                'share_link.password_invalid'
             );
         }
 

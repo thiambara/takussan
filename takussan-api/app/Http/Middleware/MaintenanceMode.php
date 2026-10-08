@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ApiError;
 use App\Services\Admin\MaintenanceService;
 use Closure;
 use Illuminate\Http\Request;
@@ -14,10 +15,9 @@ class MaintenanceMode
     public function handle(Request $request, Closure $next): Response
     {
         if ($this->maintenance->shouldBlock($request->method(), $request->path())) {
-            return response()->json([
-                'message' => 'Maintenance in progress.',
+            throw (new ApiError(503, 'maintenance.in_progress'))->with([
                 'maintenance' => $this->maintenance->status(),
-            ], 503);
+            ]);
         }
 
         return $next($request);

@@ -300,10 +300,10 @@ class PayoutService
 
     public function cancel(Payout $payout): Payout
     {
-        abort_if(
+        abort_code_if(
             in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
             422,
-            __('money_out.payout.cannot_cancel'),
+            'payout.cannot_cancel'
         );
 
         DB::transaction(function () use ($payout): void {

@@ -31,7 +31,7 @@ class BankStatementController extends Controller
 
         // Double-check for duplicate (also validated in form request)
         if (BankStatement::where('agency_id', $agency->id)->where('file_hash', $hash)->exists()) {
-            abort(422, __('reconciliation.validation.duplicate_file'));
+            abort_code(422, 'reconciliation.duplicate_file');
         }
 
         // Mask IBAN if provided

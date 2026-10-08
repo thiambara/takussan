@@ -78,10 +78,10 @@ class InvoiceService
 
     public function send(Invoice $invoice): Invoice
     {
-        abort_unless(
+        abort_code_unless(
             $invoice->status === InvoiceStatus::Draft,
             422,
-            'Only draft invoices can be sent.'
+            'invoice.not_draft_send'
         );
 
         // TCK-594 (ADR-0039 §7) — l'émission attribue le numéro, dans la même transaction.
@@ -95,10 +95,10 @@ class InvoiceService
 
     public function markPaid(Invoice $invoice): Invoice
     {
-        abort_unless(
+        abort_code_unless(
             in_array($invoice->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Draft], true),
             422,
-            'Invoice cannot be marked paid in its current state.'
+            'invoice.cannot_mark_paid'
         );
 
         // TCK-594 (ADR-0039 §7) — payer un brouillon vaut émission : il reçoit son numéro.
@@ -112,10 +112,10 @@ class InvoiceService
 
     public function cancel(Invoice $invoice, ?User $actor = null): Invoice
     {
-        abort_if(
+        abort_code_if(
             in_array($invoice->status, [InvoiceStatus::Paid, InvoiceStatus::Cancelled, InvoiceStatus::Void], true),
             422,
-            'Invoice cannot be cancelled in its current state.'
+            'invoice.cannot_cancel'
         );
 
         // TCK-594 (ADR-0039 §7) — une facture ÉMISE ne s'annule que par un avoir du même montant,
@@ -168,17 +168,17 @@ class InvoiceService
         }
 
         $fqcn = $this->resolveInvoiceableType($typeAlias);
-        abort_if($fqcn === null, 422, 'Unsupported invoiceable_type.');
+        abort_code_if($fqcn === null, 422, 'invoice.unsupported_target');
 
         $target = $fqcn::query()->whereKey($id)->first(['id', 'agency_id']);
-        abort_if($target === null, 404, 'Invoiceable resource not found.');
+        abort_code_if($target === null, 404, 'invoice.target_not_found');
 
         // TCK-594 (AC22) — un bail ou une réservation d'une AUTRE agence ne se facture pas au nom de
         // celle-ci.
-        abort_unless(
+        abort_code_unless(
             $target->agency_id !== null && (int) $target->agency_id === (int) $agencyId,
             422,
-            __('money_out.invoice.foreign_target'),
+            'invoice.foreign_target'
         );
 
         return [$fqcn, $id];
