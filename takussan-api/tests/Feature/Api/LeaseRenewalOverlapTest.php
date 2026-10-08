@@ -15,6 +15,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\LateFeeCalculator;
 use App\Services\Lease\LeaseSignatureService;
+use App\Services\Model\LeasePaymentService;
 use App\Services\Model\LeaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -284,6 +285,47 @@ class LeaseRenewalOverlapTest extends TestCase
 
         $this->assertSame(LeaseStatus::Active, $child->fresh()->status);
         $this->assertSame(0, $this->cancelledCount($parent));
+    }
+
+    /**
+     * VERIF-596 passe 6 (M-G, sonde E5) — l'encaissement manuel lisait l'échéance AVANT le
+     * renouvellement et écrivait `paid` après : l'argent du guichet sur une échéance annulée du
+     * parent, le même mois facturé par l'enfant. Relue sous verrou, une échéance annulée rend 409.
+     */
+    public function test_a_due_cancelled_since_it_was_read_cannot_be_marked_paid(): void
+    {
+        // Le service, sur une instance lue avant le renouvellement.
+        $parent = $this->parent();
+        $start = now()->addDay();
+        $bound = LeasePayment::query()->where('lease_id', $parent->id)->whereDate('due_date', '>=', $start)->orderBy('due_date')->firstOrFail();
+        $this->renew($parent, ['start_date' => $start->toDateString(), 'end_date' => $start->copy()->addYear()->toDateString()])->assertCreated();
+        $this->assertSame(PaymentStatus::Cancelled, $bound->fresh()->status);
+        $this->assertSame(PaymentStatus::Pending, $bound->status);
+
+        try {
+            app(LeasePaymentService::class)->markPaid($bound, ['payment_method' => 'cash']);
+            $this->fail('une échéance annulée a été encaissée');
+        } catch (ApiError $e) {
+            $this->assertSame('lease_payment.cancelled', $e->errorCode);
+        }
+        $this->assertSame(PaymentStatus::Cancelled, $bound->fresh()->status);
+
+        // La route : l'annulation validée entre la liaison et l'écriture.
+        $parent = $this->parent();
+        $due = LeasePayment::query()->where('lease_id', $parent->id)->orderByDesc('due_date')->firstOrFail();
+        $slipped = false;
+        LeasePayment::retrieved(function (LeasePayment $model) use ($due, &$slipped): void {
+            if (! $slipped && $model->id === $due->id) {
+                $slipped = true;
+                LeasePayment::query()->whereKey($due->id)->update(['status' => PaymentStatus::Cancelled->value]);
+            }
+        });
+
+        $this->postJson("/api/lease-payments/{$due->id}/mark-paid", ['payment_method' => 'cash'])
+            ->assertStatus(409)->assertJsonPath('code', 'lease_payment.cancelled');
+        $this->assertTrue($slipped);
+        $this->assertSame(PaymentStatus::Cancelled, $due->fresh()->status);
+        $this->assertNull($due->fresh()->paid_at);
     }
 
     /** À terme (fin + 1) : rien à annuler, rien ne change. */

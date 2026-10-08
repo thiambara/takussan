@@ -247,6 +247,7 @@ return [
         'tenant_without_account' => 'Le locataire de ce bail n\'a pas de compte : signez sur papier et joignez le contrat numérisé.',
     ],
     'lease_payment' => [
+        'cancelled' => 'Cette échéance a été annulée par un renouvellement : elle n\'est plus due et ne s\'encaisse pas.',
         'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',

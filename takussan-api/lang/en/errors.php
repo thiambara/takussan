@@ -247,6 +247,7 @@ return [
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [
+        'cancelled' => 'This instalment was cancelled by a renewal: it is no longer due and cannot be collected.',
         'cannot_mark_paid' => 'Only a pending or late payment can be marked paid.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',

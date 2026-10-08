@@ -247,6 +247,7 @@ return [
         'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
     ],
     'lease_payment' => [
+        'cancelled' => 'Fey bii, yeesal bi moo ko far : warul ñu koy fey te duñu ko jël.',
         'cannot_mark_paid' => 'Échéance buy xaar walla bu yéex rekk lañu mën a màndargaal ni lu ñu fay.',
         'late_fee_not_due' => 'Amul penalité bu des ci fey bii.',
         'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
