@@ -3057,6 +3057,11 @@
           "title": "Paiement échoué",
           "body": "Le paiement n’a pas pu aboutir. Vous pouvez réessayer."
         },
+        "refund": {
+          "title": "Paiement reçu, remboursement à venir",
+          "bodyCancelled": "Paiement reçu sur une échéance annulée : l’agence vous remboursera.",
+          "bodyAlreadyPaid": "Cette échéance était déjà réglée : l’agence vous remboursera ce paiement."
+        },
         "pending": {
           "title": "Paiement en cours",
           "body": "Nous vérifions le statut du paiement avec le fournisseur — cela peut prendre quelques secondes."

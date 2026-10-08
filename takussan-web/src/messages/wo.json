@@ -1565,6 +1565,11 @@
           "title": "Pewam dañu mënul",
           "body": "Pewam bi mënul jeex. Mën nga ko jeem yeneen yoon."
         },
+        "refund": {
+          "title": "Fey bi agsi na, dañuy delloo xaalis bi",
+          "bodyCancelled": "Fey bi agsi na ci ab fey bu ñu neenal : ajaas bi dina la delloo sa xaalis.",
+          "bodyAlreadyPaid": "Fey bii, fey nañu ko bu jëkk : ajaas bi dina la delloo xaalis bii."
+        },
         "pending": {
           "title": "Pewam ngiy taxaw",
           "body": "Nu di ko seet ak fournisseur bi — mën na yagg lu tuuti."

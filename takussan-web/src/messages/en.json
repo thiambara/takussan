@@ -3082,6 +3082,11 @@
           "title": "Payment failed",
           "body": "The payment did not go through. You can try again."
         },
+        "refund": {
+          "title": "Payment received, refund to follow",
+          "bodyCancelled": "Payment received on a cancelled instalment: the agency will refund you.",
+          "bodyAlreadyPaid": "This instalment was already settled: the agency will refund this payment."
+        },
         "pending": {
           "title": "Payment pending",
           "body": "We are confirming the status with the provider — this may take a few seconds."
