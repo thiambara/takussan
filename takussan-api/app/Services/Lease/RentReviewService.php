@@ -94,7 +94,7 @@ class RentReviewService
                 // VERIF-596 passe 3 (m-b, ADR-0042 §1) — un plafond FIGÉ est imprimé au contrat signé,
                 // sans réserve : `force` ne le dépasse pas, capacité ou non. Le dépassement d'un
                 // plafond contractuel passe par un renouvellement ou un avenant signé. `force` ne vaut
-                // plus que pour un bail antérieur, dont le plafond est le réglage global.
+                // plus que pour un bail antérieur, dont le plafond est le réglage de son agence, sinon le global.
                 abort_code_if($lease->rent_review_max_pct !== null, 422, 'lease.rent_review_above_contract_cap', [
                     'max' => (string) $maxPct,
                 ]);
@@ -138,7 +138,8 @@ class RentReviewService
 
     /**
      * VERIF-596 passe 2 (N1, ADR-0042 §1) — le plafond que CE bail exécute : celui figé avec son
-     * contrat, imprimé et signé ; le réglage global seulement pour un bail antérieur (colonne nulle).
+     * contrat, imprimé et signé ; le réglage de l'agence du bail, sinon le global (TCK-600, verif-600
+     * H1), seulement pour un bail antérieur (colonne nulle).
      */
     public function maxPctFor(Lease $lease): float
     {

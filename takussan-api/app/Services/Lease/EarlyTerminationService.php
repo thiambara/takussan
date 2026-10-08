@@ -276,7 +276,8 @@ class EarlyTerminationService
 
     /**
      * VERIF-596 passe 2 (N1, ADR-0042 §1) — l'indemnité que CE bail exécute : celle figée avec son
-     * contrat, imprimée et signée. Le réglage global, relu au jour de la résiliation, ne vaut que
+     * contrat, imprimée et signée. Le réglage de l'agence du bail, sinon le global (TCK-600, verif-600
+     * H1), relu au jour de la résiliation, ne vaut que
      * pour un bail antérieur dont la colonne est nulle : sinon un changement de réglage changeait
      * l'indemnité de tous les baux déjà signés, à l'encontre du PDF.
      */

@@ -24,7 +24,8 @@ use Illuminate\Support\Facades\DB;
  * The basis is the **remaining amount** (`amount - paid_amount`) — partial
  * payments only attract a penalty on what is still owed.
  *
- * A global cap can be set via `Setting('late_fees.cap_percent')` (treated
+ * A cap can be set via `Setting('late_fees.cap_percent')` — the lease's agency row, else the
+ * global one (TCK-600, verif-600 H1) — (treated
  * as % of `amount`) — applied as an upper clamp on the computed fee.
  *
  * Idempotency: once `late_fee_applied_at` is set on a `LeasePayment`,
@@ -174,7 +175,8 @@ class LateFeeCalculator
     }
 
     /**
-     * Optional global cap from `Setting('late_fees.cap_percent')` —
+     * Optional cap from `Setting('late_fees.cap_percent')` — the lease's agency row, else the global
+     * one (TCK-600, verif-600 H1) —
      * treated as a % of `amount` (the original due, not the remaining).
      */
     protected function applyCap(LeasePayment $payment, float $fee): float
