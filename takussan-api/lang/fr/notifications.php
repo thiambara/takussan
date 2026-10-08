@@ -440,7 +440,39 @@ return [
                 'sms' => 'Takussan : votre demande concernant :about a été transmise.',
             ],
         ],
+        'governance' => [
+            'role_capabilities_changed' => [
+                'title' => 'Droits d\'un rôle modifiés',
+                'body' => 'Les droits du rôle :role ont été modifiés par :actor.',
+                'sms' => 'Takussan : droits du rôle :role modifiés par :actor.',
+            ],
+            'admin_added' => [
+                'title' => 'Nouvel administrateur',
+                'body' => 'Un accès administrateur a été donné à :member par :actor.',
+                'sms' => 'Takussan : :member est désormais administrateur (par :actor).',
+            ],
+            'data_exported' => [
+                'title' => 'Export de données',
+                'body' => 'Un export de données clients a été effectué par :actor.',
+                'sms' => 'Takussan : export de données clients par :actor.',
+            ],
+            'integration_changed' => [
+                'title' => 'Intégration modifiée',
+                'body' => 'L\'intégration :provider a été modifiée par :actor.',
+                'sms' => 'Takussan : intégration :provider modifiée par :actor.',
+            ],
+            'approval_threshold_changed' => [
+                'title' => 'Seuil d\'approbation modifié',
+                'body' => 'Le seuil d\'approbation des reversements a été modifié par :actor.',
+                'sms' => 'Takussan : seuil d\'approbation modifié par :actor.',
+            ],
+        ],
         'kyc' => [
+            'expiring_soon' => [
+                'title' => 'Pièce KYC bientôt expirée',
+                'body' => 'La pièce d\'identité du dirigeant expire le :expires_at. Déposez-en une nouvelle pour garder l\'agence vérifiée.',
+                'sms' => 'Takussan : la pièce KYC du dirigeant expire le :expires_at.',
+            ],
             'submitted' => [
                 'title' => 'KYC d\'agence à instruire',
                 'body' => 'Le dossier KYC de :agency a été soumis.',

@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\Activity;
 use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Spatie\Activitylog\Actions\LogActivityAction;
-use Spatie\Activitylog\Models\Activity;
 
 return [
 
@@ -36,6 +36,8 @@ return [
     'include_soft_deleted_subjects' => false,
 
     /*
+     * TCK-601 (ADR-0044 §3) — `App\Models\Activity` : la ligne porte l'agence de son sujet.
+     *
      * This model will be used to log activity.
      * It should implement the Spatie\Activitylog\Contracts\Activity interface
      * and extend Illuminate\Database\Eloquent\Model.

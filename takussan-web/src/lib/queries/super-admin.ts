@@ -61,6 +61,7 @@ import type {
   GrowthMetric,
   ReportGranularity,
   ReportPeriod,
+  SharedLegalIdentifiers,
 } from '@/types/super-admin';
 import { cheminApi, requete } from '@/lib/chemin-api';
 
@@ -156,6 +157,8 @@ const KYC_DOSSIER_FIELDS = [
   'reviewed_by',
   'rejection_reason',
   'metadata',
+  // TCK-601 — cf. le même champ dans `queries/kyc.ts`.
+  'expires_at',
   'created_at',
   'updated_at',
 ].join(',');
@@ -553,21 +556,37 @@ export async function deleteProperty(propertyId: number): Promise<unknown> {
   return jsonOrThrow<unknown>(res);
 }
 
-export async function fetchAuditLog(params: {
+export interface AuditLogFilterParams {
   event?: string;
   causerId?: number;
   subjectType?: string;
   dateFrom?: string;
   dateTo?: string;
-  page?: number;
-  perPage?: number;
-} = {}): Promise<AuditLogResponse> {
+  /**
+   * TCK-601 — préréglage « Gestes sensibles » (`filter[sensitive]=1`) : consultations de données
+   * personnelles, registre des droits, sécurité, support, KYC, rôles, intégrations, exports. La
+   * liste des journaux vit côté API, nommée en constante ; le front ne la recopie pas.
+   */
+  sensitive?: boolean;
+}
+
+/** Les filtres de l'audit plateforme, sérialisés À L'IDENTIQUE pour la liste et pour l'export. */
+function auditFilterQuery(params: AuditLogFilterParams): URLSearchParams {
   const qs = new URLSearchParams();
   if (params.event) qs.set('filter[event]', params.event);
   if (params.causerId) qs.set('filter[causer_id]', String(params.causerId));
   if (params.subjectType) qs.set('filter[subject_type]', params.subjectType);
   if (params.dateFrom) qs.set('filter[date_from]', params.dateFrom);
   if (params.dateTo) qs.set('filter[date_to]', params.dateTo);
+  if (params.sensitive) qs.set('filter[sensitive]', '1');
+  return qs;
+}
+
+export async function fetchAuditLog(params: AuditLogFilterParams & {
+  page?: number;
+  perPage?: number;
+} = {}): Promise<AuditLogResponse> {
+  const qs = auditFilterQuery(params);
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
   qs.set('include', 'causer');
@@ -575,6 +594,26 @@ export async function fetchAuditLog(params: {
     credentials: 'include',
   });
   return jsonOrThrow<AuditLogResponse>(res);
+}
+
+/** TCK-601 — un export CSV de l'audit plateforme : un lien signé, à ouvrir avant `expires_at`. */
+export interface AuditLogExport {
+  readonly url: string;
+  readonly expires_at: string;
+  readonly count: number;
+}
+
+/**
+ * TCK-601 — `GET /api/admin/audit/export?<mêmes filtres que la liste>`. L'API rend un lien signé
+ * vers le CSV (et journalise l'export lui-même) ; c'est à l'appelant de l'ouvrir.
+ */
+export async function exportAuditLog(params: AuditLogFilterParams = {}): Promise<AuditLogExport> {
+  const qs = auditFilterQuery(params).toString();
+  const res = await fetch(cheminApi`/api/super-admin/audit/export${requete(qs)}`, {
+    credentials: 'include',
+  });
+  const json = await jsonOrThrow<{ data: AuditLogExport }>(res);
+  return json.data;
 }
 
 export async function fetchModerationQueue(params: {
@@ -1337,6 +1376,11 @@ export interface AdminAgencyUpgradeRequestRow {
 }
 
 export interface AdminAgencyUpgradeRequestDetail extends AdminAgencyUpgradeRequestRow {
+  /**
+   * TCK-601 — les autres agences qui portent le même NINEA / RIB pro (super-admin seulement ;
+   * absent sinon). Un signal pour la revue, jamais un refus.
+   */
+  shared_identifiers?: SharedLegalIdentifiers;
   reviewer: {
     id: number;
     first_name: string | null;

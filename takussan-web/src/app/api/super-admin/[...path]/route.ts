@@ -42,7 +42,11 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
     headers,
   };
   if (!['GET', 'HEAD'].includes(request.method)) {
-    init.body = await request.text();
+    // TCK-601 — les OCTETS, pas `text()` : la preuve de réponse du registre des droits est le
+    // premier envoi multipart de la console, et `text()` décode le corps en UTF-8 — un PDF ou une
+    // photo en ressortait corrompu (chaque séquence invalide remplacée par U+FFFD), sous la même
+    // limite `boundary` que l'en-tête `Content-Type` recopié plus haut. Sans effet sur le JSON.
+    init.body = await request.arrayBuffer();
   }
 
   const upstream = await fetch(url, init);

@@ -12,6 +12,7 @@ use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class KycWorkflowService
@@ -57,7 +58,8 @@ class KycWorkflowService
         ])->load('subject');
     }
 
-    public function upload(KycDossier $dossier, UploadedFile $file, string $documentType): Media
+    /** @param  string|null  $expiresAt  échéance de la pièce (`Y-m-d`), exigée pour `director_id` */
+    public function upload(KycDossier $dossier, UploadedFile $file, string $documentType, ?string $expiresAt = null): Media
     {
         $this->assertNotVerified($dossier);
         if (! in_array($documentType, self::AGENCY_REQUIRED_DOCUMENTS, true)) {
@@ -67,8 +69,26 @@ class KycWorkflowService
         return $dossier
             ->addMedia($file)
             ->usingFileName(str()->slug($documentType).'.'.strtolower($file->getClientOriginalExtension()))
-            ->withCustomProperties(['document_type' => $documentType])
+            ->withCustomProperties(array_filter(['document_type' => $documentType, 'expires_at' => $expiresAt]))
             ->toMediaCollection('documents');
+    }
+
+    /**
+     * TCK-601 (ADR-0044 §5) — l'échéance du dossier : la plus petite parmi les pièces les plus
+     * RÉCENTES de chaque type. Une pièce remplacée ne compte plus — l'ancienne pièce d'identité
+     * expirée qu'un nouveau dépôt remplace ne doit pas faire expirer le dossier. Le jour d'échéance
+     * à 00:00 : ce jour-là, la pièce n'est plus valable.
+     */
+    public function expiryOf(KycDossier $dossier): ?Carbon
+    {
+        $dates = $dossier->getMedia('documents')
+            ->sortByDesc(fn (Media $media) => [$media->created_at?->getTimestamp(), $media->getKey()])
+            ->unique(fn (Media $media) => $media->getCustomProperty('document_type'))
+            ->map(fn (Media $media) => $media->getCustomProperty('expires_at'))
+            ->filter(fn ($date) => is_string($date) && $date !== '')
+            ->map(fn (string $date) => Carbon::parse($date)->startOfDay());
+
+        return $dates->isEmpty() ? null : $dates->sort()->first();
     }
 
     public function submit(KycDossier $dossier, User $actor): KycDossier
@@ -98,11 +118,17 @@ class KycWorkflowService
         $this->assertTransitionable($dossier);
         $this->assertRequiredDocuments($dossier);
 
+        $metadata = $dossier->metadata ?? [];
+        // Une nouvelle vérification ouvre une nouvelle échéance : ses relances repartent de zéro.
+        unset($metadata['expiry_reminders'], $metadata['expired_at']);
+
         $dossier->update([
             'status' => KycDossierStatus::Verified,
             'reviewed_at' => now(),
             'reviewed_by' => $actor->id,
             'rejection_reason' => null,
+            'expires_at' => $this->expiryOf($dossier),
+            'metadata' => $metadata,
         ]);
 
         if ($dossier->subject instanceof Agency) {

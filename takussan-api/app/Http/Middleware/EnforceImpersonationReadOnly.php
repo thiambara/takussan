@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  * TCK-600 (ADR-0055 §3) — une session d'impersonation LIT, elle n'écrit jamais.
  *
  * Groupe `api`, après `ResolveActiveProfile`. Quand le jeton de la requête appartient à une session
- * ouverte, lie {@see ImpersonationContext} (lu par `Activity::creating`) puis refuse en
+ * ouverte, lie {@see ImpersonationContext} (lu par `App\Models\Activity::creating`) puis refuse en
  * **403 `impersonation.read_only`** :
  *  - toute méthode autre que `GET` / `HEAD` / `OPTIONS` — aucune écriture permise ;
  *  - les lectures nommées par l'ADR : `/api/admin/*` entier, les téléchargements d'export, toute la

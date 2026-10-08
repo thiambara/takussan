@@ -15,6 +15,8 @@ import { ApiError } from '@/lib/api';
 import { postKycReview } from '@/lib/queries/super-admin';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { cn } from '@/lib/utils';
+import { KycEcheance } from '@/components/kyc/KycEcheance';
+import { SharedIdentifiersNotice } from '@/components/kyc/SharedIdentifiersNotice';
 
 /**
  * Le statut du dossier → le ton sémantique du DS (TCK-357). Aucune couleur en dur ici : c'est
@@ -174,11 +176,22 @@ export function KycQueueTable({
       id: 'documents',
       header: t('columns.documents'),
       className: 'text-muted-foreground',
-      cell: (dossier) =>
-        t('documentsCount', {
-          present: String(nombreDePiecesFournies(dossier)),
-          total: String(DOCUMENTS_REQUIS.length),
-        }),
+      cell: (dossier) => {
+        // TCK-601 — l'échéance de la pièce du dirigeant se lit dès la file, pas seulement au
+        // panneau : c'est elle qui fera expirer le dossier.
+        const dirigeant = dossier.documents.find((doc) => doc.document_type === 'director_id');
+        return (
+          <div className="flex flex-col items-start gap-1">
+            <span>
+              {t('documentsCount', {
+                present: String(nombreDePiecesFournies(dossier)),
+                total: String(DOCUMENTS_REQUIS.length),
+              })}
+            </span>
+            <KycEcheance value={dirigeant?.document_expires_at} />
+          </div>
+        );
+      },
     },
     {
       id: 'submittedAt',
@@ -344,12 +357,19 @@ export function KycDecisionPanel({
         />
       </div>
 
+      {/* TCK-601 — un dossier vérifié a désormais une fin de validité. */}
+      <KycEcheance kind="dossier" value={dossier.expires_at} className="mt-2" />
+
       <ul className="mt-4 space-y-1">
         {DOCUMENTS_REQUIS.map((type) => {
           const piece = dossier.documents.find((doc) => doc.document_type === type);
           return (
-            <li key={type} className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-foreground">{tDocuments(type)}</span>
+            <li key={type} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm">
+              <span className="flex flex-col items-start gap-0.5">
+                <span className="text-foreground">{tDocuments(type)}</span>
+                {/* ⚠ `document_expires_at` (la PIÈCE), jamais `expires_at` (le LIEN signé). */}
+                <KycEcheance value={piece?.document_expires_at} />
+              </span>
               {piece ? (
                 <a
                   className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -371,6 +391,8 @@ export function KycDecisionPanel({
           );
         })}
       </ul>
+
+      <SharedIdentifiersNotice shared={dossier.shared_identifiers} className="mt-4" />
 
       {dossier.rejection_reason ? (
         <p className="mt-4 rounded-lg bg-muted p-3 text-sm text-foreground">

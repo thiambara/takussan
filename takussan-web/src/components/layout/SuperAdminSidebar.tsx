@@ -9,6 +9,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  FileLock,
   CalendarClock,
   ClipboardCheck,
   CreditCard,
@@ -145,6 +146,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/super-admin/feature-flags', labelKey: 'featureFlags', icon: FlaskConical },
       { href: '/super-admin/alerts', labelKey: 'alerts', icon: Siren },
       { href: '/super-admin/audit', labelKey: 'audit', icon: Activity },
+      // TCK-601 — le registre des demandes de droits, à côté de l'audit : les deux sont la
+      // conformité de la plateforme.
+      { href: '/super-admin/privacy-requests', labelKey: 'privacyRequests', icon: FileLock },
       {
         href: '/super-admin/system',
         labelKey: 'system',

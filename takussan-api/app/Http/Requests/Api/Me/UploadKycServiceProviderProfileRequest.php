@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\Me;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
 use App\Models\Enums\DocumentType;
+use App\Support\Uploads\AcceptedUploads;
 use Illuminate\Validation\Rule;
 
 /**
@@ -55,7 +56,7 @@ class UploadKycServiceProviderProfileRequest extends BaseFormRequest
             // 8 MB max, common KYC formats. medialibrary handles MIME by the
             // file extension — we keep the rules permissive to support phone
             // captures (heic, webp).
-            'file' => ['required', 'file', 'max:8192'],
+            'file' => ['required', 'file', ...AcceptedUploads::kyc(8192)],
             'kind' => ['required', 'string', Rule::in(array_keys(self::KYC_KIND_TO_TYPE))],
         ];
     }

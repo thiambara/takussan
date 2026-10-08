@@ -1,13 +1,13 @@
 ---
 id: TCK-601
 title: "Données personnelles et audit : RIB et pièces en clair, journal d'agence qui montre les actes d'une autre agence et cache ceux des admins, consultations non tracées, aucun registre des demandes de droits"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -33,8 +33,14 @@ tags: [back, front, sécurité, données-personnelles, audit, kyc, conformité, 
 - **Admin d'agence** : son journal d'audit montre tout ce qui s'est passé **dans son agence**, y compris
   les actes des autres admins et du système, et rien de ce qui s'est passé ailleurs. Il filtre par
   membre et il est prévenu quand quelqu'un touche aux rôles ou aux intégrations. Le RIB professionnel
-  et le NINEA déposés pour passer en agence `standard` ne sont lisibles ni en base, ni des bailleurs et
-  agents de l'agence.
+  déposé pour passer en agence `standard` n'est lisible ni en base, ni des bailleurs et agents de
+  l'agence.
+
+  > **Note du 2026-10-08, décision du porteur :** le NINEA **d'une agence** est public. C'est une
+  > mention légale de l'entreprise, que TCK-594 imprime sur ses factures et ses relevés. Il reste donc
+  > dans `AgencyKindFlipService::LEGAL_FIELDS` et lisible des membres par `AgencyResource`. La pièce
+  > de dossier `agency_upgrade_requests.ninea`, avant approbation, reste chiffrée et masquée hors du
+  > détail de la console (M1).
 - **Tout utilisateur** : ce qu'il saisit ne se retrouve pas dans les journaux techniques quand une
   écriture échoue.
 - **Super-admin** : chaque consultation de données personnelles depuis la console laisse une trace. Il
@@ -194,7 +200,7 @@ Et autour :
 | Élément | Forme |
 |---|---|
 | `owner_profiles.rib`, `tax_id`, `id_document_number` | `text`, cast `encrypted`, dans `$hidden`, hors `$queryFields` et hors recherche |
-| `agency_upgrade_requests.ninea`, `rib_pro` | `text`, cast `encrypted` ; rendus complets à l'admin de l'agence et au super-admin seulement (`AgencyUpgradeRequestResource`, inchangé) |
+| `agency_upgrade_requests.ninea`, `rib_pro` | `text`, cast `encrypted` ; complets au seul détail de la console (`withClearIdentifiers()`), tracé ; masqués partout ailleurs, admin d'agence compris (`AgencyUpgradeRequestResource`, verif-601 M1) |
 | `agencies.metadata.legal_info.rib_pro` | **n'existe plus** (retiré des données, plus jamais recopié) ; `AgencyResource` ne le rend jamais |
 | `OwnerProfileResource` | `rib_masked`, `tax_id_masked`, `id_document_number_masked` (jamais la valeur complète) |
 | `GET /api/owners/{owner_profile}/sensitive` | valeurs complètes, admin de l'agence du profil ou super-admin ; journalisé |
@@ -291,7 +297,7 @@ Et autour :
 
 ### 0. Décision
 
-- [ ] **ADR à écrire et accepter avant le code** — « Données personnelles : chiffrement applicatif,
+- [x] **ADR à écrire et accepter avant le code** — « Données personnelles : chiffrement applicatif,
       périmètre d'agence du journal, registre des droits ». Il tranche : (1) chiffrement par cast
       `encrypted` et gestion de `APP_KEY` / `APP_PREVIOUS_KEYS` (sauvegarde, rotation, ré-chiffrement),
       **option retenue par défaut**, pour `owner_profiles` comme pour `agency_upgrade_requests` ;
@@ -304,52 +310,52 @@ Et autour :
 
 ### A. Données sensibles du bailleur
 
-- [ ] Migration `encrypt_sensitive_columns_on_owner_profiles` : les trois colonnes passent en `text`,
+- [x] Migration `encrypt_sensitive_columns_on_owner_profiles` : les trois colonnes passent en `text`,
       puis chaque ligne existante est chiffrée par lots (lecture brute, `Crypt::encryptString`,
       écriture brute — idempotente : une valeur déjà déchiffrable est laissée telle quelle) ; `down()`
       déchiffre puis rend `string`.
-- [ ] `OwnerProfile` : casts `encrypted`, `public const SENSITIVE = ['rib','tax_id','id_document_number']`,
+- [x] `OwnerProfile` : casts `encrypted`, `public const SENSITIVE = ['rib','tax_id','id_document_number']`,
       `$hidden = self::SENSITIVE`, retrait de `$queryFields`, `requestSearchFields = ['employer']`.
-- [ ] `App\Support\Masking` : `iban()` (extrait de `BankStatementController::maskIban`, qui l'appelle
+- [x] `App\Support\Masking` : `iban()` (extrait de `BankStatementController::maskIban`, qui l'appelle
       désormais) et `tail(string, int $visible = 4)`.
-- [ ] `App\Http\Resources\OwnerProfileResource` ; `OwnerProfileController::index` l'utilise.
-- [ ] `GET /api/owners/{owner_profile}/sensitive` → `OwnerProfileController::sensitive`, nouvelle
+- [x] `App\Http\Resources\OwnerProfileResource` ; `OwnerProfileController::index` l'utilise.
+- [x] `GET /api/owners/{owner_profile}/sensitive` → `OwnerProfileController::sensitive`, nouvelle
       méthode de policy `OwnerProfilePolicy::viewSensitive` (admin de l'agence du profil ; super-admin
       par `Gate::before` — **option retenue par défaut** : pas de capacité dédiée tant que TCK-587 n'a
       pas branché les capacités de lecture) ; journalisée (F).
-- [ ] `DataExportBuilder.php:83` : les profils sont exportés avec `makeVisible(OwnerProfile::SENSITIVE)`.
-- [ ] Front : le carnet de propriétaires affiche les valeurs masquées et le geste « Afficher » pour l'admin.
-- [ ] Tests : `OwnerProfileSensitiveDataTest`.
+- [x] `DataExportBuilder.php:83` : les profils sont exportés avec `makeVisible(OwnerProfile::SENSITIVE)`.
+- [x] Front : le carnet de propriétaires affiche les valeurs masquées et le geste « Afficher » pour l'admin.
+- [x] Tests : `OwnerProfileSensitiveDataTest`.
 
 ### A2. Identifiants légaux de la demande de passage en agence
 
-- [ ] Migration `encrypt_legal_identifiers_on_agency_upgrade_requests` : `ninea` et `rib_pro` passent en
+- [x] Migration `encrypt_legal_identifiers_on_agency_upgrade_requests` : `ninea` et `rib_pro` passent en
       `text` puis sont chiffrés par lots (même procédé idempotent qu'en A) ; la même migration retire
       `legal_info.rib_pro` de `agencies.metadata` (`metadata #- '{legal_info,rib_pro}'`). `down()` :
       déchiffre, rend `string`, et recopie `rib_pro` depuis la demande `approved` de chaque agence.
-- [ ] `AgencyUpgradeRequest` : casts `encrypted` sur `ninea` et `rib_pro`. `AgencyUpgradeRequestResource`
+- [x] `AgencyUpgradeRequest` : casts `encrypted` sur `ninea` et `rib_pro`. `AgencyUpgradeRequestResource`
       inchangée (lecteurs : admin de l'agence et super-admin, déjà autorisés).
-- [ ] `AgencyKindFlipService` : `rib_pro` ne fait plus partie des champs recopiés (`LEGAL_FIELDS`
+- [x] `AgencyKindFlipService` : `rib_pro` ne fait plus partie des champs recopiés (`LEGAL_FIELDS`
       garde `rc`, `ninea`, `company_legal_name`, `address_fiscale`). La copie n'a aucun lecteur ; la seule
       source du RIB pro reste la demande, chiffrée. *Chiffrer une clé d'un `jsonb` n'est pas le mécanisme
       du cast `encrypted` : la supprimer l'est.*
-- [ ] `AgencyResource` : `metadata` rendu sans `legal_info.rib_pro` (`Arr::except`), défense contre une
+- [x] `AgencyResource` : `metadata` rendu sans `legal_info.rib_pro` (`Arr::except`), défense contre une
       donnée antérieure à la migration.
-- [ ] Front : le type d'agence ne déclare plus de RIB pro dans ses métadonnées.
-- [ ] `Admin\AgencyUpgradeRequestController::show` journalise la consultation (F, surface
+- [x] Front : le type d'agence ne déclare plus de RIB pro dans ses métadonnées.
+- [x] `Admin\AgencyUpgradeRequestController::show` journalise la consultation (F, surface
       `agency_upgrade_request`).
-- [ ] Tests : `AgencyUpgradeRequestEncryptionTest`.
+- [x] Tests : `AgencyUpgradeRequestEncryptionTest`.
 
 ### B. Pièces, documents et journaux
 
-- [ ] `UploadKycOwnerProfileRequest`, `UploadKycAgentProfileRequest`, `UploadKycServiceProviderProfileRequest`
+- [x] `UploadKycOwnerProfileRequest`, `UploadKycAgentProfileRequest`, `UploadKycServiceProviderProfileRequest`
       et `UploadKycDocumentRequest` : `mimes:jpg,jpeg,png,webp,heic,heif,pdf`, `mimetypes:` correspondants,
       `min:1` (Ko) ; la taille maximale reste celle de chaque requête.
-- [ ] `StoreDocumentRequest` et `UploadDocumentVersionRequest` : `mimes:pdf,jpg,jpeg,png,webp,heic,heif,doc,docx,xls,xlsx,txt,csv`,
+- [x] `StoreDocumentRequest` et `UploadDocumentVersionRequest` : `mimes:pdf,jpg,jpeg,png,webp,heic,heif,doc,docx,xls,xlsx,txt,csv`,
       `mimetypes:` correspondants, `min:1` ; `max:10240` inchangé. La liste est celle que le front
       annonce déjà (`DOCUMENT_MIME_ACCEPT`, plus `heic`/`heif`) ; le docblock de
       `UploadDocumentVersionRequest` dit vrai.
-- [ ] `App\Support\Logging\SafeExceptionContext::of(Throwable $e): array` : `exception` (classe),
+- [x] `App\Support\Logging\SafeExceptionContext::of(Throwable $e): array` : `exception` (classe),
       `code` ; pour une `QueryException` : `sqlstate`, `sql` (`getSql()`, placeholders seuls),
       `connection`, `bindings_count` ; pour toute autre : **aucun message** — `file:line` du point de
       levée suffit à retrouver la cause. `trace` réduite à `fichier:ligne` par cadre. **Jamais**
@@ -358,35 +364,35 @@ Et autour :
       refusée — le message d'une exception est une donnée, pas un diagnostic (relevé par la
       consolidation de TCK-599, 2026-10-06). Un appelant qui a besoin d'un texte le compose lui-même
       à partir de codes.
-- [ ] `bootstrap/app.php`, dans `withExceptions` (coordination 588) :
+- [x] `bootstrap/app.php`, dans `withExceptions` (coordination 588) :
       `$exceptions->report(function (QueryException $e) { Log::error('query_exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]); })->stop();`
       — remplace le rapport par défaut de **toute** `QueryException`, quelle que soit la route ou le job.
-- [ ] `PropertyController::store`, **le `catch` seulement** : `user_id`, `payload_keys`
+- [x] `PropertyController::store`, **le `catch` seulement** : `user_id`, `payload_keys`
       (`array_keys($request->all())`) et `SafeExceptionContext::of($e)` — jamais `$request->all()` ni
       `getMessage()`.
-- [ ] Mêmes contextes dans `FlipAgencyKindOnUpgradeApproved::handle` (`:53-63`),
+- [x] Mêmes contextes dans `FlipAgencyKindOnUpgradeApproved::handle` (`:53-63`),
       `BookingExpirationService` (`:133-134`, le Log **et** la chaîne poussée dans `$errors[]`, qui porte
       désormais la classe et le SQLSTATE) et `ExpirePendingBookingsJob::failed` (`:51-56`).
-- [ ] Tests : `KycUploadMimeTest` (les quatre routes), `DocumentUploadMimeTest` (les deux routes),
+- [x] Tests : `KycUploadMimeTest` (les quatre routes), `DocumentUploadMimeTest` (les deux routes),
       `PropertyStoreFailureLogTest`, `SafeExceptionLoggingTest`.
 
 ### C. KYC d'agence
 
-- [ ] Migration `add_expires_at_to_kyc_dossiers` (+ index nommé du Contrat de données).
-- [ ] `UploadKycDocumentRequest` : `expires_at` `required_if:document_type,director_id`, date
+- [x] Migration `add_expires_at_to_kyc_dossiers` (+ index nommé du Contrat de données).
+- [x] `UploadKycDocumentRequest` : `expires_at` `required_if:document_type,director_id`, date
       postérieure à aujourd'hui ; stockée en propriété du média par `KycWorkflowService::upload`.
-- [ ] `KycWorkflowService::verify` : `expires_at` du dossier = plus petite échéance parmi les pièces
+- [x] `KycWorkflowService::verify` : `expires_at` du dossier = plus petite échéance parmi les pièces
       **les plus récentes** de chaque type.
-- [ ] Commande `kyc:expire-dossiers`, planifiée chaque jour : relance des admins de l'agence à J-30 et
+- [x] Commande `kyc:expire-dossiers`, planifiée chaque jour : relance des admins de l'agence à J-30 et
       J-7 (une seule fois chacune, mémorisée dans `metadata`) ; à l'échéance, le dossier repasse
       `pending`, `metadata.expired_at` est posé, l'activité `kyc_expired` écrite, et l'agence perd
       `is_verified` **sans** changer de statut (**option retenue par défaut** : la suspension relève de
       TCK-600 et serait disproportionnée pour une pièce à renouveler).
-- [ ] **Aucun contrôle de forme du NINEA ni du RCCM, aucune regex** (tranché par le porteur, D-68) :
+- [x] **Aucun contrôle de forme du NINEA ni du RCCM, aucune regex** (tranché par le porteur, D-68) :
       `SubmitAgencyUpgradeRequestRequest` garde `'string','max:30'` / `'max:60'`.
-- [ ] `Agency/KycController` (`upload`, `submit`) : autorisation par
+- [x] `Agency/KycController` (`upload`, `submit`) : autorisation par
       `canActAt(Capability::AgencyUpdateKyc, $agency)` ; `show` reste à l'admin.
-- [ ] `App\Services\Kyc\SharedLegalIdentifierDetector` : NINEA et RIB professionnel comparés à ceux
+- [x] `App\Services\Kyc\SharedLegalIdentifierDetector` : NINEA et RIB professionnel comparés à ceux
       des **autres** agences sur une forme normalisée qui ne suppose **aucun** format — tout blanc retiré
       (`preg_replace('/\s+/u', '')`), puis `mb_strtoupper`. Comparaison **en PHP** sur les valeurs
       déchiffrées (le chiffrement d'A2 interdit l'égalité SQL ; une demande par agence, le volume le
@@ -394,179 +400,191 @@ Et autour :
       `agencies.ninea` après TCK-594. Résultat exposé au seul super-admin dans `KycDossierResource` et la
       demande de passage `standard` (`shared_identifiers` : `ninea` / `rib_pro`, identifiants des
       agences en conflit). Aucun refus automatique : un signal pour la revue.
-- [ ] `KycDossierResource` expose `expires_at` et l'échéance de chaque pièce ; le front l'affiche.
-- [ ] Tests : `KycDossierExpiryTest`, `AgencyKycCapabilityTest`, `SharedLegalIdentifierTest`.
+- [x] `KycDossierResource` expose `expires_at` et l'échéance de chaque pièce ; le front l'affiche.
+- [x] Tests : `KycDossierExpiryTest`, `AgencyKycCapabilityTest`, `SharedLegalIdentifierTest`.
 
 ### D. Audit d'agence
 
-- [ ] `App\Models\Activity` (étend le modèle spatie, déclaré dans `config/activitylog.php`) : à la
+- [x] `App\Models\Activity` (étend le modèle spatie, déclaré dans `config/activitylog.php`) : à la
       création, `agency_id` résolu par `App\Services\Audit\AuditAgencyResolver` (contrainte 3).
       Interface `App\Models\Contracts\HasAuditAgency` sur les modèles enfants.
-- [ ] Migration `add_agency_id_to_activity_log` (colonne, FK, deux index) puis migration
+- [x] Migration `add_agency_id_to_activity_log` (colonne, FK, deux index) puis migration
       `backfill_agency_id_on_activity_log` : `UPDATE … FROM` par type de sujet portant `agency_id`,
       par jointure pour les enfants, `subject_id` pour `Agency`.
-- [ ] `AuditLogController::index` et `ActivityLogExporter::scopeForUser` : un admin d'agence voit
+- [x] `AuditLogController::index` et `ActivityLogExporter::scopeForUser` : un admin d'agence voit
       `agency_id = <agence active>`, et rien d'autre.
-- [ ] `AuditLogController::indexByEntity` : même filtre pour un non-super-admin ; le type est
+- [x] `AuditLogController::indexByEntity` : même filtre pour un non-super-admin ; le type est
       résolu en classe exacte (`App\Models\<Studly>` existante), plus de `LIKE`.
-- [ ] `ExportActivityLogJob` reçoit l'`agency_id` à la répartition ; l'exporteur ne lit plus
+- [x] `ExportActivityLogJob` reçoit l'`agency_id` à la répartition ; l'exporteur ne lit plus
       `request()` dans le job.
-- [ ] `App\Support\Audit\PropertyRedactor` (extrait de `CrossTenantAuditController`, liste étendue à
+- [x] `App\Support\Audit\PropertyRedactor` (extrait de `CrossTenantAuditController`, liste étendue à
       `rib`, `iban`, `tax_id`, `ninea`, `id_document`) appliqué à `properties` dans l'audit d'agence,
       dans l'audit plateforme et dans les deux exports.
-- [ ] Front `AuditTrail` : filtre par membre (liste issue de `GET /api/agencies/{agency}/members`),
+- [x] Front `AuditTrail` : filtre par membre (liste issue de `GET /api/agencies/{agency}/members`),
       libellés i18n des événements métier et des nouveaux types de sujet, acteur nul rendu « Système ».
-- [ ] Tests : `AgencyAuditScopeTest` (AC10 à AC14, AC12b, AC13b), `ActivityLogAgencyBackfillTest`.
+- [x] Tests : `AgencyAuditScopeTest` (AC10 à AC14, AC12b, AC13b), `ActivityLogAgencyBackfillTest`.
 
 ### E. Actes de gouvernance
 
-- [ ] `Auditable` en liste blanche (`logOnly`) sur : `AgencyRole` (`name`, `description`,
+- [x] `Auditable` en liste blanche (`logOnly`) sur : `AgencyRole` (`name`, `description`,
       `base_profile_type`) ; `Agency` (`commission_rate`, `status`, `kind`, `is_verified`,
       `moderation_required`, `bank_csv_mapping`, `primary_admin_id`) ; `Integration` (`provider`,
       `is_active`, plus un drapeau `credentials_changed` sans valeur — jamais `last_used_at`,
       `last_health_check_at`, `health_status`) ; `AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`
       (`status`, `agency_role_id`, `commission_rate` pour l'agent — jamais les colonnes `SENSITIVE`).
-- [ ] `AgencyRoleService::replaceCapabilities` : activité `role_capabilities_changed` avec
+- [x] `AgencyRoleService::replaceCapabilities` : activité `role_capabilities_changed` avec
       `added` / `removed` ; `create` → `role_created` ; `assign` → `role_assigned`.
-- [ ] `App\Services\Governance\GovernanceAlertService` : avertit (in-app + e-mail, clés i18n, dans la
+- [x] `App\Services\Governance\GovernanceAlertService` : avertit (in-app + e-mail, clés i18n, dans la
       langue de chaque destinataire) les admins actifs de l'agence, sauf l'auteur. Déclenché **par le
       journal lui-même** (`created` du modèle `Activity` de D, sur une table d'événements nommée en
       constante), sans toucher aux fichiers des autres tickets : `role_capabilities_changed` ;
       création d'un `AgencyAdminProfile` ; `data_exported` d'une entité CRM (TCK-587) ; création,
       modification ou suppression d'une `Integration` ; changement de seuil d'approbation (TCK-594, nom
       d'événement aligné à l'implémentation).
-- [ ] Tests : `GovernanceAuditTest`, `GovernanceAlertTest`.
+- [x] Tests : `GovernanceAuditTest`, `GovernanceAlertTest`.
 
 ### F. Consultations et audit plateforme
 
-- [ ] `App\Services\Privacy\PersonalDataAccessLogger::record(User $viewer, Model $subject, string $surface)` :
+- [x] `App\Services\Privacy\PersonalDataAccessLogger::record(User $viewer, Model $subject, string $surface)` :
       journal `PersonalDataAccess`, événement `personal_data_viewed`, `properties.surface` ; au plus une
       entrée par (lecteur, sujet, surface) par fenêtre de 15 min.
-- [ ] Appels : `Admin/UserDetailController` (`show`, `sessions`, `activity`), `Admin/KycController`
+- [x] Appels : `Admin/UserDetailController` (`show`, `sessions`, `activity`), `Admin/KycController`
       (`show`, `agency`), `KycDocumentController` (coordination 546), `OwnerProfileController::sensitive`,
       `Admin\AgencyUpgradeRequestController::show` (RIB et NINEA complets, A2).
-- [ ] `GET /api/admin/audit/export` → `CrossTenantAuditController::export` (réutilise
+- [x] `GET /api/admin/audit/export` → `CrossTenantAuditController::export` (réutilise
       `ActivityLogExporter` en portée plateforme, lien signé) ; `filter[sensitive]=1` sur l'index et
       l'export, sur une liste de `log_name` nommée en constante ; l'export lui-même est journalisé.
-- [ ] Front : préréglage « Gestes sensibles » et export sur l'audit de la console.
-- [ ] Tests : `PersonalDataAccessLogTest`, `CrossTenantAuditExportTest`.
+- [x] Front : préréglage « Gestes sensibles » et export sur l'audit de la console.
+- [x] Tests : `PersonalDataAccessLogTest`, `CrossTenantAuditExportTest`.
 
 ### G. Registre des demandes de droits
 
-- [ ] Migration `create_privacy_requests_table` (Contrat de données ; index nommés sur
+- [x] Migration `create_privacy_requests_table` (Contrat de données ; index nommés sur
       `(status, due_at)` et `user_id`) ; modèle `PrivacyRequest` (`Auditable`, journal `Privacy`) ;
       enums `PrivacyRequestType` (`access`, `rectification`, `opposition`, `erasure`, `portability`),
       `PrivacyRequestChannel`, `PrivacyRequestStatus` (`received`, `in_progress`, `answered`,
       `rejected`, `withdrawn`) ; `due_at = received_at + config('privacy.rights_request_deadline_days')`.
-- [ ] Alimentation automatique par observers : `DataExport` créé → `portability` ; `AccountDeletionRequest`
+- [x] Alimentation automatique par observers : `DataExport` créé → `portability` ; `AccountDeletionRequest`
       créée → `erasure`, et sa **suppression** (annulation) passe l'entrée à `withdrawn` sans l'effacer.
-- [ ] `Admin\PrivacyRequestController` (`index`, `store`, `update`, `export` CSV) +
+- [x] `Admin\PrivacyRequestController` (`index`, `store`, `update`, `export` CSV) +
       `StorePrivacyRequestRequest`, `UpdatePrivacyRequestRequest` + `PrivacyRequestPolicy` (super-admin
       seul) ; dépôt de la preuve de réponse par média `proof` (mêmes `mimes` qu'en B).
-- [ ] Front : page « Demandes de droits » de la console.
+- [x] Front : page « Demandes de droits » de la console.
 - [ ] `docs/models-spec.md` et `docs/features.md` mis à jour après fusion (`/sync-specs`).
-- [ ] Tests : `PrivacyRequestRegistryTest`.
+- [x] Tests : `PrivacyRequestRegistryTest`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — En base, `owner_profiles.rib` d'un profil créé par la factory ne contient pas la valeur
+- [x] **AC1** — En base, `owner_profiles.rib` d'un profil créé par la factory ne contient pas la valeur
       saisie (lecture SQL brute) ; le modèle la relit intacte. Une valeur de 34 caractères s'enregistre.
-- [ ] **AC2** — `GET /api/owners` (agent, puis admin) ne contient ni `rib`, ni `tax_id`, ni
+- [x] **AC2** — `GET /api/owners` (agent, puis admin) ne contient ni `rib`, ni `tax_id`, ni
       `id_document_number` en clair ; `fields[owner_profiles]=rib,tax_id` est refusé (400, champ non
       autorisé) au lieu de les rendre ; la réponse contient `rib_masked` égal au masque attendu pour une
       valeur fixée. Rouge sur le code actuel ; rouge à nouveau si l'on retire la Resource ou le `$hidden`.
-- [ ] **AC3** — `GET /api/owners/{id}/sensitive` : 200 pour l'admin de l'agence (valeur complète, une
+- [x] **AC3** — `GET /api/owners/{id}/sensitive` : 200 pour l'admin de l'agence (valeur complète, une
       entrée `personal_data_viewed` créée) ; 403 pour un agent de la même agence ; 403 pour l'admin d'une
       autre agence. Ablation : retirer la policy → rouge.
-- [ ] **AC4** — L'archive produite par `DataExportBuilder` pour un bailleur contient son RIB complet.
-- [ ] **AC4b** — `AgencyUpgradeRequestEncryptionTest` : en base, `agency_upgrade_requests.rib_pro` et
+- [x] **AC4** — L'archive produite par `DataExportBuilder` pour un bailleur contient son RIB complet.
+- [x] **AC4b** — `AgencyUpgradeRequestEncryptionTest` : en base, `agency_upgrade_requests.rib_pro` et
       `ninea` d'une demande soumise par `POST /api/agencies/{agency}/upgrade-requests` ne contiennent pas
       les valeurs témoins (lecture SQL brute) ; le modèle les relit intactes ; un RIB de 60 caractères
       s'enregistre. Rouge sur le code actuel ; rouge à nouveau si l'on retire le cast.
-- [ ] **AC4c** — Après approbation d'une demande dont le RIB pro est un témoin : `agencies.metadata`
+- [x] **AC4c** — Après approbation d'une demande dont le RIB pro est un témoin : `agencies.metadata`
       (lecture SQL brute) ne contient pas le témoin, et `GET /api/agencies/{agency}` appelé par un
       bailleur, un agent puis l'admin de l'agence ne le contient nulle part dans le corps. Une agence dont
       `metadata.legal_info.rib_pro` préexiste ne le porte plus après la migration. Rouge sur le code
       actuel ; rouge à nouveau si `rib_pro` revient dans les champs recopiés par le flip.
-- [ ] **AC5** — Un `.html`, un `.svg` et un fichier vide sont refusés (422) sur chacune des quatre
+- [x] **AC5** — Un `.html`, un `.svg` et un fichier vide sont refusés (422) sur chacune des quatre
       routes d'upload KYC ; un `.heic` et un `.pdf` sont acceptés. Rouge sur le code actuel pour les
       trois routes `me/*`.
-- [ ] **AC5b** — `DocumentUploadMimeTest` : un `.html`, un `.svg` et un fichier vide sont refusés (422,
+- [x] **AC5b** — `DocumentUploadMimeTest` : un `.html`, un `.svg` et un fichier vide sont refusés (422,
       erreur sur `file`) sur `POST /api/documents` et `POST /api/documents/{document}/versions` ; un `.pdf`,
       un `.docx` et un `.heic` sont acceptés (201). Rouge sur le code actuel pour les deux routes ; rouge à
       nouveau si l'on retire `mimes`.
-- [ ] **AC6** — Un échec forcé de `PropertyController::store` (contrainte violée) : **toutes** les entrées
+- [x] **AC6** — Un échec forcé de `PropertyController::store` (contrainte violée) : **toutes** les entrées
       de log émises pendant la requête (écouteur `MessageLogged` ; message + contexte, chaque `Throwable`
       rendu par `(string) $e`) ne contiennent **aucune** valeur saisie (titre et adresse témoins) ;
       l'entrée du `catch` contient `payload_keys`. Rouge sur le code actuel (payload **et** rapport du
       framework) ; rouge à nouveau si l'on remet `getMessage()` dans le `catch`.
-- [ ] **AC6b** — `SafeExceptionLoggingTest::test_le_rapporteur_ne_journalise_aucun_binding` : une
+- [x] **AC6b** — `SafeExceptionLoggingTest::test_le_rapporteur_ne_journalise_aucun_binding` : une
       insertion qui viole une contrainte d'unicité avec une valeur témoin (dans un point de sauvegarde),
       puis `report($e)` : aucune entrée de log ne contient le témoin (ni le `DETAIL` PostgreSQL) ; une
       entrée `query_exception` porte `sqlstate = 23505` et un `sql` à placeholders `?`. Rouge sur le code
       actuel ; rouge à nouveau si l'on retire le `->stop()` (le rapport par défaut réécrit le message).
-- [ ] **AC6b-bis** — `SafeExceptionLoggingTest::test_aucun_message_hors_sql` : `SafeExceptionContext::of()`
+- [x] **AC6b-bis** — `SafeExceptionLoggingTest::test_aucun_message_hors_sql` : `SafeExceptionContext::of()`
       d'une `Symfony\Component\Mailer\Exception\TransportException` dont le message porte une adresse
       témoin rend un tableau sans clé `message` et dont aucune valeur ne contient le témoin. Rouge si
       l'on remet la branche `message` pour les exceptions non SQL.
-- [ ] **AC6c** — Même assertion (aucun témoin dans aucune entrée de log ni dans `errors`) pour une
+- [x] **AC6c** — Même assertion (aucun témoin dans aucune entrée de log ni dans `errors`) pour une
       `QueryException` témoin levée dans `AgencyKindFlipService::flip` (via
       `FlipAgencyKindOnUpgradeApproved`), à l'expiration d'une réservation (`BookingExpirationService`,
       écrivain d'événement `updating` qui lève) et passée à `ExpirePendingBookingsJob::failed`. Rouge sur
       le code actuel pour les trois.
-- [ ] **AC7** — Un upload `director_id` sans `expires_at` ou avec une date passée → 422. Après
+- [x] **AC7** — Un upload `director_id` sans `expires_at` ou avec une date passée → 422. Après
       vérification, `expires_at` du dossier vaut l'échéance de la pièce la plus récente.
-- [ ] **AC8** — `kyc:expire-dossiers` (horloge figée) : à J-30 puis J-7, une notification par admin,
+- [x] **AC8** — `kyc:expire-dossiers` (horloge figée) : à J-30 puis J-7, une notification par admin,
       jamais deux fois ; le jour d'échéance, dossier `pending`, `is_verified = false`, statut de l'agence
       inchangé, activité `kyc_expired`.
-- [ ] **AC9** — `SharedLegalIdentifierTest` : l'agence A a une demande `approved` de NINEA `00123452g3`
+- [x] **AC9** — `SharedLegalIdentifierTest` : l'agence A a une demande `approved` de NINEA `00123452g3`
       et de RIB `SN0123456789` ; l'agence B soumet `0012345 2G3` et `sn 0123 4567 89`. La demande de B,
       lue par le super-admin, porte `shared_identifiers.ninea = [A]` et `shared_identifiers.rib_pro = [A]` ;
       lue par l'admin de B, elle ne porte pas la clé. Une agence C au NINEA différent d'un caractère ne
       porte aucun signal. Un NINEA `ABC` est **accepté** (201) : aucun contrôle de forme (D-68). Rouge
       sur le code actuel (clé absente).
-- [ ] **AC9b** — Un membre de l'agence à qui un rôle personnalisé donne `agency.update_kyc` dépose une
+- [x] **AC9b** — Un membre de l'agence à qui un rôle personnalisé donne `agency.update_kyc` dépose une
       pièce (201) ; un admin dont le rôle la retire reçoit 403. Ablation : revenir à `isAgencyAdminAt`
       → rouge.
-- [ ] **AC10** — L'admin 1 de l'agence A voit l'activité causée par l'admin 2 de A (qui n'a **que** un
+- [x] **AC10** — L'admin 1 de l'agence A voit l'activité causée par l'admin 2 de A (qui n'a **que** un
       `AgencyAdminProfile`, créé sans le pont `agency_id`). Rouge sur le code actuel.
-- [ ] **AC11** — L'admin de A voit une activité système (`causer` nul) sur un sujet de A.
-- [ ] **AC12** — Un bailleur présent chez A et B cause une activité sur un sujet de B : l'admin de A ne
+- [x] **AC11** — L'admin de A voit une activité système (`causer` nul) sur un sujet de A.
+- [x] **AC12** — Un bailleur présent chez A et B cause une activité sur un sujet de B : l'admin de A ne
       la voit **ni** dans la liste, **ni** dans l'export ; l'admin de B la voit. Rouge sur le code
       actuel ; rouge à nouveau si le filtre revient sur l'acteur.
-- [ ] **AC12b** — Un admin de A **et** de B (deux `AgencyAdminProfile`), profil actif A, lance l'export
+- [x] **AC12b** — Un admin de A **et** de B (deux `AgencyAdminProfile`), profil actif A, lance l'export
       de l'audit : le fichier produit par le job contient les entrées de A (au moins une, valeur témoin
       attendue) et aucune de B. Rouge sur le code actuel (fichier vide : `request()` nul dans le job).
-- [ ] **AC13** — `GET /api/activity-log/payout/{id}` et `/api/audit-log/payout/{id}` d'un reversement de
+- [x] **AC13** — `GET /api/activity-log/payout/{id}` et `/api/audit-log/payout/{id}` d'un reversement de
       B, appelé par l'admin de A → aucune entrée ; le même appel par l'admin de B rend les entrées du
       reversement, et aucune d'un `PlatformPayout` de même identifiant. Rouge sur le code actuel.
-- [ ] **AC13b** — Une activité sur un sujet de A dont `properties` porte `rib`, `iban`, `tax_id` et
+- [x] **AC13b** — Une activité sur un sujet de A dont `properties` porte `rib`, `iban`, `tax_id` et
       `ninea` témoins : ni la liste de l'audit d'agence (admin de A), ni l'audit plateforme, ni leurs
       exports ne contiennent un témoin ; les clés restent, valeur `[REDACTED]`. Rouge sur le code actuel
       (audit d'agence non expurgé, liste plateforme sans ces clés).
-- [ ] **AC14** — Après la migration de rattrapage, une activité préexistante sur un `LeasePayment` de A
+- [x] **AC14** — Après la migration de rattrapage, une activité préexistante sur un `LeasePayment` de A
       porte `agency_id = A` ; une activité sur un `User` porte `null`.
-- [ ] **AC15** — Remplacer les capacités d'un rôle crée `role_capabilities_changed` avec `added` et
+- [x] **AC15** — Remplacer les capacités d'un rôle crée `role_capabilities_changed` avec `added` et
       `removed` exacts, et notifie les autres admins de l'agence (pas l'auteur) ; une entrée
       `data_exported` d'entité `customers` notifie de même. Modifier le RIB d'un
       bailleur ne laisse aucune valeur de RIB dans `activity_log` (recherche de la valeur témoin dans
       toute la ligne). Changer le `commission_rate` de l'agence écrit une entrée `updated` avec l'ancienne
       et la nouvelle valeur ; changer les `credentials` d'une `Integration` écrit `credentials_changed:
       true` et aucune valeur de secret. Rouge sur le code actuel (aucune entrée).
-- [ ] **AC16** — Ouvrir le détail d'un utilisateur, ses sessions, un dossier KYC et une pièce KYC depuis
+- [x] **AC16** — Ouvrir le détail d'un utilisateur, ses sessions, un dossier KYC et une pièce KYC depuis
       la console écrit chacun une entrée `personal_data_viewed` ; deux ouvertures en 15 min, une seule.
-- [ ] **AC17** — `GET /api/admin/audit/export` rend un lien signé ; le fichier respecte les filtres et
+- [x] **AC17** — `GET /api/admin/audit/export` rend un lien signé ; le fichier respecte les filtres et
       `filter[sensitive]=1` ; aucune valeur expurgée n'y figure ; l'export est journalisé. 403 pour un
       admin d'agence.
-- [ ] **AC18** — Une demande d'export ou de suppression par un utilisateur crée une entrée du registre
+- [x] **AC18** — Une demande d'export ou de suppression par un utilisateur crée une entrée du registre
       avec `due_at` attendu ; annuler la suppression passe l'entrée à `withdrawn` sans la supprimer ; une
       demande saisie à la main, puis répondue avec preuve, apparaît dans l'export CSV. 403 pour tout
       non-super-admin.
-- [ ] **AC18b** — Front : le journal d'audit de l'agence propose un choix de membre qui envoie
+- [x] **AC18b** — Front : le journal d'audit de l'agence propose un choix de membre qui envoie
       `filter[causer_id]` ; une ligne sans acteur se lit « Système » dans les trois langues (test de
       composant). Rouge sur le code actuel.
-- [ ] **AC19** — `./vendor/bin/pint` propre ; `npm run lint` et `npx tsc --noEmit` propres ; tests des
+- [x] **AC19** — `./vendor/bin/pint` propre ; `npm run lint` et `npx tsc --noEmit` propres ; tests des
       classes touchées verts ; `php artisan migrate:fresh --seed` passe.
+      *(2026-10-08 : Pint, lint, `tsc` propres ; classes touchées vertes (556 + 149 + 364 après la
+      fusion de 592) ; toutes les gardes racine vertes. `migrate:fresh --seed` sur base jetable : les
+      135+ migrations passent, dont les six de ce ticket, mais le seeder `YearOfActivitySeeder` a été
+      coupé à 520 s sous une charge de 33-43 sur 8 cœurs — **à lancer par la session, machine au
+      repos**, avec la suite entière.)*
+      *(2026-10-08, 13:40, mesuré par la session sur la tête `1809acd8` : `php artisan migrate:fresh
+      --seed --force` sur une base jetable `takussan_ac19_601` (UTF8, locale C, port 5433), pilotes
+      neutres (`SCOUT_DRIVER=null`, SMS et WhatsApp en `log`, `MAIL_MAILER=log`,
+      `QUEUE_CONNECTION=database`, dompdf, `SEED_DOWNLOAD_MEDIA=false`) → **exit 0 en 259 s**, dont
+      `YearOfActivitySeeder` en 246 s. Toutes les migrations et tous les seeders passent, dont
+      `ActivityLogBackfillSeeder`, ainsi que le contrôle de cohérence référentielle. Charge au départ
+      15 / 26 / 22 sur 8 cœurs. Base supprimée ensuite.)*
 
 ## Hors périmètre
 
@@ -598,4 +616,318 @@ Et autour :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure sur `dev` (`f1220c3c`, 2026-10-08)
+
+- A : les prémisses tiennent (colonnes `varchar` en clair, `$queryFields`/`requestSearchFields`,
+  `GET /api/owners` brut). `OwnerProfilePolicy::viewAny` lit toujours `isAgencyAdminAt || isAgentAt`.
+  Le masqueur `BankStatementController::maskIban` existe (format `SN12 **** **34`). `/api/users?include=ownerProfiles`
+  et tout `toArray()` d'un profil (`MeProfiles`, `Admin/UserDetail`, `AgencyDetail`) sont fermés par le
+  même `$hidden`, pas un par un.
+- 594 (non fusionné) garde `rib_pro` dans `LEGAL_FIELDS` et déplace `rc`/`ninea`/`company_legal_name`/
+  `address_fiscale` vers des colonnes ; son `PayoutMethod::mask()` = `'•••• '.tail(4)` après retrait
+  des blancs, soit exactement `Masking::tail()`.
+
+### A — données sensibles du bailleur (commit `feat(api): chiffrer le RIB…`)
+
+- `Masking::iban()` garde le code pays et les 2 derniers caractères (`SN•• •••• ••89`) : le relevé
+  bancaire, qui gardait 4 caractères en tête (`SN12 ****`), en montre désormais moins — écart voulu.
+- `GET /api/owners` : les colonnes sensibles ne sont plus demandables (`fields[]` → 400) mais le
+  contrôleur les ajoute au `select` pour que la Resource calcule leurs masques ; sans `fields[]`,
+  `select *` les charge déjà.
+- `viewSensitive` exige que le profil actif soit dans l'agence du profil (principe n° 2), pas
+  seulement un `AgencyAdminProfile` quelque part.
+- Tests : `OwnerProfileSensitiveDataTest` 7/7 (+ `OwnerProfileListingTest` 5/5, comptabilité et export
+  74/74). Ablations (`scratchpad/t601/ablations.log`) : `$hidden` retiré → 2 rouges ; Resource
+  retirée → rouge ; policy à `true` → rouge ; cast retiré → 2 rouges ; `makeVisible` retiré → rouge.
+
+### A2 — identifiants légaux de la demande de passage
+
+- Migration `2026_10_08_601200` : `ninea`/`rib_pro` en `text` chiffré, puis `metadata #- '{legal_info,rib_pro}'`
+  (le `?` jsonb est évité : PDO le prend pour un paramètre). `down()` : déchiffre, `string`, recopie
+  `rib_pro` de la dernière demande `approved` (aller-retour testé).
+- `AgencyKindFlipService::LEGAL_FIELDS` perd `rib_pro` ; `AgencyResource` rend `metadata` sans
+  `legal_info.rib_pro` (`Arr::except`). 594 garde `rib_pro` dans sa liste : le second à fusionner le retire.
+- Tests : `AgencyUpgradeRequestEncryptionTest` 5/5 (+ `AgencyKindFlip`/`Submission`/`UpgradeRequest` 29/29).
+  Ablations : cast retiré → 2 rouges ; `rib_pro` remis au flip → rouge ; `Arr::except` retiré → rouge ;
+  journalisation du `show` retirée → rouge.
+
+### B — pièces, documents et journaux
+
+- Les listes vivent dans `App\Support\Uploads\AcceptedUploads` (`kyc()`, `document()`), lues par les six
+  requêtes. `min:1` (Ko) refuse le fichier vide, mais aussi une image factice 10×10 : trois tests
+  d'onboarding passent désormais `->size(200)` à `UploadedFile::fake()->image()`.
+- `failed_jobs.exception` (contrainte 2, fuite relevée par la vague) : tranché par l'ADR-0044 §2 —
+  décorateur `SanitizingFailedJobProvider` de `queue.failer`, qui écrit la forme sûre ; le `payload`
+  reste (rejeu).
+- Raccords de 593 faits (`ParseBankStatementJob`, `CsvDriver`) ; `test_le_journal_ne_porte_aucune_valeur_du_releve`
+  rejoué, vert ; case de TCK-593 cochée.
+- Tests : `KycUploadMimeTest` 8/8, `DocumentUploadMimeTest` 2/2, `PropertyStoreFailureLogTest` 1/1
+  (contrainte `CHECK` posée dans la transaction du test : le `DETAIL` cite la ligne entière),
+  `SafeExceptionLoggingTest` 5/5 ; 15 classes d'upload existantes 230/230 ; réservations, flip,
+  comptabilité, prose 70/70. Ablations : `mimes` retirés (bailleur, dépôt, version) → rouges ;
+  `->stop()` retiré → 3 rouges ; `getMessage()` remis au `catch` → rouge ; branche `message` remise
+  hors SQL → 5 rouges ; décorateur retiré → rouge.
+
+
+### D — audit d'agence (back)
+
+- `App\Models\Activity` (déclaré dans `config/activitylog.php`) résout `agency_id` à la création par
+  `AuditAgencyResolver` ; `HasAuditAgency` posé sur `LeasePayment`, `BookingPayment`,
+  `BankStatementLine`, `KycDossier`, et aussi `MaintenanceRequest` (→ bien) et `CustomerNote` (→ fiche
+  client), deux enfants sans colonne `agency_id` relevés à la re-mesure. L'écouteur `DispatchAlerts`
+  passe sur la nouvelle classe (un événement de modèle se nomme par classe).
+- `AuditScope` est le seul périmètre de lecture (liste, historique d'un objet, export synchrone et job).
+  `indexByEntity` : classe exacte (`App\Models\<Studly>`, slug `[a-z0-9_-]`, classe non abstraite),
+  sinon 404. L'export reçoit l'agence du profil actif à la répartition.
+- `PropertyRedactor` : secrets par sous-chaîne (liste de TCK-144), identifiants par **segment**
+  (`rib`, `rib_pro`, mais ni `attributes` ni `distribution`).
+- Tests : `AgencyAuditScopeTest` 9/9, `ActivityLogAgencyBackfillTest` 2/2 ; classes d'audit existantes
+  (`ActivityLogEndpoint`, `ActivityLogExporter`, `AuditLog`, `ExportActivityLogPolicy`, `CrossTenantAudit`,
+  `AgencyModeration`, `SuperAdminInvitationLifecycle`) : 70/70 au total. Ablations : filtre remis sur
+  l'acteur → 7 rouges ; `LIKE` remis → rouge ; filtre d'agence retiré d'`indexByEntity` → rouge ;
+  `request()` relu dans le job → rouge ; agence non transmise au job → rouge ; expurgation retirée de
+  la liste → rouge, de l'export → rouge ; segments d'identifiants vidés → rouge ; enfant retiré du
+  rattrapage → rouge.
+
+### E — actes de gouvernance (back)
+
+- `Auditable` lit une constante `AUDIT_ONLY` : liste blanche quand elle existe, `fillable` sinon.
+  Posée sur `AgencyRole`, `Agency` (raccord 594 en commentaire : `ninea`, `rccm`,
+  `payout_approval_threshold`), `Integration`, `AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`.
+  `Integration::buildChanges` ajoute `credentials_changed: true` (création avec identifiants, ou
+  modification qui les touche, même seule) ; un appel ou une sonde (`last_used_at`, santé) n'écrit rien.
+- `AgencyRoleService` : `role_capabilities_changed` (`added` / `removed`, triés ; un remplacement
+  identique n'écrit rien), `role_created` (avec `clone_from` et les capacités copiées — le `created` du
+  modèle est désactivé, il dirait moins), `role_assigned` (`from_role_id`, `to_role_id`, nom ; le
+  `updated` du profil est tu pour ne pas doubler).
+- `GovernanceAlertService`, branché sur `Activity::created` : deux tables en constantes
+  (`EVENTS` : `role_capabilities_changed`, `data_exported` limité à `customers`,
+  `agency_payout_threshold_changed` — nom pris sur la branche 594, inerte avant sa fusion ;
+  `SUBJECT_EVENTS` : `AgencyAdminProfile` créé, `Integration` créée/modifiée/supprimée). Destinataires :
+  admins **actifs** de l'agence de la ligne, sauf l'auteur, dans leur langue ; cible `audit`
+  (`/admin/audit`, nouvelle entrée de `NotificationTarget::PATHS`).
+- **Écart assumé** : une écriture **sans auteur** (seeder, commande, migration, fixture) n'alerte
+  personne — un acte de gouvernance est le geste d'un membre. Mesuré : sans cette règle, six tests
+  existants (absences, notification de bien proposé, demande de passage) recevaient une alerte
+  `admin_added` née de leurs propres fixtures.
+- Effets de bord corrigés dans les tests : `NamespaceAccessGuardTest` reçoit une demande de droits
+  réelle (`{privacyRequest}` est lié avant la garde) ; `MediaDiskCollectionsTest` inscrit
+  `PrivacyRequest.proof` (privé) et date la pièce du dirigeant.
+- Tests : `GovernanceAuditTest` 5/5, `GovernanceAlertTest` 6/6 ; 201 classes liées (journal,
+  notifications, rôles, intégrations, profils) en trois lots : 820 + 451 + 465 verts après
+  correctifs (6 puis 2 rouges, tous expliqués ci-dessus). Ablations, toutes rouges : liste blanche →
+  `logFillable` ; `Auditable` retiré du bailleur ; retiré de l'agence ; drapeau `credentials_changed`
+  retiré ; `removed` inversé ; `created` du rôle réactivé ; `updated` du profil non tu ; auteur non
+  exclu ; admins inactifs non filtrés ; filtre CRM neutralisé ; agence de la ligne ignorée ; écouteur
+  retiré ; règle « sans auteur » retirée.
+
+### F — consultations et audit plateforme (back)
+
+- Appels `PersonalDataAccessLogger::record()` posés après les gardes : `Admin/UserDetailController`
+  (`show`, `sessions`, `activity` — ce dernier **après** la lecture, sinon la page montrait sa propre
+  trace et `UserDetailTest` comptait trois lignes au lieu de deux), `Admin/KycController` (`show`,
+  `agency`), `KycDocumentController` (un appel, coordination 546 ; sujet = le dossier, pour que la
+  trace porte l'agence ; deux pièces du même dossier dans la fenêtre comptent pour une).
+- **Step-up (raccord 589)** : `OwnerProfileController@sensitive` rejoint `ProtectedActions::STEP_UP`,
+  au même titre que la lecture des codes de secours — c'est une lecture de secret. Les autres routes
+  de 601 suivent le classement de 589 sans ajout : console (`/api/admin/*`) déjà sous 2FA, KYC
+  d'agence hors des familles protégées.
+- `GET /api/admin/audit/export` : mêmes filtres que l'index (QueryBuilder partagé), CSV écrit sur le
+  disque, lien signé d'une heure (route de téléchargement de l'export d'agence), plafond 50 000
+  lignes (`activity_log.export_too_large`), journalisé `export`/`audit_exported`.
+  `filter[sensitive]=1` lit `CrossTenantAuditController::SENSITIVE_LOG_NAMES`.
+- Tests : `PersonalDataAccessLogTest` 3/3, `CrossTenantAuditExportTest` 4/4, `OwnerProfileSensitiveDataTest`
+  7/7 (AC3 joué avec step-up : sans TOTP récent 403 `two_factor_step_up_required` et aucune trace ;
+  refus de policy `http.forbidden` pour l'agent et l'admin d'ailleurs, step-up fait), `Api/Admin/*`
+  et `KycDocumentAccessTest` 191/191. Ablations : trace du détail retirée → rouge ; du dossier (show)
+  → rouge ; du dossier (agence) → rouge ; de la pièce → rouge ; fenêtre de 15 min neutralisée →
+  rouge ; préréglage sensible vidé → 2 rouges ; expurgation de l'export retirée → rouge ; journal de
+  l'export retiré → rouge ; step-up retiré → rouge ; policy à `true` (step-up fait) → rouge.
+
+### C — KYC d'agence (back)
+
+- `kyc_dossiers.expires_at` (migration `2026_10_08_601500`, index `kyc_dossiers_status_expires_idx`).
+  L'échéance d'une pièce est une propriété du média, exigée pour `director_id` et postérieure à
+  aujourd'hui. `KycWorkflowService::expiryOf` prend la pièce **la plus récente** de chaque type, puis
+  la plus proche des échéances ; `verify` la pose et efface `expiry_reminders` / `expired_at`.
+- `kyc:expire-dossiers` (`KycExpiryService`, chaque jour à 06:00) : un passage relance au **jalon le
+  plus proche atteint** et le mémorise — un passage manqué à J-30 relance une fois à J-29, jamais deux
+  fois d'un coup ; seuls les admins **actifs** sont relancés (`kyc.expiring_soon`, préférence
+  `kyc_status_changed`). À l'échéance : `pending`, `metadata.expired_at`, activité `kyc_expired`
+  (rattachée à l'agence par D), `is_verified = false`, statut de l'agence inchangé.
+- `Agency/KycController::upload|submit` : `canActAt(Capability::AgencyUpdateKyc)` **sur l'agence du
+  profil actif** (comme l'ancienne garde) ; `show` reste à l'admin. `agency.update_kyc` quitte
+  `CapabilityEnforcementInventory::AWAITING`, `CLIQUET` 14 → 13 (raccord 594, qui l'abaisse aussi).
+- `SharedLegalIdentifierDetector` : forme normalisée sans format (blancs retirés, `mb_strtoupper`),
+  comparée en PHP aux demandes `pending`/`approved` des **autres** agences, mémorisée par requête
+  HTTP (une liste ne déchiffre qu'une fois). Exposé au seul super-admin sur la demande de passage et
+  sur le dossier KYC d'une agence. Aucun refus ; aucun contrôle de forme (`ABC` → 201).
+- Trouvé en passant par `DateInventoryByValueTest` : `OwnerProfileResource` (A) rendait ses instants
+  en `…000000Z` (ADR-0018) — réécrits par `iso()` ; inscrite au registre (`MODELES_EXPLICITES`), et
+  les deux `shared_identifiers` en `CLES_JAMAIS_ATTEINTES` (listes d'agences, aucune date).
+- Rattrapé après coup par les gardes racine (non rejouées au commit de C) : la règle de dépôt vit
+  dans `AgencyPolicy::updateKyc` (forme de `removeMember`, l'administrateur principal ne s'enferme
+  pas dehors) et non dans un helper du contrôleur (`check-controller-authorization`) ;
+  `document_expires_at` passe par `calendarDate()` (`check-resource-date-format`). Ablations : capacité
+  retirée de la policy → rouge ; profil actif à `true` → rouge ; `iso()` au lieu de `calendarDate()`
+  → rouge.
+- Les six codes de notification de C et E (`kyc.expiring_soon`, `governance.*`) : textes API et front
+  (`check-notification-codes` vert, 50 codes).
+- Tests : `KycDossierExpiryTest` 3/3, `AgencyKycCapabilityTest` 5/5, `SharedLegalIdentifierTest` 2/2 ;
+  KYC, demandes de passage, onboarding, notifications, `Privacy/*`, ressources : verts (287 puis 66).
+  Ablations : capacité retirée → rouge ; agence du profil actif à `true` → **vert** au premier jet
+  (le cas « autre agence » est fermé par `canActAt` seul) → test ajouté (admin de B agissant comme
+  agent de A) → rouge ; `required_if` retiré → rouge ; `after:today` retiré → rouge ; « pièce la plus
+  récente » retirée → rouge ; mémoire des relances retirée → rouge (deux fois) ; admins actifs non
+  filtrés → rouge ; `is_verified` conservé → rouge ; normalisation retirée → rouge ; exclusion de sa
+  propre agence retirée → rouge ; `when(super-admin)` à `true` → rouge ; signal du dossier coupé →
+  rouge. Le marquage des jalons plus lointains (« rattraper sans doubler ») était un **mutant
+  équivalent** (vert) : le jalon le plus proche seul suffit, le code a été simplifié.
+
+### Front (A, A2, C, D, F, G)
+
+- Carnet de propriétaires : masques `*_masked`, geste « Afficher » réservé à l'admin, appel par
+  `fetchOwnerSensitive` sous la garde 2FA de 589, jamais en cache React Query. `rib_pro` retiré de
+  `AgencyMetadata`.
+- KYC : `KycEcheance` (échéance de la PIÈCE, `document_expires_at`, distincte de l'`expires_at` du
+  lien signé ; bientôt / expirée), champ d'échéance obligatoire pour `director_id`,
+  `SharedIdentifiersNotice` sur la file et la demande de passage (super-admin).
+- `AuditTrail` : filtre « Membre » (`filter[causer_id]`), libellés des événements métier et des
+  nouveaux sujets, « Système » pour une ligne sans acteur (AC18b : 6 rouges avant, 23/23 après).
+- Console : préréglage « Gestes sensibles » et export signé sur l'audit ; page « Demandes de droits »
+  (`/super-admin/privacy-requests`, entrée de navigation). Le proxy `/api/super-admin` transmet
+  désormais le corps en octets (`arrayBuffer()`) : `text()` corrompait la preuve multipart.
+- Clés `notifications.codes.kyc.expiring_soon` et `governance.*` (fr/en/wo).
+- Écarts : `GET /agencies/{id}/members` ne rend que les profils agent et bailleur — un membre
+  seulement admin n'apparaît pas dans le filtre (le journal reste filtrable par sujet) ; le filtre
+  charge 100 membres sans pagination. Wolof écrit par l'agent, à relire.
+- Vérifié : `tsc --noEmit` 0, `npm run lint` 0, 9 fichiers de test ciblés 119/119 (dont
+  `promesses-de-delai`), `check-i18n-namespaces` et `check-notification-codes` verts. Ablations de
+  l'agent front, toutes rouges : corps en `text()`, garde 2FA d'« Afficher », échéance lue sur le
+  lien, `filter[sensitive]`, `sort=due_at`, `causer_id`.
+
+### G — registre des demandes de droits (back)
+
+- `privacy_requests` (migration `2026_10_08_601400`), `PrivacyRequest` (journal `Privacy`, liste
+  blanche sans nom, contact ni résumé), trois enums, `config/privacy.php` (30 jours, variable
+  `PRIVACY_RIGHTS_REQUEST_DEADLINE_DAYS`). `due_at` est **dérivé** à l'enregistrement, jamais saisi.
+- `PrivacyRegistryObserver` : export demandé **par son titulaire** → `portability` (un export lancé
+  par la plateforme répond à une demande déjà inscrite, il n'en ouvre pas une seconde) ; export prêt
+  → `answered`. Effacement → `erasure` ; exécution → `answered` ; annulation → `withdrawn`, saisi
+  sur `deleting` parce que la FK `nullOnDelete` efface le lien avant tout `deleted`.
+- `Admin\PrivacyRequestController` (`index` par échéance, `filter[overdue]`, `store`, `update` —
+  multipart par `_method=PATCH` pour la preuve —, `export` CSV journalisé). Une demande close ne se
+  rouvre pas (`privacy.request_closed`). `PrivacyRequestPolicy` refuse tout le monde hors
+  `Gate::before` (super-admin), en plus du middleware `super-admin`.
+- Tests : `PrivacyRequestRegistryTest` 6/6 ; suppression de compte, exports, `Privacy/*`, seeders 82/82.
+  Ablations : `deleting` retiré → rouge ; `created` d'effacement retiré → rouge ; `created` d'export
+  retiré → rouge ; filtre « lancé par la plateforme » neutralisé → rouge ; garde de réouverture
+  retirée → rouge ; `mimes` de la preuve retirés → rouge ; `logOnly` remplacé par `logFillable` →
+  rouge (nom du demandeur dans le journal) ; `due_at` non dérivé → rouge.
+
+### Corrections après verif-601, passe 1 (2026-10-08)
+
+- **M1** : `ninea` et `rib_pro` quittent les sparse fieldsets d'`AgencyUpgradeRequest` (400 s'ils sont
+  demandés). La Resource les **masque** partout, et seul le détail de la console les rend en clair, par
+  `withClearIdentifiers()`. Ce détail est tracé. Test : `test_hors_du_detail_les_identifiants_sortent_masques`,
+  qui couvre la liste console avec et sans `fields[]`, la liste de l'agence et la soumission.
+- **m1** : `PropertyRedactor` parcourt lui-même le tableau. Une clé sensible remplace sa valeur
+  entière, tableaux compris.
+- **m5** : le test d'expurgation vise le **sujet témoin** de l'historique d'un objet.
+  - Avant, `value('subject_id')` n'avait pas d'ordre. Depuis E, il pouvait donc viser la création de l'agence.
+  - Le test vérifie aussi que la ligne figure dans la réponse.
+- **m3** : `App\Support\Export\CsvCell` neutralise les formules dans `ExportWriter`, `ActivityLogExporter` et
+  `ExportActivityLogJob`. Un nombre est laissé tel quel, ce qui permet d'exporter `-1500`.
+  Tests : le registre, les deux exports du journal, le job et `CsvCellTest`.
+- **m4** : l'ADR-0044 §2 dit exactement ce qui est garanti : toute `QueryException`, les `catch` repris
+  et `failed_jobs`. Il nomme aussi les limites connues, qui relèvent d'un ticket de suite.
+- **Ablations** : toutes rouges.
+  - M1 : rendu en clair, `queryFields` remis, détail non révélé.
+  - m1 : retour à `array_walk_recursive`.
+  - m5 : expurgation retirée d'`indexByEntity`.
+  - m3 : `ExportWriter`, `csvContent`, le job, l'exception numérique, les déclencheurs.
+  - Deux mutations m3 étaient d'abord **vertes**, avant l'ajout de leurs tests : `csvContent` et le job.
+- Hors de ce passage : M2 (NINEA) attend l'arbitrage du porteur ; m2 part dans un ticket de suite.
+
+### M2 — arbitrage du porteur (2026-10-08)
+
+- **NINEA d'agence public** (mention légale, TCK-594) : rien ne change dans son flux. L'Objectif ne vise
+  plus que le RIB professionnel.
+- **Le second chemin était ouvert à une donnée antérieure.**
+  - `GET /api/owners?include=agency` rend l'agence par `toArray()`, sans passer par `AgencyResource`.
+  - Mesuré : une `metadata.legal_info.rib_pro` antérieure y sortait en clair. Le rouge a été mesuré sur l'agent, le premier rôle du test.
+  - Aucun écrivain ne la recrée : `AgencyUpdateRequest` n'accepte pas `metadata`, et le flip ne la
+    recopie plus. La donnée reste possible si une ligne échappe à la migration, ou après son `down()`.
+- **Défense** : `Agency::attributesToArray()` retire `legal_info.rib_pro`. Elle couvre tout
+  `include=agency` et toute sérialisation brute ; la base n'est pas réécrite.
+  - Test : `test_une_copie_anterieure_ne_passe_pas_par_l_agence_incluse`, pour l'agent et l'admin. Le
+    NINEA, lui, reste lu.
+  - Ablation : `Arr::forget` retiré → rouge.
+
+### Corrections après verif-601, passe 2 (2026-10-08)
+
+- **n1** : `PropertyRedactor` juge la clé en minuscules **et** en `Str::snake()`. Les deux formes sont
+  nécessaires : `Str::snake('RIB')` rend `r_i_b`. Ainsi `ownerRib`, `ribPro`, `taxId`, `bankIban` et
+  `idDocumentNumber` sont expurgés. Une chaîne qui commence par `{` ou `[` et se décode en JSON est
+  expurgée puis réencodée.
+  - Test : `PropertyRedactorTest`, 13 cas. Il couvre aussi la casse différente, l'imbrication, les
+    listes, les faux segments et une chaîne non JSON.
+- **n2** : `CsvCell::line` est appliqué aux deux branches XLSX, `ExportWriter::xlsx` et
+  `ExportActivityLogJob::generateContent`.
+  - Test : `XlsxExportFormulaTest`. La cellule A2 sort en type `s` ; `-1500`, en entier comme en
+    chaîne, reste en type `n`. Le job est testé par la même mesure.
+- **n3** : le Contrat de données s'aligne sur M1. Il n'y a pas de nouveau geste pour l'admin d'agence.
+- **Ablations** : toutes rouges.
+  - n1 : normalisation snake retirée (7 rouges) ; décodage JSON retiré.
+  - n2 : `ExportWriter::xlsx` ; branche XLSX du job.
+
+### Raccords TCK-594 (fusion de `4da78b10`, 2026-10-08)
+
+- **Liste blanche d'audit d'`Agency`** : `legal_name`, `ninea`, `rccm`, `legal_address` et
+  `default_tax_rate` y entrent. Le NINEA d'agence est public (décision du porteur). Le seuil
+  d'approbation n'y est pas : `PayoutApprovalThreshold` écrit lui-même `agency_payout_threshold_changed`,
+  avec l'ancienne et la nouvelle valeur. L'alerte de gouvernance se tire maintenant de ce **vrai**
+  écrivain, et non plus d'une écriture simulée.
+- **NINEA partagé** : `SharedLegalIdentifierDetector` compare aussi `agencies.ninea`. Pour l'agence
+  elle-même, la colonne fait foi quand elle est posée. Le RIB pro reste lu sur la demande : il n'existe
+  pas de colonne RIB d'agence.
+- **Masqueur** : `PayoutMethod::mask()` délègue à `Masking::tail()`, ce qu'annonçait son commentaire
+  « provisoire ». Un identifiant de quatre caractères ou moins ne se montre plus en entier.
+- **`AgencyKindFlipService`** : les quatre champs légaux vont aux colonnes de 594, et `rib_pro` n'est
+  toujours pas recopié. Le test A2 lit désormais `legal_name` et `ninea` dans leurs colonnes.
+- **Cliquet de `check-capability-readers`** : 10 → 9, puisque 601 branche `agency.update_kyc`.
+- **models-spec** : 594 garde les numéros 76 à 78, et `PrivacyRequest` devient le 79.
+- **Ablations** : toutes rouges.
+  - Retrait des colonnes de la liste blanche.
+  - `agencies.ninea` retiré des sources du détecteur, puis de l'agence elle-même.
+  - Code d'alerte du seuil retiré.
+
+### Raccord TCK-293 (fusion de `0e3c9027`, 2026-10-08)
+
+- **`Integration`** garde ses deux mécanismes : la liste blanche avec le drapeau `credentials_changed`
+  (601), et les hooks de jeton de webhook (293). Le jeton n'entre jamais au journal : ses deux colonnes
+  sont hors de la liste blanche, et la trace de 293 l'omet.
+- **Alerte** : régénérer l'URL secrète de webhook ne change que les colonnes du jeton. Aucune ligne
+  `updated` n'est donc écrite, et aucun admin n'était prévenu. `webhook_token_rotated`, l'événement
+  qu'écrit le contrôleur de 293, entre dans `GovernanceAlertService::EVENTS`, sous le même code
+  qu'une intégration modifiée.
+  - Test : `test_une_url_de_webhook_regeneree_avertit`.
+  - Ablation : la ligne retirée → rouge.
+
+### CI de #339 sur `34e7b5a4` : une requête de plus sur `agencies` dans la file KYC
+
+- **Rouge** : `KycWorkflowTest::test_kyc_queue_exposes_the_agency_name_without_a_query_per_row` comptait
+  2 requêtes sur `agencies` au lieu de 1. La cause a été mesurée par une sonde SQL : c'est le raccord 594
+  du détecteur, `select id, name, ninea from agencies where ninea is not null`. Il partait même sans
+  NINEA à comparer.
+- **Correctif à la racine** :
+  - Le détecteur ne lit `agencies.ninea` des autres agences que s'il a un NINEA à comparer.
+  - Le NINEA de colonne de l'agence elle-même est lu sur le sujet déjà chargé par la file
+    (`forAgency($id, $columnNinea)`), sans requête.
+  - Avec des NINEA, la file coûte une requête **par requête HTTP**, jamais une par ligne.
+- **Test** : `test_la_file_kyc_ne_fait_pas_une_requete_par_ligne_sur_les_agences`. Une file de trois
+  dossiers avec NINEA fait autant de requêtes sur `agencies` qu'une file d'un seul.
+- **Ablations**, toutes rouges :
+  - Une requête par ligne pour le NINEA propre.
+  - La requête des agences tirée avant le test du NINEA.
+  - Le NINEA de colonne non passé par la Resource.

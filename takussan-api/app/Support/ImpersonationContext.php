@@ -6,7 +6,7 @@ namespace App\Support;
  * TCK-600 (ADR-0055 §5) — la session d'impersonation de la REQUÊTE COURANTE, s'il y en a une.
  *
  * Liée par `EnforceImpersonationReadOnly` quand le jeton de la requête appartient à une session
- * ouverte ; lue par `Activity::creating`, qui pose `impersonator_id` sur toute activité écrite
+ * ouverte ; lue par `App\Models\Activity::creating`, qui pose `impersonator_id` sur toute activité écrite
  * pendant la session. Singleton de PORTÉE (`scoped`), vidé par le middleware en entrée et en sortie de requête.
  */
 final class ImpersonationContext

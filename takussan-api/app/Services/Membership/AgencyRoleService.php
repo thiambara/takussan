@@ -87,9 +87,23 @@ class AgencyRoleService
                 'is_clonable' => true,
             ]);
 
+            $capabilities = [];
             if ($source !== null) {
-                $this->replaceCapabilities($role, $source->capabilityEnums()->all());
+                $capabilities = $this->syncCapabilities($role, $source->capabilityEnums()->all())['added'];
             }
+
+            // TCK-601 — la création s'écrit ici, avec ce que le clone a copié : le `created` du
+            // modèle est désactivé (`AgencyRole::$doNotRecordEvents`), il dirait moins.
+            activity(class_basename(AgencyRole::class))
+                ->performedOn($role)
+                ->event('role_created')
+                ->withProperties([
+                    'name' => $role->name,
+                    'base_profile_type' => $type->value,
+                    'clone_from' => $source?->id,
+                    'capabilities' => $capabilities,
+                ])
+                ->log('role_created');
 
             return $role->fresh();
         });
@@ -102,6 +116,27 @@ class AgencyRoleService
      * @param  array<int,Capability>  $capabilities
      */
     public function replaceCapabilities(AgencyRole $role, array $capabilities): AgencyRole
+    {
+        $diff = $this->syncCapabilities($role, $capabilities);
+
+        // TCK-601 — les lignes de capacités changent sans événement de modèle : le journal s'écrit
+        // ici, avec la différence exacte. Un remplacement identique n'écrit rien.
+        if ($diff['added'] !== [] || $diff['removed'] !== []) {
+            activity(class_basename(AgencyRole::class))
+                ->performedOn($role)
+                ->event('role_capabilities_changed')
+                ->withProperties($diff)
+                ->log('role_capabilities_changed');
+        }
+
+        return $role->fresh(['capabilities']);
+    }
+
+    /**
+     * @param  array<int,Capability>  $capabilities
+     * @return array{added: list<string>, removed: list<string>}
+     */
+    private function syncCapabilities(AgencyRole $role, array $capabilities): array
     {
         // Backstop de l'invariant « ces capacités restent à la plateforme ».
         // `SyncCapabilitiesRequest` le refuse déjà en 422 sur le chemin HTTP ;
@@ -125,6 +160,8 @@ class AgencyRoleService
             ->map(static fn (Capability $c): string => $c->value)
             ->unique()
             ->values();
+        $before = AgencyRoleCapability::query()->where('agency_role_id', $role->id)->pluck('capability')
+            ->map(static fn ($c): string => $c instanceof Capability ? $c->value : (string) $c);
 
         DB::transaction(function () use ($role, $values): void {
             AgencyRoleCapability::query()->where('agency_role_id', $role->id)->delete();
@@ -148,7 +185,10 @@ class AgencyRoleService
         // pivot — donc on purge explicitement.
         $this->cache->forget((int) $role->id);
 
-        return $role->fresh(['capabilities']);
+        return [
+            'added' => $values->diff($before)->sort()->values()->all(),
+            'removed' => $before->diff($values)->sort()->values()->all(),
+        ];
     }
 
     /**
@@ -219,8 +259,24 @@ class AgencyRoleService
 
         $this->assertNotLastAdminLosingControl($profile, $role);
 
+        $previous = $profile->agency_role_id;
         $profile->agency_role_id = $role->id;
-        $profile->save();
+        // TCK-601 — l'affectation s'écrit `role_assigned`, avec les deux rôles : le `updated` du
+        // profil dirait la même chose, moins bien, et deux fois.
+        // (Une collaboration de prestataire n'est pas journalisée par modèle : `method_exists`.)
+        $audited = method_exists($profile, 'disableLogging');
+        $audited ? $profile->disableLogging()->save() : $profile->save();
+        if ($audited) {
+            $profile->enableLogging();
+        }
+
+        if ((int) $previous !== (int) $role->id) {
+            activity(class_basename($profile))
+                ->performedOn($profile)
+                ->event('role_assigned')
+                ->withProperties(['from_role_id' => $previous, 'to_role_id' => $role->id, 'role' => $role->name])
+                ->log('role_assigned');
+        }
 
         return $profile->fresh(['agencyRole']);
     }

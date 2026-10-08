@@ -12,6 +12,7 @@ use App\Models\Enums\DataExportStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Message;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
@@ -82,7 +83,9 @@ class DataExportBuilder
             'profile.json' => [
                 'user' => $user->makeHidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])->toArray(),
                 'profiles' => [
-                    'owners' => $user->ownerProfiles()->get()->toArray(),
+                    // TCK-601 — le droit d'accès reste entier : le titulaire reçoit ses identifiants
+                    // sensibles EN CLAIR, que `$hidden` retire de toute autre sérialisation.
+                    'owners' => $user->ownerProfiles()->get()->each->makeVisible(OwnerProfile::SENSITIVE)->toArray(),
                     'agents' => $user->agentProfiles()->get()->toArray(),
                     'agency_admins' => $user->agencyAdminProfiles()->get()->toArray(),
                     'service_provider' => $user->serviceProviderProfile()->first()?->toArray(),

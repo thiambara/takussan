@@ -5,7 +5,9 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\KycDossier;
+use App\Services\Kyc\SharedLegalIdentifierDetector;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 
 class KycDossierResource extends BaseResource
@@ -59,6 +61,14 @@ class KycDossierResource extends BaseResource
             'reviewed_at' => $this->iso($dossier->reviewed_at),
             'reviewed_by' => $dossier->reviewed_by,
             'rejection_reason' => $dossier->rejection_reason,
+            'expires_at' => $this->iso($dossier->expires_at),
+            'shared_identifiers' => $this->when(
+                $request->user()?->isSuperAdmin() === true && $dossier->subject_type === Agency::class && $dossier->subject_id !== null,
+                fn () => SharedLegalIdentifierDetector::forRequestCycle($request)->forAgency(
+                    (int) $dossier->subject_id,
+                    $dossier->subject instanceof Agency ? $dossier->subject->ninea : null,
+                ),
+            ),
             'metadata' => $dossier->metadata ?? [],
             'documents' => $dossier->getMedia('documents')->map(fn ($media) => [
                 'id' => $media->id,
@@ -66,6 +76,11 @@ class KycDossierResource extends BaseResource
                 'mime_type' => $media->mime_type,
                 'size' => (int) $media->size,
                 'document_type' => $media->getCustomProperty('document_type'),
+                // TCK-601 (C) — l'échéance de la PIÈCE (`Y-m-d`) ; `expires_at` ci-dessous est celle
+                // du lien signé, depuis TCK-285.
+                'document_expires_at' => $this->calendarDate(
+                    is_string($date = $media->getCustomProperty('expires_at')) && $date !== '' ? Carbon::parse($date) : null,
+                ),
                 'signed_url' => URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]),
                 'expires_at' => $this->iso(now()->addMinutes(15)),
             ])->values()->all(),

@@ -225,8 +225,11 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 77. [ServiceProviderBill](#77-serviceproviderbill-) 🆕
 78. [PayoutMethodVerification](#78-payoutmethodverification-) 🆕
 
+#### Données personnelles (TCK-601)
+79. [PrivacyRequest](#79-privacyrequest-) ✅
+
 #### Console plateforme
-79. [ImpersonationSession](#79-impersonationsession-) 🆕
+80. [ImpersonationSession](#80-impersonationsession-) 🆕
 
 ### Enums
 
@@ -860,6 +863,17 @@ les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **au
 | `changes` | `properties` (json : `old`, `attributes`) |
 | `ip_address` | à stocker dans `properties` via `tapActivity()` |
 | `user_agent` | à stocker dans `properties` via `tapActivity()` |
+
+**`App\Models\Activity` (TCK-601, ADR-0044 §3)** — étend le modèle spatie, déclaré dans
+`config/activitylog.php` (`activity_model`). Colonne ajoutée à `activity_log` :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---|---|---|---|---|
+| agency_id | FK agencies (`activity_log_agency_fk`, `nullOnDelete`) | oui | null | Agence du **sujet**, résolue à la création par `AuditAgencyResolver` (explicite → `HasAuditAgency::auditAgencyId()` → colonne `agency_id` réelle du sujet → sujet `Agency` → sans sujet : profil actif). Jamais l'acteur. `null` = visible du seul super-admin |
+
+Index : `activity_log_agency_created_idx (agency_id, created_at)`, `activity_log_created_idx (created_at)`.
+Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <agence du profil actif>`
+(`AuditScope`) ; `properties` passe par `PropertyRedactor` à la lecture.
 
 ---
 
@@ -1872,12 +1886,17 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | reviewed_at | datetime | oui | null | Décision rendue |
 | reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
 | rejection_reason | text | oui | null | Motif si `status=rejected` |
-| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) ; `expiry_reminders` (jalons de relance déjà envoyés, J-30 / J-7) et `expired_at` (TCK-601) |
+| expires_at | timestamp | oui | null | Échéance du dossier vérifié : la plus proche des échéances des pièces les plus récentes de chaque type (pièce du dirigeant). Posée par la vérification ; `kyc:expire-dossiers` remet le dossier à `pending` ce jour-là et retire `is_verified` à l'agence (TCK-601) |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
 - `(subject_type, subject_id)` — unique : un seul dossier actif par sujet
 - `(status)` — file de modération
+- `(status, expires_at)` — `kyc_dossiers_status_expires_idx`, la passe quotidienne d'expiration (TCK-601)
+
+L'échéance d'une pièce est une propriété du média (`custom_properties.expires_at`, `YYYY-MM-DD`),
+exigée pour `director_id`.
 
 **Traits :**
 - `LogsActivity` (spatie) — chaque transition de statut est journalisée
@@ -3157,7 +3176,44 @@ reversement (`imputed_payout_id`).
 
 ---
 
-### 79. ImpersonationSession 🆕
+### 79. PrivacyRequest ✅
+
+**Table :** `privacy_requests`
+**Description :** Registre des demandes de droits (TCK-601,
+[ADR-0044 §4](adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md)) :
+accès, rectification, opposition, effacement, portabilité, suivies par le super-admin jusqu'à leur
+échéance. Alimenté à la main (demande reçue par courriel ou courrier) et par l'application : un
+`DataExport` demandé par son titulaire ouvre une `portability`, une `AccountDeletionRequest` une
+`erasure` ; l'annulation de l'effacement passe l'entrée `withdrawn` sans l'effacer. Journal `Privacy`
+en liste blanche (ni nom, ni contact, ni résumé). Preuve de réponse : média privé `proof`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | ✓ | null | Demandeur s'il a un compte (`privacy_requests_user_fk`, `nullOnDelete`) |
+| requester_name | string | | | Nom du demandeur |
+| requester_contact | string | ✓ | null | Courriel, téléphone ou adresse |
+| type | PrivacyRequestType (string 20) | | | access, rectification, opposition, erasure, portability |
+| channel | PrivacyRequestChannel (string 20) | | | in_app, email, postal, phone, in_person |
+| received_at | timestamp | | | Réception |
+| due_at | timestamp | | | `received_at + config('privacy.rights_request_deadline_days')` (30 j, valeur de travail), dérivé à l'enregistrement |
+| status | PrivacyRequestStatus (string 20) | | 'received' | received, in_progress, answered, rejected, withdrawn ; une demande close ne se rouvre pas |
+| answered_at | timestamp | ✓ | null | Posé au passage `answered` |
+| response_summary | text | ✓ | null | Résumé de la réponse |
+| handled_by | FK users | ✓ | null | Dernier super-admin à l'avoir traitée (`privacy_requests_handled_by_fk`, `nullOnDelete`) |
+| data_export_id | FK data_exports | ✓ | null | `privacy_requests_data_export_fk`, `nullOnDelete` |
+| account_deletion_request_id | FK account_deletion_requests | ✓ | null | `privacy_requests_deletion_fk`, `nullOnDelete` |
+| created_at / updated_at | timestamp | | | |
+
+**Index :** `(status, due_at)` (`privacy_requests_status_due_idx`), `user_id` (`privacy_requests_user_idx`)
+
+**Relations :** `user()`, `handler()` → belongsTo User
+
+**Scopes :** `overdue()` — statut ouvert (`received`, `in_progress`) et `due_at` passé
+
+---
+
+### 80. ImpersonationSession 🆕
 
 **Table :** `impersonation_sessions`
 **Description :** Une session d'impersonation (TCK-600,
@@ -3195,7 +3251,7 @@ et notifie la cible (`impersonation.ended`) une seule fois.
 **Scopes :** `open()` — `ended_at IS NULL AND expires_at > now()`
 
 **Attribution :** `activity_log.impersonator_id` (FK `users`, `activity_log_impersonator_fk`,
-`nullOnDelete`, index `activity_log_impersonator_idx`) est posé par `Activity::creating` sur toute
+`nullOnDelete`, index `activity_log_impersonator_idx`) est posé par `App\Models\Activity::creating` (TCK-601) sur toute
 activité écrite pendant une requête authentifiée par le jeton d'une session ouverte.
 
 ---

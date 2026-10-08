@@ -7,6 +7,7 @@ use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\User;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -93,8 +94,10 @@ class UserDetailController extends Controller
         return $this->paginated($paginator, UserListResource::collection($users)->resolve($request));
     }
 
-    public function show(Request $request, User $user): JsonResponse
+    public function show(Request $request, User $user, PersonalDataAccessLogger $accessLog): JsonResponse
     {
+        // TCK-601 (ADR-0044 §4) — ouvrir une fiche est une consultation de données personnelles.
+        $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_DETAIL);
         $user->load([
             'agentProfiles.agency',
             'ownerProfiles.agency',
@@ -109,8 +112,9 @@ class UserDetailController extends Controller
         ]);
     }
 
-    public function sessions(Request $request, User $user): JsonResponse
+    public function sessions(Request $request, User $user, PersonalDataAccessLogger $accessLog): JsonResponse
     {
+        $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_SESSIONS);
         $tokens = $user->tokens()
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->orderByDesc('last_used_at')
@@ -131,7 +135,7 @@ class UserDetailController extends Controller
         ]);
     }
 
-    public function activity(Request $request, User $user): JsonResponse
+    public function activity(Request $request, User $user, PersonalDataAccessLogger $accessLog): JsonResponse
     {
         $query = QueryBuilder::for(Activity::query(), $request)
             ->where(function ($q) use ($user): void {
@@ -151,6 +155,9 @@ class UserDetailController extends Controller
             ->defaultSort('-created_at');
 
         $activity = $query->paginate(min(max((int) $request->query('per_page', 20), 1), 100));
+        // Tracé APRÈS la lecture : la page rendue montre le journal tel qu'il était à l'ouverture,
+        // la trace de cette consultation-ci paraît à la suivante.
+        $accessLog->record($request->user(), $user, PersonalDataAccessLogger::SURFACE_USER_ACTIVITY);
 
         // TCK-600 (ADR-0055 §5) — « via impersonation par X » : l'opérateur qui lisait en tant que
         // la cible quand l'activité s'est écrite. Une requête pour la page, pas une par entrée.

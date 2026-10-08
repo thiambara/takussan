@@ -17,6 +17,7 @@ return [
         'has_obligations' => 'Kont bii am na ay liggéey yu des (bay, fey, faktiir walla resërwaasiyon) : war nañu leen jeexal balaa ñu koy far.',
     ],
     'activity_log' => [
+        'export_too_large' => 'Bari na lool ngir génne ko : wàññil seetu yi.',
         'export_link_invalid' => 'Lënk bi jeex na walla baaxul.',
     ],
     'agency' => [
@@ -360,6 +361,9 @@ return [
         'agency_unverified' => 'Agence bu ñu vérifierul mënuñu ko fey.',
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',
+    ],
+    'privacy' => [
+        'request_closed' => 'Laaj bii tëju na : bindal beneen.',
     ],
     'profile' => [
         'not_accessible' => 'Profil bii, sañuloo ko jëfandikoo.',
