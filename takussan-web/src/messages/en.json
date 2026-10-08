@@ -6047,6 +6047,7 @@
       "batchErrors": {
         "already_decided": "already decided",
         "claimed_by_other": "claimed by another moderator",
+        "concurrent_decision": "another moderator was acting on the same listing",
         "other": "refused"
       }
     },

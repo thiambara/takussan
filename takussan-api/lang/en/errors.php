@@ -230,6 +230,7 @@ return [
         'item_id_invalid' => 'Invalid moderation item.',
         'already_decided' => 'This item has already been handled.',
         'claim_not_held' => 'You are not holding this item.',
+        'concurrent_decision' => 'Another moderator is acting on the same listing: reload the queue, then try again.',
         'claimed_by_other' => 'Another moderator is handling this item.',
         'decision_invalid_for_type' => 'This decision is not available for this type of item.',
         'platform_hold' => 'This listing was taken down by the platform: only the platform can put it back online.',

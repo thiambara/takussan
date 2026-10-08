@@ -6047,6 +6047,7 @@
       "batchErrors": {
         "already_decided": "déjà tranché",
         "claimed_by_other": "pris en charge par un autre modérateur",
+        "concurrent_decision": "un autre modérateur agissait sur la même annonce",
         "other": "refusé"
       }
     },

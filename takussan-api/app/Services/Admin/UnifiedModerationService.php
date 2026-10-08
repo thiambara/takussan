@@ -14,14 +14,19 @@ use App\Models\Review;
 use App\Models\User;
 use App\Services\Property\PropertyModerationService;
 use App\Services\Review\ReviewModerationService;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\DetectsConcurrencyErrors;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UnifiedModerationService
 {
+    use DetectsConcurrencyErrors;
+
     public function __construct(
         private readonly PropertyModerationService $propertyModeration,
         private readonly ReviewModerationService $reviewModeration,
@@ -112,6 +117,24 @@ class UnifiedModerationService
             'moderation.decision_invalid_for_type'
         );
 
+        try {
+            return $this->decideLocked($queueId, $sourceType, $sourceId, $actor, $decision, $reason, $reasonCode);
+        } catch (Throwable $e) {
+            // verif-597 M1 — un interblocage résiduel (40P01) n'est pas une panne : un autre
+            // modérateur agit sur le même bien. 409, jamais 500.
+            abort_code_if(
+                $e instanceof DeadlockException || $this->causedByConcurrencyError($e),
+                409,
+                'moderation.concurrent_decision'
+            );
+
+            throw $e;
+        }
+    }
+
+    /** @return array<string,mixed> */
+    private function decideLocked(string $queueId, string $sourceType, int $sourceId, User $actor, string $decision, ?string $reason, ?string $reasonCode): array
+    {
         return DB::transaction(function () use ($queueId, $sourceType, $sourceId, $actor, $decision, $reason, $reasonCode): array {
             abort_code_unless($this->lockSource($sourceType, $sourceId), 409, 'moderation.already_decided');
             $this->assertNotClaimedByOther($queueId, $actor);
@@ -233,8 +256,23 @@ class UnifiedModerationService
     }
 
     /** Verrouille la ligne source et dit si l'élément est encore OUVERT. Absente : 404. */
+    /**
+     * verif-597 M1 — les verrous se prennent dans UN ordre, **le bien d'abord**, puis la source.
+     * `resolveReport` verrouille le bien puis tous ses signalements ouverts : prendre le
+     * signalement avant le bien inversait l'ordre entre deux décisions sur deux signalements du
+     * même bien, et PostgreSQL rompait le cycle en 40P01.
+     */
     private function lockSource(string $sourceType, int $sourceId): bool
     {
+        $parentId = match ($sourceType) {
+            'property_report' => PropertyReport::query()->whereKey($sourceId)->value('property_id'),
+            'suspected_duplicate' => DuplicateSuspicion::query()->whereKey($sourceId)->value('property_id'),
+            default => null,
+        };
+        if ($parentId !== null) {
+            Property::withTrashed()->whereKey($parentId)->lockForUpdate()->first();
+        }
+
         return match ($sourceType) {
             'property' => (function () use ($sourceId): bool {
                 $property = Property::withTrashed()->whereKey($sourceId)->lockForUpdate()->firstOrFail();

@@ -5437,6 +5437,7 @@
       "batchErrors": {
         "already_decided": "dogal nañ ko ba noppi",
         "claimed_by_other": "keneen moo ko jël",
+        "concurrent_decision": "beneen modérateur moo doon def ci annonce bi",
         "other": "bañ nañ ko"
       }
     },

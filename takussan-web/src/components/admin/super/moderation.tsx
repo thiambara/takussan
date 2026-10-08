@@ -676,9 +676,10 @@ export function ModerationBatchBar({
   );
 }
 
-function batchErrorKey(code: string | undefined): 'already_decided' | 'claimed_by_other' | 'other' {
+function batchErrorKey(code: string | undefined): 'already_decided' | 'claimed_by_other' | 'concurrent_decision' | 'other' {
   if (code === 'moderation.already_decided') return 'already_decided';
   if (code === 'moderation.claimed_by_other') return 'claimed_by_other';
+  if (code === 'moderation.concurrent_decision') return 'concurrent_decision';
   return 'other';
 }
 

@@ -230,6 +230,7 @@ return [
         'item_id_invalid' => 'Élément modération bi baaxul.',
         'already_decided' => 'Lii, defar nañu ko ba noppi.',
         'claim_not_held' => 'Yaw jàppuloo lii.',
+        'concurrent_decision' => 'Beneen modérateur moo ngi def lenn ci annonce bii : yeesal file bi, ba noppi jéemaat.',
         'claimed_by_other' => 'Beneen modérateur moo ngi ci lii.',
         'decision_invalid_for_type' => 'Dogal bii mënul am ci xeetu lii.',
         'platform_hold' => 'Platform bi moo far yégle bii : platform bi rekk mën koo delloo ci internet.',

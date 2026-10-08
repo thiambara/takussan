@@ -230,6 +230,7 @@ return [
         'item_id_invalid' => 'Élément de modération invalide.',
         'already_decided' => 'Cet élément a déjà été traité.',
         'claim_not_held' => 'Vous ne tenez pas cet élément.',
+        'concurrent_decision' => 'Un autre modérateur agit sur la même annonce : rechargez la file, puis réessayez.',
         'claimed_by_other' => 'Un autre modérateur traite cet élément.',
         'decision_invalid_for_type' => 'Cette décision n\'est pas possible pour ce type d\'élément.',
         'platform_hold' => 'Cette annonce a été retirée par la plateforme : seule la plateforme peut la remettre en ligne.',

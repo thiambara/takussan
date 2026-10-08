@@ -10,7 +10,10 @@ use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Property\PropertyModerationService;
+use Illuminate\Database\DeadlockException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\ApiTestCase;
@@ -138,5 +141,58 @@ class ModerationQueueConcurrencyTest extends ApiTestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('reason_code');
         $this->assertSame(ReviewStatus::Pending, $review->refresh()->status);
+    }
+
+    /**
+     * verif-597 M1 — deux signalements d'un même bien : la décision verrouille le BIEN d'abord,
+     * puis la source, dans l'ordre de `resolveReport` (bien, puis ses signalements). Prendre le
+     * signalement avant le bien inversait l'ordre et produisait un interblocage 40P01 entre deux
+     * modérateurs (reproduit à deux processus par verif-597, trois fois sur trois).
+     */
+    public function test_a_report_decision_locks_the_listing_before_the_report(): void
+    {
+        $property = Property::factory()->published()->create(['agency_id' => Agency::factory()->create()->id]);
+        $report = PropertyReport::create(['property_id' => $property->id, 'reason' => 'fraud']);
+        PropertyReport::create(['property_id' => $property->id, 'reason' => 'spam']);
+
+        $locks = [];
+        DB::listen(function ($query) use (&$locks): void {
+            if (str_contains(strtolower($query->sql), 'for update')
+                && preg_match('/from "(properties|property_reports)"/', $query->sql, $m)) {
+                $locks[] = $m[1];
+            }
+        });
+
+        $this->decide($this->first, "property_report:{$report->id}", ['decision' => 'hide', 'reason_code' => 'fraud'])
+            ->assertOk();
+
+        $this->assertNotEmpty($locks);
+        $this->assertSame('properties', $locks[0], 'premier verrou : '.implode(' → ', $locks));
+    }
+
+    /** verif-597 M1 — un interblocage résiduel rend 409, à l'unité comme en lot ; jamais 500. */
+    public function test_a_residual_deadlock_is_a_409_not_a_500(): void
+    {
+        $property = Property::factory()->published()->create(['agency_id' => Agency::factory()->create()->id]);
+        $report = PropertyReport::create(['property_id' => $property->id, 'reason' => 'fraud']);
+
+        $this->mock(PropertyModerationService::class, function ($mock): void {
+            $mock->shouldReceive('resolveReport')->andThrow(
+                new DeadlockException('SQLSTATE[40P01]: Deadlock detected: 7 ERROR:  deadlock detected', 0)
+            );
+        });
+
+        $this->decide($this->first, "property_report:{$report->id}", ['decision' => 'hide', 'reason_code' => 'fraud'])
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'moderation.concurrent_decision');
+
+        $this->actingAsApi($this->first);
+        $this->postJson('/api/admin/moderation/decide-batch', [
+            'ids' => ["property_report:{$report->id}"], 'decision' => 'hide', 'reason_code' => 'fraud',
+        ])->assertOk()
+            ->assertJsonPath('data.0.ok', false)
+            ->assertJsonPath('data.0.status', 409)
+            ->assertJsonPath('data.0.code', 'moderation.concurrent_decision');
+        $this->assertNull($report->refresh()->resolved_at);
     }
 }
