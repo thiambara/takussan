@@ -134,6 +134,24 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
         );
     }
 
+    /**
+     * **AC9** — la fabrique et le seeder n'écrivent que le vocabulaire. Le seeder exige tout le
+     * contexte de semis pour s'exécuter : ses clés sont relevées dans sa source (le tableau
+     * `criteria` littéral), et le relevé doit en trouver au moins une, sans quoi il ne prouve rien.
+     */
+    public function test_la_fabrique_et_le_seeder_n_ecrivent_que_le_vocabulaire(): void
+    {
+        $fabrique = array_keys(SavedSearch::factory()->make()->criteria);
+        $this->assertNotEmpty($fabrique);
+        $this->assertSame([], array_diff($fabrique, SavedSearchCriteria::KEYS), 'fabrique');
+
+        $source = (string) file_get_contents(database_path('seeders/Crm/SavedSearchSeeder.php'));
+        $this->assertSame(1, preg_match("/'criteria' => \\[(.*?)\\n\\s*\\],/s", $source, $bloc), 'le tableau criteria du seeder');
+        preg_match_all("/^\\s*'([a-z_]+)' =>/m", $bloc[1], $cles);
+        $this->assertNotEmpty($cles[1]);
+        $this->assertSame([], array_diff($cles[1], SavedSearchCriteria::KEYS), 'seeder');
+    }
+
     /** **AC9** — une clé hors vocabulaire rend 422 à la création ET à la modification. */
     public function test_une_cle_inconnue_rend_422_a_la_creation_comme_a_la_modification(): void
     {
