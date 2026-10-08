@@ -5,7 +5,9 @@ namespace Tests\Feature\Agency;
 use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Customer;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
+use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\Task;
 use App\Models\User;
@@ -120,6 +122,38 @@ class AgentAbsenceTest extends ApiTestCase
         $this->assertNotContains(
             $task->id,
             collect($this->actingAsApi($this->substitute)->apiGet('/api/tasks')->assertOk()->json('data'))->pluck('id')->all(),
+        );
+    }
+
+    /**
+     * verif-591 M5 — un remplaçant SUSPENDU ne couvre plus : il ne voit ni ne coche les tâches de
+     * l'absent, et une tâche confiée à l'absent reste à l'absent. Réactivé, il couvre à nouveau.
+     */
+    public function test_a_suspended_substitute_no_longer_covers(): void
+    {
+        $task = $this->taskOf($this->absent);
+        $this->declare($this->admin)->assertCreated();
+        AgentProfile::query()->where('user_id', $this->substitute->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+        $substitute = $this->substitute->fresh();
+
+        $this->assertNotContains(
+            $task->id,
+            collect($this->actingAsApi($substitute)->apiGet('/api/tasks')->assertOk()->json('data'))->pluck('id')->all(),
+        );
+        $this->actingAsApi($substitute)->apiPut("/api/tasks/{$task->id}", ['status' => 'done'])->assertForbidden();
+        $this->assertNotSame('done', $task->fresh()->status?->value);
+
+        $this->actingAsApi($this->admin)->apiPost('/api/tasks', [
+            'title' => 'Rappeler le client',
+            'taskable_type' => Customer::class,
+            'taskable_id' => $this->customer->id,
+            'assigned_to_id' => $this->absent->id,
+        ])->assertCreated()->assertJsonPath('data.assignee.id', $this->absent->id);
+
+        AgentProfile::query()->where('user_id', $this->substitute->id)->update(['status' => AgentProfileStatus::Active->value]);
+        $this->assertSame(
+            $this->substitute->id,
+            app(AgentAvailability::class)->substituteFor($this->absent, $this->agency->id)->id,
         );
     }
 
