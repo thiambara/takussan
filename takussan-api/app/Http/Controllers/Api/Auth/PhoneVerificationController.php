@@ -52,9 +52,9 @@ class PhoneVerificationController extends Controller
             if ($incoming !== null && ! PhoneVerificationService::countryAllowed($incoming)) {
                 return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
             }
-            if ($incoming !== null && $this->service->isVerifiedElsewhere($incoming, $user)) {
-                return $this->neutralSend($user);
-            }
+            // Passe 2 (p2-1) — un numéro vérifié AILLEURS s'écrit aussi, non vérifié, comme par le
+            // chemin réel : sinon `GET /auth/me` relisait `phone: null` et trahissait le numéro
+            // pris. La branche neutre est jugée plus bas, sur le numéro porté.
             if ($incoming !== null && $incoming !== $user->phone) {
                 $user->forceFill([
                     'phone' => $incoming,
@@ -95,9 +95,11 @@ class PhoneVerificationController extends Controller
 
     /**
      * Vérification adverse m4 (décision du porteur) — un numéro vérifié par un AUTRE compte
-     * reçoit la réponse d'un envoi réel, délai de renvoi compris, sans envoi ni écriture :
-     * `409 phone_taken` disait à tout compte, trois fois par minute, si un numéro est
-     * inscrit. Le refus ferme reste à la vérification (`markVerified`, 409 `phone.taken`).
+     * reçoit la réponse d'un envoi réel, délai de renvoi compris, sans envoi : `409 phone_taken`
+     * disait à tout compte, trois fois par minute, si un numéro est inscrit. Le numéro, lui, est
+     * ÉCRIT non vérifié par l'appelant, comme par un envoi réel (passe 2, p2-1) : le profil relu
+     * ne distingue pas les deux cas. Le refus ferme reste à la vérification (`markVerified`,
+     * 409 `phone.taken`).
      */
     private function neutralSend(User $user): JsonResponse
     {

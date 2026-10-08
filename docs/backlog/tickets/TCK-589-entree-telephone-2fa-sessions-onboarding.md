@@ -179,7 +179,9 @@ téléphone (profil, onboardings, connexion, invitation) rend **409 `{code:"phon
 le numéro est déjà vérifié sur un autre compte (`phone.taken` depuis la fusion de TCK-588).
 **L'envoi, lui, ne refuse pas** (vérification adverse m4, décision du porteur, 2026-10-08) :
 `send-otp` vers un numéro vérifié ailleurs rend la même réponse qu'un envoi réel, délai de renvoi
-compris, sans envoi ni écriture — un 409 à l'envoi était un oracle des numéros inscrits. Le champ **`debug_code` disparaît** de
+compris, sans envoi — un 409 à l'envoi était un oracle des numéros inscrits. Le numéro est
+écrit **non vérifié** sur le compte appelant, exactement comme par un envoi réel (passe 2, p2-1) :
+le profil relu ne distingue pas un numéro pris d'un libre. Le champ **`debug_code` disparaît** de
 `POST /auth/phone/send-otp` et de ses alias, dans **tous** les environnements.
 `GET /api/auth/oauth/providers` gagne `data.phone_login: bool` (reflet du drapeau) : c'est par là
 que le front sait s'il affiche l'entrée par téléphone.
@@ -400,7 +402,8 @@ onboarding). Le ticket passe à `done` à la fusion de la troisième.
       les cinq écritures de `phone_verified_at` relevées au § 2 du Contexte ;
       `PhoneVerificationController::resend` ne dépense pas de SMS pour un numéro vérifié ailleurs.
       ~~refuse aussi `409 phone_taken` dès l'envoi~~ — corrigé après vérification adverse (m4) :
-      réponse neutre, celle d'un envoi réel, sans envoi ni écriture. Ne dépend pas du drapeau.
+      réponse neutre, celle d'un envoi réel, sans envoi ; le numéro est écrit non vérifié comme
+      par un envoi réel (passe 2, p2-1). Ne dépend pas du drapeau.
 - [x] `App\Services\Account\DeletionStepUpService` : code de step-up par SMS (même envoi qu'au
       §1) pour un compte sans e-mail.
 - [x] Inventaire des chemins qui supposent un e-mail — relevé `grep -rn "Mail::to(" app` : deux
@@ -667,8 +670,9 @@ Le détail se trouve dans « Corrections après vérification adverse » des Not
 - [x] **AC-m3** — Un e-mail inconnu se verrouille au même seuil et avec le même 423. Preuve :
       `UnknownEmailDecoyLockTest` (2) (`89ccdce2`).
 - [x] **AC-m4** — `send-otp` vers un numéro pris ailleurs rend la réponse d'un envoi réel, délai
-      compris, sans envoi ni écriture. Delta §2 est corrigé. Preuve : `SendOtpNeutralResponseTest`
-      (3) (`f8321498`).
+      compris, sans envoi. Delta §2 est corrigé. Preuve : `SendOtpNeutralResponseTest`
+      (3) (`f8321498`). *« Ni écriture » est corrigé par la passe 2 (AC-p2-1) : le numéro
+      s'écrit non vérifié.*
 - [x] **AC-m5** — Un numéro vérifié hérité hors E.164 est retrouvé et protégé (recherches et index
       sur la forme canonique). Preuve : `LegacyPhoneFormTest` (3) et `CanonicalPhoneTest` (9)
       (`4edffa44`).
@@ -1593,7 +1597,7 @@ second est vert : il garde contre une révocation trop large, et son ablation le
 
 **Test `SendOtpNeutralResponseTest` (3)** :
 - même statut et **même corps** qu'un envoi réel, sans SMS au numéro pris, et sans écriture de
-  `phone` ;
+  `phone` *(révoqué par la passe 2, p2-1 : le numéro s'écrit non vérifié)* ;
 - un numéro déjà saisi sur le compte et pris ailleurs donne la même réponse neutre ;
 - le second appel immédiat rend le même 429 et le même code qu'un envoi réel.
 
@@ -1767,3 +1771,37 @@ rendue est `/app`, et elle reste sur le site.
 - Avec le correctif : 23 verts, plus la sonde (4) qui passe. La sonde est retirée avant le commit.
 - Appelants : `intention-oauth`, `lien-connexion` et `redirection-interne` donnent 35 verts.
 - eslint et `tsc` sont propres.
+
+#### p2-1 — la branche neutre de `send-otp` écrit le numéro, non vérifié
+
+**Le défaut.** La réponse neutre était identique, mais le profil relu ne l'était pas. La sonde
+`NeutralSendProbeTest` lisait `GET /auth/me` → `phone: null` après un `send-otp` vers un numéro
+pris, contre le numéro saisi pour un numéro libre. L'oracle était déplacé, pas fermé.
+
+**Décision de la session.** La branche neutre écrit le numéro sur le compte appelant, **non
+vérifié** (`phone` et `phone_verified_at = null`), exactement comme le chemin réel. Le refus ferme
+reste à la vérification (409 `phone.taken`). La phrase de décision devient « sans envoi », et non
+plus « sans envoi ni écriture » : Delta §2, la case du §2 (Plan), AC-m4 et les notes de m4 sont
+corrigés. L'unicité ne porte que sur les numéros **vérifiés** (`users_phone_verified_unique`) :
+deux comptes peuvent porter le même numéro en attente.
+
+**Le correctif.** `PhoneVerificationController::resend` ne fait plus de retour neutre **avant**
+l'écriture du numéro saisi. Le numéro s'écrit comme pour un numéro libre, puis la branche neutre
+est jugée sur le numéro porté, par le contrôle qui existait déjà. Le docblock de `neutralSend` est
+corrigé.
+
+**Les tests, dans `SendOtpNeutralResponseTest` (4)** :
+- le premier cas attend désormais `phone = PRIS` et `phone_verified_at = null`, au lieu de
+  `assertNull(phone)` ;
+- un nouveau cas, « le profil relu ne distingue pas un numéro pris d'un libre » : deux comptes
+  partent d'un numéro **vérifié**, puis `GET /auth/me` relit le numéro saisi et une vérification
+  levée dans les deux cas.
+
+**Preuves :**
+- Rouge sur `104589df` : 2 rouges sur 4.
+- Ablation, retour neutre remis avant l'écriture : 2 rouges sur 4. Restauré par `cp`, md5
+  identique.
+- La sonde `NeutralSendProbeTest`, rejouée puis retirée, donne `[pris] … phone = "+221770009100"`
+  et `[libre] … phone = "+221770009101"`.
+- Exécutions : `AuthProfileTest`, `tests/Feature/Auth/Phone` et `PhoneVerificationTest` donnent
+  83 verts.
