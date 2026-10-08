@@ -39,8 +39,26 @@ class ModerationItemResource extends BaseResource
             'agency' => $this->resource['agency'],
             'reason' => $this->resource['reason'],
             'reported_count' => $this->resource['reported_count'],
+            'claim' => $this->claim(),
             'reported_at' => $this->iso($this->instant('reported_at')),
             'created_at' => $this->iso($this->instant('created_at')),
+            // TCK-597 — l'âge de l'élément dans la file, en minutes, calculé par le serveur.
+            'age_minutes' => ($reportedAt = $this->instant('reported_at')) ? (int) max(0, $reportedAt->diffInMinutes(now())) : null,
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function claim(): ?array
+    {
+        $claim = $this->resource['claim'] ?? null;
+        if ($claim === null) {
+            return null;
+        }
+
+        return [
+            'by' => $claim['by'],
+            'claimed_at' => $this->iso($claim['claimed_at']),
+            'expires_at' => $this->iso($claim['expires_at']),
         ];
     }
 

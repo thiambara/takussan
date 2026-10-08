@@ -147,6 +147,15 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 
     Route::get('moderation', [ModerationQueueController::class, 'index'])
         ->name('admin.moderation.index');
+    // TCK-597 — déclarée AVANT `moderation/{id}/…` : `{id}` accepte tout (`.+`).
+    Route::post('moderation/decide-batch', [ModerationQueueController::class, 'decideBatch'])
+        ->name('admin.moderation.decide-batch');
+    Route::post('moderation/{id}/claim', [ModerationQueueController::class, 'claim'])
+        ->where('id', '.+')
+        ->name('admin.moderation.claim');
+    Route::delete('moderation/{id}/claim', [ModerationQueueController::class, 'release'])
+        ->where('id', '.+')
+        ->name('admin.moderation.release');
     Route::post('moderation/{id}/decide', [ModerationQueueController::class, 'decide'])
         ->where('id', '.+')
         ->name('admin.moderation.decide');

@@ -2,15 +2,18 @@
 
 namespace App\Services\Admin;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\ReviewStatus;
+use App\Models\ModerationClaim;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Property\PropertyModerationService;
 use App\Services\Review\ReviewModerationService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +74,11 @@ class UnifiedModerationService
     ];
 
     /**
+     * TCK-597 (ADR-0043 §7) — aucune décision ne se joue deux fois. La ligne source est verrouillée
+     * (la ligne, jamais un agrégat : piège PostgreSQL n° 2), puis : déjà tranchée → 409
+     * `moderation.already_decided` ; tenue par un autre modérateur dont la prise court encore →
+     * 409 `moderation.claimed_by_other`. La prise est rendue avec la décision.
+     *
      * @return array<string,mixed>
      */
     public function decide(string $queueId, User $actor, string $decision, ?string $reason, ?string $reasonCode = null): array
@@ -83,33 +91,152 @@ class UnifiedModerationService
             'moderation.decision_invalid_for_type'
         );
 
-        $subject = match ($sourceType) {
-            'property' => $this->decideProperty(Property::findOrFail($sourceId), $actor, $decision, $reason ?? $reasonCode),
-            'property_report' => $this->decidePropertyReport(PropertyReport::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
-            'review' => $this->decideReview(Review::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
-            default => throw ValidationException::withMessages(['id' => __('errors.moderation.item_id_invalid')]),
-        };
+        return DB::transaction(function () use ($queueId, $sourceType, $sourceId, $actor, $decision, $reason, $reasonCode): array {
+            abort_code_unless($this->lockSource($sourceType, $sourceId), 409, 'moderation.already_decided');
+            $this->assertNotClaimedByOther($queueId, $actor);
 
-        activity('Admin')
-            ->performedOn($subject)
-            ->causedBy($actor)
-            ->withProperties([
+            $subject = match ($sourceType) {
+                'property' => $this->decideProperty(Property::findOrFail($sourceId), $actor, $decision, $reason ?? $reasonCode),
+                'property_report' => $this->decidePropertyReport(PropertyReport::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
+                'review' => $this->decideReview(Review::findOrFail($sourceId), $actor, $decision, $reason, $reasonCode),
+            };
+
+            ModerationClaim::query()->where('item_key', $queueId)->delete();
+
+            activity('Admin')
+                ->performedOn($subject)
+                ->causedBy($actor)
+                ->withProperties([
+                    'decision' => $decision,
+                    'subject_type' => $subject->getMorphClass(),
+                    'subject_id' => $subject->getKey(),
+                    'reason' => $reason,
+                    'reason_code' => $reasonCode,
+                    'moderation_item_id' => $queueId,
+                ])
+                ->event('super_admin_moderation_decision')
+                ->log('Décision de modération super-admin');
+
+            return [
+                'id' => $queueId,
                 'decision' => $decision,
                 'subject_type' => $subject->getMorphClass(),
                 'subject_id' => $subject->getKey(),
-                'reason' => $reason,
-                'reason_code' => $reasonCode,
-                'moderation_item_id' => $queueId,
-            ])
-            ->event('super_admin_moderation_decision')
-            ->log('Décision de modération super-admin');
+            ];
+        });
+    }
 
-        return [
-            'id' => $queueId,
-            'decision' => $decision,
-            'subject_type' => $subject->getMorphClass(),
-            'subject_id' => $subject->getKey(),
-        ];
+    /**
+     * TCK-597 (ADR-0043 §7) — une décision et un motif communs à au plus 50 éléments. Chaque
+     * élément est tranché dans SA transaction : un élément déjà tranché ou tenu par un autre
+     * n'annule pas les autres, il est rendu en échec avec son code.
+     *
+     * @param  list<string>  $queueIds
+     * @return list<array<string,mixed>>
+     */
+    public function decideBatch(array $queueIds, User $actor, string $decision, ?string $reason, ?string $reasonCode = null): array
+    {
+        return collect($queueIds)->unique()->values()->map(function (string $queueId) use ($actor, $decision, $reason, $reasonCode): array {
+            try {
+                return ['ok' => true] + $this->decide($queueId, $actor, $decision, $reason, $reasonCode);
+            } catch (ApiError $e) {
+                return ['id' => $queueId, 'ok' => false, 'status' => $e->getStatusCode(), 'code' => $e->errorCode];
+            } catch (ModelNotFoundException) {
+                return ['id' => $queueId, 'ok' => false, 'status' => 404, 'code' => 'http.not_found'];
+            } catch (ValidationException) {
+                return ['id' => $queueId, 'ok' => false, 'status' => 422, 'code' => 'moderation.item_id_invalid'];
+            }
+        })->all();
+    }
+
+    /**
+     * TCK-597 (ADR-0043 §7) — prendre en charge un élément pour {@see ModerationClaim::DURATION_MINUTES}
+     * minutes. Reprendre sa propre prise la prolonge ; une prise expirée d'un autre est reprise.
+     */
+    public function claim(string $queueId, User $actor): ModerationClaim
+    {
+        [$sourceType, $sourceId] = $this->parseQueueId($queueId);
+
+        return DB::transaction(function () use ($queueId, $sourceType, $sourceId, $actor): ModerationClaim {
+            abort_code_unless($this->lockSource($sourceType, $sourceId), 409, 'moderation.already_decided');
+
+            $now = now();
+            // Deux prises simultanées : l'unicité de `item_key` en garde une, la relecture
+            // verrouillée départage (une exception attendue n'est pas un mécanisme de contrôle).
+            ModerationClaim::query()->insertOrIgnore([
+                'item_key' => $queueId,
+                'claimed_by_id' => $actor->id,
+                'claimed_at' => $now,
+                'expires_at' => $now->copy()->addMinutes(ModerationClaim::DURATION_MINUTES),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $claim = ModerationClaim::query()->where('item_key', $queueId)->lockForUpdate()->firstOrFail();
+            abort_code_if(
+                $claim->claimed_by_id !== $actor->id && $claim->isActive(),
+                409,
+                'moderation.claimed_by_other'
+            );
+
+            $claim->forceFill([
+                'claimed_by_id' => $actor->id,
+                'claimed_at' => $now,
+                'expires_at' => $now->copy()->addMinutes(ModerationClaim::DURATION_MINUTES),
+            ])->save();
+
+            return $claim->load('claimedBy');
+        });
+    }
+
+    /** Rendre sa prise. Celle d'un autre, encore active, ne se rend pas : 409. */
+    public function release(string $queueId, User $actor): void
+    {
+        $this->parseQueueId($queueId);
+
+        DB::transaction(function () use ($queueId, $actor): void {
+            $claim = ModerationClaim::query()->where('item_key', $queueId)->lockForUpdate()->first();
+            if ($claim === null) {
+                return;
+            }
+
+            abort_code_if(
+                $claim->claimed_by_id !== $actor->id && $claim->isActive(),
+                409,
+                'moderation.claim_not_held'
+            );
+
+            $claim->delete();
+        });
+    }
+
+    /** Verrouille la ligne source et dit si l'élément est encore OUVERT. Absente : 404. */
+    private function lockSource(string $sourceType, int $sourceId): bool
+    {
+        return match ($sourceType) {
+            'property' => (function () use ($sourceId): bool {
+                $property = Property::withTrashed()->whereKey($sourceId)->lockForUpdate()->firstOrFail();
+
+                return ! $property->trashed() && $property->status === PropertyStatus::PendingReview;
+            })(),
+            'property_report' => PropertyReport::query()->whereKey($sourceId)->lockForUpdate()->firstOrFail()->resolved_at === null,
+            'review' => (function () use ($sourceId): bool {
+                $review = Review::withTrashed()->whereKey($sourceId)->lockForUpdate()->firstOrFail();
+
+                return ! $review->trashed() && in_array($review->status, [ReviewStatus::Pending, ReviewStatus::Reported], true);
+            })(),
+        };
+    }
+
+    private function assertNotClaimedByOther(string $queueId, User $actor): void
+    {
+        $claim = ModerationClaim::query()->where('item_key', $queueId)->lockForUpdate()->first();
+
+        abort_code_if(
+            $claim !== null && $claim->isActive() && $claim->claimed_by_id !== $actor->id,
+            409,
+            'moderation.claimed_by_other'
+        );
     }
 
     private function unionQuery(): mixed
@@ -206,8 +333,14 @@ class UnifiedModerationService
         $reviews = Review::query()->with(['author', 'reviewable'])->whereIn('id', $reviewIds)->get()->keyBy('id');
         $users = User::query()->whereIn('id', $userIds)->get()->keyBy('id');
         $agencies = Agency::query()->whereIn('id', $agencyIds)->get()->keyBy('id');
+        $claims = ModerationClaim::query()
+            ->with('claimedBy')
+            ->whereIn('item_key', $rows->map(fn (object $row) => "{$row->source_type}:{$row->source_id}"))
+            ->where('expires_at', '>', now())
+            ->get()
+            ->keyBy('item_key');
 
-        return $rows->map(function (object $row) use ($properties, $reviews, $users, $agencies): array {
+        return $rows->map(function (object $row) use ($properties, $reviews, $users, $agencies, $claims): array {
             $sourceType = (string) $row->source_type;
             $sourceId = (int) $row->source_id;
             $subjectId = (int) $row->subject_id;
@@ -236,6 +369,7 @@ class UnifiedModerationService
 
             $reporter = $users->get((int) ($row->reporter_id ?? 0));
             $agency = $agencies->get((int) ($row->agency_id ?? 0));
+            $claim = $claims->get("{$sourceType}:{$sourceId}");
 
             return [
                 'id' => "{$sourceType}:{$sourceId}",
@@ -258,6 +392,15 @@ class UnifiedModerationService
                 ] : null,
                 'reason' => $this->reasonFor($sourceType, $sourceId, (string) ($row->reason ?? ''), $reviews),
                 'reported_count' => $reportedCount,
+                // TCK-597 (ADR-0043 §7) — qui tient l'élément, et jusqu'à quand.
+                'claim' => $claim ? [
+                    'by' => [
+                        'id' => $claim->claimed_by_id,
+                        'name' => $claim->claimedBy?->full_name ?: $claim->claimedBy?->email,
+                    ],
+                    'claimed_at' => $claim->claimed_at,
+                    'expires_at' => $claim->expires_at,
+                ] : null,
                 'reported_at' => $row->reported_at,
                 'created_at' => $row->created_at,
             ];

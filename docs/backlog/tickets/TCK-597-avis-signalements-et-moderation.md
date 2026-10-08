@@ -633,3 +633,19 @@ Sans recopier la spec, voici ce qui change.
   action sur le bien → 4 rouges ; sans `DECISIONS` par type → 1 rouge ; sans la ligne
   `moderation_required` → 1 rouge (AC14) ; policy seule sans verrou → 0 rouge (le service couvre),
   policy + service → 2 rouges ; sans dédoublonnage 24 h → 1 rouge ; sans piège → 1 rouge.
+
+### §7 — file de modération : verrou, prise en charge, lot
+
+- `decide` verrouille la ligne source et rend 409 `moderation.already_decided` (élément tranché,
+  y compris supprimé) ou `moderation.claimed_by_other` (prise d'un autre non expirée). La prise est
+  rendue avec la décision. `claim` (10 min, `insertOrIgnore` puis relecture verrouillée — jamais une
+  exception attendue) ; `DELETE …/claim` rend 409 `moderation.claim_not_held` sur la prise active
+  d'un autre. `decide-batch` : ≤ 50 identifiants, un `decide` (donc une transaction) par élément,
+  un résultat `{id, ok, status?, code?}` par élément. La ressource rend `claim` (nom, heures) et
+  `age_minutes`.
+- `models-spec` : entrée minimale `72. ModerationClaim` (exigée par `check-models-spec`).
+- Preuves : `ModerationQueueConcurrencyTest` 5 verts, `ModerationBatchTest` 3 verts,
+  `ModerationQueueTest` + `AdminConsoleValidationTest` verts.
+- Ablations (restaurées par `cp`) : sans contrôle « encore ouvert » → 2 rouges ; sans contrôle de
+  prise dans `decide` → 1 rouge ; prise sans expiration → 1 rouge ; sans capture des erreurs
+  métier par élément du lot → 1 rouge.
