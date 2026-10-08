@@ -1,7 +1,7 @@
 ---
 id: TCK-599
 title: "Une alerte de recherche qu'on règle, qui liste les bons biens et marche sans compte ; des favoris qui ne servent plus un bien redevenu privé et préviennent quand il baisse ou disparaît"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -329,6 +329,9 @@ ne revendique) :
 - [ ] **Découpage — option retenue par défaut** : trois PR dans cet ordre, chacune verte seule.
       **(A)** §1 (favoris, porte le défaut de sécurité, sans dépendance — à livrer d'abord) ;
       **(B)** l'ADR + §2 + §3 ; **(C)** §4 (après B) ; §5 peut suivre A ou B.
+      *Non fait tel quel : la vague 73 livre ce ticket sur UNE branche (`feat/tck-599-alertes-et-favoris`).
+      Les commits restent séparables — A seul en `769e888f` (+ `a327a4b1`), le back B+C+§5 en
+      `4af165dd`, le front en `cd6c9d57` — si la session veut livrer A d'abord.*
 
 ### 1. Favoris : confidentialité et liste (C16, C15)
 
@@ -349,87 +352,87 @@ ne revendique) :
       (projection minimale si le bien n'est pas `available`).
 - [x] Routes `DELETE` et `PATCH /api/favorites/{property}` : liaison `->withTrashed()`, pour qu'un
       favori `removed` se retire et s'annote.
-- [ ] Front : pagination, carte éteinte, note éditable, tolérance d'un favori `removed` ; requête
-      de liste limitée aux champs de la carte.
-- [ ] Tests : `tests/Feature/Api/FavoriteVisibilityTest.php` (liste **et** ajout),
+- [x] Front : pagination, carte éteinte, note éditable, tolérance d'un favori `removed` ; requête
+      de liste limitée aux champs de la carte (côté API : `FavoriteController::CARD_COLUMNS`).
+- [x] Tests : `tests/Feature/Api/FavoriteVisibilityTest.php` (liste **et** ajout),
       `FavoriteTest` étendu (pagination, notes, retrait d'un bien supprimé, nombre de requêtes
       constant) ; test de composant de la liste des favoris (`removed`, pagination).
 
 ### 2. Alertes de recherche : justes, localisées, réglables (C19, C6)
 
-- [ ] Migration `normalize_saved_search_criteria_vocabulary` : `min_price→price_min`,
+- [x] Migration `normalize_saved_search_criteria_vocabulary` : `min_price→price_min`,
       `max_price→price_max`, `min_area→area_min`, `neighborhoods[0]→location` ; `down()` inverse.
-- [ ] `SearchService::getMatchingProperties` selon l'ADR (b), lisant aussi `cities` (OU entre
+- [x] `SearchService::getMatchingProperties` selon l'ADR (b), lisant aussi `cities` (OU entre
       villes) ; `SavedSearchFactory`, `SavedSearchSeeder` (`neighborhoods` → `location`) et
       `SavedSearchAlertsTest` passent au vocabulaire réel.
-- [ ] Vocabulaire fermé (contrainte 10) : constante `App\Support\SavedSearchCriteria::KEYS` = les
+- [x] Vocabulaire fermé (contrainte 10) : constante `App\Support\SavedSearchCriteria::KEYS` = les
       22 clés de rôle `filtre` de `takussan-web/src/types/search.ts` + `cities`. Règle
       `criteria` de `StoreSavedSearchRequest` **et** `UpdateSavedSearchRequest`, écrite à
       l'identique : `['required'|'sometimes', 'array:'.implode(',', KEYS)]` → 422 sur toute autre
       clé. La migration de vocabulaire ci-dessus **journalise** (nombre et clés) les lignes qui
       gardent une clé hors liste, sans les modifier.
-- [ ] Notification : `App\Notifications\SavedSearchMatchesNotification` (`via` sur
+- [x] Notification : `App\Notifications\SavedSearchMatchesNotification` (`via` sur
       `saved_search_match` ; mail, `AppDatabaseChannel` pour un `User`, WhatsApp via
       `SupportsWhatsapp`) : jusqu'à 5 biens (photo, prix formaté, quartier, lien), le **total réel**,
       un lien « voir les N résultats » vers `/properties?…`, un lien de désinscription de **cette**
       recherche (URL signée qui passe sa fréquence à `off`).
-- [ ] `SendSavedSearchAlerts` réécrit en entier pour l'émettre (comptes et abonnés confirmés) ;
+- [x] `SendSavedSearchAlerts` réécrit en entier pour l'émettre (comptes et abonnés confirmés) ;
       plus aucun littéral, plus de `NotificationType::System`.
-- [ ] Le `catch` de la boucle (Contexte §2.6) :
+- [x] Le `catch` de la boucle (Contexte §2.6) :
       `Log::error('saved_search_alert.failed', ['saved_search_id' => $search->id, 'alert_subscriber_id' => $search->alert_subscriber_id] + Arr::except(SafeExceptionContext::of($e), ['message']))`.
       **Jamais** `getMessage()`, ni le contact, ni `criteria`, ni l'objet exception. `message` est
       retiré **ici** même pour une exception non SQL, parce que toute exception de cette boucle
       peut citer le destinataire (réponse SMTP, numéro WhatsApp). La boucle continue sur la
       recherche suivante, comme aujourd'hui (coordination 601 : Contraintes).
-- [ ] `SavedSearchResource` : `alert_channels`.
-- [ ] Front : case « Créer aussi une alerte » (décochée) dans la boîte de sauvegarde ; réglage par
+- [x] `SavedSearchResource` : `alert_channels`.
+- [x] Front : case « Créer aussi une alerte » (décochée) dans la boîte de sauvegarde ; réglage par
       ligne sur `/app/saved-searches`.
-- [ ] Tests : `tests/Feature/Search/SavedSearchAlertsTest.php` (vocabulaire réel clé par clé,
+- [x] Tests : `tests/Feature/Search/SavedSearchAlertsTest.php` (vocabulaire réel clé par clé,
       total, préférence, locale), `tests/Feature/Search/SavedSearchCriteriaVocabularyTest.php`
       (chaque clé de `KEYS` filtre ; clé inconnue → 422), `tests/Feature/Api/SavedSearchTest.php`
       (`alert_channels`), `tests/Feature/Search/SavedSearchAlertFailureLogTest.php` (AC13b).
 
 ### 3. Retrait de `instant` (C19) — tranché par le porteur le 2026-10-06
 
-- [ ] Migration `retire_instant_saved_search_frequency` : `instant → daily` ; `down()` sans effet,
+- [x] Migration `retire_instant_saved_search_frequency` : `instant → daily` ; `down()` sans effet,
       commenté.
-- [ ] `StoreSavedSearchRequest` / `UpdateSavedSearchRequest` : `in:off,daily,weekly`, **à
+- [x] `StoreSavedSearchRequest` / `UpdateSavedSearchRequest` : `in:off,daily,weekly`, **à
       l'identique** (TCK-330) ; front : type (`lib/queries/saved-searches.ts:25`), schéma et
       `SearchPreferencesForm` (l.32 et l.79) sans `instant` ; les libellés
       `…frequency.instant` des trois `messages/*.json` sont retirés. ⚠ Ne pas toucher
       `EmailFrequency::Instant` (`app/Models/Enums/EmailFrequency.php:7`) : c'est la fréquence
       du **digest** d'e-mails, un autre réglage.
-- [ ] `SendSavedSearchAlerts::doitEnvoyer` : la branche `default` ne couvre plus que `daily` ;
+- [x] `SendSavedSearchAlerts::doitEnvoyer` : la branche `default` ne couvre plus que `daily` ;
       le docblock (l.70-74) dit « retiré le 2026-10-06 par décision du porteur », plus
       « une limite ».
 
 ### 4. Alertes sans compte (V13)
 
-- [ ] Migrations (selon l'ADR) : `create_alert_subscribers_table`,
+- [x] Migrations (selon l'ADR) : `create_alert_subscribers_table`,
       `add_alert_subscriber_id_to_saved_searches_table` (FK et `CHECK` nommés explicitement,
       < 63 car.).
-- [ ] `App\Http\Controllers\Api\PublicSearchAlertController` (`store`, `confirm`, `unsubscribe`)
+- [x] `App\Http\Controllers\Api\PublicSearchAlertController` (`store`, `confirm`, `unsubscribe`)
       dans `routes/api/saved-searches.php`, hors du groupe `auth:sanctum`, limiteur
       `public-search-alert` ; Requests `StorePublicSearchAlertRequest`,
       `ConfirmPublicSearchAlertRequest`, `UnsubscribePublicSearchAlertRequest`.
-- [ ] Notification de confirmation (`SearchAlertConfirmationNotification` : lien ou code).
-- [ ] `SavedSearchController::claim` + règle de la contrainte 7.
-- [ ] Commande planifiée `search-alerts:purge-unconfirmed` (horaire).
-- [ ] Front : saisie sans compte depuis le même point d'entrée ; pages de confirmation et de
+- [x] Notification de confirmation (`SearchAlertConfirmationNotification` : lien ou code).
+- [x] `SavedSearchController::claim` + règle de la contrainte 7.
+- [x] Commande planifiée `search-alerts:purge-unconfirmed` (horaire).
+- [x] Front : saisie sans compte depuis le même point d'entrée ; pages de confirmation et de
       désinscription.
-- [ ] Tests : `tests/Feature/Search/PublicSearchAlertTest.php`, `SearchAlertClaimTest.php`.
+- [x] Tests : `tests/Feature/Search/PublicSearchAlertTest.php`, `SearchAlertClaimTest.php`.
 
 ### 5. Favoris qui préviennent (C17)
 
-- [ ] Migration `add_alert_baseline_to_favorites_table` : `alert_baseline_price decimal(14,2)`
+- [x] Migration `add_alert_baseline_to_favorites_table` : `alert_baseline_price decimal(14,2)`
       nullable (initialisée au prix à la mise en favori, et pour l'existant),
       `unavailable_notified_at` nullable.
-- [ ] Job quotidien `App\Jobs\SendFavoriteChangeAlerts` : par utilisateur, **une** notification
+- [x] Job quotidien `App\Jobs\SendFavoriteChangeAlerts` : par utilisateur, **une** notification
       groupée (`FavoriteChangesNotification`) des baisses (prix courant < base, bien public) et des
       sorties du public (base non notifiée) ; met la base à jour ; une hausse déplace la base sans
       notifier ; un retour au public remet `unavailable_notified_at` à `null` sans notifier.
-- [ ] Événements `favorite_price_drop`, `favorite_unavailable` (coordination 588).
-- [ ] Tests : `tests/Feature/Favorites/FavoriteChangeAlertsTest.php`.
+- [x] Événements `favorite_price_drop`, `favorite_unavailable` (coordination 588).
+- [x] Tests : `tests/Feature/Favorites/FavoriteChangeAlertsTest.php`.
 
 ## Critères d'acceptation
 
@@ -439,41 +442,49 @@ d'implémentation).
 
 **Favoris (§1)**
 
-- [ ] **AC1 (C16, sécurité — liste)** — Un client met en favori un bien public ; le bien passe
+- [x] **AC1 (C16, sécurité — liste)** — Un client met en favori un bien public ; le bien passe
       `visibility=private`. `GET /api/favorites` rend ce favori avec `availability=unavailable`, et
       **aucune** des clés `price`, `location`, `main_photo_url`, `status` sous `property`. Même
       résultat pour `status=pending_review` et `rejected`. **Rouge aujourd'hui** (la carte complète
       est servie).
-- [ ] **AC2** — Dans la même réponse, un favori d'un bien public garde sa carte complète (`price`
+      ✓ `FavoriteVisibilityTest::test_un_bien_sorti_du_public_n_est_plus_decrit_par_la_liste` (7 sorties : privé, `pending_review`, `rejected`, maintenance, dépublié, loué, vendu) — run du 2026-10-08, ablations Delta A.
+- [x] **AC2** — Dans la même réponse, un favori d'un bien public garde sa carte complète (`price`
       et `location.city` présents) : masquer tout ne coche pas AC1.
-- [ ] **AC3 (sécurité — ajout)** — Bien `visibility=public`, `published_at` non nul,
+      ✓ `FavoriteVisibilityTest::test_la_meme_reponse_garde_la_carte_complete_d_un_bien_public` — run du 2026-10-08.
+- [x] **AC3 (sécurité — ajout)** — Bien `visibility=public`, `published_at` non nul,
       `status=pending_review` (puis `rejected`, puis `is_test=true`) : un client sans lien avec
       l'agence fait `POST /api/favorites { property_id }` → **404**, aucune ligne `favorites`
       créée, aucune clé `price` dans la réponse. Un identifiant inexistant rend **le même** statut
       et **le même** corps. Le personnel de l'agence du bien (`can('view')`) obtient 201 ; un bien
       public obtient 201 avec la carte complète. **Rouge aujourd'hui** (201 + carte complète ;
       422 contre 403).
-- [ ] **AC4** — `rented` → `availability=rented`, `sold` → `sold` ; un bien supprimé (soft) →
+      ✓ `FavoriteVisibilityTest::test_l_ajout_d_un_bien_non_public_rend_404_comme_un_identifiant_inexistant` (`pending_review`, `rejected`, `archived`, `is_test`), `…_le_personnel_de_l_agence_et_un_bien_public_obtiennent_201`, `…_le_personnel_d_une_autre_agence_recoit_404` — run du 2026-10-08.
+- [x] **AC4** — `rented` → `availability=rented`, `sold` → `sold` ; un bien supprimé (soft) →
       `removed`, réponse 200, les autres favoris rendus. `DELETE /api/favorites/{id}` sur ce bien
       supprimé → 204 et la ligne disparaît. **Rouge aujourd'hui** (pas d'`availability` ; le
       `DELETE` rend 404).
-- [ ] **AC5** — `per_page=51` → 422 ; `per_page=50` → 200. Le nombre de requêtes SQL de
+      ✓ `FavoriteVisibilityTest::test_un_bien_supprime_rend_removed_et_son_favori_se_retire` + lignes `loué` / `vendu` du fournisseur d'AC1 — run du 2026-10-08.
+- [x] **AC5** — `per_page=51` → 422 ; `per_page=50` → 200. Le nombre de requêtes SQL de
       `GET /api/favorites` est **identique** pour 2 et pour 20 favoris avec photo. **Rouge
       aujourd'hui** (51 → 200 ; une requête `media` par favori).
-- [ ] **AC6 (notes)** — `PATCH /api/favorites/{id} { notes: "Appeler lundi" }` → 200 et `notes`
+      ✓ `FavoriteTest::test_per_page_est_borne_a_50` et le test du nombre de requêtes (2 = 20, photos à filigrane lu) — run du 2026-10-08.
+- [x] **AC6 (notes)** — `PATCH /api/favorites/{id} { notes: "Appeler lundi" }` → 200 et `notes`
       relu à l'identique ; 501 caractères → 422 ; le favori d'un autre utilisateur → 404.
       **Rouge aujourd'hui** (route absente, 405).
-- [ ] **AC7 (front)** — Test de composant de la liste des favoris : une réponse qui contient un
+      ✓ `FavoriteTest::test_la_note_d_un_favori_se_modifie` + second chemin (favori d'un autre → 404) — run du 2026-10-08.
+- [x] **AC7 (front)** — Test de composant de la liste des favoris : une réponse qui contient un
       favori `removed` (`property` minimal ou nul) et un favori `available` rend les deux cartes,
       sans exception ; avec `meta.last_page = 2`, la page 2 est atteignable et demandée avec
       `page=2`. **Rouge aujourd'hui** (`raw.location` sur `null` ; aucune pagination).
+      ✓ `takussan-web/src/components/favorites/__tests__/FavoritesList.test.tsx` (4 tests : retiré + loué + disponible, `page=2` lu sur l'URL émise, DELETE sur l'id du bien, PATCH de la note) — vitest du 2026-10-08.
 
 **Alertes de recherche (§2, §3)**
 
-- [ ] **AC8 (vocabulaire, clé par clé)** — Recherches créées par `POST /api/saved-searches`, en
+- [x] **AC8 (vocabulaire, clé par clé)** — Recherches créées par `POST /api/saved-searches`, en
       `daily`, dans la forme exacte qu'écrit le front ; deux biens publics publiés après la
       dernière alerte, `A` qui correspond et `B` qui ne correspond **que** par le critère testé.
       L'alerte liste `A` et **jamais** `B` :
+      ✓ `SavedSearchAlertsTest::test_l_alerte_applique_le_vocabulaire_ecrit_par_le_front` (les 6 lignes, créées par `POST /api/saved-searches`) — run du 2026-10-08.
 
       | Critère | `A` | `B` |
       |---|---|---|
@@ -485,27 +496,32 @@ d'implémentation).
       | `{ contract_type: "rent", rent_period: "monthly" }` | `monthly` | `daily` |
 
       **Rouge aujourd'hui sur chaque ligne** (`B` est listé).
-- [ ] **AC9 (vocabulaire fermé)** — `POST` puis `PATCH /api/saved-searches` avec
+- [x] **AC9 (vocabulaire fermé)** — `POST` puis `PATCH /api/saved-searches` avec
       `criteria: { max_price: 1 }` → **422 tous les deux** ; un test paramétré sur
       `SavedSearchCriteria::KEYS` prouve, pour **chacune** des 23 clés, qu'une valeur choisie
       écarte un bien qu'elle doit écarter ; `SavedSearchFactory` et `SavedSearchSeeder` ne
       produisent que des clés de `KEYS`. **Rouge aujourd'hui** (201 ; 11 clés sans effet ;
       `neighborhoods`).
-- [ ] **AC10** — Une ligne au vocabulaire ancien (`max_price`, `min_area`) filtre encore après la
+      ✓ `SavedSearchCriteriaVocabularyTest` : `test_une_cle_inconnue_rend_422_a_la_creation_comme_a_la_modification`, `test_chaque_cle_filtre_l_alerte` (23 lignes, avec témoin sans la clé), `test_la_fabrique_et_le_seeder_n_ecrivent_que_le_vocabulaire`, `test_une_cle_hors_vocabulaire_n_atteint_pas_le_moteur` — run du 2026-10-08.
+- [x] **AC10** — Une ligne au vocabulaire ancien (`max_price`, `min_area`) filtre encore après la
       migration ; une ligne à clé inconnue est comptée dans le journal de la migration.
-- [ ] **AC11 (total et contenu)** — 25 biens correspondent : la notification porte
+      ✓ `SavedSearchCriteriaVocabularyTest::test_la_migration_de_vocabulaire_reecrit_l_ancien_et_journalise_l_inconnu` — run du 2026-10-08.
+- [x] **AC11 (total et contenu)** — 25 biens correspondent : la notification porte
       `data.total = 25`, `count(data.property_ids) = 5`, et son e-mail contient le prix formaté et
       le quartier de ces 5 biens et un lien `…/{locale}/properties?…` vers les 25. **Rouge
       aujourd'hui** (« 20 », aucun bien, aucun lien).
-- [ ] **AC12 (préférence)** — `saved_search_match`/`email` coupé → aucun e-mail d'alerte ;
+      ✓ `SavedSearchAlertsTest::test_l_alerte_annonce_le_total_reel_et_decrit_cinq_biens` (25 → `total` 25, 5 ids, prix formaté, quartier, lien `/fr/properties?city=Dakar&price_max=200000`) — run du 2026-10-08.
+- [x] **AC12 (préférence)** — `saved_search_match`/`email` coupé → aucun e-mail d'alerte ;
       `threshold_alert`/`email` coupé et `saved_search_match` actif → l'e-mail part. **Rouge
       aujourd'hui** (c'est `threshold_alert` qui gouverne). `NotificationService.php` n'a pas
       changé dans le diff de ce ticket.
-- [ ] **AC13 (locale)** — Pour un destinataire `wo`, titre et corps sont égaux à
+      ✓ `SavedSearchAlertsTest::test_l_e_mail_obeit_a_saved_search_match_et_plus_a_threshold_alert` ; `NotificationService.php` absent du diff (`git diff 33932c60 -- takussan-api/app/Services/NotificationService.php` vide) — run du 2026-10-08.
+- [x] **AC13 (locale)** — Pour un destinataire `wo`, titre et corps sont égaux à
       `__('saved_search_alerts.…', $p, 'wo')` et diffèrent de la version `fr` ; aucun littéral
       dans `SendSavedSearchAlerts` (la garde de 588, si fusionnée, le confirme). **Rouge
       aujourd'hui** (titre français en dur).
-- [ ] **AC13b (journal sans contact)** — `SavedSearchAlertFailureLogTest`, un abonné confirmé
+      ✓ `SavedSearchAlertsTest::test_le_titre_et_le_corps_sont_dans_la_langue_du_destinataire` ; `ProseLitteraleInterditeTest` sans exemption (`EXEMPTIONS = []`) — run du 2026-10-08.
+- [x] **AC13b (journal sans contact)** — `SavedSearchAlertFailureLogTest`, un abonné confirmé
       d'e-mail témoin `temoin-599@exemple.sn` et une seconde recherche saine, écouteur
       `MessageLogged` (message + contexte encodés en JSON, chaque `Throwable` rendu par
       `(string) $e`) :
@@ -518,37 +534,46 @@ d'implémentation).
       recherche est notifiée. **Rouge aujourd'hui** (a et b : `message` porte le témoin). Rouge à
       nouveau si l'on remet `getMessage()` dans le `catch`, **et** (b seul) si l'on garde le
       `message` de `SafeExceptionContext::of($e)`.
-- [ ] **AC14 (`instant`, tranché le 2026-10-06)** — `POST` et `PATCH` avec `instant` rendent 422
+      ✓ `SavedSearchAlertFailureLogTest` (a) et (b) — run du 2026-10-08 ; ablation `getMessage()` remis au journal → 2 échecs.
+- [x] **AC14 (`instant`, tranché le 2026-10-06)** — `POST` et `PATCH` avec `instant` rendent 422
       **tous les deux** ; une ligne `instant` existante vaut `daily` après migration ; le formulaire
       de préférences ne le propose plus. **Rouge aujourd'hui** (201/200).
-- [ ] **AC15 (C6, honnêteté)** — Case non cochée : charge utile `off` et confirmation sans
+      ✓ `SavedSearchTest::test_instant_est_refuse_a_la_creation_comme_a_la_modification`, `SavedSearchCriteriaVocabularyTest::test_la_migration_ramene_instant_a_daily` ; `SearchPreferencesForm` sans `instant` (`SearchPreferencesForm.test.tsx` vert) — run du 2026-10-08.
+- [x] **AC15 (C6, honnêteté)** — Case non cochée : charge utile `off` et confirmation sans
       promesse d'alerte ; case cochée : `daily` et confirmation qui le dit. Le réglage d'une ligne
       de `/app/saved-searches` envoie `PATCH { notification_frequency }`.
+      ✓ `SaveSearchButton.alerte.test.tsx` (case décochée → `off` sans promesse ; cochée → `daily` et canaux rendus par l'API) et `SavedSearchesList.alerte.test.tsx` (PATCH `{ notification_frequency }` sur la bonne ligne, canaux effectifs) — vitest du 2026-10-08.
 
 **Alertes sans compte (§4)**
 
-- [ ] **AC16 (V13, confirmation)** — Après `POST /api/public/search-alerts`, une exécution du job
+- [x] **AC16 (V13, confirmation)** — Après `POST /api/public/search-alerts`, une exécution du job
       n'envoie **rien** à ce contact ; après confirmation, l'exécution suivante envoie. Code faux
       5 fois → refus même avec le bon code ; jeton réutilisé → 422. Une confirmation WhatsApp
       laisse `whatsapp_contacts` en `opted_in`.
-- [ ] **AC17 (V13, abus)** — Réponse et code identiques pour un contact connu et inconnu ; un
+      ✓ `PublicSearchAlertTest` : `test_rien_ne_part_avant_la_confirmation_et_le_jeton_ne_sert_qu_une_fois`, `test_un_jeton_de_plus_de_48_h_ne_confirme_rien`, `test_la_confirmation_whatsapp_par_code` (5 codes faux, `opted_in`) — run du 2026-10-08.
+- [x] **AC17 (V13, abus)** — Réponse et code identiques pour un contact connu et inconnu ; un
       troisième message de confirmation au même contact dans les 24 h n'est pas envoyé ; le
       dépassement du limiteur rend 429 ; une demande non confirmée a disparu après 48 h.
-- [ ] **AC18 (désinscription)** — `POST …/unsubscribe` avec le jeton → plus aucun envoi, contact
+      ✓ `PublicSearchAlertTest` : `test_aucune_enumeration_et_deux_confirmations_par_jour`, `test_cinq_alertes_au_plus_par_contact`, `test_le_limiteur_rend_429`, `test_le_limiteur_compte_par_contact_quelle_que_soit_l_adresse_ip`, `test_une_demande_non_confirmee_est_purgee_a_48_h` — run du 2026-10-08.
+- [x] **AC18 (désinscription)** — `POST …/unsubscribe` avec le jeton → plus aucun envoi, contact
       effacé ; un `GET` du lien visible seul ne désinscrit pas ; l'e-mail porte
       `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
-- [ ] **AC19 (rattachement)** — Un utilisateur à e-mail vérifié `Awa@Exemple.sn` rattache les
+      ✓ `PublicSearchAlertTest::test_la_desinscription_efface_le_contact_et_ne_cede_qu_a_un_post`, `SavedSearchAlertsTest::test_l_e_mail_porte_la_desinscription_en_un_clic_qui_ne_cede_qu_a_un_post` (en-têtes RFC 8058, GET → 405) ; pages : `SearchAlertLinkAction.test.tsx` (aucune requête au rendu) — run du 2026-10-08.
+- [x] **AC19 (rattachement)** — Un utilisateur à e-mail vérifié `Awa@Exemple.sn` rattache les
       alertes de `awa@exemple.sn` ; e-mail non vérifié → `claimed: 0` ; un autre utilisateur n'en
       rattache aucune.
+      ✓ `SearchAlertClaimTest` (4 tests : casse, non vérifié, autre utilisateur, téléphone vérifié) — run du 2026-10-08.
 
 **Favoris qui préviennent (§5)**
 
-- [ ] **AC20 (C17)** — Favori à 500 000 F ; prix → 450 000 → le job du lendemain envoie **une**
+- [x] **AC20 (C17)** — Favori à 500 000 F ; prix → 450 000 → le job du lendemain envoie **une**
       notification à ce client, la suivante n'envoie rien. 500 000 → 450 000 → 520 000 dans la
       journée → aucune notification. Passage à `rented` → une notification « loué », sans prix.
       `favorite_price_drop` coupé → rien pour la baisse, l'indisponibilité part encore.
-- [ ] **AC21** — Un bien devenu privé le jour même d'une baisse ne produit que l'alerte
+      ✓ `FavoriteChangeAlertsTest` : `test_une_baisse_est_annoncee_une_fois`, `test_une_baisse_effacee_par_une_hausse_ne_dit_rien`, `test_un_bien_loue_est_annonce_une_fois_sans_prix`, `test_couper_la_baisse_ne_coupe_pas_l_indisponibilite` — run du 2026-10-08.
+- [x] **AC21** — Un bien devenu privé le jour même d'une baisse ne produit que l'alerte
       d'indisponibilité, jamais son nouveau prix.
+      ✓ `FavoriteChangeAlertsTest::test_un_bien_prive_le_jour_d_une_baisse_ne_dit_que_son_indisponibilite` — run du 2026-10-08.
 
 ## Hors périmètre
 
@@ -632,3 +657,105 @@ les routes des favoris en `routes/api/properties.php:75-77`.
 
 Restauration vérifiée par md5 après chaque ablation.
 
+### Delta B, C et §5 — back (2026-10-08)
+
+- **Un moteur** : `PropertySearchService::alertMatches()` — `buildFilter()` de `/properties`,
+  `matchingStrategy all` sans repli ADR-0024, fenêtre `published_at` filtrée dans Meilisearch,
+  tri `published_at:desc`, 5 biens, `totalHits` comme total ; les biens rechargés par
+  `Property::public()` (un bien sorti du public entre l'index et l'envoi n'est pas décrit).
+  `buildFilter()` apprend `cities` (OU). `SearchService::getMatchingProperties()` rend désormais
+  `{properties, total}` ; son ancien chemin SQL n'a plus d'appelant en production (raccord).
+- **Borne** relevée AVANT la requête, en retrait de `search_alerts.index_margin_minutes` (10) ;
+  `last_notified_at` n'avance que sur un envoi.
+- **Vocabulaire** : `SavedSearchCriteria::KEYS` (23), règle `array:` commune aux deux Requests et à
+  l'alerte publique ; `toSearchParams()` ne transmet que `KEYS` et ramène les listes à la forme
+  que lit le moteur. `SearchServiceGeoTest` perd son test du chemin SQL des recherches
+  sauvegardées : le rayon est éprouvé contre le moteur réel par les lignes `radius_km`/`lat`/`lng`.
+- **Notification dédiée** (`SavedSearchMatchesNotification`) : cloche toujours (invariant 588),
+  e-mail selon `saved_search_match`, WhatsApp derrière `SEARCH_ALERTS_WHATSAPP_ENABLED` et sans
+  repli SMS (`smsFallbackAllowed(): false`, lu par `WhatsappChannel`). Aucun `NotificationCodes`
+  ajouté : la cloche porte le titre localisé stocké.
+- **Sans compte** : `alert_subscribers` (contact chiffré, empreinte HMAC, jetons hachés), 202
+  identique, 2 confirmations / 24 h, 5 demandes ouvertes, limiteur par visiteur ET par contact,
+  purge horaire à 48 h, désinscription qui efface toutes les lignes du contact, rattachement sur
+  contact vérifié. Le code WhatsApp vit 5 minutes (service de 589), pas 10.
+- **Favoris qui préviennent** : `SendFavoriteChangeAlerts` quotidien (09:15), prix comparés en
+  centimes entiers, base posée par `FavoriteObserver::creating`, bases avancées APRÈS l'envoi.
+- **Gardes** : l'exemption `FavoriteController::store` de `check-agency-scope-clause` est morte
+  depuis Delta A — retirée, cliquet 1 → 0 (`a327a4b1`). `docs/models-spec.md` : §80
+  `AlertSubscriber`, colonnes neuves de `Favorite` et `SavedSearch`.
+
+| Ablation (`ablate.py` / `ablate2.py`, cp + md5) | Test | Résultat |
+|---|---|---|
+| `getMessage()` remis au journal d'échec | `SavedSearchAlertFailureLogTest` | 2 échecs |
+| `matchingStrategy` élargi (`last`) | `SavedSearchAlertsTest` | 1 échec |
+| Filtre `cities` retiré | vocabulaire + alertes | 2 échecs |
+| Listes réduites à leur premier élément | idem | 3 échecs (survivait — témoin passé à la SECONDE valeur) |
+| Règle `array:` retirée | `SavedSearchCriteriaVocabularyTest` | 1 échec |
+| Clés hors vocabulaire transmises au moteur | idem | 1 échec (survivait — test ajouté) |
+| Marge d'indexation retirée | `SavedSearchAlertsTest` | 1 échec |
+| Borne basse ignorée | idem | 3 échecs |
+| Borne avancée sur passage muet | idem | 1 échec |
+| `off` envoie / `weekly` envoie chaque jour | idem | 1 échec chacune |
+| Préférence e-mail ignorée | alertes + `SavedSearchTest` | 2 échecs |
+| `total` = nombre décrit | `SavedSearchAlertsTest` | 1 échec |
+| Rechargement sans `public()` | idem | 1 échec |
+| Abonné non confirmé servi par le job | `PublicSearchAlertTest` | 1 échec |
+| Jeton réutilisable (`whereNull` + empreinte gardée, ensemble) | idem | 1 échec |
+| Jeton sans échéance | idem | 1 échec (test `…_48_h_…` ajouté) |
+| Code faux accepté / confirmation sans opt-in | idem | 1 échec chacune |
+| Plafond de confirmations / d'alertes ouvertes levé | idem | 1 échec chacune |
+| 409 sur un contact connu (énumération) | idem | 5 échecs |
+| Limiteur par contact relevé à 5000 | idem | 1 échec |
+| Purge retirée / purge qui efface les confirmés | idem | 1 échec chacune |
+| Désinscription qui n'efface que la ligne | idem | 1 échec |
+| Désinscription de compte sans `signed` / en GET | `SavedSearchAlertsTest` | 1 échec chacune |
+| Rattachement : e-mail / téléphone non vérifié, non confirmé, collision, abonnés gardés | `SearchAlertClaimTest` | 1 échec chacune |
+| Baisse annoncée à chaque passage / hausse sans rebase | `FavoriteChangeAlertsTest` | 1 échec chacune |
+| Indisponibilité répétée / retour au public sans réarmement | idem | 1 échec chacune |
+| Préférence de baisse ignorée | idem | 1 échec |
+| Visibilité jugée sans `scopePublic` | idem | 3 échecs |
+| Base non posée à la mise en favori | idem | 3 échecs |
+| Seeder remis à `neighborhoods` / fabrique à `max_price` | vocabulaire | 1 échec chacune |
+
+**Gardes doubles, assumées** : l'usage unique du jeton tient par l'empreinte effacée ET par
+`whereNull('confirmed_at')` — chacune seule survit à l'ablation de l'autre, les deux ensemble
+rougissent. Le `isConfirmed()` de `via()` double le filtre du job : non éprouvé seul.
+
+### Front (2026-10-08)
+
+- `FavoritesList` : carte éteinte (raison, retirer, biens similaires ; ni prix ni lieu),
+  pagination `console/Pagination`, note éditable (PATCH). `AuthContext` lisait
+  `/api/favorites?per_page=100` — **rendu 422 par AC5**, avalé en « best-effort » : les cœurs d'un
+  connecté seraient restés vides. Remplacé par `fetchAllFavoritePropertyIds()` (pages de 50).
+- `SaveSearchButton` : case « Me prévenir chaque jour » décochée ; confirmation selon
+  `alert_channels`. Visiteur : `PublicSearchAlertForm` dans la même boîte (plus de redirection
+  forcée), lien de connexion conservé. `SavedSearchesList` : réglage en place + canaux effectifs.
+- Pages `[locale]/(public)/search-alerts/{confirm,unsubscribe}` : `noindex`, `no-referrer`, action
+  au clic seulement, paramètres d'URL contrôlés (`lireLienDeCompte`, forme du jeton).
+- `instant` retiré du type, du schéma, de `SearchPreferencesForm` et des trois dictionnaires.
+- Préférences : `favorite_price_drop`, `favorite_unavailable` dans le groupe « Alertes ».
+- Délais affichés inscrits au registre `promesses-de-delai` (48 h, 5 min). Encres atténuées des
+  nouvelles surfaces publiques posées sur `bg-popover`/`bg-card` (cliquet de contraste inchangé).
+- `toggleFavoriteAction` retirée : action serveur morte qui visait `/favorites/{id du favori}`.
+
+| Ablation (`ablate-web.py`, cp + md5) | Test | Résultat |
+|---|---|---|
+| Page figée à 1 / pagination non rendue | `FavoritesList.test.tsx` | 1 échec chacune |
+| Favori éteint rendu en carte complète | idem | 3 échecs |
+| Retrait sur l'id du favori | idem | 1 échec |
+| Case cochée par défaut / ignorée | `SaveSearchButton.alerte.test.tsx` | 2 / 1 échecs |
+| Confirmation qui suppose les canaux | idem | 1 échec |
+| Visiteur renvoyé à la connexion / consentement non exigé / langue non transmise | idem | 1 échec chacune |
+| Réglage de ligne qui ne part pas | `SavedSearchesList.alerte.test.tsx` | 1 échec |
+| Canaux supposés | idem | 1 échec (survivait — fixture à canal unique) |
+| Action au rendu / jeton non contrôlé / 422 traité en panne | `SearchAlertLinkAction.test.tsx` | 3 / 2 / 2 échecs |
+| `search` / `signature` non contrôlés | `identifiants-d-alerte.tck-599.test.ts` | 1 / 5 échecs |
+| `cheminFavori` / `cheminRecherche` non contrôlés | idem | 18 échecs chacune |
+| `per_page=100` rétabli dans la synchro des cœurs | `favoris-du-magasin.tck-599.test.ts` | 1 échec (survivait — test ajouté) |
+
+**Non vérifié ici** (au porteur) : un envoi WhatsApp réel (gabarit `utility` non approuvé, drapeau
+faux) ; un essai sur téléphone réel des pages de confirmation et de désinscription ; le rendu de
+l'e-mail dans un vrai client (Gmail : bouton « Se désabonner » en un clic).
+
+**La suite entière** (back et front) n'a pas été lancée par l'agent : lancée par la session.

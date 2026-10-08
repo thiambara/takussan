@@ -131,6 +131,24 @@ Non tranchées par le ticket, structurantes, prises dans le sens le plus facile 
    (`saved-searches.unsubscribe`), valable 60 jours, appelée en `POST` depuis la page à un bouton.
    Au-delà, la personne règle l'alerte depuis `/app/saved-searches`.
 
+Ajoutées pendant l'implémentation (2026-10-08), même règle :
+
+5. **Le jeton de désinscription est stocké chiffré ET haché** : l'empreinte sert la recherche, la
+   forme chiffrée permet de le rejouer dans chaque envoi (un jeton seulement haché ne pourrait
+   figurer que dans le premier). Le lien de confirmation, lui, n'est stocké que haché.
+6. **Le premier passage d'une alerte n'a pas de borne basse** : il annonce les biens qui
+   correspondent déjà (total réel, cinq décrits), puis la fenêtre ne porte que sur les nouveaux.
+   Le borner à la création se fait en posant `last_notified_at` à la création.
+7. **Le rattachement ne prend que les abonnés confirmés**, et renomme `nom #id` une recherche dont
+   le nom est déjà pris par le compte (`(user_id, name)` est unique) plutôt que de la refuser.
+8. **La cloche reste toujours active** (invariant de 588) : couper `saved_search_match` ou
+   `favorite_*` coupe l'e-mail (et WhatsApp), pas la ligne de cloche d'un compte.
+9. **Un favori déjà hors du public avant la migration est marqué « annoncé »** : le premier passage
+   de `SendFavoriteChangeAlerts` n'annonce pas tout l'historique. Les prix se comparent en
+   centimes entiers (`Favorite::cents()`), jamais en flottants.
+10. **Le formulaire visiteur fixe la fréquence à quotidienne** ; l'API accepte `weekly`, l'écran ne
+    le propose pas encore.
+
 ## Conséquences
 
 - Une alerte et la liste ne peuvent plus diverger sur le sens d'un critère : elles partagent
@@ -155,3 +173,8 @@ Non tranchées par le ticket, structurantes, prises dans le sens le plus facile 
   `tests/Feature/Search/SavedSearchAlertsTest.php`, `SavedSearchAlertFailureLogTest.php`.
 - Abonnés : `App\Models\AlertSubscriber`, `App\Http\Controllers\Api\PublicSearchAlertController`,
   `tests/Feature/Search/PublicSearchAlertTest.php`, `SearchAlertClaimTest.php`.
+- Favoris qui préviennent : `App\Jobs\SendFavoriteChangeAlerts`,
+  `App\Notifications\FavoriteChangesNotification`, `tests/Feature/Favorites/FavoriteChangeAlertsTest.php`.
+- Front : `components/favorites/PublicSearchAlertForm.tsx`, `SaveSearchButton.tsx`,
+  `SavedSearchesList.tsx`, `components/search-alerts/SearchAlertLinkAction.tsx`, pages
+  `[locale]/(public)/search-alerts/{confirm,unsubscribe}`.
