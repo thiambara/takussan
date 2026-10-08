@@ -2,13 +2,16 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\Currency;
 use App\Models\LeasePayment;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Number;
 
 /**
  * TCK-087 — Sent to the tenant when a late fee is applied on one of
@@ -52,20 +55,17 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->payment->reference_number ?? '#'.$this->payment->id;
-        $currency = $this->payment->currency?->value ?? '';
 
         return (new MailMessage)
             ->subject(__('notifications.lease_late_fee_applied.subject', ['reference' => $reference]))
             ->greeting(__('notifications.lease_late_fee_applied.greeting'))
             ->line(__('notifications.lease_late_fee_applied.intro', [
                 'reference' => $reference,
-                'amount' => number_format($this->amount, 2),
-                'currency' => $currency,
+                'amount' => app(CurrencyFormatter::class)->format($this->amount, $this->payment->currency ?? Currency::XOF, app()->getLocale()),
             ]))
             ->line(__('notifications.lease_late_fee_applied.details', [
-                'percent' => rtrim(rtrim(number_format($this->percent, 2), '0'), '.'),
-                'base' => number_format($this->base, 2),
-                'currency' => $currency,
+                'percent' => Number::format($this->percent, maxPrecision: 2, locale: app()->getLocale()),
+                'base' => app(CurrencyFormatter::class)->format($this->base, $this->payment->currency ?? Currency::XOF, app()->getLocale()),
             ]))
             ->salutation(__('notifications.salutation'));
     }

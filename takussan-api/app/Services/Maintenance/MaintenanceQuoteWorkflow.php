@@ -30,10 +30,11 @@ class MaintenanceQuoteWorkflow
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, MaintenanceStatus::QuoteRequested),
             422,
-            "Transition from {$current->value} to quote_requested is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => 'quote_requested']
         );
 
         $mr->status = MaintenanceStatus::QuoteRequested;
@@ -55,10 +56,11 @@ class MaintenanceQuoteWorkflow
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, MaintenanceStatus::QuoteSubmitted),
             422,
-            "Transition from {$current->value} to quote_submitted is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => 'quote_submitted']
         );
 
         $mr->status = MaintenanceStatus::QuoteSubmitted;
@@ -84,10 +86,11 @@ class MaintenanceQuoteWorkflow
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, MaintenanceStatus::Approved),
             422,
-            "Transition from {$current->value} to approved is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => 'approved']
         );
 
         $mr->status = MaintenanceStatus::Approved;
@@ -107,10 +110,11 @@ class MaintenanceQuoteWorkflow
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, MaintenanceStatus::Rejected),
             422,
-            "Transition from {$current->value} to rejected is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => 'rejected']
         );
 
         $mr->status = MaintenanceStatus::Rejected;
@@ -132,10 +136,11 @@ class MaintenanceQuoteWorkflow
     {
         $current = $mr->status ?? MaintenanceStatus::Open;
 
-        abort_unless(
+        abort_code_unless(
             $this->canTransitionTo($current, MaintenanceStatus::InProgress),
             422,
-            "Transition from {$current->value} to in_progress is not allowed."
+            'maintenance.status_transition_invalid',
+            ['from' => $current->value, 'to' => 'in_progress']
         );
 
         $mr->status = MaintenanceStatus::InProgress;

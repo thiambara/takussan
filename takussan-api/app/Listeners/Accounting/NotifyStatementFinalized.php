@@ -2,9 +2,9 @@
 
 namespace App\Listeners\Accounting;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Events\Accounting\BankStatementFinalized;
-use App\Models\BankStatement;
-use App\Models\Enums\NotificationType;
 use App\Services\Model\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -22,37 +22,21 @@ class NotifyStatementFinalized implements ShouldQueue
         }
 
         $ratio = $statement->reconciled_ratio;
-        $period = collect([$statement->period_start?->format('d/m/Y'), $statement->period_end?->format('d/m/Y')])
-            ->filter()
-            ->implode(' – ');
-
-        $title = __('reconciliation.notifications.finalized.title');
-        $body = __('reconciliation.notifications.finalized.body', [
-            'period' => $period ?: '—',
+        // TCK-588 (ADR-0032) — des paramètres bruts, rendus dans la langue de CHAQUE destinataire.
+        $params = [
+            'period_start' => $statement->period_start?->toDateString(),
+            'period_end' => $statement->period_end?->toDateString(),
             'confirmed' => $ratio['confirmed'],
             'total' => $ratio['total'],
-        ]);
+        ];
+        $target = NotificationTarget::of('finances');
 
-        $this->notificationService->notify(
-            user: $finalizer,
-            type: NotificationType::BankStatementFinalized,
-            title: $title,
-            body: $body,
-            referenceableType: BankStatement::class,
-            referenceableId: $statement->id,
-        );
+        $this->notificationService->send($finalizer, NotificationCode::BankStatementFinalized, $params, $target);
 
         // Also notify primary admin if different from finalizer
         $primaryAdmin = $statement->agency?->primaryAdmin;
         if ($primaryAdmin && $primaryAdmin->id !== $finalizer->id) {
-            $this->notificationService->notify(
-                user: $primaryAdmin,
-                type: NotificationType::BankStatementFinalized,
-                title: $title,
-                body: $body,
-                referenceableType: BankStatement::class,
-                referenceableId: $statement->id,
-            );
+            $this->notificationService->send($primaryAdmin, NotificationCode::BankStatementFinalized, $params, $target);
         }
     }
 }

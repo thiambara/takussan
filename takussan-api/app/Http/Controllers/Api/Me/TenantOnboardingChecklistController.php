@@ -46,7 +46,7 @@ class TenantOnboardingChecklistController extends Controller
         $this->authorizeTenant($request, $lease);
 
         if (! in_array($item, TenantOnboardingChecklist::ITEMS, true)) {
-            abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Unknown checklist item.');
+            abort_code(Response::HTTP_UNPROCESSABLE_ENTITY, 'onboarding.checklist_item_unknown');
         }
 
         $checklist = TenantOnboardingChecklist::query()
@@ -54,7 +54,7 @@ class TenantOnboardingChecklistController extends Controller
             ->first();
 
         if ($checklist === null) {
-            abort(Response::HTTP_NOT_FOUND, 'Checklist not found for this lease.');
+            abort_code(Response::HTTP_NOT_FOUND, 'onboarding.checklist_not_found');
         }
 
         $checklist = $service->markItem($checklist, $item);

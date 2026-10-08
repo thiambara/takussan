@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
 use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
@@ -27,7 +29,6 @@ use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\MessageType;
-use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
@@ -762,10 +763,10 @@ class PublicPropertyController extends Controller
         // Vérification adverse de TCK-535 — même règle que `BookingService::create()` : le
         // propriétaire ne réserve pas (et ne fait pas d'offre sur) son propre bien. Avant tout
         // calcul et toute écriture, pour ne pas lui créer de fiche client.
-        abort_if(
+        abort_code_if(
             $property->user_id === $user->id && ! $user->isSuperAdmin(),
             403,
-            'You cannot book your own property.'
+            'booking.own_property'
         );
 
         // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
@@ -898,8 +899,8 @@ class PublicPropertyController extends Controller
 
         $primaryAgent = $resolver->recipientFor($property);
 
-        abort_if($primaryAgent === null, 422, 'No recipient available.');
-        abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
+        abort_code_if($primaryAgent === null, 422, 'message.no_recipient');
+        abort_code_if($primaryAgent->id === $user->id, 422, 'message.self');
 
         $conversation = $resolver->firstOrCreate($property, $user, $primaryAgent);
 
@@ -915,13 +916,10 @@ class PublicPropertyController extends Controller
             'last_message_at' => now(),
         ]);
 
-        $notifications->notify(
-            $primaryAgent,
-            NotificationType::Message,
-            'Nouveau message',
-            $this->displayName($user).': '.mb_strimwidth($data['message'], 0, 80, '…'),
-            ['conversation_id' => $conversation->id, 'message_id' => $message->id],
-        );
+        $notifications->send($primaryAgent, NotificationCode::MessageReceived, [
+            'sender' => $this->displayName($user),
+            'excerpt' => mb_strimwidth($data['message'], 0, 80, '…'),
+        ], NotificationTarget::of('conversation', $conversation->id));
 
         return $this->json([
             'data' => [
@@ -951,7 +949,7 @@ class PublicPropertyController extends Controller
     /** Le nom affiché d'un utilisateur, avec les mêmes replis que la notification d'origine. */
     private function displayName(User $user): string
     {
-        return trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: ($user->username ?? 'Utilisateur');
+        return trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: (string) ($user->username ?? $user->email);
     }
 
     /**

@@ -28,10 +28,7 @@ class DashboardMeTest extends ApiTestCase
         $this->actingAs($user, 'sanctum');
 
         $response = $this->apiGet('/api/dashboard/me')->assertNotFound();
-        $this->assertSame(
-            'Aucun profil tableau de bord résolu pour cet utilisateur.',
-            $response->json('message'),
-        );
+        $this->assertSame('dashboard.profile_unresolved', $response->json('code'));
     }
 
     public function test_super_admin_with_agency_resolves_to_agency(): void

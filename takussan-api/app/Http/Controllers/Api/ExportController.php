@@ -44,7 +44,7 @@ class ExportController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
-        abort_unless(isset(self::CAPABILITY[$entity]), 404, __('errors.export_unknown_entity'));
+        abort_code_unless(isset(self::CAPABILITY[$entity]), 404, 'export.entity_unknown', ['entity' => $entity]);
 
         // TCK-587 — le contrôle se fait EN TÊTE, avant toute requête. Il ouvrait l'export à tout
         // membre (agent comme admin) sans lire `crm.export`, `payments.export` ni `reports.export`,
@@ -53,16 +53,16 @@ class ExportController extends Controller
         $staffAgencyId = $user->staffAgencyId();
         if (! $user->isSuperAdmin()) {
             if ($staffAgencyId !== null) {
-                abort_unless(
+                abort_code_unless(
                     $user->canActAt(self::CAPABILITY[$entity], Agency::query()->find($staffAgencyId)),
                     403,
-                    __('errors.export_forbidden'),
+                    'export.forbidden',
                 );
             } elseif ($entity === 'customers') {
-                abort(403, __('errors.export_forbidden'));
+                abort_code(403, 'export.forbidden');
             } elseif ($entity === 'properties'
                 && ! ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))) {
-                abort(403, __('errors.export_forbidden'));
+                abort_code(403, 'export.forbidden');
             }
         }
 

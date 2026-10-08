@@ -1,13 +1,13 @@
 ---
 id: TCK-588
 title: "L'API n'écrit plus de prose : une notification est un code rendu dans la langue du destinataire, part sur WhatsApp ou SMS y compris vers un contact sans compte, et une erreur métier porte un code"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 depends_on: []
 blocks: []
 spec_refs:
@@ -449,10 +449,10 @@ fusionne avant ou après celui-ci.
 ## Delta à produire
 
 ### 0. Décision
-- [ ] ADR (contrainte 1), accepté avant tout code.
+- [x] ADR (contrainte 1), accepté avant tout code.
 
 ### A. Socle
-- [ ] Enum `NotificationCode`. Au minimum :
+- [x] Enum `NotificationCode`. Au minimum :
   - `lease_payment.{due_soon, overdue, overdue_landlord, overdue_digest, recorded,
     received_landlord}` ;
   - `booking.{created, confirmed, rejected, cancelled}` ;
@@ -460,31 +460,31 @@ fusionne avant ou après celui-ci.
   - `kyc.{submitted, verified, rejected}`, `role_delegation.*`, `bank_statement.*` ;
   - `property.{approved, rejected}` ;
   - un code par appel converti en E.
-- [ ] Migration `<date>_add_code_params_target_to_app_notifications_table` : `code` string(100),
+- [x] Migration `<date>_add_code_params_target_to_app_notifications_table` : `code` string(100),
       `params` jsonb et `target` jsonb, tous nullables ; `down()` réversible.
-- [ ] `NotificationRenderer`, `NotificationTarget` (avec dérivation pour les lignes anciennes),
+- [x] `NotificationRenderer`, `NotificationTarget` (avec dérivation pour les lignes anciennes),
       `CodedNotification`, `NotificationService::send()`. `AppDatabaseChannel` accepte `code`,
       `params` et `target`.
-- [ ] `AppNotificationResource` ; `NotificationController::index` (borne, `filter[unread]`, champs
+- [x] `AppNotificationResource` ; `NotificationController::index` (borne, `filter[unread]`, champs
       clairsemés).
-- [ ] `send()` choisit l'interrupteur par `preferenceEvent()` (table du Contrat A) ;
+- [x] `send()` choisit l'interrupteur par `preferenceEvent()` (table du Contrat A) ;
       `PreferenceResolver::EVENTS` gagne `lease_payment_received`, `CRITICAL_EVENTS` gagne
       `kyc_status_changed`.
-- [ ] Le rendu consulte `NotificationTemplateService::renderActive()` pour `booking.confirmed`,
+- [x] Le rendu consulte `NotificationTemplateService::renderActive()` pour `booking.confirmed`,
       `lease_payment.recorded` et `maintenance.created`.
-- [ ] Lignes `notification_templates` (`whatsapp`, `meta_status = pending`, nom, variables) pour
+- [x] Lignes `notification_templates` (`whatsapp`, `meta_status = pending`, nom, variables) pour
       `lease_payment.due_soon`, `lease_payment.overdue` et `visit.reminder`. Le passage à `approved`
       est un acte d'exploitation ; d'ici là, la bascule vers SMS s'applique.
 
 ### B. Contacts sans compte
-- [ ] `ContactSansCompte` avec ses deux fabriques.
-- [ ] `SmsChannel`/`WhatsappChannel` :
+- [x] `ContactSansCompte` avec ses deux fabriques.
+- [x] `SmsChannel`/`WhatsappChannel` :
   - limite par numéro ;
   - opt-in WhatsApp exigé pour un destinataire routé.
-- [ ] `TemplateResolver::resolve()` : repli `wo` → `fr` (Contrat C).
+- [x] `TemplateResolver::resolve()` : repli `wo` → `fr` (Contrat C).
 
 ### C. Loyers (C4, C5, O5, A8)
-- [ ] `SendLeasePaymentReminders` sur `send()` :
+- [x] `SendLeasePaymentReminders` sur `send()` :
   - **sélection** : une échéance **ouverte** (`pending`, `partially_paid` ou `late`), jamais le seul
     statut `late` — J-3 sur `due_date = today + 3`, retard sur `due_date ∈ {today - 1, today - 7}`.
     Le statut `late` (écrit par la pénalité de 593) n'entre plus dans la décision de relancer ;
@@ -496,49 +496,49 @@ fusionne avant ou après celui-ci.
     moins un retard ce jour-là ;
   - chargement anticipé de `lease.tenant.user`, `lease.landlord` et du contact principal du bien ;
   - marqueur par jalon.
-- [ ] `LeasePaymentService:59-75` ⇒ `recorded` et `received_landlord`, qui nomment le bien et le
+- [x] `LeasePaymentService:59-75` ⇒ `recorded` et `received_landlord`, qui nomment le bien et le
       locataire.
 
 ### D. Rappels de visite planifiés (A8)
-- [ ] `SendPropertyVisitReminders` ⇒ `visit.reminder` (`window` = `24h` | `1h`).
+- [x] `SendPropertyVisitReminders` ⇒ `visit.reminder` (`window` = `24h` | `1h`).
   - Destinataires : `visitor`, sinon `customer.user`, sinon `ContactSansCompte::fromVisit()` ; plus
     l'agent.
   - `VisitReminderNotification` est supprimée une fois sans appelant.
 
 ### E. Conversion des notifications
-- [ ] Les 19 appels littéraux et les 9 appels rendus dans la langue de l'émetteur (§3) passent sur
+- [x] Les 19 appels littéraux et les 9 appels rendus dans la langue de l'émetteur (§3) passent sur
       `send()`, sauf ceux qu'un ticket de domaine aura déjà réécrits.
-- [ ] Les 6 classes envoyées passent sur des clés de `lang/` ; les 4 mortes suivent la coordination
+- [x] Les 6 classes envoyées passent sur des clés de `lang/` ; les 4 mortes suivent la coordination
       avec 592.
-- [ ] Montants des notifications par `CurrencyFormatter::format($x, $currency, $notifiable->preferredLocale())` :
+- [x] Montants des notifications par `CurrencyFormatter::format($x, $currency, $notifiable->preferredLocale())` :
       `LeasePaymentLateFeeNotification:62,67`, `LeaseDepositRefundNotification:73,79`,
       `LeaseEarlyTerminationNotification:79`, `InvoiceOverdueReminderNotification:62`,
       `LeaseRentReviewedNotification:64-65`. Le pourcentage (`:66`) par `NumberFormatter` de la
       langue. Plus aucun `number_format(` dans `app/Notifications/` (garde G).
-- [ ] Wolof complet côté API : `lang/wo/role_delegations.php` (14 clés) ; les 15 clés manquantes de
+- [x] Wolof complet côté API : `lang/wo/role_delegations.php` (14 clés) ; les 15 clés manquantes de
       `lang/wo/notifications.php` ; les 4 clés vivantes manquantes de `lang/wo/messages.php`. Les
       16 clés `*_title`/`*_body` de `messages.php` sans lecteur sont **supprimées** de `fr` et `en`
       (elles ne deviennent pas des codes). Blocs `codes.*` dans `lang/{fr,en,wo}/notifications.php`.
 
 ### F. Erreurs (AD20)
-- [ ] `ApiError`, `app/Support/helpers.php`, le rendu de `bootstrap/app.php` (dont `http.<statut>`),
+- [x] `ApiError`, `app/Support/helpers.php`, le rendu de `bootstrap/app.php` (dont `http.<statut>`),
       `lang/{fr,en,wo}/errors.php`.
-- [ ] Conversion, par domaine (plusieurs PR possibles) : 186 `abort*`, 22 `'message' =>`,
+- [x] Conversion, par domaine (plusieurs PR possibles) : 186 `abort*`, 22 `'message' =>`,
       10 `ValidationException` et 6 `HttpException`. Le `$msg` construit à
       `PaymentGatewayService:77-79` devient un code avec paramètres ; `:86` ne nomme plus aucune
       classe (`payment.amount_unresolved`).
-- [ ] `KycWorkflowService::refuse()` est supprimée : ses quatre appelants (l.69, 158, 165, 196)
+- [x] `KycWorkflowService::refuse()` est supprimée : ses quatre appelants (l.69, 158, 165, 196)
       deviennent `abort_code(422, self::CODE_…, $params)`. Les codes existants (`kyc.locked`,
       `kyc.unknown_document_type`, `kyc.not_transitionable`, `kyc.documents_missing`) sont gardés à
       l'identique ; `documents_missing` porte la liste en paramètre `missing`.
-- [ ] `InvitationAcceptController` (l.43-57) relaie `code` et `message` de l'`ApiError`, plus
+- [x] `InvitationAcceptController` (l.43-57) relaie `code` et `message` de l'`ApiError`, plus
       `requires_login` et `email` ; jamais `getMessage()`.
-- [ ] `PlatformReportingService::refuserPlageTropLarge()` (l.407-418) : message par
+- [x] `PlatformReportingService::refuserPlageTropLarge()` (l.407-418) : message par
       `__('errors.reporting.range_too_wide', ['max' => …, 'granularity' => …])` (sauf réécriture par
       595).
 
 ### G. Gardes
-- [ ] `tests/Unit/Architecture/ProseLitteraleInterditeTest.php` (tokenizer, sur `app/`) refuse un
+- [x] `tests/Unit/Architecture/ProseLitteraleInterditeTest.php` (tokenizer, sur `app/`) refuse un
       littéral contenant une lettre aux positions suivantes :
       - (a) le message d'un `abort*` ;
       - (b) le titre ou le corps de `->notify(`/`->notifyMany(` ;
@@ -555,54 +555,54 @@ fusionne avant ou après celui-ci.
 
       Aucune exemption hors 599, qui expire. Échec si 0 fichier scanné ou 0 appel reconnu. Fixtures
       `tests/Fixtures/ProseLitterale/` (positifs et négatifs comptés exactement).
-- [ ] `tests/Unit/Lang/LangGroupParityTest.php` vérifie :
+- [x] `tests/Unit/Lang/LangGroupParityTest.php` vérifie :
   - les mêmes fichiers de groupe, les mêmes clés et les mêmes placeholders dans les trois langues,
     à une exception nommée : `en/validation.php`, qui ne porte que les surcharges du dictionnaire du
     framework (gardé par `ValidationTranslationParityTest`) ;
   - pour chaque `NotificationCode`, `title`/`body`/`sms` en trois langues, avec les placeholders de
     `params()` ;
   - pour chaque code littéral passé à `abort_code*`, sa présence dans `errors.php` (×3).
-- [ ] `scripts/check-notification-codes.mjs` : chaque cas de `NotificationCode` a
+- [x] `scripts/check-notification-codes.mjs` : chaque cas de `NotificationCode` a
       `notifications.codes.<code>.{title,body}` dans `src/messages/{fr,en,wo}.json`. Échec s'il lit
       0 cas. Étape nommée dans `repo-ci.yml`.
 
 ### H. Front (C11)
-- [ ] Cloche : ligne entière cliquable vers `target.path`, marquée lue au clic, rendue par code ;
+- [x] Cloche : ligne entière cliquable vers `target.path`, marquée lue au clic, rendue par code ;
       accès à l'historique.
-- [ ] Page `/app/notifications` : pagination, « non lues », « tout marquer lu ». Type
+- [x] Page `/app/notifications` : pagination, « non lues », « tout marquer lu ». Type
       `AppNotification` enrichi de `code`, `params` et `target` ; clés fr/en/wo.
-- [ ] Préférences : une case `channel_unavailable` est inactive et dit pourquoi, dans les trois
+- [x] Préférences : une case `channel_unavailable` est inactive et dit pourquoi, dans les trois
       langues, comme les deux raisons existantes.
 
 ### I. Des préférences qui commandent quelque chose
-- [ ] **Défauts mobiles par événement** — *option retenue par défaut (question 1, non tranchée)* :
+- [x] **Défauts mobiles par événement** — *option retenue par défaut (question 1, non tranchée)* :
       `whatsapp` et `sms` activés par défaut pour `lease_payment_due`, `lease_payment_overdue`,
       `visit_reminder` et `booking_status_changed`, désactivables ; désactivés ailleurs. Toujours
       soumis à `phone_verified_at`. `PreferenceResolver::DEFAULTS` devient
       `defaultFor(string $event, string $channel): bool`, lu par `shouldSend()` **et**
       `matrixFor()`. Coût SMS à la charge de la plateforme.
-- [ ] `PreferenceResolver::channelsFor(string $event): list<string>` :
+- [x] `PreferenceResolver::channelsFor(string $event): list<string>` :
   - `inapp` et `email` toujours ;
   - `push` seulement si `config('broadcasting.default')` n'est ni `log` ni `null` (D-65) ;
   - `sms`/`whatsapp` seulement si l'événement est **mobile** : un `NotificationCode` `mobile()`
     l'a pour `preferenceEvent()`, ou il figure dans `PreferenceResolver::MOBILE_CLASS_EVENTS`
     (événements des classes `Notification` qui implémentent `SupportsSms`/`SupportsWhatsapp` ;
     599 y ajoute les siens).
-- [ ] `matrixFor()` verrouille toute autre case (`locked: true`, `enabled: false`,
+- [x] `matrixFor()` verrouille toute autre case (`locked: true`, `enabled: false`,
       `reason: "channel_unavailable"`) ; `updateMany()` l'ignore.
-- [ ] `tests/Unit/Notifications/MobileClassEventsTest.php` : chaque classe de `app/Notifications/`
+- [x] `tests/Unit/Notifications/MobileClassEventsTest.php` : chaque classe de `app/Notifications/`
       qui implémente `SupportsSms` ou `SupportsWhatsapp` a son `EVENT_TYPE` dans
       `MOBILE_CLASS_EVENTS`, et réciproquement. Échec si 0 classe lue.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 — Jours et montant (C4).** Heure fixée au 2026-10-06 08:00, échéance `late` du
+- [x] **AC1 — Jours et montant (C4).** Heure fixée au 2026-10-06 08:00, échéance `late` du
       2026-09-29 de 150000 XOF, locataire fr. Le corps in-app vaut **exactement** le rendu attendu,
       avec « 7 jours » et le montant égal à `CurrencyFormatter::format(150000, XOF, 'fr')`
       (« 150 000 F CFA ») ; il ne contient ni « 150000.00 » ni « XOF ». À J+1, il dit « 1 jour ».
       La ligne porte `target.path = /app/leases/{lease_id}`. Remettre
       `now()->diffInDays($payment->due_date)` fait rougir le test.
-- [ ] **AC2 — Langue du destinataire.** Avec une application en `fr`, un locataire `en` et un
+- [x] **AC2 — Langue du destinataire.** Avec une application en `fr`, un locataire `en` et un
       locataire `wo` reçoivent chacun leur langue, en in-app, e-mail et SMS. La ligne porte
       `code = lease_payment.overdue` et ses `params` bruts. Lue avec `Accept-Language: en`, une
       ligne écrite pour un destinataire fr rend un `title` anglais. Rouges aujourd'hui, et chacun
@@ -613,7 +613,7 @@ fusionne avant ou après celui-ci.
         ⇒ anglais ;
       - e-mail `VisitReminderNotification`/`visit.reminder` à un destinataire `wo` : le sujet est
         égal à la clé `wo` et **différent** de la clé `en` (aujourd'hui, repli anglais).
-- [ ] **AC3 — Locataire sans compte** (`user_id` nul, téléphone `+221 77 …`). À J+1 part **un** SMS
+- [x] **AC3 — Locataire sans compte** (`user_id` nul, téléphone `+221 77 …`). À J+1 part **un** SMS
       fr (montant, jours), et **aucune** ligne `app_notifications` n'est créée. Variantes :
       - `opted_in` avec gabarit approuvé : un WhatsApp, pas de SMS ;
       - `opted_out` : SMS seul ;
@@ -623,14 +623,14 @@ fusionne avant ou après celui-ci.
         un WhatsApp sur le gabarit `fr` (aujourd'hui : SMS).
 
       Retirer la branche contact fait rougir le test.
-- [ ] **AC4 — Bailleur et agent.** Trois retards à J+1 sur deux baux du même agent, plus un retard
+- [x] **AC4 — Bailleur et agent.** Trois retards à J+1 sur deux baux du même agent, plus un retard
       dans une autre agence :
       - chaque bailleur reçoit `overdue_landlord`, qui nomme le bien et le locataire ;
       - l'agent reçoit **une** notification `overdue_digest` avec `count = 3` ;
       - l'agent de l'autre agence ne voit rien de ces trois retards ;
       - un agent sans retard ne reçoit rien ;
       - relancer le job le même jour n'envoie rien de plus.
-- [ ] **AC5 — Chaque interrupteur commande son message.** Test `NotificationPreferenceRoutingTest`,
+- [x] **AC5 — Chaque interrupteur commande son message.** Test `NotificationPreferenceRoutingTest`,
       téléphone vérifié :
       - WhatsApp coupé pour `lease_payment_due` et laissé par défaut pour `lease_payment_overdue` :
         le retard part sur WhatsApp, le rappel J-3 non. Rouge si le retard redevient
@@ -643,10 +643,10 @@ fusionne avant ou après celui-ci.
       - e-mail coupé pour `lease_payment_due` : le reçu `lease_payment.recorded` part quand même ;
       - **défauts** : sans aucune ligne de préférence, un locataire au téléphone vérifié reçoit le
         retard J+1 sur un canal mobile ; sans téléphone vérifié, sur aucun.
-- [ ] **AC6 — Visite planifiée d'un anonyme.** Visite confirmée sans `visitor_id`, avec
+- [x] **AC6 — Visite planifiée d'un anonyme.** Visite confirmée sans `visitor_id`, avec
       `visitor_phone`, dans la fenêtre de 24 h : un SMS fr part vers ce numéro, l'agent est notifié
       comme avant, et un second passage n'envoie rien.
-- [ ] **AC7 — Erreurs.** Tests HTTP en fr, en et wo :
+- [x] **AC7 — Erreurs.** Tests HTTP en fr, en et wo :
       - un reversement pour le bailleur d'une autre agence rend `403`,
         `code = payout.landlord_not_in_agency` et un message localisé. Si 594 a réécrit ce chemin,
         le test porte sur un autre `abort_code` converti ici ;
@@ -664,7 +664,7 @@ fusionne avant ou après celui-ci.
 
       L'ancien rappel de `bootstrap/app.php` fait rougir les trois premiers ; remettre `refuse()`
       fait rougir le cas KYC.
-- [ ] **AC8 — Garde de prose.**
+- [x] **AC8 — Garde de prose.**
       - Elle est verte sur `app/`.
       - Sur les fixtures, elle trouve exactement les positifs attendus : un par forme (a)-(g), plus
         une concaténation, une interpolation sur plusieurs lignes et un `sprintf` dans
@@ -672,27 +672,27 @@ fusionne avant ou après celui-ci.
         `number_format` hors `app/Notifications/`).
       - Réinjecter `abort(403, 'Interdit.')` dans un contrôleur la fait rougir (ablation consignée).
       - Elle rougit sur un scan vide et sur une exemption périmée.
-- [ ] **AC9 — Parités.** `LangGroupParityTest` et `check-notification-codes.mjs` sont verts. Chacun
+- [x] **AC9 — Parités.** `LangGroupParityTest` et `check-notification-codes.mjs` sont verts. Chacun
       rougit dans trois cas : une clé `codes.*` retirée en `wo` côté API, la même retirée de
       `wo.json` côté front, un placeholder retiré d'une traduction.
-- [ ] **AC10 — Zéro littéral.** La garde compte 0 littéral hors exemption. `BookingService::confirm`
+- [x] **AC10 — Zéro littéral.** La garde compte 0 littéral hors exemption. `BookingService::confirm`
       émet `booking.confirmed`, et un client qui a activé WhatsApp pour `booking_status_changed` le
       reçoit sur WhatsApp.
-- [ ] **AC11 — Éditeur de gabarits effectif.** Un gabarit actif `payment_received` (e-mail, fr)
+- [x] **AC11 — Éditeur de gabarits effectif.** Un gabarit actif `payment_received` (e-mail, fr)
       remplace le sujet et le corps de l'e-mail `lease_payment.recorded` d'un locataire fr. Désactivé,
       c'est la clé de `lang/` qui s'applique. Le test rougit si le rendu ignore le registre.
-- [ ] **AC12 — SMS ≤ 2 segments.** Pour chaque code `mobile()`, en fr, en et wo, avec des paramètres
+- [x] **AC12 — SMS ≤ 2 segments.** Pour chaque code `mobile()`, en fr, en et wo, avec des paramètres
       de taille réaliste. Un texte allongé fait rougir le test.
-- [ ] **AC13 — API de la cloche.** `per_page=1000` rend au plus 50 éléments. `filter[unread]=1` ne
+- [x] **AC13 — API de la cloche.** `per_page=1000` rend au plus 50 éléments. `filter[unread]=1` ne
       rend que les non lues. Chaque élément porte `code`, `params` et `target`. Une ligne ancienne
       avec `data.booking_id` rend `target.path = /app/bookings/{id}`.
-- [ ] **AC14 — Navigateur réel** (320, 390 et 1280 px ; fr, en, wo).
+- [x] **AC14 — Navigateur réel** (320, 390 et 1280 px ; fr, en, wo).
       - Un clic sur un rappel de loyer ouvre le bail et marque la ligne lue.
       - Une notification sans cible n'est pas un lien.
       - Un code inconnu du front affiche le `title` de l'API, sans clé brute ni exception.
       - L'historique se pagine et se filtre.
       - Aucun défilement horizontal ; cibles ≥ 44 px.
-- [ ] **AC15 — Un retard est relancé sans pénalité.** Heure fixée, J+1 à 08:00 :
+- [x] **AC15 — Un retard est relancé sans pénalité.** Heure fixée, J+1 à 08:00 :
       - bail **sans** `late_fee_percent`, échéance `pending` due la veille ⇒ le locataire reçoit
         `overdue` (aujourd'hui : rien) ;
       - bail à 3 jours de grâce, échéance `pending` due la veille ⇒ idem ;
@@ -701,7 +701,7 @@ fusionne avant ou après celui-ci.
       - échéance `paid` ou `refunded` à J+1 ⇒ rien.
 
       Remettre `where('status', PaymentStatus::Late)` fait rougir les deux premiers cas.
-- [ ] **AC16 — Matrice honnête.** `GET /api/notifications/preferences`, `BROADCAST_CONNECTION=log`,
+- [x] **AC16 — Matrice honnête.** `GET /api/notifications/preferences`, `BROADCAST_CONNECTION=log`,
       téléphone vérifié :
       - toute case `push` est `locked`, `reason = channel_unavailable` ;
       - `review_received`/`whatsapp` est `channel_unavailable` ; `lease_payment_overdue`/`whatsapp`
@@ -710,12 +710,12 @@ fusionne avant ou après celui-ci.
 
       Rouge aujourd'hui sur les trois points. `MobileClassEventsTest` rougit si une classe
       `SupportsSms` est ajoutée sans son événement.
-- [ ] **AC17 — Montants des notifications.** `LeasePaymentLateFeeNotification` pour 1500 XOF :
+- [x] **AC17 — Montants des notifications.** `LeasePaymentLateFeeNotification` pour 1500 XOF :
       e-mail `fr` contenant `CurrencyFormatter::format(1500, XOF, 'fr')`, e-mail `en` contenant
       `CurrencyFormatter::format(1500, XOF, 'en')` ; aucun des deux ne contient « 1,500.00 ». Même
       contrôle sur `LeaseDepositRefundNotification` et `LeaseRentReviewedNotification` en `en`
       (pas de « 150 000 » à espace dans une phrase anglaise).
-- [ ] **AC18** — Pint propre. Verts : `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n`,
+- [x] **AC18** — Pint propre. Verts : `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n`,
       `npm run check:i18n-namespaces` et `node scripts/check-notification-codes.mjs`.
 
 ## Hors périmètre
@@ -743,4 +743,177 @@ fusionne avant ou après celui-ci.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Branche `feat/tck-588-api-sans-prose`, ADR [0032](../../adr/0032-l-api-n-ecrit-plus-de-prose.md).
+Mesures du 2026-10-07. AC14 est vérifié sur une COPIE de la base de développement
+(`takussan_tck588`), jamais sur la base partagée — voir « Vérification finale ».
+
+### Décisions non évidentes
+
+- **Écarts de re-mesure.** 197 aborts littéraux, pas 186. Et 48 aborts déjà traduits
+  (`abort(…, __('…'))`) auraient PERDU leur message sous le nouveau rendu (toute `HttpException`
+  devient `http.<statut>`) : ils sont convertis en `abort_code()`, la traduction recopiée dans
+  `errors.php` ×3.
+- **`UserObserver` matérialisait les défauts** pour chaque (événement, canal) à la création d'un
+  compte : des lignes `false` pour SMS/WhatsApp, donc les défauts mobiles par événement (§I) ne se
+  seraient jamais appliqués à un utilisateur créé par l'application. Il lit `defaultFor()`.
+- **Paramètres texte d'un SMS plafonnés à 32 caractères** (`NotificationRenderer::SMS_TEXT_MAX`) :
+  avec l'intitulé de bien le plus long du jeu de données (49 car., p99 43, `percentile_cont` sur
+  836 biens), `overdue_landlord` fr passait à 3 segments UCS-2. Un lien prend la nature
+  `PARAM_URL`, jamais tronquée.
+- **`fields[app_notifications]`** restreint les clés rendues par `AppNotificationResource`, pas la
+  requête SQL : `title`/`body` sont re-rendus depuis `code`/`params`, qu'il faut lire.
+- **Fixtures de la garde** sous `tests/fixtures/ProseLitterale/` (minuscule, la convention du
+  dépôt), pas `tests/Fixtures/` : sur un disque insensible à la casse les deux se confondent, et
+  `git add` ne les avait pas prises.
+- **Délégation de rôle (AC2)** : le texte vit sous `notifications.codes.role_delegation.*`, pas
+  `role_delegations.*` ; `lang/wo/role_delegations.php` est créé comme le Delta l'exige, mais son
+  bloc `notifications.*` n'a plus de lecteur. Les clés `visit_reminder.*` sont retirées (la classe
+  l'est), pas traduites.
+- **`visitor_phone` est une saisie libre** (`max:30`) et `PhoneNumber::normalize` est strict
+  (E.164) : un « 77 123 45 67 » au format national n'est pas routable, le rappel n'atteint que
+  l'agent. Normaliser la saisie publique relève de TCK-590.
+- **Un abort à message traduit perd son message** (`abort(403, __('…'))`) : le rendu ne garde que
+  le code d'une `ApiError`. Ce n'est pas de la prose en dur — la garde (a)-(g) le laisse passer, et
+  l'AC8 le range parmi les négatifs — mais `ProseLitteraleScanner::$messagesPerdus` le relève à
+  part, et `app/` doit en compter zéro.
+- **Parité de placeholders** : elle a trouvé un écart déjà présent sur `dev`
+  (`wo` `lease_early_termination.cancelled.intro` sans `:reference`), corrigé — texte wolof à faire
+  relire, comme l'ensemble des textes `wo` ajoutés.
+
+### Ablations (rouge sans le correctif, vert avec)
+
+- AC1 : `$days = now()->diffInDays($payment->due_date);` réinjecté → les 2 tests AC1 rouges (2 failed / 6 filtrés) ; restauré → 10/10 verts.
+- AC15 : `->where('status', PaymentStatus::Late)` réinjecté → 3 rouges (sans pénalité, délai de grâce, partiellement payée) ; restauré → vert.
+- AC2 : `send()` rendant dans `app()->getLocale()` (langue du processus) au lieu de `preferredLocale()` → 5/6 rouges (en/wo × in-app+e-mail+SMS, délégation fr→wo, relevé worker fr→en, sujet de visite wo) ; restauré → 6/6.
+- AC2 : bloc `codes.visit.*` retiré de `lang/wo/notifications.php` → le test du sujet wo rougit (repli anglais) ; restauré → vert.
+- AC3 : branche contact retirée du job (`$contact = null`) → le test AC3 du job rougit ; limite par numéro retirée de SmsChannel → `au_dela_de_la_limite` rougit ; `TemplateResolver::FALLBACKS = []` → `wo_hors_fenetre` rougit ; garde d'opt-in du canal WhatsApp retirée → `le_canal_whatsapp_exige_le_consentement` rougit. Restauré : 19/19.
+- AC5 : interrupteurs remis à l'ancienne table (retard/reçu → `lease_payment_due`, confirmation → `booking_request`, KYC → `threshold_alert`) → 6/8 rouges, dont AC10 (WhatsApp de `booking.confirmed`) ; restauré → 8/8.
+- AC5 défauts mobiles : `defaultFor` rend `false` pour les événements mobiles → 4/8 rouges (retard WhatsApp sans ligne, défauts d'un utilisateur créé par l'application) ; restauré.
+- AC7 : ancien rappel de `bootstrap/app.php` (`getMessage() ?: 'Error'`) remis → 12/13 rouges dans `ApiErrorCodeTest` (abort_code ×3, modèle introuvable ×3, policy, abort nu, KYC ×3, paiement) ; restauré → 13/13.
+- AC7 : `refuse()` remis pour `kyc.documents_missing` (message anglais en dur) → 3/3 rouges (fr, en, wo — en rouge aussi : `params.missing` absent) ; restauré.
+- AC6 : branche contact retirée de `SendPropertyVisitReminders` (`$contact = null`) → le test AC6 rougit (0 SMS) ; restauré → vert.
+- AC11 : `fromTemplate()` court-circuité (`return null`, le rendu ignore le registre) → le test du gabarit actif rougit, celui du gabarit inactif reste vert ; restauré → 2/2.
+- AC12 : texte SMS fr de `visit.reminder` allongé d'une phrase → rouge (170 caractères, 3 segments UCS-2) ; restauré → vert.
+- AC13 : plafond `per_page` et filtre `filter[unread]` retirés du contrôleur → les 2 tests correspondants rougissent ; dérivation de cible retirée de `NotificationTarget::forRow` → le test de la ligne ancienne (`data.booking_id`) rougit ; restaurés → 12/12.
+- AC2 (lecture) : la ressource rend le `title` STOCKÉ au lieu de le rendre dans la langue de la requête → le test `Accept-Language: en` rougit ; restauré.
+- AC16 : garde `channelsFor` retirée de `matrixFor` et de `updateMany` → les 3 tests AC16 rougissent (push libre, `review_received`/WhatsApp libre, ligne `review_received`/SMS créée) ; restauré → 7/7.
+- AC17 : les trois classes remises dans leur version de `dev` (`number_format(…, 2)`) → 4/4 rouges ; `CurrencyFormatter` forcé en `fr` dans `LeaseDepositRefund`/`LeaseRentReviewed` → les 2 tests `en` rougissent (espace de milliers dans une phrase anglaise) ; restauré → 4/4.
+- MobileClassEventsTest : une classe `SupportsSms` d'événement `review_received` ajoutée sans son événement → rouge (« absente de MOBILE_CLASS_EVENTS ») ; répertoire lu vide → rouge (« aucune classe ») ; restauré → vert.
+- AC8 : `abort(403, 'Interdit.')` réinjecté dans `NotificationController::markAsRead` → `test_app_ne_contient_aucune_prose_hors_exemption` rougit en nommant « (a) Http/Controllers/Api/NotificationController.php:… « Interdit. » » ; restauré → 5/5.
+- AC8 : fixtures — 15 positifs comptés exactement (Positifs.php : a×4, b×1, d×3, e×2, f×1 ; PositifsNotification.php : c×3, g×1), 0 sur les deux fichiers de négatifs. L'interpolation sur deux lignes compte DEUX segments littéraux (le scanner lit les morceaux de la chaîne encapsulée). Scan vide → « scan vide » ; exemption sur un fichier sans littéral → « exemption périmée ».
+- AC10 : scan de `app/` = 979 fichiers, 537 appels reconnus, 2 littéraux, tous deux dans `Jobs/SendSavedSearchAlerts.php` (forme b, exemption TCK-599).
+- AC9 (API) : `codes.lease_payment.overdue_digest.sms` retirée de `lang/wo` → 2 tests rouges (clé absente, code sans sms) ; `:property` retiré de `codes.lease_payment.recorded.body` en `en` → rouge (« amount,property ≠ amount ») ; `abort_code_unless(…, 'notification.not_yours')` sans clé → rouge ×3 langues. Restauré → 4/4.
+- LangGroupParityTest : 218 codes d'erreur distincts lus (littéraux + constantes `self::CODE_*` résolues, 4 dans `KycWorkflowService`), plus les `http.*` de `HttpErrorCode`.
+- AC9 (script) : `check-notification-codes.mjs` — `codes.lease_payment.overdue_digest.sms` retirée de `lang/wo` → rouge (« API wo : … absente ») ; `notifications.codes.visit.reminder.body` retirée de `wo.json` → rouge ; `{property}` retiré de `lease_payment.recorded.body` dans `en.json` → rouge (« placeholders API [amount,property] ≠ front [amount] ») ; enum illisible (0 cas) → rouge. Restauré → vert (31 codes).
+- Front (H) : rendu par code court-circuité (`useTexteNotification` rend toujours le titre de l'API) → 6/8 rouges dans `NotificationRow.test.tsx` (fr, en, wo, formatage, lien, ligne sans cible) ; branche `channel_unavailable` retirée de la matrice → le test de la case indisponible rougit. Restauré → verts.
+- Garde « message perdu » (ajout) : `abort_unless(…, 403, __('errors.http.forbidden'))` dans `NotificationController` → `test_aucun_abort_ne_porte_un_message_que_le_rendu_jetterait` rougit en nommant le fichier:ligne ; restauré → 6/6. Sur l'arbre de la branche 587 (avant fusion), ce relevé compte 55 sites, dont 7 ajoutés par 587.
+
+### Attente de TCK-587 (complément au brief, §6) — 2026-10-07
+
+- **Ordre de fusion 586 → 587 → 588.** `origin/dev` (586, `5f872f1f`) fusionné dans la branche
+  (`3c349461`), INDEX régénéré, `composer dump-autoload -o`. Les fichiers de `app/` que 587 modifie
+  (liste vivante : `git -C …/takussan-tck-587 diff --name-only dev`, 67 fichiers sous `app/` relus
+  le 2026-10-07) et que 588 avait convertis — **20 fichiers**, plus les aborts de `BookingService`
+  (ses `send()` restent) — sont rendus à leur version de `dev` : 59 codes d'`errors.php` attendent
+  sans lecteur. `AppDatabaseChannel` reste (socle A) : 587 n'y ajoute qu'une ligne de table
+  (`PropertyProposedNotification`), conflit attendu, et cette classe neuve de 587 sera à convertir.
+- **Exemption nommée qui expire** : `ProseLitteraleInterditeTest::ATTENTE_587` (21 fichiers, formes
+  exactes, et `perdus` pour les 7 qui portent des `abort(4xx, __('…'))`). Trois ablations :
+  `staffAgencyId()` (le prédicat de 587) ajouté à `MembershipCapabilityResolver` →
+  `test_l_attente_de_587_expire_a_sa_fusion` rouge ; `KpiConfigController:45` converti en
+  `abort_code_unless` → « exemption périmée : …KpiConfigController.php (TCK-587) » ; `perdus` annoncé
+  sur `BookingPaymentController` → « exemption périmée … retirer 'perdus' ». Restauré → 7/7. Une
+  première ablation (message remplacé par un ternaire de littéraux) restait verte, à raison : un
+  littéral dans un ternaire reste un littéral.
+- **AC7** porte désormais sur `auth.super_admin_required` (`GET /api/admin/feature-flags` par un
+  agent, fr/en/wo → 403, code, message localisé) : `PayoutService` est un fichier de 587, comme
+  l'AC le prévoit pour un chemin réécrit ailleurs. `php artisan test tests/Feature/Api/ApiErrorCodeTest.php` → 13/13.
+- **Effet de l'attente, mesuré** : les 19 `abort(…, __('…'))` de ces fichiers perdent leur message
+  sous le rendu d'ADR-0032 (`http.unprocessable`/`http.forbidden`). Un seul test l'affirmait —
+  `UserAdminAgencyScopeTest` (3 cas, réécrits aussi par 587) : il affirme le code d'attente, avec
+  un commentaire qui renvoie à `ATTENTE_587`. Exécutions : les 56 classes de la carte d'impact des
+  fichiers rendus dont le nom touche leur domaine, en deux lots (`phpunit` sur 28 fichiers → 256
+  tests OK ; 28 fichiers + `ApiErrorCodeTest`, `LangGroupParityTest`, `ContactSansCompteTest`,
+  `NotificationTest`, `ApiErrorFormatTest`, `EnsureSuperAdminTest` → 285 tests, 3 échecs, ceux
+  de `UserAdminAgencyScopeTest`, verts après correction : 12/12).
+
+### Vérification finale — exécutions nommées (2026-10-07, après fusion de `origin/dev` et attente de 587)
+
+Charge relevée : `load averages: 24.01 26.82 19.69` (8 agents) — aucun temps ci-dessous n'est une
+référence. Chaque classe en avant-plan, `php vendor/bin/phpunit <fichier>` :
+
+- AC1, AC4, AC15 : `tests/Feature/Jobs/SendLeasePaymentRemindersTest.php` → OK (10 tests, 32 assertions).
+- AC2 : `tests/Feature/Notifications/NotificationLocaleTest.php` → OK (6, 18).
+- AC3, AC6 : `tests/Feature/Notifications/ContactSansCompteTest.php` → OK (10, 22).
+- AC5, AC10 (WhatsApp) : `tests/Feature/Notifications/NotificationPreferenceRoutingTest.php` → OK (8, 20).
+- AC7 : `tests/Feature/Api/ApiErrorCodeTest.php` → OK (13, 52).
+- AC8 : `tests/Unit/Architecture/ProseLitteraleInterditeTest.php` → OK (7, 12).
+- AC9 : `tests/Unit/Lang/LangGroupParityTest.php` → OK (4, 10) ; `node scripts/check-notification-codes.mjs`
+  → « ✓ 31 codes de notification … ».
+- AC11 : `NotificationTemplateOverrideTest` → OK (2, 8). AC12 : `SmsSegmentsTest` → OK (1, 89).
+- AC13 : `tests/Feature/Api/NotificationTest.php` → OK (12, 31).
+- AC16 : `NotificationPreferenceTest` → OK (7, 78) ; `MobileClassEventsTest` → OK (1, 4).
+- AC17 : `NotificationAmountsTest` → OK (4, 13).
+- Front : `npx vitest run` sur `NotificationRow`, `NotificationsHistory`, `NotificationBell`,
+  `NotificationPreferencesMatrix` → 4 fichiers, 24 tests verts.
+- AC18 : `./vendor/bin/pint --test` propre ; `npm run lint` → 0 ; `npx tsc --noEmit` → 0 ;
+  `npm run check:i18n` → 0 (parité en 0/0, wo 0/0 sur 5878 clés) ; `npm run check:i18n-namespaces`
+  → « ✓ 9 frontières » ; `check-notification-codes.mjs` → vert.
+- **AC14, navigateur réel.** Base `takussan_tck588` = `pg_dump` de la base de développement, puis
+  les migrations de la branche. API `php artisan serve` sur 8103 (`DB_DATABASE=takussan_tck588`,
+  SMS/WhatsApp/e-mail sur leurs pilotes `log`), `next dev` sur 3103, Chrome headless sur 9343 piloté
+  par CDP direct (`scratchpad/vague73/ac14/ac14.mjs`). Données : le VRAI job
+  `SendLeasePaymentReminders` sur l'échéance 2745 (bail 299) ramenée à la veille, 22
+  `booking.confirmed`, un `kyc.verified` sans cible, une ligne de code inconnu (`futur.code_inconnu`,
+  title « Titre rendu par l'API ») — 25 lignes, 15 non lues. Résultat : **51/51 vérifications
+  vertes**. En fr, en, wo × 320, 390, 1280 : `scrollWidth − innerWidth = 0` et `innerWidth` égal à
+  la largeur demandée ; le rappel de loyer est un lien vers `/app/leases/299` (« Votre loyer de
+  322 246 F CFA … est en retard de 1 jour. » / « Your rent of 322,246 F CFA … is 1 day overdue. » /
+  wolof) ; la ligne sans cible et la ligne de code inconnu ne sont pas des liens, la seconde affiche
+  le title de l'API, aucune clé `notifications.codes` brute ; aucun lien ni bouton visible sous
+  44 px. Historique : page 1 = 20 lignes, page 2 = 5 ; « non lues » = 15 lignes, toutes non lues.
+  Cloche : clic sur le rappel → `/app/leases/299`, `read_at` passé de `null` à une date (lu par
+  `GET /api/notifications`). Serveurs et Chrome arrêtés ensuite.
+  Écart vu en capture : la cloche paraît translucide si on la photographie pendant son animation
+  d'ouverture ; 2 s plus tard elle est opaque (`opacity: 1`, fond blanc) — pas un défaut.
+
+### Après la fusion de TCK-587 (`fd4bd805`) — 2026-10-07
+
+- `origin/dev` fusionné (`2dd606d5`) : 12 conflits, tous des réunions — ADR-0031 et 0032 dans
+  `docs/adr/README.md`, `lang/*/errors.php` (clés par domaine de 588 + 8 clés plates de 587),
+  `lang/*/notifications.php` (`property_proposed` de 587), messages front ; `UserAdminAgencyScopeTest`
+  pris de 587 ; INDEX régénéré ; `composer dump-autoload -o`.
+- **Re-mesuré, et différent de ce que l'attente supposait** : rejouer mon diff de conversion depuis
+  `5f872f1f` aurait **défait 586** dans ces fichiers (ma conversion datait d'avant 586 : le diff
+  ramenait les requêtes sur `broker_profiles`, 6 rouges dans `AgencyTest`). Le diff rejoué part de
+  la base de ma branche (`32dd0b39..b6c17193`) ; seules les lignes d'`abort*` changent, vérifié par
+  un filtre du diff. Cinq fichiers où 587 a réécrit la logique (`AgencyMemberRoleController`,
+  `BookingPaymentController`, `ExportController`, `PropertyController`, `UserAdminController`) sont
+  convertis à la main sur la version de 587.
+- 587 ajoutait **13** sites à message traduit (pas 7) : ses 8 clés `errors.*` plus
+  `team.suspension.errors.{self,primary_admin}` et `messages.target_user_not_in_active_agency` dans
+  `TeamMemberSuspensionService`. Codes : `export.forbidden`, `share_link.password_in_query`,
+  `user.account_block_reserved`, `agency.staff_only`, `team.{admin_suspension_reserved,
+  nothing_to_suspend, nothing_to_reactivate, suspension_self, suspension_primary_admin}` ; les deux
+  clés de `team.php` le quittent ; `export.crm_staff_only`/`properties_staff_or_owner`, que la
+  logique de 587 ne lit plus, sont retirés.
+- **AC10** : `ATTENTE_587` retirée, la garde revient à son état d'avant l'attente (`git diff` vide
+  sur le fichier). Scan de `app/` : 983 fichiers, 530 appels, 2 littéraux, tous deux dans
+  `Jobs/SendSavedSearchAlerts.php` (exemption TCK-599), 0 message perdu.
+  `php vendor/bin/phpunit tests/Unit/Architecture/ProseLitteraleInterditeTest.php` → OK (6, 10).
+  Ablations : `abort(403, 'Export interdit.')` remis dans `ExportController:62` → « (a)
+  …ExportController.php:62 « Export interdit. » », rouge ; `abort(403, __('errors.export.forbidden'))`
+  (la forme de 587) → le test du message perdu nomme `ExportController.php:62`, rouge ; restauré →
+  vert. Volet WhatsApp de `booking.confirmed` : `NotificationPreferenceRoutingTest` → OK (8, 20).
+- **AC7** retrouve le cas de l'AC (reversement à un bailleur d'une autre agence →
+  `payout.landlord_not_in_agency`, fr/en/wo) ; le cas `auth.super_admin_required` reste en plus.
+  `ApiErrorCodeTest` → OK (16, 64).
+- Exécutions (charge `9.18 11.78 12.29`) : les classes de la carte d'impact des fichiers convertis
+  dont le nom touche leur domaine, plus les 22 fichiers de test de 587, en deux lots → 336 tests
+  (un rouge, `DocumentShareLinkPasswordTransportTest`, conversion écrasée par le diff rejoué,
+  refaite : 17/17) puis 505 tests (2 rouges, les assertions d'attente de `UserAdminAgencyScopeTest`,
+  passées au code : 12/12). Toutes les classes d'AC rejouées : vertes (détail dans le rapport).
+  Front : vitest 4 fichiers / 24 tests, `lint` 0, `tsc` 0, `check:i18n` 0,
+  `check:i18n-namespaces` vert, `check-notification-codes` vert (31 codes). Pint propre. Gardes
+  racine : toutes vertes.
+

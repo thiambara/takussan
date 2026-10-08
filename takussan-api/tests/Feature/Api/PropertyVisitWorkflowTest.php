@@ -2,14 +2,15 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Notifications\CodedNotification;
 use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitReminderNotification;
 use App\Notifications\VisitRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -168,8 +169,8 @@ class PropertyVisitWorkflowTest extends TestCase
 
         (new SendPropertyVisitReminders)->handle();
 
-        Notification::assertSentTo($visitor, VisitReminderNotification::class, function ($notif) {
-            return $notif->window === '24h';
+        Notification::assertSentTo($visitor, CodedNotification::class, function (CodedNotification $notif) {
+            return $notif->code === NotificationCode::VisitReminder && $notif->params['window'] === '24h';
         });
     }
 
@@ -191,8 +192,8 @@ class PropertyVisitWorkflowTest extends TestCase
 
         (new SendPropertyVisitReminders)->handle();
 
-        Notification::assertSentTo($visitor, VisitReminderNotification::class, function ($notif) {
-            return $notif->window === '1h';
+        Notification::assertSentTo($visitor, CodedNotification::class, function (CodedNotification $notif) {
+            return $notif->code === NotificationCode::VisitReminder && $notif->params['window'] === '1h';
         });
     }
 
@@ -214,7 +215,7 @@ class PropertyVisitWorkflowTest extends TestCase
         (new SendPropertyVisitReminders)->handle();
         (new SendPropertyVisitReminders)->handle();
 
-        Notification::assertSentToTimes($visitor, VisitReminderNotification::class, 1);
+        Notification::assertSentToTimes($visitor, CodedNotification::class, 1);
     }
 
     public function test_visitor_can_submit_feedback_after_completion(): void

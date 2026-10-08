@@ -76,7 +76,7 @@ class BusinessEnumTest extends TestCase
 
         $this->deleteJson('/api/admin/enums/property_type/values/villa')
             ->assertStatus(409)
-            ->assertJsonPath('message', 'enum_value_in_use');
+            ->assertJsonPath('code', 'business_enum.value_in_use');
     }
 
     public function test_update_writes_translations_and_audit(): void

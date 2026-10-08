@@ -42,13 +42,13 @@ class SettingController extends Controller
         $user = $request->user();
 
         if ($data['scope'] === SettingScope::Global->value) {
-            abort_unless($user->isSuperAdmin(), 403, 'Only admins can manage global settings.');
+            abort_code_unless($user->isSuperAdmin(), 403, 'setting.global_forbidden');
         } else {
             $targetAgencyId = $data['scope_id'] ?? $user->agency_id;
-            abort_unless(
+            abort_code_unless(
                 $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $targetAgencyId && $user->isAgencyAdminAt((int) $targetAgencyId)),
                 403,
-                'You can only manage your own agency settings.'
+                'setting.other_agency_forbidden'
             );
             $data['scope_id'] = $targetAgencyId;
         }

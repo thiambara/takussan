@@ -84,11 +84,10 @@ class Invoice extends AbstractModel
             // An invoice that has been paid cannot revert to draft/sent/overdue.
             $open = [InvoiceStatus::Draft, InvoiceStatus::Sent, InvoiceStatus::Overdue];
             if ($originalEnum === InvoiceStatus::Paid && in_array($newEnum, $open, true)) {
-                abort(422, sprintf(
-                    'Invalid invoice status transition: %s → %s.',
-                    $originalEnum->value,
-                    $newEnum->value,
-                ));
+                abort_code(422, 'invoice.status_transition_invalid', [
+                    'from' => $originalEnum->value,
+                    'to' => $newEnum->value,
+                ]);
             }
         });
     }

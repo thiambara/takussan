@@ -170,10 +170,10 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $adminArchived = AgencyAdminProfile::factory()->create(['user_id' => $archive->id, 'agency_id' => $this->agencyA->id, 'status' => 'archived']);
 
         $this->actingAsApi($this->adminA);
-        $this->reactivate($invite)->assertStatus(422)->assertJsonPath('message', __('errors.team_nothing_to_reactivate'));
+        $this->reactivate($invite)->assertStatus(422)->assertJsonPath('code', 'team.nothing_to_reactivate')->assertJsonPath('message', __('errors.team.nothing_to_reactivate'));
         $this->reactivate($archive)->assertStatus(422);
         // Ni suspendre : un `draft` suspendu deviendrait `blocked`, puis actif à la réactivation.
-        $this->suspend($invite)->assertStatus(422)->assertJsonPath('message', __('errors.team_nothing_to_suspend'));
+        $this->suspend($invite)->assertStatus(422)->assertJsonPath('code', 'team.nothing_to_suspend')->assertJsonPath('message', __('errors.team.nothing_to_suspend'));
 
         $this->assertSame('draft', $agentDraft->fresh()->status->value);
         $this->assertSame('draft', $ownerDraft->fresh()->status->value);
@@ -205,7 +205,7 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $agent = $this->agentWith($this->agencyA, Capability::TeamSuspend, Capability::TeamInvite);
 
         $this->actingAsApi($agent);
-        $this->suspend($coAdmin)->assertForbidden()->assertJsonPath('message', __('errors.team_admin_suspension_reserved'));
+        $this->suspend($coAdmin)->assertForbidden()->assertJsonPath('code', 'team.admin_suspension_reserved')->assertJsonPath('message', __('errors.team.admin_suspension_reserved'));
         $this->assertSame('active', AgencyAdminProfile::query()->where('user_id', $coAdmin->id)->sole()->status->value);
 
         // La capacité vaut pour le reste de l'équipe.

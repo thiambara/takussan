@@ -74,6 +74,10 @@ return [
         'system' => 'Système',
         'bank_statement_imported' => 'Relevé bancaire importé',
         'bank_statement_finalized' => 'Relevé bancaire clôturé',
+        // TCK-588 — les trois types de délégation manquaient (repli anglais).
+        'role_delegated' => 'Ndawal dencukaay',
+        'role_delegation_expired' => 'Ndawal bu jeex',
+        'role_delegation_revoked' => 'Ndawal bu ñu dindi',
     ],
 
     'task_due_reminder' => [
@@ -85,8 +89,8 @@ return [
     'lease_late_fee_applied' => [
         'subject' => 'Penalité di yengul ñu ko teg ci paye :reference',
         'greeting' => 'Salaam,',
-        'intro' => 'Penalité di yengul bu :amount :currency, ñu ko teg ci paye :reference.',
-        'details' => 'Ñu ko jeem ci :percent % bi des ci montant bi (:base :currency).',
+        'intro' => 'Penalité di yengul bu :amount, ñu ko teg ci paye :reference.',
+        'details' => 'Ñu ko jeem ci :percent % bi des ci montant bi (:base).',
     ],
 
     'account_deletion_requested' => [
@@ -132,8 +136,8 @@ return [
     'lease_deposit_refunded' => [
         'subject' => 'Delloo kaution — luwé :reference',
         'greeting' => 'Salaam,',
-        'intro' => 'Sa kaution ci luwé :reference, delloo nañ la — :amount :currency.',
-        'retention' => 'Téye nañ :amount :currency. Mboor : :reason.',
+        'intro' => 'Sa kaution ci luwé :reference, delloo nañ la — :amount.',
+        'retention' => 'Téye nañ :amount. Mboor : :reason.',
     ],
 
     'lease_renewed' => [
@@ -172,14 +176,14 @@ return [
 
     'lease_early_termination' => [
         'greeting' => 'Salaam,',
-        'penalty_line' => 'Pénalité tas bu jëkk : :amount :currency. War ngaa fey ko bala bisu njëlbeen bi.',
+        'penalty_line' => 'Pénalité tas bu jëkk : :amount. War ngaa fey ko bala bisu njëlbeen bi.',
         'requested' => [
             'subject' => 'Tas bu jëkk laaj — luwé :reference',
             'intro' => 'Tas bu jëkk laaj nañ ko ci luwé :reference. Bisu njëlbeen : :date.',
         ],
         'cancelled' => [
             'subject' => 'Tas bu jëkk neenal — luwé :reference',
-            'intro' => 'Tas bu jëkk laaj bi neenal nañ ko. Luwé bi des ci jàpp.',
+            'intro' => 'Tas bu jëkk laaj bi (luwé :reference) neenal nañ ko. Luwé bi des ci jàpp.',
         ],
         'confirmed' => [
             'subject' => 'Luwé jeex na — :reference',
@@ -190,7 +194,7 @@ return [
     'lease_rent_reviewed' => [
         'subject' => 'Yeesalaat layeer — luwé :reference',
         'greeting' => 'Salaam,',
-        'intro' => 'Layeer mensuel bu luwé :reference yeesalaat nañ ko : :old → :new :currency.',
+        'intro' => 'Layeer mensuel bu luwé :reference yeesalaat nañ ko : :old → :new.',
         'effective' => 'Bisu njëlbeen : :date.',
         'reason' => 'Mboor : :reason',
     ],
@@ -199,7 +203,7 @@ return [
         'subject' => 'Faalewu — fakture :reference dafa yengul',
         'greeting' => 'Salaam,',
         'intro' => 'Fakture :reference yengul na :days fan (échéance : :due_date).',
-        'amount' => 'Mbooloom dëgg : :amount :currency.',
+        'amount' => 'Mbooloom dëgg : :amount.',
         'cta' => 'Bëgg na nga fey ko ba leegi ngir bañ jot beneen faalewu.',
     ],
 
@@ -302,6 +306,250 @@ return [
         'next' => 'Dinañu la tontu ci lu gaaw, ci telefon walla ci e-mail.',
     ],
     // ── /TCK-590 ──────────────────────────────────────────────────────────────────────────
+
+    // TCK-588 — alertes administrateur (canaux Slack, Discord, e-mail de l'exploitant).
+    'admin_alert' => [
+        'test_message' => '[TEST] :event tàmbali na ndax test synthétique.',
+        'activity_message' => ':event — jëfekat :actor, mbir :subject',
+    ],
+
+    // TCK-588 — salutation et bouton des e-mails rendus par code (CodedNotification).
+    'greeting' => 'Salaam aleekum,',
+    'open' => 'Ubbi',
+
+    // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
+    'codes' => [
+        'lease_payment' => [
+            'due_soon' => [
+                'title' => 'Pey kër bi ngir :due_date',
+                'body' => 'Sa pey kër bu :amount ngir :property, war nga koo fey ci :due_date.',
+                'body_link' => 'Sa pey kër bu :amount ngir :property, war nga koo fey ci :due_date. Fey ci internet : :payment_url',
+                'sms' => 'Takussan : pey kër bu :amount, fey ko ci :due_date (:property).',
+                'sms_link' => 'Takussan : pey kër bu :amount, fey ko ci :due_date. Fey : :payment_url',
+            ],
+            'overdue' => [
+                'title' => 'Pey kër bi yàgg na',
+                'body' => 'Sa pey kër bu :amount ngir :property, bu waroon a fey ci :due_date, yàgg na :days fan.',
+                'body_link' => 'Sa pey kër bu :amount ngir :property, bu waroon a fey ci :due_date, yàgg na :days fan. Fey ci internet : :payment_url',
+                'sms' => 'Takussan : pey kër bu :amount yàgg na :days fan (:property).',
+                'sms_link' => 'Takussan : pey kër bu :amount yàgg na :days fan. Fey : :payment_url',
+            ],
+            'overdue_landlord' => [
+                'title' => 'Pey kër bu ñu feyul : :property',
+                'body' => 'Pey kër bu :amount bu :tenant ngir :property yàgg na :days fan.',
+                'sms' => 'Takussan : pey kër bu :amount bu :tenant (:property) yàgg na :days fan.',
+            ],
+            'overdue_digest' => [
+                'title' => ':count pey kër yu yàgg',
+                'body' => ':count pey kër ci say bail yàgg nañu, mépp lépp :total.',
+                'sms' => 'Takussan : :count pey kër yu yàgg (:total).',
+            ],
+            'recorded' => [
+                'title' => 'Fey bi bind nañu ko',
+                'body' => 'Sa fey bu :amount ngir :property bind nañu ko.',
+                'sms' => 'Takussan : fey bu :amount bind nañu ko (:property).',
+            ],
+            'received_landlord' => [
+                'title' => 'Pey kër bi agsi na : :property',
+                'body' => ':tenant fey na :amount ngir :property.',
+                'sms' => 'Takussan : :tenant fey na :amount (:property).',
+            ],
+        ],
+        'booking' => [
+            'created' => [
+                'title' => 'Réservation bu bees',
+                'body' => 'Ñu laaj na réservation :reference ngir :property, li dale :start_date ba :end_date.',
+                'sms' => 'Takussan : réservation bu bees :reference (:property).',
+            ],
+            'confirmed' => [
+                'title' => 'Réservation bi dëggal nañu ko',
+                'body' => 'Sa réservation :reference ngir :property, li dale :start_date ba :end_date, dëggal nañu ko.',
+                'sms' => 'Takussan : réservation :reference dëggal nañu ko (:property, :start_date).',
+            ],
+            'rejected' => [
+                'title' => 'Réservation bi gàntu nañu ko',
+                'body' => 'Sa réservation :reference ngir :property, gàntu nañu ko.',
+                'sms' => 'Takussan : réservation :reference gàntu nañu ko (:property).',
+            ],
+            'cancelled' => [
+                'title' => 'Réservation bi neenal nañu ko',
+                'body' => 'Sa réservation :reference ngir :property, neenal nañu ko.',
+                'sms' => 'Takussan : réservation :reference neenal nañu ko (:property).',
+            ],
+        ],
+        'visit' => [
+            'reminder' => [
+                'title' => 'Fàttali seetlu : :property',
+                'body' => 'Fàttali : seetlu :property mu ngi ci :scheduled_at.',
+                'sms' => 'Takussan : seetlu :property ci :scheduled_at.',
+            ],
+        ],
+        'message' => [
+            'received' => [
+                'title' => 'Bataaxal bu bees bu :sender',
+                'body' => ':sender : :excerpt',
+                'sms' => 'Takussan : bataaxal bu bees bu :sender.',
+            ],
+        ],
+        'lead' => [
+            'received' => [
+                'title' => 'Jokkookat bu bees bu amul compte',
+                'body' => ':name (:email) : :excerpt',
+                'sms' => 'Takussan : jokkookat bu bees : :name.',
+            ],
+        ],
+        'kyc' => [
+            'submitted' => [
+                'title' => 'KYC agence bu ñu war a seet',
+                'body' => 'Dossier KYC bu :agency yónne nañu ko.',
+                'sms' => 'Takussan : KYC bu :agency war nañu ko seet.',
+            ],
+            'verified' => [
+                'title' => 'KYC agence bi baax na',
+                'body' => 'Sa dossier KYC seet nañu ko, baax na.',
+                'sms' => 'Takussan : sa dossier KYC baax na.',
+            ],
+            'rejected' => [
+                'title' => 'KYC agence bi gàntu nañu ko',
+                'body' => 'Sa dossier KYC gàntu nañu ko : :reason',
+                'sms' => 'Takussan : sa dossier KYC gàntu nañu ko.',
+            ],
+        ],
+        'role_delegation' => [
+            'activated' => [
+                'title' => 'Ndawal dencukaay — :role',
+                'body' => 'Jot nga ndawal :role ba :ends_at.',
+                'sms' => 'Takussan : jot nga :role ba :ends_at.',
+            ],
+            'activated_delegator' => [
+                'title' => 'Ndawal dencukaay — :role',
+                'body' => 'Ndawal :role bi nga jox :beneficiary tàmbali na.',
+                'sms' => 'Takussan : ndawal :role ngir :beneficiary tàmbali na.',
+            ],
+            'expired' => [
+                'title' => 'Ndawal bi jeex na — :role',
+                'body' => 'Sa ndawal ngir :role jeex na.',
+                'sms' => 'Takussan : ndawal :role jeex na.',
+            ],
+            'expired_delegator' => [
+                'title' => 'Ndawal bi jeex na — :role',
+                'body' => 'Ndawal :role bi nga jox :beneficiary jeex na.',
+                'sms' => 'Takussan : ndawal :role ngir :beneficiary jeex na.',
+            ],
+            'revoked' => [
+                'title' => 'Ndawal bi dindi nañu ko — :role',
+                'body' => 'Sa ndawal ngir :role dindi nañu ko.',
+                'sms' => 'Takussan : ndawal :role dindi nañu ko.',
+            ],
+            'revoked_delegator' => [
+                'title' => 'Ndawal bi dindi nañu ko — :role',
+                'body' => 'Dindi nga ndawal :role bi nga joxoon :beneficiary.',
+                'sms' => 'Takussan : ndawal :role bu :beneficiary dindi nañu ko.',
+            ],
+        ],
+        'bank_statement' => [
+            'imported' => [
+                'title' => 'Relevé bi dugg na',
+                'body' => 'Sa relevé :bank (:lines rëdd) pare na ngir rapprochement.',
+                'sms' => 'Takussan : relevé :bank dugg na.',
+            ],
+            'finalized' => [
+                'title' => 'Relevé bi tëj nañu ko',
+                'body' => 'Relevé bi dale :period_start ba :period_end tëj nañu ko (:confirmed/:total rëdd yu ñu rapprocher).',
+                'sms' => 'Takussan : relevé :period_start ba :period_end tëj nañu ko.',
+            ],
+        ],
+        'maintenance' => [
+            'created' => [
+                'title' => 'Laaj bu bees ngir defar',
+                'body' => 'Ñu yónne na laaj ngir defar (:reference) ci :property.',
+                'sms' => 'Takussan : laaj ngir defar :reference (:property).',
+            ],
+        ],
+        'maintenance_quote' => [
+            'requested' => [
+                'title' => 'Laaj devis : :request',
+                'body' => 'Ñu ngi lay laaj devis ngir liggéey bi « :request ».',
+                'sms' => 'Takussan : laaj devis ngir « :request ».',
+            ],
+            'submitted' => [
+                'title' => 'Devis bi yónne nañu ko : :request',
+                'body' => 'Devis bu :amount yónne nañu ko ngir liggéey bi « :request ».',
+                'sms' => 'Takussan : devis bu :amount ngir « :request ».',
+            ],
+            'approved' => [
+                'title' => 'Devis bi nangu nañu ko : :request',
+                'body' => 'Sa devis ngir liggéey bi « :request » nangu nañu ko.',
+                'sms' => 'Takussan : devis ngir « :request » nangu nañu ko.',
+            ],
+            'rejected' => [
+                'title' => 'Devis bi gàntu nañu ko : :request',
+                'body' => 'Sa devis ngir liggéey bi « :request » gàntu nañu ko.',
+                'sms' => 'Takussan : devis ngir « :request » gàntu nañu ko.',
+            ],
+        ],
+        'property' => [
+            'approved' => [
+                'title' => 'Yégle bi nangu nañu ko : :property',
+                'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
+                'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
+            ],
+            'rejected' => [
+                'title' => 'Yégle bi gàntu nañu ko : :property',
+                'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',
+                'sms' => 'Takussan : yégle « :property » gàntu nañu ko.',
+            ],
+        ],
+    ],
+
+    // TCK-588 — les e-mails de visite partaient en ANGLAIS à un wolophone (fallback_locale = en).
+    'visit_requested' => [
+        'subject' => 'Laaj seetlu bu bees ngir :property',
+        'greeting' => 'Salaam aleekum,',
+        'intro' => 'Am na ku laaj seetlu ngir :property.',
+        'schedule' => 'Waxtu wi ñu laaj : :datetime.',
+    ],
+    'visit_confirmed' => [
+        'subject' => 'Seetlu bi dëggal nañu ko ngir :property',
+        'greeting' => 'Salaam aleekum,',
+        'intro' => 'Sa laaj seetlu ngir :property dëggal nañu ko.',
+        'schedule' => 'Mu ngi ci : :datetime.',
+    ],
+
+    // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).
+    'threshold_alert_mail' => [
+        'subject' => '[Takussan] Alerte KPI — :metric',
+        'intro' => 'Benn métrique bu ñuy topp weesu na seuil bi.',
+        'above' => ':metric : :value ëpp na :threshold (sévérité : :severity).',
+        'below' => ':metric : :value wàcc na ci suufu :threshold (sévérité : :severity).',
+        'action' => 'Xool tableau de bord bi',
+        'cooldown' => 'Alerte bii duñu ko yónneewaat ci biir :hours waxtu.',
+    ],
+    'urgent_maintenance' => [
+        'subject' => 'GAAW : :title',
+        'subject_escalation' => 'GAAW LOOL : :title',
+        'greeting' => 'Salaam aleekum,',
+        'intro' => 'Ñu yónne na laaj defar bu GAAW ngir kër gi.',
+        'job' => 'Liggéey : :title',
+        'intro_escalation' => 'Laaj defar #:id (:title) dafa GAAW te kenn jàppagul ko ci lu ëpp 30 simili.',
+        'cta' => 'Jàppal laaj bii léegi.',
+        'title' => 'Gaaw : :title',
+        'title_escalation' => 'Gaaw lool : :title',
+    ],
+    'activity_log_export' => [
+        'subject' => 'Sa export journal d\'audit pare na',
+        'greeting' => 'Salaam aleekum,',
+        'intro' => 'Sa export journal d\'audit (:count rëdd) pare na.',
+        'expires' => 'Lien bi ngir yeb dina jeex ci 24 waxtu.',
+        'action' => 'Yeb export bi',
+        'file' => 'Fichier : :filename',
+    ],
+    'report_export' => [
+        'subject' => 'Sa export rapport pare na',
+        'intro' => 'Export rapport « :report » pare na, mën nga koo yeb.',
+        'action' => 'Yeb',
+        'expires' => 'Lien bii dina jeex ci 7 fan.',
+    ],
 
     // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
     'property_proposed' => [

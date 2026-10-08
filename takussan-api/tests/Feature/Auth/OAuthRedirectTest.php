@@ -71,7 +71,7 @@ class OAuthRedirectTest extends TestCase
 
         $this->getJson('/api/auth/oauth/facebook/redirect')
             ->assertStatus(422)
-            ->assertJsonPath('message', 'OAuth provider is not configured.');
+            ->assertJsonPath('code', 'auth.oauth_not_configured');
     }
 
     public static function providerDataProvider(): array

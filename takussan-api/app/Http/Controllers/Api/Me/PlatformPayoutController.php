@@ -13,7 +13,7 @@ class PlatformPayoutController extends Controller
     public function index(Request $request): JsonResponse
     {
         $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
-        abort_unless($agencyId, 404, 'No active agency profile.');
+        abort_code_unless($agencyId, 404, 'agency.active_profile_missing');
 
         // Force the agency scope before handing off to spatie — agency_admin
         // can read their own payouts, never any other agency's.

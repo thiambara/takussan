@@ -29,7 +29,7 @@ class KycWorkflowTest extends TestCase
 
         $this->postJson("/api/admin/agencies/{$agency->id}/verify")
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Agency KYC must be verified before agency verification.');
+            ->assertJsonPath('code', 'agency.kyc_not_verified');
     }
 
     public function test_super_admin_cannot_verify_kyc_when_required_documents_are_missing(): void
@@ -45,9 +45,10 @@ class KycWorkflowTest extends TestCase
 
         $this->postJson("/api/admin/kyc/{$dossier->id}/verify")
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Missing required KYC documents: rccm, ninea, director_id')
-            // Le code, parce que la file KYC nomme ce cas et affiche un libellé FRANÇAIS : le
-            // `message` ci-dessus n'est pas localisable, il est codé en dur en anglais.
+            // TCK-588 — le message est localisé (`errors.kyc.documents_missing`) et la liste
+            // part aussi en paramètre, pour qui veut la rendre lui-même.
+            ->assertJsonPath('message', __('errors.kyc.documents_missing', ['missing' => 'rccm, ninea, director_id']))
+            ->assertJsonPath('params.missing', ['rccm', 'ninea', 'director_id'])
             ->assertJsonPath('code', KycWorkflowService::CODE_DOCUMENTS_MISSING);
     }
 
@@ -226,7 +227,8 @@ class KycWorkflowTest extends TestCase
      * prose serveur, qui est ici de l'anglais codé en dur. Les deux moitiés doivent bouger
      * ensemble ; celle-ci empêche le code de disparaître sans que rien ne rougisse.
      *
-     * Le `message` est asserté À L'IDENTIQUE : le correctif AJOUTE une clé, il n'en retire aucune.
+     * TCK-588 — le `message` n'est plus de l'anglais codé en dur : il est localisé
+     * (`errors.kyc.not_transitionable`).
      */
     public function test_a_second_decision_is_refused_with_a_stable_code(): void
     {
@@ -237,7 +239,7 @@ class KycWorkflowTest extends TestCase
 
         $this->postJson("/api/admin/kyc/{$dossier->id}/verify")
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Only submitted KYC dossiers can be reviewed.')
+            ->assertJsonPath('message', __('errors.kyc.not_transitionable'))
             ->assertJsonPath('code', KycWorkflowService::CODE_NOT_TRANSITIONABLE);
 
         // Le rejet APRÈS vérification passe par le même garde-fou, et doit dire la même chose.

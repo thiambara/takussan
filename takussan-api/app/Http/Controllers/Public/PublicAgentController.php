@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;

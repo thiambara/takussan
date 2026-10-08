@@ -122,7 +122,7 @@ class PropertyVisitController extends Controller
 
         // Non-staff users can only book visits on publicly visible properties.
         $isPublic = Property::query()->where('id', $property->id)->public()->exists();
-        abort_unless($isPublic, 403, __('visits.not_bookable'));
+        abort_code_unless($isPublic, 403, 'visit.property_unavailable');
 
         $customerId = $property->agency_id !== null
             ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
@@ -202,10 +202,10 @@ class PropertyVisitController extends Controller
         // de l'agence : sur un bien d'agence, le personnel seul (cf. `agitPourLeBien`).
         abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
 
-        abort_if(
+        abort_code_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
-            'Cannot edit a completed or cancelled visit.'
+            'visit.closed'
         );
 
         // `status` is intentionally NOT part of this validator: every
@@ -314,10 +314,10 @@ class PropertyVisitController extends Controller
         // Passe 3 (B2″, M7′) — clore la visite est un geste de l'agence, comme la confirmer.
         abort_unless($this->agitPourLeBien($request->user(), $visit), 403, __('visits.staff_only'));
 
-        abort_unless(
+        abort_code_unless(
             in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true),
             422,
-            'Visit cannot be completed in its current state.'
+            'visit.cannot_complete'
         );
 
         $data = $request->validated();
@@ -340,10 +340,10 @@ class PropertyVisitController extends Controller
             || ($visit->customer !== null && $visit->customer->user_id === $user->id);
         abort_unless($byVisitor || $this->agitPourLeBien($user, $visit), 403, __('visits.staff_only'));
 
-        abort_if(
+        abort_code_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
-            'Visit cannot be cancelled in its current state.'
+            'visit.cannot_cancel'
         );
 
         $data = $request->validated();
@@ -390,18 +390,18 @@ class PropertyVisitController extends Controller
     public function feedback(FeedbackPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
 
-        abort_unless(
+        abort_code_unless(
             $visit->status === VisitStatus::Completed,
             422,
-            'Feedback is only available once the visit is completed.'
+            'visit.feedback_not_completed'
         );
 
         $completedAt = $visit->completed_at;
         $windowHours = (int) config('visits.feedback_window_hours', 24);
-        abort_if(
+        abort_code_if(
             $completedAt === null || $completedAt->diffInHours(now()) > $windowHours,
             422,
-            'Feedback window has closed for this visit.'
+            'visit.feedback_window_closed'
         );
 
         $data = $request->validated();
@@ -420,9 +420,9 @@ class PropertyVisitController extends Controller
             || ($property && PersonnelDeLAgence::estPersonnel($user, $property->agency_id));
 
         if ($role === 'customer') {
-            abort_unless($isCustomer, 403, 'Only the visitor can submit customer feedback.');
+            abort_code_unless($isCustomer, 403, 'visit.feedback_visitor_only');
         } else {
-            abort_unless($isAgent, 403, 'Only the managing agent can submit agent feedback.');
+            abort_code_unless($isAgent, 403, 'visit.feedback_agent_only');
         }
 
         $metadata = $visit->metadata ?? [];

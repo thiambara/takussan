@@ -53,10 +53,10 @@ class AgencyKindGuard
             return;
         }
         $agency = Agency::find($agencyId);
-        abort_unless(
+        abort_code_unless(
             $agency && $agency->kind === AgencyKind::Standard,
             403,
-            'This feature is reserved for standard agencies.',
+            'agency.standard_only',
         );
     }
 
@@ -77,15 +77,19 @@ class AgencyKindGuard
     /**
      * 403 si l'agence ne peut pas constituer d'équipe.
      *
-     * Le message reste au choix de l'appelant : l'invitation de
+     * Le code reste au choix de l'appelant (`$owners`) : l'invitation de
      * propriétaires parle de portefeuille, celle d'agents parle d'équipe.
      * C'est le libellé qui diffère, jamais la règle.
      */
-    public static function ensureCanFormTeam(
-        Agency $agency,
-        string $messageKey = 'team.invite.errors.individual_agency',
-    ): void {
-        abort_if(! self::canFormTeam($agency), 403, __($messageKey));
+    public static function ensureCanFormTeam(Agency $agency, bool $owners = false): void
+    {
+        if (self::canFormTeam($agency)) {
+            return;
+        }
+
+        $owners
+            ? abort_code(403, 'agency.individual_no_owner_invites')
+            : abort_code(403, 'agency.individual_no_team');
     }
 
     /**
@@ -104,10 +108,10 @@ class AgencyKindGuard
 
     public static function ensureCustomRolesAllowed(Agency $agency): void
     {
-        abort_if(
+        abort_code_if(
             ! self::allowsCustomRoles($agency),
             403,
-            __('agencies.errors.individual_no_custom_roles'),
+            'agency.individual_no_custom_roles',
         );
     }
 

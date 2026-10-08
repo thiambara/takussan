@@ -18,14 +18,10 @@ use App\Notifications\LeaseEarlyTerminationNotification;
 use App\Notifications\LeasePaymentLateFeeNotification;
 use App\Notifications\LeaseRenewedNotification;
 use App\Notifications\LeaseRentReviewedNotification;
-use App\Notifications\MaintenanceQuoteRequestedNotification;
 use App\Notifications\NewBookingNotification;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyProposedNotification;
 use App\Notifications\PropertyRejectedNotification;
-use App\Notifications\QuoteApprovedNotification;
-use App\Notifications\QuoteRejectedNotification;
-use App\Notifications\QuoteSubmittedNotification;
 use App\Notifications\SuperAdminAcceptedBroadcast;
 use App\Notifications\SuperAdminInvitedBroadcast;
 use App\Notifications\TaskDueReminderNotification;
@@ -34,7 +30,6 @@ use App\Notifications\TenantWelcomeNotification;
 use App\Notifications\ThresholdAlertTriggered;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Notifications\VisitConfirmedNotification;
-use App\Notifications\VisitReminderNotification;
 use App\Notifications\VisitRequestedNotification;
 use Illuminate\Notifications\Notification;
 use LogicException;
@@ -116,14 +111,10 @@ class AppDatabaseChannel
         LeasePaymentLateFeeNotification::class => NotificationType::Payment,
         LeaseRenewedNotification::class => NotificationType::Lease,
         LeaseRentReviewedNotification::class => NotificationType::Lease,
-        MaintenanceQuoteRequestedNotification::class => NotificationType::Maintenance,
         NewBookingNotification::class => NotificationType::Booking,
         PropertyApprovedNotification::class => NotificationType::System,
         PropertyProposedNotification::class => NotificationType::System,
         PropertyRejectedNotification::class => NotificationType::System,
-        QuoteApprovedNotification::class => NotificationType::Maintenance,
-        QuoteRejectedNotification::class => NotificationType::Maintenance,
-        QuoteSubmittedNotification::class => NotificationType::Maintenance,
         SuperAdminAcceptedBroadcast::class => NotificationType::System,
         SuperAdminInvitedBroadcast::class => NotificationType::System,
         TaskDueReminderNotification::class => NotificationType::System,
@@ -132,7 +123,6 @@ class AppDatabaseChannel
         ThresholdAlertTriggered::class => NotificationType::System,
         UrgentMaintenanceCreatedNotification::class => NotificationType::Maintenance,
         VisitConfirmedNotification::class => NotificationType::Visit,
-        VisitReminderNotification::class => NotificationType::Visit,
         VisitRequestedNotification::class => NotificationType::Visit,
     ];
 
@@ -158,6 +148,11 @@ class AppDatabaseChannel
         return AppNotification::query()->create([
             'user_id' => $notifiable->getKey(),
             'type' => $payload['type'],
+            // TCK-588 (ADR-0032) — une classe peut déclarer son code, ses paramètres et sa cible :
+            // la cloche la rend alors dans la langue de qui la lit.
+            'code' => $payload['code'] ?? null,
+            'params' => $payload['params'] ?? null,
+            'target' => $payload['target'] ?? null,
             'delivery_channel' => NotificationChannel::App,
             'title' => $payload['title'],
             'body' => $payload['body'] ?? null,
@@ -169,7 +164,7 @@ class AppDatabaseChannel
     }
 
     /**
-     * @return array{type: NotificationType, title: string, body?: ?string, data?: ?array<string,mixed>, referenceable_type?: ?string, referenceable_id?: ?int}
+     * @return array{type: NotificationType, title: string, body?: ?string, data?: ?array<string,mixed>, referenceable_type?: ?string, referenceable_id?: ?int, code?: ?string, params?: ?array<string,mixed>, target?: ?array<string,mixed>}
      */
     private function payload(User $notifiable, Notification $notification): array
     {

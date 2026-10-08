@@ -78,7 +78,7 @@ class DocumentPdfService
             ?? $data['uploader_id']
             ?? optional(auth()->user())->id;
 
-        abort_unless($uploaderId, 500, 'DocumentPdfService::store() requires an authenticated user or explicit uploaded_by_id.');
+        abort_code_unless($uploaderId, 500, 'document.pdf_uploader_missing');
 
         /** @var Document $document */
         $document = new Document([
@@ -150,7 +150,7 @@ class DocumentPdfService
     protected function assertTemplateExists(string $template): void
     {
         if (! View::exists($template)) {
-            abort(500, "PDF template '{$template}' not found.");
+            abort_code(500, 'document.pdf_template_missing', ['template' => $template]);
         }
     }
 

@@ -2,9 +2,11 @@
 
 namespace App\Services\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\Channels\WhatsappChannel;
+use App\Notifications\NewBookingNotification;
 
 /**
  * TCK-070 — Central decision point for "should we send this notification?"
@@ -19,7 +21,11 @@ use App\Notifications\Channels\WhatsappChannel;
  *   - `sms` requires a verified phone.
  *
  * When no explicit preference row exists for a (user, event, channel)
- * triple, {@see DEFAULTS} kicks in (inapp + email + push on, sms/whatsapp off).
+ * triple, {@see defaultFor()} kicks in.
+ *
+ * TCK-588 — la matrice ne propose plus que des cases qu'un envoi peut honorer
+ * ({@see channelsFor()}) : une case qu'aucun émetteur ne sert est verrouillée
+ * `channel_unavailable`, et `updateMany()` l'ignore.
  */
 class PreferenceResolver
 {
@@ -50,6 +56,9 @@ class PreferenceResolver
         'booking_status_changed',
         'lease_payment_due',
         'lease_payment_overdue',
+        // TCK-588 — le reçu d'un paiement avait l'interrupteur de l'échéance : couper
+        // « échéance » coupait aussi « paiement reçu ».
+        'lease_payment_received',
         // TCK-089 — fired when a lease is renewed/amended (parent → child).
         'lease_renewed',
         // TCK-090 — fired on every early-termination transition
@@ -80,10 +89,40 @@ class PreferenceResolver
         'password_reset',
         'security_alert',
         'email_verification',
+        // TCK-588 — le verdict KYC obéissait à « Alerte seuil KPI ». In-app et e-mail
+        // toujours ; jamais de mobile forcé (la règle ci-dessous ne vaut que pour eux).
+        'kyc_status_changed',
     ];
 
     /**
-     * Default per-channel enablement when no row exists.
+     * TCK-588 — les événements des classes `Notification` qui implémentent `SupportsSms` ou
+     * `SupportsWhatsapp` : avec les événements des codes `mobile()`, ce sont les seuls dont
+     * les cases `sms`/`whatsapp` commandent un envoi. `MobileClassEventsTest` garde la
+     * réciprocité avec `app/Notifications/`.
+     *
+     * @var list<string>
+     */
+    public const MOBILE_CLASS_EVENTS = [
+        NewBookingNotification::EVENT_TYPE,
+    ];
+
+    /**
+     * TCK-588 — défauts mobiles par événement (option retenue par défaut, question 1) :
+     * WhatsApp et SMS sont activés pour ces événements, désactivables, et toujours soumis à
+     * `phone_verified_at`. Coût SMS à la charge de la plateforme.
+     *
+     * @var list<string>
+     */
+    public const MOBILE_DEFAULT_EVENTS = [
+        'lease_payment_due',
+        'lease_payment_overdue',
+        'visit_reminder',
+        'booking_status_changed',
+    ];
+
+    /**
+     * Default per-channel enablement when no row exists — hors défauts mobiles par événement
+     * ({@see defaultFor()}, qui seul doit être lu).
      *
      * @var array<string,bool>
      */
@@ -126,10 +165,55 @@ class PreferenceResolver
             ->value('enabled');
 
         if ($pref === null) {
-            return self::DEFAULTS[$channel] ?? false;
+            return $this->defaultFor($eventType, $channel);
         }
 
         return (bool) $pref;
+    }
+
+    /** L'état d'une case quand l'utilisateur n'a rien choisi. */
+    public function defaultFor(string $event, string $channel): bool
+    {
+        if (
+            in_array($channel, [self::CHANNEL_SMS, self::CHANNEL_WHATSAPP], true)
+            && in_array($event, self::MOBILE_DEFAULT_EVENTS, true)
+        ) {
+            return true;
+        }
+
+        return self::DEFAULTS[$channel] ?? false;
+    }
+
+    /**
+     * Les canaux qu'un envoi peut réellement honorer pour cet événement.
+     *
+     *   · `inapp` et `email` toujours ;
+     *   · `push` seulement si un transport existe — `log` ou `null` ne livrent rien (D-65) ;
+     *   · `sms`/`whatsapp` seulement si l'événement est mobile : un code `mobile()` l'a pour
+     *     interrupteur, ou une classe `SupportsSms`/`SupportsWhatsapp` le porte.
+     *
+     * @return list<string>
+     */
+    public function channelsFor(string $event): array
+    {
+        $channels = [self::CHANNEL_INAPP, self::CHANNEL_EMAIL];
+
+        if (! in_array(config('broadcasting.default'), ['log', 'null', null], true)) {
+            $channels[] = self::CHANNEL_PUSH;
+        }
+
+        if (in_array($event, self::mobileEvents(), true)) {
+            $channels[] = self::CHANNEL_SMS;
+            $channels[] = self::CHANNEL_WHATSAPP;
+        }
+
+        return $channels;
+    }
+
+    /** @return list<string> */
+    public static function mobileEvents(): array
+    {
+        return array_values(array_unique([...NotificationCode::mobileEvents(), ...self::MOBILE_CLASS_EVENTS]));
     }
 
     /**
@@ -185,7 +269,7 @@ class PreferenceResolver
             foreach (self::CHANNELS as $channel) {
                 $key = "{$event}|{$channel}";
                 $pref = $existing->get($key);
-                $enabled = $pref ? (bool) $pref->enabled : (self::DEFAULTS[$channel] ?? false);
+                $enabled = $pref ? (bool) $pref->enabled : $this->defaultFor($event, $channel);
 
                 $locked = false;
                 $reason = null;
@@ -193,6 +277,12 @@ class PreferenceResolver
                     $locked = true;
                     $enabled = true;
                     $reason = 'inapp_always_on';
+                } elseif (! in_array($channel, $this->channelsFor($event), true)) {
+                    // TCK-588 — aucun envoi ne peut honorer cette case : la proposer cochable
+                    // serait promettre un message qui ne partira jamais.
+                    $locked = true;
+                    $enabled = false;
+                    $reason = 'channel_unavailable';
                 } elseif (
                     in_array($channel, [self::CHANNEL_SMS, self::CHANNEL_WHATSAPP], true)
                     && ! $user->phone_verified_at
@@ -237,6 +327,10 @@ class PreferenceResolver
             }
             // Never persist preferences for locked channels.
             if ($channel === self::CHANNEL_INAPP) {
+                continue;
+            }
+            // TCK-588 — ni pour une case qu'aucun envoi ne peut honorer.
+            if (! in_array($channel, $this->channelsFor($event), true)) {
                 continue;
             }
 

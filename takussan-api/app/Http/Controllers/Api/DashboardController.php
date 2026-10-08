@@ -31,9 +31,7 @@ class DashboardController extends Controller
         $metrics = $this->resolver->resolve($user);
 
         if ($metrics === null) {
-            return $this->json([
-                'message' => 'Aucun profil tableau de bord résolu pour cet utilisateur.',
-            ], 404);
+            abort_code(404, 'dashboard.profile_unresolved');
         }
 
         return $this->json([

@@ -40,7 +40,7 @@ class OwnerOnboardingController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        abort_if($owner === null, 403, __('owners.onboarding.errors.not_owner'));
+        abort_code_if($owner === null, 403, 'onboarding.owner_not_owner');
 
         $result = $this->service->complete($owner, $user, $validated);
 

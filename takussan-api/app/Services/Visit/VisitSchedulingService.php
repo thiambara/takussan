@@ -164,10 +164,10 @@ class VisitSchedulingService
                 return $start->lt($otherEnd) && $end->gt($otherStart);
             });
 
-        abort_if(
+        abort_code_if(
             $overlap !== null,
             422,
-            'Another confirmed visit already overlaps this time slot on this property.'
+            'visit.slot_overlap'
         );
     }
 
@@ -188,10 +188,10 @@ class VisitSchedulingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            abort_unless(
+            abort_code_unless(
                 $fresh->status === VisitStatus::Scheduled,
                 422,
-                'Only scheduled visits can be confirmed.'
+                'visit.not_scheduled_confirm'
             );
 
             $this->assertNoOverlap($fresh, lockForUpdate: true);
@@ -255,13 +255,11 @@ class VisitSchedulingService
             Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
         }
 
-        abort_if(
+        abort_code_if(
             $query->count() >= self::MAX_ACTIVE_VISITS_PER_CUSTOMER,
             422,
-            sprintf(
-                'You already have %d active visits on this property. Cancel one before requesting another.',
-                self::MAX_ACTIVE_VISITS_PER_CUSTOMER,
-            )
+            'visit.active_limit_reached',
+            ['max' => self::MAX_ACTIVE_VISITS_PER_CUSTOMER]
         );
     }
 
