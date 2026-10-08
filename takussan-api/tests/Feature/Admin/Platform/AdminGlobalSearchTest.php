@@ -172,6 +172,33 @@ class AdminGlobalSearchTest extends TestCase
         $this->assertEqualsCanonicalizing($rendus, $this->consultations());
     }
 
+    /**
+     * Une recherche REFUSÉE ne consulte rien : ni par un viewer (403), ni par une requête trop
+     * courte ou trop longue (422). Chacune viserait un compte que la recherche rendrait sinon —
+     * le témoin le montre —, sans quoi le refus ne prouverait rien.
+     */
+    public function test_une_recherche_refusee_n_ecrit_aucune_trace(): void
+    {
+        $diop = User::factory()->create(['last_name' => 'Diop']);
+        $long = str_repeat('x', 92).'@cible.sn';
+        $parEmail = User::factory()->create(['email' => $long]);
+        $this->assertSame(101, mb_strlen($long));
+
+        $this->agirEnOperateur(PlatformProfileLevel::Viewer);
+        $this->getJson('/api/admin/search?q=diop')->assertForbidden();
+
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+        $this->getJson('/api/admin/search?q=d')->assertUnprocessable();
+        $this->getJson('/api/admin/search?q='.urlencode($long))->assertUnprocessable();
+
+        $this->assertSame([], $this->consultations());
+
+        // Témoin : la même recherche, autorisée et bornée, rend le compte et le trace.
+        $this->assertContains($diop->id, $this->ids($this->chercher('diop'), 'user'));
+        $this->assertContains($diop->id, $this->consultations());
+        $this->assertNotContains($parEmail->id, $this->consultations());
+    }
+
     /** @return list<int> */
     private function consultations(): array
     {
