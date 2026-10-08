@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**547 tickets** — 34 ouverts, 511 livrés.
+**547 tickets** — 33 ouverts, 512 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 32 |
+| 📋 Todo | 31 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 511 |
+| ✅ Done | 512 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -79,7 +79,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 511
+## ✅ Done — 512
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 13 tickets</summary>
