@@ -9,11 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCan } from '@/hooks/useCan';
+import { useAuth } from '@/context/AuthContext';
+import { isOwner } from '@/lib/roles';
 
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { CreatePayoutDialog } from './CreatePayoutDialog';
 import { InvoiceDetailDialog } from './InvoiceDetailDialog';
 import { InvoicesTable } from './InvoicesTable';
+import { OwnerStatementPanel } from './OwnerStatementPanel';
 import { PayoutDetailDialog } from './PayoutDetailDialog';
 import { PayoutsTable } from './PayoutsTable';
 import { PaymentsHistoryFilters } from './PaymentsHistoryFilters';
@@ -46,6 +49,9 @@ export function PaymentsTabs() {
   // Tant que le catalogue n'est pas arrivé, on réserve la place sans rien proposer : un bouton
   // rendu puis retiré (le locataire) ou absent puis apparu (l'agent) se verrait.
   const capacitesEnCours = facturationEnCours || reversementEnCours;
+  // TCK-594 (ADR-0039 §3) — le bailleur trouve son relevé de gérance à côté de ses versements.
+  const { user } = useAuth();
+  const estBailleur = isOwner(user?.roles ?? []);
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -107,6 +113,7 @@ export function PaymentsTabs() {
         </TabsContent>
 
         <TabsContent value="payouts" className="space-y-4">
+          {estBailleur ? <OwnerStatementPanel /> : null}
           <PayoutsTable onSelect={setPayoutId} />
         </TabsContent>
 

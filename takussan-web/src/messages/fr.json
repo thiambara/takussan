@@ -2798,6 +2798,21 @@
       "creating": "Création…",
       "submit": "Créer le reversement",
       "createFailed": "Le reversement n'a pas pu être créé."
+    },
+    "ownerStatement": {
+      "title": "Relevé de gérance",
+      "description": "Ce qui a été encaissé pour vous, ce que l'agence a retenu, et ce qui vous a été versé.",
+      "month": "Mois",
+      "annual": "Toute l'année (attestation annuelle)",
+      "gross": "Encaissé",
+      "commission": "Commission",
+      "fees": "Interventions",
+      "net": "Net",
+      "paidOut": "Déjà versé",
+      "downloadPdf": "Télécharger le PDF",
+      "downloadCsv": "Télécharger le CSV",
+      "downloadFailed": "Le téléchargement du relevé a échoué.",
+      "unavailable": "Le relevé n'est pas disponible."
     }
   },
   "lease": {

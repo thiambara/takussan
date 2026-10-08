@@ -10,6 +10,7 @@ import type {
 import type {
   Invoice,
   InvoiceStatus,
+  OwnerStatement,
   PaymentHistoryRow,
   PaymentHistoryTotals,
   Payout,
@@ -74,6 +75,7 @@ export const paymentsQueryKeys = {
     ['payouts', 'preparation', params] as const,
   payoutMethods: (userId: number | null | undefined) =>
     ['payout-methods', 'beneficiary', userId] as const,
+  ownerStatement: (period: string) => ['owner-statements', period] as const,
 };
 
 export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
@@ -380,5 +382,17 @@ export function usePayoutCancel(payoutId: number) {
       body: () => undefined,
     },
     { invalidate: [['payouts']] },
+  );
+}
+
+/**
+ * TCK-594 (ADR-0039 §3) — le relevé de gérance du lecteur (bailleur), pour un mois ou une année.
+ * Sans `landlord_id`, l'API rend celui du lecteur ; l'autorisation est `OwnerStatementPolicy::view`.
+ */
+export function useOwnerStatement(period: string) {
+  return useApiQuery<ApiResponse<OwnerStatement>>(
+    paymentsQueryKeys.ownerStatement(period),
+    '/api/owner-statements',
+    { params: { extra: { period } }, enabled: /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(period) },
   );
 }

@@ -2823,6 +2823,21 @@
       "creating": "Creating…",
       "submit": "Create the payout",
       "createFailed": "The payout could not be created."
+    },
+    "ownerStatement": {
+      "title": "Owner statement",
+      "description": "What was collected for you, what the agency withheld, and what was paid out to you.",
+      "month": "Month",
+      "annual": "Whole year (annual certificate)",
+      "gross": "Collected",
+      "commission": "Commission",
+      "fees": "Repairs",
+      "net": "Net",
+      "paidOut": "Already paid out",
+      "downloadPdf": "Download PDF",
+      "downloadCsv": "Download CSV",
+      "downloadFailed": "The statement download failed.",
+      "unavailable": "The statement is not available."
     }
   },
   "lease": {

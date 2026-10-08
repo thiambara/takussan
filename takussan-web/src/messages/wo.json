@@ -1438,6 +1438,21 @@
       "creating": "Mi ngi koy sos…",
       "submit": "Sos reversement bi",
       "createFailed": "Reversement bi mënul woon a sosu."
+    },
+    "ownerStatement": {
+      "title": "Relevé gérance",
+      "description": "Li ñu la dugal, li agence bi téye, ak li ñu la fey ba noppi.",
+      "month": "Weer",
+      "annual": "Atum bi yépp (attestation bu at mi)",
+      "gross": "Li dugg",
+      "commission": "Komisioŋ",
+      "fees": "Liggéey yi",
+      "net": "Net",
+      "paidOut": "Li ñu fey ba noppi",
+      "downloadPdf": "Yebbi PDF bi",
+      "downloadCsv": "Yebbi CSV bi",
+      "downloadFailed": "Yebbi relevé bi antuwul.",
+      "unavailable": "Relevé bi amul fii."
     }
   },
   "lease": {

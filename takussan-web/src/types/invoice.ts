@@ -174,3 +174,26 @@ export type PayoutPreparation = {
   approval_threshold: number | null;
   payout_methods: Array<Pick<PayoutMethod, 'id' | 'kind' | 'masked_identifier' | 'is_default' | 'verified'>>;
 };
+
+/**
+ * TCK-594 (ADR-0039 §3) — le relevé de gérance d'un bailleur pour un mois (`YYYY-MM`) ou une année
+ * (`YYYY`, l'attestation annuelle). Le même calcul nourrit le JSON, le PDF et le CSV.
+ */
+export type OwnerStatement = {
+  agency: { id: number; name: string };
+  landlord: { id: number; name: string };
+  period: string;
+  annual: boolean;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  totals: { gross: number; commission: number; fees: number; net: number; paid_out: number };
+  payouts: Array<{
+    id: number;
+    reference_number: string | null;
+    status: PayoutStatus;
+    net_amount: number;
+    transaction_id: string | null;
+    processed_at: string | null;
+  }>;
+};

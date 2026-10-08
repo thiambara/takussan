@@ -15,10 +15,14 @@ import { PaymentsTabs } from '../PaymentsTabs';
 
 vi.mock('@/hooks/useCan', () => ({ useCan: vi.fn() }));
 
+const ONGLET = vi.hoisted(() => ({ current: '' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(''),
+  useSearchParams: () => new URLSearchParams(ONGLET.current),
 }));
+const AUTH = vi.hoisted(() => ({ current: { user: { id: 9, roles: ['agent'] as string[] } } }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH.current }));
+vi.mock('../OwnerStatementPanel', () => ({ OwnerStatementPanel: () => <p>relevé de gérance</p> }));
 
 // Les tables et les dialogues ont leurs propres tests ; ils tireraient ici leurs requêtes.
 vi.mock('../PaymentsHistoryFilters', () => ({ PaymentsHistoryFilters: () => null }));
@@ -47,6 +51,20 @@ function rendre() {
 describe('PaymentsTabs — boutons de création gardés par capacité (TCK-528)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ONGLET.current = '';
+    AUTH.current = { user: { id: 9, roles: ['agent'] } };
+  });
+
+  it('montre le relevé de gérance au bailleur, à côté de ses versements (TCK-594)', () => {
+    ONGLET.current = 'tab=payouts';
+    accorder([]);
+    const { unmount } = rendre();
+    expect(screen.queryByText('relevé de gérance')).not.toBeInTheDocument();
+    unmount();
+
+    AUTH.current = { user: { id: 42, roles: ['owner'] } };
+    rendre();
+    expect(screen.getByText('relevé de gérance')).toBeInTheDocument();
   });
 
   it('lit exactement invoices.create, payouts.create et payouts.approve (TCK-594)', () => {
