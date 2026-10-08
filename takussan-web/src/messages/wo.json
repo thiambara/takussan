@@ -7722,7 +7722,18 @@
       "upcoming30d": "Bes yi ci 30 fan yu ñëw",
       "noUpcoming": "Amul bes bu ñu tëral.",
       "recentDocs": "Dokimaa yu yees",
-      "noDocs": "Amul dokimaa."
+      "noDocs": "Amul dokimaa.",
+      "noProfileInvite": "Amagul benn dosye kiliyaan ci sa tur. Tàmbalil ci seet benn kër.",
+      "whatAwaits": "Li ma xaar",
+      "nextVisit": "Seetlu bi ci topp",
+      "nextVisitAt": "{date} · {property}",
+      "noVisit": "Amul seetlu bu ñu tëral",
+      "propertyFallback": "Kër",
+      "openMaintenance": "Ñaanu wattu yu ubbeeku",
+      "inviteRentIn": "Kër yu ñuy luwe ci {city}",
+      "inviteBuyIn": "Kër yu ñuy jaay ci {city}",
+      "inviteSearch": "Seet benn kër",
+      "inviteCta": "Xool yéenekaay yi"
     },
     "agency": {
       "title": "Wonewu ajaas",
@@ -7794,7 +7805,16 @@
       "chartCommissions": "Komisioŋ yi",
       "chartSignedLeases": "Kontaraa yu ñu xaatim",
       "timeUnknown": "Waxtu wu ñu koy leeral",
-      "dateUnknown": "Bes bu ñu koy leeral"
+      "dateUnknown": "Bes bu ñu koy leeral",
+      "scopeLabel": "Yaatuwaayu limu yi",
+      "scopeMine": "Sama lim yi",
+      "scopeAgency": "Ajaans bi",
+      "managedMine": "Sama kër yi",
+      "managedAgency": "Këri ajaans bi",
+      "commissionsMonthMine": "Sama komisioŋu weer wi",
+      "commissionsMonthAgency": "Komisioŋu ajaans bi ci weer wi",
+      "commissionsAgency": "Komisioŋu ajaans bi",
+      "commissionsDetail": "Leeral ci kontaraa ku nekk"
     },
     "owner": {
       "title": "Wonewu boroom kër",
@@ -7828,7 +7848,10 @@
       "payoutFallback": "Peymaan #{id}",
       "payoutScheduled": " · ñu ko tëral ci {date}",
       "chartCashflow": "Xaalis",
-      "chartOccupancy": "Dalal (%)"
+      "chartOccupancy": "Dalal (%)",
+      "quotesPending": "Deewi yu ñu war a nangu",
+      "visitsToConfirm": "Seetlu yu ñu war a dëggal",
+      "reviewsUnanswered": "Xalaat yu ñu tontuwul"
     },
     "alerts": {
       "invalidThreshold": "Dig bu baaxul.",

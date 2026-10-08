@@ -274,7 +274,12 @@ export function buildNavItems(user: User): NavItem[] {
   // servis ici — `isProRouteLocked` inclut `agent` depuis TCK-284, sans quoi
   // un agent d'agence `individual` cliquait une entrée d'apparence normale
   // pour se faire renvoyer en silence.
-  if (roles.includes('agency_admin') || isAdmin(roles) || isAgent(roles)) {
+  //
+  // TCK-595 (AC17 bis) — plus pour l'agent : les chiffres consolidés s'ouvrent par
+  // `reports.view_agency` (rôle d'admin d'agence), l'API rend 403 à l'agent et le layout de la page
+  // le renvoie sur sa vue. L'agent qui détient la capacité par un rôle personnalisé lit l'agence
+  // par la bascule « Agence » de sa propre vue.
+  if (roles.includes('agency_admin') || isAdmin(roles)) {
     items.push({ href: '/app/overview/agency', labelKey: 'agencyView', icon: BarChart3, section: 'manage' });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {

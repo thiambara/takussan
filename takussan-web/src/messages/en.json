@@ -1470,7 +1470,18 @@
       "upcoming30d": "Instalments in the next 30 days",
       "noUpcoming": "No instalment scheduled.",
       "recentDocs": "Recent documents",
-      "noDocs": "No document."
+      "noDocs": "No document.",
+      "noProfileInvite": "No customer file is open in your name yet. Start by looking for a home.",
+      "whatAwaits": "What's next for me",
+      "nextVisit": "Next visit",
+      "nextVisitAt": "{date} · {property}",
+      "noVisit": "No visit scheduled",
+      "propertyFallback": "Property",
+      "openMaintenance": "Open maintenance requests",
+      "inviteRentIn": "Homes to rent in {city}",
+      "inviteBuyIn": "Properties to buy in {city}",
+      "inviteSearch": "Find a home",
+      "inviteCta": "Browse listings"
     },
     "agency": {
       "title": "Agency overview",
@@ -1542,7 +1553,16 @@
       "chartCommissions": "Commissions",
       "chartSignedLeases": "Signed leases",
       "timeUnknown": "Time to be confirmed",
-      "dateUnknown": "Date to be confirmed"
+      "dateUnknown": "Date to be confirmed",
+      "scopeLabel": "Figures scope",
+      "scopeMine": "My figures",
+      "scopeAgency": "Agency",
+      "managedMine": "My properties",
+      "managedAgency": "Agency properties",
+      "commissionsMonthMine": "My commissions this month",
+      "commissionsMonthAgency": "Agency commissions this month",
+      "commissionsAgency": "Agency commissions",
+      "commissionsDetail": "Breakdown by lease"
     },
     "owner": {
       "title": "Landlord overview",
@@ -1576,7 +1596,10 @@
       "payoutFallback": "Payout #{id}",
       "payoutScheduled": " · scheduled for {date}",
       "chartCashflow": "Cash flow",
-      "chartOccupancy": "Occupancy (%)"
+      "chartOccupancy": "Occupancy (%)",
+      "quotesPending": "Quotes to approve",
+      "visitsToConfirm": "Visits to confirm",
+      "reviewsUnanswered": "Unanswered reviews"
     },
     "alerts": {
       "invalidThreshold": "Invalid threshold.",

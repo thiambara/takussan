@@ -9,9 +9,10 @@ export default async function OverviewPage() {
   const roles = user.roles;
 
   if (isAdmin(roles)) {
-    // Cross-team agency dashboard is Standard-only; individual admins are
-    // their only collaborator, so route them to the per-agent view instead
-    // of letting /app/overview/agency bounce them back to /app.
+    // Cross-team agency dashboard is Standard-only. TCK-595 (AC7) — l'admin d'une agence
+    // `individual` est un hôte : il gère SES biens, et `GET /api/dashboard/me` le résout déjà en
+    // `owner`. Il était envoyé sur la vue agent, qui lui montrait un pipeline et des commissions
+    // d'agent qu'il n'a pas.
     if (user.agency_id) {
       const token = await getToken();
       const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview (aiguillage)') : null;
@@ -30,6 +31,7 @@ export default async function OverviewPage() {
       //
       // *`decision` se réserve aux endroits où `kind` GARDE l'accès. Ailleurs, ne pas savoir
       // doit dégrader, pas interrompre.*
+      if (agency?.kind === 'individual') redirect('/app/overview/owner');
       if (!agency || agency.kind !== 'standard') redirect('/app/overview/agent');
     }
     redirect('/app/overview/agency');

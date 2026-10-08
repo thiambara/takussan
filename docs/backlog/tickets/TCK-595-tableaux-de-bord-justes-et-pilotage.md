@@ -869,3 +869,18 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   daté, ne compte que ceux qui en ont un. L'écart éventuel se lit dans la tendance : il est nommé ici.
 - `trend.previous` change de clés : `revenue_collected_total` et `revenue_mrr` remplacent
   `revenue_platform_total_paid`. Le front suit dans le lot front.
+
+### Lot 7 — front : vues d'ensemble (AC4 bis, AC7, AC8, AC16, AC20 ter, bascule agent)
+
+- `localeDeLaRequete()` (`src/i18n/locale-serveur.ts`) rend la langue que `getTranslations` sert déjà
+  à la page. Les quatre pages n'écrivent plus `'fr'` ni `'fr-SN'`, et les heures de la vue agent passent
+  par `formatDate` (fuseau `Africa/Dakar`) : le cliquet de `check-locale-figee.mjs` descend de 22 à 20.
+- La bascule « Mes chiffres » / « Agence » n'est rendue qu'avec `reports.view_agency`
+  (`GET /api/me/capabilities`, lu côté serveur). Un `?scope=agency` saisi sans la capacité retombe sur
+  `mine` au lieu du 403. La « Vue agence » quitte la barre latérale de l'agent, et le layout de
+  `/app/overview/agency` le renvoie sur sa vue : l'API la lui refuse (AC17 bis).
+- Les cartes du bailleur mènent aux listes non filtrées (`/app/maintenance`, `/app/visits`,
+  `/app/profile/reviews`) : ces listes ne lisent aucun filtre d'URL. Un filtre par lien est hors périmètre.
+- L'accueil client sans dossier invite à chercher dans `preferences.city` (recherche publique,
+  `contract_type` déduit de `search_intent`), et garde « ce qui m'attend » : une demande d'intervention
+  ne suppose pas de dossier.

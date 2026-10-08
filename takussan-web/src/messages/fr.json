@@ -1445,7 +1445,18 @@
       "upcoming30d": "Échéances des 30 prochains jours",
       "noUpcoming": "Aucune échéance prévue.",
       "recentDocs": "Documents récents",
-      "noDocs": "Aucun document."
+      "noDocs": "Aucun document.",
+      "noProfileInvite": "Aucun dossier client n'est encore ouvert à votre nom. Commencez par chercher un logement.",
+      "whatAwaits": "Ce qui m'attend",
+      "nextVisit": "Prochaine visite",
+      "nextVisitAt": "{date} · {property}",
+      "noVisit": "Aucune visite prévue",
+      "propertyFallback": "Bien",
+      "openMaintenance": "Demandes d'intervention en cours",
+      "inviteRentIn": "Biens à {city} pour louer",
+      "inviteBuyIn": "Biens à {city} pour acheter",
+      "inviteSearch": "Trouver un logement",
+      "inviteCta": "Voir les annonces"
     },
     "agency": {
       "title": "Vue agence",
@@ -1517,7 +1528,16 @@
       "chartCommissions": "Commissions",
       "chartSignedLeases": "Baux signés",
       "timeUnknown": "Heure à préciser",
-      "dateUnknown": "Date à préciser"
+      "dateUnknown": "Date à préciser",
+      "scopeLabel": "Portée des chiffres",
+      "scopeMine": "Mes chiffres",
+      "scopeAgency": "Agence",
+      "managedMine": "Mes biens",
+      "managedAgency": "Biens de l'agence",
+      "commissionsMonthMine": "Mes commissions du mois",
+      "commissionsMonthAgency": "Commissions de l'agence du mois",
+      "commissionsAgency": "Commissions de l'agence",
+      "commissionsDetail": "Détail par bail"
     },
     "owner": {
       "title": "Vue bailleur",
@@ -1551,7 +1571,10 @@
       "payoutFallback": "Reversement #{id}",
       "payoutScheduled": " · prévu le {date}",
       "chartCashflow": "Cashflow",
-      "chartOccupancy": "Occupation (%)"
+      "chartOccupancy": "Occupation (%)",
+      "quotesPending": "Devis à valider",
+      "visitsToConfirm": "Visites à confirmer",
+      "reviewsUnanswered": "Avis sans réponse"
     },
     "alerts": {
       "invalidThreshold": "Seuil invalide.",

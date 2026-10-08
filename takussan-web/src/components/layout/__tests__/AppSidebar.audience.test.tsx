@@ -77,7 +77,8 @@ const ATTENDU: Record<string, string[]> = {
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/messages',
     '/app/documents',
-    '/app/overview', '/app/overview/exports', '/app/overview/agency', '/app/customers',
+    // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
+    '/app/overview', '/app/overview/exports', '/app/customers',
     '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
   ],
   agency_admin: [
