@@ -30,6 +30,7 @@ use App\Notifications\CodedNotification;
 use App\Services\Accounting\PaymentSearchService;
 use App\Services\Accounting\ReconciliationMatcher;
 use App\Services\Billing\PlatformPayoutService;
+use App\Services\Invoice\OverdueReminderService;
 use App\Services\Model\PayoutService;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Payout\PayoutApprovalRule;
@@ -1234,6 +1235,31 @@ class PayoutBypassTest extends TestCase
         $this->getJson("/api/leases/{$lease->id}/receipts/{$line->id}/pdf")
             ->assertUnprocessable()->assertJsonPath('code', 'lease_payment.receipt_not_a_payment');
         $this->assertFalse((new LeasePaymentResource($line))->toArray(request())['receipt_available']);
+    }
+
+    /**
+     * VERIF-594 passe 5, P5-4 — une retenue émise passe `overdue` d'elle-même à son échéance : elle
+     * reste retenue, et la caution reste soldée. Sans `overdue` dans la retenue vivante, la seule
+     * échéance rouvrait P4-2.
+     */
+    public function test_p5_4_an_overdue_retention_still_closes_the_deposit(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $invoiceId = $refund->json('data.invoice_id');
+        $this->postJson("/api/invoices/{$invoiceId}/send")->assertOk();
+
+        $this->travel(45)->days();
+        app(OverdueReminderService::class)->sendForAgency((int) $lease->agency_id, now());
+        $this->assertSame(InvoiceStatus::Overdue, Invoice::query()->findOrFail($invoiceId)->status);
+
+        $this->assertEquals(0, $lease->fresh()->deposit_remaining);
+        $this->actingWithStepUp($admin);
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 100_000, 'reason' => 'clés'])
+            ->assertUnprocessable()->assertJsonPath('code', 'deposit_refund.already_refunded');
+        $this->assertSame([300000, 100000], $this->depositLedger($lease));
     }
 
     /**
