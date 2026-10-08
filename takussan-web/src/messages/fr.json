@@ -7436,7 +7436,13 @@
         "submit": "Clôturer",
         "toastNone": "Aucun paiement éligible",
         "toastCreated": "{total} {count, plural, one {payout créé} other {payouts créés}}",
-        "toastFailed": "Clôture impossible"
+        "toastFailed": "Clôture impossible",
+        "excludedTitle": "{count, plural, one {# agence écartée} other {# agences écartées}} de la clôture",
+        "excludedRow": "Agence #{agency} — {reason}",
+        "excludedReason": {
+          "agency_not_active": "agence suspendue ou non active",
+          "already_closed": "période déjà clôturée"
+        }
       },
       "detail": {
         "notFound": "Reversement introuvable.",
@@ -7453,7 +7459,6 @@
         "breakdownLine": "<count>{count}</count> paiements · <gross>{gross}</gross> brut · <fees>-{fees}</fees> com.",
         "approve": "Approuver",
         "processedAtAria": "Date de traitement",
-        "bankRefPlaceholder": "Référence bancaire (optionnel)",
         "markPaid": "Marquer payé",
         "cancelReasonPlaceholder": "Raison de l'annulation",
         "cancel": "Annuler",
@@ -7465,7 +7470,13 @@
           "cancelled": "Reversement annulé",
           "cancelFailed": "Annulation impossible"
         },
-        "breakdownRow": "<qty>{count}</qty> paiements · <amount>{gross}</amount> brut · <fee>-{fees}</fee> com."
+        "breakdownRow": "<qty>{count}</qty> paiements · <amount>{gross}</amount> brut · <fee>-{fees}</fee> com.",
+        "approvedAt": "Approuvé le",
+        "paymentReference": "Référence du virement",
+        "paymentReferenceLabel": "Référence du virement",
+        "paymentReferencePlaceholder": "Référence du virement (obligatoire)",
+        "approveSelfRefused": "Vous avez clôturé cette période : une autre personne doit approuver le reversement.",
+        "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé."
       }
     }
   },

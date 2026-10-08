@@ -7436,7 +7436,13 @@
         "submit": "Close",
         "toastNone": "No eligible payment",
         "toastCreated": "{total} {count, plural, one {payout created} other {payouts created}}",
-        "toastFailed": "Closing failed"
+        "toastFailed": "Closing failed",
+        "excludedTitle": "{count, plural, one {# agency excluded} other {# agencies excluded}} from the closing",
+        "excludedRow": "Agency #{agency} — {reason}",
+        "excludedReason": {
+          "agency_not_active": "agency suspended or not active",
+          "already_closed": "period already closed"
+        }
       },
       "detail": {
         "notFound": "Payout not found.",
@@ -7453,7 +7459,6 @@
         "breakdownLine": "<count>{count}</count> payments · <gross>{gross}</gross> gross · <fees>-{fees}</fees> comm.",
         "approve": "Approve",
         "processedAtAria": "Processing date",
-        "bankRefPlaceholder": "Bank reference (optional)",
         "markPaid": "Mark as paid",
         "cancelReasonPlaceholder": "Cancellation reason",
         "cancel": "Cancel",
@@ -7465,7 +7470,13 @@
           "cancelled": "Payout cancelled",
           "cancelFailed": "Cancellation failed"
         },
-        "breakdownRow": "<qty>{count}</qty> payments · <amount>{gross}</amount> gross · <fee>-{fees}</fee> comm."
+        "breakdownRow": "<qty>{count}</qty> payments · <amount>{gross}</amount> gross · <fee>-{fees}</fee> comm.",
+        "approvedAt": "Approved on",
+        "paymentReference": "Transfer reference",
+        "paymentReferenceLabel": "Transfer reference",
+        "paymentReferencePlaceholder": "Transfer reference (required)",
+        "approveSelfRefused": "You closed this period: someone else must approve the payout.",
+        "paySelfRefused": "You approved this payout: someone else must mark it paid."
       }
     }
   },

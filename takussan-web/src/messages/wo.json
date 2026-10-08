@@ -7436,7 +7436,13 @@
         "submit": "Tëj",
         "toastNone": "Amul pey bu jekk",
         "toastCreated": "{total} {count, plural, one {peymaan ñu sos} other {peymaan ñu sos}}",
-        "toastFailed": "Mënunu ko tëj"
+        "toastFailed": "Mënunu ko tëj",
+        "excludedTitle": "{count, plural, one {# agence lañu bàyyi} other {# agence lañu bàyyi}} ci tëj bi",
+        "excludedRow": "Agence #{agency} — {reason}",
+        "excludedReason": {
+          "agency_not_active": "agence bi dañu ko taxawal walla doxul",
+          "already_closed": "diir bi tëju na ba noppi"
+        }
       },
       "detail": {
         "notFound": "Gisuñu peymaan bi.",
@@ -7453,7 +7459,6 @@
         "breakdownLine": "<count>{count}</count> pey · <gross>{gross}</gross> brut · <fees>-{fees}</fees> kom.",
         "approve": "Nangu",
         "processedAtAria": "Bisu liggéey",
-        "bankRefPlaceholder": "Référence bànk (bu ñu soxlawul)",
         "markPaid": "Wone ne fey nañu ko",
         "cancelReasonPlaceholder": "Mboor neenal bi",
         "cancel": "Neenal",
@@ -7465,7 +7470,13 @@
           "cancelled": "Peymaan bi neenal nañu ko",
           "cancelFailed": "Mënunu ko neenal"
         },
-        "breakdownRow": "<qty>{count}</qty> pey · <amount>{gross}</amount> brut · <fee>-{fees}</fee> kom."
+        "breakdownRow": "<qty>{count}</qty> pey · <amount>{gross}</amount> brut · <fee>-{fees}</fee> kom.",
+        "approvedAt": "Nangu nañu ko ci",
+        "paymentReference": "Référence virement bi",
+        "paymentReferenceLabel": "Référence virement bi",
+        "paymentReferencePlaceholder": "Référence virement bi (war na)",
+        "approveSelfRefused": "Yaa tëj diir bii : keneen moo war a nangu reversement bi.",
+        "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko."
       }
     }
   },
