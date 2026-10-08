@@ -157,6 +157,10 @@ class MaintenanceRequestService
      */
     private function resetQuoteOfPreviousProvider(MaintenanceRequest $mr, int $previousProviderId): void
     {
+        // verif-592 passe 4 (N11) — la trace de l'accord du bailleur part AVANT le retour anticipé :
+        // un coût retiré entre-temps (`actual_cost` nul) la laissait couvrir le prestataire suivant.
+        app(OwnerApprovalThreshold::class)->forgetOwnerCost($mr);
+
         // verif-592 passe 3 (N9) — le coût réel suit le devis : inscrit sous l'accord donné au
         // devis de l'ancien, il couvrait le travail du suivant.
         if ($mr->quote_submitted_at === null && $mr->actual_cost === null) {
@@ -171,7 +175,6 @@ class MaintenanceRequestService
             'approved_at' => $approved ? $mr->quote_decision_at?->toIso8601String() : null,
             'actual_cost' => $mr->actual_cost !== null ? (string) $mr->actual_cost : null,
         ];
-        unset($metadata[OwnerApprovalThreshold::OWNER_AGREED_COST]);
         $mr->metadata = $metadata;
 
         $mr->forceFill([

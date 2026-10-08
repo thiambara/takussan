@@ -45,6 +45,24 @@ class MaintenanceActualCostTest extends TestCase
         $this->assertNull($mr->refresh()->actual_cost);
     }
 
+    /** Passe 4 (N11) — un coût retiré n'est plus un accord : réinscrit par l'agent, il redemande le bailleur. */
+    public function test_a_withdrawn_landlord_cost_is_no_longer_an_agreement(): void
+    {
+        ['mr' => $mr, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null]);
+        $this->threshold($landlord->id, $agency->id, 50000);
+        $agent = $this->agentOf($agency);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 200000])->assertOk();
+        Sanctum::actingAs($agent);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 150000])->assertOk();
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => null])->assertOk();
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 200000])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
+        $this->assertNull($mr->refresh()->actual_cost);
+    }
+
     /**
      * Passe 3 (N8, N9) — sans coût fourni, la fin des travaux REJUGE le coût déjà inscrit. Posé
      * sous un accord qui n'existe plus (ici, en base : les chemins de l'API le referment par

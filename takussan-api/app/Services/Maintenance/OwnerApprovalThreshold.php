@@ -79,6 +79,22 @@ class OwnerApprovalThreshold
         abort_code_unless($agreedByOwner, 422, 'maintenance.actual_cost_needs_owner');
     }
 
+    /**
+     * verif-592 passe 4 (N11) — la trace s'efface quand le coût est retiré ou que le prestataire
+     * change : un coût retiré n'est plus un accord, et l'accord donné pour A ne couvre pas B.
+     * À sauver par l'appelant.
+     */
+    public function forgetOwnerCost(MaintenanceRequest $mr): void
+    {
+        $metadata = $mr->metadata ?? [];
+        if (! array_key_exists(self::OWNER_AGREED_COST, $metadata)) {
+            return;
+        }
+
+        unset($metadata[self::OWNER_AGREED_COST]);
+        $mr->metadata = $metadata;
+    }
+
     /** Le bailleur qui inscrit le coût réel l'accorde : tracé sur la demande, à sauver par l'appelant. */
     public function recordOwnerCost(MaintenanceRequest $mr, string $amount, int $actorId): void
     {

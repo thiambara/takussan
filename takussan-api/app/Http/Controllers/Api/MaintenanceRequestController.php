@@ -186,6 +186,9 @@ class MaintenanceRequestController extends Controller
             $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
             app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
             app(OwnerApprovalThreshold::class)->recordOwnerCost($maintenanceRequest, $data['actual_cost'], $request->user()->id);
+        } elseif (array_key_exists('actual_cost', $data)) {
+            // verif-592 passe 4 (N11) — un coût retiré n'est plus un accord du bailleur.
+            app(OwnerApprovalThreshold::class)->forgetOwnerCost($maintenanceRequest);
         }
 
         $assignmentChanged = array_key_exists('assigned_to', $data);

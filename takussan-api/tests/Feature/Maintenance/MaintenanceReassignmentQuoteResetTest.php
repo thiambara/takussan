@@ -178,4 +178,43 @@ class MaintenanceReassignmentQuoteResetTest extends TestCase
 
         $this->assertNull($mr->refresh()->actual_cost);
     }
+
+    /**
+     * Passe 4 (N11, sonde r01) — la trace de l'accord du bailleur (`owner_agreed_actual_cost`)
+     * n'était effacée qu'après le retour anticipé de la remise à zéro : le coût retiré, l'accord
+     * donné pour A couvrait B, par la réassignation comme par la fin de collaboration.
+     */
+    public function test_the_owner_cost_agreement_does_not_cross_to_the_next_provider(): void
+    {
+        foreach (['reassign', 'collaboration_end'] as $path) {
+            ['mr' => $mr, 'provider' => $a, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null]);
+            $agency->forceFill(['kind' => AgencyKind::Standard])->save();
+            $admin = User::factory()->create();
+            AgencyAdminProfile::query()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+            OwnerProfile::query()->where('user_id', $landlord->id)->where('agency_id', $agency->id)->update(['works_approval_threshold' => 50000]);
+            $agent = $this->agentOf($agency);
+
+            Sanctum::actingAs($landlord);
+            $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 200000])->assertOk();
+            // Le coût retiré en base, la trace restée : l'état que laissait un `PATCH {actual_cost: null}`.
+            $mr->refresh()->forceFill(['actual_cost' => null])->save();
+
+            $b = $this->providerFor($agency);
+            if ($path === 'reassign') {
+                Sanctum::actingAs($agent);
+                $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $b->id])->assertOk();
+            } else {
+                $sp = ServiceProviderProfile::query()->where('user_id', $a->id)->firstOrFail();
+                Sanctum::actingAs($admin);
+                $this->patchJson("/api/agencies/{$agency->id}/service-providers/{$sp->id}/collaboration", ['status' => 'ended'])->assertOk();
+                Sanctum::actingAs($agent);
+                $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $b->id])->assertOk();
+            }
+            $this->assertArrayNotHasKey('owner_agreed_actual_cost', $mr->refresh()->metadata ?? [], $path);
+
+            $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 200000])
+                ->assertUnprocessable()->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
+            $this->assertNull($mr->refresh()->actual_cost, $path);
+        }
+    }
 }
