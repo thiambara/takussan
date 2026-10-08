@@ -977,6 +977,11 @@ par `cp` avec contrôle md5. Chaque ablation est restaurée de même.
 - **Le trou relevé avant la fusion** (un bien `pending_review` archivé puis désarchivé sautait la
   file) est fermé par B1 : `test_unarchiving_is_not_an_activation` est remplacé, et le test de lot
   prévu ici est devenu `test_a_never_approved_listing_archived_in_bulk_then_restored_goes_to_the_queue`.
+- **Seconde fusion, avec TCK-590** (`d1498063`) : conflits résolus par union (cliquet de
+  `check-agency-scope-clause` à 5, les deux tickets ayant retiré leurs exemptions ; barre latérale
+  d'`agency_admin` à 25 entrées ; contraste public à 257). Les limiteurs publics de 590 passent
+  par `visitorRateLimitKey` et comptent donc l'IPv6 au /64 (m6). Les classes de 590 (449 tests,
+  dossier `tests/Feature/Public` compris), celles de 597 et vitest (49 fichiers) sont rejoués et passent.
 - **La sonde « réapprobation » de verif-597** rend maintenant 403 : depuis M3, l'admin d'agence ne
   tranche plus un avis signalé. Comportement voulu.
 
