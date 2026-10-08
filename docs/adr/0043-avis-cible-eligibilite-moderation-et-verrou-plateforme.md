@@ -126,17 +126,32 @@ Le verrou n'est pas un statut de plus : un statut neuf aurait dû être exclu de
 
 ### 5. La modération d'agence tient au même point
 
-Dans la même méthode, **après** le verrou : si `status` change d'un statut parmi `draft`,
-`pending_review`, `rejected` vers `available` ou `published`, et que l'agence du bien est
-`moderation_required`, la sauvegarde est réécrite en `status = pending_review` et
-`submitted_at = now()` (conservé s'il était déjà posé et que le bien était déjà en attente). Le
-reste de la sauvegarde passe tel quel : `pending_review` est exclu du catalogue.
+Dans la même méthode, **après** le verrou, l'activation se juge sur la **destination** et sur
+l'**histoire** du bien, jamais sur le seul statut d'origine. Une **activation**, c'est un `status` qui
+passe d'un statut non affichable à un statut affichable (`available`, `published`, `pending`). Elle
+compte quand l'agence du bien est `moderation_required` et que le bien ne porte pas d'**approbation
+debout** : `approved_at` non nul et postérieur à `rejected_at`. Dans ce cas, la sauvegarde est
+réécrite en `status = pending_review` et `submitted_at = now()`. `submitted_at` est conservé s'il
+était déjà posé et que le bien était déjà en attente. Le reste de la sauvegarde passe tel quel :
+`pending_review` est exclu du catalogue.
+
+Un retour en `draft`, `pending_review` ou `rejected` **annule** l'approbation : `approved_at` et
+`approved_by_user_id` sont effacés. Un bien dépublié repasse donc par la file. La copie d'un bien
+(`PropertyDuplicationService`) n'hérite pas de son approbation. En revanche, elle hérite
+**délibérément** de son verrou plateforme : copier une annonce masquée ne la remet pas en ligne sous
+un autre identifiant.
+
+> **Corrigé après verif-597 (B1).** La première version jugeait le statut **d'origine** (`draft`,
+> `pending_review`, `rejected` → `available` ou `published`). Un détour par `archived`,
+> `unavailable`, `under_maintenance` ou `pending` blanchissait donc un brouillon, un bien refusé ou
+> un bien en file en deux appels. Le témoin `test_unarchiving_is_not_an_activation` affirmait ce
+> contournement.
 
 Seule `PropertyModerationService::approve` passe outre, par `Property::withoutModerationGate()` :
 un drapeau **statique**, posé pour la durée de l'appel et remis à zéro dans un `finally`, jamais un
 attribut de requête ni un rôle. **Pas d'exemption par rôle** : l'admin d'agence qui publie lui-même
-passe par sa file, comme à la création. Un retour `archived` ou `unavailable` → `available` d'un
-bien déjà passé en ligne n'est pas une activation.
+passe par sa file, comme à la création. Un retour `archived` ou `unavailable` → `available` n'est
+pas une activation **seulement** pour un bien qui porte une approbation debout.
 
 `AgencyUpdateRequest` accepte `moderation_required` (booléen) : la case de configuration était
 jetée sans erreur.

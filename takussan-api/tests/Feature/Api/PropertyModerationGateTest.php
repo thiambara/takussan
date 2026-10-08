@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 
 /**
@@ -129,13 +130,112 @@ class PropertyModerationGateTest extends ApiTestCase
             ->assertJsonPath('data.status', PropertyStatus::Available->value);
     }
 
-    /** Un retour d'archive n'est pas une activation : il ne repasse pas par la file. */
-    public function test_unarchiving_is_not_an_activation(): void
+    /** Un bien APPROUVÉ qui sort d'archive revient en ligne : son approbation tient. */
+    public function test_an_approved_listing_back_from_archive_goes_online(): void
+    {
+        $property = $this->draft();
+        $this->actingAsApi($this->agent);
+        $this->postJson("/api/properties/{$property->id}/publish")->assertOk();
+        $this->actingAsApi($this->admin);
+        $this->postJson("/api/properties/{$property->id}/approve")->assertOk();
+
+        $this->actingAsApi($this->agent);
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'archived'])->assertOk();
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk();
+
+        $this->assertSame(PropertyStatus::Available, $property->refresh()->status);
+        $this->assertNotNull($property->approved_at);
+    }
+
+    /**
+     * verif-597 B1 — un bien JAMAIS approuvé qui sort d'archive va dans la file. Avant, ce test
+     * s'appelait `test_unarchiving_is_not_an_activation` et AFFIRMAIT le contournement : le bien,
+     * créé directement en `archived`, passait `available` sans validation.
+     */
+    public function test_a_never_approved_listing_back_from_archive_goes_to_the_queue(): void
     {
         $property = $this->draft(PropertyStatus::Archived);
 
         $this->actingAsApi($this->agent);
         $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk();
-        $this->assertSame(PropertyStatus::Available, $property->refresh()->status);
+
+        $this->assertQueuedNotPublic($property);
+    }
+
+    /**
+     * verif-597 B1 — les détours de la sonde : un statut intermédiaire hors ligne ne blanchit ni
+     * un brouillon, ni un bien refusé, ni un bien en file.
+     *
+     * @return array<string, array{PropertyStatus, string, string}>
+     */
+    public static function detours(): array
+    {
+        return [
+            'draft → archived → publish' => [PropertyStatus::Draft, 'archived', 'publish'],
+            'rejected → archived → publish' => [PropertyStatus::Rejected, 'archived', 'publish'],
+            'draft → pending → publish' => [PropertyStatus::Draft, 'pending', 'publish'],
+            'draft → unavailable → visibility public' => [PropertyStatus::Draft, 'unavailable', 'visibility'],
+            'pending_review → under_maintenance → publish' => [PropertyStatus::PendingReview, 'under_maintenance', 'publish'],
+        ];
+    }
+
+    #[DataProvider('detours')]
+    public function test_a_detour_through_an_offline_status_does_not_skip_the_queue(PropertyStatus $from, string $via, string $then): void
+    {
+        $property = $this->draft($from);
+
+        $this->actingAsApi($this->agent);
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => $via])->assertOk();
+        $then === 'publish'
+            ? $this->postJson("/api/properties/{$property->id}/publish")->assertOk()
+            : $this->putJson("/api/properties/{$property->id}/visibility", ['visibility' => 'public'])->assertOk();
+
+        $this->assertQueuedNotPublic($property);
+    }
+
+    /** Une approbation suivie d'un refus n'est plus une approbation. */
+    public function test_an_approval_followed_by_a_rejection_does_not_count(): void
+    {
+        $property = $this->draft(PropertyStatus::Archived, [
+            'approved_at' => now()->subDays(2),
+            'rejected_at' => now()->subDay(),
+        ]);
+
+        $this->actingAsApi($this->agent);
+        $this->putJson("/api/properties/{$property->id}/status", ['status' => 'available'])->assertOk();
+
+        $this->assertQueuedNotPublic($property);
+    }
+
+    /** Dépublier annule l'approbation : republier repasse par la file. */
+    public function test_unpublishing_cancels_the_approval(): void
+    {
+        $property = $this->draft();
+        $this->actingAsApi($this->agent);
+        $this->postJson("/api/properties/{$property->id}/publish")->assertOk();
+        $this->actingAsApi($this->admin);
+        $this->postJson("/api/properties/{$property->id}/approve")->assertOk();
+
+        $this->actingAsApi($this->agent);
+        $this->postJson("/api/properties/{$property->id}/unpublish")->assertOk();
+        $this->assertNull($property->refresh()->approved_at);
+        $this->postJson("/api/properties/{$property->id}/publish")->assertOk();
+
+        $this->assertQueuedNotPublic($property);
+    }
+
+    /** La copie d'un bien approuvé n'hérite pas de son approbation. */
+    public function test_a_copy_of_an_approved_listing_goes_to_the_queue(): void
+    {
+        $source = $this->draft(PropertyStatus::Available, ['approved_at' => now()->subDay()]);
+
+        $this->actingAsApi($this->agent);
+        $cloneId = $this->postJson("/api/properties/{$source->id}/duplicate", ['copy_media' => false])
+            ->assertCreated()->json('data.id');
+        $clone = Property::findOrFail($cloneId);
+        $this->assertNull($clone->approved_at);
+
+        $this->postJson("/api/properties/{$cloneId}/publish")->assertOk();
+        $this->assertQueuedNotPublic($clone);
     }
 }

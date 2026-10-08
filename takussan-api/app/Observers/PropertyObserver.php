@@ -21,17 +21,14 @@ class PropertyObserver
         PropertyStatus::Pending,
     ];
 
-    /** TCK-597 (ADR-0043 §5) — une ACTIVATION part d'un de ces statuts… */
-    private const PRE_ACTIVATION_STATUSES = [
+    /**
+     * TCK-597 (ADR-0043 §5, verif-597 B1) — un retour vers l'un de ces statuts ANNULE une
+     * approbation : le bien n'est plus « approuvé » au sens de la modération d'agence.
+     */
+    private const UNAPPROVING_STATUSES = [
         PropertyStatus::Draft,
         PropertyStatus::PendingReview,
         PropertyStatus::Rejected,
-    ];
-
-    /** …vers un de ceux-ci. `archived`/`unavailable` → `available` n'en est pas une. */
-    private const ACTIVE_STATUSES = [
-        PropertyStatus::Available,
-        PropertyStatus::Published,
     ];
 
     public function creating(Property $property): void
@@ -65,9 +62,14 @@ class PropertyObserver
      *  1. **Verrou plateforme** : tant que `platform_hold_at` est posé, rien ne rend le bien public,
      *     et rien ne lève le verrou hors de {@see Property::withoutModerationGate()} (422
      *     `moderation.platform_hold`).
-     *  2. **Modération d'agence** : une activation (`draft`/`pending_review`/`rejected` →
-     *     `available`/`published`) d'un bien d'une agence `moderation_required` atterrit en
-     *     `pending_review`, comme à `creating`. Pas d'exemption par rôle.
+     *  2. **Modération d'agence** : une activation d'un bien d'une agence `moderation_required`
+     *     atterrit en `pending_review`, comme à `creating`. Pas d'exemption par rôle.
+     *
+     * L'activation se juge sur la DESTINATION et sur l'HISTOIRE du bien, jamais sur le seul statut
+     * d'origine (verif-597 B1) : tout passage d'un statut non affichable à un statut affichable en
+     * est une, sauf pour un bien qui porte une approbation que rien n'a annulée. Juger l'origine
+     * laissait passer un brouillon, un bien refusé ou en file par un détour (`archived`,
+     * `unavailable`, `under_maintenance`, `pending`).
      *
      * TCK-599 possède `updated` ; TCK-597 n'écrit que cette méthode.
      */
@@ -104,13 +106,22 @@ class PropertyObserver
 
     private function routeActivationThroughModeration(Property $property): void
     {
-        if (! $property->isDirty('status') || ! $property->agency_id) {
+        if (! $property->isDirty('status')) {
+            return;
+        }
+
+        if (in_array($property->status, self::UNAPPROVING_STATUSES, true)) {
+            $property->approved_at = null;
+            $property->approved_by_user_id = null;
+
             return;
         }
 
         $from = $property->getOriginal('status');
-        if (! in_array($from, self::PRE_ACTIVATION_STATUSES, true)
-            || ! in_array($property->status, self::ACTIVE_STATUSES, true)) {
+        if (! $property->agency_id
+            || in_array($from, self::DISPLAYABLE_STATUSES, true)
+            || ! in_array($property->status, self::DISPLAYABLE_STATUSES, true)
+            || $this->carriesStandingApproval($property)) {
             return;
         }
 
@@ -125,6 +136,19 @@ class PropertyObserver
         if (! $keepsSubmission) {
             $property->submitted_at = now();
         }
+    }
+
+    /** Une approbation que rien n'a annulée depuis : un refus postérieur l'efface. */
+    private function carriesStandingApproval(Property $property): bool
+    {
+        $approvedAt = $property->getOriginal('approved_at');
+        if ($approvedAt === null) {
+            return false;
+        }
+
+        $rejectedAt = $property->getOriginal('rejected_at');
+
+        return $rejectedAt === null || $approvedAt->greaterThan($rejectedAt);
     }
 
     public function updated(Property $property): void

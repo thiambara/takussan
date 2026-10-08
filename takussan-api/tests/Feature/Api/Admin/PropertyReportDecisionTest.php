@@ -171,6 +171,24 @@ class PropertyReportDecisionTest extends ApiTestCase
         $this->assertNotNull(Property::findOrFail($this->property->id)->platform_hold_at);
     }
 
+    /**
+     * verif-597 B1 — le verrou SUIT la copie. Avant, il ne la suivait que par accident (`replicate()`
+     * n'excluait pas `platform_hold_*`) et aucun test ne le gardait.
+     */
+    public function test_a_copy_of_a_hidden_listing_inherits_the_hold(): void
+    {
+        Notification::fake();
+        $this->decide($this->report(null, str_repeat('d', 64)), 'hide')->assertOk();
+
+        $this->actingAsApi($this->owner);
+        $cloneId = $this->postJson("/api/properties/{$this->property->id}/duplicate", ['copy_media' => false])
+            ->assertCreated()->json('data.id');
+
+        $this->assertNotNull(Property::findOrFail($cloneId)->platform_hold_at);
+        $this->postJson("/api/properties/{$cloneId}/publish")
+            ->assertStatus(422)->assertJsonPath('code', 'moderation.platform_hold');
+    }
+
     // ─── AC4 : remove, reject, couples invalides ────────────────────────────────────────
 
     public function test_remove_soft_deletes_the_listing(): void
