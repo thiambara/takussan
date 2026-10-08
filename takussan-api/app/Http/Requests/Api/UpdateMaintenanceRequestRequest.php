@@ -113,7 +113,8 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
             'priority' => ['sometimes', Rule::enum(MaintenancePriority::class)],
             'status' => ['prohibited'],
             'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            // verif-592 passe 2 (N5) — `numeric` admet `5e5`, que bcmath refuse (500).
+            'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'decimal:0,2'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],
             'started_at' => ['prohibited'],
             'completed_at' => ['prohibited'],

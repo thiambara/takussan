@@ -22,6 +22,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Model\MaintenanceRequestService;
@@ -181,6 +182,8 @@ class MaintenanceRequestController extends Controller
         // pas par `fill()`.
         // TCK-592 (verif-592, M1) — au-delà du plafond du bailleur, `actual_cost` est à son accord.
         if (($data['actual_cost'] ?? null) !== null) {
+            // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
+            $data['actual_cost'] = CurrencyUnit::cost($maintenanceRequest, $data['actual_cost']);
             app(OwnerApprovalThreshold::class)->assertActualCostAgreed($maintenanceRequest, $data['actual_cost'], $request->user()->id);
         }
 

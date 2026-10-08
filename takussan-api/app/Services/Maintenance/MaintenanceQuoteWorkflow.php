@@ -127,7 +127,7 @@ class MaintenanceQuoteWorkflow
             $quantity = $this->decimal($line['quantity'] ?? 0);
             $unitPrice = $this->decimal($line['unit_price'] ?? 0);
             // Deux facteurs à 2 décimales : le produit exact tient en 4.
-            $lineTotal = $this->roundToUnit(bcmul($quantity, $unitPrice, 4), $scale);
+            $lineTotal = CurrencyUnit::round(bcmul($quantity, $unitPrice, 4), $scale);
 
             $lines[] = [
                 'label' => (string) ($line['label'] ?? ''),
@@ -139,21 +139,7 @@ class MaintenanceQuoteWorkflow
             $total = bcadd($total, $lineTotal, 2);
         }
 
-        return [$lines, $this->roundToUnit($total, $scale)];
-    }
-
-    /**
-     * Au plus proche, la moitié en s'éloignant de zéro (« moitié vers le haut » pour un montant
-     * positif), à `$scale` décimales ; rendu sur 2 décimales, l'échelle de la colonne.
-     */
-    private function roundToUnit(string $amount, int $scale): string
-    {
-        $half = bcdiv('5', bcpow('10', (string) ($scale + 1)), $scale + 1);
-        $rounded = bccomp($amount, '0', 4) < 0
-            ? bcsub($amount, $half, $scale)
-            : bcadd($amount, $half, $scale);
-
-        return bcadd($rounded, '0', 2);
+        return [$lines, CurrencyUnit::round($total, $scale)];
     }
 
     private function decimal(mixed $value): string

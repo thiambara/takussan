@@ -21,6 +21,47 @@ class MaintenanceActualCostTest extends TestCase
 {
     use MaintenanceActors, RefreshDatabase;
 
+    /**
+     * Passe 2 (N5, sonde p05) — `numeric` admettait la notation scientifique, que bcmath refuse au
+     * premier plafond lu : `5e5` rendait une 500. Désormais un 422 de validation, et rien d'écrit.
+     */
+    public function test_a_cost_in_scientific_notation_is_refused(): void
+    {
+        ['mr' => $mr, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null]);
+        $this->threshold($landlord->id, $agency->id, 50000);
+
+        Sanctum::actingAs($this->agentOf($agency));
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '5e5'])
+            ->assertUnprocessable()->assertJsonValidationErrors('actual_cost');
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['actual_cost' => '6e4'])
+            ->assertUnprocessable()->assertJsonValidationErrors('actual_cost');
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['cost' => '6e4'])
+            ->assertUnprocessable()->assertJsonValidationErrors('cost');
+
+        $mr->refresh();
+        $this->assertNull($mr->actual_cost);
+        $this->assertSame(MaintenanceStatus::InProgress, $mr->status);
+    }
+
+    /**
+     * Passe 2 (N5) — le coût est arrondi à l'unité de la devise (0 décimale en XOF) AVANT d'être
+     * comparé au plafond et écrit : 50 000,40 est 50 000, égal au plafond ; 50 000,50 est 50 001.
+     */
+    public function test_a_cost_is_rounded_to_the_currency_unit_before_the_threshold(): void
+    {
+        ['mr' => $mr, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress, ['accepted_at' => now(), 'actual_cost' => null]);
+        $this->threshold($landlord->id, $agency->id, 50000);
+
+        Sanctum::actingAs($this->agentOf($agency));
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '50000.40'])->assertOk();
+        $this->assertSame('50000.00', (string) $mr->refresh()->actual_cost);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => '50000.50'])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
+
+        $this->putJson("/api/maintenance-requests/{$mr->id}/complete", ['actual_cost' => '49999.5'])->assertOk();
+        $this->assertSame('50000.00', (string) $mr->refresh()->actual_cost);
+    }
+
     /** Sonde v04. */
     public function test_the_provider_cannot_write_the_cost_through_complete(): void
     {

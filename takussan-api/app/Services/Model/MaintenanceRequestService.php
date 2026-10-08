@@ -6,6 +6,7 @@ use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
+use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Media\PrivateMediaAccess;
@@ -290,6 +291,8 @@ class MaintenanceRequestService
         // TCK-592 (verif-592, M1) — seul le donneur d'ordre porte un coût ici (403 au FormRequest),
         // et au-delà du plafond du bailleur, c'est l'accord du bailleur qui s'applique.
         $cost = $data['cost'] ?? $data['actual_cost'] ?? null;
+        // verif-592 passe 2 (N5) — arrondi à l'unité de la devise avant d'être comparé ou écrit.
+        $cost = $cost !== null ? CurrencyUnit::cost($mr, $cost) : null;
         if ($cost !== null && $actor !== null) {
             app(OwnerApprovalThreshold::class)->assertActualCostAgreed($mr, $cost, $actor->id);
         }

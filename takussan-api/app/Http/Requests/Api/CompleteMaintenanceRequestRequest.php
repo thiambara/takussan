@@ -49,8 +49,9 @@ class CompleteMaintenanceRequestRequest extends BaseFormRequest
     {
         return [
             'resolution_notes' => ['nullable', 'string'],
-            'cost' => ['nullable', 'numeric', 'min:0'],
-            'actual_cost' => ['nullable', 'numeric', 'min:0'],
+            // verif-592 passe 2 (N5) — `numeric` admet `6e4`, que bcmath refuse (500).
+            'cost' => ['nullable', 'numeric', 'min:0', 'decimal:0,2'],
+            'actual_cost' => ['nullable', 'numeric', 'min:0', 'decimal:0,2'],
             'photos' => ['nullable', 'array'],
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ];
