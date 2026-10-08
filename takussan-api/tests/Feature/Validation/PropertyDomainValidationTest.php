@@ -161,9 +161,10 @@ class PropertyDomainValidationTest extends ApiTestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['property_id']);
 
+        // TCK-599 (contrainte 11) — un identifiant inexistant rend 404, comme un bien non
+        // visible : un 422 `exists` distinguait les deux et servait d'oracle d'existence.
         $this->apiPost('/api/favorites', ['property_id' => 999999])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['property_id']);
+            ->assertStatus(404);
 
         $property = Property::factory()->create();
         $this->apiPost('/api/favorites', ['property_id' => $property->id, 'notes' => ['x']])

@@ -307,7 +307,7 @@ ne revendique) :
 
 ### 0. Décisions avant le code
 
-- [ ] **ADR à écrire et accepter avant le code** — « Alertes de recherche : un seul moteur, et des
+- [x] **ADR à écrire et accepter avant le code** — « Alertes de recherche : un seul moteur, et des
       abonnés sans compte ». Il tranche deux questions :
   - **(a) Le modèle de l'abonné sans compte.** Option retenue par défaut : table `alert_subscribers`
     (canal, e-mail ou téléphone E.164, locale, hachés du jeton / du code / du jeton de
@@ -332,22 +332,22 @@ ne revendique) :
 
 ### 1. Favoris : confidentialité et liste (C16, C15)
 
-- [ ] Request : `App\Http\Requests\Api\IndexFavoriteRequest` (`page`, `per_page` 1-50, 422 au-delà).
-- [ ] `FavoriteController::index` : `withExists(['property as property_is_public' => fn ($q) => $q->public()])`,
+- [x] Request : `App\Http\Requests\Api\IndexFavoriteRequest` (`page`, `per_page` 1-50, 422 au-delà).
+- [x] `FavoriteController::index` : `withExists(['property as property_is_public' => fn ($q) => $q->public()])`,
       relation `property` chargée `withTrashed` avec `address` et `media`, colonnes de carte
       limitées ; `availability` calculée sur ce drapeau et le statut.
-- [ ] `FavoriteResource` : projection minimale pour tout bien non disponible (Contrat de données) ;
+- [x] `FavoriteResource` : projection minimale pour tout bien non disponible (Contrat de données) ;
       jamais `PropertyResource` pour ce cas.
-- [ ] Route + Request : `PATCH /api/favorites/{property}` → `UpdateFavoriteRequest` (`notes`
+- [x] Route + Request : `PATCH /api/favorites/{property}` → `UpdateFavoriteRequest` (`notes`
       nullable, string, max 500), propriétaire du favori seulement (404 sinon).
-- [ ] `FavoriteController::store` : la copie partielle de `scopePublic` (l.32-33) et la lecture de
+- [x] `FavoriteController::store` : la copie partielle de `scopePublic` (l.32-33) et la lecture de
       `$user->agency_id` (l.36) sont **supprimées** ; le bien est accepté si
       `Property::public()->whereKey($id)->exists()` **ou** `$user->can('view', $property)` (587).
       Sinon **404**, le même que pour un identifiant inexistant : `StoreFavoriteRequest` passe
       `property_id` de `exists:properties,id` à `['required', 'integer']`, et l'inexistence se
       juge dans le contrôleur. La réponse 201 passe par la **même** `FavoriteResource` que la liste
       (projection minimale si le bien n'est pas `available`).
-- [ ] Routes `DELETE` et `PATCH /api/favorites/{property}` : liaison `->withTrashed()`, pour qu'un
+- [x] Routes `DELETE` et `PATCH /api/favorites/{property}` : liaison `->withTrashed()`, pour qu'un
       favori `removed` se retire et s'annote.
 - [ ] Front : pagination, carte éteinte, note éditable, tolérance d'un favori `removed` ; requête
       de liste limitée aux champs de la carte.
@@ -595,3 +595,40 @@ les routes des favoris en `routes/api/properties.php:75-77`.
   code ; elle est rejouée en substituant `getMessage()`.
 - **594** — précédent de chiffrement + empreinte de recherche : `PayoutMethod` (`encrypted` +
   `hash_hmac` sous `app.key`), suivi pour le contact de l'abonné (ADR-0050).
+
+### Delta A — favoris (§1), 2026-10-08
+
+- **Rouge d'abord** : `FavoriteVisibilityTest` écrit avant le correctif, 15 échecs sur `33932c60`
+  (clé `availability` absente, 201 + carte complète à l'ajout, `DELETE` 404 sur un bien supprimé).
+- **Juge unique** : `withExists(['property as property_is_public' => fn ($q) => $q->public()])` ;
+  `FavoriteResource::availability()` lit ce drapeau, jamais une copie des conditions. `rented` /
+  `sold` ne se disent que d'un bien qui serait public sans son statut (privé ou de test loué →
+  `unavailable`, sinon le statut interne fuirait).
+- **Ajout** : `Property::public()` ou `can('view')`, sinon `abort(404)` — un identifiant inexistant
+  et un bien non visible rendent le même statut et le même corps (`http.not_found`).
+  `PropertyDomainValidationTest` attendait 422 pour `property_id=999999` : passé à 404, avec la
+  raison en commentaire (le 422 `exists` était l'oracle).
+- **PATCH** `favorites/{property}` (le bien, comme `DELETE` — l'identifiant que le front manipule
+  déjà), lié `withTrashed()` comme `DELETE`.
+- **Colonnes limitées** : `FavoriteController::CARD_COLUMNS` (ce que `PropertyCard` lit + ce que la
+  disponibilité juge) ; `PropertyResource` émet par `whenHas`, une colonne non lue sort absente.
+- **AC5, nombre de requêtes** : le premier test (photos filigranées ou exemptées) ne voyait pas le
+  lot de filigrane — l'ablation de `WatermarkRequirement::attach()` restait verte. Le test pose
+  désormais des photos **antérieures à la trace** (cas `absente` de TCK-539, agence sans
+  filigrane) : la règle doit être lue, et l'ablation rougit.
+
+| Ablation (`ablate.py`, cp + md5) | Test | Résultat |
+|---|---|---|
+| `FavoriteResource` sert `PropertyResource` pour tout favori | `FavoriteVisibilityTest` | 9 échecs |
+| Copie partielle de `scopePublic` à l'ajout | idem | 5 échecs |
+| 403 au lieu du 404 identique | idem | 5 échecs |
+| Refus universel (personnel de l'agence compris) | idem | 1 échec |
+| `DELETE` sans `withTrashed()` | idem | 1 échec |
+| `per_page` non borné | `FavoriteTest` | 1 échec |
+| Médias non préchargés | idem | 1 échec |
+| `WatermarkRequirement::attach()` retiré | idem | 1 échec (après correction du test) |
+| PATCH sans contrôle du propriétaire | idem | 1 échec |
+| Note non bornée | idem | 1 échec |
+
+Restauration vérifiée par md5 après chaque ablation.
+

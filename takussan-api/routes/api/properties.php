@@ -74,7 +74,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Favorites
     Route::get('favorites', [FavoriteController::class, 'index'])->name('favorites.index');
     Route::post('favorites', [FavoriteController::class, 'store'])->name('favorites.store');
-    Route::delete('favorites/{property}', [FavoriteController::class, 'destroy'])->name('favorites.destroy');
+    // TCK-599 — liés `withTrashed()` : le favori d'un bien supprimé se retire et s'annote encore.
+    Route::patch('favorites/{property}', [FavoriteController::class, 'update'])->withTrashed()->name('favorites.update');
+    Route::delete('favorites/{property}', [FavoriteController::class, 'destroy'])->withTrashed()->name('favorites.destroy');
 
     // Reviews (nested under property)
     Route::get('properties/{property}/reviews', [ReviewController::class, 'indexForProperty'])->name('properties.reviews.index');
