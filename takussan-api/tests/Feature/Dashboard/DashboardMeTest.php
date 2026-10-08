@@ -22,13 +22,16 @@ class DashboardMeTest extends ApiTestCase
         $this->apiGet('/api/dashboard/me')->assertUnauthorized();
     }
 
-    public function test_returns_404_when_no_profile_resolves(): void
+    /**
+     * TCK-595 — un compte sans autre rôle est un client, fiche `Customer` ou non : il recevait 404 et
+     * l'état vide générique.
+     */
+    public function test_an_account_with_no_other_role_resolves_to_tenant(): void
     {
         $user = User::factory()->create();
         $this->actingAs($user, 'sanctum');
 
-        $response = $this->apiGet('/api/dashboard/me')->assertNotFound();
-        $this->assertSame('dashboard.profile_unresolved', $response->json('code'));
+        $this->apiGet('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'tenant');
     }
 
     public function test_super_admin_with_agency_resolves_to_agency(): void
@@ -138,8 +141,8 @@ class DashboardMeTest extends ApiTestCase
         $this->materializeRoleProfile($user, 'super_admin');
         $this->actingAs($user, 'sanctum');
 
-        // No properties, no customer profile → 404 (frontend renders NoAgencyState).
-        $this->apiGet('/api/dashboard/me')->assertNotFound();
+        // No properties, no customer profile → the client view, never the agency one (TCK-595).
+        $this->apiGet('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'tenant');
     }
 
     public function test_lease_existing_tenant_with_payments_returns_metrics(): void

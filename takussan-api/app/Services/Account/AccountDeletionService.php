@@ -304,9 +304,12 @@ class AccountDeletionService
             }
 
             // Pending lease payments due by the user (as Customer payer).
+            // TCK-595 (H-2) — une restitution de caution en attente est due AU locataire, pas par lui :
+            // elle ne bloque pas la suppression de son compte.
             $pendingLeasePayments = LeasePayment::query()
                 ->whereIn('payer_id', $tenantCustomerIds)
                 ->whereIn('status', [PaymentStatus::Pending->value, PaymentStatus::Late->value, PaymentStatus::PartiallyPaid->value])
+                ->exceptDepositRefunds()
                 ->get(['id', 'reference_number']);
             foreach ($pendingLeasePayments as $payment) {
                 $obligations[] = [

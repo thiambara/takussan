@@ -362,8 +362,14 @@ class MembershipCapabilityResolverTest extends TestCase
      * L'élargissement est donc voulu, et un rôle personnalisé peut le retirer
      * — c'est précisément ce que le cas AC3 de
      * `RoleDelegationCapabilityTest` exerce.
+     *
+     * **Décision du 2026-10-08 — TCK-595 (ADR-0049 §4), 43/45 → 44/46.** Le cas ajouté est
+     * `reports.view_agency`, les chiffres consolidés D'UNE agence, et il est délibérément accordé
+     * à `agency_admin` : c'est sa raison d'être. `reports.view_global` ne pouvait pas garder une
+     * vue d'agence, puisqu'elle est réservée à la plateforme, et l'admin d'agence aurait reçu 403
+     * partout. L'agent ne la reçoit pas (`SystemRoleCapabilities::agent()`).
      */
-    public function test_agency_admin_breadth_is_pinned_to_43_of_45(): void
+    public function test_agency_admin_breadth_is_pinned_to_44_of_46(): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -375,13 +381,13 @@ class MembershipCapabilityResolverTest extends TestCase
         ));
 
         $this->assertCount(
-            43,
+            44,
             $granted,
             'La largeur de `agency_admin` a changé. Ce n’est pas un compte à '.
             'rafraîchir : c’est une décision à prendre, puis à reporter dans le '.
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
-        $this->assertCount(45, Capability::cases());
+        $this->assertCount(46, Capability::cases());
     }
 
     /**

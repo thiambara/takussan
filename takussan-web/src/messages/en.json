@@ -5481,6 +5481,7 @@
         },
         "reports": {
           "view_global": "View platform reports",
+          "view_agency": "View the agency’s consolidated figures",
           "export": "Export reports"
         },
         "roles": {

@@ -79,6 +79,22 @@ class AgencyPolicy
     }
 
     /**
+     * TCK-595 (ADR-0049 §4) — les chiffres CONSOLIDÉS de l'agence (tableau de bord d'agence,
+     * statistiques, performance d'équipe, balance âgée, vue agent `scope=agency`) : `reports.view_agency`
+     * à cette agence, sous un profil actif de cette agence (contrat TCK-146, comme `update`).
+     *
+     * Ni `isAgentAt` (un agent lisait le chiffre d'affaires, les impayés et les commissions de toute
+     * l'agence par appel direct), ni `primary_admin_id` seul (l'admin principal porte la capacité par
+     * son rôle), ni `reports.view_global`, réservée à la plateforme et qu'aucun rôle d'agence ne
+     * peut porter. Le super-admin passe par `Gate::before`.
+     */
+    public function viewReports(User $user, Agency $agency): bool
+    {
+        return $user->activeProfile()?->agency_id === $agency->id
+            && $user->canActAt(Capability::ReportsViewAgency, $agency);
+    }
+
+    /**
      * TCK-591 §8 — retirer un membre de l'équipe : la capacité `team.remove` DANS l'agence de la
      * route, sous le profil actif de cette agence (contrat strict TCK-146, cf. le docblock de la
      * classe), plus le court-circuit de l'administrateur principal, qui ne peut pas s'enfermer

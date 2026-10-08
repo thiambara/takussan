@@ -97,9 +97,6 @@ return [
         'duplicate' => 'A customer of your agency already has this phone number or email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
     ],
-    'dashboard' => [
-        'profile_unresolved' => 'No dashboard matches your profile.',
-    ],
     'data_export' => [
         'expired' => 'This data export has expired.',
     ],

@@ -4030,6 +4030,7 @@
         },
         "reports": {
           "view_global": "Gis rapooru plaatfoom bi",
+          "view_agency": "Gis limu ajans bi yépp",
           "export": "Génne rapoor yi"
         },
         "roles": {

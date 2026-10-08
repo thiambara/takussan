@@ -97,9 +97,6 @@ return [
         'duplicate' => 'Am na kiliyaan ci sa ajaans bu am nimero bii walla email bii.',
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
     ],
-    'dashboard' => [
-        'profile_unresolved' => 'Amul benn tableau de bord bu méngoo ak sa profil.',
-    ],
     'data_export' => [
         'expired' => 'Export données bii jeex na.',
     ],

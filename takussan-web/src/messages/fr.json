@@ -5481,6 +5481,7 @@
         },
         "reports": {
           "view_global": "Consulter les rapports plateforme",
+          "view_agency": "Consulter les chiffres consolidés de l’agence",
           "export": "Exporter les rapports"
         },
         "roles": {

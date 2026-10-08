@@ -97,9 +97,6 @@ return [
         'duplicate' => 'Un client de votre agence porte déjà ce numéro ou cette adresse e-mail.',
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
     ],
-    'dashboard' => [
-        'profile_unresolved' => 'Aucun tableau de bord ne correspond à votre profil.',
-    ],
     'data_export' => [
         'expired' => 'Cet export de données a expiré.',
     ],

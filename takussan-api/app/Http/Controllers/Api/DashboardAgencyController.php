@@ -34,15 +34,8 @@ class DashboardAgencyController extends Controller
 
         $agency = Agency::findOrFail($agencyId);
 
-        abort_unless(
-            $user->isSuperAdmin()
-                || $agency->primary_admin_id === $user->id
-                || (
-                    $request->activeProfile()?->agency_id === $agency->id
-                    && ($user->isAgencyAdminAt((int) $agency->id) || $user->isAgentAt((int) $agency->id))
-                ),
-            403,
-        );
+        // TCK-595 (ADR-0049 §4) — `reports.view_agency` à l'agence, jamais un simple agent.
+        $this->authorize('viewReports', $agency);
 
         // Reporting cross-équipe réservé aux agences `standard` — cf.
         // features.md **§1.12** (« Agence & équipe », la liste des restrictions
