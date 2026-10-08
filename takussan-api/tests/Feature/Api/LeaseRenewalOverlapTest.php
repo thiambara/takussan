@@ -18,10 +18,12 @@ use App\Services\Lease\LateFeeCalculator;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeasePaymentService;
 use App\Services\Model\LeaseService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -390,6 +392,44 @@ class LeaseRenewalOverlapTest extends TestCase
 
         $this->assertSame(PaymentStatus::Cancelled, $due->fresh()->status);
         $this->assertSame([], $this->doubledMonths($parent, $child));
+    }
+
+    /**
+     * VERIF-596 passe 6 (m-j) — le parent se verrouille `FOR NO KEY UPDATE`, au renouvellement comme
+     * à l'activation de l'enfant. `FOR UPDATE` bloquait le `FOR KEY SHARE` du contrôle de clé
+     * étrangère d'un webhook qui met à jour une échéance qu'il tient : interblocage en course réelle
+     * (R4 : 6 sur 8 sous `FOR UPDATE`, 0 sur 16 en `FOR NO KEY UPDATE`). Et les échéances du
+     * chevauchement se lisent sous verrou (P6-ME.11, que seule la course voyait).
+     */
+    public function test_the_parent_is_locked_without_blocking_foreign_key_checks(): void
+    {
+        $locks = [];
+        $dueLocks = [];
+        DB::listen(function (QueryExecuted $query) use (&$locks, &$dueLocks): void {
+            if (preg_match('/from "leases" .*for (no key )?update/i', $query->sql)) {
+                $locks[] = $query->sql;
+            }
+            if (preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
+                $dueLocks[] = $query->sql;
+            }
+        });
+        $parentLocks = function () use (&$locks): array {
+            return array_values(array_filter($locks, fn (string $sql) => str_contains($sql, 'for no key update')));
+        };
+
+        $parent = $this->parent();
+        $this->renew($parent, ['start_date' => now()->addDay()->toDateString(), 'end_date' => now()->addYear()->toDateString()])->assertCreated();
+        $this->assertCount(1, $parentLocks(), 'renew : le parent n\'est pas verrouillé FOR NO KEY UPDATE');
+        // m-k, P6-ME.11 — les échéances du chevauchement sont lues sous verrou avant d'être jugées.
+        $this->assertNotEmpty($dueLocks, 'renew : les échéances du parent ne sont pas lues FOR UPDATE');
+
+        $parent = $this->parent(['early_termination_penalty_months' => 2]);
+        $this->renew($parent, ['start_date' => now()->addDay()->toDateString(), 'end_date' => now()->addYear()->toDateString(), 'monthly_rent' => 150_000])->assertCreated();
+        $locks = [];
+        $child = $this->child($parent);
+        app(LeaseSignatureService::class)->signOnPaper($child, UploadedFile::fake()->create('avenant.pdf', 20, 'application/pdf'), $child->landlord);
+        $this->assertCount(1, $parentLocks(), 'activation : le parent n\'est pas verrouillé FOR NO KEY UPDATE');
+        $this->assertSame(LeaseStatus::Renewed, $parent->fresh()->status);
     }
 
     /** À terme (fin + 1) : rien à annuler, rien ne change. */

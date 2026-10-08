@@ -69,7 +69,13 @@ class LeaseRenewalService
             // toutes deux passer guardNoActiveChild() et créer deux
             // enfants. Le lock est levé automatiquement à la sortie
             // de la transaction.
-            $parent = Lease::query()->lockForUpdate()->findOrFail($parent->id);
+            //
+            // VERIF-596 passe 6 (m-j) — `FOR NO KEY UPDATE`, pas `FOR UPDATE` : il sérialise de même
+            // les `renew` et les autres écritures du bail, mais ne bloque pas le `FOR KEY SHARE` du
+            // contrôle de clé étrangère qu'un webhook pose en mettant à jour une échéance qu'il tient
+            // déjà. Avec `FOR UPDATE`, les deux ordres (bail → échéances, échéance → bail) formaient un
+            // cycle : 3 interblocages sur 8 en course réelle.
+            $parent = Lease::query()->lock('for no key update')->findOrFail($parent->id);
 
             $this->guardParentStatus($parent);
             $this->guardNoActiveChild($parent);
@@ -200,7 +206,8 @@ class LeaseRenewalService
             return;
         }
 
-        $parent = Lease::query()->whereKey($child->renewed_from_lease_id)->lockForUpdate()->firstOrFail();
+        // `FOR NO KEY UPDATE` : même raison que dans `renew` (m-j).
+        $parent = Lease::query()->whereKey($child->renewed_from_lease_id)->lock('for no key update')->firstOrFail();
         if ($parent->status === LeaseStatus::Renewed) {
             return;
         }
