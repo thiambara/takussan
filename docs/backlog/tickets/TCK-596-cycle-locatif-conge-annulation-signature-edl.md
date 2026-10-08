@@ -653,6 +653,27 @@ contrôlé.
       (`MediaDiskCollectionsTest`, `MediaDiskPrivatePhotosTest`, déjà rouges sur 06b97854). —
       `c8b94585`.
 
+### 7. Ajoutés après la passe 2 de vérification adverse (verif-596 passe 2, REFUSÉ : 1 majeur, 3 mineurs)
+
+Chaque test est **rouge sur a3053112**, sauf n1, qui est un manque de test et non un défaut de code :
+son test rougit sous l'ablation M1a. Ablations restaurées par `cp`, md5 contrôlé.
+
+- [x] **N1** — `leases.early_termination_penalty_months` et `rent_review_max_pct` sont figés par la
+      demande de signature et par la voie papier. On prend la valeur négociée sur le bail, sinon le
+      réglage du moment. Elles sont imprimées, et lues par `computePenalty` et `RentReviewService`.
+      Elles sont rangées dans les termes imprimés (`lease.terms_locked`). `late_fees.cap_percent`
+      n'est pas figé. ADR-0042 §1. — `dcb4f436`. P2-N1.1 (code de a3053112) : 7 rouges ;
+      mutations P2-N1.2 à P2-N1.4 : 1 rouge chacune.
+- [x] **n1** — agent sans `leases.sign` et sans fichier → 403. — `7b8c4e0f`. Ablation M1a :
+      1 rouge.
+- [x] **n2** — `Property::hasHostCalendar()` : un bien archivé, vendu, ou qui n'est plus loué à la
+      nuit ou à la semaine n'a pas de calendrier d'hôte. L'export rend 404, l'import horaire et
+      toute synchronisation sont sans appel sortant, l'enregistrement d'un flux rend 422. Une fois le
+      bien désarchivé, l'export et l'import reviennent. ADR-0041 §5. — `66a94a6e`. P2-n2.1 (code de
+      a3053112) : 3 rouges ; P2-n2.2 à P2-n2.4 : rouges.
+- [ ] **n3** — un garant se rattache encore à un bail actif : hors périmètre, **à ticketer par la
+      session**, pas corrigé ici.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -770,6 +791,20 @@ contrôlé.
       transaction qui les écrit ; deux générations périmées laissent un seul échéancier
       (`GenerateLeasePaymentScheduleTest`, 3 tests) ; course réelle à deux processus : 0 doublé
       (40/40 sur 06b97854).
+
+**Ajoutés après la passe 2 (verif-596 passe 2) :**
+
+- [x] AC34 — Le réglage d'indemnité passe de 2 à 6 après la signature : `computePenalty` rend
+      toujours 2 mois, ceux que le contrat figé imprime. Le plafond de révision est figé à 20 %
+      puis relevé à 50 % : une hausse de 30 % est refusée. La voie papier fige aussi. Une valeur
+      négociée en brouillon est celle qui est figée. Un `PATCH` sur un bail actif → 422
+      `lease.terms_locked` (`LeaseContractTermsTest`, 5 tests).
+- [x] AC35 — `POST leases/{id}/activate` sans fichier, par un agent sans `leases.sign` → 403, sans
+      `errors` (`LeaseSignatureTest`).
+- [x] AC36 — Un bien archivé par `PropertyPublication` : export 404, import horaire et première
+      synchronisation sans requête sortante, « synchroniser maintenant » et un nouveau flux → 422
+      `calendar_feed.property_closed`. Désarchivé : export 200, import repris. Un bien passé au
+      mois : export 404, import arrêté (`SyncPropertyCalendarFeedsTest`, 3 tests).
 
 ## Hors périmètre
 
@@ -982,3 +1017,16 @@ défaut que `cancel` : fermé dans le même commit. (5) Pour la course d'échéa
 connexion ne peut pas faire courir deux transactions : le test lit l'ordre et la profondeur de
 transaction des requêtes ; la preuve de comportement est une course réelle à deux processus, hors
 suite (base jetable, supprimée).
+
+**Passe 2 (2026-10-08).** Voir §7 et AC34-AC36. Ce qui reste ouvert :
+
+1. n3, le garant sur un bail actif, à ticketer par la session.
+2. La dérogation `leases.rent_review_force` permet encore de dépasser le plafond de révision
+   imprimé (ADR-0042 §1, point ouvert).
+3. La session demandait d'écrire la lecture « `late_fees.cap_percent` n'est pas figé » dans
+   ADR-0041. Elle est écrite dans **ADR-0042 §1**, l'ADR du contrat ; ADR-0041 porte le
+   calendrier iCal.
+
+Fusion d'`origin/dev` avec 590 (`2f843f56`) : un seul conflit, sur les imports de
+`PublicPropertyController`, les deux côtés gardés.
+
