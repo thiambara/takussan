@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 31 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 30 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 512 |
@@ -60,7 +60,6 @@
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
 - [TCK-595](tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md) — Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté `XL · P1 · full`
 - [TCK-596](tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) — Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce `XL · P1 · full`
-- [TCK-599](tickets/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md) — Une alerte de recherche qu'on règle, qui liste les bons biens et marche sans compte ; des favoris qui ne servent plus un bien redevenu privé et préviennent quand il baisse ou disparaît `XL · P1 · full`
 - [TCK-600](tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md) — Console plateforme : la suspension d'agence ne suspend rien, l'impersonation n'impersonne pas, un compte bloqué se reconnecte, tout opérateur est super-admin, et paramètres, drapeaux, santé et alertes ne pilotent ni ne mesurent rien `XL · P0 · full`
 - [TCK-602](tickets/TCK-602-paiement-sans-compte-journal-webhooks.md) — Aucun payeur ne voit « Payer en ligne », un locataire sans compte ne peut pas payer et un webhook rejeté ne laisse aucune trace : passerelle réparée, lien de paiement par échéance, pilote Free Money et journal des webhooks rejouable `XL · P1 · full`
 - [TCK-603](tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md) — Changer l'agent responsable sans déposséder le bailleur : bulk-assign, réattribution unitaire, réparation des biens réattribués, biens du partant à la passation (complément de TCK-591, après TCK-504) `L · P1 · full`
@@ -68,6 +67,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-599](tickets/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md) — Une alerte de recherche qu'on règle, qui liste les bons biens et marche sans compte ; des favoris qui ne servent plus un bien redevenu privé et préviennent quand il baisse ou disparaît `XL · P1 · full`
 
 ## 👀 Review
 

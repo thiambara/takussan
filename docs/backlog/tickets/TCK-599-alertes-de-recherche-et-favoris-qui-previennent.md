@@ -1,13 +1,13 @@
 ---
 id: TCK-599
 title: "Une alerte de recherche qu'on règle, qui liste les bons biens et marche sans compte ; des favoris qui ne servent plus un bien redevenu privé et préviennent quand il baisse ou disparaît"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -561,4 +561,37 @@ d'implémentation).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure sur `33932c60` (2026-10-08, avant le code)
+
+Chaque constat cité par ligne a été relu. **Tenus tels quels** : `FavoriteController.php:18-21`
+(liste sans filtre, `per_page` brut), `:32-33` (copie partielle de `scopePublic`), `:36`
+(`$user->agency_id`) ; `SendSavedSearchAlerts.php:101-106` (`getMessage()` dans le `catch`),
+`:140-143` (`NotificationType::System`, titre et corps littéraux, `count` de la page), `:70-74` et
+`:163-164` (`instant` = `daily`) ; `StoreSavedSearchRequest.php:53-54`,
+`UpdateSavedSearchRequest.php:47-48` ; `SaveSearchButton.tsx:53-63`, `:120-121`, `:135` ;
+`SavedSearchesList.tsx:105-127` ; `SearchPreferencesForm.tsx:32`, `:79`, `:100-103` ;
+`FavoritesList.tsx:36-42`, `:58`.
+
+**Décalés sans changer de sens** : `SearchService.php` lit toujours `min_price`/`max_price`/
+`min_area`/`city` (`:48-62`), mais `paginate` est en `:127` (TCK-508 a ajouté les clés
+multi-valuées `type`/`condition`, l.41-46) ; `PropertySearchService::buildFilter` est en `:368-487` ;
+les routes des favoris en `routes/api/properties.php:75-77`.
+
+**Changés par les tickets fusionnés depuis `e3ab4a4e`** :
+
+- **588** — `WhatsappChannel` exige désormais, pour un destinataire sans compte, un contact
+  `opted_in` (`:146`) et le borne par numéro (`:287-302`) : le « ni consentement ni débit » du
+  Contexte §3 est fermé. **Reste** : un destinataire non éligible retombe sur le SMS
+  (`fallbackToSms`, `:118` et `:129`), ce que la contrainte 6 interdit pour une alerte.
+  `ProseLitteraleInterditeTest` porte une exemption expirante `Jobs/SendSavedSearchAlerts.php`
+  (forme `notify`, TCK-599) : elle part avec la réécriture du job. `NotificationService::TYPE_TO_EVENT`
+  porte toujours `'system' => 'threshold_alert'` (`:43`) — non touché ici, le job quitte `notify()`.
+- **589** — `PhoneVerificationService::sendCodeTo(scope, phone)` / `verifyCodeFor()` existe
+  (« TCK-596 / TCK-599 » dans son en-tête) : code à 6 chiffres haché, 5 essais, envoi par
+  `SmsRouterDriver`, plafond journalier. **Réutilisé** comme le demande la coordination 589 — sa
+  durée de vie est **5 min** et non les 10 min de la contrainte 4.
+- **601** — `SafeExceptionContext::of()` existe et ne porte **déjà** aucune clé `message` : la
+  seconde moitié de l'ablation d'AC13b (« garder le `message` de `of()` ») n'a plus d'objet sur ce
+  code ; elle est rejouée en substituant `getMessage()`.
+- **594** — précédent de chiffrement + empreinte de recherche : `PayoutMethod` (`encrypted` +
+  `hash_hmac` sous `app.key`), suivi pour le contact de l'abonné (ADR-0050).
