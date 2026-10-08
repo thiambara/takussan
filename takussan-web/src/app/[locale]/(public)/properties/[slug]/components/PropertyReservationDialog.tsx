@@ -307,7 +307,7 @@ function ReservationForm({
           </div>
         )}
         {isShortStay && occupied.length > 0 && (
-          <p className="text-pretty text-xs text-muted-foreground" data-testid="reservation-occupied-hint">
+          <p className="bg-popover text-pretty text-xs text-muted-foreground" data-testid="reservation-occupied-hint">
             {t('booking.occupiedHint')}
           </p>
         )}
