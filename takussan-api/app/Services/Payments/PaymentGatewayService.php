@@ -197,7 +197,16 @@ class PaymentGatewayService
 
         // VERIF-594 m-4 — l'appel au prestataire reste hors transaction ; l'état et le numéro de la
         // facture soldée (`InvoiceNumberAllocator`) s'écrivent ensemble, comme sur le chemin webhook.
-        DB::transaction(fn () => $this->applyStatusToPayment($payment, $status->status, [], $transactionId));
+        // VERIF-596 passe 7 (M-H) — et sur la ligne RELUE sous verrou après l'appel : `$payment` a
+        // été lu avant, et un renouvellement a pu annuler l'échéance pendant la latence du
+        // fournisseur. Jugé sur l'instance périmée, le règlement réécrivait `paid` sur une échéance
+        // annulée au lieu de la marquer doublon. Même règle que `paymentsForEvent` et `markPaid`.
+        DB::transaction(function () use ($payment, $status, $transactionId): void {
+            $locked = $payment->newQuery()->whereKey($payment->getKey())->lockForUpdate()->first();
+            if ($locked !== null) {
+                $this->applyStatusToPayment($locked, $status->status, [], $transactionId);
+            }
+        });
 
         return $status;
     }

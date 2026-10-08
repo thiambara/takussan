@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Contracts\Payments\PaymentDriverContract;
 use App\Exceptions\ApiError;
 use App\Http\Resources\LeasePaymentResource;
 use App\Jobs\GenerateLeasePaymentSchedule;
@@ -10,16 +11,24 @@ use App\Models\Customer;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Integration;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\LateFeeCalculator;
+use App\Services\Lease\LeaseRenewalService;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeasePaymentService;
 use App\Services\Model\LeaseService;
+use App\Services\Payments\Dto\CheckoutSession;
+use App\Services\Payments\Dto\PaymentEvent;
+use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
+use App\Services\Payments\PaymentGatewayService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
@@ -329,6 +338,90 @@ class LeaseRenewalOverlapTest extends TestCase
         $this->assertTrue($slipped);
         $this->assertSame(PaymentStatus::Cancelled, $due->fresh()->status);
         $this->assertNull($due->fresh()->paid_at);
+    }
+
+    /**
+     * VERIF-596 passe 7 (M-H, sonde G1) — la vérification forcée d'un paiement en ligne lisait
+     * l'échéance, interrogeait le fournisseur, puis écrivait `paid` sur l'instance lue AVANT. Un
+     * renouvellement qui annule l'échéance pendant l'appel (centaines de ms) : le loyer payé en
+     * ligne soldait une échéance du parent relevé, l'enfant facturait le même mois, et aucun
+     * doublon n'était signalé — donc rien à rembourser. Relue sous verrou après l'appel, l'échéance
+     * annulée prend la branche doublon.
+     */
+    public function test_a_due_cancelled_during_the_provider_call_is_flagged_duplicate(): void
+    {
+        $parent = $this->parent();
+        $start = now()->addDay();
+        $due = LeasePayment::query()->where('lease_id', $parent->id)->whereDate('due_date', '>=', $start)->orderBy('due_date')->firstOrFail();
+        // Un checkout ancien (hors de la fenêtre de 30 min : il ne bloque pas le renouvellement),
+        // que le locataire a payé quand même.
+        $due->forceFill([
+            'transaction_id' => 'txn_ancien',
+            'metadata' => ['gateway' => [
+                'provider' => 'wave',
+                'transaction_id' => 'txn_ancien',
+                'checkout_url' => 'https://pay.example/ancien',
+                'initiated_at' => now()->subHours(2)->toIso8601String(),
+            ]],
+        ])->saveQuietly();
+        Integration::factory()->create([
+            'agency_id' => $parent->agency_id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'wave_key', 'webhook_secret' => 'wave_secret'],
+        ]);
+
+        $renewal = fn () => app(LeaseRenewalService::class)->renew(
+            $parent->fresh(),
+            ['start_date' => $start->toDateString(), 'end_date' => $start->copy()->addYear()->toDateString()],
+            $parent->landlord,
+        );
+        $driver = new class($renewal) implements PaymentDriverContract
+        {
+            public bool $called = false;
+
+            public function __construct(private readonly \Closure $duringCall) {}
+
+            public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
+            {
+                throw new \LogicException('non utilisé');
+            }
+
+            /** Le renouvellement passe pendant que le fournisseur répond. */
+            public function verify(string $externalId): DriverStatus
+            {
+                ($this->duringCall)();
+                $this->called = true;
+
+                return new DriverStatus(DriverStatus::SUCCESS, $externalId, []);
+            }
+
+            public function handleWebhook(Request $request): PaymentEvent
+            {
+                throw new \LogicException('non utilisé');
+            }
+        };
+        $this->partialMock(PaymentGatewayService::class, fn ($mock) => $mock->shouldReceive('driverFor')->andReturn($driver));
+        $locksAfterCall = [];
+        DB::listen(function (QueryExecuted $query) use ($driver, &$locksAfterCall): void {
+            if ($driver->called && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
+                $locksAfterCall[] = $query->sql;
+            }
+        });
+
+        $this->getJson("/api/lease-payments/{$due->id}/verify")->assertOk()
+            ->assertJsonPath('data.status', PaymentStatus::Cancelled->value);
+
+        $this->assertTrue($driver->called);
+        $this->assertNotEmpty($locksAfterCall, 'verify : l\'échéance n\'est pas relue FOR UPDATE après l\'appel au fournisseur');
+        $this->assertSame(LeaseStatus::Renewed, $parent->fresh()->status);
+        $due = $due->fresh();
+        $this->assertSame(PaymentStatus::Cancelled, $due->status);
+        $this->assertNull($due->paid_at);
+        $this->assertSame('txn_ancien', $due->metadata['gateway_duplicate_payment'][0]['transaction_id'] ?? null);
+        $child = $this->child($parent);
+        $this->runChildSchedule($child);
+        $this->assertSame([], $this->doubledMonths($parent, $child));
     }
 
     /**
