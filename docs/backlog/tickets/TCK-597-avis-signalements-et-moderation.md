@@ -1,13 +1,13 @@
 ---
 id: TCK-597
 title: "Avis et signalements : un admin d'agence modère les avis de toutes les agences, un signalement tranché laisse l'annonce en ligne, et ni un agent ni un prestataire ne peuvent être notés"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
