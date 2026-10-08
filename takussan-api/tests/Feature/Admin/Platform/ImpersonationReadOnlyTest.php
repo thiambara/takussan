@@ -2,10 +2,16 @@
 
 namespace Tests\Feature\Admin\Platform;
 
+use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Models\DataExport;
 use App\Services\Auth\SessionTokenIssuer;
+use App\Support\Security\ProtectedActions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\PersonalAccessToken;
+use ReflectionClass;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Support\SessionsDImpersonation;
 use Tests\TestCase;
 
@@ -88,6 +94,54 @@ class ImpersonationReadOnlyTest extends TestCase
         $this->assertFalse($ligne->can('*'));
         $this->assertFalse($ligne->can('properties.create'));
         $this->assertTrue($ligne->can('impersonation:read'));
+    }
+
+    /**
+     * Aucun geste d'une liste de `ProtectedActions` ne passe sous un jeton d'impersonation — QUELLE
+     * QUE SOIT LA LISTE. Les listes sont lues par réflexion, pas nommées : une liste ajoutée
+     * ailleurs (`PLATFORM_TWO_FACTOR` de TCK-597) entre ici sans qu'on y touche. Chaque route est
+     * passée au middleware lui-même, hors routeur : un 404 de liaison ne masque rien.
+     */
+    public function test_aucun_geste_protege_ne_passe_sous_le_jeton(): void
+    {
+        ['jeton' => $jeton] = $this->ouvrirUneSession();
+
+        $listes = array_filter(
+            (new ReflectionClass(ProtectedActions::class))->getConstants(),
+            fn ($valeur) => is_array($valeur) && array_is_list($valeur) && $valeur !== []
+                && array_filter($valeur, fn ($a) => ! is_string($a) || ! str_contains($a, '@')) === [],
+        );
+        $proteges = array_merge(...array_values($listes));
+        $this->assertArrayHasKey('STEP_UP', $listes);
+
+        $passes = [];
+        $vues = 0;
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            if (! in_array(ProtectedActions::normalize($route->getActionName()), $proteges, true)) {
+                continue;
+            }
+            $this->assertContains('api', $route->gatherMiddleware(), "{$route->uri()} échappe au groupe `api`.");
+
+            foreach (array_diff($route->methods(), ['HEAD']) as $methode) {
+                $vues++;
+                $uri = '/'.preg_replace('/\{[^}]+\}/', '1', $route->uri());
+                $requete = Request::create($uri, $methode, server: ['HTTP_AUTHORIZATION' => "Bearer {$jeton}"]);
+                $requete->setRouteResolver(fn () => $route);
+                $this->app['auth']->forgetGuards();
+                $this->app->instance('request', $requete);
+
+                try {
+                    app(EnforceImpersonationReadOnly::class)->handle($requete, fn () => response('passé'));
+                    $passes[] = "{$methode} {$route->uri()}";
+                } catch (HttpException $refus) {
+                    $this->assertSame(403, $refus->getStatusCode(), "{$methode} {$route->uri()}");
+                }
+            }
+        }
+
+        // Plancher : un balayage qui ne retrouve aucune route passerait au vert sans rien vérifier.
+        $this->assertGreaterThan(40, $vues);
+        $this->assertSame([], $passes, 'Gestes protégés exécutables sous impersonation.');
     }
 
     /** Hors session, rien ne change : le même compte écrit avec son propre jeton. */
