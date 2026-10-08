@@ -489,6 +489,18 @@ pas un formulaire administratif.
       filet par numéro), `mobileBorne` transmis. *Preuve : `test_x2_*` (filet atteint → 0 SMS ;
       témoin : sous la borne, 1 SMS et compté) ; Z11, Z12 → rouges.*
 
+### 12. Ajoutés après la cinquième passe de vérification (VERIF-590 passe 5)
+
+- [x] **X1′** — Retour à ADR-0031 §1 : l'APPELANT est jugé personnel à l'agence de son PROFIL
+      ACTIF. Un seul prédicat, `PersonnelDeLAgence::personnelActifDe` (compte joignable et
+      `staffAgencyId() === agence`), et sa liste `agencesOuPersonnelActif`, pour `view`, `update`,
+      la clause d'index, le masque de la fiche, la boîte des demandes (`PropertyContactLeadPolicy`)
+      et la planification (`StorePropertyVisitRequest`, `ClaimPropertyVisitRequest`, agent par
+      défaut, retour de visite). `estPersonnel` ne juge plus qu'un TIERS : l'agent attribué, le
+      destinataire d'un avis, le contact principal. `agencesOuPersonnel` disparaît. *Preuve :
+      `PersonnelAuProfilActifTest` ; Y21 (view), Y22 (index), Y23 (boîte des demandes), Y24
+      (planification), Y25 (prédicat) → rouges.*
+
 **Tests** — `tests/Feature/Api/ContactLeadInboxTest`, `ContactLeadConvertTest`,
 `PropertyVisitAssignmentTest`, `PropertyVisitStaffCreateTest`, `PropertyVisitRescheduleTest`,
 `PropertyVisitIsolationTest` (customer_id, agent_id, bailleur de l'agence, avis « agent »),
@@ -683,6 +695,14 @@ rejouée.
       voit plus dans la liste et ne peut plus l'écrire.
 - [x] AC48 **(R)** — Le filet par numéro atteint, le rappel de visite vers un contact sans compte ne
       part par aucun canal mobile ; sous la borne, il part et compte contre le filet.
+
+**Ajouté après la cinquième passe (VERIF-590 passe 5)** — vérifié par `PersonnelAuProfilActifTest`,
+ablation rejouée.
+
+- [x] AC49 **(R)** — Un agent de X et de Y, sous son profil actif Y, reçoit 403 sur une visite d'un
+      bien de X, ne la voit pas dans la liste (ni la fiche), ne peut pas l'écrire, ne voit pas les
+      demandes de X et ne planifie pas pour une fiche de X (il réserve pour lui-même) ; sous son
+      profil actif X, il lit la visite, sa fiche et la demande.
 
 ## Hors périmètre
 
@@ -880,3 +900,16 @@ test rouge sur `37210bac` et une ablation restaurée par `cp` (section 10 du Del
 - X2 : la sonde P4-RAPPEL rejouée rend encore 1 rappel mobile, celui de H-1 — 30 h après les
   coups portés au filet, dont la fenêtre est de 24 h : le filet était revenu à zéro (relevé :
   `attempts = 0`). Le rappel de J-1, lui, ne part plus (0).
+
+**Étape 11 — cinquième passe (2026-10-08).** VERIF-590 passe 5, sur `73df4bf0` : 0 bloquant,
+1 majeur (X1′) ; M7″, X1 et X2 fermés. Décision de la session : retour à ADR-0031 — l'élargissement
+multi-agences noté à l'étape 10 est annulé. Un commit, test rouge sur `73df4bf0`, ablations
+restaurées par `cp` avec contrôle md5 (section 12 du Delta).
+- Sous le profil Y, la planification d'un bien PUBLIC de X n'est pas refusée : l'appelant n'est
+  plus personnel du bien, il réserve pour lui-même comme tout visiteur (201, `customer_id` nul,
+  statut `scheduled`, la fiche envoyée ignorée). Le test l'affirme ; sur `73df4bf0`, la même
+  requête planifiait une visite confirmée pour la fiche de X.
+- La sonde P5-PROFIL2 rejouée : sous Y, `show=403 fiche=false index=false`, aligné sur le CRM
+  (`fiche_dans_crm=false`) ; sous X, tout est lu.
+- Hors de ce diff : P5-DASHBOARD — `DashboardAgentService` filtre sur `agent_id` sans agence et
+  montre encore une fiche de X à un agent retiré de X, sous son profil Y. Remonté à la session.
