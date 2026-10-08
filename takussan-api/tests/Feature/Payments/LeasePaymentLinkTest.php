@@ -48,6 +48,14 @@ class LeasePaymentLinkTest extends TestCase
 
         $this->assertSame(1, DB::table('activity_log')->where('event', 'lease_payment_link_revoked')->count());
         $this->assertSame(3, DB::table('activity_log')->where('event', 'lease_payment_link_issued')->count());
+        // Raccord TCK-601 (ADR-0044 §3) — la ligne appartient à l'agence du BAIL, et ne porte ni jeton
+        // ni URL.
+        $rows = DB::table('activity_log')->whereIn('event', ['lease_payment_link_issued', 'lease_payment_link_revoked'])->get();
+        $this->assertSame([$ctx['agency']->id], $rows->pluck('agency_id')->map(fn ($id) => (int) $id)->unique()->values()->all());
+        foreach ($rows as $row) {
+            $this->assertStringNotContainsString('/pay/', (string) $row->properties);
+            $this->assertStringNotContainsString(substr($second, -43), (string) $row->properties);
+        }
     }
 
     public function test_another_agency_and_a_guest_cannot_issue_it(): void
@@ -73,5 +81,29 @@ class LeasePaymentLinkTest extends TestCase
         $this->postJson('/api/lease-payments/'.$ctx['payment']->id.'/payment-link')
             ->assertStatus(409)->assertJsonPath('code', 'payment.not_payable');
         $this->assertSame(0, LeasePaymentLink::query()->count());
+    }
+
+    /**
+     * Raccord TCK-596 — une échéance ANNULÉE par un renouvellement ne se paie plus : aucun lien
+     * neuf (409), et le lien déjà envoyé rend 410 à la lecture comme à l'initiation, sans appel
+     * sortant.
+     */
+    public function test_a_cancelled_instalment_gets_no_link_and_its_sent_link_is_gone(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->actingAs($ctx['agent'], 'sanctum');
+        $path = '/api/lease-payments/'.$ctx['payment']->id.'/payment-link';
+        $token = substr($this->postJson($path)->assertOk()->json('data.url'), strlen('https://front.test/pay/'));
+
+        DB::table('lease_payments')->where('id', $ctx['payment']->id)->update(['status' => PaymentStatus::Cancelled->value]);
+
+        $this->postJson($path)->assertStatus(409)->assertJsonPath('code', 'payment.not_payable');
+        $this->postJson($path, ['regenerate' => true])->assertStatus(409);
+        $this->assertSame(1, LeasePaymentLink::query()->count());
+
+        $this->app['auth']->forgetGuards();
+        $this->getJson("/api/pay/{$token}")->assertStatus(410)->assertJsonPath('code', 'pay_link.gone');
+        $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertStatus(410);
+        Http::assertNothingSent();
     }
 }

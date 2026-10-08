@@ -78,6 +78,9 @@ class WebhookReplayTest extends TestCase
         $this->assertCount(1, $events);
         $this->assertSame($admin->id, $log->refresh()->replayed_by_id);
         $this->assertTrue(Activity::query()->where('event', 'super_admin_webhook_replayed')->where('subject_id', $log->id)->exists());
+        // Raccord TCK-601 (ADR-0044 §3) — la ligne du rejeu appartient à l'agence de l'intégration
+        // qui a validé le webhook, jamais à l'acteur (un super-admin n'a pas d'agence).
+        $this->assertSame($integration->agency_id, (int) Activity::query()->where('event', 'super_admin_webhook_replayed')->value('agency_id'));
 
         $this->postJson("/api/admin/webhook-logs/{$log->id}/replay")
             ->assertStatus(422)
