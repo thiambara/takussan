@@ -119,11 +119,16 @@ class PropertyCollaboratorController extends Controller
      * le propriétaire (`owner`). Une seule lecture, `PrimaryPropertyContact` : l'écran ne
      * recalcule rien.
      *
+     * Une marque posée sur un agent devenu inéligible (compte bloqué, profil suspendu ou retiré)
+     * reste en place et ne vaut rien (ADR-0053 §2) : `designated_unavailable` le dit, avec la
+     * ligne marquée (`designated_collaborator_id`), pendant que `collaborator_id` nomme le repli
+     * réellement servi — ou `null` si c'est le propriétaire (vérification adverse m3).
+     *
      * `can_designate` dit si l'appelant peut désigner (vérification adverse m2) : la même règle que
      * l'endpoint, `update` du bien. Un agent qui lit la liste sans tenir `update` ne voit pas un
      * geste que le serveur lui refuserait.
      *
-     * @return array{data: mixed, primary_contact: array{user_id: int|null, collaborator_id: int|null, source: string|null}, can_designate: bool}
+     * @return array{data: mixed, primary_contact: array{user_id: int|null, collaborator_id: int|null, designated_collaborator_id: int|null, source: string|null}, can_designate: bool}
      */
     private function collaboratorsPayload(Property $property, ?User $viewer): array
     {
@@ -131,6 +136,7 @@ class PropertyCollaboratorController extends Controller
 
         $principal = PrimaryPropertyContact::collaborateurPrincipal($property);
         $contact = PrimaryPropertyContact::for($property);
+        $marque = $property->collaborators->first(fn (PropertyCollaborator $c) => $c->is_primary === true);
 
         return [
             // La forme d'avant (`with('user')`, sans les médias que le contact principal charge).
@@ -138,8 +144,10 @@ class PropertyCollaboratorController extends Controller
             'primary_contact' => [
                 'user_id' => $contact?->id,
                 'collaborator_id' => $principal?->id,
+                'designated_collaborator_id' => $marque?->id,
                 'source' => match (true) {
                     $principal?->is_primary === true => 'designated',
+                    $marque !== null => 'designated_unavailable',
                     $principal !== null => 'invitation_order',
                     $contact !== null => 'owner',
                     default => null,

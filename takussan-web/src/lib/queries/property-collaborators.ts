@@ -13,10 +13,11 @@ export type CollaboratorRole = 'agent' | 'manager' | 'co_owner' | 'viewer';
 /**
  * Pourquoi cette personne répond pour le bien — un CODE, traduit à l'affichage :
  * - `designated` : l'agence l'a désigné ;
+ * - `designated_unavailable` : l'agent désigné n'est plus actif ; le repli répond à sa place ;
  * - `invitation_order` : aucun choix (ou le désigné n'est plus actif) ; l'agent invité le premier ;
  * - `owner` : aucun agent actif, le propriétaire répond.
  */
-export type PrimaryContactSource = 'designated' | 'invitation_order' | 'owner';
+export type PrimaryContactSource = 'designated' | 'designated_unavailable' | 'invitation_order' | 'owner';
 
 export interface PropertyCollaboratorRow {
   readonly id: number;
@@ -36,7 +37,10 @@ export interface PropertyCollaboratorsPayload {
   readonly data: PropertyCollaboratorRow[];
   readonly primary_contact: {
     readonly user_id: number | null;
+    /** La ligne qui répond réellement ; `null` quand c'est le propriétaire. */
     readonly collaborator_id: number | null;
+    /** La ligne marquée, active ou non. */
+    readonly designated_collaborator_id: number | null;
     readonly source: PrimaryContactSource | null;
   };
   /** L'appelant peut-il désigner ? La règle de l'endpoint (`update` du bien), dite par le serveur. */

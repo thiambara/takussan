@@ -1233,11 +1233,13 @@
         "source": {
           "designated": "Chosen by the agency.",
           "invitation_order": "No choice has been made: the agent first associated with the property responds.",
-          "owner": "No active agent is associated with this property: the owner responds."
+          "owner": "No active agent is associated with this property: the owner responds.",
+          "designated_unavailable": "The agent chosen by the agency is no longer active: {repli, select, agent {the agent first associated with the property responds instead} other {the owner responds instead}}, until they are active again or another agent is designated."
         },
         "badge": {
           "designated": "Primary agent",
-          "default": "Responds by default"
+          "default": "Responds by default",
+          "unavailable": "Chosen, unavailable"
         },
         "roles": {
           "agent": "Agent",

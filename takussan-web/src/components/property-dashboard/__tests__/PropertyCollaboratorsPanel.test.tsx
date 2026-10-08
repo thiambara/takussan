@@ -34,13 +34,13 @@ const ligne = (id: number, prenom: string, role: string, isPrimary = false) => (
 
 const parOrdre: PropertyCollaboratorsPayload = {
   data: [ligne(1, 'Awa', 'agent'), ligne(2, 'Moussa', 'agent'), ligne(3, 'Fatou', 'viewer')] as never,
-  primary_contact: { user_id: 101, collaborator_id: 1, source: 'invitation_order' },
+  primary_contact: { user_id: 101, collaborator_id: 1, designated_collaborator_id: null, source: 'invitation_order' },
   can_designate: true,
 };
 
 const moussaDesigne: PropertyCollaboratorsPayload = {
   data: [ligne(1, 'Awa', 'agent'), ligne(2, 'Moussa', 'agent', true), ligne(3, 'Fatou', 'viewer')] as never,
-  primary_contact: { user_id: 102, collaborator_id: 2, source: 'designated' },
+  primary_contact: { user_id: 102, collaborator_id: 2, designated_collaborator_id: 2, source: 'designated' },
   can_designate: true,
 };
 
@@ -113,7 +113,7 @@ describe('PropertyCollaboratorsPanel', () => {
   });
 
   it('sans collaborateur, le propriétaire répond, sobrement', async () => {
-    fetchPropertyCollaborators.mockResolvedValue({ data: [], primary_contact: { user_id: 9, collaborator_id: null, source: 'owner' }, can_designate: true });
+    fetchPropertyCollaborators.mockResolvedValue({ data: [], primary_contact: { user_id: 9, collaborator_id: null, designated_collaborator_id: null, source: 'owner' }, can_designate: true });
     rendu();
 
     expect(await screen.findByText("Aucun collaborateur n'est associé à ce bien.")).toBeInTheDocument();
@@ -129,6 +129,37 @@ describe('PropertyCollaboratorsPanel', () => {
     expect(await screen.findByTestId('primary-contact-source')).toHaveTextContent("Aucun choix n'est posé");
     expect(within(screen.getByTestId('collaborator-1')).getByText('Répond par défaut')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('une marque sur un agent inactif est dite indisponible, et le repli porte le badge de qui répond', async () => {
+    // Vérification adverse m3 : la forme exacte que l'API rend après la suspension du désigné.
+    fetchPropertyCollaborators.mockResolvedValue({
+      data: [ligne(1, 'Awa', 'agent'), ligne(2, 'Moussa', 'agent', true)],
+      primary_contact: { user_id: 101, collaborator_id: 1, designated_collaborator_id: 2, source: 'designated_unavailable' },
+      can_designate: true,
+    });
+    rendu();
+
+    expect(await screen.findByTestId('primary-contact-source')).toHaveTextContent(
+      "L'agent choisi par l'agence n'est plus actif : l'agent associé au bien le premier répond à sa place",
+    );
+    expect(screen.getByTestId('primary-contact-source')).not.toHaveTextContent("Aucun choix n'est posé");
+    const moussa = screen.getByTestId('collaborator-2');
+    expect(within(moussa).getByText('Choisi, indisponible')).toBeInTheDocument();
+    expect(within(moussa).queryByText('Agent principal')).toBeNull();
+    expect(within(screen.getByTestId('collaborator-1')).getByText('Répond par défaut')).toBeInTheDocument();
+  });
+
+  it('marque indisponible et aucun autre agent : le propriétaire répond à sa place', async () => {
+    fetchPropertyCollaborators.mockResolvedValue({
+      data: [ligne(2, 'Moussa', 'agent', true)],
+      primary_contact: { user_id: 9, collaborator_id: null, designated_collaborator_id: 2, source: 'designated_unavailable' },
+      can_designate: true,
+    });
+    rendu();
+
+    expect(await screen.findByTestId('primary-contact-source')).toHaveTextContent('le propriétaire répond à sa place');
+    expect(within(screen.getByTestId('collaborator-2')).getByText('Choisi, indisponible')).toBeInTheDocument();
   });
 
   it('se tait sur un refus de lecture', async () => {

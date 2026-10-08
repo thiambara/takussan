@@ -227,6 +227,35 @@ class PrimaryAgentDesignationTest extends ApiTestCase
         $this->assertSame($this->ancien->id, $this->contact());
     }
 
+    /**
+     * Vérification adverse m3 — une marque sur un agent devenu inéligible ne vaut rien (ADR-0053
+     * §2), et la liste le dit au lieu de se contredire : la source, la ligne marquée et la ligne
+     * réellement servie (le repli, agent ou propriétaire) sont distinctes.
+     */
+    public function test_une_marque_sur_un_agent_inactif_est_dite_indisponible_et_le_repli_nomme(): void
+    {
+        $this->designer($this->ligneSecond)->assertOk();
+        AgentProfile::query()->where('user_id', $this->second->id)->update(['status' => AgentProfileStatus::Suspended->value]);
+
+        $liste = fn () => $this->actingAsApi($this->admin)->apiGet("/api/properties/{$this->property->id}/collaborators")->assertOk();
+        $liste()
+            ->assertJsonPath('primary_contact.source', 'designated_unavailable')
+            ->assertJsonPath('primary_contact.designated_collaborator_id', $this->ligneSecond->id)
+            ->assertJsonPath('primary_contact.collaborator_id', $this->ligneAncien->id)
+            ->assertJsonPath('primary_contact.user_id', $this->ancien->id);
+
+        $this->ligneAncien->delete();
+        $liste()
+            ->assertJsonPath('primary_contact.source', 'designated_unavailable')
+            ->assertJsonPath('primary_contact.collaborator_id', null)
+            ->assertJsonPath('primary_contact.user_id', $this->property->user_id);
+
+        AgentProfile::query()->where('user_id', $this->second->id)->update(['status' => AgentProfileStatus::Active->value]);
+        $liste()
+            ->assertJsonPath('primary_contact.source', 'designated')
+            ->assertJsonPath('primary_contact.collaborator_id', $this->ligneSecond->id);
+    }
+
     private function contact(): ?int
     {
         return PrimaryPropertyContact::for($this->property->fresh()->load(PrimaryPropertyContact::eagerLoads()))?->id;

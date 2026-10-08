@@ -1208,11 +1208,13 @@
         "source": {
           "designated": "Choisi par l'agence.",
           "invitation_order": "Aucun choix n'est posé : l'agent associé au bien le premier répond.",
-          "owner": "Aucun agent actif n'est associé à ce bien : le propriétaire répond."
+          "owner": "Aucun agent actif n'est associé à ce bien : le propriétaire répond.",
+          "designated_unavailable": "L'agent choisi par l'agence n'est plus actif : {repli, select, agent {l'agent associé au bien le premier répond à sa place} other {le propriétaire répond à sa place}}, jusqu'à ce qu'il le redevienne ou qu'un autre agent soit désigné."
         },
         "badge": {
           "designated": "Agent principal",
-          "default": "Répond par défaut"
+          "default": "Répond par défaut",
+          "unavailable": "Choisi, indisponible"
         },
         "roles": {
           "agent": "Agent",

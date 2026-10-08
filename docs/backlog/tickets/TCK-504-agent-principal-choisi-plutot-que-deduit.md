@@ -302,3 +302,12 @@ suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `Prim
   403. Preuves : `test_la_liste_dit_si_l_appelant_peut_designer_par_la_regle_de_l_endpoint`, vitest
   « sans le droit de désigner, aucun bouton » ; ablations M2a (droit toujours vrai) et M2b (bouton
   sans droit) rouges (`t504/ablations-m2.log`).
+- **m3 — une marque sur un agent devenu inactif : le panneau dit la vérité.** La liste ajoute la
+  source `designated_unavailable` et `designated_collaborator_id` (la ligne marquée), pendant que
+  `collaborator_id` nomme la ligne réellement servie (le repli, ou `null` pour le propriétaire). Le
+  badge « Agent principal » suit qui répond **et** le choix (`source === 'designated'`) ; la ligne
+  marquée inactive porte « Choisi, indisponible » ; la phrase nomme le repli qui répond à sa place
+  (ICU `select` agent / propriétaire), en fr, en et wo. Preuves :
+  `test_une_marque_sur_un_agent_inactif_est_dite_indisponible_et_le_repli_nomme` (repli agent, repli
+  propriétaire, retour du choix à la réactivation) et deux vitest ; ablations M3a (source absente),
+  M3b (badge sur la marque), M3c (repli toujours « agent ») rouges (`t504/ablations-m3.log`).

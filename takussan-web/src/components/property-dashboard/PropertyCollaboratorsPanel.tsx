@@ -32,6 +32,9 @@ const ROLES: readonly CollaboratorRole[] = ['agent', 'manager', 'co_owner', 'vie
  * clair ce que le choix change — la personne que la fiche publique nomme, qui reçoit les messages
  * et les demandes, et dont le numéro s'affiche.
  *
+ * Le badge suit qui répond RÉELLEMENT (`collaborator_id`) : une marque posée sur un agent devenu
+ * inactif est dite « Choisi, indisponible », et la phrase nomme le repli qui répond à sa place.
+ *
  * Un bien sans choix n'a pas l'air mal configuré : le repli (l'agent invité le premier, sinon le
  * propriétaire) est énoncé sobrement, sans alerte. Seul un `agent` porte le bouton, et seulement
  * pour qui peut désigner (`can_designate`, la règle de l'endpoint dite par le serveur) ; le serveur
@@ -86,7 +89,9 @@ export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaborators
         <>
           {source ? (
             <p className="mt-4 text-sm text-pretty text-foreground" data-testid="primary-contact-source">
-              {t(`source.${source}`)}
+              {source === 'designated_unavailable'
+                ? t('source.designated_unavailable', { repli: contact?.collaborator_id != null ? 'agent' : 'owner' })
+                : t(`source.${source}`)}
             </p>
           ) : null}
 
@@ -109,13 +114,15 @@ export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaborators
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
                         <span className="truncate">{collaboratorName(row)}</span>
-                        {row.is_primary ? (
+                        {repond && source === 'designated' ? (
                           <Badge>
                             <Star aria-hidden="true" />
                             {t('badge.designated')}
                           </Badge>
                         ) : repond ? (
                           <Badge variant="outline">{t('badge.default')}</Badge>
+                        ) : row.is_primary ? (
+                          <Badge variant="secondary">{t('badge.unavailable')}</Badge>
                         ) : null}
                       </p>
                       <p className="text-xs text-muted-foreground">{role}</p>
