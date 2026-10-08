@@ -222,6 +222,16 @@ class PayoutService
                 ? $this->approvableDestination($locked, (int) $payoutMethodId)
                 : ($locked->payout_method_id !== null ? PayoutMethod::withTrashed()->find($locked->payout_method_id) : null);
 
+            // VERIF-594 passe 5, P5-1 — la destination figée est vérifiée pour l'agence, citée ou non :
+            // celle citée à la préparation n'était contrôlée que pour son titulaire, si bien que
+            // l'approbateur pouvait l'approuver, PUIS la vérifier lui-même — l'ordre des gestes
+            // contournait P3-3 et P4-3. Sans destination (espèces, chèque), rien à vérifier.
+            abort_code_if(
+                $destination !== null && ! $destination->isVerifiedFor((int) $locked->agency_id),
+                422,
+                'payout.unverified_destination',
+            );
+
             // VERIF-594 passe 3, P3-3 — l'approbateur qui FIXE une destination ne l'a pas vérifiée
             // lui-même dans les 24 h : sinon il vérifie un numéro neuf, le fixe, et plus personne ne le
             // revoit avant le payeur. La même règle que pour le payeur (M-4), appliquée au second geste.

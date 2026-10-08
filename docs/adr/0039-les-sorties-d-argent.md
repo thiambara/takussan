@@ -253,7 +253,12 @@ lui-même il y a moins de 24 h, il ne la cite pas en approuvant (403
 personne ne le revoit avant le payeur. La règle porte sur la destination **fixée**, citée ou non
 (VERIF-594 passe 4, P4-3) : approuver sans rien citer fixe la destination du reversement — la
 destination par défaut, ou celle que le préparateur a citée —, et l'approbateur qui l'a vérifiée
-dans les 24 h ne l'approuve pas davantage. Une destination vérifiée par un tiers, il la fixe. Le `rib` du profil bailleur reste une pièce KYC.
+dans les 24 h ne l'approuve pas davantage. Une destination vérifiée par un tiers, il la fixe. **La
+destination figée est vérifiée pour l'agence, citée ou non** (VERIF-594 passe 5, P5-1) : citée à la
+préparation, elle n'était contrôlée que pour son titulaire, et l'approbateur pouvait l'approuver puis
+la vérifier lui-même — l'ordre des gestes contournait la règle. Non vérifiée (ou modifiée depuis par
+son titulaire), l'approbation rend 422 `payout.unverified_destination` ; sans destination (espèces,
+chèque), rien à vérifier. Le `rib` du profil bailleur reste une pièce KYC.
 
 ### 7. Factures : numéro à l'émission, unicité par agence, avoir
 

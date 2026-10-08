@@ -1135,6 +1135,51 @@ class PayoutBypassTest extends TestCase
     }
 
     /**
+     * VERIF-594 passe 5, P5-1 — approuver d'abord, vérifier ensuite contournait P3-3 et P4-3 : la
+     * destination non vérifiée citée à la préparation était figée sans contrôle, puis l'approbateur la
+     * vérifiait, et le préparateur la payait aussitôt. La destination figée à l'approbation, citée ou
+     * non, est vérifiée pour l'agence, sinon 422.
+     */
+    public function test_p5_1_the_approval_does_not_freeze_an_unverified_destination(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver] = $this->fourEyesAgency();
+        $fresh = PayoutMethod::factory()->create(['user_id' => $landlord->id, 'is_default' => true]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $fresh);
+
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")
+            ->assertUnprocessable()->assertJsonPath('code', 'payout.unverified_destination');
+        $this->assertSame(PayoutStatus::AwaitingApproval, Payout::query()->findOrFail($id)->status);
+
+        // Vérifiée ensuite par l'approbateur lui-même : P4-3 la refuse encore.
+        $this->postJson("/api/payout-methods/{$fresh->id}/verify")->assertOk();
+        $this->postJson("/api/payouts/{$id}/approve")
+            ->assertForbidden()->assertJsonPath('code', 'payout.approver_verified_destination_recently');
+    }
+
+    /**
+     * VERIF-594 passe 5, P5-1 — la destination vérifiée par un tiers à la préparation, dont le bailleur
+     * change le numéro avant l'approbation, a perdu sa vérification : l'approbation la refuse.
+     */
+    public function test_p5_1_a_destination_changed_before_the_approval_is_refused(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $destination = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(2))
+            ->create(['user_id' => $landlord->id, 'is_default' => true]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $destination);
+
+        $this->actingWithStepUp($landlord);
+        $this->patchJson("/api/me/payout-methods/{$destination->id}", ['account_identifier' => '+221770009999'])->assertOk();
+        $this->assertFalse($destination->fresh()->isVerifiedFor($agency->id));
+
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")
+            ->assertUnprocessable()->assertJsonPath('code', 'payout.unverified_destination');
+    }
+
+    /**
      * Le grand livre d'une caution : ce qui sort vers le locataire (restitutions ni refusées ni
      * échouées), et ce qui est retenu (factures de retenue vivantes).
      *
