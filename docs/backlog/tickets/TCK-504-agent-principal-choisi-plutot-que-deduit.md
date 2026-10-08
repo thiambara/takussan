@@ -133,3 +133,25 @@ Le ticket date du 2026-08-31 ; 586, 587, 590, 591 et 598 ont touché le contact 
   TCK-603, qui reprend les biens à la passation.
 - **AC3** nomme `manager` en plus de `viewer` et `co_owner` (la contrainte 3 ne les cite pas) : tout
   rôle autre qu'`agent` est refusé.
+
+### Partie 1 — la marque, son unicité, la règle de lecture, le backfill
+
+- Migration `2026_10_08_120000_add_is_primary_to_property_collaborators` : `is_primary boolean NOT NULL
+  DEFAULT false`, index unique partiel `property_collaborators_one_primary_per_property (property_id)
+  WHERE is_primary`, `CHECK property_collaborators_primary_is_agent (NOT is_primary OR role = 'agent')`.
+  `is_primary` hors `fillable` ; l'évènement `saving` du modèle efface la marque quand le rôle quitte
+  `agent` (sinon le `PUT …/collaborators/{c}` qui change le rôle rendait une 500 sur le `CHECK`).
+- `PrimaryPropertyContact::collaborateurPrincipal()` : la ligne marquée si éligible, sinon le repli de
+  502/590 ; `for()` s'écrit à partir d'elle, `eligible()` devient publique (le service la lit).
+- Backfill par la définition unique, en écriture SQL (aucun évènement, aucune invalidation en masse).
+- Preuves : `php artisan test tests/Feature/Property/PrimaryAgentSchemaTest.php
+  tests/Feature/Property/PrimaryAgentBackfillTest.php` → 8 verts (31 assertions). Non-régression :
+  11 classes voisines (contact principal, lead, message, résolution, passation, collaborateurs,
+  rappels de loyer, modèles) → 99 verts.
+- Ablations rejouées (`scratchpad/vague73/t504/abl.sh`, restauration `cp` + md5, journal
+  `t504/ablations-p1.log`) — toutes rouges :
+  A1 index rendu non unique → `deux_lignes_principales…` rouge ; A2 `CHECK` neutralisé →
+  `un_role_autre_qu_agent…` rouge ; A3 évènement `saving` retiré → `changer_le_role_du_principal…`
+  rouge (`QueryException` 23514) ; A4 backfill sur le plus récent invité → `le_backfill_marque…` rouge ;
+  A5 choix explicite ignoré dans `collaborateurPrincipal` → les deux tests de backfill rouges ; A6 sans
+  backfill → les deux tests de backfill rouges.
