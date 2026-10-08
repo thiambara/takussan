@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\PropertyCalendar;
 
+use App\Jobs\SyncPropertyCalendarFeedJob;
 use App\Jobs\SyncPropertyCalendarFeedsJob;
 use App\Models\Agency;
 use App\Models\AppNotification;
@@ -15,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -119,10 +121,11 @@ class SyncPropertyCalendarFeedsTest extends TestCase
     {
         Http::fake(['cal.example.com/*' => Http::response($this->ics([['a@airbnb', 5, 8], ['b@airbnb', 20, 22]]))]);
 
+        // La file est `sync` en test : la tâche de première synchronisation (m3) a déjà tourné.
         $response = $this->register()->assertCreated()
             ->assertJsonPath('data.url_host', 'cal.example.com')
-            ->assertJsonPath('data.last_status', 'ok')
             ->assertJsonMissingPath('data.url');
+        $this->assertSame('ok', $this->feed()->last_status);
         $this->assertStringNotContainsString('abc.ics', $response->getContent());
         $this->assertStringNotContainsString('abc.ics', $this->getJson("/api/properties/{$this->property->id}/calendar-feeds")->getContent());
 
@@ -130,6 +133,38 @@ class SyncPropertyCalendarFeedsTest extends TestCase
         // Chiffrée en base : la colonne ne porte pas l'URL en clair.
         $this->assertStringNotContainsString('cal.example.com', (string) DB::table('property_calendar_feeds')->value('url'));
         $this->assertSame(self::URL, $this->feed()->url);
+    }
+
+    /**
+     * VERIF-596 m3 — la première synchronisation quittait la requête de création : un appel sortant
+     * de 10 s au plus, tenu par un worker HTTP. Elle part désormais en file, le flux rendu `pending`.
+     */
+    public function test_registering_a_feed_answers_pending_and_queues_the_first_sync(): void
+    {
+        Queue::fake();
+        Http::fake();
+
+        $this->register()->assertCreated()
+            ->assertJsonPath('data.last_status', PropertyCalendarFeed::STATUS_PENDING)
+            ->assertJsonPath('data.last_synced_at', null);
+
+        Http::assertNothingSent();
+        $feed = $this->feed();
+        $this->assertSame(PropertyCalendarFeed::STATUS_PENDING, $feed->last_status);
+        Queue::assertPushed(SyncPropertyCalendarFeedJob::class, fn (SyncPropertyCalendarFeedJob $job): bool => $job->feedId === $feed->id);
+    }
+
+    public function test_the_queued_first_sync_skips_a_feed_deleted_meanwhile(): void
+    {
+        Http::fake();
+        Queue::fake();
+        $this->register()->assertCreated();
+        $id = $this->feed()->id;
+        $this->feed()->delete();
+
+        (new SyncPropertyCalendarFeedJob($id))->handle(app(PropertyCalendarSyncService::class));
+
+        Http::assertNothingSent();
     }
 
     public function test_a_resync_moves_changed_events_and_removes_vanished_and_cancelled_ones(): void
@@ -239,7 +274,8 @@ class SyncPropertyCalendarFeedsTest extends TestCase
         $big = $this->ics([['a@airbnb', 5, 8]]).str_repeat('X', 1_048_577);
         Http::fake(['cal.example.com/*' => Http::response($big)]);
 
-        $this->register()->assertCreated()->assertJsonPath('data.last_status', 'failed')->assertJsonPath('data.last_error', 'too_large');
+        $this->register()->assertCreated();
+        $this->assertSame(['failed', 'too_large'], [$this->feed()->last_status, $this->feed()->last_error]);
 
         $this->assertSame([], $this->imported());
     }
@@ -248,7 +284,8 @@ class SyncPropertyCalendarFeedsTest extends TestCase
     {
         Http::fake(['cal.example.com/*' => Http::response('', 302, ['Location' => 'https://169.254.169.254/'])]);
 
-        $this->register()->assertCreated()->assertJsonPath('data.last_error', 'redirect');
+        $this->register()->assertCreated();
+        $this->assertSame('redirect', $this->feed()->last_error);
 
         Http::assertSentCount(1);
     }
@@ -347,7 +384,8 @@ class SyncPropertyCalendarFeedsTest extends TestCase
     {
         Http::fake(['cal.example.com/*' => Http::response($this->ics([['r@g', 5, 6], ['r@g', 12, 13]]))]);
 
-        $this->register()->assertCreated()->assertJsonPath('data.last_status', 'ok');
+        $this->register()->assertCreated();
+        $this->assertSame('ok', $this->feed()->last_status);
 
         $this->assertSame([['r@g', $this->day(5), $this->day(6)]], $this->imported());
     }

@@ -57,6 +57,10 @@ aléatoire stocké haché, et par un import horaire qui passe par une garde SSRF
    source est **supprimé** : la source fait foi pour ses propres événements. Un événement
    `STATUS:CANCELLED` est traité comme disparu. Au troisième échec consécutif, le bailleur est prévenu
    (une fois, pas à chaque heure).
+   **La première synchronisation n'a pas lieu dans la requête de création** (VERIF-596 m3) :
+   `POST properties/{p}/calendar-feeds` rend 201 avec le flux en `pending`, et
+   `SyncPropertyCalendarFeedJob` va le chercher en file. Un appel sortant de 10 s au plus ne tient
+   plus un worker HTTP à chaque création.
 6. **Conflits.** Un événement importé qui chevauche une réservation confirmée est **enregistré**,
    marqué en conflit (`conflict_booking_id`), et le bailleur et l'agent du bien sont prévenus. Un
    import **n'annule jamais** une réservation : seul un humain tranche entre deux plateformes.
@@ -64,7 +68,13 @@ aléatoire stocké haché, et par un import horaire qui passe par une garde SSRF
 7. **Garde SSRF** (`App\Support\Http\SafeOutboundUrl`). HTTPS seulement, port 443 ; l'hôte est
    résolu, et **toutes** ses adresses doivent être publiques : refus des plages privées, de bouclage,
    lien-local (dont `169.254.169.254`), réservées, CGNAT `100.64.0.0/10`, et de leurs équivalents IPv6
-   (ULA, lien-local, adresses IPv4 mappées, préfixes NAT64 `64:ff9b::/96` qui transportent une IPv4). La connexion est **épinglée** sur l'adresse vérifiée
+   (ULA, lien-local, adresses IPv4 mappées, préfixes NAT64 `64:ff9b::/96` qui transportent une IPv4).
+   Depuis VERIF-596 m3, deux plages que PHP juge globales sont refusées aussi : **`::/8` en entier**
+   (réservé ; il porte les IPv4 mappées, traduites `::ffff:0:a.b.c.d` — `::ffff:0:7f00:1` passait — et
+   compatibles) et **`fec0::/10`** (site-local déprécié ; avec le lien-local, `fe80::/9`).
+   La résolution DNS de l'enregistrement reste dans la requête, bornée par le résolveur du système
+   et non par l'application : c'est elle qui rend le refus immédiat (422), et l'appel sortant, lui,
+   est parti en file. La connexion est **épinglée** sur l'adresse vérifiée
    (`CURLOPT_RESOLVE`) : une seconde résolution ne peut pas rebondir vers une adresse interne. Pas de
    redirection suivie (une redirection est un échec), délai de 10 s, réponse plafonnée à 1 Mo
    (en-tête et corps). Une URL refusée l'est **avant** toute requête sortante, et dès l'enregistrement
@@ -94,7 +104,8 @@ aléatoire stocké haché, et par un import horaire qui passe par une garde SSRF
   2026-10-08 ; `app/Services/Booking/PropertyAvailabilityService.php`.
 - `app/Support/Ical/IcalWriter.php`, `app/Support/Ical/IcalReader.php`,
   `app/Support/Http/SafeOutboundUrl.php`, `app/Services/Booking/PropertyCalendarSyncService.php`,
-  `app/Jobs/SyncPropertyCalendarFeedsJob.php` (`routes/console.php`).
+  `app/Jobs/SyncPropertyCalendarFeedsJob.php` (`routes/console.php`),
+  `app/Jobs/SyncPropertyCalendarFeedJob.php` (première synchronisation, VERIF-596 m3).
 - Contrôleurs `PropertyUnavailabilityController`, `PropertyCalendarFeedController`,
   `PropertyIcalTokenController`, `Public\PublicPropertyAvailabilityController`,
   `Public\IcalExportController`.

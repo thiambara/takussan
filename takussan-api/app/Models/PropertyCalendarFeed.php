@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PropertyCalendarFeed extends AbstractModel
 {
+    /** Enregistré, pas encore synchronisé : la première synchronisation est une tâche de file (VERIF-596 m3). */
+    public const STATUS_PENDING = 'pending';
+
     public const STATUS_OK = 'ok';
 
     public const STATUS_FAILED = 'failed';

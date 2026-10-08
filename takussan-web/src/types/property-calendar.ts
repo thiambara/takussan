@@ -20,7 +20,8 @@ export interface PropertyCalendarFeed {
   readonly url_host: string;
   readonly label: string | null;
   readonly last_synced_at: string | null;
-  readonly last_status: 'ok' | 'failed' | null;
+  /** `pending` : enregistré, la première synchronisation est en file (VERIF-596 m3). */
+  readonly last_status: 'pending' | 'ok' | 'failed' | null;
   readonly last_error: string | null;
   readonly failing_since: string | null;
   readonly consecutive_failures: number;

@@ -4628,7 +4628,8 @@
         "exportUrl": "Lëkkalekaay iCal bu génné",
         "exportCopy": "Duppi",
         "exportCopied": "Duppi nañu ko",
-        "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba."
+        "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba.",
+        "feedPending": "njëkk dëppale mi ngi dox"
       }
     },
     "status": {

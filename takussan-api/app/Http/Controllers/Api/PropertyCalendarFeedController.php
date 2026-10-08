@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StorePropertyCalendarFeedRequest;
 use App\Http\Resources\PropertyCalendarFeedResource;
+use App\Jobs\SyncPropertyCalendarFeedJob;
 use App\Models\Property;
 use App\Models\PropertyCalendarFeed;
 use App\Services\Booking\PropertyCalendarSyncService;
@@ -33,9 +34,13 @@ class PropertyCalendarFeedController extends Controller
         $data = $request->validated();
 
         $feed = $sync->register($property, $data['url'], $data['label'] ?? null, $request->user());
-        $sync->sync($feed);
 
-        return $this->json(['data' => PropertyCalendarFeedResource::make($feed->refresh())->toArray($request)], 201);
+        // VERIF-596 m3 — la première synchronisation (appel sortant, 10 s au plus) quitte la
+        // requête : le flux est rendu en `pending`, et une tâche de file va le chercher.
+        $payload = PropertyCalendarFeedResource::make($feed)->toArray($request);
+        SyncPropertyCalendarFeedJob::dispatch($feed->id);
+
+        return $this->json(['data' => $payload], 201);
     }
 
     /** « Synchroniser maintenant » : un appel par minute et par flux (ADR-0041 §5). */

@@ -131,12 +131,23 @@ class SafeOutboundUrl
 
         // Préfixes IPv6 qui TRANSPORTENT une adresse IPv4 vers un relais : NAT64 (`64:ff9b::/96`,
         // `64:ff9b:1::/48`) et 6to4 (`2002::/16`). `64:ff9b::a9fe:a9fe` atteint
-        // `169.254.169.254` sur un réseau NAT64, et PHP la juge globale (mesuré). Les IPv4 mappées
-        // (`::ffff:0:0/96`), elles, sont déjà refusées par `NO_RES_RANGE` (mesuré aussi).
+        // `169.254.169.254` sur un réseau NAT64, et PHP la juge globale (mesuré).
+        //
+        // VERIF-596 m3 — deux plages que PHP juge globales aussi (mesuré) :
+        // - `::/8` en entier (réservé par l'IETF, aucune adresse globale n'y vit), qui porte les
+        //   IPv4 mappées (`::ffff:a.b.c.d`, déjà refusées par `NO_RES_RANGE`), traduites
+        //   (`::ffff:0:a.b.c.d` : `::ffff:0:7f00:1` passait) et compatibles (`::a.b.c.d`) ;
+        // - `fec0::/10`, le site-local déprécié, voisin de `fe80::/10` : on refuse `fe80::/9`.
         $packed = @inet_pton($ip);
         if ($packed !== false && strlen($packed) === 16) {
             $hex = bin2hex($packed);
             if (str_starts_with($hex, '0064ff9b') || str_starts_with($hex, '2002')) {
+                return false;
+            }
+            if (str_starts_with($hex, '00')) {
+                return false;
+            }
+            if (ord($packed[0]) === 0xFE && (ord($packed[1]) & 0x80) === 0x80) {
                 return false;
             }
         }

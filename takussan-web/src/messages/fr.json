@@ -1161,7 +1161,8 @@
         "exportUrl": "Lien d'export iCal",
         "exportCopy": "Copier",
         "exportCopied": "Copié",
-        "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent."
+        "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent.",
+        "feedPending": "première synchronisation en cours"
       }
     },
     "visibility": {

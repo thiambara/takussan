@@ -331,6 +331,7 @@ function FeedRow({
   const remove = useDeleteCalendarFeed(propertyId);
   const [error, setError] = useState<string | null>(null);
   const failing = feed.last_status === 'failed';
+  const pending = feed.last_status === 'pending';
 
   const run = (action: Promise<unknown>) => {
     setError(null);
@@ -344,7 +345,11 @@ function FeedRow({
         <p className="text-xs text-muted-foreground">
           {feed.url_host}
           {' · '}
-          {failing ? t('feedFailing', { count: feed.consecutive_failures }) : t('feedOk')}
+          {failing
+            ? t('feedFailing', { count: feed.consecutive_failures })
+            : pending
+              ? t('feedPending')
+              : t('feedOk')}
         </p>
         {error && (
           <p role="alert" className="text-xs text-destructive">

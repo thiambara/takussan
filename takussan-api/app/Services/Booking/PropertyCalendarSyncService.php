@@ -62,6 +62,7 @@ class PropertyCalendarSyncService
                 'url_host' => $host,
                 'label' => $label,
                 'created_by_id' => $by->id,
+                'last_status' => PropertyCalendarFeed::STATUS_PENDING,
             ]);
         });
     }

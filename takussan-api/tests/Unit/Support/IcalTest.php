@@ -80,6 +80,12 @@ class IcalTest extends TestCase
             'NAT64 vers les métadonnées' => ['64:ff9b::a9fe:a9fe', false],
             'NAT64 local' => ['64:ff9b:1::a9fe:a9fe', false],
             '6to4' => ['2002:a9fe:a9fe::1', false],
+            // VERIF-596 m3 — jugées globales par PHP avant le correctif (mesuré).
+            'IPv6 site-local (fec0::/10)' => ['fec0::1', false],
+            'IPv6 site-local, haut de plage' => ['feff::1', false],
+            'IPv4 traduite (::ffff:0:0/96)' => ['::ffff:0:7f00:1', false],
+            'IPv4 traduite vers les métadonnées' => ['::ffff:0:a9fe:a9fe', false],
+            'IPv4 compatible' => ['::7f00:1', false],
             'pas une adresse' => ['localhost', false],
             'publique v4' => ['93.184.216.34', true],
             'publique v6' => ['2606:4700::1111', true],

@@ -120,6 +120,15 @@ describe('PropertyCalendarPanel (TCK-596 §3B)', () => {
     expect(etat.syncFeed).toHaveBeenCalledWith({ id: 3 });
   });
 
+  it('un flux qu’on vient d’ajouter attend sa première synchronisation, sans se dire synchronisé (VERIF-596 m3)', () => {
+    etat.feeds = [{ ...FLUX, last_status: 'pending', last_error: null, consecutive_failures: 0 }];
+    monter();
+
+    const flux = within(screen.getByTestId('calendar-feeds')).getAllByRole('listitem')[0];
+    expect(flux).toHaveTextContent('première synchronisation en cours');
+    expect(flux).not.toHaveTextContent('synchronisé');
+  });
+
   it('génère le lien d’export, le montre une fois et le copie', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
