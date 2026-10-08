@@ -712,6 +712,19 @@ class LeaseSignatureTest extends TestCase
         $this->assertSame(0, LeaseSignature::query()->count());
     }
 
+    /**
+     * VERIF-596 passe 2 (n1) — le refus vient AVANT la validation : sans fichier, l'agent sans
+     * `leases.sign` reçoit 403, jamais 422 et la liste des champs attendus. Le test précédent
+     * restait vert sans la clause de `ActivateLeaseRequest` (la garde du service le rattrapait).
+     */
+    public function test_an_agent_without_leases_sign_and_without_a_file_is_refused_before_validation(): void
+    {
+        Sanctum::actingAs($this->agentWithout($this->agency, Capability::LeasesSign));
+
+        $this->postJson("/api/leases/{$this->lease->id}/activate")->assertForbidden()->assertJsonMissingPath('errors');
+        $this->assertSame(LeaseStatus::Draft, $this->lease->fresh()->status);
+    }
+
     public function test_an_agent_with_leases_sign_and_the_landlord_activate_on_paper(): void
     {
         $agent = $this->agencyAgent($this->agency);
