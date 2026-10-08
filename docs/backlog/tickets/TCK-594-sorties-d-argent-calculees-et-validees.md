@@ -246,7 +246,9 @@ rend **403** avec une clé i18n, jamais une phrase.
   bailleur » filtre `payee_role = landlord`.
 - **Destination vérifiée.** Un reversement mobile money ou virement ne se marque payé que vers un
   `PayoutMethod` vérifié. La vérification incombe à un membre de l'agence détenant `payouts.create`.
-  Un numéro égal au téléphone déjà vérifié de l'utilisateur est vérifié d'office. Ajouter ou modifier
+  **Rien n'est vérifié d'office** (VERIF-594 B-1, décision du 2026-10-08 : un numéro égal au
+  téléphone vérifié du compte attend lui aussi l'agence — ce téléphone se change et se revérifie en
+  libre-service). Ajouter ou modifier
   une destination **notifie le titulaire** (vecteur de détournement après prise de compte), et la
   destination modifiée repasse en « non vérifiée ». L'API ne rend en clair que la version masquée,
   sauf au titulaire.
@@ -524,6 +526,10 @@ rend **403** avec une clé i18n, jamais une phrase.
   `/admin/agency/billing` de `PRO_ROUTES` et la redirection de sa page, et masquer pour `individual`
   le seul bloc d'abonnement. `scripts/check-pro-routes.mjs` reste vert.
 
+### 8. Ajoutés après vérification adverse (VERIF-594, 2026-10-08)
+
+- [x] **B-1** — la vérification d'office disparaît : toute destination attend un membre de l'agence.
+
 ### Front (intentionnel)
 
 - [x] Préparation d'un reversement par bailleur et période, montants en lecture seule ; file « À
@@ -681,6 +687,14 @@ rend **403** avec une clé i18n, jamais une phrase.
   vaut **2** et `landlord` **1** après la migration.
   **Preuve** : `PayoutPayeeRoleTest::test_ac4_ac23_…`, `test_ac23_the_data_migration_moves_existing_deposit_refunds_to_tenant`. Ablation J4 : rouge.
 
+### AC ajoutés après vérification adverse (VERIF-594)
+
+- [x] **AC-B1 — rien n'est vérifié d'office (B-1).** Le bailleur change son téléphone (`send-otp` vers
+  un nouveau numéro, `verify-otp`), puis déclare ce numéro comme destination : `verified = false`. Le
+  marquage payé vers elle rend 422 `payout.unverified_destination` tant qu'aucun membre de l'agence
+  ne l'a vérifiée, puis 200.
+  **Preuve** : `PayoutBypassTest::test_b1_a_destination_equal_to_a_freshly_verified_phone_is_not_verified` (rouge sur 9923b16c) ; `PayoutMethodTest::test_adding_a_destination_notifies_and_nothing_verifies_itself`. Ablation V-B1 : rouge.
+
 ## Hors périmètre
 
 Aucun défaut relevé n'est rangé ici : ce qui suit sont des améliorations, ou des défauts portés par
@@ -817,8 +831,8 @@ le ticket nommé (vérifié dans son texte).
   bailleur (`OwnerProfile`) ou prestataire en collaboration. `PayoutMethodService::verify` refuse en
   plus le titulaire lui-même par `SegregationOfDuties` (le super-admin, que `Gate::before` laisse
   passer la policy, y compris).
-- **Vérification d'office** : un numéro mobile money égal (normalisé) au téléphone **vérifié** du
-  titulaire. Tout le reste attend l'agence.
+- ~~**Vérification d'office**~~ : **retirée** après la vérification adverse (B-1, voir « Corrections
+  après vérification adverse »). Toute destination attend un membre de l'agence.
 - **Chiffrement (raccord TCK-601)** : `account_identifier` et `account_holder_name` en `text`, cast
   `encrypted`, `$hidden`, hors `$queryFields`, modèle **non** `Auditable`. Le masquage passe par
   `PayoutMethod::mask()` seul (quatre derniers caractères) : **c'est la méthode que 601 remplace.**
@@ -924,3 +938,16 @@ le ticket nommé (vérifié dans son texte).
 - **AC18** : `/admin/agency/billing` quitte `PRO_ROUTES`, la page ne redirige plus et ne montre le
   bloc d'abonnement qu'à une agence `standard` (ou au super-admin).
 
+
+### Corrections après vérification adverse (VERIF-594, 2026-10-08)
+
+Verdict de `verif-594.md` sur 9923b16c : **REFUSÉ, 1 bloquant, 6 majeurs, 5 mineurs**. Le chemin
+nominal tenait ; les contournements passaient. Un commit par point, chacun avec un test **rouge sur
+9923b16c** (`PayoutBypassTest`, sauf mention) et son ablation, restaurée par `cp` avec contrôle md5
+(journal : `scratchpad/vague73/TCK-594-ablations.log`, section « Corrections VERIF-594 »).
+
+- **B-1 — vérification d'office.** Décision de la session : option (a). `PayoutMethodService::autoVerify`
+  est retiré ; plus aucune destination ne naît vérifiée. Raison écrite dans l'ADR-0039 §6 : le
+  téléphone du compte se change et se revérifie en libre-service (`send-otp` remet
+  `phone_verified_at` à `null` et envoie l'OTP au **nouveau** numéro), sans date ni avis. Le test du
+  « seul un téléphone vérifié se vérifie » devient « rien ne se vérifie seul ».

@@ -137,8 +137,11 @@ le mécanisme que TCK-601 définira ; tant qu'il n'existe pas, le masquage passe
 méthode (`PayoutMethod::mask()`, quatre derniers caractères), que TCK-601 remplacera. L'API ne rend
 en clair qu'au titulaire. Ajouter ou modifier une destination **notifie le titulaire** et la
 destination modifiée repasse « non vérifiée ». La vérification incombe à un membre de l'agence qui
-détient `payouts.create`, jamais au titulaire ; un numéro égal au téléphone déjà vérifié du titulaire
-est vérifié d'office. Un reversement mobile money ou virement ne se marque payé que vers une
+détient `payouts.create`, jamais au titulaire. **Rien n'est vérifié d'office** — pas même un numéro
+égal au téléphone vérifié du titulaire (décision du 2026-10-08, après la vérification adverse
+VERIF-594 B-1) : ce téléphone se change et se revérifie en libre-service, sans date ni avis, si bien
+qu'après une prise de compte la vérification d'office appartenait à l'attaquant et retirait la seule
+défense de cette section. Un reversement mobile money ou virement ne se marque payé que vers une
 destination vérifiée **du bénéficiaire**. Le `rib` du profil bailleur reste une pièce KYC.
 
 ### 7. Factures : numéro à l'émission, unicité par agence, avoir

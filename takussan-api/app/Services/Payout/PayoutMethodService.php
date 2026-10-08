@@ -17,8 +17,10 @@ use Illuminate\Support\Facades\DB;
  *  - ajouter, modifier ou supprimer une destination NOTIFIE le titulaire (critique : par e-mail
  *    quelles que soient ses préférences) ;
  *  - une destination modifiée repasse en « non vérifiée » ;
- *  - seul un numéro mobile money égal au téléphone VÉRIFIÉ du titulaire est vérifié d'office ;
- *    tout le reste attend un membre de l'agence (`verify`), jamais le titulaire lui-même.
+ *  - RIEN n'est vérifié d'office : toute destination attend un membre de l'agence (`verify`),
+ *    jamais le titulaire lui-même. Un numéro égal au téléphone vérifié du compte ne fait pas
+ *    exception (VERIF-594 B-1) : ce téléphone se change et se revérifie en libre-service, sans
+ *    date ni avis — après une prise de compte, il appartient à l'attaquant.
  */
 final class PayoutMethodService
 {
@@ -38,7 +40,6 @@ final class PayoutMethodService
                 'is_default' => (bool) ($data['is_default'] ?? ! PayoutMethod::query()->where('user_id', $holder->id)->exists()),
             ]);
 
-            $this->autoVerify($method, $holder);
             $this->keepOneDefault($method);
 
             return $method;
@@ -77,7 +78,6 @@ final class PayoutMethodService
             }
             $method->save();
 
-            $this->autoVerify($method, $method->user);
             $this->keepOneDefault($method);
         });
 
@@ -112,19 +112,6 @@ final class PayoutMethodService
         $method->forceFill(['verified_at' => now(), 'verified_by_id' => $verifier->id])->save();
 
         return $method->refresh();
-    }
-
-    private function autoVerify(PayoutMethod $method, ?User $holder): void
-    {
-        if ($holder === null || $method->verified_at !== null || ! $method->kind->isMobileMoney()) {
-            return;
-        }
-
-        $phone = $holder->phone !== null ? PayoutMethod::normalize($holder->phone) : '';
-        if ($holder->phone_verified_at !== null && $phone !== ''
-            && PayoutMethod::normalize((string) $method->account_identifier) === $phone) {
-            $method->forceFill(['verified_at' => now(), 'verified_by_id' => null])->save();
-        }
     }
 
     private function keepOneDefault(PayoutMethod $method): void

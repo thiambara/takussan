@@ -166,22 +166,21 @@ class PayoutMethodTest extends TestCase
         Notification::assertSentTo($landlord, CodedNotification::class, fn ($n): bool => $n->code === NotificationCode::PayoutMethodRemoved);
     }
 
-    public function test_adding_a_destination_notifies_and_only_a_verified_phone_verifies_itself(): void
+    /**
+     * VERIF-594 B-1 — rien n'est vérifié d'office, pas même le numéro du téléphone vérifié du compte :
+     * ce téléphone se change en libre-service.
+     */
+    public function test_adding_a_destination_notifies_and_nothing_verifies_itself(): void
     {
         Notification::fake();
         $holder = User::factory()->create(['phone' => '+221771234567', 'phone_verified_at' => now()]);
         Sanctum::actingAs($holder);
 
         $this->postJson('/api/me/payout-methods', ['kind' => 'orange_money', 'account_identifier' => self::NUMBER])
-            ->assertCreated()->assertJsonPath('data.verified', true);
+            ->assertCreated()->assertJsonPath('data.verified', false);
         $this->postJson('/api/me/payout-methods', ['kind' => 'wave', 'account_identifier' => '+221 70 999 88 77'])
             ->assertCreated()->assertJsonPath('data.verified', false);
         Notification::assertSentToTimes($holder, CodedNotification::class, 2);
-
-        $unverifiedPhone = User::factory()->create(['phone' => '+221771234567', 'phone_verified_at' => null]);
-        Sanctum::actingAs($unverifiedPhone);
-        $this->postJson('/api/me/payout-methods', ['kind' => 'wave', 'account_identifier' => self::NUMBER])
-            ->assertCreated()->assertJsonPath('data.verified', false);
     }
 
     public function test_nobody_but_the_holder_modifies_and_nobody_verifies_its_own(): void
