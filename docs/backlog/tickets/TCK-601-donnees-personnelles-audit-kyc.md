@@ -621,3 +621,15 @@ Et autour :
 - Tests : `OwnerProfileSensitiveDataTest` 7/7 (+ `OwnerProfileListingTest` 5/5, comptabilité et export
   74/74). Ablations (`scratchpad/t601/ablations.log`) : `$hidden` retiré → 2 rouges ; Resource
   retirée → rouge ; policy à `true` → rouge ; cast retiré → 2 rouges ; `makeVisible` retiré → rouge.
+
+### A2 — identifiants légaux de la demande de passage
+
+- Migration `2026_10_08_601200` : `ninea`/`rib_pro` en `text` chiffré, puis `metadata #- '{legal_info,rib_pro}'`
+  (le `?` jsonb est évité : PDO le prend pour un paramètre). `down()` : déchiffre, `string`, recopie
+  `rib_pro` de la dernière demande `approved` (aller-retour testé).
+- `AgencyKindFlipService::LEGAL_FIELDS` perd `rib_pro` ; `AgencyResource` rend `metadata` sans
+  `legal_info.rib_pro` (`Arr::except`). 594 garde `rib_pro` dans sa liste : le second à fusionner le retire.
+- Tests : `AgencyUpgradeRequestEncryptionTest` 5/5 (+ `AgencyKindFlip`/`Submission`/`UpgradeRequest` 29/29).
+  Ablations : cast retiré → 2 rouges ; `rib_pro` remis au flip → rouge ; `Arr::except` retiré → rouge ;
+  journalisation du `show` retirée → rouge.
+

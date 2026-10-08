@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class AgencyResource extends BaseResource
 {
@@ -32,7 +33,9 @@ class AgencyResource extends BaseResource
             // the agency-standard welcome modale) and `legal_info.*` (legal
             // fields backfilled at upgrade approval). Exposed verbatim so the
             // frontend hook can detect both without a dedicated endpoint.
-            'metadata' => $this->metadata ?? null,
+            // TCK-601 — jamais `legal_info.rib_pro` : la migration l'a retiré et le flip ne le
+            // recopie plus ; ceci couvre une donnée qui lui serait antérieure.
+            'metadata' => $this->metadata !== null ? Arr::except($this->metadata, 'legal_info.rib_pro') : null,
             'moderation_required' => (bool) ($this->moderation_required ?? false),
             'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->iso($this->created_at),

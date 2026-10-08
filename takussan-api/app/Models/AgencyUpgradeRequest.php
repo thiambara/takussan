@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Services\Kyc\SharedLegalIdentifierDetector;
 use Database\Factories\AgencyUpgradeRequestFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -59,7 +60,15 @@ class AgencyUpgradeRequest extends AbstractModel
         'review_comment',
     ];
 
+    /**
+     * TCK-601 (ADR-0044 §1) — `ninea` et `rib_pro` sont chiffrés (colonnes `text`). Ils restent
+     * rendus en clair par `AgencyUpgradeRequestResource` à leurs seuls lecteurs (admin de l'agence,
+     * super-admin) ; une colonne chiffrée ne se compare pas en SQL — la détection des identifiants
+     * partagés compare en PHP ({@see SharedLegalIdentifierDetector}).
+     */
     protected $casts = [
+        'ninea' => 'encrypted',
+        'rib_pro' => 'encrypted',
         'status' => AgencyUpgradeRequestStatus::class,
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
