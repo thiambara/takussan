@@ -32,9 +32,15 @@ class TaskPolicy extends BasePolicy
         if (! $model instanceof Task) {
             return false;
         }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        // verif-591 passe 2 (N1) — un parent introuvable n'est pas un parent « hors agence ».
+        if ($model->parentIsMissing()) {
+            return false;
+        }
 
-        return $user->isSuperAdmin()
-            || ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model))
+        return ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model))
             || ($model->assigned_to_id === $user->id && $this->isStaffOfParent($user, $model))
             || $this->coversAssignee($user, $model);
     }
@@ -68,7 +74,7 @@ class TaskPolicy extends BasePolicy
      */
     private function coversAssignee(User $user, Task $task): bool
     {
-        $agencyId = $task->taskable?->getAttribute('agency_id');
+        $agencyId = $task->parentAgencyId();
 
         return $task->assigned_to_id !== null
             && $agencyId !== null
@@ -90,9 +96,12 @@ class TaskPolicy extends BasePolicy
         if (! $model instanceof Task) {
             return false;
         }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
 
-        return $user->isSuperAdmin()
-            || ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model));
+        return ! $model->parentIsMissing()
+            && $model->created_by_id === $user->id && $this->isMemberOfParent($user, $model);
     }
 
     /**

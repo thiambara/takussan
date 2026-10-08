@@ -8,8 +8,10 @@ use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Support\LogOptions;
@@ -104,9 +106,42 @@ class Task extends AbstractModel
     /** L'agence du parent (client ou bien) : c'est elle qui dit à quelle équipe la tâche appartient. */
     public function parentAgencyId(): ?int
     {
-        $agencyId = $this->taskable?->getAttribute('agency_id');
+        $agencyId = $this->parentRecord()?->getAttribute('agency_id');
 
         return $agencyId !== null ? (int) $agencyId : null;
+    }
+
+    /**
+     * TCK-591 (verif-591 passe 2, N1) — un parent attendu (`taskable_type` posé) qu'on ne retrouve
+     * plus, même parmi les supprimés. `TaskPolicy` en fait un refus, jamais un « hors agence ».
+     */
+    public function parentIsMissing(): bool
+    {
+        return $this->taskable_type !== null && $this->parentRecord() === null;
+    }
+
+    /**
+     * Le parent, supprimés compris. `taskable` (`morphTo`) ne voit pas un client ou un bien supprimé :
+     * son agence valait `null`, et la règle « parent hors agence » rendait la tâche à l'agent retiré.
+     */
+    private function parentRecord(): ?Model
+    {
+        if ($this->taskable_type === null || $this->taskable_id === null) {
+            return null;
+        }
+
+        /** @var class-string<Model> $class */
+        $class = Relation::getMorphedModel($this->taskable_type) ?? $this->taskable_type;
+        if (! class_exists($class)) {
+            return null;
+        }
+
+        $query = $class::query();
+        if (in_array(SoftDeletes::class, class_uses_recursive($class), true)) {
+            $query->withTrashed();
+        }
+
+        return $query->find($this->taskable_id);
     }
 
     /**

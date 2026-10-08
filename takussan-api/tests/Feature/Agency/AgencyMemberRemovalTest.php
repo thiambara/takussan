@@ -199,6 +199,49 @@ class AgencyMemberRemovalTest extends ApiTestCase
         $this->assertSame(0, CalendarFeed::query()->where('user_id', $agent->id)->whereNull('revoked_at')->count());
     }
 
+    /**
+     * verif-591 passe 2 (N1) — supprimer le client parent ne rend pas la tâche à l'agent retiré : le
+     * parent se lit supprimés compris. `morphTo` ne le voyait plus, son agence valait `null`, et la
+     * règle « parent hors agence » rouvrait lecture, écriture et suppression.
+     */
+    public function test_a_deleted_parent_does_not_give_the_task_back_to_the_removed_agent(): void
+    {
+        $agent = $this->member('agent');
+        $customer = Customer::factory()->create(['agency_id' => $this->agency->id]);
+        $assigned = Task::factory()->forCustomer($customer)->create(['assigned_to_id' => $agent->id, 'created_by_id' => $this->admin->id]);
+        $authored = Task::factory()->forCustomer($customer)->create(['assigned_to_id' => $this->admin->id, 'created_by_id' => $agent->id]);
+
+        $this->remove($this->admin, $agent, ['leave_unassigned' => true])->assertOk();
+        $customer->delete();
+        $agent = $agent->fresh();
+
+        foreach ([$assigned, $authored] as $task) {
+            $this->actingAsApi($agent)->apiGet("/api/tasks/{$task->id}")->assertForbidden();
+            $this->actingAsApi($agent)->apiPut("/api/tasks/{$task->id}", ['title' => 'réécrite'])->assertForbidden();
+            $this->assertNotSame('réécrite', $task->fresh()->title);
+        }
+        $this->actingAsApi($agent)->deleteJson("/api/tasks/{$authored->id}")->assertForbidden();
+        $this->assertNotNull($authored->fresh());
+
+        // Le personnel de l'agence garde la tâche d'un client supprimé (corbeille) : seul le retiré la perd.
+        $this->actingAsApi($this->admin)->apiGet("/api/tasks/{$assigned->id}")->assertOk();
+    }
+
+    /** verif-591 passe 2 (N1) — un parent effacé pour de bon est introuvable : refus, jamais « hors agence ». */
+    public function test_a_task_whose_parent_is_gone_is_refused(): void
+    {
+        $agent = $this->member('agent');
+        $customer = Customer::factory()->create(['agency_id' => $this->agency->id]);
+        $task = Task::factory()->forCustomer($customer)->create(['assigned_to_id' => $agent->id, 'created_by_id' => $agent->id]);
+        $this->actingAsApi($agent)->apiGet("/api/tasks/{$task->id}")->assertOk();
+
+        $customer->forceDelete();
+
+        $this->actingAsApi($agent)->apiGet("/api/tasks/{$task->id}")->assertForbidden();
+        $this->actingAsApi($agent)->apiPut("/api/tasks/{$task->id}", ['title' => 'réécrite'])->assertForbidden();
+        $this->actingAsApi($agent)->deleteJson("/api/tasks/{$task->id}")->assertForbidden();
+    }
+
     /** ADR-0034 §2 — le prestataire garde son lien hors agence ; un lien hors agence d'un autre compte n'est pas servi. */
     public function test_only_a_provider_is_served_an_agencyless_feed(): void
     {
