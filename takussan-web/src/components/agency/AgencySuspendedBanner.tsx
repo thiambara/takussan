@@ -15,7 +15,7 @@ export function AgencySuspendedBanner() {
     <div
       role="status"
       data-testid="agency-suspended-banner"
-      className="flex items-start gap-2 bg-destructive px-4 py-2 text-sm text-destructive-foreground"
+      className="flex items-start gap-2 bg-destructive/10 px-4 py-2 text-sm text-destructive"
     >
       <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <p className="text-pretty">

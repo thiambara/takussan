@@ -27,9 +27,10 @@
  *      racine des contrôleurs, sans le mot `Auth` dans son namespace. La liste des
  *      contrôleurs est DÉRIVÉE des `use` du fichier, jamais recopiée.
  *
- *      Une seule exception, nommée et motivée dans `HORS_AUTH` : la suppression de
- *      compte est servie par `Api\UserAdminController`, qui n'est pas un contrôleur
- *      d'authentification et n'a aucune raison de déménager pour une route.
+ *      Les exceptions sont nommées et motivées dans `HORS_AUTH`. Il n'en reste aucune
+ *      depuis TCK-600 : `DELETE api/auth/account` (servie par `Api\UserAdminController`,
+ *      effacement immédiat de son propre compte) a été retirée — l'effacement passe par
+ *      `AccountDeletionService` et son délai de grâce.
  *
  *   C. NON-VACUITÉ, sur les deux bouts. Si `routes/api/auth.php` disparaît, si aucun
  *      `use` n'y est reconnu, ou si `Api/Auth/` compte moins de MINIMUM_CONTROLEURS
@@ -64,13 +65,7 @@ const NAMESPACE_RETENU = 'App\\Http\\Controllers\\Api\\Auth';
  * Contrôleurs câblés par `routes/api/auth.php` qui ne SONT PAS des contrôleurs
  * d'authentification. Chacun se justifie, sinon il n'est pas ici.
  */
-const HORS_AUTH = new Map([
-  [
-    'App\\Http\\Controllers\\Api\\UserAdminController',
-    'sert DELETE api/auth/account (suppression de son propre compte) — c\'est du cycle de vie ' +
-      'utilisateur, pas de l\'authentification. Une route ne déplace pas un contrôleur.',
-  ],
-]);
+const HORS_AUTH = new Map([]);
 
 /** Mesuré au 2026-08-17 : 13 contrôleurs sous Api/Auth/. Plancher bas exprès. */
 const MINIMUM_CONTROLEURS = 8;
