@@ -800,3 +800,19 @@ Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598
   dans `platformReserved()`.
 - **TCK-600** (en cours) touche `AccountDeletionService` et `routes/console.php`, mais ni
   `SystemMetricsController` ni `PlatformReportingService`.
+
+### Lot 1 — calculs justes, accès d'agence, aiguillage, client (`6b5c0a7b`)
+
+- `PortfolioMetrics` fait une requête par série (`generate_series` sur les jours, `DISTINCT (bien, jour)`).
+  PostgreSQL ignore les `NULL` dans `LEAST`/`GREATEST`, et `LEAST(end_date, terminated_at::date, fin)`
+  donne donc la fin effective sans `COALESCE`. La fin est **incluse** : c'est ce qu'exige AC1, avril vaut
+  77,78 avec dix jours de L3.
+- **Décision à confirmer** : `commission_month` garde un bail `terminated` (ADR-0049 §5).
+  `AgencyStatsTest::test_commission_month_excludes_unsigned_leases_and_keeps_terminated_ones` acte le
+  changement : l'ancienne règle retirait la commission du mois de signature.
+- `GET /api/dashboard/me` ne rend plus jamais 404. La clé `errors.dashboard.profile_unresolved`, sans
+  lecteur, est retirée des trois langues.
+- `AgencyPolicy::viewReports` exige aussi que le profil actif soit dans l'agence (contrat TCK-146, comme
+  `update`). Un admin de X agissant sous son profil Y ne lit donc pas X.
+- Ablations rejouées (`scratchpad/vague73/t595/ablations.log`) : chaque test d'AC1 à AC5, AC7, AC8,
+  AC16, AC16 bis, AC17 bis et H-2 rougit sur le code d'origine ou sur sa mutation ciblée.
