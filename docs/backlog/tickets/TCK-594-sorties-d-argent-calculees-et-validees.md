@@ -529,6 +529,8 @@ rend **403** avec une clé i18n, jamais une phrase.
 ### 8. Ajoutés après vérification adverse (VERIF-594, 2026-10-08)
 
 - [x] **B-1** — la vérification d'office disparaît : toute destination attend un membre de l'agence.
+- [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
+  refuse toute sortie de `completed`.
 
 ### Front (intentionnel)
 
@@ -694,6 +696,11 @@ rend **403** avec une clé i18n, jamais une phrase.
   marquage payé vers elle rend 422 `payout.unverified_destination` tant qu'aucun membre de l'agence
   ne l'a vérifiée, puis 200.
   **Preuve** : `PayoutBypassTest::test_b1_a_destination_equal_to_a_freshly_verified_phone_is_not_verified` (rouge sur 9923b16c) ; `PayoutMethodTest::test_adding_a_destination_notifies_and_nothing_verifies_itself`. Ablation V-B1 : rouge.
+- [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
+  chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
+  le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
+  `→ cancelled` lève `payout.status_transition_invalid`.
+  **Preuve** : `PayoutBypassTest::test_m5_a_stale_mark_failed_or_cancel_does_not_undo_a_payment`, `test_m5_the_model_refuses_to_leave_completed` (rouges sur 9923b16c). Ablations V-M5a, V-M5b : rouges.
 
 ## Hors périmètre
 
@@ -951,3 +958,9 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   téléphone du compte se change et se revérifie en libre-service (`send-otp` remet
   `phone_verified_at` à `null` et envoie l'OTP au **nouveau** numéro), sans date ni avis. Le test du
   « seul un téléphone vérifié se vérifie » devient « rien ne se vérifie seul ».
+- **M-5 — `mark-failed` et `cancel` sans verrou.** Les deux relisent la ligne sous `lockForUpdate()`
+  dans leur transaction et y jugent le statut, comme `markProcessed`. `Payout::booted` refuse toute
+  transition depuis `completed` (avant : seule la réouverture vers un état ouvert l'était). Le test
+  rejoue la course de `conc/race.sh` (course 3) sans second processus : le modèle chargé avant le
+  paiement est exactement ce que voyait le processus perdant. V-M5b seule laisse le premier test vert
+  — le verrou suffit à ce chemin — et rougit le second : deux gardes, chacune prouvée.

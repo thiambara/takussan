@@ -95,14 +95,10 @@ class Payout extends AbstractModel
                 return;
             }
 
-            // A completed payout cannot revert to pending/scheduled/processing.
-            $open = [
-                PayoutStatus::AwaitingApproval,
-                PayoutStatus::Pending,
-                PayoutStatus::Scheduled,
-                PayoutStatus::Processing,
-            ];
-            if ($originalEnum === PayoutStatus::Completed && in_array($newEnum, $open, true)) {
+            // VERIF-594 M-5 — on ne sort JAMAIS de `completed` : ni vers un état ouvert, ni vers
+            // `failed` ou `cancelled`, qui détacheraient les pièces d'un argent déjà parti. C'est la
+            // garde de dernier recours, quel que soit le chemin d'écriture.
+            if ($originalEnum === PayoutStatus::Completed && $newEnum !== PayoutStatus::Completed) {
                 abort_code(422, 'payout.status_transition_invalid', [
                     'from' => $originalEnum->value,
                     'to' => $newEnum->value,

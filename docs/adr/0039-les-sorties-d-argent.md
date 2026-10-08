@@ -110,7 +110,10 @@ deux agences ne font pas deux personnes.
   (`agency_payout_threshold_changed`). L'approbation est un état (`awaiting_approval`) que
   `mark-processed` et `mark-failed` refusent ; elle ne se rejoue pas (elle n'est permise que depuis
   cet état) ; le net approuvé est figé dans `metadata.approved_net_amount` et un paiement dont le net
-  a changé depuis est refusé.
+  a changé depuis est refusé. Les trois gestes qui suivent la préparation (`approve`,
+  `mark-processed`, `mark-failed`, et `cancel`) jugent le statut sur la ligne **verrouillée**
+  (VERIF-594 M-5), et **on ne sort jamais de `completed`** : le modèle refuse toute transition depuis
+  cet état, `failed` et `cancelled` compris, puisqu'elles détacheraient les pièces d'un argent parti.
 - **Chaîne plateforme → agence** : approbation **toujours** exigée, sans seuil. `closed_by_id`,
   `approved_by`, `paid_by_id` sont des colonnes ; `payment_reference` est obligatoire au paiement.
   Un second super-admin doit être coopté (`SuperAdminCooptationService`) avant la mise en service.

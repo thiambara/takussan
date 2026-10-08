@@ -276,22 +276,28 @@ class PayoutService
      */
     public function markFailed(Payout $payout, array $data): Payout
     {
-        abort_code_if($payout->status === PayoutStatus::AwaitingApproval, 422, 'payout.awaiting_approval');
-        abort_code_if(
-            in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
-            422,
-            'payout.cannot_fail',
-        );
-
         $reason = isset($data['failed_reason']) ? trim((string) $data['failed_reason']) : '';
-        abort_code_if($reason === '', 422, 'payout.failure_reason_required');
 
+        // VERIF-594 M-5 — le statut se juge sur la ligne VERROUILLÉE, comme `markProcessed` : jugé
+        // sur le modèle lié, un échec concurrent d'un paiement écrasait `completed` et détachait les
+        // pièces, qui redevenaient reversables (double paiement).
         DB::transaction(function () use ($payout, $reason): void {
-            $payout->update([
+            /** @var Payout $locked */
+            $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+
+            abort_code_if($locked->status === PayoutStatus::AwaitingApproval, 422, 'payout.awaiting_approval');
+            abort_code_if(
+                in_array($locked->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
+                422,
+                'payout.cannot_fail',
+            );
+            abort_code_if($reason === '', 422, 'payout.failure_reason_required');
+
+            $locked->update([
                 'status' => PayoutStatus::Failed,
                 'failed_reason' => $reason,
             ]);
-            $this->detachItems($payout);
+            $this->detachItems($locked);
         });
 
         $payout->refresh();
@@ -302,15 +308,19 @@ class PayoutService
 
     public function cancel(Payout $payout): Payout
     {
-        abort_code_if(
-            in_array($payout->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
-            422,
-            'payout.cannot_cancel'
-        );
-
+        // VERIF-594 M-5 — jugé sous verrou, comme `markFailed`.
         DB::transaction(function () use ($payout): void {
-            $payout->update(['status' => PayoutStatus::Cancelled]);
-            $this->detachItems($payout);
+            /** @var Payout $locked */
+            $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+
+            abort_code_if(
+                in_array($locked->status, [PayoutStatus::Completed, PayoutStatus::Cancelled], true),
+                422,
+                'payout.cannot_cancel'
+            );
+
+            $locked->update(['status' => PayoutStatus::Cancelled]);
+            $this->detachItems($locked);
         });
 
         return $payout->refresh();
