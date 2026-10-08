@@ -390,6 +390,11 @@ return [
     'role' => [
         'super_admin_grant_forbidden' => 'Only a super admin can grant the super_admin role.',
     ],
+    // TCK-599 — l'alerte de recherche sans compte.
+    'search_alert' => [
+        'invalid_token' => 'This confirmation link is no longer valid.',
+        'invalid_code' => 'Incorrect or expired code.',
+    ],
     'segregation' => [
         'approve' => 'You prepared this payout, or you are its payee: another member must approve it.',
         'pay' => 'You approved this payout, or you are its payee: another member must mark it paid.',

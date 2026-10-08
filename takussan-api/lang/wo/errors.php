@@ -390,6 +390,11 @@ return [
     'role' => [
         'super_admin_grant_forbidden' => 'Super admin rekk mën na jox super_admin.',
     ],
+    // TCK-599 — l'alerte de recherche sans compte.
+    'search_alert' => [
+        'invalid_token' => 'Lënk bii dëggëlu bi amatul solo.',
+        'invalid_code' => 'Kood bi baaxul walla jeex na.',
+    ],
     'segregation' => [
         'approve' => 'Yaa waajal bii reversement, walla yaa koy jot : beneen membre war na ko nangu.',
         'pay' => 'Yaa nangu bii reversement, walla yaa koy jot : beneen membre war na ko màrke ni dañu ko fey.',

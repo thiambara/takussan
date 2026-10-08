@@ -2,87 +2,66 @@
 
 namespace App\Jobs;
 
-use App\Models\Enums\NotificationType;
 use App\Models\SavedSearch;
-use App\Services\Model\NotificationService;
+use App\Notifications\SavedSearchMatchesNotification;
 use App\Services\Model\SearchService;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
  * Alertes quotidiennes des recherches sauvegardées (`routes/console.php`, 09:00).
  *
- * ## TCK-350 — la décision, et ce qu'elle laisse dehors
+ * ## TCK-599 (ADR-0050) — ce que l'alerte rend
  *
- * Ce job renotifiait les mêmes biens tous les jours, indéfiniment. La borne
- * temporelle était calculée ici puis JETÉE : elle était posée dans une variable
- * locale `$criteria` que `getMatchingProperties()` ne lisait pas — le service
- * relisait `criteria` depuis le modèle. Et `search()` n'aurait de toute façon
- * pas connu la clé. *Le sujet de la notification annonçait une nouveauté que le
- * calcul n'avait jamais vérifiée.*
+ * Les biens que `/properties` aurait rendus pour ces critères, par le MÊME moteur
+ * (`PropertySearchService::alertMatches()`), sans repli, publiés dans la fenêtre
+ * `]last_notified_at, maintenant − 10 min]` : la marge couvre le délai d'indexation — un bien
+ * publié dans les dix dernières minutes attend le passage suivant au lieu d'être perdu ou
+ * renvoyé. La borne haute devient `last_notified_at`.
  *
- * **L'option retenue : la borne est un ARGUMENT de méthode, jamais une clé de
- * `criteria`.** `getMatchingProperties($search, $borne)` la reçoit, et
- * `SearchService::search()` l'applique en SQL (`published_at > …`).
+ * Deux destinataires : le compte, et l'abonné sans compte CONFIRMÉ (une demande non confirmée
+ * n'est jamais servie). L'envoi passe par `SavedSearchMatchesNotification`, plus par
+ * `NotificationService::notify()` : l'alerte obéit à `saved_search_match`, plus à
+ * `threshold_alert`, et ce job n'écrit plus aucune prose.
  *
- * Ce que cette forme fait tomber, et pourquoi les deux autres options ont été
- * écartées :
+ * ## TCK-350 — la borne est un ARGUMENT, jamais une clé de `criteria`
  *
- *  - **Injecter `published_after` dans `criteria`** mélangerait un critère
- *    d'utilisateur et un état d'envoi dans la même structure. L'objection porte
- *    sur la PERSISTANCE : `SearchService::saveSearch()` recopie *tout* le
- *    tableau qu'on lui passe dans la colonne. Un argument de méthode ne s'écrit
- *    dans aucune colonne, donc la migration future des `criteria` vers le
- *    vocabulaire de `/search` (ADR-0023) n'aura aucune clé à démêler.
- *  - **Filtrer après coup, ici, sur la collection rendue** paginerait puis
- *    jetterait : une recherche large peut ne rendre que des biens déjà notifiés
- *    dans sa première page et taire une nouveauté classée plus loin. Le filtre
- *    est donc DANS la requête.
- *  - **Une table de traçage** (`saved_search_notified_properties`) est le seul
- *    mécanisme qui tiendrait quand un bien est REPUBLIÉ, quand `published_at`
- *    est RÉTRODATÉ, ou quand la recherche est MODIFIÉE entre deux passages.
+ * La borne était calculée puis jetée dans un tableau local que le service ne lisait pas. Elle
+ * est passée en argument à `getMatchingProperties()`, filtrée DANS le moteur (filtrer après coup
+ * paginerait puis jetterait), et ne s'écrit dans aucune colonne.
  *
- * ### ⚠ Ces trois cas-là restent NON COUVERTS, et c'est assumé
+ * ### ⚠ Restent NON COUVERTS, et c'est assumé
  *
- * La raison n'est pas qu'ils sont improbables : c'est qu'aucun d'eux n'existe
- * comme geste produit aujourd'hui. Les instruire demanderait d'abord de décider
- * ce que « republier » veut dire, ce qu'aucun ticket ne tranche. *Une table de
- * traçage posée pour des cas qu'aucun geste ne produit encore est une décision
- * prise trop tôt, et qu'il faudra défaire.* Le jour où l'un de ces gestes
- * apparaît, c'est LUI qui portera l'ADR et la table, avec le cas réel sous les
- * yeux. Aucun ADR n'est requis pour la forme actuelle : ni table, ni colonne.
+ * Un bien REPUBLIÉ, un `published_at` RÉTRODATÉ, une recherche MODIFIÉE entre deux passages :
+ * aucun n'est un geste produit aujourd'hui. Une table de traçage posée pour eux serait une
+ * décision prise trop tôt ; le geste qui les fera exister portera l'ADR et la table.
  *
- * ## `notification_frequency` — les quatre valeurs, et celle qui ment
+ * ## `notification_frequency`
  *
- * La colonne était validée, persistée et exposée, mais AUCUN code d'envoi ne la
- * lisait : un utilisateur qui réglait son alerte sur `off` recevait quand même
- * une notification par jour. Elle est lue ici, dans `doitEnvoyer()` :
+ *  - `off`    → aucun envoi, et `last_notified_at` INCHANGÉ ;
+ *  - `daily`  → comportement nominal ;
+ *  - `weekly` → envoi seulement si la dernière alerte est nulle ou vieille de 7 jours ou plus.
  *
- *  - `off`     → aucun envoi, et `last_notified_at` INCHANGÉ ;
- *  - `daily`   → comportement nominal ;
- *  - `weekly`  → envoi seulement si la dernière alerte est nulle ou vieille de
- *                7 jours ou plus ;
- *  - `instant` → **traité comme `daily`, et c'est une limite, pas un choix.**
- *                Un envoi réellement instantané suppose un déclencheur à la
- *                publication du bien, pas une planification à 09:00. *Le rendre
- *                silencieusement synonyme de `daily` sans le dire serait la
- *                troisième façon pour ce job de mentir sur ce qu'il fait.*
+ * `instant` a été **retiré le 2026-10-06 par décision du porteur** (TCK-599) : il n'a jamais été
+ * instantané, et la migration `retire_instant_saved_search_frequency` l'a ramené à `daily`.
  *
  * ## ⚠ L'erreur d'UNE recherche ne doit pas tuer les suivantes — avec une réserve
  *
- * L'appel est enveloppé PAR RECHERCHE et l'échec journalisé avec l'`id`. Mais
- * sur PostgreSQL, **une erreur SQL abandonne la transaction entière**
- * (`SQLSTATE[25P02]`, cf. `CLAUDE.md`) : si ce job venait à tourner DANS une
- * transaction, le `try/catch` ci-dessous n'y changerait rien — toute requête
- * suivante échouerait à son tour, et les recherches d'après ne seraient pas
- * notifiées. Le `catch` protège des exceptions APPLICATIVES ; il ne répare pas
- * une transaction abandonnée. Le job est planifié hors transaction, et il doit
- * le rester. `SavedSearchAlertsTest` éprouve les deux cas.
+ * L'appel est enveloppé PAR RECHERCHE. Le journal ne porte que des identifiants et la forme sûre
+ * de l'exception (`SafeExceptionContext`, TCK-601) **sans** son `message` : toute exception de
+ * cette boucle peut citer le destinataire (refus SMTP, numéro WhatsApp, valeur liée d'une
+ * requête). Sur PostgreSQL, une erreur SQL abandonne la transaction entière (`SQLSTATE[25P02]`) :
+ * le `catch` protège des exceptions applicatives, il ne répare pas une transaction abandonnée. Le
+ * job est planifié hors transaction, et il doit le rester. `SavedSearchAlertsTest` éprouve les
+ * deux cas.
  */
 class SendSavedSearchAlerts implements ShouldQueue
 {
@@ -90,67 +69,57 @@ class SendSavedSearchAlerts implements ShouldQueue
 
     private const JOURS_PAR_SEMAINE = 7;
 
-    public function handle(SearchService $searchService, NotificationService $notifications): void
+    public function handle(SearchService $searchService): void
     {
-        SavedSearch::with('user')
+        SavedSearch::with(['user', 'alertSubscriber'])
             ->where('is_active', true)
-            ->whereNotNull('user_id')
-            ->each(function (SavedSearch $search) use ($searchService, $notifications): void {
+            ->where(fn (Builder $q) => $q
+                ->whereNotNull('user_id')
+                ->orWhereHas('alertSubscriber', fn (Builder $s) => $s->whereNotNull('confirmed_at')))
+            ->each(function (SavedSearch $search) use ($searchService): void {
                 try {
-                    $this->traiter($search, $searchService, $notifications);
+                    $this->traiter($search, $searchService);
                 } catch (Throwable $e) {
                     Log::error('saved_search_alert.failed', [
                         'saved_search_id' => $search->id,
-                        'exception' => $e::class,
-                        'message' => $e->getMessage(),
-                    ]);
+                        'alert_subscriber_id' => $search->alert_subscriber_id,
+                    ] + Arr::except(SafeExceptionContext::of($e), ['message']));
                 }
             });
     }
 
-    private function traiter(
-        SavedSearch $search,
-        SearchService $searchService,
-        NotificationService $notifications,
-    ): void {
-        if (! $this->doitEnvoyer($search)) {
+    private function traiter(SavedSearch $search, SearchService $searchService): void
+    {
+        $recipient = $search->recipient();
+        if ($recipient === null || ! $this->doitEnvoyer($search)) {
             return;
         }
 
-        // La borne est relevée AVANT la requête, et c'est délibéré : un bien
-        // publié pendant l'exécution serait sinon perdu POUR TOUJOURS — il
-        // tomberait entre la requête et l'écriture de `last_notified_at`. Le
-        // relever avant peut le renotifier une fois de plus ; le relever après
-        // peut le taire définitivement, ce qui est le défaut que ce ticket
-        // corrige.
-        $borne = now();
+        // La borne haute est relevée AVANT la requête, et en retrait du délai d'indexation : un
+        // bien publié pendant l'exécution, ou pas encore indexé, tombe dans la fenêtre suivante
+        // au lieu d'être perdu pour toujours.
+        $borne = now()->subMinutes((int) config('search_alerts.index_margin_minutes', 10));
 
-        $matches = $searchService->getMatchingProperties($search, $search->last_notified_at);
-
-        // ⚠ `last_notified_at` n'est PAS avancé quand rien n'est envoyé — ni
-        // ici, ni par les retours de `doitEnvoyer()`. Sinon la borne dériverait
-        // en silence à chaque passage muet, et une nouveauté publiée entre-temps
-        // deviendrait invisible pour toujours.
-        if ($matches->isEmpty()) {
-            return;
-        }
-
-        $notifications->notify(
-            $search->user,
-            NotificationType::System,
-            'Nouvelles propriétés correspondent à votre recherche',
-            $matches->count().' bien(s) correspondent à votre recherche « '.($search->name).' ».',
-            ['saved_search_id' => $search->id, 'count' => $matches->count()],
+        ['properties' => $properties, 'total' => $total] = $searchService->getMatchingProperties(
+            $search,
+            $search->last_notified_at,
+            $borne,
         );
+
+        // ⚠ `last_notified_at` n'avance PAS quand rien n'est envoyé : sinon la borne dériverait
+        // en silence à chaque passage muet.
+        if ($total === 0) {
+            return;
+        }
+
+        $recipient->notify(new SavedSearchMatchesNotification($search, $properties, $total));
 
         $search->update(['last_notified_at' => $borne]);
     }
 
     /**
-     * ⚠ `notification_frequency` peut être ABSENTE de la charge utile
-     * (`sometimes`, jamais `nullable` — TCK-330) ; la colonne est NOT NULL avec
-     * un défaut `daily`. Le défaut de LECTURE est donc `daily` lui aussi, aligné
-     * sur `SearchService::saveSearch()`.
+     * ⚠ `notification_frequency` peut être ABSENTE de la charge utile (`sometimes`, jamais
+     * `nullable` — TCK-330) ; la colonne est NOT NULL avec un défaut `daily`.
      */
     private function doitEnvoyer(SavedSearch $search): bool
     {
@@ -160,8 +129,10 @@ class SendSavedSearchAlerts implements ShouldQueue
             'off' => false,
             'weekly' => $search->last_notified_at === null
                 || $search->last_notified_at->lte(now()->subDays(self::JOURS_PAR_SEMAINE)),
-            // `daily` et `instant` — cf. la limite écrite dans le docblock.
-            default => true,
+            'daily' => true,
+            // Une valeur hors de `off|daily|weekly` ne passe plus la validation ; une ligne qui en
+            // porterait une encore n'envoie rien plutôt que de deviner.
+            default => false,
         };
     }
 }

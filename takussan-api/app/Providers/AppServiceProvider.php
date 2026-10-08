@@ -10,6 +10,7 @@ use App\Models\Address;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
+use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
@@ -358,6 +359,23 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+        // TCK-599 (ADR-0050 §4) — l'alerte sans compte : par VISITEUR, et par CONTACT visé (son
+        // empreinte, jamais le contact) — un script qui tourne ses adresses IP ne martèle pas une
+        // même boîte. Un 429 ne dit rien du contact : la borne vaut qu'il soit connu ou non.
+        RateLimiter::for('public-search-alert', function (Request $request) {
+            $limits = [Limit::perMinutes(10, 10)->by('visitor:'.$this->visitorRateLimitKey($request))];
+            $channel = $request->input('channel');
+            $contact = $channel === AlertSubscriber::CHANNEL_WHATSAPP ? $request->input('phone') : $request->input('email');
+            if (in_array($channel, AlertSubscriber::CHANNELS, true) && is_string($contact) && $contact !== '') {
+                try {
+                    $limits[] = Limit::perHour(5)->by('contact:'.AlertSubscriber::contactHash($channel, $contact));
+                } catch (\InvalidArgumentException) {
+                    // Numéro invalide : la validation le refusera, la borne par visiteur suffit.
+                }
+            }
+
+            return $limits;
+        });
         // TCK-590 — un clic WhatsApp / Appeler compté. Plus large que le contact (un visiteur
         // hésite et reclique), assez étroit pour qu'un script ne gonfle pas les compteurs.
         RateLimiter::for('public-contact-click', fn (Request $request) => Limit::perMinutes(10, 20)->by($this->visitorRateLimitKey($request)));

@@ -210,6 +210,12 @@ class WhatsappChannel
         array $context,
         WhatsappResult $whatsappResult,
     ): array {
+        // TCK-599 (ADR-0050, décision de session 3) — une notification peut refuser le repli : une
+        // alerte de recherche ne part jamais par SMS (coût), même quand WhatsApp échoue.
+        if (method_exists($notification, 'smsFallbackAllowed') && ! $notification->smsFallbackAllowed()) {
+            return ['whatsapp' => $whatsappResult];
+        }
+
         $body = $notification instanceof SupportsSms
             ? $notification->toSms($notifiable)
             : $notification->toWhatsapp($notifiable);
@@ -286,7 +292,9 @@ class WhatsappChannel
 
     private function withinRateLimit(object $notifiable, string $phone): bool
     {
-        $userId = method_exists($notifiable, 'getKey') ? $notifiable->getKey() : null;
+        // TCK-599 — la clé `user:{id}` n'est celle que d'un `User` : un abonné sans compte est aussi un
+        // modèle, et son identifiant aurait partagé le compteur de l'utilisateur de même numéro.
+        $userId = $notifiable instanceof User ? $notifiable->getKey() : null;
         $key = $userId
             ? "whatsapp-channel:user:{$userId}"
             : 'whatsapp-channel:phone:'.PhoneNumber::normalize($phone);

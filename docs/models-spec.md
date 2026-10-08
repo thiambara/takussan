@@ -228,6 +228,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Données personnelles (TCK-601)
 79. [PrivacyRequest](#79-privacyrequest-) ✅
 
+#### Alertes de recherche (TCK-599)
+80. [AlertSubscriber](#80-alertsubscriber-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -991,11 +994,18 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 | id | bigint PK | | auto | Identifiant unique |
 | user_id | FK users | | | Utilisateur |
 | property_id | FK properties | | | Bien sauvegardé |
-| notes | text | oui | null | Note personnelle de l'utilisateur |
+| notes | text | oui | null | Note personnelle de l'utilisateur (500 caractères, `PATCH /api/favorites/{property}` — TCK-599) |
+| alert_baseline_price | decimal(14,2) | oui | null | Prix de référence de l'alerte de baisse : posé à la mise en favori (`FavoriteObserver`), rebasé à chaque passage de `SendFavoriteChangeAlerts` (TCK-599 §5) |
+| unavailable_notified_at | timestamp | oui | null | Sortie du public déjà annoncée ; remise à `null` au retour au public (TCK-599 §5) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
 **Contrainte :** unique(user_id, property_id)
+
+**Disponibilité** (TCK-599, [ADR-0050](adr/0050-alertes-de-recherche-un-seul-moteur-et-des-abonnes-sans-compte.md)) :
+`Favorite::availabilityOf()` rend `available`, `rented`, `sold`, `unavailable` ou `removed`, jugée par
+`scopePublic()` (`withExists`), jamais par une copie de ses conditions. Seul un favori `available`
+porte la carte complète ; les autres une projection `{id, slug, title}`, `removed` aucune.
 
 **Relations :**
 - `user()` → belongsTo User
@@ -1222,10 +1232,11 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| user_id | FK users | | | Utilisateur |
+| user_id | FK users | oui | | Utilisateur — `null` pour une alerte sans compte (TCK-599) |
+| alert_subscriber_id | FK alert_subscribers | oui | null | Abonné sans compte (`saved_searches_alert_subscriber_fk`, `cascadeOnDelete`). CHECK `saved_searches_one_owner_chk` : exactement l'un des deux propriétaires (TCK-599) |
 | name | string | | | Nom donné à la recherche (ex: "3 pièces Dakar < 200k") |
-| criteria | jsonb | | | Critères de recherche (type, prix min/max, surface, localisation, etc.) |
-| notification_frequency | string | | 'daily' | Fréquence d'alerte (`instant`, `daily`, `weekly`, `off`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
+| criteria | jsonb | | | Critères dans le vocabulaire FERMÉ de `/properties` : `App\Support\SavedSearchCriteria::KEYS` (23 clés), toute autre clé → 422 (TCK-599) |
+| notification_frequency | string | | 'daily' | Fréquence d'alerte (`daily`, `weekly`, `off` — `instant` retiré par TCK-599, ramené à `daily`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
 | results_count | integer | | 0 | Nombre de résultats actuels (cache — mettre à jour via job planifié, pas à la volée) |
@@ -1235,6 +1246,9 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 
 **Relations :**
 - `user()` → belongsTo User
+- `alertSubscriber()` → belongsTo AlertSubscriber (TCK-599)
+
+`recipient()` rend le destinataire de l'alerte : l'utilisateur, ou l'abonné **confirmé**, sinon `null`.
 
 ---
 
@@ -3207,6 +3221,39 @@ en liste blanche (ni nom, ni contact, ni résumé). Preuve de réponse : média 
 **Relations :** `user()`, `handler()` → belongsTo User
 
 **Scopes :** `overdue()` — statut ouvert (`received`, `in_progress`) et `due_at` passé
+
+---
+
+### 80. AlertSubscriber 🆕
+
+**Table :** `alert_subscribers`
+**Description :** Le destinataire d'une alerte de recherche **sans compte** (TCK-599,
+[ADR-0050 §4](adr/0050-alertes-de-recherche-un-seul-moteur-et-des-abonnes-sans-compte.md)). Une ligne par demande,
+porteuse d'une `SavedSearch` ; rien ne part avant la confirmation (lien e-mail ou code WhatsApp), une
+demande non confirmée est purgée à 48 h (`search-alerts:purge-unconfirmed`), la désinscription efface
+toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contact est connu.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| channel | string(16) | | | `email`, `whatsapp` (ce dernier derrière `SEARCH_ALERTS_WHATSAPP_ENABLED`) |
+| contact | text | | | Adresse ou numéro E.164 normalisé, **chiffré** (cast `encrypted`) |
+| contact_hash | string(64) | | | HMAC (`app.key`) de `canal\|contact normalisé` — recherche, plafonds, rattachement |
+| locale | string(8) | | 'fr' | `fr`, `en`, `wo` |
+| confirmation_token_hash | string(64) | ✓ | null | sha256 du lien de confirmation (e-mail), unique ; effacé à la confirmation (usage unique) |
+| confirmation_sent_at | timestamp | ✓ | null | Envoi de la confirmation — au plus 2 par contact sur 24 h |
+| confirmed_at | timestamp | ✓ | null | Confirmation |
+| unsubscribe_token | text | | | Jeton de désinscription, chiffré (rejoué dans chaque envoi) |
+| unsubscribe_token_hash | string(64) | | | sha256 du jeton, unique — la recherche se fait par lui |
+| consent_at / consent_source / consent_version | timestamp / string(40) / string(40) | | | Preuve du consentement (`public_search_alert`, `search-alert-2026-10-08`) |
+| created_at / updated_at | timestamp | | | |
+
+**Index :** `(contact_hash, confirmed_at)` (`alert_subscribers_contact_idx`), `created_at` (`alert_subscribers_created_idx`)
+
+**Relations :** `savedSearches()` → hasMany SavedSearch
+
+**Rattachement :** `POST /api/saved-searches/claim` déplace vers le compte les recherches des abonnés
+**confirmés** dont le contact est l'e-mail ou le téléphone **vérifié** du compte, puis supprime les abonnés.
 
 ---
 
