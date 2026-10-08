@@ -1,13 +1,13 @@
 ---
 id: TCK-595
 title: "Tableaux de bord justes et pilotage : chaque acteur voit ses vrais chiffres, l'agence voit ses agents, ses commissions et ses impayés par ancienneté"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -770,4 +770,33 @@ Paiements de juillet :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure sur `origin/dev` `4da78b10` (2026-10-08), avant le code
+
+Rejouée par lecture de `chemin:ligne` après les fusions 586 à 594, 597 et 598. Ce qui a changé depuis
+`e3ab4a4e` :
+
+- **Encaissé, en partie fermé par TCK-594 (P4-5)** : `DashboardOwnerService`, `DashboardAgencyService`
+  et `SystemMetricsController` filtrent déjà `deposit_refund` par le scope
+  `LeasePayment::exceptDepositRefunds()`, qui est l'unique définition. Restent ouverts trois défauts :
+  le `deposit` compte toujours comme revenu, les `BookingPayment` sont absents, et les **impayés**
+  (owner, agency, tenant, `DashboardController`) ne filtrent toujours pas `deposit_refund` (H-2).
+  `AccountDeletionService:307-309` compte aussi une restitution en attente comme dette (H-2, ligne
+  modifiée par TCK-600).
+- **Prédicat de personnel** : TCK-587 est fusionné. `MembershipCapabilityResolver::isStaffAt()` et
+  `PersonnelDeLAgence::estPersonnel()` existent. Le grand livre et la validation d'`agent_id` les
+  lisent directement, sans la forme provisoire `isAgentAt || isAgencyAdminAt`.
+- **Visite « demandée »** : TCK-590 n'a créé aucun statut (`VisitStatus` : scheduled, confirmed,
+  completed, cancelled, no_show). `visits.to_confirm` prend donc le repli du ticket, une visite
+  `scheduled` à venir.
+- **`LeaseActivated`** n'est émis que par `LeaseService::activate()` (`:82`). TCK-596 (en cours)
+  doit continuer de l'émettre.
+- **Sans changement, et confirmés** : `leases.commission_amount` n'est écrit par aucun code
+  applicatif (`grep` : `Lease.php`, dashboards, `AgencyStatsController`, `PayoutService` ne le lit
+  pas sur le bail). `StoreLeaseRequest` ne valide que `commission_rate`. `accepted_at` n'est jamais
+  écrit (`PropertyCollaboratorController::store` ne pose qu'`invited_at`). `DashboardAgencyController`
+  admet `isAgentAt`. `members_count` compte agents et bailleurs. `DashboardRoleResolver` envoie tout
+  admin d'agence vers la vue agence et rend `null` sans `Customer`. `DashboardTenantService` lit
+  `->first()`. Les tuiles et la série de l'agent portent sur l'agence. `reports.view_global` est
+  dans `platformReserved()`.
+- **TCK-600** (en cours) touche `AccountDeletionService` et `routes/console.php`, mais ni
+  `SystemMetricsController` ni `PlatformReportingService`.
