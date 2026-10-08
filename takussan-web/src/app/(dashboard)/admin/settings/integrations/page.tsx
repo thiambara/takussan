@@ -1,7 +1,11 @@
 import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
-import { fetchIntegrationsAction } from '@/app/actions/admin-settings';
+import {
+  fetchIntegrationWebhookEndpointAction,
+  fetchIntegrationsAction,
+} from '@/app/actions/admin-settings';
+import { hasWebhookEndpoint } from '@/lib/schemas/setting';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { IntegrationsManager } from '@/components/admin-settings/IntegrationsManager';
 import { SettingsTabs } from '@/components/admin-settings/SettingsTabs';
@@ -17,6 +21,9 @@ import { getTranslations } from 'next-intl/server';
  * qu'`auth:sanctum` et `IntegrationController` laisse entrer un `agency_admin` sur SON agence.
  * Ce qui change, c'est que l'onglet « Général » n'est plus proposé à qui `/admin/settings`
  * rejetterait.
+ *
+ * TCK-293 — l'adresse de notification de chaque intégration de paiement est lue ici, en parallèle :
+ * la carte l'affiche sans aller-retour. Une lecture en échec n'empêche rien, la carte la relit.
  */
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +37,18 @@ export default async function Page() {
 
   const result = await fetchIntegrationsAction();
   const integrations = result.ok && result.data ? result.data.data : [];
+  const webhookUrls = Object.fromEntries(
+    (
+      await Promise.all(
+        integrations
+          .filter((integration) => hasWebhookEndpoint(integration.provider))
+          .map(async (integration) => {
+            const endpoint = await fetchIntegrationWebhookEndpointAction(integration.id);
+            return endpoint.ok && endpoint.data ? [[integration.id, endpoint.data.url] as const] : [];
+          }),
+      )
+    ).flat(),
+  );
 
   return (
     <div className="space-y-6">
@@ -43,7 +62,7 @@ export default async function Page() {
         /* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */
         <ErrorState message={t('loadError', { message: result.message })} />
       ) : (
-        <IntegrationsManager initialIntegrations={integrations} />
+        <IntegrationsManager initialIntegrations={integrations} initialWebhookUrls={webhookUrls} />
       )}
     </div>
   );

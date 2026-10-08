@@ -166,6 +166,7 @@ return [
         'user_required' => 'Indiquez l\'utilisateur à emprunter.',
     ],
     'integration' => [
+        'not_payment' => 'Seule une intégration de paiement a une adresse de notification.',
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les intégrations de votre agence.',
     ],
     'inventory' => [
@@ -297,6 +298,7 @@ return [
         'refund_amount_invalid' => 'Le montant remboursé doit être compris entre 0 et le montant du paiement.',
         'status_transition_invalid' => 'Ce changement de statut du paiement n\'est pas autorisé.',
         'type_unknown' => 'Type de paiement inconnu.',
+        'webhook_endpoint_missing' => 'L\'intégration de paiement n\'a pas d\'adresse de notification : régénérez-la.',
     ],
     'payout' => [
         'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',
@@ -462,6 +464,8 @@ return [
         'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',
     ],
     'webhook' => [
+        'endpoint_gone' => 'Cette adresse de notification n\'est plus en service : chaque intégration a désormais la sienne.',
+        'endpoint_unknown' => 'Adresse de notification inconnue.',
         'ip_allowlist_not_configured' => 'La liste des adresses autorisées n\'est pas configurée.',
         'ip_not_allowed' => 'Adresse d\'origine non autorisée.',
         'signature_invalid' => 'Signature invalide.',

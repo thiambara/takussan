@@ -450,7 +450,14 @@ webhooks SMS et WhatsApp seront simplement **muets** au premier déploiement, sa
 
 ---
 
-### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence 🔴 *mesuré le 2026-08-15* → [TCK-293](backlog/tickets/TCK-293-webhook-paiement-scope-agence.md)
+### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence ✅ *soldé côté dépôt le 2026-10-08* → [TCK-293](backlog/tickets/TCK-293-webhook-paiement-scope-agence.md)
+
+> **Soldé côté dépôt le 2026-10-08 par TCK-293**, arbitrage du porteur : une URL de webhook par
+> intégration ([ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)). Le jeton de l'URL
+> désigne l'intégration, son secret vérifie la signature, et le rapprochement ne sort pas de son
+> agence. `PaymentWebhookMultiTenantTest` n'est plus une sonde, c'est la garde. **Reste hors dépôt**
+> : chaque agence Wave colle sa nouvelle URL dans son portail, et l'ancienne URL rend 410 (section
+> « Au porteur » du ticket). Le récit d'origine suit, inchangé.
 
 > **ARBITRAGE DIFFÉRÉ, sciemment, le 2026-08-16.** Le constat est acté et ne bouge pas ; la
 > correction attend une décision qui n'est pas technique. La route `POST webhooks/payments/{provider}`

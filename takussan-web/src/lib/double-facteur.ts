@@ -72,3 +72,20 @@ export async function avecGardeDoubleFacteur<T>(
     }
   }
 }
+
+/**
+ * TCK-293 — la même chose pour une ACTION SERVEUR, qui ne lève pas d'`ApiError` mais rend un
+ * résultat `{ ok: false, code }`. Le refus de second facteur est confié à `garde`, puis l'action
+ * est rejouée ; deux passages au plus, comme {@link avecGardeDoubleFacteur}. Tout autre résultat
+ * revient tel quel.
+ */
+export async function avecGardeDoubleFacteurAction<R extends { ok: boolean; code?: CodeDoubleFacteur }>(
+  action: () => Promise<R>,
+  garde: GardeDoubleFacteurFn | null,
+): Promise<R> {
+  for (let passage = 0; ; passage++) {
+    const resultat = await action();
+    if (resultat.ok || !resultat.code || garde === null || passage >= 2) return resultat;
+    if (!(await garde(resultat.code))) return resultat;
+  }
+}
