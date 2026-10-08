@@ -2,8 +2,12 @@
 
 namespace App\Policies;
 
+use App\Models\Customer;
+use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Agency\AgentAvailability;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -17,18 +21,64 @@ use Illuminate\Database\Eloquent\Model;
 class TaskPolicy extends BasePolicy
 {
     /**
-     * Lire une tâche : super-admin, créateur, ou assigné. **Pas de clause d'agence** — une tâche
-     * est personnelle, et c'est la seule règle du lot qui ne regarde pas l'agence.
+     * Lire une tâche : super-admin, créateur, ou assigné.
+     *
+     * TCK-591 (verif-591 B1) — l'affectation ne vaut que tant qu'on est PERSONNEL de l'agence du
+     * parent (Contraintes 1 : « la quitter éteint ce qu'elle ouvrait »). Un agent retiré lisait,
+     * cochait et réécrivait les tâches de l'agence qui lui restaient assignées.
      */
     public function view(User $user, Model $model): bool
     {
         if (! $model instanceof Task) {
             return false;
         }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        // verif-591 passe 2 (N1) — un parent introuvable n'est pas un parent « hors agence ».
+        if ($model->parentIsMissing()) {
+            return false;
+        }
 
-        return $user->isSuperAdmin()
-            || $model->created_by_id === $user->id
-            || $model->assigned_to_id === $user->id;
+        return ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model))
+            || ($model->assigned_to_id === $user->id && $this->isStaffOfParent($user, $model))
+            || $this->coversAssignee($user, $model);
+    }
+
+    /**
+     * TCK-591 (verif-591 M1, décision de la session) — le créateur garde sa tâche tant qu'il est
+     * MEMBRE actif (de tout type) de l'agence du parent ; un parent hors agence garde son créateur.
+     * Après passation et retrait, le partant reprenait la tâche transmise, puis la supprimait.
+     */
+    private function isMemberOfParent(User $user, Task $task): bool
+    {
+        $agencyId = $task->parentAgencyId();
+
+        return $agencyId === null
+            || app(MembershipCapabilityResolver::class)->isMemberAt($user, $agencyId);
+    }
+
+    /** Personnel de l'agence du parent ; un parent hors agence n'a que des tâches qu'on s'est confiées. */
+    private function isStaffOfParent(User $user, Task $task): bool
+    {
+        $agencyId = $task->parentAgencyId();
+
+        return $agencyId === null
+            || app(MembershipCapabilityResolver::class)->isStaffAt($user, $agencyId);
+    }
+
+    /**
+     * TCK-591 (ADR-0035) — pendant une absence active, le remplaçant lit et met à jour (coche) les
+     * tâches assignées à l'absent dans l'agence de l'absence. Jamais la suppression : `delete` ne
+     * passe pas par ici.
+     */
+    private function coversAssignee(User $user, Task $task): bool
+    {
+        $agencyId = $task->parentAgencyId();
+
+        return $task->assigned_to_id !== null
+            && $agencyId !== null
+            && app(AgentAvailability::class)->covers($user, (int) $task->assigned_to_id, (int) $agencyId);
     }
 
     /** `TaskController` employait la même règle pour lire et pour écrire. */
@@ -38,13 +88,30 @@ class TaskPolicy extends BasePolicy
     }
 
     /**
-     * TCK-306 — reprise de `TaskController::authorizeTaskable()` : rattacher une tâche à un bien
-     * ou à un client.
+     * TCK-591 — supprimer une tâche est le geste de son CRÉATEUR (ou du super-admin). L'assigné
+     * garde `update` — cocher, commenter — mais n'efface plus la tâche qu'on lui a confiée.
+     */
+    public function delete(User $user, Model $model): bool
+    {
+        if (! $model instanceof Task) {
+            return false;
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return ! $model->parentIsMissing()
+            && $model->created_by_id === $user->id && $this->isMemberOfParent($user, $model);
+    }
+
+    /**
+     * Rattacher une tâche à un bien ou à un client — et, par `TaskController::taskable()`, en lire
+     * le libellé.
      *
-     * Les colonnes de propriété diffèrent selon le modèle — `Property` par `user_id`, `Customer`
-     * par `added_by_id` — d'où la lecture des deux via `getAttribute()`, une colonne absente
-     * valant `null` et étant simplement ignorée. Le commentaire d'origine le disait déjà ; il est
-     * conservé parce que c'est la seule chose qui rend cette méthode lisible.
+     * TCK-591 — la règle est celle du PARENT : voir le client (`CustomerPolicy::view`), modifier le
+     * bien (`PropertyPolicy::update`). Elle jugeait l'agence par `$user->agency_id`, l'agence du
+     * profil actif QUEL QU'IL SOIT : un bailleur rattachait une tâche à n'importe quel client de
+     * l'agence — et le libellé que la réponse porte aurait énuméré les noms du CRM.
      */
     public function attachTo(User $user, Model $parent): bool
     {
@@ -52,10 +119,10 @@ class TaskPolicy extends BasePolicy
             return true;
         }
 
-        $agencyId = $user->agency_id;
-
-        return ($agencyId && (int) ($parent->getAttribute('agency_id') ?? 0) === (int) $agencyId)
-            || $parent->getAttribute('added_by_id') === $user->id
-            || $parent->getAttribute('user_id') === $user->id;
+        return match (true) {
+            $parent instanceof Customer => $user->can('view', $parent),
+            $parent instanceof Property => $user->can('update', $parent),
+            default => false,
+        };
     }
 }

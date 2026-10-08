@@ -468,6 +468,13 @@ return [
                 'sms' => 'Takussan: quote rejected for ":request".',
             ],
         ],
+        'prospect_match' => [
+            'digest' => [
+                'title' => 'Properties match your prospects',
+                'body' => ':properties new or repriced property(ies) match :prospects of your prospects.',
+                'sms' => 'Takussan: :properties property(ies) match :prospects of your prospects.',
+            ],
+        ],
         'property' => [
             'approved' => [
                 'title' => 'Property approved: :property',

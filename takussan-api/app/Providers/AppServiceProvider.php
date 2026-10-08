@@ -354,6 +354,11 @@ class AppServiceProvider extends ServiceProvider
         // not collapsed once authenticated.
         RateLimiter::for('public-read', fn (Request $request) => Limit::perMinute(90)->by($this->visitorRateLimitKey($request)));
 
+        // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
+        // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
+        // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
+        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
         // account-creation spam, reset-email bombing, user enumeration and

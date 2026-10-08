@@ -34,7 +34,6 @@ final class CapabilityEnforcementInventory
         'agency.update_billing' => 'TCK-594',
         'bookings.refund' => 'TCK-596',
         'leases.sign' => 'TCK-596',
-        'team.remove' => 'TCK-591',
         'agency.update_kyc' => 'TCK-601',
         'properties.moderate' => 'réservée plateforme',
         'reports.view_global' => 'réservée plateforme',

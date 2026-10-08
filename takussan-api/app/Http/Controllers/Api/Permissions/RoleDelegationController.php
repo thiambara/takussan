@@ -27,6 +27,9 @@ class RoleDelegationController extends Controller
 
         $query = QueryBuilder::for(RoleDelegation::class)
             ->where('agency_id', $agency->id)
+            // TCK-591 (ADR-0035) — les absences vivent dans la même table, mais ne sont pas des
+            // délégations de rôle : cet écran ne saurait pas les nommer.
+            ->whereNull('replaces_user_id')
             ->allowedFilters(
                 AllowedFilter::exact('status'),
                 AllowedFilter::custom('user_id', new ExactIdentifierFilter),

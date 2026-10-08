@@ -198,6 +198,17 @@ class PropertyPolicy extends BasePolicy
     }
 
     /**
+     * TCK-591 §5 — les prospects qu'un bien intéresse sont un fichier de l'AGENCE : seul son
+     * personnel les voit, jamais le bailleur du bien (qui n'est pas son personnel).
+     *
+     * TCK-587 — l'appelant est PERSONNEL de l'agence du bien, celle de son profil actif.
+     */
+    public function matchProspects(User $user, Property $property): bool
+    {
+        return $this->isStaffOf($user, $property->agency_id);
+    }
+
+    /**
      * Duplicate requires update rights on the source property.
      */
     public function duplicate(User $user, Property $property): bool

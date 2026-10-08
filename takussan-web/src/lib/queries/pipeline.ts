@@ -19,6 +19,8 @@ export const PIPELINE_CARD_FIELDS = [
   'id',
   'first_name',
   'last_name',
+  // TCK-591 — « Appeler » / « WhatsApp » sur la carte.
+  'phone',
   'pipeline_stage',
   'updated_at',
   'created_at',
@@ -40,14 +42,19 @@ export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
   'lost',
 ];
 
+export const PIPELINE_COLUMN_PAGE_SIZE = 50;
+
 export interface FetchPipelineColumnParams {
   readonly stage: CustomerPipelineStage;
   readonly perPage?: number;
+  /** TCK-591 — « Charger plus » : la colonne s'arrêtait à ses 50 premières cartes, sans le dire. */
+  readonly page?: number;
 }
 
 export function buildPipelineColumnParams({
   stage,
-  perPage = 50,
+  perPage = PIPELINE_COLUMN_PAGE_SIZE,
+  page,
 }: FetchPipelineColumnParams): SpatieQueryParams {
   return {
     fields: {
@@ -58,6 +65,7 @@ export function buildPipelineColumnParams({
     include: ['addedBy', 'tasksCount'],
     sort: '-updated_at',
     per_page: perPage,
+    ...(page && page > 1 ? { page } : {}),
   };
 }
 
