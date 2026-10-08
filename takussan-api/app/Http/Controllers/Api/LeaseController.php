@@ -82,18 +82,28 @@ class LeaseController extends Controller
         $this->authorize('update', $lease);
 
         $data = $request->validated();
-        // VERIF-596 M2 (ADR-0042 §1) — un terme imprimé au contrat ne bouge plus une fois le bail
-        // signé : la pénalité exécutée doit rester celle que les parties ont lue. Avant la
-        // signature (brouillon, attente), la modification reste possible et défige le contrat.
-        abort_code_if(
-            ! in_array($lease->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true)
-                && array_intersect(array_keys($data), Lease::CONTRACT_PRINTED_TERMS) !== [],
-            422,
-            'lease.terms_locked'
-        );
-        if ($data !== []) {
-            $lease->fill($data)->save();
-        }
+        // VERIF-596 passe 3 (m-a) — le statut se juge sur la ligne VERROUILLÉE, et l'écriture
+        // s'applique à cette ligne : sur l'instance liée par la route, une seconde signature validée
+        // entre le contrôle et l'écriture laissait écrire les termes d'un bail devenu actif, et la
+        // garde du modèle (qui lit l'ancien statut) défigeait son contrat. Patron de
+        // `LeaseSignatureService::sign`.
+        $lease = DB::transaction(function () use ($lease, $data): Lease {
+            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            // VERIF-596 M2 (ADR-0042 §1) — un terme imprimé au contrat ne bouge plus une fois le bail
+            // signé : la pénalité exécutée doit rester celle que les parties ont lue. Avant la
+            // signature (brouillon, attente), la modification reste possible et défige le contrat.
+            abort_code_if(
+                ! in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true)
+                    && array_intersect(array_keys($data), Lease::CONTRACT_PRINTED_TERMS) !== [],
+                422,
+                'lease.terms_locked'
+            );
+            if ($data !== []) {
+                $locked->fill($data)->save();
+            }
+
+            return $locked;
+        });
 
         return $this->json([
             'data' => LeaseResource::make($lease->fresh())->toArray($request),

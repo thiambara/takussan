@@ -15,6 +15,7 @@ use App\Services\Lease\RentReviewService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
@@ -349,5 +350,43 @@ class LeaseContractTermsTest extends TestCase
         $this->assertSame(1, $child->fresh()->early_termination_penalty_months);
         $this->assertStringContainsString('1 mois de loyer au plus', $frozen);
         $this->assertStringContainsString('Variation de 5 % au plus', $frozen);
+    }
+
+    // ── VERIF-596 passe 3 (m-a) — un PATCH qui croise une activation se juge sous verrou ──────────
+
+    /**
+     * La seconde signature valide l'activation APRÈS la liaison de route (instance encore
+     * `pending_signature`) et AVANT le contrôle du statut : la policy est le dernier point entre les
+     * deux. Avant : le contrôle passait sur l'instance périmée, les termes s'écrivaient sur un bail
+     * actif, et la garde du modèle — lisant l'ancien statut — défigeait son contrat.
+     */
+    public function test_a_patch_racing_an_activation_is_judged_on_the_locked_row(): void
+    {
+        $this->setting(EarlyTerminationService::SETTING_KEY, 2);
+        $lease = $this->signableLease();
+        app(LeaseSignatureService::class)->request($lease, $lease->landlord);
+        $before = $lease->fresh();
+        $this->assertNotNull($before->contract_sha256);
+
+        $activated = false;
+        Gate::before(function ($user, string $ability, array $arguments) use ($lease, &$activated) {
+            if (! $activated && $ability === 'update' && ($arguments[0] ?? null) instanceof Lease) {
+                $activated = true;
+                Lease::query()->whereKey($lease->id)->update(['status' => LeaseStatus::Active->value, 'signed_at' => now()]);
+            }
+
+            return null;
+        });
+        Sanctum::actingAs($lease->landlord);
+
+        $this->patchJson("/api/leases/{$lease->id}", ['early_termination_penalty_months' => 6, 'late_fee_percent' => 40])
+            ->assertStatus(422)->assertJsonPath('code', 'lease.terms_locked');
+
+        $this->assertTrue($activated);
+        $after = $lease->fresh();
+        $this->assertSame(LeaseStatus::Active, $after->status);
+        $this->assertSame($before->contract_sha256, $after->contract_sha256);
+        $this->assertSame(2, $after->early_termination_penalty_months);
+        $this->assertEquals((float) $before->late_fee_percent, (float) $after->late_fee_percent);
     }
 }
