@@ -277,6 +277,8 @@ return [
         'code_invalid' => 'Code dëggal bi baaxul walla jeex na.',
         'missing' => 'Amuloo benn nimero telefon bu ñu bind.',
         'resend_too_soon' => 'Muñal balaa ngay laaj beneen code.',
+        'change_requires_proof' => 'Ngir soppi nimero bu ñu dëggal, wonal ci kanam ne yaa ko yor : code bi ñu yónne ci nimero boobu, walla sa baatu jàll.',
+        'no_verified_number' => 'Amul benn nimero bu ñu dëggal ci kont bii.',
     ],
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',

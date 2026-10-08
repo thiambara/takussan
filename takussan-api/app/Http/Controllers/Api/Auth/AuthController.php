@@ -10,6 +10,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\LoginLock;
+use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\TwoFactorService;
 use Illuminate\Auth\Events\Registered;
@@ -154,7 +155,7 @@ class AuthController extends Controller
         return $this->json(new UserResource($request->user()));
     }
 
-    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request, PhoneChangeGuard $phoneChange): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -167,6 +168,11 @@ class AuthController extends Controller
             // TCK-137 — changer le numéro réinitialise le statut de vérification.
             // Le contrôleur fait foi (pas de cast model) pour rester explicite.
             if ($user->phone !== $newPhone) {
+                // TCK-589 p3-1 — remplacer (ou retirer) un numéro VÉRIFIÉ exige une preuve
+                // sur le facteur en place ; rien n'est écrit sans elle.
+                if ($phoneChange->replacesVerified($user, $newPhone)) {
+                    $phoneChange->authorize($request, $user);
+                }
                 $data['phone'] = $newPhone;
                 $data['phone_verified_at'] = null;
             }

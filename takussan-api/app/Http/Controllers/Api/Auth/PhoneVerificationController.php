@@ -7,12 +7,17 @@ use App\Http\Requests\Auth\ResendPhoneVerificationRequest;
 use App\Http\Requests\Auth\VerifyPhoneVerificationRequest;
 use App\Models\User;
 use App\Services\Auth\AuthRefusal;
+use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PhoneVerificationController extends Controller
 {
-    public function __construct(private readonly PhoneVerificationService $service) {}
+    public function __construct(
+        private readonly PhoneVerificationService $service,
+        private readonly PhoneChangeGuard $phoneChange,
+    ) {}
 
     public function verify(VerifyPhoneVerificationRequest $request): JsonResponse
     {
@@ -56,6 +61,11 @@ class PhoneVerificationController extends Controller
             // chemin réel : sinon `GET /auth/me` relisait `phone: null` et trahissait le numéro
             // pris. La branche neutre est jugée plus bas, sur le numéro porté.
             if ($incoming !== null && $incoming !== $user->phone) {
+                // TCK-589 p3-1 — remplacer un numéro VÉRIFIÉ exige une preuve sur le facteur en
+                // place. Jugé avant la branche neutre : le refus ne dépend que de l'appelant.
+                if ($this->phoneChange->replacesVerified($user, $incoming)) {
+                    $this->phoneChange->authorize($request, $user);
+                }
                 $user->forceFill([
                     'phone' => $incoming,
                     'phone_verified_at' => null,
@@ -87,6 +97,26 @@ class PhoneVerificationController extends Controller
         // Le délai de renvoi est jugé plus haut : un `false` ici, c'est le plafond
         // journalier global (M3).
         if (! $this->service->sendOtp($user)) {
+            return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
+        }
+
+        return $this->json(['data' => ['sent' => true]]);
+    }
+
+    /**
+     * TCK-589 p3-1 — la preuve (a) : un code à l'ANCIEN numéro vérifié, avant de le remplacer.
+     * Même porte que tout code (indicatif, plafond global, délai de renvoi par portée).
+     */
+    public function changeCode(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_code_unless($user->phone_verified_at !== null && $user->phone !== null, 422, 'phone.no_verified_number');
+        abort_code_unless($this->service->canSendTo(PhoneChangeGuard::SCOPE, (string) $user->phone), 429, 'phone.resend_too_soon');
+
+        if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {
+            return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
+        }
+        if (! $this->phoneChange->sendCode($user)) {
             return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
         }
 

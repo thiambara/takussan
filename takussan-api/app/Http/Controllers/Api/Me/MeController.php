@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Me\UpdateMeRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\PhoneChangeGuard;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -22,7 +23,7 @@ use Illuminate\Http\JsonResponse;
  */
 class MeController extends Controller
 {
-    public function update(UpdateMeRequest $request): JsonResponse
+    public function update(UpdateMeRequest $request, PhoneChangeGuard $phoneChange): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -34,6 +35,10 @@ class MeController extends Controller
             // resets the verification status. Only touch `phone_verified_at`
             // if the value actually changed (avoids spurious resets).
             if ($user->phone !== $newPhone) {
+                // TCK-589 p3-1 — remplacer (ou retirer) un numéro VÉRIFIÉ exige une preuve.
+                if ($phoneChange->replacesVerified($user, $newPhone)) {
+                    $phoneChange->authorize($request, $user);
+                }
                 $user->phone = $newPhone;
                 $user->phone_verified_at = null;
             }

@@ -277,6 +277,8 @@ return [
         'code_invalid' => 'Invalid or expired verification code.',
         'missing' => 'No phone number is on file.',
         'resend_too_soon' => 'Please wait before requesting another code.',
+        'change_requires_proof' => 'To replace a verified number, first confirm you hold it: a code sent to that number, or your password.',
+        'no_verified_number' => 'No verified number is on file for this account.',
     ],
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',

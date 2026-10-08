@@ -1889,3 +1889,91 @@ suivant, mais jamais `inconnu@`. Le verrou énumérait de nouveau les adresses, 
 - Ablation C, leurre à 48 h : 1 rouge sur 2.
 - Les trois sont restaurées par `cp`, md5 `f0827d17…` identique.
 - Exécutions : `tests/Feature/Auth/Session` et `tests/Feature/Admin` donnent 51 verts.
+
+### Corrections après la passe 3 (verif-589, sur `bb27af99`, 2026-10-08)
+
+Verdict : **refusé**, 0 bloquant, 1 majeur. Les quatre points de la passe 2 sont fermés. Le majeur,
+p3-1, est une découverte. Il est traité en quatre sous-points, un commit chacun. Chaque test est
+rouge sur `bb27af99`, chaque ablation est restaurée par `cp` avec md5 identique.
+
+#### p3-1a — remplacer un numéro vérifié exige une preuve sur le facteur en place
+
+**Le défaut** (sonde `NeutralWriteP3ProbeTest::test_code_suppression_compte_sans_email`).
+- La seule session remplaçait le numéro vérifié d'un compte sans e-mail : `PUT /auth/profile`
+  vers N, puis `send-otp`, puis `verify-otp`.
+- Le code de suppression partait ensuite vers N, et la connexion par téléphone ouvrait le compte
+  par N. P n'en recevait aucun avis.
+- Un jeton volé devenait ainsi une entrée durable : un numéro vérifié qui survit à l'expiration
+  du jeton, à sa révocation et au changement de mot de passe.
+
+**Le correctif : `App\Services\Auth\PhoneChangeGuard`.**
+- **Les trois écrivains du numéro passent par lui** : `AuthController::updateProfile`,
+  `MeController::update` et `PhoneVerificationController::resend` (avec un numéro). Le relevé
+  est fait par `grep` des écritures de `phone` ; `AccountDeletionService` anonymise et n'est pas
+  concerné.
+- **`markVerified` n'est pas un quatrième chemin.** Ses appelants vérifient le numéro déjà porté
+  par le compte (`$user->phone`), un numéro trouvé par lui (connexion), ou celui d'un compte
+  **neuf** (invitation).
+- **Le juge, `replacesVerified`, reprend la condition exacte de l'écriture** : un numéro vérifié,
+  et `$user->phone !== $nouveau`. Un juge canonique aurait laissé une variante de forme lever la
+  vérification sans preuve. Le compte, devenu « sans numéro vérifié », aurait alors accepté
+  n'importe quel numéro. Retirer le numéro (`''`) est aussi un remplacement.
+- **Sans preuve** : 403 `phone.change_requires_proof` (clé fr/en/wo), rien n'est écrit et rien
+  ne part vers le nouveau numéro. Dans `resend`, le refus est jugé **avant** la branche neutre :
+  il ne dépend que de l'appelant et ne trahit donc rien du numéro visé.
+- **Les trois preuves** (`PROOF_RULES`, acceptées par les trois requêtes) :
+  - (a) `phone_change_code` : un code reçu sur l'**ancien** numéro par
+    `POST /auth/phone/change-code` (portée `phone-change`). La route passe la porte commune des
+    codes : indicatif, plafond global, délai de renvoi, `throttle:3,1` et `auth-phone-send`. Le
+    code est à usage unique et invalidé après 5 essais faux. Un compte sans numéro vérifié reçoit
+    422 `phone.no_verified_number`.
+  - (b) `current_password`, si le compte en a un (`hasUsablePassword`). Les échecs sont bornés à
+    5 par 15 min et par compte. Au-delà, même le bon mot de passe ne prouve plus rien. Sans
+    borne, la route serait un oracle du mot de passe pour tout porteur du jeton.
+  - (c) Un step-up TOTP de moins de 10 min sur le jeton courant
+    (`SessionTokenIssuer::stepUpValidUntil`).
+- Un compte **sans** numéro vérifié n'est pas concerné : son premier ajout reste libre.
+
+**Les tests, dans le nouveau `PhoneChangeProofTest` (8)** :
+- la séquence de la sonde rend 403 avec le code. P reste vérifié. `send-otp` rend 422
+  (`already_verified`), aucun SMS ne part vers N, et le code de suppression part vers P, et vers
+  P seul ;
+- les trois écrivains refusent (`send-otp` avec numéro, `PATCH /me`, retrait par `''`) ;
+- un code reçu sur l'ancien numéro vaut preuve, un code faux non ;
+- le code ne sert qu'une fois ;
+- le mot de passe vaut preuve, ses 5 échecs bloquent même le bon, et la borne tombe après 15 min ;
+- un step-up de 11 min est refusé, un frais est accepté ;
+- témoins : un compte sans numéro vérifié n'est pas concerné, et renvoyer le même numéro ne
+  demande rien.
+
+**Preuves :**
+- Rouge sur `bb27af99` : 6 rouges sur 8 (les deux témoins sont verts).
+- La sonde, rejouée puis retirée, rend `profile 403 "phone.change_requires_proof"` et `send 422`.
+  Son `lastCodeFor(N)` échoue faute de SMS : c'est le refus attendu.
+
+**Ablations, chacune restaurée par `cp`, md5 identique :**
+
+| Ablation | Rouges |
+|---|---|
+| A : preuve toujours tenue | 5/8 |
+| B1 : `PUT /auth/profile` sans garde | 4/8 |
+| B2 : `PATCH /me` sans garde | 2/8 |
+| C : `send-otp` sans garde | 1/8 |
+| D : mot de passe sans borne | 1/8 |
+| E : preuve TOTP retirée | 1/8 |
+
+**Tests ajustés à la règle, chacun gardant son objet :**
+- `AuthProfileTest::test_changing_phone_resets_phone_verified_at` et
+  `test_clearing_phone_with_empty_string_sets_null` portent le mot de passe du factory ;
+- `SendOtpNeutralResponseTest::test_le_profil_relu_…` aussi.
+
+**Exécutions :**
+- `tests/Feature/Auth` (dont `ProtectedActionsCoverageTest`), `tests/Feature/Api/Me`,
+  `LangGroupParityTest` et `ProseLitteraleInterditeTest` : 388 verts après ajustement.
+- `tests/Feature/Onboarding` : 74 verts.
+- `NotificationPreferenceTest` (×2) : 17 verts.
+- Toutes les gardes racine passent.
+
+**Effet sur les assistants d'onboarding.** Un compte qui a **déjà** un numéro vérifié et en saisit
+un autre reçoit le 403 et son message localisé. C'est voulu : l'écran qui remplace un numéro est
+le profil (p3-1c).

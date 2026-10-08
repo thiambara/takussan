@@ -61,11 +61,12 @@ class SendOtpNeutralResponseTest extends TestCase
     {
         // Le compte part d'un numéro VÉRIFIÉ : le chemin réel le remplace et lève la vérification,
         // la branche neutre doit en faire autant — sinon `phone_verified_at` trahit le numéro pris.
+        // Depuis p3-1, ce remplacement exige une preuve : les deux portent le mot de passe.
         $reel = User::factory()->create(['phone' => '+221770000903', 'phone_verified_at' => now()]);
         $neutre = User::factory()->create(['phone' => '+221770000904', 'phone_verified_at' => now()]);
 
-        $this->envoyer($reel, self::LIBRE)->assertOk();
-        $this->envoyer($neutre, self::PRIS)->assertOk();
+        $this->envoyer($reel, self::LIBRE, ['current_password' => 'password'])->assertOk();
+        $this->envoyer($neutre, self::PRIS, ['current_password' => 'password'])->assertOk();
 
         $relu = fn (User $u): array => [
             'phone' => $this->moi($u)->json('data.phone') ?? $this->moi($u)->json('phone'),
@@ -107,11 +108,12 @@ class SendOtpNeutralResponseTest extends TestCase
         return $this->getJson('/api/auth/me')->assertOk();
     }
 
-    private function envoyer(User $user, ?string $numero): TestResponse
+    /** @param  array<string, string>  $preuve */
+    private function envoyer(User $user, ?string $numero, array $preuve = []): TestResponse
     {
         $this->app['auth']->forgetGuards();
         Sanctum::actingAs($user);
 
-        return $this->postJson('/api/auth/phone/send-otp', $numero === null ? [] : ['phone' => $numero]);
+        return $this->postJson('/api/auth/phone/send-otp', ($numero === null ? [] : ['phone' => $numero]) + $preuve);
     }
 }

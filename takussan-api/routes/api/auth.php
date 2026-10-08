@@ -72,6 +72,11 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // rien, chaque compte neuf visant un numéro neuf. Les assistants d'onboarding passent ici.
     Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
     Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
+    // TCK-589 p3-1 — un code à l'ANCIEN numéro vérifié, preuve exigée pour le remplacer. Mêmes
+    // bornes que `send-otp` : sans corps, `auth-phone-send` compte sur le numéro du compte.
+    Route::post('/phone/change-code', [PhoneVerificationController::class, 'changeCode'])
+        ->middleware(['throttle:3,1', 'throttle:auth-phone-send'])
+        ->name('auth.phone.change-code');
 
     // Two-factor authentication
     // /confirm and /disable both gate on a 6-digit TOTP (or password on

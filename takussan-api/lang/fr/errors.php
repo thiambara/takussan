@@ -277,6 +277,8 @@ return [
         'code_invalid' => 'Code de vérification invalide ou expiré.',
         'missing' => 'Aucun numéro de téléphone n\'est enregistré.',
         'resend_too_soon' => 'Patientez avant de demander un nouveau code.',
+        'change_requires_proof' => 'Pour remplacer un numéro vérifié, confirmez d\'abord que vous le détenez : code reçu sur ce numéro, ou mot de passe.',
+        'no_verified_number' => 'Aucun numéro vérifié n\'est enregistré sur ce compte.',
     ],
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
