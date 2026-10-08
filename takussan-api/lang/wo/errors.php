@@ -201,6 +201,12 @@ return [
         'not_transitionable' => 'Dossier KYC bu ñu yónni rekk lañu mën a saytu.',
         'unknown_document_type' => 'Xeetu kayitu KYC bii xamuñu ko.',
     ],
+    'lead' => [
+        'already_converted' => 'Laaj bii def nañu ko fiche kiliyaan ba noppi.',
+        'contact_unavailable' => 'Kër gii amul ku ñu mën a jokkoo léegi. Sa laaj yónnewul.',
+        'not_convertible' => 'Laaj bu ñu yónne ci formulaire bi rekk moo mën a nekk fiche kiliyaan.',
+        'without_agency' => 'Laaj bii amul benn ajaans : du mën a nekk fiche kiliyaan.',
+    ],
     'lease' => [
         'cannot_terminate' => 'Luwé yi jàpp walla yi ñu baaxal rekk la ñu mën tas.',
         'guarantor_already_attached' => 'Garant bii takk nañu ko ci bail bi ba noppi.',
@@ -393,6 +399,7 @@ return [
     ],
     'visit' => [
         'active_limit_reached' => 'Am nga ba noppi :max seeti yuy dox ci kër gii. Neenalal benn balaa ngay laaj beneen.',
+        'already_assigned' => 'Seetaan bii, keneen ci ajaans bi moo ko jël.',
         'cannot_cancel' => 'Seeti bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_complete' => 'Seeti bii mënuñu ko jeexal ni mu nekke léegi.',
         'closed' => 'Seeti bu jeex walla bu ñu neenal, mënatuñu ko soppi.',
@@ -402,7 +409,10 @@ return [
         'feedback_window_closed' => 'Jamono joxe xalaat ci seeti bii wees na.',
         'not_scheduled_confirm' => 'Seeti bu ñu planifier rekk lañu mën a dëggal.',
         'property_unavailable' => 'Kër gii, seeti mënuñu ko.',
+        'reassign_forbidden' => 'Soppi ajaanu seetaan bu ñu joxe ba noppi, laaj na sañ-sañu joxe.',
+        'reschedule_inactive' => 'Seetaan bu ngi xaar walla bu ñu dëggal rekk moo mën a soppi waxtu.',
         'slot_overlap' => 'Beneen seeti bu ñu dëggal am na ba noppi ci waxtu wii ci kër gii.',
+        'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a dëggal, jeexal, neenal walla toxal seetaan bii.',
     ],
     'webhook' => [
         'ip_allowlist_not_configured' => 'Liste adrees yu ñu nangu configurerouñu ko.',

@@ -21,6 +21,7 @@ import { ContactGestures } from '@/components/crm/ContactGestures';
 import { CustomerReferent } from '@/components/crm/CustomerReferent';
 import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
+import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 import {
   CUSTOMER_ENUM_NAMESPACES,
   CUSTOMER_STATUS_TONE,
@@ -131,11 +132,16 @@ export default async function Page({ params }: { params: Params }) {
           </span>
         }
         actions={
-          <AddDocumentButton
-            documentableType="customer"
-            documentableId={customer.id}
-            displayLabel={`${customer.first_name} ${customer.last_name}`}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <PlanifierUneVisite
+              customer={{ id: customer.id, libelle: `${customer.first_name} ${customer.last_name}` }}
+            />
+            <AddDocumentButton
+              documentableType="customer"
+              documentableId={customer.id}
+              displayLabel={`${customer.first_name} ${customer.last_name}`}
+            />
+          </div>
         }
       />
 

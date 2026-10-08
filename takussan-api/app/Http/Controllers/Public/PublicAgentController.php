@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Domain\Notifications\NotificationCode;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\IndexPublicProfilesRequest;
@@ -13,10 +12,9 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
 use App\Models\Property;
-use App\Models\PropertyContactLead;
 use App\Models\Review;
 use App\Models\User;
-use App\Services\Model\NotificationService;
+use App\Services\Lead\ContactLeadService;
 use App\Services\Public\PublicProfileFacts;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -319,7 +317,7 @@ class PublicAgentController extends Controller
      */
     public function contactLead(
         ContactLeadPublicRequest $request,
-        NotificationService $notifications,
+        ContactLeadService $leads,
         string $slug,
     ): JsonResponse {
         $data = $request->validated();
@@ -338,23 +336,9 @@ class PublicAgentController extends Controller
             return $this->json(['data' => ['accepted' => true]], 201);
         }
 
-        $lead = PropertyContactLead::create([
-            'property_id' => null,
-            'agency_id' => $agent->agency?->id,
-            'recipient_user_id' => $agent->id,
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'message' => $data['message'],
-            'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
-        ]);
-
-        $notifications->send($agent, NotificationCode::LeadReceived, [
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'excerpt' => mb_strimwidth($data['message'], 0, 80, '…'),
-        ]);
+        // TCK-590 — écriture, notification (message entier, téléphone) et accusé de réception
+        // passent par le même service que le contact d'un bien.
+        $leads->forAgent($agent, $agent->agency?->id, $data, $request);
 
         return $this->json(['data' => ['accepted' => true]], 201);
     }

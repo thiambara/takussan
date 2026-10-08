@@ -10,19 +10,40 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { buildShareUrls, copyToClipboard } from '@/lib/share';
+import { copyToClipboard, liensDePartage } from '@/lib/share';
+import { formatCurrency } from '@/lib/format/currency';
+import type { PropertyDetail } from '@/types/property';
 
 interface PropertyShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
+  property: Pick<PropertyDetail, 'type' | 'price' | 'currency' | 'location'>;
+  /** L'adresse de la fiche, SANS requête : chaque canal y ajoute sa propre source. */
   url: string;
 }
 
-export function PropertyShareDialog({ open, onOpenChange, title, url }: PropertyShareDialogProps) {
+/**
+ * TCK-590 — le texte partagé dit ce qu'est le bien, dans la langue du visiteur : type · prix en
+ * F CFA · quartier, puis le lien signé de son canal (`utm_source=<canal>&utm_medium=share`). Il
+ * n'envoyait que le titre — saisi par l'annonceur, dans sa langue à lui — et l'adresse nue.
+ *
+ * Le prix suit la devise du bien, jamais une conversion : pas de prix en devise étrangère
+ * (décision du porteur, 2026-10-06).
+ */
+export function PropertyShareDialog({ open, onOpenChange, property, url }: PropertyShareDialogProps) {
   const t = useTranslations('property.detail');
+  const tTypes = useTranslations('property.types');
+  const tContact = useTranslations('propertyContact.share');
   const [copied, setCopied] = useState(false);
-  const shares = buildShareUrls(title, url);
+
+  const type = tTypes(property.type);
+  const price = formatCurrency(property.price, property.currency ?? 'XOF');
+  const quarter = property.location.quarter?.trim() || property.location.city?.trim() || '';
+  const texte = (lien: string) =>
+    quarter
+      ? tContact('text', { type, price, quarter, url: lien })
+      : tContact('textNoQuarter', { type, price, url: lien });
+  const shares = liensDePartage(texte, tContact('subject', { type }), url);
 
   async function handleCopy(): Promise<void> {
     const ok = await copyToClipboard(url);

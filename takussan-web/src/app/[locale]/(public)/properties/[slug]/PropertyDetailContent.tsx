@@ -111,8 +111,12 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
   }, [property.id]);
 
   const photos = property.photos;
+  // TCK-590 — l'adresse de la fiche SANS sa requête : un visiteur arrivé par un lien partagé
+  // (`?utm_source=…`) ne repartage pas la source du premier.
   const pageUrl =
-    typeof window !== 'undefined' ? window.location.href : `/properties/${property.slug}`;
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`
+      : `/properties/${property.slug}`;
 
   function handleOpenLightbox(index: number): void {
     setLightboxIndex(index);
@@ -236,7 +240,7 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
       <PropertyShareDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
-        title={property.title}
+        property={property}
         url={pageUrl}
       />
       <PropertyContactMessageDialog

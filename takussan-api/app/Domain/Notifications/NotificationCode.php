@@ -52,6 +52,18 @@ enum NotificationCode: string
     case MessageReceived = 'message.received';
     case LeadReceived = 'lead.received';
 
+    // ─── Visites et demandes de contact (TCK-590) ───────────────────────────────────────
+    // Vers l'agence : une demande, un créneau proposé ou une annulation par le visiteur.
+    case VisitRequested = 'visit.requested';
+    case VisitRescheduledByVisitor = 'visit.rescheduled_by_visitor';
+    case VisitCancelledByVisitor = 'visit.cancelled_by_visitor';
+    // Vers le visiteur, compte ou contact sans compte : un geste HUMAIN de l'agence.
+    case VisitConfirmed = 'visit.confirmed';
+    case VisitRescheduled = 'visit.rescheduled';
+    case VisitCancelled = 'visit.cancelled';
+    // Vers le visiteur qui a laissé un e-mail : l'accusé de réception de sa demande.
+    case LeadAcknowledged = 'lead.acknowledged';
+
     // ─── KYC d'agence ───────────────────────────────────────────────────────────────────
     case KycSubmitted = 'kyc.submitted';
     case KycVerified = 'kyc.verified';
@@ -128,8 +140,10 @@ enum NotificationCode: string
             self::PaymentDuplicateLateFee => NotificationType::Payment,
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
-            self::VisitReminder => NotificationType::Visit,
-            self::MessageReceived, self::LeadReceived => NotificationType::Message,
+            self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
+            self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
+            self::VisitCancelled => NotificationType::Visit,
+            self::MessageReceived, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator => NotificationType::RoleDelegationRevoked,
@@ -158,8 +172,13 @@ enum NotificationCode: string
             self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord => 'lease_payment_received',
             self::BookingCreated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
-            self::VisitReminder => 'visit_reminder',
+            // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
+            self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
+            self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
+            self::VisitCancelled => 'visit_reminder',
             self::MessageReceived, self::LeadReceived => 'message_received',
+            // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
+            self::LeadAcknowledged => null,
             self::KycSubmitted, self::KycVerified, self::KycRejected => 'kyc_status_changed',
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
@@ -194,7 +213,17 @@ enum NotificationCode: string
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
-            self::LeadReceived => ['name' => self::PARAM_TEXT, 'email' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
+            // TCK-590 — de quoi RÉPONDRE : le message entier et le moyen de joindre (téléphone ·
+            // e-mail). L'extrait de 80 caractères sans téléphone disait qu'on avait été contacté.
+            self::LeadReceived => ['name' => self::PARAM_TEXT, 'contact' => self::PARAM_TEXT, 'message' => self::PARAM_TEXT],
+            // L'accusé ne recopie rien de ce que le visiteur a saisi : le bien, ou le nom de l'agent.
+            self::LeadAcknowledged => ['about' => self::PARAM_TEXT],
+            // `timezone` : le fuseau du destinataire, dans lequel `scheduled_at` est rendu — l'heure
+            // d'une visite est toujours suivie de son fuseau (TCK-590, §6). Aucun texte libre du
+            // visiteur, ni son message ni le nom qu'il a saisi (contrainte 4).
+            self::VisitRequested => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT, 'contact' => self::PARAM_TEXT],
+            self::VisitRescheduledByVisitor, self::VisitCancelledByVisitor,
+            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT],
             self::KycSubmitted => ['agency' => self::PARAM_TEXT],
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
@@ -258,6 +287,9 @@ enum NotificationCode: string
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord,
             self::VisitReminder,
+            // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
+            // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
+            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
             default => false,
         };
@@ -270,7 +302,9 @@ enum NotificationCode: string
     public function reachesContacts(): bool
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder => true,
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
+            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            self::LeadAcknowledged => true,
             default => false,
         };
     }

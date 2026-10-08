@@ -5,6 +5,8 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { useVisits } from '@/lib/queries/visits';
+import { useAuth } from '@/context/AuthContext';
+import { isAdmin, isAgent } from '@/lib/roles';
 import { formatDateTime } from '@/lib/format';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
@@ -15,18 +17,32 @@ import type { PropertyVisit } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
 
-type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
+type TabKey = 'unassigned' | 'requested' | 'confirmed' | 'past' | 'cancelled';
 
 /**
  * TCK-171 — 4 tabs: Demandées / Confirmées / Passées / Annulées.
  * Filtering is server-side via spatie filters.
+ *
+ * TCK-590 — un cinquième onglet, « Non attribuées », pour le personnel de l'agence : une demande
+ * déposée sur le site n'a pas d'agent, et rien ne la montrait à qui pouvait la prendre en charge.
  */
 export function VisitsList() {
   const locale = useLocale() as Locale;
   const t = useTranslations('visits');
+  const tPlanning = useTranslations('visitPlanning');
+  const { user } = useAuth();
+  const personnel = user ? isAgent(user.roles) || isAdmin(user.roles) : false;
   const [tab, setTab] = useState<TabKey>('requested');
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
+
+  const unassigned = useVisits({
+    status: 'scheduled',
+    unassigned: true,
+    scheduled_at_min: nowIso,
+    sort: 'scheduled_at',
+    per_page: 30,
+  });
 
   const requested = useVisits({
     status: 'scheduled',
@@ -55,6 +71,9 @@ export function VisitsList() {
   });
 
   const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits> }> = [
+    ...(personnel
+      ? [{ value: 'unassigned' as const, label: tPlanning('unassigned'), query: unassigned }]
+      : []),
     { value: 'requested', label: t('list.tabs.requested'), query: requested },
     { value: 'confirmed', label: t('list.tabs.confirmed'), query: confirmed },
     { value: 'past', label: t('list.tabs.past'), query: past },
@@ -100,6 +119,7 @@ function VisitsListBody({
   tab: TabKey;
 }) {
   const t = useTranslations('visits.list');
+  const tPlanning = useTranslations('visitPlanning');
 
   return (
     <QueryBoundary
@@ -118,7 +138,7 @@ function VisitsListBody({
           return (
             <EmptyState
               icon={<CalendarClock className="size-8" aria-hidden="true" />}
-              title={t(`empty.${tab}`)}
+              title={tab === 'unassigned' ? tPlanning('unassignedEmpty') : t(`empty.${tab}`)}
               description={t('empty_description')}
             />
           );
@@ -138,6 +158,7 @@ function VisitsListBody({
 
 function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
   const t = useTranslations('visits');
+  const tPlanning = useTranslations('visitPlanning');
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
   return (
@@ -153,6 +174,9 @@ function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
             </h3>
             <StatusBadge tone={VISIT_STATUS_TONE[status]} label={t(VISIT_STATUS_LABEL_KEY[status])} />
             <StatusBadge label={t(VISIT_TYPE_LABEL_KEY[type])} />
+            {visit.agent_id === null && (status === 'scheduled' || status === 'confirmed') && (
+              <StatusBadge tone="attention" label={tPlanning('unassignedBadge')} />
+            )}
           </div>
           <p className="mt-1 text-xs tabular-nums text-muted-foreground">
             {formatDateTime(visit.scheduled_at, locale)}

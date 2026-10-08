@@ -60,6 +60,10 @@ class NotificationService
      * sur son numéro, dans sa langue — WhatsApp s'il y a consenti, sinon SMS. Un code non
      * transactionnel est refusé : c'est une faute de programmation, pas un cas à taire.
      *
+     * TCK-590 — `$mobileBorne` : `null`, le code suit ses propres règles et la limite générique
+     * des canaux mobiles ; `true`, l'appelant a DÉJÀ borné le SMS au point d'envoi (`VisitNotifier`)
+     * et les canaux ne le recomptent pas ; `false`, aucun canal mobile (SMS retenu, ou pas prévu).
+     *
      * @param  array<string, mixed>  $params  paramètres BRUTS (cf. {@see NotificationCode::params()})
      */
     public function send(
@@ -67,9 +71,10 @@ class NotificationService
         NotificationCode $code,
         array $params,
         ?NotificationTarget $target = null,
+        ?bool $mobileBorne = null,
     ): ?AppNotification {
         if ($to instanceof ContactSansCompte) {
-            $this->sendToContact($to, $code, $params, $target);
+            $this->sendToContact($to, $code, $params, $target, $mobileBorne);
 
             return null;
         }
@@ -90,7 +95,7 @@ class NotificationService
         ]);
 
         $to->notify(
-            (new CodedNotification($code, $params, $target?->toArray(), $notification->id))->locale($locale)
+            (new CodedNotification($code, $params, $target?->toArray(), $notification->id, $mobileBorne))->locale($locale)
         );
 
         if (class_exists(NewNotification::class)) {
@@ -104,7 +109,7 @@ class NotificationService
         return $notification;
     }
 
-    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target): void
+    private function sendToContact(ContactSansCompte $to, NotificationCode $code, array $params, ?NotificationTarget $target, ?bool $mobileBorne = null): void
     {
         if (! $code->reachesContacts()) {
             throw new LogicException(sprintf(
@@ -112,8 +117,10 @@ class NotificationService
                 $code->value,
             ));
         }
-        if (! $to->hasPhone()) {
-            Log::info('[notifications] contact sans compte sans numéro valide — rien n\'est envoyé', [
+        // TCK-590 — un contact peut n'avoir laissé qu'un e-mail (accusé d'une demande, visiteur
+        // sans téléphone) : il le reçoit. Ni numéro ni e-mail : rien à envoyer.
+        if (! $to->hasPhone() && ! $to->hasEmail()) {
+            Log::info('[notifications] contact sans compte sans numéro ni e-mail valides — rien n\'est envoyé', [
                 'code' => $code->value,
                 'customer_id' => $to->customerId,
             ]);
@@ -121,9 +128,13 @@ class NotificationService
             return;
         }
 
-        Notification::route('sms', $to->phone)
-            ->route('whatsapp', $to->phone)
-            ->notify((new CodedNotification($code, $params, $target?->toArray()))->locale($to->locale));
+        $routes = array_filter([
+            'mail' => $to->email,
+            'sms' => $to->phone,
+            'whatsapp' => $to->phone,
+        ]);
+        Notification::routes($routes)
+            ->notify((new CodedNotification($code, $params, $target?->toArray(), null, $mobileBorne))->locale($to->locale));
     }
 
     public function notify(

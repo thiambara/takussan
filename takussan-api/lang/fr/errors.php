@@ -201,6 +201,12 @@ return [
         'not_transitionable' => 'Seul un dossier KYC soumis peut être instruit.',
         'unknown_document_type' => 'Type de pièce KYC inconnu.',
     ],
+    'lead' => [
+        'already_converted' => 'Cette demande a déjà été convertie en fiche client.',
+        'contact_unavailable' => 'Ce bien n\'a plus de contact joignable pour le moment. Votre demande n\'a pas été envoyée.',
+        'not_convertible' => 'Seule une demande déposée par le formulaire peut devenir une fiche client.',
+        'without_agency' => 'Cette demande n\'est rattachée à aucune agence : elle ne peut pas devenir une fiche client.',
+    ],
     'lease' => [
         'cannot_terminate' => 'Seuls les baux actifs ou en attente de signature peuvent être résiliés.',
         'guarantor_already_attached' => 'Ce garant est déjà rattaché au bail.',
@@ -393,6 +399,7 @@ return [
     ],
     'visit' => [
         'active_limit_reached' => 'Vous avez déjà :max visites en cours sur ce bien. Annulez-en une avant d\'en demander une autre.',
+        'already_assigned' => 'Cette visite est déjà prise en charge par un autre membre de l\'agence.',
         'cannot_cancel' => 'Cette visite ne peut pas être annulée dans son état actuel.',
         'cannot_complete' => 'Cette visite ne peut pas être terminée dans son état actuel.',
         'closed' => 'Une visite terminée ou annulée ne peut plus être modifiée.',
@@ -402,7 +409,10 @@ return [
         'feedback_window_closed' => 'Le délai pour donner un avis sur cette visite est passé.',
         'not_scheduled_confirm' => 'Seule une visite planifiée peut être confirmée.',
         'property_unavailable' => 'Ce bien n\'est pas ouvert aux visites.',
+        'reassign_forbidden' => 'Changer l\'agent d\'une visite déjà attribuée demande le droit d\'attribuer.',
+        'reschedule_inactive' => 'Seule une visite en attente ou confirmée peut changer de créneau.',
         'slot_overlap' => 'Une autre visite confirmée occupe déjà ce créneau sur ce bien.',
+        'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',
     ],
     'webhook' => [
         'ip_allowlist_not_configured' => 'La liste des adresses autorisées n\'est pas configurée.',

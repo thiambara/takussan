@@ -93,8 +93,6 @@ const PLANCHER_FICHIERS = 200;
  * son exemption dans le commit qui corrige (coordination de la vague 73, TCK-587 Contraintes 10).
  */
 const EXEMPTIONS = new Map([
-  ['app/Http/Controllers/Api/PropertyVisitController.php::store', 'TCK-590'],
-  ['app/Http/Controllers/Api/PropertyVisitController.php::feedback', 'TCK-590'],
   ['app/Http/Controllers/Api/ReviewController.php::deleteReply', 'TCK-597'],
   ['app/Http/Controllers/Api/ReviewController.php::reply', 'TCK-597'],
   ['app/Http/Controllers/Api/FavoriteController.php::store', 'TCK-599'],
@@ -102,7 +100,7 @@ const EXEMPTIONS = new Map([
 ]);
 
 /** Le nombre d'exemptions. Bilatéral : il suit `EXEMPTIONS.size`, dans les deux sens. */
-const CLIQUET = 6;
+const CLIQUET = 4;
 
 /**
  * Des REFUS qui n'accordent rien : `if ($user->agency_id !== $agency->id) return false;` suivi d'un

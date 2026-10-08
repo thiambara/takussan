@@ -2,31 +2,58 @@
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useTranslations } from 'next-intl';
-
-interface ContactPayload {
-  phone: string;
-  message: string;
-}
+import { useToast } from '@/components/ui/toast';
+import { signalerClic } from '@/lib/contact-click';
 
 interface Props {
   slug: string;
   title: string;
+  /**
+   * TCK-590 — le contact principal a-t-il un numéro (`primary_contact.has_phone`) ? Sans lui, le
+   * bouton n'est pas rendu : il menait à une erreur.
+   */
+  hasPhone: boolean;
 }
 
-export function WhatsAppButton({ slug, title }: Props) {
+/**
+ * TCK-590 — trois défauts corrigés ici.
+ *
+ *   · **La fenêtre s'ouvre DANS le geste.** `window.open` suivait un `await` : Safari iOS ne
+ *     l'associe plus au clic et bloque la fenêtre — WhatsApp ne s'ouvrait jamais sur iPhone. La
+ *     fenêtre est ouverte vide au clic, puis dirigée vers `wa.me` quand le numéro arrive.
+ *   · **Le message prérempli est traduit ici**, dans la langue du visiteur. L'API le construisait
+ *     en français figé.
+ *   · **Plus de boîte d'alerte native** : un toast, et la fenêtre ouverte pour rien est refermée.
+ */
+export function WhatsAppButton({ slug, title, hasPhone }: Props) {
   const t = useTranslations('contact.whatsapp');
+  const tContact = useTranslations('propertyContact');
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
+  if (!hasPhone) return null;
+
   async function handleContact() {
+    // Dans le geste, AVANT tout `await` : c'est la seule ouverture qu'iOS laisse passer.
+    const fenetre = window.open('', '_blank');
     setLoading(true);
+    signalerClic(slug, 'whatsapp');
     try {
-      const res = await apiFetch<ContactPayload>(`/public/properties/${slug}/contact`);
-      const phone = res.phone.replace(/\D/g, '');
-      const message = encodeURIComponent(res.message);
+      const res = await apiFetch<{ phone: string | null }>(`/public/properties/${slug}/contact`);
+      const phone = res.phone?.replace(/\D/g, '') ?? '';
+      if (!phone) throw new Error('phone');
+      const page = `${window.location.origin}${window.location.pathname}`;
+      const message = encodeURIComponent(tContact('whatsapp.prefill', { title, url: page }));
       const url = `https://wa.me/${phone}?text=${message}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
+      if (fenetre) {
+        fenetre.opener = null;
+        fenetre.location.href = url;
+      } else {
+        window.location.href = url;
+      }
     } catch {
-      alert(t('error'));
+      fenetre?.close();
+      toast.add({ title: tContact('errors.title'), description: t('error'), type: 'error' });
     } finally {
       setLoading(false);
     }

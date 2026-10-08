@@ -3,6 +3,7 @@
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import type { AnonymousLeadPayload } from '@/types/contact-lead';
 import type {
   BookingRequestPayload,
   OfferRequestPayload,
@@ -22,7 +23,13 @@ async function errorFromApi(
     getTranslations('serverActions.properties'),
   ]);
   if (e instanceof ApiError) {
-    const data = (e.data ?? {}) as { message?: string; errors?: Record<string, string[]> };
+    const data = (e.data ?? {}) as { code?: string; message?: string; errors?: Record<string, string[]> };
+    // TCK-590 — personne ne lirait la demande (bien sans contact joignable, agence sans admin
+    // actif) : l'API refuse AVANT d'écrire, et le visiteur l'apprend dans sa langue, sans
+    // croire qu'on le rappellera.
+    if (e.status === 409 && data.code === 'lead.contact_unavailable') {
+      return { status: 409, message: tRacine('publicLeadErrors.contactUnavailable') };
+    }
     return {
       status: e.status,
       // ⚠️ C'était `data.message ?? t('apiError', …)`, et `data.message` relayait TEL QUEL le
@@ -164,7 +171,7 @@ export async function submitContactMessage(
  */
 export async function submitContactLead(
   slug: string,
-  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+  payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
   try {
     await apiRequest(`/api/public/properties/${slug}/contact-lead`, {
@@ -194,7 +201,7 @@ export async function submitContactLead(
  */
 export async function submitAgentContactLead(
   slug: string,
-  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+  payload: AnonymousLeadPayload,
 ): Promise<ActionResult> {
   try {
     await apiRequest(`/api/public/agents/${encodeURIComponent(slug)}/contact-lead`, {
