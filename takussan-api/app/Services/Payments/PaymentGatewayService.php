@@ -97,6 +97,12 @@ class PaymentGatewayService
      */
     protected function initiateLocked(Model $payment, PaymentProvider $provider, array $meta): CheckoutSession
     {
+        // TCK-588 / TCK-593 — un montant qu'on ne sait pas résoudre se juge EN PREMIER : rien ne
+        // peut être encaissé, et ce n'est ni « déjà payé » ni « en cours ». Le message nommait la
+        // classe du paiement (`App\Models\LeasePayment`).
+        $amount = $this->amountDue($payment);
+        abort_code_if($amount === null, 422, 'payment.amount_unresolved');
+
         // TCK-593 — on ne paie pas deux fois. La garde vit ici, AVANT la résolution de
         // l'intégration et tout appel au pilote : le bouton masqué du front n'empêchait rien.
         abort_code_unless($this->isPayable($payment), 409, 'payment.not_payable');
@@ -133,10 +139,6 @@ class PaymentGatewayService
                 'currency' => strtoupper($currency),
             ]);
         }
-
-        $amount = $this->amountDue($payment);
-        // TCK-588 — le message nommait la classe du paiement (`App\Models\LeasePayment`).
-        abort_code_if($amount === null, 422, 'payment.amount_unresolved');
 
         // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
         // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
@@ -990,6 +992,11 @@ class PaymentGatewayService
     public function amountDue(Model $payment): ?float
     {
         if ($payment instanceof LeasePayment) {
+            // Sans montant, le reste dû (dérivé de `amount`) vaudrait 0 : « soldée » au lieu de
+            // « indéterminé ». Même réponse que pour une facture ou un acompte sans montant.
+            if (! is_numeric($payment->getAttribute('amount'))) {
+                return null;
+            }
             if (! $this->isPayable($payment)) {
                 return 0.0;
             }
