@@ -54,7 +54,15 @@ class UserAdminController extends Controller
             ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->paginated($paginator, $paginator->items());
+        // TCK-589 — la colonne 2FA de la console d'équipe (`/admin/team` lit cette
+        // liste) : champ calculé, jamais via `User::$queryFields` (cf. `TeamController`).
+        $items = $paginator->items();
+        $enabled = User::query()->whereKey(array_map(fn (User $u) => $u->getKey(), $items))->pluck('two_factor_enabled', 'id');
+        foreach ($items as $item) {
+            $item->setAttribute('two_factor_enabled', (bool) ($enabled[$item->getKey()] ?? false));
+        }
+
+        return $this->paginated($paginator, $items);
     }
 
     /**

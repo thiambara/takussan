@@ -212,6 +212,11 @@ class AuthProfileTest extends TestCase
         $this->assertNull($user->fresh()->phone);
     }
 
+    /**
+     * TCK-589 p3-1 — remplacer un numéro VÉRIFIÉ exige désormais une preuve
+     * (`PhoneChangeGuard`) : le test porte le mot de passe du factory ('password'),
+     * et garde son objet, la vérification levée au changement.
+     */
     public function test_changing_phone_resets_phone_verified_at(): void
     {
         $user = User::factory()->create([
@@ -224,6 +229,7 @@ class AuthProfileTest extends TestCase
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'phone' => '+221780000000',
+            'current_password' => 'password',
         ]);
 
         $response->assertStatus(200)
@@ -258,6 +264,7 @@ class AuthProfileTest extends TestCase
         $this->assertNotNull($user->fresh()->phone_verified_at);
     }
 
+    /** TCK-589 p3-1 — retirer un numéro vérifié exige la même preuve que le remplacer. */
     public function test_clearing_phone_with_empty_string_sets_null(): void
     {
         $user = User::factory()->create([
@@ -270,6 +277,7 @@ class AuthProfileTest extends TestCase
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'phone' => '',
+            'current_password' => 'password',
         ]);
 
         $response->assertStatus(200);

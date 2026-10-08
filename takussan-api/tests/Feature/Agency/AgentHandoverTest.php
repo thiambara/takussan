@@ -107,7 +107,11 @@ class AgentHandoverTest extends ApiTestCase
 
     private function member(string $role): User
     {
-        $user = User::factory()->create();
+        // TCK-589 (fusion) — un admin d'agence agit avec un second facteur : retirer, passer,
+        // déclarer une absence sont des gestes d'équipe protégés (`ProtectedActions`).
+        $user = User::factory()->create($role === 'agency_admin'
+            ? ['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]
+            : []);
         $this->materializeRoleProfile($user, $role, $this->agency);
 
         return $user;

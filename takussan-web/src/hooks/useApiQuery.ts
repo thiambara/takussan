@@ -14,6 +14,8 @@ import { useLocale } from 'next-intl';
 import { useCallback } from 'react';
 import { apiRequest, buildQueryString, ApiError, type RequestOptions } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import type { SpatieQueryParams } from '@/types/api';
 
 type UseApiQueryOptions<T> = Omit<
@@ -111,6 +113,8 @@ type MutationShape<TVariables> = {
  * - calls `apiRequest` with typed errors (`ApiError`)
  * - forwards the active locale to `Accept-Language`
  * - invalidates the listed query keys on success
+ * - TCK-589 — résout sur place un refus `two_factor_required` / `two_factor_step_up_required`
+ *   (garde des consoles, `GardeDoubleFacteur`), puis rejoue la requête
  *
  * Usage:
  *
@@ -132,6 +136,7 @@ export function useApiMutation<TData, TVariables = void>(
   const locale = useLocale();
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const garde = useGardeDoubleFacteur();
   const { invalidate, request, onSuccess, ...rest } = options;
 
   return useMutation<TData, ApiError, TVariables>({
@@ -139,14 +144,18 @@ export function useApiMutation<TData, TVariables = void>(
       const resolvedPath =
         typeof shape.path === 'function' ? shape.path(variables) : shape.path;
       const body = shape.body ? shape.body(variables) : variables;
-      return apiRequest<TData>(resolvedPath, {
-        ...request,
-        method: shape.method ?? 'POST',
-        body,
-        formData: shape.formData,
-        token: request?.token ?? token ?? undefined,
-        locale: request?.locale ?? locale,
-      });
+      return avecGardeDoubleFacteur(
+        () =>
+          apiRequest<TData>(resolvedPath, {
+            ...request,
+            method: shape.method ?? 'POST',
+            body,
+            formData: shape.formData,
+            token: request?.token ?? token ?? undefined,
+            locale: request?.locale ?? locale,
+          }),
+        garde,
+      );
     },
     onSuccess: async (data, variables, ...rest2) => {
       const keys = typeof invalidate === 'function'

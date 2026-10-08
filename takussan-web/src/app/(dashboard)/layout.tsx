@@ -7,6 +7,8 @@ import { AccountDeletionBanner } from '@/components/profile/security/AccountDele
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
+import { configurationDoubleFacteurExigee } from '@/lib/double-facteur';
+import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
 
 
 /**
@@ -53,8 +55,11 @@ export default async function DashboardGroupLayout({
   // `force_2fa_at_first_login = true`. The dashboard isn't a valid
   // destination in that state — bounce them straight to the mandatory
   // onboarding wizard.
-  if (user.force_2fa_at_first_login) {
-    redirect('/onboarding/super-admin');
+  // TCK-589 — même juge pour le second facteur réinitialisé par le support et pour le super-admin
+  // qui n'en a pas : `configurationDoubleFacteurExigee`.
+  const configuration = configurationDoubleFacteurExigee(user);
+  if (configuration) {
+    redirect(configuration);
   }
 
   const deletion = await getAccountDeletionRequestAction();
@@ -63,13 +68,14 @@ export default async function DashboardGroupLayout({
   return (
     <IntlProvider messages={await messagesPour('(dashboard)')}>
       <ToastProvider>
-        <>
+        {/* TCK-589 — un refus « second facteur requis / à confirmer » se résout sur place. */}
+        <GardeDoubleFacteur>
           {pending && !pending.executed_at ? (
             <AccountDeletionBanner daysRemaining={pending.days_remaining} />
           ) : null}
           {children}
           <Toaster />
-        </>
+        </GardeDoubleFacteur>
       </ToastProvider>
     </IntlProvider>
   );

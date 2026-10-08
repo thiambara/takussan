@@ -131,7 +131,9 @@ class PayoutStoreAuthorizationTest extends TestCase
     public function test_a_super_admin_creates(): void
     {
         // Sans agence : `actingAsRole()` en attacherait une, avec un profil owner implicite.
-        $admin = User::factory()->create();
+        // TCK-589 (vérification adverse B1) — un profil plateforme porte la 2FA sur toute action
+        // protégée, reversements compris.
+        $admin = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
 

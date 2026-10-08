@@ -142,7 +142,8 @@ class WatermarkActivationTest extends TestCase
     public function test_activation_through_the_api_queues_the_regeneration(): void
     {
         $agency = $this->agence(false);
-        $admin = User::factory()->create();
+        // TCK-589 (vérification adverse B1) — la 2FA du profil plateforme.
+        $admin = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($admin, 'super_admin');
         Sanctum::actingAs($admin);
         Queue::fake();

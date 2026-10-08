@@ -110,6 +110,18 @@ class UserFactory extends Factory
     }
 
     /**
+     * TCK-589 — un compte qui porte la 2FA (TOTP) : celle que `RequireTwoFactor`
+     * exige des profils plateforme et des admins d'agence.
+     */
+    public function withTwoFactor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'two_factor_enabled' => true,
+            'two_factor_secret' => 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
+        ]);
+    }
+
+    /**
      * TCK-272 — un compte dont le hash de mot de passe est une valeur
      * machine que personne ne connaît : provisionné par OAuth, issu d'une
      * invitation acceptée sans mot de passe, ou créé par la plateforme.

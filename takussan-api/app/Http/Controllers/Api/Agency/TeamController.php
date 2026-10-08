@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Agency;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\Profiles\AgentProfile;
+use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -46,6 +47,17 @@ class TeamController extends Controller
             ->defaultSort('-created_at')
             ->paginate((int) $request->input('per_page', 20));
 
-        return $this->paginated($paginator, $paginator->items());
+        // TCK-589 — la colonne 2FA de l'équipe : un champ CALCULÉ, une requête pour
+        // la page, et non une entrée de `User::$queryFields`, qui l'exposerait à
+        // toute liste d'utilisateurs.
+        $items = $paginator->items();
+        $enabled = User::query()
+            ->whereKey(array_values(array_unique(array_map(fn (AgentProfile $p) => $p->user_id, $items))))
+            ->pluck('two_factor_enabled', 'id');
+        foreach ($items as $profile) {
+            $profile->setAttribute('two_factor_enabled', (bool) ($enabled[$profile->user_id] ?? false));
+        }
+
+        return $this->paginated($paginator, $items);
     }
 }

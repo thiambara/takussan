@@ -31,6 +31,7 @@ use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
+use Tests\Support\FakeSmsRouter;
 use Tests\TestCase;
 
 /**
@@ -54,12 +55,17 @@ class PayoutBypassTest extends TestCase
         Notification::fake();
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
-        $landlord->forceFill(['phone' => '+221770000001', 'phone_verified_at' => now()->subYear()])->save();
+        // Depuis TCK-589 (p3-1), remplacer un numéro VÉRIFIÉ exige une preuve que la prise de compte
+        // n'a pas : le compte part donc d'un numéro non vérifié, et la vérification fraîche du
+        // nouveau numéro reste le cas éprouvé — elle ne vaut rien pour la destination.
+        $landlord->forceFill(['phone' => '+221770000001', 'phone_verified_at' => null])->save();
         $issuer = $this->agencyAdmin($agency);
 
+        // TCK-589 — la réponse de `send-otp` est neutre (plus de `debug_code`) : le code se lit au SMS.
+        $sms = FakeSmsRouter::install();
         Sanctum::actingAs($landlord);
-        $otp = $this->postJson('/api/auth/phone/send-otp', ['phone' => '+221778887766'])->assertOk();
-        $this->postJson('/api/auth/phone/verify-otp', ['code' => (string) $otp->json('data.debug_code')])->assertOk();
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+221778887766'])->assertOk();
+        $this->postJson('/api/auth/phone/verify-otp', ['code' => $sms->lastCodeFor('+221778887766')])->assertOk();
         $this->assertNotNull($landlord->fresh()->phone_verified_at);
 
         $methodId = $this->postJson('/api/me/payout-methods', ['kind' => 'wave', 'account_identifier' => '+221778887766', 'is_default' => true])

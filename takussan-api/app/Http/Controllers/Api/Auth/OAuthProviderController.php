@@ -10,6 +10,11 @@ class OAuthProviderController extends Controller
 {
     public function __invoke(OAuthProviderConfiguration $configuration): JsonResponse
     {
-        return $this->json(['data' => ['providers' => $configuration->all()]]);
+        return $this->json(['data' => [
+            'providers' => $configuration->all(),
+            // TCK-589 — reflet du drapeau : le front n'affiche l'entrée par
+            // téléphone que lorsqu'il est vrai.
+            'phone_login' => (bool) config('auth.phone_login.enabled'),
+        ]]);
     }
 }

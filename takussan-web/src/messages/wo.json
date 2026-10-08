@@ -388,6 +388,48 @@
         "fileFooter": "Kodd ku nekk benn yoon rekk lay jëf."
       }
     },
+    "twoFactorGate": {
+      "requiredTitle": "Ubbil ñaari yoon ngir seetlu",
+      "requiredBody": "Jëf jii dafa laal ay xibaar yu am solo: dafa laaj ñaareelu sumb ci sa kont. Defaral ko léegi, jëf ji dina dellu ci saa si.",
+      "stepUpTitle": "Wóoral ne yaw la",
+      "stepUpBody": "Ngir kaaraange, jëf jii dafa laaj koddu bu bees bu sa appli seetlu. Bindal ko, jëf ji dina dellu.",
+      "codeLabel": "Koddu 6 chiffres",
+      "confirm": "Wóoral",
+      "confirming": "Ñu ngi seetlu…",
+      "cancel": "Neenal",
+      "invalidCode": "Koddu bii baaxul. Seetal waxtu sa telefon, te jéem ko ci kanam.",
+      "failed": "Seetlu bi antuwul. Jéemaatal ci kanam tuuti.",
+      "sessionClosed": "Code yu baaxul yi bare nañu : session bii tëj nañu ko. Duggaatal.",
+      "reconfigureTitle": "Defaraatal ñaari yoon ngir seetlu",
+      "reconfigureBody": "Ndimbal gi dafa fey sa ñaareelu sumb. Defaral bu bees ngir dellu ci sa bérab.",
+      "superAdminTitle": "Ñaari yoon ngir seetlu war na",
+      "superAdminBody": "Konsol platform bi, ñaareelu sumb rekk lay ubbi. Defaral ko ngir wéy."
+    },
+    "phoneLogin": {
+      "loginTitle": "Duggal ak sa nimero",
+      "loginSubtitle": "Dinañu la yónne ab koddu ci SMS: amul baatu jàll boo war a fàttaliku.",
+      "registerTitle": "Sosal sa kont ak sa nimero",
+      "registerSubtitle": "Koddu bu ñu la yónne ci SMS doy na: sa kont dina pare su ko wóoralee.",
+      "phoneLabel": "Nimero telefon",
+      "sendCode": "Jot ab koddu",
+      "sending": "Ñu ngi koy yónne…",
+      "codeSentTo": "Bu nimero bii mënee jot SMS, koddu bu 6 chiffres yónne nañu ko ci {phone}. Dina baax 5 simili.",
+      "codeLabel": "Koddu bi nga jot ci SMS",
+      "verify": "Wóoral",
+      "verifying": "Ñu ngi seetlu…",
+      "resendIn": "Yónneeti koddu bi ci {seconds} s",
+      "resend": "Yónneeti koddu bi",
+      "changeNumber": "Soppi nimero",
+      "useEmail": "Jëfandikoo email ak baatu jàll",
+      "usePhone": "Jëfandikoo sama nimero telefon",
+      "invalidPhone": "Nimero bii baaxul. Seetal indikatif bi ak chiffres yi.",
+      "codeInvalid": "Koddu bi baaxul walla jeex na. Seetal ko, walla laajal bu bees.",
+      "locked": "Jéem yi bari nañu: duggu bi taxaw na ay simili. Jéemaatal ci kanam tuuti.",
+      "blocked": "Kont bii dañu ko taxawal. Jokkool ak ndimbal gi ngir xam lu ëpp.",
+      "tooMany": "Laaj yi bari nañu ci diir bu gàtt. Muñal tuuti balaa ngay jéemaat.",
+      "failed": "Am na njuumte. Jéemaatal ci kanam tuuti.",
+      "termsNotice": "Su nga wéyee, nangu nga <terms>sàrt yi</terms> ak <privacy>politig sutura gi</privacy>."
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Dugg — Takussan"
@@ -2657,11 +2699,9 @@
           "sending": "Yónnee na…",
           "verifyCta": "Verifie",
           "verifying": "Verifie na…",
-          "devHint": "Kod dev: {code}",
           "sent": {
             "title": "Kod yónni nañu ko",
-            "body": "Kod bi dina dox 5 simili.",
-            "bodyDebug": "Kod yónni nañu ko (debug: {code})."
+            "body": "Kod bi dina dox 5 simili."
           },
           "verified": {
             "title": "Téléphone verifie nañu ko",
@@ -2782,11 +2822,9 @@
           "sending": "Yónn naa…",
           "verifyCta": "Vérifie",
           "verifying": "Vérifie naa…",
-          "devHint": "Code dev: {code}",
           "sent": {
             "title": "Code yónn na",
-            "body": "Kod bi dina dox 5 simili.",
-            "bodyDebug": "Code yónn na (debug: {code})."
+            "body": "Kod bi dina dox 5 simili."
           },
           "verified": {
             "title": "Téléphone vérifie na",
@@ -2841,22 +2879,9 @@
         "welcome": {
           "title": "Dalal jamm ci kuréel gi",
           "subtitle": "Sa périmètre ak sa lead yu njëkk wujj nañu.",
-          "roleLabel": "Rôle bi nga jot",
-          "roles": {
-            "agent": "Ajaŋ",
-            "agent_senior": "Ajaŋ bu mag",
-            "agent_manager": "Agent manager"
-          },
-          "permissions": {
-            "list_properties": "Gis biens",
-            "list_customers": "Gis client",
-            "create_visits": "Programmer visites",
-            "message_customers": "Wax ak client",
-            "edit_properties": "Soppi biens",
-            "invite_owner": "Inviter propriétaire",
-            "invite_agent": "Inviter agent",
-            "reassign_leads": "Réattribuer leads"
-          },
+          "capabilitiesLabel": "Li nga mën a def ci ajaans bi",
+          "capabilitiesEmpty": "Amuloo benn sañ-sañ ci ajaans bii ba leegi. Njiitu ajaans bi mën na la ko jox ci saytu ekip bi.",
+          "capabilitiesError": "Sa sañ-sañ yi yebuwuñu. Mën nga leen a seet ci sa bérab.",
           "firstLeadLabel": "Sa lead bu njëkk",
           "noLead": "Amul lead bu nga jot ba leegi.",
           "stageLabel": "Étape: {stage}",
@@ -3146,11 +3171,9 @@
           "sending": "Yónnee…",
           "verifyCta": "Vérifier",
           "verifying": "Vérification…",
-          "devHint": "Code dev : {code}",
           "sent": {
             "title": "Code yónnee nañu",
-            "body": "Kod bi dina dox 5 simili.",
-            "bodyDebug": "Code yónnee (debug : {code})."
+            "body": "Kod bi dina dox 5 simili."
           },
           "verified": {
             "title": "Telefoŋ vérifier nañu",
@@ -3320,10 +3343,8 @@
             "verifying": "Véerifikoŋ…",
             "sentTitle": "Kódu yónni",
             "sentBody": "Kod bi dina dox 5 simili.",
-            "sentDebug": "Kódu yónni (debug : {code}).",
             "verifiedTitle": "Telefoŋ véerifié",
             "verifiedBody": "Mën nga publi sa biir.",
-            "devHint": "Kódu développement : {code}",
             "errors": {
               "sendFailed": "Kódu bi mënul yónni",
               "verifyFailed": "Kódu baaxul"
@@ -3931,6 +3952,22 @@
         "title": "Tablou ajaas",
         "subtitle": "Wonewu ajaas bi"
       },
+      "setupStatus": {
+        "title": "Taxawal ajaans bi",
+        "description": "Li des ngir ajaans bi dox bu baax.",
+        "progress": "{done} ci {total} tappe yu jeex",
+        "done": "Def nañu ko",
+        "todo": "Des na",
+        "steps": {
+          "kyc_verified": "Dosiyeu KYC bi seetlu nañu ko",
+          "logo": "Logo ajaans bi yokk nañu ko",
+          "commission_rate": "Taux komisiyoŋ bi bind nañu ko",
+          "payment_integration": "Anam fey bi lëkkale nañu ko",
+          "first_member": "Jàng bu njëkk bi woo nañu ko ci ekip bi",
+          "first_published_property": "Kër gu njëkk gi génne nañu ko",
+          "admin_two_factor": "Ñaari yoon ngir seetlu bu njiit li ubbi na"
+        }
+      },
       "team": {
         "shortTitle": "Ekib bi",
         "shortSubtitle": "Topptoo way-bokk yu ajaas bi",
@@ -4132,6 +4169,12 @@
         "label": "Modération laa war balaa ñu koy génne",
         "hint": "Bu option bii ubbiku, kër gu bees gu agent bi yónni dina nekk ci anam « Di xaar validation » ba kera benn administrateur nangu ko, balaa ñépp koy gis."
       },
+      "security": {
+        "title": "Kaaraange ekip bi",
+        "description": "Sàrt yi jëm ci bépp jàng ci ajaans bi.",
+        "teamTwoFactorLabel": "Ñaari yoon ngir seetlu war na ci ekip bi yépp",
+        "teamTwoFactorHint": "Bépp jàng dina war a defar ñaareelu sumb (appli seetlu) balaa muy def dara ci bérabu ajaans bi. Kolonu « Ñaari yoon ngir seetlu » bu ekip bi dina wone ku ko def ba noppi."
+      },
       "submit": {
         "saving": "Mu ngi denc…"
       },
@@ -4202,6 +4245,10 @@
         "role": "Rol",
         "status": "Anam",
         "lastLogin": "Konexion bu mujj",
+        "twoFactor": "Ñaari yoon ngir seetlu",
+        "twoFactorOn": "Ubbi na",
+        "twoFactorOff": "Ubbiwul",
+        "twoFactorUnknown": "Xamuñu ko",
         "createdAt": "Ñu ko sos ci",
         "actions": "Jëf",
         "you": "Yow",
@@ -4685,6 +4732,7 @@
       },
       "cancel": "Neenal",
       "signIn": "Dugg",
+      "createAccount": "Sos sa kont",
       "sending": "Mu ngi yónnee…",
       "booking": {
         "description": "Joxel say bés ak limu gan yi. Boroom kër gi dina dëggal sa ñaan.",
@@ -7067,8 +7115,13 @@
       "saveError": "Coppite yi ci profil bi antuwul.",
       "saved": "Coppite yi ñu leen denc.",
       "otpSent": "Kod bi ñu ko yónnee ci SMS. Dina dox 5 simili.",
-      "otpSentDebug": "Kod bi ñu ko yónnee. (Debug : {code})",
-      "phoneVerifiedOk": "Telefon bi ñu ko wóoral bu baax."
+      "phoneVerifiedOk": "Telefon bi ñu ko wóoral bu baax.",
+      "changeProofPrompt": "Nimero bii dëggal nañu ko : ngir soppi ko, wonal ne yaa ko yor.",
+      "changeProofPasswordLabel": "Sa baatu jàll bi fi nekk",
+      "changeProofOr": "walla",
+      "changeProofSendCode": "Jot benn code ci {phone}",
+      "changeProofCodeSent": "Yónne nañu code bi ci sa nimero bi fi nekk. Dafay dox 5 simili.",
+      "changeProofCodeAria": "Code bi nga jot ci sa nimero bi fi nekk"
     },
     "searchPreferences": {
       "defaultName": "Samay tànneef",
@@ -8899,6 +8952,22 @@
         "cancelled": {
           "title": "Réservation bi neenal nañu ko",
           "body": "Sa réservation {reference} ngir {property}, neenal nañu ko."
+        }
+      },
+      "account": {
+        "phone_changed": {
+          "title": "Nimero telefon bi soppi nañu ko",
+          "body": "Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi."
+        }
+      },
+      "invitation": {
+        "received": {
+          "title": "Woote bu {agency}",
+          "body": "{agency} dafa la woo nga bokk ci ekibam."
+        },
+        "reminder": {
+          "title": "Fàttali : woote bu {agency}",
+          "body": "Sa woote ngir bokk ci {agency} ngi lay xaar."
         }
       },
       "visit": {

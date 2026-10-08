@@ -80,6 +80,7 @@ use App\Policies\PropertyVisitPolicy;
 use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
+use App\Services\Auth\AccessTokenGate;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
@@ -99,6 +100,7 @@ use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\OrangeDailyCapTracker;
 use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
+use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\QuietHoursGuard;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsRouterDriver;
@@ -127,6 +129,16 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** Vérification adverse M1 (c) — codes SMS vérifiables par numéro et par 15 min. */
+    public const PHONE_VERIFY_PER_WINDOW = 4;
+
+    /** Vérification adverse m1 — bornes des invitations (un SMS sous l'expéditeur Takussan). */
+    public const INVITATIONS_PER_INVITER_PER_HOUR = 20;
+
+    public const INVITATIONS_PER_NUMBER_PER_DAY = 3;
+
+    public const INVITATION_RESEND_MINUTES = 10;
+
     public function register(): void
     {
         $this->registerCurrencyFormatter();
@@ -146,6 +158,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->bootRequestMacros();
         $this->bootRateLimiters();
+        // TCK-589 — le rappel UNIQUE de Sanctum (statut du compte + bornes de session).
+        // Un second `authenticateAccessTokensUsing` écraserait celui-ci : TCK-600 ajoute
+        // sa clause DANS `AccessTokenGate`, pas ici.
+        AccessTokenGate::register();
         $this->bootObservers();
         $this->bootReportingHooks();
         $this->bootGatesAndPolicies();
@@ -373,6 +389,49 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
         RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
 
+        // TCK-589 (ADR-0033 §6) — entrée par téléphone. L'envoi d'un code coûte un SMS
+        // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange
+        // est de 3/jour/MSISDN) ET par IP (20/h). La vérification est bornée par
+        // numéro seul (10/15 min) : changer d'IP ne rouvre pas la force brute.
+        RateLimiter::for('auth-phone-send', fn (Request $request) => [
+            Limit::perMinutes(15, 3)->by('phone:'.$this->phoneRateLimitKey($request)),
+            Limit::perDay(5)->by('phone-day:'.$this->phoneRateLimitKey($request)),
+            Limit::perHour(20)->by('ip:'.$request->ip()),
+        ]);
+        // Vérification adverse M1 (c) — sous la MOITIÉ du seuil du verrou
+        // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
+        // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,
+        // un tiers verrouillait le numéro à chaque échéance.
+        // TCK-589, vérification adverse m1 — une invitation par SMS dépense un SMS sous
+        // l'expéditeur Takussan. Par invitant (toute invitation), par numéro destinataire
+        // (seulement quand le lien part par SMS), et une relance par fenêtre et par
+        // invitation. Le throttle passe AVANT la liaison de route : `{invitation}` peut
+        // n'être encore que l'identifiant.
+        RateLimiter::for('invitations-send', function (Request $request): array {
+            $limits = [Limit::perHour(self::INVITATIONS_PER_INVITER_PER_HOUR)
+                ->by('inviter:'.($request->user()?->getAuthIdentifier() ?? $request->ip()))];
+
+            $bound = $request->route('invitation');
+            if ($bound !== null) {
+                $invitation = $bound instanceof Invitation ? $bound : Invitation::query()->find($bound);
+                $limits[] = Limit::perMinutes(self::INVITATION_RESEND_MINUTES, 1)
+                    ->by('invitation:'.($invitation?->getKey() ?? (string) $bound));
+                $numero = $invitation !== null && $invitation->email === null ? $invitation->phone : null;
+            } else {
+                $numero = filled($request->input('email')) ? null : $request->input('phone');
+            }
+
+            if (is_string($numero) && trim($numero) !== '') {
+                $limits[] = Limit::perDay(self::INVITATIONS_PER_NUMBER_PER_DAY)
+                    ->by('invitation-number:'.$this->normalizedPhone($numero));
+            }
+
+            return $limits;
+        });
+
+        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, self::PHONE_VERIFY_PER_WINDOW)
+            ->by('phone:'.$this->phoneRateLimitKey($request)));
+
         // TCK-272 — émission du code e-mail de step-up pour la suppression
         // de compte. Route authentifiée : la clé est l'utilisateur, pas
         // l'IP, pour qu'un NAT partagé ne collabe pas plusieurs comptes.
@@ -387,6 +446,33 @@ class AppServiceProvider extends ServiceProvider
 
             return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
         });
+    }
+
+    /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
+    /**
+     * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
+     * sans corps vise le numéro déjà enregistré, et une clé vide aurait mis tous ces envois
+     * dans un même seau.
+     */
+    private function phoneRateLimitKey(Request $request): string
+    {
+        // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
+        // `phone` glissé dans le corps aurait ouvert un seau neuf à chaque appel.
+        $phone = $request->routeIs('auth.phone.change-code') ? '' : (string) $request->input('phone');
+        if ($phone === '') {
+            $phone = (string) ($request->user()?->phone ?? '');
+        }
+
+        return preg_replace('/\s+/', '', $phone) ?? '';
+    }
+
+    private function normalizedPhone(string $phone): string
+    {
+        try {
+            return PhoneNumber::normalize($phone);
+        } catch (\InvalidArgumentException) {
+            return preg_replace('/\s+/', '', $phone) ?? $phone;
+        }
     }
 
     private function visitorRateLimitKey(Request $request): string

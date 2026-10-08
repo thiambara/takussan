@@ -56,6 +56,7 @@ return [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
     ],
     'auth' => [
+        'account_blocked' => 'This account is blocked.',
         'insufficient_privileges' => 'Insufficient privileges.',
         'oauth_email_taken' => 'An account already exists with this email address. Sign in with your password, then link your account from your settings.',
         'oauth_not_configured' => 'This sign-in provider is not configured.',
@@ -179,6 +180,8 @@ return [
         'tenant_not_found' => 'The lease tenant was not found.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
+        'phone_mismatch' => 'This number is not the one the invitation was sent to.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'token_accepted' => 'This invitation has already been accepted.',
@@ -304,10 +307,13 @@ return [
         'unverified_destination' => 'This payout can only go to a verified destination of the payee, of the chosen method.',
     ],
     'phone' => [
+        'taken' => 'This number is already verified on another account.',
         'already_verified' => 'This phone number is already verified.',
         'code_invalid' => 'Invalid or expired verification code.',
         'missing' => 'No phone number is on file.',
         'resend_too_soon' => 'Please wait before requesting another code.',
+        'change_requires_proof' => 'To replace a verified number, first confirm you hold it: a code sent to that number, or your password.',
+        'no_verified_number' => 'No verified number is on file for this account.',
     ],
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',

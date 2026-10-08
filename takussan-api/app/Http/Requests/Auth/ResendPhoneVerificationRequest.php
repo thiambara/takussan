@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\TelephoneJoignable;
+use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Notifications\Sms\PhoneNumber;
 use Illuminate\Validation\Validator;
 
@@ -60,6 +61,8 @@ class ResendPhoneVerificationRequest extends BaseFormRequest
                     }
                 },
             ],
+            // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
+            ...PhoneChangeGuard::PROOF_RULES,
         ];
     }
 

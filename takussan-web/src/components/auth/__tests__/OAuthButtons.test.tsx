@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OAuthButtons } from '../OAuthButtons';
+import { CLE_INTENTION_OAUTH } from '../intention-oauth';
 // TCK-286 — le composant passe par next-intl ; seules les enveloppes de rendu changent.
 import { withIntl } from '@/test/intl';
 
@@ -58,5 +59,27 @@ describe('OAuthButtons', () => {
       expect(oauthRedirectMock).toHaveBeenCalledWith('google');
       expect(assignMock).toHaveBeenCalledWith('https://accounts.google.com/oauth');
     });
+  });
+
+  // TCK-589 — le rappel du fournisseur ne transporte pas `redirect` : l'intention doit être
+  // posée dans l'onglet AVANT de partir, pas après.
+  it.each([
+    ['/properties/x?action=reserver', '/properties/x?action=reserver'],
+    ['//evil.example', null],
+  ])('redirect %s → mémorisé %s avant de quitter la page', async (redirect, attendu) => {
+    const user = userEvent.setup();
+    window.sessionStorage.clear();
+    oauthProvidersMock.mockResolvedValue([{ provider: 'google', configured: true, missing: [] }]);
+    oauthRedirectMock.mockResolvedValue({ redirect_url: 'https://accounts.google.com/oauth' });
+    let auDepart: string | null | undefined;
+    assignMock.mockImplementation(() => {
+      auDepart = window.sessionStorage.getItem(CLE_INTENTION_OAUTH);
+    });
+
+    render(withIntl(<OAuthButtons redirect={redirect} />));
+    await user.click(await screen.findByRole('button', { name: 'Continuer avec Google' }));
+
+    await waitFor(() => expect(assignMock).toHaveBeenCalled());
+    expect(auDepart).toBe(attendu);
   });
 });

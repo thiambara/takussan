@@ -56,6 +56,7 @@ return [
         'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
     ],
     'auth' => [
+        'account_blocked' => 'Ce compte est bloqué.',
         'insufficient_privileges' => 'Droits insuffisants.',
         'oauth_email_taken' => 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec votre mot de passe puis liez votre compte depuis vos paramètres.',
         'oauth_not_configured' => 'Cette connexion externe n\'est pas configurée.',
@@ -179,6 +180,8 @@ return [
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
     ],
     'invitation' => [
+        'sms_daily_cap_reached' => 'Le plafond journalier d\'invitations par SMS de l\'agence est atteint. Réessayez demain, ou invitez par e-mail.',
+        'phone_mismatch' => 'Ce numéro n\'est pas celui qui a reçu l\'invitation.',
         'email_mismatch' => 'L\'email du compte connecté ne correspond pas à celui de l\'invitation.',
         'requires_login' => 'Cet email correspond à un compte existant. Veuillez vous connecter pour accepter l\'invitation.',
         'token_accepted' => 'Cette invitation a déjà été acceptée.',
@@ -304,10 +307,13 @@ return [
         'unverified_destination' => 'Ce reversement ne part que vers une destination vérifiée du bénéficiaire, du moyen choisi.',
     ],
     'phone' => [
+        'taken' => 'Ce numéro est déjà vérifié sur un autre compte.',
         'already_verified' => 'Ce numéro est déjà vérifié.',
         'code_invalid' => 'Code de vérification invalide ou expiré.',
         'missing' => 'Aucun numéro de téléphone n\'est enregistré.',
         'resend_too_soon' => 'Patientez avant de demander un nouveau code.',
+        'change_requires_proof' => 'Pour remplacer un numéro vérifié, confirmez d\'abord que vous le détenez : code reçu sur ce numéro, ou mot de passe.',
+        'no_verified_number' => 'Aucun numéro vérifié n\'est enregistré sur ce compte.',
     ],
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',

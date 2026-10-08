@@ -3,6 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Models\Customer;
+use App\Models\Invitation;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Services\Model\NotificationService;
@@ -65,6 +66,25 @@ final class ContactSansCompte
             $customer?->getKey(),
             self::email($visit->visitor_email) ?? self::email($customer?->email),
         );
+    }
+
+    /**
+     * TCK-589 — le destinataire d'une invitation adressée à un NUMÉRO : ce numéro, dans la
+     * langue que l'invitation a résolue (celle du compte qui l'a vérifié s'il existe).
+     */
+    public static function fromInvitation(Invitation $invitation, string $locale): self
+    {
+        return new self(self::normalize($invitation->phone), null, $locale, null);
+    }
+
+    /**
+     * TCK-589 p3-1 — l'ANCIEN numéro vérifié d'un compte, après son remplacement : il n'est plus
+     * celui d'aucun compte, l'avis lui part donc comme à un contact sans compte (et sous la même
+     * borne par numéro du canal SMS), dans la langue du compte qui l'a quitté.
+     */
+    public static function forPhone(string $phone, string $locale): self
+    {
+        return new self(self::normalize($phone), null, $locale, null);
     }
 
     /**

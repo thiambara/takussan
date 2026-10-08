@@ -25,9 +25,13 @@ trait CreatesAgencyMembers
         return User::factory()->withAgentProfile($agency)->create();
     }
 
+    /**
+     * TCK-589 — la 2FA est EXIGÉE d'un admin d'agence sur les actions protégées
+     * (`RequireTwoFactor`) : il s'incarne avec elle, comme dans `TestCase::actingAsRole`.
+     */
     protected function agencyAdmin(Agency $agency): User
     {
-        $admin = User::factory()->create();
+        $admin = User::factory()->withTwoFactor()->create();
         AgencyAdminProfile::factory()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
 
         return $admin;
@@ -74,7 +78,9 @@ trait CreatesAgencyMembers
             ->withCapabilities($capabilities)
             ->create(['agency_id' => $agency->id]);
 
-        $user = User::factory()->create();
+        // TCK-589 — un admin s'incarne avec sa 2FA (cf. `agencyAdmin`).
+        $factory = User::factory();
+        $user = ($type === AgencyRoleBaseType::AgencyAdmin ? $factory->withTwoFactor() : $factory)->create();
         $profileClass = $type === AgencyRoleBaseType::Agent ? AgentProfile::class : AgencyAdminProfile::class;
         $profileClass::factory()->create([
             'user_id' => $user->id,

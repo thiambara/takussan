@@ -65,7 +65,7 @@ class MultiProfileStrictAccessTest extends TestCase
     public function test_admin_acting_under_wrong_active_profile_cannot_admin_other_agency(): void
     {
         // Bob: agency_admin at Y (active), agent at X. Tries to admin X.
-        $bob = User::factory()->create();
+        $bob = User::factory()->withTwoFactor()->create();
         $agencyX = Agency::factory()->create();
         $agencyY = Agency::factory()->create();
 
@@ -91,7 +91,7 @@ class MultiProfileStrictAccessTest extends TestCase
         // Bob acting under X (only `agent` there, no agency_admin role).
         // Active-profile match is necessary but not sufficient — without an
         // agency_admin role at the same team the request is still 403.
-        $bob = User::factory()->create();
+        $bob = User::factory()->withTwoFactor()->create();
         $agencyX = Agency::factory()->create();
         $agencyY = Agency::factory()->create();
 
@@ -113,7 +113,7 @@ class MultiProfileStrictAccessTest extends TestCase
         // Positive case — Carol holds agency_admin at X *and* her active
         // profile is at X. Both halves of the strict check line up so the
         // request succeeds.
-        $carol = User::factory()->create();
+        $carol = User::factory()->withTwoFactor()->create();
         $agencyX = Agency::factory()->create();
         $agentX = AgentProfile::factory()->create([
             'user_id' => $carol->id,

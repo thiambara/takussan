@@ -16,9 +16,12 @@ import { cn } from '@/lib/utils';
  *
  * Two steps only — keep it short, the user just signed in:
  *   1. Welcome     — friendly hello, single CTA "Continuer"
- *   2. 2FA         — recommended (skippable): wraps <TotpEnrollment>
+ *   2. 2FA         — OBLIGATOIRE (TCK-589, ADR-0033) : wraps <TotpEnrollment mode="forced">
  *
- * After step 2 (whether enrolled or skipped) the user is redirected to /app,
+ * TCK-589 — « Plus tard » a disparu : l'administrateur d'agence tient la frontière d'isolation
+ * (l'agence), et un second facteur facultatif à cet endroit était un second facteur absent.
+ *
+ * After step 2 the user is redirected to /app,
  * which is where the BrandingBanner takes over to nudge the next action.
  *
  * No persisted state: dropping out of the page just brings the user back to
@@ -103,11 +106,7 @@ export function AgencyAdminOnboardingWizard({
           <h1 id="agency-admin-onboarding-2fa" className="sr-only">
             {t('steps.twoFactor')}
           </h1>
-          <TotpEnrollment
-            mode="recommended"
-            onComplete={finish}
-            onSkip={finish}
-          />
+          <TotpEnrollment mode="forced" onComplete={finish} />
         </section>
       ) : null}
     </div>

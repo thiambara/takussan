@@ -64,6 +64,8 @@ export const agencyFormSchema = z.object({
     ),
   timezone: z.string().trim().max(64, msgValidation('agency.timezoneTooLong')),
   moderation_required: z.boolean(),
+  /** TCK-589 — `settings.require_team_two_factor` : second facteur exigé de toute l'équipe. */
+  require_team_two_factor: z.boolean(),
   /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
   late_fee_online_collection: z.boolean(),
   // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
@@ -155,6 +157,9 @@ export function normaliseAgencyForm(
   if (currency !== null) settings.currency = currency.toUpperCase();
   const timezone = emptyToNull(values.timezone);
   if (timezone !== null) settings.timezone = timezone;
+  // TCK-589 — toujours émis, `false` compris : décocher doit lever l'exigence, pas la laisser
+  // en place faute d'avoir été envoyé.
+  settings.require_team_two_factor = values.require_team_two_factor;
   settings.late_fee_online_collection = values.late_fee_online_collection;
 
   return {

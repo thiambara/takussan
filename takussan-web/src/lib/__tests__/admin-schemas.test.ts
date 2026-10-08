@@ -32,6 +32,8 @@ describe('agencyFormSchema', () => {
     timezone: '',
     // TCK-098 added this required boolean to the schema.
     moderation_required: false,
+    // TCK-589 — second facteur exigé de l'équipe.
+    require_team_two_factor: false,
     // TCK-593 — le réglage d'encaissement des pénalités en ligne.
     late_fee_online_collection: false,
     // TCK-594 — TVA par défaut, seuil des quatre yeux, mentions légales.
@@ -100,6 +102,14 @@ describe('agencyFormSchema', () => {
       currency: 'XOF',
     });
   });
+
+  it.each([true, false])(
+    'TCK-589 — `settings.require_team_two_factor` part toujours, %s compris',
+    (exige) => {
+      const payload = normaliseAgencyForm({ ...base, require_team_two_factor: exige });
+      expect(payload.settings).toMatchObject({ require_team_two_factor: exige });
+    },
+  );
 });
 
 /**
@@ -121,6 +131,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     currency: '',
     timezone: '',
     moderation_required: false,
+    require_team_two_factor: false,
     late_fee_online_collection: false,
     default_tax_rate: '18',
     payout_approval_threshold: '500000',

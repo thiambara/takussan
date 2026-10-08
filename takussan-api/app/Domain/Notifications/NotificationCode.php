@@ -107,6 +107,13 @@ enum NotificationCode: string
     case PayoutThresholdRelaxRequested = 'payout_threshold.relax_requested';
     case OwnerStatementAvailable = 'owner_statement.available';
 
+    // ─── Invitations par SMS (TCK-589 : le destinataire n'a souvent pas de compte) ───────
+    case InvitationReceived = 'invitation.received';
+    case InvitationReminder = 'invitation.reminder';
+
+    // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
+    case AccountPhoneChanged = 'account.phone_changed';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -143,6 +150,8 @@ enum NotificationCode: string
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
@@ -187,6 +196,9 @@ enum NotificationCode: string
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => null,
+            self::InvitationReceived, self::InvitationReminder => null,
+            // Un avis de sécurité : on ne s'en désabonne pas.
+            self::AccountPhoneChanged => null,
         };
     }
 
@@ -243,6 +255,10 @@ enum NotificationCode: string
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
             self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
             self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
+            // Le nom de l'agence seul, jamais un texte de l'invitant (vérification adverse m1).
+            self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
+            self::AccountPhoneChanged => [],
             self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
         };
     }
@@ -283,6 +299,11 @@ enum NotificationCode: string
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            // TCK-589 — le lien d'une invitation adressée à un NUMÉRO (geste humain de l'agence,
+            // borné par numéro au point d'envoi) et l'avis à l'ancien numéro remplacé : leur
+            // destinataire est un contact sans compte qu'on ne joint que par là. Sans préférence
+            // (`preferenceEvent()` null), ils n'ouvrent aucun canal mobile vers un compte.
+            self::InvitationReceived, self::InvitationReminder, self::AccountPhoneChanged,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
             default => false,
         };
@@ -290,12 +311,15 @@ enum NotificationCode: string
 
     /**
      * Le code peut viser un contact sans compte : transactionnel seulement (exécution du bail,
-     * demande de visite). Jamais un message non transactionnel (ADR-0032 §3).
+     * demande de visite, lien d'une invitation adressée à un numéro — TCK-589). Jamais un
+     * message non transactionnel (ADR-0032 §3).
      */
     public function reachesContacts(): bool
     {
         return match ($this) {
             self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::VisitReminder,
+            self::InvitationReceived, self::InvitationReminder,
+            self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
             self::LeadAcknowledged => true,
             default => false,
