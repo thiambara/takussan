@@ -8,6 +8,7 @@ use App\Models\Inventory;
 use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -35,40 +36,49 @@ class InventorySignatureService
 {
     public function sign(Inventory $inventory, User $user, string $role, string $signature): Inventory
     {
-        $this->assertSignable($inventory);
-        $this->authorizeRole($inventory, $user, $role);
-        $this->assertRoleNotAlreadySigned($inventory, $role);
+        // VERIF-596 M3 — sous le verrou de la ligne, et TOUT est relu dessus : deux signatures
+        // simultanées (un état des lieux fait ensemble, deux téléphones) voyaient chacune l'autre
+        // « non signée », aucune ne passait `signed` ni ne figeait l'empreinte, et l'état restait
+        // bloqué (chaque rôle déjà signé → 409). Patron de `LeaseSignatureService::sign`.
+        return DB::transaction(function () use ($inventory, $user, $role, $signature): Inventory {
+            /** @var Inventory $locked */
+            $locked = Inventory::query()->whereKey($inventory->getKey())->lockForUpdate()->firstOrFail();
 
-        $hash = hash('sha256', $signature);
-        $now = now();
+            $this->assertSignable($locked);
+            $this->authorizeRole($locked, $user, $role);
+            $this->assertRoleNotAlreadySigned($locked, $role);
 
-        if ($role === InventorySignRequest::ROLE_TENANT) {
-            $inventory->tenant_signed = true;
-            $inventory->tenant_signed_at = $now;
-            $inventory->tenant_signature_data = $signature;
-            $inventory->tenant_signature_hash = $hash;
-        } else {
-            $inventory->owner_signed = true;
-            $inventory->owner_signed_at = $now;
-            $inventory->owner_signature_data = $signature;
-            $inventory->owner_signature_hash = $hash;
-            $inventory->owner_signed_by_user_id = $user->id;
-            $inventory->owner_signed_on_behalf_of_user_id = LandlordSignatory::onBehalfOf($user, $inventory->lease);
-        }
+            $hash = hash('sha256', $signature);
+            $now = now();
 
-        if ($inventory->tenant_signed && $inventory->owner_signed) {
-            $inventory->status = InventoryStatus::Signed;
-            $inventory->signed_at = $now;
-            $inventory->traceability_hash = $this->frozenTraceabilityHash($inventory);
-        } elseif ($inventory->status === InventoryStatus::Draft) {
-            // First signature promotes a draft to pending_signature so the
-            // counterparty can see it's awaiting their action.
-            $inventory->status = InventoryStatus::PendingSignature;
-        }
+            if ($role === InventorySignRequest::ROLE_TENANT) {
+                $locked->tenant_signed = true;
+                $locked->tenant_signed_at = $now;
+                $locked->tenant_signature_data = $signature;
+                $locked->tenant_signature_hash = $hash;
+            } else {
+                $locked->owner_signed = true;
+                $locked->owner_signed_at = $now;
+                $locked->owner_signature_data = $signature;
+                $locked->owner_signature_hash = $hash;
+                $locked->owner_signed_by_user_id = $user->id;
+                $locked->owner_signed_on_behalf_of_user_id = LandlordSignatory::onBehalfOf($user, $locked->lease);
+            }
 
-        $inventory->save();
+            if ($locked->tenant_signed && $locked->owner_signed) {
+                $locked->status = InventoryStatus::Signed;
+                $locked->signed_at = $now;
+                $locked->traceability_hash = $this->frozenTraceabilityHash($locked);
+            } elseif ($locked->status === InventoryStatus::Draft) {
+                // First signature promotes a draft to pending_signature so the
+                // counterparty can see it's awaiting their action.
+                $locked->status = InventoryStatus::PendingSignature;
+            }
 
-        return $inventory->refresh();
+            $locked->save();
+
+            return $locked->refresh();
+        });
     }
 
     /**

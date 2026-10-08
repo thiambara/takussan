@@ -12,6 +12,7 @@ use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Inventory\InventorySignatureService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -485,6 +486,29 @@ class InventorySignatureTest extends TestCase
         ]);
         $this->assertStringContainsString(e($expected), (string) $captured);
         $this->assertStringContainsString((string) $inventory->refresh()->traceability_hash, (string) $captured);
+    }
+
+    /**
+     * VERIF-596 M3 — deux signatures SIMULTANÉES : chaque requête a lu l'état des lieux avant
+     * l'écriture de l'autre (deux instances périmées). Sans verrou ni relecture, aucune ne passait
+     * `signed` et l'empreinte n'était jamais figée — état irrécupérable (chaque rôle déjà signé).
+     */
+    public function test_two_interleaved_signatures_end_signed_with_a_frozen_hash(): void
+    {
+        [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
+        $inventory = $this->makeInventory($property, $tenant, $owner, $lease);
+        $readByTenant = Inventory::query()->findOrFail($inventory->id);
+        $readByOwner = Inventory::query()->findOrFail($inventory->id);
+        $service = app(InventorySignatureService::class);
+
+        $service->sign($readByTenant, $tenantUser, 'tenant', self::SIGNATURE);
+        $service->sign($readByOwner, $owner, 'landlord', self::SIGNATURE_ALT);
+
+        $fresh = $inventory->fresh();
+        $this->assertSame(InventoryStatus::Signed, $fresh->status);
+        $this->assertNotNull($fresh->signed_at);
+        $this->assertNotNull($fresh->traceability_hash);
+        $this->assertSame(64, strlen((string) $fresh->traceability_hash));
     }
 
     /** Un bailleur suspendu dans l'agence du bail perd les écritures (ADR-0031 §2), signature comprise. */
