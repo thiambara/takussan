@@ -39,6 +39,13 @@ final class ResponsibleAgentAssigner
 {
     public const EVENT = 'responsible_agent_changed';
 
+    /** Les refus qui disent « cette cible ne peut pas répondre pour CE bien » — un lot les range en `invalid_target`. */
+    public const TARGET_REFUSALS = [
+        'user.not_in_active_agency',
+        'property.responsible_agent_co_owner',
+        'property.primary_not_eligible',
+    ];
+
     public function __construct(
         private readonly PrimaryAgentDesignator $designator,
         private readonly MembershipCapabilityResolver $resolver,

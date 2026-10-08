@@ -23,13 +23,6 @@ use Illuminate\Support\Facades\DB;
  */
 class PropertyBulkAssignService
 {
-    /** Les refus du service qui disent « cette cible ne peut pas répondre pour ce bien ». */
-    private const INVALID_TARGET = [
-        'user.not_in_active_agency',
-        'property.responsible_agent_co_owner',
-        'property.primary_not_eligible',
-    ];
-
     public function __construct(private readonly ResponsibleAgentAssigner $assigner) {}
 
     /**
@@ -62,7 +55,7 @@ class PropertyBulkAssignService
                     try {
                         $result = $this->assigner->assign($property, $target, $actor);
                     } catch (ApiError $e) {
-                        if (! in_array($e->errorCode, self::INVALID_TARGET, true)) {
+                        if (! in_array($e->errorCode, ResponsibleAgentAssigner::TARGET_REFUSALS, true)) {
                             throw $e;
                         }
                         $failed[] = ['id' => $id, 'reason' => 'invalid_target'];

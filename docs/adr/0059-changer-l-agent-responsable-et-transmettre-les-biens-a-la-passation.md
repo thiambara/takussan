@@ -85,15 +85,18 @@ Deux catégories s'ajoutent aux transmissibles, avec leurs requêtes dans `Agent
   Transmises par `ResponsibleAgentAssigner` vers le repreneur. La marque, et non le repli : c'est le choix de
   l'agence qui se transmet ; un bien sans marque suit sa ligne de collaboration (catégorie `collaborations`),
   et le repli avec elle.
-- **`held_properties`** : les biens de l'agence dont `user_id` = le partant, **sauf s'il est bailleur actif de
-  l'agence** (`PersonnelDeLAgence::estBailleur`) — alors aucun : ses biens ne se distinguent pas, par la
-  colonne, de ceux qu'il a saisis, et la règle « jamais d'un bailleur » l'emporte. Transmises par l'écriture de
-  `user_id` ← repreneur, que la requête a déjà jugé personnel actif de l'agence.
+- **`held_properties`** : les biens de l'agence dont `user_id` = le partant, **sauf s'il porte un profil
+  propriétaire de l'agence** (non supprimé, quel qu'en soit le statut) — alors aucun : ses biens ne se
+  distinguent pas, par la colonne, de ceux qu'il a saisis, et la règle « jamais d'un bailleur » l'emporte.
+  Transmises par l'écriture de `user_id` ← repreneur, que la requête a déjà jugé personnel actif de l'agence ;
+  **jamais vers un repreneur qui porte un profil propriétaire de l'agence** (« jamais vers un bailleur ») : les
+  biens restent alors au partant et sont comptés désassignés.
 
-**L'ordre des verrous** : après `tasks`, `visits` et `maintenance` (aucun verrou de bien ni de ligne de
-collaboration), la passation verrouille **en une requête, par identifiant croissant**, tous les biens que
-touchent `responsible_properties`, `held_properties` et `collaborations` ; puis elle traite
-`responsible_properties`, `held_properties`, `collaborations` et `customers`. Elle prend donc bien → lignes,
+**L'ordre des verrous** : avant toute catégorie, la passation verrouille **en une requête, par identifiant
+croissant**, tous les biens que touchent `responsible_properties`, `held_properties` et `collaborations`
+(celles qui ont un repreneur) ; puis elle traite, dans cet ordre, `tasks`, `visits`, `maintenance` (aucune ne
+verrouille un bien ni une ligne de collaboration), `responsible_properties`, `held_properties`,
+`collaborations` et `customers`. Elle prend donc bien → lignes,
 l'ordre du service et du contrôleur des collaborateurs — jamais lignes → bien. Deux passations simultanées
 verrouillent leurs biens dans le même ordre.
 
@@ -155,7 +158,8 @@ geste et d'elle seule.
   biens attend. C'est un geste rare d'administrateur.
 - Un membre du personnel qui est aussi bailleur de l'agence ne transmet aucun bien par `held_properties` ; ce
   qu'il a saisi pour l'agence reste à son nom jusqu'à un geste manuel. Compté zéro, il ne bloque pas son
-  retrait.
+  retrait. Aucun geste de l'API ne permet aujourd'hui ce transfert manuel : c'est un cas à traiter à la main
+  en base, ou par un ticket, s'il se présente.
 - `docs/models-spec.md` et `docs/features.md` ne décrivent ni `bulk-assign`, ni les deux catégories :
   `/sync-specs` après fusion.
 

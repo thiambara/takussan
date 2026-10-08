@@ -26,18 +26,25 @@ use Illuminate\Database\Eloquent\Builder;
  * Seul le travail EN COURS compte : une tâche terminée, une visite passée, une intervention close
  * restent à leur auteur — c'est l'histoire, pas le portefeuille.
  *
- * ⚠ `held_properties` (biens dont `user_id` = le partant) est COMPTÉ mais pas encore TRANSMIS :
- * son transfert attend TCK-504 (ADR-0036, question 2), comme `responsible_properties`, que la
- * marque de collaborateur principal de 504 portera. Le compter garde le retrait honnête : un agent
- * qui tient encore des biens de l'agence ne se retire pas sans `leave_unassigned` assumé.
+ * Les biens (TCK-603, ADR-0036, ADR-0059 §3) :
+ *  - `responsible_properties` : les biens de l'agence dont la ligne `agent` MARQUÉE principale est
+ *    celle du partant — le choix de l'agence, que la passation transmet par
+ *    `ResponsibleAgentAssigner`. Un bien sans marque suit sa ligne de collaboration ;
+ *  - `held_properties` : les biens de l'agence dont `user_id` = le partant, qu'il a saisis pour
+ *    l'agence. AUCUN s'il porte un profil propriétaire de l'agence, quel qu'en soit le statut : ses
+ *    propres biens ne se distinguent pas des autres par la colonne, et un bailleur n'est jamais
+ *    dépossédé.
+ *
+ * L'ORDRE de {@see self::TRANSFERABLE} est celui de la passation : les biens avant les
+ * collaborations, pour que la marque passe au repreneur avant que la ligne du partant ne bouge.
  */
 class AgentPortfolio
 {
-    /** Les catégories que la passation transmet. */
-    public const TRANSFERABLE = ['tasks', 'visits', 'maintenance', 'collaborations', 'customers'];
+    /** Les catégories que la passation transmet, dans l'ordre où elle les traite. */
+    public const TRANSFERABLE = ['tasks', 'visits', 'maintenance', 'responsible_properties', 'held_properties', 'collaborations', 'customers'];
 
-    /** Comptées, non transmises : elles attendent TCK-504. */
-    public const PENDING = ['held_properties'];
+    /** Comptées, non transmises : aucune depuis TCK-603. */
+    public const PENDING = [];
 
     public const CLOSED_MAINTENANCE = [
         MaintenanceStatus::Completed,
@@ -91,9 +98,19 @@ class AgentPortfolio
                 ->where('is_primary', true)
                 ->where('status', RelationshipStatus::Active)
                 ->whereHas('customer', $inAgency),
+            'responsible_properties' => Property::query()
+                ->where('agency_id', $agencyId)
+                ->whereHas('collaborators', fn (Builder $q) => $q
+                    ->where('user_id', $member->id)
+                    ->where('role', CollaboratorRole::Agent)
+                    ->where('is_primary', true)),
             'held_properties' => Property::query()
                 ->where('user_id', $member->id)
-                ->where('agency_id', $agencyId),
+                ->where('agency_id', $agencyId)
+                ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('owner_profiles')
+                    ->where('owner_profiles.user_id', $member->id)
+                    ->where('owner_profiles.agency_id', $agencyId)
+                    ->whereNull('owner_profiles.deleted_at')),
         };
     }
 }
