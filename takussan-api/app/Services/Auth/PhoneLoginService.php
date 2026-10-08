@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Http\Resources\UserResource;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
+use App\Support\CanonicalPhone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -118,7 +119,12 @@ class PhoneLoginService
     /** Le compte qui a VÉRIFIÉ ce numéro — un numéro seulement saisi ne prouve rien. */
     private function verifiedAccount(string $phone): ?User
     {
-        return User::query()->where('phone', $phone)->whereNotNull('phone_verified_at')->first();
+        // Vérification adverse m5 — la forme canonique : un numéro vérifié hérité hors E.164
+        // retrouve son compte au lieu d'en ouvrir un second.
+        return User::query()
+            ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold($phone)])
+            ->whereNotNull('phone_verified_at')
+            ->first();
     }
 
     /** @param  array{two_factor_code?: ?string, recovery_code?: ?string}  $proof */

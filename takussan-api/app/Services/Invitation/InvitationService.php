@@ -19,6 +19,7 @@ use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -909,7 +910,10 @@ class InvitationService
             return User::query()->where('email', $email)->first();
         }
 
-        return User::query()->where('phone', $phone)->whereNotNull('phone_verified_at')->first();
+        return User::query()
+            ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold((string) $phone)])
+            ->whereNotNull('phone_verified_at')
+            ->first();
     }
 
     /** Le numéro auquel part le lien : seulement quand l'invitation n'a pas d'e-mail. */

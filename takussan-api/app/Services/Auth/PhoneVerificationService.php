@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Support\CanonicalPhone;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Log;
 
@@ -131,8 +132,9 @@ class PhoneVerificationService
 
     public function isVerifiedElsewhere(string $phone, ?User $except = null): bool
     {
+        // Vérification adverse m5 — la forme canonique, celle de l'index d'unicité.
         return User::query()
-            ->where('phone', $phone)
+            ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold($phone)])
             ->whereNotNull('phone_verified_at')
             ->when($except !== null, fn ($q) => $q->whereKeyNot($except->getKey()))
             ->exists();

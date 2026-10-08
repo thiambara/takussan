@@ -1550,3 +1550,49 @@ second est vert : il garde contre une révocation trop large, et son ablation le
 
 **Exécutions** : `tests/Feature/Auth/Phone`, `PhoneVerificationTest` et `tests/Feature/Onboarding`
 donnent 97 verts.
+
+#### m5 — les numéros vérifiés hérités hors E.164 sont retrouvés et protégés
+
+- **Écart avec la consigne** : `TelephoneSaisi::normaliser` n'existe ni dans l'API ni dans le
+  front (mesuré par `grep`). `PhoneNumber::normalize` ne fait que retirer les espaces, et lève
+  sur toute autre forme.
+- D'où **`App\Support\CanonicalPhone`**, sur le patron de `CaseInsensitive`. `sql()` et
+  `fold()` vont par paire et réparent dans cet ordre :
+  1. espaces, parenthèses, points et tirets retirés ;
+  2. `00` en tête devient `+` ;
+  3. l'indicatif tapé après le numéro (`780143710+221`) est remis devant ;
+  4. douze chiffres commençant par `221` prennent un `+` ;
+  5. neuf chiffres nus prennent `+221`.
+
+  Le `0` de préfixe national n'est pas réparé : aucun SMS n'y arrive, si bien qu'aucun numéro de
+  cette forme n'a pu être vérifié.
+- La forme canonique est comparée par `PhoneLoginService::verifiedAccount`,
+  `PhoneVerificationService::isVerifiedElsewhere` (et donc `markVerified`, et la réponse neutre
+  de m4) et `InvitationService::recipientAccount`.
+- **L'index `users_phone_verified_unique` porte sur l'expression canonique.** La migration
+  `150200`, qui n'est pas encore sur `dev`, est modifiée en place. L'expression y est écrite en
+  littéral (une migration ne suit pas le code).
+- L'en-tête de la migration porte deux relevés : la requête des formes non E.164, à côté de
+  celle des doublons, désormais comptés sur la forme canonique.
+
+**Tests** :
+- `LegacyPhoneFormTest` (3) : un titulaire `780143710+221` vérifié est reconnecté par l'entrée
+  `+221780143710` (pas de second compte). Un autre compte qui vérifie `+221780143710` reçoit 409
+  `phone.taken`. L'index refuse `+221 78 014 37 10` vérifié (`23505`, sous un point de
+  sauvegarde).
+- `CanonicalPhoneTest` (9) : PHP et SQL replient pareil sur huit formes, et la recherche emprunte
+  l'index par une **`Index Cond`**.
+
+**Rouge sur `f8321498`** : 3 rouges.
+
+**Ablations, restaurées par `cp`** :
+- index rendu à `(phone)` → 1 rouge sur `LegacyPhoneFormTest` (index) ;
+- `verifiedAccount` en chaîne brute → 1 rouge ;
+- `isVerifiedElsewhere` en chaîne brute → 1 rouge.
+
+**Une ablation a montré un test trop faible.** Avec l'index rendu à `(phone)`, le test
+`EXPLAIN` restait **vert**. `enable_seqscan` étant coupé, le planificateur parcourait l'index
+partiel en **filtre**. Le test exige désormais `Index Cond`, et l'ablation le fait rougir.
+
+**Exécutions** : `tests/Feature/Auth`, `Invitation`, `Onboarding`, `Support` et
+`tests/Unit/Architecture` donnent 477 verts. `tests/Feature/Database` donne 29 verts.
