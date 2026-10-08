@@ -34,7 +34,7 @@ class ConversationParticipantController extends Controller
     public function store(AddParticipantsRequest $request, Conversation $conversation): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->can('addParticipant', $conversation), 403, __('messaging.errors.admin_only'));
+        abort_code_unless($user->can('addParticipant', $conversation), 403, 'messaging.admin_only');
 
         $userIds = array_map('intval', (array) $request->validated('user_ids'));
         $added = $this->groups->addParticipants($conversation, $user, $userIds);
@@ -50,10 +50,10 @@ class ConversationParticipantController extends Controller
     public function destroy(Request $request, Conversation $conversation, User $user): JsonResponse
     {
         $actor = $request->user();
-        abort_unless(
+        abort_code_unless(
             $actor->can('removeParticipant', [$conversation, $user]),
             403,
-            __('messaging.errors.admin_only'),
+            'messaging.admin_only',
         );
 
         $this->groups->removeParticipant($conversation, $actor, $user);

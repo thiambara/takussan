@@ -31,7 +31,7 @@ class AuthEmailVerificationTest extends TestCase
         $response = $this->withToken($token)->getJson($path);
 
         $response->assertStatus(200)
-            ->assertJson(['message' => 'Email verified successfully.']);
+            ->assertJson(['message' => __('messages.email_verified')]);
 
         $this->assertNotNull($user->fresh()->email_verified_at);
     }
@@ -64,7 +64,7 @@ class AuthEmailVerificationTest extends TestCase
         $response = $this->withToken($token)->getJson($path);
 
         $response->assertStatus(200)
-            ->assertJson(['message' => 'Email already verified.']);
+            ->assertJson(['message' => __('messages.email_already_verified')]);
     }
 
     public function test_user_can_resend_verification_email(): void
@@ -78,7 +78,7 @@ class AuthEmailVerificationTest extends TestCase
             ->postJson('/api/auth/email/resend');
 
         $response->assertStatus(200)
-            ->assertJson(['message' => 'Verification email resent.']);
+            ->assertJson(['message' => __('messages.verification_email_resent')]);
 
         Notification::assertSentTo($user, VerifyEmail::class);
     }

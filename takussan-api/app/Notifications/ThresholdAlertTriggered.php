@@ -9,6 +9,7 @@ use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Number;
 
 /**
  * TCK-032 P3 — dispatched to agency admins when a metric crosses an alert
@@ -45,21 +46,22 @@ class ThresholdAlertTriggered extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $direction = in_array($this->alert->operator, ['>', '>='], true) ? 'dépasse' : 'est inférieur à';
+        $direction = in_array($this->alert->operator, ['>', '>='], true) ? 'above' : 'below';
+        $locale = app()->getLocale();
 
         return (new MailMessage)
-            ->subject('[Takussan] Alerte KPI — '.$this->alert->metric)
-            ->line('Une métrique surveillée a franchi son seuil.')
-            ->line(sprintf(
-                '%s : %.2f %s %.2f (sévérité : %s).',
-                $this->alert->metric,
-                $this->value,
-                $direction,
-                (float) $this->alert->threshold,
-                $this->alert->severity,
-            ))
-            ->action('Voir le tableau de bord', url('/app/overview'))
-            ->line('Cette alerte ne sera pas renvoyée pendant '.$this->alert->cooldown_hours.' heures.');
+            ->subject(__('notifications.threshold_alert_mail.subject', ['metric' => $this->alert->metric]))
+            ->line(__('notifications.threshold_alert_mail.intro'))
+            ->line(__('notifications.threshold_alert_mail.'.$direction, [
+                'metric' => $this->alert->metric,
+                'value' => Number::format($this->value, precision: 2, locale: $locale),
+                'threshold' => Number::format((float) $this->alert->threshold, precision: 2, locale: $locale),
+                'severity' => $this->alert->severity,
+            ]))
+            ->action(__('notifications.threshold_alert_mail.action'), url('/app/overview'))
+            ->line(trans_choice('notifications.threshold_alert_mail.cooldown', (int) $this->alert->cooldown_hours, [
+                'hours' => (int) $this->alert->cooldown_hours,
+            ]));
     }
 
     /**

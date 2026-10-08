@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Services\Agency\AgentAvailability;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -106,12 +105,7 @@ class TaskController extends Controller
         $ok = $assignee !== null
             && app(MembershipCapabilityResolver::class)->isStaffAt($assignee, (int) $agencyId);
 
-        if (! $ok) {
-            throw new HttpResponseException($this->json([
-                'code' => 'task_assignee_not_staff',
-                'message' => __('crm.tasks.assignee_not_staff'),
-            ], 422));
-        }
+        abort_code_unless($ok, 422, 'task.assignee_not_staff');
     }
 
     /**

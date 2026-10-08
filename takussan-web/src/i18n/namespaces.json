@@ -91,6 +91,7 @@
       "messaging",
       "meta",
       "nav",
+      "notifications",
       "ownerWelcome",
       "owners",
       "payments",
@@ -125,6 +126,7 @@
       "messaging",
       "meta",
       "nav",
+      "notifications",
       "payments",
       "profile",
       "property",
@@ -185,12 +187,12 @@
   "plafondsPourcent": {
     ".": 14,
     "(auth)": 17,
-    "publish": 19,
+    "publish": 18,
     "onboarding": 39,
-    "(dashboard)": 16,
-    "(dashboard)/app": 70,
-    "(dashboard)/admin": 59,
-    "[locale]/(public)": 39,
+    "(dashboard)": 15,
+    "(dashboard)/app": 71,
+    "(dashboard)/admin": 60,
+    "[locale]/(public)": 38,
     "(super-admin)/super-admin": 42
   }
 }

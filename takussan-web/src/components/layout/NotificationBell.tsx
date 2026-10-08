@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Bell, CheckCheck } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -15,22 +16,11 @@ import type {
 } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useLocale, useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { NotificationRow } from '@/components/notifications/NotificationRow';
 
 const QUERY_KEY = ['notifications', 'feed'] as const;
-
-function notificationBody(notification: AppNotification): string | null {
-  return notification.body ?? notification.content ?? null;
-}
-
-function formatDate(value: string, locale: string): string {
-  return new Intl.DateTimeFormat(`${locale}-SN`, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(value));
-}
 
 function patchNotification(
   previous: NotificationsResponse | undefined,
@@ -61,7 +51,6 @@ function patchNotification(
 export function NotificationBell() {
   const t = useTranslations('nav.notifications');
   const messageErreur = useMessageErreurApi();
-  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -226,48 +215,33 @@ export function NotificationBell() {
 
         {notifications.length > 0 ? (
           <ul className="max-h-96 overflow-y-auto divide-y divide-border">
-            {notifications.map((notification) => {
-              const unreadItem = !notification.read_at;
-              return (
-                <li
-                  key={notification.id}
-                  className={cn(
-                    'px-4 py-3',
-                    unreadItem ? 'bg-muted/60' : 'bg-card',
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-pretty">
-                        {notification.title}
-                      </p>
-                      {notificationBody(notification) ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {notificationBody(notification)}
-                        </p>
-                      ) : null}
-                      <p className="mt-2 text-xs tabular-nums text-muted-foreground">
-                        {formatDate(notification.created_at, locale)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="-mr-2 -mt-1.5 shrink-0 rounded-md px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                      disabled={markRead.isPending || markUnread.isPending}
-                      onClick={() =>
-                        unreadItem
-                          ? markRead.mutate(notification.id)
-                          : markUnread.mutate(notification.id)
-                      }
-                    >
-                      {unreadItem ? t('markRead') : t('markUnread')}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
+            {notifications.map((notification) => (
+              <NotificationRow
+                key={notification.id}
+                notification={notification}
+                pending={markRead.isPending || markUnread.isPending}
+                onOpen={(opened) => {
+                  // TCK-588 — ouvrir une notification la marque lue, et ferme la cloche.
+                  if (!opened.read_at) markRead.mutate(opened.id);
+                  setOpen(false);
+                }}
+                onToggleRead={(toggled) =>
+                  toggled.read_at ? markUnread.mutate(toggled.id) : markRead.mutate(toggled.id)
+                }
+              />
+            ))}
           </ul>
         ) : null}
+
+        <footer className="border-t border-border">
+          <Link
+            href="/app/notifications"
+            onClick={() => setOpen(false)}
+            className="flex min-h-11 items-center justify-center px-4 text-sm font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            {t('viewAll')}
+          </Link>
+        </footer>
       </PopoverContent>
     </Popover>
   );

@@ -224,7 +224,8 @@
       "loading": "Loading...",
       "empty": "No notifications.",
       "markRead": "Mark as read",
-      "markUnread": "Mark as unread"
+      "markUnread": "Mark as unread",
+      "viewAll": "View full history"
     },
     "proUpgrade": {
       "title": "Go pro",
@@ -1765,6 +1766,11 @@
       },
       "visitDetail": {
         "metaTitle": "Visit file"
+      },
+      "notifications": {
+        "metaTitle": "Notifications",
+        "title": "Notifications",
+        "subtitle": "Everything you were notified of, read or not."
       }
     },
     "empty": {
@@ -7543,7 +7549,8 @@
         "review_received": "New review",
         "saved_search_match": "Saved search",
         "visit_reminder": "Visit reminder",
-        "threshold_alert": "KPI threshold alert"
+        "threshold_alert": "KPI threshold alert",
+        "lease_payment_received": "Rent — payment received"
       },
       "channels": {
         "inapp": "In-app",
@@ -7562,7 +7569,8 @@
       },
       "reasons": {
         "inappAlwaysOn": "Always on so you miss nothing.",
-        "phoneNotVerified": "Phone not verified."
+        "phoneNotVerified": "Phone not verified.",
+        "channelUnavailable": "No message of this kind is sent on this channel."
       }
     }
   },
@@ -8323,6 +8331,170 @@
       "frenchOnly": "This document is only available in French for now."
     },
     "otherDocuments": "Other documents"
+  },
+  "notifications": {
+    "codes": {
+      "lease_payment": {
+        "due_soon": {
+          "title": "Rent due on {due_date}",
+          "body": "Your rent of {amount} for {property} is due on {due_date}."
+        },
+        "overdue": {
+          "title": "Rent overdue",
+          "body": "{days, plural, one {Your rent of {amount} for {property}, due on {due_date}, is # day overdue.} other {Your rent of {amount} for {property}, due on {due_date}, is # days overdue.}}"
+        },
+        "overdue_landlord": {
+          "title": "Unpaid rent: {property}",
+          "body": "{days, plural, one {The rent of {amount} from {tenant} for {property} is # day overdue.} other {The rent of {amount} from {tenant} for {property} is # days overdue.}}"
+        },
+        "overdue_digest": {
+          "title": "{count, plural, one {# overdue rent} other {# overdue rents}}",
+          "body": "{count, plural, one {# payment on your leases is overdue, totalling {total}.} other {# payments on your leases are overdue, totalling {total}.}}"
+        },
+        "recorded": {
+          "title": "Payment recorded",
+          "body": "Your payment of {amount} for {property} has been recorded."
+        },
+        "received_landlord": {
+          "title": "Rent received: {property}",
+          "body": "{tenant} paid {amount} for {property}."
+        }
+      },
+      "booking": {
+        "created": {
+          "title": "New booking",
+          "body": "Booking {reference} was requested for {property}, from {start_date} to {end_date}."
+        },
+        "confirmed": {
+          "title": "Booking confirmed",
+          "body": "Your booking {reference} for {property}, from {start_date} to {end_date}, is confirmed."
+        },
+        "rejected": {
+          "title": "Booking declined",
+          "body": "Your booking {reference} for {property} was declined."
+        },
+        "cancelled": {
+          "title": "Booking cancelled",
+          "body": "Your booking {reference} for {property} was cancelled."
+        }
+      },
+      "visit": {
+        "reminder": {
+          "title": "Visit reminder: {property}",
+          "body": "Reminder: the visit of {property} is scheduled for {scheduled_at}."
+        }
+      },
+      "message": {
+        "received": {
+          "title": "New message from {sender}",
+          "body": "{sender}: {excerpt}"
+        }
+      },
+      "lead": {
+        "received": {
+          "title": "New contact without an account",
+          "body": "{name} ({email}): {excerpt}"
+        }
+      },
+      "kyc": {
+        "submitted": {
+          "title": "Agency KYC to review",
+          "body": "The KYC file of {agency} has been submitted."
+        },
+        "verified": {
+          "title": "Agency KYC verified",
+          "body": "Your KYC file has been verified."
+        },
+        "rejected": {
+          "title": "Agency KYC rejected",
+          "body": "Your KYC file was rejected: {reason}"
+        }
+      },
+      "role_delegation": {
+        "activated": {
+          "title": "Role delegated — {role}",
+          "body": "You have been granted the {role} role until {ends_at}."
+        },
+        "activated_delegator": {
+          "title": "Role delegated — {role}",
+          "body": "The delegation to {beneficiary} for the {role} role is now active."
+        },
+        "expired": {
+          "title": "Delegation expired — {role}",
+          "body": "Your delegation for the {role} role has ended."
+        },
+        "expired_delegator": {
+          "title": "Delegation expired — {role}",
+          "body": "The delegation to {beneficiary} for the {role} role has expired."
+        },
+        "revoked": {
+          "title": "Delegation revoked — {role}",
+          "body": "Your delegation for the {role} role has been revoked."
+        },
+        "revoked_delegator": {
+          "title": "Delegation revoked — {role}",
+          "body": "You have revoked the delegation from {beneficiary} for the {role} role."
+        }
+      },
+      "bank_statement": {
+        "imported": {
+          "title": "Statement imported",
+          "body": "{lines, plural, one {Your statement {bank} (# line) is ready for reconciliation.} other {Your statement {bank} (# lines) is ready for reconciliation.}}"
+        },
+        "finalized": {
+          "title": "Statement finalized",
+          "body": "The statement from {period_start} to {period_end} has been finalized ({confirmed}/{total} lines reconciled)."
+        }
+      },
+      "maintenance": {
+        "created": {
+          "title": "New maintenance request",
+          "body": "A maintenance request ({reference}) was submitted for {property}."
+        }
+      },
+      "maintenance_quote": {
+        "requested": {
+          "title": "Quote requested: {request}",
+          "body": "A quote is requested from you for the job \"{request}\"."
+        },
+        "submitted": {
+          "title": "Quote submitted: {request}",
+          "body": "A quote of {amount} was submitted for the job \"{request}\"."
+        },
+        "approved": {
+          "title": "Quote approved: {request}",
+          "body": "Your quote for the job \"{request}\" was approved."
+        },
+        "rejected": {
+          "title": "Quote rejected: {request}",
+          "body": "Your quote for the job \"{request}\" was rejected."
+        }
+      },
+      "property": {
+        "approved": {
+          "title": "Property approved: {property}",
+          "body": "Your property \"{property}\" was approved and is now visible on the platform."
+        },
+        "rejected": {
+          "title": "Property rejected: {property}",
+          "body": "Your property \"{property}\" was rejected. Reason: {reason}. You can fix the listing and resubmit it from your workspace."
+        }
+      }
+    },
+    "history": {
+      "filterLabel": "Filter notifications",
+      "filterAll": "All",
+      "filterUnread": "{count, plural, =0 {Unread} other {Unread (#)}}",
+      "markAllRead": "Mark all as read",
+      "retry": "Try again",
+      "loading": "Loading…",
+      "empty": "No notifications yet.",
+      "emptyUnread": "You are all caught up.",
+      "pagination": "History pages",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {last}"
+    }
   },
   "shareReception": {
     "metaTitle": "Shared document",

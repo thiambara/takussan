@@ -49,7 +49,7 @@ class PlanController extends Controller
 
     public function destroy(Request $request, Plan $plan): JsonResponse
     {
-        abort_if($plan->subscriptions()->exists(), 409, 'Plan is referenced by agency subscriptions.');
+        abort_code_if($plan->subscriptions()->exists(), 409, 'plan.in_use');
 
         activity('Billing')
             ->causedBy($request->user())

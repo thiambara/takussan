@@ -2,8 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\Currency;
 use App\Models\Invoice;
 use App\Models\Lease;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -76,8 +78,7 @@ class LeaseEarlyTerminationNotification extends Notification implements ShouldQu
 
         if ($this->transition === self::TRANSITION_REQUESTED && $penalty !== null && $penalty > 0) {
             $message->line(__('notifications.lease_early_termination.penalty_line', [
-                'amount' => number_format($penalty, 0, '.', ' '),
-                'currency' => $this->lease->currency?->value ?? 'XOF',
+                'amount' => app(CurrencyFormatter::class)->format((float) $penalty, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
             ]));
         }
 

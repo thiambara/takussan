@@ -29,7 +29,7 @@ class LAfricaMobileSmsStatusController extends Controller
             abort(404);
         }
         if (! $request->hasValidSignature()) {
-            abort(403, 'Invalid signature');
+            abort_code(403, 'webhook.signature_invalid');
         }
         $pushId = (string) $request->query('push_id', '');
         $statusCode = (int) $request->query('status', 0);

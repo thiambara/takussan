@@ -63,8 +63,9 @@ class LastAdminGuardTest extends ApiTestCase
         ]);
 
         $response->assertStatus(422)->assertJsonValidationErrors('agency_role_id');
-        $this->assertStringContainsString(
-            'Dernier administrateur',
+        // TCK-588 — le message suit la langue de la requête ; il n'est plus du français en dur.
+        $this->assertSame(
+            __('errors.agency_role.last_administrator'),
             $response->json('errors.agency_role_id.0'),
         );
         $this->assertSame($before, $this->adminProfile->fresh()->agency_role_id);

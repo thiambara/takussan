@@ -7,7 +7,7 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Notifications\VisitReminderNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -34,8 +34,8 @@ class ScheduledJobsTest extends TestCase
 
         (new SendPropertyVisitReminders)->handle();
 
-        Notification::assertSentTo($agent, VisitReminderNotification::class);
-        Notification::assertSentTo($visitor, VisitReminderNotification::class);
+        Notification::assertSentTo($agent, CodedNotification::class);
+        Notification::assertSentTo($visitor, CodedNotification::class);
     }
 
     public function test_visit_reminder_ignores_non_tomorrow_visits(): void

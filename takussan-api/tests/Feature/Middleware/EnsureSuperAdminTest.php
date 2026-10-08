@@ -26,7 +26,7 @@ class EnsureSuperAdminTest extends TestCase
 
         $this->getJson('/api/admin/system/metrics')
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Super-admin access required.');
+            ->assertJsonPath('code', 'auth.super_admin_required');
     }
 
     public function test_super_admin_passes_through_with_200(): void

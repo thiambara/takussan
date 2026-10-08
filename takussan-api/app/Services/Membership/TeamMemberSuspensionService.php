@@ -55,17 +55,17 @@ class TeamMemberSuspensionService
 
     private function assertSuspendable(Agency $agency, User $target, User $actor): void
     {
-        abort_if($target->id === $actor->id, 422, __('team.suspension.errors.self'));
-        abort_if((int) $agency->primary_admin_id === $target->id, 422, __('team.suspension.errors.primary_admin'));
+        abort_code_if($target->id === $actor->id, 422, 'team.suspension_self');
+        abort_code_if((int) $agency->primary_admin_id === $target->id, 422, 'team.suspension_primary_admin');
 
         $targetIsAdmin = AgencyAdminProfile::query()
             ->where('user_id', $target->id)
             ->where('agency_id', $agency->id)
             ->exists();
-        abort_if(
+        abort_code_if(
             $targetIsAdmin && ! $actor->isSuperAdmin() && ! $actor->isAgencyAdminAt((int) $agency->id),
             403,
-            __('errors.team_admin_suspension_reserved'),
+            'team.admin_suspension_reserved',
         );
     }
 
@@ -73,10 +73,10 @@ class TeamMemberSuspensionService
     private function apply(Agency $agency, User $target, User $actor, bool $suspend): array
     {
         $profiles = $this->profilesIn($agency, $target);
-        abort_if($profiles === [], 422, __('messages.target_user_not_in_active_agency'));
+        abort_code_if($profiles === [], 422, 'user.not_in_active_agency');
 
         $profiles = array_values(array_filter($profiles, fn (Model $p): bool => $this->changes($p, $suspend)));
-        abort_if($profiles === [], 422, __($suspend ? 'errors.team_nothing_to_suspend' : 'errors.team_nothing_to_reactivate'));
+        abort_code_if($profiles === [], 422, $suspend ? 'team.nothing_to_suspend' : 'team.nothing_to_reactivate');
 
         $result = DB::transaction(function () use ($profiles, $target, $actor, $agency, $suspend): array {
             $rows = [];

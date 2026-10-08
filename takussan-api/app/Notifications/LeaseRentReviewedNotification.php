@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\Currency;
 use App\Models\Lease;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -54,16 +56,14 @@ class LeaseRentReviewedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $reference = $this->lease->reference_number ?? '#'.$this->lease->id;
-        $currency = $this->lease->currency?->value ?? 'XOF';
 
         return (new MailMessage)
             ->subject(__('notifications.lease_rent_reviewed.subject', ['reference' => $reference]))
             ->greeting(__('notifications.lease_rent_reviewed.greeting'))
             ->line(__('notifications.lease_rent_reviewed.intro', [
                 'reference' => $reference,
-                'old' => number_format($this->oldRent, 0, '.', ' '),
-                'new' => number_format($this->newRent, 0, '.', ' '),
-                'currency' => $currency,
+                'old' => app(CurrencyFormatter::class)->format((float) $this->oldRent, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
+                'new' => app(CurrencyFormatter::class)->format((float) $this->newRent, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
             ]))
             ->line(__('notifications.lease_rent_reviewed.effective', [
                 'date' => $this->effectiveDate,

@@ -32,7 +32,7 @@ class CalendarController extends Controller
         // probe agency B's agenda by passing `agency_id=B`.
         $agencyFilter = null;
         if (array_key_exists('agency_id', $validated)) {
-            abort_unless($user->isSuperAdmin(), 403, __('calendar.errors.cross_agency_forbidden'));
+            abort_code_unless($user->isSuperAdmin(), 403, 'calendar.other_agency_forbidden');
             $agencyFilter = (int) $validated['agency_id'];
         }
 

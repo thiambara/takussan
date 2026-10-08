@@ -45,10 +45,10 @@ class AgencyController extends Controller
         $user = $request->user();
 
         $alreadyOwns = Agency::where('primary_admin_id', $user->id)->exists();
-        abort_if(
+        abort_code_if(
             $alreadyOwns && ! ($user->isSuperAdmin()),
             422,
-            'You already administer an agency.'
+            'agency.already_administered'
         );
 
         $data = $request->validated();
@@ -187,7 +187,7 @@ class AgencyController extends Controller
             ? User::findOrFail($data['user_id'])
             : User::where('email', $data['email'])->first();
 
-        abort_if($target === null, 422, __('messages.user_not_found_by_email'));
+        abort_code_if($target === null, 422, 'agency_member.user_not_found_by_email');
 
         // TCK-142 — agency attachment is now profile-driven. Block if the
         // user already has an active agent profile at a different agency,
@@ -195,7 +195,7 @@ class AgencyController extends Controller
         $existingElsewhere = $target->agentProfiles()
             ->where('agency_id', '!=', $agency->id)
             ->exists();
-        abort_if($existingElsewhere, 422, __('messages.user_already_in_agency'));
+        abort_code_if($existingElsewhere, 422, 'agency_member.already_in_other_agency');
 
         // TCK-278 — Rôle = présence d'un profil polymorphe. On crée toujours
         // un AgentProfile (le rôle de base d'un membre d'équipe) ; si le rôle
