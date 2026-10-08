@@ -1,13 +1,13 @@
 ---
 id: TCK-596
 title: "Cycle locatif : le locataire donne congé, une annulation prévient qui doit l'être, l'hôte bloque ses dates et synchronise iCal, le bail se signe par code, l'état des lieux range ses photos dans la bonne pièce"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -343,7 +343,7 @@ du Delta et un critère qui rougit sur le code actuel.
 ## Delta à produire
 
 ### 0. Décisions
-- [ ] **Livraison** (option retenue par défaut, question non tranchée) : un seul ticket pour la vague,
+- [x] **Livraison** (option retenue par défaut, question non tranchée) : un seul ticket pour la vague,
       livré en trois PR dans cet ordre : §1 + §5 + §2 + §3A + §4A (défauts, sans ADR), puis §3B
       derrière l'ADR d'O12, puis §4B derrière l'ADR d'O17. La signature du bail reste dans ce ticket :
       **tranché par le porteur le 2026-10-06**, la spec la porte en P2 (§1.4).
@@ -614,82 +614,82 @@ du Delta et un critère qui rougit sur le code actuel.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
+- [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
       retire sa demande pendant la fenêtre. Un utilisateur au rôle client qui n'est pas ce locataire
       ne le voit pas. Le test de composant rougit sur le code actuel (le locataire ne voit rien) et
       rougit aussi si le geste s'ouvre à « tout client ».
-- [ ] AC2 — Annulation par le client : le bailleur **et** l'agent du bien reçoivent une notification,
+- [x] AC2 — Annulation par le client : le bailleur **et** l'agent du bien reçoivent une notification,
       le client n'en reçoit pas pour son propre geste. Annulation par l'agent : le client et le
       bailleur sont notifiés, l'agent non. Les destinataires sont vérifiés par identifiant, pas par
       nombre. Le titre reçu par un destinataire de langue `en` est la traduction anglaise de la clé
       `notifications.booking_cancelled.title`, jamais « Réservation annulée ».
-- [ ] AC3 — Une réservation portant un acompte `paid` qui passe `cancelled`, `rejected` ou `expired`
+- [x] AC3 — Une réservation portant un acompte `paid` qui passe `cancelled`, `rejected` ou `expired`
       (par `ExpireBookings`, par `ExpirePendingBookingsJob` **et** par `expire-now`) produit
       **exactement une** tâche `booking_refund` assignée. Sans acompte payé, aucune tâche.
       Le dernier remboursement clôt la tâche.
-- [ ] AC4 — `POST booking-payments/{id}/refund` par le **client** de la réservation → 403, et le
+- [x] AC4 — `POST booking-payments/{id}/refund` par le **client** de la réservation → 403, et le
       paiement reste `paid`. Le test rougit sur `e3ab4a4e` et redevient rouge si l'on retire la
       correction. Un **autre bailleur de la même agence** (`OwnerProfile`) → 403, le paiement reste
       `paid` (rougit aussi sur `e3ab4a4e`). Le même autre bailleur qui poste
       `POST bookings/{id}/payments` avec `status = paid` → 403 et aucune ligne `booking_payments`
       créée (rougit sur `e3ab4a4e` : 201, paiement `paid`). Un agent sans `bookings.refund` → 403 ; un
       admin d'agence → 200 ; le bailleur direct → 200.
-- [ ] AC5 — `refund_status` vaut `pending` pour la réservation annulée avec acompte payé et
+- [x] AC5 — `refund_status` vaut `pending` pour la réservation annulée avec acompte payé et
       `refunded` après remboursement ; le client voit l'état correspondant.
-- [ ] AC6 — Les deux ADR sont acceptés avant le premier commit de leur sous-partie.
-- [ ] AC7 — Sans attendre l'ADR (§3A) : une demande, privée **ou publique**, sur des nuits d'une
+- [x] AC6 — Les deux ADR sont acceptés avant le premier commit de leur sous-partie.
+- [x] AC7 — Sans attendre l'ADR (§3A) : une demande, privée **ou publique**, sur des nuits d'une
       réservation déjà confirmée → 422 et aucune ligne `bookings` créée (rougit sur le code actuel :
       201). Un séjour qui arrive le jour du départ d'un autre → accepté à la demande et à la
       confirmation (rougit sur le code actuel, via `confirm`). Après §3B, même refus sur des nuits
       bloquées.
-- [ ] AC8 — Le flux `/ical/{token}.ics` d'un bien contient ses réservations confirmées et ses
+- [x] AC8 — Le flux `/ical/{token}.ics` d'un bien contient ses réservations confirmées et ses
       blocages manuels, ne contient ni nom ni téléphone, et rend 404 avec l'ancien jeton après
       régénération.
-- [ ] AC9 — Un flux iCal importé crée, met à jour et retire les indisponibilités correspondantes. Une
+- [x] AC9 — Un flux iCal importé crée, met à jour et retire les indisponibilités correspondantes. Une
       URL vers une adresse privée, de bouclage ou de métadonnées est refusée **sans requête sortante**
       (`Http::assertNothingSent`). Un conflit avec une réservation confirmée est signalé, et la
       réservation reste confirmée.
-- [ ] AC10 — Le bail passe `active` **uniquement** après la seconde signature par code valide.
+- [x] AC10 — Le bail passe `active` **uniquement** après la seconde signature par code valide.
       L'échéancier est généré une fois. Chaque `LeaseSignature` porte l'empreinte du PDF figé,
       l'horodatage et l'IP. Un code rejoué ou un sixième essai est refusé.
-- [ ] AC11 — `leases.sign` a un lecteur : un agent de l'agence du bail sans cette capacité ne peut
+- [x] AC11 — `leases.sign` a un lecteur : un agent de l'agence du bail sans cette capacité ne peut
       pas signer pour le bailleur (403), il le peut avec (200, `on_behalf_of_user_id` renseigné).
-- [ ] AC12 — Un bail renouvelé en `pending_signature` atteint `active` par le parcours de signature
+- [x] AC12 — Un bail renouvelé en `pending_signature` atteint `active` par le parcours de signature
       (fin de l'impasse).
-- [ ] AC13 — **Test de composant qui monte deux pièces** : un fichier choisi par la zone de la
+- [x] AC13 — **Test de composant qui monte deux pièces** : un fichier choisi par la zone de la
       **seconde** pièce active le bouton d'envoi de la seconde pièce, et pas celui de la première.
       Ce test **rougit sur le code actuel** (id fixe), sans recours au glisser-déposer. Les
       `htmlFor` des deux zones sont distincts et désignent chacun l'input de leur propre zone.
-- [ ] AC14 — Une photo JPEG de 7 Mo est **acceptée** par la zone d'état des lieux et le fichier
+- [x] AC14 — Une photo JPEG de 7 Mo est **acceptée** par la zone d'état des lieux et le fichier
       envoyé pèse ≤ 5 Mo. Un fichier non image est refusé avec le message de type. (Un correctif
       qui abaisserait seulement la limite à 5 Mo échoue à cet AC.)
-- [ ] AC15 — `POST inventories/{id}/room-photos` sur un état des lieux `signed` → 409, sur
+- [x] AC15 — `POST inventories/{id}/room-photos` sur un état des lieux `signed` → 409, sur
       `pending_signature` ou `disputed` → 422, avec une pièce absente de `rooms` → 422. Dans les trois
       cas, le nombre de médias `room_photos` est inchangé (test qui rougit sur `e3ab4a4e`, où les
       trois rendent 200).
-- [ ] AC16 — `GET inventories/{id}` rend `room_photos` groupés par pièce avec des URL signées ;
+- [x] AC16 — `GET inventories/{id}` rend `room_photos` groupés par pièce avec des URL signées ;
       l'agent les voit dans chaque pièce et en supprime une en brouillon (204). La suppression sur un
       état soumis → 422.
-- [ ] AC17 — `./vendor/bin/pint`, `npx tsc --noEmit`, `npm run lint` propres. Clés fr/en/wo
+- [x] AC17 — `./vendor/bin/pint`, `npx tsc --noEmit`, `npm run lint` propres. Clés fr/en/wo
       présentes pour tout libellé ajouté.
-- [ ] AC18 — Une demande de réservation publique (séjour **et** offre d'achat) et une demande privée
+- [x] AC18 — Une demande de réservation publique (séjour **et** offre d'achat) et une demande privée
       notifient le bailleur et le collaborateur accepté `agent` du bien, vérifiés par identifiant ; le
       client n'est pas notifié de sa propre demande. Le test rougit sur `e3ab4a4e` : la demande
       publique n'y notifie personne, la privée oublie l'agent.
-- [ ] AC19 — Un renouvellement `active` (réglage de signature absent) produit son échéancier : 12
+- [x] AC19 — Un renouvellement `active` (réglage de signature absent) produit son échéancier : 12
       échéances `pending` pour 12 mois en paiement mensuel, sans clic. Le test rougit sur `e3ab4a4e`
       (0 échéance) et redevient rouge si l'on retire l'émission du job.
-- [ ] AC20 — `POST inventories/{id}/sign` sans `role` ni `signature` → 422, et `owner_signed`,
+- [x] AC20 — `POST inventories/{id}/sign` sans `role` ni `signature` → 422, et `owner_signed`,
       `tenant_signed`, `status` sont inchangés (rougit sur `e3ab4a4e` : 200 et partie marquée signée).
       Un super-admin qui signe `role=tenant` → 403 ; un autre bailleur de la même agence qui signe
       `role=landlord` → 403. Les deux rougissent sur `e3ab4a4e` (200).
-- [ ] AC21 — L'empreinte figée d'un état des lieux signé change si une seule photo diffère (rougit sur
+- [x] AC21 — L'empreinte figée d'un état des lieux signé change si une seule photo diffère (rougit sur
       `e3ab4a4e`, où les photos n'entrent pas dans le calcul). Celle d'un état des lieux signé avant
       la migration reste la valeur imprimée aujourd'hui.
-- [ ] AC22 — Une demande `pending` dont `expires_at` est passé, expirée par `ExpireBookings`, porte
+- [x] AC22 — Une demande `pending` dont `expires_at` est passé, expirée par `ExpireBookings`, porte
       `expired_at` et `expiry_reason = deadline`, et son client reçoit `BookingExpiredNotification`.
       Le test rougit sur `e3ab4a4e` (`expired_at` nul, aucune notification).
-- [ ] AC23 — **Qui signe pour le bailleur.** Un utilisateur sans profil dans l'agence du bien, ajouté
+- [x] AC23 — **Qui signe pour le bailleur.** Un utilisateur sans profil dans l'agence du bien, ajouté
       comme collaborateur `viewer` accepté (`$property->collaborators()->create(['user_id' => …,
       'role' => 'viewer', 'accepted_at' => now()])` ; il n'existe pas de fabrique), qui poste
       `POST inventories/{id}/sign` `role=landlord` → **403**, et `owner_signed` reste `false`. Même
