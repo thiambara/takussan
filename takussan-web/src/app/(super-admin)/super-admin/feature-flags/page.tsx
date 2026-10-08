@@ -2,13 +2,14 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { Flag } from 'lucide-react';
 import { FeatureFlagTable } from '@/components/admin/super/feature-flags';
 import { fetchAdminFeatureFlags } from '@/lib/queries/super-admin';
 import type { AdminFeatureFlagsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
-import { ErrorState } from '@/components/feedback';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SuperAdminFeatureFlagsPage() {
@@ -36,6 +37,14 @@ export default function SuperAdminFeatureFlagsPage() {
           message={`${tShared('loadError')} ${messageErreur(query.error)}`}
           onRetry={() => void query.refetch()}
           retryLabel={tCommon('actions.retry')}
+        />
+      ) : (query.data?.data ?? []).length === 0 ? (
+        // TCK-600 — le catalogue est vide tant qu'aucun code ne lit de drapeau : l'écran le dit
+        // au lieu d'une table sans ligne.
+        <EmptyState
+          icon={<Flag className="size-8" aria-hidden="true" />}
+          title={t('emptyTitle')}
+          description={t('emptyDescription')}
         />
       ) : (
         <FeatureFlagTable flags={query.data?.data ?? []} />

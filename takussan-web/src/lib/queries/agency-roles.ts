@@ -21,6 +21,7 @@ import type {
   CreateAgencyRoleInput,
   UpdateAgencyRoleInput,
 } from '@/types/agency-role';
+import { cheminApi } from '@/lib/chemin-api';
 
 export const agencyRoleKeys = {
   all: ['agency-roles'] as const,
@@ -62,7 +63,7 @@ const LIST_FIELDS = [
 export function useAgencyRoles(agencyId: number, enabled = true) {
   return useApiQuery<PaginatedResponse<AgencyRole>>(
     agencyRoleKeys.list(agencyId),
-    `/api/agencies/${agencyId}/roles`,
+    cheminApi`/api/agencies/${agencyId}/roles`,
     {
       enabled: enabled && Number.isFinite(agencyId) && agencyId > 0,
       params: {
@@ -79,7 +80,7 @@ export function useAgencyRoles(agencyId: number, enabled = true) {
 export function useAgencyRole(agencyId: number, roleId: number, enabled = true) {
   return useApiQuery<ApiResponse<AgencyRole>>(
     agencyRoleKeys.detail(agencyId, roleId),
-    `/api/agencies/${agencyId}/roles/${roleId}`,
+    cheminApi`/api/agencies/${agencyId}/roles/${roleId}`,
     { enabled: enabled && roleId > 0, params: { include: ['capabilities'] } },
   );
 }
@@ -102,7 +103,7 @@ export function useAgencyRole(agencyId: number, roleId: number, enabled = true) 
 export function useAgencyRoleAssignments(agencyId: number, userIds: readonly number[]) {
   return useApiQuery<ApiResponse<AgencyRoleAssignment[]>>(
     agencyRoleKeys.assignments(agencyId, userIds),
-    `/api/agencies/${agencyId}/role-assignments`,
+    cheminApi`/api/agencies/${agencyId}/role-assignments`,
     {
       enabled: Number.isFinite(agencyId) && agencyId > 0 && userIds.length > 0,
       params: { extra: { user_ids: userIds.join(',') } },
@@ -114,7 +115,7 @@ export function useAgencyRoleAssignments(agencyId: number, userIds: readonly num
 /** `POST /api/agencies/{agency}/roles` — création, éventuellement par clonage. */
 export function useCreateAgencyRole(agencyId: number) {
   return useApiMutation<ApiResponse<AgencyRole>, CreateAgencyRoleInput>(
-    { path: `/api/agencies/${agencyId}/roles`, method: 'POST' },
+    { path: cheminApi`/api/agencies/${agencyId}/roles`, method: 'POST' },
     { invalidate: [agencyRoleKeys.all] },
   );
 }
@@ -127,7 +128,7 @@ export function useCreateAgencyRole(agencyId: number) {
  */
 export function useUpdateAgencyRole(agencyId: number, roleId: number) {
   return useApiMutation<ApiResponse<AgencyRole>, UpdateAgencyRoleInput>(
-    { path: `/api/agencies/${agencyId}/roles/${roleId}`, method: 'PATCH' },
+    { path: cheminApi`/api/agencies/${agencyId}/roles/${roleId}`, method: 'PATCH' },
     { invalidate: [agencyRoleKeys.all, agencyRoleKeys.detail(agencyId, roleId)] },
   );
 }
@@ -142,7 +143,7 @@ export function useUpdateAgencyRole(agencyId: number, roleId: number) {
 export function useDeleteAgencyRole(agencyId: number) {
   return useApiMutation<{ message: string }, number>(
     {
-      path: (roleId) => `/api/agencies/${agencyId}/roles/${roleId}`,
+      path: (roleId) => cheminApi`/api/agencies/${agencyId}/roles/${roleId}`,
       method: 'DELETE',
     },
     { invalidate: [agencyRoleKeys.all] },
@@ -159,7 +160,7 @@ export function useDeleteAgencyRole(agencyId: number) {
 export function useSyncRoleCapabilities(agencyId: number, roleId: number) {
   return useApiMutation<ApiResponse<AgencyRole>, { capabilities: CapabilityValue[] }>(
     {
-      path: `/api/agencies/${agencyId}/roles/${roleId}/capabilities`,
+      path: cheminApi`/api/agencies/${agencyId}/roles/${roleId}/capabilities`,
       method: 'PUT',
     },
     {
@@ -182,7 +183,7 @@ export function useSyncRoleCapabilities(agencyId: number, roleId: number) {
  */
 export function useAssignAgencyRole(profileId: number) {
   return useApiMutation<ApiResponse<unknown>, AssignAgencyRoleInput>(
-    { path: `/api/profiles/${profileId}/agency-role`, method: 'PATCH' },
+    { path: cheminApi`/api/profiles/${profileId}/agency-role`, method: 'PATCH' },
     { invalidate: [agencyRoleKeys.all, ['admin-users'], ME_CAPABILITY_KEY] },
   );
 }

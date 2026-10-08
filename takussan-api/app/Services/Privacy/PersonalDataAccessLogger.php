@@ -3,6 +3,7 @@
 namespace App\Services\Privacy;
 
 use App\Models\User;
+use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Models\Activity;
 
@@ -16,7 +17,9 @@ use Spatie\Activitylog\Models\Activity;
  *
  * Au plus une entrée par (lecteur, sujet, surface) par fenêtre de {@see self::WINDOW_MINUTES}
  * minutes : un rafraîchissement n'est pas une seconde consultation, et un journal noyé ne se lit
- * plus. Journal `PersonalDataAccess`, conservé cinq ans (TCK-537 doit l'exempter de la purge).
+ * plus. TCK-600 (verif-600 G) — l'opérateur d'une impersonation est un lecteur DISTINCT de sa
+ * cible : le `causer` est la cible (le jeton est le sien), et `impersonator_id` seul les sépare.
+ * Sans lui dans la clé, une consultation de la cible avalait celle de l'opérateur, et l'inverse. Journal `PersonalDataAccess`, conservé cinq ans (TCK-537 doit l'exempter de la purge).
  */
 class PersonalDataAccessLogger
 {
@@ -45,6 +48,8 @@ class PersonalDataAccessLogger
 
     public function record(User $viewer, Model $subject, string $surface): void
     {
+        $operateur = app(ImpersonationContext::class)->impersonatorId();
+
         $alreadyLogged = Activity::query()
             ->where('log_name', self::LOG_NAME)
             ->where('event', self::EVENT)
@@ -53,6 +58,11 @@ class PersonalDataAccessLogger
             ->where('subject_type', $subject->getMorphClass())
             ->where('subject_id', $subject->getKey())
             ->where('properties->surface', $surface)
+            ->when(
+                $operateur === null,
+                fn ($q) => $q->whereNull('impersonator_id'),
+                fn ($q) => $q->where('impersonator_id', $operateur),
+            )
             ->where('created_at', '>=', now()->subMinutes(self::WINDOW_MINUTES))
             ->exists();
 

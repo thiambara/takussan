@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\Auth\PhoneVerificationController;
 use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
-use App\Http\Controllers\Api\UserAdminController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -50,7 +49,6 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
-    Route::delete('/account', [UserAdminController::class, 'deleteOwnAccount'])->name('auth.account.destroy');
 
     // Email verification
     Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])

@@ -3,7 +3,9 @@
 namespace App\Observers;
 
 use App\Jobs\Media\RegenerateAgencyWatermarksJob;
+use App\Jobs\Search\SyncAgencyPropertiesSearchIndex;
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Membership\AgencySystemRoleSeeder;
 
@@ -50,6 +52,8 @@ class AgencyObserver
      */
     public function updated(Agency $agency): void
     {
+        $this->syncSearchIndexOnStatusChange($agency);
+
         if (! $agency->wasChanged('settings')) {
             return;
         }
@@ -59,6 +63,27 @@ class AgencyObserver
 
         if (! $before && $after) {
             RegenerateAgencyWatermarksJob::dispatch($agency->id)->afterCommit();
+        }
+    }
+
+    /**
+     * TCK-600 (ADR-0048 §2) — entrer dans `active` ou en sortir change la visibilité publique de
+     * tous les biens de l'agence ; l'index doit suivre. Ici plutôt que dans la console, pour la
+     * même raison que le filigrane : tout écrivain du statut passe par là (même angle mort sur
+     * une écriture de masse).
+     */
+    private function syncSearchIndexOnStatusChange(Agency $agency): void
+    {
+        if (! $agency->wasChanged('status')) {
+            return;
+        }
+
+        $avant = $agency->getOriginal('status');
+        $publiqueAvant = $avant === AgencyStatus::Active || $avant === AgencyStatus::Active->value;
+        $publiqueApres = $agency->status === AgencyStatus::Active;
+
+        if ($publiqueAvant !== $publiqueApres) {
+            SyncAgencyPropertiesSearchIndex::dispatch($agency->id)->afterCommit();
         }
     }
 

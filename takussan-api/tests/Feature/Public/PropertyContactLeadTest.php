@@ -241,9 +241,10 @@ class PropertyContactLeadTest extends TestCase
         $owner = $this->bailleur($agency);
         $property = $this->bienDe($agency, $owner);
 
-        Sanctum::actingAs($owner);
-        $this->deleteJson('/api/auth/account')->assertSuccessful();
-        $this->app['auth']->forgetGuards();
+        // TCK-600 — `DELETE /api/auth/account` (effacement immédiat) n'existe plus : le compte parti
+        // est supprimé en douceur directement, SANS `ErasedAccountListings` (qui dépublierait le
+        // bien et rendrait sans objet ce que ce test éprouve, le repli de la demande).
+        $owner->delete();
 
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',
@@ -261,9 +262,10 @@ class PropertyContactLeadTest extends TestCase
         $owner = User::factory()->create();
         $property = $this->bienDe(null, $owner);
 
-        Sanctum::actingAs($owner);
-        $this->deleteJson('/api/auth/account')->assertSuccessful();
-        $this->app['auth']->forgetGuards();
+        // TCK-600 — `DELETE /api/auth/account` (effacement immédiat) n'existe plus : le compte parti
+        // est supprimé en douceur directement, SANS `ErasedAccountListings` (qui dépublierait le
+        // bien et rendrait sans objet ce que ce test éprouve, le repli de la demande).
+        $owner->delete();
 
         $this->postJson("/api/public/properties/{$property->slug}/contact-lead", [
             'name' => 'Awa Diop', 'phone' => '+221771234567', 'message' => 'Disponible ce samedi ?',

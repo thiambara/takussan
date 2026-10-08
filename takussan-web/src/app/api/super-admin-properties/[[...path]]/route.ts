@@ -1,5 +1,6 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
+import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
@@ -13,10 +14,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
  * (TCK-144 kept `/api/properties` shared on purpose).
  */
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
+  const chemin = cheminAmont(segments);
+  if (chemin === null) return reponseSegmentInvalide();
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
-  const suffix = segments.length > 0 ? `/${segments.join('/')}` : '';
+  const suffix = chemin !== '' ? `/${chemin}` : '';
   const url = `${API_URL}/api/properties${suffix}${request.nextUrl.search}`;
 
   const headers: Record<string, string> = {

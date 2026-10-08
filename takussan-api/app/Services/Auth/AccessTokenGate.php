@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\Admin\ImpersonationService;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
@@ -38,6 +39,14 @@ class AccessTokenGate
         // les supprime, mais un jeton qui aurait survécu ne doit rien rouvrir.
         $user = $token->tokenable;
         if ($user instanceof User && ! $user->canOpenSession()) {
+            return false;
+        }
+
+        // TCK-600 (ADR-0055 §2) — un jeton d'impersonation ne vaut que tant que sa session est
+        // ouverte et que son opérateur est toujours un `super_admin` actif : retirer ou bloquer
+        // l'opérateur coupe le jeton à la requête suivante, avant même la fermeture de la session.
+        if (ImpersonationService::isImpersonationToken($token)
+            && ! app(ImpersonationService::class)->tokenIsValid($token)) {
             return false;
         }
 

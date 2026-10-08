@@ -8,6 +8,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
+use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,8 @@ use Illuminate\Support\Facades\DB;
  * The basis is the **remaining amount** (`amount - paid_amount`) — partial
  * payments only attract a penalty on what is still owed.
  *
- * A global cap can be set via `Setting('late_fees.cap_percent')` (treated
+ * A cap can be set via `Setting('late_fees.cap_percent')` — the lease's agency row, else the
+ * global one (TCK-600, verif-600 H1) — (treated
  * as % of `amount`) — applied as an upper clamp on the computed fee.
  *
  * Idempotency: once `late_fee_applied_at` is set on a `LeasePayment`,
@@ -173,12 +175,13 @@ class LateFeeCalculator
     }
 
     /**
-     * Optional global cap from `Setting('late_fees.cap_percent')` —
+     * Optional cap from `Setting('late_fees.cap_percent')` — the lease's agency row, else the global
+     * one (TCK-600, verif-600 H1) —
      * treated as a % of `amount` (the original due, not the remaining).
      */
     protected function applyCap(LeasePayment $payment, float $fee): float
     {
-        $cap = $this->capPercent();
+        $cap = $this->capPercent($payment->lease?->agency_id);
         if ($cap === null) {
             return $fee;
         }
@@ -188,11 +191,10 @@ class LateFeeCalculator
         return min($fee, $ceiling);
     }
 
-    protected function capPercent(): ?float
+    protected function capPercent(?int $agencyId = null): ?float
     {
-        $row = Setting::query()
-            ->where('key', 'late_fees.cap_percent')
-            ->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row('late_fees.cap_percent', $agencyId);
 
         if ($row === null) {
             return null;

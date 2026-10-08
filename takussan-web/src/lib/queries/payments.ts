@@ -20,6 +20,7 @@ import type {
   PayoutStatus,
   ServiceProviderBill,
 } from '@/types/invoice';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * Payments frontend hooks — TCK-063.
@@ -163,7 +164,7 @@ export function useInvoice(id: number | null | undefined) {
   };
   return useApiQuery<ApiResponse<Invoice>>(
     paymentsQueryKeys.invoiceDetail(id),
-    `/api/invoices/${id ?? ''}`,
+    cheminApi`/api/invoices/${id ?? 0}`,
     { params: query, enabled: Boolean(id) },
   );
 }
@@ -189,7 +190,7 @@ export function useCreateInvoice() {
 
 export function useInvoiceSend(invoiceId: number) {
   return useApiMutation<ApiResponse<Invoice>, void>(
-    { path: `/api/invoices/${invoiceId}/send`, method: 'POST', body: () => undefined },
+    { path: cheminApi`/api/invoices/${invoiceId}/send`, method: 'POST', body: () => undefined },
     { invalidate: [['invoices']] },
   );
 }
@@ -197,7 +198,7 @@ export function useInvoiceSend(invoiceId: number) {
 export function useInvoiceMarkPaid(invoiceId: number) {
   return useApiMutation<ApiResponse<Invoice>, void>(
     {
-      path: `/api/invoices/${invoiceId}/mark-paid`,
+      path: cheminApi`/api/invoices/${invoiceId}/mark-paid`,
       method: 'POST',
       body: () => undefined,
     },
@@ -208,7 +209,7 @@ export function useInvoiceMarkPaid(invoiceId: number) {
 export function useInvoiceCancel(invoiceId: number) {
   return useApiMutation<ApiResponse<Invoice>, void>(
     {
-      path: `/api/invoices/${invoiceId}/cancel`,
+      path: cheminApi`/api/invoices/${invoiceId}/cancel`,
       method: 'POST',
       body: () => undefined,
     },
@@ -277,7 +278,7 @@ export function usePayout(id: number | null | undefined) {
   };
   return useApiQuery<ApiResponse<Payout>>(
     paymentsQueryKeys.payoutDetail(id),
-    `/api/payouts/${id ?? ''}`,
+    cheminApi`/api/payouts/${id ?? 0}`,
     { params: query, enabled: Boolean(id) },
   );
 }
@@ -328,7 +329,7 @@ export function usePayoutPreparation(params: UsePayoutPreparationParams) {
 /** VERIF-594 N-1 — l'approbateur peut fixer la destination en approuvant (vérifiée pour l'agence). */
 export function usePayoutApprove(payoutId: number) {
   return useApiMutation<ApiResponse<Payout>, { payout_method_id?: number } | void>(
-    { path: `/api/payouts/${payoutId}/approve`, method: 'POST', body: (v) => v ?? undefined },
+    { path: cheminApi`/api/payouts/${payoutId}/approve`, method: 'POST', body: (v) => v ?? undefined },
     { invalidate: [['payouts']] },
   );
 }
@@ -349,7 +350,7 @@ export function useBeneficiaryPayoutMethods(userId: number | null | undefined, e
 
 export function useVerifyPayoutMethod() {
   return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
-    { path: ({ id }) => `/api/payout-methods/${id}/verify`, method: 'POST', body: () => undefined },
+    { path: ({ id }) => cheminApi`/api/payout-methods/${id}/verify`, method: 'POST', body: () => undefined },
     { invalidate: [['payout-methods'], ['payouts', 'preparation']] },
   );
 }
@@ -367,7 +368,7 @@ export function usePayoutMarkProcessed(payoutId: number) {
     { transaction_id?: string; payment_method?: string; payout_method_id?: number; notes?: string }
   >(
     {
-      path: `/api/payouts/${payoutId}/mark-processed`,
+      path: cheminApi`/api/payouts/${payoutId}/mark-processed`,
       method: 'POST',
     },
     { invalidate: [['payouts']] },
@@ -377,7 +378,7 @@ export function usePayoutMarkProcessed(payoutId: number) {
 export function usePayoutMarkFailed(payoutId: number) {
   return useApiMutation<ApiResponse<Payout>, { failed_reason: string }>(
     {
-      path: `/api/payouts/${payoutId}/mark-failed`,
+      path: cheminApi`/api/payouts/${payoutId}/mark-failed`,
       method: 'POST',
     },
     { invalidate: [['payouts']] },
@@ -387,7 +388,7 @@ export function usePayoutMarkFailed(payoutId: number) {
 export function usePayoutCancel(payoutId: number) {
   return useApiMutation<ApiResponse<Payout>, void>(
     {
-      path: `/api/payouts/${payoutId}/cancel`,
+      path: cheminApi`/api/payouts/${payoutId}/cancel`,
       method: 'POST',
       body: () => undefined,
     },
@@ -433,14 +434,14 @@ export function useCreateMyPayoutMethod() {
 
 export function useSetDefaultPayoutMethod() {
   return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
-    { path: ({ id }) => `/api/me/payout-methods/${id}`, method: 'PATCH', body: () => ({ is_default: true }) },
+    { path: ({ id }) => cheminApi`/api/me/payout-methods/${id}`, method: 'PATCH', body: () => ({ is_default: true }) },
     { invalidate: [['payout-methods']] },
   );
 }
 
 export function useDeleteMyPayoutMethod() {
   return useApiMutation<null, { id: number }>(
-    { path: ({ id }) => `/api/me/payout-methods/${id}`, method: 'DELETE', body: () => undefined },
+    { path: ({ id }) => cheminApi`/api/me/payout-methods/${id}`, method: 'DELETE', body: () => undefined },
     { invalidate: [['payout-methods']] },
   );
 }
@@ -498,7 +499,7 @@ export function useServiceProviderBills(params: UseServiceProviderBillsParams, e
 export function useValidateServiceProviderBill() {
   return useApiMutation<ApiResponse<ServiceProviderBill>, { id: number; rechargeable_to_landlord: boolean }>(
     {
-      path: ({ id }) => `/api/service-provider-bills/${id}/validate`,
+      path: ({ id }) => cheminApi`/api/service-provider-bills/${id}/validate`,
       method: 'POST',
       body: ({ rechargeable_to_landlord }) => ({ rechargeable_to_landlord }),
     },
@@ -509,7 +510,7 @@ export function useValidateServiceProviderBill() {
 export function useRejectServiceProviderBill() {
   return useApiMutation<ApiResponse<ServiceProviderBill>, { id: number; rejection_reason: string }>(
     {
-      path: ({ id }) => `/api/service-provider-bills/${id}/reject`,
+      path: ({ id }) => cheminApi`/api/service-provider-bills/${id}/reject`,
       method: 'POST',
       body: ({ rejection_reason }) => ({ rejection_reason }),
     },
@@ -520,7 +521,7 @@ export function useRejectServiceProviderBill() {
 /** Crée le reversement au prestataire (soumis au seuil des quatre yeux), sans le marquer payé. */
 export function usePayServiceProviderBill() {
   return useApiMutation<ApiResponse<Payout>, { id: number }>(
-    { path: ({ id }) => `/api/service-provider-bills/${id}/pay`, method: 'POST', body: () => ({}) },
+    { path: ({ id }) => cheminApi`/api/service-provider-bills/${id}/pay`, method: 'POST', body: () => ({}) },
     { invalidate: [['service-provider-bills'], ['payouts']] },
   );
 }

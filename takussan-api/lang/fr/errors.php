@@ -14,6 +14,7 @@ return [
     'account_deletion' => [
         'already_executed' => 'La suppression a déjà été exécutée.',
         'grace_expired' => 'Le délai d\'annulation a expiré.',
+        'has_obligations' => 'Ce compte a encore des engagements en cours (baux, échéances, factures ou réservations) : ils doivent être soldés avant l\'effacement.',
     ],
     'activity_log' => [
         'export_too_large' => 'Trop de lignes pour un export : resserrez les filtres.',
@@ -29,8 +30,11 @@ return [
         'individual_no_owner_invites' => 'Les agences individuelles ne peuvent pas inviter de propriétaires.',
         'individual_no_team' => 'Les agences individuelles n\'ont pas d\'équipe à gérer.',
         'kyc_not_verified' => 'Le KYC de l\'agence doit être vérifié avant de vérifier l\'agence.',
+        'not_suspended' => 'Cette agence n\'est pas suspendue.',
+        'reinstate_first' => 'Cette agence est suspendue : levez d\'abord la suspension, avec un motif.',
         'staff_only' => 'Cette donnée est réservée au personnel de l\'agence.',
         'standard_only' => 'Cette fonctionnalité est réservée aux agences standard.',
+        'suspended' => 'Cette agence est suspendue : ses données restent consultables et exportables, mais aucune modification n\'est possible.',
     ],
     'agency_member' => [
         'already_in_other_agency' => 'Cet utilisateur appartient déjà à une autre agence.',
@@ -173,9 +177,12 @@ return [
         'unsupported_media_type' => 'Ce type de fichier n\'est pas pris en charge.',
     ],
     'impersonation' => [
-        'self' => 'Vous ne pouvez pas vous emprunter vous-même.',
-        'target_not_found' => 'Utilisateur introuvable.',
-        'user_required' => 'Indiquez l\'utilisateur à emprunter.',
+        'no_session' => 'Aucune session d\'impersonation n\'est ouverte.',
+        'query_refused' => 'Ouvrir ou fermer une impersonation ne prend aucun paramètre dans l\'adresse.',
+        'read_only' => 'Lecture seule pendant l\'impersonation : aucune modification n\'est possible.',
+        'target_inactive' => 'Ce compte n\'est pas actif : il ne peut pas être consulté en impersonation.',
+        'target_operator' => 'Un opérateur de la plateforme ne peut pas être consulté en impersonation.',
+        'target_self' => 'Vous ne pouvez pas vous emprunter vous-même.',
     ],
     'integration' => [
         'not_payment' => 'Seule une intégration de paiement a une adresse de notification.',
@@ -370,6 +377,14 @@ return [
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
     ],
+    'platform' => [
+        'ability_missing' => 'Votre niveau d\'opérateur ne permet pas ce geste.',
+        'last_super_admin' => 'Le dernier super-administrateur actif ne peut pas être retiré.',
+        'operator_not_found' => 'Ce compte n\'est pas un opérateur actif.',
+        'operator_self_revoke' => 'Vous ne pouvez pas retirer votre propre accès.',
+        'revoke_operator_first' => 'Ce compte est celui d\'un opérateur plateforme : retirez-le d\'abord des opérateurs.',
+        'target_is_operator' => 'Seul un super-administrateur peut agir sur le compte d\'un opérateur.',
+    ],
     'platform_payout' => [
         'agency_frozen' => 'Cette agence n\'est pas active : ses reversements sont gelés.',
         'agency_unverified' => 'Une agence non vérifiée ne peut pas être payée.',
@@ -435,6 +450,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Seuls les administrateurs de la plateforme gèrent les paramètres globaux.',
+        'managed_by_catalogue' => 'Ce paramètre est géré par son catalogue : modifiez-le depuis la console de la plateforme.',
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les paramètres de votre agence.',
     ],
     'share_link' => [
@@ -480,10 +496,10 @@ return [
         'overlaps_booking' => 'Une réservation confirmée occupe déjà ces dates.',
     ],
     'user' => [
-        'account_block_reserved' => 'Seul un super-administrateur peut bloquer ou réactiver un compte. Un administrateur d\'agence suspend un membre dans son agence.',
         'cannot_block_self' => 'Vous ne pouvez pas bloquer votre propre compte.',
-        'cannot_delete_self' => 'Vous ne pouvez pas supprimer votre propre compte via cette route.',
+        'cannot_erase_self' => 'Vous ne pouvez pas effacer votre propre compte depuis la console : passez par votre espace personnel.',
         'no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',
+        'not_blocked' => 'Ce compte n\'est pas bloqué.',
         'not_in_active_agency' => 'L’utilisateur cible n’appartient pas à votre agence active.',
     ],
     'visit' => [

@@ -9,6 +9,7 @@ import type {
   VisitType,
 } from '@/types/visit';
 import type { SortDuSms } from '@/lib/visites/sort-du-sms';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-075 — React Query hooks for `/api/property-visits`.
@@ -160,7 +161,7 @@ export function useVisit(id: number | null | undefined) {
 
   return useApiQuery<ApiResponse<PropertyVisit>>(
     visitsQueryKeys.detail(id),
-    `/api/property-visits/${id ?? ''}`,
+    cheminApi`/api/property-visits/${id ?? 0}`,
     {
       params: spatieParams,
       enabled: Boolean(id),
@@ -176,7 +177,7 @@ export type VisitActionResponse = ApiResponse<PropertyVisit> & SortDuSms;
 
 export function useConfirmVisit(id: number) {
   return useApiMutation<VisitActionResponse, void>(
-    { path: `/api/property-visits/${id}/confirm`, method: 'POST' },
+    { path: cheminApi`/api/property-visits/${id}/confirm`, method: 'POST' },
     {
       invalidate: [
         ['visits', 'list'],
@@ -191,7 +192,7 @@ export function useCompleteVisit(id: number) {
     ApiResponse<PropertyVisit>,
     { feedback?: string; rating?: number }
   >(
-    { path: `/api/property-visits/${id}/complete`, method: 'POST' },
+    { path: cheminApi`/api/property-visits/${id}/complete`, method: 'POST' },
     {
       invalidate: [
         ['visits', 'list'],
@@ -203,7 +204,7 @@ export function useCompleteVisit(id: number) {
 
 export function useCancelVisit(id: number) {
   return useApiMutation<VisitActionResponse, { reason?: string }>(
-    { path: `/api/property-visits/${id}/cancel`, method: 'POST' },
+    { path: cheminApi`/api/property-visits/${id}/cancel`, method: 'POST' },
     {
       invalidate: [
         ['visits', 'list'],
@@ -218,7 +219,7 @@ export function useUpdateVisit(id: number) {
     VisitActionResponse,
     { scheduled_at?: string; duration_minutes?: number; notes?: string }
   >(
-    { path: `/api/property-visits/${id}`, method: 'PATCH' },
+    { path: cheminApi`/api/property-visits/${id}`, method: 'PATCH' },
     {
       invalidate: [
         ['visits', 'list'],
@@ -230,7 +231,7 @@ export function useUpdateVisit(id: number) {
 
 export function useSubmitVisitFeedback(id: number) {
   return useApiMutation<ApiResponse<PropertyVisit>, VisitFeedbackPayload>(
-    { path: `/api/property-visits/${id}/feedback`, method: 'POST' },
+    { path: cheminApi`/api/property-visits/${id}/feedback`, method: 'POST' },
     {
       invalidate: [
         ['visits', 'list'],
@@ -246,7 +247,7 @@ export function useSubmitVisitFeedback(id: number) {
  */
 export function useClaimVisit(id: number) {
   return useApiMutation<ApiResponse<PropertyVisit>, void>(
-    { path: `/api/property-visits/${id}/claim`, method: 'POST', body: () => ({}) },
+    { path: cheminApi`/api/property-visits/${id}/claim`, method: 'POST', body: () => ({}) },
     {
       invalidate: [
         ['visits', 'list'],
@@ -262,7 +263,7 @@ export function useClaimVisit(id: number) {
  */
 export function useProposeVisitSlot(id: number) {
   return useApiMutation<ApiResponse<PropertyVisit>, { scheduled_at: string }>(
-    { path: `/api/property-visits/${id}/reschedule`, method: 'POST' },
+    { path: cheminApi`/api/property-visits/${id}/reschedule`, method: 'POST' },
     {
       invalidate: [
         ['visits', 'list'],

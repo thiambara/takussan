@@ -6470,19 +6470,33 @@
         "cache": "Cache",
         "storage": "Denc",
         "mail": "E-mail",
-        "sms": "SMS"
+        "sms": "SMS",
+        "media_storage": "Médiya yi",
+        "search": "Seet",
+        "queue": "Toggu liggéey yi",
+        "workers": "Workers",
+        "cdn": "CDN"
       },
       "hint": {
         "error": "Njuumte : {message}",
         "driver": "Doxalukaay : {driver}",
         "value": "Njëg : {value}",
-        "latency": "{ms} ms"
+        "latency": "{ms} ms",
+        "checkedAt": "Seet nañu ko ci {time}",
+        "reason": {
+          "no_delivery": "Dara yónniwul (pilote bu test)",
+          "unreachable": "Serwëer bi jotul",
+          "not_meilisearch": "Seet bi nekkul ci Meilisearch"
+        }
       },
       "status": {
         "ok": "Baax na",
         "failed": "Dafa yàqu",
-        "loading": "…"
-      }
+        "loading": "…",
+        "degraded": "Wàññiku na"
+      },
+      "global": "Mbir mi ci lépp :",
+      "queueOldestSeconds": "Xaar bi gëna yàgg (s)"
     },
     "integrations": {
       "webhooks": {
@@ -6533,13 +6547,6 @@
       "activeOutOf": "{active} yu dox",
       "delta": "{value} % ci {days} fan"
     },
-    "impersonation": {
-      "banner": "Yaa ngi jëf ni {target} — sesioŋ ba {expires}.",
-      "fallbackUser": "jëfandikukat #{id}",
-      "unknownExpiry": "xamuñu ko",
-      "stopping": "Taxawal…",
-      "stop": "Taxawal jëf ci turu keneen"
-    },
     "confirmDialog": {
       "typePrompt": "Ngir dëgglu, bindal",
       "pending": "Mu ngi dox…"
@@ -6566,15 +6573,21 @@
         },
         "suspend": {
           "title": "Bañ ajaans bi ba ëllëg",
-          "description": "Ajaans bi dañu koy tëj. Jëfandikukat yi dañuy ñàkk bunt yi ci jumtukaay yi.",
+          "description": "Yëgle yi dañuy génn ci site bi, ekip bi day jàng rekk. Fey yu luwakat yi dañuy wéy ; admin yi dañu leen di yégal, ak sa lay.",
           "label": "Bañ ko ba ëllëg"
         },
         "unverify": {
           "title": "Dindi seetlu gi",
           "description": "Ajaans bi dina dellu ci nekkin « Daxul » te dina ñàkk màndargam seetlu gi.",
           "label": "Dindi seetlu"
+        },
+        "reinstate": {
+          "title": "Neddi taxawal bi",
+          "description": "Ajaans bi dafay dellu dox : yëgle yi dañuy dellu ci site bi, ekip bi man naa bind. Seetlu bi du soppiku ; admin yi dañu leen di yégal.",
+          "label": "Neddi taxawal bi"
         }
-      }
+      },
+      "reasonLabel": "Lay (dañu koy yónne admin yu ajaans bi)"
     },
     "agencyDetail": {
       "loadError": "Mënuñu yeb ajaans bii.",
@@ -6601,13 +6614,18 @@
         },
         "suspend": {
           "title": "Bañ ajaans bi ba ëllëg",
-          "description": "Ajaans bi dañu koy bañ ba ëllëg ci platform bi yépp.",
+          "description": "Yëgle yi dañuy génn ci site bi, ekip bi day jàng rekk. Fey yu luwakat yi dañuy wéy ; admin yi dañu leen di yégal, ak sa lay.",
           "label": "Bañ ko ba ëllëg"
         },
         "unverify": {
           "title": "Dindi seetlu gi",
           "description": "Ajaans bi dina ñàkk màndargam seetlu gi te dellu ci daxul.",
           "label": "Dindi seetlu"
+        },
+        "reinstate": {
+          "title": "Neddi taxawal bi",
+          "description": "Ajaans bi dafay dellu dox : yëgle yi dañuy dellu ci site bi, ekip bi man naa bind. Seetlu bi du soppiku ; admin yi dañu leen di yégal.",
+          "label": "Neddi taxawal bi"
         }
       },
       "health": {
@@ -6632,7 +6650,12 @@
         "revenue30d": "Ndëwlu 30 fan",
         "lastPayment": "Fey bu mujj"
       },
-      "backToList": "Dellu ci ajaans yi"
+      "backToList": "Dellu ci ajaans yi",
+      "reasonLabel": "Lay (dañu koy yónne admin yu ajaans bi)",
+      "suspension": {
+        "since": "Taxawal nañu ko {date}",
+        "reason": "Lay : {reason}"
+      }
     },
     "pages": {
       "shared": {
@@ -6695,7 +6718,9 @@
       },
       "featureFlags": {
         "title": "Feature flags",
-        "subtitle": "Kontarole génne yu mag yi, yu segment ak override sesioŋ."
+        "subtitle": "Kontarole génne yu mag yi, yu segment ak override sesioŋ.",
+        "emptyTitle": "Amul benn drapeau buy dox",
+        "emptyDescription": "Drapeau dafay feeñ fii ak kood bi koy jàng rekk. Dina dugg ci katalog bi ak fonksiyoŋ bi mu yilif."
       },
       "integrations": {
         "title": "Boole ak jumtukaay yu biti",
@@ -6704,7 +6729,7 @@
       },
       "settings": {
         "title": "Tegtal yu platform bi",
-        "subtitle": "Tegal xaalis yi, format yi, njëg yi ak dig yu mag te du ñu déploye ëllëg.",
+        "subtitle": "Tànnal xaalis yi ak diirub sesiyoŋu operatëer yi. Paramètre yi am kood buy jàng rekk ñoo fi nekk.",
         "sensitiveNotice": "Tegtal yi ñu màrke ni yu am solo man nañu laaj ñu tàmbalaat liiñ bi walla ñu fanq cache app bi."
       },
       "templates": {
@@ -6803,8 +6828,8 @@
         "open": "Ubbi",
         "impersonate": "Jëf ci turam",
         "impersonateTitle": "Jëf ci turu {name}",
-        "impersonateDescription": "Dinga jot ab token bu gàtt (≤ 1h) ngir jëf ni jëfandikukat bii. Jëf yépp ñu ngi leen di jàpp ci teraanga bi.",
-        "impersonateConfirmLabel": "Tàmbali jëf ci turu keneen",
+        "impersonateDescription": "Dinga gis Takussan ni nit kii di ko gise, ci jàng rekk, 15 simili lu ëpp. Mënuloo soppi dara ; session bi, li ko waral ak diiram dañu leen bind, te nit ki dinañu ko ko yégal bu jeexee.",
+        "impersonateConfirmLabel": "Ubbi session jàng bi",
         "roles": {
           "all": "Wàll yépp",
           "super_admin": "Super-admin",
@@ -6841,7 +6866,11 @@
           "security": "Kaaraange",
           "lastLogin": "Dugg bu mujj",
           "actions": "Jëf"
-        }
+        },
+        "impersonateReasonLabel": "Li ko waral",
+        "impersonateReasonPlaceholder": "Ml. : ticket support 4821, jëfandikukat bi gisul bail bi.",
+        "impersonateReasonHint": "Lu mu néew {min} araf. Li ko waral dañu koy denc te yégal ko nit ki.",
+        "impersonateConfirmPhrase": "XOOL"
       },
       "agencies": {
         "title": "Ajaans yi",
@@ -6906,7 +6935,14 @@
         "confirmCancelBody": "Lien bi ñu yónnee {email} du doxati léegi. Man nga koo wooteati ci kanam.",
         "confirmCancelKeep": "Bàyyi ko",
         "confirmCancelConfirm": "Neenal woote bi",
-        "invitationActions": "Jëf yi ci woote bu {email}"
+        "invitationActions": "Jëf yi ci woote bu {email}",
+        "revokeOperator": {
+          "label": "Dindi",
+          "title": "Dindi {email} ci operatëer yi",
+          "description": "Dañu koy dindil console bi, ay jokkoom dañuy tëju (impersonation it) te super-admin yi ci des dañu leen di yégal. Kontam jëfandikukat du laal.",
+          "reasonLabel": "Lay (dañu koy bind, yónne ko moroom yi)",
+          "success": "{email} nekkatul operatëer."
+        }
       },
       "upgradeRequests": {
         "title": "Ñaan yu yeesal",
@@ -7042,7 +7078,39 @@
       "emptyTitle": "Amul benn pénc bu artu",
       "emptyDescription": "Sàkkal benn pénc ngir ñu yégal la ci email walla webhook bu jëf bu am solo amee ci platform bi.",
       "deleteTitle": "Far pénc bu artu bi",
-      "deleteDescription": "Bu xew-xew bii amaatee, du yónnee benn artu."
+      "deleteDescription": "Bu xew-xew bii amaatee, du yónnee benn artu.",
+      "events": {
+        "super_admin_impersonation_started": "Impersonation tàmbali na",
+        "super_admin_impersonation_stopped": "Impersonation jeex na",
+        "super_admin_agency_suspended": "Ajaans bi dakk nañu ko",
+        "super_admin_agency_reinstated": "Ajaans bi delloo nañu ko",
+        "super_admin_user_blocked": "Kont bi tëj nañu ko",
+        "super_admin_user_reactivated": "Kont bi ubbi nañu ko ci kanam",
+        "super_admin_user_erasure_requested": "Ñaan nañu ñu far kont bi",
+        "super_admin_password_reset_forced": "Soppi baatu jall bi ci doole",
+        "super_admin_2fa_reset": "Ñaari kontroolu dugg yi delloo nañu leen",
+        "super_admin_sessions_revoked": "Sesiyoŋ yi neenal nañu leen",
+        "super_admin_account_unlocked": "Kont bi ubbi nañu ko",
+        "super_admin_data_export_requested": "Ñaan nañu génne done yi",
+        "two_factor_disabled": "Ñaari kontroolu dugg yi fey nañu leen",
+        "super_admin_invited": "Operatëer woo nañu ko",
+        "super_admin_operator_revoked": "Operatëer dindi nañu ko",
+        "super_admin_setting_updated": "Paramètru platform bi soppi nañu ko",
+        "super_admin_feature_flag_updated": "Drapeau soppi nañu ko",
+        "super_admin_integration_updated": "Intégrasiyoŋ soppi nañu ko",
+        "super_admin_payout_approved": "Delloo xaalis nangu nañu ko",
+        "super_admin_payout_marked_paid": "Delloo xaalis fey nañu ko",
+        "super_admin_payout_cancelled": "Delloo xaalis neenal nañu ko",
+        "super_admin_payout_period_closed": "Jamonoy delloo xaalis tëj nañu ko",
+        "ops_failed_jobs_spike": "Liggéey yu bari yu yàqu",
+        "ops_queue_stalled": "Toggu liggéey taxaw na",
+        "ops_health_degraded": "Wérgi platform bi wàññiku na"
+      },
+      "channels": {
+        "email": "Imeel",
+        "slack": "Slack",
+        "discord": "Discord"
+      }
     },
     "inviteModal": {
       "title": "Woo benn super-admin",
@@ -7126,15 +7194,29 @@
       "updatedByOn": "{name} moo ko soppi ci {date}",
       "defaultValue": "Njëg bu ndoorte",
       "errors": {
-        "xofRequired": "XOF war na des ci xaalis yi ñu nangu.",
-        "feeRange": "Peyu platform bi war na des ci diggante 0,00 ak 100,00 %.",
-        "feeDecimals": "Peyu platform bi day nangu ñaari tus rekk."
+        "xofRequired": "XOF war na des ci xaalis yi ñu nangu."
       },
       "categories": {
         "currency": "Xaalis yi",
-        "format": "Formaa & i18n",
-        "transaction": "Peyoom bu plaatfoom bi",
         "limits": "Dig yu teknik"
+      },
+      "keys": {
+        "currency": {
+          "default": {
+            "label": "Xaalis bi ñuy jëfandikoo ci kaw",
+            "description": "Xaalis bi ñuy fey bu kër gi walla ajaans bi tànnul beneen."
+          },
+          "supported": {
+            "label": "Xaalis yi ñu nangu",
+            "description": "Xaalis yi ajaans mën a tànn bu ñuy sos walla ci ay tànneefam. XOF ñu ngi koy nangu saa su nekk."
+          }
+        },
+        "platform": {
+          "session_max_minutes": {
+            "label": "Diirub sesiyoŋu operatëer bi gëna yàgg",
+            "description": "Ci simili, li dale ci 15 ba 1440. Dafay dal ci duggu yi ñu ubbi ginnaaw bi ñu ko denc."
+          }
+        }
       }
     },
     "agencyOnboarding": {
@@ -7238,12 +7320,33 @@
         "title": "Jëf yi",
         "viewInAudit": "Xool ko ci téereb teraanga bi",
         "empty": "Amul jëf bu yees.",
-        "fallbackLabel": "Jëf"
+        "fallbackLabel": "Jëf",
+        "viaImpersonation": "Ci jël-bopp bu {name}"
       },
       "supportDialog": {
         "reasonLabel": "Lu tax ndimbal bi",
         "reasonPlaceholder": "Leeralal lu tax, dinañu ko bind",
         "pending": "Mu ngi def…"
+      },
+      "lifecycle": {
+        "block": {
+          "label": "Tëj",
+          "title": "Tëj kont bii",
+          "description": "Ay jokkoom dañuy tëju te du mën a dugg, ci benn yoon, ba ñu ko ubbi. Dañu ko koy yégal, ak sa lay."
+        },
+        "reactivate": {
+          "label": "Ubbi",
+          "title": "Ubbi kont bii",
+          "description": "Mën na dellu dugg. Dañu ko koy yégal."
+        },
+        "erase": {
+          "label": "Far kont bi",
+          "title": "Far kont bii",
+          "description": "Far gi dañu koy def bu jamonoy yërmande ji jeexee, su kenn weddiwul ; ay jokkoom dañuy tëju léegi. Duñu ko def su benn warugar ubbeeg (bayi bu dox, booking, fey)."
+        },
+        "reasonLabel": "Lay (dañu koy bind)",
+        "toastDone": "Def nañu ko.",
+        "toastErasureScheduled": "Far gi dina am {date}."
       }
     },
     "queues": {
@@ -7282,6 +7385,40 @@
       "emptyDescription": "Jëf yu ajaans yépp dinañu feeñ fii su ñu leen bindee.",
       "unknownEvent": "Jëf bu amul tur",
       "systemCauser": "Sistem"
+    },
+    "operatorLevels": {
+      "legend": "Tolluwaay",
+      "viewer": {
+        "label": "Jàng rekk",
+        "hint": "Day xool console bi, rapoor yi, wér-gi-yaram bi ak ajaans yi. Du laal dara."
+      },
+      "support": {
+        "label": "Support",
+        "hint": "Ak it : fiise jëfandikukat yi, jëfi support, tëj, file moderaasioŋ, seet bu mag."
+      },
+      "super_admin": {
+        "label": "Super-admin",
+        "hint": "Jëf yépp, ak taxawal ajaans, far kont, impersonation ak operatëer yi."
+      }
+    },
+    "globalSearch": {
+      "trigger": "Seet",
+      "shortcut": "Ctrl K",
+      "title": "Seet bu mag",
+      "description": "Imeel, telefon, referaans, transaksioŋ, NINEA walla tur. Fetal yi ngir tànn, Entrée ngir ubbi.",
+      "placeholder": "Seet ci platform bi yépp",
+      "hint": "Ñaari araf lu néew.",
+      "empty": "Amul dara ngir « {q} ».",
+      "types": {
+        "user": "Jëfandikukat yi",
+        "agency": "Ajaans yi",
+        "property": "Kër yi",
+        "booking": "Booking yi",
+        "lease": "Bayi yi",
+        "invoice": "Faktiir yi",
+        "payment": "Fey yi",
+        "payout": "Delloo xaalis yi"
+      }
     },
     "privacyRequests": {
       "tableCaption": "Téereb laaj ci sañ-sañ yi, ci seen àpp",
@@ -9578,6 +9715,14 @@
         "phone_changed": {
           "title": "Nimero telefon bi soppi nañu ko",
           "body": "Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi."
+        },
+        "blocked": {
+          "title": "Sa kont tëj nañu ko",
+          "body": "Platform bi tëj na sa kont Takussan. Lu ko waral : {reason}. Jokkool ak support bi su la soxlaa."
+        },
+        "reactivated": {
+          "title": "Sa kont ubbi nañu ko",
+          "body": "Sa kont Takussan ubbi nañu ko. Lu ko waral : {reason}. Mën nga dugg ci kaw."
         }
       },
       "invitation": {
@@ -9834,6 +9979,10 @@
         "calendar_feed_failing": {
           "title": "Calendrier bi ñu jële du dox : {property}",
           "body": "Calendrier « {feed} » bu {property} mënul a synchroniser ñetti yoon yu toftalloo. Xoolal lien bi."
+        },
+        "unpublished_contact_erased": {
+          "title": "Yéenekaay bi dindi nañu ko : {property}",
+          "body": "Yéenekaay {property} ({reference}) dindi nañu ko ci site bi : ki ñuy jokkoo ak moom far na kontam. Joxal ko benn ajaŋ te ngay ko siiwal ci kaw : {url}"
         }
       },
       "lease": {
@@ -9848,6 +9997,28 @@
         "signature_completed": {
           "title": "Bayle {reference} xaatimu na",
           "body": "Ñaari wàll yi xaatim nañu bayle {reference} bu {property}. Leegi mu ngi dox."
+        }
+      },
+      "impersonation": {
+        "ended": {
+          "title": "Ekibu Takussan seet na sa kont",
+          "body": "Benn ci ekibu Takussan, {operator}, seet na sa kont te soppiwul dara, li dale {started_at} ba {ended_at}. Lu ko waral : {reason}. Defuñu dara ci sa tur."
+        }
+      },
+      "agency": {
+        "suspended": {
+          "title": "Ajans bi taxawal nañu ko : {agency}",
+          "body": "Platform bi taxawal na ajans {agency}. Lu ko waral : {reason}. Ay yéenekaayam feeñatul te mënuñu soppi dara ci béréb bi."
+        },
+        "reinstated": {
+          "title": "Taxawal gi dindi nañu ko : {agency}",
+          "body": "Taxawal gu ajans {agency} dindi nañu ko. Lu ko waral : {reason}. Ay yéenekaayam feeñ nañu ci kaw."
+        }
+      },
+      "platform_operator": {
+        "revoked": {
+          "title": "Operatëer bi dindi nañu ko : {operator}",
+          "body": "Dindi nañu {operator} ci konsol platform bi. Lu ko waral : {reason}."
         }
       },
       "payout": {
@@ -9936,6 +10107,21 @@
       "previous": "Ginaaw",
       "next": "Ca kanam",
       "pageOf": "Xët {page} ci {last}"
+    }
+  },
+  "impersonation": {
+    "banner": {
+      "message": "Jàng rekk — yaa ngi gis Takussan ni {target}, ba {ends}.",
+      "fallbackUser": "jëfandikukat {id}",
+      "unknownEnd": "jeexitalu session bi",
+      "leave": "Génn",
+      "leaving": "Mu ngi génn…"
+    }
+  },
+  "agencySuspension": {
+    "banner": {
+      "title": "Platform bi taxawal na ajaans bi : jàng rekk.",
+      "body": "Sa xibaar yi man nañu leen gis te génne leen ; dara du soppiku bu taxawal bi weesuwul."
     }
   },
   "horsLigne": {

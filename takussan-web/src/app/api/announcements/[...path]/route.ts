@@ -1,15 +1,18 @@
-import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
+import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
   : 'http://localhost:8002';
 
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const chemin = cheminAmont(segments);
+  if (chemin === null) return reponseSegmentInvalide();
+  const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
-  const url = `${API_URL}/api/announcements/${segments.join('/')}${request.nextUrl.search}`;
+  const url = `${API_URL}/api/announcements/${chemin}${request.nextUrl.search}`;
   const headers: Record<string, string> = {
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,

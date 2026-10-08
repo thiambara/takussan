@@ -53,7 +53,9 @@ vi.mock('@/lib/profiles', () => ({
   fetchMyProfiles: (...a: unknown[]) => fetchMyProfilesMock(...a),
   patchActiveProfile: (...a: unknown[]) => patchActiveProfileMock(...a),
 }));
-vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton-de-test' }));
+// TCK-600 (O1) — `getMyProfilesAction` lit le profil actif de l'espace applicatif, jamais le cookie
+// de l'opérateur.
+vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton-de-test', getActiveProfileId: async () => undefined }));
 vi.mock('next/headers', () => ({
   cookies: async () => ({ get: () => undefined, set: () => {} }),
 }));

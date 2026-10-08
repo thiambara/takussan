@@ -765,6 +765,12 @@ jobs:
         # deux. Cliquet bilatéral sur la taille de l'inventaire ; auto-épreuve à chaque invocation.
         run: node scripts/check-capability-readers.mjs --report
 
+      - name: Chaque paramètre et drapeau de la console plateforme a un lecteur
+        # TCK-600 (AC15). Six paramètres et trois drapeaux s'éditaient dans la console sans
+        # qu'aucun code les lise. Un réglage n'entre au catalogue qu'avec son `getValue('…')`,
+        # `isEnabled('…')` ou `useFeatureFlag('…')` ; auto-épreuve à chaque invocation.
+        run: node scripts/check-platform-catalogue-readers.mjs --report
+
       - name: Aucune surface authentifiée n'est cacheable par un cache partagé
         # TCK-341. `Cache-Control: public` autorise un CDN ou un reverse proxy à
         # stocker une réponse et à la resservir à quelqu'un d'autre. Sur une route

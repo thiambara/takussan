@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Currency;
 use App\Models\Enums\WatermarkPosition;
+use App\Services\Admin\PlatformSettingService;
 use Illuminate\Validation\Rule;
 
 /**
@@ -23,6 +24,20 @@ class AgencyUpdateRequest extends BaseFormRequest
     }
 
     /**
+     * TCK-600 — le lecteur de `currency.supported` : sans lui, la clé s'éditait dans la console et
+     * ne restreignait rien.
+     *
+     * @return list<string>
+     */
+    public static function supportedCurrencies(): array
+    {
+        return array_values(array_map(
+            'strtoupper',
+            (array) app(PlatformSettingService::class)->getValue('currency.supported'),
+        ));
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
@@ -35,7 +50,8 @@ class AgencyUpdateRequest extends BaseFormRequest
             'phone' => ['sometimes', 'nullable', 'string'],
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
-            'currency' => ['sometimes', Rule::enum(Currency::class)],
+            // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.
+            'currency' => ['sometimes', Rule::enum(Currency::class), Rule::in(self::supportedCurrencies())],
             'moderation_required' => ['sometimes', 'boolean'], // TCK-597 — l'agence choisit de modérer ses annonces.
             // TCK-593 — plus `nullable` : `settings` se FUSIONNE clé par clé dans
             // `AgencyController::update`, et un `null` au premier niveau ne dit pas quelle clé

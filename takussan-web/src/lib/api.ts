@@ -1,4 +1,5 @@
 import type { SpatieQueryParams } from '@/types/api';
+import { cheminParLeRelais, relaisImpersonationActif } from '@/lib/impersonation';
 
 // Base URL without /api suffix — used by apiRequest (which includes /api in its paths)
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -145,6 +146,28 @@ export function urlApiPublique(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+/**
+ * TCK-600 (verif-600 B1) — pour un route handler qui joint l'API par `fetch` brut, parce qu'il doit
+ * lire ce qu'`apiRequest` ne rend pas (le jeton de `start`, un statut, un corps binaire) : l'URL du
+ * chemin SERVEUR ({@link baseServeur}), préfixe `/api` ajouté comme dans `apiFetch`.
+ */
+export function urlApiServeur(path: string): string {
+  return `${apiUrl()}/api${path}`;
+}
+
+/**
+ * Les en-têtes qu'`apiFetch` et `apiRequest` ajoutent d'eux-mêmes côté serveur, pour le même
+ * appelant : ceux du chemin interne et l'IP du visiteur par la chaîne de confiance de TCK-598.
+ * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
+ * journal d'impersonation, pour tous les opérateurs.
+ */
+export async function enTetesServeurAmont(): Promise<Record<string, string>> {
+  const enTetes: Record<string, string> = { ...enTetesDuCheminInterne() };
+  const visiteur = await resolveVisitorIp();
+  if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
+  return enTetes;
+}
+
 export type RequestOptions = {
   method?: string;
   body?: unknown;
@@ -189,6 +212,10 @@ export const CODES_ERREUR_BFF = [
   'profile_id_required',
   'unknown_entity',
   'server_error',
+  // TCK-600 — le proxy de la console refuse les chemins d'impersonation sans appeler l'API.
+  'not_found',
+  // TCK-600 (verif-600 B1) — un segment de route dynamique qui réécrirait l'URL de l'API.
+  'invalid_path',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -201,6 +228,8 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   profile_id_required: 'errors.api.profileIdRequired',
   unknown_entity: 'errors.api.unknownEntity',
   server_error: 'errors.api.serverError',
+  not_found: 'errors.notFound',
+  invalid_path: 'errors.notFound',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */
@@ -611,7 +640,16 @@ export async function apiRequest<T>(
     }
   }
 
-  const response = await fetch(`${apiUrl()}${path}`, {
+  // TCK-600 (ADR-0055 §6) — pendant une session d'impersonation, le navigateur n'a AUCUN jeton :
+  // l'appel part au relais same-origin, qui ajoute le jeton d'impersonation côté serveur. Le profil
+  // actif de l'opérateur ne l'accompagne jamais (invariant 11).
+  const relais = !token && relaisImpersonationActif() ? cheminParLeRelais(path) : null;
+  if (relais) {
+    delete requestHeaders['X-Active-Profile-Hint'];
+    delete requestHeaders['X-Profile-Id'];
+  }
+
+  const response = await fetch(relais ?? `${apiUrl()}${path}`, {
     method,
     headers: requestHeaders,
     body: body !== undefined

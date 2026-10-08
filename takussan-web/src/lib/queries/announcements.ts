@@ -1,5 +1,6 @@
 import type { Announcement, AnnouncementsResponse } from '@/types/super-admin';
 import { ApiError } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -17,7 +18,7 @@ export async function fetchActiveAnnouncements(): Promise<AnnouncementsResponse>
 }
 
 export async function dismissAnnouncement(id: number): Promise<{ data: { dismissed: boolean; announcement_id: number } }> {
-  const res = await fetch(`/api/announcements/${id}/dismiss`, {
+  const res = await fetch(cheminApi`/api/announcements/${id}/dismiss`, {
     method: 'POST',
     credentials: 'include',
   });

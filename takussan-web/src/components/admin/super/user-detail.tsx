@@ -35,6 +35,8 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { usePlatformAbilities } from './PlatformAbilitiesProvider';
+import { UserLifecycleActions } from './UserLifecycleActions';
 
 const STATUS_TONES: Record<string, StatusTone> = {
   active: 'success',
@@ -148,7 +150,10 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
             </div>
           </div>
         </div>
-        <UserSupportActionsMenu userId={user.id} />
+        <div className="flex flex-col items-end gap-2">
+          <UserLifecycleActions userId={user.id} status={user.status} />
+          <UserSupportActionsMenu userId={user.id} />
+        </div>
       </div>
     </header>
   );
@@ -226,8 +231,12 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
       setDataExportOpen(false);
     },
   });
-  const actions = supportActions(t);
+  const { can } = usePlatformAbilities();
+  // TCK-600 (ADR-0047) — gestes de support au niveau `support` ; l'export RGPD reste au
+  // `super_admin` (sa route ne déclare aucun geste).
+  const actions = can('platform.users.support') ? supportActions(t) : [];
   const meta = actions.find((item) => item.action === pendingAction) ?? null;
+  if (actions.length === 0 && !can()) return null;
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -246,10 +255,12 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
           </Button>
         );
       })}
-      <Button type="button" variant="outline" size="sm" onClick={() => setDataExportOpen(true)}>
-        <FileArchive className="size-4" aria-hidden="true" />
-        {t('gdprExport')}
-      </Button>
+      {can() ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => setDataExportOpen(true)}>
+          <FileArchive className="size-4" aria-hidden="true" />
+          {t('gdprExport')}
+        </Button>
+      ) : null}
       <DataExportReasonDialog
         open={dataExportOpen}
         pending={dataExportMutation.isPending}
@@ -386,6 +397,7 @@ export function UserSessionsTable({
   const [sessionToRevoke, setSessionToRevoke] = useState<AdminUserSession | null>(null);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { can } = usePlatformAbilities();
 
   return (
     <Card>
@@ -401,9 +413,11 @@ export function UserSessionsTable({
               <p className="font-medium text-foreground">{session.name}</p>
               <div className="flex items-center gap-2">
                 <KeyRound className="size-4 text-primary" aria-hidden="true" />
-                <Button type="button" size="sm" variant="outline" onClick={() => setSessionToRevoke(session)}>
-                  {t('revoke')}
-                </Button>
+                {can('platform.users.support') ? (
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSessionToRevoke(session)}>
+                    {t('revoke')}
+                  </Button>
+                ) : null}
               </div>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{t('lastActivity', { date: fmt.dateTime(session.last_used_at) })}</p>
@@ -463,6 +477,11 @@ export function UserActivityTimeline({
               {/* Le journal répète souvent l'événement dans la description (« created / created ») : une seule fois suffit. */}
               {entry.description && entry.description !== entry.event ? (
                 <p className="text-sm text-pretty text-muted-foreground">{entry.description}</p>
+              ) : null}
+              {entry.impersonator ? (
+                <p className="text-xs font-medium text-foreground" data-testid="activity-impersonator">
+                  {t('viaImpersonation', { name: entry.impersonator.name || `#${entry.impersonator.id}` })}
+                </p>
               ) : null}
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="size-3" aria-hidden="true" />

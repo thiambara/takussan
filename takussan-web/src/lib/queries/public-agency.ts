@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { PublicReview } from '@/components/public/profile/ReviewsSection';
 import type { PropertyListItem } from '@/types/property';
+import { cheminApi } from '@/lib/chemin-api';
 
 export interface AgencyAgentDto {
   id: number;
@@ -98,7 +99,7 @@ export const getAgency = cache(
   async (slug: string, locale: string): Promise<ResultatFicheAgence> => {
     try {
       const res = await apiFetch<{ data: AgencyDto }>(
-        `/public/agencies/${encodeURIComponent(slug)}`,
+        cheminApi`/public/agencies/${slug}`,
         undefined,
         { locale },
       );

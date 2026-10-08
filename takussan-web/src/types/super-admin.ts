@@ -29,6 +29,8 @@ export type AdminAgenciesResponse = {
 };
 
 export type AdminAgencyDetail = AdminAgency & {
+  /** TCK-600 — motif et date de la dernière suspension ; `null` hors suspension. */
+  suspension?: { reason: string | null; suspended_at: string | null } | null;
   website: string | null;
   description: string | null;
   commission_rate: number | null;
@@ -334,18 +336,6 @@ export type SystemMetrics = {
 
 export type SystemMetricsResponse = { data: SystemMetrics };
 
-export type ImpersonationStartResponse = {
-  token: string;
-  expires_at: string;
-  actor_id: number;
-  target_user_id: number;
-};
-
-export type ImpersonationStopResponse = {
-  message: string;
-  revoked_count: number;
-};
-
 export type AuditLogEntry = {
   id: number;
   log_name: string | null;
@@ -356,6 +346,8 @@ export type AuditLogEntry = {
   subject_type: string | null;
   subject_id: number | null;
   properties: Record<string, unknown> | null;
+  /** TCK-600 (ADR-0055) — l'opérateur, quand l'entrée s'est écrite pendant une impersonation. */
+  impersonator?: { id: number; name: string | null } | null;
   created_at: string | null;
 };
 
@@ -493,14 +485,14 @@ export type NotificationTemplatePreviewResponse = {
   };
 };
 
-export type PlatformSettingCategory = 'currency' | 'format' | 'transaction' | 'limits';
-export type PlatformSettingType = 'select' | 'multi_select' | 'percentage' | 'integer';
+/** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
+export type PlatformSettingCategory = 'currency' | 'limits';
+export type PlatformSettingType = 'select' | 'multi_select' | 'integer';
 
 export type PlatformSetting = {
   key: string;
   category: PlatformSettingCategory;
-  label: string;
-  description: string;
+  /** TCK-600 — ni libellé ni description servis par l'API : traduits par clé (`superAdmin.platformSettings.keys`). */
   type: PlatformSettingType;
   value: string | number | string[];
   default_value: string | number | string[];
@@ -597,8 +589,6 @@ export type MaintenanceStatusResponse = { data: MaintenanceStatus };
 
 export type AdminFeatureFlag = {
   key: string;
-  label: string;
-  description: string;
   client_visible: boolean;
   enabled: boolean;
   segments: {
@@ -612,10 +602,10 @@ export type AdminFeatureFlag = {
 export type AdminFeatureFlagsResponse = { data: AdminFeatureFlag[] };
 export type FeatureFlagsMeResponse = { data: Record<string, boolean> };
 
+/** TCK-600 — servie par clé : le libellé de l'événement se traduit (`superAdmin.alerts.events`). */
 export type AlertRule = {
   id: number;
   event: string;
-  label: string;
   channels: string[];
   recipients: { emails?: string[]; webhooks?: string[] };
   is_active: boolean;
@@ -625,7 +615,8 @@ export type AlertRule = {
 
 export type AlertRulesResponse = {
   data: AlertRule[];
-  catalogue: Record<string, string>;
+  /** Les clés des événements alertables (`AlertableEvents::keys()`). */
+  catalogue: string[];
 };
 export type AlertRuleResponse = { data: AlertRule };
 
@@ -703,11 +694,19 @@ export type DataExportsResponse = {
   };
 };
 
+/** TCK-600 — `degraded` distingue « marche mal » de « en panne » ; chaque sonde est datée. */
+export type HealthLevel = 'ok' | 'degraded' | 'failed';
+
+/** Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit. */
+export type HealthReason = 'no_delivery' | 'unreachable' | 'not_meilisearch';
+
 export type HealthcheckStatus = {
-  status: 'ok' | 'failed';
+  status: HealthLevel;
+  checked_at?: string;
   latency_ms?: number;
   driver?: string;
   value?: string;
+  reason?: HealthReason;
   error?: string;
 };
 
@@ -715,10 +714,22 @@ export type PlatformHealth = {
   db: HealthcheckStatus;
   cache: HealthcheckStatus;
   storage: HealthcheckStatus;
+  media_storage?: HealthcheckStatus & { disks?: string[]; disk?: string };
   mail: HealthcheckStatus;
-  sms: HealthcheckStatus;
-  queue: { pending: number; processing: number; failed_24h: number };
+  sms: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
+  search?: HealthcheckStatus & { documents?: number; expected?: number; gap?: number };
+  queue: Partial<HealthcheckStatus> & {
+    pending: number;
+    processing: number;
+    failed_24h: number;
+    oldest_pending_seconds?: number;
+  };
+  workers?: HealthcheckStatus & {
+    queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
+  };
+  cdn?: HealthcheckStatus;
   scheduler: { last_run_at: string | null };
+  status?: HealthLevel;
   generated_at: string;
 };
 

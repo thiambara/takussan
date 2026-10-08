@@ -9,6 +9,7 @@ import type {
   MatchCandidate,
   MatchedPaymentType,
 } from '@/types/reconciliation';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-593 (Partie 4) — rapprochement bancaire.
@@ -30,7 +31,7 @@ export const reconciliationKeys = {
 export function useBankStatements(agencyId: number) {
   return useApiQuery<PaginatedResponse<BankStatement>>(
     reconciliationKeys.statements(agencyId),
-    `/api/agencies/${agencyId}/bank-statements`,
+    cheminApi`/api/agencies/${agencyId}/bank-statements`,
     { params: { sort: '-created_at', per_page: 50 } },
   );
 }
@@ -38,7 +39,7 @@ export function useBankStatements(agencyId: number) {
 export function useBankStatement(id: number) {
   return useApiQuery<ApiResponse<BankStatement>>(
     reconciliationKeys.statement(id),
-    `/api/bank-statements/${id}`,
+    cheminApi`/api/bank-statements/${id}`,
   );
 }
 
@@ -65,7 +66,7 @@ export function useBankStatementLines(
 ) {
   return useApiQuery<PaginatedResponse<BankStatementLine>>(
     reconciliationKeys.lines(id, matchStatus, page),
-    `/api/bank-statements/${id}/lines`,
+    cheminApi`/api/bank-statements/${id}/lines`,
     {
       params: {
         fields: { bank_statement_lines: [...BANK_LINE_FIELDS] },
@@ -81,20 +82,20 @@ export function useBankStatementLines(
 export function useCsvMapping(agencyId: number) {
   return useApiQuery<ApiResponse<CsvMapping>>(
     reconciliationKeys.mapping(agencyId),
-    `/api/agencies/${agencyId}/bank-statements/csv-mapping`,
+    cheminApi`/api/agencies/${agencyId}/bank-statements/csv-mapping`,
   );
 }
 
 export function useSaveCsvMapping(agencyId: number) {
   return useApiMutation<ApiResponse<CsvMapping>, CsvMapping>(
-    { path: `/api/agencies/${agencyId}/bank-statements/csv-mapping`, method: 'PUT' },
+    { path: cheminApi`/api/agencies/${agencyId}/bank-statements/csv-mapping`, method: 'PUT' },
     { invalidate: [reconciliationKeys.mapping(agencyId)] },
   );
 }
 
 export function useImportBankStatement(agencyId: number) {
   return useApiMutation<ApiResponse<BankStatement>, FormData>(
-    { path: `/api/agencies/${agencyId}/bank-statements`, method: 'POST', formData: true },
+    { path: cheminApi`/api/agencies/${agencyId}/bank-statements`, method: 'POST', formData: true },
     { invalidate: [reconciliationKeys.statements(agencyId)] },
   );
 }
@@ -108,7 +109,7 @@ export function usePaymentSearch(
 ) {
   return useApiQuery<{ data: MatchCandidate[] }>(
     reconciliationKeys.search(agencyId, q, amount, direction),
-    `/api/agencies/${agencyId}/bank-statements/payment-search`,
+    cheminApi`/api/agencies/${agencyId}/bank-statements/payment-search`,
     { params: { extra: { q, amount, direction } }, enabled },
   );
 }
@@ -129,7 +130,7 @@ export type MatchLinePayload = {
 export function useMatchLine(statementId: number) {
   return useApiMutation<ApiResponse<BankStatementLine>, MatchLinePayload>(
     {
-      path: ({ lineId }) => `/api/bank-statement-lines/${lineId}/match`,
+      path: ({ lineId }) => cheminApi`/api/bank-statement-lines/${lineId}/match`,
       method: 'POST',
       body: ({ payment_type, payment_id }) => ({ payment_type, payment_id }),
     },
@@ -139,21 +140,21 @@ export function useMatchLine(statementId: number) {
 
 export function useUnmatchLine(statementId: number) {
   return useApiMutation<ApiResponse<BankStatementLine>, number>(
-    { path: (lineId) => `/api/bank-statement-lines/${lineId}/match`, method: 'DELETE', body: () => undefined },
+    { path: (lineId) => cheminApi`/api/bank-statement-lines/${lineId}/match`, method: 'DELETE', body: () => undefined },
     { invalidate: invalidationsDuReleve(statementId) },
   );
 }
 
 export function useIgnoreLine(statementId: number) {
   return useApiMutation<ApiResponse<BankStatementLine>, number>(
-    { path: (lineId) => `/api/bank-statement-lines/${lineId}/ignore`, method: 'POST', body: () => undefined },
+    { path: (lineId) => cheminApi`/api/bank-statement-lines/${lineId}/ignore`, method: 'POST', body: () => undefined },
     { invalidate: invalidationsDuReleve(statementId) },
   );
 }
 
 export function useFinalizeStatement(statementId: number) {
   return useApiMutation<ApiResponse<BankStatement>, void>(
-    { path: `/api/bank-statements/${statementId}/finalize`, method: 'POST', body: () => undefined },
+    { path: cheminApi`/api/bank-statements/${statementId}/finalize`, method: 'POST', body: () => undefined },
     { invalidate: invalidationsDuReleve(statementId) },
   );
 }

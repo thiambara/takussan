@@ -11,56 +11,74 @@ vi.mock('@/lib/queries/super-admin', () => ({
   patchPlatformSettings: vi.fn(),
 }));
 
-function renderSection(settings: PlatformSetting[]) {
+function renderSection(settings: PlatformSetting[], title = 'Limites techniques') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
   return render(withIntl(
     <QueryClientProvider client={queryClient}>
-      <SettingsSection title="Frais plateforme" settings={settings} />
+      <SettingsSection title={title} settings={settings} />
     </QueryClientProvider>,
   ));
 }
 
-const feeSetting: PlatformSetting = {
-  key: 'transaction.platform_fee_booking',
-  category: 'transaction',
-  label: 'Frais plateforme réservations',
-  description: 'Pourcentage prélevé.',
-  type: 'percentage',
-  value: 5,
-  default_value: 0,
+const sessionSetting: PlatformSetting = {
+  key: 'platform.session_max_minutes',
+  category: 'limits',
+  type: 'integer',
+  value: 480,
+  default_value: 480,
   options: null,
   public: false,
+  requires_restart: true,
+  updated_at: null,
+  updated_by: null,
+};
+
+const supportedSetting: PlatformSetting = {
+  key: 'currency.supported',
+  category: 'currency',
+  type: 'multi_select',
+  value: ['XOF', 'EUR'],
+  default_value: ['XOF', 'EUR', 'USD'],
+  options: ['XOF', 'EUR', 'USD'],
+  public: true,
   requires_restart: false,
   updated_at: null,
   updated_by: null,
 };
 
 describe('<SettingsSection>', () => {
-  it('saves section changes as a bulk patch', async () => {
-    vi.mocked(patchPlatformSettings).mockResolvedValue({ data: { transaction: [feeSetting] } });
-    const user = userEvent.setup();
-    renderSection([feeSetting]);
+  it('translates the label and description from the key (TCK-600 — the API serves none)', () => {
+    renderSection([sessionSetting]);
 
-    await user.clear(screen.getByLabelText(/Frais plateforme réservations/i));
-    await user.type(screen.getByLabelText(/Frais plateforme réservations/i), '7.25');
+    expect(screen.getByLabelText('Durée maximale d’une session opérateur')).toBeInTheDocument();
+    expect(screen.getByText(/de 15 à 1440/)).toBeInTheDocument();
+  });
+
+  it('saves section changes as a bulk patch', async () => {
+    vi.mocked(patchPlatformSettings).mockResolvedValue({ data: { limits: [sessionSetting] } });
+    const user = userEvent.setup();
+    renderSection([sessionSetting]);
+
+    const champ = screen.getByLabelText(/Durée maximale/i);
+    await user.clear(champ);
+    await user.type(champ, '240');
     await user.click(screen.getByRole('button', { name: /enregistrer/i }));
 
     await waitFor(() => expect(patchPlatformSettings).toHaveBeenCalledWith({
-      'transaction.platform_fee_booking': '7.25',
+      'platform.session_max_minutes': '240',
     }));
   });
 
-  it('blocks platform fees outside the accepted range before submit', async () => {
+  it('keeps XOF among the supported currencies', async () => {
     const user = userEvent.setup();
-    renderSection([feeSetting]);
+    renderSection([{ ...supportedSetting, value: ['EUR'] }], 'Devises');
 
-    await user.clear(screen.getByLabelText(/Frais plateforme réservations/i));
-    await user.type(screen.getByLabelText(/Frais plateforme réservations/i), '120');
-
-    expect(screen.getByText(/entre 0,00 et 100,00/i)).toBeInTheDocument();
+    expect(screen.getByText(/XOF doit rester/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /enregistrer/i })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'XOF' }));
+    expect(screen.queryByText(/XOF doit rester/i)).not.toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\ScopedSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -93,7 +94,7 @@ class RentReviewService
                 // VERIF-596 passe 3 (m-b, ADR-0042 §1) — un plafond FIGÉ est imprimé au contrat signé,
                 // sans réserve : `force` ne le dépasse pas, capacité ou non. Le dépassement d'un
                 // plafond contractuel passe par un renouvellement ou un avenant signé. `force` ne vaut
-                // plus que pour un bail antérieur, dont le plafond est le réglage global.
+                // plus que pour un bail antérieur, dont le plafond est le réglage de son agence, sinon le global.
                 abort_code_if($lease->rent_review_max_pct !== null, 422, 'lease.rent_review_above_contract_cap', [
                     'max' => (string) $maxPct,
                 ]);
@@ -137,22 +138,24 @@ class RentReviewService
 
     /**
      * VERIF-596 passe 2 (N1, ADR-0042 §1) — le plafond que CE bail exécute : celui figé avec son
-     * contrat, imprimé et signé ; le réglage global seulement pour un bail antérieur (colonne nulle).
+     * contrat, imprimé et signé ; le réglage de l'agence du bail, sinon le global (TCK-600, verif-600
+     * H1), seulement pour un bail antérieur (colonne nulle).
      */
     public function maxPctFor(Lease $lease): float
     {
         return $lease->rent_review_max_pct !== null
             ? (float) $lease->rent_review_max_pct
-            : $this->resolveMaxPct();
+            : $this->resolveMaxPct($lease->agency_id); // TCK-600 (verif-600 H1)
     }
 
     /**
      * Resolve the lease.rent_review_max_pct setting (numeric, percentage).
      * Falls back to {@see self::DEFAULT_MAX_PCT} when missing or invalid.
      */
-    public function resolveMaxPct(): float
+    public function resolveMaxPct(?int $agencyId = null): float
     {
-        $row = Setting::query()->where('key', self::SETTING_KEY)->first();
+        // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
+        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
         if ($row === null) {
             return (float) self::DEFAULT_MAX_PCT;
         }

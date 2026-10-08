@@ -27,9 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
+import { ImpersonationStartDialog } from '@/components/admin/super/ImpersonationStartDialog';
 import { Pagination } from '@/components/console';
-import { useImpersonate } from '@/hooks/useImpersonation';
+import { useDemarrerImpersonation } from '@/hooks/useImpersonation';
+import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -216,7 +217,8 @@ export default function SuperAdminUsersPage() {
   const twoFactor = jetonValide(TWOFA_OPTIONS, searchParams?.get('twoFactor'));
   const page = Number.parseInt(searchParams?.get('page') ?? '1', 10) || 1;
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
-  const impersonate = useImpersonate();
+  const impersonate = useDemarrerImpersonation();
+  const { can } = usePlatformAbilities();
   const roleOptions = ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
   const statusOptions = STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
   const emailOptions = EMAIL_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
@@ -368,9 +370,12 @@ export default function SuperAdminUsersPage() {
           >
             {tPage('open')}
           </Link>
-          <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
-            {tPage('impersonate')}
-          </Button>
+          {/* TCK-600 (ADR-0047) — l'impersonation est un geste du seul `super_admin`. */}
+          {can('platform.users.impersonate') ? (
+            <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
+              {tPage('impersonate')}
+            </Button>
+          ) : null}
         </div>
       ),
     },
@@ -502,22 +507,28 @@ export default function SuperAdminUsersPage() {
       ) : null}
 
       {target ? (
-        <ConfirmActionDialog
+        <ImpersonationStartDialog
           open={target !== null}
-          onOpenChange={(open) => !open && setTarget(null)}
-          title={tPage('impersonateTitle', { name: getUserDisplayName(target) })}
-          description={tPage('impersonateDescription')}
-          confirmPhrase="IMPERSONIFIER"
-          confirmLabel={tPage('impersonateConfirmLabel')}
-          destructive
+          onOpenChange={(open) => {
+            if (!open) {
+              setTarget(null);
+              impersonate.reset();
+            }
+          }}
+          targetName={getUserDisplayName(target)}
           pending={impersonate.isPending}
-          onConfirm={() => {
+          error={impersonate.error}
+          onConfirm={(reason) => {
             impersonate.mutate(
-              { targetUserId: target.id, targetLabel: getUserDisplayName(target) },
+              { userId: target.id, reason },
               {
                 onSuccess: () => {
                   setTarget(null);
-                  router.push('/app');
+                  // Navigation COMPLÈTE, délibérément : un `router.push` garde le layout racine —
+                  // donc le jeton de l'opérateur dans `AuthContext`. Le rechargement le relit : la
+                  // cible, sans aucun jeton côté page.
+                  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                  window.location.assign('/app');
                 },
               },
             );

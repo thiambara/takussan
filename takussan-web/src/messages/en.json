@@ -7081,19 +7081,33 @@
         "cache": "Cache",
         "storage": "Storage",
         "mail": "Email",
-        "sms": "SMS"
+        "sms": "SMS",
+        "media_storage": "Media",
+        "search": "Search",
+        "queue": "Job queues",
+        "workers": "Workers",
+        "cdn": "CDN"
       },
       "hint": {
         "error": "Error: {message}",
         "driver": "Driver: {driver}",
         "value": "Value: {value}",
-        "latency": "{ms} ms"
+        "latency": "{ms} ms",
+        "checkedAt": "Checked at {time}",
+        "reason": {
+          "no_delivery": "Nothing actually sent (test driver)",
+          "unreachable": "Server unreachable",
+          "not_meilisearch": "Search not on Meilisearch"
+        }
       },
       "status": {
         "ok": "OK",
         "failed": "Down",
-        "loading": "…"
-      }
+        "loading": "…",
+        "degraded": "Degraded"
+      },
+      "global": "Overall status:",
+      "queueOldestSeconds": "Longest wait (s)"
     },
     "integrations": {
       "webhooks": {
@@ -7144,13 +7158,6 @@
       "activeOutOf": "{active} active",
       "delta": "{value}% over {days} days"
     },
-    "impersonation": {
-      "banner": "You are acting as {target} — session until {expires}.",
-      "fallbackUser": "user #{id}",
-      "unknownExpiry": "unknown",
-      "stopping": "Stopping…",
-      "stop": "Stop impersonation"
-    },
     "confirmDialog": {
       "typePrompt": "To confirm, type",
       "pending": "In progress…"
@@ -7177,15 +7184,21 @@
         },
         "suspend": {
           "title": "Suspend the agency",
-          "description": "The agency will be blocked. Its users lose access to product features.",
+          "description": "Its listings leave the site and its team becomes read-only. Tenant payments continue; its admins are notified, with your reason.",
           "label": "Suspend"
         },
         "unverify": {
           "title": "Remove verification",
           "description": "The agency will return to Inactive status and lose its verified badge.",
           "label": "Unverify"
+        },
+        "reinstate": {
+          "title": "Lift the suspension",
+          "description": "The agency becomes active again: its listings return to the site and its team can write again. Its verification is unchanged; its admins are notified.",
+          "label": "Lift the suspension"
         }
-      }
+      },
+      "reasonLabel": "Reason (sent to the agency admins)"
     },
     "agencyDetail": {
       "loadError": "Unable to load this agency.",
@@ -7212,13 +7225,18 @@
         },
         "suspend": {
           "title": "Suspend the agency",
-          "description": "The agency will be suspended across the whole platform.",
+          "description": "Its listings leave the site and its team becomes read-only. Tenant payments continue; its admins are notified, with your reason.",
           "label": "Suspend"
         },
         "unverify": {
           "title": "Remove verification",
           "description": "The agency will lose its verified badge and return to inactive.",
           "label": "Unverify"
+        },
+        "reinstate": {
+          "title": "Lift the suspension",
+          "description": "The agency becomes active again: its listings return to the site and its team can write again. Its verification is unchanged; its admins are notified.",
+          "label": "Lift the suspension"
         }
       },
       "health": {
@@ -7243,7 +7261,12 @@
         "revenue30d": "Revenue 30 days",
         "lastPayment": "Last payment"
       },
-      "backToList": "Back to agencies"
+      "backToList": "Back to agencies",
+      "reasonLabel": "Reason (sent to the agency admins)",
+      "suspension": {
+        "since": "Suspended on {date}",
+        "reason": "Reason: {reason}"
+      }
     },
     "pages": {
       "shared": {
@@ -7306,7 +7329,9 @@
       },
       "featureFlags": {
         "title": "Feature flags",
-        "subtitle": "Control global, per-segment and per-session override rollouts."
+        "subtitle": "Control global, per-segment and per-session override rollouts.",
+        "emptyTitle": "No flag in service",
+        "emptyDescription": "A flag only appears here together with the code that reads it. It will join the catalogue with the feature it controls."
       },
       "integrations": {
         "title": "Third-party integrations",
@@ -7315,7 +7340,7 @@
       },
       "settings": {
         "title": "Platform settings",
-        "subtitle": "Set currencies, formats, fees and global limits without redeploying.",
+        "subtitle": "Set the currencies and the operator session length. Only settings that some code reads are listed here.",
         "sensitiveNotice": "Settings marked as sensitive may require a queue restart or an application cache flush."
       },
       "templates": {
@@ -7414,8 +7439,8 @@
         "open": "Open",
         "impersonate": "Impersonate",
         "impersonateTitle": "Impersonate {name}",
-        "impersonateDescription": "You will get a short-lived token (≤ 1h) to act as this user. Every action is audited.",
-        "impersonateConfirmLabel": "Start impersonation",
+        "impersonateDescription": "You will see Takussan exactly as this person does, read-only, for 15 minutes at most. No change is possible; the session, its reason and its duration are logged, and the person will be informed when it ends.",
+        "impersonateConfirmLabel": "Open the read-only session",
         "roles": {
           "all": "All roles",
           "super_admin": "Super-admin",
@@ -7452,7 +7477,11 @@
           "security": "Security",
           "lastLogin": "Last sign-in",
           "actions": "Actions"
-        }
+        },
+        "impersonateReasonLabel": "Reason",
+        "impersonateReasonPlaceholder": "E.g. support ticket #4821, the user cannot see their lease.",
+        "impersonateReasonHint": "At least {min} characters. The reason is kept and shared with the person.",
+        "impersonateConfirmPhrase": "VIEW"
       },
       "agencies": {
         "title": "Agencies",
@@ -7517,7 +7546,14 @@
         "confirmCancelBody": "The link sent to {email} will stop working immediately. You can always invite this person again later.",
         "confirmCancelKeep": "Keep it",
         "confirmCancelConfirm": "Cancel invitation",
-        "invitationActions": "Actions on the invitation for {email}"
+        "invitationActions": "Actions on the invitation for {email}",
+        "revokeOperator": {
+          "label": "Remove",
+          "title": "Remove {email} from operators",
+          "description": "Their console access is revoked, their sessions are closed (impersonation included) and the other super admins are alerted. Their user account stays intact.",
+          "reasonLabel": "Reason (logged, sent to peers)",
+          "success": "{email} is no longer an operator."
+        }
       },
       "upgradeRequests": {
         "title": "Upgrade requests",
@@ -7653,7 +7689,39 @@
       "emptyTitle": "No alert rules",
       "emptyDescription": "Create a rule to be notified by email or webhook when a critical action happens on the platform.",
       "deleteTitle": "Delete the alert rule",
-      "deleteDescription": "Future occurrences of this event will no longer trigger an alert."
+      "deleteDescription": "Future occurrences of this event will no longer trigger an alert.",
+      "events": {
+        "super_admin_impersonation_started": "Impersonation started",
+        "super_admin_impersonation_stopped": "Impersonation ended",
+        "super_admin_agency_suspended": "Agency suspended",
+        "super_admin_agency_reinstated": "Agency reinstated",
+        "super_admin_user_blocked": "Account blocked",
+        "super_admin_user_reactivated": "Account reactivated",
+        "super_admin_user_erasure_requested": "Account erasure requested",
+        "super_admin_password_reset_forced": "Password reset forced",
+        "super_admin_2fa_reset": "Two-factor authentication reset",
+        "super_admin_sessions_revoked": "Sessions revoked",
+        "super_admin_account_unlocked": "Account unlocked",
+        "super_admin_data_export_requested": "Data export requested",
+        "two_factor_disabled": "Two-factor authentication disabled",
+        "super_admin_invited": "Operator invited",
+        "super_admin_operator_revoked": "Operator revoked",
+        "super_admin_setting_updated": "Platform setting changed",
+        "super_admin_feature_flag_updated": "Feature flag changed",
+        "super_admin_integration_updated": "Integration changed",
+        "super_admin_payout_approved": "Payout approved",
+        "super_admin_payout_marked_paid": "Payout marked as paid",
+        "super_admin_payout_cancelled": "Payout cancelled",
+        "super_admin_payout_period_closed": "Payout period closed",
+        "ops_failed_jobs_spike": "Spike of failed jobs",
+        "ops_queue_stalled": "Job queue stalled",
+        "ops_health_degraded": "Platform health degraded"
+      },
+      "channels": {
+        "email": "Email",
+        "slack": "Slack",
+        "discord": "Discord"
+      }
     },
     "inviteModal": {
       "title": "Coopt a super-admin",
@@ -7737,15 +7805,29 @@
       "updatedByOn": "Updated by {name} on {date}",
       "defaultValue": "Default value",
       "errors": {
-        "xofRequired": "XOF must remain among the supported currencies.",
-        "feeRange": "The platform fee must stay between 0.00 and 100.00%.",
-        "feeDecimals": "The platform fee accepts two decimals at most."
+        "xofRequired": "XOF must remain among the supported currencies."
       },
       "categories": {
         "currency": "Currencies",
-        "format": "Formats & i18n",
-        "transaction": "Platform fees",
         "limits": "Technical limits"
+      },
+      "keys": {
+        "currency": {
+          "default": {
+            "label": "Default currency",
+            "description": "Currency used for payments when neither the property nor the agency sets one."
+          },
+          "supported": {
+            "label": "Accepted currencies",
+            "description": "Currencies an agency can pick when it is created or in its settings. XOF is always accepted."
+          }
+        },
+        "platform": {
+          "session_max_minutes": {
+            "label": "Maximum operator session length",
+            "description": "In minutes, from 15 to 1440. Applies to sign-ins opened after saving."
+          }
+        }
       }
     },
     "agencyOnboarding": {
@@ -7849,12 +7931,33 @@
         "title": "Activity",
         "viewInAudit": "View in the audit log",
         "empty": "No recent activity.",
-        "fallbackLabel": "Activity"
+        "fallbackLabel": "Activity",
+        "viaImpersonation": "Via impersonation by {name}"
       },
       "supportDialog": {
         "reasonLabel": "Support reason",
         "reasonPlaceholder": "Describe the audited reason",
         "pending": "Executing…"
+      },
+      "lifecycle": {
+        "block": {
+          "label": "Block",
+          "title": "Block this account",
+          "description": "Their sessions are closed and they can no longer sign in, by any path, until reactivated. They are notified, with your reason."
+        },
+        "reactivate": {
+          "label": "Reactivate",
+          "title": "Reactivate this account",
+          "description": "They can sign in again. They are notified."
+        },
+        "erase": {
+          "label": "Erase the account",
+          "title": "Erase this account",
+          "description": "Erasure is scheduled at the end of the grace period, unless contested; their sessions are closed right away. It is refused while an obligation remains open (active lease, booking, payment)."
+        },
+        "reasonLabel": "Reason (logged)",
+        "toastDone": "Action completed.",
+        "toastErasureScheduled": "Erasure scheduled for {date}."
       }
     },
     "queues": {
@@ -7893,6 +7996,40 @@
       "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
       "unknownEvent": "Unlabelled event",
       "systemCauser": "System"
+    },
+    "operatorLevels": {
+      "legend": "Level",
+      "viewer": {
+        "label": "Read-only",
+        "hint": "Views the console, reports, health and agencies. Changes nothing."
+      },
+      "support": {
+        "label": "Support",
+        "hint": "Plus: user records, support actions, blocking, moderation queue, global search."
+      },
+      "super_admin": {
+        "label": "Super admin",
+        "hint": "Every action, including agency suspension, account erasure, impersonation and operators."
+      }
+    },
+    "globalSearch": {
+      "trigger": "Search",
+      "shortcut": "Ctrl K",
+      "title": "Global search",
+      "description": "Email, phone, reference, transaction, NINEA or name. Arrows to choose, Enter to open.",
+      "placeholder": "Search the whole platform",
+      "hint": "At least 2 characters.",
+      "empty": "No result for “{q}”.",
+      "types": {
+        "user": "Users",
+        "agency": "Agencies",
+        "property": "Properties",
+        "booking": "Bookings",
+        "lease": "Leases",
+        "invoice": "Invoices",
+        "payment": "Payments",
+        "payout": "Payouts"
+      }
     },
     "privacyRequests": {
       "tableCaption": "Rights requests register, by deadline",
@@ -9578,6 +9715,14 @@
         "phone_changed": {
           "title": "Phone number replaced",
           "body": "The verified phone number on your account was replaced. If this was not you, contact support."
+        },
+        "blocked": {
+          "title": "Your account is blocked",
+          "body": "Your Takussan account has been blocked by the platform. Reason: {reason}. Contact support with any question."
+        },
+        "reactivated": {
+          "title": "Your account is reactivated",
+          "body": "Your Takussan account has been reactivated. Reason: {reason}. You can sign in again."
         }
       },
       "invitation": {
@@ -9834,6 +9979,10 @@
         "calendar_feed_failing": {
           "title": "Imported calendar failing: {property}",
           "body": "Calendar \"{feed}\" for {property} has failed to sync three times in a row. Check its link."
+        },
+        "unpublished_contact_erased": {
+          "title": "Listing removed: {property}",
+          "body": "The listing {property} ({reference}) has been removed from the site: its only contact erased their account. Assign an agent, then publish it again: {url}"
         }
       },
       "lease": {
@@ -9848,6 +9997,28 @@
         "signature_completed": {
           "title": "Lease {reference} signed",
           "body": "Both parties signed lease {reference} for {property}. It is now active."
+        }
+      },
+      "impersonation": {
+        "ended": {
+          "title": "Your account was viewed by the Takussan team",
+          "body": "A member of the Takussan team, {operator}, viewed your account read-only from {started_at} to {ended_at}. Reason: {reason}. No change was made on your behalf."
+        }
+      },
+      "agency": {
+        "suspended": {
+          "title": "Agency suspended: {agency}",
+          "body": "The agency {agency} has been suspended by the platform. Reason: {reason}. Its listings are no longer published and its workspace is read-only."
+        },
+        "reinstated": {
+          "title": "Suspension lifted: {agency}",
+          "body": "The suspension of the agency {agency} has been lifted. Reason: {reason}. Its public listings are visible again."
+        }
+      },
+      "platform_operator": {
+        "revoked": {
+          "title": "Operator removed: {operator}",
+          "body": "The platform console access of {operator} has been removed. Reason: {reason}."
         }
       },
       "payout": {
@@ -9936,6 +10107,21 @@
       "previous": "Previous",
       "next": "Next",
       "pageOf": "Page {page} of {last}"
+    }
+  },
+  "impersonation": {
+    "banner": {
+      "message": "Read-only — you are viewing Takussan as {target}, until {ends}.",
+      "fallbackUser": "user #{id}",
+      "unknownEnd": "the end of the session",
+      "leave": "Leave",
+      "leaving": "Leaving…"
+    }
+  },
+  "agencySuspension": {
+    "banner": {
+      "title": "Agency suspended by the platform: read-only.",
+      "body": "Your data remains viewable and exportable; no change is possible while the suspension lasts."
     }
   },
   "horsLigne": {
