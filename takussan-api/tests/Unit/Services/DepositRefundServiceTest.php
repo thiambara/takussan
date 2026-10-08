@@ -70,7 +70,8 @@ class DepositRefundServiceTest extends TestCase
         ]);
 
         $this->assertSame(400000.0, (float) $result['lease']->deposit_refunded_amount);
-        $this->assertSame(200000.0, $result['lease']->deposit_remaining);
+        // VERIF-594 passe 4 (P4-2) — le reste est retenu, pas restituable : la caution est soldée.
+        $this->assertSame(0.0, $result['lease']->deposit_remaining);
         $this->assertInstanceOf(Invoice::class, $result['invoice']);
         $this->assertSame(200000.0, (float) $result['invoice']->total_amount);
         $this->assertStringContainsString('Réparations cuisine', $result['invoice']->notes);
@@ -106,16 +107,19 @@ class DepositRefundServiceTest extends TestCase
         $this->assertAborts422(fn () => $this->service->refund($lease->fresh(), $this->issuer, ['amount' => 1]));
     }
 
-    public function test_partial_then_topup_consumes_remaining(): void
+    /**
+     * VERIF-594 passe 4 (P4-2) — une restitution partielle retient le reste : il n'y a plus rien à
+     * compléter. Un complément facturerait une retenue de plus que la caution.
+     */
+    public function test_partial_refund_settles_the_deposit_and_refuses_a_topup(): void
     {
         $lease = $this->lease(['deposit_amount' => 600000, 'status' => LeaseStatus::Terminated]);
 
         $this->service->refund($lease, $this->issuer, ['amount' => 400000, 'reason' => 'A']);
-        $result = $this->service->refund($lease->fresh(), $this->issuer, ['amount' => 200000]);
 
-        $this->assertSame(600000.0, (float) $result['lease']->deposit_refunded_amount);
-        $this->assertSame(0.0, $result['lease']->deposit_remaining);
-        $this->assertSame(2, LeasePayment::query()->where('lease_id', $lease->id)->count());
+        $this->assertAborts422(fn () => $this->service->refund($lease->fresh(), $this->issuer, ['amount' => 200000]));
+        $this->assertSame(400000.0, (float) $lease->fresh()->deposit_refunded_amount);
+        $this->assertSame(1, LeasePayment::query()->where('lease_id', $lease->id)->count());
     }
 
     public function test_refund_writes_activity_log_entry(): void
@@ -140,16 +144,16 @@ class DepositRefundServiceTest extends TestCase
         // reference to the same in-memory $lease (deposit_refunded_amount = 0).
         // After worker A persists 400k, worker B's reference is stale. The
         // lockForUpdate inside refund() must re-read the persisted state so
-        // worker B accumulates onto 400k rather than overwriting it.
+        // worker B sees the deposit settled by A (400k refunded, 200k retained)
+        // rather than refunding again from its stale `deposit_refunded_amount = 0`.
         $lease = $this->lease(['deposit_amount' => 600000, 'status' => LeaseStatus::Terminated]);
         $stale = $lease;
 
         $this->service->refund($lease, $this->issuer, ['amount' => 400000, 'reason' => 'A']);
 
-        $result = $this->service->refund($stale, $this->issuer, ['amount' => 200000]);
-
-        $this->assertSame(600000.0, (float) $result['lease']->deposit_refunded_amount);
-        $this->assertSame(0.0, $result['lease']->deposit_remaining);
+        $this->assertAborts422(fn () => $this->service->refund($stale, $this->issuer, ['amount' => 200000, 'reason' => 'B']));
+        $this->assertSame(400000.0, (float) $lease->fresh()->deposit_refunded_amount);
+        $this->assertSame(0.0, $lease->fresh()->deposit_remaining);
     }
 
     /** @param array<string,mixed> $overrides */

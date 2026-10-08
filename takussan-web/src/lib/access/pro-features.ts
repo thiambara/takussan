@@ -55,7 +55,8 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // et leur API par `AgencyKindGuard` côté Laravel.
   '/admin',
   '/admin/team',
-  '/admin/agency/billing',
+  // TCK-594 (AC18) — `/admin/agency/billing` N'EST PLUS ICI : l'hôte individuel y lit ses
+  // reversements plateforme ; seul le bloc d'abonnement y reste réservé aux agences `standard`.
   '/admin/moderation/properties',
   // TCK-597 — la modération des avis s'ouvre à l'admin d'agence `standard` (ADR-0043 §1).
   '/admin/moderation',

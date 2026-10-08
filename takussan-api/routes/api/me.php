@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
+use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\Me\PlatformPayoutController as MePlatformPayoutController;
 use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
@@ -44,6 +45,13 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
+
+    // TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire. `store`, `update` et
+    // `destroy` sont sous step-up 2FA (TCK-589, `ProtectedActions::STEP_UP`).
+    Route::get('payout-methods', [MePayoutMethodController::class, 'index'])->name('me.payout-methods.index');
+    Route::post('payout-methods', [MePayoutMethodController::class, 'store'])->name('me.payout-methods.store');
+    Route::patch('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'update'])->name('me.payout-methods.update');
+    Route::delete('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'destroy'])->name('me.payout-methods.destroy');
 
     // TCK-250 — Resumable wizard drafts. `{key}` is a logical identifier owned
     // by the consumer wizard (e.g. `host-individual-wizard`,

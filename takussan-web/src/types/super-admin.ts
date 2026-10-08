@@ -815,6 +815,11 @@ export type PlatformPayout = {
   currency: string;
   status: PlatformPayoutStatus;
   approved_by: number | null;
+  /** TCK-594 (ADR-0039 §4) — les trois mains : qui a clôturé, approuvé, payé, et la preuve du virement. */
+  closed_by_id?: number | null;
+  approved_at?: string | null;
+  paid_by_id?: number | null;
+  payment_reference?: string | null;
   processed_at: string | null;
   failure_reason: string | null;
   metadata: Record<string, unknown> | null;
@@ -834,7 +839,16 @@ export type PlatformPayoutsResponse = {
 };
 
 export type PlatformPayoutResponse = { data: PlatformPayout };
-export type PlatformPayoutClosePeriodResponse = { data: PlatformPayout[] };
+/** TCK-594 — une agence écartée de la clôture, et pourquoi : un code, le libellé est au front. */
+export type PlatformPayoutExclusion = {
+  agency_id: number;
+  reason: 'agency_not_active' | 'already_closed';
+};
+
+export type PlatformPayoutClosePeriodResponse = {
+  data: PlatformPayout[];
+  excluded?: PlatformPayoutExclusion[];
+};
 
 /**
  * TCK-132 — row shape for the cross-tenant properties table. Only fields the

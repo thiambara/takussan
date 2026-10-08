@@ -74,4 +74,26 @@ class PayoutPolicy extends BasePolicy
         return $model->issued_by_id === $user->id
             || $user->can(Capability::PayoutsCreate->value, $model);
     }
+
+    /**
+     * TCK-594 (ADR-0039 §4) — approuver un reversement en attente : `payouts.approve` à l'agence du
+     * REVERSEMENT (pas à celle du profil actif), personnel de cette agence, et jamais le bénéficiaire.
+     *
+     * La règle « l'approbateur n'est pas le préparateur » n'est pas ici : elle vit dans
+     * `SegregationOfDuties`, que le service appelle — le super-admin, que `Gate::before` laisse passer,
+     * y est soumis comme les autres.
+     */
+    public function approve(User $user, Model $model): bool
+    {
+        if (! $model instanceof Payout) {
+            return false;
+        }
+
+        if ($model->beneficiaryUserId() === $user->id) {
+            return false;
+        }
+
+        return $this->isStaffOf($user, $model->agency_id)
+            && $user->can(Capability::PayoutsApprove->value, $model);
+    }
 }

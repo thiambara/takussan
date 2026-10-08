@@ -10,6 +10,7 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
@@ -19,6 +20,7 @@ use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payments\Drivers\LemonSqueezyDriver;
@@ -193,7 +195,9 @@ class PaymentGatewayService
         $driver = $this->driverFor($integration);
         $status = $driver->verify($transactionId);
 
-        $this->applyStatusToPayment($payment, $status->status, [], $transactionId);
+        // VERIF-594 m-4 — l'appel au prestataire reste hors transaction ; l'état et le numéro de la
+        // facture soldée (`InvoiceNumberAllocator`) s'écrivent ensemble, comme sur le chemin webhook.
+        DB::transaction(fn () => $this->applyStatusToPayment($payment, $status->status, [], $transactionId));
 
         return $status;
     }
@@ -482,6 +486,12 @@ class PaymentGatewayService
 
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
+
+        // TCK-594 (ADR-0039 §7) — une facture soldée par la passerelle est émise : un brouillon
+        // payé ainsi reçoit son numéro comme par `InvoiceService::markPaid`.
+        if ($payment instanceof Invoice && $this->currentPaymentStatus($payment) === PaymentStatus::Paid) {
+            app(InvoiceNumberAllocator::class)->allocate($payment);
+        }
     }
 
     /**
@@ -1179,6 +1189,12 @@ class PaymentGatewayService
     {
         if ($payment instanceof Invoice) {
             return in_array($payment->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue], true);
+        }
+
+        // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il ne la
+        // règle pas en ligne.
+        if ($payment instanceof LeasePayment && $payment->payment_type === LeasePaymentType::DepositRefund) {
+            return false;
         }
 
         $status = $this->currentPaymentStatus($payment);

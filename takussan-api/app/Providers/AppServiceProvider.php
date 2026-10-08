@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\Payments\DisbursementDriverContract;
 use App\Listeners\Admin\DispatchAlerts;
 use App\Models\Address;
 use App\Models\Agency;
@@ -42,6 +43,7 @@ use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
+use App\Observers\MaintenanceRequestObserver;
 use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
@@ -70,6 +72,7 @@ use App\Policies\LeasePolicy;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
+use App\Policies\OwnerStatementPolicy;
 use App\Policies\PayoutPolicy;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Policies\PropertyContactLeadPolicy;
@@ -108,6 +111,7 @@ use App\Services\Notifications\Whatsapp\CloudApiWhatsappDriver;
 use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
+use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Support\TelephoneSaisi;
@@ -150,6 +154,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
         $this->app->singleton(ScheduledRunRecorder::class);
+
+        // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
+        $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
 
         // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
         // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
@@ -530,6 +537,8 @@ class AppServiceProvider extends ServiceProvider
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
+        // TCK-594 (ADR-0039 §8) — l'intervention terminée produit sa facture d'intervention.
+        MaintenanceRequest::observe(MaintenanceRequestObserver::class);
         User::observe(UserObserver::class);
         PlatformProfile::observe(PlatformProfileObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
@@ -670,6 +679,8 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.
+        // TCK-594 (ADR-0039 §3) — le relevé de gérance n'est pas un modèle.
+        Gate::define('viewOwnerStatement', [OwnerStatementPolicy::class, 'view']);
         Gate::define('approve-property', [PropertyModerationPolicy::class, 'approve']);
         Gate::define('reject-property', [PropertyModerationPolicy::class, 'reject']);
         Gate::define('resubmit-property', [PropertyModerationPolicy::class, 'resubmit']);

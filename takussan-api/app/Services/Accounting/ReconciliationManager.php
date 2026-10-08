@@ -10,6 +10,7 @@ use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\LeasePayment;
@@ -53,8 +54,11 @@ class ReconciliationManager
 
         // TCK-593 — garde de sens : un crédit est un encaissement, un débit un reversement. Sans
         // elle, un débit de 150 000 se confirmait sur l'échéance de 150 000 qu'il ne paie pas.
+        // TCK-594 (VERIF-594 passe 5, P5-2) — la ligne d'une caution rendue décrit une SORTIE : aucun
+        // crédit ne lui correspond, et son débit se rapproche de son reversement, jamais d'elle.
         $isPayout = $payment instanceof Payout;
-        if ($isPayout !== ($line->direction === BankStatementLineDirection::Debit)) {
+        $isDepositRefund = $payment instanceof LeasePayment && $payment->payment_type === LeasePaymentType::DepositRefund;
+        if ($isDepositRefund || $isPayout !== ($line->direction === BankStatementLineDirection::Debit)) {
             throw ValidationException::withMessages([
                 'payment_type' => [__('reconciliation.validation.direction_mismatch')],
             ]);

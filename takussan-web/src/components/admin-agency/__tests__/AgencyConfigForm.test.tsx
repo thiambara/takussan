@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { confirmPayoutThresholdAction, updateAgencyAction } from '@/app/actions/admin-agency';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import fr from '@/messages/fr.json';
 import { withIntl } from '@/test/intl';
 import type { Agency } from '@/types/agency';
 
@@ -14,7 +16,12 @@ vi.mock('next/navigation', () => ({ useRouter: () => ROUTEUR }));
 vi.mock('@/app/actions/admin-agency', () => ({
   updateAgencyAction: vi.fn(),
   uploadAgencyLogoAction: vi.fn(),
+  confirmPayoutThresholdAction: vi.fn(),
 }));
+const MOI = vi.hoisted(() => ({ current: { user: { id: 11 } as { id: number } | null } }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => MOI.current }));
+const CAN = vi.hoisted(() => ({ current: { can: false, isLoading: false } }));
+vi.mock('@/hooks/useCan', () => ({ useCan: () => CAN.current }));
 
 import { AgencyConfigForm } from '../AgencyConfigForm';
 
@@ -81,3 +88,114 @@ describe('AgencyConfigForm — la devise choisie se reflète tout de suite (TCK-
     expect(screen.queryByText(/Le changement de devise/)).toBeNull();
   });
 });
+
+/**
+ * TCK-594 (ADR-0039 §4, §7) — la section « Mentions légales et paiements ».
+ *
+ * Le champ du seuil n'est proposé qu'au détenteur de `payouts.approve` (le serveur refuse les
+ * autres) ; les mentions légales ne le sont jamais à une agence `individual` (le serveur les
+ * refuse). Ces tests gardent l'accord entre l'écran et le serveur, pas une sécurité.
+ */
+describe('AgencyConfigForm — mentions légales et seuil (TCK-594)', () => {
+  it('propose le seuil au seul détenteur de payouts.approve', () => {
+    CAN.current = { can: false, isLoading: false };
+    const { unmount } = render(withIntl(<AgencyConfigForm agency={AGENCE} />));
+    expect(screen.queryByLabelText(/Seuil d'approbation/)).toBeNull();
+    expect(screen.getByLabelText(/TVA par défaut/)).toBeInTheDocument();
+    unmount();
+
+    CAN.current = { can: true, isLoading: false };
+    render(withIntl(<AgencyConfigForm agency={AGENCE} />));
+    expect(screen.getByLabelText(/Seuil d'approbation/)).toBeInTheDocument();
+  });
+
+  it('ne montre aucune mention légale à une agence individual', () => {
+    CAN.current = { can: true, isLoading: false };
+    const { unmount } = render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'standard' }} />));
+    expect(screen.getByLabelText('NINEA')).toBeInTheDocument();
+    unmount();
+
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'individual' }} />));
+    expect(screen.queryByLabelText('NINEA')).toBeNull();
+    expect(screen.queryByLabelText('Raison sociale')).toBeNull();
+  });
+
+  it("n'envoie pas le seuil inchangé, ni de mentions légales pour une agence individual", async () => {
+    CAN.current = { can: true, isLoading: false };
+    vi.mocked(updateAgencyAction).mockResolvedValue({ ok: true, data: AGENCE });
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'individual', payout_approval_threshold: 500000 }} />));
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(updateAgencyAction).toHaveBeenCalledTimes(1);
+    const payload = vi.mocked(updateAgencyAction).mock.calls[0][1] as unknown as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('payout_approval_threshold');
+    expect(payload).not.toHaveProperty('ninea');
+  });
+});
+
+describe('AgencyConfigForm — relâcher le seuil attend un second approbateur (VERIF-594 M-2)', () => {
+  const EN_ATTENTE: Agency = {
+    ...AGENCE,
+    payout_approval_threshold: 100000,
+    pending_payout_threshold_change: { threshold: null, requested_by_id: 9, requested_at: '2026-10-08T09:00:00Z' },
+  };
+  const M = fr.admin.agencyConfig.moneyOut;
+
+  it('montre la demande en attente, et laisse un autre approbateur la confirmer', async () => {
+    CAN.current = { can: true, isLoading: false };
+    MOI.current = { user: { id: 11 } };
+    vi.mocked(confirmPayoutThresholdAction).mockResolvedValue({ ok: true, data: AGENCE });
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={EN_ATTENTE} />));
+
+    expect(screen.getByText(M.thresholdPendingOff)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: M.thresholdConfirm }));
+    // VERIF-594 passe 2, N-5 — la confirmation porte la valeur affichée (`null` : couper).
+    expect(confirmPayoutThresholdAction).toHaveBeenCalledWith(7, null);
+  });
+
+  it('confirme la valeur relevée affichée, pas la demande en cours côté serveur (VERIF-594 passe 2, N-5)', async () => {
+    CAN.current = { can: true, isLoading: false };
+    MOI.current = { user: { id: 11 } };
+    vi.mocked(confirmPayoutThresholdAction).mockResolvedValue({ ok: true, data: AGENCE });
+    const user = userEvent.setup();
+    render(
+      withIntl(
+        <AgencyConfigForm
+          agency={{
+            ...EN_ATTENTE,
+            pending_payout_threshold_change: { threshold: 150000, requested_by_id: 9, requested_at: '2026-10-08T09:00:00Z' },
+          }}
+        />,
+      ),
+    );
+
+    await user.click(screen.getByRole('button', { name: M.thresholdConfirm }));
+    expect(confirmPayoutThresholdAction).toHaveBeenCalledWith(7, 150000);
+  });
+
+  it('au demandeur, dit qu’un autre doit confirmer, sans bouton', () => {
+    CAN.current = { can: true, isLoading: false };
+    MOI.current = { user: { id: 9 } };
+    render(withIntl(<AgencyConfigForm agency={EN_ATTENTE} />));
+
+    expect(screen.getByText(M.thresholdPendingSelf)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: M.thresholdConfirm })).toBeNull();
+  });
+
+  it('un enregistrement qui demande un relâchement ne se dit pas « enregistré » tout court', async () => {
+    CAN.current = { can: true, isLoading: false };
+    MOI.current = { user: { id: 9 } };
+    vi.mocked(updateAgencyAction).mockResolvedValue({ ok: true, data: EN_ATTENTE });
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, payout_approval_threshold: 100000 }} />));
+
+    await user.clear(screen.getByLabelText(/Seuil d'approbation/));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText(M.thresholdPendingSaved)).toBeInTheDocument();
+  });
+});
+

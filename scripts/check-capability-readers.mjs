@@ -72,8 +72,14 @@ const API = join(ROOT, 'takussan-api');
 const ENUM = 'app/Models/Enums/Capability.php';
 const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
 
-/** Taille de l'inventaire. Bilatéral : il suit `AWAITING`, dans les deux sens. */
-const CLIQUET = 12;
+/**
+ * Taille de l'inventaire. Bilatéral : il suit `AWAITING`, dans les deux sens.
+ * 12 à la fusion de TCK-591 dans TCK-594 : chaque branche avait retiré deux lignes et baissé 16 → 14
+ * de son côté ; la fusion, sans conflit textuel, gardait 14 pour un inventaire de 12. 10 à la fusion
+ * de TCK-592 dans TCK-594, pour la même raison (592 lit `maintenance.*`, 594 `payouts.approve` et
+ * `agency.update_billing`).
+ */
+const CLIQUET = 10;
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;
