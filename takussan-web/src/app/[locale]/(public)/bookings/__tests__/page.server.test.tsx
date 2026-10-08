@@ -50,19 +50,28 @@ afterEach(() => {
 });
 
 describe('/bookings — rendu serveur', () => {
-  it('AC20 — un slug piégé reste UN segment : une requête, et l’état « introuvable »', async () => {
+  it.each(['../properties?per_page=100000', '.', '..', '../x'])(
+    'AC20 + m2 — %j n’est pas un slug de bien : aucune requête, et l’état « introuvable »',
+    async (piege) => {
+      // `encodeURIComponent` laisse `.` et `..` intacts, et `fetch` les RÉSOUT : `?property=.`
+      // appelait la liste du catalogue (`/api/public/properties/`), `..` appelait `/api/public/`.
+      visiteur('203.0.113.1');
+
+      const html = renderToStaticMarkup(await BookingPage({ searchParams: Promise.resolve({ property: piege }) }));
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(html).toContain('not_found_title');
+    },
+  );
+
+  it('un slug de bien part en UN segment encodé', async () => {
     visiteur('203.0.113.1');
     fetchSpy.mockResolvedValue(new Response('{"message":"Not Found."}', { status: 404 }));
 
-    const html = renderToStaticMarkup(
-      await BookingPage({ searchParams: Promise.resolve({ property: '../properties?per_page=100000' }) }),
-    );
+    await BookingPage({ searchParams: Promise.resolve({ property: '-abc123' }) });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const url = new URL(String(fetchSpy.mock.calls[0]![0]));
-    expect(url.pathname).toBe('/api/public/properties/..%2Fproperties%3Fper_page%3D100000');
-    expect(url.search).toBe('');
-    expect(html).toContain('not_found_title');
+    expect(new URL(String(fetchSpy.mock.calls[0]![0])).pathname).toBe('/api/public/properties/-abc123');
   });
 
   it('AC17 — deux visiteurs, deux IP transmises', async () => {

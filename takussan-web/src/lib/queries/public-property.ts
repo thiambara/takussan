@@ -1,6 +1,7 @@
 import { cache } from 'react';
 
 import { ApiError, apiFetch } from '@/lib/api';
+import { segmentDeSlug } from '@/lib/slug-de-bien';
 import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
 /**
@@ -70,6 +71,10 @@ export type ResultatFichePublique =
  */
 export const getProperty = cache(
   async (slug: string, locale: string): Promise<ResultatFichePublique> => {
+    // Après verif-598 (m2) : `.` et `..` survivent à `encodeURIComponent` — `getProperty('.')`
+    // mettait la LISTE du catalogue en cache sous `property:.`. Hors forme, un bien introuvable.
+    const segment = segmentDeSlug(slug);
+    if (segment === null) return { etat: 'introuvable' };
     try {
       // TCK-598 — lecture PARTAGÉE, en cache de données étiqueté par slug : une visite ne coûte
       // plus un aller-retour à l'API, une revalidation par langue et par fenêtre le fait. Aucun
@@ -78,7 +83,7 @@ export const getProperty = cache(
       // le navigateur (`CompteurDeVue`). Seules les réponses 200 entrent au cache : un 404 n'y
       // reste pas.
       const res = await apiFetch<{ data: PropertyDetail }>(
-        `/public/properties/${encodeURIComponent(slug)}`,
+        `/public/properties/${segment}`,
         { next: { revalidate: FRAICHEUR_FICHE_SECONDES, tags: [etiquetteDeFiche(slug)] } } as RequestInit,
         { locale, partage: true },
       );
@@ -114,9 +119,11 @@ export type EtatPublicDuBien = {
  */
 export const getEtatDuBien = cache(
   async (slug: string, locale: string): Promise<EtatPublicDuBien | null> => {
+    const segment = segmentDeSlug(slug);
+    if (segment === null) return null;
     try {
       const res = await apiFetch<{ data: EtatPublicDuBien }>(
-        `/public/properties/${encodeURIComponent(slug)}/status`,
+        `/public/properties/${segment}/status`,
         undefined,
         { locale },
       );
