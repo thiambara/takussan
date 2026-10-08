@@ -17,7 +17,8 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
  *     émis pour un contrat défigé puis refigé ne vaut plus rien ;
  *  2. un compteur d'essais : au 5ᵉ faux, le code est détruit et la signature de ce signataire sur ce
  *     bail est verrouillée 15 min — aucun nouveau code pendant le verrou. Sans lui, 10⁶ codes se
- *     tentent en boucle.
+ *     tentent en boucle. Un renvoi ne remet PAS le compteur à zéro (VERIF-596 m1) ; seul un code
+ *     juste le fait.
  */
 class LeaseSignatureOtpService
 {
@@ -56,7 +57,9 @@ class LeaseSignatureOtpService
             'destination' => $destination,
         ], self::CODE_TTL_SECONDS);
         $this->cache->put($this->key('cooldown', $lease, $user, $role), true, self::RESEND_COOLDOWN_SECONDS);
-        $this->cache->forget($this->key('attempts', $lease, $user, $role));
+        // VERIF-596 m1 — le compteur d'essais N'EST PAS remis à zéro par un renvoi : sinon « 4 faux,
+        // renvoi, 4 faux… » ne verrouillait jamais. Il compte par signataire, rôle et bail, et vit
+        // la durée du verrou.
 
         return $code;
     }
@@ -88,7 +91,7 @@ class LeaseSignatureOtpService
         }
 
         $attemptsKey = $this->key('attempts', $lease, $user, $role);
-        $this->cache->add($attemptsKey, 0, self::CODE_TTL_SECONDS);
+        $this->cache->add($attemptsKey, 0, self::LOCK_SECONDS);
         $attempts = (int) $this->cache->increment($attemptsKey);
         if ($attempts >= self::MAX_ATTEMPTS) {
             $this->cache->forget($this->key('code', $lease, $user, $role));

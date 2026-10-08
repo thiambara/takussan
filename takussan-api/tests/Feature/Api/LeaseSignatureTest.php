@@ -211,10 +211,13 @@ class LeaseSignatureTest extends TestCase
         $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202);
         $right = $this->lastCode($this->tenantUser);
 
-        for ($i = 0; $i < LeaseSignatureOtpService::MAX_ATTEMPTS; $i++) {
+        for ($i = 0; $i < LeaseSignatureOtpService::MAX_ATTEMPTS - 1; $i++) {
             $this->sign($this->tenantUser, 'tenant', $this->wrongCode($right))
                 ->assertStatus(422)->assertJsonPath('code', 'lease_signature.invalid_code');
         }
+        // Le 5ᵉ faux pose le verrou et le dit.
+        $this->sign($this->tenantUser, 'tenant', $this->wrongCode($right))
+            ->assertStatus(423)->assertJsonPath('code', 'lease_signature.code_locked');
 
         $this->sign($this->tenantUser, 'tenant', $right)->assertStatus(423)->assertJsonPath('code', 'lease_signature.code_locked');
         $this->travel(61)->seconds();
@@ -224,6 +227,29 @@ class LeaseSignatureTest extends TestCase
         // Le verrou tombe après 15 min ; un nouveau code est alors émis.
         $this->travel(LeaseSignatureOtpService::LOCK_SECONDS)->seconds();
         $this->signWithCode($this->tenantUser, 'tenant')->assertOk();
+    }
+
+    /**
+     * VERIF-596 m1 — un renvoi ne remet pas le compteur à zéro : 4 faux, un nouveau code, 1 faux →
+     * verrou. Avant, « 4 faux puis renvoi » se répétait sans fin (12 faux, puis le bon code → 200).
+     */
+    public function test_wrong_attempts_survive_a_resend(): void
+    {
+        $this->requestSignature()->assertOk();
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202);
+        $first = $this->lastCode($this->tenantUser);
+        for ($i = 0; $i < LeaseSignatureOtpService::MAX_ATTEMPTS - 1; $i++) {
+            $this->sign($this->tenantUser, 'tenant', $this->wrongCode($first))->assertStatus(422);
+        }
+
+        $this->travel(61)->seconds();
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202);
+        $second = $this->lastCode($this->tenantUser);
+
+        $this->sign($this->tenantUser, 'tenant', $this->wrongCode($second))
+            ->assertStatus(423)->assertJsonPath('code', 'lease_signature.code_locked');
+        $this->sign($this->tenantUser, 'tenant', $second)->assertStatus(423);
+        $this->assertSame(0, LeaseSignature::query()->count());
     }
 
     public function test_four_wrong_codes_do_not_lock(): void

@@ -56,7 +56,9 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
 2. **Le canal du code.** SMS si le signataire a un numéro **vérifié**, sinon e-mail (`users.email` est
    toujours renseigné). Code à 6 chiffres, valable 10 min, lié au bail, au signataire, au rôle et à
    l'empreinte ; renvoi espacé de 60 s ; **5 essais faux verrouillent** la signature de ce signataire
-   sur ce bail pendant 15 min (aucun nouveau code pendant le verrou) ; un code juste est **consommé**
+   sur ce bail pendant 15 min (aucun nouveau code pendant le verrou) — le compteur vit la durée du
+   verrou et **un renvoi ne le remet pas à zéro** (amendé après VERIF-596, m1) ; le faux qui pose le
+   verrou rend déjà 423 ; un code juste est **consommé**
    (un rejeu est refusé). La route d'envoi porte un limiteur par utilisateur (3/min, 10/h), en plus
    de la borne du canal SMS. Patron `DeletionStepUpService`, avec le compteur d'essais en plus.
 3. **Ce qui est conservé** (`lease_signatures`) : bail, rôle (`tenant` | `landlord`), méthode (`otp` |

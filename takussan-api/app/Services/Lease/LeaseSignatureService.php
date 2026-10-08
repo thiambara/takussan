@@ -128,6 +128,8 @@ class LeaseSignatureService
             abort_code_if($this->otp->isLocked($locked, $user, $role), 423, 'lease_signature.code_locked');
 
             $proof = $this->otp->attempt($locked, $user, $role, $code);
+            // Le faux qui pose le verrou le dit tout de suite.
+            abort_code_if($proof === null && $this->otp->isLocked($locked, $user, $role), 423, 'lease_signature.code_locked');
             abort_code_if($proof === null, 422, 'lease_signature.invalid_code');
 
             LeaseSignature::query()->create([
