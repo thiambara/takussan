@@ -6513,19 +6513,33 @@
         "cache": "Cache",
         "storage": "Storage",
         "mail": "Email",
-        "sms": "SMS"
+        "sms": "SMS",
+        "media_storage": "Media",
+        "search": "Search",
+        "queue": "Job queues",
+        "workers": "Workers",
+        "cdn": "CDN"
       },
       "hint": {
         "error": "Error: {message}",
         "driver": "Driver: {driver}",
         "value": "Value: {value}",
-        "latency": "{ms} ms"
+        "latency": "{ms} ms",
+        "checkedAt": "Checked at {time}",
+        "reason": {
+          "no_delivery": "Nothing actually sent (test driver)",
+          "unreachable": "Server unreachable",
+          "not_meilisearch": "Search not on Meilisearch"
+        }
       },
       "status": {
         "ok": "OK",
         "failed": "Down",
-        "loading": "…"
-      }
+        "loading": "…",
+        "degraded": "Degraded"
+      },
+      "global": "Overall status:",
+      "queueOldestSeconds": "Longest wait (s)"
     },
     "integrations": {
       "webhooks": {

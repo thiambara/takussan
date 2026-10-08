@@ -627,11 +627,19 @@ export type DataExportsResponse = {
   };
 };
 
+/** TCK-600 — `degraded` distingue « marche mal » de « en panne » ; chaque sonde est datée. */
+export type HealthLevel = 'ok' | 'degraded' | 'failed';
+
+/** Les raisons qu'une sonde émet par code (`HealthcheckService`) : le front les traduit. */
+export type HealthReason = 'no_delivery' | 'unreachable' | 'not_meilisearch';
+
 export type HealthcheckStatus = {
-  status: 'ok' | 'failed';
+  status: HealthLevel;
+  checked_at?: string;
   latency_ms?: number;
   driver?: string;
   value?: string;
+  reason?: HealthReason;
   error?: string;
 };
 
@@ -639,10 +647,22 @@ export type PlatformHealth = {
   db: HealthcheckStatus;
   cache: HealthcheckStatus;
   storage: HealthcheckStatus;
+  media_storage?: HealthcheckStatus & { disks?: string[]; disk?: string };
   mail: HealthcheckStatus;
-  sms: HealthcheckStatus;
-  queue: { pending: number; processing: number; failed_24h: number };
+  sms: HealthcheckStatus & { attempts_1h?: number; failure_rate_1h?: number };
+  search?: HealthcheckStatus & { documents?: number; expected?: number; gap?: number };
+  queue: Partial<HealthcheckStatus> & {
+    pending: number;
+    processing: number;
+    failed_24h: number;
+    oldest_pending_seconds?: number;
+  };
+  workers?: HealthcheckStatus & {
+    queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
+  };
+  cdn?: HealthcheckStatus;
   scheduler: { last_run_at: string | null };
+  status?: HealthLevel;
   generated_at: string;
 };
 

@@ -6513,19 +6513,33 @@
         "cache": "Cache",
         "storage": "Stockage",
         "mail": "E-mail",
-        "sms": "SMS"
+        "sms": "SMS",
+        "media_storage": "Médias",
+        "search": "Recherche",
+        "queue": "Files de jobs",
+        "workers": "Workers",
+        "cdn": "CDN"
       },
       "hint": {
         "error": "Erreur : {message}",
         "driver": "Pilote : {driver}",
         "value": "Valeur : {value}",
-        "latency": "{ms} ms"
+        "latency": "{ms} ms",
+        "checkedAt": "Sondé à {time}",
+        "reason": {
+          "no_delivery": "Aucun envoi réel (pilote de test)",
+          "unreachable": "Serveur injoignable",
+          "not_meilisearch": "Recherche hors Meilisearch"
+        }
       },
       "status": {
         "ok": "OK",
         "failed": "En panne",
-        "loading": "…"
-      }
+        "loading": "…",
+        "degraded": "Dégradé"
+      },
+      "global": "État général :",
+      "queueOldestSeconds": "Plus longue attente (s)"
     },
     "integrations": {
       "webhooks": {

@@ -5903,19 +5903,33 @@
         "cache": "Cache",
         "storage": "Denc",
         "mail": "E-mail",
-        "sms": "SMS"
+        "sms": "SMS",
+        "media_storage": "Médiya yi",
+        "search": "Seet",
+        "queue": "Toggu liggéey yi",
+        "workers": "Workers",
+        "cdn": "CDN"
       },
       "hint": {
         "error": "Njuumte : {message}",
         "driver": "Doxalukaay : {driver}",
         "value": "Njëg : {value}",
-        "latency": "{ms} ms"
+        "latency": "{ms} ms",
+        "checkedAt": "Seet nañu ko ci {time}",
+        "reason": {
+          "no_delivery": "Dara yónniwul (pilote bu test)",
+          "unreachable": "Serwëer bi jotul",
+          "not_meilisearch": "Seet bi nekkul ci Meilisearch"
+        }
       },
       "status": {
         "ok": "Baax na",
         "failed": "Dafa yàqu",
-        "loading": "…"
-      }
+        "loading": "…",
+        "degraded": "Wàññiku na"
+      },
+      "global": "Mbir mi ci lépp :",
+      "queueOldestSeconds": "Xaar bi gëna yàgg (s)"
     },
     "integrations": {
       "webhooks": {
