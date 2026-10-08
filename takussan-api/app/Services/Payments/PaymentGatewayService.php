@@ -10,6 +10,7 @@ use App\Models\Agency;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
@@ -1057,6 +1058,12 @@ class PaymentGatewayService
     {
         if ($payment instanceof Invoice) {
             return in_array($payment->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue], true);
+        }
+
+        // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il ne la
+        // règle pas en ligne.
+        if ($payment instanceof LeasePayment && $payment->payment_type === LeasePaymentType::DepositRefund) {
+            return false;
         }
 
         $status = $this->currentPaymentStatus($payment);

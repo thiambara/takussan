@@ -222,6 +222,7 @@ return [
     ],
     'lease_payment' => [
         'cannot_mark_paid' => 'Only a pending or late payment can be marked paid.',
+        'deposit_refund_paid_by_payout' => 'A refunded deposit is settled by its payout, never by hand.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
     ],

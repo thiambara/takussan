@@ -4,6 +4,8 @@ namespace Tests\Feature\Api;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Exceptions\ApiError;
+use App\Jobs\Lease\ApplyLateFeesJob;
+use App\Jobs\SendLeasePaymentReminders;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
@@ -27,6 +29,7 @@ use App\Notifications\CodedNotification;
 use App\Services\Accounting\ReconciliationMatcher;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Model\PayoutService;
+use App\Services\Payments\PaymentGatewayService;
 use App\Services\Payout\PayoutApprovalRule;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1064,6 +1067,71 @@ class PayoutBypassTest extends TestCase
         // Ni dans le point de comparaison à J-30 : sans autre encaissement, il n'y en a pas.
         $this->travel(31)->days();
         $this->getJson('/api/admin/system/metrics')->assertOk()->assertJsonMissingPath('data.trend.previous.revenue_platform_total_paid');
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-7 — la ligne `deposit_refund` est ce que l'agence DOIT au locataire, pas
+     * une échéance qu'il doit : restée en attente au-delà de son échéance (les quatre yeux peuvent
+     * l'allonger), elle ne porte ni pénalité de retard ni relance, et ne se règle pas en ligne.
+     */
+    public function test_p4_7_a_pending_deposit_refund_is_not_a_tenant_due(): void
+    {
+        Notification::fake();
+        $this->travelTo('2026-10-08 10:00:00');
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $lease->agency->forceFill(['payout_approval_threshold' => 0])->save();
+        $lease->forceFill(['late_fee_percent' => 5, 'late_fee_grace_days' => 0])->save();
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated();
+        $this->assertSame(PayoutStatus::AwaitingApproval, Payout::query()->findOrFail($refund->json('data.payout_id'))->status);
+        $line = LeasePayment::query()->findOrFail($refund->json('data.payment_id'));
+
+        foreach (['2026-11-04', '2026-11-08', '2026-11-14', '2026-11-15'] as $day) {
+            $this->travelTo("{$day} 10:00:00");
+            app()->call([new SendLeasePaymentReminders, 'handle']);
+            app()->call([new ApplyLateFeesJob, 'handle']);
+        }
+
+        $line->refresh();
+        $this->assertSame(PaymentStatus::Pending, $line->status);
+        $this->assertNull($line->late_fee_amount);
+        $this->assertNull($line->late_fee_applied_at);
+        $this->assertSame([], array_filter(array_keys($line->metadata ?? []), fn (string $k) => str_starts_with($k, 'reminder_')));
+        $this->assertFalse(app(PaymentGatewayService::class)->isPayable($line));
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-7 — la ligne `deposit_refund` se règle par son reversement, jamais à la
+     * main : marquée payée, son refus la laissait `paid` et la restitution suivante en créait une
+     * seconde.
+     */
+    public function test_p4_7_a_deposit_refund_line_is_not_marked_paid_by_hand(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated();
+
+        $this->postJson("/api/lease-payments/{$refund->json('data.payment_id')}/mark-paid", ['payment_method' => 'cash'])
+            ->assertUnprocessable()->assertJsonPath('code', 'lease_payment.deposit_refund_paid_by_payout');
+        $this->assertSame(PaymentStatus::Pending, LeasePayment::query()->findOrFail($refund->json('data.payment_id'))->status);
+    }
+
+    /**
+     * VERIF-594 passe 4 (mutation M9 de la passe 3) — le refus d'une restitution ne fait échouer que
+     * sa ligne encore `pending` : une ligne déjà réglée reste réglée.
+     */
+    public function test_p4_7_the_refusal_only_fails_a_pending_line(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        $this->actingWithStepUp($admin);
+        $refund = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 400_000])->assertCreated();
+        LeasePayment::query()->whereKey($refund->json('data.payment_id'))->update(['status' => PaymentStatus::Paid->value, 'paid_at' => now()]);
+
+        $this->postJson("/api/payouts/{$refund->json('data.payout_id')}/cancel")->assertOk();
+
+        $this->assertSame(PaymentStatus::Paid, LeasePayment::query()->findOrFail($refund->json('data.payment_id'))->status);
     }
 
     /**
