@@ -37,6 +37,12 @@ class OrangeMoneyDriver implements PaymentDriverContract
         // OM amounts are in major units (XOF integer). Cents → integer XOF.
         $amount = (int) round($amountCents / 100);
 
+        // TCK-293 (ADR-0046 §4) — la notification revient sur l'URL de CETTE intégration : son
+        // jeton désigne l'intégration, dont le secret vérifiera la signature. Aucun appelant ne la
+        // remplace.
+        $notifUrl = $this->integration->webhookUrl();
+        abort_code_if($notifUrl === null, 500, 'payment.webhook_endpoint_missing');
+
         $payload = [
             'merchant_key' => $merchantKey,
             'currency' => strtoupper($currency) === 'XOF' ? 'OUV' : strtoupper($currency),
@@ -44,7 +50,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
             'amount' => $amount,
             'return_url' => $meta['return_url'] ?? config('app.frontend_url').'/app/payments/return?status=success',
             'cancel_url' => $meta['cancel_url'] ?? config('app.frontend_url').'/app/payments/return?status=failed',
-            'notif_url' => $meta['notif_url'] ?? rtrim((string) config('app.url'), '/').'/api/webhooks/payments/orange_money',
+            'notif_url' => $notifUrl,
             'lang' => 'fr',
             'reference' => 'TKS-'.$payment->getKey(),
         ];
