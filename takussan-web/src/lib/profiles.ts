@@ -1,6 +1,6 @@
 import { apiRequest, buildQueryString } from './api';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 export const ACTIVE_PROFILE_COOKIE = 'active_profile_id';
 
@@ -21,7 +21,7 @@ export async function fetchMyProfiles(token: string, activeProfileId?: string): 
   if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
 
   return apiRequest<MyProfilesResponse>(
-    cheminApi`/api/me/profiles${profilesQuery ? `?${profilesQuery}` : ''}`,
+    cheminApi`/api/me/profiles${requete(profilesQuery)}`,
     { token, headers },
   );
 }

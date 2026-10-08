@@ -9,7 +9,7 @@ import type {
   SettingValue,
 } from '@/types/setting';
 import type { IntegrationFormPayload } from '@/lib/schemas/setting';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Settings & Integrations admin queries — TCK-023 / TCK-068.
@@ -103,7 +103,7 @@ export async function fetchSettings(
   activeProfileId?: string,
 ): Promise<PaginatedResponse<Setting>> {
   const qs = buildQueryString(buildSettingsParams(params));
-  return apiRequest<PaginatedResponse<Setting>>(cheminApi`/api/settings${qs ? `?${qs}` : ''}`, {
+  return apiRequest<PaginatedResponse<Setting>>(cheminApi`/api/settings${requete(qs)}`, {
     token,
     activeProfileId,
   });
@@ -175,7 +175,7 @@ export async function fetchIntegrations(
     per_page: 100,
   });
   return apiRequest<PaginatedResponse<Integration>>(
-    cheminApi`/api/integrations${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/integrations${requete(qs)}`,
     { token, activeProfileId },
   );
 }

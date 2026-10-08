@@ -1,5 +1,5 @@
 import { apiRequest } from './api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-257 — wire types & helpers for the post-acceptance Owner
@@ -81,9 +81,8 @@ export async function fetchOwnerProperties(
   ownerProfileId: number,
   query = 'fields[properties]=id,title,price,status,type',
 ): Promise<OwnerPropertiesResponse> {
-  const qs = query ? `?${query}` : '';
   return apiRequest<OwnerPropertiesResponse>(
-    cheminApi`/api/me/owner-profiles/${ownerProfileId}/properties${qs}`,
+    cheminApi`/api/me/owner-profiles/${ownerProfileId}/properties${requete(query)}`,
     { token },
   );
 }

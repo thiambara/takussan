@@ -2,7 +2,7 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, SpatieQueryParams } from '@/types/api';
 import type { Agency } from '@/types/agency';
 import type { AgencyFormPayload } from '@/lib/schemas/agency';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Agency admin-config queries — TCK-015 / TCK-064. All reads pass the
@@ -69,7 +69,7 @@ export async function fetchAgency(
 ): Promise<Agency> {
   const qs = buildQueryString(buildShowParams());
   const res = await apiRequest<ApiResponse<Agency>>(
-    cheminApi`/api/agencies/${agencyId}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}${requete(qs)}`,
     { token, activeProfileId },
   );
   return res.data;

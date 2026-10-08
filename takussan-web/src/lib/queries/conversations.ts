@@ -18,7 +18,7 @@ import type {
   MessageAttachment,
   PropertyConversationResolution,
 } from '@/types/message';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * React Query hooks for Conversations and Messages (TCK-045).
@@ -206,7 +206,7 @@ export function useMessagesInfinite(conversationId: number | null | undefined) {
         extra: pageParam != null ? { before_id: pageParam } : undefined,
       };
       const qs = buildQueryString(params);
-      const path = cheminApi`/api/conversations/${conversationId}/messages${qs ? `?${qs}` : ''}`;
+      const path = cheminApi`/api/conversations/${conversationId}/messages${requete(qs)}`;
       return apiRequest<MessagesPage>(path, {
         token: token ?? undefined,
         locale,

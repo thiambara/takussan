@@ -5,7 +5,7 @@ import type {
   CustomerPipelineStage,
 } from '@/types/customer';
 import type { PipelineCustomerCard, PipelineStats, Task } from '@/types/pipeline';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-083 — CRM pipeline queries.
@@ -76,7 +76,7 @@ export async function fetchPipelineColumn(
 ): Promise<PipelineCustomerCard[]> {
   const qs = buildQueryString(buildPipelineColumnParams(params));
   const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: unknown }>(
-    cheminApi`/api/customers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers${requete(qs)}`,
     { token },
   );
   return res.data;
@@ -122,7 +122,7 @@ export async function fetchCustomerTasks(
     sort: 'due_at',
     per_page: 50,
   });
-  const res = await apiRequest<{ data: Task[] }>(cheminApi`/api/tasks${qs ? `?${qs}` : ''}`, {
+  const res = await apiRequest<{ data: Task[] }>(cheminApi`/api/tasks${requete(qs)}`, {
     token,
   });
   return res.data;

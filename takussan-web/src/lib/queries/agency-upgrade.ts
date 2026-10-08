@@ -8,7 +8,7 @@ import type {
   AgencyUpgradeRequest,
   AgencyUpgradeRequestFormFields,
 } from '@/types/agency-upgrade';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-267 — query layer for the agency upgrade-request flow
@@ -52,7 +52,7 @@ export async function fetchAgencyUpgradeRequests(
 ): Promise<PaginatedResponse<AgencyUpgradeRequest>> {
   const qs = buildQueryString(buildIndexParams());
   return apiRequest<PaginatedResponse<AgencyUpgradeRequest>>(
-    cheminApi`/api/agencies/${agencyId}/upgrade-requests${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}/upgrade-requests${requete(qs)}`,
     { token },
   );
 }

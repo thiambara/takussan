@@ -4,7 +4,7 @@ import type {
   PaginatedResponse,
   SpatieQueryParams,
 } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-256 — owners query layer.
@@ -115,7 +115,7 @@ export async function fetchOwners(
 ): Promise<PaginatedResponse<OwnerProfileSummary>> {
   const qs = buildQueryString(buildParams(params));
   return apiRequest<PaginatedResponse<OwnerProfileSummary>>(
-    cheminApi`/api/owners${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/owners${requete(qs)}`,
     { token },
   );
 }

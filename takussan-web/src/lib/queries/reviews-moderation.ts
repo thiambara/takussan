@@ -5,7 +5,7 @@ import type {
   ApiResponse,
   SpatieQueryParams,
 } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Review moderation queries — TCK-067. Admin queue uses sparse fieldsets
@@ -102,7 +102,7 @@ export async function fetchModerationQueue(
 ): Promise<ModerationQueueResponse> {
   const qs = buildQueryString(buildQueueParams(params));
   return apiRequest<ModerationQueueResponse>(
-    cheminApi`/api/reviews${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/reviews${requete(qs)}`,
     { token },
   );
 }

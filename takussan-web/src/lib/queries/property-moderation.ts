@@ -1,6 +1,6 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type { PaginatedResponse, ApiResponse } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Property moderation queries — TCK-098.
@@ -141,7 +141,7 @@ export async function fetchPropertyModerationQueue(
     ...(params.perPage ? { per_page: params.perPage } : {}),
   });
   return apiRequest<ModerationPropertyQueueResponse>(
-    cheminApi`/api/properties/moderation${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/properties/moderation${requete(qs)}`,
     { token },
   );
 }

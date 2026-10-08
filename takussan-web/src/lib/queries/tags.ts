@@ -2,7 +2,7 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { Tag, TagType } from '@/types/tag';
 import type { TagFormPayload } from '@/lib/schemas/tag';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Tag (admin) queries — TCK-023 / TCK-066. Sparse fieldsets are mandatory
@@ -56,7 +56,7 @@ export async function fetchTags(
   params: FetchTagsParams = {},
 ): Promise<PaginatedResponse<Tag>> {
   const qs = buildQueryString(buildListParams(params));
-  return apiRequest<PaginatedResponse<Tag>>(cheminApi`/api/tags${qs ? `?${qs}` : ''}`, { token });
+  return apiRequest<PaginatedResponse<Tag>>(cheminApi`/api/tags${requete(qs)}`, { token });
 }
 
 export async function createTag(token: string, payload: TagFormPayload): Promise<Tag> {

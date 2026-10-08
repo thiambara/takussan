@@ -1,6 +1,6 @@
 import { apiRequest } from '@/lib/api';
 import type { PaginatedResponse } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 export interface ActivityLogEntry {
   id: number;
@@ -45,7 +45,7 @@ export async function fetchAuditLogs(
 
   const qs = new URLSearchParams(params).toString();
   return apiRequest<PaginatedResponse<ActivityLogEntry>>(
-    cheminApi`/api/activity-log${qs ? '?' + qs : ''}`,
+    cheminApi`/api/activity-log${requete(qs)}`,
     { token },
   );
 }

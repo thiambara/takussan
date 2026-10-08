@@ -13,7 +13,7 @@ import type {
 } from '@/types/customer';
 import type { Tag } from '@/types/tag';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Customer (CRM) queries — TCK-042. All reads use spatie query params
@@ -100,7 +100,7 @@ export async function fetchDashboardCustomers(
 ): Promise<PaginatedResponse<CustomerListItem>> {
   const qs = buildQueryString(buildListParams(params));
   return apiRequest<PaginatedResponse<CustomerListItem>>(
-    cheminApi`/api/customers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers${requete(qs)}`,
     { token },
   );
 }
@@ -114,7 +114,7 @@ export async function fetchDashboardCustomer(
     include: ['notes', 'documents', 'tags'],
   });
   const res = await apiRequest<ApiResponse<CustomerDetail>>(
-    cheminApi`/api/customers/${customerId}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers/${customerId}${requete(qs)}`,
     { token },
   );
   return res.data;
@@ -170,7 +170,7 @@ export async function fetchCustomerNotes(
 ): Promise<CustomerNote[]> {
   const qs = buildQueryString({ sort: '-created_at' });
   const res = await apiRequest<ApiResponse<CustomerNote[]>>(
-    cheminApi`/api/customers/${customerId}/notes${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers/${customerId}/notes${requete(qs)}`,
     { token },
   );
   return res.data;
@@ -239,7 +239,7 @@ export async function fetchCrmTags(
     per_page: 50,
   });
   const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'color'>[] }>(
-    cheminApi`/api/tags${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/tags${requete(qs)}`,
     { token },
   );
   return res.data;

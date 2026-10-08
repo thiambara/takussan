@@ -23,7 +23,7 @@ import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 export interface FavoriteItem {
   id: number;
@@ -152,7 +152,7 @@ export function usePropertiesByIdsChunkedQuery(ids: readonly number[]) {
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const qs = buildQueryString({ extra: { ids: chunkIds.join(',') } });
         return apiRequest<PropertiesByIdsResponse>(
-          cheminApi`/api/public/properties/by-ids${qs ? `?${qs}` : ''}`,
+          cheminApi`/api/public/properties/by-ids${requete(qs)}`,
           { token: token ?? undefined, locale, signal },
         );
       },

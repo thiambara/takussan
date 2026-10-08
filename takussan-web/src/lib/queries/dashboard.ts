@@ -1,6 +1,6 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Server-side fetchers for the role-based dashboards (TCK-032 P1).
@@ -145,7 +145,7 @@ async function call<T>(tableau: 'agency' | 'owner' | 'agent' | 'tenant', opts: F
     extra: typeof opts.months === 'number' ? { months: opts.months } : undefined,
   });
 
-  const url = cheminApi`/api/dashboard/${tableau}${qs ? `?${qs}` : ''}`;
+  const url = cheminApi`/api/dashboard/${tableau}${requete(qs)}`;
 
   return apiRequest<DashboardEnvelope<T>>(url, { token, signal: opts.signal });
 }

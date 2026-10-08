@@ -62,7 +62,7 @@ import type {
   ReportGranularity,
   ReportPeriod,
 } from '@/types/super-admin';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -97,7 +97,7 @@ export async function fetchAdminAgencies(params: {
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
   const query = qs.toString();
-  const res = await fetch(cheminApi`/api/super-admin/agencies${query ? `?${query}` : ''}`, {
+  const res = await fetch(cheminApi`/api/super-admin/agencies${requete(query)}`, {
     credentials: 'include',
   });
   return jsonOrThrow<AdminAgenciesResponse>(res);

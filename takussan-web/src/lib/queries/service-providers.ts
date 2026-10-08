@@ -4,7 +4,7 @@ import type {
   PaginatedResponse,
   SpatieQueryParams,
 } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-260 — service providers (carnet) query layer.
@@ -126,7 +126,7 @@ export async function fetchServiceProviders(
 ): Promise<PaginatedResponse<ServiceProviderProfileSummary>> {
   const qs = buildQueryString(buildParams(params));
   return apiRequest<PaginatedResponse<ServiceProviderProfileSummary>>(
-    cheminApi`/api/agencies/${params.agencyId}/service-providers${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${params.agencyId}/service-providers${requete(qs)}`,
     { token },
   );
 }

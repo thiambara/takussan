@@ -15,7 +15,7 @@ import type {
   MemberPortfolio,
   PortfolioCategory,
 } from '@/types/agent-crm';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-591 — requêtes du CRM de l'agent. Module sans directive : appelable depuis un composant
@@ -128,7 +128,7 @@ export async function fetchCustomerActivity(
 ): Promise<PaginatedResponse<CustomerActivityEntry>> {
   const qs = buildQueryString({ page, per_page: 20 });
   return apiRequest<PaginatedResponse<CustomerActivityEntry>>(
-    cheminApi`/api/customers/${customerId}/activity${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/customers/${customerId}/activity${requete(qs)}`,
     { token },
   );
 }

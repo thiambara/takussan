@@ -27,11 +27,14 @@ vi.mock('next/headers', () => ({
 }));
 
 import { ApiError } from '@/lib/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 import { createCustomerNoteAction } from '@/app/actions/dashboard-customers';
 
 const SONDE = [
   '../admin/users/12/impersonate?reason=Ticket%20support%204821&x=',
+  // verif-600 m-C : une valeur qui commence par `?` tronquait vers `POST /api/customers/?…`.
+  '?reason=Ticket support 4821&x=',
+  '?',
   '../admin/users/12/impersonate',
   '12/../../admin/users/12/impersonate',
   '12?x=',
@@ -56,17 +59,28 @@ describe('cheminApi', () => {
     expect(cheminApi`/api/me/wizard-drafts/${'été 2026'}`).toBe('/api/me/wizard-drafts/%C3%A9t%C3%A9%202026');
   });
 
-  it('laisse la requête telle quelle : après un `?` écrit, ou une valeur qui commence par `?`', () => {
+  it('laisse la requête telle quelle après un `?` écrit', () => {
     expect(cheminApi`/api/export/${'leases'}?${'from=2026-01-01&to=x/../y'}`).toBe('/api/export/leases?from=2026-01-01&to=x/../y');
-    expect(cheminApi`/api/customers${'?page=2'}`).toBe('/api/customers?page=2');
-    expect(cheminApi`/api/customers/${12}/notes${'?per_page=5'}`).toBe('/api/customers/12/notes?per_page=5');
+  });
+
+  it("n'accepte un suffixe de requête que d'un URLSearchParams ou de requete()", () => {
+    expect(cheminApi`/api/customers${requete('page=2')}`).toBe('/api/customers?page=2');
+    expect(cheminApi`/api/customers/${12}/notes${new URLSearchParams({ per_page: '5' })}`).toBe('/api/customers/12/notes?per_page=5');
+    expect(cheminApi`/api/customers/${12}${requete('x=a/../b')}`).toBe('/api/customers/12?x=a/../b');
+    expect(cheminApi`/api/customers${requete('')}`).toBe('/api/customers');
+    expect(cheminApi`/api/customers${new URLSearchParams()}`).toBe('/api/customers');
+    // Une CHAÎNE qui commence par `?` n'est pas un suffixe de requête : c'est un segment refusé.
+    expect(() => cheminApi`/api/customers${'?page=2'}`).toThrow(ApiError);
+    expect(() => cheminApi`/api/customers/${'?reason=Ticket support 4821&x='}/notes`).toThrow(
+      expect.objectContaining({ status: 400, data: { code: 'invalid_path' } }),
+    );
   });
 
   it("n'admet une valeur vide qu'en suffixe, jamais en segment", () => {
     expect(cheminApi`/api/customers${''}`).toBe('/api/customers');
     expect(() => cheminApi`/api/leases/${''}`).toThrow(ApiError);
     expect(() => cheminApi`/api/leases/${''}/payments`).toThrow(ApiError);
-    expect(() => cheminApi`/api/leases/${''}${'?a=1'}`).toThrow(ApiError);
+    expect(() => cheminApi`/api/leases/${''}${requete('a=1')}`).toThrow(ApiError);
   });
 });
 

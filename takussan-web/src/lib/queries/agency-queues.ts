@@ -3,7 +3,7 @@ import { fetchAgencyKyc } from '@/lib/queries/kyc';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 import type { PaginatedResponse } from '@/types/api';
 import type { KycDossierResponse, KycDossierStatus } from '@/types/super-admin';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-375 — LES files d'attente de la console agence, et le SEUL endroit où leur compte se
@@ -113,7 +113,7 @@ export async function fetchPendingInvitationsCount(token: string): Promise<numbe
     per_page: 1,
   });
   const response = await apiRequest<PaginatedResponse<{ id: number }>>(
-    cheminApi`/api/invitations${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/invitations${requete(qs)}`,
     { token },
   );
   return response.meta.total;

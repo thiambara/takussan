@@ -1,7 +1,7 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { InvitationSummary } from '@/lib/queries/owners';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * TCK-368 — les invitations EN ATTENTE de l'agence active, pour la console Équipe.
@@ -128,7 +128,7 @@ export async function fetchPendingAgencyInvitations(
 ): Promise<PaginatedResponse<PendingAgencyInvitation>> {
   const qs = buildQueryString(buildParams(params));
   return apiRequest<PaginatedResponse<PendingAgencyInvitation>>(
-    cheminApi`/api/invitations${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/invitations${requete(qs)}`,
     { token },
   );
 }

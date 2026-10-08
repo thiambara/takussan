@@ -5,7 +5,7 @@ import type {
   SpatieQueryParams,
 } from '@/types/api';
 import type { User } from '@/types/user';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Agency member queries — TCK-065. All reads use spatie query params
@@ -63,7 +63,7 @@ export async function fetchAgencyMembers(
 ): Promise<PaginatedResponse<User>> {
   const qs = buildQueryString(buildMembersParams(params));
   return apiRequest<PaginatedResponse<User>>(
-    cheminApi`/api/agencies/${agencyId}/members${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/agencies/${agencyId}/members${requete(qs)}`,
     { token },
   );
 }

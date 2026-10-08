@@ -28,7 +28,7 @@ import type {
   PropertyCreatePayload,
   PropertyUpdatePayload,
 } from '@/components/property-form/payload';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
  * Colonnes que la liste CRUD agent rend réellement — la garder étroite.
@@ -132,7 +132,7 @@ export async function fetchDashboardProperties(
 ): Promise<PaginatedResponse<PropertyListItem>> {
   const qs = buildQueryString(buildListParams(params));
   return apiRequest<PaginatedResponse<PropertyListItem>>(
-    cheminApi`/api/properties${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/properties${requete(qs)}`,
     { token },
   );
 }
@@ -189,7 +189,7 @@ export async function fetchDashboardProperty(
     fields: { properties: DASHBOARD_PROPERTY_DETAIL_FIELDS },
   });
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    cheminApi`/api/properties/${idOrSlug}${qs ? `?${qs}` : ''}`,
+    cheminApi`/api/properties/${idOrSlug}${requete(qs)}`,
     { token },
   );
   return res.data;
