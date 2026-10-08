@@ -507,6 +507,96 @@ return [
                 'body' => 'Une demande de maintenance (:reference) a été soumise pour :property.',
                 'sms' => 'Takussan : demande de maintenance :reference (:property).',
             ],
+            'assigned' => [
+                'title' => 'Nouvelle intervention : :request',
+                'body' => 'Une intervention vous est confiée à :property. Acceptez-la ou refusez-la depuis sa fiche.',
+                'sms' => 'Takussan : Nouvelle intervention : :request',
+            ],
+            'unassigned' => [
+                'title' => 'Intervention retirée : :request',
+                'body' => 'L\'intervention « :request » ne vous est plus confiée.',
+                'sms' => 'Takussan : Intervention retirée : :request',
+            ],
+            'accepted' => [
+                'title' => 'Intervention acceptée : :request',
+                'body' => ':provider a accepté l\'intervention « :request ».',
+                'sms' => 'Takussan : Intervention acceptée : :request',
+            ],
+            'declined' => [
+                'title' => 'Intervention refusée : :request',
+                'body' => ':provider a refusé l\'intervention « :request ». Motif : :reason',
+                'sms' => 'Takussan : Intervention refusée : :request',
+            ],
+            'completed' => [
+                'title' => 'Intervention terminée : :request',
+                'body' => 'Le prestataire a terminé l\'intervention « :request ». Le demandeur doit confirmer la réparation.',
+                'sms' => 'Takussan : Intervention terminée : :request',
+            ],
+            'confirmed' => [
+                'title' => 'Réparation confirmée : :request',
+                'body' => 'Le demandeur a confirmé la réparation : l\'intervention « :request » est clôturée.',
+                'sms' => 'Takussan : Réparation confirmée : :request',
+            ],
+            'contested' => [
+                'title' => 'Réparation contestée : :request',
+                'body' => 'Le problème persiste sur « :request ». Commentaire : :comment',
+                'sms' => 'Takussan : Réparation contestée : :request',
+            ],
+            'auto_closed' => [
+                'title' => 'Intervention clôturée : :request',
+                'body' => 'Sans réponse sous :days jours, l\'intervention « :request » a été clôturée automatiquement.',
+                'sms' => 'Takussan : Intervention clôturée : :request',
+            ],
+            'cancelled' => [
+                'title' => 'Intervention annulée : :request',
+                'body' => 'L\'intervention « :request » a été annulée.',
+                'sms' => 'Takussan : Intervention annulée : :request',
+            ],
+            'step_acknowledged' => [
+                'title' => 'Votre demande « :request » : prise en compte',
+                'body' => 'Votre demande d\'intervention est désormais : prise en compte.',
+                'sms' => 'Takussan : Votre demande « :request » : prise en compte',
+            ],
+            'step_assigned' => [
+                'title' => 'Votre demande « :request » : assignée',
+                'body' => 'Votre demande d\'intervention est désormais : assignée.',
+                'sms' => 'Takussan : Votre demande « :request » : assignée',
+            ],
+            'step_in_progress' => [
+                'title' => 'Votre demande « :request » : en cours',
+                'body' => 'Votre demande d\'intervention est désormais : en cours.',
+                'sms' => 'Takussan : Votre demande « :request » : en cours',
+            ],
+            'step_completed' => [
+                'title' => 'Votre demande « :request » : terminée',
+                'body' => 'Votre demande d\'intervention est désormais : terminée.',
+                'sms' => 'Takussan : Votre demande « :request » : terminée',
+            ],
+            'step_closed' => [
+                'title' => 'Votre demande « :request » : clôturée',
+                'body' => 'Votre demande d\'intervention est désormais : clôturée.',
+                'sms' => 'Takussan : Votre demande « :request » : clôturée',
+            ],
+            'step_cancelled' => [
+                'title' => 'Votre demande « :request » : annulée',
+                'body' => 'Votre demande d\'intervention est désormais : annulée.',
+                'sms' => 'Takussan : Votre demande « :request » : annulée',
+            ],
+            'step_acknowledged_scheduled' => [
+                'title' => 'Votre demande « :request » : prise en compte',
+                'body' => 'Votre demande d\'intervention est désormais : prise en compte. Passage prévu le :scheduled_at.',
+                'sms' => 'Takussan : Votre demande « :request » : prise en compte',
+            ],
+            'step_assigned_scheduled' => [
+                'title' => 'Votre demande « :request » : assignée',
+                'body' => 'Votre demande d\'intervention est désormais : assignée. Passage prévu le :scheduled_at.',
+                'sms' => 'Takussan : Votre demande « :request » : assignée',
+            ],
+            'step_in_progress_scheduled' => [
+                'title' => 'Votre demande « :request » : en cours',
+                'body' => 'Votre demande d\'intervention est désormais : en cours. Passage prévu le :scheduled_at.',
+                'sms' => 'Takussan : Votre demande « :request » : en cours',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -526,8 +616,13 @@ return [
             ],
             'rejected' => [
                 'title' => 'Devis rejeté : :request',
-                'body' => 'Votre devis pour l\'intervention « :request » a été rejeté.',
+                'body' => 'Votre devis pour l\'intervention « :request » a été rejeté. Motif : :reason',
                 'sms' => 'Takussan : devis rejeté pour « :request ».',
+            ],
+            'awaiting_owner' => [
+                'title' => 'Votre accord est requis : :request',
+                'body' => 'Un devis de :amount pour « :request » dépasse le plafond de travaux convenu avec votre agence. Approuvez-le ou refusez-le.',
+                'sms' => 'Takussan : Votre accord est requis : :request',
             ],
         ],
         'prospect_match' => [

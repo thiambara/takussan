@@ -12,7 +12,8 @@ class RejectQuoteRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        // TCK-592 — ADR-0037 : la même porte que l'approbation, avant la validation du motif.
+        return $this->user()?->can('decideQuote', $this->route('maintenanceRequest')) === true;
     }
 
     /**

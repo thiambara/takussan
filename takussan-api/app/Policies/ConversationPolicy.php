@@ -8,6 +8,7 @@ use App\Models\Enums\MessageType;
 use App\Models\Enums\ParticipantRole;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Messaging\ConversationAccess;
 
 /**
  * TCK-085 — Permissions on group conversations.
@@ -77,9 +78,7 @@ class ConversationPolicy
 
     protected function isActiveParticipant(User $user, Conversation $conversation): bool
     {
-        return $conversation->participants()
-            ->where('users.id', $user->id)
-            ->wherePivotNull('left_at')
-            ->exists();
+        // TCK-592 (verif-592, B2) — la même garde que la lecture et l'écriture.
+        return app(ConversationAccess::class)->allows($user, $conversation);
     }
 }

@@ -95,13 +95,15 @@ class SystemRoleCapabilities
     }
 
     /**
+     * TCK-592 — vide. `maintenance.assign` et `maintenance.close` y étaient accordées sans lecteur ;
+     * clore seul contredit P10 et assigner est un geste du donneur d'ordre. Ce que le prestataire
+     * fait sur une intervention se juge par son ASSIGNATION (`MaintenanceRequestPolicy`), pas par
+     * une capacité d'agence.
+     *
      * @return array<int,Capability>
      */
     private function serviceProvider(): array
     {
-        return [
-            Capability::MaintenanceAssign,
-            Capability::MaintenanceClose,
-        ];
+        return [];
     }
 }

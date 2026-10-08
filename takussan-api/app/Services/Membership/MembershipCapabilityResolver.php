@@ -7,6 +7,7 @@ use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\OwnerProfile;
@@ -414,6 +415,8 @@ class MembershipCapabilityResolver
     {
         $roleIds = ServiceProviderAgencyCollaboration::query()
             ->where('agency_id', $agencyId)
+            // TCK-592 (B13) — seule une collaboration ACTIVE porte un rôle qui agit.
+            ->where('status', CollaborationStatus::Active->value)
             ->whereNotNull('agency_role_id')
             ->whereHas('serviceProviderProfile', fn ($query) => $query->where('user_id', $user->id))
             ->pluck('agency_role_id');

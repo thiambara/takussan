@@ -12,6 +12,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -317,6 +318,8 @@ class AgencyController extends Controller
                 ->where('service_provider_profiles.user_id', $user->id)
                 ->whereNull('service_provider_profiles.deleted_at')
                 ->whereNull('service_provider_agency_collaborations.deleted_at')
+                // TCK-592 (B13) — une collaboration `paused` ou `ended` n'ouvre plus l'agence.
+                ->where('service_provider_agency_collaborations.status', CollaborationStatus::Active->value)
                 ->pluck('service_provider_agency_collaborations.agency_id'));
 
         return $ids

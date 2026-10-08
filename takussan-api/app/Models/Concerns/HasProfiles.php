@@ -4,6 +4,7 @@ namespace App\Models\Concerns;
 
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformAbility;
@@ -173,10 +174,15 @@ trait HasProfiles
             ->exists();
     }
 
+    /**
+     * TCK-592 (B13) — une collaboration `paused` ou `ended` ne fait plus un prestataire de l'agence.
+     */
     public function isProviderAt(int $agencyId): bool
     {
         return $this->serviceProviderProfile()
-            ->whereHas('agencyCollaborations', fn ($q) => $q->where('agency_id', $agencyId))
+            ->whereHas('agencyCollaborations', fn ($q) => $q
+                ->where('agency_id', $agencyId)
+                ->where('status', CollaborationStatus::Active->value))
             ->exists();
     }
 

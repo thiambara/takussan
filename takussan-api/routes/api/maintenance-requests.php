@@ -17,6 +17,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Completion workflow (sets completed + resolution notes + actual cost + photos)
     Route::put('maintenance-requests/{maintenanceRequest}/complete', [MaintenanceRequestController::class, 'complete'])->name('maintenance-requests.complete');
 
+    // TCK-592 — le prestataire assigné accepte ou refuse
+    Route::post('maintenance-requests/{maintenanceRequest}/accept', [MaintenanceRequestController::class, 'accept'])->name('maintenance-requests.accept');
+    Route::post('maintenance-requests/{maintenanceRequest}/decline', [MaintenanceRequestController::class, 'decline'])->name('maintenance-requests.decline');
+
+    // TCK-592 (P10) — clôture contradictoire : le demandeur confirme ou conteste.
+    Route::post('maintenance-requests/{maintenanceRequest}/confirm-resolution', [MaintenanceRequestController::class, 'confirmResolution'])->name('maintenance-requests.confirm-resolution');
+    Route::post('maintenance-requests/{maintenanceRequest}/contest-resolution', [MaintenanceRequestController::class, 'contestResolution'])->name('maintenance-requests.contest-resolution');
+
     // Media upload (photos / completion_photos)
     Route::post('maintenance-requests/{maintenanceRequest}/photos', [MaintenanceRequestController::class, 'uploadPhotos'])->name('maintenance-requests.photos');
 
@@ -25,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('maintenance-requests/{maintenanceRequest}/quote/submit', [MaintenanceQuoteController::class, 'submitQuote'])->name('maintenance-requests.quote.submit');
     Route::post('maintenance-requests/{maintenanceRequest}/quote/approve', [MaintenanceQuoteController::class, 'approveQuote'])->name('maintenance-requests.quote.approve');
     Route::post('maintenance-requests/{maintenanceRequest}/quote/reject', [MaintenanceQuoteController::class, 'rejectQuote'])->name('maintenance-requests.quote.reject');
+    Route::get('maintenance-requests/{maintenanceRequest}/quote/pdf', [MaintenanceQuoteController::class, 'pdf'])->name('maintenance-requests.quote.pdf');
     Route::post('maintenance-requests/{maintenanceRequest}/start', [MaintenanceQuoteController::class, 'start'])->name('maintenance-requests.start');
 
     // History per property

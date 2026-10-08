@@ -443,6 +443,13 @@ class AppServiceProvider extends ServiceProvider
 
             return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
         });
+
+        // TCK-592 (verif-592, mineur 9) — poster dans une conversation. La route n'avait aucun
+        // limiteur, et chaque note vocale pèse jusqu'à 2 Mo (ADR-0038). Route authentifiée : la clé
+        // est l'utilisateur déjà authentifié par `auth:sanctum` (le throttle passe après dans la
+        // priorité des middlewares).
+        RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
+            ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
 
     /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */

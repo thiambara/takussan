@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 
-import { isAgent, isOwner, isCustomerOnly, isAdmin } from '@/lib/roles';
+import { isAgent, isOwner, isCustomerOnly, isAdmin, isServiceProvider } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileContactSection } from '@/components/profile/ProfileContactSection';
@@ -11,6 +11,7 @@ import { ProfileCustomerSection } from '@/components/profile/ProfileCustomerSect
 import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
 import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
 import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
+import { ProfileServiceProviderSection } from '@/components/profile/ProfileServiceProviderSection';
 import { ProfileSecuritySection } from '@/components/profile/ProfileSecuritySection';
 import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
 // `buttonVariants()` sur un `<Link>`, et non le wrapper polymorphe de shadcn/Radix que le ticket
@@ -39,6 +40,8 @@ export default async function ProfilePage() {
       {isAgent(user.roles) && <ProfileAgentSection user={user} />}
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
+      {/* TCK-592 (P16) — métiers, zones, tarifs, disponibilités : éditables hors de l'assistant. */}
+      {isServiceProvider(user.roles) && <ProfileServiceProviderSection />}
       <ProfileSecuritySection />
 
       {/*

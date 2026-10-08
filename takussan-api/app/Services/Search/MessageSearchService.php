@@ -2,13 +2,15 @@
 
 namespace App\Services\Search;
 
-use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Messaging\ConversationAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class MessageSearchService
 {
+    public function __construct(private readonly ConversationAccess $access) {}
+
     /**
      * @param  array<string, mixed>  $params  Validated search parameters
      */
@@ -48,13 +50,16 @@ class MessageSearchService
         return $search->paginate((int) ($params['per_page'] ?? 20));
     }
 
-    /** @return list<int> */
+    /**
+     * TCK-592 (passe 2, N1) — les fils que la garde de conversation ouvre, pas la seule
+     * participation : un prestataire en pause y retrouvait le texte et les notes vocales.
+     *
+     * @return list<int>
+     */
     private function userConversationIds(User $user): array
     {
-        return ConversationParticipant::query()
-            ->where('user_id', $user->id)
-            ->whereNull('left_at')
-            ->pluck('conversation_id')
+        return $this->access->participatingQuery($user)
+            ->pluck('conversations.id')
             ->map(fn ($id) => (int) $id)
             ->all();
     }

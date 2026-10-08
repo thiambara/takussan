@@ -62,6 +62,8 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0034](0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md) | L'agenda sort de la plateforme par un lien secret, haché, révocable, propre à une agence | Accepté |
 | [0035](0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) | L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit | Accepté |
 | [0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) | L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire | Accepté — appliqué à la fusion de TCK-504 |
+| [0037](0037-plafond-de-travaux-du-bailleur.md) | Le plafond de travaux du bailleur vit sur son profil d'agence ; au-delà, le bailleur tranche (`awaiting_owner`) | Accepté |
+| [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 | [0047](0047-niveaux-d-operateur-plateforme.md) | Un opérateur plateforme agit par `/api/admin` selon son niveau (`PlatformAbility`) ; toute route qui ne déclare aucun geste reste au `super_admin` ; la cooptation est le seul chemin d'octroi | Accepté |
 | [0048](0048-effet-d-une-suspension-d-agence.md) | Une agence suspendue disparaît du site et ne s'écrit plus ; ses locataires paient encore | Accepté |
 | [0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) | L'impersonation est une session de lecture de 15 minutes, dont le jeton ne quitte jamais le serveur du front | Accepté |

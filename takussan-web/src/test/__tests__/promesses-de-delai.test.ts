@@ -55,6 +55,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'agency.tenantOnboardingPending.emptyDescription':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
   'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
+  // TCK-592 — la clôture contradictoire : `completed_at <= subDays(7)` (:38), passe quotidienne à
+  // 04:00 (routes/console.php:79, sans `--days`) — close au premier passage après le septième jour.
+  'maintenance.intervention.resolution.body':
+    'takussan-api/app/Console/Commands/AutoCloseMaintenanceRequests.php:21 — `--days=7` par défaut',
   'superAdmin.integrations.webhooks.retention':
     'takussan-api/app/Services/Admin/IntegrationService.php:162 — purge au-delà de subDays(30)',
   'superAdmin.pages.users.impersonateDescription':
@@ -86,6 +90,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number>> = {
   'profile.contact.changeProofCodeSent': 5,
   'agency.tenantOnboardingPending.emptyDescription': 7,
   'dashboard.onboardingPending.subtitle': 7,
+  'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': 30,
   'superAdmin.pages.users.impersonateDescription': 15,
   'privacy.dataExports.throttled': 24,
