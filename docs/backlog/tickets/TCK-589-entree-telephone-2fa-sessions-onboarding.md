@@ -1,13 +1,13 @@
 ---
 id: TCK-589
 title: "Le code SMS ne part vers aucun numéro, un compte bloqué se reconnecte et les sessions n'expirent jamais : connexion par téléphone, 2FA là où l'argent circule, sessions bornées, onboarding qui dit vrai"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
 wave: 73
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-08
 depends_on: []
 blocks: []
 spec_refs:
@@ -619,13 +619,65 @@ nommé (ablation). AC2, AC3, AC6 (sauf le numéro injoignable) et AC17 posent
       le verrou tombe à 15 min 01 ; un succès avant le seuil remet le compteur à zéro. Ablation : ne
       lire le verrou que sur la branche d'échec → le cas « bon mot de passe → 423 » rougit.
 - [x] **AC16** — `PhoneNumberUniquenessTest` : deux comptes portent le même numéro, A l'a vérifié ;
-      B le vérifie par le profil **et** par l'onboarding bailleur → **409 `phone_taken`** (pas 500,
+      B le vérifie par le profil **et** par l'onboarding bailleur → **409 `phone_taken`** (`phone.taken`
+      depuis la fusion de 588, `442050b3`) (pas 500,
       pas 200) et `phone_verified_at` de B reste nul. **Rouge** (200 aujourd'hui). Ablation :
       retirer le test préalable de `markVerified` → 500 (violation d'index unique) → rouge.
 - [x] **AC17** — `AccountWithoutEmailTest` : un compte créé par téléphone (sans e-mail) reçoit une
       notification à `toMail()` sans exception, et `POST /auth/me/deletion-request/step-up` envoie
       le code par SMS (faux routeur appelé une fois, `Mail` jamais) ; le code reçu permet de
       créer la demande de suppression.
+
+### Cases et AC ajoutés après vérification adverse (verif-589, 2026-10-07)
+
+Chacun est rouge avant son correctif, vert après. Son ablation, restaurée par `cp`, est rejouée.
+Le détail se trouve dans « Corrections après vérification adverse » des Notes.
+
+- [x] **AC-B1** — `PUT /api/users/{u}/role` et `POST /api/users/{u}/activate` exigent la 2FA
+      **et** le step-up du profil plateforme. Un détenteur de profil plateforme a la 2FA exigée
+      sur toute action d'`AGENCY_TWO_FACTOR` ou de `STEP_UP_FOR_PLATFORM`. Preuve :
+      `PlatformPowerStepUpTest` (5) et
+      `ProtectedActionsCoverageTest::test_toute_action_qui_confere_un_pouvoir_plateforme_exige_le_step_up`
+      (`cff6b739`).
+- [x] **AC-B2** — Un compte à 2FA qui entre par OAuth ne reçoit pas de jeton. Il reçoit
+      `{requires_2fa, challenge}` (usage unique, 5 min), et le jeton n'est émis qu'après
+      `POST /auth/oauth/2fa`. La 2FA exigée juge **le jeton** (`two_factor_verified_at`). Preuve :
+      `OAuthSecondFactorTest` (9) et `oauth-callback-second-facteur.test.tsx` (`9e8e898e`). La
+      clause de défi du rappel est gardée par `test_l_emetteur_refuse_lui_meme_un_compte_ferme`
+      (`db1b0497`).
+- [x] **AC-M1** — Un verrou par canal. Un code faux ne compte que si un code est en cours, et le
+      limiteur de vérification vaut 4 par 15 min. Un tiers ne verrouille pas un compte par le
+      téléphone (trois cycles, une IP). Preuve : `ThirdPartyLockTest` (8) (`e0adc635`).
+- [x] **AC-M2** — `destinationInterne` résout puis juge, et refuse les caractères de contrôle et
+      `\`. Les cas d'AC5b sont étendus. Preuve : `redirection-interne.test.ts` (19) (`0ba4d165`).
+      La sonde du vérificateur, rejouée, garde l'origine.
+- [x] **AC-M3** — `send-otp` et `resend` passent sous `auth-phone-send`, avec une liste blanche
+      d'indicatifs (422 codé) et un plafond global journalier. Preuve : `SmsOtpRelayTest` (7)
+      (`84c01e50`). La sonde rejouée remet **0** SMS étranger.
+- [x] **AC-M4** — La garde apparie par contrôleur, et les deux remboursements exigent la 2FA.
+      Preuve : `MoneyOutTwoFactorTest` (4) et `ProtectedActionsCoverageTest` (`b6361946`).
+- [x] **AC-m1** — Le SMS d'invitation ne porte que le nom de l'agence, filtré et tronqué, et part
+      par `ContactSansCompte`. Les bornes : une relance par 10 min, 3 par jour et par numéro, 20
+      par heure et par invitant, et un plafond par agence. Le SMS de relance part après le commit.
+      Preuve : `InvitationSmsContentTest` (4, `84be9f7d`) et `InvitationSmsLimitsTest` (5,
+      `fc5c5584`).
+- [x] **AC-m2** — Le 10ᵉ échec de step-up révoque le jeton sans verrouiller le compte, et le front
+      ferme la session. Preuve : `StepUpBruteForceTest` (2) et un cas de
+      `GardeDoubleFacteur.test.tsx` (`d03d5729`).
+- [x] **AC-m3** — Un e-mail inconnu se verrouille au même seuil et avec le même 423. Preuve :
+      `UnknownEmailDecoyLockTest` (2) (`89ccdce2`).
+- [x] **AC-m4** — `send-otp` vers un numéro pris ailleurs rend la réponse d'un envoi réel, délai
+      compris, sans envoi ni écriture. Delta §2 est corrigé. Preuve : `SendOtpNeutralResponseTest`
+      (3) (`f8321498`).
+- [x] **AC-m5** — Un numéro vérifié hérité hors E.164 est retrouvé et protégé (recherches et index
+      sur la forme canonique). Preuve : `LegacyPhoneFormTest` (3) et `CanonicalPhoneTest` (9)
+      (`4edffa44`).
+- [x] **AC-m6** — Le pilote `log` n'est ajouté qu'en `local` ou en `testing`. Preuve :
+      `SmsLogFallbackTest` (6) (`d84fc7fe`).
+- [x] **AC-m7** — `sessions:prune-idle`, planifiée chaque jour, purge les jetons morts
+      d'inactivité. Preuve : `IdleTokenPruneTest` (2) (`1d218833`).
+- [x] **AC-m8** — La phrase d'ablation d'AC4 est re-mesurée et corrigée (rapport, Notes et
+      docblock), et l'émetteur a son test direct (`db1b0497`).
 
 ## Hors périmètre
 
