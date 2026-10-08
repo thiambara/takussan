@@ -389,4 +389,43 @@ class LeaseContractTermsTest extends TestCase
         $this->assertSame(2, $after->early_termination_penalty_months);
         $this->assertEquals((float) $before->late_fee_percent, (float) $after->late_fee_percent);
     }
+
+    // ── VERIF-596 passe 3 (m-b) — `force` ne dépasse pas un plafond figé ─────────────────────────
+
+    /**
+     * Le contrat signé imprime « Variation de 10 % au plus », sans réserve : la plateforme n'exécute
+     * pas une exception qu'aucune partie n'a lue. Le dépassement d'un plafond contractuel passe par un
+     * renouvellement ou un avenant signé. Avant : +30 % forcé par le super-admin passait (130 000).
+     */
+    public function test_force_cannot_exceed_a_frozen_rent_review_cap(): void
+    {
+        $this->setting(RentReviewService::SETTING_KEY, 10);
+        $lease = $this->signableLease();
+        app(LeaseSignatureService::class)->request($lease, $lease->landlord);
+        $lease->fresh()->forceFill(['status' => LeaseStatus::Active])->save();
+        $this->setting(RentReviewService::SETTING_KEY, 50);
+        $this->actingAsRole('super_admin');
+
+        $this->patchJson("/api/leases/{$lease->id}/rent", ['new_rent' => 130_000, 'reason' => 'Révision forcée', 'force' => true])
+            ->assertStatus(422)->assertJsonPath('code', 'lease.rent_review_above_contract_cap');
+        $this->assertEquals(100_000, (float) $lease->fresh()->monthly_rent);
+
+        $this->patchJson("/api/leases/{$lease->id}/rent", ['new_rent' => 110_000, 'reason' => 'Révision au plafond', 'force' => true])
+            ->assertOk();
+        $this->assertEquals(110_000, (float) $lease->fresh()->monthly_rent);
+    }
+
+    /** Un bail antérieur (plafond non figé) : `force` dépasse encore le réglage, avec la capacité. */
+    public function test_force_still_exceeds_the_setting_on_a_legacy_lease(): void
+    {
+        Notification::fake();
+        $this->setting(RentReviewService::SETTING_KEY, 10);
+        $lease = $this->lease(['status' => LeaseStatus::Active, 'monthly_rent' => 100_000]);
+        $this->assertNull($lease->rent_review_max_pct);
+        $this->actingAsRole('super_admin');
+
+        $this->patchJson("/api/leases/{$lease->id}/rent", ['new_rent' => 130_000, 'reason' => 'Révision forcée', 'force' => true])
+            ->assertOk();
+        $this->assertEquals(130_000, (float) $lease->fresh()->monthly_rent);
+    }
 }

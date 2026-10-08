@@ -223,6 +223,7 @@ return [
         'not_active_schedule' => 'Bail buy dox rekk moo mën a defar échéancier.',
         'not_draft_activate' => 'Bail bu nekk brouillon rekk lañu mën a doxal.',
         'not_found' => 'Bail bi gisuñu ko.',
+        'rent_review_above_contract_cap' => 'Kontra bi ñu xaatim dafa tëj soppi lowe bi ci :max % : mënuñu ko forcer. Jaaral ci yeesal bayle bi walla ab yokk bu ñu xaatim.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
     ],

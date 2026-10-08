@@ -223,6 +223,7 @@ return [
         'not_active_schedule' => 'Only an active lease can generate a payment schedule.',
         'not_draft_activate' => 'Only a draft lease can be activated.',
         'not_found' => 'Lease not found.',
+        'rent_review_above_contract_cap' => 'The signed contract caps the rent review at :max %: this cap cannot be forced. Use a renewal or a signed amendment.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
     ],

@@ -64,8 +64,15 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
    Un enfant `pending_signature` hérite de la valeur, que sa demande de signature fige et imprime.
    Seul un parent antérieur (colonnes nulles) donne un enfant nul.
    `late_fees.cap_percent` n'est **pas** figé, délibérément : ce plafond ne peut que **baisser** la
-   pénalité de retard imprimée, il ne joue jamais contre le locataire. **Point ouvert, non tranché ici** :
-   la dérogation `leases.rent_review_force` permet encore de dépasser le plafond imprimé.
+   pénalité de retard imprimée, il ne joue jamais contre le locataire. **La dérogation
+   `leases.rent_review_force` ne dépasse pas un plafond figé** (tranché après VERIF-596 passe 3, m-b,
+   décision de session, réversible) : le contrat signé imprime « Variation de N % au plus » sans
+   réserve, et la plateforme n'exécute pas une exception qu'aucune partie n'a lue. Au-dessus d'un
+   plafond figé, la révision rend 422 `lease.rent_review_above_contract_cap`, même avec `force` et la
+   capacité ; le dépassement d'un plafond contractuel passe par un renouvellement (qui peut le
+   renégocier) ou un avenant signé. `force` ne vaut plus que pour un bail antérieur, dont la colonne
+   est nulle et le plafond, le réglage global. L'autre voie — imprimer la réserve au contrat — a été
+   écartée : elle aurait fait signer au locataire une clause que la plateforme seule déclenche.
    **Le contrat figé est une preuve** (amendé après la vérification adverse VERIF-596, B1) : aucune
    route générique ne le supprime — `DELETE /api/media/{id}` refuse la collection `signed_contract`
    (et les `room_photos` d'un état des lieux sorti du brouillon) **avant** la policy, super-admin

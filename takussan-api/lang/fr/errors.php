@@ -223,6 +223,7 @@ return [
         'not_active_schedule' => 'Seul un bail actif peut générer un échéancier.',
         'not_draft_activate' => 'Seul un bail en brouillon peut être activé.',
         'not_found' => 'Bail introuvable.',
+        'rent_review_above_contract_cap' => 'Le contrat signé plafonne la révision du loyer à :max % : ce plafond ne se force pas. Passez par un renouvellement ou un avenant signé.',
         'schedule_exists' => 'L\'échéancier a déjà été généré.',
         'terms_locked' => 'Les conditions d\'un bail signé ne se modifient plus : établissez un avenant ou un nouveau bail.',
     ],
