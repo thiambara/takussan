@@ -24,7 +24,9 @@ use Illuminate\Support\Facades\DB;
  *     d'échouer sur l'index unique. Appelé dans la transaction d'un appelant, c'est un point de
  *     sauvegarde, et le verrou déjà tenu est réentrant.
  *  2. La cible est RELUE sous le verrou : une ligne supprimée ou changée de rôle entre-temps est
- *     jugée sur son état réel.
+ *     jugée sur son état réel. `update()`/`destroy()` des collaborateurs prennent le même verrou ;
+ *     un chemin qui ne le prend pas est rattrapé par l'écriture conditionnelle de la marque, qui
+ *     rend le même refus (vérification adverse m1).
  *  3. Refus, en {@see ApiError} (un appelant en lot l'attrape et lit `errorCode`) :
  *     `404 property.collaborator_not_found`, `422 property.primary_requires_agent`,
  *     `422 property.primary_not_eligible`.
@@ -66,9 +68,23 @@ final class PrimaryAgentDesignator
                 ->where('property_id', $property->id)
                 ->where('is_primary', true)
                 ->update(['is_primary' => false, 'updated_at' => now()]);
-            DB::table('property_collaborators')
+            // L'écriture porte sa propre condition : un chemin qui touche la ligne SANS prendre le
+            // verrou du bien (la passation de 591 verrouille ses lignes avant le bien) l'a peut-être
+            // supprimée ou sortie du rôle `agent` depuis la lecture. PostgreSQL réévalue la
+            // condition sur la version validée ; zéro ligne devient un refus, jamais une 500.
+            $posee = DB::table('property_collaborators')
                 ->where('id', $target->id)
+                ->where('property_id', $property->id)
+                ->where('role', CollaboratorRole::Agent->value)
                 ->update(['is_primary' => true, 'updated_at' => now()]);
+            if ($posee === 0) {
+                $existe = DB::table('property_collaborators')
+                    ->where('id', $target->id)
+                    ->where('property_id', $property->id)
+                    ->exists();
+                abort_code_if(! $existe, 404, 'property.collaborator_not_found');
+                abort_code(422, 'property.primary_requires_agent');
+            }
 
             activity('Property')
                 ->performedOn($property)
@@ -90,7 +106,7 @@ final class PrimaryAgentDesignator
 
             return new PrimaryAgentDesignation(
                 $target->refresh(),
-                $previous?->refresh(),
+                $previous?->fresh(),
                 $previousContactUserId,
                 true,
             );

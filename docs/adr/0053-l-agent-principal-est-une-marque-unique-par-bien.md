@@ -106,7 +106,15 @@ Garanties, dans l'ordre d'exécution :
    transaction de l'appelant (603), la transaction devient un point de sauvegarde et le verrou, déjà
    tenu par l'appelant s'il l'a pris, est réentrant.
 2. **La cible est relue sous le verrou** : une ligne supprimée ou changée de rôle entre la lecture de
-   l'appelant et le verrou est jugée sur son état réel.
+   l'appelant et le verrou est jugée sur son état réel. Pour que ce soit vrai sous course, *tout*
+   chemin qui change le rôle d'une collaboration ou la supprime se sérialise sur le même point :
+   `update()` et `destroy()` des collaborateurs prennent le verrou du bien **puis** relisent la ligne
+   (ordre bien → ligne, celui du service : pas d'interblocage). Un chemin qui touche la ligne sans ce
+   verrou — la passation de 591, qui verrouille ses lignes avant tout bien, et qu'y ajouter le verrou
+   du bien exposerait à l'interblocage — est rattrapé par l'écriture de la marque elle-même,
+   conditionnée par `role = 'agent'` : zéro ligne touchée devient le refus du point 3, jamais une
+   500. Enfin le modèle retire la marque **stockée** quand le rôle quitte `agent`, pour l'instance
+   lue avant une désignation (vérification adverse m1 ; course réelle et ablations dans le ticket).
 3. **Refus** : ligne absente ou d'un autre bien → `404 property.collaborator_not_found` ; rôle autre
    qu'`agent` → `422 property.primary_requires_agent` ; titulaire inéligible au sens du §2 → `422
    property.primary_not_eligible`. Les erreurs sont des `ApiError` (ADR-0032) : un appelant en lot les

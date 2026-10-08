@@ -66,7 +66,9 @@ class PropertyCollaboratorController extends Controller
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($property, $collaborator, $data) {
+        $collaborator = DB::transaction(function () use ($property, $collaborator, $data) {
+            $collaborator = $this->relireSousLeVerrouDuBien($property, $collaborator);
+
             if (array_key_exists('commission_share', $data)) {
                 $this->assertCommissionWithinCapLocked(
                     $property,
@@ -76,6 +78,8 @@ class PropertyCollaboratorController extends Controller
             }
 
             $collaborator->fill($data)->save();
+
+            return $collaborator;
         });
 
         return $this->json(['data' => $collaborator->refresh()->load('user')]);
@@ -86,9 +90,26 @@ class PropertyCollaboratorController extends Controller
         $this->authorize('update', $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
-        $collaborator->delete();
+        DB::transaction(fn () => $this->relireSousLeVerrouDuBien($property, $collaborator)->delete());
 
         return $this->json(null, 204);
+    }
+
+    /**
+     * TCK-504 (ADR-0053 §3, vérification adverse m1) — changer le rôle d'une collaboration ou la
+     * supprimer se sérialise avec la désignation sur le MÊME point : la ligne du bien, prise
+     * avant la ligne de collaboration (ordre bien → ligne, celui de `PrimaryAgentDesignator`,
+     * donc sans interblocage). La ligne est relue sous ce verrou : l'instance liée par la route
+     * peut précéder une désignation validée entre-temps. À appeler dans une transaction.
+     */
+    private function relireSousLeVerrouDuBien(Property $property, PropertyCollaborator $collaborator): PropertyCollaborator
+    {
+        Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
+        $courante = $property->collaborators()->whereKey($collaborator->getKey())->first();
+        abort_code_if($courante === null, 404, 'property.collaborator_not_found');
+
+        return $courante;
     }
 
     /**

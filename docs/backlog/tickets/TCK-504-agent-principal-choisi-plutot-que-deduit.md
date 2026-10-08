@@ -273,3 +273,25 @@ suspendu ou retiré, une date nulle et un bien supprimé sont couverts par `Prim
   l'URL et le secret câblés vers le front local, trois désignations successives à l'écran
   (Coumba → Ousmane → Coumba) sont chacune lues sur la fiche publique à la lecture suivante, et le
   front journalise trois `POST /api/revalidation/fiche` 200.
+
+### Vérification adverse (verif-504 : ACCEPTÉ, 0 B, 0 M, 6 m) — les six mineurs corrigés
+
+- **m1 — désignation croisée avec un changement de rôle ou une suppression : 500 → refus contractuel.**
+  Trois couches, chacune prouvée seule (`PrimaryAgentConcurrentChangeTest`, 5 verts ; ablations
+  `t504/ablations-m1.log`, M1a–M1d toutes rouges) : `update()`/`destroy()` des collaborateurs prennent
+  le verrou du bien puis relisent la ligne (ordre bien → ligne, celui du service) ; le service pose la
+  marque par une écriture conditionnée par `role = 'agent'` et traduit zéro ligne en `404
+  property.collaborator_not_found` / `422 property.primary_requires_agent` ; le modèle (`updating`)
+  retire la marque STOCKÉE quand le rôle quitte `agent` (instance périmée). La passation de 591 ne
+  prend pas le verrou du bien — elle verrouille ses lignes d'abord, l'y ajouter inverserait l'ordre
+  des verrous : l'écriture conditionnelle la couvre. **Course réelle** à deux processus, P2 par le
+  vrai contrôleur (noyau HTTP) dans une transaction tenue 3 s, base jetable `takussan_tck504_race`
+  supprimée (`t504/race/course-m1.log`) :
+
+  | Code | P2 change le rôle | P2 supprime | P2 enregistre une instance périmée |
+  |---|---|---|---|
+  | branche | P1 `ApiError 422 primary_requires_agent` | P1 `ApiError 404 collaborator_not_found` | OK, marque retirée |
+  | R-a sans verrou dans `update()`/`destroy()` | 422 (l'écriture conditionnelle tient) | 404 | OK |
+  | R-b écriture inconditionnelle | 422 (le verrou tient) | 404 | OK |
+  | R-c ni l'un ni l'autre | **`SQLSTATE 23514`** | **`ModelNotFoundException`** | OK |
+  | R-d sans `updating` du modèle | 422 | 404 | **`SQLSTATE 23514`** |
