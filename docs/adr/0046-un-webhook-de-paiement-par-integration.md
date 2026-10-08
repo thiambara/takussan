@@ -91,10 +91,21 @@ SON agence.**
 6. **Intégrations de la plateforme** (`agency_id` nul). Elles reçoivent leur jeton comme les
    autres. Ce qui « leur revient » : les payables dont le checkout a été initié par une intégration
    de la plateforme — `initiate` y retombe quand l'agence n'a pas la sienne
-   (`resolveIntegration`). Un payable **sans** intégration initiatrice enregistrée (antérieur à ce
-   ticket) reste atteignable par la plateforme et par l'agence qui le possède : la plateforme est la
-   racine de confiance, et l'API n'a jamais servi en production (D-04), donc ces lignes n'existent
-   qu'en préproduction et en développement.
+   (`resolveIntegration`). Un payable **sans** intégration initiatrice enregistrée reste
+   atteignable par la plateforme et par l'agence qui le possède. Ce ne sont **pas** seulement des
+   lignes antérieures à ce ticket : tout payable **jamais initié en ligne** (échéance réglée en
+   espèces, facture neuve) n'en porte aucune, aujourd'hui comme demain.
+
+   **Limite connue, non fermée ici** (vérification adverse de TCK-293, M-1) : le chemin du paquet
+   Lemon Squeezy, qui porte l'autorité de la plateforme, peut encore apparier par `custom_data` un
+   payable d'agence jamais initié, et le solder **sans contrôle de montant**. Le montant rapporté
+   est en USD, le payable en XOF, et le contrôle de couverture est sauté quand les devises
+   diffèrent. Il faut qu'une commande du magasin de la plateforme porte un `custom_data` désignant
+   ce payable. Le comportement est antérieur au ticket (`class_exists` acceptait plus large), mais
+   il n'est **pas** borné par cette décision. Le correctif est renvoyé à un ticket de suite :
+   - n'apparier par `custom_data` qu'un payable dont le checkout du même fournisseur a été initié
+     par une intégration du propriétaire de l'autorité ;
+   - comparer le montant rapporté au montant figé à l'initiation.
 
    **Le chemin du paquet Lemon Squeezy** (`webhooks/lemon-squeezy`) est validé par le secret de
    signature de la **configuration** (`config('lemon-squeezy.signing_secret')`), qui appartient à la
