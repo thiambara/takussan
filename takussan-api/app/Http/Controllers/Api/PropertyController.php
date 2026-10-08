@@ -8,6 +8,7 @@ use App\Http\Requests\Api\StorePropertyRequest;
 use App\Http\Requests\Api\UpdateStatusPropertyRequest;
 use App\Http\Requests\Api\UpdateVisibilityPropertyRequest;
 use App\Http\Requests\PropertyBulkArchiveRequest;
+use App\Http\Requests\PropertyBulkAssignRequest;
 use App\Http\Requests\PropertyBulkVisibilityRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Requests\UpdatePropertyRequest;
@@ -22,10 +23,12 @@ use App\Services\Billing\QuotaResolver;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
+use App\Services\Property\PropertyBulkAssignService;
 use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyPublication;
 use App\Services\Property\PropertyViewCounter;
+use App\Services\Property\ResponsibleAgentAssigner;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,17 +43,15 @@ class PropertyController extends Controller
     {
         $user = $request->user();
 
-        // TCK-595 (§4) — tout ce que `PropertyResource` lit pour une ligne : la photo principale
-        // (`media`), l'avatar du propriétaire et ses profils agent ACTIFS (`is_agent`). Chaque ligne
-        // faisait trois requêtes de plus, soit une soixantaine sur une page de vingt biens.
-        // `agency` n'est PAS préchargée : `is_agent` ne lit que `agency_id`, et une relation chargée
-        // ferait émettre le bloc `agency` (et sa requête de note) dans chaque ligne de liste.
+        // TCK-595 (§4) — ce que `PropertyResource` lit pour une ligne : la photo principale (`media`) et
+        // l'avatar du propriétaire. TCK-603 — `PrimaryPropertyContact::eagerLoads()` : la liste rend
+        // l'agent responsable (`primary_contact`) à côté du propriétaire, sans une requête d'avatar par
+        // ligne. `is_agent` se juge par l'amorce de la page (plus bas), jamais par une requête par ligne.
         $base = Property::query()->with([
             'address',
             'media',
             'owner.media',
-            'owner.agentProfiles' => fn ($q) => $q->active(),
-            'collaborators.user',
+            ...PrimaryPropertyContact::eagerLoads(),
         ]);
 
         if (! $user->isSuperAdmin()) {
@@ -78,7 +79,21 @@ class PropertyController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
+        // TCK-603 (ADR-0059 §6, verif-603 m4) — `agency_id` demandé, chaque ligne rend `primary_contact`
+        // et le bloc `agency` (que `is_agent` charge) : sans ce préchargement, six requêtes par bien.
+        $biens = $paginator->getCollection();
+        if ($biens->isNotEmpty() && array_key_exists('agency_id', $biens->first()->getAttributes())) {
+            $biens->loadMissing(['agency' => fn ($q) => $q->with('media')->withAvg(
+                ['reviews as '.PropertyResource::AGENCY_RATING => fn ($r) => $r->where('is_approved', true)],
+                'rating',
+            )]);
+        }
+
+        return $this->paginated($paginator, MembershipCapabilityResolver::primed(
+            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')]),
+            $biens->map(fn (Property $p) => $p->getAttributes()['agency_id'] ?? null),
+            fn () => PropertyResource::collection($paginator)->toArray($request),
+        ));
     }
 
     public function store(StorePropertyRequest $request): JsonResponse
@@ -262,29 +277,18 @@ class PropertyController extends Controller
         return $this->unpublish($request, $property);
     }
 
-    public function assignAgent(AssignAgentPropertyRequest $request, Property $property): JsonResponse
+    /**
+     * TCK-603 (ADR-0036, ADR-0059) — « Changer l'agent responsable » : la cible devient le
+     * collaborateur `agent` principal du bien ; `properties.user_id`, le PROPRIÉTAIRE, n'est jamais
+     * réécrit. La règle de cible (personnel actif de l'agence du bien, TCK-587) et la désignation
+     * vivent dans {@see ResponsibleAgentAssigner}, que le lot et la passation appellent aussi.
+     */
+    public function assignAgent(AssignAgentPropertyRequest $request, Property $property, ResponsibleAgentAssigner $assigner): JsonResponse
     {
-
-        $data = $request->validated();
-
-        $target = User::findOrFail($data['user_id']);
-        $actor = $request->user();
-        $agencyId = $property->agency_id ?? $actor->agency_id;
-        if ($agencyId !== null) {
-            // TCK-587 — la cible doit être du PERSONNEL actif de l'agence du bien. Le test
-            // `$target->agency_id === $agencyId` laissait passer un bailleur, qui devenait
-            // `properties.user_id` du bien d'un autre bailleur.
-            abort_code_unless(
-                app(MembershipCapabilityResolver::class)->isStaffAt($target, (int) $agencyId),
-                422,
-                'user.not_in_active_agency'
-            );
-        }
-
-        $property->update(['user_id' => $target->id]);
+        $assigner->assign($property, User::findOrFail($request->validated('user_id')), $request->user());
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load(['address', 'owner', 'collaborators.user']))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load(['address', ...PrimaryPropertyContact::eagerLoads()]))->toArray($request),
         ]);
     }
 
@@ -370,6 +374,22 @@ class PropertyController extends Controller
         return $this->json($service->apply(
             $request->input('property_ids'),
             PropertyVisibility::from($request->input('visibility')),
+            $request->user(),
+        ));
+    }
+
+    /**
+     * TCK-603 (ADR-0059 §2) — changer l'agent responsable d'un lot : chaque ligne sous `update` et
+     * {@see ResponsibleAgentAssigner} (la règle et la désignation de l'unitaire), motifs en codes,
+     * une transaction, un point de sauvegarde par bien.
+     */
+    public function bulkAssign(
+        PropertyBulkAssignRequest $request,
+        PropertyBulkAssignService $service,
+    ): JsonResponse {
+        return $this->json($service->assign(
+            $request->input('property_ids'),
+            User::findOrFail($request->integer('user_id')),
             $request->user(),
         ));
     }

@@ -78,6 +78,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0054](0054-detection-des-doublons-d-annonces.md) | Un doublon d'annonce se soupçonne par le dHash de la photo originale (quatre bandes indexées, seuil 3) et par l'adresse normalisée, entre publieurs différents seulement ; il entre dans la file de la plateforme et n'est jamais masqué seul ; un avis suspect est un drapeau de tri | Accepté |
 | [0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) | L'impersonation est une session de lecture de 15 minutes, dont le jeton ne quitte jamais le serveur du front | Accepté |
 | [0057](0057-instantanes-quotidiens-des-metriques-plateforme.md) | Une ligne par jour, `platform_metrics_daily`, écrite à 00:30 pour la veille : flux du jour et stocks mesurés à l'exécution ; un rattrapage ne remplit que les flux ; une tendance n'est montrée que si l'instantané de J-30 la mesure ; le MRR exclut les essais au point mesuré | Accepté |
+| [0059](0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md) | Changer l'agent responsable passe par un seul service (unitaire, lot, passation, réparation) ; la passation verrouille les biens avant les lignes ; seule l'ancienne réattribution porte la signature que la réparation lit | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

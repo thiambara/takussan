@@ -27,7 +27,7 @@ class AgentHandoverController extends Controller
             'user_id' => $user->id,
             'portfolio' => $this->handover->inventory($agency, $user),
             'transferable' => AgentPortfolio::TRANSFERABLE,
-            // Comptées, pas encore transmises : elles attendent TCK-504 (ADR-0036).
+            // Comptées, non transmises : aucune depuis TCK-603 ; la clé reste pour l'assistant.
             'pending' => AgentPortfolio::PENDING,
         ]]);
     }

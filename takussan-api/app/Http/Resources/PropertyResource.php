@@ -5,7 +5,6 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
-use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
@@ -14,6 +13,7 @@ use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
@@ -22,6 +22,12 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyResource extends BaseResource
 {
+    /** La moyenne des avis approuvés de l'agence, quand l'appelant l'a préchargée (`withAvg`). */
+    public const AGENCY_RATING = 'approved_reviews_avg_rating';
+
+    /** @var array{contact: ?User, principal: mixed, source: ?string}|null */
+    private ?array $contactResolu = null;
+
     private ?bool $watermarkRequired = null;
 
     /**
@@ -48,6 +54,12 @@ class PropertyResource extends BaseResource
         // et la fiche ne pouvait pas entrer dans un cache partagé.
         $surfacePublique = $request->routeIs('public.*');
         $appelantConnu = $request->user() !== null && ! $surfacePublique;
+        // TCK-603 — la liste pro et la réponse de « Changer l'agent responsable » rendent le contact
+        // principal à côté de `owner`, seulement si `agency_id` et `user_id` sont chargés : sans eux, la
+        // règle jugerait un bien d'agence comme celui d'un particulier.
+        $contactRendu = $isDetail || ($request->routeIs('properties.index', 'properties.assigned-agent.update')
+            && array_key_exists('agency_id', $this->resource->getAttributes())
+            && array_key_exists('user_id', $this->resource->getAttributes()));
         $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [
@@ -175,7 +187,21 @@ class PropertyResource extends BaseResource
             // et six surfaces le lisent pour ça (duplication, tableau de bord, politiques).
             // Redéfinir une clé existante aurait corrigé la fiche en cassant tout le reste en
             // silence. La clé neuve, elle, ne ment nulle part : là où elle manque, elle manque.
-            'primary_contact' => $this->when($isDetail, fn () => $this->buildPrimaryContact()),
+            //
+            // TCK-603 (ADR-0036) — la liste pro et la réponse de « Changer l'agent responsable »
+            // le rendent aussi, à côté de `owner` : l'écran distingue le propriétaire de l'agent
+            // responsable. Seulement si `agency_id` et `user_id` sont chargés — sans eux, la règle
+            // jugerait un bien d'agence comme celui d'un particulier.
+            'primary_contact' => $this->when($contactRendu, fn () => $this->buildPrimaryContact()),
+            // TCK-603 (ADR-0059 §6, verif-603 M2) — d'où vient ce contact : `designated`,
+            // `invitation_order`, `owner` ou `null`. L'écran distingue l'agent responsable du
+            // propriétaire par ce champ, jamais par `owner.id === primary_contact.id` — un agent qui a
+            // saisi le bien et en est responsable a les deux. Jamais sur `public.*` : c'est une donnée
+            // d'organisation de l'agence.
+            'primary_contact_source' => $this->when(
+                $contactRendu && ! $surfacePublique,
+                fn () => $this->contactResolu()['source']
+            ),
             // TCK-598 (B1) — JAMAIS sur une route `public.*`, quel que soit l'appelant : la part de
             // commission et le rôle d'un collaborateur sont des données d'agence. `show()` et
             // `compare()` chargent pourtant la relation, parce que `PrimaryPropertyContact` en a
@@ -312,17 +338,9 @@ class PropertyResource extends BaseResource
             return false;
         }
 
-        // Profils préchargés par la liste (`owner.agentProfiles`, actifs) : lus en mémoire. Le
-        // statut est relu ici, pour qu'un chargement non filtré ailleurs ne compte pas un profil
-        // suspendu.
-        if ($user->relationLoaded('agentProfiles')) {
-            return $user->agentProfiles->contains(
-                fn (AgentProfile $profile) => (int) $profile->agency_id === (int) $agencyId
-                    && $profile->status === AgentProfileStatus::Active,
-            );
-        }
-
-        return $user->isAgentAt((int) $agencyId);
+        // TCK-603 (verif-603 m4) — sur la liste, l'amorce de la page a déjà jugé le couple.
+        return MembershipCapabilityResolver::amorce('agent', (int) $user->id, (int) $agencyId)
+            ?? $user->isAgentAt((int) $agencyId);
     }
 
     /**
@@ -342,9 +360,20 @@ class PropertyResource extends BaseResource
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * La règle du contact, jugée une fois par ressource : `primary_contact` et
+     * `primary_contact_source` la lisent tous deux.
+     *
+     * @return array{contact: ?User, principal: mixed, source: ?string}
+     */
+    private function contactResolu(): array
+    {
+        return $this->contactResolu ??= PrimaryPropertyContact::resolve($this->resource);
+    }
+
     private function buildPrimaryContact(): ?array
     {
-        $contact = PrimaryPropertyContact::for($this->resource);
+        $contact = $this->contactResolu()['contact'];
 
         // TCK-590 — la fiche sait si le contact a un numéro, sans le révéler : sans numéro, ni
         // WhatsApp ni Appeler (qui menaient à une erreur). Le numéro lui-même ne sort qu'au geste
@@ -385,11 +414,14 @@ class PropertyResource extends BaseResource
             return null;
         }
 
-        $agencyRating = Review::query()
-            ->where('reviewable_type', Agency::class)
-            ->where('reviewable_id', $agency->id)
-            ->where('is_approved', true)
-            ->avg('rating');
+        // TCK-603 (verif-603 m4) — la liste précharge la moyenne (`PropertyController::index`).
+        $agencyRating = array_key_exists(self::AGENCY_RATING, $agency->getAttributes())
+            ? $agency->getAttribute(self::AGENCY_RATING)
+            : Review::query()
+                ->where('reviewable_type', Agency::class)
+                ->where('reviewable_id', $agency->id)
+                ->where('is_approved', true)
+                ->avg('rating');
 
         return [
             'id' => $agency->id,
